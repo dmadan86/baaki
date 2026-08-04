@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { ScrollView, TextInput, View } from 'react-native';
 
 import { isValidVpa } from '@baaki/core';
@@ -19,11 +20,31 @@ import {
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
-const COMING_LATER: { icon: keyof typeof Ionicons.glyphMap; label: string; hint: string }[] = [
-  { icon: 'notifications-outline', label: 'Notifications', hint: 'Only what involves me (M4)' },
-  { icon: 'download-outline', label: 'Export data', hint: 'JSON + CSV, lossless (M5)' },
-  { icon: 'cloud-upload-outline', label: 'Import from Splitwise', hint: 'M3' },
-  { icon: 'lock-closed-outline', label: 'App lock', hint: 'Biometric / PIN' },
+const SETTINGS: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  hint: string;
+  route?: string;
+}[] = [
+  {
+    icon: 'notifications-outline',
+    label: 'Notifications',
+    hint: 'Only what involves me',
+    route: '/settings/notifications',
+  },
+  {
+    icon: 'download-outline',
+    label: 'Export data',
+    hint: 'JSON + CSV, lossless, free',
+    route: '/settings/export',
+  },
+  {
+    icon: 'lock-closed-outline',
+    label: 'App lock',
+    hint: 'Biometrics or passcode',
+    route: '/settings/lock',
+  },
+  { icon: 'cloud-upload-outline', label: 'Import from Splitwise', hint: 'Coming in M3' },
 ];
 
 export default function ProfileScreen() {
@@ -142,13 +163,14 @@ export default function ProfileScreen() {
         ) : null}
 
         <View>
-          <SectionHeader title="Coming in later milestones" />
+          <SectionHeader title="Settings" />
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {COMING_LATER.map((item, index) => (
+            {SETTINGS.map((item, index) => (
               <View key={item.label}>
                 <ListRow
                   title={item.label}
                   subtitle={item.hint}
+                  onPress={item.route ? () => router.push(item.route as never) : undefined}
                   leading={
                     <View
                       style={{
@@ -157,14 +179,25 @@ export default function ProfileScreen() {
                         borderRadius: theme.radius.pill,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: theme.color.surfaceMuted,
+                        backgroundColor: item.route
+                          ? theme.color.brandSoft
+                          : theme.color.surfaceMuted,
                       }}
                     >
-                      <Ionicons name={item.icon} size={18} color={theme.color.textMuted} />
+                      <Ionicons
+                        name={item.icon}
+                        size={18}
+                        color={item.route ? theme.color.brand : theme.color.textMuted}
+                      />
                     </View>
                   }
+                  trailing={
+                    item.route ? (
+                      <Ionicons name="chevron-forward" size={18} color={theme.color.textFaint} />
+                    ) : null
+                  }
                 />
-                {index < COMING_LATER.length - 1 ? (
+                {index < SETTINGS.length - 1 ? (
                   <View style={{ height: 1, backgroundColor: theme.color.border }} />
                 ) : null}
               </View>

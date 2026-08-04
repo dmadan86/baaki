@@ -428,3 +428,61 @@ export async function revokeInvite(inviteId: string): Promise<void> {
     .eq('id', inviteId);
   if (error) throw new Error(error.message);
 }
+
+// ──────────────────────────────────────── export (ADR-012) ──
+
+export interface ExportResult {
+  filename: string;
+  contentType: string;
+  content: string;
+}
+
+export async function exportData(input: {
+  groupId?: string;
+  format: 'json' | 'csv';
+  csvSeparator?: string;
+}): Promise<ExportResult> {
+  const { data, error } = await supabase.functions.invoke('export-data', { body: input });
+  if (error) throw new Error(await readFunctionError(error));
+  return data as ExportResult;
+}
+
+// ─────────────────────────────── notification preferences (ADR-010) ──
+
+export interface NotificationPrefs {
+  /** Push only for things that involve me — the default that stops the spam. */
+  involvesMe: boolean;
+  groupActivityDigest: boolean;
+  settlementRequests: boolean;
+  nudges: boolean;
+  weeklyEmail: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  involvesMe: true,
+  groupActivityDigest: true,
+  settlementRequests: true,
+  nudges: true,
+  weeklyEmail: false,
+};
+
+export async function fetchNotificationPrefs(profileId: string): Promise<NotificationPrefs> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('notification_prefs')
+    .eq('id', profileId)
+    .single();
+  if (error) throw new Error(error.message);
+  return { ...DEFAULT_NOTIFICATION_PREFS, ...((data?.notification_prefs ?? {}) as object) };
+}
+
+export async function saveNotificationPrefs(
+  profileId: string,
+  prefs: NotificationPrefs,
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ notification_prefs: prefs })
+    .eq('id', profileId);
+  if (error) throw new Error(error.message);
+}

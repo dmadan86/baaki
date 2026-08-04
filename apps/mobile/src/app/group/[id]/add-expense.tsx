@@ -184,7 +184,16 @@ export default function AddExpenseScreen() {
               {group.data.name}
             </Text>
           </View>
-          <View style={{ width: 44 }} />
+          {editing ? (
+            <View style={{ width: 44 }} />
+          ) : (
+            <IconButton
+              label="Split by item"
+              onPress={() => router.replace(`/group/${groupId}/itemize`)}
+            >
+              <Ionicons name="list-outline" size={20} color={theme.color.brand} />
+            </IconButton>
+          )}
         </Row>
 
         {editing ? (

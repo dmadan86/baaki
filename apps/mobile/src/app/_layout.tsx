@@ -6,9 +6,10 @@ import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { ThemeProvider, useTheme } from '@baaki/ui';
+import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { LockProvider, useLock } from '@/lib/lock';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,14 +27,49 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <ThemeProvider>
-              <StatusBar style="auto" />
-              <AuthGate />
-            </ThemeProvider>
+            <LockProvider>
+              <ThemeProvider>
+                <StatusBar style="auto" />
+                <LockGate>
+                  <AuthGate />
+                </LockGate>
+              </ThemeProvider>
+            </LockProvider>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/** Holds the whole app behind biometrics when the user has asked for it. */
+function LockGate({ children }: { children: React.ReactNode }) {
+  const { locked, unlock } = useLock();
+  const theme = useTheme();
+
+  useEffect(() => {
+    if (locked) void unlock();
+  }, [locked, unlock]);
+
+  if (!locked) return <>{children}</>;
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing.xl,
+        backgroundColor: theme.color.bg,
+        padding: theme.spacing.xxxl,
+      }}
+    >
+      <Text style={{ fontSize: 44, lineHeight: 50, fontWeight: '700' }}>பாக்கி</Text>
+      <Text variant="caption" tone="muted" align="center">
+        Baaki is locked.
+      </Text>
+      <Button label="Unlock" size="lg" onPress={() => void unlock()} />
+    </View>
   );
 }
 
@@ -95,6 +131,13 @@ function AuthGate() {
         name="group/[id]/invite"
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
+      <Stack.Screen
+        name="group/[id]/itemize"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="settings/notifications" />
+      <Stack.Screen name="settings/export" />
+      <Stack.Screen name="settings/lock" />
       <Stack.Screen name="join" />
     </Stack>
   );
