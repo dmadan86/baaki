@@ -9,10 +9,10 @@ accepted architecture decisions) and [`baaki-tdr.md`](./baaki-tdr.md) (how to
 build them, milestone by milestone). **The ADRs are constraints, not
 suggestions** — if code and ADR disagree, the ADR wins.
 
-Current state: **M0 complete**, **M1 built and pending end-to-end verification**
-(auth, live groups and expenses, versioned edits, soft delete/restore,
-settlement recording and confirmation, realtime). M2 onwards — offline sync,
-invites and guest web, notifications, AI receipts — is not started.
+Current state: **M0 and M1 complete and verified against a live Supabase
+project**, plus most of the M3 growth loop (invite links, joining without an
+account, ghost claiming) and the M5 export. Still to come: offline sync (M2),
+Splitwise import (M3), push/email delivery (M4), and the AI receipt scan (M5).
 
 ## Layout
 
@@ -46,7 +46,24 @@ pnpm test:db
 
 Requires Node 24+, pnpm 11+, and Docker.
 
-### Running the full stack (M1)
+### Screens
+
+Sign in (phone OTP or guest) · Home · Activity · Account · New group ·
+Group (expenses / balances / activity) · Expense detail with version history ·
+Add or edit expense · Split by item · Settle up · Who pays whom · Members ·
+Member detail · Group settings · Invite · Join from a link ·
+Notification preferences · App lock · Export.
+
+### Edge functions
+
+| Function        | What it owns                                                                |
+| --------------- | --------------------------------------------------------------------------- |
+| `expense-write` | Recomputes every share with `@baaki/core` and writes the expense atomically |
+| `invite-mint`   | Signed, expiring, revocable invite links (only a hash is stored)            |
+| `invite-accept` | Preview without an account, join, and ghost claiming                        |
+| `export-data`   | Lossless JSON and CSV export                                                |
+
+### Running the full stack
 
 The app talks to Supabase, so it needs the local stack rather than the bare
 Postgres container above:
@@ -64,7 +81,18 @@ pnpm mobile
 ```
 
 `supabase start` pulls ~10 container images the first time; on a slow or
-proxied network that can take a while.
+proxied network that can take a while. To work against a hosted project
+instead, point `packages/db/.env` at it and deploy the functions with
+`pnpm edge:deploy`.
+
+### Acceptance runs
+
+These talk to a real Supabase project and are the reason M1 is called done:
+
+```bash
+ANON_KEY=... SERVICE_KEY=... node e2e/m1-acceptance.mjs   # 26 checks
+ANON_KEY=... SERVICE_KEY=... node e2e/m3-invites.mjs      # 20 checks
+```
 
 ## The invariants
 
