@@ -110,110 +110,44 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Members must all belong to this group — a caller cannot smuggle in
-    // somebody else's member id (ADR-013).
-    const referenced = new Set<string>([...body.participants, ...payers.map(([id]) => id)]);
-    const { data: validMembers, error: membersError } = await service
-      .from('group_members')
-      .select('id')
-      .eq('group_id', body.groupId)
-      .in('id', [...referenced]);
-    if (membersError) throw new HttpError(500, 'INTERNAL', membersError.message);
-    if ((validMembers?.length ?? 0) !== referenced.size) {
-      throw new HttpError(400, 'UNKNOWN_MEMBER', 'Some members are not in this group');
+    // One RPC, one transaction. Writing the version, the payers and the shares
+    // as separate PostgREST calls would let the Σpayers = Σshares = amount
+    // trigger fire against a half-written expense — and a crash in between
+    // would leave a version with no shares in the ledger.
+    const { data: applied, error: applyError } = await service.rpc('baaki_apply_expense', {
+      p_group_id: body.groupId,
+      p_expense_id: body.expenseId ?? expenseId,
+      p_author_member_id: memberId,
+      p_description: body.description,
+      p_category: body.category ?? null,
+      p_expense_date: body.expenseDate,
+      p_currency: body.currency.toUpperCase(),
+      p_amount: amount.toString(),
+      p_split_type: body.splitParams.kind,
+      p_split_params: body.splitParams,
+      p_payers: payers.map(([id, value]) => ({ memberId: id, amount: value.toString() })),
+      p_shares: [...shares].map(([id, value]) => ({ memberId: id, amount: value.toString() })),
+      p_client_mutation_id: body.clientMutationId,
+      p_notes: body.notes ?? null,
+      p_receipt_id: body.receiptId ?? null,
+    });
+
+    if (applyError) {
+      // Surface the database's own vocabulary — UNKNOWN_MEMBER, WRONG_GROUP,
+      // SHARE_MISMATCH — instead of a generic 500.
+      const code = /^([A-Z_]+):/.exec(applyError.message)?.[1];
+      throw new HttpError(code ? 400 : 500, code ?? 'INTERNAL', applyError.message);
     }
 
-    let versionNo = 1;
-    if (body.expenseId) {
-      const { data: expense, error } = await service
-        .from('expenses')
-        .select('id, group_id, deleted_at')
-        .eq('id', body.expenseId)
-        .maybeSingle();
-      if (error) throw new HttpError(500, 'INTERNAL', error.message);
-      if (!expense) throw new HttpError(404, 'NOT_FOUND', 'No such expense');
-      if (expense.group_id !== body.groupId) {
-        throw new HttpError(400, 'WRONG_GROUP', 'That expense belongs to another group');
-      }
-
-      const { data: latest } = await service
-        .from('expense_versions')
-        .select('version_no')
-        .eq('expense_id', body.expenseId)
-        .order('version_no', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      versionNo = (latest?.version_no ?? 0) + 1;
-    } else {
-      const { error } = await service
-        .from('expenses')
-        .insert({ id: expenseId, group_id: body.groupId, created_by: memberId });
-      if (error) throw new HttpError(500, 'INTERNAL', error.message);
-    }
-
-    const versionId = crypto.randomUUID();
-    const { error: versionError } = await service.from('expense_versions').insert({
-      id: versionId,
-      expense_id: expenseId,
-      version_no: versionNo,
-      author_member_id: memberId,
-      description: body.description,
-      category: body.category ?? null,
-      expense_date: body.expenseDate,
-      currency: body.currency.toUpperCase(),
-      amount: amount.toString(),
-      split_type: body.splitParams.kind,
-      split_params: body.splitParams,
-      receipt_id: body.receiptId ?? null,
-      notes: body.notes ?? null,
-      client_mutation_id: body.clientMutationId,
-    });
-    if (versionError) throw new HttpError(500, 'INTERNAL', versionError.message);
-
-    const { error: payersError } = await service.from('expense_payers').insert(
-      payers.map(([id, value]) => ({
-        expense_version_id: versionId,
-        member_id: id,
-        amount: value.toString(),
-      })),
-    );
-    if (payersError) throw new HttpError(500, 'INTERNAL', payersError.message);
-
-    const { error: sharesError } = await service.from('expense_shares').insert(
-      [...shares].map(([id, value]) => ({
-        expense_version_id: versionId,
-        member_id: id,
-        amount: value.toString(),
-      })),
-    );
-    if (sharesError) throw new HttpError(500, 'INTERNAL', sharesError.message);
-
-    // Pointing current_version_id at the new row is what makes the edit live;
-    // the balance triggers fire from here.
-    const { error: pointerError } = await service
-      .from('expenses')
-      .update({ current_version_id: versionId })
-      .eq('id', expenseId);
-    if (pointerError) throw new HttpError(500, 'INTERNAL', pointerError.message);
-
-    await service.from('activity_log').insert({
-      group_id: body.groupId,
-      actor_member_id: memberId,
-      verb: versionNo === 1 ? 'added' : 'edited',
-      object_type: 'expense',
-      object_id: expenseId,
-      payload: {
-        description: body.description,
-        amount: amount.toString(),
-        currency: body.currency.toUpperCase(),
-        versionNo,
-      },
-    });
+    const result = applied as {
+      expenseId: string;
+      versionId: string;
+      versionNo: number;
+      replayed: boolean;
+    };
 
     return json({
-      expenseId,
-      versionId,
-      versionNo,
+      ...result,
       shares: Object.fromEntries([...shares].map(([id, value]) => [id, value.toString()])),
     });
   } catch (error) {

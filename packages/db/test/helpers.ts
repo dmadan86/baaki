@@ -5,10 +5,13 @@ import 'dotenv/config';
 
 import { computeShares } from '@baaki/core';
 
+/**
+ * Deliberately NOT DATABASE_URL / DIRECT_URL: those point at whichever project
+ * the developer is currently deploying to, and this suite creates, mutates and
+ * deletes rows freely. It only ever talks to an explicitly-named test database.
+ */
 export const CONNECTION_STRING =
-  process.env.DIRECT_URL ??
-  process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:54329/baaki';
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54330/baaki';
 
 export async function connect(): Promise<Client> {
   const client = new Client({ connectionString: CONNECTION_STRING });

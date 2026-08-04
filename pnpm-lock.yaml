@@ -133,6 +133,12 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  e2e:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.112.0
+        version: 2.112.0
+
   packages/core:
     devDependencies:
       esbuild:

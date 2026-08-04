@@ -260,3 +260,166 @@ describe('baaki_my_member_id', () => {
     expect(theirs).toBeNull();
   });
 });
+
+describe('baaki_apply_expense (atomic write)', () => {
+  const applyExpense = async (params: {
+    groupId: string;
+    author: string;
+    amount: bigint;
+    payers: { memberId: string; amount: string }[];
+    shares: { memberId: string; amount: string }[];
+    expenseId?: string | null;
+    mutationId?: string | null;
+  }) => {
+    const result = await client.query(
+      `SELECT baaki_apply_expense($1, $2, $3, 'Dinner', NULL, '2026-03-01', 'INR', $4,
+                                  'equal', '{"kind":"equal"}'::jsonb, $5::jsonb, $6::jsonb, $7)
+         AS out`,
+      [
+        params.groupId,
+        params.expenseId ?? null,
+        params.author,
+        params.amount.toString(),
+        JSON.stringify(params.payers),
+        JSON.stringify(params.shares),
+        params.mutationId ?? null,
+      ],
+    );
+    return result.rows[0]?.out as {
+      expenseId: string;
+      versionId: string;
+      versionNo: number;
+      replayed: boolean;
+    };
+  };
+
+  it('writes the version, payers and shares in one transaction', async () => {
+    const { groupId, memberIds } = await seedGroup(client, { memberCount: 2 });
+    const [a, b] = memberIds as [string, string];
+
+    const written = await applyExpense({
+      groupId,
+      author: a,
+      amount: 10000n,
+      payers: [{ memberId: a, amount: '10000' }],
+      shares: [
+        { memberId: a, amount: '5000' },
+        { memberId: b, amount: '5000' },
+      ],
+    });
+
+    expect(written.versionNo).toBe(1);
+    expect((await readBalances(client, groupId)).get(b)).toBe(-5000n);
+
+    const pointer = await client.query(`SELECT current_version_id FROM expenses WHERE id = $1`, [
+      written.expenseId,
+    ]);
+    expect(pointer.rows[0]?.current_version_id).toBe(written.versionId);
+  });
+
+  it('appends a version instead of rewriting one (ADR-004)', async () => {
+    const { groupId, memberIds } = await seedGroup(client, { memberCount: 2 });
+    const [a, b] = memberIds as [string, string];
+
+    const first = await applyExpense({
+      groupId,
+      author: a,
+      amount: 10000n,
+      payers: [{ memberId: a, amount: '10000' }],
+      shares: [
+        { memberId: a, amount: '5000' },
+        { memberId: b, amount: '5000' },
+      ],
+    });
+    const second = await applyExpense({
+      groupId,
+      author: a,
+      expenseId: first.expenseId,
+      amount: 20000n,
+      payers: [{ memberId: a, amount: '20000' }],
+      shares: [
+        { memberId: a, amount: '10000' },
+        { memberId: b, amount: '10000' },
+      ],
+    });
+
+    expect(second.versionNo).toBe(2);
+    expect(second.expenseId).toBe(first.expenseId);
+    expect((await readBalances(client, groupId)).get(b)).toBe(-10000n);
+
+    const versions = await client.query(
+      `SELECT count(*)::int AS count FROM expense_versions WHERE expense_id = $1`,
+      [first.expenseId],
+    );
+    expect(versions.rows[0]?.count).toBe(2);
+  });
+
+  it('is idempotent on the client mutation id (ADR-005)', async () => {
+    const { groupId, memberIds } = await seedGroup(client, { memberCount: 2 });
+    const [a, b] = memberIds as [string, string];
+    const mutationId = randomUUID();
+    const params = {
+      groupId,
+      author: a,
+      amount: 6000n,
+      payers: [{ memberId: a, amount: '6000' }],
+      shares: [
+        { memberId: a, amount: '3000' },
+        { memberId: b, amount: '3000' },
+      ],
+      mutationId,
+    };
+
+    const first = await applyExpense(params);
+    const replay = await applyExpense(params);
+    expect(replay.replayed).toBe(true);
+    expect(replay.versionId).toBe(first.versionId);
+
+    const count = await client.query(
+      `SELECT count(*)::int AS count FROM expense_versions WHERE expense_id = $1`,
+      [first.expenseId],
+    );
+    expect(count.rows[0]?.count).toBe(1);
+  });
+
+  it('refuses members who belong to another group (ADR-013)', async () => {
+    const { groupId, memberIds } = await seedGroup(client, { memberCount: 2 });
+    const other = await seedGroup(client, { memberCount: 1 });
+    const [a, b] = memberIds as [string, string];
+
+    expect(
+      await expectDenied(
+        applyExpense({
+          groupId,
+          author: a,
+          amount: 1000n,
+          payers: [{ memberId: a, amount: '1000' }],
+          shares: [
+            { memberId: b, amount: '500' },
+            { memberId: other.memberIds[0] as string, amount: '500' },
+          ],
+        }),
+      ),
+    ).toMatch(/UNKNOWN_MEMBER/);
+  });
+
+  it('still enforces the money invariant inside the transaction', async () => {
+    const { groupId, memberIds } = await seedGroup(client, { memberCount: 2 });
+    const [a, b] = memberIds as [string, string];
+
+    expect(
+      await expectDenied(
+        applyExpense({
+          groupId,
+          author: a,
+          amount: 10000n,
+          payers: [{ memberId: a, amount: '10000' }],
+          shares: [
+            { memberId: a, amount: '4000' },
+            { memberId: b, amount: '4000' },
+          ],
+        }),
+      ),
+    ).toMatch(/SHARE_MISMATCH/);
+  });
+});
