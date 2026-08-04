@@ -6,9 +6,9 @@
  * to the pair's overall balance oldest-expense-first.
  */
 
-import type { CurrencyCode } from '../money/currency.js';
-import type { MemberId } from '../split/types.js';
-import type { SettlementAllocation, SettlementSnapshot } from '../balances/types.js';
+import type { CurrencyCode } from '../money/currency';
+import type { MemberId } from '../split/types';
+import type { SettlementAllocation, SettlementSnapshot } from '../balances/types';
 
 export interface Receivable {
   readonly expenseId: string;

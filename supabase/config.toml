@@ -1,0 +1,60 @@
+# Local Supabase stack (ADR-002). `supabase start` boots Postgres, Auth,
+# Realtime, Storage and the Edge runtime; migrations are owned by Prisma
+# (packages/db) and applied against the direct connection, never by `supabase
+# db push`.
+
+project_id = "baaki"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+enabled = true
+port = 54329
+pool_mode = "transaction"
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+# Receipts live in a private bucket, reachable only through signed URLs
+# (ADR-013). The bucket itself is created by a migration in M5.
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "baaki://"
+additional_redirect_urls = ["baaki://", "http://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+# ADR-006: guests join a group from a link with no account at all.
+[auth.sms]
+enable_signup = true
+enable_confirmations = true
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+[analytics]
+enabled = false

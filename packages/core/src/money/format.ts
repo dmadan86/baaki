@@ -4,8 +4,8 @@
  * TDR §11: all money/date formatting is locale-aware.
  */
 
-import { minorUnitExponent, minorUnitScale, type CurrencyCode } from './currency.js';
-import { toMajorString, type Money } from './money.js';
+import { minorUnitExponent, minorUnitScale, type CurrencyCode } from './currency';
+import { toMajorString, type Money } from './money';
 
 export type Locale = 'en-IN' | 'ta-IN' | 'hi-IN' | (string & {});
 
@@ -69,7 +69,10 @@ export function moneyAccessibilityLabel(
   strings: { owedToYou: string; youOwe: string; settled: string },
   options: FormatOptions = {},
 ): string {
-  const rendered = format({ minor: amount.minor < 0n ? -amount.minor : amount.minor, currency: amount.currency }, options);
+  const rendered = format(
+    { minor: amount.minor < 0n ? -amount.minor : amount.minor, currency: amount.currency },
+    options,
+  );
   switch (direction) {
     case 'owed_to_you':
       return strings.owedToYou.replace('{amount}', rendered);

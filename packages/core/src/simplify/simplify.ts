@@ -12,9 +12,9 @@
  *  - deterministic ordering for identical input
  */
 
-import type { CurrencyCode } from '../money/currency.js';
-import type { NetBalances, PairwiseEdge } from '../balances/types.js';
-import type { MemberId } from '../split/types.js';
+import type { CurrencyCode } from '../money/currency';
+import type { NetBalances, PairwiseEdge } from '../balances/types';
+import type { MemberId } from '../split/types';
 
 export interface Transfer {
   readonly from: MemberId;
@@ -44,7 +44,8 @@ export function simplify(balances: NetBalances): Transfer[] {
     const byAmountThenId = (
       a: { member: MemberId; amount: bigint },
       b: { member: MemberId; amount: bigint },
-    ): number => (a.amount > b.amount ? -1 : a.amount < b.amount ? 1 : a.member.localeCompare(b.member));
+    ): number =>
+      a.amount > b.amount ? -1 : a.amount < b.amount ? 1 : a.member.localeCompare(b.member);
 
     while (debtors.length > 0 && creditors.length > 0) {
       debtors.sort(byAmountThenId);

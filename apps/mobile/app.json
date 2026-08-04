@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Baaki",
+    "slug": "baaki",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "baaki",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F3F1FB",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.baaki.mobile"
+    },
+    "android": {
+      "package": "app.baaki.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#7A5AF8",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#7A5AF8",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-secure-store",
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

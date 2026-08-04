@@ -1,6 +1,6 @@
 # Baaki — Technical Design Record (TDR)
 
-**Companion to:** `baaki-adr.md` (the ADRs are binding; this TDR describes *how* to build them).
+**Companion to:** `baaki-adr.md` (the ADRs are binding; this TDR describes _how_ to build them).
 **Audience:** Claude Code (or any engineer) implementing the product. Build in milestone order (§10); each milestone has acceptance criteria.
 
 ---
@@ -49,6 +49,7 @@ baaki/
 **Prisma is the schema source of truth and migration engine.** `packages/db` holds `schema.prisma`; `prisma migrate dev` generates versioned SQL migrations, applied to Supabase Postgres via the **direct (non-pooled) connection string**; runtime queries from edge functions use the pooled connection (Supabase pgbouncer) with `directUrl`/`url` split in the datasource block.
 
 Rules:
+
 - Everything Prisma can express (tables, columns, enums, indexes, FKs, uniques) lives in `schema.prisma`.
 - Everything Prisma cannot express — **RLS policies, security-definer functions, triggers, materialized views (`group_balances`), CHECK-by-trigger money invariants** — is written as raw SQL appended to the generated `migration.sql` files (Prisma's supported customize-migration workflow: `prisma migrate dev --create-only`, edit, then apply). These SQL blocks are part of the migration history and reviewed like code.
 - The Prisma schema must **exclude Supabase-managed schemas** (`auth`, `storage`, `realtime`) — set `schemas = ["public"]`; never migrate those.
@@ -147,18 +148,22 @@ pairwise_balances(group_id, from_member_id, to_member_id, currency, amount BIGIN
 ## 3. Core algorithms (`packages/core`)
 
 ### 3.1 Split computation
+
 `computeShares(amount, currency, splitType, params, members) → Map<memberId, minorUnits>`
+
 - equal: floor division + remainder rotation — sort members by ID, start offset = `hash(expenseId) % n`, hand out 1 minor unit each until remainder exhausted.
 - exact: must sum to amount (validate).
 - percent: integer basis points (10000 = 100%), same remainder rule.
 - shares/adjustment: weights → proportional; adjustments applied then residual split equally.
 - itemized: per-member item subtotals; shared items split equally among claimers (remainder rule); tax/tip/service/discount prorated by subtotal ratio; unclaimed items block finalization.
-**Invariant (property-tested):** `Σ shares === amount` for all inputs.
+  **Invariant (property-tested):** `Σ shares === amount` for all inputs.
 
 ### 3.2 Simplify debts
+
 `simplify(pairwiseBalances) → transfers[]` — per currency: net each member, greedy match max debtor ↔ max creditor. **Invariants:** transfers ≤ n−1; every member's net position unchanged; deterministic order. Presentation layer only (ADR-009).
 
 ### 3.3 Settlement application
+
 Allocations reduce specific expense receivables; unallocated amount applies oldest-expense-first between the pair. Balance views subtract `confirmed + auto_confirmed` settlements; `initiated` shows as "pending" (counted in an "if confirmed" preview, not the headline number).
 
 ---
@@ -188,6 +193,7 @@ Payer taps "Settle ₹420 with Priya"
  → Priya gets push: "Madan says he paid you ₹420 — confirm?" [Confirm → confirmed]
  → No response in 7 days → auto_confirmed (both notified); dispute reopens it
 ```
+
 Amounts always full precision; `tn` note ≤ UPI limit; iOS: UPI apps installed → same intent works, else show VPA + copy button + QR.
 
 ## 6. Receipt AI pipeline (ADR-008)

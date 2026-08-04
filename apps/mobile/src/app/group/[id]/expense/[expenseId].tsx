@@ -1,0 +1,277 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  IconButton,
+  ListRow,
+  MoneyText,
+  Row,
+  Screen,
+  SectionHeader,
+  Text,
+  useTheme,
+} from '@baaki/ui';
+
+import {
+  memberLookup,
+  useDeleteExpense,
+  useExpenseVersions,
+  useGroup,
+  useRestoreExpense,
+} from '@/data/hooks';
+import { displayName, isGhost } from '@/data/types';
+import { useStrings } from '@/i18n';
+import { useAuth } from '@/lib/auth';
+
+const SPLIT_LABELS: Record<string, string> = {
+  equal: 'Split equally',
+  exact: 'Exact amounts',
+  percent: 'By percentage',
+  shares: 'By shares',
+  adjustment: 'With adjustments',
+  itemized: 'Itemized',
+};
+
+export default function ExpenseDetailScreen() {
+  const theme = useTheme();
+  const { locale } = useStrings();
+  const { id, expenseId } = useLocalSearchParams<{ id: string; expenseId: string }>();
+  const groupId = id ?? '';
+  const { profile } = useAuth();
+
+  const { group, members, expenses } = useGroup(groupId);
+  const versions = useExpenseVersions(expenseId ?? '');
+  const deleteExpense = useDeleteExpense(groupId);
+  const restoreExpense = useRestoreExpense(groupId);
+
+  const expense = expenses.data?.find((row) => row.id === expenseId);
+  const version = expense?.currentVersion;
+  const lookup = memberLookup(members.data);
+  const nameOf = (memberId: string | null): string => {
+    const member = memberId ? lookup.get(memberId) : undefined;
+    return member ? displayName(member, profile?.id) : 'Someone';
+  };
+
+  if (expenses.isLoading) {
+    return (
+      <Screen>
+        <View style={{ padding: theme.spacing.xl }}>
+          <ActivityIndicator color={theme.color.brand} />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!expense || !version) {
+    return (
+      <Screen>
+        <EmptyState
+          title="Expense not found"
+          body="It may have been deleted more than 30 days ago."
+          action={<Button label="Back" onPress={() => router.back()} />}
+        />
+      </Screen>
+    );
+  }
+
+  const currency = version.currency;
+  const deleted = Boolean(expense.deleted_at);
+
+  const confirmDelete = (): void => {
+    Alert.alert(
+      'Delete this expense?',
+      'It stops counting towards balances but stays in the activity feed, and anyone in the group can restore it for 30 days.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteExpense.mutate(expense.id, { onSuccess: () => router.back() });
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <Screen>
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingBottom: theme.spacing.xxxl,
+          gap: theme.spacing.xl,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Row style={{ paddingTop: theme.spacing.md }}>
+          <IconButton label="Back" onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+          </IconButton>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text variant="heading" numberOfLines={1}>
+              {version.description}
+            </Text>
+            <Text variant="micro" tone="muted">
+              {group.data?.name}
+            </Text>
+          </View>
+          <IconButton
+            label="Edit"
+            onPress={() => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`)}
+          >
+            <Ionicons name="create-outline" size={18} color={theme.color.text} />
+          </IconButton>
+        </Row>
+
+        <Card style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+          <MoneyText
+            amount={BigInt(version.amount)}
+            currency={currency}
+            locale={locale}
+            variant="display"
+          />
+          <Text variant="caption" tone="muted">
+            {`${nameOf(version.payers[0]?.member_id ?? null)} paid · ${new Intl.DateTimeFormat(
+              locale,
+              { day: 'numeric', month: 'long', year: 'numeric' },
+            ).format(new Date(version.expense_date))}`}
+          </Text>
+          <Row style={{ gap: theme.spacing.sm }}>
+            <Badge label={SPLIT_LABELS[version.split_type] ?? version.split_type} tone="brand" />
+            {version.version_no > 1 ? <Badge label={`edited ${version.version_no - 1}×`} /> : null}
+            {deleted ? <Badge label="deleted" tone="negative" /> : null}
+          </Row>
+        </Card>
+
+        {version.payers.length > 1 ? (
+          <View>
+            <SectionHeader title="Paid by" />
+            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+              {version.payers.map((payer, index) => (
+                <View key={payer.member_id}>
+                  <ListRow
+                    title={nameOf(payer.member_id)}
+                    leading={<Avatar name={nameOf(payer.member_id)} size={38} />}
+                    trailing={
+                      <MoneyText
+                        amount={BigInt(payer.amount)}
+                        currency={currency}
+                        locale={locale}
+                        variant="caption"
+                      />
+                    }
+                  />
+                  {index < version.payers.length - 1 ? (
+                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                  ) : null}
+                </View>
+              ))}
+            </Card>
+          </View>
+        ) : null}
+
+        <View>
+          <SectionHeader title="Who owes what" />
+          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+            {version.shares.map((share, index) => {
+              const member = lookup.get(share.member_id);
+              return (
+                <View key={share.member_id}>
+                  <ListRow
+                    title={nameOf(share.member_id)}
+                    subtitle={member && isGhost(member) ? 'not joined yet' : undefined}
+                    leading={
+                      <Avatar
+                        name={nameOf(share.member_id)}
+                        ghost={member ? isGhost(member) : false}
+                        size={38}
+                      />
+                    }
+                    trailing={
+                      <MoneyText
+                        amount={BigInt(share.amount)}
+                        currency={currency}
+                        locale={locale}
+                        variant="caption"
+                      />
+                    }
+                  />
+                  {index < version.shares.length - 1 ? (
+                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                  ) : null}
+                </View>
+              );
+            })}
+          </Card>
+        </View>
+
+        {/* ADR-004: every edit is kept, and the group can see what changed. */}
+        <View>
+          <SectionHeader title="History" />
+          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+            {(versions.data ?? []).map((entry, index) => (
+              <View key={entry.id}>
+                <ListRow
+                  title={entry.description}
+                  subtitle={`v${entry.version_no} · ${nameOf(entry.author_member_id)} · ${new Intl.DateTimeFormat(
+                    locale,
+                    { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' },
+                  ).format(new Date(entry.created_at))}`}
+                  leading={
+                    <Avatar
+                      name={`v${entry.version_no}`}
+                      emoji={entry.version_no === 1 ? '🧾' : '✏️'}
+                      size={38}
+                    />
+                  }
+                  trailing={
+                    <MoneyText
+                      amount={BigInt(entry.amount)}
+                      currency={entry.currency}
+                      locale={locale}
+                      variant="caption"
+                    />
+                  }
+                />
+                {index < (versions.data?.length ?? 0) - 1 ? (
+                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                ) : null}
+              </View>
+            ))}
+          </Card>
+        </View>
+
+        {deleted ? (
+          <Button
+            label="Restore this expense"
+            size="lg"
+            fullWidth
+            disabled={restoreExpense.isPending}
+            onPress={() => restoreExpense.mutate(expense.id)}
+          />
+        ) : (
+          <Button
+            label="Delete expense"
+            variant="ghost"
+            size="lg"
+            fullWidth
+            disabled={deleteExpense.isPending}
+            onPress={confirmDelete}
+          />
+        )}
+
+        <Text variant="micro" tone="faint" align="center">
+          Nothing here is ever overwritten. Every version above is kept, and a deleted expense can
+          be brought back for 30 days.
+        </Text>
+      </ScrollView>
+    </Screen>
+  );
+}

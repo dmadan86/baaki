@@ -1,0 +1,108 @@
+name: CI
+
+# ADR-014: merges are blocked on all four suites. A money app with offline sync
+# has two catastrophic failure modes — wrong balances and lost data — and both
+# are testable, so they are tested on every push.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
+  SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki_shadow?schema=public
+
+jobs:
+  static:
+    name: typecheck + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The edge functions import a bundled copy of @baaki/core; build it first
+      # so a broken bundle fails here rather than at deploy time.
+      - run: pnpm edge:build
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+
+  money:
+    name: money property tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Shares sum to the total, balances sum to zero, simplification preserves
+      # every net position, FX is reproducible.
+      - run: pnpm test:core
+
+  database:
+    name: migrations, RLS policies and ledger invariants
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: baaki
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create the shadow database used by the drift check
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE baaki_shadow'
+
+      # Every migration must apply cleanly to an empty database — including the
+      # hand-written RLS / trigger / derived-balance SQL.
+      - name: Apply migrations to a fresh database
+        run: pnpm db:migrate
+
+      # Guards schema.prisma against the applied migrations (TDR §2.0).
+      - name: Prisma drift check
+        run: pnpm db:drift
+
+      # RLS allow/deny matrix + the money invariants, against real Postgres.
+      # TEST_DATABASE_URL is named separately from DATABASE_URL on purpose: this
+      # suite creates, mutates and deletes rows freely, so it must never inherit
+      # whichever project a developer is currently pointed at (packages/db/test/helpers.ts).
+      - name: Policy and invariant tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+        run: pnpm test:db
+
+  e2e:
+    name: e2e (Maestro)
+    runs-on: ubuntu-latest
+    # Enabled once a build profile exists; the flow itself is committed so the
+    # happy path is reviewed alongside the code that implements it.
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "maestro test e2e/"

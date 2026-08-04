@@ -30,3 +30,10 @@ supabase/.temp/
 Thumbs.db
 *.log
 coverage/
+
+# local web export used for visual checks
+.tmp-web-export/
+
+# generated: core bundled for the Deno edge runtime
+supabase/functions/_shared/core.js
+packages/core/dist/

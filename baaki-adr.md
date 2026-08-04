@@ -49,6 +49,7 @@
 **Context.** Competitors suffer destructive deletes (one member erases an expense for everyone), sync corruption, and un-auditable balances. Trust in the number IS the product.
 
 **Decision.**
+
 - `expenses` and `settlements` rows are **never hard-deleted or updated in place**. Edits create a new `expense_versions` row; deletes set `deleted_at` (soft) — restorable by any group member for 30 days; every change lands in an `activity_log` visible to the group.
 - **Balances are always derived** by aggregating expense_shares and settlements — never stored as a mutable running total. A materialized `group_balances` view (refreshed transactionally via triggers) provides fast reads; the ground-truth query must reproduce it exactly (invariant-tested in CI: sum of all balances in a group ≡ 0 per currency).
 
@@ -75,6 +76,7 @@
 **Context.** #2 category complaint: forcing every participant to install + register. Tricount/Kittysplit prove link-joining grows adoption.
 
 **Decision.**
+
 - Any member can create a **group invite link** (signed, revocable, expiring token minted by an Edge Function).
 - Opening the link in a browser shows a **read-write web-lite group view** (Supabase **anonymous auth** session) — view balances, add expenses — no install, no account. The page upsells the app but never blocks.
 - Members can add **ghost participants** by name only ("Rahul"). A ghost holds shares/balances like anyone. When a real person joins via link, they can **claim** a ghost (organizer confirms) and inherit its history atomically.
@@ -91,6 +93,7 @@
 **Context.** Top structural gap in the market: India has no Splitwise-class app with real UPI settlement. Holding/moving money requires PSP licensing; deep links don't.
 
 **Decision.**
+
 - Settlement launches a standard **UPI intent URI** (`upi://pay?pa=<vpa>&pn=<name>&am=<amount>&cu=INR&tn=<note>`), opening the payer's chooser (GPay/PhonePe/Paytm/any UPI app). Users store an optional VPA (UPI ID) on their profile; per-group override allowed.
 - Baaki records the settlement with a two-step state machine: `initiated → confirmed` (payee taps "received" or payer marks paid and payee gets a confirm nudge; auto-confirm after 7 days with notification). We do **not** attempt callback verification of UPI success in v1 (intent flow offers none reliably).
 - **Partial and per-expense settlement is first-class** (the 985-vote gap): a settlement row can carry `allocations[] = {expense_id, amount}`; unallocated amounts apply to overall balance oldest-first. Cash/bank settlements use the same flow minus the deep link.
@@ -106,6 +109,7 @@
 **Context.** 2026 table stakes; must handle Indian receipts (Tamil/Hindi/regional scripts), photos from gallery, and pasted text bills (Swiggy/Zomato/WhatsApp) — all things Splitwise fails at. API keys must never ship in the client.
 
 **Decision.**
+
 - Client uploads image (or pastes text) → Supabase Storage → **Edge Function** calls a **vision-capable LLM (Claude API)** with a strict JSON schema: `{merchant, date, currency, items[{label, qty, unit_price, total}], subtotal, taxes[], service_charge, tip, discounts[], grand_total}`; validate that items+taxes reconcile to the printed total, else flag low-confidence lines for user correction (editable review screen — AI proposes, human confirms).
 - Itemized claiming: each participant taps their items on their own phone (Tab-style, realtime via Supabase Realtime); shared items split equally among claimers; **tax/tip/service prorated proportionally** to each person's item subtotal (deterministic rounding per ADR-009).
 - Free tier: generous scan quota (e.g., 20/month); metered because each scan has real API cost — consistent with ADR-011 (convenience is monetizable, ledger is not).
@@ -121,9 +125,10 @@
 **Context.** Split math must be exact, reproducible on every device, and never leak paise.
 
 **Decision.**
+
 - **Split types:** equal, exact amounts, percentages, shares/weights, +/- adjustments, itemized (ADR-008). Multiple payers per expense supported.
 - **Remainder rule:** integer division distributes the remainder one minor unit at a time in a **deterministic order** (participants sorted by stable member ID, offset rotated by `expense_id` hash so the same person doesn't always eat the extra paisa). Property test: shares always sum exactly to the total.
-- **Simplify debts:** per-currency **min-cash-flow** (greedy max-debtor→max-creditor matching), as a *suggestion layer only* — underlying pairwise ledger is preserved, so toggling simplification never rewrites history. Per-group setting, on by default for trip groups.
+- **Simplify debts:** per-currency **min-cash-flow** (greedy max-debtor→max-creditor matching), as a _suggestion layer only_ — underlying pairwise ledger is preserved, so toggling simplification never rewrites history. Per-group setting, on by default for trip groups.
 
 **Consequences.** Identical results client-side (offline preview) and server-side (truth); simplification stays explainable ("why am I paying Priya?" → expandable derivation).
 
@@ -191,19 +196,19 @@
 
 ## Decision summary table
 
-| # | Decision | One-liner |
-|---|---|---|
-| 001 | Expo React Native | One codebase, Android-first reality, OTA updates |
-| 002 | Supabase | Postgres truth + auth + realtime + edge functions |
-| 003 | Integer minor units | No float money, ever |
-| 004 | Append-only ledger | Derived balances, soft delete, full audit |
-| 005 | Offline-first + mutation queue | SQLite mirror, idempotent sync |
-| 006 | Invite links + ghost members | No forced signup; claimable history |
-| 007 | UPI intent links | Settlement without a license; partial/per-expense first-class |
-| 008 | Server-side vision LLM | Free-quota AI itemization, regional scripts, text bills |
-| 009 | Deterministic split math | Remainder rotation; min-cash-flow suggestions |
-| 010 | Push-first notifications | Only-what-involves-me defaults |
-| 011 | Monetization guardrails | Ledger free forever; sell convenience |
-| 012 | Lossless export + Splitwise import | Portability as growth loop |
-| 013 | RLS everywhere | Client assumed hostile |
-| 014 | Property/sync/RLS/E2E tests | Balances provably correct |
+| #   | Decision                           | One-liner                                                     |
+| --- | ---------------------------------- | ------------------------------------------------------------- |
+| 001 | Expo React Native                  | One codebase, Android-first reality, OTA updates              |
+| 002 | Supabase                           | Postgres truth + auth + realtime + edge functions             |
+| 003 | Integer minor units                | No float money, ever                                          |
+| 004 | Append-only ledger                 | Derived balances, soft delete, full audit                     |
+| 005 | Offline-first + mutation queue     | SQLite mirror, idempotent sync                                |
+| 006 | Invite links + ghost members       | No forced signup; claimable history                           |
+| 007 | UPI intent links                   | Settlement without a license; partial/per-expense first-class |
+| 008 | Server-side vision LLM             | Free-quota AI itemization, regional scripts, text bills       |
+| 009 | Deterministic split math           | Remainder rotation; min-cash-flow suggestions                 |
+| 010 | Push-first notifications           | Only-what-involves-me defaults                                |
+| 011 | Monetization guardrails            | Ledger free forever; sell convenience                         |
+| 012 | Lossless export + Splitwise import | Portability as growth loop                                    |
+| 013 | RLS everywhere                     | Client assumed hostile                                        |
+| 014 | Property/sync/RLS/E2E tests        | Balances provably correct                                     |

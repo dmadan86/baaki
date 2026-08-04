@@ -1,4 +1,4 @@
-import type { CurrencyCode } from '../money/currency.js';
+import type { CurrencyCode } from '../money/currency';
 
 export type MemberId = string;
 
@@ -60,12 +60,7 @@ export interface ItemizedParams {
 }
 
 export type SplitParams =
-  | EqualParams
-  | ExactParams
-  | PercentParams
-  | SharesParams
-  | AdjustmentParams
-  | ItemizedParams;
+  EqualParams | ExactParams | PercentParams | SharesParams | AdjustmentParams | ItemizedParams;
 
 export interface ComputeSharesInput {
   /** Expense total in minor units. */

@@ -1,0 +1,570 @@
+// Baaki data model — TDR §2. Prisma is the schema source of truth (TDR §2.0).
+//
+// Rules that this file obeys:
+//  * Every money column is BigInt minor units (ADR-003). No Float, no Decimal.
+//  * Only the `public` schema is ever migrated — auth/storage/realtime belong to
+//    Supabase and must never appear here.
+//  * Anything Prisma cannot express (RLS policies, security-definer functions,
+//    triggers, derived-balance maintenance) lives as raw SQL inside the
+//    migrations, reviewed like code.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled (pgbouncer) connection used at runtime by edge functions.
+  url       = env("DATABASE_URL")
+  // Direct connection used by migrations.
+  directUrl = env("DIRECT_URL")
+  schemas   = ["public"]
+}
+
+// ─────────────────────────────────────────────────────────────── enums ──
+
+enum GroupType {
+  trip
+  home
+  couple
+  event
+  other
+
+  @@schema("public")
+}
+
+enum MemberRole {
+  admin
+  member
+
+  @@schema("public")
+}
+
+enum SplitType {
+  equal
+  exact
+  percent
+  shares
+  adjustment
+  itemized
+
+  @@schema("public")
+}
+
+enum SettlementMethod {
+  upi
+  cash
+  bank
+  other
+
+  @@schema("public")
+}
+
+enum SettlementStatus {
+  initiated
+  confirmed
+  auto_confirmed
+  disputed
+  cancelled
+
+  @@schema("public")
+}
+
+enum ReceiptSource {
+  camera
+  gallery
+  text_paste
+
+  @@schema("public")
+}
+
+enum ParseStatus {
+  pending
+  parsed
+  failed
+  needs_review
+
+  @@schema("public")
+}
+
+enum DevicePlatform {
+  ios
+  android
+
+  @@schema("public")
+}
+
+enum DeliveryStatus {
+  queued
+  sent
+  delivered
+  failed
+  bounced
+  complained
+
+  @@schema("public")
+}
+
+// ──────────────────────────────────────────────────────────── identity ──
+
+/// Mirrors auth.users 1:1. No FK across schemas — Supabase owns `auth`; the
+/// row is created by a trigger on auth.users (see migration SQL).
+model Profile {
+  id                String   @id @db.Uuid
+  displayName       String   @map("display_name")
+  avatarUrl         String?  @map("avatar_url")
+  /// Optional UPI ID used to build settlement intents (ADR-007).
+  defaultVpa        String?  @map("default_vpa")
+  defaultCurrency   String   @default("INR") @map("default_currency") @db.Char(3)
+  locale            String   @default("en")
+  notificationPrefs Json     @default("{}") @map("notification_prefs")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships       GroupMember[]
+  pushTokens        PushToken[]
+  notifications     Notification[]
+  emailEvents       EmailEvent[]
+  createdInvites    Invite[]        @relation("InviteCreatedBy")
+  usageEvents       UsageEvent[]
+
+  @@map("profiles")
+  @@schema("public")
+}
+
+// ────────────────────────────────────────────────── groups & membership ──
+
+model Group {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  type            GroupType @default(other)
+  defaultCurrency String    @default("INR") @map("default_currency") @db.Char(3)
+  /// ADR-009: simplification is a per-group presentation setting.
+  simplifyDebts   Boolean   @default(true) @map("simplify_debts")
+  coverEmoji      String?   @map("cover_emoji")
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdBy       String?   @map("created_by") @db.Uuid
+  /// Monotonic per-group counter driving the sync cursor (TDR §4).
+  updatedSeq      BigInt    @default(0) @map("updated_seq")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  members         GroupMember[]
+  invites         Invite[]
+  expenses        Expense[]
+  receipts        Receipt[]
+  settlements     Settlement[]
+  activity        ActivityLog[]
+  reminders       Reminder[]
+  balances        GroupBalance[]
+  pairwise        PairwiseBalance[]
+  notifications   Notification[]
+  usageEvents     UsageEvent[]
+
+  @@index([archivedAt])
+  @@map("groups")
+  @@schema("public")
+}
+
+/// A member is either a real profile or a ghost (name only) — ADR-006.
+/// Exactly one of profile_id / ghost_name is set (CHECK in migration SQL).
+model GroupMember {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId    String     @map("group_id") @db.Uuid
+  profileId  String?    @map("profile_id") @db.Uuid
+  ghostName  String?    @map("ghost_name")
+  role       MemberRole @default(member)
+  /// How they got here: 'creator' | 'invite_link' | 'ghost' | 'import'.
+  joinedVia  String?    @map("joined_via")
+  /// Per-group override of the profile's default VPA.
+  vpa        String?
+  leftAt     DateTime?  @map("left_at") @db.Timestamptz(6)
+  updatedSeq BigInt     @default(0) @map("updated_seq")
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  profile    Profile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  authoredVersions   ExpenseVersion[] @relation("VersionAuthor")
+  paidFor            ExpensePayer[]
+  owes               ExpenseShare[]
+  settlementsSent    Settlement[]     @relation("SettlementFrom")
+  settlementsGot     Settlement[]     @relation("SettlementTo")
+  itemClaims         ReceiptItemClaim[]
+  activity           ActivityLog[]
+  remindersSent      Reminder[]       @relation("ReminderFrom")
+  remindersGot       Reminder[]       @relation("ReminderTo")
+  balances           GroupBalance[]
+  pairwiseFrom       PairwiseBalance[] @relation("PairwiseFrom")
+  pairwiseTo         PairwiseBalance[] @relation("PairwiseTo")
+  createdExpenses    Expense[]        @relation("ExpenseCreatedBy")
+  deletedExpenses    Expense[]        @relation("ExpenseDeletedBy")
+
+  @@unique([groupId, profileId])
+  @@index([groupId])
+  @@map("group_members")
+  @@schema("public")
+}
+
+/// Signed, revocable, expiring invite tokens (ADR-006). Only the hash is
+/// stored; the token itself is verified inside an edge function.
+model Invite {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String    @map("group_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  createdBy String?   @map("created_by") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  maxUses   Int       @default(50) @map("max_uses")
+  useCount  Int       @default(0) @map("use_count")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator   Profile?  @relation("InviteCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@map("invites")
+  @@schema("public")
+}
+
+// ──────────────────────────────────────────────────────────── expenses ──
+
+/// Append-only shell (ADR-004). Current state = the version pointed at by
+/// current_version_id. Deletes are soft and restorable for 30 days.
+model Expense {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId          String    @map("group_id") @db.Uuid
+  currentVersionId String?   @unique @map("current_version_id") @db.Uuid
+  createdBy        String?   @map("created_by") @db.Uuid
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy        String?   @map("deleted_by") @db.Uuid
+  updatedSeq       BigInt    @default(0) @map("updated_seq")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group          Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator        GroupMember?     @relation("ExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  deleter        GroupMember?     @relation("ExpenseDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
+  currentVersion ExpenseVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions       ExpenseVersion[] @relation("ExpenseVersions")
+  allocations    SettlementAllocation[]
+
+  @@index([groupId, deletedAt])
+  @@map("expenses")
+  @@schema("public")
+}
+
+/// Immutable. An edit inserts a new version; nothing is ever updated in place.
+model ExpenseVersion {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId        String    @map("expense_id") @db.Uuid
+  versionNo        Int       @map("version_no")
+  authorMemberId   String?   @map("author_member_id") @db.Uuid
+  description      String
+  category         String?
+  expenseDate      DateTime  @map("expense_date") @db.Date
+  currency         String    @db.Char(3)
+  amount           BigInt
+  splitType        SplitType @map("split_type")
+  /// Weights / percents / adjustments / item claims — the server recomputes
+  /// shares from this and rejects any client that disagrees (TDR §4).
+  splitParams      Json      @map("split_params")
+  /// {num, den, ts, source} when the expense currency ≠ the group currency.
+  fx               Json?
+  receiptId        String?   @map("receipt_id") @db.Uuid
+  notes            String?
+  /// Idempotency key from the offline mutation queue (ADR-005).
+  clientMutationId String?   @unique @map("client_mutation_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  expense       Expense        @relation("ExpenseVersions", fields: [expenseId], references: [id], onDelete: Cascade)
+  currentOf     Expense?       @relation("CurrentVersion")
+  author        GroupMember?   @relation("VersionAuthor", fields: [authorMemberId], references: [id], onDelete: SetNull)
+  receipt       Receipt?       @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  payers        ExpensePayer[]
+  shares        ExpenseShare[]
+
+  @@unique([expenseId, versionNo])
+  @@index([expenseId])
+  @@map("expense_versions")
+  @@schema("public")
+}
+
+/// Multi-payer support: who actually put money down (TDR §3.1).
+model ExpensePayer {
+  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseVersionId String @map("expense_version_id") @db.Uuid
+  memberId         String @map("member_id") @db.Uuid
+  amount           BigInt
+
+  version ExpenseVersion @relation(fields: [expenseVersionId], references: [id], onDelete: Cascade)
+  member  GroupMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseVersionId, memberId])
+  @@map("expense_payers")
+  @@schema("public")
+}
+
+/// Server-computed shares. Σ payers = Σ shares = amount (trigger-enforced).
+model ExpenseShare {
+  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseVersionId String @map("expense_version_id") @db.Uuid
+  memberId         String @map("member_id") @db.Uuid
+  amount           BigInt
+
+  version ExpenseVersion @relation(fields: [expenseVersionId], references: [id], onDelete: Cascade)
+  member  GroupMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseVersionId, memberId])
+  @@map("expense_shares")
+  @@schema("public")
+}
+
+// ────────────────────────────────────────────── receipts & itemization ──
+
+model Receipt {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String        @map("group_id") @db.Uuid
+  /// Path inside the private Storage bucket; served via signed URL only.
+  storagePath String?       @map("storage_path")
+  source      ReceiptSource
+  rawText     String?       @map("raw_text")
+  parseStatus ParseStatus   @default(pending) @map("parse_status")
+  /// Strict JSON schema from the vision model (TDR §6).
+  parsed      Json?
+  confidence  Json?
+  createdBy   String?       @map("created_by") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group    Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  claims   ReceiptItemClaim[]
+  versions ExpenseVersion[]
+
+  @@index([groupId])
+  @@map("receipts")
+  @@schema("public")
+}
+
+/// Live item claiming — each participant taps their own lines (ADR-008).
+model ReceiptItemClaim {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptId String   @map("receipt_id") @db.Uuid
+  itemIndex Int      @map("item_index")
+  memberId  String   @map("member_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  receipt Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  member  GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([receiptId, itemIndex, memberId])
+  @@map("receipt_item_claims")
+  @@schema("public")
+}
+
+// ───────────────────────────────────────────────────────── settlements ──
+
+model Settlement {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId          String           @map("group_id") @db.Uuid
+  fromMemberId     String           @map("from_member_id") @db.Uuid
+  toMemberId       String           @map("to_member_id") @db.Uuid
+  currency         String           @db.Char(3)
+  amount           BigInt
+  method           SettlementMethod
+  status           SettlementStatus @default(initiated)
+  note             String?
+  initiatedAt      DateTime         @default(now()) @map("initiated_at") @db.Timestamptz(6)
+  confirmedAt      DateTime?        @map("confirmed_at") @db.Timestamptz(6)
+  clientMutationId String?          @unique @map("client_mutation_id") @db.Uuid
+  updatedSeq       BigInt           @default(0) @map("updated_seq")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group       Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMember  GroupMember            @relation("SettlementFrom", fields: [fromMemberId], references: [id], onDelete: Cascade)
+  toMember    GroupMember            @relation("SettlementTo", fields: [toMemberId], references: [id], onDelete: Cascade)
+  allocations SettlementAllocation[]
+
+  @@index([groupId, status])
+  @@map("settlements")
+  @@schema("public")
+}
+
+/// Partial / per-expense settlement — the 985-vote gap (ADR-007).
+model SettlementAllocation {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settlementId String @map("settlement_id") @db.Uuid
+  expenseId    String @map("expense_id") @db.Uuid
+  amount       BigInt
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  expense    Expense    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@unique([settlementId, expenseId])
+  @@map("settlement_allocations")
+  @@schema("public")
+}
+
+// ────────────────────────────────────────── audit, reminders, comms ──
+
+model ActivityLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId       String   @map("group_id") @db.Uuid
+  actorMemberId String?  @map("actor_member_id") @db.Uuid
+  verb          String
+  objectType    String   @map("object_type")
+  objectId      String?  @map("object_id") @db.Uuid
+  payload       Json     @default("{}")
+  updatedSeq    BigInt   @default(0) @map("updated_seq")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  group Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actor GroupMember? @relation(fields: [actorMemberId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
+  @@map("activity_log")
+  @@schema("public")
+}
+
+model Reminder {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId      String    @map("group_id") @db.Uuid
+  fromMemberId String    @map("from_member_id") @db.Uuid
+  toMemberId   String    @map("to_member_id") @db.Uuid
+  dueDate      DateTime? @map("due_date") @db.Date
+  lastNudgedAt DateTime? @map("last_nudged_at") @db.Timestamptz(6)
+  auto         Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMember GroupMember @relation("ReminderFrom", fields: [fromMemberId], references: [id], onDelete: Cascade)
+  toMember   GroupMember @relation("ReminderTo", fields: [toMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, fromMemberId, toMemberId])
+  @@map("reminders")
+  @@schema("public")
+}
+
+model PushToken {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId     String         @map("profile_id") @db.Uuid
+  expoPushToken String         @unique @map("expo_push_token")
+  platform      DevicePlatform
+  deviceName    String?        @map("device_name")
+  lastSeenAt    DateTime       @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt     DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("push_tokens")
+  @@schema("public")
+}
+
+/// The in-app inbox is the ledger of record for everything we sent (TDR §7.1).
+model Notification {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId   String          @map("profile_id") @db.Uuid
+  groupId     String?         @map("group_id") @db.Uuid
+  kind        String
+  title       String
+  body        String
+  deepLink    String?         @map("deep_link")
+  payload     Json            @default("{}")
+  channels    String[]
+  pushStatus  DeliveryStatus? @map("push_status")
+  emailStatus DeliveryStatus? @map("email_status")
+  readAt      DateTime?       @map("read_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  group   Group?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  emails  EmailEvent[]
+
+  @@index([profileId, readAt])
+  @@map("notifications")
+  @@schema("public")
+}
+
+/// Fed by the Resend webhook; hard bounce or complaint suppresses future
+/// non-transactional mail (TDR §7.3).
+model EmailEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  notificationId String?  @map("notification_id") @db.Uuid
+  profileId      String   @map("profile_id") @db.Uuid
+  resendEmailId  String?  @map("resend_email_id")
+  template       String
+  event          String
+  payload        Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  profile      Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@map("email_events")
+  @@schema("public")
+}
+
+/// Per-scan cost + quota metering for the AI receipt pipeline (ADR-008/011).
+model UsageEvent {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId    String   @map("profile_id") @db.Uuid
+  groupId      String?  @map("group_id") @db.Uuid
+  kind         String
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  /// Cost in minor units of `currency`, so COGS is exact money too.
+  costMinor    BigInt   @default(0) @map("cost_minor")
+  currency     String   @default("USD") @db.Char(3)
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, createdAt])
+  @@map("usage_events")
+  @@schema("public")
+}
+
+// ───────────────────────────────────────────────── derived (trigger-fed) ──
+
+/// Maintained transactionally by trigger. The aggregate query in
+/// `baaki_group_balances_truth()` is the ground truth; CI asserts they match
+/// and that Σ balance = 0 per (group, currency) — ADR-004.
+model GroupBalance {
+  groupId   String   @map("group_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  currency  String   @db.Char(3)
+  balance   BigInt   @default(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group  Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, memberId, currency])
+  @@map("group_balances")
+  @@schema("public")
+}
+
+model PairwiseBalance {
+  groupId      String   @map("group_id") @db.Uuid
+  fromMemberId String   @map("from_member_id") @db.Uuid
+  toMemberId   String   @map("to_member_id") @db.Uuid
+  currency     String   @db.Char(3)
+  amount       BigInt   @default(0)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMember GroupMember @relation("PairwiseFrom", fields: [fromMemberId], references: [id], onDelete: Cascade)
+  toMember   GroupMember @relation("PairwiseTo", fields: [toMemberId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, fromMemberId, toMemberId, currency])
+  @@map("pairwise_balances")
+  @@schema("public")
+}

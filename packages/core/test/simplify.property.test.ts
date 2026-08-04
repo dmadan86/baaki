@@ -81,17 +81,31 @@ describe('simplify', () => {
 
   it('collapses a circular debt into nothing', () => {
     // a owes b 100, b owes c 100, c owes a 100 → everyone is square.
-    const balances: NetBalances = new Map([[INR, new Map([['a', 0n], ['b', 0n], ['c', 0n]])]]);
+    const balances: NetBalances = new Map([
+      [
+        INR,
+        new Map([
+          ['a', 0n],
+          ['b', 0n],
+          ['c', 0n],
+        ]),
+      ],
+    ]);
     expect(simplify(balances)).toEqual([]);
   });
 
   it('turns a chain into a single payment', () => {
     // a owes 100, b is square, c is owed 100.
     const balances: NetBalances = new Map([
-      [INR, new Map([['a', -10000n], ['b', 0n], ['c', 10000n]])],
+      [
+        INR,
+        new Map([
+          ['a', -10000n],
+          ['b', 0n],
+          ['c', 10000n],
+        ]),
+      ],
     ]);
-    expect(simplify(balances)).toEqual([
-      { from: 'a', to: 'c', currency: INR, amount: 10000n },
-    ]);
+    expect(simplify(balances)).toEqual([{ from: 'a', to: 'c', currency: INR, amount: 10000n }]);
   });
 });

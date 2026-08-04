@@ -105,10 +105,7 @@ describe('UPI intent (ADR-007: Baaki never moves the money)', () => {
     expect(isValidVpa('9876543210@ybl')).toBe(true);
     expect(isValidVpa('not-a-vpa')).toBe(false);
     expect(() =>
-      buildUpiIntentUri(
-        { vpa: 'nope', payeeName: 'X', amount: 1n, currency: 'INR' },
-        formatMajor,
-      ),
+      buildUpiIntentUri({ vpa: 'nope', payeeName: 'X', amount: 1n, currency: 'INR' }, formatMajor),
     ).toThrowError(SettlementError);
   });
 });

@@ -39,11 +39,17 @@ const en: CopyStrings = {
     netNegative: 'Your baaki is {amount}',
   },
   notifications: {
-    expense_added: { title: '{actor} added an expense', body: '{description} · {amount} in {group}' },
+    expense_added: {
+      title: '{actor} added an expense',
+      body: '{description} · {amount} in {group}',
+    },
     expense_edited: { title: '{actor} edited an expense', body: '{description} in {group}' },
     expense_deleted: { title: '{actor} removed an expense', body: '{description} in {group}' },
     you_owe: { title: 'You owe {amount}', body: '{description} in {group}' },
-    settlement_initiated: { title: '{actor} paid you {amount}', body: 'Tap to confirm you received it' },
+    settlement_initiated: {
+      title: '{actor} paid you {amount}',
+      body: 'Tap to confirm you received it',
+    },
     settlement_confirm_request: {
       title: '{actor} says they paid you {amount}',
       body: 'Confirm so your baaki stays right',
@@ -52,7 +58,7 @@ const en: CopyStrings = {
     nudge: { title: 'A gentle nudge from {actor}', body: '{amount} pending in {group}' },
     ghost_claimed: { title: '{actor} joined {group}', body: 'Their past expenses are now linked' },
     group_invite_accepted: { title: '{actor} joined {group}', body: 'Say hello' },
-    digest_daily: { title: "Today in {group}", body: '{count} updates · your baaki is {amount}' },
+    digest_daily: { title: 'Today in {group}', body: '{count} updates · your baaki is {amount}' },
   },
 };
 
@@ -65,11 +71,17 @@ const ta: CopyStrings = {
     netNegative: 'உங்கள் பாக்கி {amount}',
   },
   notifications: {
-    expense_added: { title: '{actor} ஒரு செலவைச் சேர்த்தார்', body: '{description} · {amount} ({group})' },
+    expense_added: {
+      title: '{actor} ஒரு செலவைச் சேர்த்தார்',
+      body: '{description} · {amount} ({group})',
+    },
     expense_edited: { title: '{actor} செலவைத் திருத்தினார்', body: '{description} ({group})' },
     expense_deleted: { title: '{actor} செலவை நீக்கினார்', body: '{description} ({group})' },
     you_owe: { title: 'நீங்கள் {amount} தர வேண்டும்', body: '{description} ({group})' },
-    settlement_initiated: { title: '{actor} உங்களுக்கு {amount} அனுப்பியுள்ளார்', body: 'கிடைத்ததா என உறுதிப்படுத்தவும்' },
+    settlement_initiated: {
+      title: '{actor} உங்களுக்கு {amount} அனுப்பியுள்ளார்',
+      body: 'கிடைத்ததா என உறுதிப்படுத்தவும்',
+    },
     settlement_confirm_request: {
       title: '{actor} {amount} கொடுத்ததாகச் சொல்கிறார்',
       body: 'உறுதிப்படுத்தினால் பாக்கி சரியாக இருக்கும்',
