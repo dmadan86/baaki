@@ -1,1 +1,1 @@
-export * from './copy.js';
+export * from './copy';

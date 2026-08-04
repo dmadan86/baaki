@@ -1,5 +1,5 @@
-import type { CurrencyCode } from '../money/currency.js';
-import type { MemberId } from '../split/types.js';
+import type { CurrencyCode } from '../money/currency';
+import type { MemberId } from '../split/types';
 
 /** The current version of an expense, flattened to what balances need. */
 export interface ExpenseSnapshot {
@@ -18,11 +18,7 @@ export interface ExpenseSnapshot {
 }
 
 export type SettlementStatus =
-  | 'initiated'
-  | 'confirmed'
-  | 'auto_confirmed'
-  | 'disputed'
-  | 'cancelled';
+  'initiated' | 'confirmed' | 'auto_confirmed' | 'disputed' | 'cancelled';
 
 export interface SettlementAllocation {
   readonly expenseId: string;

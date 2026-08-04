@@ -1,0 +1,37 @@
+# Maestro flow (ADR-014). M0 covers only what exists today: launch, read the
+# headline balance, open a group, reach the add-expense screen and use the
+# built-in calculator. The full happy path from TDR §10 — invite guest, scan
+# receipt, claim items, UPI settle, confirm — lands with M3–M5.
+appId: app.baaki.mobile
+---
+- launchApp:
+    clearState: true
+
+# Home
+- assertVisible: 'Your baaki'
+- assertVisible: 'Your groups'
+- assertVisible: 'Goa trip'
+
+# Group
+- tapOn: 'Goa trip'
+- assertVisible: 'Settle up'
+- assertVisible: 'Beach shack dinner'
+
+# Balances tab shows every member, including the unclaimed ghost
+- tapOn: 'Balances'
+- assertVisible: 'Priya'
+- assertVisible: 'not joined yet'
+
+# Add expense, with the calculator in the amount field
+- tapOn: 'Expenses'
+- tapOn: 'Add expense'
+- assertVisible: 'What was it for?'
+- tapOn: '1'
+- tapOn: '2'
+- tapOn: '0'
+- tapOn: '0'
+- assertVisible: '1200.00'
+- tapOn:
+    id: 'Split between'
+    optional: true
+- tapOn: 'Save expense'

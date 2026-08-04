@@ -10,8 +10,7 @@ export const memberIds = (min = 1, max = 8): fc.Arbitrary<MemberId[]> =>
   );
 
 /** Realistic expense totals: ₹0 to ₹1,00,000 in paise. */
-export const amounts = (max = 10_000_000n): fc.Arbitrary<bigint> =>
-  fc.bigInt({ min: 0n, max });
+export const amounts = (max = 10_000_000n): fc.Arbitrary<bigint> => fc.bigInt({ min: 0n, max });
 
 export const positiveAmounts = (max = 10_000_000n): fc.Arbitrary<bigint> =>
   fc.bigInt({ min: 1n, max });
@@ -24,7 +23,10 @@ export const basisPointSplit = (
   members: readonly MemberId[],
 ): fc.Arbitrary<Record<MemberId, number>> =>
   fc
-    .array(fc.integer({ min: 0, max: 100 }), { minLength: members.length, maxLength: members.length })
+    .array(fc.integer({ min: 0, max: 100 }), {
+      minLength: members.length,
+      maxLength: members.length,
+    })
     .map((rawWeights) => {
       const total = rawWeights.reduce((sum, weight) => sum + weight, 0);
       const weights = total === 0 ? rawWeights.map(() => 1) : rawWeights;
@@ -42,11 +44,12 @@ export const basisPointSplit = (
       return result;
     });
 
-export const weightSplit = (
-  members: readonly MemberId[],
-): fc.Arbitrary<Record<MemberId, number>> =>
+export const weightSplit = (members: readonly MemberId[]): fc.Arbitrary<Record<MemberId, number>> =>
   fc
-    .array(fc.integer({ min: 0, max: 20 }), { minLength: members.length, maxLength: members.length })
+    .array(fc.integer({ min: 0, max: 20 }), {
+      minLength: members.length,
+      maxLength: members.length,
+    })
     .map((weights) => {
       const result: Record<MemberId, number> = {};
       members.forEach((member, index) => {

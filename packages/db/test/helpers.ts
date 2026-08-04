@@ -113,10 +113,11 @@ export async function addEqualSplitExpense(
   });
 
   await client.query('BEGIN');
-  await client.query(
-    `INSERT INTO expenses (id, group_id, created_by) VALUES ($1, $2, $3)`,
-    [expenseId, groupId, participants[0] ?? null],
-  );
+  await client.query(`INSERT INTO expenses (id, group_id, created_by) VALUES ($1, $2, $3)`, [
+    expenseId,
+    groupId,
+    participants[0] ?? null,
+  ]);
   await client.query(
     `INSERT INTO expense_versions
        (id, expense_id, version_no, author_member_id, description, expense_date,
@@ -147,10 +148,7 @@ export async function addEqualSplitExpense(
   return { expenseId, versionId, shares };
 }
 
-export async function readBalances(
-  client: Client,
-  groupId: string,
-): Promise<Map<string, bigint>> {
+export async function readBalances(client: Client, groupId: string): Promise<Map<string, bigint>> {
   const result = await client.query(
     `SELECT member_id, balance FROM group_balances WHERE group_id = $1`,
     [groupId],

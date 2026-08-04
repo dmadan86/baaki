@@ -6,10 +6,10 @@
  * Deno edge functions, so all three compute identical money.
  */
 
-export * from './money/index.js';
-export * from './split/index.js';
-export * from './balances/index.js';
-export * from './simplify/index.js';
-export * from './settlement/index.js';
-export * from './sync/index.js';
-export * from './notifications/index.js';
+export * from './money/index';
+export * from './split/index';
+export * from './balances/index';
+export * from './simplify/index';
+export * from './settlement/index';
+export * from './sync/index';
+export * from './notifications/index';

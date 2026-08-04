@@ -30,3 +30,6 @@ supabase/.temp/
 Thumbs.db
 *.log
 coverage/
+
+# local web export used for visual checks
+.tmp-web-export/

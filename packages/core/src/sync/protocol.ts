@@ -8,9 +8,9 @@
  * network can never double-post an expense.
  */
 
-import type { CurrencyCode } from '../money/currency.js';
-import type { MemberId, SplitParams } from '../split/types.js';
-import type { SettlementAllocation, SettlementStatus } from '../balances/types.js';
+import type { CurrencyCode } from '../money/currency';
+import type { MemberId, SplitParams } from '../split/types';
+import type { SettlementAllocation, SettlementStatus } from '../balances/types';
 
 export type MutationKind =
   | 'expense.create'

@@ -11,7 +11,7 @@ import {
   distributeRemainder,
   rotationOffset,
   stableOrder,
-} from './remainder.js';
+} from './remainder';
 import {
   SplitError,
   type ComputeSharesInput,
@@ -20,7 +20,7 @@ import {
   type ShareMap,
   type SplitParams,
   type SplitType,
-} from './types.js';
+} from './types';
 
 const TOTAL_BASIS_POINTS = 10000;
 

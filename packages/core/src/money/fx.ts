@@ -3,8 +3,8 @@
  * its provenance, so any conversion can be reproduced byte-for-byte later.
  */
 
-import { MoneyError, minorUnitExponent, type CurrencyCode } from './currency.js';
-import { divideRoundHalfAwayFromZero, money, type Money } from './money.js';
+import { MoneyError, minorUnitExponent, type CurrencyCode } from './currency';
+import { divideRoundHalfAwayFromZero, money, type Money } from './money';
 
 export interface FxRate {
   /** Rate as an exact rational: 1 unit of `from` = num/den units of `to`. */
@@ -23,7 +23,10 @@ export function fxRate(rate: FxRate): FxRate {
     throw new MoneyError('INVALID_FX_RATE', 'FX rate numerator and denominator must be positive');
   }
   if (rate.from === rate.to) {
-    throw new MoneyError('INVALID_FX_RATE', 'FX rate must convert between two different currencies');
+    throw new MoneyError(
+      'INVALID_FX_RATE',
+      'FX rate must convert between two different currencies',
+    );
   }
   return rate;
 }

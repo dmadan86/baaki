@@ -5,7 +5,7 @@
  * different expenses → a different person absorbs the extra paisa.
  */
 
-import type { MemberId } from './types.js';
+import type { MemberId } from './types';
 
 /** FNV-1a 32-bit. Chosen for being tiny, stable, and identical in TS and SQL. */
 export function fnv1a32(input: string): number {

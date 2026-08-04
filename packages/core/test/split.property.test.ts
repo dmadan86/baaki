@@ -39,9 +39,7 @@ describe('computeShares — Σ shares === amount', () => {
   it('holds for exact splits', () => {
     fc.assert(
       fc.property(
-        memberIds().chain((members) =>
-          exactSplit(members).map((split) => ({ members, split })),
-        ),
+        memberIds().chain((members) => exactSplit(members).map((split) => ({ members, split }))),
         seeds(),
         ({ members, split }, seed) => {
           const shares = computeShares({
@@ -82,7 +80,9 @@ describe('computeShares — Σ shares === amount', () => {
   it('holds for weighted (shares) splits', () => {
     fc.assert(
       fc.property(
-        memberIds().chain((members) => weightSplit(members).map((weights) => ({ members, weights }))),
+        memberIds().chain((members) =>
+          weightSplit(members).map((weights) => ({ members, weights })),
+        ),
         amounts(),
         seeds(),
         ({ members, weights }, amount, seed) => {

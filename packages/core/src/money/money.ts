@@ -11,7 +11,7 @@ import {
   minorUnitExponent,
   minorUnitScale,
   type CurrencyCode,
-} from './currency.js';
+} from './currency';
 
 export interface Money {
   /** Integer minor units. Negative means "owes". */

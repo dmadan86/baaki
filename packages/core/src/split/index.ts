@@ -1,3 +1,3 @@
-export * from './types.js';
-export * from './remainder.js';
-export * from './computeShares.js';
+export * from './types';
+export * from './remainder';
+export * from './computeShares';

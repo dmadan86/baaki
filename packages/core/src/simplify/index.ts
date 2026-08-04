@@ -1,1 +1,1 @@
-export * from './simplify.js';
+export * from './simplify';

@@ -193,7 +193,9 @@ describe('derived balances', () => {
       computeNetBalances([expense], [pending], { includePending: true }).get(INR)?.get('ravi'),
     ).toBe(0n);
     expect(
-      computeNetBalances([expense], [{ ...pending, status: 'confirmed' }]).get(INR)?.get('ravi'),
+      computeNetBalances([expense], [{ ...pending, status: 'confirmed' }])
+        .get(INR)
+        ?.get('ravi'),
     ).toBe(0n);
   });
 });
