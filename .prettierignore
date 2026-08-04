@@ -1,0 +1,6 @@
+node_modules
+dist
+.expo
+packages/db/generated
+packages/db/prisma/migrations
+pnpm-lock.yaml

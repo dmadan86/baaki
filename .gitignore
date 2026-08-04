@@ -1,0 +1,32 @@
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# expo
+.expo/
+.expo-shared/
+web-build/
+apps/mobile/ios/
+apps/mobile/android/
+
+# env & secrets (ADR-013: keys only in edge-function env)
+.env
+.env.*
+!.env.example
+
+# prisma
+packages/db/generated/
+
+# supabase local stack
+supabase/.branches/
+supabase/.temp/
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
+coverage/

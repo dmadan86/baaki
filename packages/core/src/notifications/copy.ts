@@ -1,0 +1,120 @@
+/**
+ * Centralised notification + money copy (TDR §7.1), en / ta / hi.
+ * Tone rule from ADR-010: friendly vasool, never collection-agency.
+ * `{placeholders}` are substituted by the caller.
+ */
+
+export type LanguageCode = 'en' | 'ta' | 'hi';
+
+export type NotificationKind =
+  | 'expense_added'
+  | 'expense_edited'
+  | 'expense_deleted'
+  | 'you_owe'
+  | 'settlement_initiated'
+  | 'settlement_confirm_request'
+  | 'settlement_confirmed'
+  | 'nudge'
+  | 'ghost_claimed'
+  | 'group_invite_accepted'
+  | 'digest_daily';
+
+export interface CopyStrings {
+  readonly money: {
+    readonly owedToYou: string;
+    readonly youOwe: string;
+    readonly settled: string;
+    readonly netPositive: string;
+    readonly netNegative: string;
+  };
+  readonly notifications: Readonly<Record<NotificationKind, { title: string; body: string }>>;
+}
+
+const en: CopyStrings = {
+  money: {
+    owedToYou: 'You are owed {amount}',
+    youOwe: 'You owe {amount}',
+    settled: 'All settled',
+    netPositive: 'You are owed {amount} overall',
+    netNegative: 'Your baaki is {amount}',
+  },
+  notifications: {
+    expense_added: { title: '{actor} added an expense', body: '{description} · {amount} in {group}' },
+    expense_edited: { title: '{actor} edited an expense', body: '{description} in {group}' },
+    expense_deleted: { title: '{actor} removed an expense', body: '{description} in {group}' },
+    you_owe: { title: 'You owe {amount}', body: '{description} in {group}' },
+    settlement_initiated: { title: '{actor} paid you {amount}', body: 'Tap to confirm you received it' },
+    settlement_confirm_request: {
+      title: '{actor} says they paid you {amount}',
+      body: 'Confirm so your baaki stays right',
+    },
+    settlement_confirmed: { title: 'Settled with {actor}', body: '{amount} in {group}' },
+    nudge: { title: 'A gentle nudge from {actor}', body: '{amount} pending in {group}' },
+    ghost_claimed: { title: '{actor} joined {group}', body: 'Their past expenses are now linked' },
+    group_invite_accepted: { title: '{actor} joined {group}', body: 'Say hello' },
+    digest_daily: { title: "Today in {group}", body: '{count} updates · your baaki is {amount}' },
+  },
+};
+
+const ta: CopyStrings = {
+  money: {
+    owedToYou: 'உங்களுக்கு {amount} வர வேண்டும்',
+    youOwe: 'நீங்கள் {amount} தர வேண்டும்',
+    settled: 'எல்லாம் சரி',
+    netPositive: 'மொத்தம் உங்களுக்கு {amount} வர வேண்டும்',
+    netNegative: 'உங்கள் பாக்கி {amount}',
+  },
+  notifications: {
+    expense_added: { title: '{actor} ஒரு செலவைச் சேர்த்தார்', body: '{description} · {amount} ({group})' },
+    expense_edited: { title: '{actor} செலவைத் திருத்தினார்', body: '{description} ({group})' },
+    expense_deleted: { title: '{actor} செலவை நீக்கினார்', body: '{description} ({group})' },
+    you_owe: { title: 'நீங்கள் {amount} தர வேண்டும்', body: '{description} ({group})' },
+    settlement_initiated: { title: '{actor} உங்களுக்கு {amount} அனுப்பியுள்ளார்', body: 'கிடைத்ததா என உறுதிப்படுத்தவும்' },
+    settlement_confirm_request: {
+      title: '{actor} {amount} கொடுத்ததாகச் சொல்கிறார்',
+      body: 'உறுதிப்படுத்தினால் பாக்கி சரியாக இருக்கும்',
+    },
+    settlement_confirmed: { title: '{actor} உடன் தீர்ந்தது', body: '{amount} ({group})' },
+    nudge: { title: '{actor} இடமிருந்து ஒரு நினைவூட்டல்', body: '{group} இல் {amount} பாக்கி' },
+    ghost_claimed: { title: '{actor} {group} இல் இணைந்தார்', body: 'பழைய செலவுகள் இணைக்கப்பட்டன' },
+    group_invite_accepted: { title: '{actor} {group} இல் இணைந்தார்', body: 'வரவேற்கலாம்' },
+    digest_daily: { title: 'இன்று {group} இல்', body: '{count} புதுப்பிப்புகள் · பாக்கி {amount}' },
+  },
+};
+
+const hi: CopyStrings = {
+  money: {
+    owedToYou: 'आपको {amount} मिलने हैं',
+    youOwe: 'आपको {amount} देने हैं',
+    settled: 'सब हिसाब बराबर',
+    netPositive: 'कुल मिलाकर आपको {amount} मिलने हैं',
+    netNegative: 'आपकी बाकी {amount} है',
+  },
+  notifications: {
+    expense_added: { title: '{actor} ने खर्च जोड़ा', body: '{description} · {amount} ({group})' },
+    expense_edited: { title: '{actor} ने खर्च बदला', body: '{description} ({group})' },
+    expense_deleted: { title: '{actor} ने खर्च हटाया', body: '{description} ({group})' },
+    you_owe: { title: 'आपको {amount} देने हैं', body: '{description} ({group})' },
+    settlement_initiated: { title: '{actor} ने आपको {amount} भेजे', body: 'मिलने की पुष्टि करें' },
+    settlement_confirm_request: {
+      title: '{actor} कहते हैं उन्होंने {amount} भेजे',
+      body: 'पुष्टि करें ताकि बाकी सही रहे',
+    },
+    settlement_confirmed: { title: '{actor} के साथ हिसाब बराबर', body: '{amount} ({group})' },
+    nudge: { title: '{actor} की ओर से एक याद', body: '{group} में {amount} बाकी' },
+    ghost_claimed: { title: '{actor} {group} में शामिल हुए', body: 'पुराने खर्च जुड़ गए' },
+    group_invite_accepted: { title: '{actor} {group} में शामिल हुए', body: 'नमस्ते कहें' },
+    digest_daily: { title: 'आज {group} में', body: '{count} अपडेट · बाकी {amount}' },
+  },
+};
+
+export const COPY: Readonly<Record<LanguageCode, CopyStrings>> = { en, ta, hi };
+
+export function copyFor(language: string): CopyStrings {
+  const base = language.slice(0, 2).toLowerCase() as LanguageCode;
+  return COPY[base] ?? en;
+}
+
+export function interpolate(template: string, values: Readonly<Record<string, string>>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
+}

@@ -1,0 +1,29 @@
+{
+  "name": "baaki",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
+    "test": "pnpm -r --if-present run test",
+    "test:core": "pnpm --filter @baaki/core run test",
+    "test:db": "pnpm --filter @baaki/db run test",
+    "db:generate": "pnpm --filter @baaki/db run generate",
+    "db:migrate": "pnpm --filter @baaki/db run migrate:deploy",
+    "db:migrate:dev": "pnpm --filter @baaki/db run migrate:dev",
+    "db:drift": "pnpm --filter @baaki/db run drift",
+    "db:pg:up": "docker run -d --name baaki-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=baaki -p 54329:5432 postgres:16-alpine",
+    "db:pg:down": "docker rm -f baaki-pg",
+    "mobile": "pnpm --filter @baaki/mobile run start",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yml,yaml}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "~5.9.2"
+  }
+}

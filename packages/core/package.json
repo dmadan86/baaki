@@ -1,0 +1,28 @@
+{
+  "name": "@baaki/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./money": "./src/money/index.ts",
+    "./split": "./src/split/index.ts",
+    "./balances": "./src/balances/index.ts",
+    "./simplify": "./src/simplify/index.ts",
+    "./settlement": "./src/settlement/index.ts",
+    "./sync": "./src/sync/index.ts",
+    "./notifications": "./src/notifications/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "fast-check": "^4.1.1",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
