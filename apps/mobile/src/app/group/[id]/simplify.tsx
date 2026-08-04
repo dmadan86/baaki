@@ -15,24 +15,26 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { memberLookup, useGroup, useGroupLedger } from '@/data/hooks';
+import { displayName } from '@/data/types';
 import { useStrings } from '@/i18n';
-import { ME, getGroup, ledgerFor, memberName } from '@/mocks/data';
+import { useAuth } from '@/lib/auth';
 
 export default function SimplifyScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const group = getGroup(id ?? '');
+  const groupId = id ?? '';
+  const { profile } = useAuth();
 
-  if (!group) {
-    return (
-      <Screen>
-        <EmptyState title="Group not found" body="It may have been archived." />
-      </Screen>
-    );
-  }
+  const { group, members } = useGroup(groupId);
+  const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const lookup = memberLookup(members.data);
 
-  const { transfers } = ledgerFor(group);
+  const nameOf = (memberId: string): string => {
+    const member = lookup.get(memberId);
+    return member ? displayName(member, profile?.id) : 'Someone';
+  };
 
   return (
     <Screen>
@@ -51,7 +53,7 @@ export default function SimplifyScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.whoPaysWhom}</Text>
             <Text variant="micro" tone="muted">
-              {group.name}
+              {group.data?.name}
             </Text>
           </View>
           <View style={{ width: 44 }} />
@@ -59,36 +61,38 @@ export default function SimplifyScreen() {
 
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="subheading">{group.simplifyDebts ? t.simplifyOn : t.simplifyOff}</Text>
-            <Badge label={`${transfers.length} payments`} tone="brand" />
+            <Text variant="subheading">
+              {group.data?.simplify_debts ? t.simplifyOn : t.simplifyOff}
+            </Text>
+            <Badge label={`${ledger.transfers.length} payments`} tone="brand" />
           </Row>
           <Text variant="caption" tone="muted">
-            {group.simplifyDebts
-              ? 'Baaki suggests the fewest payments that settle the group. The real who-owes-whom ledger underneath is never rewritten — turn this off any time to see it.'
+            {group.data?.simplify_debts
+              ? 'Baaki suggests the fewest payments that settle the group. The real who-owes-whom ledger underneath is never rewritten.'
               : 'Showing the actual pairwise ledger, exactly as the expenses created it.'}
           </Text>
         </Card>
 
-        {transfers.length === 0 ? (
+        {ledger.transfers.length === 0 ? (
           <EmptyState title={t.allSettled} body="Nobody owes anybody in this group." />
         ) : (
           <Card padded={false} style={{ padding: theme.spacing.lg, gap: theme.spacing.lg }}>
-            {transfers.map((transfer) => (
+            {ledger.transfers.map((transfer) => (
               <Row
                 key={`${transfer.from}-${transfer.to}-${transfer.amount}`}
                 style={{ justifyContent: 'space-between' }}
               >
                 <Row style={{ flex: 1 }}>
-                  <Avatar name={memberName(group, transfer.from)} size={38} />
+                  <Avatar name={nameOf(transfer.from)} size={38} />
                   <Ionicons name="arrow-forward" size={16} color={theme.color.textFaint} />
-                  <Avatar name={memberName(group, transfer.to)} size={38} />
+                  <Avatar name={nameOf(transfer.to)} size={38} />
                   <View style={{ flex: 1, marginLeft: theme.spacing.sm }}>
                     <Text variant="body" numberOfLines={1}>
-                      {`${memberName(group, transfer.from)} → ${memberName(group, transfer.to)}`}
+                      {`${nameOf(transfer.from)} → ${nameOf(transfer.to)}`}
                     </Text>
-                    {transfer.from === ME || transfer.to === ME ? (
+                    {transfer.from === ledger.myMemberId || transfer.to === ledger.myMemberId ? (
                       <Text variant="micro" tone="brand">
-                        {transfer.from === ME ? 'You pay' : 'You receive'}
+                        {transfer.from === ledger.myMemberId ? 'You pay' : 'You receive'}
                       </Text>
                     ) : null}
                   </View>

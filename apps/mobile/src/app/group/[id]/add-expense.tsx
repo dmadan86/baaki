@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { computeShares, type MemberId, type SplitParams } from '@baaki/core';
 import {
@@ -19,71 +19,141 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { useGroup, useWriteExpense } from '@/data/hooks';
+import { displayName, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
-import { ME, getGroup, memberName } from '@/mocks/data';
+import { useAuth } from '@/lib/auth';
 
-type SplitKind = 'equal' | 'shares' | 'exact' | 'percent';
+type SplitKind = 'equal' | 'shares' | 'percent';
 
 export default function AddExpenseScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const group = getGroup(id ?? '');
+  const { id, expenseId } = useLocalSearchParams<{ id: string; expenseId?: string }>();
+  const groupId = id ?? '';
+  const { profile } = useAuth();
+
+  const { group, members, expenses } = useGroup(groupId);
+  const writeExpense = useWriteExpense(groupId);
+
+  const editing = expenses.data?.find((expense) => expense.id === expenseId);
 
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
   const [splitKind, setSplitKind] = useState<SplitKind>('equal');
-  const [payer, setPayer] = useState<MemberId>(ME);
-  const [participants, setParticipants] = useState<MemberId[]>(
-    group?.members.map((member) => member.id) ?? [],
+  const [payer, setPayer] = useState<MemberId | null>(null);
+  const [participants, setParticipants] = useState<MemberId[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const myMemberId = useMemo(
+    () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
+    [members.data, profile?.id],
   );
 
-  // Live preview straight from the split engine — what you see here is exactly
-  // what the server will recompute and store (TDR §4).
+  // Seed the form once the group has loaded: I paid, everyone splits — or the
+  // current version's values when editing. Done during render (React's
+  // "adjust state when the input changes" pattern) so the form never flashes
+  // empty before the data arrives.
+  const [seededFor, setSeededFor] = useState<string | null>(null);
+  const seedKey = members.data ? (editing?.currentVersion?.id ?? `new:${groupId}`) : null;
+  if (seedKey && seedKey !== seededFor) {
+    setSeededFor(seedKey);
+    const version = editing?.currentVersion;
+    if (version) {
+      setAmount(BigInt(version.amount));
+      setDescription(version.description);
+      setPayer(version.payers[0]?.member_id ?? myMemberId);
+      setParticipants(version.shares.map((share) => share.member_id));
+      setSplitKind(
+        version.split_type === 'percent'
+          ? 'percent'
+          : version.split_type === 'shares'
+            ? 'shares'
+            : 'equal',
+      );
+    } else {
+      setParticipants((members.data ?? []).map((member) => member.id));
+      setPayer(myMemberId);
+    }
+  }
+
+  const currency = group.data?.default_currency ?? 'INR';
+
+  const splitParams: SplitParams = useMemo(() => {
+    if (splitKind === 'shares') {
+      return { kind: 'shares', weights: Object.fromEntries(participants.map((id) => [id, 1])) };
+    }
+    if (splitKind === 'percent') {
+      const each = Math.floor(10000 / Math.max(participants.length, 1));
+      const basisPoints: Record<string, number> = {};
+      participants.forEach((id) => {
+        basisPoints[id] = each;
+      });
+      const first = participants[0];
+      if (first) basisPoints[first] = each + (10000 - each * participants.length);
+      return { kind: 'percent', basisPoints };
+    }
+    return { kind: 'equal' };
+  }, [splitKind, participants]);
+
+  // Preview with the same engine the server uses; if they ever disagree the
+  // server wins and tells us why (SHARE_MISMATCH).
   const preview = useMemo(() => {
-    if (!group || participants.length === 0 || amount === 0n) return null;
-    const params: SplitParams =
-      splitKind === 'equal'
-        ? { kind: 'equal' }
-        : splitKind === 'shares'
-          ? {
-              kind: 'shares',
-              weights: Object.fromEntries(participants.map((member) => [member, 1])),
-            }
-          : splitKind === 'percent'
-            ? {
-                kind: 'percent',
-                basisPoints: evenBasisPoints(participants),
-              }
-            : {
-                kind: 'exact',
-                amounts: Object.fromEntries(
-                  computeShares({
-                    amount,
-                    currency: group.currency,
-                    params: { kind: 'equal' },
-                    participants,
-                    seed: 'draft',
-                  }),
-                ),
-              };
+    if (participants.length === 0 || amount === 0n) return null;
+    try {
+      return computeShares({
+        amount,
+        currency,
+        params: splitParams,
+        participants,
+        seed: expenseId ?? 'draft',
+      });
+    } catch {
+      return null;
+    }
+  }, [amount, currency, splitParams, participants, expenseId]);
 
-    return computeShares({
-      amount,
-      currency: group.currency,
-      params,
-      participants,
-      seed: 'draft',
-    });
-  }, [amount, group, participants, splitKind]);
+  if (group.isLoading || members.isLoading) {
+    return (
+      <Screen>
+        <View style={{ padding: theme.spacing.xl }}>
+          <ActivityIndicator color={theme.color.brand} />
+        </View>
+      </Screen>
+    );
+  }
 
-  if (!group) {
+  if (!group.data) {
     return (
       <Screen>
         <EmptyState title="Group not found" body="It may have been archived." />
       </Screen>
     );
   }
+
+  const submit = async (): Promise<void> => {
+    setError(null);
+    if (!payer) {
+      setError('Choose who paid');
+      return;
+    }
+    try {
+      await writeExpense.mutateAsync({
+        expenseId: expenseId ?? undefined,
+        description: description.trim() || 'Expense',
+        expenseDate: new Date().toISOString().slice(0, 10),
+        currency,
+        amount,
+        splitParams,
+        participants,
+        payers: { [payer]: amount },
+        expectedShares: preview ? Object.fromEntries(preview) : undefined,
+      });
+      router.back();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
+  };
 
   const toggleParticipant = (memberId: MemberId): void => {
     setParticipants((current) =>
@@ -109,18 +179,24 @@ export default function AddExpenseScreen() {
             <Ionicons name="close" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.addExpense}</Text>
+            <Text variant="heading">{editing ? 'Edit expense' : t.addExpense}</Text>
             <Text variant="micro" tone="muted">
-              {group.name}
+              {group.data.name}
             </Text>
           </View>
-          <IconButton label={t.scanBill}>
-            <Ionicons name="scan-outline" size={20} color={theme.color.brand} />
-          </IconButton>
+          <View style={{ width: 44 }} />
         </Row>
 
-        <Card style={{ gap: theme.spacing.lg }}>
-          <AmountKeypad currency={group.currency} value={amount} onChange={setAmount} />
+        {editing ? (
+          <Card style={{ backgroundColor: theme.color.brandSoft }}>
+            <Text variant="caption" tone="brand">
+              Editing keeps the old version. Everyone can see what changed, and it can be restored.
+            </Text>
+          </Card>
+        ) : null}
+
+        <Card>
+          <AmountKeypad currency={currency} value={amount} onChange={setAmount} />
         </Card>
 
         <Card style={{ gap: theme.spacing.md }}>
@@ -144,7 +220,7 @@ export default function AddExpenseScreen() {
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            {t.splitEqually}
+            How to split
           </Text>
           <ChipRow<SplitKind>
             value={splitKind}
@@ -152,7 +228,6 @@ export default function AddExpenseScreen() {
             options={[
               { value: 'equal', label: 'Equally' },
               { value: 'shares', label: 'Shares' },
-              { value: 'exact', label: 'Exact' },
               { value: 'percent', label: 'Percent' },
             ]}
           />
@@ -163,22 +238,18 @@ export default function AddExpenseScreen() {
             {t.paidBy}
           </Text>
           <Row style={{ flexWrap: 'wrap', gap: theme.spacing.md }}>
-            {group.members.map((member) => (
+            {(members.data ?? []).map((member) => (
               <Pressable
                 key={member.id}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: payer === member.id }}
-                accessibilityLabel={`${t.paidBy}: ${memberName(group, member.id)}`}
+                accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
                 onPress={() => setPayer(member.id)}
-                style={{
-                  alignItems: 'center',
-                  gap: 4,
-                  opacity: payer === member.id ? 1 : 0.45,
-                }}
+                style={{ alignItems: 'center', gap: 4, opacity: payer === member.id ? 1 : 0.45 }}
               >
-                <Avatar name={member.name} emoji={member.emoji} ghost={member.ghost} />
+                <Avatar name={displayName(member)} ghost={isGhost(member)} />
                 <Text variant="micro" tone={payer === member.id ? 'brand' : 'muted'}>
-                  {member.id === ME ? 'You' : member.name}
+                  {displayName(member, profile?.id)}
                 </Text>
               </Pressable>
             ))}
@@ -191,18 +262,18 @@ export default function AddExpenseScreen() {
               Split between
             </Text>
             <Text variant="micro" tone="muted">
-              {participants.length} of {group.members.length}
+              {`${participants.length} of ${members.data?.length ?? 0}`}
             </Text>
           </Row>
 
-          {group.members.map((member) => {
+          {(members.data ?? []).map((member) => {
             const selected = participants.includes(member.id);
             return (
               <Pressable
                 key={member.id}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: selected }}
-                accessibilityLabel={memberName(group, member.id)}
+                accessibilityLabel={displayName(member, profile?.id)}
                 onPress={() => toggleParticipant(member.id)}
                 style={{
                   flexDirection: 'row',
@@ -211,14 +282,14 @@ export default function AddExpenseScreen() {
                   paddingVertical: theme.spacing.sm,
                 }}
               >
-                <Avatar name={member.name} emoji={member.emoji} ghost={member.ghost} size={38} />
+                <Avatar name={displayName(member)} ghost={isGhost(member)} size={38} />
                 <Text variant="subheading" style={{ flex: 1 }}>
-                  {member.id === ME ? 'You' : member.name}
+                  {displayName(member, profile?.id)}
                 </Text>
                 {preview && selected ? (
                   <MoneyText
                     amount={preview.get(member.id) ?? 0n}
-                    currency={group.currency}
+                    currency={currency}
                     locale={locale}
                     variant="caption"
                   />
@@ -233,30 +304,27 @@ export default function AddExpenseScreen() {
           })}
         </Card>
 
+        {error ? (
+          <Text variant="caption" tone="negative">
+            {error}
+          </Text>
+        ) : null}
+
         <Button
-          label={t.save}
+          label={editing ? 'Save changes' : t.save}
           size="lg"
           fullWidth
-          disabled={amount === 0n || participants.length === 0}
-          onPress={() => router.back()}
+          disabled={amount === 0n || participants.length === 0 || writeExpense.isPending}
+          onPress={() => void submit()}
         />
 
+        {writeExpense.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
+
         <Text variant="micro" tone="faint" align="center">
-          Drafts autosave locally, so a crash never costs you an entry.
+          The server recomputes every share before it is stored, so no device can push a wrong
+          number into the ledger.
         </Text>
       </ScrollView>
     </Screen>
   );
-}
-
-/** Even percentage split in basis points, remainder on the first member. */
-function evenBasisPoints(members: readonly MemberId[]): Record<MemberId, number> {
-  const each = Math.floor(10000 / members.length);
-  const result: Record<MemberId, number> = {};
-  members.forEach((member) => {
-    result[member] = each;
-  });
-  const first = members[0];
-  if (first) result[first] = each + (10000 - each * members.length);
-  return result;
 }

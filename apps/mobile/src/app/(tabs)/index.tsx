@@ -1,13 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { ScrollView, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 
 import { format } from '@baaki/core';
 import {
   Avatar,
-  AvatarStack,
   Badge,
+  Button,
   Card,
+  EmptyState,
   IconButton,
   ListRow,
   MoneyText,
@@ -15,23 +16,24 @@ import {
   Screen,
   SectionHeader,
   Text,
-  TintCard,
+  tintForKey,
   useTheme,
 } from '@baaki/ui';
 
+import { useGroups, useHomeSummary } from '@/data/hooks';
 import { fill, useStrings } from '@/i18n';
-import { GROUPS, ME, ledgerFor, memberById, overallBalance } from '@/mocks/data';
+import { useAuth } from '@/lib/auth';
 
 export default function HomeScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
-  const overall = overallBalance();
-  const me = memberById(GROUPS[0]!, ME);
+  const { profile, isGuest } = useAuth();
 
-  const pendingCount = GROUPS.reduce(
-    (count, group) => count + group.settlements.filter((s) => s.status === 'initiated').length,
-    0,
-  );
+  const groups = useGroups();
+  const summary = useHomeSummary(profile?.id ?? null);
+
+  const list = groups.data ?? [];
+  const loading = groups.isLoading || summary.isLoading;
 
   return (
     <Screen>
@@ -42,38 +44,52 @@ export default function HomeScreen() {
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={(groups.isFetching || summary.isFetching) && !loading}
+            onRefresh={() => {
+              void groups.refetch();
+              summary.refetch();
+            }}
+            tintColor={theme.color.brand}
+          />
+        }
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <Avatar name={me?.name ?? 'You'} emoji={me?.emoji} size={46} />
+          <Avatar name={profile?.display_name ?? 'You'} size={46} />
           <View style={{ flex: 1 }}>
             <Text variant="caption" tone="muted">
               {t.greeting},
             </Text>
-            <Text variant="heading">{me?.name ?? 'You'}</Text>
+            <Text variant="heading" numberOfLines={1}>
+              {profile?.display_name ?? 'You'}
+            </Text>
           </View>
-          <IconButton label="Search">
-            <Ionicons name="search" size={20} color={theme.color.text} />
-          </IconButton>
-          <IconButton label="Notifications" badge={pendingCount > 0}>
-            <Ionicons name="notifications-outline" size={20} color={theme.color.text} />
+          <IconButton label={t.newGroup} onPress={() => router.push('/new-group')}>
+            <Ionicons name="add" size={22} color={theme.color.text} />
           </IconButton>
         </Row>
 
-        {/* The headline number: one glance answers "am I up or down?" */}
-        <Card
-          style={{ backgroundColor: theme.color.brand, gap: theme.spacing.lg }}
-          accessible
-          accessibilityLabel={`${t.yourBaaki}: ${format(
-            { minor: overall.net < 0n ? -overall.net : overall.net, currency: 'INR' },
-            { locale, compactFraction: true },
-          )} ${overall.net >= 0n ? t.youAreOwed : t.youOwe}`}
-        >
+        {isGuest ? (
+          <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
+            <Text variant="subheading" tone="brand">
+              You are using Baaki as a guest
+            </Text>
+            <Text variant="caption" tone="muted">
+              Add a phone number in Account whenever you like — everything you have entered comes
+              with you.
+            </Text>
+          </Card>
+        ) : null}
+
+        {/* Headline: one glance answers "am I up or down?" */}
+        <Card style={{ backgroundColor: theme.color.brand, gap: theme.spacing.lg }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="caption" tone="onBrand" style={{ opacity: 0.8 }}>
               {t.yourBaaki}
             </Text>
             <Text variant="micro" tone="onBrand" style={{ opacity: 0.8 }}>
-              {fill(t.acrossGroups, { count: GROUPS.length })}
+              {fill(t.acrossGroups, { count: list.length })}
             </Text>
           </Row>
 
@@ -84,13 +100,19 @@ export default function HomeScreen() {
               style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
             >
               {format(
-                { minor: overall.net < 0n ? -overall.net : overall.net, currency: 'INR' },
+                {
+                  minor: summary.totals.net < 0n ? -summary.totals.net : summary.totals.net,
+                  currency: 'INR',
+                },
                 { locale, compactFraction: true },
               )}
             </Text>
-            {/* A bare number is ambiguous: say which way it points. */}
             <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-              {overall.net === 0n ? t.allSettled : overall.net > 0n ? t.overallOwed : t.overallOwe}
+              {summary.totals.net === 0n
+                ? t.allSettled
+                : summary.totals.net > 0n
+                  ? t.overallOwed
+                  : t.overallOwe}
             </Text>
           </View>
 
@@ -101,7 +123,7 @@ export default function HomeScreen() {
               </Text>
               <Text variant="subheading" tone="onBrand" tabular>
                 {format(
-                  { minor: overall.owed, currency: 'INR' },
+                  { minor: summary.totals.owed, currency: 'INR' },
                   { locale, compactFraction: true },
                 )}
               </Text>
@@ -112,7 +134,7 @@ export default function HomeScreen() {
               </Text>
               <Text variant="subheading" tone="onBrand" tabular>
                 {format(
-                  { minor: overall.owing, currency: 'INR' },
+                  { minor: summary.totals.owing, currency: 'INR' },
                   { locale, compactFraction: true },
                 )}
               </Text>
@@ -120,122 +142,65 @@ export default function HomeScreen() {
           </Row>
         </Card>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>
-          <QuickCard
-            tint="peach"
-            title={t.yourGroups}
-            value={String(GROUPS.length)}
-            caption={t.freeForever}
-            icon="people"
+        {loading ? (
+          <Card>
+            <Text variant="caption" tone="muted">
+              Loading your groups…
+            </Text>
+          </Card>
+        ) : list.length === 0 ? (
+          <EmptyState
+            title="No groups yet"
+            body="Start one for a trip, a flat, or the two of you. Adding expenses is free and unlimited, forever."
+            action={<Button label={t.newGroup} onPress={() => router.push('/new-group')} />}
           />
-          <QuickCard
-            tint="mint"
-            title={t.toConfirm}
-            value={String(pendingCount)}
-            caption={t.settleUp}
-            icon="time"
-          />
-          <QuickCard tint="sky" title="AI scans" value="20" caption={t.scansLeft} icon="scan" />
-          <QuickCard
-            tint="coral"
-            title={t.simplify}
-            value={GROUPS.filter((group) => group.simplifyDebts).length + '/' + GROUPS.length}
-            caption={t.whoPaysWhom}
-            icon="git-merge"
-          />
-        </View>
-
-        <View>
-          <SectionHeader
-            title={t.yourGroups}
-            action={
-              <Text variant="caption" tone="brand">
-                {t.newGroup}
-              </Text>
-            }
-          />
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {GROUPS.map((group, index) => {
-              const { myBalance, pending } = ledgerFor(group);
-              return (
+        ) : (
+          <View>
+            <SectionHeader
+              title={t.yourGroups}
+              action={
+                <Text variant="caption" tone="brand" onPress={() => router.push('/new-group')}>
+                  {t.newGroup}
+                </Text>
+              }
+            />
+            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+              {list.map((group, index) => (
                 <View key={group.id}>
                   <ListRow
                     title={group.name}
-                    subtitle={`${group.members.length} ${t.members}`}
-                    leading={<Avatar name={group.name} emoji={group.emoji} tint={group.tint} />}
+                    subtitle={`${summary.memberCountFor(group.id)} ${t.members}`}
+                    leading={
+                      <Avatar
+                        name={group.name}
+                        emoji={group.cover_emoji ?? undefined}
+                        tint={tintForKey(group.id)}
+                      />
+                    }
                     onPress={() => router.push(`/group/${group.id}`)}
                     trailing={
                       <View style={{ alignItems: 'flex-end', gap: 4 }}>
                         <MoneyText
-                          amount={myBalance}
-                          currency={group.currency}
+                          amount={summary.balanceFor(group.id)}
+                          currency={group.default_currency}
                           locale={locale}
                           mode="balance"
                         />
-                        {pending !== 0n ? (
+                        {summary.hasPending(group.id) ? (
                           <Badge label={t.pendingConfirmation} tone="brand" />
                         ) : null}
                       </View>
                     }
                   />
-                  {index < GROUPS.length - 1 ? (
+                  {index < list.length - 1 ? (
                     <View style={{ height: 1, backgroundColor: theme.color.border }} />
                   ) : null}
                 </View>
-              );
-            })}
-          </Card>
-        </View>
-
-        <View>
-          <SectionHeader title={t.members} />
-          <Card>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <AvatarStack
-                names={[...new Set(GROUPS.flatMap((group) => group.members.map((m) => m.name)))]}
-              />
-              <Text variant="caption" tone="muted">
-                {GROUPS.flatMap((group) => group.members).filter((m) => m.ghost).length}{' '}
-                {t.notJoinedYet}
-              </Text>
-            </Row>
-          </Card>
-        </View>
+              ))}
+            </Card>
+          </View>
+        )}
       </ScrollView>
     </Screen>
-  );
-}
-
-function QuickCard({
-  tint,
-  title,
-  value,
-  caption,
-  icon,
-}: {
-  tint: 'peach' | 'mint' | 'sky' | 'coral';
-  title: string;
-  value: string;
-  caption: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}) {
-  const theme = useTheme();
-  const ink = theme.tint[tint].ink;
-
-  return (
-    <TintCard tint={tint} style={{ flexGrow: 1, flexBasis: '46%', gap: theme.spacing.sm }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text variant="caption" style={{ color: ink }} numberOfLines={1}>
-          {title}
-        </Text>
-        <Ionicons name={icon} size={16} color={ink} />
-      </Row>
-      <Text variant="title" style={{ color: ink }} tabular>
-        {value}
-      </Text>
-      <Text variant="micro" style={{ color: ink, opacity: 0.75 }} numberOfLines={1}>
-        {caption}
-      </Text>
-    </TintCard>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
@@ -20,8 +20,18 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import {
+  memberLookup,
+  useConfirmSettlement,
+  useDeleteExpense,
+  useGroup,
+  useGroupLedger,
+  useGroupRealtime,
+  useRestoreExpense,
+} from '@/data/hooks';
+import { displayName, isGhost, type ExpenseRow } from '@/data/types';
 import { useStrings } from '@/i18n';
-import { ME, activityFeed, getGroup, ledgerFor, memberName } from '@/mocks/data';
+import { useAuth } from '@/lib/auth';
 
 type Tab = 'expenses' | 'balances' | 'activity';
 
@@ -29,19 +39,84 @@ export default function GroupScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const groupId = id ?? '';
+  const { profile } = useAuth();
   const [tab, setTab] = useState<Tab>('expenses');
+  const [showDeleted, setShowDeleted] = useState(false);
 
-  const group = getGroup(id ?? '');
-  if (!group) {
+  // Live updates from the other devices in this group (TDR §1).
+  useGroupRealtime(groupId);
+
+  const { group, members, expenses, settlements, activity } = useGroup(groupId);
+  const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const deleteExpense = useDeleteExpense(groupId);
+  const restoreExpense = useRestoreExpense(groupId);
+  const confirmSettlement = useConfirmSettlement(groupId);
+
+  const lookup = memberLookup(members.data);
+  const nameOf = (memberId: string | null): string => {
+    const member = memberId ? lookup.get(memberId) : undefined;
+    return member ? displayName(member, profile?.id) : 'Someone';
+  };
+
+  if (group.isLoading) {
     return (
       <Screen>
-        <EmptyState title="Group not found" body="It may have been archived." />
+        <View style={{ padding: theme.spacing.xl }}>
+          <Text variant="caption" tone="muted">
+            Loading…
+          </Text>
+        </View>
       </Screen>
     );
   }
 
-  const { myBalance, pending, balances } = ledgerFor(group);
-  const feed = activityFeed(group.id);
+  if (group.isError || !group.data) {
+    return (
+      <Screen>
+        <EmptyState
+          title="Group not found"
+          body="It may have been archived, or you are no longer a member."
+          action={<Button label="Back" onPress={() => router.back()} />}
+        />
+      </Screen>
+    );
+  }
+
+  const currency = group.data.default_currency;
+  const visibleExpenses = (expenses.data ?? []).filter(
+    (expense) => showDeleted || !expense.deleted_at,
+  );
+  const pendingForMe = (settlements.data ?? []).filter(
+    (settlement) =>
+      settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,
+  );
+
+  const onLongPressExpense = (expense: ExpenseRow): void => {
+    if (expense.deleted_at) {
+      Alert.alert('Restore this expense?', 'It will count towards balances again.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restore', onPress: () => restoreExpense.mutate(expense.id) },
+      ]);
+      return;
+    }
+    Alert.alert(
+      expense.currentVersion?.description ?? 'Expense',
+      'Deleted expenses are recoverable for 30 days and stay in the activity feed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Edit',
+          onPress: () => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteExpense.mutate(expense.id),
+        },
+      ],
+    );
+  };
 
   return (
     <Screen>
@@ -52,33 +127,67 @@ export default function GroupScreen() {
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={expenses.isFetching && !expenses.isLoading}
+            onRefresh={() => {
+              void expenses.refetch();
+              void settlements.refetch();
+              void activity.refetch();
+            }}
+            tintColor={theme.color.brand}
+          />
+        }
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{`${group.emoji}  ${group.name}`}</Text>
+            <Text variant="heading" numberOfLines={1}>
+              {`${group.data.cover_emoji ?? '👥'}  ${group.data.name}`}
+            </Text>
             <Text variant="micro" tone="muted">
-              {`${group.members.length} ${t.members}`}
+              {`${members.data?.length ?? 0} ${t.members}`}
             </Text>
           </View>
-          <IconButton label="Group options">
-            <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text} />
+          <IconButton
+            label={showDeleted ? 'Hide deleted' : 'Show deleted'}
+            onPress={() => setShowDeleted((current) => !current)}
+          >
+            <Ionicons
+              name={showDeleted ? 'eye-off-outline' : 'trash-outline'}
+              size={18}
+              color={theme.color.text}
+            />
           </IconButton>
         </Row>
+
+        {/* If the two independent balance computations ever disagree, say so
+            rather than showing a number that might be wrong (ADR-004). */}
+        {ledger.mismatch ? (
+          <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}>
+            <Text variant="subheading" tone="negative">
+              Balances need a refresh
+            </Text>
+            <Text variant="caption" tone="muted">
+              This device and the server disagree about this group&apos;s balances. Pull to refresh;
+              if it persists, the ledger below is the source of truth.
+            </Text>
+          </Card>
+        ) : null}
 
         <Card style={{ gap: theme.spacing.lg }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="caption" tone="muted">
-              {myBalance >= 0n ? t.youAreOwed : t.youOwe}
+              {ledger.myBalance >= 0n ? t.youAreOwed : t.youOwe}
             </Text>
-            {pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
+            {ledger.pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
           </Row>
 
           <MoneyText
-            amount={myBalance}
-            currency={group.currency}
+            amount={ledger.myBalance}
+            currency={currency}
             locale={locale}
             mode="balance"
             variant="display"
@@ -87,16 +196,40 @@ export default function GroupScreen() {
           <Row style={{ gap: theme.spacing.md }}>
             <Button
               label={t.settleUp}
-              onPress={() => router.push(`/group/${group.id}/settle`)}
+              onPress={() => router.push(`/group/${groupId}/settle`)}
               icon={<Ionicons name="swap-horizontal" size={18} color={theme.color.onBrand} />}
             />
             <Button
-              label={group.simplifyDebts ? t.simplify : t.whoPaysWhom}
+              label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
               variant="secondary"
-              onPress={() => router.push(`/group/${group.id}/simplify`)}
+              onPress={() => router.push(`/group/${groupId}/simplify`)}
             />
           </Row>
         </Card>
+
+        {pendingForMe.map((settlement) => (
+          <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
+            <Text variant="subheading">
+              {`${nameOf(settlement.from_member_id)} says they paid you`}
+            </Text>
+            <MoneyText
+              amount={BigInt(settlement.amount)}
+              currency={settlement.currency}
+              locale={locale}
+              variant="title"
+            />
+            <Row style={{ gap: theme.spacing.md }}>
+              <Button
+                label="Confirm received"
+                onPress={() => confirmSettlement.mutate(settlement.id)}
+                disabled={confirmSettlement.isPending}
+              />
+              <Text variant="micro" tone="faint" style={{ flex: 1 }}>
+                Auto-confirms in 7 days if nobody responds.
+              </Text>
+            </Row>
+          </Card>
+        ))}
 
         <ChipRow<Tab>
           value={tab}
@@ -109,53 +242,78 @@ export default function GroupScreen() {
         />
 
         {tab === 'expenses' ? (
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {group.expenses.map((expense, index) => {
-              const payer = Object.keys(expense.payers)[0] ?? ME;
-              return (
-                <View key={expense.id}>
-                  <ListRow
-                    title={expense.description}
-                    subtitle={`${memberName(group, payer)} paid · ${new Intl.DateTimeFormat(
-                      locale,
-                      { day: 'numeric', month: 'short' },
-                    ).format(new Date(expense.date))}`}
-                    leading={<Avatar name={expense.category} emoji={expense.emoji} size={42} />}
-                    trailing={
-                      <MoneyText
-                        amount={expense.amount}
-                        currency={group.currency}
-                        locale={locale}
-                      />
-                    }
-                  />
-                  {index < group.expenses.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
-                </View>
-              );
-            })}
-          </Card>
+          visibleExpenses.length === 0 ? (
+            <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
+          ) : (
+            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+              {visibleExpenses.map((expense, index) => {
+                const version = expense.currentVersion;
+                const payer = version?.payers[0]?.member_id ?? null;
+                return (
+                  <View key={expense.id}>
+                    <ListRow
+                      title={version?.description ?? 'Expense'}
+                      subtitle={`${nameOf(payer)} paid · ${
+                        version
+                          ? new Intl.DateTimeFormat(locale, {
+                              day: 'numeric',
+                              month: 'short',
+                            }).format(new Date(version.expense_date))
+                          : ''
+                      }${expense.deleted_at ? ' · deleted' : ''}${
+                        (version?.version_no ?? 1) > 1
+                          ? ` · edited ×${version!.version_no - 1}`
+                          : ''
+                      }`}
+                      leading={
+                        <Avatar
+                          name={version?.category ?? version?.description ?? 'Expense'}
+                          size={42}
+                        />
+                      }
+                      onPress={() => onLongPressExpense(expense)}
+                      trailing={
+                        version ? (
+                          <MoneyText
+                            amount={BigInt(version.amount)}
+                            currency={version.currency}
+                            locale={locale}
+                          />
+                        ) : null
+                      }
+                    />
+                    {index < visibleExpenses.length - 1 ? (
+                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                    ) : null}
+                  </View>
+                );
+              })}
+            </Card>
+          )
         ) : null}
 
         {tab === 'balances' ? (
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {group.members.map((member, index) => (
+            {(members.data ?? []).map((member, index) => (
               <View key={member.id}>
                 <ListRow
-                  title={member.id === ME ? 'You' : member.name}
-                  subtitle={member.ghost ? t.notJoinedYet : (member.vpa ?? '—')}
-                  leading={<Avatar name={member.name} emoji={member.emoji} ghost={member.ghost} />}
+                  title={displayName(member, profile?.id)}
+                  subtitle={
+                    isGhost(member)
+                      ? t.notJoinedYet
+                      : (member.vpa ?? member.profile?.default_vpa ?? '—')
+                  }
+                  leading={<Avatar name={displayName(member)} ghost={isGhost(member)} />}
                   trailing={
                     <MoneyText
-                      amount={balances.get(member.id) ?? 0n}
-                      currency={group.currency}
+                      amount={ledger.balances.get(member.id) ?? 0n}
+                      currency={currency}
                       locale={locale}
                       mode="balance"
                     />
                   }
                 />
-                {index < group.members.length - 1 ? (
+                {index < (members.data?.length ?? 0) - 1 ? (
                   <View style={{ height: 1, backgroundColor: theme.color.border }} />
                 ) : null}
               </View>
@@ -164,36 +322,71 @@ export default function GroupScreen() {
         ) : null}
 
         {tab === 'activity' ? (
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {feed.map((entry, index) => (
-              <View key={entry.id}>
-                <ListRow
-                  title={entry.title}
-                  subtitle={entry.subtitle}
-                  leading={<Avatar name={entry.title} emoji={entry.emoji} size={40} />}
-                  trailing={
-                    <MoneyText
-                      amount={entry.amount}
-                      currency={entry.currency}
-                      locale={locale}
-                      variant="caption"
-                    />
-                  }
-                />
-                {index < feed.length - 1 ? (
-                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                ) : null}
-              </View>
-            ))}
-          </Card>
+          (activity.data ?? []).length === 0 ? (
+            <EmptyState
+              title={t.nothingYet}
+              body="Everything that happens here shows up in this feed."
+            />
+          ) : (
+            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+              {(activity.data ?? []).map((entry, index) => (
+                <View key={entry.id}>
+                  <ListRow
+                    title={`${nameOf(entry.actor_member_id)} ${entry.verb} ${entry.object_type}`}
+                    subtitle={new Intl.DateTimeFormat(locale, {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    }).format(new Date(entry.created_at))}
+                    leading={<Avatar name={entry.verb} emoji={verbEmoji(entry.verb)} size={38} />}
+                    trailing={
+                      typeof entry.payload.amount === 'string' ? (
+                        <MoneyText
+                          amount={BigInt(entry.payload.amount)}
+                          currency={(entry.payload.currency as string) ?? currency}
+                          locale={locale}
+                          variant="caption"
+                        />
+                      ) : null
+                    }
+                  />
+                  {index < (activity.data?.length ?? 0) - 1 ? (
+                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                  ) : null}
+                </View>
+              ))}
+            </Card>
+          )
         ) : null}
       </ScrollView>
 
       <Fab
         label={t.addExpense}
-        onPress={() => router.push(`/group/${group.id}/add-expense`)}
+        onPress={() => router.push(`/group/${groupId}/add-expense`)}
         icon={<Ionicons name="add" size={22} color={theme.color.onBrand} />}
       />
     </Screen>
   );
+}
+
+function verbEmoji(verb: string): string {
+  switch (verb) {
+    case 'added':
+      return '🧾';
+    case 'edited':
+      return '✏️';
+    case 'deleted':
+      return '🗑️';
+    case 'restored':
+      return '↩️';
+    case 'settled':
+      return '💸';
+    case 'confirmed':
+      return '✅';
+    case 'created':
+      return '✨';
+    default:
+      return '•';
+  }
 }

@@ -136,7 +136,7 @@ model Profile {
 // ────────────────────────────────────────────────── groups & membership ──
 
 model Group {
-  id              String    @id @default(uuid()) @db.Uuid
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name            String
   type            GroupType @default(other)
   defaultCurrency String    @default("INR") @map("default_currency") @db.Char(3)
@@ -170,7 +170,7 @@ model Group {
 /// A member is either a real profile or a ghost (name only) — ADR-006.
 /// Exactly one of profile_id / ghost_name is set (CHECK in migration SQL).
 model GroupMember {
-  id         String     @id @default(uuid()) @db.Uuid
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId    String     @map("group_id") @db.Uuid
   profileId  String?    @map("profile_id") @db.Uuid
   ghostName  String?    @map("ghost_name")
@@ -211,7 +211,7 @@ model GroupMember {
 /// Signed, revocable, expiring invite tokens (ADR-006). Only the hash is
 /// stored; the token itself is verified inside an edge function.
 model Invite {
-  id        String    @id @default(uuid()) @db.Uuid
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId   String    @map("group_id") @db.Uuid
   tokenHash String    @unique @map("token_hash")
   createdBy String?   @map("created_by") @db.Uuid
@@ -234,7 +234,7 @@ model Invite {
 /// Append-only shell (ADR-004). Current state = the version pointed at by
 /// current_version_id. Deletes are soft and restorable for 30 days.
 model Expense {
-  id               String    @id @default(uuid()) @db.Uuid
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId          String    @map("group_id") @db.Uuid
   currentVersionId String?   @unique @map("current_version_id") @db.Uuid
   createdBy        String?   @map("created_by") @db.Uuid
@@ -258,7 +258,7 @@ model Expense {
 
 /// Immutable. An edit inserts a new version; nothing is ever updated in place.
 model ExpenseVersion {
-  id               String    @id @default(uuid()) @db.Uuid
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   expenseId        String    @map("expense_id") @db.Uuid
   versionNo        Int       @map("version_no")
   authorMemberId   String?   @map("author_member_id") @db.Uuid
@@ -294,7 +294,7 @@ model ExpenseVersion {
 
 /// Multi-payer support: who actually put money down (TDR §3.1).
 model ExpensePayer {
-  id               String @id @default(uuid()) @db.Uuid
+  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   expenseVersionId String @map("expense_version_id") @db.Uuid
   memberId         String @map("member_id") @db.Uuid
   amount           BigInt
@@ -309,7 +309,7 @@ model ExpensePayer {
 
 /// Server-computed shares. Σ payers = Σ shares = amount (trigger-enforced).
 model ExpenseShare {
-  id               String @id @default(uuid()) @db.Uuid
+  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   expenseVersionId String @map("expense_version_id") @db.Uuid
   memberId         String @map("member_id") @db.Uuid
   amount           BigInt
@@ -325,7 +325,7 @@ model ExpenseShare {
 // ────────────────────────────────────────────── receipts & itemization ──
 
 model Receipt {
-  id          String        @id @default(uuid()) @db.Uuid
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId     String        @map("group_id") @db.Uuid
   /// Path inside the private Storage bucket; served via signed URL only.
   storagePath String?       @map("storage_path")
@@ -350,7 +350,7 @@ model Receipt {
 
 /// Live item claiming — each participant taps their own lines (ADR-008).
 model ReceiptItemClaim {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   receiptId String   @map("receipt_id") @db.Uuid
   itemIndex Int      @map("item_index")
   memberId  String   @map("member_id") @db.Uuid
@@ -367,7 +367,7 @@ model ReceiptItemClaim {
 // ───────────────────────────────────────────────────────── settlements ──
 
 model Settlement {
-  id               String           @id @default(uuid()) @db.Uuid
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId          String           @map("group_id") @db.Uuid
   fromMemberId     String           @map("from_member_id") @db.Uuid
   toMemberId       String           @map("to_member_id") @db.Uuid
@@ -395,7 +395,7 @@ model Settlement {
 
 /// Partial / per-expense settlement — the 985-vote gap (ADR-007).
 model SettlementAllocation {
-  id           String @id @default(uuid()) @db.Uuid
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   settlementId String @map("settlement_id") @db.Uuid
   expenseId    String @map("expense_id") @db.Uuid
   amount       BigInt
@@ -411,7 +411,7 @@ model SettlementAllocation {
 // ────────────────────────────────────────── audit, reminders, comms ──
 
 model ActivityLog {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId       String   @map("group_id") @db.Uuid
   actorMemberId String?  @map("actor_member_id") @db.Uuid
   verb          String
@@ -430,7 +430,7 @@ model ActivityLog {
 }
 
 model Reminder {
-  id           String    @id @default(uuid()) @db.Uuid
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId      String    @map("group_id") @db.Uuid
   fromMemberId String    @map("from_member_id") @db.Uuid
   toMemberId   String    @map("to_member_id") @db.Uuid
@@ -449,7 +449,7 @@ model Reminder {
 }
 
 model PushToken {
-  id            String         @id @default(uuid()) @db.Uuid
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   profileId     String         @map("profile_id") @db.Uuid
   expoPushToken String         @unique @map("expo_push_token")
   platform      DevicePlatform
@@ -467,7 +467,7 @@ model PushToken {
 
 /// The in-app inbox is the ledger of record for everything we sent (TDR §7.1).
 model Notification {
-  id          String          @id @default(uuid()) @db.Uuid
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   profileId   String          @map("profile_id") @db.Uuid
   groupId     String?         @map("group_id") @db.Uuid
   kind        String
@@ -493,7 +493,7 @@ model Notification {
 /// Fed by the Resend webhook; hard bounce or complaint suppresses future
 /// non-transactional mail (TDR §7.3).
 model EmailEvent {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   notificationId String?  @map("notification_id") @db.Uuid
   profileId      String   @map("profile_id") @db.Uuid
   resendEmailId  String?  @map("resend_email_id")
@@ -512,7 +512,7 @@ model EmailEvent {
 
 /// Per-scan cost + quota metering for the AI receipt pipeline (ADR-008/011).
 model UsageEvent {
-  id           String   @id @default(uuid()) @db.Uuid
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   profileId    String   @map("profile_id") @db.Uuid
   groupId      String?  @map("group_id") @db.Uuid
   kind         String

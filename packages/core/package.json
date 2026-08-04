@@ -18,11 +18,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build": "esbuild src/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=dist/core.js",
+    "build:edge": "esbuild src/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=../../supabase/functions/_shared/core.js"
   },
   "devDependencies": {
     "fast-check": "^4.1.1",
     "typescript": "~5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "esbuild": "^0.25.0"
   }
 }

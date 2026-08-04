@@ -16,11 +16,16 @@
     "db:migrate": "pnpm --filter @baaki/db run migrate:deploy",
     "db:migrate:dev": "pnpm --filter @baaki/db run migrate:dev",
     "db:drift": "pnpm --filter @baaki/db run drift",
-    "db:pg:up": "docker run -d --name baaki-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=baaki -p 54329:5432 postgres:16-alpine",
+    "db:pg:up": "docker run -d --name baaki-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=baaki -p 54330:5432 postgres:17-alpine",
     "db:pg:down": "docker rm -f baaki-pg",
     "mobile": "pnpm --filter @baaki/mobile run start",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "edge:build": "pnpm --filter @baaki/core run build:edge",
+    "edge:serve": "pnpm edge:build && supabase functions serve --env-file supabase/functions/.env",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "edge:deploy": "pnpm edge:build && supabase functions deploy expense-write"
   },
   "devDependencies": {
     "prettier": "^3.4.2",

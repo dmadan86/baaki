@@ -9,9 +9,10 @@ accepted architecture decisions) and [`baaki-tdr.md`](./baaki-tdr.md) (how to
 build them, milestone by milestone). **The ADRs are constraints, not
 suggestions** — if code and ADR disagree, the ADR wins.
 
-Current state: **M0 complete** (foundations, money engine, database, design
-system, navigable app shell on fixture data). M1 onwards — real auth, live
-CRUD, offline sync, invites, UPI, AI receipts — is not started.
+Current state: **M0 complete**, **M1 built and pending end-to-end verification**
+(auth, live groups and expenses, versioned edits, soft delete/restore,
+settlement recording and confirmation, realtime). M2 onwards — offline sync,
+invites and guest web, notifications, AI receipts — is not started.
 
 ## Layout
 
@@ -41,27 +42,51 @@ pnpm db:pg:up
 cp .env.example packages/db/.env      # defaults already point at the container
 pnpm db:migrate
 pnpm test:db
+```
 
-# the app
+Requires Node 24+, pnpm 11+, and Docker.
+
+### Running the full stack (M1)
+
+The app talks to Supabase, so it needs the local stack rather than the bare
+Postgres container above:
+
+```bash
+pnpm supabase:start                  # Postgres + Auth + PostgREST + Realtime + Edge runtime
+pnpm db:migrate                      # point DIRECT_URL at the stack's db port first (54322)
+pnpm edge:build                      # bundles @baaki/core for the Deno runtime
+pnpm edge:serve                      # serves supabase/functions locally
+
+# apps/mobile/.env — take the values printed by `supabase start`
+#   EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+#   EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 pnpm mobile
 ```
 
-Requires Node 24+, pnpm 11+, and Docker for the database.
+`supabase start` pulls ~10 container images the first time; on a slow or
+proxied network that can take a while.
 
 ## The invariants
 
 These are the product promise, so they are tests, and CI blocks a merge if any
 of them break:
 
-| Invariant                                             | Where                                          |
-| ----------------------------------------------------- | ---------------------------------------------- |
-| Σ shares === expense total, for every split type      | `packages/core/test/split.property.test.ts`    |
-| Σ balances === 0, per group per currency              | `packages/core/test/balances.property.test.ts` |
-| Simplification never changes anyone's net position    | `packages/core/test/simplify.property.test.ts` |
-| FX conversions are exactly reproducible               | `packages/core/test/money.test.ts`             |
-| Stored balances === the ground-truth aggregate        | `packages/db/test/invariants.test.ts`          |
-| Non-members can read nothing; guests only their group | `packages/db/test/rls.test.ts`                 |
-| Expense history cannot be rewritten or hard-deleted   | `packages/db/test/invariants.test.ts`          |
+| Invariant                                              | Where                                          |
+| ------------------------------------------------------ | ---------------------------------------------- |
+| Σ shares === expense total, for every split type       | `packages/core/test/split.property.test.ts`    |
+| Σ balances === 0, per group per currency               | `packages/core/test/balances.property.test.ts` |
+| Simplification never changes anyone's net position     | `packages/core/test/simplify.property.test.ts` |
+| FX conversions are exactly reproducible                | `packages/core/test/money.test.ts`             |
+| Stored balances === the ground-truth aggregate         | `packages/db/test/invariants.test.ts`          |
+| Non-members can read nothing; guests only their group  | `packages/db/test/rls.test.ts`                 |
+| Expense history cannot be rewritten or hard-deleted    | `packages/db/test/invariants.test.ts`          |
+| Only a group member can create, delete or settle in it | `packages/db/test/m1-rpcs.test.ts`             |
+| Only the payee can confirm a settlement                | `packages/db/test/m1-rpcs.test.ts`             |
+| Replaying a mutation id never double-posts             | `packages/db/test/m1-rpcs.test.ts`             |
+
+The client also recomputes each group's balances with `@baaki/core` and compares
+them against the server's `group_balances`. If they ever disagree, the group
+screen says so rather than showing a number that might be wrong.
 
 ## Money rules
 
