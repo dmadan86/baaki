@@ -47,7 +47,8 @@ function AuthGate() {
   useEffect(() => {
     if (loading) return;
     const onSignIn = segments[0] === 'sign-in';
-    if (!session && !onSignIn) router.replace('/sign-in');
+    const onPublicRoute = onSignIn || segments[0] === 'join';
+    if (!session && !onPublicRoute) router.replace('/sign-in');
     else if (session && onSignIn) router.replace('/');
   }, [session, loading, segments, router]);
 
@@ -86,6 +87,15 @@ function AuthGate() {
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="group/[id]/simplify" />
+      <Stack.Screen name="group/[id]/settings" />
+      <Stack.Screen name="group/[id]/members" />
+      <Stack.Screen name="group/[id]/member/[memberId]" />
+      <Stack.Screen name="group/[id]/expense/[expenseId]" />
+      <Stack.Screen
+        name="group/[id]/invite"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="join" />
     </Stack>
   );
 }

@@ -343,3 +343,88 @@ export async function confirmSettlement(settlementId: string): Promise<void> {
   });
   if (error) throw new Error(error.message);
 }
+
+export async function updateGroup(
+  groupId: string,
+  patch: Partial<{
+    name: string;
+    cover_emoji: string | null;
+    simplify_debts: boolean;
+    default_currency: string;
+    archived_at: string | null;
+  }>,
+): Promise<void> {
+  const { error } = await supabase.from('groups').update(patch).eq('id', groupId);
+  if (error) throw new Error(error.message);
+}
+
+/** Rename a ghost, or set a per-group VPA override on your own membership. */
+export async function updateMember(
+  memberId: string,
+  patch: Partial<{ ghost_name: string; vpa: string | null }>,
+): Promise<void> {
+  const { error } = await supabase.from('group_members').update(patch).eq('id', memberId);
+  if (error) throw new Error(error.message);
+}
+
+/** Leaving is a soft exit: history stays, the person stops accruing new shares. */
+export async function leaveGroup(memberId: string): Promise<void> {
+  const { error } = await supabase
+    .from('group_members')
+    .update({ left_at: new Date().toISOString() })
+    .eq('id', memberId);
+  if (error) throw new Error(error.message);
+}
+
+// ─────────────────────────────────────────────── invites (ADR-006) ──
+
+export interface MintedInvite {
+  inviteId: string;
+  token: string;
+  expiresAt: string;
+  maxUses: number;
+  groupName: string;
+}
+
+export async function mintInvite(groupId: string, expiresInDays = 7): Promise<MintedInvite> {
+  const { data, error } = await supabase.functions.invoke('invite-mint', {
+    body: { groupId, expiresInDays },
+  });
+  if (error) throw new Error(await readFunctionError(error));
+  return data as MintedInvite;
+}
+
+export interface InvitePreview {
+  group: { id: string; name: string; cover_emoji: string | null; default_currency: string } | null;
+  memberCount: number;
+  claimable: { memberId: string; name: string | null }[];
+}
+
+export async function previewInvite(token: string): Promise<InvitePreview> {
+  const { data, error } = await supabase.functions.invoke('invite-accept', {
+    body: { token, mode: 'preview' },
+  });
+  if (error) throw new Error(await readFunctionError(error));
+  return data as InvitePreview;
+}
+
+export async function acceptInvite(input: {
+  token: string;
+  claimMemberId?: string | null;
+  displayName?: string | null;
+}): Promise<{ group: { id: string; name: string }; memberId: string; claimed?: boolean }> {
+  const { data, error } = await supabase.functions.invoke('invite-accept', {
+    body: { ...input, mode: 'join' },
+  });
+  if (error) throw new Error(await readFunctionError(error));
+  return data as { group: { id: string; name: string }; memberId: string; claimed?: boolean };
+}
+
+/** Links are revocable at any time (ADR-006). */
+export async function revokeInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase
+    .from('invites')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('id', inviteId);
+  if (error) throw new Error(error.message);
+}

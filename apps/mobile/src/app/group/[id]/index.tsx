@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, RefreshControl, ScrollView, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
@@ -23,13 +23,11 @@ import {
 import {
   memberLookup,
   useConfirmSettlement,
-  useDeleteExpense,
   useGroup,
   useGroupLedger,
   useGroupRealtime,
-  useRestoreExpense,
 } from '@/data/hooks';
-import { displayName, isGhost, type ExpenseRow } from '@/data/types';
+import { displayName, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
@@ -49,8 +47,6 @@ export default function GroupScreen() {
 
   const { group, members, expenses, settlements, activity } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
-  const deleteExpense = useDeleteExpense(groupId);
-  const restoreExpense = useRestoreExpense(groupId);
   const confirmSettlement = useConfirmSettlement(groupId);
 
   const lookup = memberLookup(members.data);
@@ -92,32 +88,6 @@ export default function GroupScreen() {
       settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,
   );
 
-  const onLongPressExpense = (expense: ExpenseRow): void => {
-    if (expense.deleted_at) {
-      Alert.alert('Restore this expense?', 'It will count towards balances again.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Restore', onPress: () => restoreExpense.mutate(expense.id) },
-      ]);
-      return;
-    }
-    Alert.alert(
-      expense.currentVersion?.description ?? 'Expense',
-      'Deleted expenses are recoverable for 30 days and stay in the activity feed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Edit',
-          onPress: () => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`),
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteExpense.mutate(expense.id),
-        },
-      ],
-    );
-  };
-
   return (
     <Screen>
       <ScrollView
@@ -152,14 +122,10 @@ export default function GroupScreen() {
             </Text>
           </View>
           <IconButton
-            label={showDeleted ? 'Hide deleted' : 'Show deleted'}
-            onPress={() => setShowDeleted((current) => !current)}
+            label="Group settings"
+            onPress={() => router.push(`/group/${groupId}/settings`)}
           >
-            <Ionicons
-              name={showDeleted ? 'eye-off-outline' : 'trash-outline'}
-              size={18}
-              color={theme.color.text}
-            />
+            <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text} />
           </IconButton>
         </Row>
 
@@ -242,6 +208,18 @@ export default function GroupScreen() {
         />
 
         {tab === 'expenses' ? (
+          <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
+            <Text
+              variant="caption"
+              tone="muted"
+              onPress={() => setShowDeleted((current) => !current)}
+            >
+              {showDeleted ? 'Hide deleted' : 'Show deleted'}
+            </Text>
+          </Row>
+        ) : null}
+
+        {tab === 'expenses' ? (
           visibleExpenses.length === 0 ? (
             <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
           ) : (
@@ -271,7 +249,7 @@ export default function GroupScreen() {
                           size={42}
                         />
                       }
-                      onPress={() => onLongPressExpense(expense)}
+                      onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
                       trailing={
                         version ? (
                           <MoneyText

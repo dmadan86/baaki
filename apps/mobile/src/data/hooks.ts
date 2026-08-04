@@ -30,6 +30,7 @@ import {
   fetchActivity,
   fetchAllBalances,
   fetchBalances,
+  fetchExpenseVersions,
   fetchExpenses,
   fetchGroup,
   fetchGroups,
@@ -39,7 +40,10 @@ import {
   fetchPendingSettlements,
   fetchSettlements,
   recordSettlement,
+  leaveGroup,
   restoreExpense,
+  updateGroup,
+  updateMember,
   writeExpense,
   type WriteExpenseInput,
 } from './api';
@@ -369,4 +373,43 @@ export function useAddGhostMember(groupId: string) {
 
 export function memberLookup(members: MemberRow[] | undefined): Map<MemberId, MemberRow> {
   return new Map((members ?? []).map((member) => [member.id, member]));
+}
+
+/** Full version history for one expense — the audit trail from ADR-004. */
+export function useExpenseVersions(expenseId: string) {
+  return useQuery({
+    queryKey: ['expense', expenseId, 'versions'],
+    queryFn: () => fetchExpenseVersions(expenseId),
+    enabled: Boolean(expenseId),
+  });
+}
+
+export function useUpdateGroup(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: Parameters<typeof updateGroup>[1]) => updateGroup(groupId, patch),
+    onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
+}
+
+export function useUpdateMember(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      memberId,
+      patch,
+    }: {
+      memberId: string;
+      patch: Parameters<typeof updateMember>[1];
+    }) => updateMember(memberId, patch),
+    onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
+}
+
+export function useLeaveGroup(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: leaveGroup,
+    onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
 }
