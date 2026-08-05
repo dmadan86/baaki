@@ -57,7 +57,7 @@ export default function MemberScreen() {
   const balance = ledger.balances.get(member.id) ?? 0n;
 
   // Expenses this person is actually part of.
-  const involved = (expenses.data ?? []).filter((expense) =>
+  const involved = expenses.rows.filter((expense) =>
     expense.currentVersion?.shares.some((share) => share.member_id === member.id),
   );
 

@@ -75,7 +75,7 @@ export default function SettleScreen() {
     if (!counterparty || !myMemberId) return [];
     const from = iPay ? myMemberId : counterparty.id;
     const to = iPay ? counterparty.id : myMemberId;
-    return (expenses.data ?? [])
+    return expenses.rows
       .map(toSnapshot)
       .filter((snapshot): snapshot is NonNullable<typeof snapshot> => snapshot !== null)
       .map((snapshot) => {
@@ -85,7 +85,7 @@ export default function SettleScreen() {
         return { expenseId: snapshot.id, date: snapshot.date, amount: portion };
       })
       .filter((receivable) => receivable.amount > 0n);
-  }, [expenses.data, counterparty, myMemberId, iPay]);
+  }, [expenses.rows, counterparty, myMemberId, iPay]);
 
   const allocation =
     amount > 0n && receivables.length > 0
@@ -93,7 +93,7 @@ export default function SettleScreen() {
       : { allocations: [], unallocated: amount };
 
   const expenseTitle = (expenseId: string): string =>
-    expenses.data?.find((expense) => expense.id === expenseId)?.currentVersion?.description ??
+    expenses.rows.find((expense) => expense.id === expenseId)?.currentVersion?.description ??
     'Expense';
 
   const record = async (): Promise<void> => {

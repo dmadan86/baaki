@@ -56,6 +56,8 @@ export interface ExpenseRow {
   deleted_at: string | null;
   created_at: string;
   currentVersion: ExpenseVersionRow | null;
+  /** Set while this row exists only in the local mutation queue (ADR-005). */
+  pending?: boolean;
 }
 
 export interface SettlementRow {

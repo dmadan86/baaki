@@ -81,9 +81,7 @@ export default function GroupScreen() {
   }
 
   const currency = group.data.default_currency;
-  const visibleExpenses = (expenses.data ?? []).filter(
-    (expense) => showDeleted || !expense.deleted_at,
-  );
+  const visibleExpenses = expenses.rows.filter((expense) => showDeleted || !expense.deleted_at);
   const pendingForMe = (settlements.data ?? []).filter(
     (settlement) =>
       settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,

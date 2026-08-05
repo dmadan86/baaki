@@ -46,7 +46,7 @@ export default function AddExpenseScreen() {
   const { group, members, expenses } = useGroup(groupId);
   const { mutate } = useSync();
 
-  const editing = expenses.data?.find((expense) => expense.id === expenseId);
+  const editing = expenses.rows.find((expense) => expense.id === expenseId);
 
   // The id is chosen here, not by the server. It seeds the remainder rotation
   // (ADR-009), so previewing with one id and writing with another would put the

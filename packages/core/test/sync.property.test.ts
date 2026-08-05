@@ -26,9 +26,11 @@ import {
   markFailed,
   materialiseExpenses,
   nextBatch,
+  overlayPending,
   reconcile,
   retryNow,
   toExpenseSnapshot,
+  type MirrorExpense,
   type MirrorState,
   type QueuedMutation,
 } from '../src/sync/index.js';
@@ -547,6 +549,43 @@ describe('the pending overlay', () => {
     expect(Object.fromEntries(shares.map((s) => [s.member_id, s.amount]))).toEqual(
       Object.fromEntries([...server].map(([id, amount]) => [id, amount.toString()])),
     );
+  });
+
+  it('overlays a queue onto rows that did not come from the mirror', () => {
+    // The group screen renders a cached network response, not the mirror, so
+    // the overlay has to work over any list of rows. Without this an expense
+    // the user just entered is invisible until it syncs — which on screen is
+    // indistinguishable from having lost it.
+    const server: MirrorExpense[] = [
+      {
+        id: 'e-server',
+        group_id: GROUP,
+        deleted_at: null,
+        created_at: '2026-03-01T00:00:00Z',
+        currentVersion: null,
+      },
+    ];
+    const queue = enqueue([], {
+      clientMutationId: 'm-1',
+      kind: 'expense.create',
+      groupId: GROUP,
+      clientCreatedAt: '2026-03-02T00:00:00Z',
+      payload: {
+        expenseId: 'e-local',
+        description: 'Entered just now',
+        expenseDate: '2026-03-02',
+        currency: INR,
+        amount: '900',
+        splitParams: { kind: 'equal' },
+        participants: members,
+        payers: { m1: '900' },
+      },
+    });
+
+    const rows = overlayPending(server, queue, { groupId: GROUP });
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.id === 'e-local')?.pending).toBe(true);
+    expect(rows.find((row) => row.id === 'e-server')?.pending).toBeUndefined();
   });
 
   it('stops overlaying once the server confirms the mutation', () => {

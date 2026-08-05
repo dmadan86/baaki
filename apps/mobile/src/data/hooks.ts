@@ -14,14 +14,17 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
   computeNetBalances,
   computePairwiseBalances,
+  overlayPending,
   simplify,
   type ExpenseSnapshot,
   type MemberId,
+  type MirrorExpense,
   type SettlementSnapshot,
   type Transfer,
 } from '@baaki/core';
 
 import { supabase } from '@/lib/supabase';
+import { useSync } from '@/sync';
 import {
   addGhostMember,
   confirmSettlement,
@@ -110,6 +113,22 @@ export function useHomeSummary(profileId: string | null) {
   };
 }
 
+/**
+ * ADR-005: what the screen shows is the server's rows with the mutation queue
+ * replayed on top. Without the overlay an expense the user just entered is
+ * invisible until it syncs, which is indistinguishable from losing it.
+ */
+export function usePendingAware(groupId: string, expenses: ExpenseRow[]): ExpenseRow[] {
+  const { queue } = useSync();
+  return useMemo(
+    () =>
+      overlayPending(expenses as unknown as MirrorExpense[], queue, {
+        groupId,
+      }) as unknown as ExpenseRow[],
+    [expenses, queue, groupId],
+  );
+}
+
 export function useGroup(groupId: string) {
   const group = useQuery({
     queryKey: keys.group(groupId),
@@ -142,7 +161,17 @@ export function useGroup(groupId: string) {
     enabled: Boolean(groupId),
   });
 
-  return { group, members, expenses, settlements, activity, balances };
+  const withPending = usePendingAware(groupId, expenses.data ?? []);
+
+  return {
+    group,
+    members,
+    // `expenses.data` is the server's answer; `expenses.rows` is what to render.
+    expenses: { ...expenses, rows: withPending },
+    settlements,
+    activity,
+    balances,
+  };
 }
 
 export function toSnapshot(expense: ExpenseRow): ExpenseSnapshot | null {
@@ -195,7 +224,7 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
       group.isLoading || members.isLoading || expenses.isLoading || settlements.isLoading;
 
     const currency = group.data?.default_currency ?? 'INR';
-    const snapshots = (expenses.data ?? [])
+    const snapshots = expenses.rows
       .map(toSnapshot)
       .filter((snapshot): snapshot is ExpenseSnapshot => snapshot !== null);
     const settlementSnapshots = (settlements.data ?? []).map(toSettlementSnapshot);
@@ -213,9 +242,12 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
       ? (withPending.get(currency)?.get(myMemberId) ?? 0n) - myBalance
       : 0n;
 
-    // Cross-check against what the database derived independently.
+    // Cross-check against what the database derived independently. Skipped
+    // while anything is still queued: the server has not seen those expenses
+    // yet, so a disagreement is expected rather than a problem to report.
+    const anyPending = expenses.rows.some((expense) => expense.pending === true);
     let mismatch = false;
-    if (balances.data) {
+    if (balances.data && !anyPending) {
       const stored = new Map(
         balances.data
           .filter((row) => row.currency === currency)
@@ -254,7 +286,7 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
     group.isLoading,
     members.data,
     members.isLoading,
-    expenses.data,
+    expenses.rows,
     expenses.isLoading,
     settlements.data,
     settlements.isLoading,
