@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { randomUUID } from 'expo-crypto';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -25,6 +26,8 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { pickReceiptPhoto } from '@/components/GroupPhoto';
+import { scanReceipt } from '@/data/api';
 import { useGroup, useWriteExpense } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -64,6 +67,56 @@ export default function ItemizeScreen() {
   const [taxText, setTaxText] = useState('');
   const [tipText, setTipText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
+
+  /**
+   * ADR-008: the model proposes, the person confirms. Everything it read lands
+   * in the same editable list somebody would have typed by hand, so correcting
+   * a misread line is just editing — there is no separate "AI mode" to leave.
+   */
+  const scan = async (): Promise<void> => {
+    const picked = await pickReceiptPhoto();
+    if (!picked) return;
+    setError(null);
+    setScanNote(null);
+    setScanning(true);
+    try {
+      const result = await scanReceipt({
+        groupId,
+        base64: picked.base64,
+        mimeType: picked.mimeType,
+        currency,
+      });
+
+      setItems(
+        result.parsed.items.map((item, index) => ({
+          key: `scan-${index}-${randomUUID()}`,
+          label: item.label,
+          total: BigInt(item.total),
+          claimers: [],
+        })),
+      );
+      const taxes = result.parsed.taxes.reduce((sum, tax) => sum + tax.amount, 0);
+      if (taxes > 0) setTaxText((taxes / 100).toString());
+      if (result.parsed.tip) setTipText((result.parsed.tip / 100).toString());
+      if (!description.trim() && result.parsed.merchant) setDescription(result.parsed.merchant);
+
+      // The arithmetic decides what the person is asked to look at. Saying
+      // "scanned!" and leaving them to notice a wrong total is the failure
+      // this whole path exists to avoid.
+      setScanNote(
+        result.check.reconciles && result.check.problems.length === 0
+          ? `Read ${result.parsed.items.length} items. Check them, then tap who had what.`
+          : (result.check.problems[0]?.message ??
+              'Some lines need checking before this can be saved.'),
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const currency = group.data?.default_currency ?? 'INR';
   const scale = minorUnitScale(currency);
@@ -211,6 +264,31 @@ export default function ItemizeScreen() {
           </View>
           <View style={{ width: 44 }} />
         </Row>
+
+        <Card style={{ gap: theme.spacing.md }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
+              <Text variant="subheading">Scan the receipt</Text>
+              <Text variant="caption" tone="muted">
+                Photograph the bill and the items come out filled in. Check them before saving —
+                entering them by hand is always free.
+              </Text>
+            </View>
+            <Button
+              label={scanning ? 'Reading…' : 'Scan'}
+              variant="secondary"
+              disabled={scanning}
+              onPress={() => void scan()}
+              icon={<Ionicons name="camera-outline" size={18} color={theme.color.brand} />}
+            />
+          </Row>
+          {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
+          {scanNote ? (
+            <Text variant="caption" tone="brand">
+              {scanNote}
+            </Text>
+          ) : null}
+        </Card>
 
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">

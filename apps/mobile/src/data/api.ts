@@ -10,7 +10,7 @@
 import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
 
-import type { SplitParams } from '@baaki/core';
+import type { ParsedReceipt, ReceiptCheck, SplitParams } from '@baaki/core';
 
 import { supabase } from '@/lib/supabase';
 import type {
@@ -611,4 +611,77 @@ function describeAuthError(message: string, channel: ContactChannel): string {
     return 'This Baaki server cannot send SMS yet. Try an email address instead.';
   }
   return message;
+}
+
+// ─────────────────────────────── receipt scanning (ADR-008) ──
+
+export interface ScanResult {
+  receiptId: string;
+  status: 'parsed' | 'needs_review';
+  parsed: ParsedReceipt;
+  check: ReceiptCheck;
+  quota: { used: number; limit: number };
+}
+
+/**
+ * Upload a receipt photo and have it read.
+ *
+ * The image goes to the private `receipts` bucket first so the model is fed by
+ * the edge function rather than by a URL we hand out — and so a scan that fails
+ * can be retried without asking the user to photograph the bill again.
+ */
+export async function scanReceipt(input: {
+  groupId: string;
+  base64: string;
+  mimeType?: string | null;
+  currency?: string;
+}): Promise<ScanResult> {
+  const receiptId = randomUUID();
+  const mime = input.mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
+  const path = `${input.groupId}/${receiptId}.${mime === 'image/png' ? 'png' : 'jpg'}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('receipts')
+    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data, error } = await supabase.functions.invoke('receipt-parse', {
+    body: {
+      groupId: input.groupId,
+      receiptId,
+      storagePath: path,
+      source: 'camera',
+      currency: input.currency ?? 'INR',
+    },
+  });
+  if (error) throw new Error(await readFunctionError(error));
+  return data as ScanResult;
+}
+
+/** A pasted Swiggy/Zomato/WhatsApp bill — no photograph involved. */
+export async function scanReceiptText(input: {
+  groupId: string;
+  rawText: string;
+  currency?: string;
+}): Promise<ScanResult> {
+  const { data, error } = await supabase.functions.invoke('receipt-parse', {
+    body: {
+      groupId: input.groupId,
+      rawText: input.rawText,
+      source: 'text_paste',
+      currency: input.currency ?? 'INR',
+    },
+  });
+  if (error) throw new Error(await readFunctionError(error));
+  return data as ScanResult;
+}
+
+export async function fetchScanQuota(): Promise<{
+  used: number;
+  limit: number;
+  remaining: number;
+}> {
+  const { data, error } = await supabase.rpc('baaki_receipt_scan_quota');
+  if (error) throw new Error(error.message);
+  return data as { used: number; limit: number; remaining: number };
 }

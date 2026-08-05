@@ -12,4 +12,5 @@ export * from './balances/index';
 export * from './simplify/index';
 export * from './settlement/index';
 export * from './sync/index';
+export * from './receipt/index';
 export * from './notifications/index';
