@@ -15,3 +15,4 @@ export * from './sync/index';
 export * from './receipt/index';
 export * from './notifications/index';
 export * from './sms/index';
+export * from './import/index';
