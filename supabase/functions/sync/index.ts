@@ -24,7 +24,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
-import { computeShares, type SplitParams } from '../_shared/core.js';
+import { computeShares, verifyClientShares, type SplitParams } from '../_shared/core.js';
 import {
   asCaller,
   asService,
@@ -322,17 +322,10 @@ class SyncSession {
 
     // The client computed these too, offline, from the same inputs. If they
     // differ, one of us is wrong and it is not going in the ledger (TDR §4).
-    if (payload.expectedShares) {
-      for (const [member, share] of shares) {
-        const claimed = payload.expectedShares[member];
-        if (claimed === undefined || BigInt(claimed) !== share) {
-          throw new HttpError(
-            409,
-            'SHARE_MISMATCH',
-            `Server computed ${share} for ${member}, client said ${claimed ?? 'nothing'}`,
-          );
-        }
-      }
+    try {
+      verifyClientShares(shares, payload.expectedShares);
+    } catch (mismatch) {
+      throw new HttpError(409, 'SHARE_MISMATCH', (mismatch as Error).message);
     }
 
     const { data, error } = await this.service.rpc('baaki_apply_expense', {
