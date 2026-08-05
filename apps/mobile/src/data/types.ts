@@ -78,15 +78,46 @@ export interface SettlementRow {
   allocations?: { expense_id: string; amount: string }[];
 }
 
+/** Who did the thing. Null when the actor has since left the group. */
+export interface ActivityActor {
+  id: MemberId;
+  profile_id: string | null;
+  ghost_name: string | null;
+  profile: { display_name: string | null } | null;
+}
+
+export interface ActivityGroup {
+  id: string;
+  name: string | null;
+  cover_emoji: string | null;
+}
+
 export interface ActivityRow {
   id: string;
   group_id: string;
   actor_member_id: MemberId | null;
+  actor?: ActivityActor | null;
   verb: string;
   object_type: string;
   object_id: string | null;
   payload: Record<string, unknown>;
   created_at: string;
+}
+
+/**
+ * "Ravi", or "You" when it was this person — an activity feed that cannot say
+ * who changed an expense is not answering the question it exists for.
+ *
+ * Matched on profile id rather than member id: the cross-group feed spans
+ * groups, and the same person holds a different member id in each one.
+ */
+export function actorName(
+  actor: ActivityActor | null | undefined,
+  myProfileId: string | null,
+): string {
+  if (!actor) return 'Someone';
+  if (myProfileId && actor.profile_id === myProfileId) return 'You';
+  return actor.profile?.display_name ?? actor.ghost_name ?? 'Someone';
 }
 
 export interface BalanceRow {

@@ -15,11 +15,15 @@ import {
 } from '@baaki/ui';
 
 import { fetchRecentActivity } from '@/data/api';
+import { actorName, type ActivityActor } from '@/data/types';
 import { useStrings } from '@/i18n';
+import { useAuth } from '@/lib/auth';
 
 export default function ActivityScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
+  const { session } = useAuth();
+  const myProfileId = session?.user.id ?? null;
 
   const activity = useQuery({
     queryKey: ['activity', 'recent'],
@@ -73,7 +77,7 @@ export default function ActivityScreen() {
                 {dayEntries.map((entry, index) => (
                   <View key={entry.id}>
                     <ListRow
-                      title={describe(entry.verb, entry.object_type, entry.payload)}
+                      title={describe(entry.verb, entry.object_type, entry.payload, entry.actor, myProfileId)}
                       subtitle={`${entry.group?.name ?? 'Group'} · ${new Intl.DateTimeFormat(
                         locale,
                         {
@@ -114,24 +118,51 @@ export default function ActivityScreen() {
   );
 }
 
-function describe(verb: string, objectType: string, payload: Record<string, unknown>): string {
+/**
+ * One line saying who did what.
+ *
+ * The actor is the point. On a shared ledger "Dinner was edited" is not an
+ * answer to anything — "Ravi edited Dinner" is. Written from this reader's
+ * point of view, so their own actions read as "You".
+ */
+function describe(
+  verb: string,
+  objectType: string,
+  payload: Record<string, unknown>,
+  actor: ActivityActor | null | undefined,
+  myProfileId: string | null,
+): string {
   const description = typeof payload.description === 'string' ? payload.description : null;
+  const who = actorName(actor, myProfileId);
+
   switch (verb) {
     case 'added':
-      return description ?? 'New expense';
+      return `${who} added ${description ?? 'an expense'}`;
     case 'edited':
-      return `Edited ${description ?? 'an expense'}`;
+      return `${who} edited ${description ?? 'an expense'}`;
     case 'deleted':
-      return `Deleted ${description ?? 'an expense'}`;
+      return `${who} deleted ${description ?? 'an expense'}`;
     case 'restored':
-      return `Restored ${description ?? 'an expense'}`;
+      return `${who} restored ${description ?? 'an expense'}`;
+    case 'superseded': {
+      // The conflict entry from offline sync (ADR-005). Both edits survive in
+      // expense_versions; this row exists so the person whose edit lost can
+      // find it and put it back. Saying "superseded expense" told them nothing.
+      const replaced =
+        typeof payload.supersededDescription === 'string' ? payload.supersededDescription : null;
+      return replaced
+        ? `${who}'s edit replaced an earlier one — "${replaced}" is still in the history`
+        : `${who}'s edit replaced an earlier one`;
+    }
     case 'settled':
-      return 'Settlement recorded';
+      return `${who} recorded a settlement`;
     case 'confirmed':
-      return 'Settlement confirmed';
+      return `${who} confirmed a settlement`;
+    case 'joined':
+      return `${who} joined`;
     case 'created':
-      return `Group created`;
+      return `${who} created the group`;
     default:
-      return `${verb} ${objectType}`;
+      return `${who} ${verb} ${objectType}`;
   }
 }

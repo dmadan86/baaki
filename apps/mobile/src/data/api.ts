@@ -14,6 +14,7 @@ import type { FxRecord, ParsedReceipt, ReceiptCheck, SplitParams } from '@baaki/
 
 import { supabase } from '@/lib/supabase';
 import type {
+  ActivityGroup,
   ActivityRow,
   BalanceRow,
   ExpenseRow,
@@ -113,31 +114,35 @@ export async function fetchActivity(groupId: string, limit = 50): Promise<Activi
   return unwrap(
     await supabase
       .from('activity_log')
-      .select('id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at')
+      .select(
+        `id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
+         actor:group_members!activity_log_actor_member_id_fkey (
+           id, profile_id, ghost_name, profile:profiles ( display_name )
+         )`,
+      )
       .eq('group_id', groupId)
       .order('created_at', { ascending: false })
       .limit(limit),
-  );
+  ) as unknown as ActivityRow[];
 }
 
 /** Activity across every group the user can see — RLS does the filtering. */
 export async function fetchRecentActivity(
   limit = 60,
-): Promise<
-  (ActivityRow & { group: { id: string; name: string; cover_emoji: string | null } | null })[]
-> {
+): Promise<(ActivityRow & { group: ActivityGroup | null })[]> {
   return unwrap(
     await supabase
       .from('activity_log')
       .select(
         `id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
-         group:groups ( id, name, cover_emoji )`,
+         group:groups ( id, name, cover_emoji ),
+         actor:group_members!activity_log_actor_member_id_fkey (
+           id, profile_id, ghost_name, profile:profiles ( display_name )
+         )`,
       )
       .order('created_at', { ascending: false })
       .limit(limit),
-  ) as unknown as (ActivityRow & {
-    group: { id: string; name: string; cover_emoji: string | null } | null;
-  })[];
+  ) as unknown as (ActivityRow & { group: ActivityGroup | null })[];
 }
 
 /**
