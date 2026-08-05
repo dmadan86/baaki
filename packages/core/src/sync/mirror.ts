@@ -160,11 +160,27 @@ export function materialiseExpenses(
   queue: readonly QueuedMutation[],
   options: MaterialiseOptions,
 ): MirrorExpense[] {
+  return overlayPending(
+    rowsFor(state, 'expenses', options.groupId) as MirrorExpense[],
+    queue,
+    options,
+  );
+}
+
+/**
+ * The same overlay, over any list of expense rows rather than the mirror.
+ *
+ * The mirror is one source of server rows; a cached network response is
+ * another. Both need the queue replayed on top or the app shows an expense the
+ * user has just entered as missing, which looks exactly like data loss.
+ */
+export function overlayPending(
+  expenses: readonly MirrorExpense[],
+  queue: readonly QueuedMutation[],
+  options: MaterialiseOptions,
+): MirrorExpense[] {
   const byId = new Map<string, MirrorExpense>();
-  for (const row of rowsFor(state, 'expenses', options.groupId)) {
-    const expense = row as MirrorExpense;
-    byId.set(expense.id, expense);
-  }
+  for (const expense of expenses) byId.set(expense.id, expense);
 
   for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
     if (mutation.groupId !== options.groupId) continue;

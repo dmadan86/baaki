@@ -50,7 +50,7 @@ export default function ExpenseDetailScreen() {
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
 
-  const expense = expenses.data?.find((row) => row.id === expenseId);
+  const expense = expenses.rows.find((row) => row.id === expenseId);
   const version = expense?.currentVersion;
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {

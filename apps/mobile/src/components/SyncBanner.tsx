@@ -16,7 +16,7 @@ import { useSync } from '@/sync';
 
 export function SyncBanner({ groupId }: { groupId?: string }) {
   const theme = useTheme();
-  const { status, queue, rejected, retry, discard } = useSync();
+  const { status, queue, rejected, retry, discard, lastError } = useSync();
 
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
   const refused = groupId ? rejected.filter((item) => item.groupId === groupId) : rejected;
@@ -56,27 +56,44 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
     );
   }
 
-  if (pending.length === 0 && status !== 'offline') return null;
+  if (pending.length === 0 && status !== 'offline' && status !== 'error') return null;
 
-  const offline = status === 'offline';
+  const count = `${pending.length} ${pending.length === 1 ? 'change' : 'changes'}`;
+
+  // Three different truths, and saying the wrong one is worse than saying
+  // nothing: "syncing…" while every request is failing reads as a hang, and
+  // eventually as lost data.
+  const { icon, message } =
+    status === 'offline'
+      ? {
+          icon: 'cloud-offline-outline' as const,
+          message:
+            pending.length > 0
+              ? `Offline — ${count} saved on this phone`
+              : 'Offline — everything here is saved on this phone',
+        }
+      : status === 'error'
+        ? {
+            icon: 'cloud-offline-outline' as const,
+            message: `Can't reach the server — ${count} saved here, waiting to send`,
+          }
+        : { icon: 'sync-outline' as const, message: `Syncing ${count}…` };
+
   return (
-    <Card style={{ backgroundColor: theme.color.brandSoft }}>
+    <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.xs }}>
       <Row style={{ gap: theme.spacing.sm }}>
-        <Ionicons
-          name={offline ? 'cloud-offline-outline' : 'sync-outline'}
-          size={18}
-          color={theme.color.brand}
-        />
+        <Ionicons name={icon} size={18} color={theme.color.brand} />
         <View style={{ flex: 1 }}>
           <Text variant="caption" tone="brand">
-            {offline
-              ? pending.length > 0
-                ? `Offline — ${pending.length} ${pending.length === 1 ? 'change' : 'changes'} saved on this phone`
-                : 'Offline — everything here is saved on this phone'
-              : `Syncing ${pending.length} ${pending.length === 1 ? 'change' : 'changes'}…`}
+            {message}
           </Text>
         </View>
       </Row>
+      {status === 'error' && lastError ? (
+        <Text variant="micro" tone="muted">
+          {lastError}
+        </Text>
+      ) : null}
     </Card>
   );
 }
