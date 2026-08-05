@@ -10,7 +10,7 @@
 import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
 
-import type { ParsedReceipt, ReceiptCheck, SplitParams } from '@baaki/core';
+import type { FxRecord, ParsedReceipt, ReceiptCheck, SplitParams } from '@baaki/core';
 
 import { supabase } from '@/lib/supabase';
 import type {
@@ -305,6 +305,8 @@ export interface WriteExpenseInput {
   /** Our local computation, sent so the server can contradict us if we differ. */
   expectedShares?: Record<string, bigint>;
   notes?: string | null;
+  /** The rate used, when this expense is not in the group's currency. */
+  fx?: FxRecord | null;
   clientMutationId?: string;
 }
 
@@ -336,6 +338,7 @@ export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpen
           )
         : undefined,
       notes: input.notes ?? null,
+      fx: input.fx ?? null,
       // Idempotency key: a retry after a flaky network must not double-post.
       clientMutationId: input.clientMutationId ?? randomUUID(),
     },
@@ -684,4 +687,24 @@ export async function fetchScanQuota(): Promise<{
   const { data, error } = await supabase.rpc('baaki_receipt_scan_quota');
   if (error) throw new Error(error.message);
   return data as { used: number; limit: number; remaining: number };
+}
+
+// ───────────────────────────────────────────── exchange rates ──
+
+/**
+ * Today's mid-market rate, as the exact rational that gets stored on the
+ * expense.
+ *
+ * This can fail — no network, no published rate for the pair — and that is not
+ * an error worth blocking on. Typing the rate always works, and for a card
+ * transaction it is the more accurate answer anyway, because the bank's rate
+ * includes a markup no reference rate will ever match.
+ */
+export async function fetchFxRate(from: string, to: string): Promise<FxRecord> {
+  const { data, error } = await supabase.functions.invoke(
+    `fx-rate?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    { method: 'GET' },
+  );
+  if (error) throw new Error(await readFunctionError(error));
+  return data as FxRecord;
 }

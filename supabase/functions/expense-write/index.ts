@@ -10,7 +10,12 @@
  * `clientMutationId` makes a replay a no-op (ADR-005).
  */
 
-import { computeShares, verifyClientShares, type SplitParams } from '../_shared/core.js';
+import {
+  computeShares,
+  verifyClientShares,
+  type FxRecord,
+  type SplitParams,
+} from '../_shared/core.js';
 import {
   asCaller,
   asService,
@@ -39,6 +44,12 @@ interface ExpenseWriteRequest {
   expectedShares?: Record<string, string>;
   notes?: string | null;
   receiptId?: string | null;
+  /**
+   * The rate used, when the expense is not in the group's currency (ADR-003).
+   * Stored as an exact rational so the conversion can be reproduced a year
+   * later. The server checks its direction; it does not invent one.
+   */
+  fx?: FxRecord | null;
   clientMutationId: string;
 }
 
@@ -125,6 +136,7 @@ Deno.serve(async (request) => {
       p_client_mutation_id: body.clientMutationId,
       p_notes: body.notes ?? null,
       p_receipt_id: body.receiptId ?? null,
+      p_fx: body.fx ?? null,
     });
 
     if (applyError) {
