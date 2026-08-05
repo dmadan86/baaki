@@ -37,3 +37,12 @@ coverage/
 # generated: core bundled for the Deno edge runtime
 supabase/functions/_shared/core.js
 packages/core/dist/
+
+# Shell artefacts: an unquoted JS arrow in a terminal command (`=> row.id`)
+# is parsed as a redirect and silently creates an empty file. These are always
+# accidents, never source.
+*.id
+*)
+{
+{,
+({
