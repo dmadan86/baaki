@@ -15,6 +15,7 @@
     "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.9",
     "expo-crypto": "~57.0.1",
+    "expo-dev-client": "~57.0.10",
     "expo-device": "~57.0.1",
     "expo-file-system": "~57.0.1",
     "expo-font": "~57.0.1",
@@ -58,7 +59,11 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:dev": "eas build --profile development --platform android",
+    "build:preview": "eas build --profile preview --platform android",
+    "build:prod": "eas build --profile production --platform all",
+    "build:local": "eas build --profile preview --platform android --local"
   },
   "private": true
 }
