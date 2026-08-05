@@ -10,7 +10,7 @@
  * `clientMutationId` makes a replay a no-op (ADR-005).
  */
 
-import { computeShares, type SplitParams } from '../_shared/core.js';
+import { computeShares, verifyClientShares, type SplitParams } from '../_shared/core.js';
 import {
   asCaller,
   asService,
@@ -97,17 +97,12 @@ Deno.serve(async (request) => {
       seed: expenseId,
     });
 
-    if (body.expectedShares) {
-      for (const [member, share] of shares) {
-        const claimed = body.expectedShares[member];
-        if (claimed === undefined || BigInt(claimed) !== share) {
-          throw new HttpError(
-            409,
-            'SHARE_MISMATCH',
-            `Server computed ${share} for ${member}, client said ${claimed ?? 'nothing'}`,
-          );
-        }
-      }
+    // One definition of "the client agrees with us", shared with /sync and
+    // property-tested in @baaki/core rather than written out twice here.
+    try {
+      verifyClientShares(shares, body.expectedShares);
+    } catch (mismatch) {
+      throw new HttpError(409, 'SHARE_MISMATCH', (mismatch as Error).message);
     }
 
     // One RPC, one transaction. Writing the version, the payers and the shares

@@ -30,6 +30,7 @@ import {
 import { displayName, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { SyncBanner } from '@/components/SyncBanner';
 
 type Tab = 'expenses' | 'balances' | 'activity';
 
@@ -128,6 +129,8 @@ export default function GroupScreen() {
             <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text} />
           </IconButton>
         </Row>
+
+        <SyncBanner groupId={groupId} />
 
         {/* If the two independent balance computations ever disagree, say so
             rather than showing a number that might be wrong (ADR-004). */}

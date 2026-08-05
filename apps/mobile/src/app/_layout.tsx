@@ -10,6 +10,7 @@ import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { LockProvider, useLock } from '@/lib/lock';
+import { SyncProvider } from '@/sync';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,14 +28,16 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <LockProvider>
-              <ThemeProvider>
-                <StatusBar style="auto" />
-                <LockGate>
-                  <AuthGate />
-                </LockGate>
-              </ThemeProvider>
-            </LockProvider>
+            <SyncProvider>
+              <LockProvider>
+                <ThemeProvider>
+                  <StatusBar style="auto" />
+                  <LockGate>
+                    <AuthGate />
+                  </LockGate>
+                </ThemeProvider>
+              </LockProvider>
+            </SyncProvider>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

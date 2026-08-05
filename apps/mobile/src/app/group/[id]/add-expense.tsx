@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
@@ -19,10 +20,19 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { useGroup, useWriteExpense } from '@/data/hooks';
+import { useGroup } from '@/data/hooks';
 import { displayName, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { clearDraft, useDraft, useRestoredDraft, useSync } from '@/sync';
+
+interface ExpenseDraft {
+  amount: string;
+  description: string;
+  splitKind: SplitKind;
+  payer: MemberId | null;
+  participants: MemberId[];
+}
 
 type SplitKind = 'equal' | 'shares' | 'percent';
 
@@ -34,9 +44,21 @@ export default function AddExpenseScreen() {
   const { profile } = useAuth();
 
   const { group, members, expenses } = useGroup(groupId);
-  const writeExpense = useWriteExpense(groupId);
+  const { mutate } = useSync();
 
   const editing = expenses.data?.find((expense) => expense.id === expenseId);
+
+  // The id is chosen here, not by the server. It seeds the remainder rotation
+  // (ADR-009), so previewing with one id and writing with another would put the
+  // extra paisa on a different person and the server would rightly reject the
+  // write as a SHARE_MISMATCH. It is also what lets this expense be created
+  // with no network at all (ADR-005).
+  const [newExpenseId] = useState(() => randomUUID());
+  const targetExpenseId = expenseId ?? newExpenseId;
+
+  // ADR-005: a crash mid-entry must not cost the user their typing.
+  const draftKey = `expense:${groupId}:${expenseId ?? 'new'}`;
+  const restored = useRestoredDraft<ExpenseDraft>(draftKey);
 
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
@@ -44,6 +66,7 @@ export default function AddExpenseScreen() {
   const [payer, setPayer] = useState<MemberId | null>(null);
   const [participants, setParticipants] = useState<MemberId[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const myMemberId = useMemo(
     () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
@@ -55,11 +78,21 @@ export default function AddExpenseScreen() {
   // "adjust state when the input changes" pattern) so the form never flashes
   // empty before the data arrives.
   const [seededFor, setSeededFor] = useState<string | null>(null);
-  const seedKey = members.data ? (editing?.currentVersion?.id ?? `new:${groupId}`) : null;
+  const seedKey =
+    members.data && !restored.loading ? (editing?.currentVersion?.id ?? `new:${groupId}`) : null;
   if (seedKey && seedKey !== seededFor) {
     setSeededFor(seedKey);
     const version = editing?.currentVersion;
-    if (version) {
+    const draft = restored.draft;
+    if (draft) {
+      // A draft outranks the saved version: it is what the user was in the
+      // middle of writing when the app went away.
+      setAmount(BigInt(draft.amount));
+      setDescription(draft.description);
+      setSplitKind(draft.splitKind);
+      setPayer(draft.payer ?? myMemberId);
+      setParticipants(draft.participants);
+    } else if (version) {
       setAmount(BigInt(version.amount));
       setDescription(version.description);
       setPayer(version.payers[0]?.member_id ?? myMemberId);
@@ -78,6 +111,13 @@ export default function AddExpenseScreen() {
   }
 
   const currency = group.data?.default_currency ?? 'INR';
+
+  // Every keystroke, debounced just enough to avoid one write per character.
+  useDraft<ExpenseDraft>(
+    draftKey,
+    { amount: amount.toString(), description, splitKind, payer, participants },
+    { enabled: seededFor !== null },
+  );
 
   const splitParams: SplitParams = useMemo(() => {
     if (splitKind === 'shares') {
@@ -106,14 +146,14 @@ export default function AddExpenseScreen() {
         currency,
         params: splitParams,
         participants,
-        seed: expenseId ?? 'draft',
+        seed: targetExpenseId,
       });
     } catch {
       return null;
     }
-  }, [amount, currency, splitParams, participants, expenseId]);
+  }, [amount, currency, splitParams, participants, targetExpenseId]);
 
-  if (group.isLoading || members.isLoading) {
+  if (group.isLoading || members.isLoading || restored.loading) {
     return (
       <Screen>
         <View style={{ padding: theme.spacing.xl }}>
@@ -137,21 +177,31 @@ export default function AddExpenseScreen() {
       setError('Choose who paid');
       return;
     }
+    setSaving(true);
     try {
-      await writeExpense.mutateAsync({
-        expenseId: expenseId ?? undefined,
+      // Straight into the durable queue: this returns as soon as the mutation
+      // is on disk, so the expense is saved whether or not there is a network.
+      await mutate(expenseId ? 'expense.update' : 'expense.create', groupId, {
+        expenseId: targetExpenseId,
         description: description.trim() || 'Expense',
         expenseDate: new Date().toISOString().slice(0, 10),
         currency,
-        amount,
+        amount: amount.toString(),
         splitParams,
         participants,
-        payers: { [payer]: amount },
-        expectedShares: preview ? Object.fromEntries(preview) : undefined,
+        payers: { [payer]: amount.toString() },
+        expectedShares: preview
+          ? Object.fromEntries([...preview].map(([id, share]) => [id, share.toString()]))
+          : undefined,
+        // Lets the server tell a concurrent edit from a normal one (TDR §4.4).
+        baseVersionNo: editing?.currentVersion?.version_no ?? null,
       });
+      await clearDraft(draftKey);
       router.back();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -323,15 +373,15 @@ export default function AddExpenseScreen() {
           label={editing ? 'Save changes' : t.save}
           size="lg"
           fullWidth
-          disabled={amount === 0n || participants.length === 0 || writeExpense.isPending}
+          disabled={amount === 0n || participants.length === 0 || saving}
           onPress={() => void submit()}
         />
 
-        {writeExpense.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
+        {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
 
         <Text variant="micro" tone="faint" align="center">
-          The server recomputes every share before it is stored, so no device can push a wrong
-          number into the ledger.
+          Saved on this phone straight away, with or without a signal. The server recomputes every
+          share before it is stored, so no device can push a wrong number into the ledger.
         </Text>
       </ScrollView>
     </Screen>

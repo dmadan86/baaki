@@ -128,6 +128,7 @@ model Profile {
   emailEvents       EmailEvent[]
   createdInvites    Invite[]        @relation("InviteCreatedBy")
   usageEvents       UsageEvent[]
+  syncMutations     SyncMutation[]
 
   @@map("profiles")
   @@schema("public")
@@ -161,6 +162,7 @@ model Group {
   pairwise        PairwiseBalance[]
   notifications   Notification[]
   usageEvents     UsageEvent[]
+  syncMutations   SyncMutation[]
 
   @@index([archivedAt])
   @@map("groups")
@@ -204,6 +206,7 @@ model GroupMember {
 
   @@unique([groupId, profileId])
   @@index([groupId])
+  @@index([groupId, updatedSeq])
   @@map("group_members")
   @@schema("public")
 }
@@ -252,6 +255,8 @@ model Expense {
   allocations    SettlementAllocation[]
 
   @@index([groupId, deletedAt])
+  /// The sync pull is "everything in this group since seq N" (TDR §4).
+  @@index([groupId, updatedSeq])
   @@map("expenses")
   @@schema("public")
 }
@@ -389,6 +394,7 @@ model Settlement {
   allocations SettlementAllocation[]
 
   @@index([groupId, status])
+  @@index([groupId, updatedSeq])
   @@map("settlements")
   @@schema("public")
 }
@@ -425,6 +431,7 @@ model ActivityLog {
   actor GroupMember? @relation(fields: [actorMemberId], references: [id], onDelete: SetNull)
 
   @@index([groupId, createdAt])
+  @@index([groupId, updatedSeq])
   @@map("activity_log")
   @@schema("public")
 }
@@ -566,5 +573,25 @@ model PairwiseBalance {
 
   @@id([groupId, fromMemberId, toMemberId, currency])
   @@map("pairwise_balances")
+  @@schema("public")
+}
+
+/// ADR-005: the idempotency ledger. Every queued mutation is recorded by its
+/// client-generated UUID together with the result it produced, so replaying a
+/// queue after a crash returns the original answer instead of acting twice.
+/// Service-role only — RLS is on with no policies at all.
+model SyncMutation {
+  clientMutationId String   @id @map("client_mutation_id") @db.Uuid
+  profileId        String   @map("profile_id") @db.Uuid
+  groupId          String?  @map("group_id") @db.Uuid
+  kind             String
+  result           Json     @default("{}")
+  appliedAt        DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, appliedAt(sort: Desc)], map: "sync_mutations_profile_idx")
+  @@map("sync_mutations")
   @@schema("public")
 }
