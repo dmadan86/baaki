@@ -49,6 +49,29 @@ export async function pickGroupPhoto(): Promise<PickedImage | null> {
   return { base64: asset.base64, mimeType: asset.mimeType ?? null, uri: asset.uri };
 }
 
+/**
+ * A receipt, from the camera by default (ADR-008). Not cropped to a square and
+ * not compressed as hard as a cover photo: a faded line the model cannot read
+ * is a line somebody has to retype, so fidelity is worth the bytes here.
+ */
+export async function pickReceiptPhoto(): Promise<PickedImage | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  const launch = permission.granted
+    ? ImagePicker.launchCameraAsync
+    : ImagePicker.launchImageLibraryAsync;
+
+  const result = await launch({
+    mediaTypes: ['images'],
+    quality: 0.9,
+    base64: true,
+  });
+  if (result.canceled) return null;
+
+  const asset = result.assets[0];
+  if (!asset?.base64) return null;
+  return { base64: asset.base64, mimeType: asset.mimeType ?? null, uri: asset.uri };
+}
+
 interface GroupPhotoProps {
   photoPath?: string | null;
   /** A locally chosen image that has not been uploaded yet. */
