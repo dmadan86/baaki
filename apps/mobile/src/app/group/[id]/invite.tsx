@@ -2,12 +2,14 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, ScrollView, Share, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, ScrollView, Share, View } from 'react-native';
 
 import { Badge, Button, Card, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { mintInvite, type MintedInvite } from '@/data/api';
 import { useGroup } from '@/data/hooks';
+import { groupLabel } from '@/data/types';
+import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/i18n';
 
 /**
@@ -22,7 +24,8 @@ export default function InviteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
 
-  const { group } = useGroup(groupId);
+  const { group, members } = useGroup(groupId);
+  const { profile } = useAuth();
   const [invite, setInvite] = useState<MintedInvite | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +45,37 @@ export default function InviteScreen() {
     }
   };
 
+  const label = groupLabel(group.data, members.data ?? [], profile?.id);
+  const message = `Join ${label} on Baaki to split expenses — no app or account needed to start: ${link}`;
+
   const share = async (): Promise<void> => {
     if (!link) return;
-    await Share.share({
-      message: `Join "${group.data?.name ?? 'our group'}" on Baaki — no app needed to start: ${link}`,
-    });
+    await Share.share({ message });
+  };
+
+  /**
+   * The share sheet already reaches every app on the phone, but the three
+   * people actually use are worth one tap rather than three. Each is a plain
+   * URL scheme, so nothing here depends on those apps having an SDK.
+   */
+  const shareVia = async (channel: 'whatsapp' | 'sms' | 'email'): Promise<void> => {
+    if (!link) return;
+    const url =
+      channel === 'whatsapp'
+        ? `whatsapp://send?text=${encodeURIComponent(message)}`
+        : channel === 'sms'
+          ? // iOS wants '&body=', Android wants '?body=' — the separator is the
+            // only difference, and getting it wrong silently drops the text.
+            `sms:${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`
+          : `mailto:?subject=${encodeURIComponent(`Join ${label} on Baaki`)}&body=${encodeURIComponent(message)}`;
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      // WhatsApp not installed, no mail account configured, a browser with no
+      // handler: fall back to the sheet rather than showing an error.
+      await Share.share({ message });
+    }
   };
 
   const copy = async (): Promise<void> => {
@@ -73,7 +102,7 @@ export default function InviteScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">Invite people</Text>
             <Text variant="micro" tone="muted">
-              {group.data?.name}
+              {label}
             </Text>
           </View>
           <View style={{ width: 44 }} />
@@ -108,9 +137,27 @@ export default function InviteScreen() {
               </Row>
             </Card>
 
+            <Row style={{ gap: theme.spacing.md, flexWrap: 'wrap' }}>
+              {(
+                [
+                  { channel: 'whatsapp', label: 'WhatsApp', icon: 'logo-whatsapp' },
+                  { channel: 'sms', label: 'SMS', icon: 'chatbubble-outline' },
+                  { channel: 'email', label: 'Email', icon: 'mail-outline' },
+                ] as const
+              ).map((option) => (
+                <Button
+                  key={option.channel}
+                  label={option.label}
+                  variant="secondary"
+                  onPress={() => void shareVia(option.channel)}
+                  icon={<Ionicons name={option.icon} size={18} color={theme.color.brand} />}
+                />
+              ))}
+            </Row>
+
             <Row style={{ gap: theme.spacing.md }}>
               <Button
-                label="Share"
+                label="Share another way"
                 size="lg"
                 onPress={() => void share()}
                 icon={<Ionicons name="share-outline" size={18} color={theme.color.onBrand} />}

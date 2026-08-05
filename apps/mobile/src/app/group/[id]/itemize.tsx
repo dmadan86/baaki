@@ -26,7 +26,7 @@ import {
 } from '@baaki/ui';
 
 import { useGroup, useWriteExpense } from '@/data/hooks';
-import { displayName, isGhost } from '@/data/types';
+import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
@@ -206,7 +206,7 @@ export default function ItemizeScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">Split by item</Text>
             <Text variant="micro" tone="muted">
-              {group.data.name}
+              {groupLabel(group.data, members.data ?? [])}
             </Text>
           </View>
           <View style={{ width: 44 }} />

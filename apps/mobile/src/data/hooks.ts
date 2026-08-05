@@ -37,7 +37,7 @@ import {
   fetchExpenses,
   fetchGroup,
   fetchGroups,
-  fetchMemberCounts,
+  fetchMembersByGroup,
   fetchMembers,
   fetchMyBalances,
   fetchPendingSettlements,
@@ -78,7 +78,7 @@ export function useHomeSummary(profileId: string | null) {
     queryFn: () => fetchMyBalances(profileId as string),
     enabled: Boolean(profileId),
   });
-  const counts = useQuery({ queryKey: ['members', 'counts'], queryFn: fetchMemberCounts });
+  const members = useQuery({ queryKey: ['members', 'byGroup'], queryFn: fetchMembersByGroup });
   const pending = useQuery({
     queryKey: ['settlements', 'pending'],
     queryFn: fetchPendingSettlements,
@@ -100,14 +100,15 @@ export function useHomeSummary(profileId: string | null) {
 
   return {
     balanceFor: (groupId: string) => byGroup.get(groupId) ?? 0n,
-    memberCountFor: (groupId: string) => counts.data?.get(groupId) ?? 0,
+    membersFor: (groupId: string) => members.data?.get(groupId) ?? [],
+    memberCountFor: (groupId: string) => members.data?.get(groupId)?.length ?? 0,
     hasPending: (groupId: string) => pendingByGroup.has(groupId),
     totals: { net: owed - owing, owed, owing },
-    isLoading: balances.isLoading || counts.isLoading,
-    isFetching: balances.isFetching || counts.isFetching || pending.isFetching,
+    isLoading: balances.isLoading || members.isLoading,
+    isFetching: balances.isFetching || members.isFetching || pending.isFetching,
     refetch: () => {
       void balances.refetch();
-      void counts.refetch();
+      void members.refetch();
       void pending.refetch();
     },
   };

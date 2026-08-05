@@ -16,9 +16,12 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { GroupPhoto, pickGroupPhoto } from '@/components/GroupPhoto';
+import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { groupLabel } from '@/data/types';
 
 const EMOJI = ['🏖️', '🏠', '💜', '🎉', '✈️', '🍽️', '⛰️', '🎓', '👥'];
 
@@ -36,6 +39,33 @@ export default function GroupSettingsScreen() {
 
   const [name, setName] = useState(group.data?.name ?? '');
   const [status, setStatus] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const changePhoto = async (): Promise<void> => {
+    const picked = await pickGroupPhoto();
+    if (!picked) return;
+    setStatus(null);
+    setUploading(true);
+    try {
+      await uploadGroupPhoto({ groupId, base64: picked.base64, mimeType: picked.mimeType });
+      await group.refetch();
+      setStatus('Photo updated');
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const dropPhoto = async (): Promise<void> => {
+    setStatus(null);
+    try {
+      await removeGroupPhoto(groupId, group.data?.photo_path ?? null);
+      await group.refetch();
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : String(caught));
+    }
+  };
 
   if (!group.data) {
     return (
@@ -104,38 +134,64 @@ export default function GroupSettingsScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">Group settings</Text>
             <Text variant="micro" tone="muted">
-              {group.data.name}
+              {groupLabel(group.data, members.data ?? [])}
             </Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
 
         <Card style={{ gap: theme.spacing.lg }}>
-          <Text variant="caption" tone="muted">
-            Name
-          </Text>
-          <Row>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              accessibilityLabel="Group name"
-              style={{
-                flex: 1,
-                fontSize: 20,
-                fontWeight: '700',
-                color: theme.color.text,
-                paddingVertical: theme.spacing.sm,
-              }}
+          <Row style={{ gap: theme.spacing.lg }}>
+            <GroupPhoto
+              photoPath={group.data.photo_path}
+              emoji={group.data.cover_emoji}
+              size={72}
+              busy={uploading}
+              onPress={() => void changePhoto()}
             />
+            <View style={{ flex: 1, gap: theme.spacing.xs }}>
+              <Text variant="caption" tone="muted">
+                Name (optional)
+              </Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                accessibilityLabel="Group name"
+                placeholder={groupLabel(null, members.data ?? [], profile?.id)}
+                placeholderTextColor={theme.color.textFaint}
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: theme.color.text,
+                  paddingVertical: theme.spacing.sm,
+                }}
+              />
+            </View>
+          </Row>
+
+          <Row style={{ gap: theme.spacing.sm }}>
             <Button
-              label="Save"
+              label="Save name"
               size="sm"
               variant="secondary"
-              disabled={!name.trim() || name.trim() === group.data.name}
+              // Clearing the field is a real choice: the group goes back to
+              // being named after the people in it.
+              disabled={name.trim() === (group.data.name ?? '')}
               onPress={() =>
-                updateGroup.mutate({ name: name.trim() }, { onSuccess: () => setStatus('Saved') })
+                updateGroup.mutate(
+                  { name: name.trim() || null },
+                  { onSuccess: () => setStatus('Saved') },
+                )
               }
             />
+            {group.data.photo_path ? (
+              <Button
+                label="Remove photo"
+                size="sm"
+                variant="ghost"
+                onPress={() => void dropPhoto()}
+              />
+            ) : null}
           </Row>
 
           <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>

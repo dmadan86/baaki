@@ -21,7 +21,7 @@ import {
 } from '@baaki/ui';
 
 import { useGroup } from '@/data/hooks';
-import { displayName, isGhost } from '@/data/types';
+import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { clearDraft, useDraft, useRestoredDraft, useSync } from '@/sync';
@@ -231,7 +231,7 @@ export default function AddExpenseScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{editing ? 'Edit expense' : t.addExpense}</Text>
             <Text variant="micro" tone="muted">
-              {group.data.name}
+              {groupLabel(group.data, members.data ?? [], profile?.id)}
             </Text>
           </View>
           {editing ? (

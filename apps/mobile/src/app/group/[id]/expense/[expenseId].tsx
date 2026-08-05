@@ -25,7 +25,7 @@ import {
   useGroup,
   useRestoreExpense,
 } from '@/data/hooks';
-import { displayName, isGhost } from '@/data/types';
+import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
@@ -119,7 +119,7 @@ export default function ExpenseDetailScreen() {
               {version.description}
             </Text>
             <Text variant="micro" tone="muted">
-              {group.data?.name}
+              {groupLabel(group.data, members.data ?? [])}
             </Text>
           </View>
           <IconButton

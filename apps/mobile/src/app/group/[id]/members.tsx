@@ -18,7 +18,7 @@ import {
 } from '@baaki/ui';
 
 import { useAddGhostMember, useGroup, useGroupLedger } from '@/data/hooks';
-import { displayName, isGhost, vpaOf } from '@/data/types';
+import { displayName, groupLabel, isGhost, vpaOf } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
@@ -67,7 +67,7 @@ export default function MembersScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.members}</Text>
             <Text variant="micro" tone="muted">
-              {group.data?.name}
+              {groupLabel(group.data, members.data ?? [])}
             </Text>
           </View>
           <IconButton label="Invite" onPress={() => router.push(`/group/${groupId}/invite`)}>

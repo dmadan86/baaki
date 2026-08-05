@@ -27,6 +27,12 @@ const SETTINGS: {
   route?: string;
 }[] = [
   {
+    icon: 'person-circle-outline',
+    label: 'Your account',
+    hint: 'Add an email or phone, or carry on as a guest',
+    route: '/settings/account',
+  },
+  {
     icon: 'notifications-outline',
     label: 'Notifications',
     hint: 'Only what involves me',
@@ -151,14 +157,21 @@ export default function ProfileScreen() {
         </Card>
 
         {isGuest ? (
-          <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
+          <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.md }}>
             <Text variant="subheading" tone="brand">
               Guest account
             </Text>
             <Text variant="caption" tone="muted">
-              Adding a phone number keeps everything you have entered and lets you use Baaki on
-              another device. Linking accounts ships with the invite flow (M3).
+              Everything you have entered is already saved and yours. Add an email or phone number
+              whenever you want to reach it from another phone — it keeps this account rather than
+              starting a new one.
             </Text>
+            <Button
+              label="Add your details"
+              variant="secondary"
+              size="sm"
+              onPress={() => router.push('/settings/account')}
+            />
           </Card>
         ) : null}
 

@@ -7,11 +7,14 @@ export type SettlementStatus =
 
 export interface GroupRow {
   id: string;
-  name: string;
+  /** Optional — an unnamed group is labelled by who is in it (see groupLabel). */
+  name: string | null;
   type: GroupType;
   default_currency: string;
   simplify_debts: boolean;
   cover_emoji: string | null;
+  /** Object path in the private `group-photos` bucket, or null. */
+  photo_path: string | null;
   archived_at: string | null;
   created_at: string;
 }
@@ -97,6 +100,32 @@ export interface BalanceRow {
 export function displayName(member: MemberRow, myProfileId?: string | null): string {
   if (member.profile_id && member.profile_id === myProfileId) return 'You';
   return member.profile?.display_name ?? member.ghost_name ?? 'Someone';
+}
+
+/**
+ * What to call a group that has no name.
+ *
+ * The people are the group, so they are the label: "You, Priya and Ravi". It
+ * beats "Untitled group" for the same reason a photo of your friends beats a
+ * filename — you recognise it without reading it.
+ */
+export function groupLabel(
+  group: Pick<GroupRow, 'name'> | null | undefined,
+  members: readonly MemberRow[] = [],
+  myProfileId?: string | null,
+): string {
+  const named = group?.name?.trim();
+  if (named) return named;
+
+  const others = members
+    .filter((member) => !member.left_at)
+    .filter((member) => !(member.profile_id && member.profile_id === myProfileId))
+    .map((member) => displayName(member, myProfileId));
+
+  if (others.length === 0) return 'New group';
+  if (others.length === 1) return `You and ${others[0]}`;
+  if (others.length === 2) return `You, ${others[0]} and ${others[1]}`;
+  return `You, ${others[0]} and ${others.length - 1} others`;
 }
 
 export function isGhost(member: MemberRow): boolean {
