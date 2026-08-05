@@ -22,6 +22,7 @@
     "expo-linking": "~57.0.5",
     "expo-local-authentication": "~57.0.2",
     "expo-localization": "~57.0.1",
+    "expo-network": "~57.0.1",
     "expo-router": "~57.0.10",
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.8",

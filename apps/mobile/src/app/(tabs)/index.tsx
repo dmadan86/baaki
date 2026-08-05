@@ -23,6 +23,7 @@ import {
 import { useGroups, useHomeSummary } from '@/data/hooks';
 import { fill, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { SyncBanner } from '@/components/SyncBanner';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -69,6 +70,8 @@ export default function HomeScreen() {
             <Ionicons name="add" size={22} color={theme.color.text} />
           </IconButton>
         </Row>
+
+        <SyncBanner />
 
         {isGuest ? (
           <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
