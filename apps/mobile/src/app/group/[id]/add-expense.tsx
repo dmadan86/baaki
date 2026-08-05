@@ -4,7 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { computeShares, type MemberId, type SplitParams } from '@baaki/core';
+import { computeShares, type FxRecord, type MemberId, type SplitParams } from '@baaki/core';
 import {
   AmountKeypad,
   Avatar,
@@ -20,6 +20,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { CurrencyRate } from '@/components/CurrencyRate';
 import { useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -65,6 +66,8 @@ export default function AddExpenseScreen() {
   const [splitKind, setSplitKind] = useState<SplitKind>('equal');
   const [payer, setPayer] = useState<MemberId | null>(null);
   const [participants, setParticipants] = useState<MemberId[]>([]);
+  const [expenseCurrency, setExpenseCurrency] = useState<string | null>(null);
+  const [fx, setFx] = useState<FxRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -110,7 +113,10 @@ export default function AddExpenseScreen() {
     }
   }
 
-  const currency = group.data?.default_currency ?? 'INR';
+  const groupCurrency = group.data?.default_currency ?? 'INR';
+  // The expense keeps the currency it was paid in; the group's is only the
+  // default and what a converted total would be shown in (ADR-003).
+  const currency = expenseCurrency ?? groupCurrency;
 
   // Every keystroke, debounced just enough to avoid one write per character.
   useDraft<ExpenseDraft>(
@@ -187,6 +193,7 @@ export default function AddExpenseScreen() {
         expenseDate: new Date().toISOString().slice(0, 10),
         currency,
         amount: amount.toString(),
+        fx,
         splitParams,
         participants,
         payers: { [payer]: amount.toString() },
@@ -257,6 +264,15 @@ export default function AddExpenseScreen() {
         <Card>
           <AmountKeypad currency={currency} value={amount} onChange={setAmount} />
         </Card>
+
+        <CurrencyRate
+          groupCurrency={groupCurrency}
+          currency={currency}
+          onCurrencyChange={setExpenseCurrency}
+          amount={amount}
+          fx={fx}
+          onFxChange={setFx}
+        />
 
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">

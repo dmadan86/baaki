@@ -24,7 +24,12 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
-import { computeShares, verifyClientShares, type SplitParams } from '../_shared/core.js';
+import {
+  computeShares,
+  verifyClientShares,
+  type FxRecord,
+  type SplitParams,
+} from '../_shared/core.js';
 import {
   asCaller,
   asService,
@@ -291,6 +296,7 @@ class SyncSession {
       participants: string[];
       payers: Record<string, string>;
       expectedShares?: Record<string, string>;
+      fx?: FxRecord | null;
       notes?: string | null;
       receiptId?: string | null;
       baseVersionNo?: number;
@@ -348,6 +354,7 @@ class SyncSession {
       // version — this is what turns a concurrent edit into a logged conflict
       // instead of a silent overwrite (TDR §4.4).
       p_base_version_no: payload.baseVersionNo ?? null,
+      p_fx: payload.fx ?? null,
     });
     if (error) throw error;
     return data;

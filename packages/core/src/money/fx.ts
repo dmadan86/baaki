@@ -99,3 +99,79 @@ export function fromFxRecord(record: FxRecord): FxRate {
     source: record.source,
   });
 }
+
+/**
+ * A rate typed as a decimal: "1 EUR = 91.25 INR" becomes 9125/100.
+ *
+ * Parsed as a string rather than a number because 91.25 is not representable in
+ * binary floating point, and the whole point of storing a rational is that the
+ * rate somebody typed is the rate that gets used a year later.
+ */
+export function rateFromDecimal(
+  decimal: string,
+  from: CurrencyCode,
+  to: CurrencyCode,
+  options: { ts?: string; source?: string } = {},
+): FxRate {
+  const trimmed = decimal.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+    throw new MoneyError('INVALID_FX_RATE', `"${decimal}" is not a rate`);
+  }
+  const [whole = '0', fraction = ''] = trimmed.split('.');
+  return fxRate({
+    num: BigInt(whole + fraction),
+    den: 10n ** BigInt(fraction.length),
+    from,
+    to,
+    ts: options.ts ?? new Date().toISOString(),
+    source: options.source ?? 'manual',
+  });
+}
+
+/**
+ * The rate implied by what you paid and what you were charged — "the meal was
+ * €50 and my card statement says ₹4,562.50".
+ *
+ * This is the honest way to record a card transaction: the bank's rate already
+ * includes its markup, so a mid-market rate fetched from anywhere would produce
+ * a number that does not match anybody's statement. Deriving it from the two
+ * amounts records what actually happened.
+ */
+export function rateFromAmounts(
+  spent: Money,
+  charged: Money,
+  options: { ts?: string; source?: string } = {},
+): FxRate {
+  if (spent.minor <= 0n || charged.minor <= 0n) {
+    throw new MoneyError('INVALID_FX_RATE', 'Both amounts must be positive to imply a rate');
+  }
+  // Both sides are in minor units, so the exponents have to come back out or a
+  // JPY↔INR rate would be wrong by a factor of a hundred.
+  const spentExponent = minorUnitExponent(spent.currency);
+  const chargedExponent = minorUnitExponent(charged.currency);
+  const delta = spentExponent - chargedExponent;
+
+  return fxRate({
+    num: charged.minor * (delta > 0 ? 10n ** BigInt(delta) : 1n),
+    den: spent.minor * (delta < 0 ? 10n ** BigInt(-delta) : 1n),
+    from: spent.currency,
+    to: charged.currency,
+    ts: options.ts ?? new Date().toISOString(),
+    source: options.source ?? 'implied',
+  });
+}
+
+/** The rate as a decimal string, for showing back what was entered. */
+export function rateToDecimal(rate: FxRate, places = 6): string {
+  const scale = 10n ** BigInt(places);
+  const scaled = divideRoundHalfAwayFromZero(rate.num * scale, rate.den);
+  const text = scaled.toString().padStart(places + 1, '0');
+  const whole = text.slice(0, text.length - places);
+  const fraction = text.slice(text.length - places).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+/** Convert straight from what was stored on the expense. */
+export function convertWithRecord(amount: Money, record: FxRecord): Money {
+  return convert(amount, fromFxRecord(record));
+}

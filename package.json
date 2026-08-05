@@ -25,7 +25,7 @@
     "edge:serve": "pnpm edge:build && supabase functions serve --env-file supabase/functions/.env",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "edge:deploy": "pnpm edge:build && supabase functions deploy expense-write sync invite-mint invite-accept export-data receipt-parse"
+    "edge:deploy": "pnpm edge:build && supabase functions deploy expense-write sync invite-mint invite-accept export-data receipt-parse fx-rate"
   },
   "devDependencies": {
     "prettier": "^3.4.2",
