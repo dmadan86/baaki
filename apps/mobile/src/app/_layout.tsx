@@ -141,6 +141,7 @@ function AuthGate() {
       <Stack.Screen name="settings/notifications" />
       <Stack.Screen name="settings/export" />
       <Stack.Screen name="settings/lock" />
+      <Stack.Screen name="settings/account" />
       <Stack.Screen name="join" />
     </Stack>
   );

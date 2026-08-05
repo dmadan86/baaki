@@ -98,15 +98,20 @@ describe('baaki_create_group', () => {
     ).toMatch(/NOT_AUTHENTICATED/);
   });
 
-  it('refuses a blank name', async () => {
+  it('accepts a blank name and stores no name at all', async () => {
+    // This used to raise INVALID_NAME. Starting a group should cost one tap,
+    // so a name is now optional and the app labels the group by who is in it
+    // instead — see packages/db/test/groups.test.ts for the full behaviour.
     const profileId = await createProfile('Ravi');
-    expect(
-      await expectDenied(
-        asUser(profileId, () =>
-          client.query(`SELECT baaki_create_group('   ', 'other', 'INR', NULL, true)`),
-        ),
-      ),
-    ).toMatch(/INVALID_NAME/);
+    const groupId = await asUser(profileId, async () => {
+      const result = await client.query(
+        `SELECT baaki_create_group('   ', 'other', 'INR', NULL, true) AS id`,
+      );
+      return String(result.rows[0]?.id);
+    });
+
+    const { rows } = await client.query(`SELECT name FROM groups WHERE id = $1`, [groupId]);
+    expect(rows[0]?.name).toBeNull();
   });
 });
 

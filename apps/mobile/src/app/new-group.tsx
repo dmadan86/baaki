@@ -5,7 +5,8 @@ import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react
 
 import { Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
-import { addGhostMember } from '@/data/api';
+import { GroupPhoto, pickGroupPhoto, type PickedImage } from '@/components/GroupPhoto';
+import { addGhostMember, uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
 import type { GroupType } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -18,6 +19,8 @@ export default function NewGroupScreen() {
   const createGroup = useCreateGroup();
 
   const [name, setName] = useState('');
+  const [photo, setPhoto] = useState<PickedImage | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [type, setType] = useState<GroupType>('trip');
   const [emoji, setEmoji] = useState(EMOJI[0] as string);
   const [ghostName, setGhostName] = useState('');
@@ -28,7 +31,8 @@ export default function NewGroupScreen() {
     setError(null);
     try {
       const groupId = await createGroup.mutateAsync({
-        name: name.trim(),
+        // Blank is fine — the group gets labelled by who is in it instead.
+        name: name.trim() || null,
         type,
         currency: 'INR',
         emoji,
@@ -38,6 +42,19 @@ export default function NewGroupScreen() {
       // ADR-006: people who have not installed anything are still participants.
       for (const ghost of ghosts) {
         await addGhostMember(groupId, ghost);
+      }
+      // After the group exists, because the storage policy is "members of this
+      // group only" and there is no membership until there is a group.
+      if (photo) {
+        setUploading(true);
+        try {
+          await uploadGroupPhoto({ groupId, base64: photo.base64, mimeType: photo.mimeType });
+        } catch {
+          // A photo that would not upload is not worth losing the group over;
+          // it can be added again from group settings.
+        } finally {
+          setUploading(false);
+        }
       }
       router.replace(`/group/${groupId}`);
     } catch (caught) {
@@ -66,23 +83,37 @@ export default function NewGroupScreen() {
         </Row>
 
         <Card style={{ gap: theme.spacing.lg }}>
-          <Text variant="caption" tone="muted">
-            Group name
-          </Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Goa trip"
-            placeholderTextColor={theme.color.textFaint}
-            accessibilityLabel="Group name"
-            autoFocus
-            style={{
-              fontSize: 22,
-              fontWeight: '700',
-              color: theme.color.text,
-              paddingVertical: theme.spacing.sm,
-            }}
-          />
+          <Row style={{ gap: theme.spacing.lg }}>
+            <GroupPhoto
+              photoPath={null}
+              localUri={photo?.uri ?? null}
+              emoji={emoji}
+              size={72}
+              onPress={() => void pickGroupPhoto().then(setPhoto)}
+            />
+            <View style={{ flex: 1, gap: theme.spacing.xs }}>
+              <Text variant="caption" tone="muted">
+                Group name (optional)
+              </Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Goa trip"
+                placeholderTextColor={theme.color.textFaint}
+                accessibilityLabel="Group name"
+                autoFocus
+                style={{
+                  fontSize: 22,
+                  fontWeight: '700',
+                  color: theme.color.text,
+                  paddingVertical: theme.spacing.sm,
+                }}
+              />
+              <Text variant="micro" tone="faint">
+                Leave it blank and the group is named after whoever is in it.
+              </Text>
+            </View>
+          </Row>
 
           <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
             {EMOJI.map((option) => (
@@ -196,13 +227,15 @@ export default function NewGroupScreen() {
             {error}
           </Text>
         ) : null}
-        {createGroup.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
+        {createGroup.isPending || uploading ? (
+          <ActivityIndicator color={theme.color.brand} />
+        ) : null}
 
         <Button
           label="Create group"
           size="lg"
           fullWidth
-          disabled={!name.trim() || createGroup.isPending}
+          disabled={createGroup.isPending || uploading}
           onPress={() => void submit()}
         />
       </ScrollView>

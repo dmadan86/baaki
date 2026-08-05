@@ -7,6 +7,7 @@
  * the server must own share computation and authorization (TDR §4).
  */
 
+import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
 
 import type { SplitParams } from '@baaki/core';
@@ -51,7 +52,7 @@ export async function fetchGroups(): Promise<GroupRow[]> {
     await supabase
       .from('groups')
       .select(
-        'id, name, type, default_currency, simplify_debts, cover_emoji, archived_at, created_at',
+        'id, name, type, default_currency, simplify_debts, cover_emoji, photo_path, archived_at, created_at',
       )
       .is('archived_at', null)
       .order('created_at', { ascending: false }),
@@ -63,7 +64,7 @@ export async function fetchGroup(groupId: string): Promise<GroupRow> {
     await supabase
       .from('groups')
       .select(
-        'id, name, type, default_currency, simplify_debts, cover_emoji, archived_at, created_at',
+        'id, name, type, default_currency, simplify_debts, cover_emoji, photo_path, archived_at, created_at',
       )
       .eq('id', groupId)
       .single(),
@@ -177,33 +178,108 @@ export async function fetchPendingSettlements(): Promise<{ group_id: string; id:
   );
 }
 
-export async function fetchMemberCounts(): Promise<Map<string, number>> {
+/**
+ * Members of every group I am in, one query. Names as well as counts, because
+ * a group with no name is labelled by the people in it (`groupLabel`) and the
+ * home screen would otherwise have nothing to call it.
+ */
+export async function fetchMembersByGroup(): Promise<Map<string, MemberRow[]>> {
   const rows = unwrap(
-    await supabase.from('group_members').select('group_id').is('left_at', null),
-  ) as { group_id: string }[];
-  const counts = new Map<string, number>();
-  for (const row of rows) counts.set(row.group_id, (counts.get(row.group_id) ?? 0) + 1);
-  return counts;
+    await supabase
+      .from('group_members')
+      .select(
+        'id, group_id, profile_id, ghost_name, role, vpa, left_at, profile:profiles ( id, display_name, avatar_url, default_vpa )',
+      )
+      .is('left_at', null)
+      .order('created_at', { ascending: true }),
+  ) as unknown as MemberRow[];
+
+  const byGroup = new Map<string, MemberRow[]>();
+  for (const row of rows) {
+    const list = byGroup.get(row.group_id);
+    if (list) list.push(row);
+    else byGroup.set(row.group_id, [row]);
+  }
+  return byGroup;
 }
 
 // ──────────────────────────────────────────────────────────── writes ──
 
 export async function createGroup(input: {
-  name: string;
+  /** Optional. A group with no name is labelled by who is in it. */
+  name?: string | null;
   type: GroupType;
   currency: string;
   emoji?: string | null;
   simplify?: boolean;
+  groupId?: string;
+  photoPath?: string | null;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('baaki_create_group', {
-    p_name: input.name,
+    p_name: input.name?.trim() || null,
     p_type: input.type,
     p_currency: input.currency,
     p_emoji: input.emoji ?? null,
     p_simplify: input.simplify ?? true,
+    p_group_id: input.groupId ?? null,
+    p_photo_path: input.photoPath ?? null,
   });
   if (error) throw new Error(error.message);
   return data as string;
+}
+
+// ────────────────────────────────────────── group photos (Storage) ──
+
+const PHOTO_BUCKET = 'group-photos';
+
+/**
+ * Upload a cover photo for a group.
+ *
+ * The path is always `<groupId>/cover.<ext>`, which is what the storage
+ * policies key off: only members of that group can read or write under it.
+ * `upsert` because replacing the photo is the common case and a second object
+ * per change would quietly eat the free tier (ADR-011).
+ */
+export async function uploadGroupPhoto(input: {
+  groupId: string;
+  base64: string;
+  mimeType?: string | null;
+}): Promise<string> {
+  const mime = normaliseImageMime(input.mimeType);
+  const path = `${input.groupId}/cover.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`;
+
+  const { error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
+  if (error) throw new Error(error.message);
+
+  const { error: linkError } = await supabase
+    .from('groups')
+    .update({ photo_path: path })
+    .eq('id', input.groupId);
+  if (linkError) throw new Error(linkError.message);
+
+  return path;
+}
+
+/** Signed because the bucket is private — a group photo is not public data. */
+export async function groupPhotoUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export async function removeGroupPhoto(groupId: string, path: string | null): Promise<void> {
+  if (path) await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+  const { error } = await supabase.from('groups').update({ photo_path: null }).eq('id', groupId);
+  if (error) throw new Error(error.message);
+}
+
+/** The bucket accepts three types; anything else is stored as JPEG. */
+function normaliseImageMime(mimeType: string | null | undefined): string {
+  if (mimeType === 'image/png' || mimeType === 'image/webp') return mimeType;
+  return 'image/jpeg';
 }
 
 /** ADR-006: a ghost is a real participant who simply hasn't joined yet. */
@@ -347,8 +423,9 @@ export async function confirmSettlement(settlementId: string): Promise<void> {
 export async function updateGroup(
   groupId: string,
   patch: Partial<{
-    name: string;
+    name: string | null;
     cover_emoji: string | null;
+    photo_path: string | null;
     simplify_debts: boolean;
     default_currency: string;
     archived_at: string | null;
@@ -485,4 +562,53 @@ export async function saveNotificationPrefs(
     .update({ notification_prefs: prefs })
     .eq('id', profileId);
   if (error) throw new Error(error.message);
+}
+
+// ───────────────────────── turning a guest into a real account (ADR-006) ──
+// You can use Baaki without giving it anything. Adding an email or a phone
+// number later is what makes the account reachable from a second device — it
+// does not create a new account, so nothing entered as a guest is lost.
+
+export type ContactChannel = 'email' | 'phone';
+
+/**
+ * Attach a contact to the current (possibly anonymous) user. Supabase sends a
+ * six-digit code; nothing changes until `confirmContact` verifies it.
+ */
+export async function startAddingContact(channel: ContactChannel, value: string): Promise<void> {
+  const trimmed = value.trim();
+  const { error } =
+    channel === 'email'
+      ? await supabase.auth.updateUser({ email: trimmed })
+      : await supabase.auth.updateUser({ phone: trimmed });
+  if (error) throw new Error(describeAuthError(error.message, channel));
+}
+
+export async function confirmContact(
+  channel: ContactChannel,
+  value: string,
+  token: string,
+): Promise<void> {
+  const trimmed = value.trim();
+  const { error } = await supabase.auth.verifyOtp(
+    channel === 'email'
+      ? { email: trimmed, token: token.trim(), type: 'email_change' }
+      : { phone: trimmed, token: token.trim(), type: 'phone_change' },
+  );
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Both failures here are project configuration rather than anything the person
+ * did wrong, and the raw messages ("Manual linking is disabled") would send
+ * them looking for a mistake they did not make.
+ */
+function describeAuthError(message: string, channel: ContactChannel): string {
+  if (/manual linking/i.test(message)) {
+    return 'Linking a contact is switched off for this Baaki server. Nothing is lost — carry on as a guest.';
+  }
+  if (channel === 'phone' && /provider|sms|not enabled|unsupported/i.test(message)) {
+    return 'This Baaki server cannot send SMS yet. Try an email address instead.';
+  }
+  return message;
 }

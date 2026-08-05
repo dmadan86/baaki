@@ -27,9 +27,10 @@ import {
   useGroupLedger,
   useGroupRealtime,
 } from '@/data/hooks';
-import { displayName, isGhost } from '@/data/types';
+import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { GroupPhoto } from '@/components/GroupPhoto';
 import { SyncBanner } from '@/components/SyncBanner';
 
 type Tab = 'expenses' | 'balances' | 'activity';
@@ -112,14 +113,21 @@ export default function GroupScreen() {
           <IconButton label="Back" onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={20} color={theme.color.text} />
           </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading" numberOfLines={1}>
-              {`${group.data.cover_emoji ?? '👥'}  ${group.data.name}`}
-            </Text>
-            <Text variant="micro" tone="muted">
-              {`${members.data?.length ?? 0} ${t.members}`}
-            </Text>
-          </View>
+          <Row style={{ flex: 1, gap: theme.spacing.md, justifyContent: 'center' }}>
+            <GroupPhoto
+              photoPath={group.data.photo_path}
+              emoji={group.data.cover_emoji}
+              size={38}
+            />
+            <View style={{ flexShrink: 1 }}>
+              <Text variant="heading" numberOfLines={1}>
+                {groupLabel(group.data, members.data ?? [], profile?.id)}
+              </Text>
+              <Text variant="micro" tone="muted">
+                {`${members.data?.length ?? 0} ${t.members}`}
+              </Text>
+            </View>
+          </Row>
           <IconButton
             label="Group settings"
             onPress={() => router.push(`/group/${groupId}/settings`)}

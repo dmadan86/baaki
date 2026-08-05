@@ -22,6 +22,8 @@ interface AuthValue {
   verifyOtp: (phone: string, token: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
+  /** Re-read the session after it changes underneath us (e.g. a linked email). */
+  refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -118,6 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .single();
         if (error) throw error;
         setProfile(data as Profile);
+      },
+
+      async refresh() {
+        const { data } = await supabase.auth.getSession();
+        setSession(data.session);
       },
 
       async signOut() {

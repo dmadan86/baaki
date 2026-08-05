@@ -9,6 +9,7 @@ import { Badge, Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme }
 
 import { exportData } from '@/data/api';
 import { useGroups } from '@/data/hooks';
+import { groupLabel } from '@/data/types';
 
 type Format = 'json' | 'csv';
 
@@ -113,7 +114,10 @@ export default function ExportScreen() {
             onChange={setScope}
             options={[
               { value: 'all', label: 'All my groups' },
-              ...(groups.data ?? []).map((group) => ({ value: group.id, label: group.name })),
+              ...(groups.data ?? []).map((group) => ({
+                value: group.id,
+                label: groupLabel(group),
+              })),
             ]}
           />
         </View>

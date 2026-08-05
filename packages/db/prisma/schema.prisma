@@ -138,7 +138,11 @@ model Profile {
 
 model Group {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name            String
+  /// Optional: starting a group should cost one tap, and the people in it
+  /// identify it better than a name does. NULL means "unnamed", not "".
+  name            String?
+  /// Object path in the private `group-photos` bucket, read via a signed URL.
+  photoPath       String?   @map("photo_path")
   type            GroupType @default(other)
   defaultCurrency String    @default("INR") @map("default_currency") @db.Char(3)
   /// ADR-009: simplification is a per-group presentation setting.

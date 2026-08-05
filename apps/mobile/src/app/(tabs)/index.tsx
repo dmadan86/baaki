@@ -24,6 +24,7 @@ import { useGroups, useHomeSummary } from '@/data/hooks';
 import { fill, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { SyncBanner } from '@/components/SyncBanner';
+import { groupLabel } from '@/data/types';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -79,9 +80,15 @@ export default function HomeScreen() {
               You are using Baaki as a guest
             </Text>
             <Text variant="caption" tone="muted">
-              Add a phone number in Account whenever you like — everything you have entered comes
-              with you.
+              Nothing is missing — everything you enter is saved and yours. Add an email or phone
+              number whenever you want to reach it from another phone.
             </Text>
+            <Button
+              label="Add your details"
+              variant="secondary"
+              size="sm"
+              onPress={() => router.push('/settings/account')}
+            />
           </Card>
         ) : null}
 
@@ -171,11 +178,11 @@ export default function HomeScreen() {
               {list.map((group, index) => (
                 <View key={group.id}>
                   <ListRow
-                    title={group.name}
+                    title={groupLabel(group, summary.membersFor(group.id), profile?.id)}
                     subtitle={`${summary.memberCountFor(group.id)} ${t.members}`}
                     leading={
                       <Avatar
-                        name={group.name}
+                        name={groupLabel(group, summary.membersFor(group.id), profile?.id)}
                         emoji={group.cover_emoji ?? undefined}
                         tint={tintForKey(group.id)}
                       />
