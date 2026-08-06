@@ -66,5 +66,15 @@
     "build:prod": "eas build --profile production --platform all",
     "build:local": "eas build --profile preview --platform android --local"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "@react-native-ml-kit/text-recognition"
+        ],
+        "listUnknownPackages": false
+      }
+    }
+  }
 }
