@@ -1,19 +1,41 @@
+/**
+ * Getting in.
+ *
+ * Four ways, ordered by how little they ask for: carry on as a guest, a code
+ * to a phone, a password, Google. ADR-006 is that nobody is made to register
+ * before they can split a bill, so the guest button is not tucked away at the
+ * bottom in small type.
+ *
+ * Which Supabase call each of these makes is decided in @baaki/core, not here.
+ * A guest who taps "Google" must have Google *added* to the account they
+ * already have — signing them in would create a different account and leave a
+ * week of expenses on one they can no longer reach. That is easy to get wrong
+ * in a screen and impossible to notice afterwards, so the screen does not get
+ * to decide.
+ */
+
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 
-import { Button, Card, Screen, Text, useTheme } from '@baaki/ui';
+import { Button, Card, Chip, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
+type Mode = 'otp' | 'password';
+
 export default function SignInScreen() {
   const theme = useTheme();
   const { t } = useStrings();
-  const { sendOtp, verifyOtp, continueAsGuest } = useAuth();
+  const { sendOtp, verifyOtp, continueAsGuest, withPassword, withGoogle, isGuest } = useAuth();
 
+  const [mode, setMode] = useState<Mode>('otp');
   const [phone, setPhone] = useState('+91');
   const [code, setCode] = useState('');
   const [stage, setStage] = useState<'phone' | 'code'>('phone');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [intent, setIntent] = useState<'sign_in' | 'sign_up'>('sign_in');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,12 +62,33 @@ export default function SignInScreen() {
             <Text style={{ fontSize: 44, lineHeight: 50, fontWeight: '700' }}>பாக்கி</Text>
             <Text variant="title">Baaki</Text>
             <Text variant="body" tone="muted">
-              Split anything with anyone. {t.freeForever}.
+              {isGuest
+                ? 'Add a way to sign in, so this account is still yours on your next phone.'
+                : `Split anything with anyone. ${t.freeForever}.`}
             </Text>
           </View>
 
           <Card style={{ gap: theme.spacing.lg }}>
-            {stage === 'phone' ? (
+            <Row style={{ gap: theme.spacing.sm }}>
+              <Chip
+                label="Send me a code"
+                selected={mode === 'otp'}
+                onPress={() => {
+                  setMode('otp');
+                  setError(null);
+                }}
+              />
+              <Chip
+                label="Use a password"
+                selected={mode === 'password'}
+                onPress={() => {
+                  setMode('password');
+                  setError(null);
+                }}
+              />
+            </Row>
+
+            {mode === 'otp' && stage === 'phone' ? (
               <>
                 <Text variant="caption" tone="muted">
                   Phone number
@@ -64,6 +107,10 @@ export default function SignInScreen() {
                     paddingVertical: theme.spacing.sm,
                   }}
                 />
+                <Text variant="micro" tone="faint">
+                  Start with your country code. Baaki never assumes +91 — a trip is exactly when
+                  foreign numbers turn up.
+                </Text>
                 <Button
                   label="Send code"
                   size="lg"
@@ -77,7 +124,9 @@ export default function SignInScreen() {
                   }
                 />
               </>
-            ) : (
+            ) : null}
+
+            {mode === 'otp' && stage === 'code' ? (
               <>
                 <Text variant="caption" tone="muted">
                   {`Code sent to ${phone}`}
@@ -114,7 +163,84 @@ export default function SignInScreen() {
                   }}
                 />
               </>
-            )}
+            ) : null}
+
+            {mode === 'password' ? (
+              <>
+                <Text variant="caption" tone="muted">
+                  Email or phone number
+                </Text>
+                {/* One field: "email or phone?" is a question the text already
+                    answers. */}
+                <TextInput
+                  value={identifier}
+                  onChangeText={setIdentifier}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  autoComplete="username"
+                  accessibilityLabel="Email or phone number"
+                  placeholder="asha@example.com or +91…"
+                  placeholderTextColor={theme.color.textFaint}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '500',
+                    color: theme.color.text,
+                    paddingVertical: theme.spacing.sm,
+                  }}
+                />
+                <Text variant="caption" tone="muted">
+                  Password
+                </Text>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete={intent === 'sign_up' ? 'new-password' : 'current-password'}
+                  accessibilityLabel="Password"
+                  placeholderTextColor={theme.color.textFaint}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '500',
+                    color: theme.color.text,
+                    paddingVertical: theme.spacing.sm,
+                  }}
+                />
+                <Text variant="micro" tone="faint">
+                  Eight characters or more. A phrase you will remember beats a puzzle you will not.
+                </Text>
+                <Button
+                  label={
+                    isGuest
+                      ? 'Add this to my account'
+                      : intent === 'sign_up'
+                        ? 'Create account'
+                        : 'Sign in'
+                  }
+                  size="lg"
+                  fullWidth
+                  disabled={busy || !identifier.trim() || password.length < 8}
+                  onPress={() => void run(() => withPassword(identifier, password, intent))}
+                />
+                {/* A guest is never signing up or in — they are adding a way
+                    back to the account they already have. */}
+                {isGuest ? null : (
+                  <Button
+                    label={
+                      intent === 'sign_up'
+                        ? 'I already have an account'
+                        : 'I am new here — create an account'
+                    }
+                    variant="ghost"
+                    onPress={() => {
+                      setIntent(intent === 'sign_up' ? 'sign_in' : 'sign_up');
+                      setError(null);
+                    }}
+                  />
+                )}
+              </>
+            ) : null}
 
             {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
             {error ? (
@@ -124,19 +250,31 @@ export default function SignInScreen() {
             ) : null}
           </Card>
 
-          {/* ADR-006: nobody is forced to register before they can use Baaki. */}
           <Button
-            label="Continue as guest"
+            label={isGuest ? 'Continue with Google' : 'Sign in with Google'}
             variant="secondary"
             size="lg"
             fullWidth
             disabled={busy}
-            onPress={() => void run(continueAsGuest)}
+            onPress={() => void run(withGoogle)}
           />
 
+          {/* ADR-006: nobody is forced to register before they can use Baaki. */}
+          {isGuest ? null : (
+            <Button
+              label="Continue as guest"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              disabled={busy}
+              onPress={() => void run(continueAsGuest)}
+            />
+          )}
+
           <Text variant="micro" tone="faint" align="center">
-            A guest account keeps everything on this device until you add a phone number. Your
-            ledger is never held hostage.
+            {isGuest
+              ? 'Everything you have already added stays exactly where it is. This only adds a way to sign back in.'
+              : 'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.'}
           </Text>
         </View>
       </KeyboardAvoidingView>

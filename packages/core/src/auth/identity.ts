@@ -1,0 +1,186 @@
+/**
+ * Deciding how somebody signs in — and, more importantly, how they stop being
+ * a guest without losing everything.
+ *
+ * ADR-006 says an anonymous account is upgraded **in place**. That one
+ * sentence is the whole reason this file exists, because the obvious code does
+ * the opposite: a guest taps "sign in with Google", the app calls
+ * `signInWithOAuth`, Supabase creates a *new* user, the session swaps, and the
+ * trip they have been adding expenses to all week now belongs to an account
+ * they can no longer reach. Nothing errors. The group is not deleted — it is
+ * simply somebody else's, and the only way back is the anonymous session that
+ * was just replaced.
+ *
+ * So the choice of call is not left to whichever screen is asking. Given who
+ * is signed in and what they picked, `planAuth` returns the one correct
+ * action, and the screens do as they are told. It is pure, so the case that
+ * matters — a guest with data — can be tested without an account, a network,
+ * or a phone.
+ *
+ * Nothing here talks to Supabase. It decides; the caller performs.
+ */
+
+export type AuthMethod = 'email_password' | 'phone_password' | 'phone_otp' | 'google';
+
+/** Who is asking. */
+export type Viewer =
+  | { readonly kind: 'nobody' }
+  | { readonly kind: 'guest'; readonly userId: string }
+  | { readonly kind: 'user'; readonly userId: string };
+
+export type AuthAction =
+  /** Brand new account with credentials. */
+  | { readonly call: 'signUp'; readonly method: AuthMethod }
+  /** Existing account, prove it. */
+  | { readonly call: 'signInWithPassword'; readonly method: AuthMethod }
+  | { readonly call: 'signInWithOtp'; readonly method: 'phone_otp' }
+  | { readonly call: 'signInWithOAuth'; readonly method: 'google' }
+  /**
+   * The upgrade. `updateUser` adds an email or phone to the account that is
+   * already signed in; `linkIdentity` does the same for an OAuth provider.
+   * Both keep the user id, which is what keeps the groups.
+   */
+  | { readonly call: 'updateUser'; readonly method: AuthMethod }
+  | { readonly call: 'linkIdentity'; readonly method: 'google' };
+
+export class IdentityError extends Error {
+  constructor(
+    readonly code:
+      | 'PHONE_NEEDS_COUNTRY_CODE'
+      | 'PHONE_NOT_VALID'
+      | 'EMAIL_NOT_VALID'
+      | 'PASSWORD_TOO_SHORT'
+      | 'PASSWORD_TOO_COMMON',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'IdentityError';
+  }
+}
+
+/**
+ * The rule, in one function.
+ *
+ * A guest never signs up and never signs in — both would mint or move to a
+ * different account. A guest only ever *adds* credentials to the account they
+ * already have.
+ */
+export function planAuth(
+  viewer: Viewer,
+  method: AuthMethod,
+  intent: 'sign_in' | 'sign_up' = 'sign_in',
+): AuthAction {
+  if (viewer.kind === 'guest') {
+    // Whatever the screen thought it was doing, this is an upgrade.
+    return method === 'google'
+      ? { call: 'linkIdentity', method: 'google' }
+      : { call: 'updateUser', method };
+  }
+
+  if (viewer.kind === 'user') {
+    // Already a real account. Adding a second way in is still a link, never a
+    // sign-up — somebody with an email adding Google must not end up with two
+    // accounts and half their groups in each.
+    return method === 'google'
+      ? { call: 'linkIdentity', method: 'google' }
+      : { call: 'updateUser', method };
+  }
+
+  switch (method) {
+    case 'google':
+      return { call: 'signInWithOAuth', method: 'google' };
+    case 'phone_otp':
+      return { call: 'signInWithOtp', method: 'phone_otp' };
+    default:
+      return intent === 'sign_up'
+        ? { call: 'signUp', method }
+        : { call: 'signInWithPassword', method };
+  }
+}
+
+/**
+ * A number, in E.164 and nothing else.
+ *
+ * No default country. Baaki is India-first, so +91 is the tempting default and
+ * exactly the wrong one: the person most likely to be typing a number into a
+ * splitting app is on a trip, entering a friend's foreign number, and a silent
+ * +91 would send their invite to a stranger in Delhi. The same rule as
+ * `group_members.invite_phone` in the database, which is the other place a
+ * number can arrive.
+ */
+export function normalisePhone(raw: string): string {
+  const cleaned = raw.replace(/[^\d+]/g, '');
+  if (!cleaned.startsWith('+')) {
+    throw new IdentityError(
+      'PHONE_NEEDS_COUNTRY_CODE',
+      'Start with a country code, like +91 for India',
+    );
+  }
+  if (!/^\+[1-9]\d{7,14}$/.test(cleaned)) {
+    throw new IdentityError('PHONE_NOT_VALID', 'That does not look like a phone number');
+  }
+  return cleaned;
+}
+
+/** Lowercased and trimmed, because a login that is case-sensitive is a bug report. */
+export function normaliseEmail(raw: string): string {
+  const cleaned = raw.trim().toLowerCase();
+  // Deliberately loose. A stricter pattern rejects real addresses, and the
+  // only test that settles it is whether the confirmation mail arrives.
+  if (!/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(cleaned)) {
+    throw new IdentityError('EMAIL_NOT_VALID', 'That does not look like an email address');
+  }
+  return cleaned;
+}
+
+/**
+ * Passwords guarding a shared ledger.
+ *
+ * Length, and a short list of the passwords everybody picks. No character-class
+ * rules: they push people towards `Password1!` and away from a long phrase,
+ * which is worse on both counts.
+ */
+const OBVIOUS = new Set([
+  'password',
+  'password1',
+  'password123',
+  '12345678',
+  '123456789',
+  '1234567890',
+  'qwertyui',
+  'iloveyou',
+  'baaki123',
+  'letmein1',
+  'welcome1',
+  'abcd1234',
+]);
+
+export const MIN_PASSWORD_LENGTH = 8;
+
+export function checkPassword(password: string): void {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new IdentityError(
+      'PASSWORD_TOO_SHORT',
+      `Use at least ${MIN_PASSWORD_LENGTH} characters — a phrase is easier to remember than a puzzle`,
+    );
+  }
+  if (OBVIOUS.has(password.toLowerCase())) {
+    throw new IdentityError(
+      'PASSWORD_TOO_COMMON',
+      'That is one of the first passwords anyone tries',
+    );
+  }
+}
+
+/**
+ * What the person typed into a single field: an email, or a number.
+ *
+ * One field rather than two, because asking somebody to first declare which
+ * kind of thing they are about to type, and then type it, is a question the
+ * text itself already answers.
+ */
+export function readIdentifier(raw: string): { kind: 'email' | 'phone'; value: string } {
+  const trimmed = raw.trim();
+  if (trimmed.includes('@')) return { kind: 'email', value: normaliseEmail(trimmed) };
+  return { kind: 'phone', value: normalisePhone(trimmed) };
+}

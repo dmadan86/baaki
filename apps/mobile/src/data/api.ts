@@ -11,6 +11,8 @@ import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
 
 import {
+  normaliseEmail,
+  normalisePhone,
   serialiseSplitParams,
   type FxRecord,
   type ParsedReceipt,
@@ -620,11 +622,15 @@ export type ContactChannel = 'email' | 'phone';
  * six-digit code; nothing changes until `confirmContact` verifies it.
  */
 export async function startAddingContact(channel: ContactChannel, value: string): Promise<void> {
-  const trimmed = value.trim();
+  // Normalised here rather than sent as typed. A number without a country code
+  // is refused with a sentence somebody can act on, instead of whatever the
+  // auth service says about it — and it is the same rule the invite columns
+  // enforce in the database, so one form cannot accept what another rejects.
+  const normalised = channel === 'email' ? normaliseEmail(value) : normalisePhone(value);
   const { error } =
     channel === 'email'
-      ? await supabase.auth.updateUser({ email: trimmed })
-      : await supabase.auth.updateUser({ phone: trimmed });
+      ? await supabase.auth.updateUser({ email: normalised })
+      : await supabase.auth.updateUser({ phone: normalised });
   if (error) throw new Error(describeAuthError(error.message, channel));
 }
 
