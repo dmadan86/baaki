@@ -12,7 +12,7 @@ import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { LockProvider, useLock } from '@/lib/lock';
 import { initObservability, withObservability } from '@/lib/observability';
-import { ensureAndroidChannel, routeForNotification } from '@/lib/push';
+import { ensureAndroidChannel, pushSupported, routeForNotification } from '@/lib/push';
 import { SyncProvider } from '@/sync';
 
 // Before anything else renders, so a crash in the first frame is still caught.
@@ -22,14 +22,16 @@ initObservability();
 // Arriving while the app is open should still surface: a notification that is
 // silently swallowed because you happened to be looking at the app is the one
 // people notice missing.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+if (pushSupported) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,6 +79,11 @@ function PushRouting() {
   const router = useRouter();
 
   useEffect(() => {
+    // expo-notifications has no web implementation, and reaching into it there
+    // throws rather than no-opping — which takes the whole app down on the
+    // platform this repo uses for visual checks.
+    if (!pushSupported) return;
+
     void ensureAndroidChannel();
 
     // A tap that launched the app from cold arrives as the "last response"
