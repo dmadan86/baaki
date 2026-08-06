@@ -14,6 +14,7 @@
     "test:db": "pnpm --filter @baaki/db run test",
     "test:app": "pnpm --filter @baaki/mobile run test",
     "test:api": "pnpm --filter @baaki/api-client run test",
+    "test:web": "pnpm --filter @baaki/web-lite run test",
     "web": "pnpm --filter @baaki/web-lite run dev",
     "db:generate": "pnpm --filter @baaki/db run generate",
     "db:migrate": "pnpm --filter @baaki/db run migrate:deploy",

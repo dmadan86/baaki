@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { checkPassword, planAuth, readIdentifier, type Viewer } from '@baaki/core';
 
+import { identifyForReporting } from './observability';
 import { supabase } from './supabase';
 
 /**
@@ -91,6 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfileFor(currentUserId);
     setProfile(null);
   }
+
+  // A crash report carries the account id and nothing else about who it is —
+  // enough to tell one person hitting a bug fifty times from fifty people.
+  useEffect(() => {
+    identifyForReporting(currentUserId);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!session?.user) return;

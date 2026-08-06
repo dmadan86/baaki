@@ -210,6 +210,6 @@ Deno.serve(async (request) => {
       content: rows.map((row) => row.map(escape).join(separator)).join('\n'),
     });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, { fn: 'export-data' });
   }
 });

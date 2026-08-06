@@ -96,6 +96,6 @@ Deno.serve(async (request) => {
       groupName: group?.name ?? 'a group',
     });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, { fn: 'invite-mint' });
   }
 });

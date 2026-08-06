@@ -10,7 +10,12 @@ import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { LockProvider, useLock } from '@/lib/lock';
+import { initObservability, withObservability } from '@/lib/observability';
 import { SyncProvider } from '@/sync';
+
+// Before anything else renders, so a crash in the first frame is still caught.
+// Inert unless a DSN is configured.
+initObservability();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,7 +27,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -44,6 +49,8 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default withObservability(RootLayout);
 
 /** Holds the whole app behind biometrics when the user has asked for it. */
 function LockGate({ children }: { children: React.ReactNode }) {

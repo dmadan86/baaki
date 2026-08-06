@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 
 /**
@@ -19,4 +20,22 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 };
 
-export default nextConfig;
+/**
+ * Source-map upload needs an organisation, a project and a write token, none of
+ * which belong in the repository. Without them the build is left alone rather
+ * than half-wired: reporting still works — it just arrives minified — and a
+ * clone with no Sentry account builds exactly as it did before.
+ */
+const sentryConfigured = Boolean(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT);
+
+export default sentryConfigured
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      // Sentry's own domain is a popular thing to block, and a blocked report
+      // is one nobody knows was lost.
+      tunnelRoute: '/monitoring',
+      silent: !process.env.CI,
+    })
+  : nextConfig;

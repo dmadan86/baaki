@@ -157,6 +157,6 @@ Deno.serve(async (request) => {
 
     return json({ group, memberId, claimed: Boolean(body.claimMemberId) });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, { fn: 'invite-accept' });
   }
 });

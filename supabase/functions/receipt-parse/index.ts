@@ -264,7 +264,7 @@ Deno.serve(async (request) => {
       quota: { used: used + 1, limit: MONTHLY_SCAN_LIMIT },
     });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, { fn: 'receipt-parse' });
   }
 });
 

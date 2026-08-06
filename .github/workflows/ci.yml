@@ -71,6 +71,10 @@ jobs:
       # slipping in here produces figures that look right and quietly differ
       # from the app's.
       - run: pnpm test:api
+      # What a crash report is allowed to say. This one starts the real SDK and
+      # reads the envelope, so a beforeSend wired to the wrong option fails here
+      # and nowhere else.
+      - run: pnpm test:web
 
   database:
     name: migrations, RLS policies and ledger invariants

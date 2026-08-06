@@ -8,6 +8,10 @@ allowBuilds:
   esbuild: true
   unrs-resolver: true
   prisma: true
+  # Fetches the sentry-cli binary on install. Without it there is no source-map
+  # upload, so every stack trace arrives minified and a crash report points at
+  # column 4210 of one line.
+  '@sentry/cli': true
 minimumReleaseAgeExclude:
   - '@expo/cli@57.0.12'
   - '@expo/router-server@57.0.5'
