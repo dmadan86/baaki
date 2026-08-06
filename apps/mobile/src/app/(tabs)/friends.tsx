@@ -14,6 +14,7 @@
  * account are followed across groups, because a profile id is proof.
  */
 
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { RefreshControl, ScrollView, View } from 'react-native';
@@ -21,10 +22,12 @@ import { RefreshControl, ScrollView, View } from 'react-native';
 import {
   Avatar,
   Badge,
+  Button,
   Card,
   EmptyState,
   ListRow,
   MoneyText,
+  Row,
   Screen,
   SectionHeader,
   Text,
@@ -64,14 +67,21 @@ export default function FriendsScreen() {
           />
         }
       >
-        <Text variant="title" style={{ paddingTop: theme.spacing.md }}>
-          {t.friends}
-        </Text>
+        <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
+          <Text variant="title">{t.friends}</Text>
+          <Button
+            label="From contacts"
+            variant="secondary"
+            size="sm"
+            icon={<Ionicons name="person-add-outline" size={16} color={theme.color.brand} />}
+            onPress={() => router.push('/friends/contacts')}
+          />
+        </Row>
 
         {rows.length === 0 ? (
           <EmptyState
             title="All square"
-            body="Nobody owes you anything and you owe nobody. Friends you are settling up with will appear here."
+            body="Nobody owes you anything and you owe nobody. Friends you are settling up with will appear here — add somebody from your contacts to get started."
           />
         ) : (
           <>

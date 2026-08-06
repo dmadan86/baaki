@@ -43,18 +43,27 @@ export function ContactPicker({ onPick, existing }: ContactPickerProps): React.J
     let cancelled = false;
 
     void (async () => {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (cancelled) return;
-      if (status !== 'granted') {
-        setPermission('denied');
+      // expo-contacts has no web implementation and throws rather than
+      // no-opping there, which would otherwise leave this stuck on "looking
+      // through your contacts…" forever with nothing said about why.
+      let data: Awaited<ReturnType<typeof Contacts.getContactsAsync>>['data'];
+      try {
+        const { status } = await Contacts.requestPermissionsAsync();
+        if (cancelled) return;
+        if (status !== 'granted') {
+          setPermission('denied');
+          return;
+        }
+
+        // Only these three fields. Asking for less than the platform offers is
+        // the cheapest privacy measure there is.
+        ({ data } = await Contacts.getContactsAsync({
+          fields: [Contacts.Fields.Name, Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
+        }));
+      } catch {
+        if (!cancelled) setPermission('denied');
         return;
       }
-
-      // Only these three fields. Asking for less than the platform offers is
-      // the cheapest privacy measure there is.
-      const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Name, Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-      });
       if (cancelled) return;
 
       setContacts(
@@ -108,7 +117,7 @@ export function ContactPicker({ onPick, existing }: ContactPickerProps): React.J
         <Button
           label="Open settings"
           variant="ghost"
-          onPress={() => void Contacts.presentFormAsync(null, null)}
+          onPress={() => void Contacts.presentFormAsync(null, null).catch(() => undefined)}
         />
       </Card>
     );
