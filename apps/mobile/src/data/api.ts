@@ -671,12 +671,18 @@ export async function scanReceiptText(input: {
   groupId: string;
   rawText: string;
   currency?: string;
+  /**
+   * Where the text came from. A photo read by on-device OCR is still a camera
+   * scan — calling it a paste would quietly merge two different behaviours in
+   * the usage metering.
+   */
+  source?: 'camera' | 'gallery' | 'text_paste';
 }): Promise<ScanResult> {
   const { data, error } = await supabase.functions.invoke('receipt-parse', {
     body: {
       groupId: input.groupId,
       rawText: input.rawText,
-      source: 'text_paste',
+      source: input.source ?? 'text_paste',
       currency: input.currency ?? 'INR',
     },
   });

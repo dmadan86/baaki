@@ -27,7 +27,8 @@ import {
 } from '@baaki/ui';
 
 import { pickReceiptPhoto } from '@/components/GroupPhoto';
-import { scanReceipt } from '@/data/api';
+import { scanReceipt, scanReceiptText } from '@/data/api';
+import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useWriteExpense } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -82,12 +83,25 @@ export default function ItemizeScreen() {
     setScanNote(null);
     setScanning(true);
     try {
-      const result = await scanReceipt({
-        groupId,
-        base64: picked.base64,
-        mimeType: picked.mimeType,
-        currency,
-      });
+      // Read the text on the phone first. When it works the photograph never
+      // leaves the device, and the scan costs about a tenth as much because a
+      // receipt image is one to two thousand tokens before a word is read.
+      // When it does not — a dark or blurred photo — the image path reads such
+      // a receipt far better, so it is worth the upload.
+      const recognised = await recogniseReceipt(picked.uri);
+      const result = recognised
+        ? await scanReceiptText({
+            groupId,
+            rawText: recognised.text,
+            currency,
+            source: 'camera',
+          })
+        : await scanReceipt({
+            groupId,
+            base64: picked.base64,
+            mimeType: picked.mimeType,
+            currency,
+          });
 
       setItems(
         result.parsed.items.map((item, index) => ({
