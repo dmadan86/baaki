@@ -10,7 +10,13 @@
 import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
 
-import type { FxRecord, ParsedReceipt, ReceiptCheck, SplitParams } from '@baaki/core';
+import {
+  serialiseSplitParams,
+  type FxRecord,
+  type ParsedReceipt,
+  type ReceiptCheck,
+  type SplitParams,
+} from '@baaki/core';
 
 import { supabase } from '@/lib/supabase';
 import type {
@@ -359,7 +365,10 @@ export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpen
       expenseDate: input.expenseDate,
       currency: input.currency,
       amount: input.amount.toString(),
-      splitParams: input.splitParams,
+      // Exact, adjustment and itemized splits hold minor units, and JSON has
+      // no bigint — stringify throws on one rather than rounding it. Without
+      // this an itemized bill could not be saved at all.
+      splitParams: serialiseSplitParams(input.splitParams),
       participants: input.participants,
       payers: Object.fromEntries(
         Object.entries(input.payers).map(([id, value]) => [id, value.toString()]),

@@ -12,6 +12,8 @@
 
 import {
   computeShares,
+  parseSplitParams,
+  serialiseSplitParams,
   verifyClientShares,
   type FxRecord,
   type SplitParams,
@@ -100,10 +102,19 @@ Deno.serve(async (request) => {
 
     // The authoritative computation.
     const expenseId = body.expenseId ?? crypto.randomUUID();
+    // Minor units arrive as strings, because JSON has no bigint. Parsing here
+    // rather than trusting the shape means a client that sends a fractional
+    // share is refused rather than having it rounded into the ledger.
+    let splitParams: SplitParams;
+    try {
+      splitParams = parseSplitParams(body.splitParams);
+    } catch (bad) {
+      throw new HttpError(400, 'INVALID_SPLIT_PARAMS', (bad as Error).message);
+    }
     const shares = computeShares({
       amount,
       currency: body.currency,
-      params: body.splitParams,
+      params: splitParams,
       participants: body.participants,
       seed: expenseId,
     });
@@ -129,8 +140,10 @@ Deno.serve(async (request) => {
       p_expense_date: body.expenseDate,
       p_currency: body.currency.toUpperCase(),
       p_amount: amount.toString(),
-      p_split_type: body.splitParams.kind,
-      p_split_params: body.splitParams,
+      p_split_type: splitParams.kind,
+      // Stored in the canonical wire form: minor units as strings, whatever
+      // the client happened to send. A number in jsonb is a double.
+      p_split_params: serialiseSplitParams(splitParams),
       p_payers: payers.map(([id, value]) => ({ memberId: id, amount: value.toString() })),
       p_shares: [...shares].map(([id, value]) => ({ memberId: id, amount: value.toString() })),
       p_client_mutation_id: body.clientMutationId,

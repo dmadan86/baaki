@@ -261,6 +261,31 @@ export default function GroupSettingsScreen() {
           </Card>
         </View>
 
+        <View>
+          <SectionHeader title="Bring things in" />
+          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+            <ListRow
+              title="Import from messages"
+              subtitle="Paste bank messages — read on this phone, confirmed by you"
+              leading={
+                <Ionicons name="chatbox-ellipses-outline" size={22} color={theme.color.textMuted} />
+              }
+              onPress={() => router.push(`/group/${groupId}/import/sms`)}
+              trailing={<Ionicons name="chevron-forward" size={18} color={theme.color.textFaint} />}
+            />
+            <View style={{ height: 1, backgroundColor: theme.color.border }} />
+            <ListRow
+              title="Import a Splitwise export"
+              subtitle="Bring an old group's history across"
+              leading={
+                <Ionicons name="document-text-outline" size={22} color={theme.color.textMuted} />
+              }
+              onPress={() => router.push(`/group/${groupId}/import/csv`)}
+              trailing={<Ionicons name="chevron-forward" size={18} color={theme.color.textFaint} />}
+            />
+          </Card>
+        </View>
+
         {status ? (
           <Text variant="caption" tone="positive">
             {status}

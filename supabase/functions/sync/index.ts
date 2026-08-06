@@ -26,6 +26,8 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import {
   computeShares,
+  parseSplitParams,
+  serialiseSplitParams,
   verifyClientShares,
   type FxRecord,
   type SplitParams,
@@ -318,10 +320,19 @@ class SyncSession {
     }
 
     const expenseId = payload.expenseId ?? crypto.randomUUID();
+    // Minor units arrive as strings; JSON has no bigint. A queued mutation can
+    // be months old (ADR-005), so this also has to accept what older clients
+    // sent — but never a fractional minor unit, whoever sent it.
+    let splitParams: SplitParams;
+    try {
+      splitParams = parseSplitParams(payload.splitParams);
+    } catch (bad) {
+      throw new HttpError(400, 'VALIDATION_FAILED', (bad as Error).message);
+    }
     const shares = computeShares({
       amount,
       currency: payload.currency,
-      params: payload.splitParams,
+      params: splitParams,
       participants: payload.participants,
       seed: expenseId,
     });
@@ -343,8 +354,8 @@ class SyncSession {
       p_expense_date: payload.expenseDate,
       p_currency: payload.currency.toUpperCase(),
       p_amount: amount.toString(),
-      p_split_type: payload.splitParams.kind,
-      p_split_params: payload.splitParams,
+      p_split_type: splitParams.kind,
+      p_split_params: serialiseSplitParams(splitParams),
       p_payers: payers.map(([id, value]) => ({ memberId: id, amount: value.toString() })),
       p_shares: [...shares].map(([id, value]) => ({ memberId: id, amount: value.toString() })),
       p_client_mutation_id: mutation.clientMutationId,
