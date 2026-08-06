@@ -30,6 +30,7 @@ import {
   entryValues,
   fillEntries,
   formatEntry,
+  parseEntry,
   splitProblem,
   type SplitEntries,
   type SplitKind,
@@ -273,6 +274,26 @@ export default function AddExpenseScreen() {
     }
   };
 
+  /**
+   * What this person is down for, in money, as the number beside their name
+   * changes.
+   *
+   * The preview is the ledger's own arithmetic and is what gets saved, so it
+   * wins whenever it exists. It does not exist while the percentages are still
+   * short of 100 — `computeShares` refuses that, rightly — and staying blank
+   * until the last field is right hides the one number somebody is typing
+   * towards. So the incomplete case falls back to this line's own share of the
+   * total: 20% of ₹300 is ₹60 whatever the other rows say, and the message
+   * under the list is what says the column does not add up yet.
+   */
+  const lineAmount = (memberId: MemberId): bigint => {
+    const previewed = preview?.get(memberId);
+    if (previewed !== undefined) return previewed;
+    if (splitKind !== 'percent') return 0n;
+    const basisPoints = parseEntry('percent', percents[memberId] ?? '') ?? 0;
+    return (amount * BigInt(basisPoints)) / 10000n;
+  };
+
   const toggleParticipant = (memberId: MemberId): void => {
     setParticipants((current) =>
       current.includes(memberId)
@@ -441,12 +462,12 @@ export default function AddExpenseScreen() {
                     <Text variant="subheading" numberOfLines={1}>
                       {name}
                     </Text>
-                    {preview && selected ? (
+                    {selected && amount > 0n ? (
                       <MoneyText
-                        amount={preview.get(member.id) ?? 0n}
+                        amount={lineAmount(member.id)}
                         currency={currency}
                         locale={locale}
-                        variant="micro"
+                        variant="caption"
                       />
                     ) : null}
                   </View>
