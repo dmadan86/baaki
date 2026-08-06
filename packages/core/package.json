@@ -13,7 +13,8 @@
     "./simplify": "./src/simplify/index.ts",
     "./settlement": "./src/settlement/index.ts",
     "./sync": "./src/sync/index.ts",
-    "./notifications": "./src/notifications/index.ts"
+    "./notifications": "./src/notifications/index.ts",
+    "./observability": "./src/observability/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

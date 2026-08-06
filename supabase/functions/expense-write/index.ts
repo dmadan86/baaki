@@ -181,6 +181,6 @@ Deno.serve(async (request) => {
       shares: Object.fromEntries([...shares].map(([id, value]) => [id, value.toString()])),
     });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, { fn: 'expense-write' });
   }
 });

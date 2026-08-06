@@ -33,14 +33,45 @@ export function json(body: unknown, status = 200): Response {
   });
 }
 
-export function errorResponse(error: unknown): Response {
+export async function errorResponse(
+  error: unknown,
+  context: Record<string, string> = {},
+): Promise<Response> {
   if (error instanceof HttpError) {
+    // A refusal the caller can act on. Not a crash, and not reported — burying
+    // the real failures under thousands of `NOT_A_MEMBER` is how a crash
+    // reporter stops being read.
     return json({ code: error.code, message: error.message }, error.status);
   }
   const message = error instanceof Error ? error.message : String(error);
   // Never leak internals to the client; the detail stays in the function log.
   console.error('unhandled edge error:', message);
+
+  // Loaded here rather than at the top of the file: the Sentry SDK costs an
+  // npm module load on every cold start, and this path is by definition the
+  // one that already went wrong.
+  try {
+    const { reportEdgeError, flushReports } = await import('./observability.ts');
+    reportEdgeError(error, context);
+    keepAlive(flushReports());
+  } catch (reportingFailed) {
+    // A broken reporter must never turn a 500 into a hang.
+    console.error('could not report edge error:', reportingFailed);
+  }
+
   return json({ code: 'INTERNAL', message: 'Something went wrong' }, 500);
+}
+
+/**
+ * Deno may tear the isolate down the moment the response is returned, which
+ * would drop a report still in flight. Supabase's runtime exposes `waitUntil`
+ * for exactly this; elsewhere the promise is simply left to settle.
+ */
+function keepAlive(work: Promise<unknown>): void {
+  const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } })
+    .EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(work);
+  else void work;
 }
 
 function requiredEnv(name: string): string {

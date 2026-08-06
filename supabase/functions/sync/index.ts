@@ -146,7 +146,7 @@ Deno.serve(async (request) => {
       serverTime: new Date().toISOString(),
     });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, { fn: 'sync' });
   }
 });
 

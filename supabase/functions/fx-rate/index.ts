@@ -106,6 +106,6 @@ Deno.serve(async (request) => {
     cache.set(key, { at: Date.now(), body });
     return json(body);
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, { fn: 'fx-rate' });
   }
 });

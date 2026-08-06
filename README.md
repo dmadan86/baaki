@@ -111,10 +111,43 @@ of them break:
 | Only a group member can create, delete or settle in it | `packages/db/test/m1-rpcs.test.ts`             |
 | Only the payee can confirm a settlement                | `packages/db/test/m1-rpcs.test.ts`             |
 | Replaying a mutation id never double-posts             | `packages/db/test/m1-rpcs.test.ts`             |
+| A crash report carries no ledger                       | `apps/web-lite/test/reporting.test.ts`         |
 
 The client also recomputes each group's balances with `@baaki/core` and compares
 them against the server's `group_balances`. If they ever disagree, the group
 screen says so rather than showing a number that might be wrong.
+
+## Crash reporting
+
+Sentry, on all three surfaces — the app, the guest web view and the edge
+functions. TDR §11 asks for crash-free sessions above 99.5%, and a 500 from an
+edge function is otherwise a line in a log nobody reads.
+
+Everything reported goes through `scrub` in
+`packages/core/src/observability/scrub.ts` first. One policy, shared by all
+three, because a crash report from an expense splitter would otherwise carry
+who ate with whom, the number they were invited on, and the handle they pay
+from. What survives is the diagnosis: amounts, ids, stack frames, and the
+platform it happened on.
+
+It has a limit and the limit is written down: the scrubber catches shapes
+(emails, numbers, UPI handles, tokens) and known fields. A bare name under a key
+nobody anticipated matches nothing. So the rule for anything that reports an
+error is **attach ids, never rows**.
+
+Nothing is reported unless a DSN is set, so a clone with no Sentry account
+builds and runs unchanged:
+
+| Variable                        | Where                      | What it does                                     |
+| ------------------------------- | -------------------------- | ------------------------------------------------ |
+| `EXPO_PUBLIC_SENTRY_DSN`        | `apps/mobile/.env`         | turns reporting on in the app                    |
+| `NEXT_PUBLIC_SENTRY_DSN`        | `apps/web-lite/.env.local` | same, for the guest view                         |
+| `SENTRY_DSN`                    | edge function env          | same, for the functions                          |
+| `SENTRY_ORG` / `SENTRY_PROJECT` | build env                  | adds source-map upload; without them, minified   |
+| `SENTRY_AUTH_TOKEN`             | build env only             | write token — never in a bundle, never committed |
+
+A DSN is public by design: it can only write events, which is why it ships in
+the binary. `SENTRY_AUTH_TOKEN` is the one that reads, and it stays in CI.
 
 ## Money rules
 

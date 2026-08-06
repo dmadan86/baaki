@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@baaki/api-client": "workspace:*",
     "@baaki/core": "workspace:*",
+    "@sentry/nextjs": "^10.69.0",
     "@supabase/supabase-js": "^2.112.0",
     "next": "^16.3.0",
     "react": "19.2.3",
@@ -23,6 +25,7 @@
     "@types/react-dom": "~19.2.2",
     "eslint": "^9.37.0",
     "eslint-config-next": "^16.3.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.7"
   }
 }

@@ -15,6 +15,11 @@ Rules for every function in this directory:
    `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
    Nothing here may ever be referenced from `apps/*`.
 4. **Idempotency.** Mutations carry `client_mutation_id`; retries must be safe.
+5. **Attach ids, never rows.** Anything falling through to a 500 is sent to
+   Sentry (`observability.ts`), scrubbed by `@baaki/core`. The scrubber catches
+   shapes and known fields — it cannot tell a name from a word — so an error
+   message must carry a code and an id, not a description. `HttpError` is never
+   reported: a refusal the caller can act on is the function working.
 
 Planned functions, by milestone:
 
