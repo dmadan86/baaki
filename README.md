@@ -187,6 +187,15 @@ Native module, so it needs a new dev build or store build: `npx expo prebuild`
 then `eas build`. The mic does not render on web, and an existing binary will
 not grow it from an over-the-air change.
 
+That last point cost an app launch once. `requireNativeModule` throws at the
+top of the module's own file, and expo-router loads every route file to build
+the route tree — so on a binary that predates the module, the throw is not a
+missing microphone, it is a red screen at launch naming a screen nobody had
+opened. The import therefore lives in `DictateVoice.tsx` and is reached from
+`DictateButton.tsx` through a `require` inside a `try`. **Any native module
+added from here on wants the same treatment**, unless every binary that will
+ever run the bundle is guaranteed to contain it.
+
 ## Releasing, and stopping old builds
 
 The version is compiled into the binary, so a build can only ever describe
