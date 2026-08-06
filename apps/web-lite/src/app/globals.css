@@ -1,0 +1,192 @@
+/*
+ * The same tokens as packages/ui, written out as CSS variables.
+ *
+ * Not imported from there: packages/ui is React Native, and pulling it into a
+ * browser bundle to read six colours would drag the whole primitive library
+ * with it. The values are duplicated deliberately and kept short enough to
+ * check by eye against packages/ui/src/tokens.ts.
+ *
+ * Money colour stays semantic, as it is everywhere else: owed-to-you is always
+ * the green, you-owe is always the red, and nothing decorative uses either.
+ */
+
+:root {
+  --brand: #7a5af8;
+  --brand-600: #6c4ee3;
+  --brand-100: #e9e4ff;
+  --bg: #f3f1fb;
+  --surface: #ffffff;
+  --text: #14142b;
+  --text-muted: #54566b;
+  --text-faint: #7b7b8f;
+  --border: #ededf5;
+  --positive: #0e9f6e;
+  --negative: #e5484d;
+  --radius: 20px;
+  --shadow: 0 8px 24px rgba(30, 20, 80, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+h2 {
+  font-size: 17px;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.faint {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+button,
+.button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px 20px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  width: 100%;
+}
+
+button:active {
+  background: var(--brand-600);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--brand);
+}
+
+input,
+select {
+  width: 100%;
+  font-size: 16px; /* under 16px, iOS Safari zooms the page on focus */
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 0;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-bottom-color: var(--brand);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* Tabular figures so a column of amounts lines up on the decimal. */
+.money {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.money.owed {
+  color: var(--positive);
+}
+
+.money.owe {
+  color: var(--negative);
+}
+
+.error {
+  color: var(--negative);
+  font-size: 14px;
+}
+
+.people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 14px;
+  width: auto;
+  display: inline-block;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--brand-100);
+  border-color: var(--brand);
+  color: var(--brand-600);
+}
