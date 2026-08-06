@@ -2,9 +2,14 @@
  * Baaki design tokens.
  *
  * Derived from the two reference boards: a lavender canvas, white cards with
- * generous corner radii and one soft shadow, a single saturated purple that
- * owns every primary action and active state, and a pastel family used to tint
+ * softened corners and one soft shadow, a single saturated purple that owns
+ * every primary action and active state, and a pastel family used to tint
  * category and stat cards.
+ *
+ * Cards sit at `md`. The reference boards are drawn at tablet width, where a
+ * 24pt corner reads as a gentle curve; on a phone the same radius eats into a
+ * card that is only a few hundred points wide and the panel starts to look
+ * like a pill. Pills are for things you tap.
  *
  * Money colour is semantic and global, never decorative: owed-to-you is always
  * the mint/green pair, you-owe is always the pink/red pair. Nothing else in the
