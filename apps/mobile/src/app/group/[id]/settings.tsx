@@ -17,7 +17,8 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { GroupPhoto, pickGroupPhoto } from '@/components/GroupPhoto';
+import { GroupPhoto } from '@/components/GroupPhoto';
+import { pickGroupPhoto } from '@/lib/image';
 import { TripDates } from '@/components/TripDates';
 import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';

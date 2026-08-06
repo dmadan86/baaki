@@ -5,7 +5,6 @@ import { Alert, ScrollView, TextInput, View } from 'react-native';
 
 import { isValidVpa } from '@baaki/core';
 import {
-  Avatar,
   Badge,
   Button,
   Card,
@@ -17,8 +16,11 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { pickAvatarPhoto } from '@/lib/image';
 import { describeGrace, useLock } from '@/lib/lock';
 
 interface SettingsRow {
@@ -112,6 +114,58 @@ export default function ProfileScreen() {
   const [name, setName] = useState(profile?.display_name ?? '');
   const [vpa, setVpa] = useState(profile?.default_vpa ?? '');
   const [status, setStatus] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  /**
+   * Pick, shrink, upload, then tell the profile where it landed. The upload
+   * writes `avatar_url` itself; this repeats it through `updateProfile` so the
+   * copy held in context matches without a round trip.
+   */
+  const choosePhoto = async (): Promise<void> => {
+    if (!profile) return;
+    const picked = await pickAvatarPhoto();
+    if (!picked) return;
+
+    setStatus(null);
+    setPhotoBusy(true);
+    try {
+      const path = await uploadAvatar({
+        profileId: profile.id,
+        base64: picked.base64,
+        mimeType: picked.mimeType,
+      });
+      await updateProfile({ avatar_url: path });
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const clearPhoto = async (): Promise<void> => {
+    if (!profile) return;
+    setPhotoBusy(true);
+    try {
+      await removeAvatar(profile.id, profile.avatar_url);
+      await updateProfile({ avatar_url: null });
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const photoOptions = (): void => {
+    if (!profile?.avatar_url) {
+      void choosePhoto();
+      return;
+    }
+    Alert.alert('Your photo', undefined, [
+      { text: 'Choose a new one', onPress: () => void choosePhoto() },
+      { text: 'Remove', style: 'destructive', onPress: () => void clearPhoto() },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   const lockSummary = !lockSupported
     ? 'This device has no biometrics set up'
@@ -169,7 +223,13 @@ export default function ProfileScreen() {
         </Text>
 
         <Card style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-          <Avatar name={profile?.display_name ?? 'You'} size={78} />
+          <ProfileAvatar
+            name={profile?.display_name ?? 'You'}
+            avatarUrl={profile?.avatar_url}
+            size={78}
+            onPress={profile ? photoOptions : undefined}
+            busy={photoBusy}
+          />
           <Row style={{ gap: theme.spacing.sm }}>
             <Badge label={t.freeForever} tone="positive" />
             <Badge label={locale} tone="brand" />

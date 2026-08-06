@@ -293,6 +293,72 @@ function normaliseImageMime(mimeType: string | null | undefined): string {
   return 'image/jpeg';
 }
 
+// ───────────────────────────────────────── profile photos (Storage) ──
+
+const AVATAR_BUCKET = 'avatars';
+
+/**
+ * Upload your own profile photo.
+ *
+ * `<profileId>/avatar.<ext>`, which the storage policies key off: you may write
+ * only under your own id, and it is readable by people who are in a group with
+ * you. `upsert`, so changing your picture replaces the object rather than
+ * leaving the old one behind to be paid for forever (ADR-011).
+ *
+ * `avatar_url` holds the storage path, not a URL — the bucket is private, so
+ * what is displayed is a signed URL resolved at read time. Google sign-in fills
+ * the same column with a real https URL; `avatarPhotoUrl` tells them apart.
+ */
+export async function uploadAvatar(input: {
+  profileId: string;
+  base64: string;
+  mimeType?: string | null;
+}): Promise<string> {
+  const mime = normaliseImageMime(input.mimeType);
+  const path = `${input.profileId}/avatar.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`;
+
+  const { error } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
+  if (error) throw new Error(error.message);
+
+  const { error: linkError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: path })
+    .eq('id', input.profileId);
+  if (linkError) throw new Error(linkError.message);
+
+  return path;
+}
+
+/**
+ * Resolve whatever is in `avatar_url` to something an Image can display.
+ *
+ * Two kinds of value live in that column: a storage path this app wrote, and an
+ * https URL that came from an OAuth provider at sign-up. Signing the second
+ * would fail, and returning the first unsigned would 404, so the shape of the
+ * value decides.
+ */
+export async function avatarPhotoUrl(value: string | null): Promise<string | null> {
+  if (!value) return null;
+  if (/^https?:\/\//.test(value)) return value;
+
+  const { data, error } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .createSignedUrl(value, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export async function removeAvatar(profileId: string, value: string | null): Promise<void> {
+  // Only ours to delete. A provider URL is not an object in the bucket.
+  if (value && !/^https?:\/\//.test(value)) {
+    await supabase.storage.from(AVATAR_BUCKET).remove([value]);
+  }
+  const { error } = await supabase.from('profiles').update({ avatar_url: null }).eq('id', profileId);
+  if (error) throw new Error(error.message);
+}
+
 /**
  * ADR-006: a ghost is a real participant who simply hasn't joined yet.
  *

@@ -1,4 +1,9 @@
-import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native';
+import {
+  StyleSheet,
+  Text as RNText,
+  type TextProps as RNTextProps,
+  type TextStyle,
+} from 'react-native';
 
 import { useTheme } from '../theme';
 import type { typography } from '../tokens';
@@ -26,6 +31,16 @@ export function Text({
   const theme = useTheme();
   const scale = theme.typography[variant];
 
+  // A caller that overrides `fontSize` and nothing else would otherwise keep
+  // the variant's line height, and the glyph gets clipped to a box built for
+  // 15pt text — which is how a 43pt emoji ends up with its feet cut off. Scale
+  // the line height by the same factor unless the caller stated one.
+  const override = StyleSheet.flatten(style) as TextStyle | undefined;
+  const lineHeight =
+    typeof override?.fontSize === 'number' && override.lineHeight === undefined
+      ? Math.round(override.fontSize * (scale.lineHeight / scale.fontSize))
+      : scale.lineHeight;
+
   const color =
     tone === 'muted'
       ? theme.color.textMuted
@@ -49,7 +64,7 @@ export function Text({
       style={[
         {
           fontSize: scale.fontSize,
-          lineHeight: scale.lineHeight,
+          lineHeight,
           fontWeight: scale.fontWeight as TextStyle['fontWeight'],
           color,
           textAlign: align,

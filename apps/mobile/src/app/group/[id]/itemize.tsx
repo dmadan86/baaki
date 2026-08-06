@@ -26,7 +26,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { pickReceiptPhoto } from '@/components/GroupPhoto';
+import { pickReceiptPhoto } from '@/lib/image';
 import { scanReceipt, scanReceiptText } from '@/data/api';
 import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useWriteExpense } from '@/data/hooks';

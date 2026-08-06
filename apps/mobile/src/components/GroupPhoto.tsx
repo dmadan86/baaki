@@ -6,10 +6,12 @@
  * and can fail, which is why the emoji is not a placeholder shown while
  * loading — it is the real fallback, and a group that never gets a photo looks
  * finished rather than broken.
+ *
+ * Choosing a photo lives in `@/lib/image`, with the downscaling every upload in
+ * the app goes through.
  */
 
 import { useEffect, useState } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -17,60 +19,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text, useTheme } from '@baaki/ui';
 
 import { groupPhotoUrl } from '@/data/api';
-
-export interface PickedImage {
-  base64: string;
-  mimeType: string | null;
-  /** Local URI, so the choice is visible before it has been uploaded. */
-  uri: string;
-}
-
-/**
- * Ask for a photo. Returns null when the person changes their mind or declines
- * access — both are ordinary answers, not errors to report.
- */
-export async function pickGroupPhoto(): Promise<PickedImage | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return null;
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    allowsEditing: true,
-    aspect: [1, 1],
-    // The bucket caps objects at 5 MB; compressing here means a phone photo
-    // lands well under that instead of being rejected after the upload.
-    quality: 0.7,
-    base64: true,
-  });
-  if (result.canceled) return null;
-
-  const asset = result.assets[0];
-  if (!asset?.base64) return null;
-  return { base64: asset.base64, mimeType: asset.mimeType ?? null, uri: asset.uri };
-}
-
-/**
- * A receipt, from the camera by default (ADR-008). Not cropped to a square and
- * not compressed as hard as a cover photo: a faded line the model cannot read
- * is a line somebody has to retype, so fidelity is worth the bytes here.
- */
-export async function pickReceiptPhoto(): Promise<PickedImage | null> {
-  const permission = await ImagePicker.requestCameraPermissionsAsync();
-  const launch = permission.granted
-    ? ImagePicker.launchCameraAsync
-    : ImagePicker.launchImageLibraryAsync;
-
-  const result = await launch({
-    mediaTypes: ['images'],
-    quality: 0.9,
-    base64: true,
-  });
-  if (result.canceled) return null;
-
-  const asset = result.assets[0];
-  if (!asset?.base64) return null;
-  return { base64: asset.base64, mimeType: asset.mimeType ?? null, uri: asset.uri };
-}
 
 interface GroupPhotoProps {
   photoPath?: string | null;

@@ -29,6 +29,7 @@ minimumReleaseAgeExclude:
   - expo-image-picker@57.0.8
   - expo-notifications@57.0.9
   - expo-symbols@57.0.2
+  - expo-image-manipulator@57.0.8
 
 # expo-asset pulls its own expo-constants, so pnpm installs two copies. A
 # native build may only contain one version of a native module, and
