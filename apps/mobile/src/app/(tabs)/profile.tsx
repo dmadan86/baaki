@@ -22,6 +22,7 @@ import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { describeGrace, useLock } from '@/lib/lock';
+import { useMotion } from '@/lib/motion';
 
 interface SettingsRow {
   icon: keyof typeof Ionicons.glyphMap;
@@ -115,6 +116,7 @@ export default function ProfileScreen() {
   const { profile, isGuest, updateProfile, signOut } = useAuth();
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
+  const { animated, overridden: motionOverridden } = useMotion();
 
   const [name, setName] = useState(profile?.display_name ?? '');
   const [vpa, setVpa] = useState(profile?.default_vpa ?? '');
@@ -171,6 +173,12 @@ export default function ProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
+
+  const motionSummary = motionOverridden
+    ? animated
+      ? 'Screen animations on'
+      : 'Screen animations off'
+    : `Following your phone — animations ${animated ? 'on' : 'off'}`;
 
   const lockSummary = !lockSupported
     ? 'This device has no biometrics set up'
@@ -314,7 +322,18 @@ export default function ProfileScreen() {
           </Card>
         ) : null}
 
-        <SettingsSection title="Settings" rows={SETTINGS} />
+        <SettingsSection
+          title="Settings"
+          rows={[
+            ...SETTINGS,
+            {
+              icon: 'sparkles-outline',
+              label: 'Motion',
+              hint: motionSummary,
+              route: '/settings/motion',
+            },
+          ]}
+        />
 
         {/* Security is its own section rather than one row among many: it is
             the only group of settings somebody comes looking for. */}
