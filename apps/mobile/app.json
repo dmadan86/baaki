@@ -58,6 +58,7 @@
           "cameraPermission": "Baaki uses the camera to scan a bill, so the total and the items come out filled in instead of typed. The photograph stays on this phone whenever it can be read here."
         }
       ],
+      "./plugins/withShortNativeBuildPath",
       "expo-secure-store",
       "expo-sharing",
       "@react-native-community/datetimepicker",

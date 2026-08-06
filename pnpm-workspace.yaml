@@ -37,3 +37,14 @@ minimumReleaseAgeExclude:
 # the app already depends on.
 overrides:
   expo-constants: 57.0.9
+
+# Expo loads a package's config plugin from inside that package, and several of
+# them require `@expo/config-plugins` without declaring it — it is always
+# present under npm's flat layout, so nobody notices. Under pnpm's strict one
+# the Android build dies in `expo-constants:createExpoConfig` with "Cannot find
+# module '@expo/config-plugins'", naming a file nobody in this repo wrote.
+# Declaring the dependency on the package's behalf is narrower than hoisting.
+packageExtensions:
+  react-native-document-scanner-plugin:
+    dependencies:
+      '@expo/config-plugins': '^57.0.7'

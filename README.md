@@ -230,6 +230,34 @@ lazy-require treatment described above — `TurboModuleRegistry.get` answers
 "is it in this binary" without throwing, and the package is only required once
 the answer is yes.
 
+### Building it natively
+
+```bash
+cd apps/mobile
+npx expo prebuild --platform android    # ios needs macOS; Expo refuses on Windows
+cd android && ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a
+```
+
+Needs JDK 17, and an Android SDK with `platform-tools`, `platforms;android-36`
+and `build-tools;36.0.0`. The APK lands in
+`android/app/build/outputs/apk/debug/`.
+
+Two things in this repo exist only because of pnpm, and both fail in ways that
+name a file nobody here wrote:
+
+- **`plugins/withShortNativeBuildPath.js`** moves the CMake staging directory to
+  `C:\cxx\<module>` on Windows. Five dependencies compile C++, and CMake refuses
+  an object path over 250 characters — pnpm's store spends 192 of them before
+  the object is named. What you see is not a path error: ninja regenerates its
+  manifest in a loop and dies with `manifest 'build.ninja' still dirty after 100
+tries`, ten minutes in, blaming `react-native-screens`. Windows long paths do
+  not help; the limit is CMake's.
+- **`packageExtensions`** in `pnpm-workspace.yaml` declares
+  `@expo/config-plugins` for `react-native-document-scanner-plugin`, whose
+  config plugin requires it without depending on it. Always present under npm's
+  flat layout; absent under pnpm's, where the build dies in
+  `expo-constants:createExpoConfig`.
+
 ## Releasing, and stopping old builds
 
 The version is compiled into the binary, so a build can only ever describe
