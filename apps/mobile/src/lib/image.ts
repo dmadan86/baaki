@@ -19,21 +19,45 @@
 
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 
 /**
- * Loaded on demand rather than imported at the top of the file.
+ * Loaded on demand, and only once the native side is known to be there.
  *
  * `expo-image-manipulator` is a native module, so a development client built
- * before it was added does not contain it — and a top-level import of a missing
- * native module throws while the module is being evaluated, which takes down
- * every screen that imports this one. A missing resize should cost the resize,
- * not the New group screen.
+ * before it was added does not contain it. Importing it at the top of the file
+ * threw while the module was being evaluated and took down every screen that
+ * imports this one; moving to `await import()` was not enough, because Metro's
+ * dev-mode loader hands a module-evaluation error to the global error handler
+ * before the awaiting `catch` ever sees it — the app carried on, but with a
+ * full-screen red box over it.
+ *
+ * So the module is never evaluated unless it can work. Expo's native registry
+ * publishes what it installed on `globalThis.expo.modules`, which is what
+ * `requireNativeModule` reads and what it throws about when the name is absent.
+ * Reading it directly avoids importing `expo-modules-core`, which pnpm's
+ * isolated layout does not resolve from this app anyway.
+ *
+ * A false negative here costs the resize and nothing else, which is the right
+ * direction for this check to fail in.
  */
 type Manipulator = typeof import('expo-image-manipulator');
 let manipulator: Manipulator | null | undefined;
 
+function nativeSideExists(): boolean {
+  // On web the package resolves to a browser implementation that never asks the
+  // native registry anything, so there is nothing to check and nothing to throw.
+  if (Platform.OS === 'web') return true;
+  const registry = (globalThis as { expo?: { modules?: Record<string, unknown> } }).expo?.modules;
+  return Boolean(registry?.ExpoImageManipulator);
+}
+
 async function loadManipulator(): Promise<Manipulator | null> {
   if (manipulator !== undefined) return manipulator;
+  if (!nativeSideExists()) {
+    manipulator = null;
+    return null;
+  }
   try {
     manipulator = await import('expo-image-manipulator');
   } catch {
