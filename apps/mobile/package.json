@@ -52,7 +52,8 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.1",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "start": "expo start",
@@ -65,7 +66,9 @@
     "build:dev": "eas build --profile development --platform android",
     "build:preview": "eas build --profile preview --platform android",
     "build:prod": "eas build --profile production --platform all",
-    "build:local": "eas build --profile preview --platform android --local"
+    "build:local": "eas build --profile preview --platform android --local",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "private": true,
   "expo": {

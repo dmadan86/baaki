@@ -12,6 +12,7 @@
     "test": "pnpm -r --if-present run test",
     "test:core": "pnpm --filter @baaki/core run test",
     "test:db": "pnpm --filter @baaki/db run test",
+    "test:app": "pnpm --filter @baaki/mobile run test",
     "db:generate": "pnpm --filter @baaki/db run generate",
     "db:migrate": "pnpm --filter @baaki/db run migrate:deploy",
     "db:migrate:dev": "pnpm --filter @baaki/db run migrate:dev",
