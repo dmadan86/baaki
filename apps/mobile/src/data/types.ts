@@ -21,6 +21,10 @@ export interface GroupRow {
 
 export interface MemberRow {
   id: MemberId;
+  /** Where their invite goes. A hint for one invited person, not a contact book. */
+  invite_email?: string | null;
+  /** E.164. */
+  invite_phone?: string | null;
   group_id: string;
   profile_id: string | null;
   ghost_name: string | null;

@@ -399,7 +399,10 @@ export function useConfirmSettlement(groupId: string) {
 export function useAddGhostMember(groupId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => addGhostMember(groupId, name),
+    mutationFn: (input: string | { name: string; email?: string | null; phone?: string | null }) =>
+      typeof input === 'string'
+        ? addGhostMember(groupId, input)
+        : addGhostMember(groupId, input.name, { email: input.email, phone: input.phone }),
     onSuccess: () => invalidateGroup(queryClient, groupId),
   });
 }

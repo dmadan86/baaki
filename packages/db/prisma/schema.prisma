@@ -183,6 +183,11 @@ model GroupMember {
   role       MemberRole @default(member)
   /// How they got here: 'creator' | 'invite_link' | 'ghost' | 'import'.
   joinedVia  String?    @map("joined_via")
+  /// Where this person's invite should go. Lowercased. A hint for one invited
+  /// person — never a copy of anybody's address book.
+  inviteEmail String?   @map("invite_email")
+  /// E.164 only, e.g. +919876543210.
+  invitePhone String?   @map("invite_phone")
   /// Per-group override of the profile's default VPA.
   vpa        String?
   leftAt     DateTime?  @map("left_at") @db.Timestamptz(6)

@@ -15,6 +15,7 @@
     "expo": "~57.0.10",
     "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.9",
+    "expo-contacts": "~57.0.3",
     "expo-crypto": "~57.0.1",
     "expo-dev-client": "~57.0.10",
     "expo-device": "~57.0.1",

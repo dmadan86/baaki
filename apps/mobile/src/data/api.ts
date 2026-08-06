@@ -193,7 +193,7 @@ export async function fetchMembersByGroup(): Promise<Map<string, MemberRow[]>> {
     await supabase
       .from('group_members')
       .select(
-        'id, group_id, profile_id, ghost_name, role, vpa, left_at, profile:profiles ( id, display_name, avatar_url, default_vpa )',
+        'id, group_id, profile_id, ghost_name, role, vpa, left_at, invite_email, invite_phone, profile:profiles ( id, display_name, avatar_url, default_vpa )',
       )
       .is('left_at', null)
       .order('created_at', { ascending: true }),
@@ -287,12 +287,39 @@ function normaliseImageMime(mimeType: string | null | undefined): string {
   return 'image/jpeg';
 }
 
-/** ADR-006: a ghost is a real participant who simply hasn't joined yet. */
-export async function addGhostMember(groupId: string, name: string): Promise<void> {
-  const { error } = await supabase
-    .from('group_members')
-    .insert({ group_id: groupId, ghost_name: name.trim(), joined_via: 'ghost' });
-  if (error) throw new Error(error.message);
+/**
+ * ADR-006: a ghost is a real participant who simply hasn't joined yet.
+ *
+ * Goes through an RPC rather than a plain insert so normalisation happens in
+ * one place. The same person typed two ways — `Ravi@Example.com` today,
+ * `ravi@example.com` last week — must not become two members holding two
+ * halves of a balance. The server returns the existing member id when the
+ * contact already matches, so adding twice is harmless.
+ */
+export async function addGhostMember(
+  groupId: string,
+  name: string,
+  contact: { email?: string | null; phone?: string | null } = {},
+): Promise<string> {
+  const { data, error } = await supabase.rpc('baaki_add_ghost_member', {
+    p_group_id: groupId,
+    p_name: name.trim() || null,
+    p_member_id: null,
+    p_email: contact.email?.trim() || null,
+    p_phone: contact.phone?.trim() || null,
+  });
+  if (error) {
+    // The database speaks in codes; surface them rather than a raw SQL string.
+    const code = /^([A-Z_]+):/.exec(error.message)?.[1];
+    throw new Error(
+      code === 'PHONE_NEEDS_COUNTRY_CODE'
+        ? 'That number needs a country code, like +91'
+        : code === 'NOTHING_TO_ADD'
+          ? 'Give a name, an email or a number'
+          : error.message,
+    );
+  }
+  return data as string;
 }
 
 export interface WriteExpenseInput {
