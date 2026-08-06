@@ -8,6 +8,7 @@
 
 export * from './tokens';
 export * from './theme';
+export * from './curve';
 export * from './components/Text';
 export * from './components/Surfaces';
 export * from './components/CurvedPanel';
