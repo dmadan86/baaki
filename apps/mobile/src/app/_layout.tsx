@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
+import { Button, CurvedPanel, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -118,10 +120,18 @@ function PushRouting() {
   return null;
 }
 
-/** Holds the whole app behind biometrics when the user has asked for it. */
+/**
+ * Holds the whole app behind biometrics when the user has asked for it.
+ *
+ * Deliberately the same shape as the welcome — coloured sweep, wordmark, one
+ * button, version at the foot. Somebody meeting this screen is looking at a
+ * phone that will not open, and the fastest way to say "this is still your app,
+ * nothing has gone wrong" is for it to look like the app.
+ */
 function LockGate({ children }: { children: React.ReactNode }) {
   const { locked, unlock } = useLock();
   const theme = useTheme();
+  const { height: screenHeight } = useWindowDimensions();
 
   useEffect(() => {
     if (locked) void unlock();
@@ -130,21 +140,52 @@ function LockGate({ children }: { children: React.ReactNode }) {
   if (!locked) return <>{children}</>;
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: theme.spacing.xl,
-        backgroundColor: theme.color.bg,
-        padding: theme.spacing.xxxl,
-      }}
-    >
-      <Text style={{ fontSize: 44, lineHeight: 50, fontWeight: '700' }}>பாக்கி</Text>
-      <Text variant="caption" tone="muted" align="center">
-        Baaki is locked.
+    <View style={{ flex: 1, backgroundColor: theme.color.bg }}>
+      <CurvedPanel height={Math.min(screenHeight * 0.46, 420)}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing.sm,
+          }}
+        >
+          <Text
+            style={{ fontSize: 56, lineHeight: 72, fontWeight: '700', color: theme.color.onBrand }}
+          >
+            பாக்கி
+          </Text>
+          <Ionicons name="lock-closed" size={22} color={theme.color.onBrand} />
+        </View>
+      </CurvedPanel>
+
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          paddingHorizontal: theme.spacing.xxxl,
+          gap: theme.spacing.lg,
+        }}
+      >
+        <Text variant="display" align="center">
+          Baaki is locked
+        </Text>
+        <Text variant="body" tone="muted" align="center">
+          Unlock with the same face or fingerprint that opens this phone.
+        </Text>
+        <View style={{ paddingTop: theme.spacing.md }}>
+          <Button label="Unlock" size="lg" fullWidth onPress={() => void unlock()} />
+        </View>
+      </View>
+
+      <Text
+        variant="micro"
+        tone="faint"
+        align="center"
+        style={{ paddingBottom: theme.spacing.xxxl }}
+      >
+        Baaki {Constants.expoConfig?.version ?? ''}
       </Text>
-      <Button label="Unlock" size="lg" onPress={() => void unlock()} />
     </View>
   );
 }
