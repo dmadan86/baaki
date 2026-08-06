@@ -44,6 +44,14 @@
           "contactsPermission": "Baaki uses your contacts so you can pick who was there instead of typing their name. Your contacts stay on this phone — only the person you tap is sent."
         }
       ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Baaki uses the microphone only while you hold the mic button, to write down what you say.",
+          "speechRecognitionPermission": "Baaki turns what you say into the note on an expense, so you can add one without typing at the table.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ],
       "expo-secure-store",
       "expo-sharing",
       "@react-native-community/datetimepicker",

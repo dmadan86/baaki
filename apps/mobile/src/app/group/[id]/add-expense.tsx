@@ -21,6 +21,7 @@ import {
 } from '@baaki/ui';
 
 import { CurrencyRate } from '@/components/CurrencyRate';
+import { DictateButton } from '@/components/DictateButton';
 import { useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -66,6 +67,19 @@ export default function AddExpenseScreen() {
   const [splitKind, setSplitKind] = useState<SplitKind>('equal');
   const [payer, setPayer] = useState<MemberId | null>(null);
   const [participants, setParticipants] = useState<MemberId[]>([]);
+  /**
+   * Names to bias the recogniser towards. "You" and "Someone" are placeholders
+   * this screen prints, not things anybody says out loud, so they would only
+   * teach it to hear the wrong word.
+   */
+  const nameHints = useMemo(
+    () =>
+      (members.data ?? [])
+        .map((member) => displayName(member, profile?.id))
+        .filter((name) => name !== 'You' && name !== 'Someone'),
+    [members.data, profile?.id],
+  );
+
   const [expenseCurrency, setExpenseCurrency] = useState<string | null>(null);
   const [fx, setFx] = useState<FxRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -278,19 +292,26 @@ export default function AddExpenseScreen() {
           <Text variant="caption" tone="muted">
             {t.description}
           </Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Beach shack dinner"
-            placeholderTextColor={theme.color.textFaint}
-            accessibilityLabel={t.description}
-            style={{
-              fontSize: 17,
-              fontWeight: '600',
-              color: theme.color.text,
-              paddingVertical: theme.spacing.sm,
-            }}
-          />
+          <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Beach shack dinner"
+              placeholderTextColor={theme.color.textFaint}
+              accessibilityLabel={t.description}
+              style={{
+                flex: 1,
+                fontSize: 17,
+                fontWeight: '600',
+                color: theme.color.text,
+                paddingVertical: theme.spacing.sm,
+              }}
+            />
+            {/* The member names are handed to the recogniser as hints. A
+                general model guesses at Indian names and gets them wrong, and
+                the note is exactly where they turn up. */}
+            <DictateButton value={description} onChange={setDescription} hints={nameHints} />
+          </Row>
         </Card>
 
         <View style={{ gap: theme.spacing.md }}>

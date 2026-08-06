@@ -163,6 +163,30 @@ builds and runs unchanged:
 A DSN is public by design: it can only write events, which is why it ships in
 the binary. `SENTRY_AUTH_TOKEN` is the one that reads, and it stays in CI.
 
+## Saying the note instead of typing it
+
+The mic beside "What was it for?" is the platform's own recogniser —
+`SFSpeechRecognizer` on iOS, `SpeechRecognizer` on Android, via
+`expo-speech-recognition`. On-device whenever the phone has a model for the
+language, so what somebody says across a restaurant table is not sent anywhere;
+where it has none, the OS falls back to the same network recogniser its own
+keyboard mic uses.
+
+Three decisions worth knowing:
+
+- **It recognises in the language the app is showing**, and keeps the phone's
+  own region when the two agree — `en-GB` stays `en-GB`, a bare `ta` becomes
+  `ta-IN`. `speechLocale` in `apps/mobile/src/lib/dictation.ts`.
+- **Member names are passed as `contextualStrings`.** A general model guesses at
+  Indian names and gets them wrong, and the note is where they turn up.
+- **Dictation adds to the field, never replaces it.** Interim results arrive in
+  full each time, so the text is recomputed from what was there when the mic was
+  tapped rather than appended — `mergeTranscript`, and the test that pins it.
+
+Native module, so it needs a new dev build or store build: `npx expo prebuild`
+then `eas build`. The mic does not render on web, and an existing binary will
+not grow it from an over-the-air change.
+
 ## Releasing, and stopping old builds
 
 The version is compiled into the binary, so a build can only ever describe
