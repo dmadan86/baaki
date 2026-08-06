@@ -26,6 +26,14 @@ import { useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import {
+  entryValues,
+  fillEntries,
+  formatEntry,
+  splitProblem,
+  type SplitEntries,
+  type SplitKind,
+} from '@/lib/split';
 import { clearDraft, useDraft, useRestoredDraft, useSync } from '@/sync';
 
 interface ExpenseDraft {
@@ -34,9 +42,20 @@ interface ExpenseDraft {
   splitKind: SplitKind;
   payer: MemberId | null;
   participants: MemberId[];
+  /** Kept apart, because a weight of 1 is not one percent. */
+  weights: SplitEntries;
+  percents: SplitEntries;
 }
 
-type SplitKind = 'equal' | 'shares' | 'percent';
+/** A saved split's integers, back as the text somebody would have typed. */
+function textEntries(
+  values: Readonly<Record<string, number>>,
+  kind: 'shares' | 'percent',
+): SplitEntries {
+  return Object.fromEntries(
+    Object.entries(values).map(([memberId, value]) => [memberId, formatEntry(kind, value)]),
+  );
+}
 
 export default function AddExpenseScreen() {
   const theme = useTheme();
@@ -67,6 +86,11 @@ export default function AddExpenseScreen() {
   const [splitKind, setSplitKind] = useState<SplitKind>('equal');
   const [payer, setPayer] = useState<MemberId | null>(null);
   const [participants, setParticipants] = useState<MemberId[]>([]);
+  // What was typed into each member's field, as text. Two maps, not one: the
+  // same person is "2 shares" and "40%", and switching between the two must not
+  // reinterpret one number as the other.
+  const [weights, setWeights] = useState<SplitEntries>({});
+  const [percents, setPercents] = useState<SplitEntries>({});
   /**
    * Names to bias the recogniser towards. "You" and "Someone" are placeholders
    * this screen prints, not things anybody says out loud, so they would only
@@ -109,6 +133,8 @@ export default function AddExpenseScreen() {
       setSplitKind(draft.splitKind);
       setPayer(draft.payer ?? myMemberId);
       setParticipants(draft.participants);
+      setWeights(draft.weights ?? {});
+      setPercents(draft.percents ?? {});
     } else if (version) {
       setAmount(BigInt(version.amount));
       setDescription(version.description);
@@ -121,11 +147,39 @@ export default function AddExpenseScreen() {
             ? 'shares'
             : 'equal',
       );
+      // The numbers somebody chose the first time, back in the fields they were
+      // typed into — an edit that silently re-divided them equally would be a
+      // worse lie than refusing to open.
+      const params = version.split_params;
+      if (params.kind === 'shares') {
+        setWeights(textEntries(params.weights, 'shares'));
+      } else if (params.kind === 'percent') {
+        setPercents(textEntries(params.basisPoints, 'percent'));
+      }
     } else {
       setParticipants((members.data ?? []).map((member) => member.id));
       setPayer(myMemberId);
     }
   }
+
+  // Everybody in a weighted split needs a number to start from, and the set
+  // changes as people are ticked on and off. `fillEntries` returns null once
+  // there is nothing left to fill, which is what stops this looping.
+  if (splitKind === 'shares') {
+    const filled = fillEntries('shares', weights, participants);
+    if (filled) setWeights(filled);
+  } else if (splitKind === 'percent') {
+    const filled = fillEntries('percent', percents, participants);
+    if (filled) setPercents(filled);
+  }
+
+  const entries = splitKind === 'shares' ? weights : percents;
+  const setEntry = (memberId: MemberId, text: string): void => {
+    const update = (current: SplitEntries): SplitEntries => ({ ...current, [memberId]: text });
+    if (splitKind === 'shares') setWeights(update);
+    else setPercents(update);
+  };
+  const splitIssue = splitProblem(splitKind, entries, participants);
 
   const groupCurrency = group.data?.default_currency ?? 'INR';
   // The expense keeps the currency it was paid in; the group's is only the
@@ -135,26 +189,19 @@ export default function AddExpenseScreen() {
   // Every keystroke, debounced just enough to avoid one write per character.
   useDraft<ExpenseDraft>(
     draftKey,
-    { amount: amount.toString(), description, splitKind, payer, participants },
+    { amount: amount.toString(), description, splitKind, payer, participants, weights, percents },
     { enabled: seededFor !== null },
   );
 
   const splitParams: SplitParams = useMemo(() => {
     if (splitKind === 'shares') {
-      return { kind: 'shares', weights: Object.fromEntries(participants.map((id) => [id, 1])) };
+      return { kind: 'shares', weights: entryValues('shares', weights, participants) };
     }
     if (splitKind === 'percent') {
-      const each = Math.floor(10000 / Math.max(participants.length, 1));
-      const basisPoints: Record<string, number> = {};
-      participants.forEach((id) => {
-        basisPoints[id] = each;
-      });
-      const first = participants[0];
-      if (first) basisPoints[first] = each + (10000 - each * participants.length);
-      return { kind: 'percent', basisPoints };
+      return { kind: 'percent', basisPoints: entryValues('percent', percents, participants) };
     }
     return { kind: 'equal' };
-  }, [splitKind, participants]);
+  }, [splitKind, weights, percents, participants]);
 
   // Preview with the same engine the server uses; if they ever disagree the
   // server wins and tells us why (SHARE_MISMATCH).
@@ -364,13 +411,10 @@ export default function AddExpenseScreen() {
 
           {(members.data ?? []).map((member) => {
             const selected = participants.includes(member.id);
+            const name = displayName(member, profile?.id);
             return (
-              <Pressable
+              <View
                 key={member.id}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: selected }}
-                accessibilityLabel={displayName(member, profile?.id)}
-                onPress={() => toggleParticipant(member.id)}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -378,26 +422,86 @@ export default function AddExpenseScreen() {
                   paddingVertical: theme.spacing.sm,
                 }}
               >
-                <Avatar name={displayName(member)} ghost={isGhost(member)} size={38} />
-                <Text variant="subheading" style={{ flex: 1 }}>
-                  {displayName(member, profile?.id)}
-                </Text>
-                {preview && selected ? (
-                  <MoneyText
-                    amount={preview.get(member.id) ?? 0n}
-                    currency={currency}
-                    locale={locale}
-                    variant="caption"
-                  />
+                {/* The name toggles; the field beside it must not, or nobody
+                    could tap into it without dropping the person. */}
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected }}
+                  accessibilityLabel={name}
+                  onPress={() => toggleParticipant(member.id)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing.md,
+                    flex: 1,
+                  }}
+                >
+                  <Avatar name={displayName(member)} ghost={isGhost(member)} size={38} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text variant="subheading" numberOfLines={1}>
+                      {name}
+                    </Text>
+                    {preview && selected ? (
+                      <MoneyText
+                        amount={preview.get(member.id) ?? 0n}
+                        currency={currency}
+                        locale={locale}
+                        variant="micro"
+                      />
+                    ) : null}
+                  </View>
+                </Pressable>
+
+                {splitKind !== 'equal' && selected ? (
+                  <Row style={{ gap: 2, alignItems: 'center', flexGrow: 0, flexShrink: 0 }}>
+                    <TextInput
+                      value={entries[member.id] ?? ''}
+                      onChangeText={(text) => setEntry(member.id, text)}
+                      keyboardType={splitKind === 'percent' ? 'decimal-pad' : 'number-pad'}
+                      selectTextOnFocus
+                      placeholder={splitKind === 'percent' ? '0' : '1'}
+                      placeholderTextColor={theme.color.textFaint}
+                      accessibilityLabel={
+                        splitKind === 'percent' ? `${name}'s percentage` : `${name}'s shares`
+                      }
+                      style={{
+                        width: 72,
+                        fontSize: 16,
+                        fontWeight: '700',
+                        textAlign: 'right',
+                        color: theme.color.text,
+                        backgroundColor: theme.color.bg,
+                        borderRadius: theme.radius.sm,
+                        paddingVertical: theme.spacing.sm,
+                        paddingHorizontal: theme.spacing.sm,
+                      }}
+                    />
+                    <Text variant="micro" tone="muted">
+                      {splitKind === 'percent' ? '%' : '×'}
+                    </Text>
+                  </Row>
                 ) : null}
-                <Ionicons
-                  name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={22}
-                  color={selected ? theme.color.brand : theme.color.textFaint}
-                />
-              </Pressable>
+
+                <Pressable
+                  accessible={false}
+                  onPress={() => toggleParticipant(member.id)}
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={22}
+                    color={selected ? theme.color.brand : theme.color.textFaint}
+                  />
+                </Pressable>
+              </View>
             );
           })}
+
+          {splitIssue ? (
+            <Text variant="micro" tone="negative">
+              {splitIssue}
+            </Text>
+          ) : null}
         </Card>
 
         {error ? (
@@ -410,7 +514,7 @@ export default function AddExpenseScreen() {
           label={editing ? 'Save changes' : t.save}
           size="lg"
           fullWidth
-          disabled={amount === 0n || participants.length === 0 || saving}
+          disabled={amount === 0n || participants.length === 0 || splitIssue !== null || saving}
           onPress={() => void submit()}
         />
 
