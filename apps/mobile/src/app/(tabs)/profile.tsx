@@ -101,7 +101,12 @@ const SETTINGS: SettingsRow[] = [
     hint: 'JSON + CSV, lossless, free',
     route: '/settings/export',
   },
-  { icon: 'cloud-upload-outline', label: 'Import from Splitwise', hint: 'Coming in M3' },
+  {
+    icon: 'cloud-upload-outline',
+    label: 'Import from Splitwise',
+    hint: 'Bring a group across from a CSV export',
+    route: '/settings/import',
+  },
 ];
 
 export default function ProfileScreen() {

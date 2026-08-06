@@ -28,8 +28,21 @@ Planned functions, by milestone:
 | `sync`             | M2        | Batch mutation replay + change feed (TDR §4)          |
 | `invite-mint`      | M3        | Signed, expiring, revocable invite tokens             |
 | `ghost-claim`      | M3        | Transactional ghost → real member merge               |
-| `splitwise-import` | M3        | CSV → versioned expenses, unknown people as ghosts    |
+| ~~`splitwise-import`~~ | M3    | Shipped as `baaki_import_splitwise` instead — see below |
 | `notify-fanout`    | M4        | Classify → resolve recipients → push/email (TDR §7.1) |
 | `email-events`     | M4        | Resend webhook ingestion + suppression list           |
 | `receipt-parse`    | M5        | Vision LLM itemization with quota metering            |
 | `export`           | M5        | Lossless JSON + locale-aware CSV, signed URL          |
+
+## Deviation: the Splitwise import is not a function
+
+TDR §10 puts the import here and asks for a **transactional** insert. Those two
+cannot both hold: a function looping over REST writes has no transaction, and a
+half-finished import is the failure nobody can see — the balances still add up,
+they are simply the balances of a smaller group that never existed.
+
+So the import ships as `baaki_import_splitwise`, a single `SECURITY DEFINER`
+function in the database. A function body is one transaction, which is the
+property §10 was asking for. Parsing stays in `@baaki/core` and runs on the
+client, so a file that turns out not to be a Splitwise export costs a round trip
+to nowhere. TDR §10 wants amending to match.

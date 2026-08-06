@@ -688,6 +688,84 @@ export async function exportData(input: {
   return data as ExportResult;
 }
 
+// ─────────────────────────────────── Splitwise import (ADR-012) ──
+
+export interface ImportPerson {
+  /** The column heading from the file, which is also the key used in each row. */
+  name: string;
+  /** An existing member to attribute this column to, or null to create a ghost. */
+  memberId: string | null;
+}
+
+export interface ImportExpense {
+  clientMutationId: string;
+  description: string;
+  category: string | null;
+  /** ISO date, YYYY-MM-DD. */
+  date: string;
+  currency: string;
+  amount: bigint;
+  payers: Record<string, bigint>;
+  shares: Record<string, bigint>;
+}
+
+export interface ImportResult {
+  groupId: string;
+  expenses: number;
+  ghosts: number;
+  members: Record<string, string>;
+}
+
+/**
+ * Write a parsed Splitwise export into a group.
+ *
+ * One RPC, so one transaction: a person moving four years of history cannot
+ * tell a half-finished import from a complete one, because the balances add up
+ * either way — they are just the balances of a smaller group that never
+ * existed. Either every ghost and every row lands, or nothing does.
+ *
+ * `clientMutationId` per row makes a second tap on Import a replay rather than
+ * a second copy (ADR-005), so generate them once and reuse them on retry.
+ */
+export async function importSplitwise(input: {
+  groupId: string;
+  people: ImportPerson[];
+  expenses: ImportExpense[];
+}): Promise<ImportResult> {
+  const { data, error } = await supabase.rpc('baaki_import_splitwise', {
+    p_group_id: input.groupId,
+    p_people: input.people,
+    // Minor units as strings all the way down: a number in JSON is a double,
+    // and a double is how a paisa goes missing from a four-year history.
+    p_expenses: input.expenses.map((expense) => ({
+      clientMutationId: expense.clientMutationId,
+      description: expense.description,
+      category: expense.category,
+      date: expense.date,
+      currency: expense.currency,
+      amount: expense.amount.toString(),
+      payers: Object.fromEntries(
+        Object.entries(expense.payers).map(([name, value]) => [name, value.toString()]),
+      ),
+      shares: Object.fromEntries(
+        Object.entries(expense.shares).map(([name, value]) => [name, value.toString()]),
+      ),
+    })),
+  });
+
+  if (error) {
+    const code = /^([A-Z_]+):/.exec(error.message)?.[1];
+    throw new Error(
+      code === 'NOT_A_MEMBER'
+        ? 'You are not in that group'
+        : code === 'NO_PEOPLE'
+          ? 'That file named nobody to import'
+          : error.message,
+    );
+  }
+  return data as ImportResult;
+}
+
 // ─────────────────────────────── notification preferences (ADR-010) ──
 
 export interface NotificationPrefs {
