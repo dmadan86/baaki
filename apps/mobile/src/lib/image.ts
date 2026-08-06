@@ -19,7 +19,9 @@
 
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import { Platform } from 'react-native';
+import { Image, Platform } from 'react-native';
+
+import { scanDocument } from './scanner';
 
 /**
  * Loaded on demand, and only once the native side is known to be there.
@@ -208,4 +210,48 @@ export async function pickReceiptPhoto(): Promise<PickedImage | null> {
       compress: 0.9,
     })) ?? (await readUnshrunk(asset.uri));
   return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
+}
+
+/**
+ * A receipt, however this phone can best get one.
+ *
+ * The document scanner is tried first: it finds the page edges and flattens the
+ * perspective, and OCR on a flat crop of the bill is a different proposition
+ * from OCR on a photograph of a table. Where the build has no scanner — web, or
+ * a binary from before it was installed — this falls through to the plain
+ * camera, which is what every scan used until now.
+ *
+ * The two are deliberately one function. Two capture paths would drift, and the
+ * screen asking for a receipt has no business knowing which one it got.
+ */
+export async function captureReceipt(): Promise<PickedImage | null> {
+  const scanned = await scanDocument();
+  if (!scanned) return pickReceiptPhoto();
+
+  // The scanner reports no dimensions, and `shrink` caps whichever edge is
+  // longer. Asking the file is cheap; failing to ask would send a 4000px scan
+  // up whole, so an unreadable size is a reason to skip the resize rather than
+  // to abandon the scan.
+  const size = await imageSize(scanned);
+  const shrunk =
+    (size
+      ? await shrink({
+          uri: scanned,
+          width: size.width,
+          height: size.height,
+          maxEdge: RECEIPT_MAX_EDGE,
+          compress: 0.9,
+        })
+      : null) ?? (await readUnshrunk(scanned));
+  return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
+}
+
+function imageSize(uri: string): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      () => resolve(null),
+    );
+  });
 }

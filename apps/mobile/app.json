@@ -52,6 +52,12 @@
           "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
         }
       ],
+      [
+        "react-native-document-scanner-plugin",
+        {
+          "cameraPermission": "Baaki uses the camera to scan a bill, so the total and the items come out filled in instead of typed. The photograph stays on this phone whenever it can be read here."
+        }
+      ],
       "expo-secure-store",
       "expo-sharing",
       "@react-native-community/datetimepicker",
