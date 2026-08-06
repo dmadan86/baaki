@@ -11,6 +11,7 @@ import {
   minorUnitScale,
   type ItemizedParams,
   type MemberId,
+  type ParsedReceipt,
 } from '@baaki/core';
 import {
   Avatar,
@@ -26,13 +27,15 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { pickReceiptPhoto } from '@/lib/image';
+import { captureReceipt } from '@/lib/image';
 import { scanReceipt, scanReceiptText } from '@/data/api';
 import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useWriteExpense } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { handoverIsFresh, handoverKey, type ReceiptHandover } from '@/lib/handover';
+import { clearDraft, useRestoredDraft } from '@/sync';
 
 interface DraftItem {
   key: string;
@@ -76,8 +79,39 @@ export default function ItemizeScreen() {
    * in the same editable list somebody would have typed by hand, so correcting
    * a misread line is just editing — there is no separate "AI mode" to leave.
    */
+  const fillFromReceipt = (parsed: ParsedReceipt): void => {
+    setItems(
+      parsed.items.map((item, index) => ({
+        key: `scan-${index}-${randomUUID()}`,
+        label: item.label,
+        total: BigInt(item.total),
+        claimers: [],
+      })),
+    );
+    const taxes = parsed.taxes.reduce((sum, tax) => sum + tax.amount, 0);
+    if (taxes > 0) setTaxText((taxes / 100).toString());
+    if (parsed.tip) setTipText((parsed.tip / 100).toString());
+    if (parsed.merchant) {
+      setDescription((current) => (current.trim() ? current : (parsed.merchant ?? '')));
+    }
+  };
+
+  // A bill scanned on the add-expense screen, followed here. Taken once and
+  // cleared: nobody should be asked to photograph the same receipt twice, and
+  // nobody who came here to type should find last week's dinner waiting.
+  const handover = useRestoredDraft<ReceiptHandover>(handoverKey(groupId));
+  const [tookHandover, setTookHandover] = useState(false);
+  if (!handover.loading && handover.draft && !tookHandover) {
+    setTookHandover(true);
+    void clearDraft(handoverKey(groupId));
+    if (handoverIsFresh(handover.draft)) {
+      fillFromReceipt(handover.draft.parsed);
+      setScanNote('Carried over from the scan. Check the lines, then tap who had what.');
+    }
+  }
+
   const scan = async (): Promise<void> => {
-    const picked = await pickReceiptPhoto();
+    const picked = await captureReceipt();
     if (!picked) return;
     setError(null);
     setScanNote(null);
@@ -103,18 +137,7 @@ export default function ItemizeScreen() {
             currency,
           });
 
-      setItems(
-        result.parsed.items.map((item, index) => ({
-          key: `scan-${index}-${randomUUID()}`,
-          label: item.label,
-          total: BigInt(item.total),
-          claimers: [],
-        })),
-      );
-      const taxes = result.parsed.taxes.reduce((sum, tax) => sum + tax.amount, 0);
-      if (taxes > 0) setTaxText((taxes / 100).toString());
-      if (result.parsed.tip) setTipText((result.parsed.tip / 100).toString());
-      if (!description.trim() && result.parsed.merchant) setDescription(result.parsed.merchant);
+      fillFromReceipt(result.parsed);
 
       // The arithmetic decides what the person is asked to look at. Saying
       // "scanned!" and leaving them to notice a wrong total is the failure
@@ -284,8 +307,8 @@ export default function ItemizeScreen() {
             <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
               <Text variant="subheading">Scan the receipt</Text>
               <Text variant="caption" tone="muted">
-                Photograph the bill and the items come out filled in. Check them before saving —
-                entering them by hand is always free.
+                Scan the bill and the items come out filled in. Check them before saving — entering
+                them by hand is always free.
               </Text>
             </View>
             <Button

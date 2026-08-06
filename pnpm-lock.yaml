@@ -152,6 +152,9 @@ importers:
       react-native:
         specifier: 0.86.2
         version: 0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)
+      react-native-document-scanner-plugin:
+        specifier: ^2.0.4
+        version: 2.0.4(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
       react-native-gesture-handler:
         specifier: ~2.32.0
         version: 2.32.0(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
@@ -5273,6 +5276,12 @@ packages:
 
   react-is@19.2.8:
     resolution: {integrity: sha512-s5un28nYxKJw5gvUHyW5PCC28CvBqLu9r3cWgzHT4Vo/5fqqkFcdRYsGcKf50WMPpjjFZS5d76fn3YCo2njKwQ==}
+
+  react-native-document-scanner-plugin@2.0.4:
+    resolution: {integrity: sha512-Y+tEP8qqgIseYw2T9NisT7+vaXJCM1QMj6KUqplNBQ3C+XivDwtyzp2vg03kH6Bjhg+ZxHzuEyu96ltBOax0iw==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
 
   react-native-drawer-layout@4.2.9:
     resolution: {integrity: sha512-ETOxvlhhb4LmuuG3RN7A3qwt9jr9AZ2it+1G2kNE4g2fTyxxay7QQkPm1HfKi/JzmMSWC5+YTepGSgZNpJIDGg==}
@@ -11718,6 +11727,11 @@ snapshots:
   react-is@18.3.1: {}
 
   react-is@19.2.8: {}
+
+  react-native-document-scanner-plugin@2.0.4(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      react-native: 0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)
 
   react-native-drawer-layout@4.2.9(e4920abfc9e65318671d090248ed021b):
     dependencies:

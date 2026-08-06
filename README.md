@@ -196,6 +196,40 @@ opened. The import therefore lives in `DictateVoice.tsx` and is reached from
 added from here on wants the same treatment**, unless every binary that will
 ever run the bundle is guaranteed to contain it.
 
+## Scanning the bill instead of typing it
+
+The camera on the add-expense screen is the platform's document scanner —
+`VNDocumentCameraViewController` on iOS, ML Kit's document scanner on Android,
+via `react-native-document-scanner-plugin`. It finds the page edges and
+corrects the perspective, which matters more than it sounds: what follows is
+OCR, and OCR reads characters without knowing which ones are on the receipt. A
+flat crop of the bill is a different proposition from a photograph of a table.
+
+Capture is one function, `captureReceipt` in `apps/mobile/src/lib/image.ts`,
+used by both the add-expense screen and Split by item. It falls back to the
+plain camera on a build with no scanner, so the screen asking for a receipt
+never has to know which one it got.
+
+What a scan does depends on where it was started:
+
+- **Add expense** takes the grand total and the merchant's name, and leaves the
+  splitting alone. Most bills are split some way that has nothing to do with
+  what each line cost, and dropping somebody into claiming items because they
+  photographed a bill would be worse than letting them type a total.
+- **Split by item** fills the lines, as it always has.
+
+A scan started on one and finished on the other is not re-taken. The parsed
+receipt is handed over through the draft store — `apps/mobile/src/lib/handover.ts`
+— keyed per group, consumed once, cleared immediately, and ignored after ten
+minutes. A scan costs the group one of its free scans (ADR-011), so asking for
+the same bill twice is a real cost; a receipt left lying in the store to
+pre-fill somebody's screen days later is a real bug.
+
+Native module, so it needs `npx expo prebuild` and a new build, and it gets the
+lazy-require treatment described above — `TurboModuleRegistry.get` answers
+"is it in this binary" without throwing, and the package is only required once
+the answer is yes.
+
 ## Releasing, and stopping old builds
 
 The version is compiled into the binary, so a build can only ever describe

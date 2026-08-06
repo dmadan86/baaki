@@ -22,10 +22,14 @@ import {
 
 import { CurrencyRate } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
+import { scanReceipt, scanReceiptText } from '@/data/api';
 import { useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { handoverKey } from '@/lib/handover';
+import { captureReceipt } from '@/lib/image';
+import { recogniseReceipt } from '@/lib/ocr';
 import {
   entryValues,
   fillEntries,
@@ -35,7 +39,7 @@ import {
   type SplitEntries,
   type SplitKind,
 } from '@/lib/split';
-import { clearDraft, useDraft, useRestoredDraft, useSync } from '@/sync';
+import { clearDraft, syncEngine, useDraft, useRestoredDraft, useSync } from '@/sync';
 
 interface ExpenseDraft {
   amount: string;
@@ -109,6 +113,10 @@ export default function AddExpenseScreen() {
   const [fx, setFx] = useState<FxRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState<string | null>(null);
+  /** Set once a scan has read line items, so the offer to itemize is real. */
+  const [scannedItems, setScannedItems] = useState(0);
 
   const myMemberId = useMemo(
     () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
@@ -294,6 +302,63 @@ export default function AddExpenseScreen() {
     return (amount * BigInt(basisPoints)) / 10000n;
   };
 
+  /**
+   * Photograph the bill, fill in the two fields somebody was about to type.
+   *
+   * This screen deliberately does not become an itemizing screen. Most bills
+   * are split some way that has nothing to do with what each line cost, and a
+   * scan that dragged everybody into claiming items would be worse than typing
+   * a total. What it takes is the grand total and the merchant's name; the
+   * lines it read are handed to the itemize screen, which is one tap away for
+   * the times that matters.
+   *
+   * ADR-008 still holds: the model proposes and the person confirms. Nothing
+   * saves itself, and the amount lands in the same field, editable.
+   */
+  const scan = async (): Promise<void> => {
+    const picked = await captureReceipt();
+    if (!picked) return;
+    setError(null);
+    setScanNote(null);
+    setScanning(true);
+    try {
+      // Read the text on the phone first: the photograph never leaves the
+      // device when it works, and it costs about a tenth as much. A dark or
+      // blurred bill falls back to sending the image, which reads it better.
+      const recognised = await recogniseReceipt(picked.uri);
+      const result = recognised
+        ? await scanReceiptText({ groupId, rawText: recognised.text, currency, source: 'camera' })
+        : await scanReceipt({
+            groupId,
+            base64: picked.base64,
+            mimeType: picked.mimeType,
+            currency,
+          });
+
+      if (result.parsed.grandTotal > 0) setAmount(BigInt(result.parsed.grandTotal));
+      if (result.parsed.merchant && !description.trim()) setDescription(result.parsed.merchant);
+      setScannedItems(result.parsed.items.length);
+
+      // Kept for the itemize screen in case they want it. Nobody should have to
+      // photograph the same bill twice, and a scan is metered (ADR-011).
+      void syncEngine.saveDraft(handoverKey(groupId), {
+        parsed: result.parsed,
+        at: Date.now(),
+      });
+
+      setScanNote(
+        result.check.reconciles && result.check.problems.length === 0
+          ? 'Read the total off the bill. Check it, then split it however you like.'
+          : (result.check.problems[0]?.message ??
+              'Check the total against the bill before saving.'),
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const toggleParticipant = (memberId: MemberId): void => {
     setParticipants((current) =>
       current.includes(memberId)
@@ -345,6 +410,44 @@ export default function AddExpenseScreen() {
 
         <Card>
           <AmountKeypad currency={currency} value={amount} onChange={setAmount} />
+        </Card>
+
+        {/* Below the keypad, not above it. Typing a number is the fast path and
+            stays the first thing on the screen; the camera is for the bill that
+            is easier to point at than to read. */}
+        <Card style={{ gap: theme.spacing.md }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
+              <Text variant="subheading">Scan the bill</Text>
+              <Text variant="caption" tone="muted">
+                The total and the name of the place come out filled in. Check them — entering them
+                by hand is always free.
+              </Text>
+            </View>
+            <Button
+              label={scanning ? 'Reading…' : 'Scan'}
+              variant="secondary"
+              disabled={scanning || saving}
+              onPress={() => void scan()}
+              icon={<Ionicons name="camera-outline" size={18} color={theme.color.brand} />}
+            />
+          </Row>
+          {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
+          {scanNote ? (
+            <Text variant="caption" tone="brand">
+              {scanNote}
+            </Text>
+          ) : null}
+          {scannedItems > 0 && !editing ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.replace(`/group/${groupId}/itemize`)}
+            >
+              <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
+                {`It read ${scannedItems} items — split by item instead →`}
+              </Text>
+            </Pressable>
+          ) : null}
         </Card>
 
         <CurrencyRate
