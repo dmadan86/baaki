@@ -64,6 +64,7 @@ is what makes a retried run a no-op rather than a second buzz.
 | Job                                | What it resolves                                                                                                                                                                                             |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `baaki_auto_confirm_settlements()` | A settlement nobody answered for 7 days (ADR-007). A dispute still reopens it.                                                                                                                               |
+| `baaki_claim_push_notifications()` | Hands unsent inbox rows to the fanout. An UPDATE, not a SELECT — two overlapping runs cannot both send the same reminder.                                                                                    |
 | `baaki_trip_nudges()`              | Twice a day during a group's dates: at breakfast about yesterday, at the end of the day about today. Skips anybody who already recorded that day, and asks in the group's timezone rather than the server's. |
 
 ### Edge functions
@@ -74,6 +75,7 @@ is what makes a retried run a no-op rather than a second buzz.
 | `invite-mint`   | Signed, expiring, revocable invite links (only a hash is stored)            |
 | `invite-accept` | Preview without an account, join, and ghost claiming                        |
 | `export-data`   | Lossless JSON and CSV export                                                |
+| `notify-fanout` | Claims unsent inbox rows and pushes them via Expo; revokes dead devices     |
 
 ### Running the full stack
 
