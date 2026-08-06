@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -11,11 +12,24 @@ import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { LockProvider, useLock } from '@/lib/lock';
 import { initObservability, withObservability } from '@/lib/observability';
+import { ensureAndroidChannel, routeForNotification } from '@/lib/push';
 import { SyncProvider } from '@/sync';
 
 // Before anything else renders, so a crash in the first frame is still caught.
 // Inert unless a DSN is configured.
 initObservability();
+
+// Arriving while the app is open should still surface: a notification that is
+// silently swallowed because you happened to be looking at the app is the one
+// people notice missing.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +51,7 @@ function RootLayout() {
               <LockProvider>
                 <ThemeProvider>
                   <StatusBar style="auto" />
+                  <PushRouting />
                   <LockGate>
                     <AuthGate />
                   </LockGate>
@@ -51,6 +66,35 @@ function RootLayout() {
 }
 
 export default withObservability(RootLayout);
+
+/**
+ * Sends a tapped notification where it points.
+ *
+ * Inside the navigation tree rather than at module scope, because a deep link
+ * fired before the router exists goes nowhere and takes the tap with it.
+ */
+function PushRouting() {
+  const router = useRouter();
+
+  useEffect(() => {
+    void ensureAndroidChannel();
+
+    // A tap that launched the app from cold arrives as the "last response"
+    // rather than as an event, so both paths are needed.
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      const route = response ? routeForNotification(response) : null;
+      if (route) router.push(route as never);
+    });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const route = routeForNotification(response);
+      if (route) router.push(route as never);
+    });
+    return () => subscription.remove();
+  }, [router]);
+
+  return null;
+}
 
 /** Holds the whole app behind biometrics when the user has asked for it. */
 function LockGate({ children }: { children: React.ReactNode }) {
