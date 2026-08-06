@@ -39,6 +39,23 @@ export function describeActivity(entry: ActivityRow, myProfileId: string | null)
         ? `${who}'s edit replaced an earlier one — "${replaced}" is still in the history`
         : `${who}'s edit replaced an earlier one`;
     }
+    case 'auto_confirmed':
+      // Nobody did this, so it does not get an actor. "Someone confirmed" would
+      // be a lie about a settlement that resolved by itself.
+      return 'A settlement was confirmed automatically after a week';
+    case 'disputed': {
+      const reason = typeof payload.reason === 'string' ? payload.reason : null;
+      const what = description ?? 'an expense';
+      return reason
+        ? `${who} says ${what} is not right — "${reason}"`
+        : `${who} says ${what} is not right`;
+    }
+    case 'withdrew_dispute':
+      return `${who} took back their correction to ${description ?? 'an expense'}`;
+    case 'accepted_dispute':
+      return `${who} agreed ${description ?? 'an expense'} needs fixing`;
+    case 'rejected_dispute':
+      return `${who} says ${description ?? 'an expense'} is correct as it stands`;
     case 'settled':
       return `${who} recorded a settlement`;
     case 'confirmed':
@@ -69,7 +86,14 @@ export function verbEmoji(verb: string): string {
     case 'settled':
       return '💸';
     case 'confirmed':
+    case 'auto_confirmed':
+    case 'accepted_dispute':
       return '✅';
+    case 'disputed':
+      return '🚩';
+    case 'withdrew_dispute':
+    case 'rejected_dispute':
+      return '🤝';
     case 'joined':
       return '👋';
     case 'created':

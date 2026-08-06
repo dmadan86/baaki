@@ -25,7 +25,14 @@ export type NotificationKind =
    * while the receipts still exist.
    */
   | 'trip_nudge_morning'
-  | 'trip_nudge_evening';
+  | 'trip_nudge_evening'
+  /**
+   * Somebody saying an expense is wrong. Worded as a correction rather than an
+   * accusation on purpose (ADR-010): the common case is a genuine mistake, and
+   * copy that treats it as a dispute makes a fight out of a typo.
+   */
+  | 'expense_disputed'
+  | 'expense_dispute_resolved';
 
 export interface CopyStrings {
   readonly money: {
@@ -75,6 +82,14 @@ const en: CopyStrings = {
       title: 'Before you forget',
       body: 'What did you pay for today on {group}?',
     },
+    expense_disputed: {
+      title: '{actor} thinks something is off',
+      body: '{description} in {group} — take a look',
+    },
+    expense_dispute_resolved: {
+      title: 'Your correction was answered',
+      body: '{description} in {group}',
+    },
   },
 };
 
@@ -115,6 +130,14 @@ const ta: CopyStrings = {
       title: 'மறப்பதற்கு முன்',
       body: 'இன்று {group} இல் என்ன செலவு செய்தீர்கள்?',
     },
+    expense_disputed: {
+      title: '{actor} ஏதோ தவறு என்கிறார்',
+      body: '{description} ({group}) — பார்க்கவும்',
+    },
+    expense_dispute_resolved: {
+      title: 'உங்கள் திருத்தத்திற்கு பதில் வந்தது',
+      body: '{description} ({group})',
+    },
   },
 };
 
@@ -148,6 +171,14 @@ const hi: CopyStrings = {
     trip_nudge_evening: {
       title: 'भूलने से पहले',
       body: 'आज {group} में आपने किस चीज़ का भुगतान किया?',
+    },
+    expense_disputed: {
+      title: '{actor} को कुछ गड़बड़ लग रहा है',
+      body: '{description} ({group}) — देख लें',
+    },
+    expense_dispute_resolved: {
+      title: 'आपके सुधार का जवाब आया',
+      body: '{description} ({group})',
     },
   },
 };
