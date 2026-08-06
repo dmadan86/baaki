@@ -29,9 +29,16 @@ import type {
   GroupRow,
   GroupType,
   MemberRow,
+  NotificationRow,
   SettlementMethod,
   SettlementRow,
 } from './types';
+
+const GROUP_SELECT = `
+  id, name, type, default_currency, simplify_debts, cover_emoji, photo_path,
+  start_date, end_date, time_zone, remind_daily, remind_morning_at, remind_evening_at,
+  archived_at, created_at
+`;
 
 const MEMBER_SELECT = `
   id, group_id, profile_id, ghost_name, role, vpa, left_at,
@@ -60,24 +67,14 @@ export async function fetchGroups(): Promise<GroupRow[]> {
   return unwrap(
     await supabase
       .from('groups')
-      .select(
-        'id, name, type, default_currency, simplify_debts, cover_emoji, photo_path, archived_at, created_at',
-      )
+      .select(GROUP_SELECT)
       .is('archived_at', null)
       .order('created_at', { ascending: false }),
   );
 }
 
 export async function fetchGroup(groupId: string): Promise<GroupRow> {
-  return unwrap(
-    await supabase
-      .from('groups')
-      .select(
-        'id, name, type, default_currency, simplify_debts, cover_emoji, photo_path, archived_at, created_at',
-      )
-      .eq('id', groupId)
-      .single(),
-  );
+  return unwrap(await supabase.from('groups').select(GROUP_SELECT).eq('id', groupId).single());
 }
 
 export async function fetchMembers(groupId: string): Promise<MemberRow[]> {
@@ -475,6 +472,12 @@ export async function updateGroup(
     simplify_debts: boolean;
     default_currency: string;
     archived_at: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    time_zone: string;
+    remind_daily: boolean;
+    remind_morning_at: string;
+    remind_evening_at: string;
   }>,
 ): Promise<void> {
   const { error } = await supabase.from('groups').update(patch).eq('id', groupId);
@@ -597,6 +600,31 @@ export async function fetchNotificationPrefs(profileId: string): Promise<Notific
     .single();
   if (error) throw new Error(error.message);
   return { ...DEFAULT_NOTIFICATION_PREFS, ...((data?.notification_prefs ?? {}) as object) };
+}
+
+// ─────────────────────────────────────────────────────────── the inbox ──
+// Everything Baaki has told this person, whether or not a push ever reached
+// them. TDR §7.1 calls it the ledger of record for what we sent: a push that a
+// phone dropped, or that arrived while notifications were off, is still here.
+
+export async function fetchNotifications(limit = 50): Promise<NotificationRow[]> {
+  // No profile filter: `notifications_select_own` is the only thing that
+  // decides whose inbox this is, and adding a second, weaker check in the
+  // client would only invite disagreement about which one is authoritative.
+  return unwrap(
+    await supabase
+      .from('notifications')
+      .select('id, group_id, kind, title, body, deep_link, payload, read_at, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ) as unknown as NotificationRow[];
+}
+
+export async function markNotificationsRead(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const { data, error } = await supabase.rpc('baaki_mark_notifications_read', { p_ids: ids });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
 }
 
 export async function saveNotificationPrefs(

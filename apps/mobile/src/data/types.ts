@@ -15,6 +15,15 @@ export interface GroupRow {
   cover_emoji: string | null;
   /** Object path in the private `group-photos` bucket, or null. */
   photo_path: string | null;
+  /** ISO dates, both ends inclusive. Null on a group that is not a trip. */
+  start_date: string | null;
+  end_date: string | null;
+  /** IANA zone the daily reminders are scheduled in — the trip's, not the reader's. */
+  time_zone: string;
+  remind_daily: boolean;
+  /** `HH:MM:SS` local to `time_zone`. */
+  remind_morning_at: string;
+  remind_evening_at: string;
   archived_at: string | null;
   created_at: string;
 }
@@ -105,6 +114,25 @@ export interface ActivityRow {
   object_type: string;
   object_id: string | null;
   payload: Record<string, unknown>;
+  created_at: string;
+}
+
+/**
+ * A row in the inbox (TDR §7.1).
+ *
+ * `title` and `body` are English and are a fallback: the server wrote them
+ * without knowing who would read them or in which language. The real wording
+ * comes from `kind` + `payload` through `renderNotification` in @baaki/core.
+ */
+export interface NotificationRow {
+  id: string;
+  group_id: string | null;
+  kind: string;
+  title: string;
+  body: string;
+  deep_link: string | null;
+  payload: Record<string, unknown>;
+  read_at: string | null;
   created_at: string;
 }
 

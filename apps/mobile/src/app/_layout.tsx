@@ -150,6 +150,7 @@ function AuthGate() {
       <Stack.Screen name="settings/lock" />
       <Stack.Screen name="settings/account" />
       <Stack.Screen name="join" />
+      <Stack.Screen name="inbox" />
     </Stack>
   );
 }

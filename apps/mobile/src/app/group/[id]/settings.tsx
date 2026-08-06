@@ -17,6 +17,7 @@ import {
 } from '@baaki/ui';
 
 import { GroupPhoto, pickGroupPhoto } from '@/components/GroupPhoto';
+import { TripDates } from '@/components/TripDates';
 import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
 import { useStrings } from '@/i18n';
@@ -27,7 +28,7 @@ const EMOJI = ['🏖️', '🏠', '💜', '🎉', '✈️', '🍽️', '⛰️',
 
 export default function GroupSettingsScreen() {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
@@ -219,6 +220,12 @@ export default function GroupSettingsScreen() {
             ))}
           </Row>
         </Card>
+
+        <TripDates
+          group={group.data}
+          locale={locale}
+          onChange={(patch) => updateGroup.mutate(patch, { onSuccess: () => setStatus('Saved') })}
+        />
 
         {/* ADR-009: simplification is presentation only — the pairwise ledger
             underneath is untouched, so this is safe to toggle at any time. */}

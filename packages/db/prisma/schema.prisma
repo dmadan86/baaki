@@ -148,6 +148,20 @@ model Group {
   /// ADR-009: simplification is a per-group presentation setting.
   simplifyDebts   Boolean   @default(true) @map("simplify_debts")
   coverEmoji      String?   @map("cover_emoji")
+
+  /// When the trip is. Both ends inclusive — the last day of a trip is the one
+  /// with the most unrecorded spending on it.
+  startDate       DateTime? @map("start_date") @db.Date
+  endDate         DateTime? @map("end_date") @db.Date
+  /// IANA zone the daily reminders are scheduled in. A trip has a place, and
+  /// "breakfast" means breakfast there rather than wherever the server is.
+  timeZone        String    @default("Asia/Kolkata") @map("time_zone")
+  remindDaily     Boolean   @default(true) @map("remind_daily")
+  /// "Breakfast" is not a fixed hour, and the group that gets it wrong is the
+  /// one that gets muted.
+  remindMorningAt DateTime  @default(dbgenerated("'09:00:00'::time without time zone")) @map("remind_morning_at") @db.Time(6)
+  remindEveningAt DateTime  @default(dbgenerated("'21:00:00'::time without time zone")) @map("remind_evening_at") @db.Time(6)
+
   archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
   createdBy       String?   @map("created_by") @db.Uuid
   /// Monotonic per-group counter driving the sync cursor (TDR §4).
@@ -169,6 +183,9 @@ model Group {
   syncMutations   SyncMutation[]
 
   @@index([archivedAt])
+  /// The nudge job only ever looks at groups that have said when they are
+  /// happening, which is a small minority of them.
+  @@index([startDate, endDate], map: "groups_reminder_window_idx")
   @@map("groups")
   @@schema("public")
 }
@@ -496,6 +513,10 @@ model Notification {
   emailStatus DeliveryStatus? @map("email_status")
   readAt      DateTime?       @map("read_at") @db.Timestamptz(6)
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  /// One row per (recipient, event). Retrying a fanout is a no-op, which is
+  /// what TDR §7.1 means by no double-send.
+  dedupeKey String? @unique @map("dedupe_key")
 
   profile Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
   group   Group?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
