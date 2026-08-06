@@ -346,7 +346,12 @@ export default function ProfileScreen() {
               hint: lockSummary,
               route: '/settings/lock',
             },
-            { icon: 'log-out-outline', label: 'Sign out', hint: signOutHint, onPress: confirmSignOut },
+            {
+              icon: 'log-out-outline',
+              label: 'Sign out',
+              hint: signOutHint,
+              onPress: confirmSignOut,
+            },
           ]}
         />
 

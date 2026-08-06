@@ -41,11 +41,14 @@ packages/core/dist/
 # Shell artefacts: an unquoted JS arrow in a terminal command (`=> row.id`)
 # is parsed as a redirect and silently creates an empty file. These are always
 # accidents, never source.
-*.id
-*)
-{
-{,
-({
+#
+# They are deliberately NOT ignored. The patterns that used to live here (`*)`,
+# `{`, `({`) matched directories as well as files: `*)` swallowed the whole
+# `app/(tabs)/` directory, so `people.tsx` was created, ran locally forever, and
+# was never committed — the tab bar shipped pointing at a route that did not
+# exist in the repo. A stray empty file showing up in `git status` is noise you
+# delete in one command; a source directory silently missing from the repo is a
+# feature that disappears on somebody else's clone.
 
 # Next.js
 .next/
