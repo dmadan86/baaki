@@ -17,8 +17,30 @@
  * mechanism.
  */
 
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+
+/**
+ * Loaded on demand rather than imported at the top of the file.
+ *
+ * `expo-image-manipulator` is a native module, so a development client built
+ * before it was added does not contain it — and a top-level import of a missing
+ * native module throws while the module is being evaluated, which takes down
+ * every screen that imports this one. A missing resize should cost the resize,
+ * not the New group screen.
+ */
+type Manipulator = typeof import('expo-image-manipulator');
+let manipulator: Manipulator | null | undefined;
+
+async function loadManipulator(): Promise<Manipulator | null> {
+  if (manipulator !== undefined) return manipulator;
+  try {
+    manipulator = await import('expo-image-manipulator');
+  } catch {
+    manipulator = null;
+  }
+  return manipulator;
+}
 
 export interface PickedImage {
   base64: string;
@@ -57,8 +79,11 @@ interface ShrinkOptions {
 async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions): Promise<{
   base64: string;
   uri: string;
-}> {
-  const context = ImageManipulator.manipulate(uri);
+} | null> {
+  const module = await loadManipulator();
+  if (!module) return null;
+
+  const context = module.ImageManipulator.manipulate(uri);
 
   const longest = Math.max(width, height);
   if (longest > maxEdge) {
@@ -69,13 +94,30 @@ async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions):
   const saved = await rendered.saveAsync({
     base64: true,
     compress,
-    format: SaveFormat.JPEG,
+    format: module.SaveFormat.JPEG,
   });
 
   // `saveAsync` only omits base64 if it was not asked for; if it is missing
   // anyway there is nothing to upload, and saying so beats uploading nothing.
   if (!saved.base64) throw new Error('Could not read that image.');
   return { base64: saved.base64, uri: saved.uri };
+}
+
+/**
+ * Read the picked file without resizing it.
+ *
+ * Only reached in a development client built before `expo-image-manipulator`
+ * was added. The picker's own `quality` still compresses, and the bucket size
+ * limits still reject anything absurd — so the worst case is a rejected upload
+ * with a clear message, rather than a screen that will not open.
+ */
+async function readUnshrunk(uri: string): Promise<{ base64: string; uri: string }> {
+  // `File.base64()` rather than fetch + FileReader: React Native's fetch does
+  // not reliably read a `file://` URI on Android, and a fallback that fails is
+  // not a fallback.
+  const base64 = await new FileSystem.File(uri).base64();
+  if (!base64) throw new Error('Could not read that image.');
+  return { base64, uri };
 }
 
 /**
@@ -102,13 +144,14 @@ export async function pickSquarePhoto(maxEdge: number): Promise<PickedImage | nu
   const asset = result.assets[0];
   if (!asset) return null;
 
-  const shrunk = await shrink({
-    uri: asset.uri,
-    width: asset.width,
-    height: asset.height,
-    maxEdge,
-    compress: 0.7,
-  });
+  const shrunk =
+    (await shrink({
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      maxEdge,
+      compress: 0.7,
+    })) ?? (await readUnshrunk(asset.uri));
   return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
 }
 
@@ -132,12 +175,13 @@ export async function pickReceiptPhoto(): Promise<PickedImage | null> {
   const asset = result.assets[0];
   if (!asset) return null;
 
-  const shrunk = await shrink({
-    uri: asset.uri,
-    width: asset.width,
-    height: asset.height,
-    maxEdge: RECEIPT_MAX_EDGE,
-    compress: 0.9,
-  });
+  const shrunk =
+    (await shrink({
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      maxEdge: RECEIPT_MAX_EDGE,
+      compress: 0.9,
+    })) ?? (await readUnshrunk(asset.uri));
   return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
 }
