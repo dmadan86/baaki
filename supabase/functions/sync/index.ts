@@ -329,13 +329,21 @@ class SyncSession {
     } catch (bad) {
       throw new HttpError(400, 'VALIDATION_FAILED', (bad as Error).message);
     }
-    const shares = computeShares({
-      amount,
-      currency: payload.currency,
-      params: splitParams,
-      participants: payload.participants,
-      seed: expenseId,
-    });
+    // A SplitError escaping here becomes a 500, which the queue treats as
+    // worth retrying — so a mutation that can never succeed would be retried
+    // eight times before dying instead of being rejected once, with a reason.
+    let shares;
+    try {
+      shares = computeShares({
+        amount,
+        currency: payload.currency,
+        params: splitParams,
+        participants: payload.participants,
+        seed: expenseId,
+      });
+    } catch (bad) {
+      throw new HttpError(400, 'VALIDATION_FAILED', (bad as Error).message);
+    }
 
     // The client computed these too, offline, from the same inputs. If they
     // differ, one of us is wrong and it is not going in the ledger (TDR §4).

@@ -111,13 +111,23 @@ Deno.serve(async (request) => {
     } catch (bad) {
       throw new HttpError(400, 'INVALID_SPLIT_PARAMS', (bad as Error).message);
     }
-    const shares = computeShares({
-      amount,
-      currency: body.currency,
-      params: splitParams,
-      participants: body.participants,
-      seed: expenseId,
-    });
+    // computeShares throws a SplitError with its own vocabulary —
+    // EXACT_SUM_MISMATCH, PERCENT_SUM_MISMATCH, UNCLAIMED_ITEM. Letting it
+    // escape turns a fixable mistake into a 500 that says "Something went
+    // wrong", which is no use to somebody staring at a spreadsheet.
+    let shares;
+    try {
+      shares = computeShares({
+        amount,
+        currency: body.currency,
+        params: splitParams,
+        participants: body.participants,
+        seed: expenseId,
+      });
+    } catch (bad) {
+      const code = (bad as { code?: string }).code ?? 'INVALID_SPLIT';
+      throw new HttpError(400, code, (bad as Error).message);
+    }
 
     // One definition of "the client agrees with us", shared with /sync and
     // property-tested in @baaki/core rather than written out twice here.
