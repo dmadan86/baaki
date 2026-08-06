@@ -15,5 +15,6 @@ export * from './components/Chip';
 export * from './components/Avatar';
 export * from './components/MoneyText';
 export * from './components/ListRow';
+export * from './components/Toggle';
 export * from './components/PillTabBar';
 export * from './components/AmountKeypad';

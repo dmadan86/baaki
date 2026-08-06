@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, Pressable, ScrollView, Switch, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   Button,
@@ -13,10 +13,12 @@ import {
   Screen,
   SectionHeader,
   Text,
+  Toggle,
   useTheme,
 } from '@baaki/ui';
 
-import { GroupPhoto, pickGroupPhoto } from '@/components/GroupPhoto';
+import { GroupPhoto } from '@/components/GroupPhoto';
+import { pickGroupPhoto } from '@/lib/image';
 import { TripDates } from '@/components/TripDates';
 import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
@@ -238,10 +240,9 @@ export default function GroupSettingsScreen() {
                 never rewritten.
               </Text>
             </View>
-            <Switch
+            <Toggle
               value={group.data.simplify_debts}
               onValueChange={(value) => updateGroup.mutate({ simplify_debts: value })}
-              trackColor={{ true: theme.color.brand, false: theme.color.border }}
               accessibilityLabel="Simplify debts"
             />
           </Row>

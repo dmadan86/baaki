@@ -52,6 +52,16 @@ enum SplitType {
   @@schema("public")
 }
 
+/// Where a version came from. `imported` marks rows reconstructed from a
+/// Splitwise export (ADR-012): the balances are exact, but who paid is a
+/// deterministic guess, because the file carries only each person's net.
+enum ExpenseSource {
+  manual
+  imported
+
+  @@schema("public")
+}
+
 enum SettlementMethod {
   upi
   cash
@@ -341,6 +351,7 @@ model ExpenseVersion {
   notes            String?
   /// Idempotency key from the offline mutation queue (ADR-005).
   clientMutationId String?   @unique @map("client_mutation_id") @db.Uuid
+  source           ExpenseSource @default(manual)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   expense       Expense        @relation("ExpenseVersions", fields: [expenseId], references: [id], onDelete: Cascade)

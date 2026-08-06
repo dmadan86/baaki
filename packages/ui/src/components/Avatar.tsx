@@ -1,4 +1,5 @@
-import { View } from 'react-native';
+import { useState } from 'react';
+import { Image, View } from 'react-native';
 
 import { useTheme } from '../theme';
 import { tints, type TintName } from '../tokens';
@@ -25,15 +26,28 @@ export function Avatar({
   tint,
   /** Ghost members (ADR-006) read as provisional until somebody claims them. */
   ghost = false,
+  photoUrl,
 }: {
   name: string;
   emoji?: string;
   size?: number;
   tint?: TintName;
   ghost?: boolean;
+  /**
+   * A resolved, displayable URL. The avatar bucket is private, so callers pass
+   * a signed URL rather than a storage path — this component does no fetching.
+   */
+  photoUrl?: string | null;
 }) {
   const theme = useTheme();
   const resolved = theme.tint[tint ?? tintForKey(name)];
+
+  // A signed URL can expire between being handed over and being fetched. When
+  // it does, fall back to the initials rather than a blank circle — one reads
+  // as a person who has not chosen a picture, the other reads as broken.
+  const [broken, setBroken] = useState<string | null>(null);
+  if (broken !== null && broken !== photoUrl) setBroken(null);
+  const showPhoto = Boolean(photoUrl) && broken !== photoUrl;
 
   return (
     <View
@@ -49,11 +63,21 @@ export function Avatar({
         borderWidth: ghost ? 1.5 : 0,
         borderColor: resolved.ink,
         borderStyle: ghost ? 'dashed' : 'solid',
+        overflow: 'hidden',
       }}
     >
-      <Text variant={size >= 44 ? 'subheading' : 'caption'} style={{ color: resolved.ink }}>
-        {emoji ?? initialsOf(name)}
-      </Text>
+      {showPhoto && photoUrl ? (
+        <Image
+          source={{ uri: photoUrl }}
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="cover"
+          onError={() => setBroken(photoUrl)}
+        />
+      ) : (
+        <Text variant={size >= 44 ? 'subheading' : 'caption'} style={{ color: resolved.ink }}>
+          {emoji ?? initialsOf(name)}
+        </Text>
+      )}
     </View>
   );
 }

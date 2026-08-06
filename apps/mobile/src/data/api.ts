@@ -293,6 +293,75 @@ function normaliseImageMime(mimeType: string | null | undefined): string {
   return 'image/jpeg';
 }
 
+// ───────────────────────────────────────── profile photos (Storage) ──
+
+const AVATAR_BUCKET = 'avatars';
+
+/**
+ * Upload your own profile photo.
+ *
+ * `<profileId>/avatar.<ext>`, which the storage policies key off: you may write
+ * only under your own id, and it is readable by people who are in a group with
+ * you. `upsert`, so changing your picture replaces the object rather than
+ * leaving the old one behind to be paid for forever (ADR-011).
+ *
+ * `avatar_url` holds the storage path, not a URL — the bucket is private, so
+ * what is displayed is a signed URL resolved at read time. Google sign-in fills
+ * the same column with a real https URL; `avatarPhotoUrl` tells them apart.
+ */
+export async function uploadAvatar(input: {
+  profileId: string;
+  base64: string;
+  mimeType?: string | null;
+}): Promise<string> {
+  const mime = normaliseImageMime(input.mimeType);
+  const path = `${input.profileId}/avatar.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`;
+
+  const { error } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
+  if (error) throw new Error(error.message);
+
+  const { error: linkError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: path })
+    .eq('id', input.profileId);
+  if (linkError) throw new Error(linkError.message);
+
+  return path;
+}
+
+/**
+ * Resolve whatever is in `avatar_url` to something an Image can display.
+ *
+ * Two kinds of value live in that column: a storage path this app wrote, and an
+ * https URL that came from an OAuth provider at sign-up. Signing the second
+ * would fail, and returning the first unsigned would 404, so the shape of the
+ * value decides.
+ */
+export async function avatarPhotoUrl(value: string | null): Promise<string | null> {
+  if (!value) return null;
+  if (/^https?:\/\//.test(value)) return value;
+
+  const { data, error } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .createSignedUrl(value, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export async function removeAvatar(profileId: string, value: string | null): Promise<void> {
+  // Only ours to delete. A provider URL is not an object in the bucket.
+  if (value && !/^https?:\/\//.test(value)) {
+    await supabase.storage.from(AVATAR_BUCKET).remove([value]);
+  }
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_url: null })
+    .eq('id', profileId);
+  if (error) throw new Error(error.message);
+}
+
 /**
  * ADR-006: a ghost is a real participant who simply hasn't joined yet.
  *
@@ -620,6 +689,84 @@ export async function exportData(input: {
   const { data, error } = await supabase.functions.invoke('export-data', { body: input });
   if (error) throw new Error(await readFunctionError(error));
   return data as ExportResult;
+}
+
+// ─────────────────────────────────── Splitwise import (ADR-012) ──
+
+export interface ImportPerson {
+  /** The column heading from the file, which is also the key used in each row. */
+  name: string;
+  /** An existing member to attribute this column to, or null to create a ghost. */
+  memberId: string | null;
+}
+
+export interface ImportExpense {
+  clientMutationId: string;
+  description: string;
+  category: string | null;
+  /** ISO date, YYYY-MM-DD. */
+  date: string;
+  currency: string;
+  amount: bigint;
+  payers: Record<string, bigint>;
+  shares: Record<string, bigint>;
+}
+
+export interface ImportResult {
+  groupId: string;
+  expenses: number;
+  ghosts: number;
+  members: Record<string, string>;
+}
+
+/**
+ * Write a parsed Splitwise export into a group.
+ *
+ * One RPC, so one transaction: a person moving four years of history cannot
+ * tell a half-finished import from a complete one, because the balances add up
+ * either way — they are just the balances of a smaller group that never
+ * existed. Either every ghost and every row lands, or nothing does.
+ *
+ * `clientMutationId` per row makes a second tap on Import a replay rather than
+ * a second copy (ADR-005), so generate them once and reuse them on retry.
+ */
+export async function importSplitwise(input: {
+  groupId: string;
+  people: ImportPerson[];
+  expenses: ImportExpense[];
+}): Promise<ImportResult> {
+  const { data, error } = await supabase.rpc('baaki_import_splitwise', {
+    p_group_id: input.groupId,
+    p_people: input.people,
+    // Minor units as strings all the way down: a number in JSON is a double,
+    // and a double is how a paisa goes missing from a four-year history.
+    p_expenses: input.expenses.map((expense) => ({
+      clientMutationId: expense.clientMutationId,
+      description: expense.description,
+      category: expense.category,
+      date: expense.date,
+      currency: expense.currency,
+      amount: expense.amount.toString(),
+      payers: Object.fromEntries(
+        Object.entries(expense.payers).map(([name, value]) => [name, value.toString()]),
+      ),
+      shares: Object.fromEntries(
+        Object.entries(expense.shares).map(([name, value]) => [name, value.toString()]),
+      ),
+    })),
+  });
+
+  if (error) {
+    const code = /^([A-Z_]+):/.exec(error.message)?.[1];
+    throw new Error(
+      code === 'NOT_A_MEMBER'
+        ? 'You are not in that group'
+        : code === 'NO_PEOPLE'
+          ? 'That file named nobody to import'
+          : error.message,
+    );
+  }
+  return data as ImportResult;
 }
 
 // ─────────────────────────────── notification preferences (ADR-010) ──

@@ -37,7 +37,7 @@ export function Card({ children, padded = true, flat = false, style, ...rest }: 
       style={[
         {
           backgroundColor: theme.color.surface,
-          borderRadius: theme.radius.xl,
+          borderRadius: theme.radius.md,
           padding: padded ? theme.spacing.xl : 0,
         },
         !flat && theme.shadow.soft,
@@ -58,7 +58,7 @@ export function TintCard({ tint, children, style, ...rest }: CardProps & { tint:
       style={[
         {
           backgroundColor: theme.tint[tint].bg,
-          borderRadius: theme.radius.xl,
+          borderRadius: theme.radius.md,
           padding: theme.spacing.lg,
         },
         style,

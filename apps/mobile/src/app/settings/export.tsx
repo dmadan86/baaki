@@ -154,10 +154,13 @@ export default function ExportScreen() {
           </Text>
         ) : null}
 
-        <Text variant="micro" tone="faint" align="center">
-          Importing from Splitwise arrives with M3 — the mapping screen is the work, not the
-          parsing.
-        </Text>
+        <Button
+          label="Import from Splitwise"
+          variant="ghost"
+          fullWidth
+          onPress={() => router.push('/settings/import')}
+          icon={<Ionicons name="cloud-upload-outline" size={18} color={theme.color.brand} />}
+        />
       </ScrollView>
     </Screen>
   );

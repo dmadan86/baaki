@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { ActivityIndicator, ScrollView, Switch, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import {
   Badge,
@@ -12,6 +12,7 @@ import {
   Screen,
   SectionHeader,
   Text,
+  Toggle,
   useTheme,
 } from '@baaki/ui';
 
@@ -189,10 +190,9 @@ export default function NotificationSettingsScreen() {
                       {row.body}
                     </Text>
                   </View>
-                  <Switch
+                  <Toggle
                     value={prefs[row.key]}
                     onValueChange={(value) => toggle(row.key, value)}
-                    trackColor={{ true: theme.color.brand, false: theme.color.border }}
                     accessibilityLabel={row.title}
                   />
                 </Row>

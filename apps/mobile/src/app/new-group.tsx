@@ -5,7 +5,8 @@ import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react
 
 import { Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
-import { GroupPhoto, pickGroupPhoto, type PickedImage } from '@/components/GroupPhoto';
+import { GroupPhoto } from '@/components/GroupPhoto';
+import { pickGroupPhoto, type PickedImage } from '@/lib/image';
 import { addGhostMember, uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
 import type { GroupType } from '@/data/types';
