@@ -38,7 +38,11 @@ file_size_limit = "10MiB"
 [auth]
 enabled = true
 site_url = "baaki://"
-additional_redirect_urls = ["baaki://", "http://localhost:3000"]
+# `baaki://auth` is what `makeRedirectUri({ scheme: 'baaki', path: 'auth' })`
+# produces, and Supabase matches these exactly — `baaki://` on its own does not
+# cover it, so leaving it out sends every OAuth round trip to site_url instead
+# and the app never sees the tokens.
+additional_redirect_urls = ["baaki://", "baaki://auth", "http://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
 
@@ -50,6 +54,20 @@ enable_confirmations = false
 [auth.sms]
 enable_signup = true
 enable_confirmations = true
+
+# The client id is not a secret — it travels in every authorize URL and is
+# visible to anyone who taps "continue with Google". The secret is, and lives in
+# `supabase/.env` (gitignored) so it never reaches the repo or a build.
+#
+# The same pair is configured on the hosted project through the dashboard.
+# Do NOT `supabase config push` to sync it: this file also carries
+# `[auth.email] enable_confirmations = false`, which is a local-development
+# convenience and on a real project would let anybody sign up with somebody
+# else's email address.
+[auth.external.google]
+enabled = true
+client_id = "755904924475-vkp5ga0cpt58fr6patnst4e4r02cmhcv.apps.googleusercontent.com"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 
 [edge_runtime]
 enabled = true
