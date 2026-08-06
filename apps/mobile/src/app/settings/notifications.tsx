@@ -3,7 +3,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, Switch, View } from 'react-native';
 
-import { Card, IconButton, Row, Screen, SectionHeader, Text, useTheme } from '@baaki/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  IconButton,
+  Row,
+  Screen,
+  SectionHeader,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import {
   DEFAULT_NOTIFICATION_PREFS,
@@ -12,6 +22,7 @@ import {
   type NotificationPrefs,
 } from '@/data/api';
 import { useAuth } from '@/lib/auth';
+import { enablePush, pushPermission, type PushPermission } from '@/lib/push';
 
 const ROWS: {
   key: keyof NotificationPrefs;
@@ -52,6 +63,35 @@ export default function NotificationSettingsScreen() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
+  const [permission, setPermission] = useState<PushPermission>('undetermined');
+  const [asking, setAsking] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void pushPermission().then((value) => {
+      if (active) setPermission(value);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /**
+   * The prompt happens here, having read what it is for — never on launch. On
+   * iOS a denial is close to permanent: the only way back is Settings, which
+   * nobody visits.
+   */
+  const turnOnPush = async (): Promise<void> => {
+    setAsking(true);
+    setStatus(null);
+    try {
+      const ok = await enablePush();
+      setPermission(await pushPermission());
+      if (!ok) setStatus('Not enabled — you can turn it on in your phone settings later.');
+    } finally {
+      setAsking(false);
+    }
+  };
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -110,6 +150,31 @@ export default function NotificationSettingsScreen() {
           </Text>
         </Card>
 
+        <Card style={{ gap: theme.spacing.md }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="subheading">Notifications on this phone</Text>
+            <Badge
+              label={permission === 'granted' ? 'On' : permission === 'denied' ? 'Off' : 'Not set'}
+              tone={permission === 'granted' ? 'positive' : undefined}
+            />
+          </Row>
+          <Text variant="caption" tone="muted">
+            {permission === 'granted'
+              ? 'This device is registered. Everything below still lands in your inbox whether or not a push gets through.'
+              : permission === 'denied'
+                ? 'Your phone is blocking them. Turn them back on in system settings for Baaki — the inbox still has everything either way.'
+                : 'Baaki will only ask once, and only for the things you switch on below.'}
+          </Text>
+          {permission === 'granted' ? null : (
+            <Button
+              label={asking ? 'Asking…' : 'Turn on notifications'}
+              size="sm"
+              disabled={asking || permission === 'denied'}
+              onPress={() => void turnOnPush()}
+            />
+          )}
+        </Card>
+
         {loading ? (
           <ActivityIndicator color={theme.color.brand} />
         ) : (
@@ -143,8 +208,8 @@ export default function NotificationSettingsScreen() {
         ) : null}
 
         <Text variant="micro" tone="faint" align="center">
-          Delivery itself lands in M4 — these preferences are stored now so the fanout has something
-          to respect from day one.
+          Email delivery is still to come. Everything here is also in your inbox, which is the
+          record of what Baaki has told you whether or not a notification arrived.
         </Text>
       </ScrollView>
     </Screen>

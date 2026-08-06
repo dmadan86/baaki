@@ -222,6 +222,8 @@ model GroupMember {
   settlementsGot     Settlement[]     @relation("SettlementTo")
   itemClaims         ReceiptItemClaim[]
   activity           ActivityLog[]
+  disputesRaised     ExpenseDispute[] @relation("DisputeRaisedBy")
+  disputesResolved   ExpenseDispute[] @relation("DisputeResolvedBy")
   remindersSent      Reminder[]       @relation("ReminderFrom")
   remindersGot       Reminder[]       @relation("ReminderTo")
   balances           GroupBalance[]
@@ -279,11 +281,42 @@ model Expense {
   currentVersion ExpenseVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
   versions       ExpenseVersion[] @relation("ExpenseVersions")
   allocations    SettlementAllocation[]
+  disputes       ExpenseDispute[]
 
   @@index([groupId, deletedAt])
   /// The sync pull is "everything in this group since seq N" (TDR §4).
   @@index([groupId, updatedSeq])
   @@map("expenses")
+  @@schema("public")
+}
+
+/// Somebody saying an expense is wrong — "I wasn't at that dinner".
+///
+/// A claim, never a mutation: it is visible to the group and changes no
+/// balance on its own. A share you could remove unilaterally would be a debt
+/// you could delete, and the ledger is worth exactly as much as that is
+/// impossible. One row per person per expense; how their position changed over
+/// time is in `activity_log`.
+model ExpenseDispute {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId String  @map("expense_id") @db.Uuid
+  memberId  String  @map("member_id") @db.Uuid
+  reason    String?
+  /// open | resolved | withdrawn | rejected (CHECK in the migration).
+  status    String  @default("open")
+  resolvedByMemberId String? @map("resolved_by_member_id") @db.Uuid
+  resolutionNote     String? @map("resolution_note")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  expense    Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  member     GroupMember  @relation("DisputeRaisedBy", fields: [memberId], references: [id], onDelete: Cascade)
+  resolvedBy GroupMember? @relation("DisputeResolvedBy", fields: [resolvedByMemberId], references: [id], onDelete: SetNull)
+
+  @@unique([expenseId, memberId])
+  @@index([expenseId, status])
+  @@map("expense_disputes")
   @@schema("public")
 }
 

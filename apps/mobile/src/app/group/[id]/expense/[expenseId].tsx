@@ -18,12 +18,17 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { DisputePanel } from '@/components/DisputePanel';
 import {
   memberLookup,
   useDeleteExpense,
+  useDisputeExpense,
+  useDisputes,
   useExpenseVersions,
   useGroup,
+  useResolveDispute,
   useRestoreExpense,
+  useWithdrawDispute,
 } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -49,6 +54,11 @@ export default function ExpenseDetailScreen() {
   const versions = useExpenseVersions(expenseId ?? '');
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
+
+  const disputes = useDisputes(groupId);
+  const raiseDispute = useDisputeExpense(groupId);
+  const withdrawDispute = useWithdrawDispute(groupId);
+  const resolveDispute = useResolveDispute(groupId);
 
   const expense = expenses.rows.find((row) => row.id === expenseId);
   const version = expense?.currentVersion;
@@ -82,6 +92,10 @@ export default function ExpenseDetailScreen() {
 
   const currency = version.currency;
   const deleted = Boolean(expense.deleted_at);
+
+  const me = (members.data ?? []).find((member) => member.profile_id === profile?.id);
+  const mine = (disputes.data ?? []).filter((row) => row.expense_id === expense.id);
+  const editHere = (): void => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`);
 
   const confirmDelete = (): void => {
     Alert.alert(
@@ -149,6 +163,25 @@ export default function ExpenseDetailScreen() {
             {deleted ? <Badge label="deleted" tone="negative" /> : null}
           </Row>
         </Card>
+
+        {/* A disagreement about money is worth more room than a badge. It sits
+            directly under the amount, which is the thing being disagreed with. */}
+        {deleted ? null : (
+          <DisputePanel
+            disputes={mine}
+            myMemberId={me?.id ?? null}
+            authorMemberId={version.author_member_id}
+            isAdmin={me?.role === 'admin'}
+            nameOf={nameOf}
+            busy={raiseDispute.isPending || withdrawDispute.isPending || resolveDispute.isPending}
+            onRaise={(reason) => raiseDispute.mutate({ expenseId: expense.id, reason })}
+            onWithdraw={() => withdrawDispute.mutate(expense.id)}
+            onResolve={(disputeId, accept, note) =>
+              resolveDispute.mutate({ disputeId, accept, note })
+            }
+            onEdit={editHere}
+          />
+        )}
 
         {version.payers.length > 1 ? (
           <View>

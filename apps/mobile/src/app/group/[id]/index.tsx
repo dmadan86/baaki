@@ -24,6 +24,7 @@ import {
   memberLookup,
   useConfirmSettlement,
   useGroup,
+  useDisputes,
   useGroupLedger,
   useGroupRealtime,
 } from '@/data/hooks';
@@ -50,6 +51,10 @@ export default function GroupScreen() {
 
   const { group, members, expenses, settlements, activity } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const disputes = useDisputes(groupId);
+  const openDisputes = new Set(
+    (disputes.data ?? []).filter((row) => row.status === 'open').map((row) => row.expense_id),
+  );
   const confirmSettlement = useConfirmSettlement(groupId);
 
   const lookup = memberLookup(members.data);
@@ -237,10 +242,14 @@ export default function GroupScreen() {
               {visibleExpenses.map((expense, index) => {
                 const version = expense.currentVersion;
                 const payer = version?.payers[0]?.member_id ?? null;
+                // Somebody disagreeing with an expense is worth seeing from the
+                // list. A disagreement you only find by opening the row is one
+                // that sits there unanswered.
+                const contested = openDisputes.has(expense.id);
                 return (
                   <View key={expense.id}>
                     <ListRow
-                      title={version?.description ?? 'Expense'}
+                      title={`${version?.description ?? 'Expense'}${contested ? '  🚩' : ''}`}
                       subtitle={`${nameOf(payer)} paid · ${
                         version
                           ? new Intl.DateTimeFormat(locale, {

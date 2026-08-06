@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { checkPassword, planAuth, readIdentifier, type Viewer } from '@baaki/core';
 
 import { identifyForReporting } from './observability';
+import { refreshPushToken, revokePushToken } from './push';
 import { supabase } from './supabase';
 
 /**
@@ -97,6 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // enough to tell one person hitting a bug fifty times from fifty people.
   useEffect(() => {
     identifyForReporting(currentUserId);
+  }, [currentUserId]);
+
+  // Silent, and only when permission already exists — a push token can change
+  // on its own (a restore, a reinstall), and a stale one is somebody who
+  // quietly stops hearing from us. Asking for permission happens on the
+  // notifications screen, never here.
+  useEffect(() => {
+    if (!currentUserId) return;
+    void refreshPushToken();
   }, [currentUserId]);
 
   useEffect(() => {
@@ -229,6 +239,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       async signOut() {
+        // Before the session goes: afterwards there is no identity to attach
+        // the revocation to, and the token would keep receiving notifications
+        // for an account nobody is signed in on.
+        await revokePushToken();
         await supabase.auth.signOut();
       },
     }),
