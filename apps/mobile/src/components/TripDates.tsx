@@ -17,9 +17,9 @@
 import { useState } from 'react';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Platform, Pressable, Switch, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 
-import { Button, Card, Row, Text, useTheme } from '@baaki/ui';
+import { Button, Card, Row, Text, Toggle, useTheme } from '@baaki/ui';
 
 import type { GroupRow } from '@/data/types';
 
@@ -181,10 +181,9 @@ export function TripDates({
                 {`Asked in ${group.time_zone.replace(/_/g, ' ')} — where the trip is, not where each person is.`}
               </Text>
             </View>
-            <Switch
+            <Toggle
               value={group.remind_daily}
               onValueChange={(value) => onChange({ remind_daily: value })}
-              trackColor={{ true: theme.color.brand, false: theme.color.border }}
               accessibilityLabel="Daily reminders"
             />
           </Row>

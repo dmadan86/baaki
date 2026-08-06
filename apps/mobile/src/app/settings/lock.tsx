@@ -9,9 +9,20 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Alert, ScrollView, Switch, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 
-import { Badge, Button, Card, Chip, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  IconButton,
+  Row,
+  Screen,
+  Text,
+  Toggle,
+  useTheme,
+} from '@baaki/ui';
 
 import { useAuth } from '@/lib/auth';
 import { describeGrace, GRACE_CHOICES, useLock } from '@/lib/lock';
@@ -65,11 +76,10 @@ export default function LockSettingsScreen() {
                 else.
               </Text>
             </View>
-            <Switch
+            <Toggle
               value={enabled}
               disabled={!supported}
               onValueChange={(value) => void setEnabled(value)}
-              trackColor={{ true: theme.color.brand, false: theme.color.border }}
               accessibilityLabel="App lock"
             />
           </Row>
