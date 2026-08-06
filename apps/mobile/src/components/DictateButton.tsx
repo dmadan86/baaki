@@ -1,178 +1,48 @@
 /**
- * A microphone beside a text field.
+ * The mic, or nothing at all.
  *
- * Speech recognition is the platform's own — `SFSpeechRecognizer` on iOS,
- * `SpeechRecognizer` on Android — and on-device whenever the phone can manage
- * it, so what somebody says at a restaurant table is not shipped to a server to
- * be turned into "Beach shack dinner". Where the phone has no on-device model
- * the OS falls back to its network recogniser, which is the same recogniser the
- * keyboard's own mic key uses.
+ * `expo-speech-recognition` is a native module, and its JS calls
+ * `requireNativeModule('ExpoSpeechRecognition')` at the top of the file — which
+ * **throws** in any binary compiled before the module was added. Because
+ * expo-router loads every route file to build the route tree, that throw does
+ * not cost you the microphone: it costs you the whole app, at launch, with a
+ * red screen naming a component nobody was looking at.
  *
- * Web renders nothing. Browsers do have a speech API, but it is Google's
- * servers behind it, and this repo uses the web build to check screens rather
- * than to ship them.
+ * So the import lives in `DictateVoice` and is reached from here inside a
+ * `try`. A phone whose binary knows about the module gets the mic; a dev client
+ * or a store build from before it gets a text field, exactly as it had before.
+ * Both of those are correct behaviour — the wrong one is a ledger that will not
+ * open.
+ *
+ * Web gets nothing on purpose. Browsers do have a speech API, but it is
+ * Google's servers behind it, and this repo uses the web build to check screens
+ * rather than to ship them.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
-import { Linking, Platform, Pressable, View } from 'react-native';
+import { Platform } from 'react-native';
 
-import { Text, useTheme } from '@baaki/ui';
+import type { DictateProps } from './DictateVoice';
 
-import { useStrings } from '@/i18n';
-import { dictationError, mergeTranscript, speechLocale } from '@/lib/dictation';
+type DictateComponent = (props: DictateProps) => React.ReactNode;
 
-export interface DictateButtonProps {
-  /** What is in the field now. Dictation adds to it, never replaces it. */
-  value: string;
-  onChange: (next: string) => void;
-  /**
-   * Words the recogniser should expect — member names, usually. Indian names
-   * are exactly what a general model gets wrong, and this is the one lever the
-   * platform gives us over that.
-   */
-  hints?: readonly string[];
-}
-
-const SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
-
-/** Whether this phone has a recogniser at all. A phone without one gets no mic. */
-function recognitionAvailable(): boolean {
-  if (!SUPPORTED) return false;
+const Voice: DictateComponent | null = (() => {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return null;
   try {
-    return ExpoSpeechRecognitionModule.isRecognitionAvailable();
+    // Deliberately require, not import: an import is hoisted and would run at
+    // module load, which is the thing being avoided.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const loaded = require('./DictateVoice') as { DictateVoice: DictateComponent };
+    return loaded.DictateVoice;
   } catch {
-    return false;
+    // The binary predates the native module. Nothing to say about it here —
+    // the field still works, and README says which build fixes it.
+    return null;
   }
-}
+})();
 
-export function DictateButton({ value, onChange, hints }: DictateButtonProps) {
-  const theme = useTheme();
-  const { language, locale } = useStrings();
+export type { DictateProps };
 
-  // Asked once, on the first render: this is a property of the phone, not
-  // something that changes while somebody is looking at an expense.
-  const [available] = useState(recognitionAvailable);
-  const [listening, setListening] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // What the field held when the mic was tapped. Interim results are re-issued
-  // in full, so every one of them is merged onto this rather than onto the
-  // field's current contents.
-  const before = useRef(value);
-
-  useSpeechRecognitionEvent('result', (event) => {
-    const transcript = event.results[0]?.transcript ?? '';
-    onChange(mergeTranscript(before.current, transcript));
-  });
-
-  useSpeechRecognitionEvent('error', (event) => {
-    const message = dictationError(event.error);
-    if (message) setError(message);
-  });
-
-  useSpeechRecognitionEvent('end', () => setListening(false));
-
-  const stop = useCallback(() => {
-    ExpoSpeechRecognitionModule.stop();
-    setListening(false);
-  }, []);
-
-  const start = useCallback(async () => {
-    setError(null);
-
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!permission.granted) {
-      setError(
-        permission.canAskAgain
-          ? 'Baaki needs permission to use the microphone.'
-          : 'Microphone access is off for Baaki. You can turn it on in Settings.',
-      );
-      return;
-    }
-
-    // Best effort, not a requirement: asking for on-device recognition on a
-    // phone that has no model for this language would fail outright, and a
-    // failed note is worse than a note the OS transcribed over the network.
-    let onDevice = false;
-    try {
-      onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
-    } catch {
-      onDevice = false;
-    }
-
-    before.current = value;
-    setListening(true);
-
-    try {
-      ExpoSpeechRecognitionModule.start({
-        lang: speechLocale(language, locale),
-        interimResults: true,
-        maxAlternatives: 1,
-        // A note is one short utterance. Continuous listening would leave the
-        // mic open on a table full of other people talking.
-        continuous: false,
-        requiresOnDeviceRecognition: onDevice,
-        // Android only honours this with on-device recognition; iOS punctuates
-        // either way.
-        addsPunctuation: onDevice,
-        contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
-        iosTaskHint: 'dictation',
-      });
-    } catch {
-      setListening(false);
-      setError('Dictation could not start. Type the note instead.');
-    }
-  }, [hints, language, locale, value]);
-
-  // Leaving the screen mid-sentence must not leave the microphone open.
-  useEffect(() => {
-    return () => {
-      if (SUPPORTED) ExpoSpeechRecognitionModule.abort();
-    };
-  }, []);
-
-  if (!SUPPORTED || !available) return null;
-
-  return (
-    <View style={{ alignItems: 'flex-end', gap: theme.spacing.xs }}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={listening ? 'Stop dictating' : 'Dictate the note'}
-        accessibilityState={{ busy: listening }}
-        onPress={() => (listening ? stop() : void start())}
-        hitSlop={8}
-        style={({ pressed }) => ({
-          width: 44,
-          height: 44,
-          borderRadius: theme.radius.pill,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: listening ? theme.color.brand : theme.color.brandSoft,
-          opacity: pressed ? 0.85 : 1,
-        })}
-      >
-        <Ionicons
-          name={listening ? 'stop' : 'mic-outline'}
-          size={20}
-          color={listening ? theme.color.onBrand : theme.color.brand}
-        />
-      </Pressable>
-
-      {listening ? (
-        <Text variant="micro" tone="brand">
-          Listening…
-        </Text>
-      ) : null}
-
-      {error ? (
-        <Pressable onPress={() => void Linking.openSettings()} accessibilityRole="button">
-          <Text variant="micro" tone="negative" style={{ textAlign: 'right' }}>
-            {error}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
+export function DictateButton(props: DictateProps) {
+  if (!Voice) return null;
+  return <Voice {...props} />;
 }
