@@ -38,6 +38,12 @@
           "imageWidth": 76
         }
       ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Baaki uses your contacts so you can pick who was there instead of typing their name. Your contacts stay on this phone — only the person you tap is sent."
+        }
+      ],
       "expo-secure-store",
       "expo-sharing",
       "@react-native-community/datetimepicker",

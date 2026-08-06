@@ -15,7 +15,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import * as Contacts from 'expo-contacts';
-import { FlatList, Pressable, TextInput, View } from 'react-native';
+import { FlatList, Linking, Pressable, TextInput, View } from 'react-native';
 
 import { Avatar, Button, Card, EmptyState, Row, Text, useTheme } from '@baaki/ui';
 
@@ -114,10 +114,13 @@ export function ContactPicker({ onPick, existing }: ContactPickerProps): React.J
           Baaki cannot see your contacts. You can still add people by typing a name, an email or a
           number — nothing about a group needs your address book.
         </Text>
+        {/* `Contacts.presentFormAsync` used to be here, which opens a form for
+            creating a *new* contact — not the permission screen the label
+            promises. This is the one that goes where it says. */}
         <Button
           label="Open settings"
           variant="ghost"
-          onPress={() => void Contacts.presentFormAsync(null, null).catch(() => undefined)}
+          onPress={() => void Linking.openSettings().catch(() => undefined)}
         />
       </Card>
     );
