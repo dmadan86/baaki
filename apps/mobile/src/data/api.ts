@@ -746,3 +746,32 @@ export async function fetchFxRate(from: string, to: string): Promise<FxRecord> {
   if (error) throw new Error(await readFunctionError(error));
   return data as FxRecord;
 }
+
+// ────────────────────────────────────── people you owe / who owe you ──
+
+export interface PersonBalanceRow {
+  person_key: string;
+  profile_id: string | null;
+  member_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  is_ghost: boolean;
+  currency: string;
+  /** Positive: they owe you. Negative: you owe them. Minor units. */
+  net: string;
+  group_count: number;
+  only_group_id: string | null;
+}
+
+/**
+ * Every person you are not square with, across every group.
+ *
+ * One row per person *per currency* — a single total would need a rate nobody
+ * chose (ADR-003) — and ghosts are never merged across groups, because a name
+ * is not proof that two records are one human.
+ */
+export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
+  const { data, error } = await supabase.rpc('baaki_people_i_owe');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PersonBalanceRow[];
+}
