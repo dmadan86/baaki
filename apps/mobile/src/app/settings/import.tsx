@@ -43,10 +43,7 @@ import { displayName, groupLabel, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
 
 /** What a column in the file has been mapped to. */
-type Mapping =
-  | { kind: 'me' }
-  | { kind: 'member'; memberId: string }
-  | { kind: 'ghost' };
+type Mapping = { kind: 'me' } | { kind: 'member'; memberId: string } | { kind: 'ghost' };
 
 const NEW_GROUP = 'new';
 
@@ -269,8 +266,8 @@ export default function ImportScreen() {
 
               <Text variant="caption" tone="muted">
                 Balances come across exactly. Who paid does not: a Splitwise export records only
-                what each person came out up or down on a row, and many different payers produce
-                the same result. Every imported expense is marked, and you can correct any of them.
+                what each person came out up or down on a row, and many different payers produce the
+                same result. Every imported expense is marked, and you can correct any of them.
               </Text>
             </Card>
 

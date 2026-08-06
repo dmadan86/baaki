@@ -159,9 +159,7 @@ export default function ExportScreen() {
           variant="ghost"
           fullWidth
           onPress={() => router.push('/settings/import')}
-          icon={
-            <Ionicons name="cloud-upload-outline" size={18} color={theme.color.brand} />
-          }
+          icon={<Ionicons name="cloud-upload-outline" size={18} color={theme.color.brand} />}
         />
       </ScrollView>
     </Screen>

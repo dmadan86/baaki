@@ -23,16 +23,16 @@ Rules for every function in this directory:
 
 Planned functions, by milestone:
 
-| Function           | Milestone | Purpose                                               |
-| ------------------ | --------- | ----------------------------------------------------- |
-| `sync`             | M2        | Batch mutation replay + change feed (TDR §4)          |
-| `invite-mint`      | M3        | Signed, expiring, revocable invite tokens             |
-| `ghost-claim`      | M3        | Transactional ghost → real member merge               |
-| ~~`splitwise-import`~~ | M3    | Shipped as `baaki_import_splitwise` instead — see below |
-| `notify-fanout`    | M4        | Classify → resolve recipients → push/email (TDR §7.1) |
-| `email-events`     | M4        | Resend webhook ingestion + suppression list           |
-| `receipt-parse`    | M5        | Vision LLM itemization with quota metering            |
-| `export`           | M5        | Lossless JSON + locale-aware CSV, signed URL          |
+| Function               | Milestone | Purpose                                                 |
+| ---------------------- | --------- | ------------------------------------------------------- |
+| `sync`                 | M2        | Batch mutation replay + change feed (TDR §4)            |
+| `invite-mint`          | M3        | Signed, expiring, revocable invite tokens               |
+| `ghost-claim`          | M3        | Transactional ghost → real member merge                 |
+| ~~`splitwise-import`~~ | M3        | Shipped as `baaki_import_splitwise` instead — see below |
+| `notify-fanout`        | M4        | Classify → resolve recipients → push/email (TDR §7.1)   |
+| `email-events`         | M4        | Resend webhook ingestion + suppression list             |
+| `receipt-parse`        | M5        | Vision LLM itemization with quota metering              |
+| `export`               | M5        | Lossless JSON + locale-aware CSV, signed URL            |
 
 ## Deviation: the Splitwise import is not a function
 

@@ -355,7 +355,10 @@ export async function removeAvatar(profileId: string, value: string | null): Pro
   if (value && !/^https?:\/\//.test(value)) {
     await supabase.storage.from(AVATAR_BUCKET).remove([value]);
   }
-  const { error } = await supabase.from('profiles').update({ avatar_url: null }).eq('id', profileId);
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_url: null })
+    .eq('id', profileId);
   if (error) throw new Error(error.message);
 }
 
