@@ -11,6 +11,7 @@ import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { LockProvider, useLock } from '@/lib/lock';
+import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
 import { initObservability, withObservability } from '@/lib/observability';
 import { ensureAndroidChannel, pushSupported, routeForNotification } from '@/lib/push';
 import { SyncProvider } from '@/sync';
@@ -51,13 +52,15 @@ function RootLayout() {
           <AuthProvider>
             <SyncProvider>
               <LockProvider>
-                <ThemeProvider>
-                  <StatusBar style="auto" />
-                  <PushRouting />
-                  <LockGate>
-                    <AuthGate />
-                  </LockGate>
-                </ThemeProvider>
+                <MotionProvider>
+                  <ThemeProvider>
+                    <StatusBar style="auto" />
+                    <PushRouting />
+                    <LockGate>
+                      <AuthGate />
+                    </LockGate>
+                  </ThemeProvider>
+                </MotionProvider>
               </LockProvider>
             </SyncProvider>
           </AuthProvider>
@@ -140,6 +143,17 @@ function AuthGate() {
   const segments = useSegments();
   const router = useRouter();
   const theme = useTheme();
+  const { animated } = useMotion();
+
+  /**
+   * A push slides in from the right and a modal rises from the bottom, which is
+   * how the screen says whether you have gone somewhere or opened something on
+   * top. With motion off, both become `none` — not a faster slide, because a
+   * shortened animation is still animation to somebody who cannot watch one.
+   */
+  const push = animated ? ('slide_from_right' as const) : ('none' as const);
+  const sheet = animated ? ('slide_from_bottom' as const) : ('none' as const);
+  const modal = { presentation: 'modal' as const, animation: sheet };
 
   useEffect(() => {
     if (loading) return;
@@ -169,36 +183,33 @@ function AuthGate() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: 'transparent' },
+        animation: push,
+        animationDuration: TRANSITION_MS,
+        // Swiping back is the same journey as the animation, so it belongs to
+        // the same switch: with motion off there is nothing to drag.
+        gestureEnabled: animated,
       }}
     >
-      <Stack.Screen name="sign-in" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="new-group" options={{ presentation: 'modal' }} />
+      {/* Signing in and out replaces the whole tree; sliding it would suggest a
+          place to go back to, and there is not one. */}
+      <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
+      <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+      <Stack.Screen name="new-group" options={modal} />
       <Stack.Screen name="group/[id]/index" />
-      <Stack.Screen
-        name="group/[id]/add-expense"
-        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-      />
-      <Stack.Screen
-        name="group/[id]/settle"
-        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-      />
+      <Stack.Screen name="group/[id]/add-expense" options={modal} />
+      <Stack.Screen name="group/[id]/settle" options={modal} />
       <Stack.Screen name="group/[id]/simplify" />
       <Stack.Screen name="group/[id]/settings" />
       <Stack.Screen name="group/[id]/members" />
       <Stack.Screen name="group/[id]/member/[memberId]" />
       <Stack.Screen name="group/[id]/expense/[expenseId]" />
-      <Stack.Screen
-        name="group/[id]/invite"
-        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-      />
-      <Stack.Screen
-        name="group/[id]/itemize"
-        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-      />
+      <Stack.Screen name="group/[id]/invite" options={modal} />
+      <Stack.Screen name="group/[id]/itemize" options={modal} />
       <Stack.Screen name="settings/notifications" />
       <Stack.Screen name="settings/export" />
+      <Stack.Screen name="settings/import" />
       <Stack.Screen name="settings/lock" />
+      <Stack.Screen name="settings/motion" />
       <Stack.Screen name="settings/account" />
       <Stack.Screen name="join" />
       <Stack.Screen name="inbox" />
