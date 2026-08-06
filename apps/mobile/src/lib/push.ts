@@ -24,6 +24,17 @@ import { Platform } from 'react-native';
 
 import { supabase } from './supabase';
 
+/**
+ * Whether this platform has push at all.
+ *
+ * expo-notifications has no web implementation: calling into it there throws
+ * "not available on web, are you sure you've linked all the native
+ * dependencies", which takes the whole app down rather than degrading. Web is
+ * how this repo does visual checks, so an unguarded call is a blank screen
+ * every time somebody looks at it.
+ */
+export const pushSupported = Platform.OS === 'ios' || Platform.OS === 'android';
+
 /** Android delivers silently without a channel, which looks exactly like a bug. */
 export async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
@@ -43,7 +54,7 @@ function projectId(): string | null {
 export type PushPermission = 'granted' | 'denied' | 'undetermined';
 
 export async function pushPermission(): Promise<PushPermission> {
-  if (!Device.isDevice) return 'denied';
+  if (!pushSupported || !Device.isDevice) return 'denied';
   const { status } = await Notifications.getPermissionsAsync();
   return status as PushPermission;
 }
@@ -53,9 +64,9 @@ export async function pushPermission(): Promise<PushPermission> {
  * answer, not an error, and the caller should treat it as one.
  */
 export async function enablePush(): Promise<boolean> {
-  // A simulator has no push token to give. Failing loudly here would make every
-  // development run look broken.
-  if (!Device.isDevice) return false;
+  // A simulator has no push token to give, and web has no push at all. Failing
+  // loudly here would make every development run look broken.
+  if (!pushSupported || !Device.isDevice) return false;
 
   const existing = await Notifications.getPermissionsAsync();
   const status =
@@ -76,7 +87,7 @@ export async function enablePush(): Promise<boolean> {
  * silently stops working.
  */
 export async function refreshPushToken(): Promise<boolean> {
-  if (!Device.isDevice) return false;
+  if (!pushSupported || !Device.isDevice) return false;
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') return false;
 
@@ -106,7 +117,7 @@ export async function refreshPushToken(): Promise<boolean> {
 
 /** On the way out. Leaves the row, so a return is recognised as a return. */
 export async function revokePushToken(): Promise<void> {
-  if (!Device.isDevice) return;
+  if (!pushSupported || !Device.isDevice) return;
   const id = projectId();
   if (!id) return;
   try {
