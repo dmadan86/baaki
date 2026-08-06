@@ -45,11 +45,25 @@ of clipping.
 
 ## Shape and depth
 
-Radii: `sm 12 · md 16 · lg 20 · xl 24 · xxl 32 · pill 999`. Cards are `xl`,
-anything interactive and small is a pill.
+Radii: `sm 12 · md 16 · lg 20 · xl 24 · xxl 32 · pill 999`. Cards are `md`,
+anything interactive and small is a pill. The reference boards are drawn at
+tablet width, where `xl` reads as a gentle curve; on a phone the same radius eats
+into a card only a few hundred points wide and the panel starts to look like a
+pill, and pills are for things you tap.
 
 Exactly two shadows: `soft` for resting cards, `lifted` for the floating tab bar
 and the FAB. Depth means "this floats above the page", never "this is pretty".
+
+The doorway screens — the welcome and the lock screen — open with a brand-purple
+panel whose bottom edge sweeps rather than cuts (`CurvedPanel`). It is the one
+place the app is allowed a flourish, because it is the one place with nothing to
+read: no balance, no list, no decision. Everywhere past it is somebody's money,
+and a shape that draws the eye there is a shape competing with a number.
+
+The arc is an over-wide box with a large bottom radius, not an SVG path — the
+screen only ever sees the flat middle of a much wider ellipse. That keeps
+`react-native-svg` out of the dependency list, which matters for a screen that
+has to render before anything else in the app does.
 
 ## Spacing
 
@@ -59,9 +73,9 @@ floating tab bar never covers the last row.
 
 ## Components
 
-`Screen · Card · TintCard · Text · Button · IconButton · Fab · Chip · ChipRow ·
-Badge · Avatar · AvatarStack · ListRow · EmptyState · MoneyText · PillTabBar ·
-AmountKeypad`
+`Screen · Card · TintCard · CurvedPanel · Text · Button · IconButton · Fab ·
+Chip · ChipRow · Badge · Avatar · AvatarStack · ListRow · EmptyState ·
+MoneyText · Toggle · PillTabBar · AmountKeypad`
 
 Two carry product decisions rather than styling:
 

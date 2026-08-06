@@ -10,6 +10,7 @@ export * from './tokens';
 export * from './theme';
 export * from './components/Text';
 export * from './components/Surfaces';
+export * from './components/CurvedPanel';
 export * from './components/Button';
 export * from './components/Chip';
 export * from './components/Avatar';
