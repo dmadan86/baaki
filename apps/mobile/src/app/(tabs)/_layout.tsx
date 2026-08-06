@@ -15,8 +15,8 @@ export default function TabsLayout() {
       icon: (color) => <Ionicons name="home" size={20} color={color} />,
     },
     {
-      key: 'people',
-      label: 'People',
+      key: 'friends',
+      label: t.friends,
       icon: (color) => <Ionicons name="people" size={20} color={color} />,
     },
     {
@@ -43,7 +43,7 @@ export default function TabsLayout() {
       )}
     >
       <Tabs.Screen name="index" />
-      <Tabs.Screen name="people" />
+      <Tabs.Screen name="friends" />
       <Tabs.Screen name="activity" />
       <Tabs.Screen name="profile" />
     </Tabs>

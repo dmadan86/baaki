@@ -18,6 +18,7 @@ export interface UiStrings {
   yourGroups: string;
   newGroup: string;
   activity: string;
+  friends: string;
   profile: string;
   home: string;
   addExpense: string;
@@ -59,6 +60,7 @@ const en: UiStrings = {
   yourGroups: 'Your groups',
   newGroup: 'New group',
   activity: 'Activity',
+  friends: 'Friends',
   profile: 'Account',
   home: 'Home',
   addExpense: 'Add expense',
@@ -101,6 +103,7 @@ const ta: UiStrings = {
   yourGroups: 'உங்கள் குழுக்கள்',
   newGroup: 'புதிய குழு',
   activity: 'செயல்பாடு',
+  friends: 'நண்பர்கள்',
   profile: 'கணக்கு',
   home: 'முகப்பு',
   addExpense: 'செலவு சேர்',
@@ -128,6 +131,7 @@ const hi: UiStrings = {
   yourGroups: 'आपके समूह',
   newGroup: 'नया समूह',
   activity: 'गतिविधि',
+  friends: 'दोस्त',
   profile: 'खाता',
   home: 'होम',
   addExpense: 'खर्च जोड़ें',
