@@ -61,9 +61,28 @@ read: no balance, no list, no decision. Everywhere past it is somebody's money,
 and a shape that draws the eye there is a shape competing with a number.
 
 The arc is an over-wide box with a large bottom radius, not an SVG path — the
-screen only ever sees the flat middle of a much wider ellipse. That keeps
+screen only ever sees the middle of a much wider circle. That keeps
 `react-native-svg` out of the dependency list, which matters for a screen that
 has to render before anything else in the app does.
+
+The overhang has to scale with the radius, not with the screen. It did not once,
+and the sign-in header shipped as a plain rectangle: the panel was short, so the
+radius was small, so the whole arc sat off the sides of the screen and the flat
+middle was all that showed. The arithmetic and its three caps now live in
+`packages/ui/src/curve.ts`, on their own and tested, because nothing about that
+failure looked like a failure.
+
+## Meeting Baaki for the first time
+
+Three full-bleed pastel cards before the welcome — what you get for free, that
+the people you split with need no account, and that settling hands the amount to
+UPI. Swipeable, skippable from the first frame, shown once and never again.
+
+It is emoji rather than illustration, at the same size art would be. Art means a
+binary asset in every build, and these are the frames that render before the app
+has proved anything about itself; the group covers are emoji for the same reason,
+so the tour looks like the product rather than a brochure stapled to the front of
+it.
 
 ## Spacing
 

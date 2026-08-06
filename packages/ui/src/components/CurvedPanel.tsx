@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useWindowDimensions, View, type ViewStyle } from 'react-native';
 
+import { curveGeometry } from '../curve';
 import { useTheme } from '../theme';
 
 export interface CurvedPanelProps {
@@ -40,14 +41,9 @@ export function CurvedPanel({
   const theme = useTheme();
   const { width } = useWindowDimensions();
 
-  // Wide enough that the screen only ever sees the flat middle of the arc.
-  const overhang = width * 0.45;
-  const drawnWidth = width + overhang * 2;
-
-  // React Native clamps a corner radius to what the box can hold, so the two
-  // bottom radii together may not exceed the width. Doing that arithmetic here
-  // means the shape is the one asked for rather than whatever survived.
-  const radius = Math.min(height * curve * 2, drawnWidth / 2);
+  // Wide enough that the screen only ever sees the middle of the arc, and no
+  // wider — see curve.ts, where the arithmetic and its three caps live.
+  const { overhang, drawnWidth, radius } = curveGeometry(width, height, curve);
 
   return (
     <View style={[{ height }, style]}>

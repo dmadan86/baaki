@@ -14,7 +14,8 @@
  * to decide.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import {
   ActivityIndicator,
@@ -28,10 +29,13 @@ import {
 
 import { Button, Card, Chip, CurvedPanel, Row, Screen, Text, useTheme } from '@baaki/ui';
 
+import { Onboarding } from '@/components/Onboarding';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 type Mode = 'otp' | 'password';
+
+const TOUR_KEY = 'baaki.onboarding_seen';
 
 export default function SignInScreen() {
   const theme = useTheme();
@@ -45,6 +49,34 @@ export default function SignInScreen() {
    * be asking a question they answered a week ago.
    */
   const [showOptions, setShowOptions] = useState(isGuest);
+
+  /**
+   * `null` until storage answers. Rendering the welcome while we find out would
+   * show it for one frame and then yank it away, which reads as a glitch on the
+   * very first screen of the app.
+   *
+   * A guest is not a first-time user — they have been using Baaki and have come
+   * here to add a way back in — so the tour is never their problem.
+   */
+  const [tourSeen, setTourSeen] = useState<boolean | null>(isGuest ? true : null);
+
+  useEffect(() => {
+    if (tourSeen !== null) return;
+    let cancelled = false;
+    void AsyncStorage.getItem(TOUR_KEY)
+      .then((value) => {
+        if (!cancelled) setTourSeen(value === 'yes');
+      })
+      // Storage failing is not a reason to hold somebody at a blank screen.
+      // Worst case they see the tour once more than they should.
+      .catch(() => {
+        if (!cancelled) setTourSeen(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tourSeen]);
+
   const [mode, setMode] = useState<Mode>('otp');
   const [phone, setPhone] = useState('+91');
   const [code, setCode] = useState('');
@@ -66,6 +98,23 @@ export default function SignInScreen() {
       setBusy(false);
     }
   };
+
+  if (tourSeen === null) {
+    return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
+  }
+
+  if (!tourSeen) {
+    return (
+      <Onboarding
+        onDone={() => {
+          setTourSeen(true);
+          // Not awaited: the tour is over the moment they say so, and a write
+          // that fails costs them one repeat, not a stuck screen.
+          void AsyncStorage.setItem(TOUR_KEY, 'yes').catch(() => {});
+        }}
+      />
+    );
+  }
 
   /**
    * The welcome: the wordmark on a coloured sweep, one sentence, and the button

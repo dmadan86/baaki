@@ -1,6 +1,10 @@
 node_modules
 dist
 .expo
+# Written by expo start, ignored by apps/mobile/.gitignore — but Prettier only
+# reads the .gitignore next to where it runs, so it would otherwise report a
+# generated file as a style violation nobody can fix for good.
+apps/mobile/expo-env.d.ts
 packages/db/generated
 packages/db/prisma/migrations
 pnpm-lock.yaml
