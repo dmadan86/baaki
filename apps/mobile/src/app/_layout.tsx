@@ -9,9 +9,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Button, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
+import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { UpdateProvider } from '@/lib/update';
 import { initObservability, withObservability } from '@/lib/observability';
 import { ensureAndroidChannel, pushSupported, routeForNotification } from '@/lib/push';
 import { SyncProvider } from '@/sync';
@@ -53,13 +55,23 @@ function RootLayout() {
             <SyncProvider>
               <LockProvider>
                 <MotionProvider>
-                  <ThemeProvider>
-                    <StatusBar style="auto" />
-                    <PushRouting />
-                    <LockGate>
-                      <AuthGate />
-                    </LockGate>
-                  </ThemeProvider>
+                  <UpdateProvider>
+                    <ThemeProvider>
+                      <StatusBar style="auto" />
+                      {/* Outside the lock and the auth gate on purpose: a build
+                          we have stopped trusting should not be unlocking a
+                          ledger or signing anybody in either. */}
+                      <UpdateGate>
+                        <PushRouting />
+                        <LockGate>
+                          <AuthGate />
+                        </LockGate>
+                        {/* Last, so it paints over the screen rather than
+                            under it. */}
+                        <UpdateBanner />
+                      </UpdateGate>
+                    </ThemeProvider>
+                  </UpdateProvider>
                 </MotionProvider>
               </LockProvider>
             </SyncProvider>

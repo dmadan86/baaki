@@ -163,6 +163,54 @@ builds and runs unchanged:
 A DSN is public by design: it can only write events, which is why it ships in
 the binary. `SENTRY_AUTH_TOKEN` is the one that reads, and it stays in CI.
 
+## Releasing, and stopping old builds
+
+The version is compiled into the binary, so a build can only ever describe
+itself — it cannot know something newer exists. The policy lives in
+`public.app_releases`, one row per store, and the app asks on launch and on
+every foreground.
+
+| Column            | Means                                          |
+| ----------------- | ---------------------------------------------- |
+| `latest_version`  | what is published — a dismissible banner       |
+| `minimum_version` | the oldest build allowed to open — a hard wall |
+| `store_url`       | where the Update button goes                   |
+| `message`         | optional, replaces the default wall copy       |
+
+Raising them is one statement, and it takes effect on the next foreground with
+no app release involved:
+
+```sql
+-- a new build is out; nothing is wrong with the old one
+UPDATE app_releases SET latest_version = '0.2.0' WHERE platform = 'android';
+
+-- 0.1.x may no longer run: it computed something wrongly
+UPDATE app_releases
+   SET minimum_version = '0.2.0',
+       message = 'Expenses added on the old version split rupees wrongly.'
+ WHERE platform = 'android';
+```
+
+Only the service role can write it; everybody, including signed-out guests, can
+read it, because the check runs before the sign-in screen.
+
+Three things stop a mistake here from bricking every phone:
+
+- A `CHECK` refuses a `minimum_version` above `latest_version` — that row would
+  block every build in existence, including the one the Update button installs.
+- A `CHECK` refuses a version string the client cannot compare (`v2`, `2.0-rc`),
+  which would otherwise silently switch the policy off.
+- The client fails towards opening: no answer, an unreadable version, or a
+  policy it does not understand all resolve to "carry on". The one exception is
+  a policy it has already fetched, which is cached and honoured offline —
+  "this build computes money wrongly" does not stop being true when the phone
+  loses signal. Every foreground re-checks, so a corrected policy lands as soon
+  as there is a connection.
+
+The comparison itself is `compareVersions` in `packages/core/src/version`,
+mirrored in SQL by `baaki_version_key()` so the database and the app cannot
+disagree about which of two versions is newer.
+
 ## Money rules
 
 - Amounts are **`BIGINT` minor units** plus an ISO-4217 code. No float, no

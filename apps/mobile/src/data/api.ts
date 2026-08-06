@@ -1014,3 +1014,29 @@ export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
   if (error) throw new Error(error.message);
   return (data ?? []) as PersonBalanceRow[];
 }
+
+// ────────────────────────────────────────── which builds may still run ──
+
+export interface ReleaseRow {
+  platform: string;
+  latest_version: string;
+  minimum_version: string;
+  store_url: string;
+  message: string | null;
+}
+
+/**
+ * The version policy for one store.
+ *
+ * Readable signed out on purpose: this runs before the sign-in screen, because
+ * a client too old to be trusted with the ledger is too old to sign in to it.
+ */
+export async function fetchReleasePolicy(platform: 'ios' | 'android'): Promise<ReleaseRow | null> {
+  const { data, error } = await supabase
+    .from('app_releases')
+    .select('platform, latest_version, minimum_version, store_url, message')
+    .eq('platform', platform)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as ReleaseRow | null) ?? null;
+}

@@ -669,3 +669,19 @@ model SyncMutation {
   @@map("sync_mutations")
   @@schema("public")
 }
+
+/// What the app is allowed to be running, one row per store. Public read so the
+/// version gate can run before sign-in; no write policies, so only the service
+/// role can raise a number. A CHECK stops `minimum_version` from exceeding
+/// `latest_version` — that row would block every build in existence.
+model AppRelease {
+  platform       String   @id
+  latestVersion  String   @map("latest_version")
+  minimumVersion String   @map("minimum_version")
+  storeUrl       String   @map("store_url")
+  message        String?
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("app_releases")
+  @@schema("public")
+}
