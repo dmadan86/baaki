@@ -31,6 +31,11 @@ port = 54323
 
 [storage]
 enabled = true
+# Not a feature this app has, and left at the CLI's default it makes every
+# `config push` fail with a 402 on a free project.
+[storage.vector]
+enabled = false
+
 # Receipts live in a private bucket, reachable only through signed URLs
 # (ADR-013). The bucket itself is created by a migration in M5.
 file_size_limit = "10MiB"
@@ -45,25 +50,56 @@ site_url = "baaki://"
 additional_redirect_urls = ["baaki://", "baaki://auth", "http://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
+# ADR-006. A guest opens a link and starts splitting; there is no account until
+# they want one. Undeclared, the CLI defaults this to false and `config push`
+# closes the front door of the app — which is exactly what it did once.
+enable_anonymous_sign_ins = true
+# `linkIdentity` is refused outright without this, and that call is the whole of
+# ADR-006's in-place upgrade: a guest taps "continue with Google" and keeps the
+# trip they have been adding expenses to all week. Off, the app falls back to
+# nothing — there is no second way to reach that account.
+enable_manual_linking = true
+# The client refuses anything shorter (MIN_PASSWORD_LENGTH in @baaki/core), and
+# a server that would have accepted it is a rule enforced in one place only.
+minimum_password_length = 8
 
 [auth.email]
 enable_signup = true
-enable_confirmations = false
-
-# ADR-006: guests join a group from a link with no account at all.
-[auth.sms]
-enable_signup = true
+# On, and it stays on. Off, an address is trusted the moment somebody types it,
+# so anyone can hold an account under a stranger's email — and the invite flow
+# means addresses are guessable by design. `config push` sends this file to the
+# hosted project, so a local convenience here is a live account takeover.
 enable_confirmations = true
+# A minute between mails, and eight digits. Both are Supabase's hosted defaults;
+# 1s and six digits are what a local stack does not care about and a real one
+# does — that is a mailbox flood and a code worth guessing.
+max_frequency = "1m0s"
+otp_length = 8
+
+# ADR-006: guests join a group from a link with no account at all, so phone is a
+# way to keep an account, never the way to get one.
+#
+# Signup is off because no SMS provider is configured on either stack. Turned on
+# without one, Supabase marks Twilio enabled with empty credentials, every code
+# fails to send, and the person is left on a screen waiting for an SMS that was
+# never posted. Turn both on in the same change that adds the credentials.
+[auth.sms]
+enable_signup = false
+enable_confirmations = true
+
+[auth.sms.twilio]
+enabled = false
 
 # The client id is not a secret — it travels in every authorize URL and is
 # visible to anyone who taps "continue with Google". The secret is, and lives in
 # `supabase/.env` (gitignored) so it never reaches the repo or a build.
 #
-# The same pair is configured on the hosted project through the dashboard.
-# Do NOT `supabase config push` to sync it: this file also carries
-# `[auth.email] enable_confirmations = false`, which is a local-development
-# convenience and on a real project would let anybody sign up with somebody
-# else's email address.
+# `supabase config push` sends this file to the hosted project, so everything
+# above is live settings, not local ones. Read the whole file before pushing:
+# anything this file does not say, the CLI supplies a default for and pushes
+# anyway, silently overwriting whatever the dashboard had. The first push here
+# turned off anonymous sign-ins, manual identity linking and email confirmation
+# in one go — the first two are the guest flow, which is the app.
 [auth.external.google]
 enabled = true
 client_id = "755904924475-vkp5ga0cpt58fr6patnst4e4r02cmhcv.apps.googleusercontent.com"
