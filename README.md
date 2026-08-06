@@ -52,7 +52,19 @@ Sign in (phone OTP or guest) · Home · Activity · Account · New group ·
 Group (expenses / balances / activity) · Expense detail with version history ·
 Add or edit expense · Split by item · Settle up · Who pays whom · Members ·
 Member detail · Group settings · Invite · Join from a link ·
-Notification preferences · App lock · Export.
+Notification preferences · Security (app lock, re-ask delay, sign out) ·
+Inbox · Export.
+
+### Scheduled jobs
+
+Both run hourly under `pg_cron`, take their clock as an argument so they can be
+tested without waiting a week, and are idempotent — `notifications.dedupe_key`
+is what makes a retried run a no-op rather than a second buzz.
+
+| Job                                | What it resolves                                                                                                                                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `baaki_auto_confirm_settlements()` | A settlement nobody answered for 7 days (ADR-007). A dispute still reopens it.                                                                                                                               |
+| `baaki_trip_nudges()`              | Twice a day during a group's dates: at breakfast about yesterday, at the end of the day about today. Skips anybody who already recorded that day, and asks in the group's timezone rather than the server's. |
 
 ### Edge functions
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { ScrollView, TextInput, View } from 'react-native';
+import { Alert, ScrollView, TextInput, View } from 'react-native';
 
 import { isValidVpa } from '@baaki/core';
 import {
@@ -19,13 +19,68 @@ import {
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { describeGrace, useLock } from '@/lib/lock';
 
-const SETTINGS: {
+interface SettingsRow {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   hint: string;
   route?: string;
-}[] = [
+  onPress?: () => void;
+}
+
+function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }) {
+  const theme = useTheme();
+  return (
+    <View>
+      <SectionHeader title={title} />
+      <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+        {rows.map((item, index) => {
+          const live = Boolean(item.route ?? item.onPress);
+          return (
+            <View key={item.label}>
+              <ListRow
+                title={item.label}
+                subtitle={item.hint}
+                onPress={
+                  item.onPress ?? (item.route ? () => router.push(item.route as never) : undefined)
+                }
+                leading={
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: theme.radius.pill,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: live ? theme.color.brandSoft : theme.color.surfaceMuted,
+                    }}
+                  >
+                    <Ionicons
+                      name={item.icon}
+                      size={18}
+                      color={live ? theme.color.brand : theme.color.textMuted}
+                    />
+                  </View>
+                }
+                trailing={
+                  item.route ? (
+                    <Ionicons name="chevron-forward" size={18} color={theme.color.textFaint} />
+                  ) : null
+                }
+              />
+              {index < rows.length - 1 ? (
+                <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              ) : null}
+            </View>
+          );
+        })}
+      </Card>
+    </View>
+  );
+}
+
+const SETTINGS: SettingsRow[] = [
   {
     icon: 'person-circle-outline',
     label: 'Your account',
@@ -44,12 +99,6 @@ const SETTINGS: {
     hint: 'JSON + CSV, lossless, free',
     route: '/settings/export',
   },
-  {
-    icon: 'lock-closed-outline',
-    label: 'App lock',
-    hint: 'Biometrics or passcode',
-    route: '/settings/lock',
-  },
   { icon: 'cloud-upload-outline', label: 'Import from Splitwise', hint: 'Coming in M3' },
 ];
 
@@ -58,9 +107,34 @@ export default function ProfileScreen() {
   const { t, locale } = useStrings();
   const { profile, isGuest, updateProfile, signOut } = useAuth();
 
+  const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
+
   const [name, setName] = useState(profile?.display_name ?? '');
   const [vpa, setVpa] = useState(profile?.default_vpa ?? '');
   const [status, setStatus] = useState<string | null>(null);
+
+  const lockSummary = !lockSupported
+    ? 'This device has no biometrics set up'
+    : lockEnabled
+      ? `On · asks ${describeGrace(graceSeconds).toLowerCase()}`
+      : 'Off — anyone holding your phone can read the ledger';
+
+  const signOutHint = isGuest
+    ? 'This guest account lives on this device only'
+    : 'Nothing is deleted; sign back in whenever';
+
+  const confirmSignOut = (): void => {
+    Alert.alert(
+      'Sign out?',
+      isGuest
+        ? 'This is a guest account, so signing out leaves no way back into it. Add an email or phone number first if you want to keep it.'
+        : 'You can sign back in whenever you like. Nothing is deleted.',
+      [
+        { text: 'Stay signed in', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+      ],
+    );
+  };
 
   const vpaValid = vpa.trim() === '' || isValidVpa(vpa.trim());
   const dirty =
@@ -175,50 +249,22 @@ export default function ProfileScreen() {
           </Card>
         ) : null}
 
-        <View>
-          <SectionHeader title="Settings" />
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {SETTINGS.map((item, index) => (
-              <View key={item.label}>
-                <ListRow
-                  title={item.label}
-                  subtitle={item.hint}
-                  onPress={item.route ? () => router.push(item.route as never) : undefined}
-                  leading={
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: theme.radius.pill,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: item.route
-                          ? theme.color.brandSoft
-                          : theme.color.surfaceMuted,
-                      }}
-                    >
-                      <Ionicons
-                        name={item.icon}
-                        size={18}
-                        color={item.route ? theme.color.brand : theme.color.textMuted}
-                      />
-                    </View>
-                  }
-                  trailing={
-                    item.route ? (
-                      <Ionicons name="chevron-forward" size={18} color={theme.color.textFaint} />
-                    ) : null
-                  }
-                />
-                {index < SETTINGS.length - 1 ? (
-                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                ) : null}
-              </View>
-            ))}
-          </Card>
-        </View>
+        <SettingsSection title="Settings" rows={SETTINGS} />
 
-        <Button label="Sign out" variant="ghost" fullWidth onPress={() => void signOut()} />
+        {/* Security is its own section rather than one row among many: it is
+            the only group of settings somebody comes looking for. */}
+        <SettingsSection
+          title="Security"
+          rows={[
+            {
+              icon: 'finger-print-outline',
+              label: 'App lock',
+              hint: lockSummary,
+              route: '/settings/lock',
+            },
+            { icon: 'log-out-outline', label: 'Sign out', hint: signOutHint, onPress: confirmSignOut },
+          ]}
+        />
 
         <Text variant="micro" tone="faint" align="center">
           Baaki · the ledger is free forever. We only ever charge for convenience.

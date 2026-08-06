@@ -17,7 +17,15 @@ export type NotificationKind =
   | 'nudge'
   | 'ghost_claimed'
   | 'group_invite_accepted'
-  | 'digest_daily';
+  | 'digest_daily'
+  /**
+   * The two reminders that run for the length of a trip. Asked at breakfast
+   * about yesterday and at the end of the day about today, because a ledger is
+   * only as good as the habit of adding to it, and the habit needs prompting
+   * while the receipts still exist.
+   */
+  | 'trip_nudge_morning'
+  | 'trip_nudge_evening';
 
 export interface CopyStrings {
   readonly money: {
@@ -59,6 +67,14 @@ const en: CopyStrings = {
     ghost_claimed: { title: '{actor} joined {group}', body: 'Their past expenses are now linked' },
     group_invite_accepted: { title: '{actor} joined {group}', body: 'Say hello' },
     digest_daily: { title: 'Today in {group}', body: '{count} updates · your baaki is {amount}' },
+    trip_nudge_morning: {
+      title: 'Anything from yesterday?',
+      body: 'Add what you spent on {group} while you still remember it',
+    },
+    trip_nudge_evening: {
+      title: 'Before you forget',
+      body: 'What did you pay for today on {group}?',
+    },
   },
 };
 
@@ -91,6 +107,14 @@ const ta: CopyStrings = {
     ghost_claimed: { title: '{actor} {group} இல் இணைந்தார்', body: 'பழைய செலவுகள் இணைக்கப்பட்டன' },
     group_invite_accepted: { title: '{actor} {group} இல் இணைந்தார்', body: 'வரவேற்கலாம்' },
     digest_daily: { title: 'இன்று {group} இல்', body: '{count} புதுப்பிப்புகள் · பாக்கி {amount}' },
+    trip_nudge_morning: {
+      title: 'நேற்று ஏதாவது இருக்கா?',
+      body: 'நினைவிருக்கும் போதே {group} செலவுகளைச் சேர்க்கவும்',
+    },
+    trip_nudge_evening: {
+      title: 'மறப்பதற்கு முன்',
+      body: 'இன்று {group} இல் என்ன செலவு செய்தீர்கள்?',
+    },
   },
 };
 
@@ -117,6 +141,14 @@ const hi: CopyStrings = {
     ghost_claimed: { title: '{actor} {group} में शामिल हुए', body: 'पुराने खर्च जुड़ गए' },
     group_invite_accepted: { title: '{actor} {group} में शामिल हुए', body: 'नमस्ते कहें' },
     digest_daily: { title: 'आज {group} में', body: '{count} अपडेट · बाकी {amount}' },
+    trip_nudge_morning: {
+      title: 'कल का कुछ बाकी है?',
+      body: 'याद रहते ही {group} के खर्च जोड़ दें',
+    },
+    trip_nudge_evening: {
+      title: 'भूलने से पहले',
+      body: 'आज {group} में आपने किस चीज़ का भुगतान किया?',
+    },
   },
 };
 

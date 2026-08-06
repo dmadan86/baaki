@@ -40,8 +40,10 @@ import {
   fetchMembersByGroup,
   fetchMembers,
   fetchMyBalances,
+  fetchNotifications,
   fetchPendingSettlements,
   fetchSettlements,
+  markNotificationsRead,
   recordSettlement,
   leaveGroup,
   restoreExpense,
@@ -61,6 +63,7 @@ export const keys = {
   settlements: (id: string) => ['group', id, 'settlements'] as const,
   activity: (id: string) => ['group', id, 'activity'] as const,
   balances: (id: string) => ['group', id, 'balances'] as const,
+  notifications: ['notifications'] as const,
 };
 
 export function useGroups() {
@@ -393,6 +396,25 @@ export function useConfirmSettlement(groupId: string) {
   return useMutation({
     mutationFn: confirmSettlement,
     onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
+}
+
+/**
+ * The inbox (TDR §7.1).
+ *
+ * Kept short and refetched rather than paginated: this is what Baaki has said
+ * to you lately, not an archive. A read that goes back further than the last
+ * fifty things is a report, not a notification list.
+ */
+export function useNotifications() {
+  return useQuery({ queryKey: keys.notifications, queryFn: () => fetchNotifications() });
+}
+
+export function useMarkNotificationsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: markNotificationsRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications }),
   });
 }
 
