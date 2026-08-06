@@ -30,10 +30,12 @@ import {
   confirmSettlement,
   createGroup,
   deleteExpense,
+  disputeExpense,
   fetchActivity,
   fetchAllBalances,
   fetchBalances,
   fetchExpenseVersions,
+  fetchDisputes,
   fetchExpenses,
   fetchGroup,
   fetchGroups,
@@ -45,10 +47,12 @@ import {
   fetchSettlements,
   markNotificationsRead,
   recordSettlement,
+  resolveDispute,
   leaveGroup,
   restoreExpense,
   updateGroup,
   updateMember,
+  withdrawDispute,
   writeExpense,
   type WriteExpenseInput,
 } from './api';
@@ -64,6 +68,7 @@ export const keys = {
   activity: (id: string) => ['group', id, 'activity'] as const,
   balances: (id: string) => ['group', id, 'balances'] as const,
   notifications: ['notifications'] as const,
+  disputes: (id: string) => ['group', id, 'disputes'] as const,
 };
 
 export function useGroups() {
@@ -415,6 +420,45 @@ export function useMarkNotificationsRead() {
   return useMutation({
     mutationFn: markNotificationsRead,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications }),
+  });
+}
+
+/**
+ * Who has said an expense is wrong, across the group.
+ *
+ * Fetched per group rather than per expense so the list can mark the rows
+ * without a query each. A disagreement nobody sees until they open the expense
+ * is a disagreement that festers.
+ */
+export function useDisputes(groupId: string) {
+  return useQuery({
+    queryKey: keys.disputes(groupId),
+    queryFn: () => fetchDisputes(groupId),
+    enabled: Boolean(groupId),
+  });
+}
+
+export function useDisputeExpense(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: disputeExpense,
+    onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
+}
+
+export function useWithdrawDispute(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withdrawDispute,
+    onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
+}
+
+export function useResolveDispute(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: resolveDispute,
+    onSuccess: () => invalidateGroup(queryClient, groupId),
   });
 }
 

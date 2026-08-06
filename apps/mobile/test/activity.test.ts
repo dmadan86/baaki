@@ -158,3 +158,48 @@ describe('the icon', () => {
     expect(verbEmoji('archived')).toBe('•');
   });
 });
+
+/**
+ * Disagreeing with an expense.
+ *
+ * The wording carries the design: a decline is somebody's position, not a
+ * change to the ledger. The feed has to read as a conversation rather than as
+ * an accounting event, because that is what it is — and it must not imply the
+ * numbers moved, since they did not.
+ */
+describe('somebody says an expense is wrong', () => {
+  it('quotes the reason, which is the whole point of the entry', () => {
+    expect(
+      describeActivity(
+        row({ verb: 'disputed', payload: { description: 'Dinner', reason: 'I left early' } }),
+        null,
+      ),
+    ).toBe('Ravi says Dinner is not right — "I left early"');
+  });
+
+  it('still says something useful with no reason given', () => {
+    expect(
+      describeActivity(row({ verb: 'disputed', payload: { description: 'Dinner' } }), null),
+    ).toBe('Ravi says Dinner is not right');
+  });
+
+  it('reads as agreement rather than defeat when it is accepted', () => {
+    expect(
+      describeActivity(row({ verb: 'accepted_dispute', payload: { description: 'Dinner' } }), null),
+    ).toBe('Ravi agreed Dinner needs fixing');
+  });
+
+  it('reads as a position rather than a verdict when it is not', () => {
+    expect(
+      describeActivity(row({ verb: 'rejected_dispute', payload: { description: 'Dinner' } }), null),
+    ).toBe('Ravi says Dinner is correct as it stands');
+  });
+
+  it('names nobody for a settlement that confirmed itself', () => {
+    // "Someone confirmed" would be a lie about a thing that happened because a
+    // week passed and nobody said anything.
+    const line = describeActivity(row({ verb: 'auto_confirmed', payload: {} }), null);
+    expect(line).not.toContain('Ravi');
+    expect(line).toContain('automatically');
+  });
+});

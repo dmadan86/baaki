@@ -28,6 +28,7 @@ import type {
   ExpenseRow,
   GroupRow,
   GroupType,
+  DisputeRow,
   MemberRow,
   NotificationRow,
   SettlementMethod,
@@ -481,6 +482,54 @@ export async function updateGroup(
   }>,
 ): Promise<void> {
   const { error } = await supabase.from('groups').update(patch).eq('id', groupId);
+  if (error) throw new Error(error.message);
+}
+
+// ─────────────────────────────────────── declining an expense (ADR-004) ──
+// A decline is a claim, not a mutation: it is recorded and everybody sees it,
+// and the numbers move only when somebody edits the expense. Every write goes
+// through an RPC — the table itself is read-only to clients, which is what
+// stops a dispute being filed in somebody else's name.
+
+export async function fetchDisputes(groupId: string): Promise<DisputeRow[]> {
+  return unwrap(
+    await supabase
+      .from('expense_disputes')
+      .select(
+        'id, expense_id, member_id, reason, status, resolved_by_member_id, resolution_note, created_at, resolved_at, expense:expenses!inner ( group_id )',
+      )
+      .eq('expense.group_id', groupId)
+      .order('created_at', { ascending: false }),
+  ) as unknown as DisputeRow[];
+}
+
+export async function disputeExpense(input: {
+  expenseId: string;
+  reason?: string | null;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('baaki_dispute_expense', {
+    p_expense_id: input.expenseId,
+    p_reason: input.reason?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  return String(data);
+}
+
+export async function withdrawDispute(expenseId: string): Promise<void> {
+  const { error } = await supabase.rpc('baaki_withdraw_dispute', { p_expense_id: expenseId });
+  if (error) throw new Error(error.message);
+}
+
+export async function resolveDispute(input: {
+  disputeId: string;
+  accept: boolean;
+  note?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.rpc('baaki_resolve_dispute', {
+    p_dispute_id: input.disputeId,
+    p_accept: input.accept,
+    p_note: input.note?.trim() || null,
+  });
   if (error) throw new Error(error.message);
 }
 
