@@ -1,7 +1,23 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+
+import { checkPassword, planAuth, readIdentifier, type Viewer } from '@baaki/core';
 
 import { supabase } from './supabase';
+
+/**
+ * What @baaki/core needs to know to pick the right call. The distinction that
+ * matters is anonymous-with-data versus nobody: they look the same to a screen
+ * and could not be more different to the person holding the phone.
+ */
+function viewerFrom(session: Session | null): Viewer {
+  if (!session?.user) return { kind: 'nobody' };
+  return session.user.is_anonymous === true
+    ? { kind: 'guest', userId: session.user.id }
+    : { kind: 'user', userId: session.user.id };
+}
 
 export interface Profile {
   id: string;
@@ -21,6 +37,19 @@ interface AuthValue {
   sendOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, token: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
+  /**
+   * Email or phone plus a password. Which Supabase call this makes is decided
+   * by `planAuth` in @baaki/core, not here — a guest must be upgraded in place
+   * (ADR-006), and getting that wrong strands their groups on an account they
+   * can no longer reach.
+   */
+  withPassword: (
+    identifier: string,
+    password: string,
+    intent: 'sign_in' | 'sign_up',
+  ) => Promise<void>;
+  /** Google. Links to the current account when there is one, for the same reason. */
+  withGoogle: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
   /** Re-read the session after it changes underneath us (e.g. a linked email). */
   refresh: () => Promise<void>;
@@ -108,6 +137,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async continueAsGuest() {
         const { error } = await supabase.auth.signInAnonymously();
         if (error) throw error;
+      },
+
+      async withPassword(identifier, password, intent) {
+        const who = readIdentifier(identifier);
+        checkPassword(password);
+        const method = who.kind === 'email' ? 'email_password' : 'phone_password';
+        const credential = who.kind === 'email' ? { email: who.value } : { phone: who.value };
+        const action = planAuth(viewerFrom(session), method, intent);
+
+        if (action.call === 'updateUser') {
+          // The upgrade. Same user id, so the groups, the expenses and the
+          // money owed all stay where they are (ADR-006).
+          const { error } = await supabase.auth.updateUser({ ...credential, password });
+          if (error) throw error;
+          const { data } = await supabase.auth.getSession();
+          setSession(data.session);
+          return;
+        }
+
+        const { error } =
+          action.call === 'signUp'
+            ? await supabase.auth.signUp({ ...credential, password })
+            : await supabase.auth.signInWithPassword({ ...credential, password });
+        if (error) throw error;
+      },
+
+      async withGoogle() {
+        const action = planAuth(viewerFrom(session), 'google');
+        const redirectTo = makeRedirectUri({ scheme: 'baaki', path: 'auth' });
+
+        // Both calls return a URL rather than opening it: the browser has to be
+        // the in-app one, or the session comes back to a tab the app cannot see.
+        const { data, error } =
+          action.call === 'linkIdentity'
+            ? await supabase.auth.linkIdentity({
+                provider: 'google',
+                options: { redirectTo, skipBrowserRedirect: true },
+              })
+            : await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo, skipBrowserRedirect: true },
+              });
+        if (error) throw error;
+        if (!data?.url) throw new Error('Google did not give us a sign-in link');
+
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        if (result.type !== 'success') return;
+
+        // The tokens come back in the URL fragment; nothing else reads them.
+        const fragment = result.url.split('#')[1] ?? '';
+        const params = new URLSearchParams(fragment);
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (!access_token || !refresh_token) {
+          // A link, rather than a sign-in, returns no tokens — the session it
+          // just added an identity to is the one already held.
+          const { data: current } = await supabase.auth.getSession();
+          setSession(current.session);
+          return;
+        }
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+        if (sessionError) throw sessionError;
       },
 
       async updateProfile(patch) {

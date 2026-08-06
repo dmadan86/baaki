@@ -4,3 +4,5 @@ dist
 packages/db/generated
 packages/db/prisma/migrations
 pnpm-lock.yaml
+.next
+out
