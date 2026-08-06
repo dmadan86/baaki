@@ -52,6 +52,22 @@ jobs:
       # every net position, FX is reproducible.
       - run: pnpm test:core
 
+  app:
+    name: what the app tells people
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The pure modules behind the screens — the activity feed's wording, and
+      # anything else that decides what a person is told about their money.
+      # Rendering is covered by the Maestro flows in e2e/, not here.
+      - run: pnpm test:app
+
   database:
     name: migrations, RLS policies and ledger invariants
     runs-on: ubuntu-latest

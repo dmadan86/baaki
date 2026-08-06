@@ -27,7 +27,8 @@ import {
   useGroupLedger,
   useGroupRealtime,
 } from '@/data/hooks';
-import { displayName, groupLabel, isGhost } from '@/data/types';
+import { describeActivity, verbEmoji } from '@/data/activity';
+import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -319,14 +320,20 @@ export default function GroupScreen() {
               {(activity.data ?? []).map((entry, index) => (
                 <View key={entry.id}>
                   <ListRow
-                    title={`${nameOf(entry.actor_member_id)} ${entry.verb} ${entry.object_type}`}
+                    title={describeActivity(entry, profile?.id ?? null)}
                     subtitle={new Intl.DateTimeFormat(locale, {
                       day: 'numeric',
                       month: 'short',
                       hour: 'numeric',
                       minute: '2-digit',
                     }).format(new Date(entry.created_at))}
-                    leading={<Avatar name={entry.verb} emoji={verbEmoji(entry.verb)} size={38} />}
+                    leading={
+                      <Avatar
+                        name={actorName(entry.actor, profile?.id ?? null)}
+                        emoji={verbEmoji(entry.verb)}
+                        size={38}
+                      />
+                    }
                     trailing={
                       typeof entry.payload.amount === 'string' ? (
                         <MoneyText
@@ -355,25 +362,4 @@ export default function GroupScreen() {
       />
     </Screen>
   );
-}
-
-function verbEmoji(verb: string): string {
-  switch (verb) {
-    case 'added':
-      return '🧾';
-    case 'edited':
-      return '✏️';
-    case 'deleted':
-      return '🗑️';
-    case 'restored':
-      return '↩️';
-    case 'settled':
-      return '💸';
-    case 'confirmed':
-      return '✅';
-    case 'created':
-      return '✨';
-    default:
-      return '•';
-  }
 }
