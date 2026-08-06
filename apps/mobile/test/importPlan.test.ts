@@ -109,7 +109,7 @@ describe('one CSV row', () => {
       amounts: { 'm-asha': 30000n, 'm-ravi': 15000n },
     });
     expect(plan.payers).toEqual({ 'm-asha': 45000n });
-    expect(plan.participants.sort()).toEqual(['m-asha', 'm-ravi']);
+    expect([...plan.participants].sort()).toEqual(['m-asha', 'm-ravi']);
   });
 
   it('keeps shares summing to the total', () => {
