@@ -18,3 +18,10 @@ minimumReleaseAgeExclude:
   - expo-modules-core@57.0.9
   - expo-router@57.0.10
   - expo@57.0.10
+
+# expo-asset pulls its own expo-constants, so pnpm installs two copies. A
+# native build may only contain one version of a native module, and
+# `expo doctor` fails on the duplicate. Pinning collapses both to the version
+# the app already depends on.
+overrides:
+  expo-constants: 57.0.9
