@@ -48,12 +48,12 @@ Requires Node 24+, pnpm 11+, and Docker.
 
 ### Screens
 
-Sign in (phone OTP or guest) · Home · Activity · Account · New group ·
+Sign in (phone OTP or guest) · Home · Activity · Friends · Account · New group ·
 Group (expenses / balances / activity) · Expense detail with version history ·
-Add or edit expense · Split by item · Settle up · Who pays whom · Members ·
-Member detail · Group settings · Invite · Join from a link ·
+Add or edit expense · Split by item · Spending · Settle up · Who pays whom ·
+Members · Member detail · Group settings · Invite · Join from a link ·
 Notification preferences · Security (app lock, re-ask delay, sign out) ·
-Inbox · Export.
+Inbox · Export · Import.
 
 ### Scheduled jobs
 
@@ -257,6 +257,50 @@ tries`, ten minutes in, blaming `react-native-screens`. Windows long paths do
   config plugin requires it without depending on it. Always present under npm's
   flat layout; absent under pnpm's, where the build dies in
   `expo-constants:createExpoConfig`.
+
+## Where the money went
+
+The Spending screen (`group/[id]/insights`) draws two charts over
+`baaki_group_spending(group_id)` — what each category cost, and month by month,
+for the whole group or for you alone. The function returns the finest grain it
+can (member × category × month × currency) and the screen adds up whichever way
+it is being asked; summing server-side would answer only one of the two
+questions.
+
+Three things it will not do, all of them inherited from the ledger:
+
+- **No currency conversion.** An expense carries the rate that was used
+  (ADR-003). Multiplying it out for a chart would print a rounded,
+  unreproducible number next to exact ones, so each currency gets its own
+  section.
+- **No re-dividing.** The per-person figures are the shares the ledger stored,
+  odd paisa and all.
+- **No history.** Only the current version of a live expense counts, the same
+  rule the balances use.
+
+The category comes from a guess, not a menu: `guessCategory` in
+`packages/core/src/category` matches whole tokens against an India-first keyword
+table — auto, chai, Swiggy, Zepto, IRCTC, kirana — and the chip it picks can be
+changed with one tap. Whole tokens, never substrings: `ola` is a cab company and
+also the middle of "chocolate". The guess stops the moment somebody taps a chip,
+and opening an old expense never re-guesses.
+
+The charts are plain views, not victory-native. That library renders through
+Skia now, which is another native module and another prebuild, to animate a list
+of bars and a row of columns.
+
+## Taking your ledger elsewhere, and bringing it back
+
+Export is JSON (lossless) or CSV, for one group or all of them, free forever
+(ADR-012). The import screen reads three things: a Splitwise CSV, and Baaki's own
+JSON export, through one RPC — `baaki_import_ledger`, of which
+`baaki_import_splitwise` is now a thin wrapper.
+
+What comes back from our own file is every balance, to the paisa, in every
+currency, settlements included. What does not: ids, edit history, and settlement
+allocations. None of the three changes what anybody owes, and the screen says so
+in those words before the import runs. `packages/db/test/m5-import-export.test.ts`
+proves the round trip against a real database rather than in the abstract.
 
 ## Releasing, and stopping old builds
 

@@ -2,6 +2,7 @@
 
 **Companion to:** `baaki-adr.md` (the ADRs are binding; this TDR describes _how_ to build them).
 **Audience:** Claude Code (or any engineer) implementing the product. Build in milestone order (§10); each milestone has acceptance criteria.
+**Amendments:** §12 lists everything that shipped which this document originally did not say, and why. Read it before trusting a section to be complete.
 
 ---
 
@@ -17,11 +18,12 @@
 └─────────────────────────────┘        │  ├── Realtime (group channels)   │
 ┌─────────────────────────────┐        │  ├── Storage (receipts, private) │
 │  Guest web-lite (link view) │◄──────►│  └── Edge Functions (Deno):      │
-│  (served page + anon auth)  │        │      invite-mint, ghost-claim,   │
-└─────────────────────────────┘        │      receipt-parse (LLM), export,│
-                                       │      notify-fanout, splitwise-   │
-        Claude API (vision) ◄──────────│      import                      │
-        Expo Push / Resend  ◄──────────└──────────────────────────────────┘
+│  (served page + anon auth)  │        │      sync, expense-write,        │
+└─────────────────────────────┘        │      invite-mint, invite-accept, │
+                                       │      receipt-parse (LLM),        │
+        Claude API (vision) ◄──────────│      export-data, fx-rate,       │
+        Expo Push / Resend  ◄──────────│      notify-fanout               │
+                                       └──────────────────────────────────┘
 ```
 
 **Monorepo layout**
@@ -196,11 +198,17 @@ Payer taps "Settle ₹420 with Priya"
 
 Amounts always full precision; `tn` note ≤ UPI limit; iOS: UPI apps installed → same intent works, else show VPA + copy button + QR.
 
+**Trip reminders (amendment A3).** A group with trip dates gets at most two scheduled nudges a day while the trip is running — "add today's expenses" — through the same §7.1 pipeline as `kind: nudge`, and nothing after it ends. Same rate limit as every other nudge, and the same tone rule: a reminder, never a demand.
+
 ## 6. Receipt AI pipeline (ADR-008)
 
 Edge function `receipt-parse`: input `{storage_path | raw_text, group_id}` → auth check → quota check → image (downscaled ≤1568px) or text → Claude vision call with strict JSON schema →
 `{merchant, date, currency, items[{label, qty, unit_price, total, confidence}], subtotal, taxes[{label,amount}], service_charge, tip, discounts[], grand_total, reconciles: bool}` → arithmetic validation (Σ ≈ grand_total, tolerance 1 minor unit; else mark low-confidence lines) → persist to `receipts.parsed`.
 Client review screen: editable line items → publish → group members claim items live (Realtime) → finalize creates the itemized expense via §3.1. Prompt must handle Tamil/Hindi/regional scripts and pasted Swiggy/Zomato/WhatsApp text bills. Track per-scan token cost in a `usage_events` table.
+
+**On-device OCR first (amendment A5).** The phone reads the bill with ML Kit and sends `raw_text`; the photograph only leaves the device when that fails. About a tenth the cost per scan, and the image stays on the phone whenever it can be read there. The platform document scanner (`VNDocumentCameraViewController` / ML Kit) crops and de-skews the page first, because a photograph taken at a table is at an angle on a patterned cloth.
+
+**Scanning from add-expense (amendment A6).** The camera is on the add-expense screen as well as on the itemize screen. From there a scan fills in the **total and the merchant** and stays put — most bills are split some way that has nothing to do with what each line cost — and offers "split by item instead" when it read line items. The parsed receipt is handed over for ten minutes so nobody photographs the same bill twice (a scan is metered, ADR-011).
 
 ## 7. Notifications & email (ADR-010)
 
@@ -248,13 +256,25 @@ User-initiated ("nudge politely") + optional auto-reminders with due dates — b
 
 ## 8. Analytics, export, import
 
-- **Analytics (free, basic):** per-group and per-person totals by category/month (SQL views); charts client-side (victory-native). Deeper analytics = premium later (ADR-011).
+- **Analytics (free, basic):** per-group and per-person totals by category/month, exposed as `baaki_group_spending(group_id)` — a function, not a view (amendment A7) — at the finest grain: per member, per category, per month, per currency. Currencies are never summed or converted; shares are never re-divided; only current versions of live expenses count. Charts are drawn client-side from plain views, not victory-native (amendment A8). Deeper analytics = premium later (ADR-011).
+- **Categories (amendment A9):** ten fixed categories, guessed from the description with an India-first keyword table and shown as a chip the person can change. Nothing blocks saving; "other" is a real answer.
 - **Export:** edge function → JSON (lossless) + CSV (locale-aware, includes settlement detail + receipt URLs) → signed download URL. Free.
-- **Splitwise import:** edge function parses Splitwise CSV → preview mapping UI (columns → members; unknown people become ghosts) → transactional insert as versioned expenses tagged `imported`.
+- **Splitwise import:** parses Splitwise CSV → preview mapping UI (names → members; unknown people become ghosts) → transactional insert as versioned expenses tagged `imported`. Implemented as the RPC `baaki_import_splitwise`, not an edge function (amendment A4).
+- **Baaki import (amendment A10):** the same screen reads our own JSON export back into a new group through `baaki_import_ledger`, expenses _and_ settlements, reproducing every balance to the paisa. Ids, edit history and settlement allocations do not come across; none of them changes what anybody owes, and the screen says so before the import runs.
+- **Bank SMS import (amendment A2):** card and UPI debit messages already on the phone are parsed locally into proposed expenses, which are only written once somebody confirms them. This contradicts the v1 out-of-scope list in §10 and was built on request; see A2 for what is and is not covered.
 
 ## 9. Screens (mobile)
 
 Onboarding (phone OTP / Google / Apple / "continue as guest") · Home (groups + net baaki headline) · Group (balances, activity, FAB: add expense / scan bill / settle) · Add-expense (calculator built into amount field — 955-vote fix; draft autosave) · Receipt review & claim · Settle sheet (+ allocations) · Simplify view ("who pays whom") · Member profile (VPA, prefs) · Invite/share · Settings (export, import, notifications, lock) · Activity feed. Guest web-lite: group view + add expense + join CTA.
+
+Also shipped, and not in the list above:
+
+- **Add-expense**: a dictation button on the note (amendment A1), the split-type fields themselves — shares and percentages are typed, with each person's rupee amount shown as they are (this was specified in §3.1 but had no UI until later) — a category chip row (A9), and the bill scanner (A6).
+- **Spending** — one screen per group: what each category cost, month by month, for the group or for you (§8).
+- **Friends** — who owes you and who you owe across every group, and browsing the phone's contacts to add somebody (A11).
+- **Expense disputes** (A12) — disagreeing with an expense from its own screen, visible to everybody in the group rather than settled in a side conversation.
+- **A version gate** (A13) — the app tells people a new version is out, and refuses to run a build that must not run.
+- **A reduce-motion switch** and a first-run tour of what Baaki is, before it asks for anything.
 
 ---
 
@@ -284,7 +304,9 @@ VPA profiles, UPI intent flow + confirm state machine + auto-confirm job, nudges
 receipt-parse pipeline, review/claim UX, quotas + usage metering, category charts, JSON/CSV export.
 ✓ English + Tamil + pasted-text bills parse and reconcile; 4 users claim items concurrently; itemized expense math exact; export re-imports losslessly.
 
-**Out of scope v1:** money custody/wallet, SMS auto-import, open banking, iOS widgets, web full app, public API, interest/loan mode (backlog).
+_Status (2026-08-07):_ all five parts are built. Bills parsing and reconciling is proved against the deployed function by `e2e/m5-receipts.mjs`; itemized expense maths is a property test in `packages/core`; the export/import round trip is proved balance-for-balance against a real database in `packages/db/test/m5-import-export.test.ts`. **Four users claiming items concurrently has not been run** — it needs four signed-in clients on one receipt, and no such harness exists yet.
+
+**Out of scope v1:** money custody/wallet, ~~SMS auto-import~~ (built anyway — amendment A2), open banking, iOS widgets, web full app, public API, interest/loan mode (backlog).
 
 ---
 
@@ -297,10 +319,40 @@ receipt-parse pipeline, review/claim UX, quotas + usage metering, category chart
 - i18n scaffolding from day one: en + ta + hi string files; all money/date formatting locale-aware.
 - Secrets only in edge-function env (`ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, Prisma `DATABASE_URL`/`DIRECT_URL`); no LLM or service keys in the app bundle.
 
-## 12. How to instruct Claude Code
+## 12. Amendments
+
+Everything below shipped and this document did not say so. Each was built deliberately — most of them on request — and each is recorded here rather than left as a difference between the spec and the repository that the next person has to discover.
+
+The rule the ADRs set is unchanged: **a deviation is written down, not hidden.** Where an amendment contradicts something above, the amendment wins and the section it touches has been edited to match.
+
+| #   | Amendment                                                                                                                                                                                              | Where   | Why it deviates                                                                                                                                                                                                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | **Voice note on an expense.** Hold the mic on the description and speak it; member names are handed to the recogniser as hints, because a general model guesses at Indian names and gets them wrong.   | §9      | §9 never mentioned dictation. Nothing else changes: it fills the same text field somebody would have typed into.                                                                                                                               |
+| A2  | **Bank SMS import.** Card and UPI debit messages already on the phone are parsed on the device into proposed expenses; nothing is written until somebody confirms one. Messages never leave the phone. | §8, §10 | §10 lists "SMS auto-import" as **out of scope for v1**. Built on request. The word doing the work is _auto_: nothing here imports by itself, and the out-of-scope line is struck rather than quietly ignored.                                  |
+| A3  | **Trip reminder nudges.** A group with trip dates gets at most two nudges a day while the trip runs, and none after it ends.                                                                           | §5, §7  | §7.4 had user-initiated nudges and due-date reminders; a trip is neither. Same pipeline, same rate limit, same tone.                                                                                                                           |
+| A4  | **Splitwise import is an RPC, not an edge function.** `baaki_import_splitwise` (now a wrapper over `baaki_import_ledger`).                                                                             | §8, §10 | §8 said edge function. A function body is one transaction; an edge function looping over REST calls is not, and somebody moving four years of history cannot tell a half-finished import from a complete one — the balances add up either way. |
+| A5  | **On-device OCR before the model.** ML Kit reads the bill and `raw_text` is sent; the image only leaves the phone when that fails.                                                                     | §6      | §6 assumed the image goes to the model. About a tenth the cost per scan, and the photograph stays on the device whenever it can be read there.                                                                                                 |
+| A6  | **Scan the bill from add-expense.** Fills the total and the merchant, stays put, and offers "split by item instead" if it read line items.                                                             | §6, §9  | §9 put the camera only on the group FAB and the itemize screen. Most bills are split some way that has nothing to do with what each line cost.                                                                                                 |
+| A7  | **Analytics is a function, not a SQL view.** `baaki_group_spending(group_id)`.                                                                                                                         | §8      | Prisma owns the datamodel and `prisma migrate diff` is a merge gate (ADR-014). A view is an object Prisma has an opinion about; a function is not, and every other derived read here is already one.                                           |
+| A8  | **Charts without victory-native.** Bars and columns drawn with plain views.                                                                                                                            | §8      | victory-native renders through Skia now: another native module, another prebuild, another thing that can fail at launch — to animate a list of bars. Plain views also survive the web export.                                                  |
+| A9  | **Expense categories are guessed, not asked for.** Ten fixed categories, an India-first keyword table, one tap to change.                                                                              | §8, §9  | The category column existed from M0 and nothing filled it. A menu between somebody and saving a dinner is how a column stays empty, and an empty column is a chart nobody can draw.                                                            |
+| A10 | **A Baaki export can be imported back.** `baaki_import_ledger` takes expenses and settlements; balances return to the paisa.                                                                           | §8      | §8 specified export and Splitwise import, but never reading our own file — which is exactly what M5's "export re-imports losslessly" asks somebody to be able to do.                                                                           |
+| A11 | **Friends tab and contact browsing.** Who owes you and who you owe across every group; add somebody from the phone's contacts. Contacts stay on the phone — only the person tapped is sent.            | §9      | §9 had no such screen. Ghosts are never merged across groups by name: a name is not proof that two records are one human.                                                                                                                      |
+| A12 | **Expense disputes.** Disagree with an expense from its own screen; the disagreement is visible to the whole group.                                                                                    | §9      | Nothing in the spec covered disagreement. A dispute settled in a side conversation is one the ledger never learns about.                                                                                                                       |
+| A13 | **Version gate.** `app_releases` tells people a new version exists and refuses to run a build that must not run.                                                                                       | §11     | Not in the spec at all. A client that computes money must be stoppable when it computes it wrongly.                                                                                                                                            |
+| A14 | **Windows/pnpm native build fixes.** A config plugin moves the CMake staging directory; `packageExtensions` supplies a dependency a third-party config plugin forgets to declare.                      | §1      | Environment, not product — recorded because the failure it prevents (`ninja: manifest 'build.ninja' still dirty after 100 tries`, blaming an untouched dependency) costs about ten minutes each time to rediscover.                            |
+
+Two rules that came out of the same period and are binding on new work:
+
+- **A native module is reached through a lazy `require` behind a non-throwing check.** expo-router loads every route file to build the route tree, so a module that throws while its own JS is evaluated does not disable a button — it stops the app from launching, with a red screen naming a screen nobody opened. `TurboModuleRegistry.get` (not `getEnforcing`) and `globalThis.expo.modules` are the two non-throwing forms. Nothing on a dev machine catches this: bundle, typecheck, lint, tests and `expo-doctor` all pass while the app is unlaunchable.
+- **Money is converted in decimal, never in floating point.** `0.29 * 10000` is `2899.9999999999995`, and that is one paisa.
+
+## 13. How to instruct Claude Code
 
 Paste both files into the repo root, then per milestone:
 
 > Read `baaki-adr.md` and `baaki-tdr.md`. Implement Milestone M<n> exactly as specified. ADRs are binding constraints — if a conflict or ambiguity arises, stop and ask rather than deviating. Write the tests listed in the milestone's acceptance criteria first, then make them pass. Do not begin the next milestone.
 
 Recommended session order: M0 → M1 → M2 → M3 → M4 → M5, one session (or worktree) per milestone, with a review of invariant tests before advancing.
+
+All six milestones are now built. Work beyond them is asked for directly rather than read off a milestone, and the instruction that matters most is the one §12 exists to enforce: **when the work departs from this document, amend the document in the same change.** An undocumented deviation is a thing the next person has to find by reading the code and guessing whether it was deliberate.
