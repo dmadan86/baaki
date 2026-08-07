@@ -36,14 +36,14 @@ import type {
 } from './types';
 
 const GROUP_SELECT = `
-  id, name, type, default_currency, simplify_debts, cover_emoji, photo_path,
+  id, name, type, country_code, default_currency, simplify_debts, cover_emoji, photo_path,
   start_date, end_date, time_zone, remind_daily, remind_morning_at, remind_evening_at,
   archived_at, created_at
 `;
 
 const MEMBER_SELECT = `
-  id, group_id, profile_id, ghost_name, role, vpa, left_at,
-  profile:profiles ( id, display_name, avatar_url, default_vpa )
+  id, group_id, profile_id, ghost_name, role, vpa, payment_rail, payment_handle, left_at,
+  profile:profiles ( id, display_name, avatar_url, default_vpa, payment_rail, payment_handle )
 `;
 
 const EXPENSE_SELECT = `
@@ -502,7 +502,12 @@ export async function recordSettlement(input: {
   fromMemberId: string;
   toMemberId: string;
   amount: bigint;
-  method: SettlementMethod;
+  /**
+   * Which rail the money moved on — a `RailId` from `@baaki/core`. The coarse
+   * `method` enum is derived from it server-side, so a rail the enum has never
+   * heard of (Pix, Aani) still records rather than being rejected.
+   */
+  rail: string;
   currency?: string;
   note?: string | null;
   allocations?: { expenseId: string; amount: bigint }[];
@@ -513,7 +518,14 @@ export async function recordSettlement(input: {
     p_from_member_id: input.fromMemberId,
     p_to_member_id: input.toMemberId,
     p_amount: input.amount.toString(),
-    p_method: input.method,
+    // The enum only knows these four. Everything else is `other` there and
+    // itself in `p_rail`.
+    p_method: (['upi', 'cash', 'bank', 'other'] as const).includes(
+      input.rail as SettlementMethod,
+    )
+      ? (input.rail as SettlementMethod)
+      : 'other',
+    p_rail: input.rail,
     p_currency: input.currency ?? null,
     p_note: input.note ?? null,
     p_allocations: (input.allocations ?? []).map((allocation) => ({

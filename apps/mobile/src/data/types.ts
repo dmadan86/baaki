@@ -10,6 +10,12 @@ export interface GroupRow {
   /** Optional — an unnamed group is labelled by who is in it (see groupLabel). */
   name: string | null;
   type: GroupType;
+  /**
+   * ISO-3166 alpha-2 — where this group settles, which decides which payment
+   * rails it is offered. Null is a supported state: it falls back to bank,
+   * cash and the cross-border wallets.
+   */
+  country_code: string | null;
   default_currency: string;
   simplify_debts: boolean;
   cover_emoji: string | null;
@@ -38,13 +44,19 @@ export interface MemberRow {
   profile_id: string | null;
   ghost_name: string | null;
   role: 'admin' | 'member';
+  /** The UPI-shaped fields. Superseded by the rail pair; still read as a fallback. */
   vpa: string | null;
+  /** Which rail this person is paid on here — a `RailId` from `@baaki/core`. */
+  payment_rail?: string | null;
+  payment_handle?: string | null;
   left_at: string | null;
   profile?: {
     id: string;
     display_name: string;
     avatar_url: string | null;
     default_vpa: string | null;
+    payment_rail?: string | null;
+    payment_handle?: string | null;
   } | null;
 }
 
@@ -215,4 +227,28 @@ export function isGhost(member: MemberRow): boolean {
 
 export function vpaOf(member: MemberRow): string | null {
   return member.vpa ?? member.profile?.default_vpa ?? null;
+}
+
+/**
+ * How this person is paid: the rail, and the handle on it.
+ *
+ * Per-group first, then their profile default — the same precedence `vpaOf`
+ * has always used, because one person can be paid over UPI in one group and
+ * over Wise in another. The `vpa` columns are the last fallback: everything
+ * written before rails existed is a UPI ID, and the person who typed it should
+ * not have to type it again.
+ */
+export function payableAt(member: MemberRow): { rail: string; handle: string } | null {
+  const handle =
+    member.payment_handle ?? member.profile?.payment_handle ?? vpaOf(member) ?? null;
+  if (!handle) return null;
+
+  const rail =
+    member.payment_rail ??
+    member.profile?.payment_rail ??
+    // A handle from before rails existed can only have been a UPI ID.
+    (vpaOf(member) ? 'upi' : null);
+  if (!rail) return null;
+
+  return { rail, handle };
 }
