@@ -4,7 +4,14 @@ import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { computeShares, type FxRecord, type MemberId, type SplitParams } from '@baaki/core';
+import {
+  computeShares,
+  guessCategory,
+  type CategoryId,
+  type FxRecord,
+  type MemberId,
+  type SplitParams,
+} from '@baaki/core';
 import {
   AmountKeypad,
   Avatar,
@@ -20,6 +27,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { CategoryPicker } from '@/components/Category';
 import { CurrencyRate } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
 import { scanReceipt, scanReceiptText } from '@/data/api';
@@ -50,6 +58,9 @@ interface ExpenseDraft {
   /** Kept apart, because a weight of 1 is not one percent. */
   weights: SplitEntries;
   percents: SplitEntries;
+  category: CategoryId | null;
+  /** Whether the category above was chosen, rather than guessed. */
+  categoryChosen: boolean;
 }
 
 /** A saved split's integers, back as the text somebody would have typed. */
@@ -96,6 +107,10 @@ export default function AddExpenseScreen() {
   // reinterpret one number as the other.
   const [weights, setWeights] = useState<SplitEntries>({});
   const [percents, setPercents] = useState<SplitEntries>({});
+  // Guessed from the description until somebody picks one themselves, at which
+  // point the guess must stop moving it — see `categoryChosen`.
+  const [category, setCategory] = useState<CategoryId | null>(null);
+  const [categoryChosen, setCategoryChosen] = useState(false);
   /**
    * Names to bias the recogniser towards. "You" and "Someone" are placeholders
    * this screen prints, not things anybody says out loud, so they would only
@@ -144,9 +159,15 @@ export default function AddExpenseScreen() {
       setParticipants(draft.participants);
       setWeights(draft.weights ?? {});
       setPercents(draft.percents ?? {});
+      setCategory(draft.category ?? null);
+      setCategoryChosen(draft.categoryChosen ?? false);
     } else if (version) {
       setAmount(BigInt(version.amount));
       setDescription(version.description);
+      // A saved category is a decision somebody already made. Re-guessing it on
+      // open would quietly rewrite their answer.
+      setCategory((version.category as CategoryId | null) ?? null);
+      setCategoryChosen(version.category !== null);
       setPayer(version.payers[0]?.member_id ?? myMemberId);
       setParticipants(version.shares.map((share) => share.member_id));
       setSplitKind(
@@ -169,6 +190,15 @@ export default function AddExpenseScreen() {
       setParticipants((members.data ?? []).map((member) => member.id));
       setPayer(myMemberId);
     }
+  }
+
+  // The guess follows the description while it is being typed, and stops the
+  // moment a chip is tapped. Keyed by the text it was made from so it runs once
+  // per description rather than once per render.
+  const [guessedFrom, setGuessedFrom] = useState<string | null>(null);
+  if (seededFor !== null && !categoryChosen && description !== guessedFrom) {
+    setGuessedFrom(description);
+    setCategory(guessCategory(description));
   }
 
   // Everybody in a weighted split needs a number to start from, and the set
@@ -198,7 +228,17 @@ export default function AddExpenseScreen() {
   // Every keystroke, debounced just enough to avoid one write per character.
   useDraft<ExpenseDraft>(
     draftKey,
-    { amount: amount.toString(), description, splitKind, payer, participants, weights, percents },
+    {
+      amount: amount.toString(),
+      description,
+      splitKind,
+      payer,
+      participants,
+      weights,
+      percents,
+      category,
+      categoryChosen,
+    },
     { enabled: seededFor !== null },
   );
 
@@ -260,6 +300,7 @@ export default function AddExpenseScreen() {
       await mutate(expenseId ? 'expense.update' : 'expense.create', groupId, {
         expenseId: targetExpenseId,
         description: description.trim() || 'Expense',
+        category,
         expenseDate: new Date().toISOString().slice(0, 10),
         currency,
         amount: amount.toString(),
@@ -484,6 +525,22 @@ export default function AddExpenseScreen() {
             <DictateButton value={description} onChange={setDescription} hints={nameHints} />
           </Row>
         </Card>
+
+        {/* Pre-picked from the description, because a menu between somebody and
+            saving a dinner is how a column ends up empty — and an empty column
+            is a spending chart nobody can draw (TDR §8). */}
+        <View style={{ gap: theme.spacing.md }}>
+          <Text variant="caption" tone="muted">
+            {t.whatFor}
+          </Text>
+          <CategoryPicker
+            value={category}
+            onChange={(picked) => {
+              setCategory(picked);
+              setCategoryChosen(true);
+            }}
+          />
+        </View>
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">

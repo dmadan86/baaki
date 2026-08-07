@@ -18,6 +18,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { CategoryBadge } from '@/components/Category';
 import { DisputePanel } from '@/components/DisputePanel';
 import {
   memberLookup,
@@ -145,6 +146,7 @@ export default function ExpenseDetailScreen() {
         </Row>
 
         <Card style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+          <CategoryBadge category={version.category} size={48} />
           <MoneyText
             amount={BigInt(version.amount)}
             currency={currency}

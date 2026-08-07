@@ -6,6 +6,8 @@
 
 import { getLocales } from 'expo-localization';
 
+import type { CategoryId } from '@baaki/core';
+
 export type Language = 'en' | 'ta' | 'hi';
 
 export interface UiStrings {
@@ -48,6 +50,13 @@ export interface UiStrings {
   freeForever: string;
   nothingYet: string;
   nothingYetBody: string;
+  whatFor: string;
+  spending: string;
+  byCategory: string;
+  byMonth: string;
+  nothingToChart: string;
+  /** The ten categories of TDR §8, in the language the phone is set to. */
+  categories: Record<CategoryId, string>;
 }
 
 const en: UiStrings = {
@@ -90,6 +99,23 @@ const en: UiStrings = {
   freeForever: 'Unlimited and free, forever',
   nothingYet: 'Nothing here yet',
   nothingYetBody: 'Add your first expense and the maths takes care of itself.',
+  whatFor: 'What kind of expense',
+  spending: 'Spending',
+  byCategory: 'Where it went',
+  byMonth: 'Month by month',
+  nothingToChart: 'Add a few expenses and this fills in.',
+  categories: {
+    food: 'Food & drink',
+    groceries: 'Groceries',
+    travel: 'Travel',
+    stay: 'Stay',
+    shopping: 'Shopping',
+    entertainment: 'Fun',
+    home: 'Home & bills',
+    health: 'Health',
+    gifts: 'Gifts',
+    other: 'Other',
+  },
 };
 
 const ta: UiStrings = {
@@ -118,6 +144,23 @@ const ta: UiStrings = {
   description: 'எதற்காக?',
   save: 'செலவைச் சேமி',
   freeForever: 'எப்போதும் இலவசம்',
+  whatFor: 'எந்த வகைச் செலவு',
+  spending: 'செலவு',
+  byCategory: 'எதற்குச் சென்றது',
+  byMonth: 'மாதம் வாரியாக',
+  nothingToChart: 'சில செலவுகளைச் சேர்த்தால் இது நிரம்பும்.',
+  categories: {
+    food: 'உணவு',
+    groceries: 'மளிகை',
+    travel: 'பயணம்',
+    stay: 'தங்குமிடம்',
+    shopping: 'ஷாப்பிங்',
+    entertainment: 'பொழுதுபோக்கு',
+    home: 'வீடு & பில்',
+    health: 'உடல்நலம்',
+    gifts: 'பரிசு',
+    other: 'மற்றவை',
+  },
 };
 
 const hi: UiStrings = {
@@ -146,6 +189,23 @@ const hi: UiStrings = {
   description: 'किस लिए?',
   save: 'खर्च सेव करें',
   freeForever: 'हमेशा मुफ़्त',
+  whatFor: 'किस तरह का खर्च',
+  spending: 'खर्च',
+  byCategory: 'कहाँ गया',
+  byMonth: 'महीने के हिसाब से',
+  nothingToChart: 'कुछ खर्च जोड़ें, यह अपने आप भर जाएगा।',
+  categories: {
+    food: 'खाना-पीना',
+    groceries: 'किराना',
+    travel: 'सफ़र',
+    stay: 'ठहरना',
+    shopping: 'शॉपिंग',
+    entertainment: 'मनोरंजन',
+    home: 'घर व बिल',
+    health: 'सेहत',
+    gifts: 'तोहफ़े',
+    other: 'अन्य',
+  },
 };
 
 const STRINGS: Record<Language, UiStrings> = { en, ta, hi };
