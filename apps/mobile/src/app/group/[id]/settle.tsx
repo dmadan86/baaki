@@ -5,7 +5,10 @@ import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from '
 
 import {
   allocateSettlement,
-  buildUpiIntentUri,
+  buildPaymentUri,
+  defaultRailFor,
+  railById,
+  railsFor,
   toMajorString,
   type MemberId,
   type Receivable,
@@ -26,11 +29,10 @@ import {
 } from '@baaki/ui';
 
 import { toSnapshot, useGroup, useGroupLedger, useRecordSettlement } from '@/data/hooks';
-import { displayName, isGhost, vpaOf, type MemberRow } from '@/data/types';
+import { displayName, isGhost, payableAt, type MemberRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
-type Method = 'upi' | 'cash' | 'bank';
 
 export default function SettleScreen() {
   const theme = useTheme();
@@ -44,10 +46,19 @@ export default function SettleScreen() {
   const recordSettlement = useRecordSettlement(groupId);
 
   const [selected, setSelected] = useState<MemberId | null>(null);
-  const [method, setMethod] = useState<Method>('upi');
   const [error, setError] = useState<string | null>(null);
 
   const currency = group.data?.default_currency ?? 'INR';
+  /**
+   * Where this group settles decides what it can settle with. A group that
+   * never said still gets bank, cash and the cross-border wallets — never an
+   * empty list, because a group that cannot record a payment is not a group
+   * anybody can use.
+   */
+  const country = group.data?.country_code ?? null;
+  const rails = useMemo(() => railsFor(country), [country]);
+  const [rail, setRail] = useState<string | null>(null);
+  const method = rail ?? defaultRailFor(country);
   const myMemberId = ledger.myMemberId;
 
   const counterparties = useMemo(
@@ -96,6 +107,21 @@ export default function SettleScreen() {
     expenses.rows.find((expense) => expense.id === expenseId)?.currentVersion?.description ??
     'Expense';
 
+  /**
+   * Whether the button hands off to something before recording.
+   *
+   * Only when I am the one paying, and only on a rail that has somewhere to
+   * send me — either an app to open or a handle to copy. Recording that
+   * somebody *else* paid me never opens anything.
+   */
+  const handsOff = iPay && (railById(method)?.handle ?? 'none') !== 'none';
+
+  const settleLabel = handsOff
+    ? `Pay via ${railById(method)?.label ?? ''}`.trim()
+    : method === 'cash'
+      ? t.paidInCash
+      : t.bankOther;
+
   const record = async (): Promise<void> => {
     if (!counterparty || !myMemberId || amount === 0n) return;
     setError(null);
@@ -105,7 +131,7 @@ export default function SettleScreen() {
         fromMemberId: iPay ? myMemberId : counterparty.id,
         toMemberId: iPay ? counterparty.id : myMemberId,
         amount,
-        method,
+        rail: method,
         currency,
         allocations: allocation.allocations,
       });
@@ -115,19 +141,34 @@ export default function SettleScreen() {
     }
   };
 
-  const payViaUpi = async (): Promise<void> => {
+  /**
+   * Hand off to their payment app if this rail has one, and otherwise show the
+   * handle to copy.
+   *
+   * The second half is not a degraded case — it is the ordinary one. UPI is the
+   * only rail with a scheme we can stand behind, so everywhere except India
+   * this shows a Pix key or a mobile number and the person finishes in their
+   * own bank app. Either way Baaki never moves the money (ADR-007); it records
+   * that somebody says they did, and the person paid confirms it.
+   */
+  const payThen = async (): Promise<void> => {
     if (!counterparty) return;
-    const vpa = vpaOf(counterparty);
-    if (!vpa) {
+
+    const payable = payableAt(counterparty);
+    const railInfo = railById(method);
+
+    if (!payable) {
       Alert.alert(
-        'No UPI ID yet',
-        `${displayName(counterparty)} hasn't added a UPI ID. Settle in cash, or ask them to add one.`,
+        `No ${railInfo?.label ?? 'payment'} details yet`,
+        `${displayName(counterparty)} hasn't added how they're paid. Settle in cash, or ask them to add it.`,
       );
       return;
     }
-    const uri = buildUpiIntentUri(
+
+    const uri = buildPaymentUri(
       {
-        vpa,
+        railId: payable.rail,
+        handle: payable.handle,
         payeeName: displayName(counterparty),
         amount,
         currency,
@@ -136,20 +177,24 @@ export default function SettleScreen() {
       (value, code) => toMajorString({ minor: value, currency: code }),
     );
 
-    // Baaki never moves the money: the payer's own UPI app does (ADR-007).
-    const canOpen = await Linking.canOpenURL(uri).catch(() => false);
-    if (canOpen) {
+    const canOpen = uri ? await Linking.canOpenURL(uri).catch(() => false) : false;
+    if (uri && canOpen) {
       await Linking.openURL(uri);
       Alert.alert('Did the payment go through?', 'Only record it if it actually completed.', [
         { text: 'No', style: 'cancel' },
         { text: 'Yes, record it', onPress: () => void record() },
       ]);
-    } else {
-      Alert.alert('Pay to', `${vpa}\n\nThen come back and record it.`, [
+      return;
+    }
+
+    Alert.alert(
+      `Pay ${displayName(counterparty)}`,
+      `${railById(payable.rail)?.label ?? 'Send to'}\n${payable.handle}\n\nThen come back and record it.`,
+      [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Record it', onPress: () => void record() },
-      ]);
-    }
+      ],
+    );
   };
 
   if (group.isLoading || members.isLoading) {
@@ -226,14 +271,13 @@ export default function SettleScreen() {
               <Badge label="Recorded, not moved by Baaki" />
             </Card>
 
-            <ChipRow<Method>
+            {/* Whatever this country pays with, best first. In India that is
+                still UPI, cash, bank; in the UAE it is Aani, Wise, Revolut,
+                bank, cash — the screen does not know the difference. */}
+            <ChipRow<string>
               value={method}
-              onChange={setMethod}
-              options={[
-                { value: 'upi', label: t.payViaUpi },
-                { value: 'cash', label: t.paidInCash },
-                { value: 'bank', label: t.bankOther },
-              ]}
+              onChange={setRail}
+              options={rails.map((entry) => ({ value: entry.id, label: entry.label }))}
             />
 
             {allocation.allocations.length > 0 ? (
@@ -269,15 +313,13 @@ export default function SettleScreen() {
             ) : null}
 
             <Button
-              label={
-                method === 'upi' ? t.payViaUpi : method === 'cash' ? t.paidInCash : t.bankOther
-              }
+              label={settleLabel}
               size="lg"
               fullWidth
               disabled={amount === 0n || recordSettlement.isPending}
-              onPress={() => (method === 'upi' && iPay ? void payViaUpi() : void record())}
+              onPress={() => (handsOff ? void payThen() : void record())}
               icon={
-                method === 'upi' ? (
+                handsOff ? (
                   <Ionicons name="open-outline" size={18} color={theme.color.onBrand} />
                 ) : undefined
               }

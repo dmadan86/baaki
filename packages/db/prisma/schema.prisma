@@ -124,8 +124,17 @@ model Profile {
   id                String   @id @db.Uuid
   displayName       String   @map("display_name")
   avatarUrl         String?  @map("avatar_url")
-  /// Optional UPI ID used to build settlement intents (ADR-007).
+  /// Optional UPI ID used to build settlement intents (ADR-007). Superseded by
+  /// `paymentRail` + `paymentHandle`, which say the same thing for a country
+  /// that does not have UPI. Kept until the screens reading it move over.
   defaultVpa        String?  @map("default_vpa")
+  /// Which rail they are paid on — see `RailId` in `@baaki/core`. A handle
+  /// without it is unusable abroad: a phone number is an Aani number, a PayNow
+  /// number or a Zelle number, and only the rail says which.
+  paymentRail       String?  @map("payment_rail")
+  paymentHandle     String?  @map("payment_handle")
+  /// ISO-3166 alpha-2. Decides which rails they are offered.
+  countryCode       String?  @map("country_code") @db.Char(2)
   defaultCurrency   String   @default("INR") @map("default_currency") @db.Char(3)
   locale            String   @default("en")
   notificationPrefs Json     @default("{}") @map("notification_prefs")
@@ -154,6 +163,11 @@ model Group {
   /// Object path in the private `group-photos` bucket, read via a signed URL.
   photoPath       String?   @map("photo_path")
   type            GroupType @default(other)
+  /// ISO-3166 alpha-2 — where this group settles, which is not always where its
+  /// members live. A Goa trip run from Dubai settles in rupees over UPI, and
+  /// the group is the thing that knows that. NULL still works: it falls back to
+  /// bank, cash and the cross-border wallets.
+  countryCode     String?   @map("country_code") @db.Char(2)
   defaultCurrency String    @default("INR") @map("default_currency") @db.Char(3)
   /// ADR-009: simplification is a per-group presentation setting.
   simplifyDebts   Boolean   @default(true) @map("simplify_debts")
@@ -215,8 +229,14 @@ model GroupMember {
   inviteEmail String?   @map("invite_email")
   /// E.164 only, e.g. +919876543210.
   invitePhone String?   @map("invite_phone")
-  /// Per-group override of the profile's default VPA.
+  /// Per-group override of the profile's default VPA. Superseded by
+  /// `paymentRail` + `paymentHandle`; kept until the screens move over.
   vpa        String?
+  /// Per-group override of how this person is paid — the same pair as on the
+  /// profile. One group settles over UPI and another over Wise, and the person
+  /// is the same person.
+  paymentRail   String? @map("payment_rail")
+  paymentHandle String? @map("payment_handle")
   leftAt     DateTime?  @map("left_at") @db.Timestamptz(6)
   updatedSeq BigInt     @default(0) @map("updated_seq")
   createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -448,7 +468,11 @@ model Settlement {
   toMemberId       String           @map("to_member_id") @db.Uuid
   currency         String           @db.Char(3)
   amount           BigInt
+  /// The coarse, historical shape. `rail` is the truth going forward — an enum
+  /// is a poor place to add fifteen values, and every existing row has this.
   method           SettlementMethod
+  /// Which rail the money actually moved on — see `RailId` in `@baaki/core`.
+  rail             String?
   status           SettlementStatus @default(initiated)
   note             String?
   initiatedAt      DateTime         @default(now()) @map("initiated_at") @db.Timestamptz(6)
