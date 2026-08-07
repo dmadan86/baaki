@@ -207,6 +207,7 @@ model Group {
   notifications   Notification[]
   usageEvents     UsageEvent[]
   passes          GroupPass[]
+  planItems       TripPlanItem[]
   syncMutations   SyncMutation[]
 
   @@index([archivedAt])
@@ -254,6 +255,7 @@ model GroupMember {
   settlementsSent    Settlement[]     @relation("SettlementFrom")
   settlementsGot     Settlement[]     @relation("SettlementTo")
   itemClaims         ReceiptItemClaim[]
+  planItems          TripPlanItem[]
   activity           ActivityLog[]
   disputesRaised     ExpenseDispute[] @relation("DisputeRaisedBy")
   disputesResolved   ExpenseDispute[] @relation("DisputeResolvedBy")
@@ -315,6 +317,7 @@ model Expense {
   versions       ExpenseVersion[] @relation("ExpenseVersions")
   allocations    SettlementAllocation[]
   disputes       ExpenseDispute[]
+  planItems      TripPlanItem[]
 
   @@index([groupId, deletedAt])
   /// The sync pull is "everything in this group since seq N" (TDR §4).
@@ -767,5 +770,39 @@ model GroupPass {
 
   @@index([groupId, expiresAt], map: "group_passes_group_idx")
   @@map("group_passes")
+  @@schema("public")
+}
+
+/// What a trip means to do, day by day. Not money: a plan item moves nobody's
+/// balance, and is deliberately not an expense with a flag — an expense that
+/// has not happened would show up in balances, exports and simplification.
+model TripPlanItem {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId      String    @map("group_id") @db.Uuid
+  /// The day it is planned for, in the trip's own timezone.
+  day          DateTime  @db.Date
+  /// NULL for "sometime that day".
+  startsAt     DateTime? @map("starts_at") @db.Time(6)
+  title        String
+  note         String?
+  category     String?
+  /// NULL is "no idea yet" — a different thing from zero, and not counted as
+  /// budgeted.
+  plannedMinor BigInt?   @map("planned_minor")
+  currency     String    @default("INR") @db.Char(3)
+  doneAt       DateTime? @map("done_at") @db.Timestamptz(6)
+  /// What it turned out to be, once somebody links them.
+  expenseId    String?   @map("expense_id") @db.Uuid
+  position     Int       @default(0)
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  author  GroupMember? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([groupId, day, position], map: "trip_plan_items_group_day_idx")
+  @@map("trip_plan_items")
   @@schema("public")
 }

@@ -45,6 +45,7 @@ import {
   fetchMyBalances,
   fetchNotifications,
   fetchPendingSettlements,
+  fetchPlanItems,
   fetchSettlements,
   markNotificationsRead,
   recordSettlement,
@@ -524,5 +525,14 @@ export function useLeaveGroup(groupId: string) {
   return useMutation({
     mutationFn: leaveGroup,
     onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
+}
+
+/** The trip's plan. Read-only here; writes go through the RPCs in api.ts. */
+export function usePlanItems(groupId: string) {
+  return useQuery({
+    queryKey: ['plan', groupId],
+    queryFn: () => fetchPlanItems(groupId),
+    enabled: groupId !== '',
   });
 }
