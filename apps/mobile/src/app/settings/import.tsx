@@ -1,17 +1,21 @@
 /**
- * Bringing a Splitwise group across (ADR-012, TDR §10).
+ * Bringing a ledger in — from Splitwise, or from Baaki itself (ADR-012).
  *
- * The parsing is the easy half and has been in `packages/core` since M0. This
- * screen is the other half: deciding which column of the file is which person
- * here, and being straight about what the file does and does not contain.
+ * The parsing is the easy half and lives in `packages/core`. This screen is the
+ * other half: deciding which name in the file is which person here, and being
+ * straight about what each kind of file does and does not contain.
  *
- * What it contains is each person's **net** for every row. What it does not
- * contain is who paid — many (paid, owed) pairs produce the same net, and the
- * export keeps none of them. So the balances that come out of this are exact to
- * the paisa and the payer on each row is a deterministic reconstruction. The
- * preview says so in those words, because somebody who later opens a row and
- * finds they apparently paid for a dinner they did not pay for deserves to have
- * been told first.
+ * A **Splitwise** export holds each person's *net* for every row. It does not
+ * hold who paid — many (paid, owed) pairs produce the same net, and the file
+ * keeps none of them. Balances come across to the paisa; the payer on each row
+ * is a deterministic reconstruction, and the preview says so in those words,
+ * because somebody who later opens a row and finds they apparently paid for a
+ * dinner they did not pay for deserves to have been told first.
+ *
+ * A **Baaki** export holds the real (paid, owed) pair and the settlements
+ * besides, so nothing is reconstructed. What still does not survive is stated
+ * in ./import's own words on screen: ids, edit history and settlement
+ * allocations are new, and that is what "lossless" honestly covers (M5).
  */
 
 import { useState } from 'react';
@@ -22,11 +26,19 @@ import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
-import { importSplitwiseCsv, type SplitwiseImport } from '@baaki/core';
+import {
+  importSplitwiseCsv,
+  isBaakiExport,
+  parseBaakiExport,
+  type BaakiImportGroup,
+  type BaakiImportSettlement,
+  type ImportProblem,
+} from '@baaki/core';
 import {
   Badge,
   Button,
   Card,
+  ChipRow,
   Divider,
   IconButton,
   MoneyText,
@@ -37,7 +49,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { createGroup, fetchMembers, importSplitwise, type ImportPerson } from '@/data/api';
+import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
 import { useGroups } from '@/data/hooks';
 import { displayName, groupLabel, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
@@ -47,13 +59,65 @@ type Mapping = { kind: 'me' } | { kind: 'member'; memberId: string } | { kind: '
 
 const NEW_GROUP = 'new';
 
+/**
+ * The two file formats, flattened to what this screen needs.
+ *
+ * They differ in exactly two ways that matter here — whether the payer is real
+ * or reconstructed, and whether settlements came along — so one shape with two
+ * origins beats two screens that drift apart.
+ */
+interface Loaded {
+  origin: 'splitwise' | 'baaki';
+  /** What to call the group if a new one is made. */
+  suggestedName: string;
+  people: readonly string[];
+  currency: string;
+  expenses: readonly {
+    description: string;
+    category: string | null;
+    date: string;
+    currency: string;
+    amount: bigint;
+    payers: Readonly<Record<string, bigint>>;
+    shares: Readonly<Record<string, bigint>>;
+  }[];
+  settlements: readonly BaakiImportSettlement[];
+  /** Net per person in `currency`. Other currencies are counted but not shown. */
+  balances: Readonly<Record<string, bigint>>;
+  /** Currencies in the file beyond the main one, so the preview can say so. */
+  otherCurrencies: readonly string[];
+  problems: readonly ImportProblem[];
+}
+
+function fromBaaki(group: BaakiImportGroup, fallbackName: string): Loaded {
+  const currencies = [...new Set(group.expenses.map((expense) => expense.currency))];
+  return {
+    origin: 'baaki',
+    suggestedName: group.name ?? fallbackName,
+    people: group.people,
+    currency: group.currency,
+    expenses: group.expenses,
+    settlements: group.settlements,
+    balances: group.balances[group.currency] ?? {},
+    otherCurrencies: currencies.filter((currency) => currency !== group.currency),
+    problems: group.problems,
+  };
+}
+
 export default function ImportScreen() {
   const theme = useTheme();
   const groups = useGroups();
   const { profile } = useAuth();
 
   const [file, setFile] = useState<string | null>(null);
-  const [parsed, setParsed] = useState<SplitwiseImport | null>(null);
+  const [parsed, setParsed] = useState<Loaded | null>(null);
+  /**
+   * A Baaki export can hold every group somebody is in. Importing them all in
+   * one go would need one who-is-who mapping per group on one screen, which is
+   * how somebody puts a stranger's history into the wrong ledger. One at a
+   * time, chosen deliberately.
+   */
+  const [fileGroups, setFileGroups] = useState<readonly BaakiImportGroup[]>([]);
   const [target, setTarget] = useState<string>(NEW_GROUP);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [mapping, setMapping] = useState<Record<string, Mapping>>({});
@@ -66,9 +130,23 @@ export default function ImportScreen() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ groupId: string; expenses: number; ghosts: number } | null>(
-    null,
-  );
+  const [done, setDone] = useState<{
+    groupId: string;
+    expenses: number;
+    ghosts: number;
+    settlements: number;
+  } | null>(null);
+
+  /** Everyone starts as somebody new — see `load`. */
+  const load = (loaded: Loaded): void => {
+    setParsed(loaded);
+    setMutationIds([...loaded.expenses, ...loaded.settlements].map(() => randomUUID()));
+    // Claiming a name as yourself is a deliberate act. Guessing by name would
+    // silently merge your ledger with a stranger who shares your first name.
+    setMapping(Object.fromEntries(loaded.people.map((person) => [person, { kind: 'ghost' }])));
+    setTarget(NEW_GROUP);
+    setMembers([]);
+  };
 
   const choose = async (): Promise<void> => {
     setError(null);
@@ -78,7 +156,13 @@ export default function ImportScreen() {
       // Some Android file providers hand back `application/octet-stream` for a
       // .csv, so text/* is allowed too rather than hiding the file the person
       // came here to select.
-      type: ['text/csv', 'text/comma-separated-values', 'text/plain', 'application/octet-stream'],
+      type: [
+        'text/csv',
+        'text/comma-separated-values',
+        'text/plain',
+        'application/json',
+        'application/octet-stream',
+      ],
       copyToCacheDirectory: true,
     });
     if (picked.canceled) return;
@@ -87,16 +171,38 @@ export default function ImportScreen() {
     if (!asset) return;
 
     setBusy(true);
+    setFileGroups([]);
+    setParsed(null);
     try {
-      const csv = new FileSystem.File(asset.uri).textSync();
-      const result = importSplitwiseCsv(csv);
+      const text = new FileSystem.File(asset.uri).textSync();
       setFile(asset.name);
-      setParsed(result);
-      setMutationIds(result.expenses.map(() => randomUUID()));
-      // Everyone starts as somebody new. Claiming one of them as yourself is a
-      // deliberate act — guessing by name would silently merge your ledger with
-      // a stranger who happens to share your first name.
-      setMapping(Object.fromEntries(result.people.map((person) => [person, { kind: 'ghost' }])));
+
+      // Asked of the contents, not the extension: a file saved from a browser
+      // or shared through a chat app arrives named all sorts of things.
+      if (isBaakiExport(text)) {
+        const result = parseBaakiExport(text);
+        if (result.problems.length > 0) {
+          setError(result.problems[0]!.message);
+          return;
+        }
+        const fallback = asset.name.replace(/\.json$/i, '');
+        setFileGroups(result.groups);
+        if (result.groups[0]) load(fromBaaki(result.groups[0], fallback));
+        return;
+      }
+
+      const result = importSplitwiseCsv(text);
+      load({
+        origin: 'splitwise',
+        suggestedName: asset.name.replace(/\.csv$/i, '') || 'Imported group',
+        people: result.people,
+        currency: result.currency,
+        expenses: result.expenses,
+        settlements: [],
+        balances: result.balances,
+        otherCurrencies: [],
+        problems: result.problems,
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -160,7 +266,7 @@ export default function ImportScreen() {
       let groupId = target;
       if (groupId === NEW_GROUP) {
         groupId = await createGroup({
-          name: file?.replace(/\.csv$/i, '') || 'Imported group',
+          name: parsed.suggestedName || 'Imported group',
           type: 'other',
           currency: parsed.currency,
         });
@@ -179,9 +285,10 @@ export default function ImportScreen() {
         return { name: person, memberId: null };
       });
 
-      const result = await importSplitwise({
+      const result = await importLedger({
         groupId,
         people,
+        origin: parsed.origin,
         expenses: parsed.expenses.map((expense, index) => ({
           clientMutationId: mutationIds[index] ?? randomUUID(),
           description: expense.description,
@@ -192,9 +299,25 @@ export default function ImportScreen() {
           payers: expense.payers,
           shares: expense.shares,
         })),
+        settlements: parsed.settlements.map((settlement, index) => ({
+          clientMutationId: mutationIds[parsed.expenses.length + index] ?? randomUUID(),
+          from: settlement.from,
+          to: settlement.to,
+          currency: settlement.currency,
+          amount: settlement.amount,
+          method: settlement.method,
+          status: settlement.status,
+          note: settlement.note,
+          at: settlement.at,
+        })),
       });
 
-      setDone({ groupId, expenses: result.expenses, ghosts: result.ghosts });
+      setDone({
+        groupId,
+        expenses: result.expenses,
+        ghosts: result.ghosts,
+        settlements: result.settlements ?? 0,
+      });
       void groups.refetch();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -218,7 +341,7 @@ export default function ImportScreen() {
             <Ionicons name="chevron-back" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Import from Splitwise</Text>
+            <Text variant="heading">Import a ledger</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
@@ -229,14 +352,15 @@ export default function ImportScreen() {
             <Badge label="free" tone="positive" />
           </Row>
           <Text variant="caption" tone="muted">
-            In Splitwise, open a group → the ⚙ menu → Export as spreadsheet. Choose that CSV here.
-            Everyone in it becomes a member of the group — they do not need the app, and they can
-            claim their history whenever they join.
+            From Splitwise: open a group → the ⚙ menu → Export as spreadsheet, and choose that CSV
+            here. From Baaki: choose a JSON file you exported from Settings. Everyone named in it
+            becomes a member of the group — they do not need the app, and they can claim their
+            history whenever they join.
           </Text>
         </Card>
 
         <Button
-          label={file ? 'Choose a different file' : 'Choose a CSV file'}
+          label={file ? 'Choose a different file' : 'Choose a file'}
           size="lg"
           fullWidth
           variant={file ? 'secondary' : 'primary'}
@@ -253,22 +377,51 @@ export default function ImportScreen() {
 
         {busy && !parsed ? <ActivityIndicator color={theme.color.brand} /> : null}
 
+        {/* A file holding several groups: one at a time, chosen here. */}
+        {fileGroups.length > 1 && !done ? (
+          <View style={{ gap: theme.spacing.md }}>
+            <SectionHeader title="Which group" />
+            <ChipRow<string>
+              value={parsed?.suggestedName ?? ''}
+              onChange={(name) => {
+                const chosen = fileGroups.find(
+                  (group, index) => (group.name ?? `Group ${index + 1}`) === name,
+                );
+                if (chosen) load(fromBaaki(chosen, name));
+              }}
+              options={fileGroups.map((group, index) => ({
+                value: group.name ?? `Group ${index + 1}`,
+                label: `${group.name ?? `Group ${index + 1}`} · ${group.expenses.length}`,
+              }))}
+            />
+          </View>
+        ) : null}
+
         {parsed && !done ? (
           <>
             <Card style={{ gap: theme.spacing.sm }}>
               <Text variant="subheading">{file}</Text>
               <Text variant="caption" tone="muted">
-                {parsed.expenses.length} expense{parsed.expenses.length === 1 ? '' : 's'} ·{' '}
-                {parsed.people.length} people · {parsed.currency}
+                {parsed.expenses.length} expense{parsed.expenses.length === 1 ? '' : 's'}
+                {parsed.settlements.length > 0
+                  ? ` · ${parsed.settlements.length} settlement${parsed.settlements.length === 1 ? '' : 's'}`
+                  : ''}{' '}
+                · {parsed.people.length} people · {parsed.currency}
               </Text>
 
               <Divider />
 
               <Text variant="caption" tone="muted">
-                Balances come across exactly. Who paid does not: a Splitwise export records only
-                what each person came out up or down on a row, and many different payers produce the
-                same result. Every imported expense is marked, and you can correct any of them.
+                {parsed.origin === 'baaki'
+                  ? 'Every balance comes across to the paisa, settlements included. What does not come across: the edit history of each expense, and which expenses a past payment was applied against. Neither changes what anybody owes.'
+                  : 'Balances come across exactly. Who paid does not: a Splitwise export records only what each person came out up or down on a row, and many different payers produce the same result. Every imported expense is marked, and you can correct any of them.'}
               </Text>
+
+              {parsed.otherCurrencies.length > 0 ? (
+                <Text variant="micro" tone="faint">
+                  {`The amounts below are the ${parsed.currency} ones. ${parsed.otherCurrencies.join(', ')} come across too, and are never converted.`}
+                </Text>
+              ) : null}
             </Card>
 
             {parsed.problems.length > 0 ? (
@@ -384,6 +537,9 @@ export default function ImportScreen() {
             </Text>
             <Text variant="caption" tone="muted">
               {done.expenses} expense{done.expenses === 1 ? '' : 's'}
+              {done.settlements > 0
+                ? ` · ${done.settlements} settlement${done.settlements === 1 ? '' : 's'}`
+                : ''}
               {done.ghosts > 0
                 ? ` · ${done.ghosts} ${done.ghosts === 1 ? 'person' : 'people'} added, waiting to be claimed`
                 : ''}
