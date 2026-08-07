@@ -374,6 +374,60 @@ describe('the parts of the database that are nobody’s business', () => {
     expect(allowed, 'these tables can be emptied by any signed-in user').toEqual([]);
   });
 
+  /**
+   * The two the first pass missed, for the same reason and on the same
+   * twenty-three tables: `GRANT ALL` was unpicked verb by verb, and these two
+   * read as harmless.
+   *
+   * TRIGGER is not. `CREATE TRIGGER` needs the privilege on the table and
+   * EXECUTE on the function and nothing else — no CREATE on the schema, which
+   * these roles do not have anyway. So a member cannot write a trigger
+   * function, but can attach one of Baaki's: hang the balance-maintenance
+   * trigger on `expense_shares` a second time and every share counts twice.
+   */
+  it('lets no client attach a trigger or a foreign key to any table', async () => {
+    const { rows } = await client.query(
+      `SELECT c.relname
+         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'r'
+        ORDER BY c.relname`,
+    );
+
+    const allowed: string[] = [];
+    for (const row of rows) {
+      const table = `public.${String(row.relname)}`;
+      const { rows: grant } = await client.query(
+        `SELECT has_table_privilege('anon', $1, 'TRIGGER') AS at,
+                has_table_privilege('authenticated', $1, 'TRIGGER') AS bt,
+                has_table_privilege('anon', $1, 'REFERENCES') AS ar,
+                has_table_privilege('authenticated', $1, 'REFERENCES') AS br`,
+        [table],
+      );
+      const [held] = grant;
+      if (held.at || held.bt) allowed.push(`${row.relname} TRIGGER`);
+      if (held.ar || held.br) allowed.push(`${row.relname} REFERENCES`);
+    }
+
+    expect(allowed, 'a member could attach these').toEqual([]);
+  });
+
+  it('starts a table added tomorrow without them either', async () => {
+    // `ALTER DEFAULT PRIVILEGES` is what stops this being rediscovered by the
+    // next audit instead of prevented by this one. It applies to objects
+    // created by the role that set it, which is the role Prisma migrates as.
+    await client.query('CREATE TABLE public.baaki_default_privilege_probe (id int)');
+    try {
+      const { rows } = await client.query(
+        `SELECT has_table_privilege('authenticated', 'public.baaki_default_privilege_probe', 'TRIGGER') AS t,
+                has_table_privilege('authenticated', 'public.baaki_default_privilege_probe', 'REFERENCES') AS r`,
+      );
+      expect(rows[0].t, 'TRIGGER on a new table').toBe(false);
+      expect(rows[0].r, 'REFERENCES on a new table').toBe(false);
+    } finally {
+      await client.query('DROP TABLE public.baaki_default_privilege_probe');
+    }
+  });
+
   it('gives a JWT claim naming a group no power at all', async () => {
     // `is_group_member` used to accept any group id in
     // `app_metadata.baaki_groups`. Nothing ever wrote that claim, and it had

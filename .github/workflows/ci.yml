@@ -34,17 +34,8 @@ jobs:
       # sat in the repo root for five milestones. They came from shell quoting
       # that ran a fragment of TypeScript as a redirection, and `git add -A`
       # swept them in. Nothing type-checks a filename, so nothing complained.
-      # Root level only, and an allow-list rather than a list of bad
-      # characters: Expo Router's own `(tabs)` and `[id]` directories are full
-      # of the brackets a blanket check would trip over.
       - name: No files from a mis-quoted shell command
-        run: |
-          bad=$(git ls-files -- ':(glob)*' | grep -E '[^A-Za-z0-9._-]' || true)
-          if [ -n "$bad" ]; then
-            echo 'Files in the repo root that look like shell debris:'
-            echo "$bad"
-            exit 1
-          fi
+        run: bash scripts/check-filenames.sh
       # The edge functions import a bundled copy of @baaki/core; build it first
       # so a broken bundle fails here rather than at deploy time.
       - run: pnpm edge:build
@@ -115,15 +106,19 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Create the shadow database used by the drift check
-        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE baaki_shadow'
-
       # Every migration must apply cleanly to an empty database — including the
       # hand-written RLS / trigger / derived-balance SQL.
       - name: Apply migrations to a fresh database
         run: pnpm db:migrate
 
       # Guards schema.prisma against the applied migrations (TDR §2.0).
+      #
+      # Diffed against the database the step above just built, not replayed
+      # into a shadow database. The replay cannot work: `_prisma_migrations` is
+      # created by Prisma outside any migration, and the security hardening
+      # migration revokes privileges on it — which fails against a shadow
+      # database where that table does not exist. Diffing the migrated database
+      # asks the same question and is the one CI can answer.
       - name: Prisma drift check
         run: pnpm db:drift
 
