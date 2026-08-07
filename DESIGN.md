@@ -137,6 +137,49 @@ being paid are the same fact here — a debt closed. Currencies are counted rath
 than added; no rate turns rupees into euros, and this would be the only place in
 the app that guessed at money.
 
+## Choosing a language, and the restart it sometimes costs
+
+The phone's language is the default and stays the default. A picker exists on
+top of it because a phone is one setting for one person and the two do not
+always agree: somebody in Chennai with an English phone still reads Tamil
+faster, and a visitor's phone is in Arabic while their group is not.
+
+Each language is listed in its own script first, with the English name under it.
+Somebody who has opened the app in a language they cannot read is scanning for
+the **shape** of their own writing, and "Tamil" spelled in Latin letters is not
+that shape. The two words the picker is reached by — Language and Upgrade —
+are the only settings labels that are translated, for the same reason: a row
+labelled in the language you are trying to escape is no help at all.
+
+Words change instantly. **Direction does not.** React Native decides
+right-to-left natively, before any JavaScript runs, and `forceRTL` says so
+itself — _changes take full effect on the next application start_. There is no
+reload to call. So the screen says "close and open Baaki again" in a banner that
+stays until it is true, rather than half-mirroring a screen and calling it done.
+
+Two consequences worth stating, because both are the kind of thing that looks
+like a bug when it is right:
+
+- **The icons follow the screen, not the choice.** `setLayoutDirection` is given
+  the direction the app actually launched in, so between choosing Arabic and
+  restarting the arrows keep pointing the way the layout still runs. Mirroring
+  them on the choice would put backwards chevrons on an unmirrored screen.
+- **A choice changes the language, not the country.** The locale keeps the
+  phone's region and swaps only the language subtag, so reading the app in Hindi
+  in Dubai formats money and dates as `hi-AE`. Where somebody is decides what
+  their currency and calendar look like; what they read does not.
+
+## A door with no shop behind it
+
+The Upgrade row leads to a screen that says there is nothing to buy, and says
+what would ever cost money: scanning bills, which costs real money per scan, and
+outsized exports. The ledger — groups, expenses, splits, balances, settling up,
+and getting all of it back out — is free forever and is not on that list.
+
+It sits in its own section above Settings rather than among them. Paying for
+something is not a preference, and a row that sells you something between
+Notifications and Export is a row dressed up as a setting.
+
 ## Spacing
 
 4px base: `xs 4 · sm 8 · md 12 · lg 16 · xl 20 · xxl 24 · xxxl 32`. Screens use
