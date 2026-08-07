@@ -147,6 +147,8 @@ model Profile {
   emailEvents       EmailEvent[]
   createdInvites    Invite[]        @relation("InviteCreatedBy")
   usageEvents       UsageEvent[]
+  subscriptions     Subscription[]
+  purchasedPasses   GroupPass[]
   syncMutations     SyncMutation[]
 
   @@map("profiles")
@@ -204,6 +206,7 @@ model Group {
   pairwise        PairwiseBalance[]
   notifications   Notification[]
   usageEvents     UsageEvent[]
+  passes          GroupPass[]
   syncMutations   SyncMutation[]
 
   @@index([archivedAt])
@@ -707,5 +710,55 @@ model AppRelease {
   updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   @@map("app_releases")
+  @@schema("public")
+}
+
+/// What somebody bought. Written only by the service role after a store
+/// receipt has been verified — a client that could insert one of these is a
+/// paywall with a door in the back.
+model Subscription {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId        String    @map("profile_id") @db.Uuid
+  tier             String    @default("plus")
+  period           String
+  status           String    @default("active")
+  /// NULL only for a lifetime purchase, which is the one thing here that is
+  /// not a subscription at all.
+  currentPeriodEnd DateTime? @map("current_period_end") @db.Timestamptz(6)
+  store            String
+  /// The store's own id. Unique, so a replayed webhook cannot grant the same
+  /// purchase twice (ADR-005).
+  storeTxnId       String?   @unique @map("store_txn_id")
+  priceMinor       BigInt?   @map("price_minor")
+  currency         String?   @db.Char(3)
+  countryCode      String?   @map("country_code") @db.Char(2)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, status], map: "subscriptions_profile_idx")
+  @@map("subscriptions")
+  @@schema("public")
+}
+
+/// One group, thirty days, bought by one person and enjoyed by everybody in
+/// it — the shape that fits how Baaki is actually used.
+model GroupPass {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId      String   @map("group_id") @db.Uuid
+  purchasedBy  String?  @map("purchased_by") @db.Uuid
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6)
+  store        String   @default("play")
+  storeTxnId   String?  @unique @map("store_txn_id")
+  priceMinor   BigInt?  @map("price_minor")
+  currency     String?  @db.Char(3)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  purchaser Profile? @relation(fields: [purchasedBy], references: [id], onDelete: SetNull)
+
+  @@index([groupId, expiresAt], map: "group_passes_group_idx")
+  @@map("group_passes")
   @@schema("public")
 }
