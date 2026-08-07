@@ -136,3 +136,58 @@ describe('a market adds its own vocabulary', () => {
     expect(guessCategory('du bill', 'AE')).toBe('home');
   });
 });
+
+describe('North America and Australia', () => {
+  it('reads an ordinary American expense', () => {
+    expect(guessCategory('DoorDash dinner', 'US')).toBe('food');
+    expect(guessCategory('Lyft home', 'US')).toBe('travel');
+    expect(guessCategory('Trader Joes run', 'US')).toBe('groceries');
+    expect(guessCategory('CVS pharmacy', 'US')).toBe('health');
+  });
+
+  it('reads a Canadian one', () => {
+    expect(guessCategory('Tims coffee', 'CA')).toBe('food');
+    expect(guessCategory('Loblaws shop', 'CA')).toBe('groceries');
+    expect(guessCategory('Presto top up', 'CA')).toBe('travel');
+  });
+
+  it('reads an Australian one', () => {
+    expect(guessCategory('Woolies shop', 'AU')).toBe('groceries');
+    expect(guessCategory('Opal card', 'AU')).toBe('travel');
+    expect(guessCategory('Menulog dinner', 'AU')).toBe('food');
+    expect(guessCategory('Bunnings trip', 'AU')).toBe('shopping');
+  });
+
+  it('shares the chains the three of them actually share', () => {
+    for (const country of ['US', 'CA', 'AU']) {
+      expect(guessCategory('Uber to the airport', country), country).toBe('travel');
+      expect(guessCategory('Airbnb for the weekend', country), country).toBe('stay');
+      expect(guessCategory('Costco haul', country), country).toBe('groceries');
+    }
+  });
+
+  it('keeps a word that means different things in different places local', () => {
+    // 'hydro' is the power bill in Canada and nothing at all elsewhere.
+    expect(guessCategory('Hydro bill', 'CA')).toBe('home');
+    expect(guessCategory('Hydro bill', 'US')).toBeNull();
+    expect(guessCategory('Hydro bill', 'IN')).toBeNull();
+  });
+
+  it('does not leak one market’s vocabulary into another', () => {
+    expect(guessCategory('Woolies', 'US')).toBeNull();
+    expect(guessCategory('Talabat', 'CA')).toBeNull();
+    expect(guessCategory('Menulog', 'US')).toBeNull();
+    expect(guessCategory('Presto', 'AU')).toBeNull();
+  });
+
+  it('still knows the shared list everywhere, India’s brands included', () => {
+    // Worth stating rather than discovering: the base list in categories.ts is
+    // India-flavoured — swiggy, zomato, irctc, kirana — and it applies in every
+    // market, not just IN. Harmless (nobody in Sydney types "Swiggy") and
+    // deliberate: a group that has never set a country would otherwise lose
+    // the categorisation it has today.
+    for (const country of ['US', 'CA', 'AU', null]) {
+      expect(guessCategory('Swiggy', country), String(country)).toBe('food');
+    }
+  });
+});

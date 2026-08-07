@@ -76,16 +76,23 @@ describe('what a country can pay with', () => {
 });
 
 describe('a rail never claims a hand-off it does not have', () => {
-  it('marks only UPI as deep-linkable', () => {
-    // Guessing at a scheme produces a button that silently fails on somebody's
-    // phone while they believe they have paid. If this list ever grows, it
-    // grows because somebody watched the link open a real bank app.
-    const linkable = PAYMENT_RAILS.filter((rail) => rail.deepLink).map((rail) => rail.id);
-    expect(linkable).toEqual(['upi']);
+  it('keeps custom schemes to the one that is published', () => {
+    // An 'app' scheme is the dangerous kind: it fails silently when nothing is
+    // installed to answer it. If this list ever grows, it grows because
+    // somebody watched the link open a real bank app.
+    const schemes = PAYMENT_RAILS.filter((rail) => rail.link === 'app').map((rail) => rail.id);
+    expect(schemes).toEqual(['upi']);
+  });
+
+  it('allows an https link only where the URL is public and stable', () => {
+    // These are a different risk: the worst case is a web page, not a tap that
+    // appears to work while no money moves.
+    const web = PAYMENT_RAILS.filter((rail) => rail.link === 'web').map((rail) => rail.id);
+    expect(web).toEqual(['cashapp', 'paypal']);
   });
 
   it('returns null for every rail that cannot hand off', () => {
-    for (const rail of PAYMENT_RAILS.filter((entry) => !entry.deepLink)) {
+    for (const rail of PAYMENT_RAILS.filter((entry) => entry.link === null)) {
       const uri = buildPaymentUri(
         {
           railId: rail.id,
@@ -112,10 +119,11 @@ describe('a rail never claims a hand-off it does not have', () => {
       },
       major,
     );
-    expect(uri).toContain('upi://pay?');
-    expect(uri).toContain('pa=ravi%40okhdfcbank');
-    expect(uri).toContain('cu=INR');
-    expect(uri).toContain('pn=Ravi+Kumar');
+    expect(uri?.kind).toBe('app');
+    expect(uri?.uri).toContain('upi://pay?');
+    expect(uri?.uri).toContain('pa=ravi%40okhdfcbank');
+    expect(uri?.uri).toContain('cu=INR');
+    expect(uri?.uri).toContain('pn=Ravi+Kumar');
   });
 
   it('refuses to build a link from a handle that is not one', () => {
@@ -180,6 +188,88 @@ describe('the list itself', () => {
     for (const rail of PAYMENT_RAILS) {
       if (rail.handle === 'none') continue;
       expect(rail.handleHint, `${rail.id} needs a hint`).not.toBe('');
+    }
+  });
+});
+
+describe('the markets Baaki is going to next', () => {
+  it('gives Australia its own instant rail', () => {
+    // PayID settles over the NPP by mobile number or email. Without it an
+    // Australian group fell straight through to bank and cash.
+    expect(defaultRailFor('AU')).toBe('payid');
+    expect(railsFor('AU').map((rail) => rail.id)).toContain('payid');
+  });
+
+  it('gives the United States and Canada theirs', () => {
+    expect(railsFor('US').map((rail) => rail.id).slice(0, 3)).toEqual([
+      'zelle',
+      'venmo',
+      'cashapp',
+    ]);
+    expect(defaultRailFor('CA')).toBe('interac');
+  });
+
+  it('offers PayPal everywhere, because it is the one link that crosses', () => {
+    // Somebody in Sydney paying somebody in Chennai has no shared rail. This
+    // is the answer, and it is why PayPal is 'any' rather than a US entry.
+    for (const country of ['US', 'CA', 'AU', 'IN', 'AE', 'BR']) {
+      expect(railsFor(country).map((rail) => rail.id), country).toContain('paypal');
+    }
+  });
+
+  it('builds a Cash App link that opens with the amount filled in', () => {
+    const link = buildPaymentUri(
+      { railId: 'cashapp', handle: 'ravi', payeeName: 'Ravi', amount: 2500n, currency: 'USD' },
+      major,
+    );
+    expect(link?.kind).toBe('web');
+    expect(link?.uri).toBe('https://cash.app/%24ravi/25.00');
+  });
+
+  it('accepts a $cashtag with or without its dollar', () => {
+    for (const handle of ['ravi', '$ravi', '@ravi']) {
+      const link = buildPaymentUri(
+        { railId: 'cashapp', handle, payeeName: 'Ravi', amount: 2500n, currency: 'USD' },
+        major,
+      );
+      expect(link?.uri, handle).toBe('https://cash.app/%24ravi/25.00');
+    }
+  });
+
+  it('refuses a Cash App link in anything but dollars', () => {
+    // A link carrying "25" for 25 Australian dollars would open a request for
+    // 25 US dollars — worse than no link, because it looks right.
+    const link = buildPaymentUri(
+      { railId: 'cashapp', handle: '$ravi', payeeName: 'Ravi', amount: 2500n, currency: 'AUD' },
+      major,
+    );
+    expect(link).toBeNull();
+  });
+
+  it('puts the currency in a PayPal link, so it is safe in any of them', () => {
+    for (const [currency, expected] of [
+      ['USD', 'https://paypal.me/ravi/25.00USD'],
+      ['AUD', 'https://paypal.me/ravi/25.00AUD'],
+      ['CAD', 'https://paypal.me/ravi/25.00CAD'],
+    ] as const) {
+      const link = buildPaymentUri(
+        { railId: 'paypal', handle: '@ravi', payeeName: 'Ravi', amount: 2500n, currency },
+        major,
+      );
+      expect(link?.uri, currency).toBe(expected);
+    }
+  });
+
+  it('still refuses to invent a link for Zelle, Venmo or PayID', () => {
+    // All three live inside somebody else's app and publish nothing stable.
+    for (const railId of ['zelle', 'venmo', 'payid', 'interac']) {
+      expect(
+        buildPaymentUri(
+          { railId, handle: '+61 400 123 456', payeeName: 'Ravi', amount: 2500n, currency: 'AUD' },
+          major,
+        ),
+        railId,
+      ).toBeNull();
     }
   });
 });
