@@ -85,6 +85,7 @@ export interface AddExpenseOptions {
   currency?: string;
   description?: string;
   date?: string;
+  category?: string | null;
 }
 
 /**
@@ -103,6 +104,7 @@ export async function addEqualSplitExpense(
     currency = 'INR',
     description = 'Dinner',
     date = '2026-03-01',
+    category = null,
   } = options;
 
   const expenseId = randomUUID();
@@ -123,10 +125,19 @@ export async function addEqualSplitExpense(
   ]);
   await client.query(
     `INSERT INTO expense_versions
-       (id, expense_id, version_no, author_member_id, description, expense_date,
+       (id, expense_id, version_no, author_member_id, description, category, expense_date,
         currency, amount, split_type, split_params)
-     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, 'equal', '{"kind":"equal"}'::jsonb)`,
-    [versionId, expenseId, participants[0] ?? null, description, date, currency, amount.toString()],
+     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, 'equal', '{"kind":"equal"}'::jsonb)`,
+    [
+      versionId,
+      expenseId,
+      participants[0] ?? null,
+      description,
+      category,
+      date,
+      currency,
+      amount.toString(),
+    ],
   );
   for (const [memberId, paid] of Object.entries(payers)) {
     await client.query(

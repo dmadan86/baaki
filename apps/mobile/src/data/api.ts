@@ -1015,6 +1015,33 @@ export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
   return (data ?? []) as PersonBalanceRow[];
 }
 
+// ─────────────────────────────────────────────── where the money went ──
+
+export interface SpendingRow {
+  member_id: string;
+  currency: string;
+  /** Always set — an expense with no category comes back as 'other'. */
+  category: string;
+  /** First day of the month, 'YYYY-MM-DD'. */
+  month: string;
+  /** This member's share of that category, in minor units. */
+  share_amount: string;
+  expense_count: number;
+}
+
+/**
+ * One group's spending, at the finest grain the charts need (TDR §8).
+ *
+ * Per member, per category, per month, per currency — deliberately not summed
+ * server-side, because the same rows answer both "what did this group spend"
+ * and "what did I spend", and the second cannot be recovered from the first.
+ */
+export async function fetchGroupSpending(groupId: string): Promise<SpendingRow[]> {
+  const { data, error } = await supabase.rpc('baaki_group_spending', { p_group_id: groupId });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as SpendingRow[];
+}
+
 // ────────────────────────────────────────── which builds may still run ──
 
 export interface ReleaseRow {

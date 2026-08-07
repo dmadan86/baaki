@@ -20,3 +20,4 @@ export * from './components/ListRow';
 export * from './components/Toggle';
 export * from './components/PillTabBar';
 export * from './components/AmountKeypad';
+export * from './components/Chart';
