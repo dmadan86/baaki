@@ -127,8 +127,17 @@ item are separate line items if they carry their own price, and part of the
 parent if they do not.`;
 
 const MODEL = 'claude-opus-5';
-/** ADR-011: a scan costs real money, so the quota is enforced server-side. */
-const MONTHLY_SCAN_LIMIT = 20;
+/**
+ * ADR-011: a scan costs real money, so the quota is enforced server-side — and
+ * the number now comes from `baaki_receipt_scan_quota()`, which reads what the
+ * person is entitled to. It used to be a 20 here and a second 20 inside that
+ * function, which is two places to forget when somebody pays.
+ *
+ * This is only the floor to fall back to. Not zero, because a database that
+ * answered oddly should not lock out somebody who has paid; not unlimited, for
+ * the obvious reason.
+ */
+const FALLBACK_SCAN_LIMIT = 20;
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
@@ -157,12 +166,14 @@ Deno.serve(async (request) => {
     // Quota before the model call, never after — the point is not to spend the
     // money, not to notice afterwards that we did.
     const { data: quota } = await caller.rpc('baaki_receipt_scan_quota');
-    const used = Number((quota as { used?: number } | null)?.used ?? 0);
-    if (used >= MONTHLY_SCAN_LIMIT) {
+    const row = quota as { used?: number; limit?: number } | null;
+    const used = Number(row?.used ?? 0);
+    const limit = Number.isFinite(Number(row?.limit)) ? Number(row?.limit) : FALLBACK_SCAN_LIMIT;
+    if (used >= limit) {
       throw new HttpError(
         429,
         'SCAN_QUOTA_REACHED',
-        `You have used all ${MONTHLY_SCAN_LIMIT} scans this month. Adding items by hand is free and always will be.`,
+        `You have used all ${limit} scans this month. Adding items by hand is free and always will be.`,
       );
     }
 
