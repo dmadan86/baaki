@@ -74,7 +74,16 @@ async function myMember(groupId: string, profileId: string): Promise<string> {
   return String(rows[0].id);
 }
 
-/** An expense the caller paid, split equally with one other member. */
+/**
+ * An expense somebody paid, split equally with one other member, recorded by
+ * `owner`.
+ *
+ * The payer and the person typing it in are two different people whenever
+ * anybody records "Ravi got this one" — so the author is the caller, never the
+ * payer. Conflating them used to pass; since
+ * 20260807090000_security_hardening an expense may only be recorded as written
+ * by whoever wrote it, and the two must be told apart here too.
+ */
 async function expense(
   owner: string,
   groupId: string,
@@ -84,6 +93,7 @@ async function expense(
   currency = 'INR',
 ): Promise<void> {
   const half = amount / 2n;
+  const author = await myMember(groupId, owner);
   await asUser(owner, () =>
     client.query(
       `SELECT baaki_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
@@ -93,7 +103,7 @@ async function expense(
       [
         groupId,
         randomUUID(),
-        payer,
+        author,
         currency,
         amount.toString(),
         JSON.stringify([{ memberId: payer, amount: amount.toString() }]),
