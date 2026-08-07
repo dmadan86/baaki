@@ -119,10 +119,7 @@ const PRICES: Readonly<Record<string, Readonly<Record<BillingPeriod, Price>>>> =
  */
 const DEFAULT_COUNTRY = 'US';
 
-export function priceFor(
-  countryCode: string | null | undefined,
-  period: BillingPeriod,
-): Price {
+export function priceFor(countryCode: string | null | undefined, period: BillingPeriod): Price {
   const country = (countryCode ?? '').trim().toUpperCase();
   const table = PRICES[country] ?? PRICES[DEFAULT_COUNTRY]!;
   return table[period];

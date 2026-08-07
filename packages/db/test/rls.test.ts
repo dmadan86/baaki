@@ -182,9 +182,9 @@ describe('guest sessions (ADR-006)', () => {
 
   it('a JWT claim naming a group grants nothing on its own', async () => {
     await asRole(client, 'anon', guestClaims([group.groupId]), async () => {
-      expect((await client.query(`SELECT is_group_member($1) AS m`, [group.groupId])).rows[0].m).toBe(
-        false,
-      );
+      expect(
+        (await client.query(`SELECT is_group_member($1) AS m`, [group.groupId])).rows[0].m,
+      ).toBe(false);
       const read = await client.query(`SELECT id FROM groups WHERE id = $1`, [group.groupId]);
       expect(read.rowCount).toBe(0);
     });

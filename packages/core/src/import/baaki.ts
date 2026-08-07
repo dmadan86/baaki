@@ -304,10 +304,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
   };
 }
 
-function amounts(
-  rows: unknown,
-  namesById: Map<string, string>,
-): Record<string, bigint> | null {
+function amounts(rows: unknown, namesById: Map<string, string>): Record<string, bigint> | null {
   const result: Record<string, bigint> = {};
   for (const entry of asArray(rows)) {
     const record = asRecord(entry);

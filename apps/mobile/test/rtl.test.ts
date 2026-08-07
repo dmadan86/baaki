@@ -19,9 +19,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // language. Stubbing it keeps this a pure test.
 vi.mock('react-native', () => ({ I18nManager: { isRTL: false } }));
 
-const { directionalIcon, isRtlLayout, setLayoutDirection } = await import(
-  '../../../packages/ui/src/direction'
-);
+const { directionalIcon, isRtlLayout, setLayoutDirection } =
+  await import('../../../packages/ui/src/direction');
 
 describe('mirroring an icon', () => {
   beforeEach(() => setLayoutDirection(false));

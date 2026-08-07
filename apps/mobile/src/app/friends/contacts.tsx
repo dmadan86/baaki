@@ -180,7 +180,11 @@ function ChooseGroup({
                 }
                 onPress={busy ? undefined : () => onChoose(group.id)}
                 trailing={
-                  <Ionicons name={directionalIcon('chevron-forward')} size={18} color={theme.color.textFaint} />
+                  <Ionicons
+                    name={directionalIcon('chevron-forward')}
+                    size={18}
+                    color={theme.color.textFaint}
+                  />
                 }
               />
               {index < groups.length - 1 ? <Divider /> : null}

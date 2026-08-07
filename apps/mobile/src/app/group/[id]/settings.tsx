@@ -267,7 +267,13 @@ export default function GroupSettingsScreen() {
               subtitle="Add people, rename, set UPI IDs"
               leading={<Ionicons name="people-outline" size={22} color={theme.color.textMuted} />}
               onPress={() => router.push(`/group/${groupId}/members`)}
-              trailing={<Ionicons name={directionalIcon('chevron-forward')} size={18} color={theme.color.textFaint} />}
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={18}
+                  color={theme.color.textFaint}
+                />
+              }
             />
             <View style={{ height: 1, backgroundColor: theme.color.border }} />
             <ListRow
@@ -275,7 +281,13 @@ export default function GroupSettingsScreen() {
               subtitle="Share a link — no install needed to join"
               leading={<Ionicons name="share-outline" size={22} color={theme.color.textMuted} />}
               onPress={() => router.push(`/group/${groupId}/invite`)}
-              trailing={<Ionicons name={directionalIcon('chevron-forward')} size={18} color={theme.color.textFaint} />}
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={18}
+                  color={theme.color.textFaint}
+                />
+              }
             />
           </Card>
         </View>
@@ -290,7 +302,13 @@ export default function GroupSettingsScreen() {
                 <Ionicons name="chatbox-ellipses-outline" size={22} color={theme.color.textMuted} />
               }
               onPress={() => router.push(`/group/${groupId}/import/sms`)}
-              trailing={<Ionicons name={directionalIcon('chevron-forward')} size={18} color={theme.color.textFaint} />}
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={18}
+                  color={theme.color.textFaint}
+                />
+              }
             />
             <View style={{ height: 1, backgroundColor: theme.color.border }} />
             <ListRow
@@ -300,7 +318,13 @@ export default function GroupSettingsScreen() {
                 <Ionicons name="document-text-outline" size={22} color={theme.color.textMuted} />
               }
               onPress={() => router.push(`/group/${groupId}/import/csv`)}
-              trailing={<Ionicons name={directionalIcon('chevron-forward')} size={18} color={theme.color.textFaint} />}
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={18}
+                  color={theme.color.textFaint}
+                />
+              }
             />
           </Card>
         </View>

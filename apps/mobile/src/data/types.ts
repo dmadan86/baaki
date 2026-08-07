@@ -239,8 +239,7 @@ export function vpaOf(member: MemberRow): string | null {
  * not have to type it again.
  */
 export function payableAt(member: MemberRow): { rail: string; handle: string } | null {
-  const handle =
-    member.payment_handle ?? member.profile?.payment_handle ?? vpaOf(member) ?? null;
+  const handle = member.payment_handle ?? member.profile?.payment_handle ?? vpaOf(member) ?? null;
   if (!handle) return null;
 
   const rail =

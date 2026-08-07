@@ -60,7 +60,7 @@ async function exportGroup(groupId: string): Promise<string> {
   // `Promise.all` over it only earns a deprecation warning.
   const group = await client.query(`SELECT * FROM groups WHERE id = $1`, [groupId]);
   const members = await client.query(
-      `SELECT gm.*, CASE WHEN p.id IS NULL THEN NULL
+    `SELECT gm.*, CASE WHEN p.id IS NULL THEN NULL
                          ELSE jsonb_build_object('display_name', p.display_name) END AS profile
          FROM group_members gm LEFT JOIN profiles p ON p.id = gm.profile_id
         WHERE gm.group_id = $1 ORDER BY gm.created_at`,
@@ -377,5 +377,7 @@ describe('a Baaki export, imported back', () => {
 });
 
 function asStrings(values: Readonly<Record<string, bigint>>): Record<string, string> {
-  return Object.fromEntries(Object.entries(values).map(([name, value]) => [name, value.toString()]));
+  return Object.fromEntries(
+    Object.entries(values).map(([name, value]) => [name, value.toString()]),
+  );
 }

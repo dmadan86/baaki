@@ -28,19 +28,7 @@ import type { CategoryId } from './categories';
  * share.
  */
 export type MarketId =
-  | 'IN'
-  | 'AE'
-  | 'SA'
-  | 'QA'
-  | 'KW'
-  | 'BH'
-  | 'OM'
-  | 'BR'
-  | 'SG'
-  | 'ID'
-  | 'US'
-  | 'CA'
-  | 'AU';
+  'IN' | 'AE' | 'SA' | 'QA' | 'KW' | 'BH' | 'OM' | 'BR' | 'SG' | 'ID' | 'US' | 'CA' | 'AU';
 
 type Keywords = Partial<Record<CategoryId, readonly string[]>>;
 

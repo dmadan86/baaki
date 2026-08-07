@@ -85,7 +85,11 @@ export default function SimplifyScreen() {
               >
                 <Row style={{ flex: 1 }}>
                   <Avatar name={nameOf(transfer.from)} size={38} />
-                  <Ionicons name={directionalIcon('arrow-forward')} size={16} color={theme.color.textFaint} />
+                  <Ionicons
+                    name={directionalIcon('arrow-forward')}
+                    size={16}
+                    color={theme.color.textFaint}
+                  />
                   <Avatar name={nameOf(transfer.to)} size={38} />
                   <View style={{ flex: 1, marginLeft: theme.spacing.sm }}>
                     <Text variant="body" numberOfLines={1}>

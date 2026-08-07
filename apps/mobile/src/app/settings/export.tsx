@@ -5,7 +5,18 @@ import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 
-import { Badge, Button, Card, ChipRow, directionalIcon, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  ChipRow,
+  directionalIcon,
+  IconButton,
+  Row,
+  Screen,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { exportData } from '@/data/api';
 import { useGroups } from '@/data/hooks';

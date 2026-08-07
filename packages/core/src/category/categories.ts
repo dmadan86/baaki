@@ -366,10 +366,7 @@ function tokenise(text: string): string[] {
  * expects. A country nobody has written keywords for is not an error either: it
  * gets the shared list, same as before.
  */
-export function guessCategory(
-  description: string,
-  countryCode?: string | null,
-): CategoryId | null {
+export function guessCategory(description: string, countryCode?: string | null): CategoryId | null {
   const tokens = new Set(tokenise(description));
   if (tokens.size === 0) return null;
 

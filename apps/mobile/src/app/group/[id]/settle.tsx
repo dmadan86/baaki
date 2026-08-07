@@ -33,7 +33,6 @@ import { displayName, isGhost, payableAt, type MemberRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
-
 export default function SettleScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -181,7 +180,9 @@ export default function SettleScreen() {
     // installed to answer it fails silently, and a tap that looks like it
     // worked while no money moved is the worst outcome here. An https link
     // always opens — worst case a web page — so it needs no permission.
-    const canOpen = uri ? uri.kind === 'web' || (await Linking.canOpenURL(uri.uri).catch(() => false)) : false;
+    const canOpen = uri
+      ? uri.kind === 'web' || (await Linking.canOpenURL(uri.uri).catch(() => false))
+      : false;
     if (uri && canOpen) {
       await Linking.openURL(uri.uri);
       Alert.alert('Did the payment go through?', 'Only record it if it actually completed.', [

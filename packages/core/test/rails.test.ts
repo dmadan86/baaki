@@ -201,11 +201,11 @@ describe('the markets Baaki is going to next', () => {
   });
 
   it('gives the United States and Canada theirs', () => {
-    expect(railsFor('US').map((rail) => rail.id).slice(0, 3)).toEqual([
-      'zelle',
-      'venmo',
-      'cashapp',
-    ]);
+    expect(
+      railsFor('US')
+        .map((rail) => rail.id)
+        .slice(0, 3),
+    ).toEqual(['zelle', 'venmo', 'cashapp']);
     expect(defaultRailFor('CA')).toBe('interac');
   });
 
@@ -213,7 +213,10 @@ describe('the markets Baaki is going to next', () => {
     // Somebody in Sydney paying somebody in Chennai has no shared rail. This
     // is the answer, and it is why PayPal is 'any' rather than a US entry.
     for (const country of ['US', 'CA', 'AU', 'IN', 'AE', 'BR']) {
-      expect(railsFor(country).map((rail) => rail.id), country).toContain('paypal');
+      expect(
+        railsFor(country).map((rail) => rail.id),
+        country,
+      ).toContain('paypal');
     }
   });
 

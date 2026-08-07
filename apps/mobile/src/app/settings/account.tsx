@@ -12,7 +12,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 
-import { Badge, Button, Card, ChipRow, directionalIcon, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  ChipRow,
+  directionalIcon,
+  IconButton,
+  Row,
+  Screen,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { confirmContact, startAddingContact, type ContactChannel } from '@/data/api';
 import { useAuth } from '@/lib/auth';
