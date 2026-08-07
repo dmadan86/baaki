@@ -84,55 +84,116 @@ describe('expenses and their money rows', () => {
     });
   });
 
-  it('an outsider cannot insert an expense into a group they are not in', async () => {
+  /**
+   * Nobody signed in may write these tables by hand any more — not an
+   * outsider, and not a member either (20260807090000_security_hardening).
+   *
+   * A member writing `expenses` directly was allowed until an attack found
+   * what it also allowed: an `expense_versions` row naming somebody else as
+   * its author, permanently, because those rows are append-only. The privilege
+   * that let a member do the harmless version of that is the same privilege,
+   * so it is gone. `baaki_apply_expense` is the way in, and it stamps the
+   * author itself.
+   */
+  it('nobody writes the ledger tables by hand — not even a member', async () => {
+    for (const profileId of [outsiderProfileId, group.profileIds[0] as string]) {
+      await asRole(client, 'authenticated', memberClaims(profileId), async () => {
+        const message = await expectDenied(
+          client.query(`INSERT INTO expenses (id, group_id) VALUES ($1, $2)`, [
+            randomUUID(),
+            group.groupId,
+          ]),
+        );
+        expect(message).toMatch(/permission denied/i);
+      });
+    }
+  });
+
+  it('a member adds an expense through the RPC, and an outsider cannot', async () => {
+    const payers = JSON.stringify([{ memberId: group.memberIds[0], amount: '9000' }]);
+    const shares = JSON.stringify(
+      (group.memberIds as string[]).slice(0, 3).map((memberId) => ({ memberId, amount: '3000' })),
+    );
+    const call = `SELECT baaki_apply_expense($1, NULL, $2, 'Chai', NULL, current_date, 'INR',
+      9000, 'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`;
+
+    await asRole(client, 'authenticated', memberClaims(group.profileIds[0] as string), async () => {
+      const result = await client.query(call, [
+        group.groupId,
+        group.memberIds[0],
+        payers,
+        shares,
+        randomUUID(),
+      ]);
+      expect(result.rowCount).toBe(1);
+    });
+
     await asRole(client, 'authenticated', memberClaims(outsiderProfileId), async () => {
       const message = await expectDenied(
-        client.query(`INSERT INTO expenses (id, group_id) VALUES ($1, $2)`, [
-          randomUUID(),
-          group.groupId,
-        ]),
+        client.query(call, [group.groupId, group.memberIds[0], payers, shares, randomUUID()]),
       );
-      expect(message).toMatch(/row-level security/i);
+      expect(message).toMatch(/NOT_A_MEMBER/);
     });
   });
 
-  it('a member can insert an expense', async () => {
+  it('a member cannot record an expense as written by somebody else', async () => {
+    // The version rows are append-only, so a wrong author is permanent.
     await asRole(client, 'authenticated', memberClaims(group.profileIds[0] as string), async () => {
-      const result = await client.query(
-        `INSERT INTO expenses (id, group_id) VALUES ($1, $2) RETURNING id`,
-        [randomUUID(), group.groupId],
+      const message = await expectDenied(
+        client.query(
+          `SELECT baaki_apply_expense($1, NULL, $2, 'Not mine', NULL, current_date, 'INR',
+             6000, 'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`,
+          [
+            group.groupId,
+            group.memberIds[1], // somebody else
+            JSON.stringify([{ memberId: group.memberIds[1], amount: '6000' }]),
+            JSON.stringify([
+              { memberId: group.memberIds[0], amount: '3000' },
+              { memberId: group.memberIds[1], amount: '3000' },
+            ]),
+            randomUUID(),
+          ],
+        ),
       );
-      expect(result.rowCount).toBe(1);
+      expect(message).toMatch(/NOT_THE_AUTHOR/);
     });
   });
 });
 
+/**
+ * ADR-006 promises anonymous write access "scoped strictly to the invited
+ * group". It is — by the `group_members` row that `invite-accept` writes when
+ * a guest joins, which is the same row every other member has.
+ *
+ * A second mechanism used to exist alongside it: `is_group_member` also
+ * accepted any group id listed in the JWT's `app_metadata.baaki_groups`.
+ * Nothing in this repository has ever written that claim, and it had no
+ * expiry and no way to revoke — leaving the group, revoking the invite and
+ * deleting the member row would all have failed to remove it. Removed in
+ * 20260807090000_security_hardening. Membership is a row.
+ */
 describe('guest sessions (ADR-006)', () => {
-  it('a link guest scoped to the group can read and add an expense', async () => {
-    await asRole(client, 'anon', guestClaims([group.groupId]), async () => {
+  it('a guest who joined is a member, and reads the group', async () => {
+    await asRole(client, 'anon', memberClaims(group.profileIds[1] as string), async () => {
       const read = await client.query(`SELECT id FROM groups WHERE id = $1`, [group.groupId]);
       expect(read.rowCount).toBe(1);
-
-      const write = await client.query(
-        `INSERT INTO expenses (id, group_id) VALUES ($1, $2) RETURNING id`,
-        [randomUUID(), group.groupId],
-      );
-      expect(write.rowCount).toBe(1);
     });
   });
 
-  it('a guest scoped to another group is locked out of this one', async () => {
+  it('a JWT claim naming a group grants nothing on its own', async () => {
+    await asRole(client, 'anon', guestClaims([group.groupId]), async () => {
+      expect((await client.query(`SELECT is_group_member($1) AS m`, [group.groupId])).rows[0].m).toBe(
+        false,
+      );
+      const read = await client.query(`SELECT id FROM groups WHERE id = $1`, [group.groupId]);
+      expect(read.rowCount).toBe(0);
+    });
+  });
+
+  it('and a claim naming somebody else’s group grants nothing either', async () => {
     await asRole(client, 'anon', guestClaims([otherGroupId]), async () => {
       const read = await client.query(`SELECT id FROM groups WHERE id = $1`, [group.groupId]);
       expect(read.rowCount).toBe(0);
-
-      const message = await expectDenied(
-        client.query(`INSERT INTO expenses (id, group_id) VALUES ($1, $2)`, [
-          randomUUID(),
-          group.groupId,
-        ]),
-      );
-      expect(message).toMatch(/row-level security/i);
     });
   });
 });
