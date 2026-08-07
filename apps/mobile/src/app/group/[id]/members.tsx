@@ -18,7 +18,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { ContactPicker } from '@/components/ContactPicker';
+import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { useAddGhostMember, useGroup, useGroupLedger } from '@/data/hooks';
 import { displayName, groupLabel, isGhost, vpaOf } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -38,6 +38,7 @@ export default function MembersScreen() {
   const [ghostName, setGhostName] = useState('');
   const [ghostContact, setGhostContact] = useState('');
   const [browsing, setBrowsing] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const currency = group.data?.default_currency ?? 'INR';
@@ -71,19 +72,41 @@ export default function MembersScreen() {
     );
   };
 
-  const addPicked = (picked: {
-    name: string;
-    email: string | null;
-    phone: string | null;
-  }): void => {
+  /**
+   * Several people at once, one call each — the server takes one member per
+   * request and batching them here would only hide which of them failed.
+   *
+   * They are added in sequence rather than in parallel because a batch of
+   * simultaneous writes to the same group races the balance triggers for no
+   * benefit; nobody picks contacts fast enough for the wait to show.
+   *
+   * A failure part-way does not undo the ones already in. Adding somebody is
+   * not a transaction — it is five separate acts — so the honest report is
+   * which names did not make it, not a rollback nobody asked for.
+   */
+  const addPicked = async (people: readonly PickedContact[]): Promise<void> => {
     setError(null);
-    addGhost.mutate(
-      { name: picked.name, email: picked.email, phone: picked.phone },
-      {
-        onSuccess: () => setBrowsing(false),
-        onError: (caught) => setError(caught instanceof Error ? caught.message : String(caught)),
-      },
-    );
+    setAdding(true);
+    const failed: string[] = [];
+    let last = '';
+    for (const person of people) {
+      try {
+        await addGhost.mutateAsync({
+          name: person.name,
+          email: person.email,
+          phone: person.phone,
+        });
+      } catch (caught) {
+        failed.push(person.name);
+        last = caught instanceof Error ? caught.message : String(caught);
+      }
+    }
+    setAdding(false);
+    if (failed.length === 0) {
+      setBrowsing(false);
+      return;
+    }
+    setError(`Could not add ${failed.join(', ')}: ${last}`);
   };
 
   // Contacts already used, so the picker can grey them out instead of letting
@@ -198,8 +221,14 @@ export default function MembersScreen() {
           />
 
           {browsing ? (
-            <View style={{ height: 320 }}>
-              <ContactPicker onPick={addPicked} existing={alreadyAdded} />
+            // Tall enough that the letter rail has something to aim at — a
+            // 320pt window turns a thousand contacts back into a peephole.
+            <View style={{ height: 480 }}>
+              <ContactPicker
+                onConfirm={(people) => void addPicked(people)}
+                existing={alreadyAdded}
+                busy={adding}
+              />
             </View>
           ) : null}
           <Text variant="micro" tone="faint">
@@ -207,7 +236,7 @@ export default function MembersScreen() {
             address just means you can send them the link. When they join later they can claim
             everything already recorded under their name.
           </Text>
-          {addGhost.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
+          {addGhost.isPending || adding ? <ActivityIndicator color={theme.color.brand} /> : null}
           {error ? (
             <Text variant="caption" tone="negative">
               {error}

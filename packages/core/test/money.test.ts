@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 
 import { minorUnitExponent, MoneyError } from '../src/money/currency.js';
-import { format, balanceDirection, moneyAccessibilityLabel } from '../src/money/format.js';
+import {
+  format,
+  formatParts,
+  balanceDirection,
+  moneyAccessibilityLabel,
+} from '../src/money/format.js';
 import { convert, fxRate, fromFxRecord, invertRate, toFxRecord } from '../src/money/fx.js';
 import {
   add,
@@ -53,6 +58,42 @@ describe('parse and render', () => {
     expect(formatted).toContain('420.50');
     expect(format(money(42000n, 'INR'), { locale: 'en-IN', compactFraction: true })).not.toContain(
       '.00',
+    );
+  });
+
+  it('splits an amount at the decimal point the locale actually uses', () => {
+    const rupees = formatParts(money(151753n, 'INR'), { locale: 'en-IN' });
+    expect(rupees.lead).toBe('₹1,517');
+    expect(rupees.fraction).toBe('.53');
+    expect(rupees.trail).toBe('');
+
+    // A locale that puts the symbol last and separates with a comma: splitting
+    // the rendered string on '.' would hand back the whole thing.
+    const euros = formatParts(money(151753n, 'EUR'), { locale: 'de-DE' });
+    expect(euros.fraction).toBe(',53');
+    expect(euros.trail).toContain('€');
+  });
+
+  it('leaves nothing to fade when the amount is whole or the currency has no minor unit', () => {
+    expect(
+      formatParts(money(42000n, 'INR'), { locale: 'en-IN', compactFraction: true }).fraction,
+    ).toBe('');
+    expect(formatParts(money(4200n, 'JPY'), { locale: 'en-IN' }).fraction).toBe('');
+  });
+
+  it('always joins back to exactly what format() renders', () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: -(10n ** 10n), max: 10n ** 10n }),
+        fc.constantFrom('en-IN', 'ta-IN', 'de-DE'),
+        fc.constantFrom('INR', 'USD', 'JPY', 'KWD' as const),
+        fc.boolean(),
+        (minor, locale, currency, compactFraction) => {
+          const amount = money(minor, currency as 'INR');
+          const options = { locale, compactFraction };
+          expect(formatParts(amount, options).text).toBe(format(amount, options));
+        },
+      ),
     );
   });
 

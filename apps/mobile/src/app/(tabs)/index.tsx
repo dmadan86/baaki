@@ -1,14 +1,15 @@
+import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { RefreshControl, ScrollView, View } from 'react-native';
 
-import { format } from '@baaki/core';
 import {
   Avatar,
   Badge,
   Button,
   Card,
   EmptyState,
+  Gradient,
   IconButton,
   ListRow,
   MoneyText,
@@ -36,6 +37,23 @@ export default function HomeScreen() {
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
+
+  /**
+   * Which action is waiting to be told a group.
+   *
+   * Both headline actions need one, and guessing is worse than asking: an
+   * expense filed against the wrong trip is a debt somebody has to notice and
+   * unpick. With no groups the question is "start one"; with exactly one there
+   * is nothing to ask.
+   */
+  const [pending, setPending] = useState<'add-expense' | 'settle' | null>(null);
+
+  const start = (action: 'add-expense' | 'settle'): void => {
+    const only = list.length === 1 ? list[0] : undefined;
+    if (list.length === 0) router.push('/new-group');
+    else if (only) router.push(`/group/${only.id}/${action}`);
+    else setPending(action);
+  };
 
   return (
     <Screen>
@@ -93,7 +111,10 @@ export default function HomeScreen() {
         ) : null}
 
         {/* Headline: one glance answers "am I up or down?" */}
-        <Card style={{ backgroundColor: theme.color.brand, gap: theme.spacing.lg }}>
+        <Gradient
+          radius={theme.radius.md}
+          style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+        >
           <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="caption" tone="onBrand" style={{ opacity: 0.8 }}>
               {t.yourBaaki}
@@ -104,19 +125,13 @@ export default function HomeScreen() {
           </Row>
 
           <View>
-            <Text
+            <MoneyText
+              amount={summary.totals.net < 0n ? -summary.totals.net : summary.totals.net}
+              currency="INR"
+              locale={locale}
               tone="onBrand"
-              tabular
               style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
-            >
-              {format(
-                {
-                  minor: summary.totals.net < 0n ? -summary.totals.net : summary.totals.net,
-                  currency: 'INR',
-                },
-                { locale, compactFraction: true },
-              )}
-            </Text>
+            />
             <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
               {summary.totals.net === 0n
                 ? t.allSettled
@@ -131,26 +146,82 @@ export default function HomeScreen() {
               <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
                 {t.youAreOwed}
               </Text>
-              <Text variant="subheading" tone="onBrand" tabular>
-                {format(
-                  { minor: summary.totals.owed, currency: 'INR' },
-                  { locale, compactFraction: true },
-                )}
-              </Text>
+              <MoneyText
+                amount={summary.totals.owed}
+                currency="INR"
+                locale={locale}
+                tone="onBrand"
+              />
             </View>
             <View>
               <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
                 {t.youOwe}
               </Text>
-              <Text variant="subheading" tone="onBrand" tabular>
-                {format(
-                  { minor: summary.totals.owing, currency: 'INR' },
-                  { locale, compactFraction: true },
-                )}
-              </Text>
+              <MoneyText
+                amount={summary.totals.owing}
+                currency="INR"
+                locale={locale}
+                tone="onBrand"
+              />
             </View>
           </Row>
-        </Card>
+
+          {/* The two things anybody opens Baaki to do, where the balance they
+              just read is still on screen. Which group they mean is asked
+              below only when there is more than one answer. */}
+          <Row style={{ gap: theme.spacing.md }}>
+            <Button
+              label={t.addExpense}
+              variant="onBrand"
+              style={{ flex: 1 }}
+              icon={<Ionicons name="add-circle-outline" size={18} color={theme.color.brand} />}
+              onPress={() => start('add-expense')}
+            />
+            <Button
+              label={t.settleUp}
+              variant="onBrandOutline"
+              style={{ flex: 1 }}
+              icon={
+                <Ionicons name="swap-horizontal-outline" size={18} color={theme.color.onBrand} />
+              }
+              onPress={() => start('settle')}
+            />
+          </Row>
+        </Gradient>
+
+        {pending ? (
+          <Card style={{ gap: theme.spacing.sm }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text variant="subheading">
+                {pending === 'add-expense' ? t.addExpense : t.settleUp}
+              </Text>
+              <Text variant="caption" tone="brand" onPress={() => setPending(null)}>
+                {t.cancel}
+              </Text>
+            </Row>
+            <Text variant="caption" tone="muted">
+              {t.whichGroup}
+            </Text>
+            {list.map((group) => (
+              <ListRow
+                key={group.id}
+                title={groupLabel(group, summary.membersFor(group.id), profile?.id)}
+                leading={
+                  <Avatar
+                    name={groupLabel(group, summary.membersFor(group.id), profile?.id)}
+                    emoji={group.cover_emoji ?? undefined}
+                    tint={tintForKey(group.id)}
+                    size={36}
+                  />
+                }
+                onPress={() => {
+                  setPending(null);
+                  router.push(`/group/${group.id}/${pending}`);
+                }}
+              />
+            ))}
+          </Card>
+        ) : null}
 
         {loading ? (
           <Card>

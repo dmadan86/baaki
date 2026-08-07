@@ -60,6 +60,18 @@ export const palette = {
   night600: '#2A2A47',
 } as const;
 
+/**
+ * The brand wash, dark corner to light.
+ *
+ * Three stops off the existing brand ramp rather than new colours: a gradient
+ * is a way of drawing the brand, not a second brand. Every stop is dark enough
+ * to hold white text, because the balance and its labels sit on all of them.
+ */
+export const gradients = {
+  light: [palette.brand700, palette.brand500, '#A472F0'],
+  dark: ['#3A2585', '#5B41C9', '#7E52C9'],
+} as const;
+
 /** The pastel family, in the order groups cycle through it. */
 export const tints = ['lilac', 'pink', 'mint', 'peach', 'sky', 'coral'] as const;
 export type TintName = (typeof tints)[number];
