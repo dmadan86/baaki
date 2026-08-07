@@ -13,7 +13,8 @@ import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme 
 
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { isRtl } from '@/i18n';
+import { isRtl, isRtlLanguage } from '@/i18n';
+import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
 import { UpdateProvider } from '@/lib/update';
@@ -50,60 +51,80 @@ const queryClient = new QueryClient({
 });
 
 /**
- * `dir` is what makes react-native-web mirror the layout. On a device the
- * native side has already done it from the phone's own language and this is
- * inert — but web is how this repo does its visual checks, so without it every
- * RTL check would be looking at a left-to-right screen.
+ * Tell the design system which way we run, before anything renders.
  *
- * It is a react-native-web prop with no React Native counterpart, so it is not
- * in the View types. The cast lives here and nowhere else.
- */
-const WEB_DIRECTION = { dir: isRtl() ? 'rtl' : 'ltr' } as object;
-
-/**
- * Tell the design system which way we run, once, before anything renders.
+ * The phone's language is the starting guess, and `LanguageProvider` corrects
+ * it on mount — to the direction the app actually launched in on a device, and
+ * to the chosen language on web, where the mirroring follows `dir` live.
  *
- * Taken from the phone's language rather than `I18nManager.isRTL`, because on
- * web that flag stays false even with `dir="rtl"` on the root and a visibly
- * mirrored layout — and web is where this repo does its visual checks. An
- * arrow that keeps pointing the wrong way in a mirrored screenshot is a
- * check that passes while the screen is wrong.
+ * Taken from the language rather than `I18nManager.isRTL`, because on web that
+ * flag stays false even with `dir="rtl"` on the root and a visibly mirrored
+ * layout — and web is where this repo does its visual checks. An arrow that
+ * keeps pointing the wrong way in a mirrored screenshot is a check that passes
+ * while the screen is wrong.
  */
 setLayoutDirection(isRtl());
 
+/**
+ * `dir` is what makes react-native-web mirror the layout. On a device the
+ * native side has already decided at launch and this is inert — but web is how
+ * this repo does its visual checks, so without it every RTL check would be
+ * looking at a left-to-right screen.
+ *
+ * It is a react-native-web prop with no React Native counterpart, so it is not
+ * in the View types. The cast lives here and nowhere else.
+ *
+ * Inside a component rather than at module scope now, because the language is
+ * something somebody can change while the app is open.
+ */
+function DirectionRoot({ children }: { children: React.ReactNode }) {
+  const { language } = useLanguage();
+  const webDirection = { dir: isRtlLanguage(language) ? 'rtl' : 'ltr' } as object;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }} {...webDirection}>
+      {children}
+    </GestureHandlerRootView>
+  );
+}
+
 function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} {...WEB_DIRECTION}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <SyncProvider>
-              <LockProvider>
-                <MotionProvider>
-                  <UpdateProvider>
-                    <ThemeProvider>
-                      <StatusBar style="auto" />
-                      {/* Outside the lock and the auth gate on purpose: a build
-                          we have stopped trusting should not be unlocking a
-                          ledger or signing anybody in either. */}
-                      <UpdateGate>
-                        <PushRouting />
-                        <LockGate>
-                          <AuthGate />
-                        </LockGate>
-                        {/* Last, so it paints over the screen rather than
-                            under it. */}
-                        <UpdateBanner />
-                      </UpdateGate>
-                    </ThemeProvider>
-                  </UpdateProvider>
-                </MotionProvider>
-              </LockProvider>
-            </SyncProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    // Outermost, above even the gesture root: every string in the app below it
+    // reads from here, and the root view's own direction is one of them.
+    <LanguageProvider>
+      <DirectionRoot>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <SyncProvider>
+                <LockProvider>
+                  <MotionProvider>
+                    <UpdateProvider>
+                      <ThemeProvider>
+                        <StatusBar style="auto" />
+                        {/* Outside the lock and the auth gate on purpose: a build
+                            we have stopped trusting should not be unlocking a
+                            ledger or signing anybody in either. */}
+                        <UpdateGate>
+                          <PushRouting />
+                          <LockGate>
+                            <AuthGate />
+                          </LockGate>
+                          {/* Last, so it paints over the screen rather than
+                              under it. */}
+                          <UpdateBanner />
+                        </UpdateGate>
+                      </ThemeProvider>
+                    </UpdateProvider>
+                  </MotionProvider>
+                </LockProvider>
+              </SyncProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </DirectionRoot>
+    </LanguageProvider>
   );
 }
 
@@ -287,6 +308,8 @@ function AuthGate() {
       <Stack.Screen name="settings/import" />
       <Stack.Screen name="settings/lock" />
       <Stack.Screen name="settings/motion" />
+      <Stack.Screen name="settings/language" />
+      <Stack.Screen name="settings/upgrade" />
       <Stack.Screen name="settings/account" />
       <Stack.Screen name="join" />
       <Stack.Screen name="inbox" />

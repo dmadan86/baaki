@@ -3,12 +3,18 @@
  * and date formatting everywhere. Notification copy lives in
  * @baaki/core/notifications so the server sends the same words.
  *
+ * The phone's own language is the default and always will be. What sits on top
+ * of it now is a choice — `LanguageProvider` in `./language` — because the
+ * phone is one setting for one person and this app is used by people who read
+ * one language and set their phone to another. Somebody in Chennai with an
+ * English phone reads Tamil faster than they read English.
+ *
  * Arabic is the first right-to-left language here, and it is more than a fourth
  * column of strings — the whole layout mirrors. React Native does that itself
- * when `I18nManager.isRTL` is true, which the OS sets from the phone's own
- * language, so there is no switch in this app to flip: somebody whose phone is
- * in Arabic gets Arabic and a mirrored layout, and everybody else does not.
- * `extra.supportsRTL` in app.json is what lets the native side honour it.
+ * when `I18nManager.isRTL` is true, and it decides that once, natively, at
+ * launch. `extra.supportsRTL` in app.json is what lets the native side honour
+ * it; `./language` is where the restart that a direction change needs is
+ * explained rather than hidden.
  *
  * React Native mirrors more than it gets credit for: with
  * `doLeftAndRightSwapInRTL` — true by default — it swaps `left`/`right` in
@@ -23,14 +29,37 @@
  * fix, and every arrow in the app goes through it.
  */
 
+import { createContext, useContext } from 'react';
 import { getLocales } from 'expo-localization';
 
 import type { CategoryId } from '@baaki/core';
 
 export type Language = 'en' | 'ta' | 'hi' | 'ar';
 
+/** Every language this app speaks, in the order the picker lists them. */
+export const LANGUAGES: readonly Language[] = ['en', 'ta', 'hi', 'ar'];
+
 /** The languages that read right to left. */
 export const RTL_LANGUAGES: readonly Language[] = ['ar'];
+
+/**
+ * What each language calls itself, and what English calls it.
+ *
+ * The endonym leads. Somebody looking for their own language is scanning for
+ * the shape of their own script, and "Tamil" written in Latin letters is not
+ * that shape — it is the name of their language in a language they may not
+ * read. The English gloss follows for everyone else.
+ */
+export const LANGUAGE_NAMES: Readonly<Record<Language, { own: string; english: string }>> = {
+  en: { own: 'English', english: 'English' },
+  ta: { own: 'தமிழ்', english: 'Tamil' },
+  hi: { own: 'हिन्दी', english: 'Hindi' },
+  ar: { own: 'العربية', english: 'Arabic' },
+};
+
+export function isRtlLanguage(language: Language): boolean {
+  return RTL_LANGUAGES.includes(language);
+}
 
 export interface UiStrings {
   greeting: string;
@@ -100,6 +129,14 @@ export interface UiStrings {
   skip: string;
   next: string;
   getStarted: string;
+  /**
+   * The two words on the account screen that have to be in the reader's own
+   * language even when the app is in the wrong one — because "Language" is what
+   * somebody who has opened the app in a language they cannot read is hunting
+   * for, and a row labelled in that same unreadable language is no help at all.
+   */
+  language: string;
+  upgrade: string;
 }
 
 const en: UiStrings = {
@@ -173,6 +210,8 @@ const en: UiStrings = {
   skip: 'Skip',
   next: 'Next',
   getStarted: 'Get started',
+  language: 'Language',
+  upgrade: 'Upgrade',
   onboarding: [
     {
       // Not "split anything with anyone" — that is the welcome's line, and the
@@ -274,6 +313,8 @@ const ta: UiStrings = {
   skip: 'தவிர்',
   next: 'அடுத்து',
   getStarted: 'தொடங்கலாம்',
+  language: 'மொழி',
+  upgrade: 'மேம்படுத்தல்',
   onboarding: [
     {
       title: 'இரவு உணவு, வாடகை,\nஒரு முழுப் பயணம்',
@@ -361,6 +402,8 @@ const hi: UiStrings = {
   skip: 'छोड़ें',
   next: 'आगे',
   getStarted: 'शुरू करें',
+  language: 'भाषा',
+  upgrade: 'अपग्रेड',
   onboarding: [
     {
       title: 'खाना, किराया,\nपूरी यात्रा',
@@ -453,6 +496,8 @@ const ar: UiStrings = {
   skip: 'تخطٍ',
   next: 'التالي',
   getStarted: 'لنبدأ',
+  language: 'اللغة',
+  upgrade: 'الترقية',
   onboarding: [
     {
       title: 'عشاء، إيجار،\nرحلة كاملة',
@@ -514,9 +559,37 @@ export function deviceCountry(): string | null {
   return region && /^[A-Za-z]{2}$/.test(region) ? region.toUpperCase() : null;
 }
 
+/**
+ * The locale to format money and dates in, once somebody has chosen a language
+ * their phone is not set to.
+ *
+ * The language changes; the region does not. Somebody in Dubai reading the app
+ * in Hindi is still in the UAE — dates and currency belong to where they are,
+ * not to what they read. So this swaps the language subtag and keeps the rest,
+ * which is exactly what `hi-AE` means.
+ *
+ * Not called at all when the language is following the phone: there the phone's
+ * own locale tag is richer than anything reassembled here, and reassembling it
+ * would throw away a calendar or numbering system somebody had chosen.
+ */
+export function localeFor(language: Language): string {
+  const region = deviceCountry();
+  return region ? `${language}-${region}` : language;
+}
+
+/**
+ * The chosen language, or null while nothing has provided one.
+ *
+ * Null is not a bug: `useStrings` is called from screens that render before the
+ * provider is mounted and from tests that never mount it, and both should get
+ * the phone's language rather than an exception.
+ */
+export const LanguageContext = createContext<{ language: Language; locale: string } | null>(null);
+
 export function useStrings(): { t: UiStrings; locale: string; language: Language } {
-  const language = deviceLanguage();
-  return { t: STRINGS[language], locale: deviceLocale(), language };
+  const chosen = useContext(LanguageContext);
+  const language = chosen?.language ?? deviceLanguage();
+  return { t: STRINGS[language], locale: chosen?.locale ?? deviceLocale(), language };
 }
 
 export function fill(template: string, values: Record<string, string | number>): string {

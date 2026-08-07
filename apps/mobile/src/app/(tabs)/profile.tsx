@@ -23,7 +23,8 @@ import {
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
-import { deviceCountry, useStrings } from '@/i18n';
+import { deviceCountry, LANGUAGE_NAMES, useStrings } from '@/i18n';
+import { useLanguage } from '@/i18n/language';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { describeGrace, useLock } from '@/lib/lock';
@@ -221,6 +222,7 @@ export default function ProfileScreen() {
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
   const { animated, overridden: motionOverridden } = useMotion();
+  const { language, stored: languageChosen, restartNeeded } = useLanguage();
 
   const [name, setName] = useState(profile?.display_name ?? '');
   /**
@@ -287,6 +289,17 @@ export default function ProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
+
+  /**
+   * The row says the language in its own script. It is the one settings row
+   * whose subtitle has to be legible to somebody who cannot read the rest of
+   * the screen — which is exactly the person going looking for it.
+   */
+  const languageSummary = restartNeeded
+    ? `${LANGUAGE_NAMES[language].own} · reopen Baaki to mirror it`
+    : languageChosen === null
+      ? `Following your phone — ${LANGUAGE_NAMES[language].own}`
+      : `${LANGUAGE_NAMES[language].own} · ${LANGUAGE_NAMES[language].english}`;
 
   const motionSummary = motionOverridden
     ? animated
@@ -494,10 +507,32 @@ export default function ProfileScreen() {
 
         {face !== 'settings' ? null : (
           <>
+            {/* Its own section, above the settings rather than among them.
+                Paying for something is not a preference, and a row that sells
+                you something sitting between Notifications and Export is a row
+                dressed up as a setting. */}
+            <SettingsSection
+              title="Baaki"
+              rows={[
+                {
+                  icon: 'rocket-outline',
+                  label: t.upgrade,
+                  hint: 'Nothing to buy yet — the ledger stays free',
+                  route: '/settings/upgrade',
+                },
+              ]}
+            />
+
             <SettingsSection
               title="Settings"
               rows={[
                 ...SETTINGS,
+                {
+                  icon: 'language-outline',
+                  label: t.language,
+                  hint: languageSummary,
+                  route: '/settings/language',
+                },
                 {
                   icon: 'sparkles-outline',
                   label: 'Motion',
