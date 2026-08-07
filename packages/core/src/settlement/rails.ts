@@ -7,17 +7,23 @@
  * here instead — a list keyed by country, which makes Brazil a new entry rather
  * than a new screen.
  *
- * **Only UPI has a deep link, and that is deliberate.**
+ * **A rail links only where somebody has published a link.**
  *
  * `upi://pay` is a published Android intent that every Indian bank app
- * implements, and it is the reason settling in Baaki takes one tap. Almost
- * nothing else works that way. Pix is a copy-and-paste key or a scanned EMV
- * code, not a URL. Zelle and Venmo have app links that are neither documented
- * nor stable, and guessing at one produces a button that silently fails on
- * somebody's phone while they believe they have paid. So a rail either has a
- * scheme we can stand behind, or it shows the payee's handle to copy and the
- * person finishes in their own bank app. A rail that admits it cannot hand off
- * is more useful than one that pretends it can.
+ * implements, and it is the reason settling in Baaki takes one tap. The danger
+ * with a custom scheme is that it fails *silently* when nothing is installed to
+ * answer it — a tap that appears to work while no money moves — so `'app'`
+ * links are checked with `canOpenURL` before they are offered.
+ *
+ * An https link is a different thing and is treated differently. `cash.app/
+ * $tag/25` and `paypal.me/user/25USD` are public, long-standing URLs whose
+ * worst case is a web page, not a lie. Those are `'web'`.
+ *
+ * Everything else shows the payee's handle to copy, and that is the ordinary
+ * case rather than a failure: Pix is a key or a scanned EMV code, not a URL;
+ * Zelle and PayID live inside each bank's own app; Venmo's app links are
+ * neither documented nor stable. A rail that admits it cannot hand off is more
+ * useful than one that pretends it can.
  *
  * Recording the settlement is separate from performing it either way — the
  * ledger has always tracked what people say they paid, confirmed by whoever was
@@ -34,6 +40,7 @@ export type RailId =
   | 'promptpay' // Thailand
   | 'qris' // Indonesia
   | 'aani' // United Arab Emirates
+  | 'payid' // Australia
   // Consumer apps.
   | 'zelle'
   | 'venmo'
@@ -41,6 +48,7 @@ export type RailId =
   | 'interac'
   | 'wise'
   | 'revolut'
+  | 'paypal'
   // Always available, everywhere.
   | 'bank'
   | 'cash'
@@ -77,10 +85,19 @@ export interface PaymentRail {
   /** Shown under the field, in the local vocabulary. */
   readonly handleHint: string;
   /**
-   * True only where a deep link is published, implemented by the banks, and
-   * has been seen to work. Everything else is copy-the-handle.
+   * How, if at all, this rail can be handed off to.
+   *
+   *   * `'app'` — a custom scheme like `upi://pay`, published and implemented
+   *     by the banks. The risk of one of these is that it fails **silently**
+   *     when nothing is installed to answer it, so the caller checks first and
+   *     falls back to showing the handle.
+   *   * `'web'` — a plain https URL such as `cash.app/$tag/25`. Different in
+   *     kind, not degree: the worst case is a web page rather than a tap that
+   *     appears to work and does not. Safe to offer without a check.
+   *   * `null` — no link anybody has published. Show the handle to copy, which
+   *     is the ordinary case and not a failure.
    */
-  readonly deepLink: boolean;
+  readonly link: 'app' | 'web' | null;
 }
 
 /**
@@ -95,7 +112,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['IN'],
     handle: 'vpa',
     handleHint: 'Their UPI ID, like ravi@okhdfcbank',
-    deepLink: true,
+    link: 'app',
   },
   {
     id: 'pix',
@@ -106,7 +123,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     // A Pix key is whatever the person registered — that is the whole design of
     // it, and pretending it is one shape rejects valid keys.
     handleHint: 'Their Pix key — CPF, phone, email or random key',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'paynow',
@@ -115,7 +132,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['SG'],
     handle: 'phone',
     handleHint: 'Their mobile number or NRIC',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'promptpay',
@@ -124,7 +141,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['TH'],
     handle: 'phone',
     handleHint: 'Their mobile number or national ID',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'qris',
@@ -133,7 +150,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['ID'],
     handle: 'phone',
     handleHint: 'Their registered mobile number',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'aani',
@@ -144,7 +161,18 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['AE'],
     handle: 'phone',
     handleHint: 'Their mobile number, like +971 50 123 4567',
-    deepLink: false,
+    link: null,
+  },
+  {
+    id: 'payid',
+    label: 'PayID',
+    icon: 'flash-outline',
+    // Australia's instant rail over the NPP. Like Aani and PayNow, it settles
+    // inside the bank apps by mobile number or email, with no public intent.
+    countries: ['AU'],
+    handle: 'phone',
+    handleHint: 'Their PayID — mobile number or email',
+    link: null,
   },
   {
     id: 'zelle',
@@ -153,7 +181,8 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['US'],
     handle: 'phone',
     handleHint: 'The mobile number or email on their Zelle',
-    deepLink: false,
+    // Zelle lives inside each bank's own app and publishes nothing to link to.
+    link: null,
   },
   {
     id: 'venmo',
@@ -162,7 +191,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['US'],
     handle: 'tag',
     handleHint: 'Their Venmo handle, like @ravi-kumar',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'cashapp',
@@ -171,7 +200,21 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['US', 'GB'],
     handle: 'tag',
     handleHint: 'Their $cashtag',
-    deepLink: false,
+    // `cash.app/$tag/25` is a public, long-standing URL: it opens the app when
+    // it is installed and a web page when it is not, so there is no silent
+    // failure to protect anybody from. Dollars only — see `buildPaymentUri`.
+    link: 'web',
+  },
+  {
+    id: 'paypal',
+    label: 'PayPal',
+    icon: 'globe-outline',
+    // PayPal.me works in every market Baaki is going to, and is the one link
+    // somebody in the US, Canada or Australia can send to somebody in India.
+    countries: 'any',
+    handle: 'tag',
+    handleHint: 'Their PayPal.me name',
+    link: 'web',
   },
   {
     id: 'interac',
@@ -180,7 +223,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: ['CA'],
     handle: 'email',
     handleHint: 'The email on their Interac',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'wise',
@@ -191,7 +234,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: 'any',
     handle: 'email',
     handleHint: 'The email on their Wise account',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'revolut',
@@ -200,7 +243,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: 'any',
     handle: 'tag',
     handleHint: 'Their @revtag',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'bank',
@@ -209,7 +252,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: 'any',
     handle: 'account',
     handleHint: 'Their IBAN or account number',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'cash',
@@ -218,7 +261,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: 'any',
     handle: 'none',
     handleHint: '',
-    deepLink: false,
+    link: null,
   },
   {
     id: 'other',
@@ -227,7 +270,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     countries: 'any',
     handle: 'none',
     handleHint: '',
-    deepLink: false,
+    link: null,
   },
 ];
 
@@ -321,6 +364,18 @@ export function isValidHandle(railId: string, handle: string): boolean {
   }
 }
 
+/**
+ * Where a link leads, and how much to trust it.
+ *
+ * The caller needs the difference: an `'app'` URI has to be offered to
+ * `canOpenURL` first, because a custom scheme with nothing installed to answer
+ * it fails silently. A `'web'` one can be opened as it is.
+ */
+export interface PaymentLink {
+  readonly kind: 'app' | 'web';
+  readonly uri: string;
+}
+
 export interface PaymentLinkInput {
   readonly railId: string;
   readonly handle: string;
@@ -340,26 +395,53 @@ export interface PaymentLinkInput {
 export function buildPaymentUri(
   input: PaymentLinkInput,
   formatMajor: (amount: bigint, currency: CurrencyCode) => string,
-): string | null {
+): PaymentLink | null {
   const rail = railById(input.railId);
-  if (!rail?.deepLink) return null;
+  if (!rail?.link) return null;
   if (!isValidHandle(input.railId, input.handle)) return null;
+
+  const handle = input.handle.trim();
+  const major = formatMajor(input.amount, input.currency);
 
   if (rail.id === 'upi') {
     // Built by hand rather than with URLSearchParams: this package has to
     // compile unchanged for React Native, Deno and the browser.
     const params: [string, string][] = [
-      ['pa', input.handle.trim()],
+      ['pa', handle],
       ['pn', input.payeeName],
-      ['am', formatMajor(input.amount, input.currency)],
+      ['am', major],
       ['cu', input.currency],
     ];
     if (input.note) params.push(['tn', input.note.slice(0, 50)]);
     const query = params
       .map(([key, value]) => `${key}=${encodeURIComponent(value).replace(/%20/g, '+')}`)
       .join('&');
-    return `upi://pay?${query}`;
+    return { kind: 'app', uri: `upi://pay?${query}` };
+  }
+
+  if (rail.id === 'cashapp') {
+    // Cash App settles in dollars. A link carrying "25" for an amount that is
+    // 25 pounds would open a request for 25 of something else, which is worse
+    // than no link — so anything but USD copies the handle instead.
+    if (input.currency !== 'USD') return null;
+    return { kind: 'web', uri: `https://cash.app/${encodeURIComponent(cashtag(handle))}/${major}` };
+  }
+
+  if (rail.id === 'paypal') {
+    // PayPal.me takes the currency in the path, so unlike Cash App it is safe
+    // in any of them.
+    const name = handle.replace(/^@/, '');
+    return {
+      kind: 'web',
+      uri: `https://paypal.me/${encodeURIComponent(name)}/${major}${input.currency}`,
+    };
   }
 
   return null;
+}
+
+/** `$ravi` from `ravi`, `$ravi` or `@ravi` — Cash App's URLs want the dollar. */
+function cashtag(handle: string): string {
+  const bare = handle.replace(/^[@$]/, '');
+  return `$${bare}`;
 }

@@ -231,3 +231,29 @@ describe('creating a group somewhere', () => {
     expect(rows[0].n).toBe(1);
   });
 });
+
+describe('the rails added for the anglosphere', () => {
+  it('accepts PayID and PayPal, which the first constraint did not know', async () => {
+    for (const rail of ['payid', 'paypal']) {
+      await client.query(
+        `UPDATE group_members SET payment_rail = $2, payment_handle = '+61400123456' WHERE id = $1`,
+        [group.memberIds[0], rail],
+      );
+      const { rows } = await client.query(
+        `SELECT payment_rail FROM group_members WHERE id = $1`,
+        [group.memberIds[0]],
+      );
+      expect(rows[0].payment_rail, rail).toBe(rail);
+    }
+  });
+
+  it('records a settlement on one of them', async () => {
+    const row = await record('other', 'payid');
+    expect(row.rail).toBe('payid');
+    expect(row.method).toBe('other');
+  });
+
+  it('still refuses a rail that is not a rail', async () => {
+    await expect(record('other', 'bitcoin')).rejects.toThrow(/settlements_rail_known|violates/i);
+  });
+});

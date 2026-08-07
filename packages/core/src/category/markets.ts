@@ -27,7 +27,20 @@ import type { CategoryId } from './categories';
  * currencies and shops are keyed by — not a language, which several of these
  * share.
  */
-export type MarketId = 'IN' | 'AE' | 'SA' | 'QA' | 'KW' | 'BH' | 'OM' | 'BR' | 'SG' | 'ID';
+export type MarketId =
+  | 'IN'
+  | 'AE'
+  | 'SA'
+  | 'QA'
+  | 'KW'
+  | 'BH'
+  | 'OM'
+  | 'BR'
+  | 'SG'
+  | 'ID'
+  | 'US'
+  | 'CA'
+  | 'AU';
 
 type Keywords = Partial<Record<CategoryId, readonly string[]>>;
 
@@ -86,6 +99,35 @@ const GULF: Keywords = {
   gifts: ['eidiya', 'eid', 'gift'],
 };
 
+/**
+ * North America and Australia share most of their chains, and the ones that
+ * differ are the ones worth naming — Tim Hortons and Presto in Canada,
+ * Woolworths and Opal in Australia. Delivery is the same three names
+ * everywhere, which is why they sit in the shared set.
+ */
+const ANGLOSPHERE: Keywords = {
+  food: [
+    'doordash',
+    'ubereats',
+    'grubhub',
+    'starbucks',
+    'chipotle',
+    'mcdonalds',
+    'subway',
+    'dominos',
+    'takeaway',
+    'takeout',
+    'coffee',
+  ],
+  groceries: ['costco', 'walmart', 'target', 'aldi', 'groceries'],
+  travel: ['uber', 'lyft', 'gas', 'petrol', 'parking', 'toll', 'flight', 'rental'],
+  stay: ['airbnb', 'hotel', 'motel', 'hostel'],
+  entertainment: ['netflix', 'spotify', 'cinema', 'movies', 'tickets', 'concert'],
+  home: ['rent', 'electricity', 'internet', 'wifi', 'utilities'],
+  health: ['pharmacy', 'dentist', 'doctor', 'gym'],
+  shopping: ['amazon', 'ikea'],
+};
+
 export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
   // India's vocabulary already lives in the shared list, where it was the
   // starting point. Nothing to add here; the entry exists so the type is
@@ -108,6 +150,50 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
     home: ['aluguel', 'condominio', 'luz', 'agua', 'internet'],
     health: ['farmacia', 'drogaria', 'medico'],
     shopping: ['shopping', 'americanas', 'magalu'],
+  },
+
+  US: {
+    ...ANGLOSPHERE,
+    groceries: [
+      ...(ANGLOSPHERE.groceries ?? []),
+      'safeway',
+      'kroger',
+      'publix',
+      'wegmans',
+      'trader',
+      'instacart',
+      'wholefoods',
+    ],
+    travel: [...(ANGLOSPHERE.travel ?? []), 'amtrak', 'metrocard', 'clipper', 'shell', 'chevron'],
+    health: [...(ANGLOSPHERE.health ?? []), 'cvs', 'walgreens'],
+  },
+
+  CA: {
+    ...ANGLOSPHERE,
+    food: [...(ANGLOSPHERE.food ?? []), 'tims', 'timhortons', 'skipthedishes', 'poutine'],
+    groceries: [
+      ...(ANGLOSPHERE.groceries ?? []),
+      'loblaws',
+      'sobeys',
+      'metro',
+      'superstore',
+      'nofrills',
+    ],
+    travel: [...(ANGLOSPHERE.travel ?? []), 'presto', 'ttc', 'via', 'petrocanada', 'esso'],
+    health: [...(ANGLOSPHERE.health ?? []), 'shoppers'],
+    // Canadians call the power bill hydro, and it is the one word here that
+    // categorises wrongly everywhere else — which is why markets are a layer.
+    home: [...(ANGLOSPHERE.home ?? []), 'hydro', 'rogers', 'telus', 'bell'],
+  },
+
+  AU: {
+    ...ANGLOSPHERE,
+    food: [...(ANGLOSPHERE.food ?? []), 'menulog', 'deliveroo', 'maccas', 'brekkie'],
+    groceries: [...(ANGLOSPHERE.groceries ?? []), 'woolworths', 'woolies', 'coles', 'iga'],
+    travel: [...(ANGLOSPHERE.travel ?? []), 'opal', 'myki', 'gocard', 'ampol', 'qantas', 'jetstar'],
+    entertainment: [...(ANGLOSPHERE.entertainment ?? []), 'hoyts', 'palace'],
+    home: [...(ANGLOSPHERE.home ?? []), 'telstra', 'optus', 'agl', 'origin'],
+    shopping: [...(ANGLOSPHERE.shopping ?? []), 'bunnings', 'kmart', 'bigw'],
   },
 
   SG: {

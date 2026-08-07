@@ -177,9 +177,13 @@ export default function SettleScreen() {
       (value, code) => toMajorString({ minor: value, currency: code }),
     );
 
-    const canOpen = uri ? await Linking.canOpenURL(uri).catch(() => false) : false;
+    // An 'app' scheme is asked about first: a custom scheme with nothing
+    // installed to answer it fails silently, and a tap that looks like it
+    // worked while no money moved is the worst outcome here. An https link
+    // always opens — worst case a web page — so it needs no permission.
+    const canOpen = uri ? uri.kind === 'web' || (await Linking.canOpenURL(uri.uri).catch(() => false)) : false;
     if (uri && canOpen) {
-      await Linking.openURL(uri);
+      await Linking.openURL(uri.uri);
       Alert.alert('Did the payment go through?', 'Only record it if it actually completed.', [
         { text: 'No', style: 'cancel' },
         { text: 'Yes, record it', onPress: () => void record() },

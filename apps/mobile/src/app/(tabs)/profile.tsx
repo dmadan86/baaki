@@ -322,7 +322,7 @@ export default function ProfileScreen() {
                 <Text variant="micro" tone={handleValid ? 'faint' : 'negative'}>
                   {!handleValid
                     ? `That does not look like ${railInfo.handleHint.toLowerCase()}.`
-                    : railInfo.deepLink
+                    : railInfo.link
                       ? 'People settling with you get a one-tap payment. Baaki never handles the money.'
                       : 'People settling with you see this to pay you from their own bank app. Baaki never handles the money.'}
                 </Text>
