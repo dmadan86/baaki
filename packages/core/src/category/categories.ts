@@ -20,6 +20,8 @@
  * saving. "Other" is a real answer and stays.
  */
 
+import { keywordsForMarket } from './markets';
+
 export type CategoryId =
   | 'food'
   | 'groceries'
@@ -357,16 +359,30 @@ function tokenise(text: string): string[] {
  * chose. Ties go to the category listed first, which keeps the same words
  * producing the same answer on every device (the same determinism ADR-009 asks
  * of the money).
+ *
+ * `countryCode` adds that market's vocabulary on top of the shared list — the
+ * chains and words in `markets.ts`. Leave it off and the behaviour is what it
+ * always was, which is what every caller written before markets existed
+ * expects. A country nobody has written keywords for is not an error either: it
+ * gets the shared list, same as before.
  */
-export function guessCategory(description: string): CategoryId | null {
+export function guessCategory(
+  description: string,
+  countryCode?: string | null,
+): CategoryId | null {
   const tokens = new Set(tokenise(description));
   if (tokens.size === 0) return null;
+
+  const market = keywordsForMarket(countryCode);
 
   let best: CategoryId | null = null;
   let bestHits = 0;
   for (const category of CATEGORIES) {
     let hits = 0;
     for (const keyword of category.keywords) {
+      if (tokens.has(keyword)) hits += 1;
+    }
+    for (const keyword of market[category.id] ?? []) {
       if (tokens.has(keyword)) hits += 1;
     }
     if (hits > bestHits) {

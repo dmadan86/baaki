@@ -84,3 +84,55 @@ describe('the category list itself', () => {
     }
   });
 });
+
+describe('a market adds its own vocabulary', () => {
+  it('reads a Gulf receipt that used to land in Other', () => {
+    // Every one of these is a normal Dubai expense and every one of them
+    // guessed nothing before markets existed — which made the Spending screen
+    // look broken rather than empty.
+    expect(guessCategory('Talabat dinner', 'AE')).toBe('food');
+    expect(guessCategory('Careem to the airport', 'AE')).toBe('travel');
+    expect(guessCategory('Lulu run', 'AE')).toBe('groceries');
+    expect(guessCategory('Salik toll', 'AE')).toBe('travel');
+    expect(guessCategory('DEWA bill', 'AE')).toBe('home');
+  });
+
+  it('shares the Gulf list across all six countries', () => {
+    for (const country of ['AE', 'SA', 'QA', 'KW', 'BH', 'OM']) {
+      expect(guessCategory('Talabat', country), country).toBe('food');
+    }
+  });
+
+  it('knows Brazil and Southeast Asia too', () => {
+    expect(guessCategory('iFood almoco', 'BR')).toBe('food');
+    expect(guessCategory('Uber pro aeroporto', 'BR')).toBe('travel');
+    expect(guessCategory('Grab to work', 'SG')).toBe('travel');
+    expect(guessCategory('NTUC groceries', 'SG')).toBe('groceries');
+    expect(guessCategory('Gojek', 'ID')).toBe('travel');
+  });
+
+  it('leaves the shared list working with no market at all', () => {
+    // Every caller written before markets existed passes one argument.
+    expect(guessCategory('Swiggy dinner')).toBe('food');
+    expect(guessCategory('Auto to the station')).toBe('travel');
+    expect(guessCategory('Swiggy dinner', undefined)).toBe('food');
+  });
+
+  it('treats a country nobody has written keywords for as no worse than before', () => {
+    for (const country of ['ZZ', '', null, 'DE']) {
+      expect(guessCategory('Dinner at the restaurant', country), String(country)).toBe('food');
+      expect(guessCategory('Talabat', country), String(country)).toBeNull();
+    }
+  });
+
+  it('still keeps India working when a market is named', () => {
+    expect(guessCategory('Swiggy dinner', 'IN')).toBe('food');
+    expect(guessCategory('Auto to the station', 'IN')).toBe('travel');
+  });
+
+  it('matches whole tokens in a market list too', () => {
+    // 'du' is a UAE telecom and also the start of plenty of words.
+    expect(guessCategory('Duplicate charge', 'AE')).not.toBe('home');
+    expect(guessCategory('du bill', 'AE')).toBe('home');
+  });
+});
