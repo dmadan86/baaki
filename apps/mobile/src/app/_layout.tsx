@@ -9,10 +9,11 @@ import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Button, CurvedPanel, ThemeProvider, Text, useTheme } from '@baaki/ui';
+import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { isRtl } from '@/i18n';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
 import { UpdateProvider } from '@/lib/update';
@@ -48,9 +49,31 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * `dir` is what makes react-native-web mirror the layout. On a device the
+ * native side has already done it from the phone's own language and this is
+ * inert — but web is how this repo does its visual checks, so without it every
+ * RTL check would be looking at a left-to-right screen.
+ *
+ * It is a react-native-web prop with no React Native counterpart, so it is not
+ * in the View types. The cast lives here and nowhere else.
+ */
+const WEB_DIRECTION = { dir: isRtl() ? 'rtl' : 'ltr' } as object;
+
+/**
+ * Tell the design system which way we run, once, before anything renders.
+ *
+ * Taken from the phone's language rather than `I18nManager.isRTL`, because on
+ * web that flag stays false even with `dir="rtl"` on the root and a visibly
+ * mirrored layout — and web is where this repo does its visual checks. An
+ * arrow that keeps pointing the wrong way in a mirrored screenshot is a
+ * check that passes while the screen is wrong.
+ */
+setLayoutDirection(isRtl());
+
 function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} {...WEB_DIRECTION}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>

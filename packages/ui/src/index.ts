@@ -21,3 +21,4 @@ export * from './components/Toggle';
 export * from './components/PillTabBar';
 export * from './components/AmountKeypad';
 export * from './components/Chart';
+export * from './direction';

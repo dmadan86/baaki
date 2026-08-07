@@ -23,6 +23,7 @@ import {
   Avatar,
   Button,
   Card,
+  directionalIcon,
   Divider,
   IconButton,
   ListRow,
@@ -73,7 +74,7 @@ export default function ContactsScreen(): React.JSX.Element {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">From your contacts</Text>
@@ -179,7 +180,7 @@ function ChooseGroup({
                 }
                 onPress={busy ? undefined : () => onChoose(group.id)}
                 trailing={
-                  <Ionicons name="chevron-forward" size={18} color={theme.color.textFaint} />
+                  <Ionicons name={directionalIcon('chevron-forward')} size={18} color={theme.color.textFaint} />
                 }
               />
               {index < groups.length - 1 ? <Divider /> : null}

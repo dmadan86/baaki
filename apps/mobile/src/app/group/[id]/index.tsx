@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   ChipRow,
+  directionalIcon,
   EmptyState,
   Fab,
   IconButton,
@@ -118,7 +119,7 @@ export default function GroupScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <Row style={{ flex: 1, gap: theme.spacing.md, justifyContent: 'center' }}>
             <GroupPhoto
