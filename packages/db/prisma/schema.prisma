@@ -452,6 +452,13 @@ model ReceiptItemClaim {
   receiptId String   @map("receipt_id") @db.Uuid
   itemIndex Int      @map("item_index")
   memberId  String   @map("member_id") @db.Uuid
+  /// Tombstone rather than a delete: an observed-remove set converges, a
+  /// delete-to-unclaim set does not. NULL means the claim stands.
+  releasedAt DateTime? @map("released_at") @db.Timestamptz(6)
+  /// Bumped on every claim and release, so two devices racing on one line
+  /// resolve deterministically instead of by whichever arrived last.
+  revision  Int      @default(1)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   receipt Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
