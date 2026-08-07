@@ -25,15 +25,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Text, useTheme, type TintName } from '@baaki/ui';
+import { directionalIcon, Text, useTheme, type TintName } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';
 
 interface Slide {
   readonly tint: TintName;
   readonly emoji: string;
-  readonly title: string;
-  readonly body: string;
 }
 
 /**
@@ -44,33 +43,16 @@ interface Slide {
  * bolted to the front of it.
  */
 const SLIDES: readonly Slide[] = [
-  {
-    tint: 'lilac',
-    emoji: '🧾',
-    // Not "split anything with anyone" — that is the welcome's line, and the
-    // welcome is the very next screen. Two cards saying the same sentence in
-    // sequence reads as a page that failed to advance.
-    title: 'Dinner, rent,\na whole trip',
-    body: 'Baaki keeps who paid and who owes, down to the last rupee — free, and with no account to make first.',
-  },
-  {
-    tint: 'mint',
-    emoji: '🔗',
-    title: 'Send a link,\nthey are in',
-    body: 'The people you split with do not need to install anything. They open a link and see the same numbers you do.',
-  },
-  {
-    tint: 'peach',
-    emoji: '⚡',
-    title: 'Settle it\nin one tap',
-    body: 'Baaki hands the exact amount to your UPI app, so nobody does the arithmetic twice and nobody is owed a rounding error.',
-  },
+  { tint: 'lilac', emoji: '🧾' },
+  { tint: 'mint', emoji: '🔗' },
+  { tint: 'peach', emoji: '⚡' },
 ];
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { animated } = useMotion();
+  const { t } = useStrings();
   const { width, height } = useWindowDimensions();
   const scroller = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
@@ -106,6 +88,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       style={{ flex: 1 }}
     >
       {SLIDES.map((slide, slideIndex) => {
+        // The words live in the string table; this file only knows the look.
+        const copy = t.onboarding[slideIndex] ?? t.onboarding[0]!;
         const { bg, ink } = theme.tint[slide.tint];
         const last = slideIndex === SLIDES.length - 1;
 
@@ -130,12 +114,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               <Pressable
                 onPress={onDone}
                 accessibilityRole="button"
-                accessibilityLabel="Skip the introduction"
+                accessibilityLabel={t.skip}
                 hitSlop={12}
               >
-                <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
-                  Skip
-                </Text>
+                <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>{t.skip}</Text>
               </Pressable>
             </View>
 
@@ -152,9 +134,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             </View>
 
             <View style={{ gap: theme.spacing.md }}>
-              <Text style={{ fontSize: 36, fontWeight: '700', color: ink }}>{slide.title}</Text>
+              <Text style={{ fontSize: 36, fontWeight: '700', color: ink }}>{copy.title}</Text>
               <Text variant="body" style={{ color: ink, opacity: 0.75 }}>
-                {slide.body}
+                {copy.body}
               </Text>
             </View>
 
@@ -184,7 +166,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               <Pressable
                 onPress={() => goTo(slideIndex + 1)}
                 accessibilityRole="button"
-                accessibilityLabel={last ? 'Get started' : 'Next'}
+                accessibilityLabel={last ? t.getStarted : t.next}
                 style={({ pressed }) => ({
                   height: 56,
                   width: 56,
@@ -197,7 +179,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 })}
               >
                 <Ionicons
-                  name={last ? 'checkmark' : 'arrow-forward'}
+                  // A tick means the same in both directions; an arrow does
+                  // not, and this one kept pointing right in a mirrored screen
+                  // — "next" pointing backwards, on the very first screen.
+                  name={last ? 'checkmark' : directionalIcon('arrow-forward')}
                   size={24}
                   color={theme.color.text}
                 />

@@ -1,14 +1,36 @@
 /**
- * i18n scaffolding from day one (TDR §11): en + ta + hi, with locale-aware
- * money and date formatting everywhere. Notification copy lives in
+ * i18n from day one (TDR §11): en, ta, hi and now ar, with locale-aware money
+ * and date formatting everywhere. Notification copy lives in
  * @baaki/core/notifications so the server sends the same words.
+ *
+ * Arabic is the first right-to-left language here, and it is more than a fourth
+ * column of strings — the whole layout mirrors. React Native does that itself
+ * when `I18nManager.isRTL` is true, which the OS sets from the phone's own
+ * language, so there is no switch in this app to flip: somebody whose phone is
+ * in Arabic gets Arabic and a mirrored layout, and everybody else does not.
+ * `extra.supportsRTL` in app.json is what lets the native side honour it.
+ *
+ * React Native mirrors more than it gets credit for: with
+ * `doLeftAndRightSwapInRTL` — true by default — it swaps `left`/`right` in
+ * styles, reverses `flexDirection: 'row'` and flips `textAlign`. So the
+ * `marginLeft`s and `paddingRight`s scattered through this app are not bugs in
+ * an RTL layout, and rewriting them to `marginStart`/`paddingEnd` would change
+ * nothing at all.
+ *
+ * What it cannot mirror is an **icon**, because an icon is content rather than
+ * layout. `chevron-forward` keeps pointing right in a screen that now runs the
+ * other way, so "next" points backwards. `directionalIcon` in @baaki/ui is the
+ * fix, and every arrow in the app goes through it.
  */
 
 import { getLocales } from 'expo-localization';
 
 import type { CategoryId } from '@baaki/core';
 
-export type Language = 'en' | 'ta' | 'hi';
+export type Language = 'en' | 'ta' | 'hi' | 'ar';
+
+/** The languages that read right to left. */
+export const RTL_LANGUAGES: readonly Language[] = ['ar'];
 
 export interface UiStrings {
   greeting: string;
@@ -57,6 +79,16 @@ export interface UiStrings {
   nothingToChart: string;
   /** The ten categories of TDR §8, in the language the phone is set to. */
   categories: Record<CategoryId, string>;
+  /**
+   * The three cards before sign-in. They were literals in `Onboarding.tsx`
+   * until Arabic arrived — which meant the very first screen of an app being
+   * launched in the Gulf was in English, and told the reader about rupees and
+   * UPI apps. The first screen is the worst place to be somewhere else.
+   */
+  onboarding: readonly { title: string; body: string }[];
+  skip: string;
+  next: string;
+  getStarted: string;
 }
 
 const en: UiStrings = {
@@ -116,6 +148,27 @@ const en: UiStrings = {
     gifts: 'Gifts',
     other: 'Other',
   },
+  skip: 'Skip',
+  next: 'Next',
+  getStarted: 'Get started',
+  onboarding: [
+    {
+      // Not "split anything with anyone" — that is the welcome's line, and the
+      // welcome is the very next screen.
+      title: 'Dinner, rent,\na whole trip',
+      body: 'Baaki keeps who paid and who owes, down to the last decimal — free, and with no account to make first.',
+    },
+    {
+      title: 'Send a link,\nthey are in',
+      body: 'The people you split with do not need to install anything. They open a link and see the same numbers you do.',
+    },
+    {
+      // "your payment app", not "your UPI app": this is the first screen
+      // somebody in Dubai or São Paulo sees, and UPI means nothing there.
+      title: 'Settle it\nin one tap',
+      body: 'Baaki hands the exact amount to your payment app, so nobody does the arithmetic twice and nobody is owed a rounding error.',
+    },
+  ],
 };
 
 const ta: UiStrings = {
@@ -208,11 +261,111 @@ const hi: UiStrings = {
   },
 };
 
-const STRINGS: Record<Language, UiStrings> = { en, ta, hi };
+/**
+ * Gulf Arabic, not literary Arabic. "بَاقِي" is the app's own name and the
+ * ordinary word for what is left over — the same pun the Tamil name is, which
+ * is why it is not translated away here.
+ */
+const ar: UiStrings = {
+  greeting: 'أهلاً',
+  yourBaaki: 'باقيك',
+  acrossGroups: 'في {count} مجموعات',
+  youAreOwed: 'لك',
+  youOwe: 'عليك',
+  allSettled: 'تمت التسوية',
+  yourGroups: 'مجموعاتك',
+  newGroup: 'مجموعة جديدة',
+  activity: 'النشاط',
+  friends: 'الأصدقاء',
+  profile: 'الحساب',
+  home: 'الرئيسية',
+  addExpense: 'إضافة مصروف',
+  scanBill: 'مسح الفاتورة',
+  settleUp: 'تسوية',
+  simplify: 'تبسيط',
+  whoPaysWhom: 'من يدفع لمن',
+  expenses: 'المصروفات',
+  balances: 'الأرصدة',
+  paidBy: 'دفعها',
+  splitEqually: 'تقسيم بالتساوي',
+  description: 'على ماذا؟',
+  save: 'حفظ المصروف',
+  pendingConfirmation: 'بانتظار التأكيد',
+  toConfirm: 'للتأكيد',
+  overallOwed: 'لك إجمالاً',
+  overallOwe: 'باقيك للدفع',
+  payViaUpi: 'الدفع عبر UPI',
+  paidInCash: 'دُفعت نقداً',
+  bankOther: 'تحويل بنكي / غير ذلك',
+  perExpense: 'تطبيق على مصروفات محددة',
+  members: 'الأعضاء',
+  notJoinedYet: 'لم ينضم بعد',
+  scansLeft: 'عمليات مسح متبقية',
+  simplifyOn: 'التبسيط مفعّل',
+  simplifyOff: 'التبسيط متوقف',
+  freeForever: 'بلا حدود ومجاني، للأبد',
+  nothingYet: 'لا شيء هنا بعد',
+  nothingYetBody: 'أضف أول مصروف والحساب يتكفل بنفسه.',
+  whatFor: 'نوع المصروف',
+  spending: 'الإنفاق',
+  byCategory: 'أين ذهبت',
+  byMonth: 'شهراً بشهر',
+  nothingToChart: 'أضف بعض المصروفات وسيمتلئ هذا.',
+  categories: {
+    food: 'طعام وشراب',
+    groceries: 'بقالة',
+    travel: 'تنقّل',
+    stay: 'إقامة',
+    shopping: 'تسوّق',
+    entertainment: 'ترفيه',
+    home: 'المنزل والفواتير',
+    health: 'صحة',
+    gifts: 'هدايا',
+    other: 'أخرى',
+  },
+  skip: 'تخطٍ',
+  next: 'التالي',
+  getStarted: 'لنبدأ',
+  onboarding: [
+    {
+      title: 'عشاء، إيجار،\nرحلة كاملة',
+      body: 'باقي يحفظ من دفع ومن عليه، بالفلس الواحد — مجاناً، وبدون إنشاء حساب أولاً.',
+    },
+    {
+      title: 'أرسل رابطاً،\nوانضموا',
+      body: 'من تقتسم معهم لا يحتاجون تثبيت أي شيء. يفتحون الرابط ويرون نفس الأرقام التي تراها.',
+    },
+    {
+      title: 'سوِّ الحساب\nبضغطة واحدة',
+      body: 'باقي يمرّر المبلغ بالضبط إلى تطبيق الدفع لديك، فلا أحد يحسب مرتين ولا أحد يخسر كسراً.',
+    },
+  ],
+};
+
+const STRINGS: Record<Language, UiStrings> = { en, ta, hi, ar };
+
+/**
+ * The tables themselves, so a test can check that every language says
+ * everything. A missing key is not a crash — it is `undefined` rendered as a
+ * blank on one screen in one language, which is exactly the kind of thing that
+ * ships.
+ */
+export const STRINGS_BY_LANGUAGE = STRINGS;
 
 export function deviceLanguage(): Language {
   const tag = getLocales()[0]?.languageCode ?? 'en';
-  return tag === 'ta' || tag === 'hi' ? tag : 'en';
+  return tag === 'ta' || tag === 'hi' || tag === 'ar' ? tag : 'en';
+}
+
+/**
+ * Whether this phone reads right to left.
+ *
+ * Taken from the language rather than from `I18nManager.isRTL`, so it is the
+ * same answer on web — where there is no `I18nManager` worth asking and the
+ * root view is given a `dir` instead.
+ */
+export function isRtl(): boolean {
+  return RTL_LANGUAGES.includes(deviceLanguage());
 }
 
 export function deviceLocale(): string {

@@ -12,7 +12,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 
-import { Badge, Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Badge, Button, Card, ChipRow, directionalIcon, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { confirmContact, startAddingContact, type ContactChannel } from '@/data/api';
 import { useAuth } from '@/lib/auth';
@@ -78,7 +78,7 @@ export default function AccountScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">Your account</Text>

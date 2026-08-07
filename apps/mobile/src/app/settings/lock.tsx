@@ -16,6 +16,7 @@ import {
   Button,
   Card,
   Chip,
+  directionalIcon,
   IconButton,
   Row,
   Screen,
@@ -59,7 +60,7 @@ export default function LockSettingsScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">Security</Text>

@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 
-import { Badge, Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Badge, Button, Card, ChipRow, directionalIcon, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { exportData } from '@/data/api';
 import { useGroups } from '@/data/hooks';
@@ -71,7 +71,7 @@ export default function ExportScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">Export your data</Text>

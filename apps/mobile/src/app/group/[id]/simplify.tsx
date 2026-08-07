@@ -6,6 +6,7 @@ import {
   Avatar,
   Badge,
   Card,
+  directionalIcon,
   EmptyState,
   IconButton,
   MoneyText,
@@ -48,7 +49,7 @@ export default function SimplifyScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.whoPaysWhom}</Text>
@@ -84,7 +85,7 @@ export default function SimplifyScreen() {
               >
                 <Row style={{ flex: 1 }}>
                   <Avatar name={nameOf(transfer.from)} size={38} />
-                  <Ionicons name="arrow-forward" size={16} color={theme.color.textFaint} />
+                  <Ionicons name={directionalIcon('arrow-forward')} size={16} color={theme.color.textFaint} />
                   <Avatar name={nameOf(transfer.to)} size={38} />
                   <View style={{ flex: 1, marginLeft: theme.spacing.sm }}>
                     <Text variant="body" numberOfLines={1}>

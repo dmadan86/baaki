@@ -39,6 +39,7 @@ import {
   Button,
   Card,
   ChipRow,
+  directionalIcon,
   Divider,
   IconButton,
   MoneyText,
@@ -338,7 +339,7 @@ export default function ImportScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label="Back" onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color={theme.color.text} />
+            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">Import a ledger</Text>
