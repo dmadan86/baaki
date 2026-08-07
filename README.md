@@ -302,6 +302,57 @@ allocations. None of the three changes what anybody owes, and the screen says so
 in those words before the import runs. `packages/db/test/m5-import-export.test.ts`
 proves the round trip against a real database rather than in the abstract.
 
+## Turning on push
+
+Everything between the inbox row and the phone is built and tested — the claim,
+the fan-out, the language, the dead-device revocation. The one part that is not
+in this repository is the credential that lets a phone have a push token at all,
+because it is issued by a console and belongs to whoever owns the app.
+
+The path is Baaki → Expo → **FCM** (Android) or **APNs** (iOS) → the phone. Expo
+is a relay; the credentials at the far end are still yours to supply.
+
+**Android, once:**
+
+1. Create a Firebase project and add an Android app to it with the package name
+   `app.baaki.mobile`. It must match, exactly — a mismatch is the error
+   `MismatchSenderId` on every notification, months later.
+2. Download `google-services.json` and put it at `apps/mobile/google-services.json`.
+   It is gitignored: this repository is public, and the file names the Firebase
+   project builds get pointed at.
+3. Give the same file to EAS, so cloud builds have it too:
+
+   ```bash
+   eas env:create --name GOOGLE_SERVICES_JSON --type file \
+     --value ./apps/mobile/google-services.json --scope project
+   ```
+
+4. In the Firebase console, under **Project settings → Service accounts**,
+   generate a new private key, then hand it to Expo — this is what lets Expo's
+   servers send on your behalf:
+
+   ```bash
+   eas credentials   # Android → production → Google Service Account → Push Notifications
+   ```
+
+5. Rebuild. The credential is compiled in; an existing build will not pick it up.
+
+`apps/mobile/app.config.ts` finds the file from the EAS secret or the local copy,
+and **leaves the key off entirely when there is neither** — so a checkout without
+a Firebase account still builds and runs. What does not work then is registering
+for push, and the notifications screen says so in those words rather than sending
+somebody to their phone settings over a problem that is ours.
+
+**iOS** needs an APNs key uploaded the same way (`eas credentials` → iOS → Push
+Notifications), which needs a paid Apple Developer account and a Mac. Not done.
+
+**When it is set up and still silent**, read the fanout's reply before suspecting
+the phones. It reports `problems` by Expo's error code, and `misconfigured: true`
+when those codes are `MismatchSenderId` or `InvalidCredentials` — the two that
+mean the credentials are wrong rather than the devices. Without that, a wrong key
+looks exactly like a country with its phones switched off: rows go out, failures
+climb, and nothing anywhere names the cause.
+
 ## Releasing, and stopping old builds
 
 The version is compiled into the binary, so a build can only ever describe

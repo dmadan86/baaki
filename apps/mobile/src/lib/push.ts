@@ -15,6 +15,15 @@
  * **Signing out revokes the token rather than deleting the row.** The same
  * token coming back later is the same device, and the row is the evidence of
  * that.
+ *
+ * **Nothing here throws.** Asking for a token is a network call into FCM (on
+ * Android) or APNs (on iOS) by way of Expo, and it rejects for reasons that
+ * have nothing to do with the person holding the phone: no
+ * `google-services.json` in this build, a Firebase project with the wrong
+ * package name, an aeroplane. `refreshPushToken` is called with `void` on
+ * every sign-in, so a rejection there is an unhandled one at launch. The
+ * failures come back as a reason instead, and the notifications screen says
+ * which one it was.
  */
 
 import Constants from 'expo-constants';
@@ -60,21 +69,42 @@ export async function pushPermission(): Promise<PushPermission> {
 }
 
 /**
- * Ask, register, and store. Returns false when the person said no — which is an
- * answer, not an error, and the caller should treat it as one.
+ * Why registering did not happen. Only `denied` is the person's doing; the
+ * others are this app's, and telling somebody to check their phone settings
+ * when the real problem is a missing Firebase key sends them somewhere that
+ * cannot help them.
  */
-export async function enablePush(): Promise<boolean> {
+export type PushFailure =
+  /** Web, or a simulator — neither has a push token to give. */
+  | 'unsupported'
+  /** They said no, which is an answer. */
+  | 'denied'
+  /** Nobody is signed in, so there is no profile to hang the token on. */
+  | 'not_signed_in'
+  /** This build has no FCM/APNs credentials. Ours to fix, not theirs. */
+  | 'not_configured'
+  /** We got a token and could not store it. */
+  | 'save_failed';
+
+export type PushResult = { readonly ok: true } | { readonly ok: false; readonly why: PushFailure };
+
+/**
+ * Ask, register, and store. A refusal comes back as `denied` — an answer, not
+ * an error, and the caller should treat it as one.
+ */
+export async function enablePush(): Promise<PushResult> {
   // A simulator has no push token to give, and web has no push at all. Failing
   // loudly here would make every development run look broken.
-  if (!pushSupported || !Device.isDevice) return false;
+  if (!pushSupported || !Device.isDevice) return { ok: false, why: 'unsupported' };
 
   const existing = await Notifications.getPermissionsAsync();
   const status =
     existing.status === 'granted'
       ? existing.status
       : (await Notifications.requestPermissionsAsync()).status;
-  if (status !== 'granted') return false;
+  if (status !== 'granted') return { ok: false, why: 'denied' };
 
+  // Android 13+ wants the channel to exist before the token is asked for.
   await ensureAndroidChannel();
   return refreshPushToken();
 }
@@ -86,19 +116,30 @@ export async function enablePush(): Promise<boolean> {
  * can change on its own (a restore, a reinstall), at which point the old one
  * silently stops working.
  */
-export async function refreshPushToken(): Promise<boolean> {
-  if (!pushSupported || !Device.isDevice) return false;
+export async function refreshPushToken(): Promise<PushResult> {
+  if (!pushSupported || !Device.isDevice) return { ok: false, why: 'unsupported' };
   const { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted') return false;
+  if (status !== 'granted') return { ok: false, why: 'denied' };
 
   const id = projectId();
-  if (!id) return false;
+  if (!id) return { ok: false, why: 'not_configured' };
 
   const { data: session } = await supabase.auth.getSession();
   const profileId = session.session?.user?.id;
-  if (!profileId) return false;
+  if (!profileId) return { ok: false, why: 'not_signed_in' };
 
-  const token = (await Notifications.getExpoPushTokenAsync({ projectId: id })).data;
+  let token: string;
+  try {
+    token = (await Notifications.getExpoPushTokenAsync({ projectId: id })).data;
+  } catch (caught) {
+    // The usual one, on an Android build with no `google-services.json`:
+    // "Default FirebaseApp is not initialized". Also a Firebase project whose
+    // package name is not `app.baaki.mobile`, and a device with no network.
+    // None of them are anything the person can act on, and none of them are
+    // worth taking the app down for.
+    console.warn('push token unavailable:', (caught as Error).message);
+    return { ok: false, why: 'not_configured' };
+  }
 
   const { error } = await supabase.from('push_tokens').upsert(
     {
@@ -112,7 +153,7 @@ export async function refreshPushToken(): Promise<boolean> {
     },
     { onConflict: 'expo_push_token' },
   );
-  return !error;
+  return error ? { ok: false, why: 'save_failed' } : { ok: true };
 }
 
 /** On the way out. Leaves the row, so a return is recognised as a return. */

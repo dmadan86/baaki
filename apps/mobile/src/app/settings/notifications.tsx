@@ -23,7 +23,7 @@ import {
   type NotificationPrefs,
 } from '@/data/api';
 import { useAuth } from '@/lib/auth';
-import { enablePush, pushPermission, type PushPermission } from '@/lib/push';
+import { enablePush, pushPermission, type PushFailure, type PushPermission } from '@/lib/push';
 
 const ROWS: {
   key: keyof NotificationPrefs;
@@ -57,6 +57,22 @@ const ROWS: {
   },
 ];
 
+/**
+ * What went wrong, said to the person it happened to.
+ *
+ * Only `denied` is theirs to undo, and only that one sends them to their phone
+ * settings. Telling somebody to check their settings when the real problem is
+ * that this build has no Firebase key sends them somewhere that cannot help.
+ */
+const PUSH_FAILURE_COPY: Record<PushFailure, string> = {
+  denied: 'Not enabled — you can turn it on in your phone settings later.',
+  unsupported: 'This device cannot receive push notifications. Everything still lands in Activity.',
+  not_signed_in: 'Sign in first, so we know which phone is yours.',
+  not_configured:
+    'Push is not set up in this build of Baaki. Nothing you did — everything still lands in Activity.',
+  save_failed: 'Could not save this phone. Check your connection and try again.',
+};
+
 export default function NotificationSettingsScreen() {
   const theme = useTheme();
   const { profile } = useAuth();
@@ -86,9 +102,9 @@ export default function NotificationSettingsScreen() {
     setAsking(true);
     setStatus(null);
     try {
-      const ok = await enablePush();
+      const result = await enablePush();
       setPermission(await pushPermission());
-      if (!ok) setStatus('Not enabled — you can turn it on in your phone settings later.');
+      if (!result.ok) setStatus(PUSH_FAILURE_COPY[result.why]);
     } finally {
       setAsking(false);
     }

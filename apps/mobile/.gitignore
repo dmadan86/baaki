@@ -33,6 +33,11 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase / push credentials. Names a Firebase project, and this repo is
+# public — see app.config.ts.
+google-services.json
+GoogleService-Info.plist
+
 # typescript
 *.tsbuildinfo
 

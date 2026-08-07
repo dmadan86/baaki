@@ -13,7 +13,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { buildPushBatch, chunk, readPushTickets, type PushableNotification } from '../src/index';
+import {
+  buildPushBatch,
+  chunk,
+  isPushMisconfigured,
+  readPushTickets,
+  type PushableNotification,
+} from '../src/index';
 
 const NOTIFICATION: PushableNotification = {
   id: 'n1',
@@ -114,5 +120,71 @@ describe('reading the tickets', () => {
     const outcome = readPushTickets(targets, [{ status: 'ok', id: 't1' }]);
     expect(outcome.delivered).toEqual(['n1']);
     expect(outcome.failed).toEqual(['n2']);
+    expect(outcome.problems).toEqual([{ error: 'no_ticket', count: 2 }]);
+  });
+});
+
+describe('telling a wrong FCM key apart from a country with its phones off', () => {
+  const targets = [
+    { notificationId: 'n1', token: 'a' },
+    { notificationId: 'n2', token: 'b' },
+    { notificationId: 'n3', token: 'c' },
+  ];
+
+  it('names the credential error rather than counting three more failures', () => {
+    // This is what a build whose google-services.json does not match the FCM
+    // key Expo holds looks like: every ticket errors, and without the code
+    // there is nothing anywhere to distinguish it from bad luck.
+    const outcome = readPushTickets(targets, [
+      { status: 'error', details: { error: 'MismatchSenderId' } },
+      { status: 'error', details: { error: 'MismatchSenderId' } },
+      { status: 'error', details: { error: 'DeviceNotRegistered' } },
+    ]);
+
+    expect(outcome.problems).toEqual([
+      { error: 'MismatchSenderId', count: 2 },
+      { error: 'DeviceNotRegistered', count: 1 },
+    ]);
+    expect(isPushMisconfigured(outcome.problems)).toBe(true);
+    // And the one real uninstall is still revoked, not lost in the noise.
+    expect(outcome.revoke).toEqual(['c']);
+  });
+
+  it('does not cry misconfiguration over uninstalled apps', () => {
+    const outcome = readPushTickets(targets, [
+      { status: 'error', details: { error: 'DeviceNotRegistered' } },
+      { status: 'error', details: { error: 'MessageRateExceeded' } },
+      { status: 'ok', id: 't1' },
+    ]);
+    expect(isPushMisconfigured(outcome.problems)).toBe(false);
+  });
+
+  it('says something even when Expo says nothing', () => {
+    const outcome = readPushTickets(targets.slice(0, 1), [{ status: 'error' }]);
+    expect(outcome.problems).toEqual([{ error: 'unknown', count: 1 }]);
+  });
+
+  it('reports the same run the same way twice', () => {
+    // Two errors with the same count would otherwise come out in Map insertion
+    // order, and a log that reorders itself is a log nobody trusts.
+    const tickets = [
+      { status: 'error', details: { error: 'MessageTooBig' } },
+      { status: 'error', details: { error: 'InvalidCredentials' } },
+      { status: 'error', details: { error: 'MessageTooBig' } },
+    ];
+    const forwards = readPushTickets(targets, tickets);
+    const backwards = readPushTickets([...targets].reverse(), [...tickets].reverse());
+    expect(forwards.problems).toEqual(backwards.problems);
+    expect(forwards.problems[0]).toEqual({ error: 'MessageTooBig', count: 2 });
+  });
+
+  it('is quiet when everything worked', () => {
+    const outcome = readPushTickets(targets, [
+      { status: 'ok', id: 't1' },
+      { status: 'ok', id: 't2' },
+      { status: 'ok', id: 't3' },
+    ]);
+    expect(outcome.problems).toEqual([]);
+    expect(isPushMisconfigured(outcome.problems)).toBe(false);
   });
 });
