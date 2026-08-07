@@ -219,6 +219,21 @@ export function deviceLocale(): string {
   return getLocales()[0]?.languageTag ?? 'en-IN';
 }
 
+/**
+ * Which country this phone thinks it is in, as ISO-3166 alpha-2, or null.
+ *
+ * Used to start a new group on the right payment rails and currency. It is the
+ * *region* of the locale, not the language: somebody in Dubai reading the app
+ * in Hindi is in AE, and guessing IN from `hi` would put them on UPI.
+ *
+ * Null rather than a fallback. A group with no country still works, and a
+ * confident wrong answer is worse than no answer — it gets missed.
+ */
+export function deviceCountry(): string | null {
+  const region = getLocales()[0]?.regionCode ?? null;
+  return region && /^[A-Za-z]{2}$/.test(region) ? region.toUpperCase() : null;
+}
+
 export function useStrings(): { t: UiStrings; locale: string; language: Language } {
   const language = deviceLanguage();
   return { t: STRINGS[language], locale: deviceLocale(), language };
