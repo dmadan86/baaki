@@ -120,41 +120,39 @@ export function buildTimeline(input: {
   const plannedTotal: Record<string, bigint> = {};
   const spentTotal: Record<string, bigint> = {};
 
-  const days = [...dayKeys]
-    .sort()
-    .map((day) => {
-      const items = input.items
-        .filter((item) => item.day === day)
-        .sort(
-          (a, b) =>
-            // Timed things first and in order; then whatever order somebody
-            // dragged them into. Two untimed items keep their position rather
-            // than shuffling on every render.
-            Number(a.startsAt === null) - Number(b.startsAt === null) ||
-            (a.startsAt ?? '').localeCompare(b.startsAt ?? '') ||
-            a.position - b.position ||
-            a.id.localeCompare(b.id),
-        );
+  const days = [...dayKeys].sort().map((day) => {
+    const items = input.items
+      .filter((item) => item.day === day)
+      .sort(
+        (a, b) =>
+          // Timed things first and in order; then whatever order somebody
+          // dragged them into. Two untimed items keep their position rather
+          // than shuffling on every render.
+          Number(a.startsAt === null) - Number(b.startsAt === null) ||
+          (a.startsAt ?? '').localeCompare(b.startsAt ?? '') ||
+          a.position - b.position ||
+          a.id.localeCompare(b.id),
+      );
 
-      const expenses = input.expenses
-        .filter((expense) => expense.date === day)
-        .sort((a, b) => a.description.localeCompare(b.description) || a.id.localeCompare(b.id));
+    const expenses = input.expenses
+      .filter((expense) => expense.date === day)
+      .sort((a, b) => a.description.localeCompare(b.description) || a.id.localeCompare(b.id));
 
-      const planned: Record<string, bigint> = {};
-      const spent: Record<string, bigint> = {};
+    const planned: Record<string, bigint> = {};
+    const spent: Record<string, bigint> = {};
 
-      for (const item of items) {
-        if (item.plannedMinor === null) continue;
-        add(planned, item.currency, item.plannedMinor);
-        add(plannedTotal, item.currency, item.plannedMinor);
-      }
-      for (const expense of expenses) {
-        add(spent, expense.currency, expense.amountMinor);
-        add(spentTotal, expense.currency, expense.amountMinor);
-      }
+    for (const item of items) {
+      if (item.plannedMinor === null) continue;
+      add(planned, item.currency, item.plannedMinor);
+      add(plannedTotal, item.currency, item.plannedMinor);
+    }
+    for (const expense of expenses) {
+      add(spent, expense.currency, expense.amountMinor);
+      add(spentTotal, expense.currency, expense.amountMinor);
+    }
 
-      return { day, items, expenses, plannedByCurrency: planned, spentByCurrency: spent };
-    });
+    return { day, items, expenses, plannedByCurrency: planned, spentByCurrency: spent };
+  });
 
   return { days, plannedByCurrency: plannedTotal, spentByCurrency: spentTotal };
 }

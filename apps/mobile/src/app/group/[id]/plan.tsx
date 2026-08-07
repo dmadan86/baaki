@@ -255,7 +255,10 @@ export default function PlanScreen() {
 
             <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
               {day.items.map((item) => (
-                <Row key={item.id} style={{ paddingVertical: theme.spacing.md, gap: theme.spacing.md }}>
+                <Row
+                  key={item.id}
+                  style={{ paddingVertical: theme.spacing.md, gap: theme.spacing.md }}
+                >
                   <Pressable
                     onPress={() => void toggle(item)}
                     accessibilityRole="checkbox"
@@ -331,7 +334,12 @@ export default function PlanScreen() {
                     style={{ fontSize: 16, color: theme.color.text, paddingVertical: 4 }}
                   />
                   <Row style={{ gap: theme.spacing.sm }}>
-                    <Button label={t.add} size="sm" disabled={busy} onPress={() => void submit(day.day)} />
+                    <Button
+                      label={t.add}
+                      size="sm"
+                      disabled={busy}
+                      onPress={() => void submit(day.day)}
+                    />
                     <Button
                       label={t.cancel}
                       size="sm"

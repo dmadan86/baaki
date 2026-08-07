@@ -70,7 +70,11 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
                 }
                 trailing={
                   item.route ? (
-                    <Ionicons name={directionalIcon('chevron-forward')} size={18} color={theme.color.textFaint} />
+                    <Ionicons
+                      name={directionalIcon('chevron-forward')}
+                      size={18}
+                      color={theme.color.textFaint}
+                    />
                   ) : null
                 }
               />

@@ -61,8 +61,7 @@ async function spending(groupId: string): Promise<SpendingRow[]> {
   }));
 }
 
-const total = (rows: SpendingRow[]): bigint =>
-  rows.reduce((sum, row) => sum + row.shareAmount, 0n);
+const total = (rows: SpendingRow[]): bigint => rows.reduce((sum, row) => sum + row.shareAmount, 0n);
 
 describe('baaki_group_spending', () => {
   it('adds up to exactly what the group spent, split by category and month', async () => {
@@ -98,9 +97,7 @@ describe('baaki_group_spending', () => {
     expect(total(rows)).toBe(180000n);
 
     const months = new Set(rows.map((row) => `${row.category}:${row.month}`));
-    expect(months).toEqual(
-      new Set(['food:2026-03-01', 'food:2026-04-01', 'travel:2026-03-01']),
-    );
+    expect(months).toEqual(new Set(['food:2026-03-01', 'food:2026-04-01', 'travel:2026-03-01']));
 
     // Every member carries a third of each expense; the odd paisa rotation is
     // the ledger's, and this must report whatever it decided rather than
@@ -156,9 +153,7 @@ describe('baaki_group_spending', () => {
       category: 'travel',
     });
 
-    await client.query(`UPDATE expenses SET deleted_at = now() WHERE id = $1`, [
-      removed.expenseId,
-    ]);
+    await client.query(`UPDATE expenses SET deleted_at = now() WHERE id = $1`, [removed.expenseId]);
     expect(total(await spending(groupId))).toBe(50000n);
 
     // Append a second version at a different figure and in a different

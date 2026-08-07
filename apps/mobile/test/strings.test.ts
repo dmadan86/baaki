@@ -83,20 +83,44 @@ describe('the string tables', () => {
     }
   });
 
-  it('actually translated Arabic rather than copying English', () => {
+  it('actually translated every language rather than copying English', () => {
     // The failure this catches is a half-done language: the table exists, the
-    // keys are all there, and half the app is still in English.
-    const arabic = STRINGS_BY_LANGUAGE.ar;
+    // keys are all there, and half the app is still in English. It went
+    // unnoticed for three milestones because `ta` and `hi` opened with a
+    // `...en` spread — every key they forgot compiled, passed the key test
+    // above, and shipped in English. The spread is gone; this is the check
+    // that says so out loud.
     const english = STRINGS_BY_LANGUAGE.en;
-    const untranslated = Object.keys(english).filter(
-      (key) =>
-        typeof english[key as keyof typeof english] === 'string' &&
-        english[key as keyof typeof english] === arabic[key as keyof typeof arabic],
-    );
-    expect(untranslated).toEqual([]);
+    for (const language of ['ta', 'hi', 'ar'] as const) {
+      const table = STRINGS_BY_LANGUAGE[language];
+      const untranslated = Object.keys(english).filter(
+        (key) =>
+          typeof english[key as keyof typeof english] === 'string' &&
+          english[key as keyof typeof english] === table[key as keyof typeof table],
+      );
+      expect(untranslated, language).toEqual([]);
 
-    // And it is written in Arabic script, not transliterated.
-    expect(arabic.settleUp).toMatch(/\p{Script=Arabic}/u);
+      const categories = Object.keys(english.categories).filter(
+        (key) =>
+          english.categories[key as keyof typeof english.categories] ===
+          table.categories[key as keyof typeof table.categories],
+      );
+      expect(categories, `${language}.categories`).toEqual([]);
+
+      // Onboarding is the first screen anybody sees, and the easiest to leave
+      // in English because it is the furthest from the code being changed.
+      for (const [index, card] of table.onboarding.entries()) {
+        expect(card.title, `${language}.onboarding[${index}]`).not.toBe(
+          english.onboarding[index]?.title,
+        );
+      }
+    }
+  });
+
+  it('writes each language in its own script, not transliterated', () => {
+    expect(STRINGS_BY_LANGUAGE.ta.settleUp).toMatch(/\p{Script=Tamil}/u);
+    expect(STRINGS_BY_LANGUAGE.hi.settleUp).toMatch(/\p{Script=Devanagari}/u);
+    expect(STRINGS_BY_LANGUAGE.ar.settleUp).toMatch(/\p{Script=Arabic}/u);
   });
 
   it('knows which languages read right to left', () => {

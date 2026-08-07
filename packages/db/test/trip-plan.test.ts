@@ -48,10 +48,11 @@ async function as<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 
 /** starts_at, note, category, planned_minor, currency, item_id — all optional. */
 const add = (title: string, day = '2026-03-14') =>
-  client.query(
-    `SELECT baaki_add_plan_item($1, $2, $3, NULL, NULL, NULL, NULL, NULL, NULL) AS id`,
-    [group.groupId, day, title],
-  );
+  client.query(`SELECT baaki_add_plan_item($1, $2, $3, NULL, NULL, NULL, NULL, NULL, NULL) AS id`, [
+    group.groupId,
+    day,
+    title,
+  ]);
 
 describe('adding to the plan', () => {
   it('records who added it, from the session rather than the argument', async () => {

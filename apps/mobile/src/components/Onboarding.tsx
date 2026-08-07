@@ -25,9 +25,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { directionalIcon, Text, useTheme, type TintName } from '@baaki/ui';
+import { directionalIcon, isRtlLayout, Text, useTheme, type TintName } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
+import { pageForSlide, pageOrder, slideForPage } from '@/lib/carousel';
 import { useMotion } from '@/lib/motion';
 
 interface Slide {
@@ -56,6 +57,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const { width, height } = useWindowDimensions();
   const scroller = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
+  const rtl = isRtlLayout();
+  const placed = useRef(false);
 
   const goTo = (next: number) => {
     if (next >= SLIDES.length) {
@@ -63,7 +66,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       return;
     }
     setIndex(next);
-    scroller.current?.scrollTo({ x: next * width, animated });
+    scroller.current?.scrollTo({ x: pageForSlide(next, SLIDES.length, rtl) * width, animated });
   };
 
   // The page under the thumb decides the index, so a drag and a tap on the
@@ -74,7 +77,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   // dots would sit under the wrong card until the next tap.
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const page = Math.round(event.nativeEvent.contentOffset.x / width);
-    if (page !== index) setIndex(page);
+    const slide = slideForPage(page, SLIDES.length, rtl);
+    if (slide !== index) setIndex(slide);
+  };
+
+  // Right to left the first card is the rightmost one, so the pager does not
+  // start where it is scrolled to. Done on content size rather than on layout:
+  // at layout time the three cards have not been measured and scrolling to the
+  // last of them is a no-op.
+  const onContentSizeChange = () => {
+    if (placed.current || !rtl) return;
+    placed.current = true;
+    scroller.current?.scrollTo({ x: pageForSlide(0, SLIDES.length, rtl) * width, animated: false });
   };
 
   return (
@@ -84,10 +98,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       pagingEnabled
       showsHorizontalScrollIndicator={false}
       onScroll={onScroll}
+      onContentSizeChange={onContentSizeChange}
       scrollEventThrottle={16}
-      style={{ flex: 1 }}
+      // Pinned left-to-right on purpose: see `@/lib/carousel`. The reversal is
+      // arithmetic there rather than three platforms' disagreeing opinions
+      // about what `contentOffset.x` means in a mirrored scroll view.
+      style={{ flex: 1, direction: 'ltr' }}
     >
-      {SLIDES.map((slide, slideIndex) => {
+      {pageOrder(SLIDES, rtl).map(({ slide, index: slideIndex }) => {
         // The words live in the string table; this file only knows the look.
         const copy = t.onboarding[slideIndex] ?? t.onboarding[0]!;
         const { bg, ink } = theme.tint[slide.tint];
@@ -103,6 +121,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               // is only as tall as its paragraph and the colour stops in the
               // middle of the screen.
               height,
+              // The card mirrors even though the pager holding it does not, so
+              // the wordmark, the dots and the arrow all sit where an Arabic
+              // reader expects them.
+              direction: rtl ? 'rtl' : 'ltr',
               backgroundColor: bg,
               paddingTop: insets.top + theme.spacing.md,
               paddingBottom: insets.bottom + theme.spacing.xxl,
@@ -117,7 +139,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 accessibilityLabel={t.skip}
                 hitSlop={12}
               >
-                <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>{t.skip}</Text>
+                <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
+                  {t.skip}
+                </Text>
               </Pressable>
             </View>
 

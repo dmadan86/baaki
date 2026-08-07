@@ -527,9 +527,7 @@ export async function recordSettlement(input: {
     p_amount: input.amount.toString(),
     // The enum only knows these four. Everything else is `other` there and
     // itself in `p_rail`.
-    p_method: (['upi', 'cash', 'bank', 'other'] as const).includes(
-      input.rail as SettlementMethod,
-    )
+    p_method: (['upi', 'cash', 'bank', 'other'] as const).includes(input.rail as SettlementMethod)
       ? (input.rail as SettlementMethod)
       : 'other',
     p_rail: input.rail,

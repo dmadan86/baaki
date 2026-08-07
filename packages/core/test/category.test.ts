@@ -78,7 +78,10 @@ describe('the category list itself', () => {
       for (const keyword of category.keywords) {
         expect(keyword).toBe(keyword.toLowerCase());
         const owner = seen.get(keyword);
-        expect(owner, `"${keyword}" is claimed by both ${owner} and ${category.id}`).toBeUndefined();
+        expect(
+          owner,
+          `"${keyword}" is claimed by both ${owner} and ${category.id}`,
+        ).toBeUndefined();
         seen.set(keyword, category.id);
       }
     }

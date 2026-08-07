@@ -143,10 +143,7 @@ export default function GroupScreen() {
               <Ionicons name="map-outline" size={19} color={theme.color.text} />
             </IconButton>
           ) : null}
-          <IconButton
-            label={t.spending}
-            onPress={() => router.push(`/group/${groupId}/insights`)}
-          >
+          <IconButton label={t.spending} onPress={() => router.push(`/group/${groupId}/insights`)}>
             <Ionicons name="pie-chart-outline" size={19} color={theme.color.text} />
           </IconButton>
           <IconButton

@@ -239,10 +239,9 @@ describe('the rails added for the anglosphere', () => {
         `UPDATE group_members SET payment_rail = $2, payment_handle = '+61400123456' WHERE id = $1`,
         [group.memberIds[0], rail],
       );
-      const { rows } = await client.query(
-        `SELECT payment_rail FROM group_members WHERE id = $1`,
-        [group.memberIds[0]],
-      );
+      const { rows } = await client.query(`SELECT payment_rail FROM group_members WHERE id = $1`, [
+        group.memberIds[0],
+      ]);
       expect(rows[0].payment_rail, rail).toBe(rail);
     }
   });

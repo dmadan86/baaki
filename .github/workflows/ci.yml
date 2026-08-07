@@ -30,6 +30,21 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Seven empty files called things like `(value.length` and `b.currency`
+      # sat in the repo root for five milestones. They came from shell quoting
+      # that ran a fragment of TypeScript as a redirection, and `git add -A`
+      # swept them in. Nothing type-checks a filename, so nothing complained.
+      # Root level only, and an allow-list rather than a list of bad
+      # characters: Expo Router's own `(tabs)` and `[id]` directories are full
+      # of the brackets a blanket check would trip over.
+      - name: No files from a mis-quoted shell command
+        run: |
+          bad=$(git ls-files -- ':(glob)*' | grep -E '[^A-Za-z0-9._-]' || true)
+          if [ -n "$bad" ]; then
+            echo 'Files in the repo root that look like shell debris:'
+            echo "$bad"
+            exit 1
+          fi
       # The edge functions import a bundled copy of @baaki/core; build it first
       # so a broken bundle fails here rather than at deploy time.
       - run: pnpm edge:build

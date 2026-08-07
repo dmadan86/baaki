@@ -75,7 +75,12 @@ describe('prices', () => {
 describe('reading what the server said', () => {
   it('takes a plain answer at its word', () => {
     expect(
-      readEntitlement({ tier: 'plus', until: '2027-01-01T00:00:00Z', source: 'subscription', scanLimit: 300 }),
+      readEntitlement({
+        tier: 'plus',
+        until: '2027-01-01T00:00:00Z',
+        source: 'subscription',
+        scanLimit: 300,
+      }),
     ).toEqual({
       tier: 'plus',
       until: '2027-01-01T00:00:00Z',

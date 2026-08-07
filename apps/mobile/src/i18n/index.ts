@@ -191,8 +191,16 @@ const en: UiStrings = {
   ],
 };
 
+/**
+ * No `...en` spread here, or in `hi` below.
+ *
+ * Spreading English first is what let twenty-nine keys sit untranslated for
+ * three milestones: the table compiled, the test passed, and a Tamil phone
+ * quietly showed "Pending confirmation" and "Get started" in English. Without
+ * the spread, `UiStrings` being a closed interface means a new key is a
+ * compile error in every language until somebody writes the words.
+ */
 const ta: UiStrings = {
-  ...en,
   greeting: 'வணக்கம்',
   yourBaaki: 'உங்கள் பாக்கி',
   acrossGroups: '{count} குழுக்களில்',
@@ -216,7 +224,22 @@ const ta: UiStrings = {
   splitEqually: 'சமமாகப் பிரி',
   description: 'எதற்காக?',
   save: 'செலவைச் சேமி',
+  pendingConfirmation: 'உறுதிப்படுத்தல் நிலுவையில்',
+  toConfirm: 'உறுதிப்படுத்த வேண்டியவை',
+  overallOwed: 'மொத்தத்தில் உங்களுக்கு வர வேண்டியது',
+  overallOwe: 'நீங்கள் தர வேண்டிய பாக்கி',
+  payViaUpi: 'UPI மூலம் செலுத்து',
+  paidInCash: 'ரொக்கமாகக் கொடுத்தாயிற்று',
+  bankOther: 'வங்கி / மற்றவை',
+  perExpense: 'குறிப்பிட்ட செலவுகளுக்குப் பயன்படுத்து',
+  members: 'உறுப்பினர்கள்',
+  notJoinedYet: 'இன்னும் சேரவில்லை',
+  scansLeft: 'ஸ்கேன் மீதம்',
+  simplifyOn: 'எளிமையாக்கல் இயக்கத்தில்',
+  simplifyOff: 'எளிமையாக்கல் நிறுத்தத்தில்',
   freeForever: 'எப்போதும் இலவசம்',
+  nothingYet: 'இங்கே இன்னும் ஒன்றுமில்லை',
+  nothingYetBody: 'முதல் செலவைச் சேருங்கள் — கணக்கு தானே பார்த்துக்கொள்ளும்.',
   whatFor: 'எந்த வகைச் செலவு',
   spending: 'செலவு',
   byCategory: 'எதற்குச் சென்றது',
@@ -234,10 +257,37 @@ const ta: UiStrings = {
     gifts: 'பரிசு',
     other: 'மற்றவை',
   },
+  plan: 'திட்டம்',
+  planned: 'திட்டமிட்டது',
+  spent: 'செலவானது',
+  overBudget: 'அதிகம்',
+  underBudget: 'குறைவு',
+  nothingPlannedYet: 'இன்னும் திட்டம் ஏதுமில்லை',
+  planEmptyBody:
+    'நாட்களையும் செய்யப் போவதையும் சேருங்கள். உண்மையில் ஆன செலவு தானே நிரம்பிக்கொள்ளும்.',
+  whatIsPlanned: 'என்ன செய்யப் போகிறீர்கள்?',
+  add: 'சேர்',
+  cancel: 'ரத்து',
+  skip: 'தவிர்',
+  next: 'அடுத்து',
+  getStarted: 'தொடங்கலாம்',
+  onboarding: [
+    {
+      title: 'இரவு உணவு, வாடகை,\nஒரு முழுப் பயணம்',
+      body: 'யார் கொடுத்தார்கள், யார் தர வேண்டும் என்பதைக் கடைசிக் காசு வரை பாக்கி வைத்திருக்கும் — இலவசம், முதலில் கணக்கு உருவாக்கத் தேவையில்லை.',
+    },
+    {
+      title: 'ஒரு இணைப்பை அனுப்புங்கள்,\nஅவர்கள் உள்ளே',
+      body: 'நீங்கள் பகிர்ந்துகொள்பவர்கள் எதையும் நிறுவத் தேவையில்லை. இணைப்பைத் திறந்தால் நீங்கள் பார்க்கும் அதே எண்களையே பார்ப்பார்கள்.',
+    },
+    {
+      title: 'ஒரே தட்டில்\nதீர்த்து விடுங்கள்',
+      body: 'சரியான தொகையை பாக்கி உங்கள் பணச் செயலிக்கே கொடுக்கும் — யாரும் இரண்டு முறை கணக்குப் போட வேண்டாம், யாருக்கும் சில்லறை பாக்கி நிற்காது.',
+    },
+  ],
 };
 
 const hi: UiStrings = {
-  ...en,
   greeting: 'नमस्ते',
   yourBaaki: 'आपकी बाकी',
   acrossGroups: '{count} समूहों में',
@@ -261,7 +311,22 @@ const hi: UiStrings = {
   splitEqually: 'बराबर बाँटें',
   description: 'किस लिए?',
   save: 'खर्च सेव करें',
+  pendingConfirmation: 'पुष्टि बाकी',
+  toConfirm: 'पुष्टि करनी है',
+  overallOwed: 'कुल मिलाकर आपको मिलने हैं',
+  overallOwe: 'आपकी देने की बाकी',
+  payViaUpi: 'UPI से भुगतान',
+  paidInCash: 'नकद दिया',
+  bankOther: 'बैंक / अन्य',
+  perExpense: 'कुछ खास खर्चों पर लगाएँ',
+  members: 'सदस्य',
+  notJoinedYet: 'अभी शामिल नहीं हुए',
+  scansLeft: 'स्कैन बाकी',
+  simplifyOn: 'आसान करना चालू',
+  simplifyOff: 'आसान करना बंद',
   freeForever: 'हमेशा मुफ़्त',
+  nothingYet: 'यहाँ अभी कुछ नहीं है',
+  nothingYetBody: 'पहला खर्च जोड़िए, हिसाब अपने आप संभल जाएगा।',
   whatFor: 'किस तरह का खर्च',
   spending: 'खर्च',
   byCategory: 'कहाँ गया',
@@ -279,6 +344,33 @@ const hi: UiStrings = {
     gifts: 'तोहफ़े',
     other: 'अन्य',
   },
+  plan: 'योजना',
+  planned: 'तय किया',
+  spent: 'खर्च हुआ',
+  overBudget: 'ज़्यादा',
+  underBudget: 'कम',
+  nothingPlannedYet: 'अभी कोई योजना नहीं',
+  planEmptyBody: 'दिन और जो करना है वह जोड़िए। असल में जो लगा वह अपने आप भर जाएगा।',
+  whatIsPlanned: 'क्या करना है?',
+  add: 'जोड़ें',
+  cancel: 'रद्द',
+  skip: 'छोड़ें',
+  next: 'आगे',
+  getStarted: 'शुरू करें',
+  onboarding: [
+    {
+      title: 'खाना, किराया,\nपूरी यात्रा',
+      body: 'किसने दिया और किस पर कितना बाकी है — बाकी यह आख़िरी पैसे तक रखता है। मुफ़्त, और पहले खाता बनाने की ज़रूरत नहीं।',
+    },
+    {
+      title: 'एक लिंक भेजिए,\nवे शामिल',
+      body: 'जिनके साथ बाँट रहे हैं उन्हें कुछ भी इंस्टॉल नहीं करना। लिंक खोलिए और वही अंक दिखेंगे जो आपको दिखते हैं।',
+    },
+    {
+      title: 'एक टैप में\nहिसाब बराबर',
+      body: 'बाकी ठीक उतनी रकम आपके पेमेंट ऐप को दे देता है, ताकि कोई दोबारा जोड़-घटाव न करे और किसी का चिल्लर न रह जाए।',
+    },
+  ],
 };
 
 /**
