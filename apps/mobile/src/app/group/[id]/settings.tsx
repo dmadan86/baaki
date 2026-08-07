@@ -19,6 +19,7 @@ import {
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { pickGroupPhoto } from '@/lib/image';
+import { CountryRow } from '@/components/CountryPicker';
 import { TripDates } from '@/components/TripDates';
 import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
@@ -222,6 +223,15 @@ export default function GroupSettingsScreen() {
             ))}
           </Row>
         </Card>
+
+        {/* Decides which payment rails the settle screen offers, and what a new
+            expense starts in. Nothing already recorded changes. */}
+        <CountryRow
+          countryCode={group.data.country_code}
+          onChange={(country_code) =>
+            updateGroup.mutate({ country_code }, { onSuccess: () => setStatus('Saved') })
+          }
+        />
 
         <TripDates
           group={group.data}

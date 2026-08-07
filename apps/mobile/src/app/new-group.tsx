@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
+import { currencyForCountry } from '@baaki/core';
 import { Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -10,7 +11,7 @@ import { pickGroupPhoto, type PickedImage } from '@/lib/image';
 import { addGhostMember, uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
 import type { GroupType } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { deviceCountry, useStrings } from '@/i18n';
 
 const EMOJI = ['🏖️', '🏠', '💜', '🎉', '✈️', '🍽️', '⛰️', '🎓'];
 
@@ -27,6 +28,9 @@ export default function NewGroupScreen() {
   const [ghostName, setGhostName] = useState('');
   const [ghosts, setGhosts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Read once, not on every render: a phone does not change country mid-form,
+  // and re-reading it would be a new value every time for `useMemo` to chase.
+  const [country] = useState(() => deviceCountry());
 
   const submit = async (): Promise<void> => {
     setError(null);
@@ -35,7 +39,11 @@ export default function NewGroupScreen() {
         // Blank is fine — the group gets labelled by who is in it instead.
         name: name.trim() || null,
         type,
-        currency: 'INR',
+        // Where the phone is, and what that country counts in. A group made in
+        // Dubai defaulting to rupees is the small wrongness that makes an app
+        // feel written for somewhere else.
+        country,
+        currency: currencyForCountry(country) ?? 'INR',
         emoji,
         // Trips benefit most from simplification; a two-person group does not.
         simplify: type === 'trip' || type === 'event',

@@ -3,11 +3,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Alert, ScrollView, TextInput, View } from 'react-native';
 
-import { isValidVpa } from '@baaki/core';
+import { defaultRailFor, isValidHandle, railById, railsFor } from '@baaki/core';
 import {
   Badge,
   Button,
   Card,
+  ChipRow,
   ListRow,
   Row,
   Screen,
@@ -18,7 +19,7 @@ import {
 
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { removeAvatar, uploadAvatar } from '@/data/api';
-import { useStrings } from '@/i18n';
+import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { describeGrace, useLock } from '@/lib/lock';
@@ -119,7 +120,16 @@ export default function ProfileScreen() {
   const { animated, overridden: motionOverridden } = useMotion();
 
   const [name, setName] = useState(profile?.display_name ?? '');
-  const [vpa, setVpa] = useState(profile?.default_vpa ?? '');
+  /**
+   * How this person is paid. Falls back through the rail pair, then the old
+   * `default_vpa` — anything written before rails existed can only have been a
+   * UPI ID, and nobody should have to type theirs again.
+   */
+  const country = profile?.country_code ?? deviceCountry();
+  const [rail, setRail] = useState(
+    profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : defaultRailFor(country)),
+  );
+  const [handle, setHandle] = useState(profile?.payment_handle ?? profile?.default_vpa ?? '');
   const [status, setStatus] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
 
@@ -203,16 +213,24 @@ export default function ProfileScreen() {
     );
   };
 
-  const vpaValid = vpa.trim() === '' || isValidVpa(vpa.trim());
+  const railInfo = railById(rail);
+  const handleValid = handle.trim() === '' || isValidHandle(rail, handle.trim());
   const dirty =
-    name.trim() !== (profile?.display_name ?? '') || vpa.trim() !== (profile?.default_vpa ?? '');
+    name.trim() !== (profile?.display_name ?? '') ||
+    handle.trim() !== (profile?.payment_handle ?? profile?.default_vpa ?? '') ||
+    rail !== (profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : rail));
 
   const save = async (): Promise<void> => {
     setStatus(null);
+    const trimmed = handle.trim();
     try {
       await updateProfile({
         display_name: name.trim() || 'You',
-        default_vpa: vpa.trim() === '' ? null : vpa.trim(),
+        payment_rail: trimmed === '' ? null : rail,
+        payment_handle: trimmed === '' ? null : trimmed,
+        // Kept in step while the older screens still read it. A handle on any
+        // other rail is not a UPI ID and must not masquerade as one.
+        default_vpa: rail === 'upi' && trimmed !== '' ? trimmed : null,
       });
       setStatus('Saved');
     } catch (caught) {
@@ -270,32 +288,52 @@ export default function ProfileScreen() {
             />
           </View>
 
-          <View style={{ gap: theme.spacing.xs }}>
+          <View style={{ gap: theme.spacing.sm }}>
             <Text variant="caption" tone="muted">
-              UPI ID
+              How people pay you
             </Text>
-            <TextInput
-              value={vpa}
-              onChangeText={setVpa}
-              autoCapitalize="none"
-              accessibilityLabel="UPI ID"
-              placeholder="you@bank"
-              placeholderTextColor={theme.color.textFaint}
-              style={{
-                fontSize: 18,
-                fontWeight: '600',
-                color: vpaValid ? theme.color.text : theme.color.negative,
-                paddingVertical: theme.spacing.sm,
-              }}
+            {/* Whatever this person's country uses. In India that still starts
+                on UPI; in the UAE it starts on Aani. */}
+            <ChipRow<string>
+              value={rail}
+              onChange={setRail}
+              options={railsFor(country).map((entry) => ({
+                value: entry.id,
+                label: entry.label,
+              }))}
             />
-            <Text variant="micro" tone={vpaValid ? 'faint' : 'negative'}>
-              {vpaValid
-                ? 'People settling with you get a one-tap UPI intent. Baaki never handles the money.'
-                : 'That does not look like a UPI ID (name@bank).'}
-            </Text>
+            {railInfo && railInfo.handle !== 'none' ? (
+              <>
+                <TextInput
+                  value={handle}
+                  onChangeText={setHandle}
+                  autoCapitalize="none"
+                  accessibilityLabel={`Your ${railInfo.label} details`}
+                  placeholder={railInfo.handleHint}
+                  placeholderTextColor={theme.color.textFaint}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '600',
+                    color: handleValid ? theme.color.text : theme.color.negative,
+                    paddingVertical: theme.spacing.sm,
+                  }}
+                />
+                <Text variant="micro" tone={handleValid ? 'faint' : 'negative'}>
+                  {!handleValid
+                    ? `That does not look like ${railInfo.handleHint.toLowerCase()}.`
+                    : railInfo.deepLink
+                      ? 'People settling with you get a one-tap payment. Baaki never handles the money.'
+                      : 'People settling with you see this to pay you from their own bank app. Baaki never handles the money.'}
+                </Text>
+              </>
+            ) : (
+              <Text variant="micro" tone="faint">
+                Nothing to add — people will record what they paid you by hand.
+              </Text>
+            )}
           </View>
 
-          <Button label="Save" disabled={!dirty || !vpaValid} onPress={() => void save()} />
+          <Button label="Save" disabled={!dirty || !handleValid} onPress={() => void save()} />
           {status ? (
             <Text variant="caption" tone={status === 'Saved' ? 'positive' : 'negative'}>
               {status}

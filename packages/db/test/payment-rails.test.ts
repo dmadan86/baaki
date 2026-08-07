@@ -160,3 +160,74 @@ describe('where a group settles', () => {
     ).rejects.toThrow(/group_members_payment_rail_known|violates/i);
   });
 });
+
+describe('creating a group somewhere', () => {
+  async function create(country: string | null, profileId: string): Promise<string> {
+    await client.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
+      JSON.stringify({ sub: profileId, role: 'authenticated' }),
+    ]);
+    const { rows } = await client.query(
+      `SELECT baaki_create_group('Trip', 'trip', 'AED', NULL, true, NULL, NULL, $1) AS id`,
+      [country],
+    );
+    return String(rows[0].id);
+  }
+
+  it('stores the country it was told', async () => {
+    const id = await create('AE', group.profileIds[0] as string);
+    const { rows } = await client.query(`SELECT country_code FROM groups WHERE id = $1`, [id]);
+    expect(rows[0].country_code).toBe('AE');
+  });
+
+  it('falls back to the creator’s own country', async () => {
+    // Somebody making a group is almost always making it where they are, and
+    // the old client that sends seven arguments should still land somewhere
+    // sensible rather than nowhere.
+    await client.query(`UPDATE profiles SET country_code = 'SA' WHERE id = $1`, [
+      group.profileIds[0],
+    ]);
+    const id = await create(null, group.profileIds[0] as string);
+    const { rows } = await client.query(`SELECT country_code FROM groups WHERE id = $1`, [id]);
+    expect(rows[0].country_code).toBe('SA');
+  });
+
+  it('leaves it unset when nobody has ever said', async () => {
+    await client.query(`UPDATE profiles SET country_code = NULL WHERE id = $1`, [
+      group.profileIds[0],
+    ]);
+    const id = await create(null, group.profileIds[0] as string);
+    const { rows } = await client.query(`SELECT country_code FROM groups WHERE id = $1`, [id]);
+    expect(rows[0].country_code).toBeNull();
+  });
+
+  it('upper-cases a lowercase country', async () => {
+    const id = await create('ae', group.profileIds[0] as string);
+    const { rows } = await client.query(`SELECT country_code FROM groups WHERE id = $1`, [id]);
+    expect(rows[0].country_code).toBe('AE');
+  });
+
+  it('refuses a locale tag where a country code belongs', async () => {
+    // 'en-AE' is the shape most likely to arrive by accident, and char(2)
+    // would silently truncate it to 'en' — a country that does not exist.
+    await expect(
+      client.query(`UPDATE groups SET country_code = 'en' WHERE id = $1`, [group.groupId]),
+    ).rejects.toThrow(/groups_country_code_shape|violates/i);
+  });
+
+  it('still returns the same group when a create is replayed', async () => {
+    // Adding a parameter to this function is how idempotency gets lost.
+    const groupId = randomUUID();
+    await client.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
+      JSON.stringify({ sub: group.profileIds[0], role: 'authenticated' }),
+    ]);
+    const call = `SELECT baaki_create_group('Replayed', 'trip', 'AED', NULL, true, $1, NULL, 'AE') AS id`;
+    const first = await client.query(call, [groupId]);
+    const second = await client.query(call, [groupId]);
+    expect(String(second.rows[0].id)).toBe(String(first.rows[0].id));
+
+    const { rows } = await client.query(`SELECT count(*)::int AS n FROM groups WHERE id = $1`, [
+      groupId,
+    ]);
+    expect(rows[0].n).toBe(1);
+  });
+});

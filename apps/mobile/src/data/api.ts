@@ -225,6 +225,12 @@ export async function createGroup(input: {
   simplify?: boolean;
   groupId?: string;
   photoPath?: string | null;
+  /**
+   * ISO-3166 alpha-2. Decides which payment rails the group is offered. Null
+   * falls back to the creator's own country server-side, and then to nothing —
+   * which is a supported state, not a broken one.
+   */
+  country?: string | null;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('baaki_create_group', {
     p_name: input.name?.trim() || null,
@@ -234,6 +240,7 @@ export async function createGroup(input: {
     p_simplify: input.simplify ?? true,
     p_group_id: input.groupId ?? null,
     p_photo_path: input.photoPath ?? null,
+    p_country: input.country ?? null,
   });
   if (error) throw new Error(error.message);
   return data as string;
@@ -553,6 +560,8 @@ export async function updateGroup(
     photo_path: string | null;
     simplify_debts: boolean;
     default_currency: string;
+    /** ISO-3166 alpha-2 — decides which payment rails the group is offered. */
+    country_code: string | null;
     archived_at: string | null;
     start_date: string | null;
     end_date: string | null;

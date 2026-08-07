@@ -25,7 +25,13 @@ export interface Profile {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  /** The UPI-shaped field. Superseded by the rail pair; still read as a fallback. */
   default_vpa: string | null;
+  /** How this person is paid: a `RailId` from `@baaki/core`, and a handle on it. */
+  payment_rail: string | null;
+  payment_handle: string | null;
+  /** ISO-3166 alpha-2 — seeds a new group's country when they make one. */
+  country_code: string | null;
   default_currency: string;
   locale: string;
 }
@@ -118,7 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const { data } = await supabase
           .from('profiles')
-          .select('id, display_name, avatar_url, default_vpa, default_currency, locale')
+          .select(
+            'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, default_currency, locale',
+          )
           .eq('id', session.user.id)
           .maybeSingle();
         if (!active) return;
@@ -227,7 +235,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('profiles')
           .update(patch)
           .eq('id', session.user.id)
-          .select('id, display_name, avatar_url, default_vpa, default_currency, locale')
+          .select(
+            'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, default_currency, locale',
+          )
           .single();
         if (error) throw error;
         setProfile(data as Profile);
