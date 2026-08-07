@@ -345,7 +345,7 @@ export function ContactPicker({
                 const key = keyOf(item);
                 const already = Boolean(
                   (item.email && existing?.has(item.email)) ||
-                    (item.phone && existing?.has(item.phone)),
+                  (item.phone && existing?.has(item.phone)),
                 );
                 return (
                   <ContactRow
