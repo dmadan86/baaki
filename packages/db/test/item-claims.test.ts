@@ -16,7 +16,14 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Client } from 'pg';
 
-import { CONNECTION_STRING, connect, expectDenied, seedGroup, type SeededGroup } from './helpers';
+import {
+  addEqualSplitExpense,
+  CONNECTION_STRING,
+  connect,
+  expectDenied,
+  seedGroup,
+  type SeededGroup,
+} from './helpers';
 
 let admin: Client;
 let group: SeededGroup;
@@ -196,5 +203,235 @@ describe('a claim is always about the person making it', () => {
       clients[0]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [randomUUID()]),
     );
     expect(message).toMatch(/NOT_FOUND/);
+  });
+});
+
+describe('claiming for the friend who is not on Baaki', () => {
+  let ghostId: string;
+
+  beforeAll(async () => {
+    ghostId = randomUUID();
+    await admin.query(
+      `INSERT INTO group_members (id, group_id, ghost_name, joined_via)
+       VALUES ($1, $2, 'Ravi', 'ghost')`,
+      [ghostId, group.groupId],
+    );
+  });
+
+  it('lets anybody in the group tap for a ghost, because nobody else can', async () => {
+    // A ghost is a name and nothing else — no profile, no phone, no way to
+    // claim a line. Refusing on their behalf would mean the bill can never be
+    // finished, which is a worse answer than the small forgery risk.
+    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 4, true, $2)`, [receiptId, ghostId]);
+    expect(await liveClaims()).toEqual([{ item: 4, member: ghostId }]);
+  });
+
+  it('releases a ghost’s claim the same way', async () => {
+    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 4, true, $2)`, [receiptId, ghostId]);
+    await clients[2]!.query(`SELECT baaki_set_item_claim($1, 4, false, $2)`, [receiptId, ghostId]);
+    expect(await liveClaims()).toEqual([]);
+  });
+
+  it('still refuses to claim for somebody who has the app', async () => {
+    // This is the whole point of the CRDT: a set of facts each owned by the
+    // person who added it. One phone claiming for another turns it back into
+    // one person's opinion.
+    const message = await expectDenied(
+      clients[0]!.query(`SELECT baaki_set_item_claim($1, 5, true, $2)`, [
+        receiptId,
+        group.memberIds[1],
+      ]),
+    );
+    expect(message).toMatch(/NOT_YOURS/);
+  });
+
+  it('refuses a member id from another group entirely', async () => {
+    const other = await seedGroup(admin, { memberCount: 1, ghostCount: 1, name: 'Elsewhere' });
+    const message = await expectDenied(
+      clients[0]!.query(`SELECT baaki_set_item_claim($1, 6, true, $2)`, [
+        receiptId,
+        other.memberIds[1],
+      ]),
+    );
+    expect(message).toMatch(/UNKNOWN_MEMBER/);
+  });
+});
+
+describe('finding the bill somebody else scanned', () => {
+  beforeEach(async () => {
+    await admin.query(`DELETE FROM receipt_item_claims WHERE receipt_id = $1`, [receiptId]);
+    await admin.query(`UPDATE receipts SET parsed = $2 WHERE id = $1`, [
+      receiptId,
+      JSON.stringify({
+        merchant: 'Anjappar',
+        items: [
+          { label: 'Biryani', total: 32000 },
+          { label: 'Naan', total: 6000 },
+        ],
+        taxes: [],
+        tip: null,
+      }),
+    ]);
+  });
+
+  it('lists a scanned bill nobody has split yet, with how far along it is', async () => {
+    // Without this the second person at the table has no way to reach the bill
+    // the first person scanned, and the whole CRDT is plumbing with no tap.
+    await clients[0]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
+    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
+
+    const { rows } = await clients[2]!.query(
+      `SELECT id, claimed, items FROM baaki_open_receipts($1)`,
+      [group.groupId],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(receiptId);
+    // Two people on one line is one line claimed, not two.
+    expect(rows[0].claimed).toBe(1);
+    expect(rows[0].items).toBe(2);
+  });
+
+  it('drops it from the list once it has become an expense', async () => {
+    const { rows: before } = await clients[0]!.query(`SELECT id FROM baaki_open_receipts($1)`, [
+      group.groupId,
+    ]);
+    expect(before).toHaveLength(1);
+
+    await addEqualSplitExpense(admin, {
+      groupId: group.groupId,
+      payers: { [group.memberIds[0]!]: 38000n },
+      participants: [group.memberIds[0]!, group.memberIds[1]!],
+      amount: 38000n,
+      description: 'Anjappar',
+      receiptId,
+    });
+
+    const { rows: after } = await clients[0]!.query(`SELECT id FROM baaki_open_receipts($1)`, [
+      group.groupId,
+    ]);
+    expect(after).toHaveLength(0);
+  });
+
+  it('shows a stranger nothing', async () => {
+    const other = await seedGroup(admin, { memberCount: 1, name: 'Elsewhere' });
+    const { rows } = await clients[0]!.query(`SELECT id FROM baaki_open_receipts($1)`, [
+      other.groupId,
+    ]);
+    expect(rows).toHaveLength(0);
+  });
+});
+
+describe('publishing the corrected lines', () => {
+  const lines = JSON.stringify([
+    { label: 'Biryani', total: 32000 },
+    { label: 'Naan', total: 6000 },
+  ]);
+
+  beforeEach(async () => {
+    await admin.query(`DELETE FROM receipt_item_claims WHERE receipt_id = $1`, [receiptId]);
+    await admin.query(`UPDATE receipts SET parsed = NULL WHERE id = $1`, [receiptId]);
+  });
+
+  it('lets a member hand the lines to everybody else', async () => {
+    await clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [
+      receiptId,
+      lines,
+    ]);
+    const { rows } = await clients[2]!.query(
+      `SELECT jsonb_array_length(parsed -> 'items') AS n FROM receipts WHERE id = $1`,
+      [receiptId],
+    );
+    expect(Number(rows[0].n)).toBe(2);
+  });
+
+  it('refuses once somebody has started claiming', async () => {
+    // A claim is stored against a line's index. Deleting the second of six
+    // lines afterwards would move four people's dinners onto somebody else.
+    await clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [
+      receiptId,
+      lines,
+    ]);
+    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
+
+    const message = await expectDenied(
+      clients[0]!.query(
+        `SELECT baaki_publish_receipt_items($1, '[{"label":"x","total":1}]'::jsonb)`,
+        [receiptId],
+      ),
+    );
+    expect(message).toMatch(/ALREADY_CLAIMING/);
+  });
+
+  it('refuses a released claim too, because the index still means something', async () => {
+    await clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [
+      receiptId,
+      lines,
+    ]);
+    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
+    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, false)`, [receiptId]);
+
+    const message = await expectDenied(
+      clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [receiptId, lines]),
+    );
+    expect(message).toMatch(/ALREADY_CLAIMING/);
+  });
+
+  it('refuses an empty bill', async () => {
+    const message = await expectDenied(
+      clients[0]!.query(`SELECT baaki_publish_receipt_items($1, '[]'::jsonb)`, [receiptId]),
+    );
+    expect(message).toMatch(/INVALID_ITEMS/);
+  });
+
+  it('refuses somebody outside the group', async () => {
+    const outsider = randomUUID();
+    await admin.query(
+      `INSERT INTO profiles (id, display_name, default_currency) VALUES ($1, 'Mallory', 'INR')`,
+      [outsider],
+    );
+    const stranger = new Client({ connectionString: CONNECTION_STRING });
+    await stranger.connect();
+    try {
+      await stranger.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
+        JSON.stringify({ sub: outsider, role: 'authenticated' }),
+      ]);
+      await stranger.query('SET ROLE authenticated');
+      const message = await expectDenied(
+        stranger.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [receiptId, lines]),
+      );
+      expect(message).toMatch(/NOT_A_MEMBER/);
+    } finally {
+      await stranger.end();
+    }
+  });
+});
+
+describe('the parsed receipt is not a client’s to rewrite', () => {
+  it('refuses a member editing the lines everybody is claiming against', async () => {
+    // It mattered little while `parsed` was read once and forgotten. Now it is
+    // the shared list of lines, so a member who can rewrite it can change what
+    // everybody else is agreeing to.
+    const message = await expectDenied(
+      clients[0]!.query(`UPDATE receipts SET parsed = '{"items":[]}'::jsonb WHERE id = $1`, [
+        receiptId,
+      ]),
+    );
+    expect(message).toMatch(/permission denied/i);
+  });
+
+  it('refuses a member inventing a receipt in somebody else’s name', async () => {
+    const message = await expectDenied(
+      clients[0]!.query(
+        `INSERT INTO receipts (group_id, created_by, source, parse_status)
+         VALUES ($1, $2, 'camera', 'parsed')`,
+        [group.groupId, group.memberIds[3]],
+      ),
+    );
+    expect(message).toMatch(/permission denied/i);
+  });
+
+  it('still lets everybody in the group read it', async () => {
+    const { rows } = await clients[3]!.query(`SELECT id FROM receipts WHERE id = $1`, [receiptId]);
+    expect(rows).toHaveLength(1);
   });
 });

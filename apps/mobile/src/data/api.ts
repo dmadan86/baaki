@@ -1185,3 +1185,91 @@ export async function removePlanItem(itemId: string): Promise<void> {
   const { error } = await supabase.rpc('baaki_remove_plan_item', { p_item_id: itemId });
   if (error) throw new Error(error.message);
 }
+
+// ──────────────────────────────── splitting one bill from several phones ──
+
+export interface ItemClaimRow {
+  item_index: number;
+  member_id: string;
+  revision: number;
+}
+
+/**
+ * Who has claimed what on a scanned bill, right now.
+ *
+ * Released claims are left out: a tombstone is evidence that somebody let a
+ * line go, which is not the same as never having taken it, and the CRDT needs
+ * the difference even though the screen does not.
+ */
+export async function fetchItemClaims(receiptId: string): Promise<ItemClaimRow[]> {
+  const { data, error } = await supabase.rpc('baaki_item_claims', { p_receipt_id: receiptId });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ItemClaimRow[];
+}
+
+/**
+ * Claim or release one line.
+ *
+ * `forMemberId` is left out for your own lines — the server resolves who you
+ * are and will not take it as an argument. It is only ever sent for a ghost
+ * member, who has no phone to tap with and no other way onto the bill.
+ */
+export async function setItemClaim(input: {
+  receiptId: string;
+  itemIndex: number;
+  claimed: boolean;
+  forMemberId?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.rpc('baaki_set_item_claim', {
+    p_receipt_id: input.receiptId,
+    p_item_index: input.itemIndex,
+    p_claimed: input.claimed,
+    p_for_member_id: input.forMemberId ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export interface OpenReceiptRow {
+  id: string;
+  created_at: string;
+  parsed: ParsedReceipt | null;
+  claimed: number;
+  items: number;
+}
+
+/** The bills scanned in this group that nobody has turned into an expense yet. */
+export async function fetchOpenReceipts(groupId: string): Promise<OpenReceiptRow[]> {
+  const { data, error } = await supabase.rpc('baaki_open_receipts', { p_group_id: groupId });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as OpenReceiptRow[];
+}
+
+/** One scanned bill, for the person who did not scan it. */
+export async function fetchReceipt(
+  receiptId: string,
+): Promise<{ id: string; group_id: string; parsed: ParsedReceipt | null } | null> {
+  const { data, error } = await supabase
+    .from('receipts')
+    .select('id, group_id, parsed')
+    .eq('id', receiptId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data ?? null) as { id: string; group_id: string; parsed: ParsedReceipt | null } | null;
+}
+
+/**
+ * Hand the corrected lines to everybody else and open the bill for claiming.
+ *
+ * Refused once anybody has claimed, because a claim is stored against a line's
+ * index — renumbering afterwards would move somebody else's dinner.
+ */
+export async function publishReceiptItems(
+  receiptId: string,
+  items: { label: string; total: number }[],
+): Promise<void> {
+  const { error } = await supabase.rpc('baaki_publish_receipt_items', {
+    p_receipt_id: receiptId,
+    p_items: items,
+  });
+  if (error) throw new Error(error.message);
+}

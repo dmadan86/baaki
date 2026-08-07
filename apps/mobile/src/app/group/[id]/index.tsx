@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
@@ -28,6 +28,7 @@ import {
   useDisputes,
   useGroupLedger,
   useGroupRealtime,
+  useOpenReceipts,
 } from '@/data/hooks';
 import { describeActivity, verbEmoji } from '@/data/activity';
 import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
@@ -54,6 +55,7 @@ export default function GroupScreen() {
   const { group, members, expenses, settlements, activity } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const disputes = useDisputes(groupId);
+  const openReceipts = useOpenReceipts(groupId);
   const openDisputes = new Set(
     (disputes.data ?? []).filter((row) => row.status === 'open').map((row) => row.expense_id),
   );
@@ -169,6 +171,37 @@ export default function GroupScreen() {
             </Text>
           </Card>
         ) : null}
+
+        {/* A bill somebody at this table scanned and shared. Without this the
+            second person has no way to reach it, and the claims CRDT is
+            plumbing with no tap. */}
+        {(openReceipts.data ?? []).map((receipt) => (
+          <Pressable
+            key={receipt.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Split ${receipt.parsed?.merchant ?? 'the bill'} by item`}
+            onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
+          >
+            <Card style={{ gap: theme.spacing.sm }}>
+              <Row style={{ gap: theme.spacing.sm }}>
+                <Ionicons name="receipt-outline" size={18} color={theme.color.brand} />
+                <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
+                  {receipt.parsed?.merchant ?? 'A bill'}
+                </Text>
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={18}
+                  color={theme.color.textFaint}
+                />
+              </Row>
+              <Text variant="caption" tone="muted">
+                {receipt.claimed === 0
+                  ? `${receipt.items} lines, nobody has claimed one yet. Tap what you had.`
+                  : `${receipt.claimed} of ${receipt.items} lines claimed. Tap what you had.`}
+              </Text>
+            </Card>
+          </Pressable>
+        ))}
 
         <Card style={{ gap: theme.spacing.lg }}>
           <Row style={{ justifyContent: 'space-between' }}>

@@ -37,6 +37,9 @@ import {
   fetchExpenseVersions,
   fetchDisputes,
   fetchExpenses,
+  fetchItemClaims,
+  fetchOpenReceipts,
+  fetchReceipt,
   fetchGroup,
   fetchGroups,
   fetchGroupSpending,
@@ -533,6 +536,65 @@ export function usePlanItems(groupId: string) {
   return useQuery({
     queryKey: ['plan', groupId],
     queryFn: () => fetchPlanItems(groupId),
+    enabled: groupId !== '',
+  });
+}
+
+// ──────────────────────────────── splitting one bill from several phones ──
+
+/**
+ * Who has claimed which line, kept live.
+ *
+ * Realtime rather than polling, because the whole point is four people round a
+ * table watching each other's taps appear. `receipt_item_claims` has no
+ * `group_id` to filter on, so the filter is the receipt — which is narrower
+ * anyway: nobody needs to hear about a bill they are not looking at.
+ */
+export function useItemClaims(receiptId: string | null) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!receiptId) return;
+    const channel = supabase
+      .channel(`receipt:${receiptId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'receipt_item_claims',
+          filter: `receipt_id=eq.${receiptId}`,
+        },
+        () => void queryClient.invalidateQueries({ queryKey: ['claims', receiptId] }),
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [receiptId, queryClient]);
+
+  return useQuery({
+    queryKey: ['claims', receiptId],
+    queryFn: () => fetchItemClaims(receiptId!),
+    enabled: Boolean(receiptId),
+  });
+}
+
+/** One scanned bill, for whoever did not scan it. */
+export function useReceipt(receiptId: string | null) {
+  return useQuery({
+    queryKey: ['receipt', receiptId],
+    queryFn: () => fetchReceipt(receiptId!),
+    enabled: Boolean(receiptId),
+  });
+}
+
+/** The bills in this group that are scanned but not yet split. */
+export function useOpenReceipts(groupId: string) {
+  return useQuery({
+    queryKey: ['open-receipts', groupId],
+    queryFn: () => fetchOpenReceipts(groupId),
     enabled: groupId !== '',
   });
 }

@@ -384,6 +384,7 @@ export default function AddExpenseScreen() {
       // photograph the same bill twice, and a scan is metered (ADR-011).
       void syncEngine.saveDraft(handoverKey(groupId), {
         parsed: result.parsed,
+        receiptId: result.receiptId,
         at: Date.now(),
       });
 

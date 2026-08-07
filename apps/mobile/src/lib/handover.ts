@@ -20,6 +20,13 @@ import type { ParsedReceipt } from '@baaki/core';
 
 export interface ReceiptHandover {
   readonly parsed: ParsedReceipt;
+  /**
+   * The receipt row the scan was recorded against. Carried across so a bill
+   * scanned on the add-expense screen can still be shared with the table from
+   * the itemize screen — without it, following the handover meant losing the
+   * only thing that makes the lines shareable.
+   */
+  readonly receiptId?: string;
   /** Epoch milliseconds. A scan nobody followed up on goes stale (see `HANDOVER_TTL_MS`). */
   readonly at: number;
 }

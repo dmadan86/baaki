@@ -86,6 +86,12 @@ export interface AddExpenseOptions {
   description?: string;
   date?: string;
   category?: string | null;
+  /**
+   * The scanned bill this expense came out of. Set here rather than afterwards
+   * because `expense_versions` is append-only (ADR-004) — an UPDATE is refused
+   * by the trigger.
+   */
+  receiptId?: string | null;
 }
 
 /**
@@ -105,6 +111,7 @@ export async function addEqualSplitExpense(
     description = 'Dinner',
     date = '2026-03-01',
     category = null,
+    receiptId = null,
   } = options;
 
   const expenseId = randomUUID();
@@ -126,8 +133,8 @@ export async function addEqualSplitExpense(
   await client.query(
     `INSERT INTO expense_versions
        (id, expense_id, version_no, author_member_id, description, category, expense_date,
-        currency, amount, split_type, split_params)
-     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, 'equal', '{"kind":"equal"}'::jsonb)`,
+        currency, amount, split_type, split_params, receipt_id)
+     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, 'equal', '{"kind":"equal"}'::jsonb, $9)`,
     [
       versionId,
       expenseId,
@@ -137,6 +144,7 @@ export async function addEqualSplitExpense(
       date,
       currency,
       amount.toString(),
+      receiptId,
     ],
   );
   for (const [memberId, paid] of Object.entries(payers)) {
