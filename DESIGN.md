@@ -98,6 +98,25 @@ has proved anything about itself; the group covers are emoji for the same reason
 so the tour looks like the product rather than a brochure stapled to the front of
 it.
 
+## Lists somebody has to aim at
+
+The contact picker is the one screen where the data is not ours and can be
+enormous — a phone with nine hundred names in it. It borrows the shape of the
+phone's own contacts app rather than inventing one: the count in the search
+field, letter headings that stick as you scroll, and an index rail down the
+right side. Nobody has to learn it, and a thousand rows stops being something
+you scroll and becomes something you aim at.
+
+The rail's letters come from the contacts rather than a hard-coded A–Z, so an
+address book of Tamil or Devanagari names gets a rail that matches it instead of
+filing everyone under `#`. When there are more letters than fit, it shows every
+nth: a squashed complete alphabet is worse at aiming than a sparse one.
+
+`@shopify/flash-list` does the recycling — sections are one flat array of
+headings and people, with `getItemType` telling it the two are different shapes.
+The rail is ours, forty lines, because every published React Native
+alphabet-index component was abandoned years ago.
+
 ## Spacing
 
 4px base: `xs 4 · sm 8 · md 12 · lg 16 · xl 20 · xxl 24 · xxxl 32`. Screens use

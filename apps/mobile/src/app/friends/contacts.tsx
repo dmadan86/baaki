@@ -2,15 +2,17 @@
  * Browsing the phone's address book to add somebody to a group.
  *
  * The address book never leaves the device — `ContactPicker` reads it, searches
- * it and shows it locally, and only the one person tapped is sent anywhere.
+ * it and shows it locally, and only the people ticked are sent anywhere.
  * There is deliberately no "which of my contacts already use Baaki" here: that
  * feature requires uploading the whole book, and it turns an address book into
  * a membership oracle for anybody who later reaches the server (ADR-006).
  *
  * A person in Baaki always belongs to a group, because a debt is between people
- * *about something*. So picking a contact asks the one question that has to be
- * answered — which group — rather than inventing a floating "friend" that owes
- * nobody anything.
+ * *about something*. So picking contacts asks the one question that has to be
+ * answered — which group — rather than inventing floating "friends" that owe
+ * nobody anything. The whole lot goes into one group: picking six people for a
+ * trip and then answering "which group?" six times is the same answer six
+ * times.
  */
 
 import { useState } from 'react';
@@ -21,6 +23,7 @@ import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
+  AvatarStack,
   Button,
   Card,
   directionalIcon,
@@ -42,18 +45,47 @@ export default function ContactsScreen(): React.JSX.Element {
   const theme = useTheme();
   const queryClient = useQueryClient();
 
-  const [picked, setPicked] = useState<PickedContact | null>(null);
+  const [picked, setPicked] = useState<readonly PickedContact[]>([]);
   const [added, setAdded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const groups = useQuery({ queryKey: ['groups'], queryFn: fetchGroups });
 
+  /**
+   * Everybody picked, into the one group, one call each.
+   *
+   * A failure part-way leaves the earlier ones added, and says whose name did
+   * not make it. Adding five people is five separate acts, not a transaction:
+   * throwing away four good ones because the fifth had a number the server
+   * would not take is a worse answer than telling you about the fifth.
+   */
   const add = useMutation({
-    mutationFn: async ({ groupId, contact }: { groupId: string; contact: PickedContact }) =>
-      addGhostMember(groupId, contact.name, { email: contact.email, phone: contact.phone }),
-    onSuccess: async (_id, { groupId, contact }) => {
-      setAdded(contact.name);
-      setPicked(null);
+    mutationFn: async ({
+      groupId,
+      contacts,
+    }: {
+      groupId: string;
+      contacts: readonly PickedContact[];
+    }) => {
+      const failed: string[] = [];
+      let last = '';
+      for (const contact of contacts) {
+        try {
+          await addGhostMember(groupId, contact.name, {
+            email: contact.email,
+            phone: contact.phone,
+          });
+        } catch (caught) {
+          failed.push(contact.name);
+          last = caught instanceof Error ? caught.message : String(caught);
+        }
+      }
+      if (failed.length > 0) throw new Error(`Could not add ${failed.join(', ')}: ${last}`);
+      return contacts.length;
+    },
+    onSuccess: async (count, { groupId }) => {
+      setAdded(`${count} ${count === 1 ? 'person' : 'people'}`);
+      setPicked([]);
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['members', groupId] });
       await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
@@ -64,11 +96,16 @@ export default function ContactsScreen(): React.JSX.Element {
   });
 
   return (
-    <Screen>
+    // The picker anchors a button to the bottom of the screen, so this one has
+    // to hold the bottom inset too. Without it the button lands under the
+    // navigation bar — invisible on a phone with three buttons rather than a
+    // gesture pill, which is the case an emulator does not show you.
+    <Screen edges={['top', 'bottom']}>
       <View
         style={{
           flex: 1,
           paddingHorizontal: theme.spacing.xl,
+          paddingBottom: theme.spacing.md,
           gap: theme.spacing.lg,
         }}
       >
@@ -82,17 +119,17 @@ export default function ContactsScreen(): React.JSX.Element {
           <View style={{ width: 44 }} />
         </Row>
 
-        {picked ? (
+        {picked.length > 0 ? (
           <ChooseGroup
-            contact={picked}
+            contacts={picked}
             groups={groups.data ?? []}
             busy={add.isPending}
             error={error}
             onCancel={() => {
-              setPicked(null);
+              setPicked([]);
               setError(null);
             }}
-            onChoose={(groupId) => add.mutate({ groupId, contact: picked })}
+            onChoose={(groupId) => add.mutate({ groupId, contacts: picked })}
           />
         ) : (
           <>
@@ -103,7 +140,7 @@ export default function ContactsScreen(): React.JSX.Element {
                 </Text>
               </Card>
             ) : null}
-            <ContactPicker onPick={setPicked} />
+            <ContactPicker onConfirm={setPicked} confirmVerb="Continue with" />
           </>
         )}
       </View>
@@ -118,14 +155,14 @@ export default function ContactsScreen(): React.JSX.Element {
  * nothing to owe or be owed, and would sit in the app looking like a mistake.
  */
 function ChooseGroup({
-  contact,
+  contacts,
   groups,
   busy,
   error,
   onCancel,
   onChoose,
 }: {
-  contact: PickedContact;
+  contacts: readonly PickedContact[];
   groups: readonly { id: string; name: string | null; cover_emoji: string | null }[];
   busy: boolean;
   error: string | null;
@@ -133,6 +170,7 @@ function ChooseGroup({
   onChoose: (groupId: string) => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const only = contacts.length === 1 ? contacts[0] : undefined;
 
   return (
     <ScrollView
@@ -141,17 +179,25 @@ function ChooseGroup({
     >
       <Card style={{ gap: theme.spacing.xs }}>
         <Row style={{ gap: theme.spacing.md }}>
-          <Avatar name={contact.name} size={44} />
+          {only ? (
+            <Avatar name={only.name} size={44} />
+          ) : (
+            <AvatarStack names={contacts.map((contact) => contact.name)} size={36} />
+          )}
           <View style={{ flex: 1 }}>
-            <Text variant="subheading">{contact.name}</Text>
-            <Text variant="micro" tone="faint">
-              {contact.email ?? contact.phone ?? 'No address'}
+            <Text variant="subheading" numberOfLines={1}>
+              {only ? only.name : `${contacts.length} people`}
+            </Text>
+            <Text variant="micro" tone="faint" numberOfLines={2}>
+              {only
+                ? (only.email ?? only.phone ?? 'No address')
+                : contacts.map((contact) => contact.name).join(', ')}
             </Text>
           </View>
         </Row>
       </Card>
 
-      <SectionHeader title="Add to which group?" />
+      <SectionHeader title={only ? 'Add to which group?' : 'Add them all to which group?'} />
 
       {groups.length === 0 ? (
         <Card style={{ gap: theme.spacing.md }}>
@@ -205,7 +251,7 @@ function ChooseGroup({
         with this email or number they claim everything already sitting there.
       </Text>
 
-      <Button label="Pick somebody else" variant="ghost" onPress={onCancel} />
+      <Button label="Pick different people" variant="ghost" onPress={onCancel} />
     </ScrollView>
   );
 }
