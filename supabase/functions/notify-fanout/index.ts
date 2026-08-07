@@ -17,7 +17,14 @@
  * service role's business and no one else's.
  */
 
-import { buildPushBatch, chunk, readPushTickets, type ExpoTicket } from '../_shared/core.js';
+import {
+  buildPushBatch,
+  chunk,
+  isPushMisconfigured,
+  readPushTickets,
+  type ExpoTicket,
+  type PushProblem,
+} from '../_shared/core.js';
 import { asService, CORS_HEADERS, errorResponse, HttpError, json } from '../_shared/auth.ts';
 
 const EXPO_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
@@ -83,6 +90,7 @@ Deno.serve(async (request) => {
     const delivered: string[] = [];
     const failed: string[] = [];
     const revoke: string[] = [];
+    const problems = new Map<string, number>();
 
     const messageChunks = chunk(batch.messages);
     const targetChunks = chunk(batch.targets);
@@ -110,6 +118,27 @@ Deno.serve(async (request) => {
       delivered.push(...outcome.delivered);
       failed.push(...outcome.failed);
       revoke.push(...outcome.revoke);
+      for (const problem of outcome.problems) {
+        problems.set(problem.error, (problems.get(problem.error) ?? 0) + problem.count);
+      }
+    }
+
+    const summary: PushProblem[] = [...problems]
+      .map(([error, count]) => ({ error, count }))
+      .sort((a, b) => b.count - a.count || a.error.localeCompare(b.error));
+
+    // Said loudly, because the alternative is a graph of failures that looks
+    // like a country with its phones off. `MismatchSenderId` means the FCM key
+    // Expo holds is not the one this binary was built with; `InvalidCredentials`
+    // means Expo has no usable key at all. Both are fixed in a console, by us,
+    // and neither announces itself anywhere else. See README, "Turning on push".
+    if (isPushMisconfigured(summary)) {
+      console.error(
+        'push credentials look wrong — nobody is receiving notifications:',
+        JSON.stringify(summary),
+      );
+    } else if (summary.length > 0) {
+      console.warn('push problems:', JSON.stringify(summary));
     }
 
     const { error: finishError } = await service.rpc('baaki_finish_push', {
@@ -124,6 +153,8 @@ Deno.serve(async (request) => {
       sent: delivered.length,
       failed: failed.length,
       revoked: revoke.length,
+      problems: summary,
+      misconfigured: isPushMisconfigured(summary),
     });
   } catch (error) {
     return errorResponse(error, { fn: 'notify-fanout' });

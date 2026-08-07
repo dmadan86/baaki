@@ -109,6 +109,37 @@ export interface PushOutcome {
   readonly failed: readonly string[];
   /** Tokens belonging to an app that is no longer installed. */
   readonly revoke: readonly string[];
+  /**
+   * Why the refusals happened, counted by Expo's error code.
+   *
+   * Without this, a wrong FCM key looks exactly like every phone in the country
+   * being switched off: rows go out, tickets come back not-ok, the count of
+   * failures climbs, and nothing anywhere says the credentials are the problem.
+   * `MismatchSenderId` and `InvalidCredentials` are the two that mean *we* have
+   * something to fix rather than the person holding the phone, and they only
+   * ever show up here, in the reply to a send.
+   */
+  readonly problems: readonly PushProblem[];
+}
+
+export interface PushProblem {
+  /** Expo's `details.error`, or `'unknown'` when it did not give one. */
+  readonly error: string;
+  readonly count: number;
+}
+
+/**
+ * The errors that mean the credentials are wrong, not the device.
+ *
+ * Kept as a list rather than inferred, because the cost of guessing wrong runs
+ * one way: a device error mistaken for a config error is noise, and a config
+ * error mistaken for a device error is push silently not working for everybody.
+ */
+export const PUSH_CONFIG_ERRORS: readonly string[] = ['MismatchSenderId', 'InvalidCredentials'];
+
+/** Whether this run's failures point at the FCM/APNs setup rather than at phones. */
+export function isPushMisconfigured(problems: readonly PushProblem[]): boolean {
+  return problems.some((problem) => PUSH_CONFIG_ERRORS.includes(problem.error));
 }
 
 /**
@@ -130,6 +161,11 @@ export function readPushTickets(
   const accepted = new Set<string>();
   const attempted = new Set<string>();
   const revoke = new Set<string>();
+  const problems = new Map<string, number>();
+
+  const note = (error: string): void => {
+    problems.set(error, (problems.get(error) ?? 0) + 1);
+  };
 
   targets.forEach((target, index) => {
     attempted.add(target.notificationId);
@@ -137,12 +173,17 @@ export function readPushTickets(
 
     // A short reply is a truncated one; treating a missing ticket as success
     // would mark a notification sent that nobody has seen.
-    if (!ticket) return;
+    if (!ticket) {
+      note('no_ticket');
+      return;
+    }
 
     if (ticket.status === 'ok') {
       accepted.add(target.notificationId);
       return;
     }
+
+    note(ticket.details?.error ?? 'unknown');
     if (ticket.details?.error === 'DeviceNotRegistered') revoke.add(target.token);
   });
 
@@ -150,5 +191,9 @@ export function readPushTickets(
     delivered: [...accepted],
     failed: [...attempted].filter((id) => !accepted.has(id)),
     revoke: [...revoke],
+    // Commonest first, then by name, so two identical runs read identically.
+    problems: [...problems]
+      .map(([error, count]) => ({ error, count }))
+      .sort((a, b) => b.count - a.count || a.error.localeCompare(b.error)),
   };
 }
