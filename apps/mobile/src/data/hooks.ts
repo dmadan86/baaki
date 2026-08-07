@@ -48,6 +48,7 @@ import {
   fetchMyBalances,
   fetchNotifications,
   fetchPendingSettlements,
+  fetchSettledTotals,
   fetchPlanItems,
   fetchSettlements,
   markNotificationsRead,
@@ -83,6 +84,18 @@ export function useGroups() {
 
 export function useAllBalances() {
   return useQuery({ queryKey: keys.allBalances, queryFn: fetchAllBalances });
+}
+
+/**
+ * How much has changed hands through this person, per currency. Not a balance
+ * — see `fetchSettledTotals`.
+ */
+export function useSettledTotals(profileId: string | null) {
+  return useQuery({
+    queryKey: ['settlements', 'settled', profileId],
+    queryFn: () => fetchSettledTotals(profileId as string),
+    enabled: Boolean(profileId),
+  });
 }
 
 /** Home-screen data: my balance per group, member counts, pending confirmations. */
@@ -356,6 +369,11 @@ export function invalidateGroup(queryClient: QueryClient, groupId: string): void
   void queryClient.invalidateQueries({ queryKey: ['group', groupId] });
   void queryClient.invalidateQueries({ queryKey: keys.groups });
   void queryClient.invalidateQueries({ queryKey: keys.allBalances });
+  // The lifetime settled total is not scoped to a group, so nothing above
+  // reaches it. Confirming a settlement in one group left the figure on the
+  // account screen showing the old number until the app was restarted — a
+  // total that only updates when you kill the app is worse than no total.
+  void queryClient.invalidateQueries({ queryKey: ['settlements', 'settled'] });
 }
 
 // ─────────────────────────────────────────────────────────── mutations ──

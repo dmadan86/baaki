@@ -14,6 +14,7 @@ import {
   normaliseEmail,
   normalisePhone,
   serialiseSplitParams,
+  type CurrencyCode,
   type FxRecord,
   type ParsedReceipt,
   type ReceiptCheck,
@@ -187,6 +188,48 @@ export async function fetchPendingSettlements(): Promise<{ group_id: string; id:
   return unwrap(
     await supabase.from('settlements').select('id, group_id').eq('status', 'initiated'),
   );
+}
+
+/**
+ * How much has actually changed hands through this person, per currency.
+ *
+ * Both directions count. This is not a balance and must never be shown as one:
+ * money paid and money received are the same fact here — that a debt was
+ * closed — so it carries no sign and no owed/owe colour.
+ *
+ * Only settled settlements count. `initiated` means somebody says they paid and
+ * nobody has agreed yet (ADR-007), and a number that goes up the moment you
+ * claim something is a number that flatters rather than reports.
+ *
+ * Kept per currency because there is no rate that makes rupees and euros one
+ * total, and inventing one here would be the only place in Baaki that guesses
+ * at money.
+ */
+export async function fetchSettledTotals(profileId: string): Promise<Map<CurrencyCode, bigint>> {
+  const rows = unwrap(
+    await supabase
+      .from('settlements')
+      .select(
+        `currency, amount,
+         from:group_members!settlements_from_member_id_fkey ( profile_id ),
+         to:group_members!settlements_to_member_id_fkey ( profile_id )`,
+      )
+      .in('status', ['confirmed', 'auto_confirmed']),
+  ) as unknown as {
+    currency: CurrencyCode;
+    amount: string | number;
+    from: { profile_id: string | null } | null;
+    to: { profile_id: string | null } | null;
+  }[];
+
+  const totals = new Map<CurrencyCode, bigint>();
+  for (const row of rows) {
+    // Row-level security already limits this to groups I am in; it does not
+    // limit it to settlements I am *part of*, and the two are not the same.
+    if (row.from?.profile_id !== profileId && row.to?.profile_id !== profileId) continue;
+    totals.set(row.currency, (totals.get(row.currency) ?? 0n) + BigInt(row.amount));
+  }
+  return totals;
 }
 
 /**
