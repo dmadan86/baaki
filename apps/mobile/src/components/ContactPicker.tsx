@@ -13,9 +13,9 @@
  * link works whether or not the person has ever heard of us (ADR-006).
  */
 
-import { useEffect, useMemo, useState } from 'react';
-import * as Contacts from 'expo-contacts';
-import { FlatList, Linking, Pressable, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Contact, ContactField, getPermissionsAsync, requestPermissionsAsync } from 'expo-contacts';
+import { AppState, FlatList, Linking, Pressable, TextInput, View } from 'react-native';
 
 import { Avatar, Button, Card, EmptyState, Row, Text, useTheme } from '@baaki/ui';
 
@@ -31,60 +31,103 @@ interface ContactPickerProps {
   existing?: ReadonlySet<string>;
 }
 
-type Permission = 'asking' | 'granted' | 'denied';
+/**
+ * `denied` is the person's answer. `unavailable` is ours — the address book
+ * could not be read for a reason that has nothing to do with them.
+ *
+ * These used to be one state, and the whole feature died of it: in SDK 57 the
+ * old `Contacts.getContactsAsync` throws on every call, so a phone that had
+ * just granted permission was told "Baaki cannot see your contacts" and offered
+ * a settings screen where the switch was already on. A catch that turns every
+ * failure into the same sentence does not just lose the reason — it prints a
+ * confident lie.
+ */
+type Access = 'asking' | 'granted' | 'denied' | 'unavailable';
+
+/**
+ * Only these. Asking for less than the platform offers is the cheapest privacy
+ * measure there is — the name to show, and the one address needed to invite.
+ */
+const FIELDS = [
+  ContactField.FULL_NAME,
+  ContactField.GIVEN_NAME,
+  ContactField.FAMILY_NAME,
+  ContactField.EMAILS,
+  ContactField.PHONES,
+] as const;
 
 export function ContactPicker({ onPick, existing }: ContactPickerProps): React.JSX.Element {
   const theme = useTheme();
-  const [permission, setPermission] = useState<Permission>('asking');
+  const [access, setAccess] = useState<Access>('asking');
   const [contacts, setContacts] = useState<PickedContact[]>([]);
   const [query, setQuery] = useState('');
+  const cancelled = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async (): Promise<void> => {
+    let granted: boolean;
+    try {
+      const current = await getPermissionsAsync();
+      granted =
+        current.granted || (current.canAskAgain && (await requestPermissionsAsync()).granted);
+    } catch {
+      // Permission itself could not be asked: no contacts module on this
+      // platform (web) or an OS that refused the question.
+      if (!cancelled.current) setAccess('unavailable');
+      return;
+    }
+    if (cancelled.current) return;
+    if (!granted) {
+      setAccess('denied');
+      return;
+    }
 
-    void (async () => {
-      // expo-contacts has no web implementation and throws rather than
-      // no-opping there, which would otherwise leave this stuck on "looking
-      // through your contacts…" forever with nothing said about why.
-      let data: Awaited<ReturnType<typeof Contacts.getContactsAsync>>['data'];
-      try {
-        const { status } = await Contacts.requestPermissionsAsync();
-        if (cancelled) return;
-        if (status !== 'granted') {
-          setPermission('denied');
-          return;
-        }
+    let rows: Awaited<ReturnType<typeof Contact.getAllDetails<typeof FIELDS>>>;
+    try {
+      rows = await Contact.getAllDetails(FIELDS);
+    } catch {
+      if (!cancelled.current) setAccess('unavailable');
+      return;
+    }
+    if (cancelled.current) return;
 
-        // Only these three fields. Asking for less than the platform offers is
-        // the cheapest privacy measure there is.
-        ({ data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.Name, Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-        }));
-      } catch {
-        if (!cancelled) setPermission('denied');
-        return;
-      }
-      if (cancelled) return;
-
-      setContacts(
-        data
-          .map((contact) => ({
-            name: contact.name?.trim() ?? '',
-            email: contact.emails?.[0]?.email?.trim().toLowerCase() ?? null,
-            phone: normalisePhone(contact.phoneNumbers?.[0]?.number ?? null),
-          }))
-          // Somebody with neither an email nor a number cannot be invited, so
-          // showing them would only be an invitation to tap and be refused.
-          .filter((contact) => contact.name && (contact.email || contact.phone))
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      setPermission('granted');
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    setContacts(
+      rows
+        .map((row) => ({
+          name: (row.fullName ?? [row.givenName, row.familyName].filter(Boolean).join(' ')).trim(),
+          email: row.emails?.[0]?.address?.trim().toLowerCase() ?? null,
+          phone: normalisePhone(row.phones?.[0]?.number ?? null),
+        }))
+        // Somebody with neither an email nor a number cannot be invited, so
+        // showing them would only be an invitation to tap and be refused.
+        .filter((contact) => contact.name && (contact.email || contact.phone))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    setAccess('granted');
   }, []);
+
+  // Read on a tick rather than in the effect body: the React Compiler counts a
+  // synchronous call that can setState as a cascading render, and reading an
+  // address book is exactly the "talk to a platform API" case a timer suits.
+  useEffect(() => {
+    cancelled.current = false;
+    const timer = setTimeout(() => void load(), 0);
+    return () => {
+      clearTimeout(timer);
+      cancelled.current = true;
+    };
+  }, [load]);
+
+  /**
+   * "Open settings" sends somebody out of the app to grant access. Without
+   * this, they came back to the same refusal and had to guess that killing
+   * Baaki and starting it again was the missing step.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && access === 'denied') void load();
+    });
+    return () => subscription.remove();
+  }, [access, load]);
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -97,7 +140,7 @@ export function ContactPicker({ onPick, existing }: ContactPickerProps): React.J
     );
   }, [contacts, query]);
 
-  if (permission === 'asking') {
+  if (access === 'asking') {
     return (
       <Card>
         <Text variant="caption" tone="muted">
@@ -107,7 +150,7 @@ export function ContactPicker({ onPick, existing }: ContactPickerProps): React.J
     );
   }
 
-  if (permission === 'denied') {
+  if (access === 'denied') {
     return (
       <Card style={{ gap: theme.spacing.sm }}>
         <Text variant="caption" tone="muted">
@@ -122,6 +165,18 @@ export function ContactPicker({ onPick, existing }: ContactPickerProps): React.J
           variant="ghost"
           onPress={() => void Linking.openSettings().catch(() => undefined)}
         />
+      </Card>
+    );
+  }
+
+  if (access === 'unavailable') {
+    return (
+      <Card style={{ gap: theme.spacing.sm }}>
+        <Text variant="caption" tone="muted">
+          Baaki could not read the address book on this phone. Nothing is wrong with your
+          permissions — add people by typing a name, an email or a number instead.
+        </Text>
+        <Button label="Try again" variant="ghost" onPress={() => void load()} />
       </Card>
     );
   }

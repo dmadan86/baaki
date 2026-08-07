@@ -5,12 +5,38 @@ import {
   type TextStyle,
 } from 'react-native';
 
-import { useTheme } from '../theme';
+import { useTheme, type Theme } from '../theme';
 import type { typography } from '../tokens';
 
 export type TextVariant = keyof typeof typography;
 export type TextTone =
   'default' | 'muted' | 'faint' | 'brand' | 'positive' | 'negative' | 'onBrand';
+
+/**
+ * The colour a tone resolves to.
+ *
+ * Exported because a caller sometimes needs the colour rather than a `<Text>`
+ * — a nested span that must inherit its parent's size but not its opacity, for
+ * one. Anything that recomputes this mapping locally will drift from it.
+ */
+export function toneColor(theme: Theme, tone: TextTone): string {
+  switch (tone) {
+    case 'muted':
+      return theme.color.textMuted;
+    case 'faint':
+      return theme.color.textFaint;
+    case 'brand':
+      return theme.color.brand;
+    case 'positive':
+      return theme.color.positive;
+    case 'negative':
+      return theme.color.negative;
+    case 'onBrand':
+      return theme.color.onBrand;
+    default:
+      return theme.color.text;
+  }
+}
 
 export interface TextProps extends RNTextProps {
   variant?: TextVariant;
@@ -41,20 +67,7 @@ export function Text({
       ? Math.round(override.fontSize * (scale.lineHeight / scale.fontSize))
       : scale.lineHeight;
 
-  const color =
-    tone === 'muted'
-      ? theme.color.textMuted
-      : tone === 'faint'
-        ? theme.color.textFaint
-        : tone === 'brand'
-          ? theme.color.brand
-          : tone === 'positive'
-            ? theme.color.positive
-            : tone === 'negative'
-              ? theme.color.negative
-              : tone === 'onBrand'
-                ? theme.color.onBrand
-                : theme.color.text;
+  const color = toneColor(theme, tone);
 
   return (
     <RNText

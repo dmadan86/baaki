@@ -96,6 +96,7 @@ export interface UiStrings {
   whatIsPlanned: string;
   add: string;
   cancel: string;
+  whichGroup: string;
   skip: string;
   next: string;
   getStarted: string;
@@ -168,6 +169,7 @@ const en: UiStrings = {
   whatIsPlanned: 'What are you doing?',
   add: 'Add',
   cancel: 'Cancel',
+  whichGroup: 'Which group is this for?',
   skip: 'Skip',
   next: 'Next',
   getStarted: 'Get started',
@@ -268,6 +270,7 @@ const ta: UiStrings = {
   whatIsPlanned: 'என்ன செய்யப் போகிறீர்கள்?',
   add: 'சேர்',
   cancel: 'ரத்து',
+  whichGroup: 'எந்தக் குழுவுக்கு?',
   skip: 'தவிர்',
   next: 'அடுத்து',
   getStarted: 'தொடங்கலாம்',
@@ -354,6 +357,7 @@ const hi: UiStrings = {
   whatIsPlanned: 'क्या करना है?',
   add: 'जोड़ें',
   cancel: 'रद्द',
+  whichGroup: 'किस समूह के लिए?',
   skip: 'छोड़ें',
   next: 'आगे',
   getStarted: 'शुरू करें',
@@ -445,6 +449,7 @@ const ar: UiStrings = {
   whatIsPlanned: 'ماذا ستفعل؟',
   add: 'إضافة',
   cancel: 'إلغاء',
+  whichGroup: 'لأي مجموعة؟',
   skip: 'تخطٍ',
   next: 'التالي',
   getStarted: 'لنبدأ',

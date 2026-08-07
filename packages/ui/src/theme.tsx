@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 
-import { palette, radius, shadow, spacing, typography, type TintName } from './tokens';
+import { gradients, palette, radius, shadow, spacing, typography, type TintName } from './tokens';
 
 export interface TintPair {
   readonly bg: string;
@@ -27,6 +27,10 @@ export interface Theme {
     readonly positiveSoft: string;
     readonly negative: string;
     readonly negativeSoft: string;
+  };
+  readonly gradient: {
+    /** Stops for the brand wash, in paint order. */
+    readonly brand: readonly string[];
   };
   readonly tint: Readonly<Record<TintName, TintPair>>;
   readonly radius: typeof radius;
@@ -73,6 +77,7 @@ const lightTheme: Theme = {
     negative: palette.negative,
     negativeSoft: palette.pink,
   },
+  gradient: { brand: gradients.light },
   tint: lightTints,
   radius,
   spacing,
@@ -100,6 +105,7 @@ const darkTheme: Theme = {
     negative: '#FF7B72',
     negativeSoft: '#4A2A31',
   },
+  gradient: { brand: gradients.dark },
   tint: darkTints,
 };
 

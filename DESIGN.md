@@ -24,6 +24,13 @@ file explains the _why_, the tokens are the source of truth.
 Dark mode keeps the same hues at lower luminance (`theme.tsx`), so a group's
 colour identity survives the switch.
 
+**The brand wash** (`theme.gradient.brand`) is three stops off that same purple
+ramp, dark corner to light, and it is the only gradient in the app. It is a way
+of drawing the brand, not a second brand: every stop is dark enough to carry
+white text, because the balance and its labels sit on all of them. `Gradient`
+paints it, and falls back to flat brand if `expo-linear-gradient` is missing
+from a build — a decoration may never be the reason a screen fails to render.
+
 ### The one rule that is not decorative
 
 **Money colour is semantic and global.** Owed-to-you is always the
@@ -32,6 +39,13 @@ the app may use those two colours, because in a ledger app colour is data:
 a user should be able to answer "am I up or down?" without reading a digit.
 
 `MoneyText` enforces it — components pass an amount and a mode, never a colour.
+
+It also renders the minor units fainter than the major ones (`₹1,517`**`.53`**),
+in the amount's own colour rather than grey, so the fade works on the brand
+panel, on green and on red alike. Where the split falls is the locale's
+business, not ours: `formatParts` in `@baaki/core` cuts the string at the
+separator `Intl` actually used, because `de-DE` writes `1.517,53 €` and
+searching for a `.` would take the wrong one.
 
 ## Type
 
@@ -92,7 +106,7 @@ floating tab bar never covers the last row.
 
 ## Components
 
-`Screen · Card · TintCard · CurvedPanel · Text · Button · IconButton · Fab ·
+`Screen · Card · TintCard · CurvedPanel · Gradient · Text · Button · IconButton · Fab ·
 Chip · ChipRow · Badge · Avatar · AvatarStack · ListRow · EmptyState ·
 MoneyText · Toggle · PillTabBar · AmountKeypad`
 

@@ -4,7 +4,12 @@ import { Pressable, View, type PressableProps, type ViewStyle } from 'react-nati
 import { useTheme } from '../theme';
 import { Text } from './Text';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+/**
+ * `onBrand` and `onBrandOutline` are the pair that sits on the brand panel:
+ * purple-on-purple is invisible there, so the filled one inverts to white with
+ * a purple label and its partner is an outline in the panel's own white.
+ */
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'onBrand' | 'onBrandOutline';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
@@ -46,7 +51,6 @@ export function Button({
           justifyContent: 'center',
           gap: theme.spacing.sm,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
-          opacity: disabled ? 0.45 : 1,
           backgroundColor:
             variant === 'primary'
               ? pressed
@@ -54,7 +58,16 @@ export function Button({
                 : theme.color.brand
               : variant === 'secondary'
                 ? theme.color.brandSoft
-                : 'transparent',
+                : variant === 'onBrand'
+                  ? theme.color.onBrand
+                  : variant === 'onBrandOutline'
+                    ? pressed
+                      ? '#FFFFFF29'
+                      : '#FFFFFF1F'
+                    : 'transparent',
+          borderWidth: variant === 'onBrandOutline' ? 1 : 0,
+          borderColor: variant === 'onBrandOutline' ? '#FFFFFF5C' : undefined,
+          opacity: disabled ? 0.45 : variant === 'onBrand' && pressed ? 0.9 : 1,
         },
         variant === 'primary' && !disabled && theme.shadow.soft,
         style,
@@ -64,7 +77,9 @@ export function Button({
       {icon}
       <Text
         variant={size === 'sm' ? 'caption' : 'subheading'}
-        tone={variant === 'primary' ? 'onBrand' : 'brand'}
+        tone={
+          variant === 'primary' ? 'onBrand' : variant === 'onBrandOutline' ? 'onBrand' : 'brand'
+        }
       >
         {label}
       </Text>

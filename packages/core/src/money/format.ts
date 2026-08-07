@@ -20,6 +20,51 @@ export interface FormatOptions {
 const DEFAULT_LOCALE: Locale = 'en-IN';
 
 export function format(amount: Money, options: FormatOptions = {}): string {
+  return parts(amount, options)
+    .map((part) => part.value)
+    .join('');
+}
+
+/**
+ * A formatted amount split at the decimal point.
+ *
+ * The paise are worth less than the rupees and should not shout as loudly, so
+ * the display renders them fainter — but only the locale knows where the split
+ * falls. `₹1,517.53`, `$1,517.53` and `1 517,53 €` disagree about the
+ * separator and about which side the symbol sits on, and searching the string
+ * for a '.' gets two of those three wrong.
+ */
+export interface MoneyParts {
+  /** Sign, symbol and whole units — everything before the decimal separator. */
+  readonly lead: string;
+  /** The separator and the minor units (`.53`), or `''` when none are shown. */
+  readonly fraction: string;
+  /** Whatever the locale prints after them, such as a trailing `€`. */
+  readonly trail: string;
+  /** The three joined — identical to `format()` on the same arguments. */
+  readonly text: string;
+}
+
+export function formatParts(amount: Money, options: FormatOptions = {}): MoneyParts {
+  const lead: string[] = [];
+  const fraction: string[] = [];
+  const trail: string[] = [];
+
+  // Everything from the decimal separator onwards is the fraction, until
+  // something that is plainly not part of the number turns up again.
+  let seen: 'lead' | 'fraction' | 'trail' = 'lead';
+  for (const part of parts(amount, options)) {
+    if (part.type === 'decimal') seen = 'fraction';
+    else if (seen === 'fraction' && part.type !== 'fraction') seen = 'trail';
+
+    (seen === 'lead' ? lead : seen === 'fraction' ? fraction : trail).push(part.value);
+  }
+
+  const joined = [lead.join(''), fraction.join(''), trail.join('')] as const;
+  return { lead: joined[0], fraction: joined[1], trail: joined[2], text: joined.join('') };
+}
+
+function parts(amount: Money, options: FormatOptions): Intl.NumberFormatPart[] {
   const { locale = DEFAULT_LOCALE, compactFraction = false, signDisplay = 'auto' } = options;
   const exponent = minorUnitExponent(amount.currency);
   const isWhole = amount.minor % minorUnitScale(amount.currency) === 0n;
@@ -37,7 +82,7 @@ export function format(amount: Money, options: FormatOptions = {}): string {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
     signDisplay: signDisplay === 'never' ? 'auto' : signDisplay,
-  }).format(asNumber);
+  }).formatToParts(asNumber);
 }
 
 /** Just the currency symbol for the locale ("₹", "$"). */
