@@ -32,6 +32,7 @@ import { describeActivity, verbEmoji } from '@/data/activity';
 import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { CategoryBadge } from '@/components/Category';
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { SyncBanner } from '@/components/SyncBanner';
 
@@ -262,12 +263,7 @@ export default function GroupScreen() {
                           ? ` · edited ×${version!.version_no - 1}`
                           : ''
                       }`}
-                      leading={
-                        <Avatar
-                          name={version?.category ?? version?.description ?? 'Expense'}
-                          size={42}
-                        />
-                      }
+                      leading={<CategoryBadge category={version?.category} size={42} />}
                       onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
                       trailing={
                         version ? (
