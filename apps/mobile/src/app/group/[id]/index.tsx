@@ -136,6 +136,12 @@ export default function GroupScreen() {
             </View>
           </Row>
           <IconButton
+            label={t.spending}
+            onPress={() => router.push(`/group/${groupId}/insights`)}
+          >
+            <Ionicons name="pie-chart-outline" size={19} color={theme.color.text} />
+          </IconButton>
+          <IconButton
             label="Group settings"
             onPress={() => router.push(`/group/${groupId}/settings`)}
           >

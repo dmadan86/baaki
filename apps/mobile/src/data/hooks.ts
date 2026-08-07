@@ -39,6 +39,7 @@ import {
   fetchExpenses,
   fetchGroup,
   fetchGroups,
+  fetchGroupSpending,
   fetchMembersByGroup,
   fetchMembers,
   fetchMyBalances,
@@ -69,6 +70,7 @@ export const keys = {
   balances: (id: string) => ['group', id, 'balances'] as const,
   notifications: ['notifications'] as const,
   disputes: (id: string) => ['group', id, 'disputes'] as const,
+  spending: (id: string) => ['group', id, 'spending'] as const,
 };
 
 export function useGroups() {
@@ -430,6 +432,15 @@ export function useMarkNotificationsRead() {
  * without a query each. A disagreement nobody sees until they open the expense
  * is a disagreement that festers.
  */
+/** Where one group's money went, per member, category, month and currency. */
+export function useGroupSpending(groupId: string) {
+  return useQuery({
+    queryKey: keys.spending(groupId),
+    queryFn: () => fetchGroupSpending(groupId),
+    enabled: Boolean(groupId),
+  });
+}
+
 export function useDisputes(groupId: string) {
   return useQuery({
     queryKey: keys.disputes(groupId),
