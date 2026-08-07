@@ -227,7 +227,25 @@ Deno.serve(async (request) => {
     if (!response.ok) {
       const detail = await response.text();
       console.error('anthropic error', response.status, detail.slice(0, 500));
-      throw new HttpError(502, 'SCAN_FAILED', 'The scanner could not read that just now');
+
+      // Say *why*, not just that it failed. "The scanner could not read that
+      // just now" told the person nothing and told whoever had to debug it
+      // less — the only copy of the reason was in a log nobody watching a
+      // phone can reach. The upstream type and message are the model's
+      // complaint about the request, never about the key, so they are safe to
+      // pass on.
+      let reason = '';
+      try {
+        const upstream = JSON.parse(detail) as { error?: { type?: string; message?: string } };
+        reason = [upstream.error?.type, upstream.error?.message].filter(Boolean).join(': ');
+      } catch {
+        reason = detail.slice(0, 200);
+      }
+      throw new HttpError(
+        502,
+        'SCAN_FAILED',
+        `The scanner could not read that just now (${response.status}${reason ? ` ${reason}` : ''})`,
+      );
     }
 
     const message = (await response.json()) as {

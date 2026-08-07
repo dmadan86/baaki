@@ -25,12 +25,28 @@ export default function JoinScreen() {
 
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [claimId, setClaimId] = useState<string | null>(null);
-  // A link with no token can be judged during render; no effect needed.
   const [busy, setBusy] = useState(Boolean(token));
   const [joining, setJoining] = useState(false);
-  const [error, setError] = useState<string | null>(
-    token ? null : 'This link is missing its invite code',
-  );
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Whether the route parameters have had a chance to arrive.
+   *
+   * A link with no token looked like something that could be judged during the
+   * first render. It cannot: a deep link is parsed a frame later, so on a real
+   * invite opened on a real phone the screen said "This link is missing its
+   * invite code" and then went on saying it while the group name, the member
+   * list and a working Join button loaded underneath. Waiting a tick before
+   * calling a link broken is the whole fix.
+   */
+  const [settled, setSettled] = useState(Boolean(token));
+  useEffect(() => {
+    if (settled) return;
+    const timer = setTimeout(() => setSettled(true), 0);
+    return () => clearTimeout(timer);
+  }, [settled]);
+
+  const shown = error ?? (!token && settled ? 'This link is missing its invite code' : null);
 
   useEffect(() => {
     let active = true;
@@ -83,7 +99,7 @@ export default function JoinScreen() {
         <EmptyState
           title="This link has expired"
           body={
-            error ??
+            shown ??
             'Ask whoever sent it for a fresh one — links expire so they cannot be passed around forever.'
           }
           action={<Button label="Go to Baaki" onPress={() => router.replace('/')} />}
@@ -156,9 +172,9 @@ export default function JoinScreen() {
           </Card>
         ) : null}
 
-        {error ? (
+        {shown ? (
           <Text variant="caption" tone="negative" align="center">
-            {error}
+            {shown}
           </Text>
         ) : null}
 

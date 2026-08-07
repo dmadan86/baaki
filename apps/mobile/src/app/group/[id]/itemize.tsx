@@ -579,9 +579,14 @@ export default function ItemizeScreen() {
                   <Pressable
                     key={member.id}
                     accessibilityRole="checkbox"
-                    accessibilityState={{ checked: claimed, disabled: !mine }}
+                    accessibilityState={{ checked: claimed }}
                     accessibilityLabel={`${displayName(member, profile?.id)} had ${item.label}`}
-                    disabled={!mine}
+                    // Deliberately still tappable when it is not yours to
+                    // change. `disabled` made it a silent no-op: tapping a
+                    // friend's face on a shared bill did nothing at all and
+                    // never reached the sentence explaining why — which, on
+                    // two phones round a table, reads as the app being broken
+                    // rather than as a rule.
                     onPress={() => void toggleClaim(item.key, member.id)}
                     style={{
                       alignItems: 'center',
