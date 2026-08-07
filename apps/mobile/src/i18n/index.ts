@@ -86,6 +86,16 @@ export interface UiStrings {
    * UPI apps. The first screen is the worst place to be somewhere else.
    */
   onboarding: readonly { title: string; body: string }[];
+  plan: string;
+  planned: string;
+  spent: string;
+  overBudget: string;
+  underBudget: string;
+  nothingPlannedYet: string;
+  planEmptyBody: string;
+  whatIsPlanned: string;
+  add: string;
+  cancel: string;
   skip: string;
   next: string;
   getStarted: string;
@@ -148,6 +158,16 @@ const en: UiStrings = {
     gifts: 'Gifts',
     other: 'Other',
   },
+  plan: 'Plan',
+  planned: 'Planned',
+  spent: 'Spent',
+  overBudget: 'over',
+  underBudget: 'under',
+  nothingPlannedYet: 'Nothing planned yet',
+  planEmptyBody: 'Add the days and what you mean to do. What it actually costs fills itself in.',
+  whatIsPlanned: 'What are you doing?',
+  add: 'Add',
+  cancel: 'Cancel',
   skip: 'Skip',
   next: 'Next',
   getStarted: 'Get started',
@@ -323,6 +343,16 @@ const ar: UiStrings = {
     gifts: 'هدايا',
     other: 'أخرى',
   },
+  plan: 'الخطة',
+  planned: 'المخطط',
+  spent: 'المصروف',
+  overBudget: 'زيادة',
+  underBudget: 'أقل',
+  nothingPlannedYet: 'لا خطة بعد',
+  planEmptyBody: 'أضف الأيام وما تنوي فعله. أما التكلفة الفعلية فتُملأ من تلقاء نفسها.',
+  whatIsPlanned: 'ماذا ستفعل؟',
+  add: 'إضافة',
+  cancel: 'إلغاء',
   skip: 'تخطٍ',
   next: 'التالي',
   getStarted: 'لنبدأ',

@@ -1118,3 +1118,72 @@ export async function fetchReleasePolicy(platform: 'ios' | 'android'): Promise<R
   if (error) throw new Error(error.message);
   return (data as ReleaseRow | null) ?? null;
 }
+
+// ───────────────────────────────────────────── the trip plan (timeline) ──
+
+export interface PlanItemRow {
+  id: string;
+  group_id: string;
+  day: string;
+  starts_at: string | null;
+  title: string;
+  note: string | null;
+  category: string | null;
+  planned_minor: string | null;
+  currency: string;
+  done_at: string | null;
+  expense_id: string | null;
+  position: number;
+}
+
+export async function fetchPlanItems(groupId: string): Promise<PlanItemRow[]> {
+  const { data, error } = await supabase
+    .from('trip_plan_items')
+    .select(
+      'id, group_id, day, starts_at, title, note, category, planned_minor, currency, done_at, expense_id, position',
+    )
+    .eq('group_id', groupId)
+    .order('day', { ascending: true })
+    .order('position', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PlanItemRow[];
+}
+
+export async function addPlanItem(input: {
+  groupId: string;
+  day: string;
+  title: string;
+  startsAt?: string | null;
+  note?: string | null;
+  plannedMinor?: bigint | null;
+  currency?: string | null;
+  /** Chosen here so a retry after a dropped connection replays (ADR-005). */
+  itemId?: string;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('baaki_add_plan_item', {
+    p_group_id: input.groupId,
+    p_day: input.day,
+    p_title: input.title,
+    p_starts_at: input.startsAt ?? null,
+    p_note: input.note ?? null,
+    p_category: null,
+    p_planned_minor: input.plannedMinor?.toString() ?? null,
+    p_currency: input.currency ?? null,
+    p_item_id: input.itemId ?? randomUUID(),
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+export async function setPlanItemDone(itemId: string, done: boolean): Promise<void> {
+  const { error } = await supabase.rpc('baaki_update_plan_item', {
+    p_item_id: itemId,
+    p_done: done,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function removePlanItem(itemId: string): Promise<void> {
+  const { error } = await supabase.rpc('baaki_remove_plan_item', { p_item_id: itemId });
+  if (error) throw new Error(error.message);
+}

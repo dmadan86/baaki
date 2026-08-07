@@ -136,6 +136,13 @@ export default function GroupScreen() {
               </Text>
             </View>
           </Row>
+          {/* Only where there is a trip to plan. A planner on a flatshare
+              group is a tab nobody opens twice. */}
+          {group.data.type === 'trip' ? (
+            <IconButton label={t.plan} onPress={() => router.push(`/group/${groupId}/plan`)}>
+              <Ionicons name="map-outline" size={19} color={theme.color.text} />
+            </IconButton>
+          ) : null}
           <IconButton
             label={t.spending}
             onPress={() => router.push(`/group/${groupId}/insights`)}
