@@ -712,15 +712,30 @@ export interface ImportExpense {
   shares: Record<string, bigint>;
 }
 
+export interface ImportSettlement {
+  clientMutationId: string;
+  /** Display names, resolved to member ids server-side. */
+  from: string;
+  to: string;
+  currency: string;
+  amount: bigint;
+  method: string;
+  status: string;
+  note?: string | null;
+  /** ISO timestamp. */
+  at: string;
+}
+
 export interface ImportResult {
   groupId: string;
   expenses: number;
   ghosts: number;
+  settlements?: number;
   members: Record<string, string>;
 }
 
 /**
- * Write a parsed Splitwise export into a group.
+ * Write a parsed file — a Splitwise export or one of ours — into a group.
  *
  * One RPC, so one transaction: a person moving four years of history cannot
  * tell a half-finished import from a complete one, because the balances add up
@@ -730,14 +745,29 @@ export interface ImportResult {
  * `clientMutationId` per row makes a second tap on Import a replay rather than
  * a second copy (ADR-005), so generate them once and reuse them on retry.
  */
-export async function importSplitwise(input: {
+export async function importLedger(input: {
   groupId: string;
   people: ImportPerson[];
   expenses: ImportExpense[];
+  /** Only a Baaki export has these; a Splitwise file has no notion of them. */
+  settlements?: ImportSettlement[];
+  origin?: 'splitwise' | 'baaki';
 }): Promise<ImportResult> {
-  const { data, error } = await supabase.rpc('baaki_import_splitwise', {
+  const { data, error } = await supabase.rpc('baaki_import_ledger', {
     p_group_id: input.groupId,
     p_people: input.people,
+    p_origin: input.origin ?? 'splitwise',
+    p_settlements: (input.settlements ?? []).map((settlement) => ({
+      clientMutationId: settlement.clientMutationId,
+      from: settlement.from,
+      to: settlement.to,
+      currency: settlement.currency,
+      amount: settlement.amount.toString(),
+      method: settlement.method,
+      status: settlement.status,
+      note: settlement.note ?? null,
+      at: settlement.at,
+    })),
     // Minor units as strings all the way down: a number in JSON is a double,
     // and a double is how a paisa goes missing from a four-year history.
     p_expenses: input.expenses.map((expense) => ({
