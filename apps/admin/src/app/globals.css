@@ -296,6 +296,8 @@ form.flag label.inline {
   padding-bottom: 10px;
 }
 
+form.flag select,
+form.flag input[type='date'],
 form.flag input[type='text'],
 form.flag input[type='number'] {
   font: inherit;
