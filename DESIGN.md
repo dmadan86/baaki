@@ -117,6 +117,26 @@ headings and people, with `getItemType` telling it the two are different shapes.
 The rail is ours, forty lines, because every published React Native
 alphabet-index component was abandoned years ago.
 
+## A screen with three faces
+
+The account screen opens with a hero rather than a title: the avatar, the name,
+and one number in a pill under it. Below that, `SegmentedTabs` splits what used
+to be a single long scroll into **You · Paying · Settings**.
+
+`SegmentedTabs` is not `PillTabBar`. The pill bar floats above everything and
+moves you between destinations; this sits in the page, under a rule, because the
+page you are on has three faces and this chooses which one. Two floating pills on
+one screen would be two things claiming to be the navigation.
+
+The pill under the name is **what has actually changed hands through you** —
+settled settlements only, per currency, in both directions. The board this was
+drawn from puts a points total there, and Baaki has none: a score next to
+somebody's money is a number that means nothing sitting among numbers that mean
+everything. It is deliberately _not_ coloured like a balance, because paying and
+being paid are the same fact here — a debt closed. Currencies are counted rather
+than added; no rate turns rupees into euros, and this would be the only place in
+the app that guessed at money.
+
 ## Spacing
 
 4px base: `xs 4 · sm 8 · md 12 · lg 16 · xl 20 · xxl 24 · xxxl 32`. Screens use
@@ -127,7 +147,7 @@ floating tab bar never covers the last row.
 
 `Screen · Card · TintCard · CurvedPanel · Gradient · Text · Button · IconButton · Fab ·
 Chip · ChipRow · Badge · Avatar · AvatarStack · ListRow · EmptyState ·
-MoneyText · Toggle · PillTabBar · AmountKeypad`
+MoneyText · Toggle · PillTabBar · SegmentedTabs · AmountKeypad`
 
 Two carry product decisions rather than styling:
 
