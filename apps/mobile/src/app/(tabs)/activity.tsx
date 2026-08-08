@@ -66,7 +66,7 @@ export default function ActivityScreen() {
           {/* The feed is what happened in the groups; the inbox is what Baaki
               said to you. Related enough to sit together, different enough not
               to be interleaved. */}
-          <IconButton label="Inbox" onPress={() => router.push('/inbox' as never)}>
+          <IconButton label={t.tabs.inbox} onPress={() => router.push('/inbox' as never)}>
             <Ionicons name="notifications-outline" size={20} color={theme.color.text} />
             {unread > 0 ? (
               <View
@@ -85,10 +85,7 @@ export default function ActivityScreen() {
         </Row>
 
         {entries.length === 0 ? (
-          <EmptyState
-            title={t.nothingYet}
-            body="Every expense, edit, deletion and settlement lands here — for everyone in the group."
-          />
+          <EmptyState title={t.nothingYet} body={t.tabs.activityEmptyBody} />
         ) : (
           Object.entries(byDay).map(([day, dayEntries]) => (
             <View key={day}>
@@ -104,7 +101,7 @@ export default function ActivityScreen() {
                   <View key={entry.id}>
                     <ListRow
                       title={describeActivity(entry, myProfileId)}
-                      subtitle={`${entry.group?.name ?? 'Group'} · ${new Intl.DateTimeFormat(
+                      subtitle={`${entry.group?.name ?? t.tabs.group} · ${new Intl.DateTimeFormat(
                         locale,
                         {
                           hour: 'numeric',
@@ -113,7 +110,7 @@ export default function ActivityScreen() {
                       ).format(new Date(entry.created_at))}`}
                       leading={
                         <Avatar
-                          name={entry.group?.name ?? 'Group'}
+                          name={entry.group?.name ?? t.tabs.group}
                           emoji={entry.group?.cover_emoji ?? undefined}
                           size={40}
                         />

@@ -54,7 +54,7 @@ export default function GroupSettingsScreen() {
     try {
       await uploadGroupPhoto({ groupId, base64: picked.base64, mimeType: picked.mimeType });
       await group.refetch();
-      setStatus('Photo updated');
+      setStatus(t.group.photoUpdated);
     } catch (caught) {
       setStatus(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -75,7 +75,7 @@ export default function GroupSettingsScreen() {
   if (!group.data) {
     return (
       <Screen>
-        <EmptyState title="Group not found" body="It may have been archived." />
+        <EmptyState title={t.group.notFound} body={t.group.notFoundArchived} />
       </Screen>
     );
   }
@@ -84,16 +84,13 @@ export default function GroupSettingsScreen() {
 
   const leave = (): void => {
     if (!settled) {
-      Alert.alert(
-        'Settle up first',
-        'You still have a balance in this group. Leaving now would strand it — settle up, then leave.',
-      );
+      Alert.alert(t.group.settleFirst, t.group.settleFirstBody);
       return;
     }
-    Alert.alert('Leave this group?', 'Your past expenses stay in the group history.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t.group.leaveQuestion, t.group.leaveBody, [
+      { text: t.common.cancel, style: 'cancel' },
       {
-        text: 'Leave',
+        text: t.group.leave,
         style: 'destructive',
         onPress: () => {
           if (!ledger.myMemberId) return;
@@ -104,21 +101,17 @@ export default function GroupSettingsScreen() {
   };
 
   const archive = (): void => {
-    Alert.alert(
-      'Archive this group?',
-      'It disappears from your list but nothing is deleted, and anyone can unarchive it.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          onPress: () =>
-            updateGroup.mutate(
-              { archived_at: new Date().toISOString() },
-              { onSuccess: () => router.replace('/') },
-            ),
-        },
-      ],
-    );
+    Alert.alert(t.group.archiveQuestion, t.group.archiveBody, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.group.archive,
+        onPress: () =>
+          updateGroup.mutate(
+            { archived_at: new Date().toISOString() },
+            { onSuccess: () => router.replace('/') },
+          ),
+      },
+    ]);
   };
 
   return (
@@ -133,11 +126,11 @@ export default function GroupSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Group settings</Text>
+            <Text variant="heading">{t.group.settings}</Text>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [])}
             </Text>
@@ -156,12 +149,12 @@ export default function GroupSettingsScreen() {
             />
             <View style={{ flex: 1, gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
-                Name (optional)
+                {t.group.nameOptional}
               </Text>
               <TextInput
                 value={name}
                 onChangeText={setName}
-                accessibilityLabel="Group name"
+                accessibilityLabel={t.group.groupName}
                 placeholder={groupLabel(null, members.data ?? [], profile?.id)}
                 placeholderTextColor={theme.color.textFaint}
                 style={{
@@ -176,7 +169,7 @@ export default function GroupSettingsScreen() {
 
           <Row style={{ gap: theme.spacing.sm }}>
             <Button
-              label="Save name"
+              label={t.group.saveName}
               size="sm"
               variant="secondary"
               // Clearing the field is a real choice: the group goes back to
@@ -185,13 +178,13 @@ export default function GroupSettingsScreen() {
               onPress={() =>
                 updateGroup.mutate(
                   { name: name.trim() || null },
-                  { onSuccess: () => setStatus('Saved') },
+                  { onSuccess: () => setStatus(t.account.saved) },
                 )
               }
             />
             {group.data.photo_path ? (
               <Button
-                label="Remove photo"
+                label={t.group.removePhoto}
                 size="sm"
                 variant="ghost"
                 onPress={() => void dropPhoto()}
@@ -230,14 +223,16 @@ export default function GroupSettingsScreen() {
         <CountryRow
           countryCode={group.data.country_code}
           onChange={(country_code) =>
-            updateGroup.mutate({ country_code }, { onSuccess: () => setStatus('Saved') })
+            updateGroup.mutate({ country_code }, { onSuccess: () => setStatus(t.account.saved) })
           }
         />
 
         <TripDates
           group={group.data}
           locale={locale}
-          onChange={(patch) => updateGroup.mutate(patch, { onSuccess: () => setStatus('Saved') })}
+          onChange={(patch) =>
+            updateGroup.mutate(patch, { onSuccess: () => setStatus(t.account.saved) })
+          }
         />
 
         {/* ADR-009: simplification is presentation only — the pairwise ledger
@@ -245,16 +240,15 @@ export default function GroupSettingsScreen() {
         <Card>
           <Row style={{ justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">Simplify debts</Text>
+              <Text variant="subheading">{t.group.simplifyDebts}</Text>
               <Text variant="caption" tone="muted">
-                Suggest the fewest payments that settle the group. The real who-owes-whom ledger is
-                never rewritten.
+                {t.group.simplifyDebtsBody}
               </Text>
             </View>
             <Toggle
               value={group.data.simplify_debts}
               onValueChange={(value) => updateGroup.mutate({ simplify_debts: value })}
-              accessibilityLabel="Simplify debts"
+              accessibilityLabel={t.group.simplifyDebts}
             />
           </Row>
         </Card>
@@ -264,7 +258,7 @@ export default function GroupSettingsScreen() {
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             <ListRow
               title={`${members.data?.length ?? 0} ${t.members}`}
-              subtitle="Add people, rename, set UPI IDs"
+              subtitle={t.group.membersHint}
               leading={<Ionicons name="people-outline" size={22} color={theme.color.textMuted} />}
               onPress={() => router.push(`/group/${groupId}/members`)}
               trailing={
@@ -277,8 +271,8 @@ export default function GroupSettingsScreen() {
             />
             <View style={{ height: 1, backgroundColor: theme.color.border }} />
             <ListRow
-              title="Invite people"
-              subtitle="Share a link — no install needed to join"
+              title={t.group.invitePeople}
+              subtitle={t.group.invitePeopleHint}
               leading={<Ionicons name="share-outline" size={22} color={theme.color.textMuted} />}
               onPress={() => router.push(`/group/${groupId}/invite`)}
               trailing={
@@ -293,11 +287,11 @@ export default function GroupSettingsScreen() {
         </View>
 
         <View>
-          <SectionHeader title="Bring things in" />
+          <SectionHeader title={t.group.bringThingsIn} />
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             <ListRow
-              title="Import from messages"
-              subtitle="Paste bank messages — read on this phone, confirmed by you"
+              title={t.group.importMessages}
+              subtitle={t.group.importMessagesHint}
               leading={
                 <Ionicons name="chatbox-ellipses-outline" size={22} color={theme.color.textMuted} />
               }
@@ -312,8 +306,8 @@ export default function GroupSettingsScreen() {
             />
             <View style={{ height: 1, backgroundColor: theme.color.border }} />
             <ListRow
-              title="Import a Splitwise export"
-              subtitle="Bring an old group's history across"
+              title={t.group.importSplitwise}
+              subtitle={t.group.importSplitwiseHint}
               leading={
                 <Ionicons name="document-text-outline" size={22} color={theme.color.textMuted} />
               }
@@ -336,11 +330,11 @@ export default function GroupSettingsScreen() {
         ) : null}
 
         <View style={{ gap: theme.spacing.md }}>
-          <Button label="Archive group" variant="ghost" fullWidth onPress={archive} />
-          <Button label="Leave group" variant="ghost" fullWidth onPress={leave} />
+          <Button label={t.group.archiveGroup} variant="ghost" fullWidth onPress={archive} />
+          <Button label={t.group.leaveGroup} variant="ghost" fullWidth onPress={leave} />
           {!settled ? (
             <Text variant="micro" tone="faint" align="center">
-              You can leave once your balance here is zero.
+              {t.group.leaveWhenZero}
             </Text>
           ) : null}
         </View>

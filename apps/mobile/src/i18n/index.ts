@@ -401,6 +401,77 @@ export interface UiStrings {
     restartToMirror: string;
     restartToUnmirror: string;
   };
+  /** The three tabs, and the inbox behind the bell. */
+  tabs: {
+    guestBanner: string;
+    guestBannerBody: string;
+    addYourDetails: string;
+    loadingGroups: string;
+    noGroups: string;
+    noGroupsBody: string;
+    activityEmptyBody: string;
+    inbox: string;
+    fromContacts: string;
+    allSquare: string;
+    allSquareBody: string;
+    owesYou: string;
+    youOweThem: string;
+    nobodyOwesYou: string;
+    youAreNotBehind: string;
+    inOneGroup: string;
+    acrossGroups: PluralForms;
+    notJoined: string;
+    group: string;
+  };
+  /** The inbox — the record of what Baaki said, whether or not push arrived. */
+  inbox: {
+    title: string;
+    nothingYetBody: string;
+    recent: string;
+  };
+  /** A group: its screen, its settings, and the ways out of it. */
+  group: {
+    notFound: string;
+    notFoundBody: string;
+    notFoundArchived: string;
+    loading: string;
+    settings: string;
+    mismatch: string;
+    mismatchBody: string;
+    confirmReceived: string;
+    autoConfirms: string;
+    hideDeleted: string;
+    showDeleted: string;
+    activityEmptyBody: string;
+    photoUpdated: string;
+    nameOptional: string;
+    groupName: string;
+    saveName: string;
+    removePhoto: string;
+    simplifyDebts: string;
+    simplifyDebtsBody: string;
+    membersHint: string;
+    invitePeople: string;
+    invitePeopleHint: string;
+    bringThingsIn: string;
+    importMessages: string;
+    importMessagesHint: string;
+    importSplitwise: string;
+    importSplitwiseHint: string;
+    archiveGroup: string;
+    leaveGroup: string;
+    leaveWhenZero: string;
+    settleFirst: string;
+    settleFirstBody: string;
+    leaveQuestion: string;
+    leaveBody: string;
+    leave: string;
+    archiveQuestion: string;
+    archiveBody: string;
+    archive: string;
+    nobodyOwes: string;
+    recordedNotMoved: string;
+  };
 }
 
 const en: UiStrings = {
@@ -720,6 +791,83 @@ const en: UiStrings = {
       'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.',
     restartToMirror: 'Close and open Baaki once to mirror the layout.',
     restartToUnmirror: 'Close and open Baaki once to turn the layout back.',
+  },
+  tabs: {
+    guestBanner: 'You are using Baaki as a guest',
+    guestBannerBody:
+      'Nothing is missing — everything you enter is saved and yours. Add an email or phone number whenever you want to reach it from another phone.',
+    addYourDetails: 'Add your details',
+    loadingGroups: 'Loading your groups…',
+    noGroups: 'No groups yet',
+    noGroupsBody:
+      'Start one for a trip, a flat, or the two of you. Adding expenses is free and unlimited, forever.',
+    activityEmptyBody:
+      'Every expense, edit, deletion and settlement lands here — for everyone in the group.',
+    inbox: 'Inbox',
+    fromContacts: 'From contacts',
+    allSquare: 'All square',
+    allSquareBody:
+      'Nobody owes you anything and you owe nobody. Friends you are settling up with will appear here — add somebody from your contacts to get started.',
+    owesYou: 'Owes you',
+    youOweThem: 'You owe',
+    nobodyOwesYou: 'Nobody owes you anything right now.',
+    youAreNotBehind: 'You are not behind with anyone.',
+    inOneGroup: 'in one group',
+    acrossGroups: { one: 'across {n} group', other: 'across {n} groups' },
+    notJoined: 'Not joined',
+    group: 'Group',
+  },
+  inbox: {
+    title: 'Inbox',
+    nothingYetBody:
+      'Reminders, settlement confirmations and anything else Baaki tells you collect here — even when the notification never reached your phone.',
+    recent: 'Recent',
+  },
+  group: {
+    notFound: 'Group not found',
+    notFoundBody: 'It may have been archived, or you are no longer a member.',
+    notFoundArchived: 'It may have been archived.',
+    loading: 'Loading…',
+    settings: 'Group settings',
+    mismatch: 'Balances need a refresh',
+    mismatchBody:
+      'This device and the server disagree about this group’s balances. Pull to refresh; if it persists, the ledger below is the source of truth.',
+    confirmReceived: 'Confirm received',
+    autoConfirms: 'Auto-confirms in 7 days if nobody responds.',
+    hideDeleted: 'Hide deleted',
+    showDeleted: 'Show deleted',
+    activityEmptyBody: 'Everything that happens here shows up in this feed.',
+    photoUpdated: 'Photo updated',
+    nameOptional: 'Name (optional)',
+    groupName: 'Group name',
+    saveName: 'Save name',
+    removePhoto: 'Remove photo',
+    simplifyDebts: 'Simplify debts',
+    simplifyDebtsBody:
+      'Suggest the fewest payments that settle the group. The real who-owes-whom ledger is never rewritten.',
+    membersHint: 'Add people, rename, set UPI IDs',
+    invitePeople: 'Invite people',
+    invitePeopleHint: 'Share a link — no install needed to join',
+    bringThingsIn: 'Bring things in',
+    importMessages: 'Import from messages',
+    importMessagesHint: 'Paste bank messages — read on this phone, confirmed by you',
+    importSplitwise: 'Import a Splitwise export',
+    importSplitwiseHint: 'Bring an old group’s history across',
+    archiveGroup: 'Archive group',
+    leaveGroup: 'Leave group',
+    leaveWhenZero: 'You can leave once your balance here is zero.',
+    settleFirst: 'Settle up first',
+    settleFirstBody:
+      'You still have a balance in this group. Leaving now would strand it — settle up, then leave.',
+    leaveQuestion: 'Leave this group?',
+    leaveBody: 'Your past expenses stay in the group history.',
+    leave: 'Leave',
+    archiveQuestion: 'Archive this group?',
+    archiveBody:
+      'It disappears from your list but nothing is deleted, and anyone can unarchive it.',
+    archive: 'Archive',
+    nobodyOwes: 'Nobody owes anybody in this group.',
+    recordedNotMoved: 'Recorded, not moved by Baaki',
   },
 };
 
@@ -1056,6 +1204,84 @@ const ta: UiStrings = {
     restartToMirror: 'தளவமைப்பைப் பிரதிபலிக்க பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
     restartToUnmirror: 'தளவமைப்பை மீண்டும் மாற்ற பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
   },
+  tabs: {
+    guestBanner: 'நீங்கள் பாக்கியை விருந்தினராகப் பயன்படுத்துகிறீர்கள்',
+    guestBannerBody:
+      'எதுவும் விடுபடவில்லை — நீங்கள் சேர்ப்பவை அனைத்தும் சேமிக்கப்பட்டு உங்களுடையவை. வேறு ஃபோனிலிருந்து அணுக விரும்பும்போது மின்னஞ்சலையோ தொலைபேசி எண்ணையோ சேர்க்கவும்.',
+    addYourDetails: 'உங்கள் விவரங்களைச் சேர்',
+    loadingGroups: 'உங்கள் குழுக்கள் ஏற்றப்படுகின்றன…',
+    noGroups: 'இன்னும் குழுக்கள் இல்லை',
+    noGroupsBody:
+      'ஒரு பயணத்துக்கோ, வீட்டுக்கோ, இருவருக்கோ ஒன்றைத் தொடங்குங்கள். செலவுகளைச் சேர்ப்பது எப்போதும் இலவசம், வரம்பில்லாதது.',
+    activityEmptyBody:
+      'ஒவ்வொரு செலவும், திருத்தமும், நீக்கமும், தீர்வும் இங்கே வந்து சேரும் — குழுவில் உள்ள அனைவருக்கும்.',
+    inbox: 'அஞ்சல் பெட்டி',
+    fromContacts: 'தொடர்புகளிலிருந்து',
+    allSquare: 'எல்லாம் சரி',
+    allSquareBody:
+      'உங்களுக்கு யாரும் தர வேண்டியதில்லை, நீங்களும் யாருக்கும் தர வேண்டியதில்லை. நீங்கள் தீர்த்துக்கொள்ளும் நண்பர்கள் இங்கே தோன்றுவார்கள் — தொடங்க உங்கள் தொடர்புகளிலிருந்து யாரையாவது சேருங்கள்.',
+    owesYou: 'உங்களுக்குத் தர வேண்டியவர்கள்',
+    youOweThem: 'நீங்கள் தர வேண்டியவர்கள்',
+    nobodyOwesYou: 'இப்போது உங்களுக்கு யாரும் தர வேண்டியதில்லை.',
+    youAreNotBehind: 'நீங்கள் யாருக்கும் பாக்கி வைத்திருக்கவில்லை.',
+    inOneGroup: 'ஒரு குழுவில்',
+    acrossGroups: { one: '{n} குழுவில்', other: '{n} குழுக்களில்' },
+    notJoined: 'சேரவில்லை',
+    group: 'குழு',
+  },
+  inbox: {
+    title: 'அஞ்சல் பெட்டி',
+    nothingYetBody:
+      'நினைவூட்டல்கள், தீர்வு உறுதிப்படுத்தல்கள், பாக்கி உங்களிடம் சொல்லும் மற்ற அனைத்தும் இங்கே சேரும் — அறிவிப்பு உங்கள் ஃபோனுக்கு வராவிட்டாலும் கூட.',
+    recent: 'சமீபத்தியவை',
+  },
+  group: {
+    notFound: 'குழு கிடைக்கவில்லை',
+    notFoundBody: 'அது காப்பகப்படுத்தப்பட்டிருக்கலாம், அல்லது நீங்கள் இனி உறுப்பினர் இல்லை.',
+    notFoundArchived: 'அது காப்பகப்படுத்தப்பட்டிருக்கலாம்.',
+    loading: 'ஏற்றப்படுகிறது…',
+    settings: 'குழு அமைப்புகள்',
+    mismatch: 'இருப்புகளைப் புதுப்பிக்க வேண்டும்',
+    mismatchBody:
+      'இந்தக் குழுவின் இருப்புகள் குறித்து இந்தச் சாதனமும் சர்வரும் ஒத்துப்போகவில்லை. இழுத்துப் புதுப்பிக்கவும்; தொடர்ந்தால் கீழே உள்ள கணக்கே சரியானது.',
+    confirmReceived: 'கிடைத்தது என்று உறுதிப்படுத்து',
+    autoConfirms: 'யாரும் பதிலளிக்காவிட்டால் 7 நாட்களில் தானாகவே உறுதியாகும்.',
+    hideDeleted: 'நீக்கியவற்றை மறை',
+    showDeleted: 'நீக்கியவற்றைக் காட்டு',
+    activityEmptyBody: 'இங்கே நடக்கும் அனைத்தும் இந்தப் பட்டியலில் தோன்றும்.',
+    photoUpdated: 'புகைப்படம் புதுப்பிக்கப்பட்டது',
+    nameOptional: 'பெயர் (விருப்பம்)',
+    groupName: 'குழுவின் பெயர்',
+    saveName: 'பெயரைச் சேமி',
+    removePhoto: 'புகைப்படத்தை நீக்கு',
+    simplifyDebts: 'கடன்களை எளிமையாக்கு',
+    simplifyDebtsBody:
+      'குழுவைத் தீர்க்கும் மிகக் குறைந்த பணப்பரிமாற்றங்களைப் பரிந்துரைக்கும். யார் யாருக்குத் தர வேண்டும் என்ற உண்மையான கணக்கு மாற்றப்படுவதே இல்லை.',
+    membersHint: 'ஆட்களைச் சேர், பெயர் மாற்று, UPI ID அமை',
+    invitePeople: 'ஆட்களை அழை',
+    invitePeopleHint: 'ஒரு இணைப்பைப் பகிருங்கள் — சேர ஆப் நிறுவத் தேவையில்லை',
+    bringThingsIn: 'கொண்டுவருதல்',
+    importMessages: 'செய்திகளிலிருந்து இறக்குமதி',
+    importMessagesHint:
+      'வங்கிச் செய்திகளை ஒட்டுங்கள் — இந்த ஃபோனிலேயே படிக்கப்படும், நீங்கள் உறுதிப்படுத்துவீர்கள்',
+    importSplitwise: 'Splitwise ஏற்றுமதியை இறக்குமதி செய்',
+    importSplitwiseHint: 'பழைய குழுவின் வரலாற்றைக் கொண்டுவா',
+    archiveGroup: 'குழுவைக் காப்பகப்படுத்து',
+    leaveGroup: 'குழுவிலிருந்து விலகு',
+    leaveWhenZero: 'இங்கே உங்கள் இருப்பு பூஜ்ஜியமானதும் விலகலாம்.',
+    settleFirst: 'முதலில் தீர்த்துக்கொள்ளுங்கள்',
+    settleFirstBody:
+      'இந்தக் குழுவில் உங்களுக்கு இன்னும் இருப்பு உள்ளது. இப்போது விலகினால் அது தொங்கிவிடும் — தீர்த்துவிட்டு விலகுங்கள்.',
+    leaveQuestion: 'இந்தக் குழுவிலிருந்து விலகவா?',
+    leaveBody: 'உங்கள் பழைய செலவுகள் குழு வரலாற்றில் இருக்கும்.',
+    leave: 'விலகு',
+    archiveQuestion: 'இந்தக் குழுவைக் காப்பகப்படுத்தவா?',
+    archiveBody:
+      'இது உங்கள் பட்டியலிலிருந்து மறையும், ஆனால் எதுவும் அழிக்கப்படாது, யார் வேண்டுமானாலும் மீண்டும் கொண்டுவரலாம்.',
+    archive: 'காப்பகப்படுத்து',
+    nobodyOwes: 'இந்தக் குழுவில் யாரும் யாருக்கும் தர வேண்டியதில்லை.',
+    recordedNotMoved: 'பதிவு செய்யப்பட்டது, பாக்கி பணத்தை அனுப்பவில்லை',
+  },
 };
 
 const hi: UiStrings = {
@@ -1369,6 +1595,81 @@ const hi: UiStrings = {
       'जब तक आप साइन इन का कोई तरीका न जोड़ें, मेहमान खाता सब कुछ इसी डिवाइस पर रखता है। आपका हिसाब कभी बंधक नहीं बनाया जाता।',
     restartToMirror: 'लेआउट की दिशा बदलने के लिए बाकी को एक बार बंद करके खोलें।',
     restartToUnmirror: 'लेआउट वापस पलटने के लिए बाकी को एक बार बंद करके खोलें।',
+  },
+  tabs: {
+    guestBanner: 'आप बाकी को मेहमान के तौर पर इस्तेमाल कर रहे हैं',
+    guestBannerBody:
+      'कुछ छूट नहीं रहा — आप जो भी डालते हैं वह सेव है और आपका है। जब भी किसी दूसरे फ़ोन से पहुँचना हो, ईमेल या फ़ोन नंबर जोड़ लें।',
+    addYourDetails: 'अपनी जानकारी जोड़ें',
+    loadingGroups: 'आपके समूह आ रहे हैं…',
+    noGroups: 'अभी कोई समूह नहीं',
+    noGroupsBody:
+      'किसी सफ़र, फ़्लैट, या बस आप दोनों के लिए एक शुरू करें। खर्च जोड़ना हमेशा मुफ़्त और असीमित है।',
+    activityEmptyBody: 'हर खर्च, बदलाव, हटाना और निपटान यहीं आता है — समूह के हर व्यक्ति के लिए।',
+    inbox: 'इनबॉक्स',
+    fromContacts: 'संपर्कों से',
+    allSquare: 'सब बराबर',
+    allSquareBody:
+      'न किसी पर आपका बाकी है, न आप पर किसी का। जिनसे आप हिसाब करेंगे वे यहाँ दिखेंगे — शुरू करने के लिए संपर्कों से किसी को जोड़ें।',
+    owesYou: 'आपको देने हैं',
+    youOweThem: 'आपको देने हैं जिन्हें',
+    nobodyOwesYou: 'अभी किसी पर आपका कुछ बाकी नहीं है।',
+    youAreNotBehind: 'आप पर किसी का कुछ बाकी नहीं है।',
+    inOneGroup: 'एक समूह में',
+    acrossGroups: { one: '{n} समूह में', other: '{n} समूहों में' },
+    notJoined: 'शामिल नहीं',
+    group: 'समूह',
+  },
+  inbox: {
+    title: 'इनबॉक्स',
+    nothingYetBody:
+      'याद दिलाना, निपटान की पुष्टि और बाकी जो कुछ भी आपसे कहता है, सब यहाँ जमा होता है — भले ही सूचना आपके फ़ोन तक कभी न पहुँची हो।',
+    recent: 'हाल के',
+  },
+  group: {
+    notFound: 'समूह नहीं मिला',
+    notFoundBody: 'हो सकता है यह संग्रहित कर दिया गया हो, या आप अब सदस्य न हों।',
+    notFoundArchived: 'हो सकता है यह संग्रहित कर दिया गया हो।',
+    loading: 'आ रहा है…',
+    settings: 'समूह सेटिंग्स',
+    mismatch: 'बाकी को ताज़ा करना होगा',
+    mismatchBody:
+      'इस समूह के हिसाब पर यह डिवाइस और सर्वर सहमत नहीं हैं। खींचकर ताज़ा करें; फिर भी बना रहे तो नीचे का हिसाब ही सही है।',
+    confirmReceived: 'मिलने की पुष्टि करें',
+    autoConfirms: 'कोई जवाब न दे तो 7 दिन में अपने आप पुष्ट हो जाएगा।',
+    hideDeleted: 'हटाए हुए छिपाएँ',
+    showDeleted: 'हटाए हुए दिखाएँ',
+    activityEmptyBody: 'यहाँ जो कुछ होगा वह इसी फ़ीड में दिखेगा।',
+    photoUpdated: 'फ़ोटो बदल गई',
+    nameOptional: 'नाम (वैकल्पिक)',
+    groupName: 'समूह का नाम',
+    saveName: 'नाम सेव करें',
+    removePhoto: 'फ़ोटो हटाएँ',
+    simplifyDebts: 'हिसाब सरल करें',
+    simplifyDebtsBody:
+      'समूह को निपटाने के सबसे कम भुगतान सुझाता है। किस पर किसका बाकी है, वह असली हिसाब कभी नहीं बदला जाता।',
+    membersHint: 'लोग जोड़ें, नाम बदलें, UPI ID सेट करें',
+    invitePeople: 'लोगों को बुलाएँ',
+    invitePeopleHint: 'एक लिंक साझा करें — जुड़ने के लिए कुछ इंस्टॉल करने की ज़रूरत नहीं',
+    bringThingsIn: 'बाहर से लाएँ',
+    importMessages: 'मैसेज से आयात',
+    importMessagesHint: 'बैंक मैसेज पेस्ट करें — इसी फ़ोन पर पढ़े जाते हैं, पुष्टि आप करते हैं',
+    importSplitwise: 'Splitwise निर्यात आयात करें',
+    importSplitwiseHint: 'पुराने समूह का इतिहास ले आएँ',
+    archiveGroup: 'समूह संग्रहित करें',
+    leaveGroup: 'समूह छोड़ें',
+    leaveWhenZero: 'यहाँ आपका हिसाब शून्य होते ही आप छोड़ सकते हैं।',
+    settleFirst: 'पहले हिसाब चुकाएँ',
+    settleFirstBody:
+      'इस समूह में अभी आपका हिसाब बाकी है। अभी छोड़ने पर वह अधर में रह जाएगा — पहले चुकाएँ, फिर छोड़ें।',
+    leaveQuestion: 'यह समूह छोड़ें?',
+    leaveBody: 'आपके पुराने खर्च समूह के इतिहास में बने रहेंगे।',
+    leave: 'छोड़ें',
+    archiveQuestion: 'यह समूह संग्रहित करें?',
+    archiveBody: 'यह आपकी सूची से हट जाएगा पर मिटेगा कुछ नहीं, और कोई भी इसे वापस ला सकता है।',
+    archive: 'संग्रहित करें',
+    nobodyOwes: 'इस समूह में किसी पर किसी का कुछ बाकी नहीं है।',
+    recordedNotMoved: 'दर्ज किया गया, बाकी ने पैसा नहीं भेजा',
   },
 };
 
@@ -1702,6 +2003,88 @@ const ar: UiStrings = {
       'يحتفظ حساب الضيف بكل شيء على هذا الجهاز حتى تضيف طريقة لتسجيل الدخول. دفترك ليس رهينة أبدًا.',
     restartToMirror: 'أغلق باقي وافتحه مرة واحدة لعكس اتجاه الواجهة.',
     restartToUnmirror: 'أغلق باقي وافتحه مرة واحدة لإعادة اتجاه الواجهة.',
+  },
+  tabs: {
+    guestBanner: 'أنت تستخدم باقي كضيف',
+    guestBannerBody:
+      'لا شيء ناقص — كل ما تدخله محفوظ وهو ملكك. أضف بريدًا إلكترونيًا أو رقم هاتف متى أردت الوصول إليه من هاتف آخر.',
+    addYourDetails: 'أضف بياناتك',
+    loadingGroups: 'جارٍ تحميل مجموعاتك…',
+    noGroups: 'لا مجموعات بعد',
+    noGroupsBody:
+      'ابدأ واحدة لرحلة أو لشقة أو لكما أنتما. إضافة المصروفات مجانية وبلا حدود، دائمًا.',
+    activityEmptyBody: 'كل مصروف وتعديل وحذف وتسوية يصل إلى هنا — لكل من في المجموعة.',
+    inbox: 'صندوق الوارد',
+    fromContacts: 'من جهات الاتصال',
+    allSquare: 'كل شيء متساوٍ',
+    allSquareBody:
+      'لا أحد يدين لك ولا أنت تدين لأحد. سيظهر هنا من تسوّي معهم — أضف شخصًا من جهات اتصالك للبدء.',
+    owesYou: 'لك عندهم',
+    youOweThem: 'عليك لهم',
+    nobodyOwesYou: 'لا أحد يدين لك بشيء الآن.',
+    youAreNotBehind: 'لست متأخرًا مع أحد.',
+    inOneGroup: 'في مجموعة واحدة',
+    acrossGroups: {
+      zero: 'في {n} مجموعة',
+      one: 'في مجموعة واحدة',
+      two: 'في مجموعتين',
+      few: 'في {n} مجموعات',
+      many: 'في {n} مجموعة',
+      other: 'في {n} مجموعة',
+    },
+    notJoined: 'لم ينضم',
+    group: 'مجموعة',
+  },
+  inbox: {
+    title: 'صندوق الوارد',
+    nothingYetBody:
+      'التذكيرات وتأكيدات التسوية وكل ما يخبرك به باقي يتجمّع هنا — حتى حين لا يصل الإشعار إلى هاتفك.',
+    recent: 'الأحدث',
+  },
+  group: {
+    notFound: 'المجموعة غير موجودة',
+    notFoundBody: 'ربما أُرشفت، أو لم تعد عضوًا فيها.',
+    notFoundArchived: 'ربما أُرشفت.',
+    loading: 'جارٍ التحميل…',
+    settings: 'إعدادات المجموعة',
+    mismatch: 'الأرصدة بحاجة إلى تحديث',
+    mismatchBody:
+      'هذا الجهاز والخادم لا يتفقان على أرصدة هذه المجموعة. اسحب للتحديث؛ وإن استمر الأمر فالدفتر بالأسفل هو المرجع.',
+    confirmReceived: 'أكّد الاستلام',
+    autoConfirms: 'يتأكد تلقائيًا خلال 7 أيام إن لم يردّ أحد.',
+    hideDeleted: 'إخفاء المحذوف',
+    showDeleted: 'إظهار المحذوف',
+    activityEmptyBody: 'كل ما يحدث هنا يظهر في هذا السجل.',
+    photoUpdated: 'تم تحديث الصورة',
+    nameOptional: 'الاسم (اختياري)',
+    groupName: 'اسم المجموعة',
+    saveName: 'حفظ الاسم',
+    removePhoto: 'إزالة الصورة',
+    simplifyDebts: 'تبسيط الديون',
+    simplifyDebtsBody:
+      'يقترح أقل عدد من الدفعات لتسوية المجموعة. أما دفتر من يدين لمن فلا يُعاد كتابته أبدًا.',
+    membersHint: 'أضف أشخاصًا، غيّر الأسماء، اضبط معرّفات الدفع',
+    invitePeople: 'ادعُ أشخاصًا',
+    invitePeopleHint: 'شارك رابطًا — لا حاجة لتثبيت شيء للانضمام',
+    bringThingsIn: 'استيراد',
+    importMessages: 'استيراد من الرسائل',
+    importMessagesHint: 'ألصق رسائل المصرف — تُقرأ على هذا الهاتف وتؤكدها أنت',
+    importSplitwise: 'استيراد ملف Splitwise',
+    importSplitwiseHint: 'أحضر سجل مجموعة قديمة',
+    archiveGroup: 'أرشفة المجموعة',
+    leaveGroup: 'مغادرة المجموعة',
+    leaveWhenZero: 'يمكنك المغادرة حين يصبح رصيدك هنا صفرًا.',
+    settleFirst: 'سوِّ حسابك أولًا',
+    settleFirstBody:
+      'ما زال لك رصيد في هذه المجموعة. المغادرة الآن تتركه معلّقًا — سوِّ الحساب ثم غادر.',
+    leaveQuestion: 'مغادرة هذه المجموعة؟',
+    leaveBody: 'تبقى مصروفاتك السابقة في سجل المجموعة.',
+    leave: 'مغادرة',
+    archiveQuestion: 'أرشفة هذه المجموعة؟',
+    archiveBody: 'تختفي من قائمتك دون حذف أي شيء، ويمكن لأي أحد إعادتها.',
+    archive: 'أرشفة',
+    nobodyOwes: 'لا أحد يدين لأحد في هذه المجموعة.',
+    recordedNotMoved: 'مسجَّل، ولم يحوّل باقي المال',
   },
 };
 

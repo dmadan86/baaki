@@ -63,7 +63,7 @@ function factsOf(row: NotificationRow): Record<string, string | undefined> {
 
 export default function InboxScreen() {
   const theme = useTheme();
-  const { locale } = useStrings();
+  const { t, locale } = useStrings();
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
 
@@ -98,23 +98,20 @@ export default function InboxScreen() {
         }
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Inbox</Text>
+            <Text variant="heading">{t.inbox.title}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
 
         {rows.length === 0 ? (
-          <EmptyState
-            title="Nothing yet"
-            body="Reminders, settlement confirmations and anything else Baaki tells you collect here — even when the notification never reached your phone."
-          />
+          <EmptyState title={t.nothingYet} body={t.inbox.nothingYetBody} />
         ) : (
           <View>
-            <SectionHeader title="Recent" />
+            <SectionHeader title={t.inbox.recent} />
             <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
               {rows.map((row, index) => {
                 const { title, body } = renderNotification(row.kind, factsOf(row), locale, {

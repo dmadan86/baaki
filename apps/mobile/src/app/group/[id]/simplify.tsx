@@ -48,7 +48,7 @@ export default function SimplifyScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -75,7 +75,7 @@ export default function SimplifyScreen() {
         </Card>
 
         {ledger.transfers.length === 0 ? (
-          <EmptyState title={t.allSettled} body="Nobody owes anybody in this group." />
+          <EmptyState title={t.allSettled} body={t.group.nobodyOwes} />
         ) : (
           <Card padded={false} style={{ padding: theme.spacing.lg, gap: theme.spacing.lg }}>
             {ledger.transfers.map((transfer) => (

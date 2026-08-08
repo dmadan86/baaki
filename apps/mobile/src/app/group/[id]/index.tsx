@@ -72,7 +72,7 @@ export default function GroupScreen() {
       <Screen>
         <View style={{ padding: theme.spacing.xl }}>
           <Text variant="caption" tone="muted">
-            Loading…
+            {t.group.loading}
           </Text>
         </View>
       </Screen>
@@ -83,9 +83,9 @@ export default function GroupScreen() {
     return (
       <Screen>
         <EmptyState
-          title="Group not found"
-          body="It may have been archived, or you are no longer a member."
-          action={<Button label="Back" onPress={() => router.back()} />}
+          title={t.group.notFound}
+          body={t.group.notFoundBody}
+          action={<Button label={t.common.back} onPress={() => router.back()} />}
         />
       </Screen>
     );
@@ -120,7 +120,7 @@ export default function GroupScreen() {
         }
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <Row style={{ flex: 1, gap: theme.spacing.md, justifyContent: 'center' }}>
@@ -149,7 +149,7 @@ export default function GroupScreen() {
             <Ionicons name="pie-chart-outline" size={19} color={theme.color.text} />
           </IconButton>
           <IconButton
-            label="Group settings"
+            label={t.group.settings}
             onPress={() => router.push(`/group/${groupId}/settings`)}
           >
             <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text} />
@@ -163,11 +163,10 @@ export default function GroupScreen() {
         {ledger.mismatch ? (
           <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}>
             <Text variant="subheading" tone="negative">
-              Balances need a refresh
+              {t.group.mismatch}
             </Text>
             <Text variant="caption" tone="muted">
-              This device and the server disagree about this group&apos;s balances. Pull to refresh;
-              if it persists, the ledger below is the source of truth.
+              {t.group.mismatchBody}
             </Text>
           </Card>
         ) : null}
@@ -246,12 +245,12 @@ export default function GroupScreen() {
             />
             <Row style={{ gap: theme.spacing.md }}>
               <Button
-                label="Confirm received"
+                label={t.group.confirmReceived}
                 onPress={() => confirmSettlement.mutate(settlement.id)}
                 disabled={confirmSettlement.isPending}
               />
               <Text variant="micro" tone="faint" style={{ flex: 1 }}>
-                Auto-confirms in 7 days if nobody responds.
+                {t.group.autoConfirms}
               </Text>
             </Row>
           </Card>
@@ -274,7 +273,7 @@ export default function GroupScreen() {
               tone="muted"
               onPress={() => setShowDeleted((current) => !current)}
             >
-              {showDeleted ? 'Hide deleted' : 'Show deleted'}
+              {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
             </Text>
           </Row>
         ) : null}
@@ -360,10 +359,7 @@ export default function GroupScreen() {
 
         {tab === 'activity' ? (
           (activity.data ?? []).length === 0 ? (
-            <EmptyState
-              title={t.nothingYet}
-              body="Everything that happens here shows up in this feed."
-            />
+            <EmptyState title={t.nothingYet} body={t.group.activityEmptyBody} />
           ) : (
             <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
               {(activity.data ?? []).map((entry, index) => (
