@@ -5,23 +5,46 @@
  *    items concurrently; itemized expense math exact; export re-imports
  *    losslessly."
  *
- * The parts that can be proved without a model are already property tests in
- * @baaki/core. What only a real run can show is whether Claude actually reads
- * a Tamil bill, whether it returns paise rather than rupees, and — the one
- * that matters most — whether it leaves a receipt's own arithmetic alone
- * instead of helpfully correcting it. A model that silently fixes a bad total
- * defeats the entire reconciliation check downstream of it.
+ * This file owns the parser and the arithmetic on top of it. The parts that can
+ * be proved without a model are already property tests in @baaki/core. What
+ * only a real run can show is whether Claude actually reads a Tamil bill,
+ * whether it returns paise rather than rupees, and — the one that matters most
+ * — whether it leaves a receipt's own arithmetic alone instead of helpfully
+ * correcting it. A model that silently fixes a bad total defeats the entire
+ * reconciliation check downstream of it.
+ *
+ * **Claiming is not tested here; `m5-claims.mjs` tests it.** This file used to
+ * carry a check called "four people claim items concurrently", and it was not
+ * true. It inserted into `receipt_item_claims` with the **service role**, which
+ * bypasses RLS, bypasses the grants, and never calls `baaki_set_item_claim` —
+ * the function that decides whose claim a claim is. That table has INSERT,
+ * UPDATE and DELETE revoked from `anon` and `authenticated`, so the check drove
+ * a door no phone can open, and what it demonstrated was that Postgres accepts
+ * concurrent inserts from a superuser. It has been removed rather than left to
+ * be read as evidence.
+ *
+ * The itemized arithmetic below stays, because it is about this file's subject:
+ * given a bill the model parsed and a map of who claimed what, the shares have
+ * to come out exact. That map is written here rather than round-tripped through
+ * the database — the sum does not care where the claims were stored, and
+ * fetching them back was only ever scaffolding for the check that has gone.
+ *
+ * Needs ANON_KEY only. Everything here is what an ordinary signed-in phone can
+ * do, which is the whole point.
  */
 import { createClient } from '@supabase/supabase-js';
 
-import { checkReceipt, computeShares, toItemizedParams } from '../supabase/functions/_shared/core.js';
+import {
+  checkReceipt,
+  computeShares,
+  toItemizedParams,
+} from '../supabase/functions/_shared/core.js';
 
 const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
 const ANON = process.env.ANON_KEY;
-const SERVICE = process.env.SERVICE_KEY;
 
-if (!ANON || !SERVICE) {
-  console.error('Set ANON_KEY and SERVICE_KEY.');
+if (!ANON) {
+  console.error('Set ANON_KEY.');
   process.exit(2);
 }
 
@@ -46,7 +69,6 @@ async function describe(error) {
 }
 
 const client = (key) => createClient(URL, key, { auth: { persistSession: false } });
-const service = client(SERVICE);
 
 // ── a group with four people, because four have to claim at once ───────────
 const asha = client(ANON);
@@ -66,16 +88,20 @@ const { data: groupId, error: groupError } = await asha.rpc('baaki_create_group'
 check('a group exists to scan into', !groupError && !!groupId, await describe(groupError));
 
 for (const name of ['Bharath', 'Chitra', 'Dev']) {
-  await asha.from('group_members').insert({ group_id: groupId, ghost_name: name, joined_via: 'ghost' });
+  await asha
+    .from('group_members')
+    .insert({ group_id: groupId, ghost_name: name, joined_via: 'ghost' });
 }
 const { data: memberRows } = await asha
   .from('group_members')
   .select('id, profile_id, ghost_name')
   .eq('group_id', groupId);
-const members = Object.fromEntries(
-  memberRows.map((row) => [row.ghost_name ?? 'Asha', row.id]),
+const members = Object.fromEntries(memberRows.map((row) => [row.ghost_name ?? 'Asha', row.id]));
+check(
+  'four people are in the group',
+  Object.keys(members).length === 4,
+  Object.keys(members).join(', '),
 );
-check('four people are in the group', Object.keys(members).length === 4, Object.keys(members).join(', '));
 
 // ── the bills ──────────────────────────────────────────────────────────────
 // Written the way a real one prints: rupees with paise, tax as a line, and a
@@ -164,8 +190,16 @@ if (english) {
 const tamil = await scan(tamilBill, 'a Tamil bill parses');
 if (tamil) {
   check('a Tamil bill parses', true);
-  check('it reads the Tamil grand total', tamil.parsed.grandTotal === 31500, `${tamil.parsed.grandTotal}`);
-  check('it finds every Tamil line', tamil.parsed.items.length === 4, `${tamil.parsed.items.length}`);
+  check(
+    'it reads the Tamil grand total',
+    tamil.parsed.grandTotal === 31500,
+    `${tamil.parsed.grandTotal}`,
+  );
+  check(
+    'it finds every Tamil line',
+    tamil.parsed.items.length === 4,
+    `${tamil.parsed.items.length}`,
+  );
   check('it reconciles', tamil.check.reconciles, `difference=${tamil.check.difference}`);
   check(
     'the item labels survive in Tamil, not transliterated',
@@ -195,41 +229,21 @@ if (wrong) {
   );
 }
 
-// ── four people claim items at once ────────────────────────────────────────
+// ── the itemized split is exact ────────────────────────────────────────────
 if (english?.check.reconciles) {
   const receiptId = english.receiptId;
   check('the scan was recorded', !!receiptId, `${receiptId}`);
 
-  // Everyone claims a different line simultaneously; the biryani is shared.
-  const claims = [
-    { itemIndex: 0, memberId: members.Asha },
-    { itemIndex: 0, memberId: members.Bharath },
-    { itemIndex: 1, memberId: members.Chitra },
-    { itemIndex: 2, memberId: members.Dev },
-    { itemIndex: 3, memberId: members.Asha },
-  ];
-  const results = await Promise.all(
-    claims.map((claim) =>
-      service.from('receipt_item_claims').insert({ receipt_id: receiptId, ...claim }),
-    ),
-  );
-  check(
-    'four people claim items concurrently without stepping on each other',
-    results.every((result) => !result.error),
-    results.find((result) => result.error)?.error?.message ?? '',
-  );
-
-  const { data: stored } = await service
-    .from('receipt_item_claims')
-    .select('item_index, member_id')
-    .eq('receipt_id', receiptId);
-  check('every claim landed', (stored ?? []).length === claims.length, `${stored?.length}`);
-
-  // ── the itemized split is exact ──────────────────────────────────────────
-  const byItem = {};
-  for (const row of stored ?? []) {
-    (byItem[row.item_index] ??= []).push(row.member_id);
-  }
+  // Who ate what. Written here rather than claimed through the database:
+  // whether these people can *make* these claims is `m5-claims.mjs`'s subject,
+  // and this sum is the same sum wherever the map came from. Asha and Bharath
+  // share the biryani, so item 0 has two names against it.
+  const byItem = {
+    0: [members.Asha, members.Bharath],
+    1: [members.Chitra],
+    2: [members.Dev],
+    3: [members.Asha],
+  };
   const { amount, params } = toItemizedParams(english.parsed, byItem);
   check('the split uses the printed total', amount === 74550n, `${amount}`);
 
@@ -242,7 +256,11 @@ if (english?.check.reconciles) {
     seed: receiptId,
   });
   const total = [...shares.values()].reduce((sum, share) => sum + share, 0n);
-  check('the itemized shares add up to the bill exactly', total === amount, `${total} vs ${amount}`);
+  check(
+    'the itemized shares add up to the bill exactly',
+    total === amount,
+    `${total} vs ${amount}`,
+  );
   check(
     'nobody is left out and nobody is invented',
     shares.size === participants.length,
@@ -260,7 +278,11 @@ if (english?.check.reconciles) {
 const { data: quota, error: quotaError } = await asha.rpc('baaki_receipt_scan_quota');
 check('the scan quota is readable', !quotaError, await describe(quotaError));
 check('scans were metered (ADR-011)', (quota?.used ?? 0) >= 3, JSON.stringify(quota));
-check('the free ledger is untouched by the quota', (quota?.limit ?? 0) === 20, JSON.stringify(quota));
+check(
+  'the free ledger is untouched by the quota',
+  (quota?.limit ?? 0) === 20,
+  JSON.stringify(quota),
+);
 
 // ── nobody else's group ────────────────────────────────────────────────────
 const outsider = client(ANON);

@@ -3,18 +3,20 @@
  *
  *   "4 users claim items concurrently"
  *
- * `m5-receipts.mjs` has claimed this since the milestone was called done, and
- * it does not test it. It inserts five rows into `receipt_item_claims` through
+ * `m5-receipts.mjs` claimed this from the moment the milestone was called done,
+ * and never tested it. It inserted five rows into `receipt_item_claims` through
  * the **service role**, which bypasses RLS, bypasses every grant, and bypasses
  * `baaki_set_item_claim` entirely — the one piece of code that decides whose
  * claim a claim is. Postgres accepting five concurrent inserts from a superuser
  * is not in question. What was never checked is the thing the criterion is
- * about: four people, on four phones, each signed in as themselves.
+ * about: four people, on four phones, each signed in as themselves. That block
+ * has since been deleted from `m5-receipts.mjs`, which now owns the parser and
+ * the arithmetic and makes no claim about claiming.
  *
  * The difference is not academic. `receipt_item_claims` has INSERT, UPDATE and
- * DELETE revoked from `anon` and `authenticated`, so the door the old test used
- * is one no real client can open. Everything a phone can actually do goes
- * through `baaki_set_item_claim`, and that function has authorization logic —
+ * DELETE revoked from `anon` and `authenticated`, so the door that test used is
+ * one no real client can open. Everything a phone can actually do goes through
+ * `baaki_set_item_claim`, and that function has authorization logic —
  * membership, ghost-versus-real, whose session this is — none of which the
  * service role ever reaches.
  *
