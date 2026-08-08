@@ -817,6 +817,54 @@ export interface UiStrings {
     whatNeverWillBody: string;
   };
   /** The rest: one or two strings each, from a dozen screens. */
+  /**
+   * Feedback, the policy screens, and erasure.
+   *
+   * The policy prose is translated, and the screen says the English text
+   * governs — a mistranslated sentence about what happens to somebody's data
+   * is worse than an untranslated one, and saying which version is
+   * authoritative is the ordinary way to carry that.
+   */
+  privacy: {
+    row: string;
+    rowHint: string;
+    title: string;
+    intro: string;
+    storeTitle: string;
+    storeBody: string;
+    protectTitle: string;
+    protectBody: string;
+    choicesTitle: string;
+    choicesBody: string;
+    englishGoverns: string;
+    feedbackRow: string;
+    feedbackRowHint: string;
+    feedbackTitle: string;
+    feedbackHint: string;
+    feedbackPlaceholder: string;
+    feedbackSend: string;
+    feedbackThanks: string;
+    kindGeneral: string;
+    kindBug: string;
+    kindIdea: string;
+    deleteRow: string;
+    deleteRowHint: string;
+    deleteTitle: string;
+    deleteIntro: string;
+    deleteGoesTitle: string;
+    deleteGoesBody: string;
+    deleteStaysTitle: string;
+    deleteStaysBody: string;
+    deleteExportFirst: string;
+    deleteWhyLabel: string;
+    deleteWhyPlaceholder: string;
+    deleteConfirmLabel: string;
+    deleteConfirmWord: string;
+    deleteButton: string;
+    deleteWorking: string;
+    deleteDone: string;
+    deleteSummary: string;
+  };
   extras: {
     blankNameHint: string;
     whatKindOfGroup: string;
@@ -1594,6 +1642,55 @@ const en: UiStrings = {
     whatNeverWill: 'What never will',
     whatNeverWillBody:
       'The ledger. Groups, expenses, splits, balances, settling up, and getting all of it back out again — {free}. A ledger you can only half read is not a ledger.',
+  },
+  privacy: {
+    row: 'Privacy & security',
+    rowHint: 'What is stored, and how it is kept',
+    title: 'Privacy & security',
+    intro:
+      'Baaki holds as little about you as it can and still work. This describes what that is, in plain terms.',
+    storeTitle: 'What is stored',
+    storeBody:
+      'Your display name, and whichever of a phone number, email or sign-in identity you used. Optionally a payment handle, so somebody can pay you back, and a country, which decides which payment rails you are offered. The groups you are in, the expenses in them, and who owes whom. Nothing else: no contacts are uploaded, and there is no advertising identifier.',
+    protectTitle: 'How it is kept',
+    protectBody:
+      'Every table is behind row-level security in the database, so a request can only ever read rows your own account is entitled to — not a filter applied by the app, but a rule the database enforces. Receipt images sit in a private bucket reached through short-lived signed links. Crash reports are scrubbed of addresses, phone numbers, payment handles and keys before they leave the phone. You can require your fingerprint or face to open the app.',
+    choicesTitle: 'What you can do',
+    choicesBody:
+      'Export everything you have entered, at any time, in full fidelity and for free. Turn off any notification. Delete your account and the personal data in it. Write to us with anything you want changed.',
+    englishGoverns:
+      'This text is translated for convenience. Where a translation and the English differ, the English is the one that governs.',
+    feedbackRow: 'Send feedback',
+    feedbackRowHint: 'Tell us what is wrong, or what is missing',
+    feedbackTitle: 'Send feedback',
+    feedbackHint:
+      'Read by a person, not a queue. Say as much or as little as you like — it helps most when it is specific.',
+    feedbackPlaceholder: 'What happened, or what you wish it did',
+    feedbackSend: 'Send',
+    feedbackThanks: 'Thank you — that has been received.',
+    kindGeneral: 'General',
+    kindBug: 'Something is broken',
+    kindIdea: 'An idea',
+    deleteRow: 'Delete my data',
+    deleteRowHint: 'Remove your account and personal details',
+    deleteTitle: 'Delete my data',
+    deleteIntro:
+      'This cannot be undone. Please read what it does and does not remove — the second part is the one that surprises people.',
+    deleteGoesTitle: 'What is removed',
+    deleteGoesBody:
+      'Your name, photo, payment handle, country, language and notification settings. Your sign-in, so this account can no longer be opened. Your devices, notification history, purchases and anything the AI scanner recorded about your usage.',
+    deleteStaysTitle: 'What stays, and why',
+    deleteStaysBody:
+      "The expenses and settlements in your shared groups remain, because they are also other people's records — they are what says who owes whom, and removing them would silently change somebody else's balance to settle a debt nobody paid. You become an unnamed former member in those groups. Your name is gone from them; your share of the dinner is not.",
+    deleteExportFirst: 'Export your data first',
+    deleteWhyLabel: 'Why are you leaving? (optional)',
+    deleteWhyPlaceholder: 'It helps to know, and it is kept after your account is gone',
+    deleteConfirmLabel: 'Type DELETE to confirm',
+    deleteConfirmWord: 'DELETE',
+    deleteButton: 'Delete my data',
+    deleteWorking: 'Deleting…',
+    deleteDone: 'Your data has been deleted.',
+    deleteSummary: 'You are now a former member of {n} group(s).',
   },
   extras: {
     blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
@@ -2409,6 +2506,55 @@ const ta: UiStrings = {
     whatNeverWillBody:
       'கணக்கு. குழுக்கள், செலவுகள், பிரிவுகள், இருப்புகள், தீர்த்தல், அனைத்தையும் திரும்பப் பெறுதல் — {free}. பாதி மட்டுமே படிக்கக்கூடிய கணக்கு கணக்கே அல்ல.',
   },
+  privacy: {
+    row: 'தனியுரிமை & பாதுகாப்பு',
+    rowHint: 'என்ன சேமிக்கப்படுகிறது, எப்படி பாதுகாக்கப்படுகிறது',
+    title: 'தனியுரிமை & பாதுகாப்பு',
+    intro:
+      'பாக்கி வேலை செய்ய எவ்வளவு தேவையோ அவ்வளவு மட்டுமே உங்களைப் பற்றி வைத்திருக்கிறது. அது என்ன என்பது இங்கே.',
+    storeTitle: 'என்ன சேமிக்கப்படுகிறது',
+    storeBody:
+      'உங்கள் பெயர், நீங்கள் பயன்படுத்திய தொலைபேசி எண், மின்னஞ்சல் அல்லது உள்நுழைவு அடையாளம். விருப்பப்படி ஒரு பணப் பரிமாற்ற முகவரி, மற்றும் ஒரு நாடு. நீங்கள் இருக்கும் குழுக்கள், அவற்றின் செலவுகள், யார் யாருக்குக் கடன்பட்டவர். வேறு எதுவும் இல்லை: தொடர்புகள் பதிவேற்றப்படுவதில்லை, விளம்பர அடையாளம் இல்லை.',
+    protectTitle: 'எப்படி பாதுகாக்கப்படுகிறது',
+    protectBody:
+      'ஒவ்வொரு அட்டவணையும் தரவுத்தளத்தில் வரிசை-நிலை பாதுகாப்பின் பின்னால் உள்ளது — செயலி வடிகட்டுவதல்ல, தரவுத்தளமே அமல்படுத்தும் விதி. ரசீது படங்கள் தனிப்பட்ட இடத்தில், குறுகிய கால இணைப்புகள் வழியாக மட்டுமே. செயலி முறிவு அறிக்கைகளிலிருந்து முகவரிகள், எண்கள், பணமுகவரிகள் தொலைபேசியை விட்டு வெளியேறும் முன்பே நீக்கப்படுகின்றன.',
+    choicesTitle: 'நீங்கள் என்ன செய்யலாம்',
+    choicesBody:
+      'நீங்கள் உள்ளிட்ட அனைத்தையும் எப்போது வேண்டுமானாலும், முழுமையாக, இலவசமாக ஏற்றுமதி செய்யலாம். எந்த அறிவிப்பையும் நிறுத்தலாம். உங்கள் கணக்கையும் அதிலுள்ள தனிப்பட்ட தரவையும் நீக்கலாம்.',
+    englishGoverns:
+      'இந்த உரை வசதிக்காக மொழிபெயர்க்கப்பட்டுள்ளது. மொழிபெயர்ப்புக்கும் ஆங்கிலத்துக்கும் வேறுபாடு இருந்தால், ஆங்கிலமே செல்லுபடியாகும்.',
+    feedbackRow: 'கருத்து அனுப்பு',
+    feedbackRowHint: 'என்ன தவறு, அல்லது என்ன இல்லை என்று சொல்லுங்கள்',
+    feedbackTitle: 'கருத்து அனுப்பு',
+    feedbackHint:
+      'ஒரு நபரால் படிக்கப்படும். எவ்வளவு வேண்டுமானாலும் எழுதலாம் — குறிப்பிட்டதாக இருந்தால் அதிகம் உதவும்.',
+    feedbackPlaceholder: 'என்ன நடந்தது, அல்லது என்ன இருக்க வேண்டும் என நினைக்கிறீர்கள்',
+    feedbackSend: 'அனுப்பு',
+    feedbackThanks: 'நன்றி — கிடைத்துவிட்டது.',
+    kindGeneral: 'பொது',
+    kindBug: 'ஏதோ வேலை செய்யவில்லை',
+    kindIdea: 'ஒரு யோசனை',
+    deleteRow: 'என் தரவை நீக்கு',
+    deleteRowHint: 'உங்கள் கணக்கையும் தனிப்பட்ட விவரங்களையும் நீக்கு',
+    deleteTitle: 'என் தரவை நீக்கு',
+    deleteIntro:
+      'இதை மீட்டெடுக்க முடியாது. என்ன நீக்கப்படும், என்ன நீக்கப்படாது என்பதைப் படியுங்கள் — இரண்டாவது பகுதிதான் பலரை ஆச்சரியப்படுத்துகிறது.',
+    deleteGoesTitle: 'என்ன நீக்கப்படும்',
+    deleteGoesBody:
+      'உங்கள் பெயர், படம், பணமுகவரி, நாடு, மொழி, அறிவிப்பு அமைப்புகள். உங்கள் உள்நுழைவு — இந்தக் கணக்கை இனி திறக்க முடியாது. உங்கள் சாதனங்கள், அறிவிப்பு வரலாறு, கொள்முதல்கள்.',
+    deleteStaysTitle: 'என்ன இருக்கும், ஏன்',
+    deleteStaysBody:
+      'உங்கள் குழுக்களில் உள்ள செலவுகளும் தீர்வுகளும் இருக்கும், ஏனெனில் அவை மற்றவர்களின் பதிவுகளும் கூட — யார் யாருக்குக் கடன்பட்டவர் என்பதைச் சொல்வது அவைதான். அவற்றை நீக்கினால் யாரும் கட்டாத கடன் தானாகத் தீர்ந்துவிடும். நீங்கள் பெயரில்லாத முன்னாள் உறுப்பினராகிவிடுவீர்கள்.',
+    deleteExportFirst: 'முதலில் உங்கள் தரவை ஏற்றுமதி செய்யுங்கள்',
+    deleteWhyLabel: 'ஏன் விலகுகிறீர்கள்? (விருப்பம்)',
+    deleteWhyPlaceholder: 'தெரிந்தால் உதவும்; கணக்கு போன பிறகும் இது வைக்கப்படும்',
+    deleteConfirmLabel: 'உறுதிப்படுத்த DELETE என தட்டச்சு செய்யுங்கள்',
+    deleteConfirmWord: 'DELETE',
+    deleteButton: 'என் தரவை நீக்கு',
+    deleteWorking: 'நீக்கப்படுகிறது…',
+    deleteDone: 'உங்கள் தரவு நீக்கப்பட்டது.',
+    deleteSummary: 'நீங்கள் இப்போது {n} குழுவின் முன்னாள் உறுப்பினர்.',
+  },
   extras: {
     blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
     whatKindOfGroup: 'என்ன வகைக் குழு?',
@@ -3188,6 +3334,55 @@ const hi: UiStrings = {
     whatNeverWill: 'किसके कभी नहीं',
     whatNeverWillBody:
       'हिसाब। समूह, खर्च, बँटवारा, बकाया, निपटान, और यह सब वापस बाहर निकालना — {free}। जो हिसाब आप आधा ही पढ़ सकें, वह हिसाब नहीं।',
+  },
+  privacy: {
+    row: 'निजता और सुरक्षा',
+    rowHint: 'क्या रखा जाता है, और कैसे सुरक्षित रहता है',
+    title: 'निजता और सुरक्षा',
+    intro:
+      'बाकी आपके बारे में उतना ही रखता है जितना काम करने के लिए ज़रूरी है। वह क्या है, सीधे शब्दों में।',
+    storeTitle: 'क्या रखा जाता है',
+    storeBody:
+      'आपका नाम, और फ़ोन नंबर, ईमेल या साइन-इन पहचान में से जो आपने इस्तेमाल किया। वैकल्पिक रूप से एक भुगतान पता, ताकि कोई आपको लौटा सके, और एक देश। आप जिन समूहों में हैं, उनके ख़र्चे, और कौन किसका देनदार है। और कुछ नहीं: कोई संपर्क अपलोड नहीं होते, कोई विज्ञापन पहचानकर्ता नहीं।',
+    protectTitle: 'कैसे सुरक्षित रहता है',
+    protectBody:
+      'हर तालिका डेटाबेस में row-level security के पीछे है — ऐप का लगाया फ़िल्टर नहीं, बल्कि डेटाबेस का लागू किया नियम। रसीद की तस्वीरें एक निजी जगह में, छोटी अवधि के लिंक से ही पहुँच में। क्रैश रिपोर्ट से पते, नंबर और भुगतान पते फ़ोन छोड़ने से पहले ही हटा दिए जाते हैं।',
+    choicesTitle: 'आप क्या कर सकते हैं',
+    choicesBody:
+      'जो कुछ आपने डाला है, कभी भी, पूरा और मुफ़्त निर्यात करें। कोई भी सूचना बंद करें। अपना खाता और उसमें रखा निजी डेटा मिटाएँ।',
+    englishGoverns:
+      'यह पाठ सुविधा के लिए अनूदित है। अनुवाद और अंग्रेज़ी में अंतर हो तो अंग्रेज़ी ही मान्य होगी।',
+    feedbackRow: 'सुझाव भेजें',
+    feedbackRowHint: 'बताइए क्या ग़लत है, या क्या नहीं है',
+    feedbackTitle: 'सुझाव भेजें',
+    feedbackHint:
+      'इसे एक व्यक्ति पढ़ता है। जितना चाहें लिखें — विशिष्ट होने पर सबसे ज़्यादा मदद मिलती है।',
+    feedbackPlaceholder: 'क्या हुआ, या आप क्या चाहते थे कि यह करे',
+    feedbackSend: 'भेजें',
+    feedbackThanks: 'धन्यवाद — मिल गया।',
+    kindGeneral: 'सामान्य',
+    kindBug: 'कुछ ख़राब है',
+    kindIdea: 'एक सुझाव',
+    deleteRow: 'मेरा डेटा मिटाएँ',
+    deleteRowHint: 'अपना खाता और निजी विवरण हटाएँ',
+    deleteTitle: 'मेरा डेटा मिटाएँ',
+    deleteIntro:
+      'यह वापस नहीं हो सकता। पढ़िए कि क्या हटता है और क्या नहीं — दूसरा हिस्सा ही लोगों को चौंकाता है।',
+    deleteGoesTitle: 'क्या हटता है',
+    deleteGoesBody:
+      'आपका नाम, फ़ोटो, भुगतान पता, देश, भाषा और सूचना सेटिंग्स। आपका साइन-इन, ताकि यह खाता फिर न खुले। आपके उपकरण, सूचना इतिहास और ख़रीद।',
+    deleteStaysTitle: 'क्या रहता है, और क्यों',
+    deleteStaysBody:
+      'आपके साझा समूहों के ख़र्चे और भुगतान रहते हैं, क्योंकि वे दूसरों के भी रिकॉर्ड हैं — वही बताते हैं कि कौन किसका देनदार है। उन्हें हटाने से किसी और का हिसाब चुपचाप बदल जाएगा और वह कर्ज़ चुक जाएगा जो किसी ने चुकाया ही नहीं। आप उन समूहों में एक अनाम पूर्व-सदस्य बन जाते हैं।',
+    deleteExportFirst: 'पहले अपना डेटा निर्यात करें',
+    deleteWhyLabel: 'आप क्यों जा रहे हैं? (वैकल्पिक)',
+    deleteWhyPlaceholder: 'जानना मददगार है; खाता जाने के बाद भी यह रखा जाता है',
+    deleteConfirmLabel: 'पुष्टि के लिए DELETE लिखें',
+    deleteConfirmWord: 'DELETE',
+    deleteButton: 'मेरा डेटा मिटाएँ',
+    deleteWorking: 'मिटाया जा रहा है…',
+    deleteDone: 'आपका डेटा मिटा दिया गया।',
+    deleteSummary: 'अब आप {n} समूह के पूर्व-सदस्य हैं।',
   },
   extras: {
     blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
@@ -4093,6 +4288,53 @@ const ar: UiStrings = {
     whatNeverWill: 'وما لن يكلّف أبدًا',
     whatNeverWillBody:
       'الدفتر. المجموعات والمصاريف والتقسيمات والأرصدة والتسوية، وإخراج كل ذلك مرة أخرى — {free}. الدفتر الذي لا تقرأ منه إلا نصفه ليس دفترًا.',
+  },
+  privacy: {
+    row: 'الخصوصية والأمان',
+    rowHint: 'ما الذي يُحفظ، وكيف يُحمى',
+    title: 'الخصوصية والأمان',
+    intro: 'يحتفظ باقي بأقل قدر ممكن عنك مع بقائه صالحًا للعمل. وهذا بيان بما يحتفظ به.',
+    storeTitle: 'ما الذي يُحفظ',
+    storeBody:
+      'اسمك، وما استخدمته من رقم هاتف أو بريد أو هوية دخول. واختياريًا عنوان دفع كي يتمكن أحدهم من ردّ المال إليك، وبلد. المجموعات التي تشارك فيها ومصروفاتها ومن يدين لمن. لا شيء غير ذلك: لا تُرفع جهات الاتصال، ولا يوجد معرّف إعلاني.',
+    protectTitle: 'كيف يُحمى',
+    protectBody:
+      'كل جدول محميّ بأمان على مستوى الصف داخل قاعدة البيانات — ليس ترشيحًا يجريه التطبيق، بل قاعدة تفرضها قاعدة البيانات نفسها. صور الإيصالات في مكان خاص لا يُوصل إليه إلا بروابط قصيرة الأجل. وتُنقّى تقارير الأعطال من العناوين والأرقام وعناوين الدفع قبل مغادرتها الهاتف.',
+    choicesTitle: 'ما الذي يمكنك فعله',
+    choicesBody:
+      'تصدير كل ما أدخلته، في أي وقت، كاملًا ومجانًا. إيقاف أي إشعار. حذف حسابك والبيانات الشخصية التي فيه.',
+    englishGoverns:
+      'هذا النص مترجم للتيسير. وعند الاختلاف بين الترجمة والإنجليزية، تكون الإنجليزية هي المعتمدة.',
+    feedbackRow: 'أرسل ملاحظاتك',
+    feedbackRowHint: 'أخبرنا بما لا يعمل أو بما ينقص',
+    feedbackTitle: 'أرسل ملاحظاتك',
+    feedbackHint: 'يقرأها إنسان. اكتب ما تشاء — وكلما كان محددًا كان أنفع.',
+    feedbackPlaceholder: 'ماذا حدث، أو ما الذي كنت تتمناه',
+    feedbackSend: 'إرسال',
+    feedbackThanks: 'شكرًا — وصلتنا.',
+    kindGeneral: 'عام',
+    kindBug: 'شيء لا يعمل',
+    kindIdea: 'فكرة',
+    deleteRow: 'احذف بياناتي',
+    deleteRowHint: 'إزالة حسابك وتفاصيلك الشخصية',
+    deleteTitle: 'احذف بياناتي',
+    deleteIntro:
+      'لا يمكن التراجع عن هذا. اقرأ ما يُحذف وما لا يُحذف — والجزء الثاني هو ما يفاجئ الناس.',
+    deleteGoesTitle: 'ما الذي يُحذف',
+    deleteGoesBody:
+      'اسمك وصورتك وعنوان الدفع والبلد واللغة وإعدادات الإشعارات. وتسجيل دخولك، فلا يُفتح هذا الحساب بعدها. وأجهزتك وسجل إشعاراتك ومشترياتك.',
+    deleteStaysTitle: 'ما الذي يبقى، ولماذا',
+    deleteStaysBody:
+      'تبقى المصروفات والتسويات في مجموعاتك المشتركة، لأنها سجلات الآخرين أيضًا — وهي ما يحدد من يدين لمن. وحذفها يغيّر حساب شخص آخر بصمت ويُسقط دَينًا لم يسدده أحد. تصبح عضوًا سابقًا بلا اسم في تلك المجموعات.',
+    deleteExportFirst: 'صدّر بياناتك أولًا',
+    deleteWhyLabel: 'لماذا تغادر؟ (اختياري)',
+    deleteWhyPlaceholder: 'معرفة السبب تفيدنا، ويُحتفظ بها بعد زوال الحساب',
+    deleteConfirmLabel: 'اكتب DELETE للتأكيد',
+    deleteConfirmWord: 'DELETE',
+    deleteButton: 'احذف بياناتي',
+    deleteWorking: 'جارٍ الحذف…',
+    deleteDone: 'تم حذف بياناتك.',
+    deleteSummary: 'أنت الآن عضو سابق في {n} مجموعة.',
   },
   extras: {
     blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',

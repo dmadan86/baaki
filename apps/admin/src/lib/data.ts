@@ -366,6 +366,29 @@ export const campaignFunnel = (id: string) =>
 export const campaignRevenue = (id: string) =>
   call<CampaignRevenueRow>('baaki_admin_campaign_revenue', { p_campaign_id: id });
 
+export interface FeedbackRow {
+  id: string;
+  kind: string;
+  message: string;
+  rating: number | null;
+  app_version: string | null;
+  platform: string | null;
+  locale: string | null;
+  country_code: string | null;
+  from_deleted_account: boolean;
+  created_at: string;
+}
+
+/**
+ * What people wrote. Note there is no author column and no way to ask for one:
+ * knowing who complained is not needed in order to act on a complaint, and the
+ * aggregates-only decision applies here too.
+ */
+export const feedback = (limit = 100) =>
+  call<FeedbackRow>('baaki_admin_feedback', {
+    p_limit: limit,
+  });
+
 export const flagResults = (key: string) =>
   call<FlagResultRow>('baaki_admin_flag_results', { p_key: key });
 

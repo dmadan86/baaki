@@ -322,6 +322,9 @@ function AuthGate() {
       <Stack.Screen name="settings/language" />
       <Stack.Screen name="settings/upgrade" />
       <Stack.Screen name="settings/account" />
+      <Stack.Screen name="settings/feedback" />
+      <Stack.Screen name="settings/privacy" />
+      <Stack.Screen name="settings/delete-account" />
       <Stack.Screen name="join" />
       <Stack.Screen name="inbox" />
     </Stack>
