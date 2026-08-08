@@ -23,40 +23,35 @@ import {
   saveNotificationPrefs,
   type NotificationPrefs,
 } from '@/data/api';
+import { useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { enablePush, pushPermission, type PushFailure, type PushPermission } from '@/lib/push';
 
-const ROWS: {
-  key: keyof NotificationPrefs;
-  title: string;
-  body: string;
-}[] = [
-  {
-    key: 'involvesMe',
-    title: 'Only what involves me',
-    body: 'Push when you owe, are owed, or are mentioned — not for every expense in every group.',
-  },
-  {
-    key: 'settlementRequests',
-    title: 'Settlement confirmations',
-    body: 'When someone says they paid you, so your baaki stays right.',
-  },
-  {
-    key: 'nudges',
-    title: 'Reminders',
-    body: 'A friendly nudge about money owed. Limited to one per person per day, in the database.',
-  },
-  {
-    key: 'groupActivityDigest',
-    title: 'Daily group summary',
-    body: 'Everything else, batched into one notification a day instead of a stream.',
-  },
-  {
-    key: 'weeklyEmail',
-    title: 'Weekly email digest',
-    body: 'Your net baaki and pending confirmations, once a week. Off by default.',
-  },
-];
+function rows(t: UiStrings): { key: keyof NotificationPrefs; title: string; body: string }[] {
+  return [
+    {
+      key: 'involvesMe',
+      title: t.notifications.involvesMe,
+      body: t.notifications.involvesMeBody,
+    },
+    {
+      key: 'settlementRequests',
+      title: t.notifications.settlementRequests,
+      body: t.notifications.settlementRequestsBody,
+    },
+    { key: 'nudges', title: t.notifications.nudges, body: t.notifications.nudgesBody },
+    {
+      key: 'groupActivityDigest',
+      title: t.notifications.digest,
+      body: t.notifications.digestBody,
+    },
+    {
+      key: 'weeklyEmail',
+      title: t.notifications.weeklyEmail,
+      body: t.notifications.weeklyEmailBody,
+    },
+  ];
+}
 
 /**
  * What went wrong, said to the person it happened to.
@@ -65,17 +60,19 @@ const ROWS: {
  * settings. Telling somebody to check their settings when the real problem is
  * that this build has no Firebase key sends them somewhere that cannot help.
  */
-const PUSH_FAILURE_COPY: Record<PushFailure, string> = {
-  denied: 'Not enabled — you can turn it on in your phone settings later.',
-  unsupported: 'This device cannot receive push notifications. Everything still lands in Activity.',
-  not_signed_in: 'Sign in first, so we know which phone is yours.',
-  not_configured:
-    'Push is not set up in this build of Baaki. Nothing you did — everything still lands in Activity.',
-  save_failed: 'Could not save this phone. Check your connection and try again.',
-};
+function pushFailureCopy(t: UiStrings): Record<PushFailure, string> {
+  return {
+    denied: t.notifications.failDenied,
+    unsupported: t.notifications.failUnsupported,
+    not_signed_in: t.notifications.failNotSignedIn,
+    not_configured: t.notifications.failNotConfigured,
+    save_failed: t.notifications.failSaveFailed,
+  };
+}
 
 export default function NotificationSettingsScreen() {
   const theme = useTheme();
+  const { t } = useStrings();
   const { profile } = useAuth();
 
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
@@ -105,7 +102,7 @@ export default function NotificationSettingsScreen() {
     try {
       const result = await enablePush();
       setPermission(await pushPermission());
-      if (!result.ok) setStatus(PUSH_FAILURE_COPY[result.why]);
+      if (!result.ok) setStatus(pushFailureCopy(t)[result.why]);
     } finally {
       setAsking(false);
     }
@@ -133,7 +130,7 @@ export default function NotificationSettingsScreen() {
     if (!profile?.id) return;
     setStatus(null);
     void saveNotificationPrefs(profile.id, next)
-      .then(() => setStatus('Saved'))
+      .then(() => setStatus(t.account.saved))
       .catch((caught: unknown) =>
         setStatus(caught instanceof Error ? caught.message : String(caught)),
       );
@@ -150,11 +147,11 @@ export default function NotificationSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Notifications</Text>
+            <Text variant="heading">{t.notifications.title}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
@@ -163,29 +160,34 @@ export default function NotificationSettingsScreen() {
             defaults are the fix, and they are all off-switchable. */}
         <Card style={{ backgroundColor: theme.color.brandSoft }}>
           <Text variant="caption" tone="brand">
-            Baaki never emails you about routine expense activity. Only the six things you would
-            actually want in your inbox, each unsubscribable on its own.
+            {t.notifications.neverSpam}
           </Text>
         </Card>
 
         <Card style={{ gap: theme.spacing.md }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="subheading">Notifications on this phone</Text>
+            <Text variant="subheading">{t.notifications.onThisPhone}</Text>
             <Badge
-              label={permission === 'granted' ? 'On' : permission === 'denied' ? 'Off' : 'Not set'}
+              label={
+                permission === 'granted'
+                  ? t.notifications.granted
+                  : permission === 'denied'
+                    ? t.notifications.denied
+                    : t.notifications.undetermined
+              }
               tone={permission === 'granted' ? 'positive' : undefined}
             />
           </Row>
           <Text variant="caption" tone="muted">
             {permission === 'granted'
-              ? 'This device is registered. Everything below still lands in your inbox whether or not a push gets through.'
+              ? t.notifications.permissionOn
               : permission === 'denied'
-                ? 'Your phone is blocking them. Turn them back on in system settings for Baaki — the inbox still has everything either way.'
-                : 'Baaki will only ask once, and only for the things you switch on below.'}
+                ? t.notifications.permissionOff
+                : t.notifications.permissionUnset}
           </Text>
           {permission === 'granted' ? null : (
             <Button
-              label={asking ? 'Asking…' : 'Turn on notifications'}
+              label={asking ? t.notifications.asking : t.notifications.turnOn}
               size="sm"
               disabled={asking || permission === 'denied'}
               onPress={() => void turnOnPush()}
@@ -197,9 +199,9 @@ export default function NotificationSettingsScreen() {
           <ActivityIndicator color={theme.color.brand} />
         ) : (
           <View>
-            <SectionHeader title="Push" />
+            <SectionHeader title={t.notifications.pushSection} />
             <Card style={{ gap: theme.spacing.xl }}>
-              {ROWS.map((row) => (
+              {rows(t).map((row) => (
                 <Row key={row.key} style={{ justifyContent: 'space-between' }}>
                   <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
                     <Text variant="subheading">{row.title}</Text>
@@ -219,14 +221,13 @@ export default function NotificationSettingsScreen() {
         )}
 
         {status ? (
-          <Text variant="caption" tone={status === 'Saved' ? 'positive' : 'negative'}>
+          <Text variant="caption" tone={status === t.account.saved ? 'positive' : 'negative'}>
             {status}
           </Text>
         ) : null}
 
         <Text variant="micro" tone="faint" align="center">
-          Email delivery is still to come. Everything here is also in your inbox, which is the
-          record of what Baaki has told you whether or not a notification arrived.
+          {t.notifications.footnote}
         </Text>
       </ScrollView>
     </Screen>

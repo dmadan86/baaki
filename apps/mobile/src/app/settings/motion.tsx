@@ -25,10 +25,12 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';
 
 export default function MotionSettingsScreen() {
   const theme = useTheme();
+  const { t } = useStrings();
   const { animated, systemReducesMotion, overridden, setAnimated } = useMotion();
 
   return (
@@ -42,11 +44,11 @@ export default function MotionSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Motion</Text>
+            <Text variant="heading">{t.motion.title}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
@@ -54,17 +56,15 @@ export default function MotionSettingsScreen() {
         <Card style={{ gap: theme.spacing.lg }}>
           <Row style={{ justifyContent: 'space-between', gap: theme.spacing.lg }}>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="subheading">Animate between screens</Text>
+              <Text variant="subheading">{t.motion.animateBetweenScreens}</Text>
               <Text variant="caption" tone="muted">
-                Screens slide in from the right, and sheets rise from the bottom — which is how a
-                screen tells you whether you have gone somewhere or opened something on top of where
-                you were.
+                {t.motion.animateExplain}
               </Text>
             </View>
             <Toggle
               value={animated}
               onValueChange={(value) => void setAnimated(value)}
-              accessibilityLabel="Animate between screens"
+              accessibilityLabel={t.motion.animateBetweenScreens}
             />
           </Row>
 
@@ -73,23 +73,25 @@ export default function MotionSettingsScreen() {
           <View style={{ gap: theme.spacing.sm }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="caption" tone="muted">
-                This phone
+                {t.motion.thisPhone}
               </Text>
               <Badge
-                label={systemReducesMotion ? 'Reduce motion is on' : 'Reduce motion is off'}
+                label={systemReducesMotion ? t.motion.reduceMotionOn : t.motion.reduceMotionOff}
                 tone={systemReducesMotion ? 'brand' : 'neutral'}
               />
             </Row>
             <Text variant="caption" tone="muted">
               {overridden
-                ? `You have set this yourself, so it stays ${animated ? 'on' : 'off'} whatever the phone says.`
+                ? animated
+                  ? t.motion.setYourselfOn
+                  : t.motion.setYourselfOff
                 : systemReducesMotion
-                  ? 'Following your accessibility settings, which ask for less movement.'
-                  : 'Following your accessibility settings.'}
+                  ? t.motion.followingReduced
+                  : t.motion.following}
             </Text>
             {overridden ? (
               <Button
-                label="Follow my phone's setting"
+                label={t.motion.followPhone}
                 variant="ghost"
                 onPress={() => void setAnimated(null)}
               />
@@ -98,8 +100,7 @@ export default function MotionSettingsScreen() {
         </Card>
 
         <Text variant="micro" tone="faint" align="center">
-          Turning motion off does not shorten the animations — it removes them. A faster animation
-          is still an animation to somebody who cannot watch one.
+          {t.motion.footnote}
         </Text>
       </ScrollView>
     </Screen>

@@ -223,7 +223,7 @@ export default function SettleScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Close" onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -236,7 +236,7 @@ export default function SettleScreen() {
         </Row>
 
         {counterparties.length === 0 || !counterparty ? (
-          <EmptyState title={t.allSettled} body="Nobody owes anybody in this group." />
+          <EmptyState title={t.allSettled} body={t.group.nobodyOwes} />
         ) : (
           <>
             <Card style={{ gap: theme.spacing.md }}>
@@ -273,7 +273,7 @@ export default function SettleScreen() {
                   : `${displayName(counterparty)} pays you`}
               </Text>
               <MoneyText amount={amount} currency={currency} locale={locale} variant="display" />
-              <Badge label="Recorded, not moved by Baaki" />
+              <Badge label={t.group.recordedNotMoved} />
             </Card>
 
             {/* Whatever this country pays with, best first. In India that is

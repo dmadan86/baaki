@@ -82,7 +82,7 @@ export default function NewGroupScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Close" onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -107,9 +107,9 @@ export default function NewGroupScreen() {
               <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="Goa trip"
+                placeholder={t.misc.newGroupPlaceholder}
                 placeholderTextColor={theme.color.textFaint}
-                accessibilityLabel="Group name"
+                accessibilityLabel={t.group.groupName}
                 autoFocus
                 style={{
                   fontSize: 22,
@@ -176,9 +176,9 @@ export default function NewGroupScreen() {
             <TextInput
               value={ghostName}
               onChangeText={setGhostName}
-              placeholder="Rahul"
+              placeholder={t.people.namePlaceholder}
               placeholderTextColor={theme.color.textFaint}
-              accessibilityLabel="Person's name"
+              accessibilityLabel={t.misc.personName}
               onSubmitEditing={() => {
                 if (ghostName.trim()) {
                   setGhosts((current) => [...current, ghostName.trim()]);
@@ -194,7 +194,7 @@ export default function NewGroupScreen() {
               }}
             />
             <Button
-              label="Add"
+              label={t.add}
               size="sm"
               variant="secondary"
               disabled={!ghostName.trim()}
@@ -241,7 +241,7 @@ export default function NewGroupScreen() {
         ) : null}
 
         <Button
-          label="Create group"
+          label={t.misc.createGroup}
           size="lg"
           fullWidth
           disabled={createGroup.isPending || uploading}

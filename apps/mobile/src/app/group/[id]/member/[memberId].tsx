@@ -48,7 +48,7 @@ export default function MemberScreen() {
   if (!member) {
     return (
       <Screen>
-        <EmptyState title="Member not found" body="They may have left the group." />
+        <EmptyState title={t.people.memberNotFound} body={t.people.memberNotFoundBody} />
       </Screen>
     );
   }
@@ -67,7 +67,7 @@ export default function MemberScreen() {
     updateMember.mutate(
       { memberId: member.id, patch },
       {
-        onSuccess: () => setStatus('Saved'),
+        onSuccess: () => setStatus(t.account.saved),
         onError: (caught) => setStatus(caught instanceof Error ? caught.message : String(caught)),
       },
     );
@@ -85,7 +85,7 @@ export default function MemberScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -108,8 +108,8 @@ export default function MemberScreen() {
           />
           <Row style={{ gap: theme.spacing.sm }}>
             {ghost ? <Badge label={t.notJoinedYet} /> : null}
-            {member.role === 'admin' ? <Badge label="admin" tone="brand" /> : null}
-            {isMe ? <Badge label="you" tone="positive" /> : null}
+            {member.role === 'admin' ? <Badge label={t.people.admin} tone="brand" /> : null}
+            {isMe ? <Badge label={t.people.you} tone="positive" /> : null}
           </Row>
           {balance !== 0n && !isMe ? (
             <Button label={t.settleUp} onPress={() => router.push(`/group/${groupId}/settle`)} />
@@ -119,13 +119,13 @@ export default function MemberScreen() {
         {ghost ? (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="caption" tone="muted">
-              Name
+              {t.common.name}
             </Text>
             <Row>
               <TextInput
                 value={name}
                 onChangeText={setName}
-                accessibilityLabel="Member name"
+                accessibilityLabel={t.people.memberName}
                 placeholderTextColor={theme.color.textFaint}
                 style={{
                   flex: 1,
@@ -136,7 +136,7 @@ export default function MemberScreen() {
                 }}
               />
               <Button
-                label="Save"
+                label={t.common.save}
                 size="sm"
                 variant="secondary"
                 disabled={!name.trim() || name.trim() === member.ghost_name}
@@ -144,7 +144,7 @@ export default function MemberScreen() {
               />
             </Row>
             <Text variant="micro" tone="faint">
-              This person holds real balances. When they join, they can claim this history.
+              {t.people.ghostNote}
             </Text>
           </Card>
         ) : null}
@@ -152,14 +152,14 @@ export default function MemberScreen() {
         {isMe ? (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="caption" tone="muted">
-              UPI ID for this group
+              {t.people.upiForGroup}
             </Text>
             <Row>
               <TextInput
                 value={vpa}
                 onChangeText={setVpa}
                 autoCapitalize="none"
-                accessibilityLabel="UPI ID for this group"
+                accessibilityLabel={t.people.upiForGroup}
                 placeholder={profile?.default_vpa ?? 'you@bank'}
                 placeholderTextColor={theme.color.textFaint}
                 style={{
@@ -171,7 +171,7 @@ export default function MemberScreen() {
                 }}
               />
               <Button
-                label="Save"
+                label={t.common.save}
                 size="sm"
                 variant="secondary"
                 disabled={!vpaValid || vpa.trim() === (member.vpa ?? '')}
@@ -179,14 +179,13 @@ export default function MemberScreen() {
               />
             </Row>
             <Text variant="micro" tone="faint">
-              Overrides your account UPI ID here only — useful when one group settles to a different
-              account.
+              {t.people.upiForGroupNote}
             </Text>
           </Card>
         ) : null}
 
         {status ? (
-          <Text variant="caption" tone={status === 'Saved' ? 'positive' : 'negative'}>
+          <Text variant="caption" tone={status === t.account.saved ? 'positive' : 'negative'}>
             {status}
           </Text>
         ) : null}

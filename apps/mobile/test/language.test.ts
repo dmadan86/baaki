@@ -106,3 +106,96 @@ describe('falling back to the phone', () => {
     expect(deviceLanguage()).toBe('en');
   });
 });
+
+describe('what every table owes the others', () => {
+  /**
+   * TypeScript guarantees the four tables have the same *shape*. It cannot
+   * check what is inside a string, and two things inside these strings matter:
+   * that somebody actually wrote words, and that the `{placeholders}` survived
+   * translation. A dropped `{n}` is a sentence that silently loses its number.
+   */
+  const leaves = (value: unknown, path = ''): [string, string][] => {
+    if (typeof value === 'string') return [[path, value]];
+    if (Array.isArray(value)) return value.flatMap((item, i) => leaves(item, `${path}[${i}]`));
+    if (value && typeof value === 'object') {
+      return Object.entries(value).flatMap(([key, inner]) => leaves(inner, `${path}.${key}`));
+    }
+    return [];
+  };
+
+  const placeholders = (text: string): string[] =>
+    [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+
+  it('never leaves a string blank', () => {
+    for (const language of LANGUAGES) {
+      for (const [path, text] of leaves(STRINGS_BY_LANGUAGE[language])) {
+        expect(text.trim(), `${language}${path}`).not.toBe('');
+      }
+    }
+  });
+
+  /**
+   * A singular or dual form is allowed to say the number in words rather than
+   * print it — Arabic's "بعد ثانيتين" is "after two seconds" with no numeral in it, and
+   * demanding a `{n}` there would force a translation nobody says aloud. The
+   * `other` form is the one that must carry it.
+   */
+  const mayOmitTheNumber = (path: string): boolean => /\.(zero|one|two|few|many)$/.test(path);
+
+  it('keeps every placeholder the English says', () => {
+    const english = new Map(leaves(STRINGS_BY_LANGUAGE.en));
+    for (const language of LANGUAGES) {
+      if (language === 'en') continue;
+      for (const [path, text] of leaves(STRINGS_BY_LANGUAGE[language])) {
+        const source = english.get(path);
+        // Plural tables legitimately have forms English does not (Arabic's
+        // `two`, `few`, `many`), so a path English lacks is not a fault.
+        if (source === undefined) continue;
+        const here = placeholders(text);
+        const there = placeholders(source);
+
+        // Never invent one: `{amount}` where English said `{value}` renders the
+        // token itself at somebody, which is worse than the wrong language.
+        for (const name of here) expect(there, `${language}${path}`).toContain(name);
+        if (!mayOmitTheNumber(path)) {
+          expect(here, `${language}${path}`).toEqual(there);
+        }
+      }
+    }
+  });
+});
+
+/**
+ * The restart is described twice, once for each direction, and the two are not
+ * interchangeable. Telling somebody who has just chosen English that reopening
+ * will "mirror it" describes the opposite of what will happen — on the one
+ * screen they are reading to find out why it has not turned back.
+ */
+describe('the two directions of the restart', () => {
+  const PAIRS: readonly [string, string][] = [
+    ['account.languageRestartHint', 'account.languageRestartHintBack'],
+    ['account.restartBannerMirror', 'account.restartBannerUnmirror'],
+    ['signIn.restartToMirror', 'signIn.restartToUnmirror'],
+  ];
+
+  const at = (table: object, path: string): string =>
+    path.split('.').reduce<never>((node, key) => (node as never)[key], table as never);
+
+  it('says something different about each direction, in every language', () => {
+    for (const language of LANGUAGES) {
+      const table = STRINGS_BY_LANGUAGE[language];
+      for (const [mirror, unmirror] of PAIRS) {
+        expect(at(table, mirror).trim(), `${language}.${mirror}`).not.toBe('');
+        expect(at(table, unmirror), `${language}.${unmirror}`).not.toBe(at(table, mirror));
+      }
+    }
+  });
+
+  it('names the language in the settings row either way', () => {
+    for (const language of LANGUAGES) {
+      const table = STRINGS_BY_LANGUAGE[language];
+      expect(at(table, 'account.languageRestartHint'), language).toContain('{language}');
+      expect(at(table, 'account.languageRestartHintBack'), language).toContain('{language}');
+    }
+  });
+});

@@ -37,12 +37,15 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { addGhostMember, fetchGroups } from '@/data/api';
 import { groupLabel } from '@/data/types';
 
 export default function ContactsScreen(): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
   const queryClient = useQueryClient();
 
   const [picked, setPicked] = useState<readonly PickedContact[]>([]);
@@ -110,11 +113,11 @@ export default function ContactsScreen(): React.JSX.Element {
         }}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">From your contacts</Text>
+            <Text variant="heading">{t.misc.fromYourContacts}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
@@ -140,7 +143,7 @@ export default function ContactsScreen(): React.JSX.Element {
                 </Text>
               </Card>
             ) : null}
-            <ContactPicker onConfirm={setPicked} confirmVerb="Continue with" />
+            <ContactPicker onConfirm={setPicked} confirmVerb={t.misc.continueWith} />
           </>
         )}
       </View>
@@ -170,6 +173,7 @@ function ChooseGroup({
   onChoose: (groupId: string) => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
   const only = contacts.length === 1 ? contacts[0] : undefined;
 
   return (
@@ -190,14 +194,14 @@ function ChooseGroup({
             </Text>
             <Text variant="micro" tone="faint" numberOfLines={2}>
               {only
-                ? (only.email ?? only.phone ?? 'No address')
+                ? (only.email ?? only.phone ?? t.misc.noAddress)
                 : contacts.map((contact) => contact.name).join(', ')}
             </Text>
           </View>
         </Row>
       </Card>
 
-      <SectionHeader title={only ? 'Add to which group?' : 'Add them all to which group?'} />
+      <SectionHeader title={only ? t.misc.addToWhichGroup : t.misc.addThemAllToWhichGroup} />
 
       {groups.length === 0 ? (
         <Card style={{ gap: theme.spacing.md }}>
@@ -206,7 +210,7 @@ function ChooseGroup({
             about something — a trip, a flat, a dinner.
           </Text>
           <Button
-            label="Start a group"
+            label={t.misc.startAGroup}
             variant="secondary"
             onPress={() => router.push('/new-group')}
           />
@@ -251,7 +255,7 @@ function ChooseGroup({
         with this email or number they claim everything already sitting there.
       </Text>
 
-      <Button label="Pick different people" variant="ghost" onPress={onCancel} />
+      <Button label={t.misc.pickDifferentPeople} variant="ghost" onPress={onCancel} />
     </ScrollView>
   );
 }

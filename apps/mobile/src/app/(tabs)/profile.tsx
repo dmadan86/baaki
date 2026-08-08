@@ -23,7 +23,14 @@ import {
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
-import { deviceCountry, LANGUAGE_NAMES, useStrings } from '@/i18n';
+import {
+  deviceCountry,
+  isRtlLanguage,
+  LANGUAGE_NAMES,
+  plural,
+  useStrings,
+  type UiStrings,
+} from '@/i18n';
 import { useLanguage } from '@/i18n/language';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
@@ -93,32 +100,39 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
   );
 }
 
-const SETTINGS: SettingsRow[] = [
-  {
-    icon: 'person-circle-outline',
-    label: 'Your account',
-    hint: 'Add an email or phone, or carry on as a guest',
-    route: '/settings/account',
-  },
-  {
-    icon: 'notifications-outline',
-    label: 'Notifications',
-    hint: 'Only what involves me',
-    route: '/settings/notifications',
-  },
-  {
-    icon: 'download-outline',
-    label: 'Export data',
-    hint: 'JSON + CSV, lossless, free',
-    route: '/settings/export',
-  },
-  {
-    icon: 'cloud-upload-outline',
-    label: 'Import from Splitwise',
-    hint: 'Bring a group across from a CSV export',
-    route: '/settings/import',
-  },
-];
+/**
+ * A function of the strings rather than a constant, because the labels are no
+ * longer knowable at module load — they depend on which language the reader
+ * has chosen, and that can change while the app is open.
+ */
+function settingsRows(t: UiStrings): SettingsRow[] {
+  return [
+    {
+      icon: 'person-circle-outline',
+      label: t.account.yourAccount,
+      hint: t.account.yourAccountHint,
+      route: '/settings/account',
+    },
+    {
+      icon: 'notifications-outline',
+      label: t.account.notifications,
+      hint: t.account.notificationsHint,
+      route: '/settings/notifications',
+    },
+    {
+      icon: 'download-outline',
+      label: t.account.exportDataRow,
+      hint: t.account.exportHint,
+      route: '/settings/export',
+    },
+    {
+      icon: 'cloud-upload-outline',
+      label: t.account.importSplitwise,
+      hint: t.account.importHint,
+      route: '/settings/import',
+    },
+  ];
+}
 
 /** The three faces of this screen. */
 type Face = 'you' | 'paying' | 'settings';
@@ -141,11 +155,12 @@ function SaveRow({
   status: string | null;
   onSave: () => void;
 }) {
+  const { t } = useStrings();
   return (
     <>
-      <Button label="Save" fullWidth disabled={!dirty || !valid} onPress={onSave} />
+      <Button label={t.common.save} fullWidth disabled={!dirty || !valid} onPress={onSave} />
       {status ? (
-        <Text variant="caption" tone={status === 'Saved' ? 'positive' : 'negative'}>
+        <Text variant="caption" tone={status === t.account.saved ? 'positive' : 'negative'}>
           {status}
         </Text>
       ) : null}
@@ -167,6 +182,7 @@ function SaveRow({
  */
 function SettledPill({ profileId, locale }: { profileId: string | null; locale: string }) {
   const theme = useTheme();
+  const { t } = useStrings();
   const totals = useSettledTotals(profileId);
 
   const entries = [...(totals.data ?? new Map<string, bigint>())].sort((a, b) =>
@@ -196,19 +212,19 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
               tone="brand"
             />
             <Text variant="caption" tone="brand">
-              settled
+              {t.account.settled}
             </Text>
           </Row>
         ) : (
           <Text variant="caption" tone="brand">
-            Nothing settled yet
+            {t.account.nothingSettledYet}
           </Text>
         )}
       </Row>
       {/* No rate turns rupees into euros, so the rest are counted, not added. */}
       {entries.length > 1 ? (
         <Text variant="micro" tone="faint">
-          {`and ${entries.length - 1} other ${entries.length === 2 ? 'currency' : 'currencies'}`}
+          {plural(locale, entries.length - 1, t.account.otherCurrencies)}
         </Text>
       ) : null}
     </View>
@@ -283,10 +299,10 @@ export default function ProfileScreen() {
       void choosePhoto();
       return;
     }
-    Alert.alert('Your photo', undefined, [
-      { text: 'Choose a new one', onPress: () => void choosePhoto() },
-      { text: 'Remove', style: 'destructive', onPress: () => void clearPhoto() },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t.account.yourPhoto, undefined, [
+      { text: t.account.chooseNewPhoto, onPress: () => void choosePhoto() },
+      { text: t.common.remove, style: 'destructive', onPress: () => void clearPhoto() },
+      { text: t.common.cancel, style: 'cancel' },
     ]);
   };
 
@@ -294,38 +310,44 @@ export default function ProfileScreen() {
    * The row says the language in its own script. It is the one settings row
    * whose subtitle has to be legible to somebody who cannot read the rest of
    * the screen — which is exactly the person going looking for it.
+   *
+   * The restart hint has two directions and they are not interchangeable.
+   * Telling somebody who has just chosen English that reopening will "mirror
+   * it" describes the opposite of what will happen, on the one screen they are
+   * looking at to find out why it has not.
    */
   const languageSummary = restartNeeded
-    ? `${LANGUAGE_NAMES[language].own} · reopen Baaki to mirror it`
+    ? (isRtlLanguage(language)
+        ? t.account.languageRestartHint
+        : t.account.languageRestartHintBack
+      ).replace('{language}', LANGUAGE_NAMES[language].own)
     : languageChosen === null
-      ? `Following your phone — ${LANGUAGE_NAMES[language].own}`
+      ? t.account.languageFollowingPhone.replace('{language}', LANGUAGE_NAMES[language].own)
       : `${LANGUAGE_NAMES[language].own} · ${LANGUAGE_NAMES[language].english}`;
 
   const motionSummary = motionOverridden
     ? animated
-      ? 'Screen animations on'
-      : 'Screen animations off'
-    : `Following your phone — animations ${animated ? 'on' : 'off'}`;
+      ? t.account.motionOn
+      : t.account.motionOff
+    : animated
+      ? t.account.motionFollowingOn
+      : t.account.motionFollowingOff;
 
   const lockSummary = !lockSupported
-    ? 'This device has no biometrics set up'
+    ? t.account.lockNoBiometrics
     : lockEnabled
-      ? `On · asks ${describeGrace(graceSeconds).toLowerCase()}`
-      : 'Off — anyone holding your phone can read the ledger';
+      ? t.account.lockOn.replace('{when}', describeGrace(graceSeconds, t, locale).toLowerCase())
+      : t.account.lockOff;
 
-  const signOutHint = isGuest
-    ? 'This guest account lives on this device only'
-    : 'Nothing is deleted; sign back in whenever';
+  const signOutHint = isGuest ? t.account.signOutGuestHint : t.account.signOutHint;
 
   const confirmSignOut = (): void => {
     Alert.alert(
-      'Sign out?',
-      isGuest
-        ? 'This is a guest account, so signing out leaves no way back into it. Add an email or phone number first if you want to keep it.'
-        : 'You can sign back in whenever you like. Nothing is deleted.',
+      t.lock.signOutQuestion,
+      isGuest ? t.lock.signOutGuestWarning : t.lock.signOutReassure,
       [
-        { text: 'Stay signed in', style: 'cancel' },
-        { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+        { text: t.lock.staySignedIn, style: 'cancel' },
+        { text: t.lock.signOut, style: 'destructive', onPress: () => void signOut() },
       ],
     );
   };
@@ -342,14 +364,14 @@ export default function ProfileScreen() {
     const trimmed = handle.trim();
     try {
       await updateProfile({
-        display_name: name.trim() || 'You',
+        display_name: name.trim() || t.account.you,
         payment_rail: trimmed === '' ? null : rail,
         payment_handle: trimmed === '' ? null : trimmed,
         // Kept in step while the older screens still read it. A handle on any
         // other rail is not a UPI ID and must not masquerade as one.
         default_vpa: rail === 'upi' && trimmed !== '' ? trimmed : null,
       });
-      setStatus('Saved');
+      setStatus(t.account.saved);
     } catch (caught) {
       setStatus(caught instanceof Error ? caught.message : String(caught));
     }
@@ -370,7 +392,7 @@ export default function ProfileScreen() {
             are the page's title, and a title does not sit in a box. */}
         <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingTop: theme.spacing.lg }}>
           <ProfileAvatar
-            name={profile?.display_name ?? 'You'}
+            name={profile?.display_name ?? t.account.you}
             avatarUrl={profile?.avatar_url}
             size={92}
             onPress={profile ? photoOptions : undefined}
@@ -378,11 +400,13 @@ export default function ProfileScreen() {
           />
           <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
             <Row style={{ gap: theme.spacing.sm }}>
-              <Text variant="title">{profile?.display_name ?? 'You'}</Text>
+              <Text variant="title">{profile?.display_name ?? t.account.you}</Text>
               {/* The badge says the account has no email or phone on it. When
                   somebody has not renamed themselves it repeats the name they
                   were given, which reads as a bug rather than a fact. */}
-              {isGuest && profile?.display_name !== 'Guest' ? <Badge label="Guest" /> : null}
+              {isGuest && profile?.display_name !== 'Guest' ? (
+                <Badge label={t.common.guest} />
+              ) : null}
             </Row>
             <SettledPill profileId={profile?.id ?? null} locale={locale} />
           </View>
@@ -394,9 +418,9 @@ export default function ProfileScreen() {
           tabs={[
             // Not `t.profile` — that reads "Account", which is the whole
             // screen. A tab has to name the part, not the page.
-            { value: 'you', label: 'You' },
-            { value: 'paying', label: 'Paying' },
-            { value: 'settings', label: 'Settings' },
+            { value: 'you', label: t.account.faceYou },
+            { value: 'paying', label: t.account.facePaying },
+            { value: 'settings', label: t.account.faceSettings },
           ]}
         />
 
@@ -405,13 +429,13 @@ export default function ProfileScreen() {
             <Card style={{ gap: theme.spacing.lg }}>
               <View style={{ gap: theme.spacing.xs }}>
                 <Text variant="caption" tone="muted">
-                  Display name
+                  {t.account.displayName}
                 </Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  accessibilityLabel="Display name"
-                  placeholder="Your name"
+                  accessibilityLabel={t.account.displayName}
+                  placeholder={t.common.yourName}
                   placeholderTextColor={theme.color.textFaint}
                   style={{
                     fontSize: 18,
@@ -432,15 +456,13 @@ export default function ProfileScreen() {
             {isGuest ? (
               <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.md }}>
                 <Text variant="subheading" tone="brand">
-                  Guest account
+                  {t.account.guestAccount}
                 </Text>
                 <Text variant="caption" tone="muted">
-                  Everything you have entered is already saved and yours. Add an email or phone
-                  number whenever you want to reach it from another phone — it keeps this account
-                  rather than starting a new one.
+                  {t.account.guestAccountBody}
                 </Text>
                 <Button
-                  label="Add your details"
+                  label={t.account.addYourDetails}
                   variant="secondary"
                   size="sm"
                   onPress={() => router.push('/settings/account')}
@@ -459,7 +481,7 @@ export default function ProfileScreen() {
           <Card style={{ gap: theme.spacing.lg }}>
             <View style={{ gap: theme.spacing.sm }}>
               <Text variant="caption" tone="muted">
-                How people pay you
+                {t.account.howPeoplePayYou}
               </Text>
               {/* Whatever this person's country uses. In India that still starts
                   on UPI; in the UAE it starts on Aani. */}
@@ -477,7 +499,7 @@ export default function ProfileScreen() {
                     value={handle}
                     onChangeText={setHandle}
                     autoCapitalize="none"
-                    accessibilityLabel={`Your ${railInfo.label} details`}
+                    accessibilityLabel={t.account.yourRailDetails.replace('{rail}', railInfo.label)}
                     placeholder={railInfo.handleHint}
                     placeholderTextColor={theme.color.textFaint}
                     style={{
@@ -489,15 +511,15 @@ export default function ProfileScreen() {
                   />
                   <Text variant="micro" tone={handleValid ? 'faint' : 'negative'}>
                     {!handleValid
-                      ? `That does not look like ${railInfo.handleHint.toLowerCase()}.`
+                      ? t.account.handleWrong.replace('{hint}', railInfo.handleHint.toLowerCase())
                       : railInfo.link
-                        ? 'People settling with you get a one-tap payment. Baaki never handles the money.'
-                        : 'People settling with you see this to pay you from their own bank app. Baaki never handles the money.'}
+                        ? t.account.railLinkNote
+                        : t.account.railManualNote}
                   </Text>
                 </>
               ) : (
                 <Text variant="micro" tone="faint">
-                  Nothing to add — people will record what they paid you by hand.
+                  {t.account.nothingToAdd}
                 </Text>
               )}
             </View>
@@ -512,12 +534,12 @@ export default function ProfileScreen() {
                 you something sitting between Notifications and Export is a row
                 dressed up as a setting. */}
             <SettingsSection
-              title="Baaki"
+              title={t.account.sectionBaaki}
               rows={[
                 {
                   icon: 'rocket-outline',
                   label: t.upgrade,
-                  hint: 'Nothing to buy yet — the ledger stays free',
+                  hint: t.account.upgradeHint,
                   route: '/settings/upgrade',
                 },
               ]}
@@ -528,7 +550,7 @@ export default function ProfileScreen() {
                 four above it — a row you can only find by reading past rows you
                 cannot read is a row that is not there. */}
             <SettingsSection
-              title="Settings"
+              title={t.account.sectionSettings}
               rows={[
                 {
                   icon: 'language-outline',
@@ -536,10 +558,10 @@ export default function ProfileScreen() {
                   hint: languageSummary,
                   route: '/settings/language',
                 },
-                ...SETTINGS,
+                ...settingsRows(t),
                 {
                   icon: 'sparkles-outline',
-                  label: 'Motion',
+                  label: t.account.motionRow,
                   hint: motionSummary,
                   route: '/settings/motion',
                 },
@@ -549,17 +571,17 @@ export default function ProfileScreen() {
             {/* Security is its own section rather than one row among many: it is
             the only group of settings somebody comes looking for. */}
             <SettingsSection
-              title="Security"
+              title={t.account.sectionSecurity}
               rows={[
                 {
                   icon: 'finger-print-outline',
-                  label: 'App lock',
+                  label: t.lock.appLock,
                   hint: lockSummary,
                   route: '/settings/lock',
                 },
                 {
                   icon: 'log-out-outline',
-                  label: 'Sign out',
+                  label: t.lock.signOut,
                   hint: signOutHint,
                   onPress: confirmSignOut,
                 },
@@ -569,7 +591,7 @@ export default function ProfileScreen() {
         )}
 
         <Text variant="micro" tone="faint" align="center">
-          Baaki · the ledger is free forever. We only ever charge for convenience.
+          {t.account.footnote}
         </Text>
       </ScrollView>
     </Screen>

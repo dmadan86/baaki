@@ -35,7 +35,7 @@ import {
 } from '@baaki/ui';
 
 import { fetchPeopleBalances, type PersonBalanceRow } from '@/data/api';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 
 export default function FriendsScreen() {
   const theme = useTheme();
@@ -70,7 +70,7 @@ export default function FriendsScreen() {
         <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
           <Text variant="title">{t.friends}</Text>
           <Button
-            label="From contacts"
+            label={t.tabs.fromContacts}
             variant="secondary"
             size="sm"
             icon={<Ionicons name="person-add-outline" size={16} color={theme.color.brand} />}
@@ -79,23 +79,20 @@ export default function FriendsScreen() {
         </Row>
 
         {rows.length === 0 ? (
-          <EmptyState
-            title="All square"
-            body="Nobody owes you anything and you owe nobody. Friends you are settling up with will appear here — add somebody from your contacts to get started."
-          />
+          <EmptyState title={t.tabs.allSquare} body={t.tabs.allSquareBody} />
         ) : (
           <>
             <FriendsSection
-              title="Owes you"
+              title={t.tabs.owesYou}
               rows={owedToYou}
               locale={locale}
-              emptyBody="Nobody owes you anything right now."
+              emptyBody={t.tabs.nobodyOwesYou}
             />
             <FriendsSection
-              title="You owe"
+              title={t.tabs.youOweThem}
               rows={youOwe}
               locale={locale}
-              emptyBody="You are not behind with anyone."
+              emptyBody={t.tabs.youAreNotBehind}
             />
 
             <Text variant="micro" tone="faint" align="center">
@@ -121,6 +118,7 @@ function FriendsSection({
   emptyBody: string;
 }): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
 
   return (
     <View>
@@ -138,7 +136,9 @@ function FriendsSection({
               <ListRow
                 title={row.display_name}
                 subtitle={
-                  row.group_count === 1 ? 'in one group' : `across ${row.group_count} groups`
+                  row.group_count === 1
+                    ? t.tabs.inOneGroup
+                    : plural(locale, row.group_count, t.tabs.acrossGroups)
                 }
                 leading={<Avatar name={row.display_name} size={40} />}
                 // Only linkable when there is a single group to link to;
@@ -155,7 +155,7 @@ function FriendsSection({
                       variant="subheading"
                       mode="balance"
                     />
-                    {row.is_ghost ? <Badge label="Not joined" /> : null}
+                    {row.is_ghost ? <Badge label={t.tabs.notJoined} /> : null}
                   </View>
                 }
               />

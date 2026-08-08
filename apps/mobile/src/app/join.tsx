@@ -6,6 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { Avatar, Badge, Button, Card, EmptyState, Row, Screen, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import { acceptInvite, previewInvite, type InvitePreview } from '@/data/api';
 import { keys } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
@@ -19,6 +21,7 @@ import { useAuth } from '@/lib/auth';
  */
 export default function JoinScreen() {
   const theme = useTheme();
+  const { t } = useStrings();
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { session, continueAsGuest } = useAuth();
   const queryClient = useQueryClient();
@@ -46,7 +49,7 @@ export default function JoinScreen() {
     return () => clearTimeout(timer);
   }, [settled]);
 
-  const shown = error ?? (!token && settled ? 'This link is missing its invite code' : null);
+  const shown = error ?? (!token && settled ? t.misc.linkMissingCode : null);
 
   useEffect(() => {
     let active = true;
@@ -97,12 +100,9 @@ export default function JoinScreen() {
     return (
       <Screen>
         <EmptyState
-          title="This link has expired"
-          body={
-            shown ??
-            'Ask whoever sent it for a fresh one — links expire so they cannot be passed around forever.'
-          }
-          action={<Button label="Go to Baaki" onPress={() => router.replace('/')} />}
+          title={t.misc.linkExpired}
+          body={shown ?? t.misc.linkExpiredBody}
+          action={<Button label={t.misc.goToBaaki} onPress={() => router.replace('/')} />}
         />
       </Screen>
     );
@@ -127,12 +127,12 @@ export default function JoinScreen() {
           <Text variant="caption" tone="muted" align="center">
             {`${preview.memberCount} people are splitting expenses here`}
           </Text>
-          <Badge label="Free forever, no account needed" tone="positive" />
+          <Badge label={t.misc.freeNoAccount} tone="positive" />
         </Card>
 
         {preview.claimable.length > 0 ? (
           <Card style={{ gap: theme.spacing.md }}>
-            <Text variant="subheading">Is one of these you?</Text>
+            <Text variant="subheading">{t.misc.isOneOfTheseYou}</Text>
             <Text variant="caption" tone="muted">
               Pick your name and everything already recorded for you comes with you.
             </Text>
@@ -142,7 +142,7 @@ export default function JoinScreen() {
                   key={candidate.memberId}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: claimId === candidate.memberId }}
-                  accessibilityLabel={candidate.name ?? 'Unnamed'}
+                  accessibilityLabel={candidate.name ?? t.misc.unnamed}
                   onPress={() =>
                     setClaimId((current) =>
                       current === candidate.memberId ? null : candidate.memberId,
@@ -156,7 +156,7 @@ export default function JoinScreen() {
                 >
                   <Avatar name={candidate.name ?? '?'} ghost size={52} />
                   <Text variant="micro" tone={claimId === candidate.memberId ? 'brand' : 'muted'}>
-                    {candidate.name ?? 'Unnamed'}
+                    {candidate.name ?? t.misc.unnamed}
                   </Text>
                 </Pressable>
               ))}
@@ -179,7 +179,7 @@ export default function JoinScreen() {
         ) : null}
 
         <Button
-          label={claimId ? 'Join and claim my history' : 'Join this group'}
+          label={claimId ? t.misc.joinAndClaim : t.misc.joinGroup}
           size="lg"
           fullWidth
           disabled={joining}

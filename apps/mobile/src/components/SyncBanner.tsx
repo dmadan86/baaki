@@ -12,10 +12,13 @@ import { Pressable, View } from 'react-native';
 
 import { Card, Row, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import { useSync } from '@/sync';
 
 export function SyncBanner({ groupId }: { groupId?: string }) {
   const theme = useTheme();
+  const { t } = useStrings();
   const { status, queue, rejected, retry, discard, lastError } = useSync();
 
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
@@ -32,7 +35,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
           </Text>
         </Row>
         <Text variant="caption" tone="muted">
-          {first?.message ?? 'The server refused this change.'}
+          {first?.message ?? t.misc.serverRefused}
         </Text>
         <Row style={{ gap: theme.spacing.lg }}>
           <Pressable
@@ -68,9 +71,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
       ? {
           icon: 'cloud-offline-outline' as const,
           message:
-            pending.length > 0
-              ? `Offline — ${count} saved on this phone`
-              : 'Offline — everything here is saved on this phone',
+            pending.length > 0 ? `Offline — ${count} saved on this phone` : t.misc.offlineSaved,
         }
       : status === 'error'
         ? {

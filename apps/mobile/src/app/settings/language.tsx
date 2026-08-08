@@ -29,15 +29,15 @@ export default function LanguageSettingsScreen() {
   const rows: { key: string; title: string; subtitle: string; value: Language | null }[] = [
     {
       key: 'phone',
-      title: 'Follow my phone',
-      subtitle: `Currently ${LANGUAGE_NAMES[phoneLanguage].english}`,
+      title: t.misc.followMyPhone,
+      subtitle: t.misc.currentlyLanguage.replace('{language}', LANGUAGE_NAMES[phoneLanguage].own),
       value: null,
     },
     ...LANGUAGES.map((entry) => ({
       key: entry,
       title: LANGUAGE_NAMES[entry].own,
       subtitle: isRtlLanguage(entry)
-        ? `${LANGUAGE_NAMES[entry].english} · right to left`
+        ? `${LANGUAGE_NAMES[entry].english} · ${t.misc.rightToLeft}`
         : LANGUAGE_NAMES[entry].english,
       value: entry as Language | null,
     })),
@@ -54,7 +54,7 @@ export default function LanguageSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -71,13 +71,13 @@ export default function LanguageSettingsScreen() {
             <Row style={{ gap: theme.spacing.sm }}>
               <Ionicons name="refresh" size={18} color={theme.color.brand} />
               <Text variant="subheading" tone="brand">
-                Close and open Baaki again
+                {t.account.restartTitle}
               </Text>
             </Row>
             <Text variant="caption" tone="muted">
               {isRtlLanguage(language)
-                ? 'The words have changed already. Mirroring the layout — the arrows, the sides everything sits on — is something the phone decides when the app starts, so it takes effect next time you open it.'
-                : 'The words have changed already. Turning the mirrored layout back the other way is something the phone decides when the app starts, so it takes effect next time you open it.'}
+                ? t.account.restartBannerMirror
+                : t.account.restartBannerUnmirror}
             </Text>
           </Card>
         ) : null}
@@ -107,9 +107,7 @@ export default function LanguageSettingsScreen() {
         </Card>
 
         <Text variant="micro" tone="faint" align="center">
-          Your phone&apos;s language is the default, and choosing one here only changes Baaki.
-          Amounts and dates still follow where you are — reading the app in Hindi in Dubai does not
-          move you to India.
+          {t.account.languageFooterNote}
         </Text>
       </ScrollView>
     </Screen>

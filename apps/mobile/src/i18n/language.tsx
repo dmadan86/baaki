@@ -16,6 +16,11 @@
  * app does not carry `expo-updates` — so the honest thing is to say the words
  * "close and open Baaki again" rather than write half a mirrored screen.
  *
+ * Said in an alert, at the moment of the choice, and not only in a banner. A
+ * banner lives on one screen; somebody who taps a language and walks away never
+ * reads it, comes back to a mirrored English app and reports it as broken. It
+ * is worth interrupting for, once, and only when the direction actually turns.
+ *
  * `allowRTL` and `forceRTL` are both set, in step, because they answer
  * different halves of the question. Android computes RTL as
  * `forced || (allowed && the device is RTL)`, so `forceRTL(false)` alone would
@@ -42,7 +47,7 @@ import {
   type ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { I18nManager, Platform } from 'react-native';
+import { Alert, I18nManager, Platform } from 'react-native';
 
 import { setLayoutDirection } from '@baaki/ui';
 
@@ -52,6 +57,7 @@ import {
   isRtlLanguage,
   LanguageContext,
   localeFor,
+  STRINGS_BY_LANGUAGE,
   type Language,
 } from '@/i18n';
 
@@ -136,9 +142,28 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     // Persisted natively and read before any JavaScript next time the app
     // opens. Nothing about the current session changes.
     if (Platform.OS !== 'web') {
-      const rtl = isRtlLanguage(value ?? deviceLanguage());
+      const chosen = value ?? deviceLanguage();
+      const rtl = isRtlLanguage(chosen);
       I18nManager.allowRTL(rtl);
       I18nManager.forceRTL(rtl);
+
+      // Said at the moment of the choice, and said in a way that has to be
+      // dismissed, because the alternative has already failed twice: a banner
+      // lives on one screen, and somebody who taps a language and walks away
+      // never reads it. The words are in the language just chosen — that is the
+      // one they have said they read.
+      //
+      // Compared against the direction the app *launched* in rather than the
+      // language being replaced. Going Arabic → English → Arabic in one sitting
+      // ends where it started, and there is nothing left to restart for.
+      if (rtl !== LAUNCHED_RTL) {
+        const words = STRINGS_BY_LANGUAGE[chosen];
+        Alert.alert(
+          words.account.restartTitle,
+          rtl ? words.signIn.restartToMirror : words.signIn.restartToUnmirror,
+          [{ text: words.common.ok }],
+        );
+      }
     }
   }, []);
 

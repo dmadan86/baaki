@@ -11,6 +11,8 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, Platform } from 'react-native';
 
+import { plural, type UiStrings } from '@/i18n';
+
 const KEY = 'baaki.app_lock_enabled';
 const GRACE_KEY = 'baaki.app_lock_grace_seconds';
 
@@ -146,9 +148,8 @@ export function useLock(): LockValue {
 }
 
 /** "Straight away", "After 30 seconds" — the words the settings row uses too. */
-export function describeGrace(seconds: number): string {
-  if (seconds <= 0) return 'Straight away';
-  if (seconds < 60) return `After ${seconds} seconds`;
-  if (seconds === 60) return 'After a minute';
-  return `After ${Math.round(seconds / 60)} minutes`;
+export function describeGrace(seconds: number, t: UiStrings, locale: string): string {
+  if (seconds <= 0) return t.lock.graceImmediate;
+  if (seconds < 60) return plural(locale, seconds, t.lock.graceSeconds);
+  return plural(locale, Math.round(seconds / 60), t.lock.graceMinutes);
 }

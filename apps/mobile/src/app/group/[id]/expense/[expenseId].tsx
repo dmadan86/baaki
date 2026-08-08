@@ -33,21 +33,23 @@ import {
   useWithdrawDispute,
 } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
-const SPLIT_LABELS: Record<string, string> = {
-  equal: 'Split equally',
-  exact: 'Exact amounts',
-  percent: 'By percentage',
-  shares: 'By shares',
-  adjustment: 'With adjustments',
-  itemized: 'Itemized',
-};
+function splitLabels(t: UiStrings): Record<string, string> {
+  return {
+    equal: t.expense.splitEqually,
+    exact: t.expense.exactAmounts,
+    percent: t.expense.byPercentage,
+    shares: t.expense.byShares,
+    adjustment: t.expense.withAdjustments,
+    itemized: t.expense.itemized,
+  };
+}
 
 export default function ExpenseDetailScreen() {
   const theme = useTheme();
-  const { locale } = useStrings();
+  const { t, locale } = useStrings();
   const { id, expenseId } = useLocalSearchParams<{ id: string; expenseId: string }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
@@ -84,9 +86,9 @@ export default function ExpenseDetailScreen() {
     return (
       <Screen>
         <EmptyState
-          title="Expense not found"
-          body="It may have been deleted more than 30 days ago."
-          action={<Button label="Back" onPress={() => router.back()} />}
+          title={t.expense.notFound}
+          body={t.expense.notFoundBody}
+          action={<Button label={t.common.back} onPress={() => router.back()} />}
         />
       </Screen>
     );
@@ -100,20 +102,16 @@ export default function ExpenseDetailScreen() {
   const editHere = (): void => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`);
 
   const confirmDelete = (): void => {
-    Alert.alert(
-      'Delete this expense?',
-      'It stops counting towards balances but stays in the activity feed, and anyone in the group can restore it for 30 days.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteExpense.mutate(expense.id, { onSuccess: () => router.back() });
-          },
+    Alert.alert(t.expense.deleteQuestion, t.expense.deleteBody, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.common.delete,
+        style: 'destructive',
+        onPress: () => {
+          deleteExpense.mutate(expense.id, { onSuccess: () => router.back() });
         },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
@@ -127,7 +125,7 @@ export default function ExpenseDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -139,7 +137,7 @@ export default function ExpenseDetailScreen() {
             </Text>
           </View>
           <IconButton
-            label="Edit"
+            label={t.common.edit}
             onPress={() => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`)}
           >
             <Ionicons name="create-outline" size={18} color={theme.color.text} />
@@ -161,9 +159,9 @@ export default function ExpenseDetailScreen() {
             ).format(new Date(version.expense_date))}`}
           </Text>
           <Row style={{ gap: theme.spacing.sm }}>
-            <Badge label={SPLIT_LABELS[version.split_type] ?? version.split_type} tone="brand" />
+            <Badge label={splitLabels(t)[version.split_type] ?? version.split_type} tone="brand" />
             {version.version_no > 1 ? <Badge label={`edited ${version.version_no - 1}×`} /> : null}
-            {deleted ? <Badge label="deleted" tone="negative" /> : null}
+            {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
           </Row>
         </Card>
 
@@ -188,7 +186,7 @@ export default function ExpenseDetailScreen() {
 
         {version.payers.length > 1 ? (
           <View>
-            <SectionHeader title="Paid by" />
+            <SectionHeader title={t.paidBy} />
             <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
               {version.payers.map((payer, index) => (
                 <View key={payer.member_id}>
@@ -214,7 +212,7 @@ export default function ExpenseDetailScreen() {
         ) : null}
 
         <View>
-          <SectionHeader title="Who owes what" />
+          <SectionHeader title={t.expense.whoOwesWhat} />
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             {version.shares.map((share, index) => {
               const member = lookup.get(share.member_id);
@@ -250,7 +248,7 @@ export default function ExpenseDetailScreen() {
 
         {/* ADR-004: every edit is kept, and the group can see what changed. */}
         <View>
-          <SectionHeader title="History" />
+          <SectionHeader title={t.expense.history} />
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             {(versions.data ?? []).map((entry, index) => (
               <View key={entry.id}>
@@ -286,7 +284,7 @@ export default function ExpenseDetailScreen() {
 
         {deleted ? (
           <Button
-            label="Restore this expense"
+            label={t.expense.restore}
             size="lg"
             fullWidth
             disabled={restoreExpense.isPending}
@@ -294,7 +292,7 @@ export default function ExpenseDetailScreen() {
           />
         ) : (
           <Button
-            label="Delete expense"
+            label={t.expense.deleteAction}
             variant="ghost"
             size="lg"
             fullWidth

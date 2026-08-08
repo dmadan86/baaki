@@ -15,6 +15,7 @@ import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { isRtl, isRtlLanguage } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
+import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
 import { UpdateProvider } from '@/lib/update';
@@ -97,6 +98,10 @@ function RootLayout() {
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
+              {/* Directly under the auth tree and outside every gate: which
+                  language somebody is notified in should not depend on whether
+                  the app is locked or the build is current. */}
+              <LocaleSync />
               <SyncProvider>
                 <LockProvider>
                   <MotionProvider>

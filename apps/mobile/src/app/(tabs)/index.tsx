@@ -95,14 +95,13 @@ export default function HomeScreen() {
         {isGuest ? (
           <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
             <Text variant="subheading" tone="brand">
-              You are using Baaki as a guest
+              {t.tabs.guestBanner}
             </Text>
             <Text variant="caption" tone="muted">
-              Nothing is missing — everything you enter is saved and yours. Add an email or phone
-              number whenever you want to reach it from another phone.
+              {t.tabs.guestBannerBody}
             </Text>
             <Button
-              label="Add your details"
+              label={t.tabs.addYourDetails}
               variant="secondary"
               size="sm"
               onPress={() => router.push('/settings/account')}
@@ -226,13 +225,13 @@ export default function HomeScreen() {
         {loading ? (
           <Card>
             <Text variant="caption" tone="muted">
-              Loading your groups…
+              {t.tabs.loadingGroups}
             </Text>
           </Card>
         ) : list.length === 0 ? (
           <EmptyState
-            title="No groups yet"
-            body="Start one for a trip, a flat, or the two of you. Adding expenses is free and unlimited, forever."
+            title={t.tabs.noGroups}
+            body={t.tabs.noGroupsBody}
             action={<Button label={t.newGroup} onPress={() => router.push('/new-group')} />}
           />
         ) : (

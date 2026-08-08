@@ -26,10 +26,12 @@ import {
 } from '@baaki/ui';
 
 import { confirmContact, startAddingContact, type ContactChannel } from '@/data/api';
+import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function AccountScreen() {
   const theme = useTheme();
+  const { t } = useStrings();
   const { session, isGuest, refresh } = useAuth();
 
   const [channel, setChannel] = useState<ContactChannel>('email');
@@ -88,23 +90,25 @@ export default function AccountScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Your account</Text>
+            <Text variant="heading">{t.contact.title}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
 
         <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
           <Row style={{ gap: theme.spacing.sm }}>
-            {isGuest ? <Badge label="Guest" /> : <Badge label="Signed in" tone="positive" />}
+            {isGuest ? (
+              <Badge label={t.common.guest} />
+            ) : (
+              <Badge label={t.contact.signedIn} tone="positive" />
+            )}
           </Row>
           <Text variant="caption" tone="muted">
-            {isGuest
-              ? 'Everything you have entered is already saved and yours. Adding an email or phone number is only so you can get back to it from another phone.'
-              : 'This account is reachable from any device you sign in on.'}
+            {isGuest ? t.contact.guestBody : t.contact.memberBody}
           </Text>
         </Card>
 
@@ -119,20 +123,20 @@ export default function AccountScreen() {
               setValue('');
             }}
             options={[
-              { value: 'email', label: 'Email' },
-              { value: 'phone', label: 'Phone' },
+              { value: 'email', label: t.contact.email },
+              { value: 'phone', label: t.contact.phone },
             ]}
           />
 
           {existing ? (
             <Text variant="caption" tone="positive">
-              {`Already added: ${existing}`}
+              {t.contact.alreadyAdded.replace('{value}', existing)}
             </Text>
           ) : null}
 
           <View style={{ gap: theme.spacing.xs }}>
             <Text variant="caption" tone="muted">
-              {channel === 'email' ? 'Email address' : 'Phone number'}
+              {channel === 'email' ? t.contact.emailAddress : t.contact.phoneNumber}
             </Text>
             <TextInput
               value={value}
@@ -145,8 +149,12 @@ export default function AccountScreen() {
               autoCapitalize="none"
               autoComplete={channel === 'email' ? 'email' : 'tel'}
               keyboardType={channel === 'email' ? 'email-address' : 'phone-pad'}
-              accessibilityLabel={channel === 'email' ? 'Email address' : 'Phone number'}
-              placeholder={channel === 'email' ? 'you@example.com' : '+91 98765 43210'}
+              accessibilityLabel={
+                channel === 'email' ? t.contact.emailAddress : t.contact.phoneNumber
+              }
+              placeholder={
+                channel === 'email' ? t.contact.emailPlaceholder : t.contact.phonePlaceholder
+              }
               placeholderTextColor={theme.color.textFaint}
               style={{
                 fontSize: 18,
@@ -160,9 +168,7 @@ export default function AccountScreen() {
           {sent ? (
             <View style={{ gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
-                {channel === 'email'
-                  ? 'Enter the six-digit code we emailed you'
-                  : 'Enter the six-digit code we texted you'}
+                {channel === 'email' ? t.contact.codeEmailed : t.contact.codeTexted}
               </Text>
               <TextInput
                 value={code}
@@ -170,7 +176,7 @@ export default function AccountScreen() {
                 editable={!busy}
                 keyboardType="number-pad"
                 maxLength={6}
-                accessibilityLabel="Verification code"
+                accessibilityLabel={t.contact.verificationCode}
                 placeholder="123456"
                 placeholderTextColor={theme.color.textFaint}
                 style={{
@@ -187,7 +193,13 @@ export default function AccountScreen() {
           {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
 
           <Button
-            label={sent ? 'Confirm' : channel === 'email' ? 'Send me a code' : 'Text me a code'}
+            label={
+              sent
+                ? t.contact.confirm
+                : channel === 'email'
+                  ? t.contact.sendCodeEmail
+                  : t.contact.sendCodePhone
+            }
             size="lg"
             fullWidth
             disabled={busy || (sent ? code.trim().length < 6 : !looksValid)}
@@ -195,12 +207,12 @@ export default function AccountScreen() {
           />
 
           {sent ? (
-            <Button label="Use a different one" variant="ghost" onPress={() => setSent(false)} />
+            <Button label={t.contact.useDifferent} variant="ghost" onPress={() => setSent(false)} />
           ) : null}
 
           {done ? (
             <Text variant="caption" tone="positive">
-              Added. You can sign in with it on another phone now.
+              {t.contact.added}
             </Text>
           ) : null}
           {error ? (
@@ -211,8 +223,7 @@ export default function AccountScreen() {
         </Card>
 
         <Text variant="micro" tone="faint" align="center">
-          Baaki never asks for this to let you in, and never shares it with anyone in your groups.
-          People see the name you choose, nothing else.
+          {t.contact.footnote}
         </Text>
       </ScrollView>
     </Screen>
