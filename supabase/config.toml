@@ -110,5 +110,24 @@ enabled = true
 policy = "oneshot"
 inspector_port = 8083
 
+# Every function verifies a Supabase JWT unless it is named here, and these two
+# are the only callers that cannot hold one:
+#
+#   * `email-events` is Resend reporting what happened to a message. It has no
+#     Supabase account. What it has is a Svix signature over the exact bytes of
+#     the body, checked before the body is read, and that check is the whole of
+#     the endpoint's security.
+#   * `email-unsubscribe` is a mail client pressing the button Gmail puts beside
+#     the sender's name (RFC 8058) — unattended, with no session, on behalf of
+#     somebody who may not have the app. The signed address stands in for one.
+#
+# Left at the default of true, both answer 401: delivery reports stop arriving
+# and nobody can get off the list. Neither failure says anything out loud.
+[functions.email-events]
+verify_jwt = false
+
+[functions.email-unsubscribe]
+verify_jwt = false
+
 [analytics]
 enabled = false

@@ -42,6 +42,7 @@ Planned functions, by milestone:
 | ~~`splitwise-import`~~ | M3        | Shipped as `baaki_import_splitwise` instead — see below |
 | `notify-fanout`        | M4        | Classify → resolve recipients → push/email (TDR §7.1)   |
 | `email-events`         | M4        | Resend webhook ingestion + suppression list             |
+| `email-unsubscribe`    | M4        | RFC 8058 one-click opt-out (not in the TDR — see below) |
 | `receipt-parse`        | M5        | Vision LLM itemization with quota metering              |
 | `export`               | M5        | Lossless JSON + locale-aware CSV, signed URL            |
 
@@ -64,6 +65,40 @@ Set so that somebody using the app normally never meets one. The numbers live in
 answers before any identity exists (ADR-006) — there is no profile to blame yet.
 Everything else is keyed on the profile, so a café full of users behind one NAT
 is not treated as one abuser.
+
+## The two functions with no JWT
+
+Every function here verifies a Supabase JWT except `email-events` and
+`email-unsubscribe`, which are named in `supabase/config.toml` with
+`verify_jwt = false`. Both have callers that cannot possibly hold one:
+
+- **`email-events`** is Resend reporting what happened to a message. What stands
+  in for the JWT is a Svix signature over the exact bytes of the body — checked
+  before the body is parsed, because a webhook that parses first is one where a
+  forged `bounced` event suppresses somebody's mail.
+- **`email-unsubscribe`** is a mail client pressing the button Gmail puts beside
+  the sender's name, unattended, on behalf of somebody who may not have the app.
+  What stands in for the JWT is an HMAC over the address; without it the URL
+  would be a bare `?address=` and unsubscribing a stranger would be a matter of
+  typing theirs. GET renders a confirmation page and changes nothing — corporate
+  scanners follow every link in every message before it is delivered.
+
+If either is ever deployed with the default `verify_jwt = true`, both fail
+silently: delivery reports are answered 401 until Resend stops sending them, and
+nobody can get off the list.
+
+## What gets emailed, and what never does
+
+The list is in `@baaki/core` (`notifications/email.ts`) and again in SQL
+(`baaki_claim_email_notifications`), and it is four kinds long: settlement
+confirmations, the daily digest, and a nudge to somebody with no device. Routine
+ledger activity is deliberately absent. Mailing a person every time a flatmate
+buys milk is the mistake that teaches them to filter the sender, and after that
+the settlement confirmations do not arrive either.
+
+Suppression is checked in SQL before anything reaches this directory: a hard
+bounce, a spam complaint or a one-click unsubscribe all land in
+`email_suppressions`, and the claim will not hand out a row for an address in it.
 
 ## Deviation: the Splitwise import is not a function
 

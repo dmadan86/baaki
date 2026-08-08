@@ -49,6 +49,25 @@ export type NotificationKind =
   | 'ghost_claim_approved'
   | 'ghost_claim_declined';
 
+/**
+ * The wrapping around a notification when it goes out as mail (TDR §7.3).
+ *
+ * The sentence itself is not here — an email says exactly what the inbox and
+ * the push say, from `notifications` above, because they are the same
+ * notification arriving by a different door. What an email needs on top is a
+ * button, and the two lines at the bottom that a push has no room for and no
+ * need of: why this arrived, and how to stop it.
+ */
+export interface EmailChrome {
+  /** Button on a settlement mail — the one thing the recipient can act on. */
+  readonly confirmAction: string;
+  /** Button on everything else. */
+  readonly openAction: string;
+  readonly why: string;
+  readonly unsubscribe: string;
+  readonly signature: string;
+}
+
 export interface CopyStrings {
   readonly money: {
     readonly owedToYou: string;
@@ -58,6 +77,7 @@ export interface CopyStrings {
     readonly netNegative: string;
   };
   readonly notifications: Readonly<Record<NotificationKind, { title: string; body: string }>>;
+  readonly email: EmailChrome;
 }
 
 const en: CopyStrings = {
@@ -117,6 +137,13 @@ const en: CopyStrings = {
       title: 'Not confirmed',
       body: '{group} did not confirm that place. You can still join as yourself.',
     },
+  },
+  email: {
+    confirmAction: 'Confirm you received it',
+    openAction: 'Open Baaki',
+    why: 'You are getting this because of {group} on Baaki.',
+    unsubscribe: 'Stop emails like this',
+    signature: 'Baaki',
   },
 };
 
@@ -178,6 +205,13 @@ const ta: CopyStrings = {
       body: '{group} அந்த இடத்தை உறுதி செய்யவில்லை. நீங்களாகவே சேரலாம்.',
     },
   },
+  email: {
+    confirmAction: 'கிடைத்தது என உறுதிப்படுத்தவும்',
+    openAction: 'பாக்கியைத் திறக்கவும்',
+    why: 'பாக்கியில் {group} காரணமாக இந்த மின்னஞ்சல் வந்துள்ளது.',
+    unsubscribe: 'இதுபோன்ற மின்னஞ்சல்களை நிறுத்தவும்',
+    signature: 'பாக்கி',
+  },
 };
 
 const hi: CopyStrings = {
@@ -231,6 +265,13 @@ const hi: CopyStrings = {
       title: 'पुष्टि नहीं हुई',
       body: '{group} ने वह जगह पक्की नहीं की। आप अपने नाम से शामिल हो सकते हैं।',
     },
+  },
+  email: {
+    confirmAction: 'मिलने की पुष्टि करें',
+    openAction: 'बाकी खोलें',
+    why: 'यह मेल बाकी पर {group} की वजह से आया है।',
+    unsubscribe: 'ऐसे मेल बंद करें',
+    signature: 'बाकी',
   },
 };
 
@@ -291,6 +332,13 @@ const ar: CopyStrings = {
       title: 'لم يتم التأكيد',
       body: 'لم تؤكّد {group} ذلك المكان. ما زال بإمكانك الانضمام باسمك.',
     },
+  },
+  email: {
+    confirmAction: 'أكّد استلامك للمبلغ',
+    openAction: 'افتح باقي',
+    why: 'وصلك هذا البريد بسبب {group} في باقي.',
+    unsubscribe: 'أوقف هذه الرسائل',
+    signature: 'باقي',
   },
 };
 
