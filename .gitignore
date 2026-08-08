@@ -18,6 +18,10 @@ apps/mobile/android/
 .env.*
 !.env.example
 
+# A production connection string, held only long enough to run
+# `prisma migrate deploy` against it. Never committed, never printed.
+.prod-url
+
 # prisma
 packages/db/generated/
 
