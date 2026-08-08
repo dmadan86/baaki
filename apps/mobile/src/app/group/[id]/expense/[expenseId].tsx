@@ -302,8 +302,7 @@ export default function ExpenseDetailScreen() {
         )}
 
         <Text variant="micro" tone="faint" align="center">
-          Nothing here is ever overwritten. Every version above is kept, and a deleted expense can
-          be brought back for 30 days.
+          {t.extras.nothingOverwritten}
         </Text>
       </ScrollView>
     </Screen>

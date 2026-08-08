@@ -51,6 +51,7 @@ import {
 } from '@baaki/ui';
 
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
+import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useGroups } from '@/data/hooks';
 import { displayName, groupLabel, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
@@ -107,6 +108,7 @@ function fromBaaki(group: BaakiImportGroup, fallbackName: string): Loaded {
 
 export default function ImportScreen() {
   const theme = useTheme();
+  const { t, locale } = useStrings();
   const groups = useGroups();
   const { profile } = useAuth();
 
@@ -195,7 +197,7 @@ export default function ImportScreen() {
       const result = importSplitwiseCsv(text);
       load({
         origin: 'splitwise',
-        suggestedName: asset.name.replace(/\.csv$/i, '') || 'Imported group',
+        suggestedName: asset.name.replace(/\.csv$/i, '') || t.importLedger.importedGroup,
         people: result.people,
         currency: result.currency,
         expenses: result.expenses,
@@ -252,9 +254,9 @@ export default function ImportScreen() {
   const describeMapping = (person: string): string => {
     const chosen = mapping[person] ?? { kind: 'ghost' };
     if (chosen.kind === 'me') return 'You';
-    if (chosen.kind === 'ghost') return 'New person';
+    if (chosen.kind === 'ghost') return t.importLedger.newPerson;
     const member = members.find((one) => one.id === chosen.memberId);
-    return member ? displayName(member, profile?.id) : 'New person';
+    return member ? displayName(member, profile?.id) : t.importLedger.newPerson;
   };
 
   const claimedByMe = Object.values(mapping).some((value) => value.kind === 'me');
@@ -267,7 +269,7 @@ export default function ImportScreen() {
       let groupId = target;
       if (groupId === NEW_GROUP) {
         groupId = await createGroup({
-          name: parsed.suggestedName || 'Imported group',
+          name: parsed.suggestedName || t.importLedger.importedGroup,
           type: 'other',
           currency: parsed.currency,
         });
@@ -338,30 +340,27 @@ export default function ImportScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Import a ledger</Text>
+            <Text variant="heading">{t.importLedger.ledgerTitle}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
 
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="subheading">Bring your history across</Text>
-            <Badge label="free" tone="positive" />
+            <Text variant="subheading">{t.importLedger.bringHistory}</Text>
+            <Badge label={t.importLedger.free} tone="positive" />
           </Row>
           <Text variant="caption" tone="muted">
-            From Splitwise: open a group → the ⚙ menu → Export as spreadsheet, and choose that CSV
-            here. From Baaki: choose a JSON file you exported from Settings. Everyone named in it
-            becomes a member of the group — they do not need the app, and they can claim their
-            history whenever they join.
+            {t.importLedger.ledgerHowTo}
           </Text>
         </Card>
 
         <Button
-          label={file ? 'Choose a different file' : 'Choose a file'}
+          label={file ? t.importLedger.chooseDifferentFile : t.importLedger.chooseFile}
           size="lg"
           fullWidth
           variant={file ? 'secondary' : 'primary'}
@@ -381,18 +380,18 @@ export default function ImportScreen() {
         {/* A file holding several groups: one at a time, chosen here. */}
         {fileGroups.length > 1 && !done ? (
           <View style={{ gap: theme.spacing.md }}>
-            <SectionHeader title="Which group" />
+            <SectionHeader title={t.importLedger.whichGroup} />
             <ChipRow<string>
               value={parsed?.suggestedName ?? ''}
               onChange={(name) => {
                 const chosen = fileGroups.find(
-                  (group, index) => (group.name ?? `Group ${index + 1}`) === name,
+                  (group, index) => (group.name ?? numberedGroup(t, index)) === name,
                 );
                 if (chosen) load(fromBaaki(chosen, name));
               }}
               options={fileGroups.map((group, index) => ({
-                value: group.name ?? `Group ${index + 1}`,
-                label: `${group.name ?? `Group ${index + 1}`} · ${group.expenses.length}`,
+                value: group.name ?? numberedGroup(t, index),
+                label: `${group.name ?? numberedGroup(t, index)} · ${group.expenses.length}`,
               }))}
             />
           </View>
@@ -403,24 +402,27 @@ export default function ImportScreen() {
             <Card style={{ gap: theme.spacing.sm }}>
               <Text variant="subheading">{file}</Text>
               <Text variant="caption" tone="muted">
-                {parsed.expenses.length} expense{parsed.expenses.length === 1 ? '' : 's'}
+                {plural(locale, parsed.expenses.length, t.importLedger.expenseCount)}
                 {parsed.settlements.length > 0
-                  ? ` · ${parsed.settlements.length} settlement${parsed.settlements.length === 1 ? '' : 's'}`
+                  ? ` · ${plural(locale, parsed.settlements.length, t.importLedger.settlementCount)}`
                   : ''}{' '}
-                · {parsed.people.length} people · {parsed.currency}
+                · {plural(locale, parsed.people.length, t.importLedger.peopleCount)} ·{' '}
+                {parsed.currency}
               </Text>
 
               <Divider />
 
               <Text variant="caption" tone="muted">
                 {parsed.origin === 'baaki'
-                  ? 'Every balance comes across to the paisa, settlements included. What does not come across: the edit history of each expense, and which expenses a past payment was applied against. Neither changes what anybody owes.'
-                  : 'Balances come across exactly. Who paid does not: a Splitwise export records only what each person came out up or down on a row, and many different payers produce the same result. Every imported expense is marked, and you can correct any of them.'}
+                  ? t.importLedger.fromBaakiNote
+                  : t.importLedger.fromSplitwiseNote}
               </Text>
 
               {parsed.otherCurrencies.length > 0 ? (
                 <Text variant="micro" tone="faint">
-                  {`The amounts below are the ${parsed.currency} ones. ${parsed.otherCurrencies.join(', ')} come across too, and are never converted.`}
+                  {t.importLedger.otherCurrenciesNote
+                    .replace('{currency}', parsed.currency)
+                    .replace('{others}', parsed.otherCurrencies.join(', '))}
                 </Text>
               ) : null}
             </Card>
@@ -428,8 +430,7 @@ export default function ImportScreen() {
             {parsed.problems.length > 0 ? (
               <Card style={{ gap: theme.spacing.sm }}>
                 <Text variant="subheading" tone="negative">
-                  {parsed.problems.length} row{parsed.problems.length === 1 ? '' : 's'} will be
-                  skipped
+                  {plural(locale, parsed.problems.length, t.importLedger.rowsSkipped)}
                 </Text>
                 {parsed.problems.slice(0, 6).map((problem) => (
                   <Text key={`${problem.kind}-${problem.row}`} variant="caption" tone="muted">
@@ -438,7 +439,7 @@ export default function ImportScreen() {
                 ))}
                 {parsed.problems.length > 6 ? (
                   <Text variant="micro" tone="faint">
-                    …and {parsed.problems.length - 6} more.
+                    {t.importLedger.andMore.replace('{n}', String(parsed.problems.length - 6))}
                   </Text>
                 ) : null}
               </Card>
@@ -446,11 +447,11 @@ export default function ImportScreen() {
 
             {parsed.expenses.length > 0 ? (
               <View>
-                <SectionHeader title="Where it goes" />
+                <SectionHeader title={t.importLedger.whereItGoes} />
                 <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                   <TargetRow
-                    label="A new group"
-                    hint="Named after the file"
+                    label={t.importLedger.aNewGroup}
+                    hint={t.importLedger.namedAfterFile}
                     selected={target === NEW_GROUP}
                     onPress={() => void chooseTarget(NEW_GROUP)}
                   />
@@ -458,7 +459,7 @@ export default function ImportScreen() {
                     <TargetRow
                       key={group.id}
                       label={groupLabel(group)}
-                      hint="Add to this group"
+                      hint={t.importLedger.addToThisGroup}
                       selected={target === group.id}
                       onPress={() => void chooseTarget(group.id)}
                     />
@@ -469,7 +470,7 @@ export default function ImportScreen() {
 
             {parsed.expenses.length > 0 ? (
               <View>
-                <SectionHeader title="Who is who" />
+                <SectionHeader title={t.importLedger.whoIsWho} />
                 <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                   {parsed.people.map((person, index) => (
                     <View key={person}>
@@ -499,8 +500,7 @@ export default function ImportScreen() {
                   ))}
                 </Card>
                 <Text variant="micro" tone="faint" style={{ paddingTop: theme.spacing.sm }}>
-                  Tap a name to say who they are here. Nobody is matched by name on your behalf —
-                  two people really can be called Ravi.
+                  {t.importLedger.tapANameNote}
                 </Text>
               </View>
             ) : null}
@@ -510,8 +510,8 @@ export default function ImportScreen() {
                 <Button
                   label={
                     busy
-                      ? 'Importing…'
-                      : `Import ${parsed.expenses.length} expense${parsed.expenses.length === 1 ? '' : 's'}`
+                      ? t.importLedger.importing
+                      : plural(locale, parsed.expenses.length, t.importLedger.importCount)
                   }
                   size="lg"
                   fullWidth
@@ -523,7 +523,7 @@ export default function ImportScreen() {
                 />
                 {!claimedByMe ? (
                   <Text variant="caption" tone="muted" align="center">
-                    Tap whichever name is you first — otherwise none of this history is yours.
+                    {t.importLedger.tapYourNameFirst}
                   </Text>
                 ) : null}
               </>
@@ -534,19 +534,19 @@ export default function ImportScreen() {
         {done ? (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="subheading" tone="positive">
-              Imported
+              {t.importLedger.imported}
             </Text>
             <Text variant="caption" tone="muted">
-              {done.expenses} expense{done.expenses === 1 ? '' : 's'}
+              {plural(locale, done.expenses, t.importLedger.expenseCount)}
               {done.settlements > 0
-                ? ` · ${done.settlements} settlement${done.settlements === 1 ? '' : 's'}`
+                ? ` · ${plural(locale, done.settlements, t.importLedger.settlementCount)}`
                 : ''}
               {done.ghosts > 0
-                ? ` · ${done.ghosts} ${done.ghosts === 1 ? 'person' : 'people'} added, waiting to be claimed`
+                ? ` · ${plural(locale, done.ghosts, t.importLedger.peopleAdded)}`
                 : ''}
             </Text>
             <Button
-              label="Open the group"
+              label={t.importLedger.openTheGroup}
               fullWidth
               onPress={() => router.replace(`/group/${done.groupId}`)}
             />
@@ -597,4 +597,9 @@ function TargetRow({
       </Row>
     </Pressable>
   );
+}
+
+/** The name a group falls back to when the file did not give it one. */
+function numberedGroup(t: UiStrings, index: number): string {
+  return t.importLedger.groupNumber.replace('{n}', String(index + 1));
 }

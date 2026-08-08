@@ -185,7 +185,7 @@ export default function SettleScreen() {
       : false;
     if (uri && canOpen) {
       await Linking.openURL(uri.uri);
-      Alert.alert('Did the payment go through?', 'Only record it if it actually completed.', [
+      Alert.alert(t.extras.paymentWentThrough, t.extras.onlyIfCompleted, [
         { text: 'No', style: 'cancel' },
         { text: 'Yes, record it', onPress: () => void record() },
       ]);
@@ -305,7 +305,7 @@ export default function SettleScreen() {
                 ))}
                 {allocation.unallocated > 0n ? (
                   <Text variant="micro" tone="muted">
-                    The rest applies to the overall balance, oldest expense first.
+                    {t.extras.restAppliesOverall}
                   </Text>
                 ) : null}
               </Card>

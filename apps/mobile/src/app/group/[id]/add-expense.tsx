@@ -703,8 +703,7 @@ export default function AddExpenseScreen() {
         {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
 
         <Text variant="micro" tone="faint" align="center">
-          Saved on this phone straight away, with or without a signal. The server recomputes every
-          share before it is stored, so no device can push a wrong number into the ledger.
+          {t.extras.savedStraightAway}
         </Text>
       </ScrollView>
     </Screen>

@@ -35,6 +35,8 @@ import {
 
 import { Avatar, Button, Card, EmptyState, Row, Text, useTheme } from '@baaki/ui';
 
+import { plural, useStrings } from '@/i18n';
+
 export interface PickedContact {
   readonly name: string;
   readonly email: string | null;
@@ -95,6 +97,7 @@ export function ContactPicker({
   busy = false,
 }: ContactPickerProps): React.JSX.Element {
   const theme = useTheme();
+  const { t, locale } = useStrings();
   const [access, setAccess] = useState<Access>('asking');
   const [contacts, setContacts] = useState<PickedContact[]>([]);
   const [query, setQuery] = useState('');
@@ -241,14 +244,13 @@ export function ContactPicker({
     return (
       <Card style={{ gap: theme.spacing.sm }}>
         <Text variant="caption" tone="muted">
-          Baaki cannot see your contacts. You can still add people by typing a name, an email or a
-          number — nothing about a group needs your address book.
+          {t.pickers.contactsDenied}
         </Text>
         {/* `Contacts.presentFormAsync` used to be here, which opens a form for
             creating a *new* contact — not the permission screen the label
             promises. This is the one that goes where it says. */}
         <Button
-          label="Open settings"
+          label={t.pickers.openSettings}
           variant="ghost"
           onPress={() => void Linking.openSettings().catch(() => undefined)}
         />
@@ -260,10 +262,9 @@ export function ContactPicker({
     return (
       <Card style={{ gap: theme.spacing.sm }}>
         <Text variant="caption" tone="muted">
-          Baaki could not read the address book on this phone. Nothing is wrong with your
-          permissions — add people by typing a name, an email or a number instead.
+          {t.pickers.contactsUnavailable}
         </Text>
-        <Button label="Try again" variant="ghost" onPress={() => void load()} />
+        <Button label={t.pickers.tryAgain} variant="ghost" onPress={() => void load()} />
       </Card>
     );
   }
@@ -288,11 +289,11 @@ export function ContactPicker({
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
-          accessibilityLabel="Search contacts"
+          accessibilityLabel={t.pickers.searchContacts}
           // The phone's own contacts app puts the count here rather than the
           // word "search", and it answers the first question somebody has when
           // they open a list this long: is it all of them?
-          placeholder={`${contacts.length} contacts`}
+          placeholder={plural(locale, contacts.length, t.pickers.contactCount)}
           placeholderTextColor={theme.color.textFaint}
           style={{ flex: 1, fontSize: 16, color: theme.color.text, paddingVertical: 0 }}
         />
@@ -300,7 +301,7 @@ export function ContactPicker({
           <Pressable
             onPress={() => setQuery('')}
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel={t.pickers.clearSearch}
             hitSlop={8}
           >
             <Ionicons name="close-circle" size={18} color={theme.color.textFaint} />
@@ -312,10 +313,8 @@ export function ContactPicker({
 
       {matches.length === 0 ? (
         <EmptyState
-          title="Nobody here"
-          body={
-            query ? 'No contact matches that.' : 'None of your contacts has an email or number.'
-          }
+          title={t.pickers.nobodyHere}
+          body={query ? t.pickers.noContactMatches : t.pickers.noneHasEmailOrNumber}
         />
       ) : (
         <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -375,7 +374,7 @@ export function ContactPicker({
       )}
 
       <Text variant="micro" tone="faint">
-        Only the people you pick are sent to Baaki. Your contacts stay on this phone.
+        {t.pickers.onlyPickedAreSent}
       </Text>
 
       <Button
@@ -574,6 +573,7 @@ function IndexRail({
   letters: readonly string[];
   onSeek: (letter: string) => void;
 }): React.JSX.Element {
+  const { t } = useStrings();
   const [height, setHeight] = useState(0);
   const [active, setActive] = useState<string | null>(null);
 
@@ -618,7 +618,7 @@ function IndexRail({
       onResponderTerminate={() => setActive(null)}
       accessible
       accessibilityRole="adjustable"
-      accessibilityLabel="Jump to a letter"
+      accessibilityLabel={t.pickers.jumpToLetter}
       style={{
         width: RAIL_WIDTH,
         justifyContent: 'center',

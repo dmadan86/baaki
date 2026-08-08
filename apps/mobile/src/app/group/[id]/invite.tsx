@@ -142,8 +142,8 @@ export default function InviteScreen() {
               {(
                 [
                   { channel: 'whatsapp', label: t.people.whatsapp, icon: 'logo-whatsapp' },
-                  { channel: 'sms', label: 'SMS', icon: 'chatbubble-outline' },
-                  { channel: 'email', label: 'Email', icon: 'mail-outline' },
+                  { channel: 'sms', label: t.extras.sms, icon: 'chatbubble-outline' },
+                  { channel: 'email', label: t.extras.email, icon: 'mail-outline' },
                 ] as const
               ).map((option) => (
                 <Button

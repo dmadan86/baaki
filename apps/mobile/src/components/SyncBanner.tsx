@@ -31,7 +31,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
         <Row style={{ gap: theme.spacing.sm }}>
           <Ionicons name="alert-circle" size={18} color={theme.color.negative} />
           <Text variant="subheading" tone="negative">
-            One change could not be saved
+            {t.extras.oneChangeFailed}
           </Text>
         </Row>
         <Text variant="caption" tone="muted">
@@ -43,7 +43,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
             accessibilityRole="button"
           >
             <Text variant="caption" tone="brand">
-              Try again
+              {t.extras.tryAgain}
             </Text>
           </Pressable>
           <Pressable
@@ -51,7 +51,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
             accessibilityRole="button"
           >
             <Text variant="caption" tone="muted">
-              Discard it
+              {t.extras.discardIt}
             </Text>
           </Pressable>
         </Row>

@@ -148,7 +148,7 @@ export function CurrencyRate({
   return (
     <Card style={{ gap: theme.spacing.md }}>
       <Text variant="caption" tone="muted">
-        Paid in
+        {t.extras.paidIn}
       </Text>
       <ChipRow<string>
         value={currency}
@@ -169,7 +169,7 @@ export function CurrencyRate({
             }}
             options={[
               { value: 'charged', label: t.misc.whatIWasCharged },
-              { value: 'typed', label: 'I know the rate' },
+              { value: 'typed', label: t.extras.iKnowTheRate },
               { value: 'fetched', label: "Today's rate" },
             ]}
           />

@@ -593,6 +593,214 @@ export interface UiStrings {
     currentlyLanguage: string;
     rightToLeft: string;
   };
+  /** Pasting bank messages in, and what can be made of them (TDR §10). */
+  smsImport: {
+    title: string;
+    howTo: string;
+    whyNotAutomatic: string;
+    messagesSection: string;
+    pasteLabel: string;
+    pastePlaceholder: string;
+    nothingPasted: string;
+    messageCount: PluralForms;
+    paste: string;
+    datesSection: string;
+    datesNote: string;
+    from: string;
+    to: string;
+    last7: string;
+    last30: string;
+    datePlaceholder: string;
+    dateFieldLabel: string;
+    foundSection: string;
+    nothingToImport: string;
+    nothingLikeAPayment: string;
+    allAnotherCurrency: string;
+    cardPayment: string;
+    selected: string;
+    notSelected: string;
+    checkThis: string;
+    otherCurrencyNote: PluralForms;
+    whoPaidSection: string;
+    whoPaidNote: string;
+    addedCount: PluralForms;
+    adding: string;
+    nothingSelected: string;
+    addCount: PluralForms;
+  };
+  /** Splitting one bill line by line, on one phone or several. */
+  itemize: {
+    title: string;
+    notAMember: string;
+    defaultDescription: string;
+    sharedNow: string;
+    splittingTogether: string;
+    splittingTogetherNote: string;
+    everyoneHasAPhone: string;
+    handOverNote: string;
+    sharing: string;
+    splitTogether: string;
+    whatWasTheBillFor: string;
+    descriptionPlaceholder: string;
+    descriptionLabel: string;
+    addALine: string;
+    itemPlaceholder: string;
+    itemName: string;
+    itemAmount: string;
+    unclaimed: string;
+    splitWays: PluralForms;
+    taxAndTipNote: string;
+    taxRow: string;
+    tipRow: string;
+    taxAmount: string;
+    tipAmount: string;
+    total: string;
+    someone: string;
+    waitingForLines: string;
+    addTheLines: string;
+    stillUnclaimed: PluralForms;
+    tapWhoHadEach: string;
+    taxAndTipShared: string;
+  };
+  /** Bringing a ledger in from Splitwise or from Baaki's own export. */
+  importLedger: {
+    splitwiseTitle: string;
+    ledgerTitle: string;
+    splitwiseHowTo: string;
+    bringHistory: string;
+    free: string;
+    ledgerHowTo: string;
+    chooseFile: string;
+    chosenFile: string;
+    chooseDifferentFile: string;
+    whichGroup: string;
+    groupNumber: string;
+    whoIsWho: string;
+    whoIsWhoNote: string;
+    tapANameNote: string;
+    addAsNew: string;
+    newPerson: string;
+    importedGroup: string;
+    rowsLeftOut: string;
+    rowsLeftOutNote: string;
+    fileWide: string;
+    rowNumber: string;
+    whereItGoes: string;
+    aNewGroup: string;
+    namedAfterFile: string;
+    addToThisGroup: string;
+    importing: string;
+    importCount: PluralForms;
+    chooseWhoIs: string;
+    chooseWhoArePlural: PluralForms;
+    tapYourNameFirst: string;
+    imported: string;
+    openTheGroup: string;
+    importedCount: PluralForms;
+    expenseCount: PluralForms;
+    settlementCount: PluralForms;
+    peopleCount: PluralForms;
+    peopleAdded: PluralForms;
+    rowsSkipped: PluralForms;
+    andMore: string;
+    fromBaakiNote: string;
+    fromSplitwiseNote: string;
+    otherCurrenciesNote: string;
+  };
+  /** Picking people, a country, and the dates a trip runs between. */
+  pickers: {
+    contactsDenied: string;
+    openSettings: string;
+    contactsUnavailable: string;
+    tryAgain: string;
+    searchContacts: string;
+    contactCount: PluralForms;
+    clearSearch: string;
+    nobodyHere: string;
+    noContactMatches: string;
+    noneHasEmailOrNumber: string;
+    onlyPickedAreSent: string;
+    jumpToLetter: string;
+    country: string;
+    settlesWith: string;
+    notSet: string;
+    notSetRails: string;
+    countryNote: string;
+    starts: string;
+    ends: string;
+    dailyReminders: string;
+    breakfast: string;
+    endOfDay: string;
+    clearDates: string;
+  };
+  /** Somebody saying an expense is wrong, and the answer to it. */
+  dispute: {
+    yourReply: string;
+    replyPlaceholder: string;
+    saving: string;
+    theyAreRight: string;
+    itIsCorrect: string;
+    answerThis: string;
+    youSaidWrong: string;
+    whatIsWrong: string;
+    reasonPlaceholder: string;
+    reasonOptional: string;
+    fixItMyself: string;
+  };
+  /** The door where a paid tier would be, and what stays free. */
+  upgradeScreen: {
+    moreScans: string;
+    moreScansBody: string;
+    biggerTransfers: string;
+    biggerTransfersBody: string;
+    nothingToBuy: string;
+    nothingToBuyBody: string;
+    whatWouldCost: string;
+    whatNeverWill: string;
+    whatNeverWillBody: string;
+  };
+  /** The rest: one or two strings each, from a dozen screens. */
+  extras: {
+    blankNameHint: string;
+    iconLabel: string;
+    whatKindOfGroup: string;
+    typeTrip: string;
+    typeHome: string;
+    typeCouple: string;
+    typeEvent: string;
+    typeOther: string;
+    addPeopleByName: string;
+    ghostNote: string;
+    claimHistoryNote: string;
+    theirPastBecomesYours: string;
+    guestKeepsItHere: string;
+    lockedTitle: string;
+    lockedBody: string;
+    unlock: string;
+    paidIn: string;
+    iKnowTheRate: string;
+    notAnAmountShort: string;
+    oneChangeFailed: string;
+    tryAgain: string;
+    discardIt: string;
+    needsUpdating: string;
+    nothingIsLost: string;
+    worthAMinute: string;
+    theGroup: string;
+    noGroupsYet: string;
+    ghostShareNote: string;
+    justMe: string;
+    sms: string;
+    email: string;
+    paymentWentThrough: string;
+    onlyIfCompleted: string;
+    restAppliesOverall: string;
+    couldNotReadImage: string;
+    deliveryComesLater: string;
+    perCurrencyNote: string;
+    savedStraightAway: string;
+    nothingOverwritten: string;
+  };
 }
 
 const en: UiStrings = {
@@ -1116,6 +1324,257 @@ const en: UiStrings = {
     followMyPhone: 'Follow my phone',
     currentlyLanguage: 'Currently {language}',
     rightToLeft: 'right to left',
+  },
+  smsImport: {
+    title: 'Import from messages',
+    howTo:
+      'Open your messages app, select the bank messages from this trip, copy them, and paste them here. Baaki reads them on this phone — nothing is sent anywhere until you confirm an expense.',
+    whyNotAutomatic:
+      'Baaki cannot read your inbox by itself. iPhones give no app that access, and on Android it is reserved for whichever app you use as your messages app.',
+    messagesSection: 'The messages',
+    pasteLabel: 'Paste bank messages',
+    pastePlaceholder: 'Paste here.\n\nLeave a blank line between messages.',
+    nothingPasted: 'Nothing pasted yet',
+    messageCount: { one: '{n} message', other: '{n} messages' },
+    paste: 'Paste',
+    datesSection: 'Between these dates',
+    datesNote:
+      'Only payments inside this window are proposed, so the rest of your inbox stays out of the group.',
+    from: 'From',
+    to: 'To',
+    last7: 'Last 7 days',
+    last30: 'Last 30 days',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: '{label} date, year month day',
+    foundSection: 'What was found',
+    nothingToImport: 'Nothing to import',
+    nothingLikeAPayment:
+      'None of those messages looked like a payment inside these dates. Reminders, one-time passwords and money coming in are all left out on purpose.',
+    allAnotherCurrency: 'Every payment found was in another currency.',
+    cardPayment: 'Card payment',
+    selected: 'selected',
+    notSelected: 'not selected',
+    checkThis: 'Check this',
+    otherCurrencyNote: {
+      one: '{n} payment was in another currency. Add it by hand — the message does not say what rate you were charged, and this group keeps its money in {currency}.',
+      other:
+        '{n} payments were in another currency. Add them by hand — the message does not say what rate you were charged, and this group keeps its money in {currency}.',
+    },
+    whoPaidSection: 'Who paid',
+    whoPaidNote:
+      'A bank message says what left your account, not who was there. These are split equally between everyone in the group — change any of them afterwards.',
+    addedCount: {
+      one: '{n} expense added. It is saved on this phone and will sync when there is a connection.',
+      other:
+        '{n} expenses added. They are saved on this phone and will sync when there is a connection.',
+    },
+    adding: 'Adding…',
+    nothingSelected: 'Nothing selected',
+    addCount: { one: 'Add {n} expense', other: 'Add {n} expenses' },
+  },
+  itemize: {
+    title: 'Split by item',
+    notAMember: 'You are not a member of this group',
+    defaultDescription: 'Itemized bill',
+    sharedNow: 'Everybody in the group can see this bill now. Tap the lines you had.',
+    splittingTogether: 'Splitting together',
+    splittingTogetherNote:
+      'Everybody in the group is looking at these lines. Tap the ones you had — they see it as you do it. The lines cannot change now, because a claim is pinned to its line.',
+    everyoneHasAPhone: 'Everyone at the table has a phone?',
+    handOverNote:
+      'Hand these lines to the group and they each tap what they had, on their own phone. Check the lines first — once anybody has claimed one, the list is fixed.',
+    sharing: 'Sharing…',
+    splitTogether: 'Split together',
+    whatWasTheBillFor: 'What was the bill for?',
+    descriptionPlaceholder: 'Dinner at Anjappar',
+    descriptionLabel: 'Bill description',
+    addALine: 'Add a line',
+    itemPlaceholder: 'Biryani',
+    itemName: 'Item name',
+    itemAmount: 'Item amount',
+    unclaimed: 'nobody has claimed this',
+    splitWays: { one: 'to one person', other: 'split {n} ways' },
+    taxAndTipNote: 'Tax and tip — prorated by what each person ordered',
+    taxRow: 'Tax / service',
+    tipRow: 'Tip',
+    taxAmount: 'Tax amount',
+    tipAmount: 'Tip amount',
+    total: 'Total',
+    someone: 'Someone',
+    waitingForLines: 'Waiting for the lines from this bill.',
+    addTheLines: 'Add the lines from the bill and tap who had what.',
+    stillUnclaimed: {
+      one: '{n} line still unclaimed — nobody pays for a dish nobody ordered.',
+      other: '{n} lines still unclaimed — nobody pays for a dish nobody ordered.',
+    },
+    tapWhoHadEach: 'Tap who had each line to see the split.',
+    taxAndTipShared: 'Tax and tip of {amount} are shared in proportion to each person’s items.',
+  },
+  importLedger: {
+    splitwiseTitle: 'Import a Splitwise export',
+    ledgerTitle: 'Import a ledger',
+    splitwiseHowTo:
+      'In Splitwise, open the group, choose Export as spreadsheet, and pick the file here.',
+    bringHistory: 'Bring your history across',
+    free: 'free',
+    ledgerHowTo:
+      'From Splitwise: open a group → the ⚙ menu → Export as spreadsheet, and choose that CSV here. From Baaki: choose a JSON file you exported from Settings. Everyone named in it becomes a member of the group — they do not need the app, and they can claim their history whenever they join.',
+    chooseFile: 'Choose a file',
+    chosenFile: 'Chosen: {name}',
+    chooseDifferentFile: 'Choose a different file',
+    whichGroup: 'Which group',
+    groupNumber: 'Group {n}',
+    whoIsWho: 'Who is who',
+    whoIsWhoNote:
+      'The file names people; this group has members. Nothing is imported until every name has somebody against it.',
+    tapANameNote:
+      'Tap a name to say who they are here. Nobody is matched by name on your behalf — two people really can be called Ravi.',
+    addAsNew: 'Add as new',
+    newPerson: 'New person',
+    importedGroup: 'Imported group',
+    rowsLeftOut: 'Rows left out',
+    rowsLeftOutNote:
+      'Everything else still imports. These are named so you can add them by hand rather than discover later that they are missing.',
+    fileWide: 'File',
+    rowNumber: 'Row {n}',
+    whereItGoes: 'Where it goes',
+    aNewGroup: 'A new group',
+    namedAfterFile: 'Named after the file',
+    addToThisGroup: 'Add to this group',
+    importing: 'Importing…',
+    importCount: { one: 'Import {n} expense', other: 'Import {n} expenses' },
+    chooseWhoIs: 'Choose who {name} is',
+    chooseWhoArePlural: { one: 'Choose who {n} person is', other: 'Choose who {n} people are' },
+    tapYourNameFirst: 'Tap whichever name is you first — otherwise none of this history is yours.',
+    imported: 'Imported',
+    openTheGroup: 'Open the group',
+    importedCount: {
+      one: '{n} expense imported. It is saved on this phone and will sync when there is a connection.',
+      other:
+        '{n} expenses imported. They are saved on this phone and will sync when there is a connection.',
+    },
+    expenseCount: { one: '{n} expense', other: '{n} expenses' },
+    settlementCount: { one: '{n} settlement', other: '{n} settlements' },
+    peopleCount: { one: '{n} person', other: '{n} people' },
+    peopleAdded: {
+      one: '{n} person added, waiting to be claimed',
+      other: '{n} people added, waiting to be claimed',
+    },
+    rowsSkipped: { one: '{n} row will be skipped', other: '{n} rows will be skipped' },
+    andMore: '…and {n} more.',
+    fromBaakiNote:
+      'Every balance comes across to the paisa, settlements included. What does not come across: the edit history of each expense, and which expenses a past payment was applied against. Neither changes what anybody owes.',
+    fromSplitwiseNote:
+      'Balances come across exactly. Who paid does not: a Splitwise export records only what each person came out up or down on a row, and many different payers produce the same result. Every imported expense is marked, and you can correct any of them.',
+    otherCurrenciesNote:
+      'The amounts below are the {currency} ones. {others} come across too, and are never converted.',
+  },
+  pickers: {
+    contactsDenied:
+      'Baaki cannot see your contacts. You can still add people by typing a name, an email or a number — nothing about a group needs your address book.',
+    openSettings: 'Open settings',
+    contactsUnavailable:
+      'Baaki could not read the address book on this phone. Nothing is wrong with your permissions — add people by typing a name, an email or a number instead.',
+    tryAgain: 'Try again',
+    searchContacts: 'Search contacts',
+    contactCount: { one: '{n} contact', other: '{n} contacts' },
+    clearSearch: 'Clear search',
+    nobodyHere: 'Nobody here',
+    noContactMatches: 'No contact matches that.',
+    noneHasEmailOrNumber: 'None of your contacts has an email or number.',
+    onlyPickedAreSent:
+      'Only the people you pick are sent to Baaki. Your contacts stay on this phone.',
+    jumpToLetter: 'Jump to a letter',
+    country: 'Country',
+    settlesWith: '{country} · settles with {rails}',
+    notSet: 'Not set',
+    notSetRails: 'Bank transfer, cash, Wise and Revolut',
+    countryNote:
+      'This decides how you can pay each other, and what currency a new expense starts in. Nothing already recorded changes.',
+    starts: 'Starts',
+    ends: 'Ends',
+    dailyReminders: 'Daily reminders',
+    breakfast: 'Breakfast',
+    endOfDay: 'End of day',
+    clearDates: 'Clear dates',
+  },
+  dispute: {
+    yourReply: 'Your reply',
+    replyPlaceholder: 'Optional — what actually happened',
+    saving: 'Saving…',
+    theyAreRight: 'They’re right — I’ll fix it',
+    itIsCorrect: 'It’s correct',
+    answerThis: 'Answer this',
+    youSaidWrong: 'You said this is wrong',
+    whatIsWrong: 'What is wrong with this expense',
+    reasonPlaceholder: 'I left before dessert · the total was ₹1,800',
+    reasonOptional:
+      'A reason is optional, but it is the difference between a fix and a conversation.',
+    fixItMyself: 'Fix it myself',
+  },
+  upgradeScreen: {
+    moreScans: 'More scanned bills',
+    moreScansBody:
+      'Photograph a receipt and have the lines read off it. Every scan costs real money to run, which is the honest reason it is the thing with a limit.',
+    biggerTransfers: 'Bigger exports and imports',
+    biggerTransfersBody:
+      'Your data is yours and leaves in full for free. Larger jobs and scheduled backups are the convenience.',
+    nothingToBuy: 'Nothing to buy yet',
+    nothingToBuyBody:
+      'This is the door, not the shop. When there is something worth paying for it will be here, with the price on it and no surprises.',
+    whatWouldCost: 'What would ever cost money',
+    whatNeverWill: 'What never will',
+    whatNeverWillBody:
+      'The ledger. Groups, expenses, splits, balances, settling up, and getting all of it back out again — {free}. A ledger you can only half read is not a ledger.',
+  },
+  extras: {
+    blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
+    iconLabel: 'Icon {emoji}',
+    whatKindOfGroup: 'What kind of group?',
+    typeTrip: 'Trip',
+    typeHome: 'Home',
+    typeCouple: 'Couple',
+    typeEvent: 'Event',
+    typeOther: 'Other',
+    addPeopleByName: 'Add people by name',
+    ghostNote: 'They do not need the app. Add them now and they can claim their history later.',
+    claimHistoryNote: 'Pick your name and everything already recorded for you comes with you.',
+    theirPastBecomesYours: 'Their past expenses and balances become yours.',
+    guestKeepsItHere:
+      'Joining as a guest keeps everything on this device. Add a phone number later and it all comes with you.',
+    lockedTitle: 'Baaki is locked',
+    lockedBody: 'Unlock with the same face or fingerprint that opens this phone.',
+    unlock: 'Unlock',
+    paidIn: 'Paid in',
+    iKnowTheRate: 'I know the rate',
+    notAnAmountShort: 'not an amount',
+    oneChangeFailed: 'One change could not be saved',
+    tryAgain: 'Try again',
+    discardIt: 'Discard it',
+    needsUpdating: 'Baaki needs updating',
+    nothingIsLost:
+      'Nothing is lost. Every group, expense and settlement is on the server and will be exactly where you left it.',
+    worthAMinute: 'Worth a minute when you have one.',
+    theGroup: 'The group',
+    noGroupsYet:
+      'You have no groups yet. A person belongs to a group in Baaki, because a debt is always about something — a trip, a flat, a dinner.',
+    ghostShareNote:
+      'They do not need the app. Their share is recorded under their name, and if they join later with this email or number they claim everything already sitting there.',
+    justMe: 'Just me',
+    sms: 'SMS',
+    email: 'Email',
+    paymentWentThrough: 'Did the payment go through?',
+    onlyIfCompleted: 'Only record it if it actually completed.',
+    restAppliesOverall: 'The rest applies to the overall balance, oldest expense first.',
+    couldNotReadImage: 'Could not read that image.',
+    deliveryComesLater:
+      'Push and email delivery come with M4. Until then this is where everything lands.',
+    perCurrencyNote:
+      'Amounts are kept per currency, never converted into one total. People without an account are counted per group, because two people can share a name.',
+    savedStraightAway:
+      'Saved on this phone straight away, with or without a signal. The server recomputes every share before it is stored, so no device can push a wrong number into the ledger.',
+    nothingOverwritten:
+      'Nothing here is ever overwritten. Every version above is kept, and a deleted expense can be brought back for 30 days.',
   },
 };
 
@@ -1659,6 +2118,266 @@ const ta: UiStrings = {
     currentlyLanguage: 'தற்போது {language}',
     rightToLeft: 'வலமிருந்து இடம்',
   },
+  smsImport: {
+    title: 'செய்திகளிலிருந்து இறக்குமதி',
+    howTo:
+      'உங்கள் செய்தி செயலியைத் திறந்து, இந்தப் பயணத்தின் வங்கிச் செய்திகளைத் தேர்ந்தெடுத்து, நகலெடுத்து இங்கே ஒட்டுங்கள். பாக்கி அவற்றை இந்த ஃபோனிலேயே படிக்கும் — நீங்கள் ஒரு செலவை உறுதி செய்யும் வரை எதுவும் எங்கும் அனுப்பப்படாது.',
+    whyNotAutomatic:
+      'பாக்கியால் உங்கள் இன்பாக்ஸைத் தானாகப் படிக்க முடியாது. iPhone எந்தச் செயலிக்கும் அந்த அனுமதியைத் தராது; Android இல் அது உங்கள் செய்தி செயலிக்கு மட்டுமே உரியது.',
+    messagesSection: 'செய்திகள்',
+    pasteLabel: 'வங்கிச் செய்திகளை ஒட்டு',
+    pastePlaceholder: 'இங்கே ஒட்டவும்.\n\nசெய்திகளுக்கு இடையே ஒரு காலி வரி விடவும்.',
+    nothingPasted: 'இன்னும் எதுவும் ஒட்டப்படவில்லை',
+    messageCount: { one: '{n} செய்தி', other: '{n} செய்திகள்' },
+    paste: 'ஒட்டு',
+    datesSection: 'இந்தத் தேதிகளுக்கு இடையே',
+    datesNote:
+      'இந்த இடைவெளிக்குள் உள்ள கொடுப்பனவுகள் மட்டுமே பரிந்துரைக்கப்படும், எனவே உங்கள் இன்பாக்ஸின் மீதி குழுவுக்கு வெளியேயே இருக்கும்.',
+    from: 'முதல்',
+    to: 'வரை',
+    last7: 'கடந்த 7 நாட்கள்',
+    last30: 'கடந்த 30 நாட்கள்',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: '{label} தேதி, ஆண்டு மாதம் நாள்',
+    foundSection: 'கிடைத்தவை',
+    nothingToImport: 'இறக்குமதி செய்ய எதுவும் இல்லை',
+    nothingLikeAPayment:
+      'அந்தச் செய்திகளில் எதுவும் இந்தத் தேதிகளுக்குள் ஒரு கொடுப்பனவாகத் தெரியவில்லை. நினைவூட்டல்கள், ஒருமுறைக் கடவுச்சொற்கள், வரும் பணம் — இவை வேண்டுமென்றே விடப்படுகின்றன.',
+    allAnotherCurrency: 'கிடைத்த ஒவ்வொரு கொடுப்பனவும் வேறு நாணயத்தில் இருந்தது.',
+    cardPayment: 'அட்டைக் கொடுப்பனவு',
+    selected: 'தேர்ந்தெடுக்கப்பட்டது',
+    notSelected: 'தேர்ந்தெடுக்கப்படவில்லை',
+    checkThis: 'இதைச் சரிபார்',
+    otherCurrencyNote: {
+      one: '{n} கொடுப்பனவு வேறு நாணயத்தில் இருந்தது. அதைக் கையால் சேருங்கள் — உங்களுக்கு எந்த விகிதம் விதிக்கப்பட்டது என்பதை அந்தச் செய்தி சொல்லவில்லை, இந்தக் குழு {currency} இல் கணக்கு வைக்கிறது.',
+      other:
+        '{n} கொடுப்பனவுகள் வேறு நாணயத்தில் இருந்தன. அவற்றைக் கையால் சேருங்கள் — உங்களுக்கு எந்த விகிதம் விதிக்கப்பட்டது என்பதை அந்தச் செய்திகள் சொல்லவில்லை, இந்தக் குழு {currency} இல் கணக்கு வைக்கிறது.',
+    },
+    whoPaidSection: 'யார் கொடுத்தார்கள்',
+    whoPaidNote:
+      'வங்கிச் செய்தி உங்கள் கணக்கிலிருந்து என்ன போனது என்று சொல்கிறது, யார் இருந்தார்கள் என்று அல்ல. இவை குழுவில் உள்ள அனைவருக்கும் சமமாகப் பிரிக்கப்படும் — பிறகு எதையும் மாற்றலாம்.',
+    addedCount: {
+      one: '{n} செலவு சேர்க்கப்பட்டது. அது இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளது, இணைப்பு கிடைத்ததும் ஒத்திசைக்கும்.',
+      other:
+        '{n} செலவுகள் சேர்க்கப்பட்டன. அவை இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளன, இணைப்பு கிடைத்ததும் ஒத்திசைக்கும்.',
+    },
+    adding: 'சேர்க்கிறது…',
+    nothingSelected: 'எதுவும் தேர்ந்தெடுக்கப்படவில்லை',
+    addCount: { one: '{n} செலவைச் சேர்', other: '{n} செலவுகளைச் சேர்' },
+  },
+  itemize: {
+    title: 'பொருள் வாரியாகப் பிரி',
+    notAMember: 'நீங்கள் இந்தக் குழுவின் உறுப்பினர் அல்ல',
+    defaultDescription: 'பொருள் வாரியான ரசீது',
+    sharedNow:
+      'இப்போது குழுவில் உள்ள அனைவரும் இந்த ரசீதைப் பார்க்கலாம். நீங்கள் சாப்பிட்ட வரிகளைத் தட்டுங்கள்.',
+    splittingTogether: 'சேர்ந்து பிரிக்கிறோம்',
+    splittingTogetherNote:
+      'குழுவில் உள்ள அனைவரும் இந்த வரிகளைப் பார்க்கிறார்கள். நீங்கள் சாப்பிட்டதைத் தட்டுங்கள் — நீங்கள் செய்யும்போதே அவர்கள் பார்ப்பார்கள். ஒவ்வொரு உரிமைக்கோரலும் அதன் வரியுடன் இணைந்திருப்பதால், வரிகளை இனி மாற்ற முடியாது.',
+    everyoneHasAPhone: 'மேசையில் உள்ள அனைவரிடமும் ஃபோன் உள்ளதா?',
+    handOverNote:
+      'இந்த வரிகளைக் குழுவிடம் கொடுங்கள், ஒவ்வொருவரும் தங்கள் ஃபோனிலேயே தாங்கள் சாப்பிட்டதைத் தட்டுவார்கள். முதலில் வரிகளைச் சரிபாருங்கள் — யாரேனும் ஒன்றைக் கோரிவிட்டால் பட்டியல் நிலைத்துவிடும்.',
+    sharing: 'பகிர்கிறது…',
+    splitTogether: 'சேர்ந்து பிரி',
+    whatWasTheBillFor: 'ரசீது எதற்காக?',
+    descriptionPlaceholder: 'அஞ்சப்பரில் இரவு உணவு',
+    descriptionLabel: 'ரசீது விவரம்',
+    addALine: 'ஒரு வரியைச் சேர்',
+    itemPlaceholder: 'பிரியாணி',
+    itemName: 'பொருளின் பெயர்',
+    itemAmount: 'பொருளின் தொகை',
+    unclaimed: 'இதை யாரும் கோரவில்லை',
+    splitWays: { one: 'ஒருவருக்கு', other: '{n} பேருக்குப் பிரிக்கப்பட்டது' },
+    taxAndTipNote: 'வரியும் டிப்பும் — ஒவ்வொருவரும் ஆர்டர் செய்ததற்கு ஏற்ப பங்கிடப்படும்',
+    taxRow: 'வரி / சேவை',
+    tipRow: 'டிப்',
+    taxAmount: 'வரித் தொகை',
+    tipAmount: 'டிப் தொகை',
+    total: 'மொத்தம்',
+    someone: 'யாரோ',
+    waitingForLines: 'இந்த ரசீதின் வரிகளுக்குக் காத்திருக்கிறது.',
+    addTheLines: 'ரசீதிலிருந்து வரிகளைச் சேர்த்து, யார் என்ன சாப்பிட்டார்கள் என்று தட்டுங்கள்.',
+    stillUnclaimed: {
+      one: '{n} வரி இன்னும் கோரப்படவில்லை — யாரும் ஆர்டர் செய்யாத உணவுக்கு யாரும் பணம் தர வேண்டியதில்லை.',
+      other:
+        '{n} வரிகள் இன்னும் கோரப்படவில்லை — யாரும் ஆர்டர் செய்யாத உணவுக்கு யாரும் பணம் தர வேண்டியதில்லை.',
+    },
+    tapWhoHadEach: 'பிரிவைப் பார்க்க ஒவ்வொரு வரியையும் யார் சாப்பிட்டார்கள் என்று தட்டுங்கள்.',
+    taxAndTipShared:
+      '{amount} வரியும் டிப்பும் ஒவ்வொருவரின் பொருட்களுக்கு ஏற்ற விகிதத்தில் பங்கிடப்படுகிறது.',
+  },
+  importLedger: {
+    splitwiseTitle: 'Splitwise ஏற்றுமதியை இறக்குமதி செய்',
+    ledgerTitle: 'ஒரு கணக்கை இறக்குமதி செய்',
+    splitwiseHowTo:
+      'Splitwise இல் குழுவைத் திறந்து, Export as spreadsheet என்பதைத் தேர்ந்தெடுத்து, அந்தக் கோப்பை இங்கே தேர்வு செய்யுங்கள்.',
+    bringHistory: 'உங்கள் வரலாற்றைக் கொண்டு வாருங்கள்',
+    free: 'இலவசம்',
+    ledgerHowTo:
+      'Splitwise இலிருந்து: குழுவைத் திறந்து → ⚙ மெனு → Export as spreadsheet, அந்த CSV ஐ இங்கே தேர்வு செய்யுங்கள். பாக்கியிலிருந்து: அமைப்புகளிலிருந்து ஏற்றுமதி செய்த JSON கோப்பைத் தேர்வு செய்யுங்கள். அதில் பெயர் உள்ள அனைவரும் குழுவின் உறுப்பினராகிவிடுவார்கள் — அவர்களுக்குச் செயலி தேவையில்லை, சேரும்போது தங்கள் வரலாற்றைக் கோரலாம்.',
+    chooseFile: 'ஒரு கோப்பைத் தேர்வு செய்',
+    chosenFile: 'தேர்ந்தெடுத்தது: {name}',
+    chooseDifferentFile: 'வேறு கோப்பைத் தேர்வு செய்',
+    whichGroup: 'எந்தக் குழு',
+    groupNumber: 'குழு {n}',
+    whoIsWho: 'யார் யார்',
+    whoIsWhoNote:
+      'கோப்பில் பெயர்கள் உள்ளன; இந்தக் குழுவில் உறுப்பினர்கள் உள்ளனர். ஒவ்வொரு பெயருக்கும் ஒருவரைக் குறிக்கும் வரை எதுவும் இறக்குமதி ஆகாது.',
+    tapANameNote:
+      'இங்கே அவர்கள் யார் என்று சொல்ல ஒரு பெயரைத் தட்டுங்கள். உங்கள் சார்பாக யாரும் பெயரால் பொருத்தப்படுவதில்லை — இரண்டு பேர் ரவி என்று இருக்க முடியும்.',
+    addAsNew: 'புதியவராகச் சேர்',
+    newPerson: 'புதிய நபர்',
+    importedGroup: 'இறக்குமதி செய்யப்பட்ட குழு',
+    rowsLeftOut: 'விடப்பட்ட வரிசைகள்',
+    rowsLeftOutNote:
+      'மற்ற அனைத்தும் இறக்குமதி ஆகும். பின்னர் இவை இல்லை என்று கண்டுபிடிப்பதற்குப் பதிலாக, கையால் சேர்க்க முடியும் என்பதற்காகவே இவை பெயரிடப்பட்டுள்ளன.',
+    fileWide: 'கோப்பு',
+    rowNumber: 'வரிசை {n}',
+    whereItGoes: 'எங்கே சேரும்',
+    aNewGroup: 'ஒரு புதிய குழு',
+    namedAfterFile: 'கோப்பின் பெயரில்',
+    addToThisGroup: 'இந்தக் குழுவில் சேர்',
+    importing: 'இறக்குமதி செய்கிறது…',
+    importCount: { one: '{n} செலவை இறக்குமதி செய்', other: '{n} செலவுகளை இறக்குமதி செய்' },
+    chooseWhoIs: '{name} யார் என்று தேர்ந்தெடுக்கவும்',
+    chooseWhoArePlural: {
+      one: '{n} நபர் யார் என்று தேர்ந்தெடுக்கவும்',
+      other: '{n} நபர்கள் யார் என்று தேர்ந்தெடுக்கவும்',
+    },
+    tapYourNameFirst:
+      'முதலில் உங்கள் பெயரைத் தட்டுங்கள் — இல்லையெனில் இந்த வரலாறு எதுவும் உங்களுடையது ஆகாது.',
+    imported: 'இறக்குமதி ஆனது',
+    openTheGroup: 'குழுவைத் திற',
+    importedCount: {
+      one: '{n} செலவு இறக்குமதி ஆனது. அது இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளது, இணைப்பு கிடைத்ததும் ஒத்திசைக்கும்.',
+      other:
+        '{n} செலவுகள் இறக்குமதி ஆயின. அவை இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளன, இணைப்பு கிடைத்ததும் ஒத்திசைக்கும்.',
+    },
+    expenseCount: { one: '{n} செலவு', other: '{n} செலவுகள்' },
+    settlementCount: { one: '{n} தீர்வு', other: '{n} தீர்வுகள்' },
+    peopleCount: { one: '{n} நபர்', other: '{n} நபர்கள்' },
+    peopleAdded: {
+      one: '{n} நபர் சேர்க்கப்பட்டார், கோரப்படக் காத்திருக்கிறார்',
+      other: '{n} நபர்கள் சேர்க்கப்பட்டனர், கோரப்படக் காத்திருக்கின்றனர்',
+    },
+    rowsSkipped: { one: '{n} வரிசை விடப்படும்', other: '{n} வரிசைகள் விடப்படும்' },
+    andMore: '…மேலும் {n}.',
+    fromBaakiNote:
+      'ஒவ்வொரு இருப்பும் காசு வரை சரியாக வரும், தீர்வுகள் உட்பட. வராதவை: ஒவ்வொரு செலவின் திருத்த வரலாறு, மற்றும் பழைய கொடுப்பனவு எந்தச் செலவுகளுக்குப் பயன்படுத்தப்பட்டது என்பது. இரண்டும் யார் என்ன தர வேண்டும் என்பதை மாற்றாது.',
+    fromSplitwiseNote:
+      'இருப்புகள் அப்படியே வரும். யார் கொடுத்தார்கள் என்பது வராது: Splitwise ஏற்றுமதி ஒரு வரிசையில் ஒவ்வொருவரும் எவ்வளவு மேலே அல்லது கீழே போனார்கள் என்பதை மட்டுமே பதிவு செய்கிறது, பல வேறுபட்ட செலுத்துபவர்கள் ஒரே முடிவைத் தருவார்கள். இறக்குமதி செய்யப்பட்ட ஒவ்வொரு செலவும் குறிக்கப்படும், நீங்கள் எதையும் திருத்தலாம்.',
+    otherCurrenciesNote:
+      'கீழே உள்ள தொகைகள் {currency} இல் உள்ளவை. {others} உம் வரும், அவை ஒருபோதும் மாற்றப்படுவதில்லை.',
+  },
+  pickers: {
+    contactsDenied:
+      'பாக்கியால் உங்கள் தொடர்புகளைப் பார்க்க முடியாது. பெயர், மின்னஞ்சல் அல்லது எண்ணைத் தட்டச்சு செய்து இன்னும் நபர்களைச் சேர்க்கலாம் — ஒரு குழுவுக்கு உங்கள் முகவரிப் புத்தகம் தேவையில்லை.',
+    openSettings: 'அமைப்புகளைத் திற',
+    contactsUnavailable:
+      'இந்த ஃபோனில் உள்ள முகவரிப் புத்தகத்தைப் பாக்கியால் படிக்க முடியவில்லை. உங்கள் அனுமதிகளில் எந்தத் தவறும் இல்லை — பெயர், மின்னஞ்சல் அல்லது எண்ணைத் தட்டச்சு செய்து நபர்களைச் சேருங்கள்.',
+    tryAgain: 'மீண்டும் முயற்சி',
+    searchContacts: 'தொடர்புகளைத் தேடு',
+    contactCount: { one: '{n} தொடர்பு', other: '{n} தொடர்புகள்' },
+    clearSearch: 'தேடலை அழி',
+    nobodyHere: 'இங்கே யாரும் இல்லை',
+    noContactMatches: 'அதற்குப் பொருந்தும் தொடர்பு இல்லை.',
+    noneHasEmailOrNumber: 'உங்கள் தொடர்புகளில் யாருக்கும் மின்னஞ்சலோ எண்ணோ இல்லை.',
+    onlyPickedAreSent:
+      'நீங்கள் தேர்ந்தெடுத்த நபர்கள் மட்டுமே பாக்கிக்கு அனுப்பப்படுவார்கள். உங்கள் தொடர்புகள் இந்த ஃபோனிலேயே இருக்கும்.',
+    jumpToLetter: 'ஒரு எழுத்துக்குச் செல்',
+    country: 'நாடு',
+    settlesWith: '{country} · {rails} மூலம் தீர்க்கும்',
+    notSet: 'அமைக்கப்படவில்லை',
+    notSetRails: 'வங்கிப் பரிமாற்றம், பணம், Wise மற்றும் Revolut',
+    countryNote:
+      'இது நீங்கள் ஒருவருக்கொருவர் எப்படிப் பணம் தரலாம் என்பதையும், புதிய செலவு எந்த நாணயத்தில் தொடங்கும் என்பதையும் தீர்மானிக்கிறது. ஏற்கெனவே பதிவானவை மாறாது.',
+    starts: 'தொடக்கம்',
+    ends: 'முடிவு',
+    dailyReminders: 'தினசரி நினைவூட்டல்கள்',
+    breakfast: 'காலை உணவு',
+    endOfDay: 'நாள் முடிவு',
+    clearDates: 'தேதிகளை அழி',
+  },
+  dispute: {
+    yourReply: 'உங்கள் பதில்',
+    replyPlaceholder: 'விருப்பம் — உண்மையில் என்ன நடந்தது',
+    saving: 'சேமிக்கிறது…',
+    theyAreRight: 'அவர்கள் சொல்வது சரி — நான் திருத்துகிறேன்',
+    itIsCorrect: 'இது சரியானது',
+    answerThis: 'இதற்குப் பதில் சொல்',
+    youSaidWrong: 'இது தவறு என்று நீங்கள் சொன்னீர்கள்',
+    whatIsWrong: 'இந்தச் செலவில் என்ன தவறு',
+    reasonPlaceholder: 'இனிப்புக்கு முன்பே கிளம்பிவிட்டேன் · மொத்தம் ₹1,800',
+    reasonOptional:
+      'காரணம் விருப்பம்தான், ஆனால் ஒரு திருத்தத்துக்கும் ஒரு உரையாடலுக்கும் இடையிலான வேறுபாடு அதுவே.',
+    fixItMyself: 'நானே திருத்துகிறேன்',
+  },
+  upgradeScreen: {
+    moreScans: 'அதிக ரசீது ஸ்கேன்கள்',
+    moreScansBody:
+      'ஒரு ரசீதைப் புகைப்படம் எடுத்தால் அதன் வரிகள் படிக்கப்படும். ஒவ்வொரு ஸ்கேனுக்கும் உண்மையான செலவு ஆகிறது — அதனால்தான் இதற்கு மட்டும் வரம்பு உள்ளது.',
+    biggerTransfers: 'பெரிய ஏற்றுமதிகளும் இறக்குமதிகளும்',
+    biggerTransfersBody:
+      'உங்கள் தரவு உங்களுடையது, முழுமையாக இலவசமாக வெளியேறும். பெரிய வேலைகளும் திட்டமிட்ட காப்புப் பிரதிகளுமே வசதி.',
+    nothingToBuy: 'இன்னும் வாங்க எதுவும் இல்லை',
+    nothingToBuyBody:
+      'இது கடை அல்ல, கதவு. பணம் தர மதிப்புள்ள ஏதாவது வரும்போது, விலையுடன் இங்கே இருக்கும் — திடீர் ஆச்சரியங்கள் இல்லை.',
+    whatWouldCost: 'எப்போதாவது பணம் என்ன செலவாகும்',
+    whatNeverWill: 'எதற்கு ஒருபோதும் இல்லை',
+    whatNeverWillBody:
+      'கணக்கு. குழுக்கள், செலவுகள், பிரிவுகள், இருப்புகள், தீர்த்தல், அனைத்தையும் திரும்பப் பெறுதல் — {free}. பாதி மட்டுமே படிக்கக்கூடிய கணக்கு கணக்கே அல்ல.',
+  },
+  extras: {
+    blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
+    iconLabel: 'சின்னம் {emoji}',
+    whatKindOfGroup: 'என்ன வகைக் குழு?',
+    typeTrip: 'பயணம்',
+    typeHome: 'வீடு',
+    typeCouple: 'தம்பதி',
+    typeEvent: 'நிகழ்வு',
+    typeOther: 'மற்றவை',
+    addPeopleByName: 'பெயரால் நபர்களைச் சேர்',
+    ghostNote:
+      'அவர்களுக்குச் செயலி தேவையில்லை. இப்போதே சேருங்கள், பிறகு அவர்கள் தங்கள் வரலாற்றைக் கோரலாம்.',
+    claimHistoryNote:
+      'உங்கள் பெயரைத் தேர்ந்தெடுத்தால், உங்களுக்காக ஏற்கெனவே பதிவானது எல்லாம் உங்களுடன் வரும்.',
+    theirPastBecomesYours: 'அவர்களின் பழைய செலவுகளும் இருப்புகளும் உங்களுடையவை ஆகும்.',
+    guestKeepsItHere:
+      'விருந்தினராகச் சேர்ந்தால் எல்லாம் இந்தச் சாதனத்திலேயே இருக்கும். பிறகு ஒரு ஃபோன் எண்ணைச் சேர்த்தால், எல்லாம் வேறு ஃபோனுக்கும் உங்களைப் பின்தொடரும்.',
+    lockedTitle: 'பாக்கி பூட்டப்பட்டுள்ளது',
+    lockedBody: 'இந்த ஃபோனைத் திறக்கும் அதே முகம் அல்லது கைரேகையால் திறக்கவும்.',
+    unlock: 'திற',
+    paidIn: 'இதில் செலுத்தப்பட்டது',
+    iKnowTheRate: 'எனக்கு விகிதம் தெரியும்',
+    notAnAmountShort: 'தொகை அல்ல',
+    oneChangeFailed: 'ஒரு மாற்றத்தைச் சேமிக்க முடியவில்லை',
+    tryAgain: 'மீண்டும் முயற்சி',
+    discardIt: 'அதை விட்டுவிடு',
+    needsUpdating: 'பாக்கியைப் புதுப்பிக்க வேண்டும்',
+    nothingIsLost:
+      'எதுவும் இழக்கப்படவில்லை. ஒவ்வொரு குழுவும், செலவும், தீர்வும் சேவையகத்தில் உள்ளன, நீங்கள் விட்ட இடத்திலேயே இருக்கும்.',
+    worthAMinute: 'நேரம் கிடைக்கும்போது ஒரு நிமிடம் மதிப்புள்ளது.',
+    theGroup: 'குழு',
+    noGroupsYet:
+      'உங்களுக்கு இன்னும் குழுக்கள் இல்லை. பாக்கியில் ஒரு நபர் ஒரு குழுவுக்கு உரியவர், ஏனெனில் ஒரு கடன் எப்போதும் எதையாவது பற்றியது — ஒரு பயணம், ஒரு வீடு, ஒரு இரவு உணவு.',
+    ghostShareNote:
+      'அவர்களுக்குச் செயலி தேவையில்லை. அவர்களின் பங்கு அவர்கள் பெயரில் பதிவாகும், பிறகு இதே மின்னஞ்சல் அல்லது எண்ணுடன் சேர்ந்தால் ஏற்கெனவே அங்கே உள்ள அனைத்தையும் கோரலாம்.',
+    justMe: 'நான் மட்டும்',
+    sms: 'SMS',
+    email: 'மின்னஞ்சல்',
+    paymentWentThrough: 'கொடுப்பனவு சென்றதா?',
+    onlyIfCompleted: 'உண்மையிலேயே முடிந்திருந்தால் மட்டும் பதிவு செய்யுங்கள்.',
+    restAppliesOverall: 'மீதி மொத்த இருப்புக்குப் பயன்படும், பழைய செலவு முதலில்.',
+    couldNotReadImage: 'அந்தப் படத்தைப் படிக்க முடியவில்லை.',
+    deliveryComesLater:
+      'புஷ் மற்றும் மின்னஞ்சல் வழங்கல் M4 உடன் வரும். அதுவரை எல்லாம் இங்கேயே வந்து சேரும்.',
+    perCurrencyNote:
+      'தொகைகள் ஒவ்வொரு நாணயத்திற்கும் தனித்தனியாக வைக்கப்படும், ஒரே மொத்தமாக மாற்றப்படுவதில்லை. கணக்கு இல்லாதவர்கள் ஒவ்வொரு குழுவிலும் தனியாகக் கணக்கிடப்படுவார்கள், ஏனெனில் இரண்டு பேருக்கு ஒரே பெயர் இருக்கலாம்.',
+    savedStraightAway:
+      'சிக்னல் இருந்தாலும் இல்லாவிட்டாலும் உடனே இந்த ஃபோனில் சேமிக்கப்படும். சேமிக்கும் முன் ஒவ்வொரு பங்கையும் சேவையகம் மீண்டும் கணக்கிடுகிறது, எனவே எந்தச் சாதனமும் தவறான எண்ணைக் கணக்கில் தள்ள முடியாது.',
+    nothingOverwritten:
+      'இங்கே எதுவும் மேலெழுதப்படுவதில்லை. மேலே உள்ள ஒவ்வொரு பதிப்பும் வைக்கப்படுகிறது, நீக்கப்பட்ட செலவை 30 நாட்களுக்கு மீட்கலாம்.',
+  },
 };
 
 const hi: UiStrings = {
@@ -2174,6 +2893,256 @@ const hi: UiStrings = {
     followMyPhone: 'मेरे फ़ोन के अनुसार',
     currentlyLanguage: 'अभी {language}',
     rightToLeft: 'दाएँ से बाएँ',
+  },
+  smsImport: {
+    title: 'संदेशों से आयात',
+    howTo:
+      'अपना मैसेज ऐप खोलें, इस यात्रा के बैंक संदेश चुनें, कॉपी करें और यहाँ पेस्ट करें। बाकी उन्हें इसी फ़ोन पर पढ़ता है — जब तक आप कोई खर्च पक्का नहीं करते, कुछ भी कहीं नहीं भेजा जाता।',
+    whyNotAutomatic:
+      'बाकी आपका इनबॉक्स खुद नहीं पढ़ सकता। iPhone किसी भी ऐप को यह पहुँच नहीं देता, और Android पर यह सिर्फ़ उसी ऐप के लिए है जिसे आप मैसेज ऐप की तरह इस्तेमाल करते हैं।',
+    messagesSection: 'संदेश',
+    pasteLabel: 'बैंक संदेश पेस्ट करें',
+    pastePlaceholder: 'यहाँ पेस्ट करें।\n\nसंदेशों के बीच एक खाली पंक्ति छोड़ें।',
+    nothingPasted: 'अभी कुछ पेस्ट नहीं किया',
+    messageCount: { one: '{n} संदेश', other: '{n} संदेश' },
+    paste: 'पेस्ट',
+    datesSection: 'इन तारीखों के बीच',
+    datesNote: 'सिर्फ़ इस अवधि के भुगतान सुझाए जाते हैं, ताकि आपका बाकी इनबॉक्स समूह से बाहर रहे।',
+    from: 'से',
+    to: 'तक',
+    last7: 'पिछले 7 दिन',
+    last30: 'पिछले 30 दिन',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: '{label} तारीख़, साल महीना दिन',
+    foundSection: 'क्या मिला',
+    nothingToImport: 'आयात करने को कुछ नहीं',
+    nothingLikeAPayment:
+      'इन तारीखों के भीतर उन संदेशों में से कोई भुगतान जैसा नहीं लगा। याद दिलाने वाले संदेश, वन-टाइम पासवर्ड और आने वाला पैसा जान-बूझकर छोड़े जाते हैं।',
+    allAnotherCurrency: 'जो भी भुगतान मिला वह दूसरी मुद्रा में था।',
+    cardPayment: 'कार्ड भुगतान',
+    selected: 'चुना गया',
+    notSelected: 'नहीं चुना',
+    checkThis: 'इसे जाँचें',
+    otherCurrencyNote: {
+      one: '{n} भुगतान दूसरी मुद्रा में था। उसे हाथ से जोड़ें — संदेश यह नहीं बताता कि आपसे कौन-सी दर ली गई, और यह समूह अपना हिसाब {currency} में रखता है।',
+      other:
+        '{n} भुगतान दूसरी मुद्रा में थे। उन्हें हाथ से जोड़ें — संदेश यह नहीं बताते कि आपसे कौन-सी दर ली गई, और यह समूह अपना हिसाब {currency} में रखता है।',
+    },
+    whoPaidSection: 'किसने दिया',
+    whoPaidNote:
+      'बैंक संदेश बताता है कि आपके खाते से क्या गया, यह नहीं कि वहाँ कौन था। ये समूह के सबके बीच बराबर बाँटे जाते हैं — बाद में किसी को भी बदल सकते हैं।',
+    addedCount: {
+      one: '{n} खर्च जुड़ा। यह इसी फ़ोन पर सेव है और कनेक्शन मिलते ही सिंक हो जाएगा।',
+      other: '{n} खर्च जुड़े। ये इसी फ़ोन पर सेव हैं और कनेक्शन मिलते ही सिंक हो जाएँगे।',
+    },
+    adding: 'जोड़ रहे हैं…',
+    nothingSelected: 'कुछ नहीं चुना',
+    addCount: { one: '{n} खर्च जोड़ें', other: '{n} खर्च जोड़ें' },
+  },
+  itemize: {
+    title: 'चीज़-वार बाँटें',
+    notAMember: 'आप इस समूह के सदस्य नहीं हैं',
+    defaultDescription: 'चीज़-वार बिल',
+    sharedNow: 'अब समूह के सब लोग यह बिल देख सकते हैं। जो आपने लिया उन पंक्तियों पर टैप करें।',
+    splittingTogether: 'साथ मिलकर बाँट रहे हैं',
+    splittingTogetherNote:
+      'समूह के सब लोग ये पंक्तियाँ देख रहे हैं। जो आपने लिया उन पर टैप करें — वे इसे होते हुए देखेंगे। अब पंक्तियाँ बदली नहीं जा सकतीं, क्योंकि हर दावा अपनी पंक्ति से जुड़ा है।',
+    everyoneHasAPhone: 'मेज़ पर सबके पास फ़ोन है?',
+    handOverNote:
+      'ये पंक्तियाँ समूह को दे दें और हर कोई अपने फ़ोन पर टैप करे कि उसने क्या लिया। पहले पंक्तियाँ जाँच लें — जैसे ही किसी ने एक पर दावा किया, सूची पक्की हो जाती है।',
+    sharing: 'साझा कर रहे हैं…',
+    splitTogether: 'साथ में बाँटें',
+    whatWasTheBillFor: 'बिल किस चीज़ का था?',
+    descriptionPlaceholder: 'अंजप्पर में खाना',
+    descriptionLabel: 'बिल का विवरण',
+    addALine: 'एक पंक्ति जोड़ें',
+    itemPlaceholder: 'बिरयानी',
+    itemName: 'चीज़ का नाम',
+    itemAmount: 'चीज़ की रकम',
+    unclaimed: 'इस पर किसी ने दावा नहीं किया',
+    splitWays: { one: 'एक व्यक्ति के लिए', other: '{n} लोगों में बँटा' },
+    taxAndTipNote: 'टैक्स और टिप — हर किसी के ऑर्डर के अनुपात में',
+    taxRow: 'टैक्स / सेवा',
+    tipRow: 'टिप',
+    taxAmount: 'टैक्स की रकम',
+    tipAmount: 'टिप की रकम',
+    total: 'कुल',
+    someone: 'कोई',
+    waitingForLines: 'इस बिल की पंक्तियों का इंतज़ार है।',
+    addTheLines: 'बिल की पंक्तियाँ जोड़ें और टैप करें कि किसने क्या लिया।',
+    stillUnclaimed: {
+      one: '{n} पंक्ति पर अब भी दावा नहीं — जो किसी ने मँगाया ही नहीं उसका पैसा कोई नहीं देता।',
+      other:
+        '{n} पंक्तियों पर अब भी दावा नहीं — जो किसी ने मँगाया ही नहीं उसका पैसा कोई नहीं देता।',
+    },
+    tapWhoHadEach: 'बँटवारा देखने के लिए टैप करें कि हर पंक्ति किसने ली।',
+    taxAndTipShared: '{amount} का टैक्स और टिप हर किसी की चीज़ों के अनुपात में बाँटा जाता है।',
+  },
+  importLedger: {
+    splitwiseTitle: 'Splitwise निर्यात आयात करें',
+    ledgerTitle: 'हिसाब आयात करें',
+    splitwiseHowTo:
+      'Splitwise में समूह खोलें, Export as spreadsheet चुनें, और वह फ़ाइल यहाँ चुनें।',
+    bringHistory: 'अपना इतिहास ले आएँ',
+    free: 'मुफ़्त',
+    ledgerHowTo:
+      'Splitwise से: समूह खोलें → ⚙ मेनू → Export as spreadsheet, और वही CSV यहाँ चुनें। बाकी से: सेटिंग्स से निर्यात की गई JSON फ़ाइल चुनें। उसमें जिनका नाम है वे सब समूह के सदस्य बन जाते हैं — उन्हें ऐप की ज़रूरत नहीं, और जब वे जुड़ेंगे तब अपना इतिहास ले सकते हैं।',
+    chooseFile: 'फ़ाइल चुनें',
+    chosenFile: 'चुनी गई: {name}',
+    chooseDifferentFile: 'दूसरी फ़ाइल चुनें',
+    whichGroup: 'कौन-सा समूह',
+    groupNumber: 'समूह {n}',
+    whoIsWho: 'कौन कौन है',
+    whoIsWhoNote:
+      'फ़ाइल में नाम हैं; इस समूह में सदस्य हैं। जब तक हर नाम के सामने कोई नहीं होगा, कुछ भी आयात नहीं होगा।',
+    tapANameNote:
+      'किसी नाम पर टैप करके बताएँ कि यहाँ वे कौन हैं। आपकी तरफ़ से नाम से कोई मिलान नहीं किया जाता — दो लोग सचमुच रवि हो सकते हैं।',
+    addAsNew: 'नए के रूप में जोड़ें',
+    newPerson: 'नया व्यक्ति',
+    importedGroup: 'आयातित समूह',
+    rowsLeftOut: 'छोड़ी गई पंक्तियाँ',
+    rowsLeftOutNote:
+      'बाकी सब फिर भी आयात होता है। इनके नाम इसलिए दिए हैं ताकि आप इन्हें हाथ से जोड़ सकें, न कि बाद में पता चले कि ये गायब हैं।',
+    fileWide: 'फ़ाइल',
+    rowNumber: 'पंक्ति {n}',
+    whereItGoes: 'कहाँ जाएगा',
+    aNewGroup: 'एक नया समूह',
+    namedAfterFile: 'फ़ाइल के नाम पर',
+    addToThisGroup: 'इसी समूह में जोड़ें',
+    importing: 'आयात हो रहा है…',
+    importCount: { one: '{n} खर्च आयात करें', other: '{n} खर्च आयात करें' },
+    chooseWhoIs: 'चुनें कि {name} कौन हैं',
+    chooseWhoArePlural: {
+      one: 'चुनें कि {n} व्यक्ति कौन है',
+      other: 'चुनें कि {n} लोग कौन हैं',
+    },
+    tapYourNameFirst: 'पहले उस नाम पर टैप करें जो आप हैं — वरना यह इतिहास आपका नहीं होगा।',
+    imported: 'आयात हो गया',
+    openTheGroup: 'समूह खोलें',
+    importedCount: {
+      one: '{n} खर्च आयात हुआ। यह इसी फ़ोन पर सेव है और कनेक्शन मिलते ही सिंक हो जाएगा।',
+      other: '{n} खर्च आयात हुए। ये इसी फ़ोन पर सेव हैं और कनेक्शन मिलते ही सिंक हो जाएँगे।',
+    },
+    expenseCount: { one: '{n} खर्च', other: '{n} खर्च' },
+    settlementCount: { one: '{n} निपटान', other: '{n} निपटान' },
+    peopleCount: { one: '{n} व्यक्ति', other: '{n} लोग' },
+    peopleAdded: {
+      one: '{n} व्यक्ति जोड़ा गया, दावे का इंतज़ार',
+      other: '{n} लोग जोड़े गए, दावे का इंतज़ार',
+    },
+    rowsSkipped: { one: '{n} पंक्ति छोड़ी जाएगी', other: '{n} पंक्तियाँ छोड़ी जाएँगी' },
+    andMore: '…और {n} अन्य।',
+    fromBaakiNote:
+      'हर हिसाब पाई-पाई सहित आता है, निपटान भी। जो नहीं आता: हर खर्च का संपादन इतिहास, और यह कि कोई पुराना भुगतान किन खर्चों पर लगाया गया था। इनमें से कोई भी यह नहीं बदलता कि किस पर क्या बाकी है।',
+    fromSplitwiseNote:
+      'हिसाब बिल्कुल सही आता है। किसने दिया, यह नहीं: Splitwise निर्यात सिर्फ़ यह दर्ज करता है कि एक पंक्ति पर हर व्यक्ति कितना ऊपर या नीचे रहा, और कई अलग-अलग भुगतानकर्ता एक ही नतीजा देते हैं। हर आयातित खर्च पर निशान लगा होता है, और आप किसी को भी ठीक कर सकते हैं।',
+    otherCurrenciesNote:
+      'नीचे की रकमें {currency} वाली हैं। {others} भी आती हैं, और कभी बदली नहीं जातीं।',
+  },
+  pickers: {
+    contactsDenied:
+      'बाकी आपके संपर्क नहीं देख सकता। आप फिर भी नाम, ईमेल या नंबर टाइप करके लोग जोड़ सकते हैं — समूह के लिए आपकी संपर्क सूची ज़रूरी नहीं।',
+    openSettings: 'सेटिंग्स खोलें',
+    contactsUnavailable:
+      'बाकी इस फ़ोन की संपर्क सूची नहीं पढ़ सका। आपकी अनुमतियों में कोई गड़बड़ नहीं है — इसके बजाय नाम, ईमेल या नंबर टाइप करके लोग जोड़ें।',
+    tryAgain: 'फिर कोशिश करें',
+    searchContacts: 'संपर्क खोजें',
+    contactCount: { one: '{n} संपर्क', other: '{n} संपर्क' },
+    clearSearch: 'खोज मिटाएँ',
+    nobodyHere: 'यहाँ कोई नहीं',
+    noContactMatches: 'उससे कोई संपर्क नहीं मिला।',
+    noneHasEmailOrNumber: 'आपके किसी संपर्क के पास ईमेल या नंबर नहीं है।',
+    onlyPickedAreSent:
+      'सिर्फ़ वही लोग बाकी को भेजे जाते हैं जिन्हें आप चुनते हैं। आपके संपर्क इसी फ़ोन पर रहते हैं।',
+    jumpToLetter: 'किसी अक्षर पर जाएँ',
+    country: 'देश',
+    settlesWith: '{country} · {rails} से निपटान',
+    notSet: 'तय नहीं',
+    notSetRails: 'बैंक ट्रांसफ़र, नकद, Wise और Revolut',
+    countryNote:
+      'इससे तय होता है कि आप एक-दूसरे को कैसे पैसे दे सकते हैं, और नया खर्च किस मुद्रा में शुरू होगा। जो पहले से दर्ज है वह नहीं बदलता।',
+    starts: 'शुरू',
+    ends: 'समाप्त',
+    dailyReminders: 'रोज़ाना याद दिलाना',
+    breakfast: 'नाश्ता',
+    endOfDay: 'दिन का अंत',
+    clearDates: 'तारीखें हटाएँ',
+  },
+  dispute: {
+    yourReply: 'आपका जवाब',
+    replyPlaceholder: 'वैकल्पिक — असल में क्या हुआ',
+    saving: 'सेव हो रहा है…',
+    theyAreRight: 'वे सही हैं — मैं ठीक कर दूँगा',
+    itIsCorrect: 'यह सही है',
+    answerThis: 'इसका जवाब दें',
+    youSaidWrong: 'आपने कहा यह ग़लत है',
+    whatIsWrong: 'इस खर्च में क्या ग़लत है',
+    reasonPlaceholder: 'मैं मिठाई से पहले निकल गया · कुल ₹1,800 था',
+    reasonOptional: 'वजह देना ज़रूरी नहीं, पर सुधार और बहस के बीच का फ़र्क़ यही है।',
+    fixItMyself: 'मैं खुद ठीक कर दूँ',
+  },
+  upgradeScreen: {
+    moreScans: 'ज़्यादा बिल स्कैन',
+    moreScansBody:
+      'रसीद की फ़ोटो लें और उसकी पंक्तियाँ पढ़ ली जाएँ। हर स्कैन पर सचमुच पैसा लगता है — यही ईमानदार वजह है कि सीमा इसी पर है।',
+    biggerTransfers: 'बड़े निर्यात और आयात',
+    biggerTransfersBody:
+      'आपका डेटा आपका है और पूरा मुफ़्त में बाहर आता है। बड़े काम और तय समय पर बैकअप — यही सुविधा है।',
+    nothingToBuy: 'अभी खरीदने को कुछ नहीं',
+    nothingToBuyBody:
+      'यह दुकान नहीं, दरवाज़ा है। जब कुछ ऐसा होगा जिसके पैसे देने लायक हो, वह यहीं मिलेगा — कीमत लिखी हुई और कोई चौंकाने वाली बात नहीं।',
+    whatWouldCost: 'कभी पैसे किस चीज़ के लगेंगे',
+    whatNeverWill: 'किसके कभी नहीं',
+    whatNeverWillBody:
+      'हिसाब। समूह, खर्च, बँटवारा, बकाया, निपटान, और यह सब वापस बाहर निकालना — {free}। जो हिसाब आप आधा ही पढ़ सकें, वह हिसाब नहीं।',
+  },
+  extras: {
+    blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
+    iconLabel: 'चिह्न {emoji}',
+    whatKindOfGroup: 'किस तरह का समूह?',
+    typeTrip: 'यात्रा',
+    typeHome: 'घर',
+    typeCouple: 'जोड़ा',
+    typeEvent: 'आयोजन',
+    typeOther: 'अन्य',
+    addPeopleByName: 'नाम से लोग जोड़ें',
+    ghostNote: 'उन्हें ऐप की ज़रूरत नहीं। अभी जोड़ दें, बाद में वे अपना इतिहास ले सकते हैं।',
+    claimHistoryNote: 'अपना नाम चुनें और आपके लिए जो कुछ पहले से दर्ज है, सब साथ आ जाएगा।',
+    theirPastBecomesYours: 'उनके पुराने खर्च और हिसाब आपके हो जाएँगे।',
+    guestKeepsItHere:
+      'मेहमान के तौर पर जुड़ने से सब कुछ इसी डिवाइस पर रहता है। बाद में फ़ोन नंबर जोड़ें और सब कुछ दूसरे फ़ोन तक आपके साथ चला आएगा।',
+    lockedTitle: 'बाकी लॉक है',
+    lockedBody: 'उसी चेहरे या फ़िंगरप्रिंट से खोलें जिससे यह फ़ोन खुलता है।',
+    unlock: 'खोलें',
+    paidIn: 'इसमें दिया',
+    iKnowTheRate: 'मुझे दर पता है',
+    notAnAmountShort: 'रकम नहीं',
+    oneChangeFailed: 'एक बदलाव सेव नहीं हो सका',
+    tryAgain: 'फिर कोशिश करें',
+    discardIt: 'इसे छोड़ दें',
+    needsUpdating: 'बाकी को अपडेट चाहिए',
+    nothingIsLost:
+      'कुछ नहीं खोया। हर समूह, खर्च और निपटान सर्वर पर है और ठीक वहीं मिलेगा जहाँ आपने छोड़ा था।',
+    worthAMinute: 'जब वक़्त मिले तो एक मिनट देने लायक।',
+    theGroup: 'समूह',
+    noGroupsYet:
+      'आपके अभी कोई समूह नहीं हैं। बाकी में हर व्यक्ति किसी समूह का होता है, क्योंकि उधार हमेशा किसी चीज़ का होता है — कोई यात्रा, कोई घर, कोई खाना।',
+    ghostShareNote:
+      'उन्हें ऐप की ज़रूरत नहीं। उनका हिस्सा उन्हीं के नाम दर्ज होता है, और अगर वे बाद में इसी ईमेल या नंबर से जुड़ते हैं तो वहाँ रखा सब कुछ ले लेते हैं।',
+    justMe: 'सिर्फ़ मैं',
+    sms: 'SMS',
+    email: 'ईमेल',
+    paymentWentThrough: 'क्या भुगतान हो गया?',
+    onlyIfCompleted: 'तभी दर्ज करें जब वह सचमुच पूरा हो गया हो।',
+    restAppliesOverall: 'बाकी कुल हिसाब पर लगता है, सबसे पुराना खर्च पहले।',
+    couldNotReadImage: 'वह तस्वीर पढ़ी नहीं जा सकी।',
+    deliveryComesLater: 'पुश और ईमेल डिलीवरी M4 के साथ आएँगे। तब तक सब कुछ यहीं आकर जमा होता है।',
+    perCurrencyNote:
+      'रकमें हर मुद्रा के हिसाब से अलग रखी जाती हैं, कभी एक कुल में नहीं बदली जातीं। जिनका खाता नहीं है उन्हें हर समूह में अलग गिना जाता है, क्योंकि दो लोगों का नाम एक हो सकता है।',
+    savedStraightAway:
+      'सिग्नल हो या न हो, इसी फ़ोन पर तुरंत सेव। सर्वर हर हिस्सा दोबारा जोड़कर ही रखता है, इसलिए कोई डिवाइस हिसाब में ग़लत आँकड़ा नहीं डाल सकती।',
+    nothingOverwritten:
+      'यहाँ कुछ भी मिटाकर ऊपर नहीं लिखा जाता। ऊपर का हर संस्करण रखा जाता है, और हटाया गया खर्च 30 दिन तक वापस लाया जा सकता है।',
   },
 };
 
@@ -2718,6 +3687,342 @@ const ar: UiStrings = {
     followMyPhone: 'اتبع هاتفي',
     currentlyLanguage: 'حاليًا {language}',
     rightToLeft: 'من اليمين إلى اليسار',
+  },
+  smsImport: {
+    title: 'استيراد من الرسائل',
+    howTo:
+      'افتح تطبيق الرسائل، واختر رسائل البنك الخاصة بهذه الرحلة، وانسخها والصقها هنا. يقرأها باقي على هذا الهاتف — ولا يُرسل أي شيء إلى أي مكان حتى تؤكّد مصروفًا.',
+    whyNotAutomatic:
+      'لا يستطيع باقي قراءة صندوق رسائلك من تلقاء نفسه. لا يمنح iPhone هذه الصلاحية لأي تطبيق، وفي أندرويد تقتصر على التطبيق الذي تستخدمه للرسائل.',
+    messagesSection: 'الرسائل',
+    pasteLabel: 'ألصق رسائل البنك',
+    pastePlaceholder: 'ألصق هنا.\n\nاترك سطرًا فارغًا بين كل رسالة وأخرى.',
+    nothingPasted: 'لم يُلصق شيء بعد',
+    messageCount: {
+      zero: 'لا رسائل',
+      one: 'رسالة واحدة',
+      two: 'رسالتان',
+      few: '{n} رسائل',
+      many: '{n} رسالة',
+      other: '{n} رسالة',
+    },
+    paste: 'لصق',
+    datesSection: 'بين هذين التاريخين',
+    datesNote:
+      'لا تُقترح إلا المدفوعات الواقعة داخل هذه المدة، فيبقى باقي صندوق رسائلك خارج المجموعة.',
+    from: 'من',
+    to: 'إلى',
+    last7: 'آخر 7 أيام',
+    last30: 'آخر 30 يومًا',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: 'تاريخ {label}، سنة شهر يوم',
+    foundSection: 'ما وُجد',
+    nothingToImport: 'لا شيء للاستيراد',
+    nothingLikeAPayment:
+      'لم تبدُ أي من تلك الرسائل دفعةً داخل هذه التواريخ. التذكيرات وكلمات المرور لمرة واحدة والأموال الواردة كلها مستبعدة عن قصد.',
+    allAnotherCurrency: 'كل دفعة وُجدت كانت بعملة أخرى.',
+    cardPayment: 'دفعة بالبطاقة',
+    selected: 'محدَّد',
+    notSelected: 'غير محدَّد',
+    checkThis: 'تحقّق من هذا',
+    otherCurrencyNote: {
+      zero: 'لا مدفوعات بعملة أخرى.',
+      one: 'دفعة واحدة كانت بعملة أخرى. أضفها يدويًا — فالرسالة لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      two: 'دفعتان كانتا بعملة أخرى. أضفهما يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      few: '{n} مدفوعات كانت بعملة أخرى. أضفها يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      many: '{n} دفعة كانت بعملة أخرى. أضفها يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      other:
+        '{n} دفعة كانت بعملة أخرى. أضفها يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+    },
+    whoPaidSection: 'من دفع',
+    whoPaidNote:
+      'رسالة البنك تقول ما خرج من حسابك، لا من كان حاضرًا. تُقسَّم هذه بالتساوي بين كل أعضاء المجموعة — ويمكنك تغيير أي منها بعد ذلك.',
+    addedCount: {
+      zero: 'لم يُضف أي مصروف.',
+      one: 'أُضيف مصروف واحد. إنه محفوظ على هذا الهاتف وسيُزامَن عند توفّر اتصال.',
+      two: 'أُضيف مصروفان. إنهما محفوظان على هذا الهاتف وسيُزامَنان عند توفّر اتصال.',
+      few: 'أُضيفت {n} مصاريف. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+      many: 'أُضيف {n} مصروفًا. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+      other: 'أُضيف {n} مصروف. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+    },
+    adding: 'جارٍ الإضافة…',
+    nothingSelected: 'لم يُحدَّد شيء',
+    addCount: {
+      zero: 'لا شيء لإضافته',
+      one: 'أضف مصروفًا واحدًا',
+      two: 'أضف مصروفين',
+      few: 'أضف {n} مصاريف',
+      many: 'أضف {n} مصروفًا',
+      other: 'أضف {n} مصروف',
+    },
+  },
+  itemize: {
+    title: 'التقسيم حسب الصنف',
+    notAMember: 'لست عضوًا في هذه المجموعة',
+    defaultDescription: 'فاتورة بالأصناف',
+    sharedNow: 'صار بإمكان كل أعضاء المجموعة رؤية هذه الفاتورة. اضغط على الأصناف التي تناولتها.',
+    splittingTogether: 'نقسّمها معًا',
+    splittingTogetherNote:
+      'كل أعضاء المجموعة ينظرون إلى هذه الأصناف. اضغط على ما تناولته — يرونه وأنت تفعله. لم يعد بالإمكان تغيير الأصناف، لأن كل اختيار مثبّت على صنفه.',
+    everyoneHasAPhone: 'هل مع كل من على الطاولة هاتف؟',
+    handOverNote:
+      'سلّم هذه الأصناف للمجموعة ليضغط كلٌّ على ما تناوله من هاتفه. تحقّق من الأصناف أولًا — فبمجرد أن يختار أحدهم صنفًا تثبت القائمة.',
+    sharing: 'جارٍ المشاركة…',
+    splitTogether: 'التقسيم معًا',
+    whatWasTheBillFor: 'الفاتورة على ماذا؟',
+    descriptionPlaceholder: 'عشاء في المطعم',
+    descriptionLabel: 'وصف الفاتورة',
+    addALine: 'أضف صنفًا',
+    itemPlaceholder: 'برياني',
+    itemName: 'اسم الصنف',
+    itemAmount: 'مبلغ الصنف',
+    unclaimed: 'لم يطالب أحد بهذا',
+    splitWays: {
+      zero: 'لا أحد',
+      one: 'لشخص واحد',
+      two: 'مقسوم بين اثنين',
+      few: 'مقسوم بين {n} أشخاص',
+      many: 'مقسوم بين {n} شخصًا',
+      other: 'مقسوم بين {n} شخص',
+    },
+    taxAndTipNote: 'الضريبة والإكرامية — تُوزَّع بنسبة ما طلبه كل شخص',
+    taxRow: 'الضريبة / الخدمة',
+    tipRow: 'الإكرامية',
+    taxAmount: 'مبلغ الضريبة',
+    tipAmount: 'مبلغ الإكرامية',
+    total: 'المجموع',
+    someone: 'أحدهم',
+    waitingForLines: 'في انتظار أصناف هذه الفاتورة.',
+    addTheLines: 'أضف أصناف الفاتورة واضغط على من تناول ماذا.',
+    stillUnclaimed: {
+      zero: 'لا أصناف بلا مطالب.',
+      one: 'صنف واحد بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      two: 'صنفان بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      few: '{n} أصناف بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      many: '{n} صنفًا بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      other: '{n} صنف بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+    },
+    tapWhoHadEach: 'اضغط على من تناول كل صنف لترى التقسيم.',
+    taxAndTipShared: 'تُوزَّع ضريبة وإكرامية بقيمة {amount} بنسبة أصناف كل شخص.',
+  },
+  importLedger: {
+    splitwiseTitle: 'استيراد ملف Splitwise',
+    ledgerTitle: 'استيراد دفتر',
+    splitwiseHowTo: 'في Splitwise، افتح المجموعة واختر Export as spreadsheet، ثم اختر الملف هنا.',
+    bringHistory: 'أحضر سجلّك معك',
+    free: 'مجانًا',
+    ledgerHowTo:
+      'من Splitwise: افتح مجموعة ← قائمة ⚙ ← Export as spreadsheet، ثم اختر ملف CSV هنا. من باقي: اختر ملف JSON صدّرته من الإعدادات. كل من ورد اسمه فيه يصبح عضوًا في المجموعة — لا يحتاجون التطبيق، ويمكنهم المطالبة بسجلّهم متى انضمّوا.',
+    chooseFile: 'اختر ملفًا',
+    chosenFile: 'المختار: {name}',
+    chooseDifferentFile: 'اختر ملفًا آخر',
+    whichGroup: 'أي مجموعة',
+    groupNumber: 'مجموعة {n}',
+    whoIsWho: 'من هو من',
+    whoIsWhoNote:
+      'الملف يذكر أسماء؛ وهذه المجموعة لها أعضاء. لا يُستورد شيء حتى يقابل كل اسمٍ شخصٌ ما.',
+    tapANameNote:
+      'اضغط على اسم لتقول من يكون هنا. لا يُطابَق أحد بالاسم نيابةً عنك — فقد يحمل شخصان الاسم نفسه فعلًا.',
+    addAsNew: 'أضفه كشخص جديد',
+    newPerson: 'شخص جديد',
+    importedGroup: 'مجموعة مستوردة',
+    rowsLeftOut: 'صفوف مستبعدة',
+    rowsLeftOutNote:
+      'كل ما عداها يُستورد. ذُكرت بأسمائها لتضيفها يدويًا بدل أن تكتشف غيابها لاحقًا.',
+    fileWide: 'الملف',
+    rowNumber: 'الصف {n}',
+    whereItGoes: 'إلى أين يذهب',
+    aNewGroup: 'مجموعة جديدة',
+    namedAfterFile: 'باسم الملف',
+    addToThisGroup: 'أضف إلى هذه المجموعة',
+    importing: 'جارٍ الاستيراد…',
+    importCount: {
+      zero: 'لا شيء لاستيراده',
+      one: 'استورد مصروفًا واحدًا',
+      two: 'استورد مصروفين',
+      few: 'استورد {n} مصاريف',
+      many: 'استورد {n} مصروفًا',
+      other: 'استورد {n} مصروف',
+    },
+    chooseWhoIs: 'اختر من يكون {name}',
+    chooseWhoArePlural: {
+      zero: 'لا أحد',
+      one: 'اختر من يكون هذا الشخص',
+      two: 'اختر من يكون هذان الشخصان',
+      few: 'اختر من يكون {n} أشخاص',
+      many: 'اختر من يكون {n} شخصًا',
+      other: 'اختر من يكون {n} شخص',
+    },
+    tapYourNameFirst: 'اضغط أولًا على الاسم الذي يخصّك — وإلا فلن يكون هذا السجلّ لك.',
+    imported: 'تم الاستيراد',
+    openTheGroup: 'افتح المجموعة',
+    importedCount: {
+      zero: 'لم يُستورد أي مصروف.',
+      one: 'استُورد مصروف واحد. إنه محفوظ على هذا الهاتف وسيُزامَن عند توفّر اتصال.',
+      two: 'استُورد مصروفان. إنهما محفوظان على هذا الهاتف وسيُزامَنان عند توفّر اتصال.',
+      few: 'استُوردت {n} مصاريف. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+      many: 'استُورد {n} مصروفًا. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+      other: 'استُورد {n} مصروف. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+    },
+    expenseCount: {
+      zero: 'لا مصاريف',
+      one: 'مصروف واحد',
+      two: 'مصروفان',
+      few: '{n} مصاريف',
+      many: '{n} مصروفًا',
+      other: '{n} مصروف',
+    },
+    settlementCount: {
+      zero: 'لا تسويات',
+      one: 'تسوية واحدة',
+      two: 'تسويتان',
+      few: '{n} تسويات',
+      many: '{n} تسوية',
+      other: '{n} تسوية',
+    },
+    peopleCount: {
+      zero: 'لا أشخاص',
+      one: 'شخص واحد',
+      two: 'شخصان',
+      few: '{n} أشخاص',
+      many: '{n} شخصًا',
+      other: '{n} شخص',
+    },
+    peopleAdded: {
+      zero: 'لم يُضف أحد',
+      one: 'أُضيف شخص واحد، في انتظار المطالبة',
+      two: 'أُضيف شخصان، في انتظار المطالبة',
+      few: 'أُضيف {n} أشخاص، في انتظار المطالبة',
+      many: 'أُضيف {n} شخصًا، في انتظار المطالبة',
+      other: 'أُضيف {n} شخص، في انتظار المطالبة',
+    },
+    rowsSkipped: {
+      zero: 'لن يُتخطّى أي صف',
+      one: 'سيُتخطّى صف واحد',
+      two: 'سيُتخطّى صفّان',
+      few: 'ستُتخطّى {n} صفوف',
+      many: 'سيُتخطّى {n} صفًا',
+      other: 'سيُتخطّى {n} صف',
+    },
+    andMore: '…و{n} غيرها.',
+    fromBaakiNote:
+      'يأتي كل رصيد بالفلس الواحد، بما في ذلك التسويات. وما لا يأتي: سجلّ تعديلات كل مصروف، وأي المصاريف طُبّقت عليها دفعة سابقة. ولا يغيّر أيٌّ منهما ما على أحد.',
+    fromSplitwiseNote:
+      'تأتي الأرصدة بالضبط. أما من دفع فلا: ملف Splitwise يسجّل فقط كم ارتفع أو انخفض كل شخص في صفٍّ ما، وكثير من الدافعين المختلفين يعطون النتيجة نفسها. كل مصروف مستورد يُوسم، ويمكنك تصحيح أي منها.',
+    otherCurrenciesNote:
+      'المبالغ أدناه هي مبالغ {currency}. وتأتي {others} أيضًا، ولا تُحوَّل أبدًا.',
+  },
+  pickers: {
+    contactsDenied:
+      'لا يستطيع باقي رؤية جهات اتصالك. ما زال بإمكانك إضافة أشخاص بكتابة اسم أو بريد أو رقم — لا شيء في المجموعة يحتاج دفتر عناوينك.',
+    openSettings: 'افتح الإعدادات',
+    contactsUnavailable:
+      'تعذّر على باقي قراءة دفتر العناوين على هذا الهاتف. لا خلل في أذوناتك — أضف الأشخاص بكتابة اسم أو بريد أو رقم بدلًا من ذلك.',
+    tryAgain: 'حاول مرة أخرى',
+    searchContacts: 'ابحث في جهات الاتصال',
+    contactCount: {
+      zero: 'لا جهات اتصال',
+      one: 'جهة اتصال واحدة',
+      two: 'جهتا اتصال',
+      few: '{n} جهات اتصال',
+      many: '{n} جهة اتصال',
+      other: '{n} جهة اتصال',
+    },
+    clearSearch: 'امسح البحث',
+    nobodyHere: 'لا أحد هنا',
+    noContactMatches: 'لا تطابق أي جهة اتصال ذلك.',
+    noneHasEmailOrNumber: 'لا يملك أي من جهات اتصالك بريدًا أو رقمًا.',
+    onlyPickedAreSent: 'لا يُرسل إلى باقي إلا من تختارهم. تبقى جهات اتصالك على هذا الهاتف.',
+    jumpToLetter: 'انتقل إلى حرف',
+    country: 'البلد',
+    settlesWith: '{country} · التسوية عبر {rails}',
+    notSet: 'غير محدد',
+    notSetRails: 'تحويل بنكي ونقد وWise وRevolut',
+    countryNote:
+      'يحدّد هذا كيف يمكنكم الدفع لبعضكم، وبأي عملة يبدأ المصروف الجديد. ولا يتغيّر شيء مما سُجّل من قبل.',
+    starts: 'يبدأ',
+    ends: 'ينتهي',
+    dailyReminders: 'تذكيرات يومية',
+    breakfast: 'الإفطار',
+    endOfDay: 'نهاية اليوم',
+    clearDates: 'امسح التواريخ',
+  },
+  dispute: {
+    yourReply: 'ردّك',
+    replyPlaceholder: 'اختياري — ما الذي حدث فعلًا',
+    saving: 'جارٍ الحفظ…',
+    theyAreRight: 'معهم حق — سأصحّحه',
+    itIsCorrect: 'إنه صحيح',
+    answerThis: 'ردّ على هذا',
+    youSaidWrong: 'قلت إن هذا خطأ',
+    whatIsWrong: 'ما الخطأ في هذا المصروف',
+    reasonPlaceholder: 'غادرت قبل الحلوى · كان المجموع ١٨٠٠',
+    reasonOptional: 'السبب اختياري، لكنه الفرق بين تصحيحٍ ونقاش.',
+    fixItMyself: 'سأصحّحه بنفسي',
+  },
+  upgradeScreen: {
+    moreScans: 'مسح فواتير أكثر',
+    moreScansBody:
+      'صوّر إيصالًا لتُقرأ أصنافه. كل عملية مسح تكلّف مالًا حقيقيًا، وهذا هو السبب الصريح لكونها الشيء الوحيد المحدود.',
+    biggerTransfers: 'تصدير واستيراد أكبر',
+    biggerTransfersBody:
+      'بياناتك لك وتخرج كاملة مجانًا. الأعمال الأكبر والنسخ الاحتياطي المجدول هي الراحة التي تُدفع.',
+    nothingToBuy: 'لا شيء للشراء بعد',
+    nothingToBuyBody:
+      'هذا هو الباب، لا المتجر. حين يوجد ما يستحق الدفع سيكون هنا، بسعره ودون مفاجآت.',
+    whatWouldCost: 'ما الذي قد يكلّف مالًا يومًا',
+    whatNeverWill: 'وما لن يكلّف أبدًا',
+    whatNeverWillBody:
+      'الدفتر. المجموعات والمصاريف والتقسيمات والأرصدة والتسوية، وإخراج كل ذلك مرة أخرى — {free}. الدفتر الذي لا تقرأ منه إلا نصفه ليس دفترًا.',
+  },
+  extras: {
+    blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',
+    iconLabel: 'أيقونة {emoji}',
+    whatKindOfGroup: 'أي نوع من المجموعات؟',
+    typeTrip: 'رحلة',
+    typeHome: 'المنزل',
+    typeCouple: 'ثنائي',
+    typeEvent: 'مناسبة',
+    typeOther: 'أخرى',
+    addPeopleByName: 'أضف أشخاصًا بالاسم',
+    ghostNote: 'لا يحتاجون التطبيق. أضفهم الآن ويمكنهم المطالبة بسجلّهم لاحقًا.',
+    claimHistoryNote: 'اختر اسمك فيأتي معك كل ما سُجّل لك من قبل.',
+    theirPastBecomesYours: 'تصبح مصاريفهم وأرصدتهم السابقة لك.',
+    guestKeepsItHere:
+      'الانضمام كضيف يُبقي كل شيء على هذا الجهاز. أضف رقم هاتف لاحقًا فيتبعك كل شيء إلى هاتف آخر.',
+    lockedTitle: 'باقي مقفل',
+    lockedBody: 'افتحه بالوجه أو البصمة نفسها التي تفتح هذا الهاتف.',
+    unlock: 'فتح',
+    paidIn: 'دُفع بـ',
+    iKnowTheRate: 'أعرف السعر',
+    notAnAmountShort: 'ليس مبلغًا',
+    oneChangeFailed: 'تعذّر حفظ تغيير واحد',
+    tryAgain: 'حاول مرة أخرى',
+    discardIt: 'تجاهله',
+    needsUpdating: 'يحتاج باقي إلى تحديث',
+    nothingIsLost:
+      'لم يضع شيء. كل مجموعة ومصروف وتسوية موجودة على الخادم وستجدها تمامًا حيث تركتها.',
+    worthAMinute: 'يستحق دقيقة حين تتوفر لديك.',
+    theGroup: 'المجموعة',
+    noGroupsYet:
+      'ليست لديك مجموعات بعد. في باقي ينتمي الشخص إلى مجموعة، لأن الدَّين يكون دائمًا عن شيء ما — رحلة أو سكن أو عشاء.',
+    ghostShareNote:
+      'لا يحتاجون التطبيق. تُسجَّل حصتهم باسمهم، وإن انضمّوا لاحقًا بهذا البريد أو الرقم طالبوا بكل ما ينتظرهم هناك.',
+    justMe: 'أنا فقط',
+    sms: 'رسالة نصية',
+    email: 'البريد',
+    paymentWentThrough: 'هل تمّت الدفعة؟',
+    onlyIfCompleted: 'لا تسجّلها إلا إذا تمّت فعلًا.',
+    restAppliesOverall: 'يُطبَّق الباقي على الرصيد الإجمالي، بدءًا بأقدم مصروف.',
+    couldNotReadImage: 'تعذّرت قراءة تلك الصورة.',
+    deliveryComesLater:
+      'يأتي الإرسال عبر الإشعارات والبريد مع M4. وحتى ذلك الحين يصل كل شيء إلى هنا.',
+    perCurrencyNote:
+      'تُحفظ المبالغ لكل عملة على حدة، ولا تُحوَّل أبدًا إلى مجموع واحد. ومن ليس لهم حساب يُحصَون في كل مجموعة على حدة، لأن شخصين قد يحملان الاسم نفسه.',
+    savedStraightAway:
+      'يُحفظ على هذا الهاتف فورًا، بإشارة أو بدونها. يعيد الخادم حساب كل حصة قبل تخزينها، فلا يستطيع أي جهاز دفع رقم خاطئ إلى الدفتر.',
+    nothingOverwritten:
+      'لا يُستبدل هنا شيء أبدًا. تُحفظ كل نسخة أعلاه، ويمكن استرجاع مصروف محذوف خلال 30 يومًا.',
   },
 };
 

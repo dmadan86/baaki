@@ -21,6 +21,8 @@ import { Platform, Pressable, View } from 'react-native';
 
 import { Button, Card, Row, Text, Toggle, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import type { GroupRow } from '@/data/types';
 
 type Field = 'start' | 'end' | 'morning' | 'evening';
@@ -113,6 +115,7 @@ export function TripDates({
   onChange: (patch: TripDatesPatch) => void;
 }) {
   const theme = useTheme();
+  const { t } = useStrings();
   const [editing, setEditing] = useState<Field | null>(null);
 
   const hasDates = Boolean(group.start_date && group.end_date);
@@ -159,12 +162,12 @@ export function TripDates({
 
       <Row style={{ gap: theme.spacing.lg }}>
         <FieldRow
-          label="Starts"
+          label={t.pickers.starts}
           value={showDate(group.start_date, locale)}
           onPress={() => setEditing('start')}
         />
         <FieldRow
-          label="Ends"
+          label={t.pickers.ends}
           value={showDate(group.end_date, locale)}
           onPress={() => setEditing('end')}
         />
@@ -176,7 +179,7 @@ export function TripDates({
 
           <Row style={{ justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">Daily reminders</Text>
+              <Text variant="subheading">{t.pickers.dailyReminders}</Text>
               <Text variant="caption" tone="muted">
                 {`Asked in ${group.time_zone.replace(/_/g, ' ')} — where the trip is, not where each person is.`}
               </Text>
@@ -184,7 +187,7 @@ export function TripDates({
             <Toggle
               value={group.remind_daily}
               onValueChange={(value) => onChange({ remind_daily: value })}
-              accessibilityLabel="Daily reminders"
+              accessibilityLabel={t.pickers.dailyReminders}
             />
           </Row>
 
@@ -192,12 +195,12 @@ export function TripDates({
             <>
               <Row style={{ gap: theme.spacing.lg }}>
                 <FieldRow
-                  label="Breakfast"
+                  label={t.pickers.breakfast}
                   value={showTime(group.remind_morning_at, locale)}
                   onPress={() => setEditing('morning')}
                 />
                 <FieldRow
-                  label="End of day"
+                  label={t.pickers.endOfDay}
                   value={showTime(group.remind_evening_at, locale)}
                   onPress={() => setEditing('evening')}
                 />
@@ -225,7 +228,7 @@ export function TripDates({
 
       {group.start_date && group.end_date ? (
         <Button
-          label="Clear dates"
+          label={t.pickers.clearDates}
           size="sm"
           variant="ghost"
           onPress={() => onChange({ start_date: null, end_date: null })}
@@ -252,7 +255,12 @@ export function TripDates({
       ) : null}
 
       {Platform.OS === 'ios' && editing ? (
-        <Button label="Done" size="sm" variant="secondary" onPress={() => setEditing(null)} />
+        <Button
+          label={t.common.done}
+          size="sm"
+          variant="secondary"
+          onPress={() => setEditing(null)}
+        />
       ) : null}
     </Card>
   );

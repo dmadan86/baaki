@@ -20,6 +20,8 @@ import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { COUNTRIES, countryName, railsFor } from '@baaki/core';
 import { Button, Card, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 export function CountryRow({
   countryCode,
   onChange,
@@ -28,6 +30,7 @@ export function CountryRow({
   onChange: (countryCode: string | null) => void;
 }) {
   const theme = useTheme();
+  const { t } = useStrings();
   const [open, setOpen] = useState(false);
 
   // What this choice actually buys, said in the row rather than in a help page.
@@ -40,12 +43,13 @@ export function CountryRow({
     <>
       <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
         <ListRow
-          title="Country"
-          subtitle={
-            countryCode
-              ? `${countryName(countryCode) ?? countryCode} · settles with ${rails}`
-              : `Not set · settles with ${rails}`
-          }
+          title={t.pickers.country}
+          subtitle={t.pickers.settlesWith
+            .replace(
+              '{country}',
+              countryCode ? (countryName(countryCode) ?? countryCode) : t.pickers.notSet,
+            )
+            .replace('{rails}', rails)}
           onPress={() => setOpen(true)}
         />
       </Card>
@@ -61,8 +65,7 @@ export function CountryRow({
           >
             <Text variant="heading">Where does this group settle?</Text>
             <Text variant="caption" tone="muted">
-              This decides how you can pay each other, and what currency a new expense starts in.
-              Nothing already recorded changes.
+              {t.pickers.countryNote}
             </Text>
           </View>
 
@@ -75,8 +78,8 @@ export function CountryRow({
             showsVerticalScrollIndicator={false}
           >
             <Choice
-              label="Not set"
-              hint="Bank transfer, cash, Wise and Revolut"
+              label={t.pickers.notSet}
+              hint={t.pickers.notSetRails}
               selected={countryCode === null}
               onPress={() => {
                 onChange(null);
@@ -101,7 +104,12 @@ export function CountryRow({
           </ScrollView>
 
           <View style={{ paddingHorizontal: theme.spacing.xl, paddingBottom: theme.spacing.lg }}>
-            <Button label="Close" variant="ghost" fullWidth onPress={() => setOpen(false)} />
+            <Button
+              label={t.common.close}
+              variant="ghost"
+              fullWidth
+              onPress={() => setOpen(false)}
+            />
           </View>
         </Screen>
       </Modal>

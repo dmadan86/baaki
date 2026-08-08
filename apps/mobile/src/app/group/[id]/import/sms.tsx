@@ -46,7 +46,7 @@ import { proposeFromSms, type ExpenseCandidate, type MemberId } from '@baaki/cor
 import { useGroup, useGroupLedger } from '@/data/hooks';
 import { planFromSms, toMutationPayload } from '@/data/importPlan';
 import { displayName } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { importMutationId } from '@/lib/importId';
 import { useImported } from '@/lib/imported';
@@ -68,7 +68,7 @@ function splitMessages(blob: string): string[] {
 
 export default function ImportSmsScreen() {
   const theme = useTheme();
-  const { locale } = useStrings();
+  const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
@@ -119,7 +119,7 @@ export default function ImportSmsScreen() {
 
   const confirm = async (): Promise<void> => {
     if (!effectivePayer) {
-      setError('Choose who paid');
+      setError(t.expense.chooseWhoPaid);
       return;
     }
     setError(null);
@@ -175,36 +175,33 @@ export default function ImportSmsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Close" onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={22} color={theme.color.text} />
           </IconButton>
           <Text variant="subheading" style={{ marginLeft: theme.spacing.md }}>
-            Import from messages
+            {t.smsImport.title}
           </Text>
         </Row>
 
         <Card style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
-            Open your messages app, select the bank messages from this trip, copy them, and paste
-            them here. Baaki reads them on this phone — nothing is sent anywhere until you confirm
-            an expense.
+            {t.smsImport.howTo}
           </Text>
           <Text variant="micro" tone="faint">
-            Baaki cannot read your inbox by itself. iPhones give no app that access, and on Android
-            it is reserved for whichever app you use as your messages app.
+            {t.smsImport.whyNotAutomatic}
           </Text>
         </Card>
 
         <View style={{ gap: theme.spacing.sm }}>
-          <SectionHeader title="The messages" />
+          <SectionHeader title={t.smsImport.messagesSection} />
           <Card style={{ gap: theme.spacing.sm }}>
             <TextInput
               value={blob}
               onChangeText={setBlob}
               multiline
               autoCapitalize="none"
-              accessibilityLabel="Paste bank messages"
-              placeholder={'Paste here.\n\nLeave a blank line between messages.'}
+              accessibilityLabel={t.smsImport.pasteLabel}
+              placeholder={t.smsImport.pastePlaceholder}
               placeholderTextColor={theme.color.textFaint}
               style={{
                 minHeight: 140,
@@ -216,35 +213,34 @@ export default function ImportSmsScreen() {
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="micro" tone="faint">
                 {messages.length === 0
-                  ? 'Nothing pasted yet'
-                  : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
+                  ? t.smsImport.nothingPasted
+                  : plural(locale, messages.length, t.smsImport.messageCount)}
               </Text>
-              <Button label="Paste" variant="ghost" onPress={() => void paste()} />
+              <Button label={t.smsImport.paste} variant="ghost" onPress={() => void paste()} />
             </Row>
           </Card>
         </View>
 
         <View style={{ gap: theme.spacing.sm }}>
-          <SectionHeader title="Between these dates" />
+          <SectionHeader title={t.smsImport.datesSection} />
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="micro" tone="faint">
-              Only payments inside this window are proposed, so the rest of your inbox stays out of
-              the group.
+              {t.smsImport.datesNote}
             </Text>
             <Row style={{ gap: theme.spacing.md }}>
-              <DateField label="From" value={from} onChange={setFrom} />
-              <DateField label="To" value={to} onChange={setTo} />
+              <DateField label={t.smsImport.from} value={from} onChange={setFrom} />
+              <DateField label={t.smsImport.to} value={to} onChange={setTo} />
             </Row>
             <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
               <Chip
-                label="Last 7 days"
+                label={t.smsImport.last7}
                 onPress={() => {
                   setFrom(daysAgo(7));
                   setTo(today());
                 }}
               />
               <Chip
-                label="Last 30 days"
+                label={t.smsImport.last30}
                 onPress={() => {
                   setFrom(daysAgo(30));
                   setTo(today());
@@ -256,14 +252,14 @@ export default function ImportSmsScreen() {
 
         {messages.length > 0 ? (
           <View style={{ gap: theme.spacing.sm }}>
-            <SectionHeader title="What was found" />
+            <SectionHeader title={t.smsImport.foundSection} />
             {importable.length === 0 ? (
               <EmptyState
-                title="Nothing to import"
+                title={t.smsImport.nothingToImport}
                 body={
                   candidates.length === 0
-                    ? 'None of those messages looked like a payment inside these dates. Reminders, one-time passwords and money coming in are all left out on purpose.'
-                    : 'Every payment found was in another currency.'
+                    ? t.smsImport.nothingLikeAPayment
+                    : t.smsImport.allAnotherCurrency
                 }
               />
             ) : (
@@ -281,12 +277,12 @@ export default function ImportSmsScreen() {
                         }
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: picked }}
-                        accessibilityLabel={`${candidate.merchant ?? 'Card payment'}, ${
-                          picked ? 'selected' : 'not selected'
+                        accessibilityLabel={`${candidate.merchant ?? t.smsImport.cardPayment}, ${
+                          picked ? t.smsImport.selected : t.smsImport.notSelected
                         }`}
                       >
                         <ListRow
-                          title={candidate.merchant ?? 'Card payment'}
+                          title={candidate.merchant ?? t.smsImport.cardPayment}
                           subtitle={subtitleFor(candidate, locale)}
                           leading={
                             <Ionicons
@@ -303,7 +299,7 @@ export default function ImportSmsScreen() {
                                 locale={locale}
                                 variant="subheading"
                               />
-                              {candidate.preselect ? null : <Badge label="Check this" />}
+                              {candidate.preselect ? null : <Badge label={t.smsImport.checkThis} />}
                             </View>
                           }
                         />
@@ -320,10 +316,10 @@ export default function ImportSmsScreen() {
             {otherCurrency.length > 0 ? (
               <Card>
                 <Text variant="caption" tone="muted">
-                  {otherCurrency.length} payment{otherCurrency.length === 1 ? ' was' : 's were'} in
-                  another currency. Add {otherCurrency.length === 1 ? 'it' : 'them'} by hand — the
-                  message does not say what rate you were charged, and this group keeps its money in{' '}
-                  {groupCurrency}.
+                  {plural(locale, otherCurrency.length, t.smsImport.otherCurrencyNote).replace(
+                    '{currency}',
+                    groupCurrency,
+                  )}
                 </Text>
               </Card>
             ) : null}
@@ -332,11 +328,10 @@ export default function ImportSmsScreen() {
 
         {importable.length > 0 ? (
           <View style={{ gap: theme.spacing.sm }}>
-            <SectionHeader title="Who paid" />
+            <SectionHeader title={t.smsImport.whoPaidSection} />
             <Card style={{ gap: theme.spacing.md }}>
               <Text variant="micro" tone="faint">
-                A bank message says what left your account, not who was there. These are split
-                equally between everyone in the group — change any of them afterwards.
+                {t.smsImport.whoPaidNote}
               </Text>
               <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
                 {memberRows.map((member) => (
@@ -360,20 +355,17 @@ export default function ImportSmsScreen() {
 
         {saved !== null ? (
           <Card>
-            <Text variant="caption">
-              {saved} expense{saved === 1 ? '' : 's'} added. They are saved on this phone and will
-              sync when there is a connection.
-            </Text>
+            <Text variant="caption">{plural(locale, saved, t.smsImport.addedCount)}</Text>
           </Card>
         ) : null}
 
         <Button
           label={
             saving
-              ? 'Adding…'
+              ? t.smsImport.adding
               : selected.length === 0
-                ? 'Nothing selected'
-                : `Add ${selected.length} expense${selected.length === 1 ? '' : 's'}`
+                ? t.smsImport.nothingSelected
+                : plural(locale, selected.length, t.smsImport.addCount)
           }
           onPress={() => void confirm()}
           disabled={selected.length === 0 || saving}
@@ -393,6 +385,7 @@ function DateField({
   onChange: (value: string) => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
   return (
     <View style={{ flex: 1, gap: 2 }}>
       <Text variant="micro" tone="faint">
@@ -403,8 +396,8 @@ function DateField({
         onChangeText={onChange}
         autoCapitalize="none"
         keyboardType="numbers-and-punctuation"
-        accessibilityLabel={`${label} date, year month day`}
-        placeholder="YYYY-MM-DD"
+        accessibilityLabel={t.smsImport.dateFieldLabel.replace('{label}', label)}
+        placeholder={t.smsImport.datePlaceholder}
         placeholderTextColor={theme.color.textFaint}
         style={{ fontSize: 16, color: theme.color.text, paddingVertical: theme.spacing.xs }}
       />

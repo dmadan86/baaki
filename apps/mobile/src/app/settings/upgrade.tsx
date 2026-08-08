@@ -19,21 +19,25 @@ import { ScrollView, View } from 'react-native';
 
 import { Card, directionalIcon, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
-import { useStrings } from '@/i18n';
+import { useStrings, type UiStrings } from '@/i18n';
 
 /** What a paid tier would be for, and what it would never touch. */
-const CONVENIENCES: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
-  {
-    icon: 'scan-outline',
-    title: 'More scanned bills',
-    body: 'Photograph a receipt and have the lines read off it. Every scan costs real money to run, which is the honest reason it is the thing with a limit.',
-  },
-  {
-    icon: 'cloud-download-outline',
-    title: 'Bigger exports and imports',
-    body: 'Your data is yours and leaves in full for free. Larger jobs and scheduled backups are the convenience.',
-  },
-];
+function conveniences(
+  t: UiStrings,
+): { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] {
+  return [
+    {
+      icon: 'scan-outline',
+      title: t.upgradeScreen.moreScans,
+      body: t.upgradeScreen.moreScansBody,
+    },
+    {
+      icon: 'cloud-download-outline',
+      title: t.upgradeScreen.biggerTransfers,
+      body: t.upgradeScreen.biggerTransfersBody,
+    },
+  ];
+}
 
 export default function UpgradeScreen() {
   const theme = useTheme();
@@ -64,19 +68,18 @@ export default function UpgradeScreen() {
               is text with an invisible pill behind it, and the heading is
               already the whole announcement. */}
           <Text variant="subheading" tone="brand">
-            Nothing to buy yet
+            {t.upgradeScreen.nothingToBuy}
           </Text>
           <Text variant="caption" tone="muted">
-            This is the door, not the shop. When there is something worth paying for it will be
-            here, with the price on it and no surprises.
+            {t.upgradeScreen.nothingToBuyBody}
           </Text>
         </Card>
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            What would ever cost money
+            {t.upgradeScreen.whatWouldCost}
           </Text>
-          {CONVENIENCES.map((item) => (
+          {conveniences(t).map((item) => (
             <Card key={item.title} style={{ gap: theme.spacing.sm }}>
               <Row style={{ gap: theme.spacing.sm }}>
                 <Ionicons name={item.icon} size={18} color={theme.color.brand} />
@@ -92,12 +95,10 @@ export default function UpgradeScreen() {
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ gap: theme.spacing.sm }}>
             <Ionicons name="lock-open-outline" size={18} color={theme.color.positive} />
-            <Text variant="subheading">What never will</Text>
+            <Text variant="subheading">{t.upgradeScreen.whatNeverWill}</Text>
           </Row>
           <Text variant="caption" tone="muted">
-            The ledger. Groups, expenses, splits, balances, settling up, and getting all of it back
-            out again — {t.freeForever.toLowerCase()}. A ledger you can only half read is not a
-            ledger.
+            {t.upgradeScreen.whatNeverWillBody.replace('{free}', t.freeForever.toLowerCase())}
           </Text>
         </Card>
       </ScrollView>
