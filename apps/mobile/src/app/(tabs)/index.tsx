@@ -78,7 +78,16 @@ export default function HomeScreen() {
         }
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <Avatar name={profile?.display_name ?? 'You'} size={46} />
+          {/* Your own face at the top of your own dashboard reads as a way in
+              to your account, so it is one. It goes to the same place the last
+              tab does rather than somewhere only reachable from here — two
+              routes to one screen, not a second screen that drifts. */}
+          <Avatar
+            name={profile?.display_name ?? 'You'}
+            size={46}
+            accessibilityLabel={t.profile}
+            onPress={() => router.navigate('/profile')}
+          />
           <View style={{ flex: 1 }}>
             <Text variant="caption" tone="muted">
               {t.greeting},
