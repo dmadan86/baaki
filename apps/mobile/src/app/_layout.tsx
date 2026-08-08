@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
+import { CampaignPopup } from '@/components/CampaignPopup';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
@@ -19,6 +20,7 @@ import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
 import { UpdateProvider } from '@/lib/update';
+import { initClarity } from '@/lib/clarity';
 import { initObservability, withObservability } from '@/lib/observability';
 import { ensureAndroidChannel, pushSupported, routeForNotification } from '@/lib/push';
 import { SyncProvider } from '@/sync';
@@ -26,6 +28,11 @@ import { SyncProvider } from '@/sync';
 // Before anything else renders, so a crash in the first frame is still caught.
 // Inert unless a DSN is configured.
 initObservability();
+
+// Brought up capturing nothing. Session replay would otherwise record other
+// people's expense descriptions, amounts and payment handles from the first
+// frame; `allowSessionReplay` is the only thing that starts it.
+initClarity();
 
 // Arriving while the app is open should still surface: a notification that is
 // silently swallowed because you happened to be looking at the app is the one
@@ -115,6 +122,10 @@ function RootLayout() {
                           <PushRouting />
                           <LockGate>
                             <AuthGate />
+                            {/* Inside the lock on purpose: a promotion is not a
+                                reason to show somebody's phone anything before
+                                they have unlocked it. */}
+                            <CampaignPopup />
                           </LockGate>
                           {/* Last, so it paints over the screen rather than
                               under it. */}
@@ -317,6 +328,9 @@ function AuthGate() {
       <Stack.Screen name="settings/language" />
       <Stack.Screen name="settings/upgrade" />
       <Stack.Screen name="settings/account" />
+      <Stack.Screen name="settings/feedback" />
+      <Stack.Screen name="settings/privacy" />
+      <Stack.Screen name="settings/delete-account" />
       <Stack.Screen name="join" />
       <Stack.Screen name="inbox" />
     </Stack>

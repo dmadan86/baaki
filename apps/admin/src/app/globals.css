@@ -1,0 +1,413 @@
+/**
+ * A console, not a product. It borrows Baaki's brand colour and nothing else:
+ * this screen is read in one sitting by one person looking for a number, so it
+ * is dense, quiet, and gets out of the way.
+ */
+
+:root {
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --border: #e6e5ef;
+  --text: #14131f;
+  --muted: #6a6880;
+  --faint: #9997ac;
+  --brand: #7a5af8;
+  --positive: #0f9d63;
+  --negative: #d1453b;
+  --radius: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0d16;
+    --surface: #17162280;
+    --border: #2a2840;
+    --text: #f4f3ff;
+    --muted: #9e9eb8;
+    --faint: #6b6b85;
+    --brand: #9b83ff;
+    --positive: #34d399;
+    --negative: #ff7b72;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 96px;
+}
+
+header.top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 36px 0 12px;
+}
+
+section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* ── tiles ── */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.tile .label {
+  font-size: 12px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.tile .value {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile .sub {
+  font-size: 12px;
+  color: var(--faint);
+  margin-top: 4px;
+}
+
+/* ── tables ── */
+
+.scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  text-align: right;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── sparkline-ish bars ── */
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 72px;
+  padding: 16px;
+}
+
+.bars .bar {
+  flex: 1;
+  min-width: 2px;
+  background: var(--brand);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.85;
+}
+
+.bars .bar.zero {
+  background: var(--border);
+  opacity: 1;
+}
+
+/* ── misc ── */
+
+.muted {
+  color: var(--muted);
+}
+.faint {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.note {
+  padding: 14px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--brand);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── login ── */
+
+.login {
+  max-width: 340px;
+  margin: 18vh auto;
+  padding: 0 24px;
+}
+
+.login form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+input[type='password'] {
+  font: inherit;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--brand);
+  color: #fff;
+  cursor: pointer;
+}
+
+.error {
+  color: var(--negative);
+  font-size: 13px;
+}
+
+/* ── nav ── */
+
+.nav {
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.nav a {
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.nav a[aria-current='page'] {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* ── flag editor ── */
+
+form.flag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
+}
+
+form.flag label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+form.flag label.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 10px;
+}
+
+form.flag select,
+form.flag input[type='date'],
+form.flag input[type='text'],
+form.flag input[type='number'] {
+  font: inherit;
+  padding: 8px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+form.flag input[type='number'] {
+  width: 92px;
+}
+
+form.flag button {
+  padding: 9px 16px;
+}
+
+/**
+ * Minimum responsive, and that is the whole ambition.
+ *
+ * This is read at a desk. The phone case that matters is checking a number
+ * while away from one, so the requirement is only that nothing is unreadable
+ * or unreachable — not that it is redesigned. The tiles already reflow on
+ * their own (`auto-fit`) and every table already scrolls inside its own
+ * container, so this is just tightening the gutters and stopping the header
+ * from squeezing the date into a column of single characters.
+ */
+@media (max-width: 640px) {
+  main {
+    padding: 20px 14px 64px;
+  }
+
+  header.top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  .tile .value {
+    font-size: 22px;
+  }
+
+  h2 {
+    margin: 28px 0 10px;
+  }
+
+  th,
+  td {
+    padding: 8px 10px;
+  }
+}
+
+/* ── feedback list ── */
+
+ul.feedback {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+ul.feedback li {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+ul.feedback li:last-child {
+  border-bottom: none;
+}
+
+ul.feedback p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+ul.feedback .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.tag {
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surfaceMuted, var(--border));
+  color: var(--muted);
+}
+
+.tag-bug {
+  background: #ff7b7222;
+  color: var(--negative);
+}
+.tag-idea {
+  background: #34d39922;
+  color: var(--positive);
+}
+.tag-deletion {
+  background: #9b83ff22;
+  color: var(--brand);
+}
+
+.gone {
+  font-style: italic;
+}

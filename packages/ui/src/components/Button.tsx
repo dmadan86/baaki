@@ -8,8 +8,15 @@ import { Text } from './Text';
  * `onBrand` and `onBrandOutline` are the pair that sits on the brand panel:
  * purple-on-purple is invisible there, so the filled one inverts to white with
  * a purple label and its partner is an outline in the panel's own white.
+ *
+ * `danger` is for the small number of actions that cannot be undone — erasing
+ * an account, and nothing else so far. It is filled rather than outlined so it
+ * cannot be mistaken for the secondary button beside it, and it borrows the
+ * semantic negative colour deliberately: in this app red already means money
+ * leaving, and a destructive action is the same warning in a different place.
  */
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'onBrand' | 'onBrandOutline';
+export type ButtonVariant =
+  'primary' | 'secondary' | 'ghost' | 'onBrand' | 'onBrandOutline' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
@@ -56,18 +63,24 @@ export function Button({
               ? pressed
                 ? theme.color.brandPressed
                 : theme.color.brand
-              : variant === 'secondary'
-                ? theme.color.brandSoft
-                : variant === 'onBrand'
-                  ? theme.color.onBrand
-                  : variant === 'onBrandOutline'
-                    ? pressed
-                      ? '#FFFFFF29'
-                      : '#FFFFFF1F'
-                    : 'transparent',
+              : variant === 'danger'
+                ? theme.color.negative
+                : variant === 'secondary'
+                  ? theme.color.brandSoft
+                  : variant === 'onBrand'
+                    ? theme.color.onBrand
+                    : variant === 'onBrandOutline'
+                      ? pressed
+                        ? '#FFFFFF29'
+                        : '#FFFFFF1F'
+                      : 'transparent',
           borderWidth: variant === 'onBrandOutline' ? 1 : 0,
           borderColor: variant === 'onBrandOutline' ? '#FFFFFF5C' : undefined,
-          opacity: disabled ? 0.45 : variant === 'onBrand' && pressed ? 0.9 : 1,
+          opacity: disabled
+            ? 0.45
+            : (variant === 'onBrand' || variant === 'danger') && pressed
+              ? 0.9
+              : 1,
         },
         variant === 'primary' && !disabled && theme.shadow.soft,
         style,
@@ -78,7 +91,9 @@ export function Button({
       <Text
         variant={size === 'sm' ? 'caption' : 'subheading'}
         tone={
-          variant === 'primary' ? 'onBrand' : variant === 'onBrandOutline' ? 'onBrand' : 'brand'
+          variant === 'primary' || variant === 'onBrandOutline' || variant === 'danger'
+            ? 'onBrand'
+            : 'brand'
         }
       >
         {label}
