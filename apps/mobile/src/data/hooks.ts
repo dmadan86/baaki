@@ -10,11 +10,17 @@
 
 import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { randomUUID } from 'expo-crypto';
 
 import {
   computeNetBalances,
   computePairwiseBalances,
+  materialiseExpenses,
+  materialiseGroups,
+  materialiseMembers,
+  materialiseSettlements,
   overlayPending,
+  rowsFor,
   simplify,
   type ExpenseSnapshot,
   type MemberId,
@@ -24,45 +30,30 @@ import {
 } from '@baaki/core';
 
 import { supabase } from '@/lib/supabase';
-import { useSync } from '@/sync';
+import { syncEngine, useSync } from '@/sync';
 import {
-  addGhostMember,
-  confirmSettlement,
   createGroup,
-  deleteExpense,
   disputeExpense,
-  fetchActivity,
   fetchAllBalances,
   fetchBalances,
   fetchExpenseVersions,
   fetchDisputes,
-  fetchExpenses,
   fetchItemClaims,
   fetchOpenReceipts,
   fetchReceipt,
-  fetchGroup,
-  fetchGroups,
   fetchGroupSpending,
-  fetchMembersByGroup,
-  fetchMembers,
-  fetchMyBalances,
   fetchNotifications,
-  fetchPendingSettlements,
-  fetchSettledTotals,
   fetchPlanItems,
-  fetchSettlements,
   markNotificationsRead,
   recordSettlement,
   resolveDispute,
   leaveGroup,
-  restoreExpense,
   updateGroup,
   updateMember,
   withdrawDispute,
-  writeExpense,
   type WriteExpenseInput,
 } from './api';
-import type { ExpenseRow, MemberRow, SettlementRow } from './types';
+import type { ActivityRow, ExpenseRow, GroupRow, MemberRow, SettlementRow } from './types';
 
 export const keys = {
   groups: ['groups'] as const,
@@ -78,10 +69,58 @@ export const keys = {
   spending: (id: string) => ['group', id, 'spending'] as const,
 };
 
-export function useGroups() {
-  return useQuery({ queryKey: keys.groups, queryFn: fetchGroups });
+/**
+ * A mirror read, wearing the shape of a query.
+ *
+ * The screens were written against React Query objects, and there is no reason
+ * for every one of them to learn a second vocabulary just because the rows now
+ * come off the disk instead of the wire. `isLoading` means "the mirror has not
+ * been read from SQLite yet" — a few milliseconds at launch — and never "we are
+ * waiting for the network", because nothing here waits for the network.
+ */
+export interface LocalRead<T> {
+  data: T;
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: false;
+  refetch: () => void;
 }
 
+function useLocalRead<T>(data: T): LocalRead<T> {
+  const { hydrated, status, flush } = useSync();
+  return {
+    data,
+    isLoading: !hydrated,
+    isFetching: status === 'syncing',
+    isError: false,
+    refetch: () => void flush(),
+  };
+}
+
+/**
+ * ADR-005: the UI reads local-first, always.
+ *
+ * These used to be network queries, and the app was offline-first in name only
+ * — the queue and the mirror were built and nothing read from them, so a phone
+ * with no signal opened on an empty ledger. Rows now come from the mirror the
+ * sync engine maintains; the network's only job is to fill it.
+ */
+export function useGroups(): LocalRead<GroupRow[]> {
+  const { mirror, queue } = useSync();
+  const groups = useMemo(
+    () => materialiseGroups(mirror, queue) as unknown as GroupRow[],
+    [mirror, queue],
+  );
+  return useLocalRead(groups);
+}
+
+/**
+ * The server's own derived balances. Deliberately still a network read and
+ * deliberately never rendered: this is the independent second opinion that
+ * `useGroupLedger` checks its arithmetic against (ADR-004). Reading it from the
+ * mirror would make it agree with the local computation by construction, which
+ * is the one thing a cross-check must not do.
+ */
 export function useAllBalances() {
   return useQuery({ queryKey: keys.allBalances, queryFn: fetchAllBalances });
 }
@@ -90,54 +129,88 @@ export function useAllBalances() {
  * How much has changed hands through this person, per currency. Not a balance
  * — see `fetchSettledTotals`.
  */
-export function useSettledTotals(profileId: string | null) {
-  return useQuery({
-    queryKey: ['settlements', 'settled', profileId],
-    queryFn: () => fetchSettledTotals(profileId as string),
-    enabled: Boolean(profileId),
-  });
+export function useSettledTotals(profileId: string | null): LocalRead<Map<string, bigint>> {
+  const { mirror } = useSync();
+
+  const totals = useMemo(() => {
+    const mine = new Set(
+      (rowsFor(mirror, 'group_members') as unknown as MemberRow[])
+        .filter((member) => member.profile_id === profileId)
+        .map((member) => member.id),
+    );
+
+    const out = new Map<string, bigint>();
+    for (const row of rowsFor(mirror, 'settlements') as unknown as SettlementRow[]) {
+      if (row.status !== 'confirmed' && row.status !== 'auto_confirmed') continue;
+      if (!mine.has(row.from_member_id) && !mine.has(row.to_member_id)) continue;
+      out.set(row.currency, (out.get(row.currency) ?? 0n) + BigInt(row.amount));
+    }
+    return out;
+  }, [mirror, profileId]);
+
+  return useLocalRead(totals);
 }
 
-/** Home-screen data: my balance per group, member counts, pending confirmations. */
+/**
+ * Home-screen data: my balance per group, member counts, pending confirmations.
+ *
+ * Every figure is computed here from mirrored rows rather than read from the
+ * server's `group_balances`, so the home screen shows the same numbers with the
+ * radio off as with it on — and an expense still sitting in the queue is
+ * already in them, because `materialiseExpenses` replays the queue on top.
+ */
 export function useHomeSummary(profileId: string | null) {
-  const balances = useQuery({
-    queryKey: ['balances', 'mine', profileId],
-    queryFn: () => fetchMyBalances(profileId as string),
-    enabled: Boolean(profileId),
-  });
-  const members = useQuery({ queryKey: ['members', 'byGroup'], queryFn: fetchMembersByGroup });
-  const pending = useQuery({
-    queryKey: ['settlements', 'pending'],
-    queryFn: fetchPendingSettlements,
-  });
+  const { mirror, queue, hydrated, status, flush } = useSync();
 
-  const byGroup = new Map<string, bigint>();
-  for (const row of balances.data ?? []) {
-    byGroup.set(row.group_id, (byGroup.get(row.group_id) ?? 0n) + BigInt(row.balance));
-  }
+  const summary = useMemo(() => {
+    const membersByGroup = new Map<string, MemberRow[]>();
+    const byGroup = new Map<string, bigint>();
+    const awaiting = new Set<string>();
 
-  let owed = 0n;
-  let owing = 0n;
-  for (const balance of byGroup.values()) {
-    if (balance > 0n) owed += balance;
-    else owing += -balance;
-  }
+    for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
+      const currency = group.default_currency ?? 'INR';
+      membersByGroup.set(
+        group.id,
+        materialiseMembers(mirror, queue, { groupId: group.id }) as unknown as MemberRow[],
+      );
+      const settlements = materialiseSettlements(mirror, queue, {
+        groupId: group.id,
+      }) as unknown as SettlementRow[];
 
-  const pendingByGroup = new Set((pending.data ?? []).map((row) => row.group_id));
+      const snapshots = materialiseExpenses(mirror, queue, { groupId: group.id })
+        .map((expense) => toSnapshot(expense as unknown as ExpenseRow))
+        .filter((snapshot): snapshot is ExpenseSnapshot => snapshot !== null);
+
+      const net = computeNetBalances(snapshots, settlements.map(toSettlementSnapshot));
+      const mine = (membersByGroup.get(group.id) ?? []).find(
+        (member) => member.profile_id === profileId,
+      );
+      if (mine) byGroup.set(group.id, net.get(currency)?.get(mine.id) ?? 0n);
+
+      if (settlements.some((settlement) => settlement.status === 'initiated')) {
+        awaiting.add(group.id);
+      }
+    }
+
+    let owed = 0n;
+    let owing = 0n;
+    for (const balance of byGroup.values()) {
+      if (balance > 0n) owed += balance;
+      else owing += -balance;
+    }
+
+    return { byGroup, membersByGroup, awaiting, totals: { net: owed - owing, owed, owing } };
+  }, [mirror, queue, profileId]);
 
   return {
-    balanceFor: (groupId: string) => byGroup.get(groupId) ?? 0n,
-    membersFor: (groupId: string) => members.data?.get(groupId) ?? [],
-    memberCountFor: (groupId: string) => members.data?.get(groupId)?.length ?? 0,
-    hasPending: (groupId: string) => pendingByGroup.has(groupId),
-    totals: { net: owed - owing, owed, owing },
-    isLoading: balances.isLoading || members.isLoading,
-    isFetching: balances.isFetching || members.isFetching || pending.isFetching,
-    refetch: () => {
-      void balances.refetch();
-      void members.refetch();
-      void pending.refetch();
-    },
+    balanceFor: (groupId: string) => summary.byGroup.get(groupId) ?? 0n,
+    membersFor: (groupId: string) => summary.membersByGroup.get(groupId) ?? [],
+    memberCountFor: (groupId: string) => summary.membersByGroup.get(groupId)?.length ?? 0,
+    hasPending: (groupId: string) => summary.awaiting.has(groupId),
+    totals: summary.totals,
+    isLoading: !hydrated,
+    isFetching: status === 'syncing',
+    refetch: () => void flush(),
   };
 }
 
@@ -157,45 +230,59 @@ export function usePendingAware(groupId: string, expenses: ExpenseRow[]): Expens
   );
 }
 
+/**
+ * One group, entirely from the mirror.
+ *
+ * `balances` is the exception and stays a network read — it is the server's
+ * independently derived answer, kept only so `useGroupLedger` can notice if the
+ * two ever disagree. It is allowed to be absent; a group opens without it.
+ */
 export function useGroup(groupId: string) {
-  const group = useQuery({
-    queryKey: keys.group(groupId),
-    queryFn: () => fetchGroup(groupId),
-    enabled: Boolean(groupId),
-  });
-  const members = useQuery({
-    queryKey: keys.members(groupId),
-    queryFn: () => fetchMembers(groupId),
-    enabled: Boolean(groupId),
-  });
-  const expenses = useQuery({
-    queryKey: keys.expenses(groupId),
-    queryFn: () => fetchExpenses(groupId),
-    enabled: Boolean(groupId),
-  });
-  const settlements = useQuery({
-    queryKey: keys.settlements(groupId),
-    queryFn: () => fetchSettlements(groupId),
-    enabled: Boolean(groupId),
-  });
-  const activity = useQuery({
-    queryKey: keys.activity(groupId),
-    queryFn: () => fetchActivity(groupId),
-    enabled: Boolean(groupId),
-  });
+  const { mirror, queue } = useSync();
+
+  const rows = useMemo(() => {
+    const group =
+      (materialiseGroups(mirror, queue).find((row) => row.id === groupId) as unknown as
+        GroupRow | undefined) ?? null;
+    const members = materialiseMembers(mirror, queue, { groupId }) as unknown as MemberRow[];
+    const settlements = materialiseSettlements(mirror, queue, {
+      groupId,
+    }) as unknown as SettlementRow[];
+    const activity = (rowsFor(mirror, 'activity_log', groupId) as unknown as ActivityRow[]).sort(
+      (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
+    );
+
+    // Server rows, and server rows with the queue replayed on top. Screens want
+    // the second; anything checking what the server actually knows wants the
+    // first, and conflating them is how a queued expense starts looking real
+    // enough to reconcile against.
+    const stored = (rowsFor(mirror, 'expenses', groupId) as unknown as ExpenseRow[]).sort((a, b) =>
+      String(b.created_at).localeCompare(String(a.created_at)),
+    );
+    const withPending = materialiseExpenses(mirror, queue, {
+      groupId,
+    }) as unknown as ExpenseRow[];
+
+    return { group, members, settlements, activity, stored, withPending };
+  }, [mirror, queue, groupId]);
+
+  const group = useLocalRead(rows.group);
+  const members = useLocalRead(rows.members);
+  const settlements = useLocalRead(rows.settlements);
+  const activity = useLocalRead(rows.activity);
+  const expenses = useLocalRead(rows.stored);
+
   const balances = useQuery({
     queryKey: keys.balances(groupId),
     queryFn: () => fetchBalances(groupId),
     enabled: Boolean(groupId),
   });
 
-  const withPending = usePendingAware(groupId, expenses.data ?? []);
-
   return {
     group,
     members,
-    // `expenses.data` is the server's answer; `expenses.rows` is what to render.
-    expenses: { ...expenses, rows: withPending },
+    // `expenses.data` is what the server has; `expenses.rows` is what to render.
+    expenses: { ...expenses, rows: rows.withPending },
     settlements,
     activity,
     balances,
@@ -324,8 +411,13 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
 }
 
 /**
- * Live group channel (TDR §1). Any change to the group's rows invalidates the
- * affected queries, so a second device sees an expense without a manual pull.
+ * Live group channel (TDR §1). Any change to the group's rows pulls the group,
+ * so a second device sees an expense without a manual refresh.
+ *
+ * It syncs rather than invalidates: the screen reads the mirror, so a query
+ * marked stale would change nothing on it. Realtime's job here is to say "there
+ * is something new", not to carry it — the row still arrives through sync,
+ * which is the one path that also writes it to disk.
  */
 export function useGroupRealtime(groupId: string): void {
   const queryClient = useQueryClient();
@@ -365,66 +457,145 @@ export function useGroupRealtime(groupId: string): void {
   }, [groupId, queryClient]);
 }
 
+/**
+ * Pull the group, and mark stale the few things still read over the network.
+ *
+ * Most of what a group screen shows now comes from the mirror, so the sync is
+ * the part that matters; the invalidations cover what sync does not carry —
+ * the server's cross-check balances, receipts, disputes and spending.
+ */
 export function invalidateGroup(queryClient: QueryClient, groupId: string): void {
+  void syncEngine.flush({ groupIds: [groupId] });
   void queryClient.invalidateQueries({ queryKey: ['group', groupId] });
-  void queryClient.invalidateQueries({ queryKey: keys.groups });
   void queryClient.invalidateQueries({ queryKey: keys.allBalances });
-  // The lifetime settled total is not scoped to a group, so nothing above
-  // reaches it. Confirming a settlement in one group left the figure on the
-  // account screen showing the old number until the app was restarted — a
-  // total that only updates when you kill the app is worse than no total.
-  void queryClient.invalidateQueries({ queryKey: ['settlements', 'settled'] });
 }
 
 // ─────────────────────────────────────────────────────────── mutations ──
 
+/**
+ * bigint does not survive JSON, and the queue is JSON on disk. Amounts go as
+ * decimal strings and come back exact — the one thing money may never do here
+ * is round-trip through a float.
+ */
+function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<string, unknown> {
+  return {
+    description: input.description.trim() || 'Expense',
+    category: input.category ?? null,
+    expenseDate: input.expenseDate,
+    currency: input.currency,
+    amount: input.amount.toString(),
+    fx: input.fx ?? null,
+    splitParams: input.splitParams,
+    participants: input.participants,
+    payers: Object.fromEntries(
+      Object.entries(input.payers).map(([member, amount]) => [member, amount.toString()]),
+    ),
+    expectedShares: input.expectedShares
+      ? Object.fromEntries(
+          Object.entries(input.expectedShares).map(([member, share]) => [member, share.toString()]),
+        )
+      : undefined,
+    notes: input.notes ?? null,
+  };
+}
+
+/**
+ * Every write below queues rather than calls.
+ *
+ * `mutate` persists the envelope to SQLite before it resolves and returns as
+ * soon as it is on disk, so the screen can move on at the speed of the phone
+ * and a force-kill on the next line still syncs. They used to call the RPCs
+ * directly, which meant every one of them simply failed with no signal —
+ * offline the app could read nothing and write nothing.
+ *
+ * The ids are generated here rather than by the database. A group has to have
+ * an id the moment it exists, because the expenses queued behind it reference
+ * it, and the server is told to use the one the client already chose.
+ */
 export function useCreateGroup() {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: createGroup,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: keys.groups });
+    mutationFn: async (input: Parameters<typeof createGroup>[0]) => {
+      const groupId = input.groupId ?? randomUUID();
+      await mutate('group.create', groupId, {
+        name: input.name?.trim() || null,
+        type: input.type,
+        currency: input.currency,
+        emoji: input.emoji ?? null,
+        simplify: input.simplify ?? true,
+        photoPath: input.photoPath ?? null,
+        country: input.country ?? null,
+      });
+      return groupId;
     },
   });
 }
 
 export function useWriteExpense(groupId: string) {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: (input: Omit<WriteExpenseInput, 'groupId'>) => writeExpense({ ...input, groupId }),
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    mutationFn: async (input: Omit<WriteExpenseInput, 'groupId'>) => {
+      const expenseId = input.expenseId ?? randomUUID();
+      await mutate(input.expenseId ? 'expense.update' : 'expense.create', groupId, {
+        ...serialiseExpense(input),
+        expenseId,
+      });
+      return expenseId;
+    },
   });
 }
 
 export function useDeleteExpense(groupId: string) {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: deleteExpense,
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    mutationFn: (expenseId: string) => mutate('expense.delete', groupId, { expenseId }),
   });
 }
 
 export function useRestoreExpense(groupId: string) {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: restoreExpense,
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    mutationFn: (expenseId: string) => mutate('expense.restore', groupId, { expenseId }),
   });
 }
 
 export function useRecordSettlement(groupId: string) {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: (input: Parameters<typeof recordSettlement>[0]) => recordSettlement(input),
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    mutationFn: (input: Parameters<typeof recordSettlement>[0]) =>
+      mutate(
+        'settlement.create',
+        input.groupId,
+        {
+          // Chosen here so the overlay has a stable row to show while it waits.
+          settlementId: randomUUID(),
+          from: input.fromMemberId,
+          to: input.toMemberId,
+          amount: input.amount.toString(),
+          // The enum only knows these four; `rail` carries the truth.
+          method: (['upi', 'cash', 'bank', 'other'] as const).includes(
+            input.rail as 'upi' | 'cash' | 'bank' | 'other',
+          )
+            ? input.rail
+            : 'other',
+          rail: input.rail,
+          currency: input.currency ?? null,
+          note: input.note ?? null,
+          allocations: (input.allocations ?? []).map((allocation) => ({
+            expenseId: allocation.expenseId,
+            amount: allocation.amount.toString(),
+          })),
+        },
+        input.clientMutationId,
+      ),
   });
 }
 
 export function useConfirmSettlement(groupId: string) {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: confirmSettlement,
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    mutationFn: (settlementId: string) =>
+      mutate('settlement.transition', groupId, { settlementId }),
   });
 }
 
@@ -496,13 +667,24 @@ export function useResolveDispute(groupId: string) {
 }
 
 export function useAddGhostMember(groupId: string) {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: (input: string | { name: string; email?: string | null; phone?: string | null }) =>
-      typeof input === 'string'
-        ? addGhostMember(groupId, input)
-        : addGhostMember(groupId, input.name, { email: input.email, phone: input.phone }),
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    mutationFn: async (
+      input: string | { name: string; email?: string | null; phone?: string | null },
+    ) => {
+      const person = typeof input === 'string' ? { name: input } : input;
+      // Chosen here so the expenses queued behind this member can already name
+      // them. Adding somebody and immediately splitting a bill with them is one
+      // action to a person, and offline it has to work like one.
+      const memberId = randomUUID();
+      await mutate('member.add_ghost', groupId, {
+        memberId,
+        name: person.name,
+        email: 'email' in person ? (person.email ?? null) : null,
+        phone: 'phone' in person ? (person.phone ?? null) : null,
+      });
+      return memberId;
+    },
   });
 }
 
@@ -520,10 +702,10 @@ export function useExpenseVersions(expenseId: string) {
 }
 
 export function useUpdateGroup(groupId: string) {
-  const queryClient = useQueryClient();
+  const { mutate } = useSync();
   return useMutation({
-    mutationFn: (patch: Parameters<typeof updateGroup>[1]) => updateGroup(groupId, patch),
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    mutationFn: (patch: Parameters<typeof updateGroup>[1]) =>
+      mutate('group.update', groupId, patch as Record<string, unknown>),
   });
 }
 
