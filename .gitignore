@@ -54,3 +54,6 @@ packages/core/dist/
 .next/
 out/
 next-env.d.ts
+
+# Vercel CLI link (project ids, not secrets — still not ours to commit)
+.vercel

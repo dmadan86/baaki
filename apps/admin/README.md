@@ -52,21 +52,34 @@ pnpm admin                                         # http://localhost:3100
 
 ## Deploying to Vercel
 
-1. **New Project** → import this repository.
-2. Set **Root Directory** to `apps/admin`. That is the whole monorepo story —
-   Vercel installs from the pnpm workspace at the repo root and builds this app.
-   Framework preset is Next.js; leave the build and output settings alone.
-3. Add the four environment variables from `.env.example` for **Production**.
+Already deployed, as the `baaki-admin` project. What follows is what it took,
+because most of it is not obvious from the app's own config.
+
+1. **Root Directory must be `apps/admin`** — Settings → General on the
+   dashboard, or a `PATCH` to `/v9/projects/:id`. It is a project setting and
+   cannot be expressed in `vercel.json`. Deploying from inside `apps/admin`
+   instead fails at install: only that folder is uploaded, so
+   `@baaki/core: workspace:*` has nothing to resolve against.
+2. **Link the CLI at the repository root**, not at `apps/admin`. The whole
+   workspace has to be uploaded for pnpm to resolve it; Root Directory then
+   tells Vercel which part of it to build. With the root linked but no Root
+   Directory set, the build fails the other way — "No Next.js version
+   detected", because it looked for `next` in the root manifest.
+3. **`.vercelignore` at the repo root is load-bearing.** Without it the upload
+   includes `node_modules`, the Android build tree and a 165MB APK, and aborts
+   partway through 2.9GB.
+4. Add the four environment variables from `.env.example` for **Production**.
    Generate a fresh `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`; do not reuse
    the local ones.
-4. Turn on **Deployment Protection → Vercel Authentication**, scoped to both
-   Preview and Production.
+5. Confirm **Deployment Protection → Vercel Authentication** covers Preview and
+   Production. It was already on by default here — check rather than assume,
+   with `vercel project protection`.
 
-`vercel.json` pins the functions to `sin1`. The database is in
+`apps/admin/vercel.json` pins the functions to `sin1`. The database is in
 `ap-southeast-1`, and every page here is server-rendered from it — hosting the
 functions anywhere else adds a transpacific round trip to each of six queries.
 
-### Step 4 is not optional
+### Step 5 is not optional
 
 Everything else here is one password in front of the entire business. Vercel
 Authentication requires a login on your Vercel account before a request reaches
