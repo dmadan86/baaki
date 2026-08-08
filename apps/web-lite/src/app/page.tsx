@@ -2,16 +2,20 @@
  * There is no web app. This page exists because somebody will type the domain
  * in, and a blank 404 tells them nothing about what they were sent.
  */
-export default function Home() {
+
+import { headers } from 'next/headers';
+
+import { pickLanguage, stringsFor } from '@/i18n';
+
+export default async function Home() {
+  const t = stringsFor(pickLanguage((await headers()).get('accept-language')));
+
   return (
     <main>
       <div className="card">
-        <h1>Baaki</h1>
-        <p>
-          Split expenses without the argument at the end. This page is only for opening an invite
-          link — if somebody shared a group with you, open their link rather than this address.
-        </p>
-        <p className="faint">Everything else lives in the app.</p>
+        <h1>{t.home.title}</h1>
+        <p>{t.home.description}</p>
+        <p className="faint">{t.home.elsewhere}</p>
       </div>
     </main>
   );

@@ -22,11 +22,14 @@ import { nameOf, type Group, type Member } from '@baaki/api-client';
 
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
+import { fill } from '@/i18n';
+import { useStrings } from '@/i18n-context';
 
 export default function AddExpensePage() {
   const params = useParams<{ groupId: string }>();
   const router = useRouter();
   const groupId = params.groupId;
+  const { t } = useStrings();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -110,7 +113,7 @@ export default function AddExpensePage() {
     try {
       await baaki.writeExpense({
         groupId,
-        description: description.trim() || 'Expense',
+        description: description.trim() || t.add.defaultDescription,
         expenseDate: new Date().toISOString().slice(0, 10),
         currency,
         amount,
@@ -126,13 +129,22 @@ export default function AddExpensePage() {
       setError(caught instanceof Error ? caught.message : String(caught));
       setSaving(false);
     }
-  }, [amount, payer, participants, groupId, description, currency, router]);
+  }, [
+    amount,
+    payer,
+    participants,
+    groupId,
+    description,
+    currency,
+    router,
+    t.add.defaultDescription,
+  ]);
 
   if (!group) {
     return (
       <main>
         <div className="card">
-          <p className="muted">Loading…</p>
+          <p className="muted">{t.group.loading}</p>
         </div>
       </main>
     );
@@ -143,27 +155,25 @@ export default function AddExpensePage() {
   return (
     <main>
       <div className="card">
-        <h1>Add an expense</h1>
+        <h1>{t.add.title}</h1>
         <input
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="What was it?"
-          aria-label="What was it?"
+          placeholder={t.add.whatWasIt}
+          aria-label={t.add.whatWasIt}
         />
         <input
           value={amountText}
           onChange={(event) => setAmountText(event.target.value)}
           inputMode="decimal"
-          placeholder={`How much? (${currency})`}
-          aria-label={`Amount in ${currency}`}
+          placeholder={fill(t.add.howMuch, { currency })}
+          aria-label={fill(t.add.amountIn, { currency })}
         />
-        {amountText.trim() && amount === null ? (
-          <p className="error">That is not an amount.</p>
-        ) : null}
+        {amountText.trim() && amount === null ? <p className="error">{t.add.notAnAmount}</p> : null}
       </div>
 
       <div className="card">
-        <h2>Who paid</h2>
+        <h2>{t.add.whoPaid}</h2>
         <div className="people">
           {members.map((member) => (
             <button
@@ -173,14 +183,14 @@ export default function AddExpensePage() {
               aria-pressed={payer === member.id}
               onClick={() => setPayer(member.id)}
             >
-              {member.profile_id === myProfileId ? 'You' : nameOf(member)}
+              {member.profile_id === myProfileId ? t.add.you : nameOf(member)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="card">
-        <h2>Split between</h2>
+        <h2>{t.add.splitBetween}</h2>
         <div className="people">
           {members.map((member) => (
             <button
@@ -190,7 +200,7 @@ export default function AddExpensePage() {
               aria-pressed={participants.includes(member.id)}
               onClick={() => toggle(member.id)}
             >
-              {member.profile_id === myProfileId ? 'You' : nameOf(member)}
+              {member.profile_id === myProfileId ? t.add.you : nameOf(member)}
             </button>
           ))}
         </div>
@@ -202,9 +212,7 @@ export default function AddExpensePage() {
                 <span className="money">{money(share, currency)}</span>
               </div>
             ))}
-            <p className="faint">
-              Split equally. For exact shares or an itemised bill, use the app.
-            </p>
+            <p className="faint">{t.add.splitEquallyNote}</p>
           </>
         ) : null}
       </div>
@@ -212,10 +220,10 @@ export default function AddExpensePage() {
       {error ? <p className="error">{error}</p> : null}
 
       <button type="button" onClick={() => void save()} disabled={!ready || saving}>
-        {saving ? 'Saving…' : 'Save'}
+        {saving ? t.add.saving : t.add.save}
       </button>
       <button type="button" className="ghost" onClick={() => router.back()}>
-        Cancel
+        {t.add.cancel}
       </button>
     </main>
   );

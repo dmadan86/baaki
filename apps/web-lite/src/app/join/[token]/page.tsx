@@ -21,11 +21,14 @@ import { useParams, useRouter } from 'next/navigation';
 import type { InvitePreview } from '@baaki/api-client';
 
 import { baaki } from '@/lib/baaki';
+import { fill, plural } from '@/i18n';
+import { useStrings } from '@/i18n-context';
 
 export default function JoinPage() {
   const params = useParams<{ token: string }>();
   const router = useRouter();
   const token = params.token;
+  const { t, locale } = useStrings();
 
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [claimId, setClaimId] = useState<string | null>(null);
@@ -72,11 +75,9 @@ export default function JoinPage() {
     return (
       <main>
         <div className="card">
-          <h1>This link does not work</h1>
+          <h1>{t.join.linkBroken}</h1>
           <p>{error}</p>
-          <p className="faint">
-            Links expire, and whoever shared it can turn it off. Ask them for a new one.
-          </p>
+          <p className="faint">{t.join.linkBrokenBody}</p>
         </div>
       </main>
     );
@@ -86,34 +87,28 @@ export default function JoinPage() {
     return (
       <main>
         <div className="card">
-          <p className="muted">Opening the link…</p>
+          <p className="muted">{t.join.opening}</p>
         </div>
       </main>
     );
   }
 
-  const groupName = preview.group?.name?.trim() || 'a group';
+  const groupName = preview.group?.name?.trim() || t.join.aGroup;
 
   return (
     <main>
       <div className="card">
         <h1>
           {preview.group?.cover_emoji ? `${preview.group.cover_emoji} ` : ''}
-          You have been added to {groupName}
+          {fill(t.join.addedTo, { group: groupName })}
         </h1>
-        <p>
-          {preview.memberCount} {preview.memberCount === 1 ? 'person is' : 'people are'} splitting
-          costs here. You can join and add an expense right now — nothing to install.
-        </p>
+        <p>{plural(locale, preview.memberCount, t.join.splittingHere)}</p>
       </div>
 
       {preview.claimable.length > 0 ? (
         <div className="card">
-          <h2>Which one are you?</h2>
-          <p className="faint">
-            Somebody already added these names. Picking yours keeps the expenses already filed
-            against it.
-          </p>
+          <h2>{t.join.whichOneAreYou}</h2>
+          <p className="faint">{t.join.claimNote}</p>
           <div className="people">
             {preview.claimable.map((person) => (
               <button
@@ -123,7 +118,7 @@ export default function JoinPage() {
                 aria-pressed={claimId === person.memberId}
                 onClick={() => setClaimId(person.memberId)}
               >
-                {person.name ?? 'Someone'}
+                {person.name ?? t.join.someone}
               </button>
             ))}
             <button
@@ -132,7 +127,7 @@ export default function JoinPage() {
               aria-pressed={claimId === null}
               onClick={() => setClaimId(null)}
             >
-              None of these
+              {t.join.noneOfThese}
             </button>
           </div>
         </div>
@@ -140,24 +135,22 @@ export default function JoinPage() {
 
       {claimId === null ? (
         <div className="card">
-          <h2>Your name</h2>
+          <h2>{t.join.yourName}</h2>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="What should they call you?"
-            aria-label="Your name"
+            placeholder={t.join.namePlaceholder}
+            aria-label={t.join.yourName}
             autoComplete="name"
           />
-          <p className="faint">
-            This is the only thing asked of you. No email, no password, no app.
-          </p>
+          <p className="faint">{t.join.onlyThingAsked}</p>
         </div>
       ) : null}
 
       {error ? <p className="error">{error}</p> : null}
 
       <button type="button" onClick={() => void join()} disabled={joining}>
-        {joining ? 'Joining…' : `Join ${groupName}`}
+        {joining ? t.join.joining : fill(t.join.joinGroup, { group: groupName })}
       </button>
     </main>
   );
