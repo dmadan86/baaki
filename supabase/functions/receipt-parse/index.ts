@@ -22,6 +22,7 @@ import {
   json,
   requireMembership,
 } from '../_shared/auth.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 interface ParseRequest {
   groupId: string;
@@ -162,6 +163,11 @@ Deno.serve(async (request) => {
     const caller = asCaller(request);
     const { profileId } = await requireMembership(caller, body.groupId);
     const service = asService();
+
+    // Speed first, then the monthly allowance. Both refuse with a 429 and they
+    // are not the same refusal: this one says slow down, the next says you have
+    // spent what you are entitled to this month.
+    await enforceRateLimit(service, request, 'receipt-parse', profileId);
 
     // Quota before the model call, never after — the point is not to spend the
     // money, not to notice afterwards that we did.

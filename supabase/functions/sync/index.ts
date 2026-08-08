@@ -40,6 +40,7 @@ import {
   HttpError,
   json,
 } from '../_shared/auth.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 type MutationKind =
   | 'expense.create'
@@ -125,6 +126,11 @@ Deno.serve(async (request) => {
       throw new HttpError(401, 'NOT_AUTHENTICATED', 'Sign in first');
     }
     const profileId = user.user.id;
+
+    // After the identity is known, so a person is counted rather than whatever
+    // address they happen to be behind — a café full of users on one NAT is not
+    // one abuser.
+    await enforceRateLimit(service, request, 'sync', profileId);
 
     const session = new SyncSession(caller, service, profileId);
     const outcomes: Outcome[] = [];

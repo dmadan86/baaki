@@ -253,6 +253,18 @@ export interface UiStrings {
     notFound: string;
     goBack: string;
     ok: string;
+    /**
+     * A 429 from an edge function, said without a number.
+     *
+     * The server knows exactly how many seconds are left and sends them in
+     * `Retry-After`; these two sentences deliberately do not repeat it. A
+     * countdown in a sentence needs plural agreement, and Arabic has six forms
+     * where English has two — so a template with `{seconds}` in it is either
+     * wrong in Arabic or a plural table for a message nobody should be seeing
+     * twice. The client picks between them on the length of the wait.
+     */
+    tooFastMoment: string;
+    tooFastLater: string;
   };
   /** Getting the whole ledger out, in full and for free (ADR-012). */
   exportData: {
@@ -1046,6 +1058,8 @@ const en: UiStrings = {
     notFound: 'Not found',
     goBack: 'Go back',
     ok: 'OK',
+    tooFastMoment: 'That was a lot at once. Wait a moment and try again.',
+    tooFastLater: 'That was a lot at once. Try again in a little while.',
   },
   onboarding: [
     {
@@ -1930,6 +1944,8 @@ const ta: UiStrings = {
     notFound: 'கிடைக்கவில்லை',
     goBack: 'திரும்பிச் செல்',
     ok: 'சரி',
+    tooFastMoment: 'ஒரே நேரத்தில் அதிகம். சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.',
+    tooFastLater: 'ஒரே நேரத்தில் அதிகம். சிறிது நேரம் கழித்து மீண்டும் முயலவும்.',
   },
   onboarding: [
     {
@@ -2826,6 +2842,8 @@ const hi: UiStrings = {
     notFound: 'नहीं मिला',
     goBack: 'वापस जाएँ',
     ok: 'ठीक है',
+    tooFastMoment: 'एक साथ बहुत ज़्यादा। थोड़ा रुककर फिर कोशिश करें।',
+    tooFastLater: 'एक साथ बहुत ज़्यादा। कुछ देर बाद फिर कोशिश करें।',
   },
   onboarding: [
     {
@@ -3696,6 +3714,8 @@ const ar: UiStrings = {
     notFound: 'غير موجود',
     goBack: 'العودة',
     ok: 'حسنًا',
+    tooFastMoment: 'محاولات كثيرة دفعة واحدة. انتظر قليلًا ثم أعد المحاولة.',
+    tooFastLater: 'محاولات كثيرة دفعة واحدة. أعد المحاولة بعد قليل.',
   },
   onboarding: [
     {
@@ -4606,6 +4626,29 @@ export const STRINGS_BY_LANGUAGE = STRINGS;
 export function deviceLanguage(): Language {
   const tag = getLocales()[0]?.languageCode ?? 'en';
   return tag === 'ta' || tag === 'hi' || tag === 'ar' ? tag : 'en';
+}
+
+/**
+ * The chosen language, readable from outside React.
+ *
+ * `useStrings` is the way to read strings and stays the way — every screen goes
+ * through it. This exists for the handful of places that have to say something
+ * to a person from outside the tree: `readFunctionError` in `data/api` turns an
+ * edge function's English refusal into a sentence, and it is a plain async
+ * function called from a mutation, not a component.
+ *
+ * Written by `LanguageProvider` and by nobody else, so it cannot drift from
+ * what is on screen. Before the provider mounts it is null and the phone's own
+ * language answers — the same default the provider itself starts from.
+ */
+let chosenLanguage: Language | null = null;
+
+export function setActiveLanguage(language: Language): void {
+  chosenLanguage = language;
+}
+
+export function activeStrings(): UiStrings {
+  return STRINGS[chosenLanguage ?? deviceLanguage()];
 }
 
 /**

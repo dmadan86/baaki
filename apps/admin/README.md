@@ -91,6 +91,46 @@ The password is a single shared secret with no second factor and no revocation
 short of changing it. That is an accepted trade for a one-person console _behind
 another door_, and a bad one on its own.
 
+### The custom domain took that door away
+
+**Current state, and it is not the state above.** The console answers on
+`baaki.dmadan.com`, and pointing a custom domain at a Vercel project removes it
+from Vercel Authentication's scope. Verified rather than assumed:
+
+```
+baaki-admin-dmadan.vercel.app            302 → vercel.com/sso-api   (protected)
+baaki-admin-git-main-dmadan.vercel.app   302 → vercel.com/sso-api   (protected)
+baaki-admin.vercel.app                   307 → baaki.dmadan.com     (open)
+baaki.dmadan.com                         307 → /login               (open)
+```
+
+The project is on the **Hobby** plan with
+`ssoProtection: all_except_custom_domains`, and that is not a misconfiguration
+to correct — it is the only setting Hobby has. Vercel's own words: "On the Hobby
+plan … your production domain remains publicly accessible. To protect production
+domains, you need a Pro or Enterprise plan." On Pro that scope is inside the
+Advanced Deployment Protection add-on at $150/month with a 30-day minimum, and
+Trusted IPs is Enterprise-only.
+
+So the second door has to come from somewhere other than Vercel. `dmadan.com`
+runs on Cloudflare and `baaki.dmadan.com` is currently DNS-only, which makes
+**Cloudflare Access** the cheap answer: free to 50 seats, and a real second
+factor by one-time PIN.
+
+Two things that must be true together, or neither is worth doing:
+
+1. `baaki.dmadan.com` proxied (orange cloud), SSL/TLS **Full (strict)**, with a
+   Zero Trust Access application in front of it.
+2. **The `.vercel.app` back door closed.** `baaki-admin.vercel.app` still serves
+   this console, and a request sent straight to Vercel's IP with
+   `Host: baaki.dmadan.com` walks around Cloudflare entirely. Closing it means a
+   secret header injected by a Cloudflare Transform Rule that `src/proxy.ts`
+   requires — a host check alone does not do it, because the host is exactly
+   what an attacker sets.
+
+Until both hold, treat `ADMIN_PASSWORD` as the only control on a public
+hostname, and size it accordingly.
+
 ## Notes for whoever changes this next
 
 - `src/lib/data.ts` begins with `import 'server-only'`. Keep it. It makes the

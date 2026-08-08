@@ -20,6 +20,17 @@ Rules for every function in this directory:
    shapes and known fields — it cannot tell a name from a word — so an error
    message must carry a code and an id, not a description. `HttpError` is never
    reported: a refusal the caller can act on is the function working.
+6. **Take a rate limit before doing the expensive or revealing thing.**
+   `enforceRateLimit(service, request, bucket, profileId)` from `rateLimit.ts`,
+   with the allowance for every bucket in that one file. Placement is the whole
+   of it: `invite-accept` counts _before_ the token lookup, because everything
+   after that line is the oracle; `fx-rate` counts _after_ the cache, because a
+   cache hit reaches no upstream and costs nobody anything.
+
+   A new function is not limited because it exists — add its bucket. The one
+   exception is `notify-fanout`, which is not for clients: it refuses anything
+   that is not the service role, and rate-limiting our own cron would only ever
+   break the cron.
 
 Planned functions, by milestone:
 
@@ -33,6 +44,26 @@ Planned functions, by milestone:
 | `email-events`         | M4        | Resend webhook ingestion + suppression list             |
 | `receipt-parse`        | M5        | Vision LLM itemization with quota metering              |
 | `export`               | M5        | Lossless JSON + locale-aware CSV, signed URL            |
+
+## What each bucket allows
+
+Set so that somebody using the app normally never meets one. The numbers live in
+`rateLimit.ts`; this table is here so the shape is reviewable without reading it.
+
+| Bucket          | Allowance    | Counted against | Why that number                                                         |
+| --------------- | ------------ | --------------- | ----------------------------------------------------------------------- |
+| `sync`          | 120 / minute | profile         | The sync engine pushes on every mutation and pulls on every foreground  |
+| `expense-write` | 60 / minute  | profile         | Far above any human, well below a script                                |
+| `fx-rate`       | 60 / minute  | profile         | Only the calls that miss the cache and reach an upstream                |
+| `receipt-parse` | 10 / minute  | profile         | On top of the monthly quota — stops a retry loop spending it in seconds |
+| `invite-mint`   | 30 / hour    | profile         | The live-link cap is per group, so somebody in many groups had none     |
+| `invite-accept` | 30 / hour    | **IP address**  | Answers before anybody signs in; the reason this exists                 |
+| `export-data`   | 10 / hour    | profile         | Reads a whole group and builds a file                                   |
+
+`invite-accept` is keyed on the client address because its preview deliberately
+answers before any identity exists (ADR-006) — there is no profile to blame yet.
+Everything else is keyed on the profile, so a café full of users behind one NAT
+is not treated as one abuser.
 
 ## Deviation: the Splitwise import is not a function
 

@@ -9,10 +9,28 @@ accepted architecture decisions) and [`baaki-tdr.md`](./baaki-tdr.md) (how to
 build them, milestone by milestone). **The ADRs are constraints, not
 suggestions** — if code and ADR disagree, the ADR wins.
 
-Current state: **M0 and M1 complete and verified against a live Supabase
-project**, plus most of the M3 growth loop (invite links, joining without an
-account, ghost claiming) and the M5 export. Still to come: offline sync (M2),
-Splitwise import (M3), push/email delivery (M4), and the AI receipt scan (M5).
+Current state, as of 2026-08-09. [TDR §10](./baaki-tdr.md) carries the evidence
+for each line; this is the summary.
+
+| Milestone               | State                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| M0 Foundations          | Complete                                                                              |
+| M1 Core ledger          | Complete, verified against the live project                                           |
+| M2 Offline sync         | Built — SQLite mirror, mutation queue, `/sync`, draft autosave                        |
+| M3 Growth loop          | **Complete.** 56 live checks across three harnesses, all against the deployed project |
+| M4 UPI + notifications  | **Not complete**, and the shortfall is bigger than the ✓ suggests — see below         |
+| M5 AI receipts + export | **Complete.** All four parts of the criterion have a proof behind them                |
+
+M4 is the largest incomplete block. The settle/confirm state machine, the 7-day
+auto-confirm, trip nudges, disputes and the push fan-out are all built and
+tested against a real database — but **the whole Resend half has no code at
+all**, and **no push has ever reached a device**, because FCM and APNs
+credentials are a console job nobody has done. A tested fan-out that cannot
+issue a token has not delivered anything.
+
+Also outstanding: `account-delete`. The erasure RPC removes a person's ledger
+rows and their auth identity survives it, which needs an edge function holding
+the service key.
 
 ## Layout
 
@@ -71,11 +89,23 @@ is what makes a retried run a no-op rather than a second buzz.
 
 | Function        | What it owns                                                                |
 | --------------- | --------------------------------------------------------------------------- |
+| `sync`          | Batch mutation replay and the change feed (TDR §4)                          |
 | `expense-write` | Recomputes every share with `@baaki/core` and writes the expense atomically |
 | `invite-mint`   | Signed, expiring, revocable invite links (only a hash is stored)            |
-| `invite-accept` | Preview without an account, join, and ghost claiming                        |
+| `invite-accept` | Preview without an account, join, and asking to claim a ghost               |
+| `receipt-parse` | Vision-model itemization, metered against the monthly quota                 |
+| `fx-rate`       | One upstream rate, cached, never an open proxy                              |
 | `export-data`   | Lossless JSON and CSV export                                                |
 | `notify-fanout` | Claims unsent inbox rows and pushes them via Expo; revokes dead devices     |
+
+All of them except `notify-fanout` — which refuses anything that is not the
+service role — take a rate limit before doing the expensive or revealing part of
+their work. The allowances live in `supabase/functions/_shared/rateLimit.ts` and
+are counted in Postgres, because Supabase discards edge isolates between
+requests and a counter held in one limits nothing. `invite-accept` is the reason
+the file exists: its preview answers before anybody signs in, which makes it an
+oracle for guessing invite tokens, and it is the one bucket keyed on the client
+address rather than on a profile.
 
 ### Running the full stack
 

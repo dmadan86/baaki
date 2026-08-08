@@ -21,6 +21,7 @@ import {
   HttpError,
   json,
 } from '../_shared/auth.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 interface AcceptRequest {
   token: string;
@@ -45,6 +46,16 @@ Deno.serve(async (request) => {
     if (!body.token) throw new HttpError(400, 'NO_TOKEN', 'This link is missing its token');
 
     const service = asService();
+
+    // Before the lookup, not after. Everything below this line is the oracle:
+    // one token in, "yes that is a real group" or "no" out. Counting after the
+    // answer has been computed would rate-limit nothing that matters.
+    //
+    // Keyed on the client address because there is no profile yet — preview
+    // deliberately answers before anybody signs in (ADR-006), which is exactly
+    // what makes it worth guarding.
+    await enforceRateLimit(service, request, 'invite-accept');
+
     const { data: invite, error } = await service
       .from('invites')
       .select('id, group_id, expires_at, revoked_at, max_uses, use_count')
