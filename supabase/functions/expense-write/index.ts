@@ -27,6 +27,7 @@ import {
   json,
   requireMembership,
 } from '../_shared/auth.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 interface ExpenseWriteRequest {
   groupId: string;
@@ -67,8 +68,10 @@ Deno.serve(async (request) => {
 
     const body = (await request.json()) as ExpenseWriteRequest;
     const caller = asCaller(request);
-    const { memberId } = await requireMembership(caller, body.groupId);
+    const { profileId, memberId } = await requireMembership(caller, body.groupId);
     const service = asService();
+
+    await enforceRateLimit(service, request, 'expense-write', profileId);
 
     // Replay of a mutation we already applied: return what we wrote before.
     const { data: existing } = await service

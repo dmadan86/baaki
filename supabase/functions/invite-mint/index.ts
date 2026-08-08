@@ -15,6 +15,7 @@ import {
   json,
   requireMembership,
 } from '../_shared/auth.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 interface MintRequest {
   groupId: string;
@@ -43,6 +44,10 @@ Deno.serve(async (request) => {
     const caller = asCaller(request);
     const { profileId } = await requireMembership(caller, body.groupId);
     const service = asService();
+
+    // The live-link cap below is per group, so somebody in many groups can mint
+    // as fast as they like across all of them. This is per person.
+    await enforceRateLimit(service, request, 'invite-mint', profileId);
 
     const { count } = await service
       .from('invites')

@@ -18,6 +18,7 @@ import {
   json,
   requireMembership,
 } from '../_shared/auth.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 interface ExportRequest {
   /** Omit to export every group the caller belongs to. */
@@ -42,6 +43,13 @@ Deno.serve(async (request) => {
     if (userError || !user?.user) {
       throw new HttpError(401, 'NOT_AUTHENTICATED', 'Sign in first');
     }
+
+    // The tightest bucket in the file. Called with no `groupId` this reads
+    // every group somebody belongs to and builds a file out of it — worth
+    // several seconds of database time, and worth doing ten times an hour at
+    // the very most. ADR-012 says export must always be available; it does not
+    // say it must be available in a loop.
+    await enforceRateLimit(service, request, 'export-data', user.user.id);
 
     let groupIds: string[];
     if (body.groupId) {

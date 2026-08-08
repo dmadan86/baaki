@@ -63,6 +63,7 @@ import {
   isRtlLanguage,
   LanguageContext,
   localeFor,
+  setActiveLanguage,
   STRINGS_BY_LANGUAGE,
   type Language,
 } from '@/i18n';
@@ -138,6 +139,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // keep up with the choice. On a device they have to keep up with the launch.
   useEffect(() => {
     setLayoutDirection(LAUNCHED_RTL ?? isRtlLanguage(language));
+  }, [language]);
+
+  // The one writer of the module-level mirror in `@/i18n`, so the few callers
+  // outside the React tree — `readFunctionError`, which has to turn a server
+  // refusal into a sentence — say it in the language on screen.
+  useEffect(() => {
+    setActiveLanguage(language);
   }, [language]);
 
   const setLanguage = useCallback(async (value: Language | null) => {

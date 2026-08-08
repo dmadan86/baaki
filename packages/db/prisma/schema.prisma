@@ -1004,3 +1004,28 @@ model TripPlanItem {
   @@map("trip_plan_items")
   @@schema("public")
 }
+
+/// How often a subject has called a bucket in the current window.
+///
+/// Disposable. Rows are a counter and nothing else — swept a day after their
+/// window closes, and safe to truncate at any time at the cost of resetting
+/// everybody's allowance.
+///
+/// `subject` is text and not a relation on purpose: most callers are a profile
+/// id, but `invite-accept`'s preview runs before any identity exists and is
+/// keyed on the client address instead. Written as `ip:<address>` there so the
+/// two can never collide.
+///
+/// The `hits >= 0` CHECK is in the migration and not here — Prisma has no way
+/// to express one, and `db:drift` does not read them either way.
+model RateLimitHit {
+  subject     String
+  bucket      String
+  windowStart DateTime @map("window_start") @db.Timestamptz(6)
+  hits        Int      @default(0)
+
+  @@id([subject, bucket, windowStart])
+  @@index([windowStart], map: "rate_limit_hits_window_start_idx")
+  @@map("rate_limit_hits")
+  @@schema("public")
+}

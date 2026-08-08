@@ -17,7 +17,15 @@
  * open currency proxy on somebody else's bill.
  */
 
-import { asCaller, CORS_HEADERS, errorResponse, HttpError, json } from '../_shared/auth.ts';
+import {
+  asCaller,
+  asService,
+  CORS_HEADERS,
+  errorResponse,
+  HttpError,
+  json,
+} from '../_shared/auth.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 /** ECB publishes once a working day, so a short cache is free accuracy-wise. */
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -65,8 +73,16 @@ Deno.serve(async (request) => {
     const key = `${from}:${to}`;
     const hit = cache.get(key);
     if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+      // Deliberately before the limiter. A cache hit costs nothing and reaches
+      // no upstream, and counting it would spend somebody's allowance on the
+      // one path this function is proud of.
       return json(hit.body);
     }
+
+    // Only the calls that leave the building. The cache is per-isolate, so a
+    // cold isolate misses and this is what stops a script turning every miss
+    // into an upstream request.
+    await enforceRateLimit(asService(), request, 'fx-rate', user.user.id);
 
     const response = await fetch(
       `https://api.frankfurter.dev/v1/latest?base=${from}&symbols=${to}`,

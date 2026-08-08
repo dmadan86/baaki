@@ -21,6 +21,7 @@ import {
   type SplitParams,
 } from '@baaki/core';
 
+import { activeStrings } from '@/i18n';
 import { supabase } from '@/lib/supabase';
 import type {
   ActivityGroup,
@@ -515,8 +516,24 @@ export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpen
 async function readFunctionError(error: unknown): Promise<string> {
   const context = (error as { context?: Response }).context;
   if (context && typeof context.json === 'function') {
+    // Read before the body, because `json()` consumes it and there is no second
+    // chance at the headers afterwards on some runtimes.
+    const retryAfter = Number(context.headers?.get?.('Retry-After') ?? '');
     try {
       const body = (await context.json()) as { code?: string; message?: string };
+
+      // The one refusal a person meets while doing nothing wrong, so it is the
+      // one that gets said in their own language. Everything else here is a
+      // developer-facing code and stays as it is: `NOT_A_MEMBER` in front of
+      // somebody is a bug report, and dressing it up as a sentence would hide
+      // one.
+      if (body?.code === 'RATE_LIMITED') {
+        const strings = activeStrings();
+        return Number.isFinite(retryAfter) && retryAfter > 60
+          ? strings.common.tooFastLater
+          : strings.common.tooFastMoment;
+      }
+
       if (body?.message) return body.code ? `${body.code}: ${body.message}` : body.message;
     } catch {
       /* fall through to the generic message */

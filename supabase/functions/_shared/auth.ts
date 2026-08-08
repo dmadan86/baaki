@@ -10,6 +10,10 @@
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
+// Re-exported so the version above is pinned in one place. `rateLimit.ts` needs
+// the type and should not be a second file deciding which SDK major this is.
+export type { SupabaseClient };
+
 export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -21,15 +25,21 @@ export class HttpError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /**
+     * Extra response headers. Only the rate limiter uses this so far, to send
+     * `Retry-After` — a 429 that does not say how long to wait is one every
+     * client has to guess at, and they guess "immediately".
+     */
+    readonly headers: Record<string, string> = {},
   ) {
     super(message);
   }
 }
 
-export function json(body: unknown, status = 200): Response {
+export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS_HEADERS, 'content-type': 'application/json' },
+    headers: { ...CORS_HEADERS, 'content-type': 'application/json', ...headers },
   });
 }
 
@@ -41,7 +51,7 @@ export async function errorResponse(
     // A refusal the caller can act on. Not a crash, and not reported — burying
     // the real failures under thousands of `NOT_A_MEMBER` is how a crash
     // reporter stops being read.
-    return json({ code: error.code, message: error.message }, error.status);
+    return json({ code: error.code, message: error.message }, error.status, error.headers);
   }
   const message = error instanceof Error ? error.message : String(error);
   // Never leak internals to the client; the detail stays in the function log.
