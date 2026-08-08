@@ -35,6 +35,8 @@ export default function JoinPage() {
   const [name, setName] = useState('');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** A claim has been sent and is waiting on an admin of the group. */
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,25 +53,42 @@ export default function JoinPage() {
     };
   }, [token]);
 
-  const join = useCallback(async () => {
-    setError(null);
-    setJoining(true);
-    try {
-      // The guest account is made first, then the invite is accepted against
-      // it. Same account when they later add an email, so the group and its
-      // history stay theirs rather than being re-joined as a stranger.
-      await baaki.signInAsGuest();
-      const accepted = await baaki.acceptInvite({
-        token,
-        claimMemberId: claimId,
-        displayName: claimId ? null : name.trim() || null,
-      });
-      router.replace(`/g/${accepted.group.id}`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
-      setJoining(false);
-    }
-  }, [token, claimId, name, router]);
+  /**
+   * `claim` is a parameter rather than read from state, because "join as
+   * someone new instead" clears the claim and joins in one tap — and the state
+   * update is not visible to the call that follows it.
+   */
+  const join = useCallback(
+    async (claim: string | null = claimId) => {
+      setError(null);
+      setJoining(true);
+      try {
+        // The guest account is made first, then the invite is accepted against
+        // it. Same account when they later add an email, so the group and its
+        // history stay theirs rather than being re-joined as a stranger.
+        await baaki.signInAsGuest();
+        const accepted = await baaki.acceptInvite({
+          token,
+          claimMemberId: claim,
+          displayName: claim ? name.trim() || null : name.trim() || null,
+        });
+
+        // Claiming somebody's place only asks now (ADR-006). Routing into the
+        // group would land on a page this person cannot read: they are not a
+        // member until an admin of the group agrees.
+        if (accepted.pending) {
+          setPending(true);
+          setJoining(false);
+          return;
+        }
+        router.replace(`/g/${accepted.group.id}`);
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : String(caught));
+        setJoining(false);
+      }
+    },
+    [token, claimId, name, router],
+  );
 
   if (error && !preview) {
     return (
@@ -94,6 +113,30 @@ export default function JoinPage() {
   }
 
   const groupName = preview.group?.name?.trim() || t.join.aGroup;
+  const claimedName =
+    preview.claimable.find((person) => person.memberId === claimId)?.name ?? t.join.someone;
+
+  if (pending) {
+    return (
+      <main>
+        <div className="card">
+          <h1>{t.join.waitingTitle}</h1>
+          <p>{fill(t.join.waitingBody, { group: groupName, name: claimedName })}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setClaimId(null);
+            setPending(false);
+            void join(null);
+          }}
+          disabled={joining}
+        >
+          {t.join.joinAsNewInstead}
+        </button>
+      </main>
+    );
+  }
 
   return (
     <main>
@@ -150,7 +193,11 @@ export default function JoinPage() {
       {error ? <p className="error">{error}</p> : null}
 
       <button type="button" onClick={() => void join()} disabled={joining}>
-        {joining ? t.join.joining : fill(t.join.joinGroup, { group: groupName })}
+        {joining
+          ? t.join.joining
+          : claimId
+            ? fill(t.join.askToJoinAs, { name: claimedName })
+            : fill(t.join.joinGroup, { group: groupName })}
       </button>
     </main>
   );

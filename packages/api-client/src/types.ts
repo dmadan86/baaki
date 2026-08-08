@@ -76,10 +76,22 @@ export interface InvitePreview {
   claimable: { memberId: string; name: string | null }[];
 }
 
+/**
+ * What came back from joining.
+ *
+ * Two shapes, because claiming somebody's place is now a request rather than a
+ * join (ADR-006): an admin of the group decides, and until they do the arrival
+ * is not a member and there is no `memberId` to give them.
+ */
 export interface AcceptedInvite {
   group: { id: string; name: string };
-  memberId: MemberId;
+  memberId?: MemberId;
   claimed?: boolean;
+  /** Waiting on an admin. `memberId` is absent. */
+  pending?: boolean;
+  claimId?: string;
+  /** They had already asked; this is the same request, not a second one. */
+  alreadyPending?: boolean;
 }
 
 /** The name web-lite shows for somebody. */

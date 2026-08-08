@@ -19,10 +19,17 @@ import {
 } from '@baaki/ui';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
-import { useAddGhostMember, useGroup, useGroupLedger } from '@/data/hooks';
+import {
+  useAddGhostMember,
+  useDecideMemberClaim,
+  useGroup,
+  useGroupLedger,
+  useMemberClaims,
+} from '@/data/hooks';
 import { displayName, groupLabel, isGhost, vpaOf } from '@/data/types';
-import { plural, useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { friendlyError } from '@/lib/errors';
 
 export default function MembersScreen() {
   const theme = useTheme();
@@ -34,15 +41,49 @@ export default function MembersScreen() {
   const { group, members } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const addGhost = useAddGhostMember(groupId);
+  const claims = useMemberClaims(groupId);
+  const decide = useDecideMemberClaim(groupId);
 
   const [ghostName, setGhostName] = useState('');
   const [ghostContact, setGhostContact] = useState('');
   const [browsing, setBrowsing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   const currency = group.data?.default_currency ?? 'INR';
   const ghosts = (members.data ?? []).filter(isGhost);
+
+  /**
+   * Answering a claim (ADR-006).
+   *
+   * The refusals are worth their own sentences: an admin who taps Confirm a
+   * second later than another admin, or on a place somebody has since taken,
+   * is not looking at a failure — they are looking at an answer that already
+   * happened, and "something went wrong" would send them to check the network.
+   */
+  const answer = (claimId: string, approve: boolean): void => {
+    setClaimError(null);
+    decide.mutate(
+      { claimId, approve },
+      {
+        onSuccess: (verdict) => {
+          if (verdict.ok) return;
+          const said =
+            verdict.reason === 'ALREADY_DECIDED'
+              ? t.claims.alreadyDecided
+              : verdict.reason === 'ALREADY_A_MEMBER'
+                ? t.claims.theyAreAlreadyIn
+                : verdict.reason === 'NOT_CLAIMABLE'
+                  ? t.claims.placeTaken
+                  : t.claims.decideFailed;
+          setClaimError(said);
+        },
+        onError: (caught) =>
+          setClaimError(friendlyError(caught, t.claims.decideFailed, 'claims.decide')),
+      },
+    );
+  };
 
   /**
    * One field for the address, whichever kind it is. Asking somebody to first
@@ -146,6 +187,48 @@ export default function MembersScreen() {
             <Ionicons name="share-outline" size={18} color={theme.color.brand} />
           </IconButton>
         </Row>
+
+        {/* Above the member list, because it is a question and the list is not.
+            Only admins ever see anything here: the function returns no rows to
+            anybody else, so the screen does not have to know who is one. */}
+        {(claims.data ?? []).length > 0 ? (
+          <Card style={{ gap: theme.spacing.md }}>
+            <Text variant="subheading">{t.claims.requestsTitle}</Text>
+            {claimError ? (
+              <Text variant="caption" tone="negative">
+                {claimError}
+              </Text>
+            ) : null}
+            {(claims.data ?? []).map((claim) => (
+              <View key={claim.id} style={{ gap: theme.spacing.sm }}>
+                <Row style={{ gap: theme.spacing.md }}>
+                  <Avatar name={claim.ghost_name ?? '?'} ghost />
+                  <Text variant="body" style={{ flex: 1 }}>
+                    {fill(t.claims.saysTheyAre, {
+                      who: claim.requested_name ?? claim.requester_name ?? t.misc.unnamed,
+                      name: claim.ghost_name ?? t.misc.unnamed,
+                    })}
+                  </Text>
+                </Row>
+                <Row style={{ gap: theme.spacing.sm }}>
+                  <Button
+                    label={t.claims.approve}
+                    size="sm"
+                    disabled={decide.isPending}
+                    onPress={() => answer(claim.id, true)}
+                  />
+                  <Button
+                    label={t.claims.decline}
+                    size="sm"
+                    variant="secondary"
+                    disabled={decide.isPending}
+                    onPress={() => answer(claim.id, false)}
+                  />
+                </Row>
+              </View>
+            ))}
+          </Card>
+        ) : null}
 
         <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
           {(members.data ?? []).map((member, index) => (

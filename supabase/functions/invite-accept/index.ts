@@ -110,27 +110,38 @@ Deno.serve(async (request) => {
         throw new HttpError(400, 'NOT_CLAIMABLE', 'That person has already been claimed');
       }
 
-      // The claim itself: the ghost row becomes this person's membership, so
-      // every share, payment and settlement already attached to it carries over
-      // untouched. No rows move, so nothing can be lost in the middle.
-      const { error: claimError } = await service
-        .from('group_members')
-        .update({
-          profile_id: profileId,
-          ghost_name: null,
-          joined_via: 'invite_link_claim',
-        })
-        .eq('id', ghost.id)
-        .is('profile_id', null); // loses safely if two people claim at once
-      if (claimError) throw new HttpError(409, 'CLAIM_FAILED', claimError.message);
-      memberId = ghost.id;
-
-      if (body.displayName) {
-        await service
-          .from('profiles')
-          .update({ display_name: body.displayName })
-          .eq('id', profileId);
+      // Asking, not taking. This used to hand the ghost over on the spot, which
+      // meant anybody holding the link could become "Ravi" and inherit every
+      // share and settlement filed under that name. ADR-006 always said the
+      // organizer confirms; now something does.
+      //
+      // Nobody joins here. The claim is decided by an admin through
+      // `baaki_decide_member_claim`, and that function — not this one — is
+      // where "who may approve this" lives, next to the table it guards.
+      const { data: verdict, error: claimError } = await service.rpc('baaki_request_member_claim', {
+        p_group_id: invite.group_id,
+        p_member_id: ghost.id,
+        p_profile_id: profileId,
+        p_name: body.displayName ?? null,
+      });
+      if (claimError) throw new HttpError(500, 'CLAIM_FAILED', claimError.message);
+      if (!verdict?.ok) {
+        throw new HttpError(
+          409,
+          verdict?.reason ?? 'NOT_CLAIMABLE',
+          'That place is no longer free to claim',
+        );
       }
+
+      // The name is not written yet: it belongs to somebody who has only said
+      // they are that person. It is carried on the claim and applied if and
+      // when an admin agrees.
+      return json({
+        group,
+        pending: true,
+        claimId: verdict.claim_id,
+        alreadyPending: verdict.already_pending === true,
+      });
     } else {
       const { data: inserted, error: insertError } = await service
         .from('group_members')

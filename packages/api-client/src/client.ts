@@ -91,10 +91,14 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     },
 
     /**
-     * Joining. `claimMemberId` takes over a ghost somebody already added, which
-     * is what keeps the expenses already filed against that name (ADR-006) —
-     * without it the arrival becomes a second person and the group has two of
-     * them.
+     * Joining. `claimMemberId` asks to take over a ghost somebody already
+     * added, which is what keeps the expenses already filed against that name
+     * (ADR-006) — without it the arrival becomes a second person and the group
+     * has two of them.
+     *
+     * Asking is not joining: a claim comes back `pending` with no `memberId`
+     * and waits on an admin of the group. Handing the place over on request
+     * would let anybody holding the link inherit that name's whole history.
      */
     acceptInvite(input: {
       token: string;

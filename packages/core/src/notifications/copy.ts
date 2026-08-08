@@ -39,7 +39,15 @@ export type NotificationKind =
    * copy that treats it as a dispute makes a fight out of a typo.
    */
   | 'expense_disputed'
-  | 'expense_dispute_resolved';
+  | 'expense_dispute_resolved'
+  /**
+   * Somebody saying they are the "Ravi" already listed in a group, and an
+   * admin answering (ADR-006). Approving hands over every share and settlement
+   * already filed under that name, which is why it is asked rather than taken.
+   */
+  | 'ghost_claim_requested'
+  | 'ghost_claim_approved'
+  | 'ghost_claim_declined';
 
 export interface CopyStrings {
   readonly money: {
@@ -97,6 +105,18 @@ const en: CopyStrings = {
       title: 'Your correction was answered',
       body: '{description} in {group}',
     },
+    ghost_claim_requested: {
+      title: 'Someone wants to join {group}',
+      body: 'They say they are {name}. Nothing changes until you confirm.',
+    },
+    ghost_claim_approved: {
+      title: 'You are in {group}',
+      body: 'Everything already filed under {name} is yours',
+    },
+    ghost_claim_declined: {
+      title: 'Not confirmed',
+      body: '{group} did not confirm that place. You can still join as yourself.',
+    },
   },
 };
 
@@ -145,6 +165,18 @@ const ta: CopyStrings = {
       title: 'உங்கள் திருத்தத்திற்கு பதில் வந்தது',
       body: '{description} ({group})',
     },
+    ghost_claim_requested: {
+      title: '{group} இல் சேர ஒருவர் கேட்கிறார்',
+      body: 'தாங்கள் {name} என்கிறார். நீங்கள் உறுதி செய்யும் வரை எதுவும் மாறாது.',
+    },
+    ghost_claim_approved: {
+      title: 'நீங்கள் {group} இல் சேர்ந்துவிட்டீர்கள்',
+      body: '{name} பெயரில் ஏற்கனவே பதிவானவை அனைத்தும் இப்போது உங்களுடையவை',
+    },
+    ghost_claim_declined: {
+      title: 'உறுதி செய்யப்படவில்லை',
+      body: '{group} அந்த இடத்தை உறுதி செய்யவில்லை. நீங்களாகவே சேரலாம்.',
+    },
   },
 };
 
@@ -186,6 +218,18 @@ const hi: CopyStrings = {
     expense_dispute_resolved: {
       title: 'आपके सुधार का जवाब आया',
       body: '{description} ({group})',
+    },
+    ghost_claim_requested: {
+      title: '{group} में कोई शामिल होना चाहता है',
+      body: 'उनका कहना है कि वे {name} हैं। आपकी पुष्टि तक कुछ नहीं बदलेगा।',
+    },
+    ghost_claim_approved: {
+      title: 'आप {group} में हैं',
+      body: '{name} के नाम पर जो कुछ पहले से दर्ज है, वह अब आपका है',
+    },
+    ghost_claim_declined: {
+      title: 'पुष्टि नहीं हुई',
+      body: '{group} ने वह जगह पक्की नहीं की। आप अपने नाम से शामिल हो सकते हैं।',
     },
   },
 };
@@ -234,6 +278,18 @@ const ar: CopyStrings = {
     expense_dispute_resolved: {
       title: 'وصل ردّ على تصحيحك',
       body: '{description} في {group}',
+    },
+    ghost_claim_requested: {
+      title: 'أحدهم يريد الانضمام إلى {group}',
+      body: 'يقول إنه {name}. لا يتغيّر شيء حتى تؤكّد.',
+    },
+    ghost_claim_approved: {
+      title: 'أنت الآن في {group}',
+      body: 'كل ما سُجّل باسم {name} صار لك',
+    },
+    ghost_claim_declined: {
+      title: 'لم يتم التأكيد',
+      body: 'لم تؤكّد {group} ذلك المكان. ما زال بإمكانك الانضمام باسمك.',
     },
   },
 };
