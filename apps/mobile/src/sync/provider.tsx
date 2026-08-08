@@ -23,6 +23,7 @@ import { randomUUID } from 'expo-crypto';
 import type { MutationEnvelope, MutationKind } from '@baaki/core';
 
 import { useAuth } from '@/lib/auth';
+import { reportHandled } from '@/lib/observability';
 
 import { syncEngine, type SyncState } from './engine';
 
@@ -54,8 +55,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!signedIn) {
       // Signing out wipes the mirror: the next person to use this phone must
-      // not find the previous account's ledger in it.
-      if (wasSignedIn.current) void syncEngine.clear();
+      // not find the previous account's ledger in it. Worth reporting rather
+      // than swallowing — a wipe that failed is a privacy problem, not a
+      // cosmetic one — but not worth throwing at a screen mid-sign-out.
+      if (wasSignedIn.current) {
+        void syncEngine.clear().catch((error: unknown) => reportHandled(error, 'sync.clear'));
+      }
       wasSignedIn.current = false;
       syncEngine.stop();
       return;
@@ -64,7 +69,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     wasSignedIn.current = true;
     let cancelled = false;
     void (async () => {
-      await syncEngine.hydrate();
+      // Nothing awaits this, so anything thrown here would surface as an
+      // uncaught promise rejection over whatever screen happens to be up.
+      // `flush` hydrates too, and records the failure where the banner can
+      // read it.
+      await syncEngine.hydrate().catch((error: unknown) => {
+        reportHandled(error, 'sync.hydrate');
+      });
       if (cancelled) return;
       syncEngine.start();
       void syncEngine.flush();
@@ -151,7 +162,11 @@ export function useDraft<T>(key: string, value: T, options: { enabled?: boolean 
   useEffect(() => {
     if (!enabled) return;
     const timer = setTimeout(() => {
-      void syncEngine.saveDraft(key, JSON.parse(serialised) as T);
+      // A draft is a convenience. Losing one to a busy disk is a shame; showing
+      // somebody a crash dialog in the middle of typing an expense is worse.
+      void syncEngine
+        .saveDraft(key, JSON.parse(serialised) as T)
+        .catch((error: unknown) => reportHandled(error, 'sync.saveDraft'));
     }, 300);
     return () => clearTimeout(timer);
   }, [key, serialised, enabled]);
@@ -169,6 +184,7 @@ export function useRestoredDraft<T>(key: string): { draft: T | null; loading: bo
       .then((value) => {
         if (active) setDraft(value);
       })
+      .catch((error: unknown) => reportHandled(error, 'sync.readDraft'))
       .finally(() => {
         if (active) setLoading(false);
       });

@@ -29,6 +29,7 @@ import {
   type SyncTable,
 } from '@baaki/core';
 
+import { reportHandled } from '@/lib/observability';
 import { supabase } from '@/lib/supabase';
 
 import { createLocalStore, type LocalStore, type StoredRow } from './store';
@@ -183,9 +184,19 @@ export class SyncEngine {
     // One in flight at a time: two concurrent flushes would send the same batch
     // twice. Harmless thanks to idempotency, but it wastes a round trip and
     // makes the outcome bookkeeping race.
-    this.flushing ??= this.runFlush(options).finally(() => {
-      this.flushing = null;
-    });
+    this.flushing ??= this.runFlush(options)
+      .catch((error: unknown) => {
+        // Hydration and disk failures arrive here. Flush is fired and forgotten
+        // from four places — a timer, foreground, reconnect and every enqueue —
+        // so a rejection has nobody waiting on it and lands on the screen as an
+        // uncaught promise rejection instead. The banner is where this belongs.
+        const message = error instanceof Error ? error.message : String(error);
+        reportHandled(error, 'sync.flush');
+        this.set({ status: 'error', lastError: message });
+      })
+      .finally(() => {
+        this.flushing = null;
+      });
     return this.flushing;
   }
 
@@ -274,8 +285,13 @@ export class SyncEngine {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const queue = markFailed(this.state.queue, batch, message, now);
-      await this.store.writeQueue(queue);
       this.set({ status: 'error', queue, lastError: message });
+      // Writing down *why* the sync failed must not itself become a louder
+      // failure that replaces the reason. The attempt counts are already in
+      // memory and the next flush writes them again.
+      await this.store.writeQueue(queue).catch((writeError: unknown) => {
+        reportHandled(writeError, 'sync.markFailed');
+      });
     }
   }
 
