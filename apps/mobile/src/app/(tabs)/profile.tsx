@@ -144,14 +144,6 @@ function settingsRows(t: UiStrings): SettingsRow[] {
       hint: t.privacy.rowHint,
       route: '/settings/privacy',
     },
-    // Last, and after the export row above it: somebody who has decided to
-    // leave should pass their own data on the way out.
-    {
-      icon: 'trash-outline',
-      label: t.privacy.deleteRow,
-      hint: t.privacy.deleteRowHint,
-      route: '/settings/delete-account',
-    },
   ];
 }
 
@@ -606,6 +598,17 @@ export default function ProfileScreen() {
                   label: t.lock.signOut,
                   hint: signOutHint,
                   onPress: confirmSignOut,
+                },
+                // Last row of the last section, under Sign out. It first sat in
+                // the middle of the settings list, because `settingsRows` is
+                // spread before Motion is appended — which put an irreversible
+                // action between "import a spreadsheet" and "animations on".
+                // Running it on a device is what showed that.
+                {
+                  icon: 'trash-outline',
+                  label: t.privacy.deleteRow,
+                  hint: t.privacy.deleteRowHint,
+                  route: '/settings/delete-account',
                 },
               ]}
             />

@@ -837,6 +837,11 @@ export interface UiStrings {
     choicesTitle: string;
     choicesBody: string;
     englishGoverns: string;
+    couldNotSave: string;
+    previewGroups: string;
+    previewExpenses: string;
+    previewSettlements: string;
+    previewOutstanding: string;
     feedbackRow: string;
     feedbackRowHint: string;
     feedbackTitle: string;
@@ -1660,6 +1665,11 @@ const en: UiStrings = {
       'Export everything you have entered, at any time, in full fidelity and for free. Turn off any notification. Delete your account and the personal data in it. Write to us with anything you want changed.',
     englishGoverns:
       'This text is translated for convenience. Where a translation and the English differ, the English is the one that governs.',
+    couldNotSave: 'That did not save. Please try again in a moment.',
+    previewGroups: 'You are in {n} group(s).',
+    previewExpenses: 'You entered {n} expense(s) that will stay.',
+    previewSettlements: 'You are named in {n} settlement(s).',
+    previewOutstanding: 'You still have an unsettled balance in {list}.',
     feedbackRow: 'Send feedback',
     feedbackRowHint: 'Tell us what is wrong, or what is missing',
     feedbackTitle: 'Send feedback',
@@ -2523,6 +2533,11 @@ const ta: UiStrings = {
       'நீங்கள் உள்ளிட்ட அனைத்தையும் எப்போது வேண்டுமானாலும், முழுமையாக, இலவசமாக ஏற்றுமதி செய்யலாம். எந்த அறிவிப்பையும் நிறுத்தலாம். உங்கள் கணக்கையும் அதிலுள்ள தனிப்பட்ட தரவையும் நீக்கலாம்.',
     englishGoverns:
       'இந்த உரை வசதிக்காக மொழிபெயர்க்கப்பட்டுள்ளது. மொழிபெயர்ப்புக்கும் ஆங்கிலத்துக்கும் வேறுபாடு இருந்தால், ஆங்கிலமே செல்லுபடியாகும்.',
+    couldNotSave: 'இது சேமிக்கப்படவில்லை. சிறிது நேரம் கழித்து முயற்சிக்கவும்.',
+    previewGroups: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
+    previewExpenses: 'நீங்கள் சேர்த்த {n} செலவுகள் இருக்கும்.',
+    previewSettlements: '{n} தீர்வுகளில் உங்கள் பெயர் உள்ளது.',
+    previewOutstanding: '{list} இல் இன்னும் தீராத நிலுவை உள்ளது.',
     feedbackRow: 'கருத்து அனுப்பு',
     feedbackRowHint: 'என்ன தவறு, அல்லது என்ன இல்லை என்று சொல்லுங்கள்',
     feedbackTitle: 'கருத்து அனுப்பு',
@@ -3352,6 +3367,11 @@ const hi: UiStrings = {
       'जो कुछ आपने डाला है, कभी भी, पूरा और मुफ़्त निर्यात करें। कोई भी सूचना बंद करें। अपना खाता और उसमें रखा निजी डेटा मिटाएँ।',
     englishGoverns:
       'यह पाठ सुविधा के लिए अनूदित है। अनुवाद और अंग्रेज़ी में अंतर हो तो अंग्रेज़ी ही मान्य होगी।',
+    couldNotSave: 'यह सहेजा नहीं जा सका। थोड़ी देर बाद फिर कोशिश करें।',
+    previewGroups: 'आप {n} समूह में हैं।',
+    previewExpenses: 'आपके डाले {n} ख़र्चे बने रहेंगे।',
+    previewSettlements: '{n} भुगतानों में आपका नाम है।',
+    previewOutstanding: '{list} में अब भी बकाया है।',
     feedbackRow: 'सुझाव भेजें',
     feedbackRowHint: 'बताइए क्या ग़लत है, या क्या नहीं है',
     feedbackTitle: 'सुझाव भेजें',
@@ -4305,6 +4325,11 @@ const ar: UiStrings = {
       'تصدير كل ما أدخلته، في أي وقت، كاملًا ومجانًا. إيقاف أي إشعار. حذف حسابك والبيانات الشخصية التي فيه.',
     englishGoverns:
       'هذا النص مترجم للتيسير. وعند الاختلاف بين الترجمة والإنجليزية، تكون الإنجليزية هي المعتمدة.',
+    couldNotSave: 'لم يُحفظ هذا. أعد المحاولة بعد قليل.',
+    previewGroups: 'أنت في {n} مجموعة.',
+    previewExpenses: 'ستبقى {n} من المصروفات التي أدخلتها.',
+    previewSettlements: 'اسمك مذكور في {n} تسوية.',
+    previewOutstanding: 'لا يزال لديك رصيد غير مسوّى بـ {list}.',
     feedbackRow: 'أرسل ملاحظاتك',
     feedbackRowHint: 'أخبرنا بما لا يعمل أو بما ينقص',
     feedbackTitle: 'أرسل ملاحظاتك',

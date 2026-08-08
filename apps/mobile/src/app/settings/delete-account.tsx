@@ -8,6 +8,7 @@ import { Button, Card, directionalIcon, IconButton, Row, Screen, Text, useTheme 
 
 import { deleteMyAccount, erasurePreview } from '@/data/api';
 import { fill, useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 
 /**
@@ -49,7 +50,7 @@ export default function DeleteAccountScreen() {
       // holds everything, with no way back in to try again.
       await signOut();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.privacy.couldNotSave, 'account.delete'));
     } finally {
       setBusy(false);
     }
@@ -104,14 +105,31 @@ export default function DeleteAccountScreen() {
           <Text variant="caption" tone="muted">
             {t.privacy.deleteStaysBody}
           </Text>
+          {/* Labelled, because the first version of this rendered as "1 · 3 · 0
+              · INR" — four numbers with nothing saying what any of them
+              counted, on the screen where somebody is deciding whether to
+              erase themselves. */}
           {preview.data ? (
-            <Text variant="micro" tone="faint">
-              {preview.data.groups_count} · {preview.data.expenses_authored} ·{' '}
-              {preview.data.settlements_involved}
-              {preview.data.outstanding_currencies.length > 0
-                ? ` · ${preview.data.outstanding_currencies.join(', ')}`
-                : ''}
-            </Text>
+            <View style={{ gap: 2, paddingTop: theme.spacing.xs }}>
+              <Text variant="micro" tone="faint">
+                {fill(t.privacy.previewGroups, { n: String(preview.data.groups_count) })}
+              </Text>
+              <Text variant="micro" tone="faint">
+                {fill(t.privacy.previewExpenses, { n: String(preview.data.expenses_authored) })}
+              </Text>
+              <Text variant="micro" tone="faint">
+                {fill(t.privacy.previewSettlements, {
+                  n: String(preview.data.settlements_involved),
+                })}
+              </Text>
+              {preview.data.outstanding_currencies.length > 0 ? (
+                <Text variant="micro" tone="negative">
+                  {fill(t.privacy.previewOutstanding, {
+                    list: preview.data.outstanding_currencies.join(', '),
+                  })}
+                </Text>
+              ) : null}
+            </View>
           ) : null}
         </Card>
 
