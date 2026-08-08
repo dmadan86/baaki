@@ -170,3 +170,60 @@ describe('walking an event', () => {
     expect(scrub({ when }).when).toBe(when);
   });
 });
+
+describe('a long string does not freeze the phone it crashed on', () => {
+  /**
+   * `EMAIL` and `VPA` both look for an `@` after a run of word characters. Left
+   * unbounded, the engine starts at every one of n positions, consumes the run,
+   * fails, and backtracks a character at a time — quadratic on any long run
+   * with no `@` in it. A JWT is precisely that shape, base64url being `[\w-]`
+   * throughout, and so is any base64url blob.
+   *
+   * This is not a micro-benchmark of a hot path. `scrub` runs in Sentry's
+   * `beforeSend`, on the JS thread, while the app is already crashing, and
+   * before the fix an 80k-character message took 10.2 seconds — a frozen phone
+   * on top of the fault being reported. The assertions are deliberately far
+   * looser than the real numbers (~17ms at 80k) so this fails on a restored
+   * quadratic and not on a slow CI box.
+   */
+  const timed = (input: string): number => {
+    const started = performance.now();
+    redactText(input);
+    return performance.now() - started;
+  };
+
+  it('redacts a long run with no address in it in linear time', () => {
+    expect(timed('a'.repeat(80_000))).toBeLessThan(1_000);
+  });
+
+  it('and a long JWT, which is the shape that actually turns up', () => {
+    // base64url has no `/` and no `.` inside a segment, so the whole token is
+    // one uninterrupted run of exactly the characters the pattern accepts.
+    const jwt = `eyJhbGciOiJIUzI1NiJ9.${'a'.repeat(80_000)}.c2ln`;
+    expect(timed(jwt)).toBeLessThan(1_000);
+  });
+
+  it('scales roughly with the input, not with its square', () => {
+    // The property, rather than a number: quadratic growth would make the
+    // 4x-longer input about 16x slower. A generous ceiling of 6x still catches
+    // that while leaving room for noise on a shared machine.
+    const small = Math.max(timed('a'.repeat(20_000)), 1);
+    const large = timed('a'.repeat(80_000));
+    expect(large / small).toBeLessThan(6);
+  });
+
+  it('still finds an address at the end of a long line', () => {
+    // The bound must not become a blind spot: a real address after 80k
+    // characters of noise is still an address, and still has to come out.
+    const line = `${'a '.repeat(40_000)}asha@example.co.in`;
+    expect(redactText(line)).toContain('[email]');
+    expect(redactText(line)).not.toContain('asha@example.co.in');
+  });
+
+  it('refuses to treat a 64-character-plus run as a local part', () => {
+    // What the bound gives up, stated so it is a decision rather than a
+    // surprise: nothing RFC 5321 allows, because 64 is its limit.
+    const real = `${'a'.repeat(64)}@example.com`;
+    expect(redactText(real)).toBe('[email]');
+  });
+});
