@@ -13,6 +13,8 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { Avatar, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import { avatarPhotoUrl } from '@/data/api';
 
 /** Resolves whatever is in `avatar_url` to a displayable URL, and re-resolves on change. */
@@ -56,6 +58,7 @@ export function ProfileAvatar({
   busy?: boolean;
 }) {
   const theme = useTheme();
+  const { t } = useStrings();
   const url = useAvatarUrl(avatarUrl);
 
   const body = (
@@ -104,7 +107,7 @@ export function ProfileAvatar({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={url ? 'Change your photo' : 'Add a photo'}
+      accessibilityLabel={url ? t.misc.changeYourPhoto : t.misc.addYourPhoto}
     >
       {body}
     </Pressable>

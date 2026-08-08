@@ -537,6 +537,53 @@ export interface UiStrings {
     withAdjustments: string;
     itemized: string;
   };
+  /** Starting a group, joining one by link, and the odds and ends around both. */
+  misc: {
+    newGroupPlaceholder: string;
+    personName: string;
+    createGroup: string;
+    linkExpired: string;
+    linkExpiredBody: string;
+    linkMissingCode: string;
+    goToBaaki: string;
+    freeNoAccount: string;
+    isOneOfTheseYou: string;
+    unnamed: string;
+    joinAndClaim: string;
+    joinGroup: string;
+    fromYourContacts: string;
+    continueWith: string;
+    noAddress: string;
+    addToWhichGroup: string;
+    addThemAllToWhichGroup: string;
+    startAGroup: string;
+    pickDifferentPeople: string;
+    someone: string;
+    serverRefused: string;
+    offlineSaved: string;
+    notAnAmount: string;
+    notARate: string;
+    paidAnotherCurrency: string;
+    whatIWasCharged: string;
+    askingRate: string;
+    getTodaysRate: string;
+    micPermission: string;
+    micBlocked: string;
+    dictationFailed: string;
+    stopDictating: string;
+    dictateNote: string;
+    updateBaaki: string;
+    alreadyUpdated: string;
+    update: string;
+    notNow: string;
+    changeGroupPhoto: string;
+    addGroupPhoto: string;
+    changeYourPhoto: string;
+    addYourPhoto: string;
+    followMyPhone: string;
+    currentlyLanguage: string;
+    rightToLeft: string;
+  };
 }
 
 const en: UiStrings = {
@@ -1001,6 +1048,53 @@ const en: UiStrings = {
     byShares: 'By shares',
     withAdjustments: 'With adjustments',
     itemized: 'Itemized',
+  },
+  misc: {
+    newGroupPlaceholder: 'Goa trip',
+    personName: "Person's name",
+    createGroup: 'Create group',
+    linkExpired: 'This link has expired',
+    linkExpiredBody:
+      'Ask whoever sent it for a fresh one — links expire so they cannot be passed around forever.',
+    linkMissingCode: 'This link is missing its invite code',
+    goToBaaki: 'Go to Baaki',
+    freeNoAccount: 'Free forever, no account needed',
+    isOneOfTheseYou: 'Is one of these you?',
+    unnamed: 'Unnamed',
+    joinAndClaim: 'Join and claim my history',
+    joinGroup: 'Join this group',
+    fromYourContacts: 'From your contacts',
+    continueWith: 'Continue with',
+    noAddress: 'No address',
+    addToWhichGroup: 'Add to which group?',
+    addThemAllToWhichGroup: 'Add them all to which group?',
+    startAGroup: 'Start a group',
+    pickDifferentPeople: 'Pick different people',
+    someone: 'Someone',
+    serverRefused: 'The server refused this change.',
+    offlineSaved: 'Offline — everything here is saved on this phone',
+    notAnAmount: 'That does not look like an amount',
+    notARate: 'That does not look like a rate',
+    paidAnotherCurrency: 'Paid in another currency',
+    whatIWasCharged: 'What I was charged',
+    askingRate: 'Asking…',
+    getTodaysRate: 'Get today’s {from}→{to} rate',
+    micPermission: 'Baaki needs permission to use the microphone.',
+    micBlocked: 'Microphone access is off for Baaki. You can turn it on in Settings.',
+    dictationFailed: 'Dictation could not start. Type the note instead.',
+    stopDictating: 'Stop dictating',
+    dictateNote: 'Dictate the note',
+    updateBaaki: 'Update Baaki',
+    alreadyUpdated: 'I have already updated',
+    update: 'Update',
+    notNow: 'Not now',
+    changeGroupPhoto: 'Change group photo',
+    addGroupPhoto: 'Add a group photo',
+    changeYourPhoto: 'Change your photo',
+    addYourPhoto: 'Add a photo',
+    followMyPhone: 'Follow my phone',
+    currentlyLanguage: 'Currently {language}',
+    rightToLeft: 'right to left',
   },
 };
 
@@ -1485,6 +1579,53 @@ const ta: UiStrings = {
     withAdjustments: 'சரிசெய்தலுடன்',
     itemized: 'பொருள் வாரியாக',
   },
+  misc: {
+    newGroupPlaceholder: 'கோவா பயணம்',
+    personName: 'நபரின் பெயர்',
+    createGroup: 'குழுவை உருவாக்கு',
+    linkExpired: 'இந்த இணைப்பு காலாவதியாகிவிட்டது',
+    linkExpiredBody:
+      'அனுப்பியவரிடம் புதிய ஒன்றைக் கேளுங்கள் — இணைப்புகள் காலாவதியாவதால்தான் அவை என்றென்றும் கைமாறுவதில்லை.',
+    linkMissingCode: 'இந்த இணைப்பில் அழைப்புக் குறியீடு இல்லை',
+    goToBaaki: 'பாக்கிக்குச் செல்',
+    freeNoAccount: 'எப்போதும் இலவசம், கணக்கு தேவையில்லை',
+    isOneOfTheseYou: 'இவர்களில் ஒருவர் நீங்களா?',
+    unnamed: 'பெயரிடப்படாதவர்',
+    joinAndClaim: 'சேர்ந்து என் வரலாற்றை உரிமை கொள்',
+    joinGroup: 'இந்தக் குழுவில் சேர்',
+    fromYourContacts: 'உங்கள் தொடர்புகளிலிருந்து',
+    continueWith: 'இவர்களுடன் தொடர்',
+    noAddress: 'முகவரி இல்லை',
+    addToWhichGroup: 'எந்தக் குழுவில் சேர்ப்பது?',
+    addThemAllToWhichGroup: 'அனைவரையும் எந்தக் குழுவில் சேர்ப்பது?',
+    startAGroup: 'ஒரு குழுவைத் தொடங்கு',
+    pickDifferentPeople: 'வேறு ஆட்களைத் தேர்ந்தெடு',
+    someone: 'யாரோ',
+    serverRefused: 'இந்த மாற்றத்தை சர்வர் ஏற்கவில்லை.',
+    offlineSaved: 'இணைப்பு இல்லை — இங்குள்ள அனைத்தும் இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளது',
+    notAnAmount: 'இது ஒரு தொகை போல் தெரியவில்லை',
+    notARate: 'இது ஒரு மாற்று விகிதம் போல் தெரியவில்லை',
+    paidAnotherCurrency: 'வேறு நாணயத்தில் கொடுத்தது',
+    whatIWasCharged: 'என்னிடம் வசூலிக்கப்பட்டது',
+    askingRate: 'கேட்கிறது…',
+    getTodaysRate: 'இன்றைய {from}→{to} விகிதத்தைப் பெறு',
+    micPermission: 'ஒலிவாங்கியைப் பயன்படுத்த பாக்கிக்கு அனுமதி தேவை.',
+    micBlocked: 'பாக்கிக்கு ஒலிவாங்கி அணுகல் நிறுத்தப்பட்டுள்ளது. அமைப்புகளில் இயக்கலாம்.',
+    dictationFailed: 'சொல்வதைப் பதிவு செய்ய முடியவில்லை. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+    stopDictating: 'சொல்வதை நிறுத்து',
+    dictateNote: 'குறிப்பைச் சொல்',
+    updateBaaki: 'பாக்கியைப் புதுப்பி',
+    alreadyUpdated: 'நான் ஏற்கனவே புதுப்பித்துவிட்டேன்',
+    update: 'புதுப்பி',
+    notNow: 'இப்போது வேண்டாம்',
+    changeGroupPhoto: 'குழுப் புகைப்படத்தை மாற்று',
+    addGroupPhoto: 'குழுப் புகைப்படத்தைச் சேர்',
+    changeYourPhoto: 'உங்கள் புகைப்படத்தை மாற்று',
+    addYourPhoto: 'ஒரு புகைப்படத்தைச் சேர்',
+    followMyPhone: 'என் ஃபோனைப் பின்பற்று',
+    currentlyLanguage: 'தற்போது {language}',
+    rightToLeft: 'வலமிருந்து இடம்',
+  },
 };
 
 const hi: UiStrings = {
@@ -1941,6 +2082,53 @@ const hi: UiStrings = {
     byShares: 'हिस्सों से',
     withAdjustments: 'समायोजन के साथ',
     itemized: 'चीज़-वार',
+  },
+  misc: {
+    newGroupPlaceholder: 'गोवा ट्रिप',
+    personName: 'व्यक्ति का नाम',
+    createGroup: 'समूह बनाएँ',
+    linkExpired: 'यह लिंक खत्म हो चुका है',
+    linkExpiredBody:
+      'जिसने भेजा था उससे नया माँग लें — लिंक इसीलिए खत्म होते हैं ताकि वे हमेशा घूमते न रहें।',
+    linkMissingCode: 'इस लिंक में निमंत्रण कोड नहीं है',
+    goToBaaki: 'बाकी पर जाएँ',
+    freeNoAccount: 'हमेशा मुफ़्त, खाता ज़रूरी नहीं',
+    isOneOfTheseYou: 'क्या इनमें से कोई आप हैं?',
+    unnamed: 'बिना नाम',
+    joinAndClaim: 'जुड़ें और अपना इतिहास लें',
+    joinGroup: 'इस समूह में जुड़ें',
+    fromYourContacts: 'आपके संपर्कों से',
+    continueWith: 'इनके साथ जारी रखें',
+    noAddress: 'कोई पता नहीं',
+    addToWhichGroup: 'किस समूह में जोड़ें?',
+    addThemAllToWhichGroup: 'इन सबको किस समूह में जोड़ें?',
+    startAGroup: 'समूह शुरू करें',
+    pickDifferentPeople: 'दूसरे लोग चुनें',
+    someone: 'कोई',
+    serverRefused: 'सर्वर ने यह बदलाव नहीं माना।',
+    offlineSaved: 'ऑफ़लाइन — यहाँ का सब कुछ इसी फ़ोन पर सेव है',
+    notAnAmount: 'यह रकम जैसा नहीं लगता',
+    notARate: 'यह दर जैसा नहीं लगता',
+    paidAnotherCurrency: 'दूसरी मुद्रा में चुकाया',
+    whatIWasCharged: 'मुझसे जो लिया गया',
+    askingRate: 'पूछ रहे हैं…',
+    getTodaysRate: 'आज की {from}→{to} दर लाएँ',
+    micPermission: 'माइक्रोफ़ोन इस्तेमाल करने के लिए बाकी को अनुमति चाहिए।',
+    micBlocked: 'बाकी के लिए माइक्रोफ़ोन बंद है। आप इसे सेटिंग्स में चालू कर सकते हैं।',
+    dictationFailed: 'बोलकर लिखना शुरू नहीं हो सका। नोट टाइप कर लें।',
+    stopDictating: 'बोलना बंद करें',
+    dictateNote: 'नोट बोलें',
+    updateBaaki: 'बाकी अपडेट करें',
+    alreadyUpdated: 'मैंने पहले ही अपडेट कर लिया',
+    update: 'अपडेट',
+    notNow: 'अभी नहीं',
+    changeGroupPhoto: 'समूह की फ़ोटो बदलें',
+    addGroupPhoto: 'समूह की फ़ोटो जोड़ें',
+    changeYourPhoto: 'अपनी फ़ोटो बदलें',
+    addYourPhoto: 'फ़ोटो जोड़ें',
+    followMyPhone: 'मेरे फ़ोन के अनुसार',
+    currentlyLanguage: 'अभी {language}',
+    rightToLeft: 'दाएँ से बाएँ',
   },
 };
 
@@ -2427,6 +2615,52 @@ const ar: UiStrings = {
     byShares: 'بالحصص',
     withAdjustments: 'مع تعديلات',
     itemized: 'حسب الأصناف',
+  },
+  misc: {
+    newGroupPlaceholder: 'رحلة دبي',
+    personName: 'اسم الشخص',
+    createGroup: 'إنشاء مجموعة',
+    linkExpired: 'انتهت صلاحية هذا الرابط',
+    linkExpiredBody: 'اطلب رابطًا جديدًا ممن أرسله — الروابط تنتهي كي لا تتداول إلى الأبد.',
+    linkMissingCode: 'هذا الرابط ينقصه رمز الدعوة',
+    goToBaaki: 'اذهب إلى باقي',
+    freeNoAccount: 'مجاني دائمًا، بلا حاجة إلى حساب',
+    isOneOfTheseYou: 'هل أحد هؤلاء أنت؟',
+    unnamed: 'بلا اسم',
+    joinAndClaim: 'انضم وطالب بسجلي',
+    joinGroup: 'انضم إلى هذه المجموعة',
+    fromYourContacts: 'من جهات اتصالك',
+    continueWith: 'المتابعة مع',
+    noAddress: 'لا يوجد عنوان',
+    addToWhichGroup: 'إلى أي مجموعة نضيفه؟',
+    addThemAllToWhichGroup: 'إلى أي مجموعة نضيفهم جميعًا؟',
+    startAGroup: 'ابدأ مجموعة',
+    pickDifferentPeople: 'اختر أشخاصًا آخرين',
+    someone: 'أحدهم',
+    serverRefused: 'رفض الخادم هذا التغيير.',
+    offlineSaved: 'دون اتصال — كل ما هنا محفوظ على هذا الهاتف',
+    notAnAmount: 'هذا لا يبدو مبلغًا',
+    notARate: 'هذا لا يبدو سعر صرف',
+    paidAnotherCurrency: 'دُفع بعملة أخرى',
+    whatIWasCharged: 'ما خُصم مني',
+    askingRate: 'جارٍ السؤال…',
+    getTodaysRate: 'اجلب سعر {from}→{to} اليوم',
+    micPermission: 'يحتاج باقي إلى إذن لاستخدام الميكروفون.',
+    micBlocked: 'الوصول إلى الميكروفون معطّل لباقي. يمكنك تفعيله من الإعدادات.',
+    dictationFailed: 'تعذّر بدء الإملاء. اكتب الملاحظة بدلًا من ذلك.',
+    stopDictating: 'إيقاف الإملاء',
+    dictateNote: 'أملِ الملاحظة',
+    updateBaaki: 'حدّث باقي',
+    alreadyUpdated: 'لقد حدّثت بالفعل',
+    update: 'تحديث',
+    notNow: 'ليس الآن',
+    changeGroupPhoto: 'تغيير صورة المجموعة',
+    addGroupPhoto: 'أضف صورة للمجموعة',
+    changeYourPhoto: 'تغيير صورتك',
+    addYourPhoto: 'أضف صورة',
+    followMyPhone: 'اتبع هاتفي',
+    currentlyLanguage: 'حاليًا {language}',
+    rightToLeft: 'من اليمين إلى اليسار',
   },
 };
 

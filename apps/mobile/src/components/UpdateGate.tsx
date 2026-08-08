@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card, Row, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import { useUpdate } from '@/lib/update';
 
 export function UpdateGate({ children }: { children: React.ReactNode }) {
@@ -26,6 +28,7 @@ export function UpdateGate({ children }: { children: React.ReactNode }) {
 
 function BlockingScreen(): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
   const { message, installed, latest, openStore, recheck } = useUpdate();
 
   return (
@@ -69,9 +72,9 @@ function BlockingScreen(): React.JSX.Element {
       </Text>
 
       <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
-        <Button label="Update Baaki" size="lg" fullWidth onPress={openStore} />
+        <Button label={t.misc.updateBaaki} size="lg" fullWidth onPress={openStore} />
         <Button
-          label="I have already updated"
+          label={t.misc.alreadyUpdated}
           variant="ghost"
           fullWidth
           onPress={() => void recheck()}
@@ -93,6 +96,7 @@ function BlockingScreen(): React.JSX.Element {
  */
 export function UpdateBanner(): React.JSX.Element | null {
   const theme = useTheme();
+  const { t } = useStrings();
   const insets = useSafeAreaInsets();
   const { decision, dismissed, dismiss, openStore, latest } = useUpdate();
 
@@ -123,10 +127,10 @@ export function UpdateBanner(): React.JSX.Element | null {
         </Row>
         <Row style={{ gap: theme.spacing.sm }}>
           <View style={{ flex: 1 }}>
-            <Button label="Update" size="sm" fullWidth onPress={openStore} />
+            <Button label={t.misc.update} size="sm" fullWidth onPress={openStore} />
           </View>
           <View style={{ flex: 1 }}>
-            <Button label="Not now" size="sm" variant="ghost" fullWidth onPress={dismiss} />
+            <Button label={t.misc.notNow} size="sm" variant="ghost" fullWidth onPress={dismiss} />
           </View>
         </Row>
       </Card>

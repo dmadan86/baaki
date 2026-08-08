@@ -18,6 +18,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import { groupPhotoUrl } from '@/data/api';
 
 interface GroupPhotoProps {
@@ -39,6 +41,7 @@ export function GroupPhoto({
   busy = false,
 }: GroupPhotoProps) {
   const theme = useTheme();
+  const { t } = useStrings();
   const url = useGroupPhotoUrl(photoPath);
   const source = localUri ?? url;
 
@@ -92,7 +95,7 @@ export function GroupPhoto({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={source ? 'Change group photo' : 'Add a group photo'}
+      accessibilityLabel={source ? t.misc.changeGroupPhoto : t.misc.addGroupPhoto}
     >
       {body}
     </Pressable>

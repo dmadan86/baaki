@@ -34,6 +34,8 @@ import {
 } from '@baaki/core';
 import { Button, Card, ChipRow, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import { fetchFxRate } from '@/data/api';
 
 /** Enough for the currencies an India-first app actually sees. */
@@ -62,6 +64,7 @@ export function CurrencyRate({
   onFxChange,
 }: CurrencyRateProps): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<Method>('charged');
   const [chargedText, setChargedText] = useState('');
@@ -93,7 +96,7 @@ export function CurrencyRate({
       onFxChange(toFxRecord(rateFromAmounts(money(amount, currency), charged)));
     } catch {
       onFxChange(null);
-      setError('That does not look like an amount');
+      setError(t.misc.notAnAmount);
     }
   };
 
@@ -108,7 +111,7 @@ export function CurrencyRate({
       onFxChange(toFxRecord(rateFromDecimal(text.trim(), currency, groupCurrency)));
     } catch {
       onFxChange(null);
-      setError('That does not look like a rate');
+      setError(t.misc.notARate);
     }
   };
 
@@ -134,7 +137,7 @@ export function CurrencyRate({
   if (!open && !foreign) {
     return (
       <Button
-        label="Paid in another currency"
+        label={t.misc.paidAnotherCurrency}
         variant="ghost"
         onPress={() => setOpen(true)}
         accessibilityHint={`This group settles in ${groupCurrency}`}
@@ -165,7 +168,7 @@ export function CurrencyRate({
               setError(null);
             }}
             options={[
-              { value: 'charged', label: 'What I was charged' },
+              { value: 'charged', label: t.misc.whatIWasCharged },
               { value: 'typed', label: 'I know the rate' },
               { value: 'fetched', label: "Today's rate" },
             ]}
@@ -210,7 +213,11 @@ export function CurrencyRate({
 
           {method === 'fetched' ? (
             <Button
-              label={busy ? 'Asking…' : `Get today's ${currency}→${groupCurrency} rate`}
+              label={
+                busy
+                  ? t.misc.askingRate
+                  : t.misc.getTodaysRate.replace('{from}', currency).replace('{to}', groupCurrency)
+              }
               variant="secondary"
               disabled={busy}
               onPress={() => void fetchToday()}

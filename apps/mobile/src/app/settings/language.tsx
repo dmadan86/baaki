@@ -29,15 +29,15 @@ export default function LanguageSettingsScreen() {
   const rows: { key: string; title: string; subtitle: string; value: Language | null }[] = [
     {
       key: 'phone',
-      title: 'Follow my phone',
-      subtitle: `Currently ${LANGUAGE_NAMES[phoneLanguage].english}`,
+      title: t.misc.followMyPhone,
+      subtitle: t.misc.currentlyLanguage.replace('{language}', LANGUAGE_NAMES[phoneLanguage].own),
       value: null,
     },
     ...LANGUAGES.map((entry) => ({
       key: entry,
       title: LANGUAGE_NAMES[entry].own,
       subtitle: isRtlLanguage(entry)
-        ? `${LANGUAGE_NAMES[entry].english} · right to left`
+        ? `${LANGUAGE_NAMES[entry].english} · ${t.misc.rightToLeft}`
         : LANGUAGE_NAMES[entry].english,
       value: entry as Language | null,
     })),
@@ -54,7 +54,7 @@ export default function LanguageSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>

@@ -47,7 +47,7 @@ function recognitionAvailable(): boolean {
 
 export function DictateVoice({ value, onChange, hints }: DictateProps) {
   const theme = useTheme();
-  const { language, locale } = useStrings();
+  const { t, language, locale } = useStrings();
 
   // Asked once, on the first render: this is a property of the phone, not
   // something that changes while somebody is looking at an expense.
@@ -82,11 +82,7 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
 
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!permission.granted) {
-      setError(
-        permission.canAskAgain
-          ? 'Baaki needs permission to use the microphone.'
-          : 'Microphone access is off for Baaki. You can turn it on in Settings.',
-      );
+      setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
       return;
     }
 
@@ -120,9 +116,9 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
       });
     } catch {
       setListening(false);
-      setError('Dictation could not start. Type the note instead.');
+      setError(t.misc.dictationFailed);
     }
-  }, [hints, language, locale, value]);
+  }, [hints, language, locale, value, t]);
 
   // Leaving the screen mid-sentence must not leave the microphone open.
   useEffect(() => {
@@ -137,7 +133,7 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
     <View style={{ alignItems: 'flex-end', gap: theme.spacing.xs }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={listening ? 'Stop dictating' : 'Dictate the note'}
+        accessibilityLabel={listening ? t.misc.stopDictating : t.misc.dictateNote}
         accessibilityState={{ busy: listening }}
         onPress={() => (listening ? stop() : void start())}
         hitSlop={8}
