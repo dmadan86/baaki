@@ -18,6 +18,7 @@ import {
 
 import { submitFeedback } from '@/data/api';
 import { useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 
 type Kind = 'general' | 'bug' | 'idea';
 
@@ -46,7 +47,10 @@ export default function FeedbackScreen() {
       });
       setSent(true);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      // Never the raw message. On an emulator this screen once showed somebody
+      // "Could not find the function public.baaki_submit_feedback(...) in the
+      // schema cache" while they were mid-complaint.
+      setError(friendlyError(caught, t.privacy.couldNotSave, 'feedback.submit'));
     } finally {
       setBusy(false);
     }
