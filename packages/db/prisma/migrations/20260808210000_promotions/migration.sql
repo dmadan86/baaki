@@ -51,9 +51,12 @@ REVOKE ALL ON public.promo_codes FROM anon, authenticated;
 
 CREATE TABLE IF NOT EXISTS public.promo_redemptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  code text NOT NULL REFERENCES public.promo_codes(code) ON DELETE CASCADE,
-  profile_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  subscription_id uuid REFERENCES public.subscriptions(id) ON DELETE SET NULL,
+  -- ON UPDATE CASCADE on all three to match what Prisma generates for a
+  -- relation, which is what `db:drift` compares against — the entitlements
+  -- migration spells it out for the same reason.
+  code text NOT NULL REFERENCES public.promo_codes(code) ON DELETE CASCADE ON UPDATE CASCADE,
+  profile_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  subscription_id uuid REFERENCES public.subscriptions(id) ON DELETE SET NULL ON UPDATE CASCADE,
   redeemed_at timestamptz NOT NULL DEFAULT now(),
 
   -- One code, one person, once. The real guard is the unique store_txn_id on
