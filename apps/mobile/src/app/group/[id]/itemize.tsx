@@ -32,7 +32,7 @@ import { publishReceiptItems, scanReceipt, scanReceiptText, setItemClaim } from 
 import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useItemClaims, useReceipt, useWriteExpense } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { handoverIsFresh, handoverKey, type ReceiptHandover } from '@/lib/handover';
 import { clearDraft, useRestoredDraft } from '@/sync';
@@ -276,7 +276,7 @@ export default function ItemizeScreen() {
   if (!group.data) {
     return (
       <Screen>
-        <EmptyState title="Group not found" body="It may have been archived." />
+        <EmptyState title={t.group.notFound} body={t.group.notFoundArchived} />
       </Screen>
     );
   }
@@ -365,7 +365,7 @@ export default function ItemizeScreen() {
         items.map((item) => ({ label: item.label, total: Number(item.total) })),
       );
       setSharedId(scanId);
-      setScanNote('Everybody in the group can see this bill now. Tap the lines you had.');
+      setScanNote(t.itemize.sharedNow);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -376,12 +376,12 @@ export default function ItemizeScreen() {
   const save = async (): Promise<void> => {
     setError(null);
     if (!myMemberId) {
-      setError('You are not a member of this group');
+      setError(t.itemize.notAMember);
       return;
     }
     try {
       await writeExpense.mutateAsync({
-        description: description.trim() || 'Itemized bill',
+        description: description.trim() || t.itemize.defaultDescription,
         expenseDate: new Date().toISOString().slice(0, 10),
         currency,
         amount: grandTotal,
@@ -408,11 +408,11 @@ export default function ItemizeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Close" onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Split by item</Text>
+            <Text variant="heading">{t.itemize.title}</Text>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [])}
             </Text>
@@ -427,13 +427,12 @@ export default function ItemizeScreen() {
             <Row style={{ gap: theme.spacing.sm }}>
               <Ionicons name="people-outline" size={18} color={theme.color.brand} />
               <Text variant="subheading" style={{ flex: 1 }}>
-                Splitting together
+                {t.itemize.splittingTogether}
               </Text>
               {claims.isFetching ? <ActivityIndicator color={theme.color.brand} /> : null}
             </Row>
             <Text variant="caption" tone="muted">
-              Everybody in the group is looking at these lines. Tap the ones you had — they see it
-              as you do it. The lines cannot change now, because a claim is pinned to its line.
+              {t.itemize.splittingTogetherNote}
             </Text>
           </Card>
         ) : (
@@ -467,13 +466,12 @@ export default function ItemizeScreen() {
             so the button says what it costs as well as what it does. */}
         {!isShared && scanId && items.length > 0 ? (
           <Card style={{ gap: theme.spacing.md }}>
-            <Text variant="subheading">Everyone at the table has a phone?</Text>
+            <Text variant="subheading">{t.itemize.everyoneHasAPhone}</Text>
             <Text variant="caption" tone="muted">
-              Hand these lines to the group and they each tap what they had, on their own phone.
-              Check the lines first — once anybody has claimed one, the list is fixed.
+              {t.itemize.handOverNote}
             </Text>
             <Button
-              label={publishing ? 'Sharing…' : 'Split together'}
+              label={publishing ? t.itemize.sharing : t.itemize.splitTogether}
               variant="secondary"
               disabled={publishing}
               onPress={() => void publish()}
@@ -484,14 +482,14 @@ export default function ItemizeScreen() {
 
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            What was the bill for?
+            {t.itemize.whatWasTheBillFor}
           </Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
-            placeholder="Dinner at Anjappar"
+            placeholder={t.itemize.descriptionPlaceholder}
             placeholderTextColor={theme.color.textFaint}
-            accessibilityLabel="Bill description"
+            accessibilityLabel={t.itemize.descriptionLabel}
             style={{
               fontSize: 17,
               fontWeight: '600',
@@ -506,15 +504,15 @@ export default function ItemizeScreen() {
         {isShared ? null : (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="caption" tone="muted">
-              Add a line
+              {t.itemize.addALine}
             </Text>
             <Row>
               <TextInput
                 value={label}
                 onChangeText={setLabel}
-                placeholder="Biryani"
+                placeholder={t.itemize.itemPlaceholder}
                 placeholderTextColor={theme.color.textFaint}
-                accessibilityLabel="Item name"
+                accessibilityLabel={t.itemize.itemName}
                 style={{
                   flex: 1,
                   fontSize: 16,
@@ -529,7 +527,7 @@ export default function ItemizeScreen() {
                 placeholder="320"
                 keyboardType="decimal-pad"
                 placeholderTextColor={theme.color.textFaint}
-                accessibilityLabel="Item amount"
+                accessibilityLabel={t.itemize.itemAmount}
                 onSubmitEditing={addItem}
                 style={{
                   width: 90,
@@ -541,7 +539,7 @@ export default function ItemizeScreen() {
                 }}
               />
               <Button
-                label="Add"
+                label={t.add}
                 size="sm"
                 variant="secondary"
                 disabled={toMinor(amountText) <= 0n}
@@ -606,10 +604,10 @@ export default function ItemizeScreen() {
             </Row>
 
             {item.claimers.length === 0 ? (
-              <Badge label="nobody has claimed this" tone="negative" />
+              <Badge label={t.itemize.unclaimed} tone="negative" />
             ) : item.claimers.length > 1 ? (
               <Text variant="micro" tone="muted">
-                {`split ${item.claimers.length} ways`}
+                {plural(locale, item.claimers.length, t.itemize.splitWays)}
               </Text>
             ) : null}
           </Card>
@@ -617,11 +615,11 @@ export default function ItemizeScreen() {
 
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            Tax and tip — prorated by what each person ordered
+            {t.itemize.taxAndTipNote}
           </Text>
           <Row>
             <Text variant="body" style={{ flex: 1 }}>
-              Tax / service
+              {t.itemize.taxRow}
             </Text>
             <Text variant="body" tone="muted">
               {currencySymbol(currency, locale)}
@@ -632,7 +630,7 @@ export default function ItemizeScreen() {
               placeholder="0"
               keyboardType="decimal-pad"
               placeholderTextColor={theme.color.textFaint}
-              accessibilityLabel="Tax amount"
+              accessibilityLabel={t.itemize.taxAmount}
               style={{
                 width: 90,
                 fontSize: 16,
@@ -645,7 +643,7 @@ export default function ItemizeScreen() {
           </Row>
           <Row>
             <Text variant="body" style={{ flex: 1 }}>
-              Tip
+              {t.itemize.tipRow}
             </Text>
             <Text variant="body" tone="muted">
               {currencySymbol(currency, locale)}
@@ -656,7 +654,7 @@ export default function ItemizeScreen() {
               placeholder="0"
               keyboardType="decimal-pad"
               placeholderTextColor={theme.color.textFaint}
-              accessibilityLabel="Tip amount"
+              accessibilityLabel={t.itemize.tipAmount}
               style={{
                 width: 90,
                 fontSize: 16,
@@ -671,7 +669,7 @@ export default function ItemizeScreen() {
 
         <Card style={{ gap: theme.spacing.md }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="subheading">Total</Text>
+            <Text variant="subheading">{t.itemize.total}</Text>
             <MoneyText amount={grandTotal} currency={currency} locale={locale} variant="heading" />
           </Row>
 
@@ -687,7 +685,7 @@ export default function ItemizeScreen() {
                       size={30}
                     />
                     <Text variant="body">
-                      {member ? displayName(member, profile?.id) : 'Someone'}
+                      {member ? displayName(member, profile?.id) : t.itemize.someone}
                     </Text>
                   </Row>
                   <MoneyText amount={share} currency={currency} locale={locale} variant="caption" />
@@ -698,17 +696,20 @@ export default function ItemizeScreen() {
             <Text variant="caption" tone="muted">
               {shown.length === 0
                 ? isShared
-                  ? 'Waiting for the lines from this bill.'
-                  : 'Add the lines from the bill and tap who had what.'
+                  ? t.itemize.waitingForLines
+                  : t.itemize.addTheLines
                 : unclaimed.length > 0
-                  ? `${unclaimed.length} line${unclaimed.length === 1 ? '' : 's'} still unclaimed — nobody pays for a dish nobody ordered.`
-                  : 'Tap who had each line to see the split.'}
+                  ? plural(locale, unclaimed.length, t.itemize.stillUnclaimed)
+                  : t.itemize.tapWhoHadEach}
             </Text>
           )}
 
           {preview ? (
             <Text variant="micro" tone="faint">
-              {`Tax and tip of ${format({ minor: taxes + tip, currency }, { locale, compactFraction: true })} are shared in proportion to each person's items.`}
+              {t.itemize.taxAndTipShared.replace(
+                '{amount}',
+                format({ minor: taxes + tip, currency }, { locale, compactFraction: true }),
+              )}
             </Text>
           ) : null}
         </Card>

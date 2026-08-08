@@ -593,6 +593,75 @@ export interface UiStrings {
     currentlyLanguage: string;
     rightToLeft: string;
   };
+  /** Pasting bank messages in, and what can be made of them (TDR §10). */
+  smsImport: {
+    title: string;
+    howTo: string;
+    whyNotAutomatic: string;
+    messagesSection: string;
+    pasteLabel: string;
+    pastePlaceholder: string;
+    nothingPasted: string;
+    messageCount: PluralForms;
+    paste: string;
+    datesSection: string;
+    datesNote: string;
+    from: string;
+    to: string;
+    last7: string;
+    last30: string;
+    datePlaceholder: string;
+    dateFieldLabel: string;
+    foundSection: string;
+    nothingToImport: string;
+    nothingLikeAPayment: string;
+    allAnotherCurrency: string;
+    cardPayment: string;
+    selected: string;
+    notSelected: string;
+    checkThis: string;
+    otherCurrencyNote: PluralForms;
+    whoPaidSection: string;
+    whoPaidNote: string;
+    addedCount: PluralForms;
+    adding: string;
+    nothingSelected: string;
+    addCount: PluralForms;
+  };
+  /** Splitting one bill line by line, on one phone or several. */
+  itemize: {
+    title: string;
+    notAMember: string;
+    defaultDescription: string;
+    sharedNow: string;
+    splittingTogether: string;
+    splittingTogetherNote: string;
+    everyoneHasAPhone: string;
+    handOverNote: string;
+    sharing: string;
+    splitTogether: string;
+    whatWasTheBillFor: string;
+    descriptionPlaceholder: string;
+    descriptionLabel: string;
+    addALine: string;
+    itemPlaceholder: string;
+    itemName: string;
+    itemAmount: string;
+    unclaimed: string;
+    splitWays: PluralForms;
+    taxAndTipNote: string;
+    taxRow: string;
+    tipRow: string;
+    taxAmount: string;
+    tipAmount: string;
+    total: string;
+    someone: string;
+    waitingForLines: string;
+    addTheLines: string;
+    stillUnclaimed: PluralForms;
+    tapWhoHadEach: string;
+    taxAndTipShared: string;
+  };
 }
 
 const en: UiStrings = {
@@ -1116,6 +1185,91 @@ const en: UiStrings = {
     followMyPhone: 'Follow my phone',
     currentlyLanguage: 'Currently {language}',
     rightToLeft: 'right to left',
+  },
+  smsImport: {
+    title: 'Import from messages',
+    howTo:
+      'Open your messages app, select the bank messages from this trip, copy them, and paste them here. Baaki reads them on this phone — nothing is sent anywhere until you confirm an expense.',
+    whyNotAutomatic:
+      'Baaki cannot read your inbox by itself. iPhones give no app that access, and on Android it is reserved for whichever app you use as your messages app.',
+    messagesSection: 'The messages',
+    pasteLabel: 'Paste bank messages',
+    pastePlaceholder: 'Paste here.\n\nLeave a blank line between messages.',
+    nothingPasted: 'Nothing pasted yet',
+    messageCount: { one: '{n} message', other: '{n} messages' },
+    paste: 'Paste',
+    datesSection: 'Between these dates',
+    datesNote:
+      'Only payments inside this window are proposed, so the rest of your inbox stays out of the group.',
+    from: 'From',
+    to: 'To',
+    last7: 'Last 7 days',
+    last30: 'Last 30 days',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: '{label} date, year month day',
+    foundSection: 'What was found',
+    nothingToImport: 'Nothing to import',
+    nothingLikeAPayment:
+      'None of those messages looked like a payment inside these dates. Reminders, one-time passwords and money coming in are all left out on purpose.',
+    allAnotherCurrency: 'Every payment found was in another currency.',
+    cardPayment: 'Card payment',
+    selected: 'selected',
+    notSelected: 'not selected',
+    checkThis: 'Check this',
+    otherCurrencyNote: {
+      one: '{n} payment was in another currency. Add it by hand — the message does not say what rate you were charged, and this group keeps its money in {currency}.',
+      other:
+        '{n} payments were in another currency. Add them by hand — the message does not say what rate you were charged, and this group keeps its money in {currency}.',
+    },
+    whoPaidSection: 'Who paid',
+    whoPaidNote:
+      'A bank message says what left your account, not who was there. These are split equally between everyone in the group — change any of them afterwards.',
+    addedCount: {
+      one: '{n} expense added. It is saved on this phone and will sync when there is a connection.',
+      other:
+        '{n} expenses added. They are saved on this phone and will sync when there is a connection.',
+    },
+    adding: 'Adding…',
+    nothingSelected: 'Nothing selected',
+    addCount: { one: 'Add {n} expense', other: 'Add {n} expenses' },
+  },
+  itemize: {
+    title: 'Split by item',
+    notAMember: 'You are not a member of this group',
+    defaultDescription: 'Itemized bill',
+    sharedNow: 'Everybody in the group can see this bill now. Tap the lines you had.',
+    splittingTogether: 'Splitting together',
+    splittingTogetherNote:
+      'Everybody in the group is looking at these lines. Tap the ones you had — they see it as you do it. The lines cannot change now, because a claim is pinned to its line.',
+    everyoneHasAPhone: 'Everyone at the table has a phone?',
+    handOverNote:
+      'Hand these lines to the group and they each tap what they had, on their own phone. Check the lines first — once anybody has claimed one, the list is fixed.',
+    sharing: 'Sharing…',
+    splitTogether: 'Split together',
+    whatWasTheBillFor: 'What was the bill for?',
+    descriptionPlaceholder: 'Dinner at Anjappar',
+    descriptionLabel: 'Bill description',
+    addALine: 'Add a line',
+    itemPlaceholder: 'Biryani',
+    itemName: 'Item name',
+    itemAmount: 'Item amount',
+    unclaimed: 'nobody has claimed this',
+    splitWays: { one: 'to one person', other: 'split {n} ways' },
+    taxAndTipNote: 'Tax and tip — prorated by what each person ordered',
+    taxRow: 'Tax / service',
+    tipRow: 'Tip',
+    taxAmount: 'Tax amount',
+    tipAmount: 'Tip amount',
+    total: 'Total',
+    someone: 'Someone',
+    waitingForLines: 'Waiting for the lines from this bill.',
+    addTheLines: 'Add the lines from the bill and tap who had what.',
+    stillUnclaimed: {
+      one: '{n} line still unclaimed — nobody pays for a dish nobody ordered.',
+      other: '{n} lines still unclaimed — nobody pays for a dish nobody ordered.',
+    },
+    tapWhoHadEach: 'Tap who had each line to see the split.',
+    taxAndTipShared: 'Tax and tip of {amount} are shared in proportion to each person’s items.',
   },
 };
 
@@ -1659,6 +1813,94 @@ const ta: UiStrings = {
     currentlyLanguage: 'தற்போது {language}',
     rightToLeft: 'வலமிருந்து இடம்',
   },
+  smsImport: {
+    title: 'செய்திகளிலிருந்து இறக்குமதி',
+    howTo:
+      'உங்கள் செய்தி செயலியைத் திறந்து, இந்தப் பயணத்தின் வங்கிச் செய்திகளைத் தேர்ந்தெடுத்து, நகலெடுத்து இங்கே ஒட்டுங்கள். பாக்கி அவற்றை இந்த ஃபோனிலேயே படிக்கும் — நீங்கள் ஒரு செலவை உறுதி செய்யும் வரை எதுவும் எங்கும் அனுப்பப்படாது.',
+    whyNotAutomatic:
+      'பாக்கியால் உங்கள் இன்பாக்ஸைத் தானாகப் படிக்க முடியாது. iPhone எந்தச் செயலிக்கும் அந்த அனுமதியைத் தராது; Android இல் அது உங்கள் செய்தி செயலிக்கு மட்டுமே உரியது.',
+    messagesSection: 'செய்திகள்',
+    pasteLabel: 'வங்கிச் செய்திகளை ஒட்டு',
+    pastePlaceholder: 'இங்கே ஒட்டவும்.\n\nசெய்திகளுக்கு இடையே ஒரு காலி வரி விடவும்.',
+    nothingPasted: 'இன்னும் எதுவும் ஒட்டப்படவில்லை',
+    messageCount: { one: '{n} செய்தி', other: '{n} செய்திகள்' },
+    paste: 'ஒட்டு',
+    datesSection: 'இந்தத் தேதிகளுக்கு இடையே',
+    datesNote:
+      'இந்த இடைவெளிக்குள் உள்ள கொடுப்பனவுகள் மட்டுமே பரிந்துரைக்கப்படும், எனவே உங்கள் இன்பாக்ஸின் மீதி குழுவுக்கு வெளியேயே இருக்கும்.',
+    from: 'முதல்',
+    to: 'வரை',
+    last7: 'கடந்த 7 நாட்கள்',
+    last30: 'கடந்த 30 நாட்கள்',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: '{label} தேதி, ஆண்டு மாதம் நாள்',
+    foundSection: 'கிடைத்தவை',
+    nothingToImport: 'இறக்குமதி செய்ய எதுவும் இல்லை',
+    nothingLikeAPayment:
+      'அந்தச் செய்திகளில் எதுவும் இந்தத் தேதிகளுக்குள் ஒரு கொடுப்பனவாகத் தெரியவில்லை. நினைவூட்டல்கள், ஒருமுறைக் கடவுச்சொற்கள், வரும் பணம் — இவை வேண்டுமென்றே விடப்படுகின்றன.',
+    allAnotherCurrency: 'கிடைத்த ஒவ்வொரு கொடுப்பனவும் வேறு நாணயத்தில் இருந்தது.',
+    cardPayment: 'அட்டைக் கொடுப்பனவு',
+    selected: 'தேர்ந்தெடுக்கப்பட்டது',
+    notSelected: 'தேர்ந்தெடுக்கப்படவில்லை',
+    checkThis: 'இதைச் சரிபார்',
+    otherCurrencyNote: {
+      one: '{n} கொடுப்பனவு வேறு நாணயத்தில் இருந்தது. அதைக் கையால் சேருங்கள் — உங்களுக்கு எந்த விகிதம் விதிக்கப்பட்டது என்பதை அந்தச் செய்தி சொல்லவில்லை, இந்தக் குழு {currency} இல் கணக்கு வைக்கிறது.',
+      other:
+        '{n} கொடுப்பனவுகள் வேறு நாணயத்தில் இருந்தன. அவற்றைக் கையால் சேருங்கள் — உங்களுக்கு எந்த விகிதம் விதிக்கப்பட்டது என்பதை அந்தச் செய்திகள் சொல்லவில்லை, இந்தக் குழு {currency} இல் கணக்கு வைக்கிறது.',
+    },
+    whoPaidSection: 'யார் கொடுத்தார்கள்',
+    whoPaidNote:
+      'வங்கிச் செய்தி உங்கள் கணக்கிலிருந்து என்ன போனது என்று சொல்கிறது, யார் இருந்தார்கள் என்று அல்ல. இவை குழுவில் உள்ள அனைவருக்கும் சமமாகப் பிரிக்கப்படும் — பிறகு எதையும் மாற்றலாம்.',
+    addedCount: {
+      one: '{n} செலவு சேர்க்கப்பட்டது. அது இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளது, இணைப்பு கிடைத்ததும் ஒத்திசைக்கும்.',
+      other:
+        '{n} செலவுகள் சேர்க்கப்பட்டன. அவை இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளன, இணைப்பு கிடைத்ததும் ஒத்திசைக்கும்.',
+    },
+    adding: 'சேர்க்கிறது…',
+    nothingSelected: 'எதுவும் தேர்ந்தெடுக்கப்படவில்லை',
+    addCount: { one: '{n} செலவைச் சேர்', other: '{n} செலவுகளைச் சேர்' },
+  },
+  itemize: {
+    title: 'பொருள் வாரியாகப் பிரி',
+    notAMember: 'நீங்கள் இந்தக் குழுவின் உறுப்பினர் அல்ல',
+    defaultDescription: 'பொருள் வாரியான ரசீது',
+    sharedNow:
+      'இப்போது குழுவில் உள்ள அனைவரும் இந்த ரசீதைப் பார்க்கலாம். நீங்கள் சாப்பிட்ட வரிகளைத் தட்டுங்கள்.',
+    splittingTogether: 'சேர்ந்து பிரிக்கிறோம்',
+    splittingTogetherNote:
+      'குழுவில் உள்ள அனைவரும் இந்த வரிகளைப் பார்க்கிறார்கள். நீங்கள் சாப்பிட்டதைத் தட்டுங்கள் — நீங்கள் செய்யும்போதே அவர்கள் பார்ப்பார்கள். ஒவ்வொரு உரிமைக்கோரலும் அதன் வரியுடன் இணைந்திருப்பதால், வரிகளை இனி மாற்ற முடியாது.',
+    everyoneHasAPhone: 'மேசையில் உள்ள அனைவரிடமும் ஃபோன் உள்ளதா?',
+    handOverNote:
+      'இந்த வரிகளைக் குழுவிடம் கொடுங்கள், ஒவ்வொருவரும் தங்கள் ஃபோனிலேயே தாங்கள் சாப்பிட்டதைத் தட்டுவார்கள். முதலில் வரிகளைச் சரிபாருங்கள் — யாரேனும் ஒன்றைக் கோரிவிட்டால் பட்டியல் நிலைத்துவிடும்.',
+    sharing: 'பகிர்கிறது…',
+    splitTogether: 'சேர்ந்து பிரி',
+    whatWasTheBillFor: 'ரசீது எதற்காக?',
+    descriptionPlaceholder: 'அஞ்சப்பரில் இரவு உணவு',
+    descriptionLabel: 'ரசீது விவரம்',
+    addALine: 'ஒரு வரியைச் சேர்',
+    itemPlaceholder: 'பிரியாணி',
+    itemName: 'பொருளின் பெயர்',
+    itemAmount: 'பொருளின் தொகை',
+    unclaimed: 'இதை யாரும் கோரவில்லை',
+    splitWays: { one: 'ஒருவருக்கு', other: '{n} பேருக்குப் பிரிக்கப்பட்டது' },
+    taxAndTipNote: 'வரியும் டிப்பும் — ஒவ்வொருவரும் ஆர்டர் செய்ததற்கு ஏற்ப பங்கிடப்படும்',
+    taxRow: 'வரி / சேவை',
+    tipRow: 'டிப்',
+    taxAmount: 'வரித் தொகை',
+    tipAmount: 'டிப் தொகை',
+    total: 'மொத்தம்',
+    someone: 'யாரோ',
+    waitingForLines: 'இந்த ரசீதின் வரிகளுக்குக் காத்திருக்கிறது.',
+    addTheLines: 'ரசீதிலிருந்து வரிகளைச் சேர்த்து, யார் என்ன சாப்பிட்டார்கள் என்று தட்டுங்கள்.',
+    stillUnclaimed: {
+      one: '{n} வரி இன்னும் கோரப்படவில்லை — யாரும் ஆர்டர் செய்யாத உணவுக்கு யாரும் பணம் தர வேண்டியதில்லை.',
+      other:
+        '{n} வரிகள் இன்னும் கோரப்படவில்லை — யாரும் ஆர்டர் செய்யாத உணவுக்கு யாரும் பணம் தர வேண்டியதில்லை.',
+    },
+    tapWhoHadEach: 'பிரிவைப் பார்க்க ஒவ்வொரு வரியையும் யார் சாப்பிட்டார்கள் என்று தட்டுங்கள்.',
+    taxAndTipShared:
+      '{amount} வரியும் டிப்பும் ஒவ்வொருவரின் பொருட்களுக்கு ஏற்ற விகிதத்தில் பங்கிடப்படுகிறது.',
+  },
 };
 
 const hi: UiStrings = {
@@ -2174,6 +2416,90 @@ const hi: UiStrings = {
     followMyPhone: 'मेरे फ़ोन के अनुसार',
     currentlyLanguage: 'अभी {language}',
     rightToLeft: 'दाएँ से बाएँ',
+  },
+  smsImport: {
+    title: 'संदेशों से आयात',
+    howTo:
+      'अपना मैसेज ऐप खोलें, इस यात्रा के बैंक संदेश चुनें, कॉपी करें और यहाँ पेस्ट करें। बाकी उन्हें इसी फ़ोन पर पढ़ता है — जब तक आप कोई खर्च पक्का नहीं करते, कुछ भी कहीं नहीं भेजा जाता।',
+    whyNotAutomatic:
+      'बाकी आपका इनबॉक्स खुद नहीं पढ़ सकता। iPhone किसी भी ऐप को यह पहुँच नहीं देता, और Android पर यह सिर्फ़ उसी ऐप के लिए है जिसे आप मैसेज ऐप की तरह इस्तेमाल करते हैं।',
+    messagesSection: 'संदेश',
+    pasteLabel: 'बैंक संदेश पेस्ट करें',
+    pastePlaceholder: 'यहाँ पेस्ट करें।\n\nसंदेशों के बीच एक खाली पंक्ति छोड़ें।',
+    nothingPasted: 'अभी कुछ पेस्ट नहीं किया',
+    messageCount: { one: '{n} संदेश', other: '{n} संदेश' },
+    paste: 'पेस्ट',
+    datesSection: 'इन तारीखों के बीच',
+    datesNote: 'सिर्फ़ इस अवधि के भुगतान सुझाए जाते हैं, ताकि आपका बाकी इनबॉक्स समूह से बाहर रहे।',
+    from: 'से',
+    to: 'तक',
+    last7: 'पिछले 7 दिन',
+    last30: 'पिछले 30 दिन',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: '{label} तारीख़, साल महीना दिन',
+    foundSection: 'क्या मिला',
+    nothingToImport: 'आयात करने को कुछ नहीं',
+    nothingLikeAPayment:
+      'इन तारीखों के भीतर उन संदेशों में से कोई भुगतान जैसा नहीं लगा। याद दिलाने वाले संदेश, वन-टाइम पासवर्ड और आने वाला पैसा जान-बूझकर छोड़े जाते हैं।',
+    allAnotherCurrency: 'जो भी भुगतान मिला वह दूसरी मुद्रा में था।',
+    cardPayment: 'कार्ड भुगतान',
+    selected: 'चुना गया',
+    notSelected: 'नहीं चुना',
+    checkThis: 'इसे जाँचें',
+    otherCurrencyNote: {
+      one: '{n} भुगतान दूसरी मुद्रा में था। उसे हाथ से जोड़ें — संदेश यह नहीं बताता कि आपसे कौन-सी दर ली गई, और यह समूह अपना हिसाब {currency} में रखता है।',
+      other:
+        '{n} भुगतान दूसरी मुद्रा में थे। उन्हें हाथ से जोड़ें — संदेश यह नहीं बताते कि आपसे कौन-सी दर ली गई, और यह समूह अपना हिसाब {currency} में रखता है।',
+    },
+    whoPaidSection: 'किसने दिया',
+    whoPaidNote:
+      'बैंक संदेश बताता है कि आपके खाते से क्या गया, यह नहीं कि वहाँ कौन था। ये समूह के सबके बीच बराबर बाँटे जाते हैं — बाद में किसी को भी बदल सकते हैं।',
+    addedCount: {
+      one: '{n} खर्च जुड़ा। यह इसी फ़ोन पर सेव है और कनेक्शन मिलते ही सिंक हो जाएगा।',
+      other: '{n} खर्च जुड़े। ये इसी फ़ोन पर सेव हैं और कनेक्शन मिलते ही सिंक हो जाएँगे।',
+    },
+    adding: 'जोड़ रहे हैं…',
+    nothingSelected: 'कुछ नहीं चुना',
+    addCount: { one: '{n} खर्च जोड़ें', other: '{n} खर्च जोड़ें' },
+  },
+  itemize: {
+    title: 'चीज़-वार बाँटें',
+    notAMember: 'आप इस समूह के सदस्य नहीं हैं',
+    defaultDescription: 'चीज़-वार बिल',
+    sharedNow: 'अब समूह के सब लोग यह बिल देख सकते हैं। जो आपने लिया उन पंक्तियों पर टैप करें।',
+    splittingTogether: 'साथ मिलकर बाँट रहे हैं',
+    splittingTogetherNote:
+      'समूह के सब लोग ये पंक्तियाँ देख रहे हैं। जो आपने लिया उन पर टैप करें — वे इसे होते हुए देखेंगे। अब पंक्तियाँ बदली नहीं जा सकतीं, क्योंकि हर दावा अपनी पंक्ति से जुड़ा है।',
+    everyoneHasAPhone: 'मेज़ पर सबके पास फ़ोन है?',
+    handOverNote:
+      'ये पंक्तियाँ समूह को दे दें और हर कोई अपने फ़ोन पर टैप करे कि उसने क्या लिया। पहले पंक्तियाँ जाँच लें — जैसे ही किसी ने एक पर दावा किया, सूची पक्की हो जाती है।',
+    sharing: 'साझा कर रहे हैं…',
+    splitTogether: 'साथ में बाँटें',
+    whatWasTheBillFor: 'बिल किस चीज़ का था?',
+    descriptionPlaceholder: 'अंजप्पर में खाना',
+    descriptionLabel: 'बिल का विवरण',
+    addALine: 'एक पंक्ति जोड़ें',
+    itemPlaceholder: 'बिरयानी',
+    itemName: 'चीज़ का नाम',
+    itemAmount: 'चीज़ की रकम',
+    unclaimed: 'इस पर किसी ने दावा नहीं किया',
+    splitWays: { one: 'एक व्यक्ति के लिए', other: '{n} लोगों में बँटा' },
+    taxAndTipNote: 'टैक्स और टिप — हर किसी के ऑर्डर के अनुपात में',
+    taxRow: 'टैक्स / सेवा',
+    tipRow: 'टिप',
+    taxAmount: 'टैक्स की रकम',
+    tipAmount: 'टिप की रकम',
+    total: 'कुल',
+    someone: 'कोई',
+    waitingForLines: 'इस बिल की पंक्तियों का इंतज़ार है।',
+    addTheLines: 'बिल की पंक्तियाँ जोड़ें और टैप करें कि किसने क्या लिया।',
+    stillUnclaimed: {
+      one: '{n} पंक्ति पर अब भी दावा नहीं — जो किसी ने मँगाया ही नहीं उसका पैसा कोई नहीं देता।',
+      other:
+        '{n} पंक्तियों पर अब भी दावा नहीं — जो किसी ने मँगाया ही नहीं उसका पैसा कोई नहीं देता।',
+    },
+    tapWhoHadEach: 'बँटवारा देखने के लिए टैप करें कि हर पंक्ति किसने ली।',
+    taxAndTipShared: '{amount} का टैक्स और टिप हर किसी की चीज़ों के अनुपात में बाँटा जाता है।',
   },
 };
 
@@ -2718,6 +3044,123 @@ const ar: UiStrings = {
     followMyPhone: 'اتبع هاتفي',
     currentlyLanguage: 'حاليًا {language}',
     rightToLeft: 'من اليمين إلى اليسار',
+  },
+  smsImport: {
+    title: 'استيراد من الرسائل',
+    howTo:
+      'افتح تطبيق الرسائل، واختر رسائل البنك الخاصة بهذه الرحلة، وانسخها والصقها هنا. يقرأها باقي على هذا الهاتف — ولا يُرسل أي شيء إلى أي مكان حتى تؤكّد مصروفًا.',
+    whyNotAutomatic:
+      'لا يستطيع باقي قراءة صندوق رسائلك من تلقاء نفسه. لا يمنح iPhone هذه الصلاحية لأي تطبيق، وفي أندرويد تقتصر على التطبيق الذي تستخدمه للرسائل.',
+    messagesSection: 'الرسائل',
+    pasteLabel: 'ألصق رسائل البنك',
+    pastePlaceholder: 'ألصق هنا.\n\nاترك سطرًا فارغًا بين كل رسالة وأخرى.',
+    nothingPasted: 'لم يُلصق شيء بعد',
+    messageCount: {
+      zero: 'لا رسائل',
+      one: 'رسالة واحدة',
+      two: 'رسالتان',
+      few: '{n} رسائل',
+      many: '{n} رسالة',
+      other: '{n} رسالة',
+    },
+    paste: 'لصق',
+    datesSection: 'بين هذين التاريخين',
+    datesNote:
+      'لا تُقترح إلا المدفوعات الواقعة داخل هذه المدة، فيبقى باقي صندوق رسائلك خارج المجموعة.',
+    from: 'من',
+    to: 'إلى',
+    last7: 'آخر 7 أيام',
+    last30: 'آخر 30 يومًا',
+    datePlaceholder: 'YYYY-MM-DD',
+    dateFieldLabel: 'تاريخ {label}، سنة شهر يوم',
+    foundSection: 'ما وُجد',
+    nothingToImport: 'لا شيء للاستيراد',
+    nothingLikeAPayment:
+      'لم تبدُ أي من تلك الرسائل دفعةً داخل هذه التواريخ. التذكيرات وكلمات المرور لمرة واحدة والأموال الواردة كلها مستبعدة عن قصد.',
+    allAnotherCurrency: 'كل دفعة وُجدت كانت بعملة أخرى.',
+    cardPayment: 'دفعة بالبطاقة',
+    selected: 'محدَّد',
+    notSelected: 'غير محدَّد',
+    checkThis: 'تحقّق من هذا',
+    otherCurrencyNote: {
+      zero: 'لا مدفوعات بعملة أخرى.',
+      one: 'دفعة واحدة كانت بعملة أخرى. أضفها يدويًا — فالرسالة لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      two: 'دفعتان كانتا بعملة أخرى. أضفهما يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      few: '{n} مدفوعات كانت بعملة أخرى. أضفها يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      many: '{n} دفعة كانت بعملة أخرى. أضفها يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+      other:
+        '{n} دفعة كانت بعملة أخرى. أضفها يدويًا — فالرسائل لا تذكر السعر الذي حُسب عليك، وهذه المجموعة تحفظ حسابها بـ {currency}.',
+    },
+    whoPaidSection: 'من دفع',
+    whoPaidNote:
+      'رسالة البنك تقول ما خرج من حسابك، لا من كان حاضرًا. تُقسَّم هذه بالتساوي بين كل أعضاء المجموعة — ويمكنك تغيير أي منها بعد ذلك.',
+    addedCount: {
+      zero: 'لم يُضف أي مصروف.',
+      one: 'أُضيف مصروف واحد. إنه محفوظ على هذا الهاتف وسيُزامَن عند توفّر اتصال.',
+      two: 'أُضيف مصروفان. إنهما محفوظان على هذا الهاتف وسيُزامَنان عند توفّر اتصال.',
+      few: 'أُضيفت {n} مصاريف. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+      many: 'أُضيف {n} مصروفًا. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+      other: 'أُضيف {n} مصروف. إنها محفوظة على هذا الهاتف وستُزامَن عند توفّر اتصال.',
+    },
+    adding: 'جارٍ الإضافة…',
+    nothingSelected: 'لم يُحدَّد شيء',
+    addCount: {
+      zero: 'لا شيء لإضافته',
+      one: 'أضف مصروفًا واحدًا',
+      two: 'أضف مصروفين',
+      few: 'أضف {n} مصاريف',
+      many: 'أضف {n} مصروفًا',
+      other: 'أضف {n} مصروف',
+    },
+  },
+  itemize: {
+    title: 'التقسيم حسب الصنف',
+    notAMember: 'لست عضوًا في هذه المجموعة',
+    defaultDescription: 'فاتورة بالأصناف',
+    sharedNow: 'صار بإمكان كل أعضاء المجموعة رؤية هذه الفاتورة. اضغط على الأصناف التي تناولتها.',
+    splittingTogether: 'نقسّمها معًا',
+    splittingTogetherNote:
+      'كل أعضاء المجموعة ينظرون إلى هذه الأصناف. اضغط على ما تناولته — يرونه وأنت تفعله. لم يعد بالإمكان تغيير الأصناف، لأن كل اختيار مثبّت على صنفه.',
+    everyoneHasAPhone: 'هل مع كل من على الطاولة هاتف؟',
+    handOverNote:
+      'سلّم هذه الأصناف للمجموعة ليضغط كلٌّ على ما تناوله من هاتفه. تحقّق من الأصناف أولًا — فبمجرد أن يختار أحدهم صنفًا تثبت القائمة.',
+    sharing: 'جارٍ المشاركة…',
+    splitTogether: 'التقسيم معًا',
+    whatWasTheBillFor: 'الفاتورة على ماذا؟',
+    descriptionPlaceholder: 'عشاء في المطعم',
+    descriptionLabel: 'وصف الفاتورة',
+    addALine: 'أضف صنفًا',
+    itemPlaceholder: 'برياني',
+    itemName: 'اسم الصنف',
+    itemAmount: 'مبلغ الصنف',
+    unclaimed: 'لم يطالب أحد بهذا',
+    splitWays: {
+      zero: 'لا أحد',
+      one: 'لشخص واحد',
+      two: 'مقسوم بين اثنين',
+      few: 'مقسوم بين {n} أشخاص',
+      many: 'مقسوم بين {n} شخصًا',
+      other: 'مقسوم بين {n} شخص',
+    },
+    taxAndTipNote: 'الضريبة والإكرامية — تُوزَّع بنسبة ما طلبه كل شخص',
+    taxRow: 'الضريبة / الخدمة',
+    tipRow: 'الإكرامية',
+    taxAmount: 'مبلغ الضريبة',
+    tipAmount: 'مبلغ الإكرامية',
+    total: 'المجموع',
+    someone: 'أحدهم',
+    waitingForLines: 'في انتظار أصناف هذه الفاتورة.',
+    addTheLines: 'أضف أصناف الفاتورة واضغط على من تناول ماذا.',
+    stillUnclaimed: {
+      zero: 'لا أصناف بلا مطالب.',
+      one: 'صنف واحد بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      two: 'صنفان بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      few: '{n} أصناف بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      many: '{n} صنفًا بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+      other: '{n} صنف بلا مطالب — لا أحد يدفع ثمن طبق لم يطلبه.',
+    },
+    tapWhoHadEach: 'اضغط على من تناول كل صنف لترى التقسيم.',
+    taxAndTipShared: 'تُوزَّع ضريبة وإكرامية بقيمة {amount} بنسبة أصناف كل شخص.',
   },
 };
 
