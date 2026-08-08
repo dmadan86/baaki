@@ -103,6 +103,10 @@ export interface WebStrings {
     onlyThingAsked: string;
     joining: string;
     joinGroup: string;
+    askToJoinAs: string;
+    waitingTitle: string;
+    waitingBody: string;
+    joinAsNewInstead: string;
   };
   /** The group, in a browser: less than the app, and enough for a trip. */
   group: {
@@ -169,6 +173,11 @@ const en: WebStrings = {
     onlyThingAsked: 'This is the only thing asked of you. No email, no password, no app.',
     joining: 'Joining…',
     joinGroup: 'Join {group}',
+    askToJoinAs: 'Ask to join as {name}',
+    waitingTitle: 'Asked',
+    waitingBody:
+      'Somebody who runs {group} has to confirm you are {name}. Nothing has changed in the group yet.',
+    joinAsNewInstead: 'Join as someone new instead',
   },
   group: {
     loading: 'Loading…',
@@ -238,6 +247,11 @@ const ta: WebStrings = {
       'உங்களிடம் கேட்கப்படுவது இது ஒன்றுதான். மின்னஞ்சல் இல்லை, கடவுச்சொல் இல்லை, செயலி இல்லை.',
     joining: 'சேர்கிறது…',
     joinGroup: '{group} இல் சேர்',
+    askToJoinAs: '{name} ஆக சேர அனுமதி கேளுங்கள்',
+    waitingTitle: 'கேட்கப்பட்டது',
+    waitingBody:
+      'நீங்கள் {name} தானா என்பதை {group} நடத்துபவர் உறுதி செய்ய வேண்டும். குழுவில் இன்னும் எதுவும் மாறவில்லை.',
+    joinAsNewInstead: 'புதிய நபராகச் சேருங்கள்',
   },
   group: {
     loading: 'ஏற்றுகிறது…',
@@ -307,6 +321,11 @@ const hi: WebStrings = {
     onlyThingAsked: 'आपसे बस यही पूछा जाता है। न ईमेल, न पासवर्ड, न ऐप।',
     joining: 'जुड़ रहे हैं…',
     joinGroup: '{group} में जुड़ें',
+    askToJoinAs: '{name} के रूप में शामिल होने की पूछें',
+    waitingTitle: 'पूछ लिया',
+    waitingBody:
+      '{group} चलाने वाले किसी को पुष्टि करनी है कि आप {name} हैं। समूह में अभी कुछ नहीं बदला।',
+    joinAsNewInstead: 'नए व्यक्ति के रूप में शामिल हों',
   },
   group: {
     loading: 'लोड हो रहा है…',
@@ -376,6 +395,11 @@ const ar: WebStrings = {
     onlyThingAsked: 'هذا كل ما يُطلب منك. لا بريد، ولا كلمة مرور، ولا تطبيق.',
     joining: 'جارٍ الانضمام…',
     joinGroup: 'انضم إلى {group}',
+    askToJoinAs: 'اطلب الانضمام بصفتك {name}',
+    waitingTitle: 'تم الطلب',
+    waitingBody:
+      'على أحد القائمين على {group} أن يؤكّد أنك {name}. ولم يتغيّر شيء في المجموعة بعد.',
+    joinAsNewInstead: 'انضم بصفتك شخصًا جديدًا',
   },
   group: {
     loading: 'جارٍ التحميل…',

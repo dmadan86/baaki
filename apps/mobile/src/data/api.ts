@@ -714,16 +714,95 @@ export async function previewInvite(token: string): Promise<InvitePreview> {
   return data as InvitePreview;
 }
 
+/**
+ * Two outcomes, because claiming a place is a request now (ADR-006).
+ *
+ * Joining as somebody new is immediate and comes back with a `memberId`.
+ * Claiming a ghost comes back `pending`: an admin of the group has to agree,
+ * and until they do the arrival is not in the group. Handing the place over on
+ * request would let anybody holding the link inherit that name's whole
+ * history.
+ */
+export type AcceptedInvite =
+  | { group: { id: string; name: string }; memberId: string; claimed?: boolean }
+  | {
+      group: { id: string; name: string };
+      pending: true;
+      claimId: string;
+      alreadyPending: boolean;
+    };
+
 export async function acceptInvite(input: {
   token: string;
   claimMemberId?: string | null;
   displayName?: string | null;
-}): Promise<{ group: { id: string; name: string }; memberId: string; claimed?: boolean }> {
+}): Promise<AcceptedInvite> {
   const { data, error } = await supabase.functions.invoke('invite-accept', {
     body: { ...input, mode: 'join' },
   });
   if (error) throw new Error(await readFunctionError(error));
-  return data as { group: { id: string; name: string }; memberId: string; claimed?: boolean };
+  return data as AcceptedInvite;
+}
+
+// ──────────────────────────── claiming somebody's place (ADR-006) ──
+
+export interface PendingClaim {
+  id: string;
+  member_id: string;
+  ghost_name: string | null;
+  requester_name: string | null;
+  requested_name: string | null;
+  created_at: string;
+}
+
+/** What an admin of this group has been asked. Empty for everybody else. */
+export async function fetchMemberClaims(groupId: string): Promise<PendingClaim[]> {
+  const { data, error } = await supabase.rpc('baaki_group_member_claims', { p_group_id: groupId });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PendingClaim[];
+}
+
+/**
+ * An admin answering. Approving is the claim itself — one UPDATE inside the
+ * function moves the ghost row to the person, so nothing is copied and every
+ * share and settlement filed against that name comes with it.
+ */
+export async function decideMemberClaim(
+  claimId: string,
+  approve: boolean,
+): Promise<{ ok: boolean; reason?: string; status?: string }> {
+  const { data, error } = await supabase.rpc('baaki_decide_member_claim', {
+    p_claim_id: claimId,
+    p_approve: approve,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? { ok: false }) as { ok: boolean; reason?: string; status?: string };
+}
+
+export interface MyClaim {
+  id: string;
+  group_id: string;
+  group_name: string | null;
+  ghost_name: string | null;
+  status: 'pending' | 'approved' | 'declined' | 'withdrawn';
+  created_at: string;
+  decided_at: string | null;
+}
+
+/** Carries the group's name: somebody still waiting cannot read the group. */
+export async function fetchMyClaims(): Promise<MyClaim[]> {
+  const { data, error } = await supabase.rpc('baaki_my_member_claims');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as MyClaim[];
+}
+
+/** The way out of waiting on an admin who never opens the app. */
+export async function withdrawMemberClaim(claimId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('baaki_withdraw_member_claim', {
+    p_claim_id: claimId,
+  });
+  if (error) throw new Error(error.message);
+  return (data as { ok?: boolean } | null)?.ok === true;
 }
 
 /** Links are revocable at any time (ADR-006). */

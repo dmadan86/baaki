@@ -153,6 +153,7 @@ model Profile {
   feedback          Feedback[]
   purchasedPasses   GroupPass[]
   syncMutations     SyncMutation[]
+  memberClaims      MemberClaim[]
 
   @@map("profiles")
   @@schema("public")
@@ -212,6 +213,7 @@ model Group {
   passes          GroupPass[]
   planItems       TripPlanItem[]
   syncMutations   SyncMutation[]
+  memberClaims    MemberClaim[]
 
   @@index([archivedAt])
   /// The nudge job only ever looks at groups that have said when they are
@@ -269,11 +271,47 @@ model GroupMember {
   pairwiseTo         PairwiseBalance[] @relation("PairwiseTo")
   createdExpenses    Expense[]        @relation("ExpenseCreatedBy")
   deletedExpenses    Expense[]        @relation("ExpenseDeletedBy")
+  claimsOnThisPlace  MemberClaim[]    @relation("ClaimTarget")
+  claimsDecided      MemberClaim[]    @relation("ClaimDecider")
 
   @@unique([groupId, profileId])
   @@index([groupId])
   @@index([groupId, updatedSeq])
   @@map("group_members")
+  @@schema("public")
+}
+
+/// Somebody asking to take a ghost member's place, and an admin of the group
+/// deciding (ADR-006). The claim itself is one UPDATE inside
+/// `baaki_decide_member_claim` — the ghost row becomes theirs, so every share
+/// and settlement already filed against that name comes with it.
+///
+/// "One open request per person per place" is enforced in that function rather
+/// than by a partial unique index: Prisma's datamodel cannot express one, and
+/// an index it cannot see is a permanently failing `db:drift`.
+model MemberClaim {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId       String    @map("group_id") @db.Uuid
+  memberId      String    @map("member_id") @db.Uuid
+  requesterId   String    @map("requester_id") @db.Uuid
+  /// What the arrival calls themselves, shown to whoever decides.
+  requestedName String?   @map("requested_name")
+  /// 'pending' | 'approved' | 'declined' | 'withdrawn' (CHECK in migration SQL).
+  status        String    @default("pending")
+  /// The membership that decided, not the profile: an admin who later leaves
+  /// still decided it.
+  decidedBy     String?   @map("decided_by") @db.Uuid
+  decidedAt     DateTime? @map("decided_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  group     Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member    GroupMember  @relation("ClaimTarget", fields: [memberId], references: [id], onDelete: Cascade)
+  requester Profile      @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  decider   GroupMember? @relation("ClaimDecider", fields: [decidedBy], references: [id], onDelete: SetNull)
+
+  @@index([groupId, status, createdAt], map: "member_claims_group_id_status_created_at_idx")
+  @@index([requesterId, createdAt], map: "member_claims_requester_id_created_at_idx")
+  @@map("member_claims")
   @@schema("public")
 }
 

@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { Avatar, Badge, Button, Card, EmptyState, Row, Screen, Text, useTheme } from '@baaki/ui';
 
-import { useStrings } from '@/i18n';
+import { fill, useStrings } from '@/i18n';
 
 import { acceptInvite, previewInvite, type InvitePreview } from '@/data/api';
 import { keys } from '@/data/hooks';
@@ -31,6 +31,8 @@ export default function JoinScreen() {
   const [busy, setBusy] = useState(Boolean(token));
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The group whose admin has been asked, once a claim has been sent. */
+  const [pending, setPending] = useState<string | null>(null);
 
   /**
    * Whether the route parameters have had a chance to arrive.
@@ -69,14 +71,28 @@ export default function JoinScreen() {
     };
   }, [token]);
 
-  const join = async (): Promise<void> => {
+  /**
+   * `claim` is passed rather than read from state because "join as someone new
+   * instead" clears it and joins in the same tap — and a state update is not
+   * visible to the call that follows it, so the old claim would be sent again.
+   */
+  const join = async (claim: string | null = claimId): Promise<void> => {
     if (!token) return;
     setJoining(true);
     setError(null);
     try {
       // Nobody is forced to register to accept an invite.
       if (!session) await continueAsGuest();
-      const result = await acceptInvite({ token, claimMemberId: claimId });
+      const result = await acceptInvite({ token, claimMemberId: claim });
+
+      // Claiming somebody's place only asks. Routing into the group here would
+      // land on a screen the person cannot read yet, because they are not a
+      // member until an admin agrees.
+      if ('pending' in result) {
+        setPending(result.group.name);
+        return;
+      }
+
       await queryClient.invalidateQueries({ queryKey: keys.groups });
       router.replace(`/group/${result.group.id}`);
     } catch (caught) {
@@ -104,6 +120,52 @@ export default function JoinScreen() {
           body={shown ?? t.misc.linkExpiredBody}
           action={<Button label={t.misc.goToBaaki} onPress={() => router.replace('/')} />}
         />
+      </Screen>
+    );
+  }
+
+  if (pending) {
+    const claimed = preview.claimable.find((candidate) => candidate.memberId === claimId);
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            paddingHorizontal: theme.spacing.xl,
+            gap: theme.spacing.xl,
+          }}
+        >
+          <Card style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <Ionicons name="hourglass-outline" size={40} color={theme.color.brand} />
+            <Text variant="subheading" align="center">
+              {t.claims.waitingTitle}
+            </Text>
+            <Text variant="caption" tone="muted" align="center">
+              {fill(t.claims.waitingBody, {
+                group: pending,
+                name: claimed?.name ?? t.misc.unnamed,
+              })}
+            </Text>
+          </Card>
+
+          {/* The way out of waiting on an admin who never opens the app. The
+              claim is left standing: if they answer it later and this person
+              has since joined as themselves, the approval refuses rather than
+              making them a member twice. */}
+          <Button
+            label={t.claims.joinAsNewInstead}
+            variant="secondary"
+            fullWidth
+            disabled={joining}
+            onPress={() => {
+              setClaimId(null);
+              setPending(null);
+              void join(null);
+            }}
+          />
+          <Button label={t.misc.goToBaaki} variant="ghost" onPress={() => router.replace('/')} />
+        </View>
       </Screen>
     );
   }
@@ -165,7 +227,7 @@ export default function JoinScreen() {
               <Row style={{ gap: theme.spacing.sm }}>
                 <Ionicons name="information-circle-outline" size={16} color={theme.color.brand} />
                 <Text variant="micro" tone="brand" style={{ flex: 1 }}>
-                  {t.extras.theirPastBecomesYours}
+                  {`${t.extras.theirPastBecomesYours} ${t.claims.needsConfirming}`}
                 </Text>
               </Row>
             ) : null}
@@ -179,7 +241,17 @@ export default function JoinScreen() {
         ) : null}
 
         <Button
-          label={claimId ? t.misc.joinAndClaim : t.misc.joinGroup}
+          // Claiming asks; joining as somebody new does not. The button says
+          // which of the two is about to happen.
+          label={
+            claimId
+              ? fill(t.claims.askToJoinAs, {
+                  name:
+                    preview.claimable.find((candidate) => candidate.memberId === claimId)?.name ??
+                    t.misc.unnamed,
+                })
+              : t.misc.joinGroup
+          }
           size="lg"
           fullWidth
           disabled={joining}

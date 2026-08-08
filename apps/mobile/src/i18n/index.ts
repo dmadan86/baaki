@@ -838,6 +838,26 @@ export interface UiStrings {
     alreadyRedeemed: string;
     couldNotRedeem: string;
   };
+  /**
+   * Taking over a place somebody already holds in a group, and an admin
+   * agreeing to it (ADR-006). Worded as a request throughout, because that is
+   * what it now is: approving hands over every expense filed under that name.
+   */
+  claims: {
+    askToJoinAs: string;
+    needsConfirming: string;
+    waitingTitle: string;
+    waitingBody: string;
+    joinAsNewInstead: string;
+    requestsTitle: string;
+    saysTheyAre: string;
+    approve: string;
+    decline: string;
+    decideFailed: string;
+    alreadyDecided: string;
+    placeTaken: string;
+    theyAreAlreadyIn: string;
+  };
   /** The rest: one or two strings each, from a dozen screens. */
   /**
    * Feedback, the policy screens, and erasure.
@@ -1686,6 +1706,22 @@ const en: UiStrings = {
     exhausted: 'That code has been used as many times as it allows.',
     alreadyRedeemed: 'You have already used that one.',
     couldNotRedeem: 'The code could not be checked just now. Try again in a moment.',
+  },
+  claims: {
+    askToJoinAs: 'Ask to join as {name}',
+    needsConfirming: 'An admin of the group confirms this before anything moves.',
+    waitingTitle: 'Asked',
+    waitingBody:
+      'Somebody who runs {group} has to confirm you are {name}. You will hear either way — nothing has changed in the group yet.',
+    joinAsNewInstead: 'Join as someone new instead',
+    requestsTitle: 'Waiting to join',
+    saysTheyAre: '{who} says they are {name}',
+    approve: 'Confirm',
+    decline: 'Not them',
+    decideFailed: 'That could not be answered just now. Try again in a moment.',
+    alreadyDecided: 'Somebody has already answered this one.',
+    placeTaken: 'That place belongs to somebody now.',
+    theyAreAlreadyIn: 'They are already in this group.',
   },
   privacy: {
     row: 'Privacy & security',
@@ -2575,6 +2611,22 @@ const ta: UiStrings = {
     alreadyRedeemed: 'அதை நீங்கள் ஏற்கனவே பயன்படுத்திவிட்டீர்கள்.',
     couldNotRedeem: 'இப்போது குறியீட்டைச் சரிபார்க்க முடியவில்லை. சிறிது நேரம் கழித்து முயலுங்கள்.',
   },
+  claims: {
+    askToJoinAs: '{name} ஆக சேர அனுமதி கேளுங்கள்',
+    needsConfirming: 'குழுவின் நிர்வாகி உறுதி செய்த பிறகே எதுவும் மாறும்.',
+    waitingTitle: 'கேட்கப்பட்டது',
+    waitingBody:
+      'நீங்கள் {name} தானா என்பதை {group} நடத்துபவர் உறுதி செய்ய வேண்டும். பதில் எப்படியிருந்தாலும் உங்களுக்குத் தெரிவிக்கப்படும் — குழுவில் இன்னும் எதுவும் மாறவில்லை.',
+    joinAsNewInstead: 'புதிய நபராகச் சேருங்கள்',
+    requestsTitle: 'சேர காத்திருப்பவர்கள்',
+    saysTheyAre: 'தான் {name} என்கிறார் {who}',
+    approve: 'உறுதி செய்',
+    decline: 'இவர் அல்ல',
+    decideFailed: 'இப்போது பதிலளிக்க முடியவில்லை. சிறிது நேரம் கழித்து முயலுங்கள்.',
+    alreadyDecided: 'இதற்கு ஏற்கனவே ஒருவர் பதிலளித்துவிட்டார்.',
+    placeTaken: 'அந்த இடம் இப்போது வேறு ஒருவருக்கு உரியது.',
+    theyAreAlreadyIn: 'அவர் ஏற்கனவே இந்தக் குழுவில் இருக்கிறார்.',
+  },
   privacy: {
     row: 'தனியுரிமை & பாதுகாப்பு',
     rowHint: 'என்ன சேமிக்கப்படுகிறது, எப்படி பாதுகாக்கப்படுகிறது',
@@ -3426,6 +3478,22 @@ const hi: UiStrings = {
     exhausted: 'वह कोड जितनी बार चल सकता था, उतनी बार चल चुका।',
     alreadyRedeemed: 'आप उसे पहले ही इस्तेमाल कर चुके हैं।',
     couldNotRedeem: 'अभी कोड जाँचा नहीं जा सका। थोड़ी देर बाद कोशिश करें।',
+  },
+  claims: {
+    askToJoinAs: '{name} के रूप में शामिल होने की पूछें',
+    needsConfirming: 'समूह का कोई एडमिन पुष्टि करेगा, उसके बाद ही कुछ बदलेगा।',
+    waitingTitle: 'पूछ लिया',
+    waitingBody:
+      '{group} चलाने वाले किसी को पुष्टि करनी है कि आप {name} हैं। जवाब जो भी हो, आपको पता चलेगा — समूह में अभी कुछ नहीं बदला।',
+    joinAsNewInstead: 'नए व्यक्ति के रूप में शामिल हों',
+    requestsTitle: 'शामिल होने के इंतज़ार में',
+    saysTheyAre: '{who} कहते हैं कि वे {name} हैं',
+    approve: 'पुष्टि करें',
+    decline: 'ये वो नहीं',
+    decideFailed: 'अभी जवाब नहीं दिया जा सका। थोड़ी देर बाद कोशिश करें।',
+    alreadyDecided: 'इसका जवाब कोई पहले ही दे चुका है।',
+    placeTaken: 'वह जगह अब किसी और की है।',
+    theyAreAlreadyIn: 'वे पहले से इस समूह में हैं।',
   },
   privacy: {
     row: 'निजता और सुरक्षा',
@@ -4403,6 +4471,22 @@ const ar: UiStrings = {
     exhausted: 'استُخدم هذا الرمز بالعدد المسموح به.',
     alreadyRedeemed: 'لقد استخدمته من قبل.',
     couldNotRedeem: 'تعذّر التحقق من الرمز الآن. حاول بعد قليل.',
+  },
+  claims: {
+    askToJoinAs: 'اطلب الانضمام بصفتك {name}',
+    needsConfirming: 'يؤكّد ذلك أحد مشرفي المجموعة قبل أن يتغيّر أي شيء.',
+    waitingTitle: 'تم الطلب',
+    waitingBody:
+      'على أحد القائمين على {group} أن يؤكّد أنك {name}. ستُخبَر بالنتيجة في الحالتين — ولم يتغيّر شيء في المجموعة بعد.',
+    joinAsNewInstead: 'انضم بصفتك شخصًا جديدًا',
+    requestsTitle: 'في انتظار الانضمام',
+    saysTheyAre: 'يقول {who} إنه {name}',
+    approve: 'تأكيد',
+    decline: 'ليس هو',
+    decideFailed: 'تعذّر الرد الآن. حاول بعد قليل.',
+    alreadyDecided: 'ردّ أحدهم على هذا من قبل.',
+    placeTaken: 'صار ذلك المكان لشخص آخر.',
+    theyAreAlreadyIn: 'هو بالفعل في هذه المجموعة.',
   },
   privacy: {
     row: 'الخصوصية والأمان',

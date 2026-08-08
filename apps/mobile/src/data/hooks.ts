@@ -43,6 +43,8 @@ import {
   fetchReceipt,
   fetchGroupSpending,
   fetchNotifications,
+  fetchMemberClaims,
+  decideMemberClaim,
   fetchPlanItems,
   markNotificationsRead,
   recordSettlement,
@@ -67,6 +69,7 @@ export const keys = {
   notifications: ['notifications'] as const,
   disputes: (id: string) => ['group', id, 'disputes'] as const,
   spending: (id: string) => ['group', id, 'spending'] as const,
+  memberClaims: (id: string) => ['group', id, 'member-claims'] as const,
 };
 
 /**
@@ -737,6 +740,46 @@ export function usePlanItems(groupId: string) {
     queryKey: ['plan', groupId],
     queryFn: () => fetchPlanItems(groupId),
     enabled: groupId !== '',
+  });
+}
+
+// ────────────────────────── somebody asking to be somebody (ADR-006) ──
+
+/**
+ * Claims waiting on this group's admins.
+ *
+ * Every member asks and only admins get an answer — the function returns
+ * nothing to anybody else — which is cheaper than teaching the screen who is
+ * an admin, and cannot disagree with the database about it.
+ */
+export function useMemberClaims(groupId: string) {
+  return useQuery({
+    queryKey: keys.memberClaims(groupId),
+    queryFn: () => fetchMemberClaims(groupId),
+    enabled: groupId !== '',
+  });
+}
+
+/**
+ * Answering one.
+ *
+ * Members are invalidated alongside the claims because approving *is* the
+ * claim: a ghost in the list has just become a person, and a screen still
+ * showing "not joined yet" next to their name is showing something that
+ * stopped being true in the same call.
+ */
+export function useDecideMemberClaim(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ claimId, approve }: { claimId: string; approve: boolean }) =>
+      decideMemberClaim(claimId, approve),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.memberClaims(groupId) }),
+        queryClient.invalidateQueries({ queryKey: keys.members(groupId) }),
+        queryClient.invalidateQueries({ queryKey: keys.activity(groupId) }),
+      ]);
+    },
   });
 }
 
