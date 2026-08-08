@@ -30,7 +30,7 @@ missing is that none of it has reached anybody:
   job nobody has done, and without them a token cannot be issued. A tested
   fan-out that cannot issue a token has not delivered anything.
 - **No email has ever been sent.** The pipeline, the suppression list, the
-  webhook and the one-click unsubscribe are built and covered by 67 tests, but
+  webhook and the one-click unsubscribe are built and covered by 79 tests, but
   every one of them stops at the edge of the network. Sending needs
   `mail.dmadan.com` verified in Resend, a webhook secret, and a deploy.
 

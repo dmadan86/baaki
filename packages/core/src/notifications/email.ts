@@ -267,15 +267,9 @@ export async function verifyUnsubscribe(
   signature: string,
   secret: string,
 ): Promise<boolean> {
-  const expected = await signUnsubscribe(address, secret);
-  if (expected.length !== signature.length) return false;
   // Constant time: comparing with `===` leaks where the first byte differs, and
   // this endpoint is unauthenticated by design.
-  let difference = 0;
-  for (let index = 0; index < expected.length; index += 1) {
-    difference |= expected.charCodeAt(index) ^ signature.charCodeAt(index);
-  }
-  return difference === 0;
+  return constantTimeEquals(await signUnsubscribe(address, secret), signature);
 }
 
 /** Lower-cased and trimmed — the same address, however it was typed. */
@@ -291,4 +285,112 @@ export function unsubscribeUrlFor(
   const base = functionsUrl.replace(/\/+$/, '');
   const query = new URLSearchParams({ address: normaliseAddress(address), sig: signature });
   return `${base}/email-unsubscribe?${query.toString()}`;
+}
+
+// ────────────────────────────────────────────────── the webhook signature ──
+
+/**
+ * Svix's scheme, which is what Resend signs its webhooks with.
+ *
+ * This lives here rather than in the edge function for one reason: it is the
+ * entire security of an endpoint anybody on the internet can reach, and getting
+ * it subtly wrong fails in the direction nobody notices. Every delivery report
+ * is answered 401, Resend gives up after a while, and the suppression list
+ * quietly freezes at whatever it happened to hold — no error, no alert, just
+ * mail going to addresses that bounced last month. Here it is checked in CI
+ * against Svix's published test vector.
+ *
+ * HMAC-SHA256 over `id.timestamp.body`, keyed with the secret after `whsec_` is
+ * stripped and the rest base64-decoded.
+ */
+export interface WebhookSignatureCheck {
+  readonly secret: string;
+  readonly id: string;
+  readonly timestamp: string;
+  /** The raw body text. `JSON.stringify(JSON.parse(body))` is a different string. */
+  readonly body: string;
+  /** The `svix-signature` header, verbatim. */
+  readonly header: string;
+  /** Seconds since the epoch. Injectable so the tolerance can be tested. */
+  readonly now?: number;
+  readonly toleranceSeconds?: number;
+}
+
+export const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
+
+export async function verifyWebhookSignature(check: WebhookSignatureCheck): Promise<boolean> {
+  const sent = Number(check.timestamp);
+  if (!check.timestamp || !Number.isFinite(sent)) return false;
+
+  // Replay protection. Without it a signature stays valid forever, and a body
+  // captured once could be posted back at any time.
+  const now = check.now ?? Math.floor(Date.now() / 1000);
+  const tolerance = check.toleranceSeconds ?? WEBHOOK_TOLERANCE_SECONDS;
+  if (Math.abs(now - sent) > tolerance) return false;
+
+  const raw = check.secret.startsWith('whsec_')
+    ? check.secret.slice('whsec_'.length)
+    : check.secret;
+  let expected: string;
+  try {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      base64ToBuffer(raw),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+    expected = bytesToBase64(
+      new Uint8Array(
+        await crypto.subtle.sign(
+          'HMAC',
+          key,
+          new TextEncoder().encode(`${check.id}.${check.timestamp}.${check.body}`),
+        ),
+      ),
+    );
+  } catch {
+    // A secret that is not base64 is a misconfiguration, and the safe reading of
+    // a signature check that cannot run is that nothing verifies.
+    return false;
+  }
+
+  // The header may carry several space-separated versioned signatures, because
+  // a secret mid-rotation means two are valid at once. Any one matching is a
+  // pass; reading only the first would break every rotation.
+  for (const part of check.header.split(' ')) {
+    const [version, value] = part.split(',');
+    if (version !== 'v1' || !value) continue;
+    if (constantTimeEquals(value, expected)) return true;
+  }
+  return false;
+}
+
+/**
+ * Returns the buffer rather than the view. `new Uint8Array(n)` is typed over
+ * `ArrayBufferLike`, which could be a `SharedArrayBuffer`, and `importKey` will
+ * not take one — so the allocation is made explicit and the `ArrayBuffer` is
+ * what leaves.
+ */
+function base64ToBuffer(value: string): ArrayBuffer {
+  const binary = atob(value);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return buffer;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function constantTimeEquals(left: string, right: string): boolean {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
 }

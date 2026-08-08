@@ -8,6 +8,7 @@ import {
   templateForKind,
   unsubscribeUrlFor,
   verifyUnsubscribe,
+  verifyWebhookSignature,
   webLinkFor,
 } from '../src/notifications/email';
 
@@ -216,5 +217,131 @@ describe('proving an address without a session', () => {
     expect(url).toContain('address=a%2Bb%40c.com');
     expect(url).toContain('sig=abc');
     expect(url).not.toContain('//email-unsubscribe');
+  });
+});
+
+/**
+ * The signature on Resend's webhook is the entire security of an endpoint
+ * anybody on the internet can reach — it runs with `verify_jwt = false`, so
+ * there is nothing else between a stranger and `baaki_record_email_event`.
+ *
+ * Getting it subtly wrong fails in the direction nobody notices: every genuine
+ * delivery report is answered 401, Resend gives up after a while, and the
+ * suppression list freezes at whatever it happened to hold. No error, no alert,
+ * just mail continuing to go to addresses that bounced last month. So it is
+ * checked here against the vector Svix publishes, rather than against my own
+ * reading of the spec.
+ */
+describe('the webhook signature', () => {
+  // Svix's published test vector.
+  const VECTOR = {
+    secret: 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw',
+    id: 'msg_p5jXN8AQM9LWM0D4loKWxJek',
+    timestamp: '1614265330',
+    body: '{"test": 2432232314}',
+    header: 'v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=',
+  };
+  const AT_THE_TIME = Number(VECTOR.timestamp);
+
+  it('accepts the vector Svix publishes', async () => {
+    expect(await verifyWebhookSignature({ ...VECTOR, now: AT_THE_TIME })).toBe(true);
+  });
+
+  it('refuses a body that was edited after it was signed', async () => {
+    expect(
+      await verifyWebhookSignature({
+        ...VECTOR,
+        body: '{"test": 2432232315}',
+        now: AT_THE_TIME,
+      }),
+    ).toBe(false);
+  });
+
+  it('refuses a signature made with a different secret', async () => {
+    expect(
+      await verifyWebhookSignature({
+        ...VECTOR,
+        secret: 'whsec_TWTvHRIrMWvUxwZM6Yw6BLNgiHnvIu6M',
+        now: AT_THE_TIME,
+      }),
+    ).toBe(false);
+  });
+
+  it('refuses when the id or the timestamp has been swapped', async () => {
+    expect(
+      await verifyWebhookSignature({ ...VECTOR, id: 'msg_somethingelse', now: AT_THE_TIME }),
+    ).toBe(false);
+    expect(
+      await verifyWebhookSignature({ ...VECTOR, timestamp: '1614265331', now: AT_THE_TIME + 1 }),
+    ).toBe(false);
+  });
+
+  /** Replay protection. Without it a captured body stays postable forever. */
+  it('refuses a signature older than the tolerance', async () => {
+    expect(await verifyWebhookSignature({ ...VECTOR, now: AT_THE_TIME + 301 })).toBe(false);
+    expect(await verifyWebhookSignature({ ...VECTOR, now: AT_THE_TIME + 299 })).toBe(true);
+  });
+
+  it('refuses a timestamp from the future, not just an old one', async () => {
+    expect(await verifyWebhookSignature({ ...VECTOR, now: AT_THE_TIME - 301 })).toBe(false);
+  });
+
+  /** A secret mid-rotation means two signatures are valid at once. */
+  it('accepts a match anywhere in a multi-signature header', async () => {
+    expect(
+      await verifyWebhookSignature({
+        ...VECTOR,
+        header: `v1,aW52YWxpZHNpZ25hdHVyZWJ5dGVzMDAwMDAwMDAwMDAwMDA= ${VECTOR.header}`,
+        now: AT_THE_TIME,
+      }),
+    ).toBe(true);
+  });
+
+  it('ignores versions it does not understand', async () => {
+    expect(
+      await verifyWebhookSignature({
+        ...VECTOR,
+        header: `v2,${VECTOR.header.split(',')[1]}`,
+        now: AT_THE_TIME,
+      }),
+    ).toBe(false);
+  });
+
+  it('refuses an empty or malformed header rather than throwing', async () => {
+    for (const header of ['', 'v1,', 'garbage', ',']) {
+      expect(await verifyWebhookSignature({ ...VECTOR, header, now: AT_THE_TIME }), header).toBe(
+        false,
+      );
+    }
+  });
+
+  it('refuses a timestamp that is not a number', async () => {
+    expect(await verifyWebhookSignature({ ...VECTOR, timestamp: 'now', now: AT_THE_TIME })).toBe(
+      false,
+    );
+  });
+
+  /**
+   * A secret that cannot be decoded is a misconfiguration, and the safe reading
+   * of a signature check that cannot run is that nothing verifies.
+   */
+  it('refuses rather than throws when the secret is not base64', async () => {
+    expect(
+      await verifyWebhookSignature({
+        ...VECTOR,
+        secret: 'whsec_!!!not base64!!!',
+        now: AT_THE_TIME,
+      }),
+    ).toBe(false);
+  });
+
+  it('works with the secret given without its whsec_ prefix', async () => {
+    expect(
+      await verifyWebhookSignature({
+        ...VECTOR,
+        secret: VECTOR.secret.slice('whsec_'.length),
+        now: AT_THE_TIME,
+      }),
+    ).toBe(true);
   });
 });
