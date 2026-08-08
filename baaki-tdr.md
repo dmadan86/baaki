@@ -304,7 +304,11 @@ VPA profiles, UPI intent flow + confirm state machine + auto-confirm job, nudges
 receipt-parse pipeline, review/claim UX, quotas + usage metering, category charts, JSON/CSV export.
 ✓ English + Tamil + pasted-text bills parse and reconcile; 4 users claim items concurrently; itemized expense math exact; export re-imports losslessly.
 
-_Status (2026-08-07):_ all five parts are built. Bills parsing and reconciling is proved against the deployed function by `e2e/m5-receipts.mjs`; itemized expense maths is a property test in `packages/core`; the export/import round trip is proved balance-for-balance against a real database in `packages/db/test/m5-import-export.test.ts`. **Four users claiming items concurrently has not been run** — it needs four signed-in clients on one receipt, and no such harness exists yet.
+_Status (2026-08-08):_ all five parts are built. Bills parsing and reconciling is proved against the deployed function by `e2e/m5-receipts.mjs`; itemized expense maths is a property test in `packages/core`; the export/import round trip is proved balance-for-balance against a real database in `packages/db/test/m5-import-export.test.ts`.
+
+**Four users claiming items concurrently is still not proved.** The harness now exists — `e2e/m5-claims.mjs`, four signed-in sessions on one receipt — but **it has never been executed**, because running it needs the live project's keys. Until somebody runs it this criterion is exactly as unproved as it was before the file was written, and the file must not be read as evidence.
+
+What that harness replaces is worth recording, because it is the reason this went unnoticed for a milestone: the concurrency check inside `m5-receipts.mjs` inserts into `receipt_item_claims` through the **service role**, which bypasses RLS, bypasses the grants, and never calls `baaki_set_item_claim` — the function that decides whose claim a claim is. `receipt_item_claims` has INSERT, UPDATE and DELETE revoked from `anon` and `authenticated`, so that test drives a door no phone can open. It demonstrates that Postgres accepts five concurrent inserts from a superuser.
 
 **Out of scope v1:** money custody/wallet, ~~SMS auto-import~~ (built anyway — amendment A2), open banking, iOS widgets, web full app, public API, interest/loan mode (backlog).
 
