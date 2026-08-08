@@ -173,7 +173,7 @@ export default function InboxScreen() {
         )}
 
         <Text variant="micro" tone="faint" align="center">
-          Push and email delivery come with M4. Until then this is where everything lands.
+          {t.extras.deliveryComesLater}
         </Text>
       </ScrollView>
     </Screen>

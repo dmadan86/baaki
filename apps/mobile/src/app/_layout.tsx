@@ -13,7 +13,7 @@ import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme 
 
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { isRtl, isRtlLanguage } from '@/i18n';
+import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
@@ -180,6 +180,7 @@ function PushRouting() {
 function LockGate({ children }: { children: React.ReactNode }) {
   const { locked, unlock } = useLock();
   const theme = useTheme();
+  const { t } = useStrings();
   const { height: screenHeight } = useWindowDimensions();
 
   useEffect(() => {
@@ -217,13 +218,13 @@ function LockGate({ children }: { children: React.ReactNode }) {
         }}
       >
         <Text variant="display" align="center">
-          Baaki is locked
+          {t.extras.lockedTitle}
         </Text>
         <Text variant="body" tone="muted" align="center">
-          Unlock with the same face or fingerprint that opens this phone.
+          {t.extras.lockedBody}
         </Text>
         <View style={{ paddingTop: theme.spacing.md }}>
-          <Button label="Unlock" size="lg" fullWidth onPress={() => void unlock()} />
+          <Button label={t.extras.unlock} size="lg" fullWidth onPress={() => void unlock()} />
         </View>
       </View>
 

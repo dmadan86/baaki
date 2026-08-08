@@ -96,8 +96,7 @@ export default function FriendsScreen() {
             />
 
             <Text variant="micro" tone="faint" align="center">
-              Amounts are kept per currency, never converted into one total. People without an
-              account are counted per group, because two people can share a name.
+              {t.extras.perCurrencyNote}
             </Text>
           </>
         )}

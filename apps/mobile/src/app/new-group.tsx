@@ -119,7 +119,7 @@ export default function NewGroupScreen() {
                 }}
               />
               <Text variant="micro" tone="faint">
-                Leave it blank and the group is named after whoever is in it.
+                {t.extras.blankNameHint}
               </Text>
             </View>
           </Row>
@@ -130,7 +130,7 @@ export default function NewGroupScreen() {
                 key={option}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: emoji === option }}
-                accessibilityLabel={`Icon ${option}`}
+                accessibilityLabel={t.extras.iconLabel.replace('{emoji}', option)}
                 onPress={() => setEmoji(option)}
                 style={{
                   width: 44,
@@ -150,27 +150,27 @@ export default function NewGroupScreen() {
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            What kind of group?
+            {t.extras.whatKindOfGroup}
           </Text>
           <ChipRow<GroupType>
             value={type}
             onChange={setType}
             options={[
-              { value: 'trip', label: 'Trip' },
-              { value: 'home', label: 'Home' },
-              { value: 'couple', label: 'Couple' },
-              { value: 'event', label: 'Event' },
-              { value: 'other', label: 'Other' },
+              { value: 'trip', label: t.extras.typeTrip },
+              { value: 'home', label: t.extras.typeHome },
+              { value: 'couple', label: t.extras.typeCouple },
+              { value: 'event', label: t.extras.typeEvent },
+              { value: 'other', label: t.extras.typeOther },
             ]}
           />
         </View>
 
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            Add people by name
+            {t.extras.addPeopleByName}
           </Text>
           <Text variant="micro" tone="faint">
-            They do not need the app. Add them now and they can claim their history later.
+            {t.extras.ghostNote}
           </Text>
           <Row>
             <TextInput

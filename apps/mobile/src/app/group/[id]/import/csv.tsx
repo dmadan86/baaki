@@ -42,7 +42,7 @@ import { importSplitwiseCsv, type MemberId, type SplitwiseImport } from '@baaki/
 import { useGroup } from '@/data/hooks';
 import { planFromCsv, toMutationPayload, UnmappedPersonError } from '@/data/importPlan';
 import { displayName } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { importMutationId } from '@/lib/importId';
 import { useSync } from '@/sync/provider';
@@ -52,7 +52,7 @@ const NEW_PERSON = '__new__';
 
 export default function ImportCsvScreen() {
   const theme = useTheme();
-  const { locale } = useStrings();
+  const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
@@ -187,27 +187,29 @@ export default function ImportCsvScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Close" onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={22} color={theme.color.text} />
           </IconButton>
           <Text variant="subheading" style={{ marginLeft: theme.spacing.md }}>
-            Import a Splitwise export
+            {t.importLedger.splitwiseTitle}
           </Text>
         </Row>
 
         <Card style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
-            In Splitwise, open the group, choose Export as spreadsheet, and pick the file here.
+            {t.importLedger.splitwiseHowTo}
           </Text>
-          <Button label={file ? `Chosen: ${file}` : 'Choose a file'} onPress={() => void pick()} />
+          <Button
+            label={
+              file ? t.importLedger.chosenFile.replace('{name}', file) : t.importLedger.chooseFile
+            }
+            onPress={() => void pick()}
+          />
         </Card>
 
         {saved !== null ? (
           <Card>
-            <Text variant="caption">
-              {saved} expense{saved === 1 ? '' : 's'} imported. They are saved on this phone and
-              will sync when there is a connection.
-            </Text>
+            <Text variant="caption">{plural(locale, saved, t.importLedger.importedCount)}</Text>
           </Card>
         ) : null}
 
@@ -224,11 +226,10 @@ export default function ImportCsvScreen() {
             ) : null}
 
             <View style={{ gap: theme.spacing.sm }}>
-              <SectionHeader title="Who is who" />
+              <SectionHeader title={t.importLedger.whoIsWho} />
               <Card style={{ gap: theme.spacing.lg }}>
                 <Text variant="micro" tone="faint">
-                  The file names people; this group has members. Nothing is imported until every
-                  name has somebody against it.
+                  {t.importLedger.whoIsWhoNote}
                 </Text>
                 {parsed.people.map((person) => (
                   <View key={person} style={{ gap: theme.spacing.xs }}>
@@ -254,7 +255,7 @@ export default function ImportCsvScreen() {
                         />
                       ))}
                       <Chip
-                        label="Add as new"
+                        label={t.importLedger.addAsNew}
                         selected={mapping[person] === NEW_PERSON}
                         onPress={() =>
                           setMapping((current) => ({ ...current, [person]: NEW_PERSON }))
@@ -298,15 +299,20 @@ export default function ImportCsvScreen() {
 
             {parsed.problems.length > 0 ? (
               <View style={{ gap: theme.spacing.sm }}>
-                <SectionHeader title="Rows left out" />
+                <SectionHeader title={t.importLedger.rowsLeftOut} />
                 <Card style={{ gap: theme.spacing.sm }}>
                   <Text variant="micro" tone="faint">
-                    Everything else still imports. These are named so you can add them by hand
-                    rather than discover later that they are missing.
+                    {t.importLedger.rowsLeftOutNote}
                   </Text>
                   {parsed.problems.map((problem, index) => (
                     <Row key={index} style={{ gap: theme.spacing.sm }}>
-                      <Badge label={problem.row ? `Row ${problem.row}` : 'File'} />
+                      <Badge
+                        label={
+                          problem.row
+                            ? t.importLedger.rowNumber.replace('{n}', String(problem.row))
+                            : t.importLedger.fileWide
+                        }
+                      />
                       <Text variant="micro" tone="muted" style={{ flex: 1 }}>
                         {problem.message}
                       </Text>
@@ -328,10 +334,12 @@ export default function ImportCsvScreen() {
           <Button
             label={
               saving
-                ? 'Importing…'
+                ? t.importLedger.importing
                 : unmapped.length > 0
-                  ? `Choose who ${unmapped.length === 1 ? unmapped[0] : `${unmapped.length} people are`}`
-                  : `Import ${parsed.expenses.length} expenses`
+                  ? unmapped.length === 1
+                    ? t.importLedger.chooseWhoIs.replace('{name}', unmapped[0])
+                    : plural(locale, unmapped.length, t.importLedger.chooseWhoArePlural)
+                  : plural(locale, parsed.expenses.length, t.importLedger.importCount)
             }
             onPress={() => void run()}
             disabled={!canImport || saving}

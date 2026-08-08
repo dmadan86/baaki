@@ -21,6 +21,8 @@ import { TextInput, View } from 'react-native';
 
 import { Badge, Button, Card, Row, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 import type { MemberId } from '@baaki/core';
 
 import type { DisputeRow } from '@/data/types';
@@ -54,6 +56,7 @@ export function DisputePanel({
   onEdit,
 }: DisputePanelProps) {
   const theme = useTheme();
+  const { t } = useStrings();
   const [writing, setWriting] = useState(false);
   const [reason, setReason] = useState('');
   const [answering, setAnswering] = useState<string | null>(null);
@@ -98,14 +101,14 @@ export function DisputePanel({
                   value={note}
                   onChangeText={setNote}
                   multiline
-                  accessibilityLabel="Your reply"
-                  placeholder="Optional — what actually happened"
+                  accessibilityLabel={t.dispute.yourReply}
+                  placeholder={t.dispute.replyPlaceholder}
                   placeholderTextColor={theme.color.textFaint}
                   style={input}
                 />
                 <Row style={{ gap: theme.spacing.sm }}>
                   <Button
-                    label={busy ? 'Saving…' : 'They’re right — I’ll fix it'}
+                    label={busy ? t.dispute.saving : t.dispute.theyAreRight}
                     size="sm"
                     disabled={busy}
                     onPress={() => {
@@ -116,7 +119,7 @@ export function DisputePanel({
                     }}
                   />
                   <Button
-                    label="It’s correct"
+                    label={t.dispute.itIsCorrect}
                     size="sm"
                     variant="secondary"
                     disabled={busy}
@@ -130,7 +133,7 @@ export function DisputePanel({
               </View>
             ) : (
               <Button
-                label="Answer this"
+                label={t.dispute.answerThis}
                 size="sm"
                 variant="secondary"
                 onPress={() => setAnswering(row.id)}
@@ -142,7 +145,7 @@ export function DisputePanel({
 
       {mine ? (
         <View style={{ gap: theme.spacing.sm }}>
-          <Badge label="You said this is wrong" tone="negative" />
+          <Badge label={t.dispute.youSaidWrong} tone="negative" />
           {mine.reason ? (
             <Text variant="caption" tone="muted">
               {mine.reason}
@@ -170,8 +173,8 @@ export function DisputePanel({
             onChangeText={setReason}
             multiline
             autoFocus
-            accessibilityLabel="What is wrong with this expense"
-            placeholder="I left before dessert · the total was ₹1,800"
+            accessibilityLabel={t.dispute.whatIsWrong}
+            placeholder={t.dispute.reasonPlaceholder}
             placeholderTextColor={theme.color.textFaint}
             style={input}
           />
@@ -187,7 +190,7 @@ export function DisputePanel({
               }}
             />
             <Button
-              label="Cancel"
+              label={t.common.cancel}
               size="sm"
               variant="ghost"
               onPress={() => {
@@ -197,14 +200,14 @@ export function DisputePanel({
             />
           </Row>
           <Text variant="micro" tone="faint">
-            A reason is optional, but it is the difference between a fix and a conversation.
+            {t.dispute.reasonOptional}
           </Text>
         </View>
       ) : (
         <Row style={{ gap: theme.spacing.sm }}>
           {/* Correcting it is the better answer whenever you know what it should
               say, so it is offered first and equally. */}
-          <Button label="Fix it myself" size="sm" variant="secondary" onPress={onEdit} />
+          <Button label={t.dispute.fixItMyself} size="sm" variant="secondary" onPress={onEdit} />
           <Button
             label="Something’s wrong"
             size="sm"

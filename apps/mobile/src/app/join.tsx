@@ -134,7 +134,7 @@ export default function JoinScreen() {
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="subheading">{t.misc.isOneOfTheseYou}</Text>
             <Text variant="caption" tone="muted">
-              Pick your name and everything already recorded for you comes with you.
+              {t.extras.claimHistoryNote}
             </Text>
             <Row style={{ flexWrap: 'wrap', gap: theme.spacing.md }}>
               {preview.claimable.map((candidate) => (
@@ -165,7 +165,7 @@ export default function JoinScreen() {
               <Row style={{ gap: theme.spacing.sm }}>
                 <Ionicons name="information-circle-outline" size={16} color={theme.color.brand} />
                 <Text variant="micro" tone="brand" style={{ flex: 1 }}>
-                  Their past expenses and balances become yours.
+                  {t.extras.theirPastBecomesYours}
                 </Text>
               </Row>
             ) : null}
@@ -188,8 +188,7 @@ export default function JoinScreen() {
         {joining ? <ActivityIndicator color={theme.color.brand} /> : null}
 
         <Text variant="micro" tone="faint" align="center">
-          Joining as a guest keeps everything on this device. Add a phone number later and it all
-          comes with you.
+          {t.extras.guestKeepsItHere}
         </Text>
       </ScrollView>
     </Screen>

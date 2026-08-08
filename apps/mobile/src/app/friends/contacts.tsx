@@ -206,8 +206,7 @@ function ChooseGroup({
       {groups.length === 0 ? (
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            You have no groups yet. A person belongs to a group in Baaki, because a debt is always
-            about something — a trip, a flat, a dinner.
+            {t.extras.noGroupsYet}
           </Text>
           <Button
             label={t.misc.startAGroup}
@@ -251,8 +250,7 @@ function ChooseGroup({
       ) : null}
 
       <Text variant="micro" tone="faint">
-        They do not need the app. Their share is recorded under their name, and if they join later
-        with this email or number they claim everything already sitting there.
+        {t.extras.ghostShareNote}
       </Text>
 
       <Button label={t.misc.pickDifferentPeople} variant="ghost" onPress={onCancel} />

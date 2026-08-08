@@ -56,7 +56,7 @@ function BlockingScreen(): React.JSX.Element {
       </View>
 
       <Text variant="heading" align="center">
-        Baaki needs updating
+        {t.extras.needsUpdating}
       </Text>
 
       <Text variant="caption" tone="muted" align="center">
@@ -67,8 +67,7 @@ function BlockingScreen(): React.JSX.Element {
       {/* Said plainly, because "will I lose my data" is the actual worry and
           nobody is going to install anything until it is answered. */}
       <Text variant="caption" tone="muted" align="center">
-        Nothing is lost. Every group, expense and settlement is on the server and will be exactly
-        where you left it.
+        {t.extras.nothingIsLost}
       </Text>
 
       <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
@@ -121,7 +120,7 @@ export function UpdateBanner(): React.JSX.Element | null {
               {latest ? `Baaki ${latest} is out` : 'A new Baaki is out'}
             </Text>
             <Text variant="micro" tone="faint">
-              Worth a minute when you have one.
+              {t.extras.worthAMinute}
             </Text>
           </View>
         </Row>

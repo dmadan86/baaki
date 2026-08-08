@@ -118,8 +118,8 @@ export default function InsightsScreen() {
           value={scope}
           onChange={setScope}
           options={[
-            { value: 'group', label: 'The group' },
-            { value: 'mine', label: 'Just me' },
+            { value: 'group', label: t.extras.theGroup },
+            { value: 'mine', label: t.extras.justMe },
           ]}
         />
 
