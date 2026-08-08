@@ -16,6 +16,7 @@
     "test:api": "pnpm --filter @baaki/api-client run test",
     "test:web": "pnpm --filter @baaki/web-lite run test",
     "web": "pnpm --filter @baaki/web-lite run dev",
+    "admin": "pnpm --filter @baaki/admin run dev",
     "db:generate": "pnpm --filter @baaki/db run generate",
     "db:migrate": "pnpm --filter @baaki/db run migrate:deploy",
     "db:migrate:dev": "pnpm --filter @baaki/db run migrate:dev",
