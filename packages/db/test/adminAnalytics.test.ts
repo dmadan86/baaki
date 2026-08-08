@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { connect, expectDenied, seedGroup } from './helpers';
+import { addEqualSplitExpense, connect, expectDenied, seedGroup } from './helpers';
 
 let client: Client;
 
@@ -166,7 +166,15 @@ async function currencyTotal(db: Client, currency: string): Promise<bigint> {
   return rows[0] ? BigInt(rows[0].expense_minor) : 0n;
 }
 
-/** One expense with one version, made current — the shape the app writes. */
+/**
+ * One expense, through the repo's own helper.
+ *
+ * Hand-rolling the inserts here did not work and should not have: a trigger
+ * checks that the payers sum to the amount, so an expense seeded without them
+ * is rejected — `PAYER_MISMATCH: payers sum to 0 but the expense is 10000`.
+ * That guard is the ledger's, and a test fixture that sidestepped it would be
+ * measuring rows the app can never produce.
+ */
 async function addExpense(
   db: Client,
   groupId: string,
@@ -174,16 +182,17 @@ async function addExpense(
   currency: string,
   amount: bigint,
 ): Promise<string> {
-  const expenseId = randomUUID();
-  await db.query(`INSERT INTO public.expenses (id, group_id, created_by) VALUES ($1, $2, $3)`, [
-    expenseId,
+  const { expenseId } = await addEqualSplitExpense(db, {
     groupId,
-    memberId,
-  ]);
-  await addVersion(db, expenseId, memberId, currency, amount, 1);
+    payers: { [memberId]: amount },
+    participants: [memberId],
+    amount,
+    currency,
+  });
   return expenseId;
 }
 
+/** A second version of an existing expense, payers and shares included. */
 async function addVersion(
   db: Client,
   expenseId: string,
@@ -193,15 +202,27 @@ async function addVersion(
   versionNo: number,
 ): Promise<void> {
   const versionId = randomUUID();
+  await db.query('BEGIN');
   await db.query(
     `INSERT INTO public.expense_versions
        (id, expense_id, version_no, author_member_id, description, expense_date,
         currency, amount, split_type, split_params)
-     VALUES ($1, $2, $3, $4, 'Dinner', current_date, $5, $6, 'equal', '{"kind":"equal"}')`,
+     VALUES ($1, $2, $3, $4, 'Dinner', current_date, $5, $6, 'equal', '{"kind":"equal"}'::jsonb)`,
     [versionId, expenseId, versionNo, memberId, currency, amount.toString()],
+  );
+  await db.query(
+    `INSERT INTO public.expense_payers (id, expense_version_id, member_id, amount)
+     VALUES ($1, $2, $3, $4)`,
+    [randomUUID(), versionId, memberId, amount.toString()],
+  );
+  await db.query(
+    `INSERT INTO public.expense_shares (id, expense_version_id, member_id, amount)
+     VALUES ($1, $2, $3, $4)`,
+    [randomUUID(), versionId, memberId, amount.toString()],
   );
   await db.query('UPDATE public.expenses SET current_version_id = $1 WHERE id = $2', [
     versionId,
     expenseId,
   ]);
+  await db.query('COMMIT');
 }

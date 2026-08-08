@@ -25,6 +25,23 @@
 
 -- ──────────────────────────────────────────────────────────── the switch ──
 
+/**
+ * Whether an array holds no duplicates.
+ *
+ * A function because Postgres refuses a subquery inside a CHECK constraint —
+ * `cannot use subquery in check constraint`, SQLSTATE 0A000 — and answering
+ * "are these distinct" needs one. A check may call a function, so the subquery
+ * moves in here. IMMUTABLE is required for a constraint to trust it.
+ */
+CREATE OR REPLACE FUNCTION public.baaki_array_is_distinct(p_values text[])
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT p_values IS NULL
+      OR cardinality(p_values) = (SELECT count(DISTINCT v) FROM unnest(p_values) AS v);
+$$;
+
 CREATE TABLE IF NOT EXISTS public.feature_flags (
   key text PRIMARY KEY,
   description text NOT NULL DEFAULT '',
@@ -45,9 +62,7 @@ CREATE TABLE IF NOT EXISTS public.feature_flags (
     array_length(variants, 1) BETWEEN 2 AND 8
   ),
   -- A duplicate arm silently doubles that arm's share of the split.
-  CONSTRAINT feature_flags_variants_distinct CHECK (
-    array_length(variants, 1) = (SELECT count(DISTINCT v) FROM unnest(variants) AS v)
-  )
+  CONSTRAINT feature_flags_variants_distinct CHECK (public.baaki_array_is_distinct(variants))
 );
 
 ALTER TABLE public.feature_flags ENABLE ROW LEVEL SECURITY;
