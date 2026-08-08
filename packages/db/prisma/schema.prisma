@@ -148,6 +148,7 @@ model Profile {
   createdInvites    Invite[]        @relation("InviteCreatedBy")
   usageEvents       UsageEvent[]
   subscriptions     Subscription[]
+  promoRedemptions  PromoRedemption[]
   purchasedPasses   GroupPass[]
   syncMutations     SyncMutation[]
 
@@ -723,6 +724,73 @@ model AppRelease {
   @@schema("public")
 }
 
+/// A feature switch, and the experiment running behind it.
+///
+/// Readable by every client and writable by none of them: with RLS on and no
+/// write policy, the service role is the only way in. A flag a client could
+/// flip is a paywall with a door in the back — the same shape as a settlement
+/// somebody could confirm themselves.
+///
+/// Who sees which arm is not stored anywhere. It is hashed from the flag key
+/// and the profile id, identically in `baaki_variant` and in `bucketOf` from
+/// `@baaki/core`, so the answer needs no round trip and the analysis is a join
+/// rather than a pipeline of exposure events.
+model FeatureFlag {
+  key            String   @id
+  description    String   @default("")
+  enabled        Boolean  @default(false)
+  /// 0–100. How much of the population is in the experiment at all.
+  rolloutPercent Int      @default(0) @map("rollout_percent")
+  /// Two to eight, distinct. The first is the control by convention.
+  variants       String[] @default(["control", "treatment"])
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("feature_flags")
+  @@schema("public")
+}
+
+/// A promotion somebody can type in. Not readable by any client at all — every
+/// other table here is visible to the person it concerns, but a list of valid
+/// codes is not about a person, it is the giveaway itself.
+model PromoCode {
+  code           String    @id
+  tier           String    @default("plus")
+  /// How long the grant lasts, in days — not an end date, so one code means the
+  /// same thing to somebody redeeming it today and in a month.
+  days           Int       @default(30)
+  maxRedemptions Int       @default(1) @map("max_redemptions")
+  redeemedCount  Int       @default(0) @map("redeemed_count")
+  /// When the code stops working, which is not when the grant ends.
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  note           String    @default("")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  redemptions PromoRedemption[]
+
+  @@map("promo_codes")
+  @@schema("public")
+}
+
+/// Who used which code. Written only by `baaki_redeem_promo`, which is
+/// SECURITY DEFINER so the client never touches `subscriptions` itself.
+model PromoRedemption {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String
+  profileId      String   @map("profile_id") @db.Uuid
+  subscriptionId String?  @map("subscription_id") @db.Uuid
+  redeemedAt     DateTime @default(now()) @map("redeemed_at") @db.Timestamptz(6)
+
+  promoCode    PromoCode     @relation(fields: [code], references: [code], onDelete: Cascade)
+  profile      Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([code, profileId], map: "promo_redemptions_once")
+  @@index([profileId, redeemedAt], map: "promo_redemptions_profile_idx")
+  @@map("promo_redemptions")
+  @@schema("public")
+}
+
 /// What somebody bought. Written only by the service role after a store
 /// receipt has been verified — a client that could insert one of these is a
 /// paywall with a door in the back.
@@ -745,7 +813,8 @@ model Subscription {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile          Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  promoRedemptions PromoRedemption[]
 
   @@index([profileId, status], map: "subscriptions_profile_idx")
   @@map("subscriptions")
