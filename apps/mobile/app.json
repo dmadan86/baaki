@@ -8,6 +8,13 @@
     "scheme": "baaki",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F3F1FB",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d0d34ed9-5888-4204-b116-a873d3bec94f",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.baaki.mobile"

@@ -12,9 +12,13 @@
  * Strings change instantly — they are React state and nothing else. Direction
  * does not. React Native decides right-to-left once, natively, before any
  * JavaScript runs, and `I18nManager.forceRTL` says so itself: *changes take
- * full effect on the next application start*. There is no reload to call — this
- * app does not carry `expo-updates` — so the honest thing is to say the words
- * "close and open Baaki again" rather than write half a mirrored screen.
+ * full effect on the next application start*. So the app restarts itself, via
+ * `@/lib/restart` — and asks first, because throwing somebody out of the screen
+ * they are standing on is not something to do without permission.
+ *
+ * A build that cannot restart itself — anything older than the one that added
+ * `expo-updates`, and any reload the platform refuses — still gets the sentence
+ * that was always true: close and open Baaki again.
  *
  * Said in an alert, at the moment of the choice, and not only in a banner. A
  * banner lives on one screen; somebody who taps a language and walks away never
@@ -50,6 +54,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, I18nManager, Platform } from 'react-native';
 
 import { setLayoutDirection } from '@baaki/ui';
+
+import { canRestart, restartApp } from '@/lib/restart';
 
 import {
   deviceLanguage,
@@ -158,11 +164,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       // ends where it started, and there is nothing left to restart for.
       if (rtl !== LAUNCHED_RTL) {
         const words = STRINGS_BY_LANGUAGE[chosen];
-        Alert.alert(
-          words.account.restartTitle,
-          rtl ? words.signIn.restartToMirror : words.signIn.restartToUnmirror,
-          [{ text: words.common.ok }],
-        );
+
+        // Builds carrying `expo-updates` can do it themselves, so they offer
+        // rather than instruct. Older binaries — and any build that refuses the
+        // reload — still get the sentence that was always true.
+        if (canRestart()) {
+          Alert.alert(
+            words.account.restartTitle,
+            rtl ? words.account.restartNowMirror : words.account.restartNowUnmirror,
+            [
+              { text: words.misc.notNow, style: 'cancel' },
+              { text: words.account.restartNow, onPress: () => void restartApp() },
+            ],
+          );
+        } else {
+          Alert.alert(
+            words.account.restartTitle,
+            rtl ? words.signIn.restartToMirror : words.signIn.restartToUnmirror,
+            [{ text: words.common.ok }],
+          );
+        }
       }
     }
   }, []);
