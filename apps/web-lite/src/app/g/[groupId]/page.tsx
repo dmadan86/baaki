@@ -27,10 +27,13 @@ import {
 
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
+import { plural } from '@/i18n';
+import { useStrings } from '@/i18n-context';
 
 export default function GroupPage() {
   const params = useParams<{ groupId: string }>();
   const groupId = params.groupId;
+  const { t, locale } = useStrings();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -71,7 +74,7 @@ export default function GroupPage() {
     return (
       <main>
         <div className="card">
-          <p className="muted">Loading…</p>
+          <p className="muted">{t.group.loading}</p>
         </div>
       </main>
     );
@@ -83,11 +86,8 @@ export default function GroupPage() {
     return (
       <main>
         <div className="card">
-          <h1>Not your group</h1>
-          <p>
-            {error ??
-              'This browser is not a member of this group. If somebody sent you a link, open that instead.'}
-          </p>
+          <h1>{t.group.notYours}</h1>
+          <p>{error ?? t.group.notYoursBody}</p>
         </div>
       </main>
     );
@@ -103,16 +103,16 @@ export default function GroupPage() {
       <div className="card">
         <h1>
           {group.cover_emoji ? `${group.cover_emoji} ` : ''}
-          {group.name?.trim() || 'Your group'}
+          {group.name?.trim() || t.group.yourGroup}
         </h1>
         <p className="faint">
-          {members.length} {members.length === 1 ? 'person' : 'people'} · {live.length}{' '}
-          {live.length === 1 ? 'expense' : 'expenses'}
+          {plural(locale, members.length, t.group.peopleCount)} ·{' '}
+          {plural(locale, live.length, t.group.expenseCount)}
         </p>
       </div>
 
       <div className="card">
-        <h2>Where everyone stands</h2>
+        <h2>{t.group.whereEveryoneStands}</h2>
         {members.map((member) => {
           const net = ledger.balances.get(member.id) ?? 0n;
           return (
@@ -121,10 +121,10 @@ export default function GroupPage() {
               <span
                 className={`money ${net > 0n ? 'owed' : net < 0n ? 'owe' : ''}`}
                 aria-label={`${nameOf(member)} ${
-                  net === 0n ? 'is settled up' : net > 0n ? 'is owed' : 'owes'
+                  net === 0n ? t.group.isSettledUp : net > 0n ? t.group.isOwed : t.group.owes
                 } ${money(net < 0n ? -net : net, currency)}`}
               >
-                {net === 0n ? 'settled up' : money(net < 0n ? -net : net, currency)}
+                {net === 0n ? t.group.settledUp : money(net < 0n ? -net : net, currency)}
               </span>
             </div>
           );
@@ -133,11 +133,8 @@ export default function GroupPage() {
 
       {ledger.transfers.length > 0 ? (
         <div className="card">
-          <h2>Who pays whom</h2>
-          <p className="faint">
-            The fewest payments that settle everybody. Nobody is made to pay somebody they never
-            split anything with.
-          </p>
+          <h2>{t.group.whoPaysWhom}</h2>
+          <p className="faint">{t.group.whoPaysWhomNote}</p>
           {ledger.transfers.map((transfer, index) => (
             <div className="row" key={index}>
               <span>
@@ -152,7 +149,7 @@ export default function GroupPage() {
 
       {live.length > 0 ? (
         <div className="card">
-          <h2>Recent</h2>
+          <h2>{t.group.recent}</h2>
           {live.slice(0, 12).map((expense) => {
             const version = expense.currentVersion;
             if (!version) return null;
@@ -171,11 +168,11 @@ export default function GroupPage() {
       ) : null}
 
       <Link className="button" href={`/g/${groupId}/add`}>
-        Add an expense
+        {t.group.addAnExpense}
       </Link>
 
       <p className="faint" style={{ textAlign: 'center' }}>
-        Install Baaki to scan receipts, settle over UPI and keep this working without a signal.
+        {t.group.installNote}
       </p>
     </main>
   );
