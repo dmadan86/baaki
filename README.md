@@ -367,9 +367,14 @@ is a relay; the credentials at the far end are still yours to supply.
 3. Give the same file to EAS, so cloud builds have it too:
 
    ```bash
-   eas env:create --name GOOGLE_SERVICES_JSON --type file \
-     --value ./apps/mobile/google-services.json --scope project
+   # from apps/mobile. `env:create` still works but is deprecated.
+   eas env:set --name GOOGLE_SERVICES_JSON --type file \
+     --value ./google-services.json --scope project --visibility secret \
+     --environment production --environment preview --environment development
    ```
+
+   Every environment, because a preview build that cannot register for push is
+   a preview build that cannot be used to test push.
 
 4. In the Firebase console, under **Project settings → Service accounts**,
    generate a new private key, then hand it to Expo — this is what lets Expo's
@@ -387,8 +392,16 @@ a Firebase account still builds and runs. What does not work then is registering
 for push, and the notifications screen says so in those words rather than sending
 somebody to their phone settings over a problem that is ours.
 
-**iOS** needs an APNs key uploaded the same way (`eas credentials` → iOS → Push
-Notifications), which needs a paid Apple Developer account and a Mac. Not done.
+**iOS does not go through Firebase at all.** Expo talks to APNs directly, so
+there is no iOS app to add to the Firebase project and no `GoogleService-Info.plist`
+this build has any use for. What it needs is an APNs key: a Key with the Apple
+Push Notifications service enabled, from the Apple Developer portal, uploaded
+with `eas credentials` → iOS → Push Notifications. The `.p8` is downloadable
+exactly once.
+
+That needs a paid Apple Developer membership. It does **not** need a Mac — EAS
+builds in the cloud and the key comes from a web portal; a Mac is only required
+for local builds and the simulator. Not done either way.
 
 **When it is set up and still silent**, read the fanout's reply before suspecting
 the phones. It reports `problems` by Expo's error code, and `misconfigured: true`
