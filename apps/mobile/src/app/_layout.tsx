@@ -327,6 +327,7 @@ function AuthGate() {
       <Stack.Screen name="settings/motion" />
       <Stack.Screen name="settings/language" />
       <Stack.Screen name="settings/upgrade" />
+      <Stack.Screen name="settings/redeem" />
       <Stack.Screen name="settings/account" />
       <Stack.Screen name="settings/feedback" />
       <Stack.Screen name="settings/privacy" />
