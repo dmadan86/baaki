@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { QueuedMutation } from '@baaki/core';
 
+import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';
 
 const WEB_KEYS = {
@@ -22,6 +23,10 @@ const WEB_KEYS = {
 } as const;
 
 class AsyncStorageStore implements LocalStore {
+  // Every entry point below is read-modify-write, so two overlapping callers
+  // lose one of the two writes. Same lock as native, for a plainer reason.
+  private readonly serial = new Serial();
+
   async ready(): Promise<void> {}
 
   private async read<T>(key: string, fallback: T): Promise<T> {
@@ -35,64 +40,75 @@ class AsyncStorageStore implements LocalStore {
     }
   }
 
-  async putRows(rows: readonly StoredRow[]): Promise<void> {
-    if (rows.length === 0) return;
-    const existing = await this.readRows();
-    const byKey = new Map(existing.map((row) => [`${row.table}:${row.id}`, row]));
-    for (const row of rows) byKey.set(`${row.table}:${row.id}`, row);
-    await AsyncStorage.setItem(WEB_KEYS.rows, JSON.stringify([...byKey.values()]));
+  putRows(rows: readonly StoredRow[]): Promise<void> {
+    if (rows.length === 0) return Promise.resolve();
+    return this.serial.run(async () => {
+      const existing = await this.read<StoredRow[]>(WEB_KEYS.rows, []);
+      const byKey = new Map(existing.map((row) => [`${row.table}:${row.id}`, row]));
+      for (const row of rows) byKey.set(`${row.table}:${row.id}`, row);
+      await AsyncStorage.setItem(WEB_KEYS.rows, JSON.stringify([...byKey.values()]));
+    });
   }
 
   readRows(): Promise<StoredRow[]> {
-    return this.read<StoredRow[]>(WEB_KEYS.rows, []);
+    return this.serial.run(() => this.read<StoredRow[]>(WEB_KEYS.rows, []));
   }
 
   readCursors(): Promise<Record<string, number>> {
-    return this.read<Record<string, number>>(WEB_KEYS.cursors, {});
+    return this.serial.run(() => this.read<Record<string, number>>(WEB_KEYS.cursors, {}));
   }
 
-  async writeCursors(cursors: Record<string, number>): Promise<void> {
-    await AsyncStorage.setItem(WEB_KEYS.cursors, JSON.stringify(cursors));
+  writeCursors(cursors: Record<string, number>): Promise<void> {
+    return this.serial.run(() => AsyncStorage.setItem(WEB_KEYS.cursors, JSON.stringify(cursors)));
   }
 
   readQueue(): Promise<QueuedMutation[]> {
-    return this.read<QueuedMutation[]>(WEB_KEYS.queue, []);
+    return this.serial.run(() => this.read<QueuedMutation[]>(WEB_KEYS.queue, []));
   }
 
-  async writeQueue(queue: readonly QueuedMutation[]): Promise<void> {
-    await AsyncStorage.setItem(WEB_KEYS.queue, JSON.stringify(queue));
+  writeQueue(queue: readonly QueuedMutation[]): Promise<void> {
+    return this.serial.run(() => AsyncStorage.setItem(WEB_KEYS.queue, JSON.stringify(queue)));
   }
 
+  /** Unlocked on purpose: every caller already holds the lock. */
   private drafts(): Promise<Record<string, { value: unknown; savedAt: string }>> {
     return this.read<Record<string, { value: unknown; savedAt: string }>>(WEB_KEYS.drafts, {});
   }
 
-  async readDraft<T>(key: string): Promise<T | null> {
-    const drafts = await this.drafts();
-    return (drafts[key]?.value as T | undefined) ?? null;
+  readDraft<T>(key: string): Promise<T | null> {
+    return this.serial.run(async () => {
+      const drafts = await this.drafts();
+      return (drafts[key]?.value as T | undefined) ?? null;
+    });
   }
 
-  async writeDraft(key: string, value: unknown): Promise<void> {
-    const drafts = await this.drafts();
-    drafts[key] = { value, savedAt: new Date().toISOString() };
-    await AsyncStorage.setItem(WEB_KEYS.drafts, JSON.stringify(drafts));
+  writeDraft(key: string, value: unknown): Promise<void> {
+    return this.serial.run(async () => {
+      const drafts = await this.drafts();
+      drafts[key] = { value, savedAt: new Date().toISOString() };
+      await AsyncStorage.setItem(WEB_KEYS.drafts, JSON.stringify(drafts));
+    });
   }
 
-  async clearDraft(key: string): Promise<void> {
-    const drafts = await this.drafts();
-    delete drafts[key];
-    await AsyncStorage.setItem(WEB_KEYS.drafts, JSON.stringify(drafts));
+  clearDraft(key: string): Promise<void> {
+    return this.serial.run(async () => {
+      const drafts = await this.drafts();
+      delete drafts[key];
+      await AsyncStorage.setItem(WEB_KEYS.drafts, JSON.stringify(drafts));
+    });
   }
 
-  async listDrafts(): Promise<{ key: string; value: unknown; savedAt: string }[]> {
-    const drafts = await this.drafts();
-    return Object.entries(drafts)
-      .map(([key, entry]) => ({ key, value: entry.value, savedAt: entry.savedAt }))
-      .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  listDrafts(): Promise<{ key: string; value: unknown; savedAt: string }[]> {
+    return this.serial.run(async () => {
+      const drafts = await this.drafts();
+      return Object.entries(drafts)
+        .map(([key, entry]) => ({ key, value: entry.value, savedAt: entry.savedAt }))
+        .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    });
   }
 
-  async reset(): Promise<void> {
-    await AsyncStorage.multiRemove(Object.values(WEB_KEYS));
+  reset(): Promise<void> {
+    return this.serial.run(() => AsyncStorage.multiRemove(Object.values(WEB_KEYS)));
   }
 }
 
