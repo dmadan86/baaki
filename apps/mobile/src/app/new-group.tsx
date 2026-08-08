@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { currencyForCountry } from '@baaki/core';
+import { currencyForCountry, guessGroupEmoji } from '@baaki/core';
 import { Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -13,7 +13,19 @@ import { useCreateGroup } from '@/data/hooks';
 import type { GroupType } from '@/data/types';
 import { deviceCountry, useStrings } from '@/i18n';
 
-const EMOJI = ['🏖️', '🏠', '💜', '🎉', '✈️', '🍽️', '⛰️', '🎓'];
+/**
+ * Where the icon comes from when the name has not said anything yet — which is
+ * the state this screen opens in, and the state a group called "Ravi and Asha"
+ * stays in. The kind of group is a real answer to "what is this", so it is a
+ * better fallback than one fixed emoji for everybody.
+ */
+const EMOJI_FOR_TYPE: Record<GroupType, string> = {
+  trip: '✈️',
+  home: '🏠',
+  couple: '💜',
+  event: '🎉',
+  other: '👥',
+};
 
 export default function NewGroupScreen() {
   const theme = useTheme();
@@ -24,13 +36,17 @@ export default function NewGroupScreen() {
   const [photo, setPhoto] = useState<PickedImage | null>(null);
   const [uploading, setUploading] = useState(false);
   const [type, setType] = useState<GroupType>('trip');
-  const [emoji, setEmoji] = useState(EMOJI[0] as string);
   const [ghostName, setGhostName] = useState('');
   const [ghosts, setGhosts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Read once, not on every render: a phone does not change country mid-form,
   // and re-reading it would be a new value every time for `useMemo` to chase.
   const [country] = useState(() => deviceCountry());
+
+  // Derived, not held: the icon is a reading of the name, so it has no state of
+  // its own to fall out of step with. It changes under the caret as somebody
+  // types "Goa" and again if they change what kind of group this is.
+  const emoji = guessGroupEmoji(name) ?? EMOJI_FOR_TYPE[type];
 
   const submit = async (): Promise<void> => {
     setError(null);
@@ -122,29 +138,6 @@ export default function NewGroupScreen() {
                 {t.extras.blankNameHint}
               </Text>
             </View>
-          </Row>
-
-          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            {EMOJI.map((option) => (
-              <Pressable
-                key={option}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: emoji === option }}
-                accessibilityLabel={t.extras.iconLabel.replace('{emoji}', option)}
-                onPress={() => setEmoji(option)}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: theme.radius.pill,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor:
-                    emoji === option ? theme.color.brandSoft : theme.color.surfaceMuted,
-                }}
-              >
-                <Text variant="subheading">{option}</Text>
-              </Pressable>
-            ))}
           </Row>
         </Card>
 

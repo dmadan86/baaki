@@ -819,7 +819,6 @@ export interface UiStrings {
   /** The rest: one or two strings each, from a dozen screens. */
   extras: {
     blankNameHint: string;
-    iconLabel: string;
     whatKindOfGroup: string;
     typeTrip: string;
     typeHome: string;
@@ -1598,7 +1597,6 @@ const en: UiStrings = {
   },
   extras: {
     blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
-    iconLabel: 'Icon {emoji}',
     whatKindOfGroup: 'What kind of group?',
     typeTrip: 'Trip',
     typeHome: 'Home',
@@ -2413,7 +2411,6 @@ const ta: UiStrings = {
   },
   extras: {
     blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
-    iconLabel: 'சின்னம் {emoji}',
     whatKindOfGroup: 'என்ன வகைக் குழு?',
     typeTrip: 'பயணம்',
     typeHome: 'வீடு',
@@ -3194,7 +3191,6 @@ const hi: UiStrings = {
   },
   extras: {
     blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
-    iconLabel: 'चिह्न {emoji}',
     whatKindOfGroup: 'किस तरह का समूह?',
     typeTrip: 'यात्रा',
     typeHome: 'घर',
@@ -4100,7 +4096,6 @@ const ar: UiStrings = {
   },
   extras: {
     blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',
-    iconLabel: 'أيقونة {emoji}',
     whatKindOfGroup: 'أي نوع من المجموعات؟',
     typeTrip: 'رحلة',
     typeHome: 'المنزل',
