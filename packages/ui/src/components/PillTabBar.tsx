@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
+import { spacing } from '../tokens';
 import { Text } from './Text';
 
 export interface PillTabItem {
@@ -10,6 +11,32 @@ export interface PillTabItem {
   label: string;
   /** Receives the resolved colour so icons match the active/inactive state. */
   icon: (color: string, focused: boolean) => ReactNode;
+}
+
+/** A destination's touch target. 44 is the floor both platforms ask for. */
+const ITEM_HEIGHT = 44;
+
+/** The capsule itself: one touch target plus the padding wrapped around it. */
+const BAR_HEIGHT = ITEM_HEIGHT + spacing.sm * 2;
+
+/** How far the capsule floats above whatever sits below it. */
+const FLOAT = spacing.lg;
+
+/**
+ * How much room a scrolling tab screen has to leave at its foot.
+ *
+ * The bar is positioned absolutely, so it covers the end of a list rather than
+ * pushing it up: without this the last row is parked underneath it and cannot
+ * be read or tapped. Derived rather than guessed at, because the two things it
+ * depends on both move — the capsule's height with the type scale, and the
+ * inset with the phone, which is the half a hardcoded number gets wrong.
+ *
+ * The trailing gap is `xxxl` rather than the list's own rhythm so the foot of
+ * the list reads as an ending rather than as a row that got cut off.
+ */
+export function useTabBarClearance(): number {
+  const insets = useSafeAreaInsets();
+  return insets.bottom + FLOAT + BAR_HEIGHT + spacing.xxxl;
 }
 
 /**
@@ -35,7 +62,12 @@ export function PillTabBar({
         position: 'absolute',
         left: theme.spacing.xl,
         right: theme.spacing.xl,
-        bottom: Math.max(insets.bottom, theme.spacing.lg),
+        // The inset clears the system bar; the float is the gap the design
+        // wants underneath the capsule. They add — taking the larger of the two
+        // spends the inset on the gap, and on Android, where edge-to-edge is
+        // the default and this view is drawn behind a 48dp navigation bar, that
+        // leaves the pill sitting flush on the buttons with its shadow clipped.
+        bottom: insets.bottom + FLOAT,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -60,7 +92,7 @@ export function PillTabBar({
               alignItems: 'center',
               gap: focused ? theme.spacing.sm : 0,
               paddingHorizontal: focused ? theme.spacing.lg : theme.spacing.md,
-              height: 44,
+              height: ITEM_HEIGHT,
               borderRadius: theme.radius.pill,
               backgroundColor: focused ? theme.color.brand : 'transparent',
             }}

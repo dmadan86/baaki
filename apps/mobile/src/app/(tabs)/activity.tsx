@@ -14,6 +14,7 @@ import {
   Screen,
   SectionHeader,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -25,6 +26,7 @@ import { useAuth } from '@/lib/auth';
 
 export default function ActivityScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const { session } = useAuth();
   const myProfileId = session?.user.id ?? null;
@@ -49,7 +51,7 @@ export default function ActivityScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: 170,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 
 import { useTheme } from '../theme';
 import { tints, type TintName } from '../tokens';
@@ -27,6 +27,8 @@ export function Avatar({
   /** Ghost members (ADR-006) read as provisional until somebody claims them. */
   ghost = false,
   photoUrl,
+  onPress,
+  accessibilityLabel,
 }: {
   name: string;
   emoji?: string;
@@ -38,6 +40,18 @@ export function Avatar({
    * a signed URL rather than a storage path — this component does no fetching.
    */
   photoUrl?: string | null;
+  /**
+   * Handled here rather than by wrapping this in a `Pressable` at the call
+   * site: the circle below is already an accessibility element, so a wrapper
+   * would give a screen reader two stops for one control — the button, and
+   * then the name inside it again.
+   */
+  onPress?: () => void;
+  /**
+   * Overrides the name, for when the avatar stands for a destination rather
+   * than for a person. "Account" is what tapping it does; "Guest" is not.
+   */
+  accessibilityLabel?: string;
 }) {
   const theme = useTheme();
   const resolved = theme.tint[tint ?? tintForKey(name)];
@@ -49,10 +63,12 @@ export function Avatar({
   if (broken !== null && broken !== photoUrl) setBroken(null);
   const showPhoto = Boolean(photoUrl) && broken !== photoUrl;
 
-  return (
+  const label = accessibilityLabel ?? (ghost ? `${name}, not yet joined` : name);
+
+  const body = (
     <View
-      accessible
-      accessibilityLabel={ghost ? `${name}, not yet joined` : name}
+      accessible={!onPress}
+      accessibilityLabel={onPress ? undefined : label}
       style={{
         width: size,
         height: size,
@@ -79,6 +95,13 @@ export function Avatar({
         </Text>
       )}
     </View>
+  );
+
+  if (!onPress) return body;
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      {body}
+    </Pressable>
   );
 }
 

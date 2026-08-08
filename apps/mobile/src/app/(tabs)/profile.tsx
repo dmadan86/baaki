@@ -17,6 +17,7 @@ import {
   SectionHeader,
   SegmentedTabs,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -233,6 +234,7 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const { profile, isGuest, updateProfile, signOut } = useAuth();
 
@@ -382,7 +384,7 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: 170,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
