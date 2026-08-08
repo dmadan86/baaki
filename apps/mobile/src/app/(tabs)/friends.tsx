@@ -31,6 +31,7 @@ import {
   Screen,
   SectionHeader,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -39,6 +40,7 @@ import { plural, useStrings } from '@/i18n';
 
 export default function FriendsScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
 
   const people = useQuery({
@@ -55,7 +57,7 @@ export default function FriendsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: 170,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

@@ -18,6 +18,7 @@ import {
   SectionHeader,
   Text,
   tintForKey,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -29,6 +30,7 @@ import { groupLabel } from '@/data/types';
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const { profile, isGuest } = useAuth();
 
@@ -60,7 +62,7 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: 170,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
