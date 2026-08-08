@@ -23,7 +23,14 @@ import {
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
-import { deviceCountry, LANGUAGE_NAMES, plural, useStrings, type UiStrings } from '@/i18n';
+import {
+  deviceCountry,
+  isRtlLanguage,
+  LANGUAGE_NAMES,
+  plural,
+  useStrings,
+  type UiStrings,
+} from '@/i18n';
 import { useLanguage } from '@/i18n/language';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
@@ -303,9 +310,17 @@ export default function ProfileScreen() {
    * The row says the language in its own script. It is the one settings row
    * whose subtitle has to be legible to somebody who cannot read the rest of
    * the screen — which is exactly the person going looking for it.
+   *
+   * The restart hint has two directions and they are not interchangeable.
+   * Telling somebody who has just chosen English that reopening will "mirror
+   * it" describes the opposite of what will happen, on the one screen they are
+   * looking at to find out why it has not.
    */
   const languageSummary = restartNeeded
-    ? t.account.languageRestartHint.replace('{language}', LANGUAGE_NAMES[language].own)
+    ? (isRtlLanguage(language)
+        ? t.account.languageRestartHint
+        : t.account.languageRestartHintBack
+      ).replace('{language}', LANGUAGE_NAMES[language].own)
     : languageChosen === null
       ? t.account.languageFollowingPhone.replace('{language}', LANGUAGE_NAMES[language].own)
       : `${LANGUAGE_NAMES[language].own} · ${LANGUAGE_NAMES[language].english}`;

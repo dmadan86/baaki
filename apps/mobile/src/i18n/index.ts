@@ -207,6 +207,7 @@ export interface UiStrings {
     emailOrPhone: string;
     notFound: string;
     goBack: string;
+    ok: string;
   };
   /** Getting the whole ledger out, in full and for free (ADR-012). */
   exportData: {
@@ -300,6 +301,11 @@ export interface UiStrings {
     motionRow: string;
     languageFollowingPhone: string;
     languageRestartHint: string;
+    languageRestartHintBack: string;
+    restartTitle: string;
+    restartBannerMirror: string;
+    restartBannerUnmirror: string;
+    languageFooterNote: string;
     lockNoBiometrics: string;
     lockOn: string;
     lockOff: string;
@@ -675,6 +681,7 @@ const en: UiStrings = {
     emailOrPhone: 'Email or phone number',
     notFound: 'Not found',
     goBack: 'Go back',
+    ok: 'OK',
   },
   onboarding: [
     {
@@ -791,6 +798,14 @@ const en: UiStrings = {
     motionRow: 'Motion',
     languageFollowingPhone: 'Following your phone — {language}',
     languageRestartHint: '{language} · reopen Baaki to mirror it',
+    languageRestartHintBack: '{language} · reopen Baaki to turn the layout back',
+    restartTitle: 'Close and open Baaki again',
+    restartBannerMirror:
+      'The words have changed already. Mirroring the layout — the arrows, the sides everything sits on — is something the phone decides when the app starts, so it takes effect next time you open it.',
+    restartBannerUnmirror:
+      'The words have changed already. Turning the mirrored layout back the other way is something the phone decides when the app starts, so it takes effect next time you open it.',
+    languageFooterNote:
+      "Your phone's language is the default, and choosing one here only changes Baaki. Amounts and dates still follow where you are — reading the app in Hindi in Dubai does not move you to India.",
     lockNoBiometrics: 'This device has no biometrics set up',
     lockOn: 'On · asks {when}',
     lockOff: 'Off — anyone holding your phone can read the ledger',
@@ -1197,6 +1212,7 @@ const ta: UiStrings = {
     emailOrPhone: 'மின்னஞ்சல் அல்லது தொலைபேசி எண்',
     notFound: 'கிடைக்கவில்லை',
     goBack: 'திரும்பிச் செல்',
+    ok: 'சரி',
   },
   onboarding: [
     {
@@ -1314,6 +1330,14 @@ const ta: UiStrings = {
     motionRow: 'அசைவு',
     languageFollowingPhone: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — {language}',
     languageRestartHint: '{language} · பிரதிபலிக்க பாக்கியை மீண்டும் திற',
+    languageRestartHintBack: '{language} · தளவமைப்பை மீட்க பாக்கியை மீண்டும் திற',
+    restartTitle: 'பாக்கியை மூடித் திறக்கவும்',
+    restartBannerMirror:
+      'சொற்கள் ஏற்கெனவே மாறிவிட்டன. தளவமைப்பைப் பிரதிபலிப்பது — அம்புக்குறிகள், எல்லாம் அமரும் பக்கம் — செயலி தொடங்கும்போது ஃபோன் முடிவு செய்வது. எனவே அடுத்த முறை திறக்கும்போதுதான் அது நடக்கும்.',
+    restartBannerUnmirror:
+      'சொற்கள் ஏற்கெனவே மாறிவிட்டன. பிரதிபலித்த தளவமைப்பை மீண்டும் மாற்றுவதும் செயலி தொடங்கும்போது ஃபோன் முடிவு செய்வது. எனவே அடுத்த முறை திறக்கும்போதுதான் அது நடக்கும்.',
+    languageFooterNote:
+      'உங்கள் ஃபோனின் மொழியே இயல்புநிலை; இங்கே தேர்ந்தெடுப்பது பாக்கியை மட்டுமே மாற்றும். தொகைகளும் தேதிகளும் நீங்கள் இருக்கும் இடத்தையே பின்பற்றும் — துபாயில் இந்தியில் படிப்பது உங்களை இந்தியாவுக்கு நகர்த்தாது.',
     lockNoBiometrics: 'இந்தச் சாதனத்தில் கைரேகை அமைக்கப்படவில்லை',
     lockOn: 'இயக்கத்தில் · {when} கேட்கும்',
     lockOff: 'நிறுத்தத்தில் — உங்கள் ஃபோனை வைத்திருப்பவர் யாரும் கணக்கைப் படிக்கலாம்',
@@ -1717,6 +1741,7 @@ const hi: UiStrings = {
     emailOrPhone: 'ईमेल या फ़ोन नंबर',
     notFound: 'नहीं मिला',
     goBack: 'वापस जाएँ',
+    ok: 'ठीक है',
   },
   onboarding: [
     {
@@ -1829,6 +1854,14 @@ const hi: UiStrings = {
     motionRow: 'गति',
     languageFollowingPhone: 'आपके फ़ोन के अनुसार — {language}',
     languageRestartHint: '{language} · दिशा बदलने के लिए बाकी दोबारा खोलें',
+    languageRestartHintBack: '{language} · दिशा वापस लाने के लिए बाकी दोबारा खोलें',
+    restartTitle: 'बाकी को बंद करके दोबारा खोलें',
+    restartBannerMirror:
+      'शब्द तो पहले ही बदल गए हैं। लेआउट को पलटना — तीर, और हर चीज़ किस तरफ़ बैठती है — यह फ़ोन ऐप शुरू होते समय तय करता है, इसलिए यह अगली बार खोलने पर लागू होगा।',
+    restartBannerUnmirror:
+      'शब्द तो पहले ही बदल गए हैं। पलटे हुए लेआउट को वापस सीधा करना भी फ़ोन ऐप शुरू होते समय तय करता है, इसलिए यह अगली बार खोलने पर लागू होगा।',
+    languageFooterNote:
+      'आपके फ़ोन की भाषा ही डिफ़ॉल्ट है, और यहाँ चुनने से सिर्फ़ बाकी बदलता है। रकम और तारीखें वहीं के हिसाब से चलती रहेंगी जहाँ आप हैं — दुबई में हिंदी में पढ़ने से आप भारत नहीं पहुँच जाते।',
     lockNoBiometrics: 'इस डिवाइस पर बायोमेट्रिक सेट नहीं है',
     lockOn: 'चालू · {when} पूछता है',
     lockOff: 'बंद — आपका फ़ोन पकड़े कोई भी हिसाब पढ़ सकता है',
@@ -2226,6 +2259,7 @@ const ar: UiStrings = {
     emailOrPhone: 'البريد الإلكتروني أو رقم الهاتف',
     notFound: 'غير موجود',
     goBack: 'العودة',
+    ok: 'حسنًا',
   },
   onboarding: [
     {
@@ -2357,6 +2391,14 @@ const ar: UiStrings = {
     motionRow: 'الحركة',
     languageFollowingPhone: 'يتبع هاتفك — {language}',
     languageRestartHint: '{language} · أعد فتح باقي لعكس الاتجاه',
+    languageRestartHintBack: '{language} · أعد فتح باقي لإعادة الاتجاه',
+    restartTitle: 'أغلق باقي وافتحه من جديد',
+    restartBannerMirror:
+      'تغيّرت الكلمات بالفعل. أما عكس اتجاه الواجهة — الأسهم والجهة التي يجلس عليها كل شيء — فيقرره الهاتف عند بدء التطبيق، لذا يسري في المرة القادمة التي تفتحه فيها.',
+    restartBannerUnmirror:
+      'تغيّرت الكلمات بالفعل. أما إعادة الواجهة المعكوسة إلى اتجاهها فيقرره الهاتف عند بدء التطبيق، لذا يسري في المرة القادمة التي تفتحه فيها.',
+    languageFooterNote:
+      'لغة هاتفك هي الافتراضية، والاختيار هنا يغيّر باقي وحده. تبقى المبالغ والتواريخ تابعة لمكانك — قراءة التطبيق بالهندية في دبي لا تنقلك إلى الهند.',
     lockNoBiometrics: 'لا توجد بصمة مضبوطة على هذا الجهاز',
     lockOn: 'مفعّل · يسأل {when}',
     lockOff: 'متوقف — أي شخص يمسك هاتفك يمكنه قراءة الدفتر',

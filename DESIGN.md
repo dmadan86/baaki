@@ -157,6 +157,17 @@ itself — _changes take full effect on the next application start_. There is no
 reload to call. So the screen says "close and open Baaki again" in a banner that
 stays until it is true, rather than half-mirroring a screen and calling it done.
 
+The banner alone was not enough, twice over. A banner lives on one screen, and
+somebody who taps a language and walks away never reads it — they come back to a
+mirrored app in a language that is no longer Arabic and report it as broken. So
+the words are also said in an alert, at the moment of the choice, in the
+language just chosen, and only when the direction actually turns: going Arabic →
+English → Arabic in one sitting ends where the app launched and has nothing left
+to restart for. The sentence has **two directions** and they are not
+interchangeable — telling somebody who has just chosen English that reopening
+will "mirror it" describes the opposite of what will happen, on the one screen
+they are reading to find out why it has not turned back.
+
 The choice is offered twice, and the second time is the important one. A
 settings row is the right home for it once somebody is inside the app; it is the
 wrong home for somebody standing at the front door who cannot read the door.

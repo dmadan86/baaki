@@ -164,3 +164,38 @@ describe('what every table owes the others', () => {
     }
   });
 });
+
+/**
+ * The restart is described twice, once for each direction, and the two are not
+ * interchangeable. Telling somebody who has just chosen English that reopening
+ * will "mirror it" describes the opposite of what will happen — on the one
+ * screen they are reading to find out why it has not turned back.
+ */
+describe('the two directions of the restart', () => {
+  const PAIRS: readonly [string, string][] = [
+    ['account.languageRestartHint', 'account.languageRestartHintBack'],
+    ['account.restartBannerMirror', 'account.restartBannerUnmirror'],
+    ['signIn.restartToMirror', 'signIn.restartToUnmirror'],
+  ];
+
+  const at = (table: object, path: string): string =>
+    path.split('.').reduce<never>((node, key) => (node as never)[key], table as never);
+
+  it('says something different about each direction, in every language', () => {
+    for (const language of LANGUAGES) {
+      const table = STRINGS_BY_LANGUAGE[language];
+      for (const [mirror, unmirror] of PAIRS) {
+        expect(at(table, mirror).trim(), `${language}.${mirror}`).not.toBe('');
+        expect(at(table, unmirror), `${language}.${unmirror}`).not.toBe(at(table, mirror));
+      }
+    }
+  });
+
+  it('names the language in the settings row either way', () => {
+    for (const language of LANGUAGES) {
+      const table = STRINGS_BY_LANGUAGE[language];
+      expect(at(table, 'account.languageRestartHint'), language).toContain('{language}');
+      expect(at(table, 'account.languageRestartHintBack'), language).toContain('{language}');
+    }
+  });
+});
