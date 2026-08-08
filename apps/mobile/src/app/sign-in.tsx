@@ -36,6 +36,7 @@ import {
 
 import { Button, Card, Chip, CurvedPanel, Row, Screen, Text, useTheme } from '@baaki/ui';
 
+import { AppleSignInButton } from '@/components/AppleSignInButton';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
 import { useStrings } from '@/i18n';
@@ -48,7 +49,8 @@ const TOUR_KEY = 'baaki.onboarding_seen';
 export default function SignInScreen() {
   const theme = useTheme();
   const { t } = useStrings();
-  const { sendOtp, verifyOtp, continueAsGuest, withPassword, withGoogle, isGuest } = useAuth();
+  const { sendOtp, verifyOtp, continueAsGuest, withPassword, withGoogle, withApple, isGuest } =
+    useAuth();
   const { height: screenHeight } = useWindowDimensions();
 
   /**
@@ -450,6 +452,12 @@ export default function SignInScreen() {
               fullWidth
               disabled={busy}
               onPress={() => void run(withGoogle)}
+            />
+
+            <AppleSignInButton
+              label={isGuest ? t.signIn.continueApple : t.signIn.signInApple}
+              disabled={busy}
+              onPress={() => void run(withApple)}
             />
 
             {/* ADR-006: nobody is forced to register before they can use Baaki.
