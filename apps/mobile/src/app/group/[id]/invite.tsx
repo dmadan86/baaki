@@ -20,7 +20,7 @@ const INVITE_BASE = 'https://baaki.app/join';
 
 export default function InviteScreen() {
   const theme = useTheme();
-  const { locale } = useStrings();
+  const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
 
@@ -96,11 +96,11 @@ export default function InviteScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Close" onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Invite people</Text>
+            <Text variant="heading">{t.people.inviteTitle}</Text>
             <Text variant="micro" tone="muted">
               {label}
             </Text>
@@ -109,11 +109,9 @@ export default function InviteScreen() {
         </Row>
 
         <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="subheading">Anyone with the link can join</Text>
+          <Text variant="subheading">{t.people.anyoneWithLink}</Text>
           <Text variant="caption" tone="muted">
-            They do not need to install anything or make an account to see the group and add
-            expenses. If they were already in it as a name, they can claim that history when they
-            join.
+            {t.people.anyoneWithLinkBody}
           </Text>
         </Card>
 
@@ -121,17 +119,20 @@ export default function InviteScreen() {
           <>
             <Card style={{ gap: theme.spacing.md }}>
               <Text variant="caption" tone="muted">
-                Invite link
+                {t.people.inviteLink}
               </Text>
               <Text variant="body" style={{ color: theme.color.brand }} selectable>
                 {link}
               </Text>
               <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
                 <Badge
-                  label={`expires ${new Intl.DateTimeFormat(locale, {
-                    day: 'numeric',
-                    month: 'short',
-                  }).format(new Date(invite.expiresAt))}`}
+                  label={t.people.expires.replace(
+                    '{when}',
+                    new Intl.DateTimeFormat(locale, {
+                      day: 'numeric',
+                      month: 'short',
+                    }).format(new Date(invite.expiresAt)),
+                  )}
                 />
                 <Badge label={`${invite.maxUses} uses`} />
               </Row>
@@ -140,7 +141,7 @@ export default function InviteScreen() {
             <Row style={{ gap: theme.spacing.md, flexWrap: 'wrap' }}>
               {(
                 [
-                  { channel: 'whatsapp', label: 'WhatsApp', icon: 'logo-whatsapp' },
+                  { channel: 'whatsapp', label: t.people.whatsapp, icon: 'logo-whatsapp' },
                   { channel: 'sms', label: 'SMS', icon: 'chatbubble-outline' },
                   { channel: 'email', label: 'Email', icon: 'mail-outline' },
                 ] as const
@@ -157,13 +158,13 @@ export default function InviteScreen() {
 
             <Row style={{ gap: theme.spacing.md }}>
               <Button
-                label="Share another way"
+                label={t.people.shareAnotherWay}
                 size="lg"
                 onPress={() => void share()}
                 icon={<Ionicons name="share-outline" size={18} color={theme.color.onBrand} />}
               />
               <Button
-                label={copied ? 'Copied' : 'Copy link'}
+                label={copied ? t.people.linkCopied : t.people.copyLink}
                 variant="secondary"
                 size="lg"
                 onPress={() => void copy()}
@@ -177,7 +178,7 @@ export default function InviteScreen() {
           </>
         ) : (
           <Button
-            label="Create an invite link"
+            label={t.people.createLink}
             size="lg"
             fullWidth
             disabled={busy}

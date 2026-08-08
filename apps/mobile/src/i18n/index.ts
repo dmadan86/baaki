@@ -472,6 +472,71 @@ export interface UiStrings {
     nobodyOwes: string;
     recordedNotMoved: string;
   };
+  /** The people in a group, and the link that brings more in. */
+  people: {
+    invite: string;
+    addSomeone: string;
+    namePlaceholder: string;
+    contactPlaceholder: string;
+    yetToJoin: PluralForms;
+    sendInviteLink: string;
+    memberNotFound: string;
+    memberNotFoundBody: string;
+    admin: string;
+    you: string;
+    memberName: string;
+    ghostNote: string;
+    upiForGroup: string;
+    upiForGroupNote: string;
+    inviteTitle: string;
+    anyoneWithLink: string;
+    anyoneWithLinkBody: string;
+    inviteLink: string;
+    whatsapp: string;
+    shareAnotherWay: string;
+    copyLink: string;
+    createLink: string;
+    linkCopied: string;
+    expires: string;
+    hideContacts: string;
+    browseContacts: string;
+  };
+  /** Adding and editing an expense, and reading one off a bill. */
+  expense: {
+    edit: string;
+    chooseWhoPaid: string;
+    editingKeepsVersion: string;
+    splitByItem: string;
+    scanBillTitle: string;
+    scanBillBody: string;
+    scan: string;
+    reading: string;
+    scanReconciles: string;
+    scanCheckTotal: string;
+    descriptionPlaceholder: string;
+    howToSplit: string;
+    equally: string;
+    shares: string;
+    percent: string;
+    splitBetween: string;
+    ofCount: string;
+    saveChanges: string;
+    notFound: string;
+    notFoundBody: string;
+    deleteQuestion: string;
+    deleteBody: string;
+    deleted: string;
+    whoOwesWhat: string;
+    history: string;
+    restore: string;
+    deleteAction: string;
+    splitEqually: string;
+    exactAmounts: string;
+    byPercentage: string;
+    byShares: string;
+    withAdjustments: string;
+    itemized: string;
+  };
 }
 
 const en: UiStrings = {
@@ -868,6 +933,74 @@ const en: UiStrings = {
     archive: 'Archive',
     nobodyOwes: 'Nobody owes anybody in this group.',
     recordedNotMoved: 'Recorded, not moved by Baaki',
+  },
+  people: {
+    invite: 'Invite',
+    addSomeone: 'Add someone',
+    namePlaceholder: 'Rahul',
+    contactPlaceholder: 'Email or phone, if you want to send them the link',
+    yetToJoin: { one: '{n} yet to join', other: '{n} yet to join' },
+    sendInviteLink: 'Send an invite link',
+    memberNotFound: 'Member not found',
+    memberNotFoundBody: 'They may have left the group.',
+    admin: 'admin',
+    you: 'you',
+    memberName: 'Member name',
+    ghostNote: 'This person holds real balances. When they join, they can claim this history.',
+    upiForGroup: 'UPI ID for this group',
+    upiForGroupNote:
+      'Overrides your account UPI ID here only — useful when one group settles to a different account.',
+    inviteTitle: 'Invite people',
+    anyoneWithLink: 'Anyone with the link can join',
+    anyoneWithLinkBody:
+      'They do not need to install anything or make an account to see the group and add expenses.',
+    inviteLink: 'Invite link',
+    whatsapp: 'WhatsApp',
+    shareAnotherWay: 'Share another way',
+    copyLink: 'Copy link',
+    createLink: 'Create an invite link',
+    linkCopied: 'Link copied',
+    expires: 'expires {when}',
+    hideContacts: 'Hide contacts',
+    browseContacts: 'Browse my contacts',
+  },
+  expense: {
+    edit: 'Edit expense',
+    chooseWhoPaid: 'Choose who paid',
+    editingKeepsVersion:
+      'Editing keeps the old version. Everyone can see what changed, and it can be restored.',
+    splitByItem: 'Split by item',
+    scanBillTitle: 'Scan the bill',
+    scanBillBody:
+      'The total and the name of the place come out filled in. Check them — entering them by hand is always free.',
+    scan: 'Scan',
+    reading: 'Reading…',
+    scanReconciles: 'Read the total off the bill. Check it, then split it however you like.',
+    scanCheckTotal: 'Check the total against the bill before saving.',
+    descriptionPlaceholder: 'Beach shack dinner',
+    howToSplit: 'How to split',
+    equally: 'Equally',
+    shares: 'Shares',
+    percent: 'Percent',
+    splitBetween: 'Split between',
+    ofCount: '{chosen} of {total}',
+    saveChanges: 'Save changes',
+    notFound: 'Expense not found',
+    notFoundBody: 'It may have been deleted more than 30 days ago.',
+    deleteQuestion: 'Delete this expense?',
+    deleteBody:
+      'It stops counting towards balances but stays in the activity feed, and anyone in the group can restore it for 30 days.',
+    deleted: 'deleted',
+    whoOwesWhat: 'Who owes what',
+    history: 'History',
+    restore: 'Restore this expense',
+    deleteAction: 'Delete expense',
+    splitEqually: 'Split equally',
+    exactAmounts: 'Exact amounts',
+    byPercentage: 'By percentage',
+    byShares: 'By shares',
+    withAdjustments: 'With adjustments',
+    itemized: 'Itemized',
   },
 };
 
@@ -1282,6 +1415,76 @@ const ta: UiStrings = {
     nobodyOwes: 'இந்தக் குழுவில் யாரும் யாருக்கும் தர வேண்டியதில்லை.',
     recordedNotMoved: 'பதிவு செய்யப்பட்டது, பாக்கி பணத்தை அனுப்பவில்லை',
   },
+  people: {
+    invite: 'அழை',
+    addSomeone: 'ஒருவரைச் சேர்',
+    namePlaceholder: 'ராகுல்',
+    contactPlaceholder: 'இணைப்பை அனுப்ப விரும்பினால் மின்னஞ்சல் அல்லது தொலைபேசி',
+    yetToJoin: { one: '{n} பேர் இன்னும் சேரவில்லை', other: '{n} பேர் இன்னும் சேரவில்லை' },
+    sendInviteLink: 'அழைப்பு இணைப்பை அனுப்பு',
+    memberNotFound: 'உறுப்பினர் கிடைக்கவில்லை',
+    memberNotFoundBody: 'அவர்கள் குழுவிலிருந்து விலகியிருக்கலாம்.',
+    admin: 'நிர்வாகி',
+    you: 'நீங்கள்',
+    memberName: 'உறுப்பினர் பெயர்',
+    ghostNote:
+      'இவருக்கு உண்மையான இருப்புகள் உள்ளன. அவர்கள் சேரும்போது இந்த வரலாற்றைத் தங்களுடையதாக்கிக் கொள்ளலாம்.',
+    upiForGroup: 'இந்தக் குழுவுக்கான UPI ID',
+    upiForGroupNote:
+      'இங்கே மட்டும் உங்கள் கணக்கின் UPI ID ஐ மேலெழுதும் — ஒரு குழு வேறு கணக்குக்குத் தீர்க்கும்போது பயனுள்ளது.',
+    inviteTitle: 'ஆட்களை அழை',
+    anyoneWithLink: 'இணைப்பு உள்ள யாரும் சேரலாம்',
+    anyoneWithLinkBody:
+      'குழுவைப் பார்க்கவும் செலவுகளைச் சேர்க்கவும் அவர்கள் எதையும் நிறுவவோ கணக்கு உருவாக்கவோ தேவையில்லை.',
+    inviteLink: 'அழைப்பு இணைப்பு',
+    whatsapp: 'WhatsApp',
+    shareAnotherWay: 'வேறு வழியில் பகிர்',
+    copyLink: 'இணைப்பை நகலெடு',
+    createLink: 'அழைப்பு இணைப்பை உருவாக்கு',
+    linkCopied: 'இணைப்பு நகலெடுக்கப்பட்டது',
+    expires: '{when} க்கு காலாவதி',
+    hideContacts: 'தொடர்புகளை மறை',
+    browseContacts: 'என் தொடர்புகளைப் பார்',
+  },
+  expense: {
+    edit: 'செலவைத் திருத்து',
+    chooseWhoPaid: 'யார் கொடுத்தார்கள் என்று தேர்ந்தெடுக்கவும்',
+    editingKeepsVersion:
+      'திருத்தினாலும் பழைய பதிப்பு இருக்கும். என்ன மாறியது என்பதை அனைவரும் பார்க்கலாம், மீட்கவும் முடியும்.',
+    splitByItem: 'பொருள் வாரியாகப் பிரி',
+    scanBillTitle: 'ரசீதை ஸ்கேன் செய்',
+    scanBillBody:
+      'மொத்தமும் இடத்தின் பெயரும் தானாக நிரப்பப்படும். சரிபாருங்கள் — கையால் உள்ளிடுவது எப்போதும் இலவசம்.',
+    scan: 'ஸ்கேன்',
+    reading: 'படிக்கிறது…',
+    scanReconciles:
+      'ரசீதிலிருந்து மொத்தம் படிக்கப்பட்டது. சரிபார்த்து, உங்களுக்கு ஏற்றபடி பிரியுங்கள்.',
+    scanCheckTotal: 'சேமிப்பதற்கு முன் ரசீதுடன் மொத்தத்தைச் சரிபாருங்கள்.',
+    descriptionPlaceholder: 'கடற்கரை உணவகச் சாப்பாடு',
+    howToSplit: 'எப்படிப் பிரிப்பது',
+    equally: 'சமமாக',
+    shares: 'பங்குகள்',
+    percent: 'சதவீதம்',
+    splitBetween: 'யாருக்கிடையே',
+    ofCount: '{total} இல் {chosen}',
+    saveChanges: 'மாற்றங்களைச் சேமி',
+    notFound: 'செலவு கிடைக்கவில்லை',
+    notFoundBody: '30 நாட்களுக்கு முன்பே அது நீக்கப்பட்டிருக்கலாம்.',
+    deleteQuestion: 'இந்தச் செலவை நீக்கவா?',
+    deleteBody:
+      'இது இருப்புக் கணக்கில் சேராது, ஆனால் செயல்பாட்டுப் பட்டியலில் இருக்கும், 30 நாட்களுக்குள் குழுவில் யார் வேண்டுமானாலும் மீட்கலாம்.',
+    deleted: 'நீக்கப்பட்டது',
+    whoOwesWhat: 'யார் என்ன தர வேண்டும்',
+    history: 'வரலாறு',
+    restore: 'இந்தச் செலவை மீட்டெடு',
+    deleteAction: 'செலவை நீக்கு',
+    splitEqually: 'சமமாகப் பிரி',
+    exactAmounts: 'சரியான தொகைகள்',
+    byPercentage: 'சதவீதப்படி',
+    byShares: 'பங்குகளின்படி',
+    withAdjustments: 'சரிசெய்தலுடன்',
+    itemized: 'பொருள் வாரியாக',
+  },
 };
 
 const hi: UiStrings = {
@@ -1670,6 +1873,74 @@ const hi: UiStrings = {
     archive: 'संग्रहित करें',
     nobodyOwes: 'इस समूह में किसी पर किसी का कुछ बाकी नहीं है।',
     recordedNotMoved: 'दर्ज किया गया, बाकी ने पैसा नहीं भेजा',
+  },
+  people: {
+    invite: 'बुलाएँ',
+    addSomeone: 'किसी को जोड़ें',
+    namePlaceholder: 'राहुल',
+    contactPlaceholder: 'ईमेल या फ़ोन, अगर उन्हें लिंक भेजना हो',
+    yetToJoin: { one: '{n} अभी जुड़ना बाकी', other: '{n} अभी जुड़ना बाकी' },
+    sendInviteLink: 'निमंत्रण लिंक भेजें',
+    memberNotFound: 'सदस्य नहीं मिला',
+    memberNotFoundBody: 'हो सकता है उन्होंने समूह छोड़ दिया हो।',
+    admin: 'एडमिन',
+    you: 'आप',
+    memberName: 'सदस्य का नाम',
+    ghostNote: 'इस व्यक्ति का असली हिसाब है। जुड़ने पर वे यह इतिहास अपने नाम कर सकते हैं।',
+    upiForGroup: 'इस समूह के लिए UPI ID',
+    upiForGroupNote:
+      'सिर्फ़ यहाँ आपके खाते की UPI ID की जगह लेता है — जब कोई समूह किसी दूसरे खाते में निपटता हो तो काम आता है।',
+    inviteTitle: 'लोगों को बुलाएँ',
+    anyoneWithLink: 'जिसके पास लिंक हो वह जुड़ सकता है',
+    anyoneWithLinkBody:
+      'समूह देखने और खर्च जोड़ने के लिए उन्हें कुछ इंस्टॉल करने या खाता बनाने की ज़रूरत नहीं।',
+    inviteLink: 'निमंत्रण लिंक',
+    whatsapp: 'WhatsApp',
+    shareAnotherWay: 'किसी और तरीके से साझा करें',
+    copyLink: 'लिंक कॉपी करें',
+    createLink: 'निमंत्रण लिंक बनाएँ',
+    linkCopied: 'लिंक कॉपी हो गया',
+    expires: '{when} को खत्म',
+    hideContacts: 'संपर्क छिपाएँ',
+    browseContacts: 'मेरे संपर्क देखें',
+  },
+  expense: {
+    edit: 'खर्च बदलें',
+    chooseWhoPaid: 'चुनें किसने दिया',
+    editingKeepsVersion:
+      'बदलने पर पुराना संस्करण बना रहता है। सब देख सकते हैं क्या बदला, और उसे वापस भी लाया जा सकता है।',
+    splitByItem: 'चीज़-वार बाँटें',
+    scanBillTitle: 'बिल स्कैन करें',
+    scanBillBody:
+      'कुल रकम और जगह का नाम अपने आप भर जाते हैं। जाँच लें — हाथ से डालना हमेशा मुफ़्त है।',
+    scan: 'स्कैन',
+    reading: 'पढ़ रहे हैं…',
+    scanReconciles: 'बिल से कुल रकम पढ़ ली। जाँच लें, फिर जैसे चाहें बाँटें।',
+    scanCheckTotal: 'सेव करने से पहले कुल रकम बिल से मिला लें।',
+    descriptionPlaceholder: 'बीच शैक का खाना',
+    howToSplit: 'कैसे बाँटें',
+    equally: 'बराबर',
+    shares: 'हिस्से',
+    percent: 'प्रतिशत',
+    splitBetween: 'किनके बीच',
+    ofCount: '{total} में से {chosen}',
+    saveChanges: 'बदलाव सेव करें',
+    notFound: 'खर्च नहीं मिला',
+    notFoundBody: 'हो सकता है इसे 30 दिन से पहले हटा दिया गया हो।',
+    deleteQuestion: 'यह खर्च मिटाएँ?',
+    deleteBody:
+      'यह हिसाब में गिनना बंद कर देगा पर गतिविधि में बना रहेगा, और समूह का कोई भी 30 दिन तक इसे वापस ला सकता है।',
+    deleted: 'हटाया गया',
+    whoOwesWhat: 'किस पर क्या बाकी',
+    history: 'इतिहास',
+    restore: 'यह खर्च वापस लाएँ',
+    deleteAction: 'खर्च मिटाएँ',
+    splitEqually: 'बराबर बाँटें',
+    exactAmounts: 'सटीक रकम',
+    byPercentage: 'प्रतिशत से',
+    byShares: 'हिस्सों से',
+    withAdjustments: 'समायोजन के साथ',
+    itemized: 'चीज़-वार',
   },
 };
 
@@ -2085,6 +2356,77 @@ const ar: UiStrings = {
     archive: 'أرشفة',
     nobodyOwes: 'لا أحد يدين لأحد في هذه المجموعة.',
     recordedNotMoved: 'مسجَّل، ولم يحوّل باقي المال',
+  },
+  people: {
+    invite: 'دعوة',
+    addSomeone: 'أضف شخصًا',
+    namePlaceholder: 'راكيش',
+    contactPlaceholder: 'بريد أو هاتف، إن أردت إرسال الرابط إليه',
+    yetToJoin: {
+      zero: '{n} لم ينضموا بعد',
+      one: 'واحد لم ينضم بعد',
+      two: 'اثنان لم ينضما بعد',
+      few: '{n} لم ينضموا بعد',
+      many: '{n} لم ينضموا بعد',
+      other: '{n} لم ينضموا بعد',
+    },
+    sendInviteLink: 'أرسل رابط دعوة',
+    memberNotFound: 'العضو غير موجود',
+    memberNotFoundBody: 'ربما غادر المجموعة.',
+    admin: 'مشرف',
+    you: 'أنت',
+    memberName: 'اسم العضو',
+    ghostNote: 'لهذا الشخص أرصدة حقيقية. حين ينضم يمكنه أن يطالب بهذا السجل.',
+    upiForGroup: 'معرّف الدفع لهذه المجموعة',
+    upiForGroupNote: 'يتجاوز معرّف حسابك هنا فقط — مفيد حين تُسوّى مجموعة إلى حساب مختلف.',
+    inviteTitle: 'ادعُ أشخاصًا',
+    anyoneWithLink: 'يستطيع أي شخص لديه الرابط الانضمام',
+    anyoneWithLinkBody: 'لا يحتاجون إلى تثبيت شيء أو إنشاء حساب لرؤية المجموعة وإضافة المصروفات.',
+    inviteLink: 'رابط الدعوة',
+    whatsapp: 'واتساب',
+    shareAnotherWay: 'شارك بطريقة أخرى',
+    copyLink: 'نسخ الرابط',
+    createLink: 'أنشئ رابط دعوة',
+    linkCopied: 'تم نسخ الرابط',
+    expires: 'ينتهي {when}',
+    hideContacts: 'إخفاء جهات الاتصال',
+    browseContacts: 'تصفّح جهات اتصالي',
+  },
+  expense: {
+    edit: 'تعديل المصروف',
+    chooseWhoPaid: 'اختر من دفع',
+    editingKeepsVersion: 'التعديل يحتفظ بالنسخة القديمة. يرى الجميع ما تغيّر، ويمكن استرجاعها.',
+    splitByItem: 'التقسيم حسب الصنف',
+    scanBillTitle: 'امسح الفاتورة',
+    scanBillBody: 'يُملأ المجموع واسم المكان تلقائيًا. تحقّق منهما — والإدخال اليدوي مجاني دائمًا.',
+    scan: 'مسح',
+    reading: 'جارٍ القراءة…',
+    scanReconciles: 'قرأنا المجموع من الفاتورة. تحقّق منه ثم قسّمه كما تشاء.',
+    scanCheckTotal: 'قارن المجموع بالفاتورة قبل الحفظ.',
+    descriptionPlaceholder: 'عشاء على الشاطئ',
+    howToSplit: 'طريقة التقسيم',
+    equally: 'بالتساوي',
+    shares: 'حصص',
+    percent: 'نسبة مئوية',
+    splitBetween: 'التقسيم بين',
+    ofCount: '{chosen} من {total}',
+    saveChanges: 'حفظ التغييرات',
+    notFound: 'المصروف غير موجود',
+    notFoundBody: 'ربما حُذف قبل أكثر من 30 يومًا.',
+    deleteQuestion: 'حذف هذا المصروف؟',
+    deleteBody:
+      'سيتوقف احتسابه في الأرصدة لكنه يبقى في سجل النشاط، ويمكن لأي عضو استرجاعه خلال 30 يومًا.',
+    deleted: 'محذوف',
+    whoOwesWhat: 'من عليه ماذا',
+    history: 'السجل',
+    restore: 'استرجاع هذا المصروف',
+    deleteAction: 'حذف المصروف',
+    splitEqually: 'تقسيم بالتساوي',
+    exactAmounts: 'مبالغ محددة',
+    byPercentage: 'بالنسبة المئوية',
+    byShares: 'بالحصص',
+    withAdjustments: 'مع تعديلات',
+    itemized: 'حسب الأصناف',
   },
 };
 

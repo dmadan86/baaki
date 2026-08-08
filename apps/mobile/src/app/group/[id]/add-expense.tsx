@@ -282,7 +282,7 @@ export default function AddExpenseScreen() {
   if (!group.data) {
     return (
       <Screen>
-        <EmptyState title="Group not found" body="It may have been archived." />
+        <EmptyState title={t.group.notFound} body={t.group.notFoundArchived} />
       </Screen>
     );
   }
@@ -290,7 +290,7 @@ export default function AddExpenseScreen() {
   const submit = async (): Promise<void> => {
     setError(null);
     if (!payer) {
-      setError('Choose who paid');
+      setError(t.expense.chooseWhoPaid);
       return;
     }
     setSaving(true);
@@ -390,9 +390,8 @@ export default function AddExpenseScreen() {
 
       setScanNote(
         result.check.reconciles && result.check.problems.length === 0
-          ? 'Read the total off the bill. Check it, then split it however you like.'
-          : (result.check.problems[0]?.message ??
-              'Check the total against the bill before saving.'),
+          ? t.expense.scanReconciles
+          : (result.check.problems[0]?.message ?? t.expense.scanCheckTotal),
       );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -421,11 +420,11 @@ export default function AddExpenseScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Close" onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{editing ? 'Edit expense' : t.addExpense}</Text>
+            <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [], profile?.id)}
             </Text>
@@ -434,7 +433,7 @@ export default function AddExpenseScreen() {
             <View style={{ width: 44 }} />
           ) : (
             <IconButton
-              label="Split by item"
+              label={t.expense.splitByItem}
               onPress={() => router.replace(`/group/${groupId}/itemize`)}
             >
               <Ionicons name="list-outline" size={20} color={theme.color.brand} />
@@ -445,7 +444,7 @@ export default function AddExpenseScreen() {
         {editing ? (
           <Card style={{ backgroundColor: theme.color.brandSoft }}>
             <Text variant="caption" tone="brand">
-              Editing keeps the old version. Everyone can see what changed, and it can be restored.
+              {t.expense.editingKeepsVersion}
             </Text>
           </Card>
         ) : null}
@@ -460,14 +459,13 @@ export default function AddExpenseScreen() {
         <Card style={{ gap: theme.spacing.md }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">Scan the bill</Text>
+              <Text variant="subheading">{t.expense.scanBillTitle}</Text>
               <Text variant="caption" tone="muted">
-                The total and the name of the place come out filled in. Check them — entering them
-                by hand is always free.
+                {t.expense.scanBillBody}
               </Text>
             </View>
             <Button
-              label={scanning ? 'Reading…' : 'Scan'}
+              label={scanning ? t.expense.reading : t.expense.scan}
               variant="secondary"
               disabled={scanning || saving}
               onPress={() => void scan()}
@@ -509,7 +507,7 @@ export default function AddExpenseScreen() {
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="Beach shack dinner"
+              placeholder={t.expense.descriptionPlaceholder}
               placeholderTextColor={theme.color.textFaint}
               accessibilityLabel={t.description}
               style={{
@@ -545,15 +543,15 @@ export default function AddExpenseScreen() {
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            How to split
+            {t.expense.howToSplit}
           </Text>
           <ChipRow<SplitKind>
             value={splitKind}
             onChange={setSplitKind}
             options={[
-              { value: 'equal', label: 'Equally' },
-              { value: 'shares', label: 'Shares' },
-              { value: 'percent', label: 'Percent' },
+              { value: 'equal', label: t.expense.equally },
+              { value: 'shares', label: t.expense.shares },
+              { value: 'percent', label: t.expense.percent },
             ]}
           />
         </View>
@@ -584,10 +582,12 @@ export default function AddExpenseScreen() {
         <Card style={{ gap: theme.spacing.md }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="caption" tone="muted">
-              Split between
+              {t.expense.splitBetween}
             </Text>
             <Text variant="micro" tone="muted">
-              {`${participants.length} of ${members.data?.length ?? 0}`}
+              {t.expense.ofCount
+                .replace('{chosen}', String(participants.length))
+                .replace('{total}', String(members.data?.length ?? 0))}
             </Text>
           </Row>
 
@@ -693,7 +693,7 @@ export default function AddExpenseScreen() {
         ) : null}
 
         <Button
-          label={editing ? 'Save changes' : t.save}
+          label={editing ? t.expense.saveChanges : t.save}
           size="lg"
           fullWidth
           disabled={amount === 0n || participants.length === 0 || splitIssue !== null || saving}

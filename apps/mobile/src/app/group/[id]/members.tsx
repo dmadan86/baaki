@@ -21,7 +21,7 @@ import {
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { useAddGhostMember, useGroup, useGroupLedger } from '@/data/hooks';
 import { displayName, groupLabel, isGhost, vpaOf } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function MembersScreen() {
@@ -130,7 +130,7 @@ export default function MembersScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -139,7 +139,10 @@ export default function MembersScreen() {
               {groupLabel(group.data, members.data ?? [])}
             </Text>
           </View>
-          <IconButton label="Invite" onPress={() => router.push(`/group/${groupId}/invite`)}>
+          <IconButton
+            label={t.people.invite}
+            onPress={() => router.push(`/group/${groupId}/invite`)}
+          >
             <Ionicons name="share-outline" size={18} color={theme.color.brand} />
           </IconButton>
         </Row>
@@ -171,15 +174,15 @@ export default function MembersScreen() {
         {/* ADR-006: a name is enough to start splitting with someone. */}
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            Add someone
+            {t.people.addSomeone}
           </Text>
           <Row>
             <TextInput
               value={ghostName}
               onChangeText={setGhostName}
-              placeholder="Rahul"
+              placeholder={t.people.namePlaceholder}
               placeholderTextColor={theme.color.textFaint}
-              accessibilityLabel="Name"
+              accessibilityLabel={t.common.name}
               onSubmitEditing={add}
               style={{
                 flex: 1,
@@ -190,7 +193,7 @@ export default function MembersScreen() {
               }}
             />
             <Button
-              label="Add"
+              label={t.add}
               size="sm"
               variant="secondary"
               disabled={(!ghostName.trim() && !ghostContact.trim()) || addGhost.isPending}
@@ -203,9 +206,9 @@ export default function MembersScreen() {
             onChangeText={setGhostContact}
             autoCapitalize="none"
             keyboardType="email-address"
-            placeholder="Email or phone, if you want to send them the link"
+            placeholder={t.people.contactPlaceholder}
             placeholderTextColor={theme.color.textFaint}
-            accessibilityLabel="Email or phone number"
+            accessibilityLabel={t.common.emailOrPhone}
             onSubmitEditing={add}
             style={{
               fontSize: 15,
@@ -215,7 +218,7 @@ export default function MembersScreen() {
           />
 
           <Button
-            label={browsing ? 'Hide contacts' : 'Browse my contacts'}
+            label={browsing ? t.people.hideContacts : t.people.browseContacts}
             variant="ghost"
             onPress={() => setBrowsing((open) => !open)}
           />
@@ -246,13 +249,13 @@ export default function MembersScreen() {
 
         {ghosts.length > 0 ? (
           <Row style={{ justifyContent: 'space-between' }}>
-            <Badge label={`${ghosts.length} yet to join`} />
+            <Badge label={plural(locale, ghosts.length, t.people.yetToJoin)} />
             <Text
               variant="caption"
               tone="brand"
               onPress={() => router.push(`/group/${groupId}/invite`)}
             >
-              Send an invite link
+              {t.people.sendInviteLink}
             </Text>
           </Row>
         ) : null}
