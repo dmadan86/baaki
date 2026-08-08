@@ -17,16 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import {
-  Card,
-  directionalIcon,
-  IconButton,
-  ListRow,
-  Row,
-  Screen,
-  Text,
-  useTheme,
-} from '@baaki/ui';
+import { Card, directionalIcon, IconButton, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { useStrings, type UiStrings } from '@/i18n';
 
