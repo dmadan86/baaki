@@ -1317,6 +1317,33 @@ export async function publishReceiptItems(
   if (error) throw new Error(error.message);
 }
 
+// ────────────────────────────────────────────────── promotions ──
+
+/**
+ * What `baaki_redeem_promo` answers with.
+ *
+ * Every wrong code comes back as a verdict rather than an exception, because
+ * each one is a different sentence to say to somebody — expired is not the same
+ * as already used, and neither is a crash. The only thing that raises is being
+ * signed out, which is a bug in the caller.
+ */
+export type PromoOutcome =
+  | { ok: true; tier: string; days: number; until: string }
+  | { ok: false; reason: 'UNKNOWN_CODE' | 'EXPIRED' | 'EXHAUSTED' | 'ALREADY_REDEEMED' };
+
+/**
+ * Redeem a promotion code.
+ *
+ * The grant itself is written by the function, not from here: `subscriptions`
+ * is not writable by a client, and a paywall a client can insert its own row
+ * into is a paywall with a door in the back.
+ */
+export async function redeemPromoCode(code: string): Promise<PromoOutcome> {
+  const { data, error } = await supabase.rpc('baaki_redeem_promo', { p_code: code });
+  if (error) throw new Error(error.message);
+  return data as PromoOutcome;
+}
+
 // ────────────────────────────────────── feedback, and leaving ──
 
 export async function submitFeedback(input: {

@@ -17,7 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { Card, directionalIcon, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Card, directionalIcon, IconButton, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { useStrings, type UiStrings } from '@/i18n';
 
@@ -100,6 +100,25 @@ export default function UpgradeScreen() {
           <Text variant="caption" tone="muted">
             {t.upgradeScreen.whatNeverWillBody.replace('{free}', t.freeForever.toLowerCase())}
           </Text>
+        </Card>
+
+        {/* Last, and quiet. There is nothing to buy, so a code is the only way
+            in — but a big button for it on the screen that says "nothing to
+            buy" reads as a shop after all. */}
+        <Card>
+          <ListRow
+            title={t.promo.row}
+            subtitle={t.promo.rowHint}
+            leading={<Ionicons name="pricetag-outline" size={20} color={theme.color.brand} />}
+            trailing={
+              <Ionicons
+                name={directionalIcon('chevron-forward')}
+                size={18}
+                color={theme.color.textFaint}
+              />
+            }
+            onPress={() => router.push('/settings/redeem')}
+          />
         </Card>
       </ScrollView>
     </Screen>

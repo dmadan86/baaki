@@ -816,6 +816,28 @@ export interface UiStrings {
     whatNeverWill: string;
     whatNeverWillBody: string;
   };
+  /**
+   * Typing in a promotion code.
+   *
+   * Every refusal gets its own sentence. "That did not work" for a code that
+   * has expired, one that is used up and one that was mistyped sends somebody
+   * to check the wrong thing three times.
+   */
+  promo: {
+    row: string;
+    rowHint: string;
+    title: string;
+    intro: string;
+    placeholder: string;
+    redeem: string;
+    granted: string;
+    grantedBody: string;
+    unknownCode: string;
+    expired: string;
+    exhausted: string;
+    alreadyRedeemed: string;
+    couldNotRedeem: string;
+  };
   /** The rest: one or two strings each, from a dozen screens. */
   /**
    * Feedback, the policy screens, and erasure.
@@ -1649,6 +1671,21 @@ const en: UiStrings = {
     whatNeverWill: 'What never will',
     whatNeverWillBody:
       'The ledger. Groups, expenses, splits, balances, settling up, and getting all of it back out again — {free}. A ledger you can only half read is not a ledger.',
+  },
+  promo: {
+    row: 'Redeem a code',
+    rowHint: 'If somebody gave you one',
+    title: 'Redeem a code',
+    intro: 'Codes are given out by hand — for a support case, a thank-you, or a trial.',
+    placeholder: 'BAAKI2026',
+    redeem: 'Redeem',
+    granted: 'Done',
+    grantedBody: 'Plus is on until {until}. Nothing was charged, and nothing renews.',
+    unknownCode: 'No code like that. Check the spelling — letters and numbers only.',
+    expired: 'That code has passed its date.',
+    exhausted: 'That code has been used as many times as it allows.',
+    alreadyRedeemed: 'You have already used that one.',
+    couldNotRedeem: 'The code could not be checked just now. Try again in a moment.',
   },
   privacy: {
     row: 'Privacy & security',
@@ -2521,6 +2558,23 @@ const ta: UiStrings = {
     whatNeverWillBody:
       'கணக்கு. குழுக்கள், செலவுகள், பிரிவுகள், இருப்புகள், தீர்த்தல், அனைத்தையும் திரும்பப் பெறுதல் — {free}. பாதி மட்டுமே படிக்கக்கூடிய கணக்கு கணக்கே அல்ல.',
   },
+  promo: {
+    row: 'குறியீட்டைப் பயன்படுத்து',
+    rowHint: 'யாராவது உங்களுக்குக் கொடுத்திருந்தால்',
+    title: 'குறியீட்டைப் பயன்படுத்து',
+    intro:
+      'குறியீடுகள் கையால் வழங்கப்படுகின்றன — உதவிக்காக, நன்றி சொல்ல, அல்லது ஒரு முறை சோதித்துப் பார்க்க.',
+    placeholder: 'BAAKI2026',
+    redeem: 'பயன்படுத்து',
+    granted: 'முடிந்தது',
+    grantedBody:
+      '{until} வரை Plus இயங்கும். எதுவும் வசூலிக்கப்படவில்லை, தானாகப் புதுப்பிக்கவும் ஆகாது.',
+    unknownCode: 'அப்படி ஒரு குறியீடு இல்லை. எழுத்துகளையும் எண்களையும் சரிபாருங்கள்.',
+    expired: 'அந்தக் குறியீட்டின் காலம் முடிந்துவிட்டது.',
+    exhausted: 'அனுமதிக்கப்பட்ட அளவுக்கு அந்தக் குறியீடு ஏற்கனவே பயன்படுத்தப்பட்டுவிட்டது.',
+    alreadyRedeemed: 'அதை நீங்கள் ஏற்கனவே பயன்படுத்திவிட்டீர்கள்.',
+    couldNotRedeem: 'இப்போது குறியீட்டைச் சரிபார்க்க முடியவில்லை. சிறிது நேரம் கழித்து முயலுங்கள்.',
+  },
   privacy: {
     row: 'தனியுரிமை & பாதுகாப்பு',
     rowHint: 'என்ன சேமிக்கப்படுகிறது, எப்படி பாதுகாக்கப்படுகிறது',
@@ -3357,6 +3411,21 @@ const hi: UiStrings = {
     whatNeverWill: 'किसके कभी नहीं',
     whatNeverWillBody:
       'हिसाब। समूह, खर्च, बँटवारा, बकाया, निपटान, और यह सब वापस बाहर निकालना — {free}। जो हिसाब आप आधा ही पढ़ सकें, वह हिसाब नहीं।',
+  },
+  promo: {
+    row: 'कोड इस्तेमाल करें',
+    rowHint: 'अगर किसी ने आपको दिया हो',
+    title: 'कोड इस्तेमाल करें',
+    intro: 'कोड हाथ से दिए जाते हैं — किसी मदद के लिए, शुक्रिया के तौर पर, या आज़माने के लिए।',
+    placeholder: 'BAAKI2026',
+    redeem: 'इस्तेमाल करें',
+    granted: 'हो गया',
+    grantedBody: '{until} तक Plus चालू है। कुछ नहीं लिया गया, और कुछ अपने आप नहीं बढ़ेगा।',
+    unknownCode: 'ऐसा कोई कोड नहीं। वर्तनी जाँच लें — सिर्फ़ अक्षर और अंक।',
+    expired: 'उस कोड की तारीख़ निकल चुकी है।',
+    exhausted: 'वह कोड जितनी बार चल सकता था, उतनी बार चल चुका।',
+    alreadyRedeemed: 'आप उसे पहले ही इस्तेमाल कर चुके हैं।',
+    couldNotRedeem: 'अभी कोड जाँचा नहीं जा सका। थोड़ी देर बाद कोशिश करें।',
   },
   privacy: {
     row: 'निजता और सुरक्षा',
@@ -4319,6 +4388,21 @@ const ar: UiStrings = {
     whatNeverWill: 'وما لن يكلّف أبدًا',
     whatNeverWillBody:
       'الدفتر. المجموعات والمصاريف والتقسيمات والأرصدة والتسوية، وإخراج كل ذلك مرة أخرى — {free}. الدفتر الذي لا تقرأ منه إلا نصفه ليس دفترًا.',
+  },
+  promo: {
+    row: 'استخدام رمز',
+    rowHint: 'إن أعطاك أحدهم واحدًا',
+    title: 'استخدام رمز',
+    intro: 'تُمنح الرموز يدويًا — لحالة دعم، أو شكرًا، أو للتجربة.',
+    placeholder: 'BAAKI2026',
+    redeem: 'استخدام',
+    granted: 'تم',
+    grantedBody: 'Plus مفعّل حتى {until}. لم يُخصم شيء، ولا شيء يتجدد تلقائيًا.',
+    unknownCode: 'لا يوجد رمز كهذا. راجع الحروف والأرقام.',
+    expired: 'انتهى تاريخ هذا الرمز.',
+    exhausted: 'استُخدم هذا الرمز بالعدد المسموح به.',
+    alreadyRedeemed: 'لقد استخدمته من قبل.',
+    couldNotRedeem: 'تعذّر التحقق من الرمز الآن. حاول بعد قليل.',
   },
   privacy: {
     row: 'الخصوصية والأمان',
