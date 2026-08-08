@@ -21,6 +21,7 @@ import {
 import { exportData } from '@/data/api';
 import { useGroups } from '@/data/hooks';
 import { groupLabel } from '@/data/types';
+import { useStrings } from '@/i18n';
 
 type Format = 'json' | 'csv';
 
@@ -32,6 +33,7 @@ type Format = 'json' | 'csv';
 export default function ExportScreen() {
   const theme = useTheme();
   const groups = useGroups();
+  const { t } = useStrings();
 
   const [format, setFormat] = useState<Format>('json');
   const [scope, setScope] = useState<string>('all');
@@ -58,7 +60,7 @@ export default function ExportScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
           mimeType: result.contentType,
-          dialogTitle: 'Your Baaki export',
+          dialogTitle: t.exportData.shareTitle,
           UTI: format === 'json' ? 'public.json' : 'public.comma-separated-values-text',
         });
       }
@@ -81,50 +83,48 @@ export default function ExportScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Export your data</Text>
+            <Text variant="heading">{t.exportData.title}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
 
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="subheading">Everything, always free</Text>
-            <Badge label="no paywall" tone="positive" />
+            <Text variant="subheading">{t.exportData.everythingFree}</Text>
+            <Badge label={t.exportData.noPaywall} tone="positive" />
           </Row>
           <Text variant="caption" tone="muted">
-            JSON includes every version of every expense, who paid, who owed, settlements with their
-            per-expense allocations, and the activity trail — enough to rebuild your ledger exactly.
-            CSV is the spreadsheet view, including per-person settlement detail.
+            {t.exportData.explain}
           </Text>
         </Card>
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            Format
+            {t.exportData.format}
           </Text>
           <ChipRow<Format>
             value={format}
             onChange={setFormat}
             options={[
-              { value: 'json', label: 'JSON (lossless)' },
-              { value: 'csv', label: 'CSV (spreadsheet)' },
+              { value: 'json', label: t.exportData.json },
+              { value: 'csv', label: t.exportData.csv },
             ]}
           />
         </View>
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
-            What to export
+            {t.exportData.whatToExport}
           </Text>
           <ChipRow<string>
             value={scope}
             onChange={setScope}
             options={[
-              { value: 'all', label: 'All my groups' },
+              { value: 'all', label: t.exportData.allMyGroups },
               ...(groups.data ?? []).map((group) => ({
                 value: group.id,
                 label: groupLabel(group),
@@ -134,7 +134,7 @@ export default function ExportScreen() {
         </View>
 
         <Button
-          label={busy ? 'Preparing…' : 'Export'}
+          label={busy ? t.exportData.preparing : t.exportData.action}
           size="lg"
           fullWidth
           disabled={busy}
@@ -146,14 +146,14 @@ export default function ExportScreen() {
         {done ? (
           <Card style={{ gap: theme.spacing.sm }}>
             <Text variant="subheading" tone="positive">
-              Export ready
+              {t.exportData.ready}
             </Text>
             <Text variant="caption" tone="muted">
               {done}
             </Text>
             {Platform.OS === 'web' ? (
               <Text variant="micro" tone="faint">
-                On web the file is written to the app cache; use a device to share it onward.
+                {t.exportData.webNote}
               </Text>
             ) : null}
           </Card>
@@ -166,7 +166,7 @@ export default function ExportScreen() {
         ) : null}
 
         <Button
-          label="Import from Splitwise"
+          label={t.exportData.importInstead}
           variant="ghost"
           fullWidth
           onPress={() => router.push('/settings/import')}

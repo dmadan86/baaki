@@ -1,10 +1,17 @@
 /**
- * Centralised notification + money copy (TDR §7.1), en / ta / hi.
+ * Centralised notification + money copy (TDR §7.1), en / ta / hi / ar.
  * Tone rule from ADR-010: friendly vasool, never collection-agency.
  * `{placeholders}` are substituted by the caller.
+ *
+ * Arabic arrived in the app four screens before it arrived here, and the gap
+ * was silent: `copyFor('ar')` fell through `?? en` and sent English to somebody
+ * whose whole app was in Arabic. A fallback that cannot be seen from the call
+ * site is a fallback that ships. The four tables are now the same four the app
+ * speaks, and `LanguageCode` is what makes adding a fifth a compile error here
+ * rather than a surprise on somebody's lock screen.
  */
 
-export type LanguageCode = 'en' | 'ta' | 'hi';
+export type LanguageCode = 'en' | 'ta' | 'hi' | 'ar';
 
 export type NotificationKind =
   | 'expense_added'
@@ -183,7 +190,55 @@ const hi: CopyStrings = {
   },
 };
 
-export const COPY: Readonly<Record<LanguageCode, CopyStrings>> = { en, ta, hi };
+const ar: CopyStrings = {
+  money: {
+    owedToYou: 'لك {amount}',
+    youOwe: 'عليك {amount}',
+    settled: 'تمت التسوية',
+    netPositive: 'لك {amount} في المجمل',
+    netNegative: 'باقيك {amount}',
+  },
+  notifications: {
+    expense_added: {
+      title: 'أضاف {actor} مصروفًا',
+      body: '{description} · {amount} في {group}',
+    },
+    expense_edited: { title: 'عدّل {actor} مصروفًا', body: '{description} في {group}' },
+    expense_deleted: { title: 'حذف {actor} مصروفًا', body: '{description} في {group}' },
+    you_owe: { title: 'عليك {amount}', body: '{description} في {group}' },
+    settlement_initiated: {
+      title: 'دفع لك {actor} مبلغ {amount}',
+      body: 'اضغط لتأكيد استلامه',
+    },
+    settlement_confirm_request: {
+      title: 'يقول {actor} إنه دفع لك {amount}',
+      body: 'أكّد حتى يبقى باقيك صحيحًا',
+    },
+    settlement_confirmed: { title: 'تمت التسوية مع {actor}', body: '{amount} في {group}' },
+    nudge: { title: 'تذكير لطيف من {actor}', body: '{amount} معلّقة في {group}' },
+    ghost_claimed: { title: 'انضم {actor} إلى {group}', body: 'رُبطت مصروفاته السابقة' },
+    group_invite_accepted: { title: 'انضم {actor} إلى {group}', body: 'ألقِ التحية' },
+    digest_daily: { title: 'اليوم في {group}', body: '{count} تحديثات · باقيك {amount}' },
+    trip_nudge_morning: {
+      title: 'هل بقي شيء من الأمس؟',
+      body: 'أضف ما أنفقته على {group} ما دمت تتذكره',
+    },
+    trip_nudge_evening: {
+      title: 'قبل أن تنسى',
+      body: 'ماذا دفعت اليوم في {group}؟',
+    },
+    expense_disputed: {
+      title: 'يرى {actor} أن هناك خطأً',
+      body: '{description} في {group} — ألقِ نظرة',
+    },
+    expense_dispute_resolved: {
+      title: 'وصل ردّ على تصحيحك',
+      body: '{description} في {group}',
+    },
+  },
+};
+
+export const COPY: Readonly<Record<LanguageCode, CopyStrings>> = { en, ta, hi, ar };
 
 export function copyFor(language: string): CopyStrings {
   const base = language.slice(0, 2).toLowerCase() as LanguageCode;

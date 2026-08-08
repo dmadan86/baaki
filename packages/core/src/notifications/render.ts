@@ -6,7 +6,8 @@
  * built here, from the copy table, in the reader's language — because Postgres
  * wrote that row and Postgres has no business holding three translations of
  * every sentence, nor any idea which of them this particular person reads
- * (TDR §11: en + ta + hi from day one).
+ * (TDR §11: en + ta + hi from day one, and ar since the layout learned to
+ * mirror).
  *
  * Amounts are formatted from minor units at the same moment, for the same
  * reason: `42000` is not `₹420.00` until you know both the currency and the

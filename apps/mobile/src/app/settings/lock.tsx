@@ -25,26 +25,28 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { describeGrace, GRACE_CHOICES, useLock } from '@/lib/lock';
 
 export default function LockSettingsScreen() {
   const theme = useTheme();
+  const { t, locale } = useStrings();
   const { enabled, supported, graceSeconds, setEnabled, setGraceSeconds } = useLock();
   const { isGuest, signOut } = useAuth();
 
   const confirmSignOut = (): void => {
     Alert.alert(
-      'Sign out?',
+      t.lock.signOutQuestion,
       isGuest
         ? // The one case where signing out is not reversible: a guest session
           // lives on this device and nowhere else, so there is no credential to
           // come back with.
-          'This is a guest account, so signing out leaves no way back into it. Add an email or phone number first if you want to keep it.'
-        : 'You can sign back in whenever you like. Nothing is deleted.',
+          t.lock.signOutGuestWarning
+        : t.lock.signOutReassure,
       [
-        { text: 'Stay signed in', style: 'cancel' },
-        { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+        { text: t.lock.staySignedIn, style: 'cancel' },
+        { text: t.lock.signOut, style: 'destructive', onPress: () => void signOut() },
       ],
     );
   };
@@ -59,11 +61,11 @@ export default function LockSettingsScreen() {
         }}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Security</Text>
+            <Text variant="heading">{t.lock.title}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
@@ -71,60 +73,54 @@ export default function LockSettingsScreen() {
         <Card>
           <Row style={{ justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">Require biometrics or a passcode</Text>
+              <Text variant="subheading">{t.lock.requireBiometrics}</Text>
               <Text variant="caption" tone="muted">
-                Handing someone your phone to show them the split should not show them everything
-                else.
+                {t.lock.requireExplain}
               </Text>
             </View>
             <Toggle
               value={enabled}
               disabled={!supported}
               onValueChange={(value) => void setEnabled(value)}
-              accessibilityLabel="App lock"
+              accessibilityLabel={t.lock.appLock}
             />
           </Row>
         </Card>
 
-        {!supported ? <Badge label="This device has no biometrics or passcode set up" /> : null}
+        {!supported ? <Badge label={t.lock.unsupported} /> : null}
 
         {enabled ? (
           <Card style={{ gap: theme.spacing.md }}>
-            <Text variant="subheading">Ask again after</Text>
+            <Text variant="subheading">{t.lock.askAgainAfter}</Text>
             <Text variant="caption" tone="muted">
-              Time in the background before Baaki locks. Settling by UPI sends you to another app
-              and back, so locking the instant you leave means unlocking every time you pay
-              somebody.
+              {t.lock.askAgainExplain}
             </Text>
             <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
               {GRACE_CHOICES.map((seconds) => (
                 <Chip
                   key={seconds}
-                  label={describeGrace(seconds)}
+                  label={describeGrace(seconds, t, locale)}
                   selected={graceSeconds === seconds}
                   onPress={() => void setGraceSeconds(seconds)}
                 />
               ))}
             </Row>
             <Text variant="micro" tone="faint">
-              Reopening Baaki after it has been closed always asks, whatever this says.
+              {t.lock.reopenAlwaysAsks}
             </Text>
           </Card>
         ) : null}
 
         <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="subheading">Sign out</Text>
+          <Text variant="subheading">{t.lock.signOut}</Text>
           <Text variant="caption" tone="muted">
-            {isGuest
-              ? 'This account lives on this device only. Signing out ends it.'
-              : 'Your groups and history stay exactly where they are.'}
+            {isGuest ? t.lock.signOutGuest : t.lock.signOutMember}
           </Text>
-          <Button label="Sign out" variant="secondary" fullWidth onPress={confirmSignOut} />
+          <Button label={t.lock.signOut} variant="secondary" fullWidth onPress={confirmSignOut} />
         </Card>
 
         <Text variant="micro" tone="faint" align="center">
-          This guards the screen, not the data — your ledger is protected by row-level security on
-          the server whether the lock is on or not.
+          {t.lock.footnote}
         </Text>
       </ScrollView>
     </Screen>
