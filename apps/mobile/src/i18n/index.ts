@@ -838,6 +838,8 @@ export interface UiStrings {
     choicesBody: string;
     englishGoverns: string;
     couldNotSave: string;
+    analyticsTitle: string;
+    analyticsBody: string;
     previewGroups: string;
     previewExpenses: string;
     previewSettlements: string;
@@ -1666,6 +1668,9 @@ const en: UiStrings = {
     englishGoverns:
       'This text is translated for convenience. Where a translation and the English differ, the English is the one that governs.',
     couldNotSave: 'That did not save. Please try again in a moment.',
+    analyticsTitle: 'How the app is used',
+    analyticsBody:
+      'Baaki can record how screens are used — which ones people get stuck on, where a tap lands — through Microsoft Clarity. It ships switched off and records nothing unless it is turned on. It is never used for advertising, there is no advertising identifier, and nothing here is sold or shared.',
     previewGroups: 'You are in {n} group(s).',
     previewExpenses: 'You entered {n} expense(s) that will stay.',
     previewSettlements: 'You are named in {n} settlement(s).',
@@ -2534,6 +2539,9 @@ const ta: UiStrings = {
     englishGoverns:
       'இந்த உரை வசதிக்காக மொழிபெயர்க்கப்பட்டுள்ளது. மொழிபெயர்ப்புக்கும் ஆங்கிலத்துக்கும் வேறுபாடு இருந்தால், ஆங்கிலமே செல்லுபடியாகும்.',
     couldNotSave: 'இது சேமிக்கப்படவில்லை. சிறிது நேரம் கழித்து முயற்சிக்கவும்.',
+    analyticsTitle: 'செயலி எப்படி பயன்படுத்தப்படுகிறது',
+    analyticsBody:
+      'எந்தத் திரையில் சிக்கல் வருகிறது என்பதைப் புரிந்துகொள்ள Microsoft Clarity மூலம் பயன்பாட்டைப் பதிவு செய்ய முடியும். இது இயல்பாக அணைக்கப்பட்டே வருகிறது; இயக்கப்படாத வரை எதுவும் பதிவாகாது. விளம்பரத்திற்கு ஒருபோதும் பயன்படுத்தப்படுவதில்லை, விளம்பர அடையாளம் இல்லை, எதுவும் விற்கப்படுவதில்லை.',
     previewGroups: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
     previewExpenses: 'நீங்கள் சேர்த்த {n} செலவுகள் இருக்கும்.',
     previewSettlements: '{n} தீர்வுகளில் உங்கள் பெயர் உள்ளது.',
@@ -3368,6 +3376,9 @@ const hi: UiStrings = {
     englishGoverns:
       'यह पाठ सुविधा के लिए अनूदित है। अनुवाद और अंग्रेज़ी में अंतर हो तो अंग्रेज़ी ही मान्य होगी।',
     couldNotSave: 'यह सहेजा नहीं जा सका। थोड़ी देर बाद फिर कोशिश करें।',
+    analyticsTitle: 'ऐप कैसे इस्तेमाल होता है',
+    analyticsBody:
+      'Microsoft Clarity के ज़रिए यह दर्ज किया जा सकता है कि कौन-सी स्क्रीन उलझाती है। यह बंद अवस्था में ही आता है और चालू किए बिना कुछ दर्ज नहीं करता। इसका उपयोग विज्ञापन के लिए कभी नहीं होता, कोई विज्ञापन पहचानकर्ता नहीं है, और कुछ भी बेचा या साझा नहीं जाता।',
     previewGroups: 'आप {n} समूह में हैं।',
     previewExpenses: 'आपके डाले {n} ख़र्चे बने रहेंगे।',
     previewSettlements: '{n} भुगतानों में आपका नाम है।',
@@ -4326,6 +4337,9 @@ const ar: UiStrings = {
     englishGoverns:
       'هذا النص مترجم للتيسير. وعند الاختلاف بين الترجمة والإنجليزية، تكون الإنجليزية هي المعتمدة.',
     couldNotSave: 'لم يُحفظ هذا. أعد المحاولة بعد قليل.',
+    analyticsTitle: 'كيف يُستخدم التطبيق',
+    analyticsBody:
+      'يمكن لـ Microsoft Clarity تسجيل كيفية استخدام الشاشات لمعرفة أين يتعثر الناس. يأتي مُعطّلًا ولا يسجّل شيئًا ما لم يُفعّل. ولا يُستخدم للإعلانات أبدًا، ولا يوجد معرّف إعلاني، ولا يُباع شيء أو يُشارَك.',
     previewGroups: 'أنت في {n} مجموعة.',
     previewExpenses: 'ستبقى {n} من المصروفات التي أدخلتها.',
     previewSettlements: 'اسمك مذكور في {n} تسوية.',
