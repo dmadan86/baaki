@@ -13,6 +13,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  appleFullName,
   checkPassword,
   IdentityError,
   normaliseEmail,
@@ -27,7 +28,13 @@ const GUEST: Viewer = { kind: 'guest', userId: 'u-guest' };
 const USER: Viewer = { kind: 'user', userId: 'u-real' };
 const NOBODY: Viewer = { kind: 'nobody' };
 
-const EVERY_METHOD: AuthMethod[] = ['email_password', 'phone_password', 'phone_otp', 'google'];
+const EVERY_METHOD: AuthMethod[] = [
+  'email_password',
+  'phone_password',
+  'phone_otp',
+  'google',
+  'apple',
+];
 
 describe('a guest is upgraded, never replaced', () => {
   it.each(EVERY_METHOD)('%s adds to the account they already have', (method) => {
@@ -46,6 +53,16 @@ describe('a guest is upgraded, never replaced', () => {
 
   it('links Google rather than signing in with it', () => {
     expect(planAuth(GUEST, 'google')).toEqual({ call: 'linkIdentity', method: 'google' });
+  });
+
+  it('links Apple rather than signing in with it', () => {
+    // Apple is the sharper version of the same trap. On an iPhone the tempting
+    // implementation is the native sheet plus `signInWithIdToken`, which has no
+    // "link" mode at all — it always resolves to whichever account owns that
+    // Apple ID, and for a guest that is a brand new one. Returning `linkIdentity`
+    // here is what sends the caller down the web flow instead, which is the only
+    // one that can add a provider to the session already held.
+    expect(planAuth(GUEST, 'apple')).toEqual({ call: 'linkIdentity', method: 'apple' });
   });
 
   it('ignores a screen that thinks it is a sign-up', () => {
@@ -89,6 +106,31 @@ describe('somebody with no account at all', () => {
 
   it('goes to the provider for Google', () => {
     expect(planAuth(NOBODY, 'google').call).toBe('signInWithOAuth');
+  });
+
+  it('goes to the provider for Apple', () => {
+    expect(planAuth(NOBODY, 'apple')).toEqual({ call: 'signInWithOAuth', method: 'apple' });
+  });
+
+  it('will not be talked into a sign-up for either provider', () => {
+    // There is no such thing as signing *up* with a provider: the first time
+    // through is the account being made. A screen passing 'sign_up' must not
+    // reach `signUp`, which wants a password there is none of.
+    expect(planAuth(NOBODY, 'google', 'sign_up').call).toBe('signInWithOAuth');
+    expect(planAuth(NOBODY, 'apple', 'sign_up').call).toBe('signInWithOAuth');
+  });
+});
+
+describe('the native Apple sheet is unreachable for anybody with data', () => {
+  // `signInWithIdToken` is the only call in the app that cannot be made safe by
+  // the caller: it takes a token from Apple and resolves it to whichever
+  // account holds that Apple ID, with no way to say "add this to the session I
+  // already have". `apps/mobile/src/lib/auth.tsx` may only use it on the
+  // `signInWithOAuth` branch, so that branch has to stay unreachable for a
+  // guest or a user. This is that guarantee, stated where it is enforced.
+  it.each([GUEST, USER])('never returns signInWithOAuth for %o', (viewer) => {
+    expect(planAuth(viewer, 'apple').call).not.toBe('signInWithOAuth');
+    expect(planAuth(viewer, 'apple', 'sign_up').call).not.toBe('signInWithOAuth');
   });
 });
 
@@ -148,6 +190,50 @@ describe('passwords', () => {
   it('refuses the ones everybody picks', () => {
     expect(() => checkPassword('password123')).toThrow(/first passwords anyone tries/);
     expect(() => checkPassword('PASSWORD123')).toThrow(IdentityError);
+  });
+});
+
+describe('the name Apple gives back, once', () => {
+  // This runs exactly once per person, on a device nobody is watching, and
+  // whatever it produces is what their whole group sees from then on. There is
+  // no second authorization to correct it from.
+
+  it('joins the parts somebody actually has', () => {
+    expect(appleFullName({ givenName: 'Asha', familyName: 'Ravi' })).toBe('Asha Ravi');
+    expect(appleFullName({ givenName: 'Asha', middleName: 'K', familyName: 'Ravi' })).toBe(
+      'Asha K Ravi',
+    );
+  });
+
+  it('keeps a mononym whole', () => {
+    // Single-name people are ordinary in the app's first market. A name is not
+    // required to have two halves.
+    expect(appleFullName({ givenName: 'Rajinikanth' })).toBe('Rajinikanth');
+    expect(appleFullName({ familyName: 'Ravi' })).toBe('Ravi');
+  });
+
+  it('does not leave a gap where an empty part was', () => {
+    // Apple pads with empty strings rather than omitting keys. Joining blindly
+    // gives "Asha  Ravi", and that is then shown to everybody in the group.
+    expect(appleFullName({ givenName: 'Asha', middleName: '', familyName: 'Ravi' })).toBe(
+      'Asha Ravi',
+    );
+    expect(appleFullName({ givenName: 'Asha', middleName: '   ', familyName: 'Ravi' })).toBe(
+      'Asha Ravi',
+    );
+  });
+
+  it('trims the parts rather than the join', () => {
+    expect(appleFullName({ givenName: '  Asha ', familyName: ' Ravi  ' })).toBe('Asha Ravi');
+  });
+
+  it('says null rather than empty when there is no name at all', () => {
+    // The ordinary case on every sign-in after the first. The difference
+    // matters: '' would replace a display name with nothing.
+    expect(appleFullName(null)).toBeNull();
+    expect(appleFullName({})).toBeNull();
+    expect(appleFullName({ givenName: '', middleName: '', familyName: '' })).toBeNull();
+    expect(appleFullName({ givenName: null, familyName: null })).toBeNull();
   });
 });
 

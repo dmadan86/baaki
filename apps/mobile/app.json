@@ -17,7 +17,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.baaki.mobile"
+      "bundleIdentifier": "app.baaki.mobile",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "app.baaki.mobile",
@@ -37,6 +38,7 @@
       "expo-router",
       "expo-localization",
       "expo-sqlite",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
