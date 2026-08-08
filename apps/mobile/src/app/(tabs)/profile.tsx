@@ -523,16 +523,20 @@ export default function ProfileScreen() {
               ]}
             />
 
+            {/* Language leads. It was fifth, under Import, and it is the one
+                setting somebody may have to reach *before* they can read the
+                four above it — a row you can only find by reading past rows you
+                cannot read is a row that is not there. */}
             <SettingsSection
               title="Settings"
               rows={[
-                ...SETTINGS,
                 {
                   icon: 'language-outline',
                   label: t.language,
                   hint: languageSummary,
                   route: '/settings/language',
                 },
+                ...SETTINGS,
                 {
                   icon: 'sparkles-outline',
                   label: 'Motion',

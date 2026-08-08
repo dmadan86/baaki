@@ -157,6 +157,16 @@ itself — _changes take full effect on the next application start_. There is no
 reload to call. So the screen says "close and open Baaki again" in a banner that
 stays until it is true, rather than half-mirroring a screen and calling it done.
 
+The choice is offered twice, and the second time is the important one. A
+settings row is the right home for it once somebody is inside the app; it is the
+wrong home for somebody standing at the front door who cannot read the door.
+So the four scripts also sit flat on the sign-in screen, under the buttons —
+four chips, endonyms only, no "follow my phone" among them, because following
+the phone is what the app is already doing and a row of five where one is an
+English sentence has stopped being scannable. In the settings list Language
+leads rather than sits fifth, for the same reason: a row you can only reach by
+reading past rows you cannot read is a row that is not there.
+
 Two consequences worth stating, because both are the kind of thing that looks
 like a bug when it is right:
 

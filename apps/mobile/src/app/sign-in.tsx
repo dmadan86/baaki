@@ -12,6 +12,13 @@
  * week of expenses on one they can no longer reach. That is easy to get wrong
  * in a screen and impossible to notice afterwards, so the screen does not get
  * to decide.
+ *
+ * The language chips are here for the same reason the guest button is: this is
+ * the first screen, and the first screen has to work for somebody it opened
+ * wrong. Baaki follows the phone by default, and a phone is one setting for one
+ * person — a shared handset, a borrowed one, or simply a person who reads Tamil
+ * and set their phone up in English. Making them sign in first, to reach a
+ * settings row they cannot read, is a door that only opens from the inside.
  */
 
 import { useEffect, useState } from 'react';
@@ -29,6 +36,7 @@ import {
 
 import { Button, Card, Chip, CurvedPanel, Row, Screen, Text, useTheme } from '@baaki/ui';
 
+import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -190,14 +198,22 @@ export default function SignInScreen() {
           ) : null}
         </View>
 
-        <Text
-          variant="micro"
-          tone="faint"
-          align="center"
-          style={{ paddingBottom: theme.spacing.xxxl }}
+        {/* Under the buttons, not above them. The decision this screen exists
+            to get is "start now"; the language is the one thing somebody might
+            have to fix before they can read it, which earns a place on the
+            screen but not the top of it. */}
+        <View
+          style={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: theme.spacing.xxxl,
+            gap: theme.spacing.md,
+          }}
         >
-          Baaki {Constants.expoConfig?.version ?? ''}
-        </Text>
+          <LanguagePicker />
+          <Text variant="micro" tone="faint" align="center">
+            Baaki {Constants.expoConfig?.version ?? ''}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -244,6 +260,11 @@ export default function SignInScreen() {
                 ? 'Add a way to sign in, so this account is still yours on your next phone.'
                 : 'Sign in however you set it up.'}
             </Text>
+
+            {/* Above the form rather than below it. A guest arrives straight
+                here without passing the welcome, so this is their only sight of
+                the chips before they are asked to read a form. */}
+            <LanguagePicker />
 
             <Card style={{ gap: theme.spacing.lg }}>
               <Row style={{ gap: theme.spacing.sm }}>
