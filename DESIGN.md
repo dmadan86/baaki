@@ -168,6 +168,17 @@ interchangeable — telling somebody who has just chosen English that reopening
 will "mirror it" describes the opposite of what will happen, on the one screen
 they are reading to find out why it has not turned back.
 
+Since `expo-updates` was added, the app can restart itself, so the alert
+**offers** rather than instructs. It still asks: throwing somebody out of the
+screen they are standing on is not a thing to do without permission, and the
+banner keeps a Restart button for whoever says "not now" and changes their mind.
+Builds that cannot do it — anything older than the binary that added the module,
+and any reload the platform refuses — fall back to the sentence that was always
+true. That check has to be `requireOptionalNativeModule('ExpoUpdates')` rather
+than a `try`/`catch` around the import: `expo-updates` calls
+`requireNativeModule` at its own module scope, and that throw reaches the global
+error handler on the way past, so the red box appears even though the catch runs.
+
 The choice is offered twice, and the second time is the important one. A
 settings row is the right home for it once somebody is inside the app; it is the
 wrong home for somebody standing at the front door who cannot read the door.

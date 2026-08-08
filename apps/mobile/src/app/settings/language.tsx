@@ -16,10 +16,21 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { Card, directionalIcon, IconButton, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Button,
+  Card,
+  directionalIcon,
+  IconButton,
+  ListRow,
+  Row,
+  Screen,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES, useStrings, type Language } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
+import { canRestart, restartApp } from '@/lib/restart';
 
 export default function LanguageSettingsScreen() {
   const theme = useTheme();
@@ -79,6 +90,16 @@ export default function LanguageSettingsScreen() {
                 ? t.account.restartBannerMirror
                 : t.account.restartBannerUnmirror}
             </Text>
+            {/* The alert at the moment of the choice can be dismissed, and this
+                is where somebody comes back to when they change their mind. */}
+            {canRestart() ? (
+              <Button
+                label={t.account.restartNow}
+                size="sm"
+                variant="secondary"
+                onPress={() => void restartApp()}
+              />
+            ) : null}
           </Card>
         ) : null}
 

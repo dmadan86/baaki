@@ -303,7 +303,10 @@ export interface UiStrings {
     languageRestartHint: string;
     languageRestartHintBack: string;
     restartTitle: string;
+    restartNow: string;
     restartBannerMirror: string;
+    restartNowMirror: string;
+    restartNowUnmirror: string;
     restartBannerUnmirror: string;
     languageFooterNote: string;
     lockNoBiometrics: string;
@@ -800,6 +803,9 @@ const en: UiStrings = {
     languageRestartHint: '{language} · reopen Baaki to mirror it',
     languageRestartHintBack: '{language} · reopen Baaki to turn the layout back',
     restartTitle: 'Close and open Baaki again',
+    restartNow: 'Restart Baaki',
+    restartNowMirror: 'Restart Baaki now to mirror the layout?',
+    restartNowUnmirror: 'Restart Baaki now to turn the layout back?',
     restartBannerMirror:
       'The words have changed already. Mirroring the layout — the arrows, the sides everything sits on — is something the phone decides when the app starts, so it takes effect next time you open it.',
     restartBannerUnmirror:
@@ -1332,6 +1338,9 @@ const ta: UiStrings = {
     languageRestartHint: '{language} · பிரதிபலிக்க பாக்கியை மீண்டும் திற',
     languageRestartHintBack: '{language} · தளவமைப்பை மீட்க பாக்கியை மீண்டும் திற',
     restartTitle: 'பாக்கியை மூடித் திறக்கவும்',
+    restartNow: 'பாக்கியை மறுதொடக்கம் செய்',
+    restartNowMirror: 'தளவமைப்பைப் பிரதிபலிக்க பாக்கியை இப்போதே மறுதொடக்கம் செய்யவா?',
+    restartNowUnmirror: 'தளவமைப்பை மீண்டும் மாற்ற பாக்கியை இப்போதே மறுதொடக்கம் செய்யவா?',
     restartBannerMirror:
       'சொற்கள் ஏற்கெனவே மாறிவிட்டன. தளவமைப்பைப் பிரதிபலிப்பது — அம்புக்குறிகள், எல்லாம் அமரும் பக்கம் — செயலி தொடங்கும்போது ஃபோன் முடிவு செய்வது. எனவே அடுத்த முறை திறக்கும்போதுதான் அது நடக்கும்.',
     restartBannerUnmirror:
@@ -1856,6 +1865,9 @@ const hi: UiStrings = {
     languageRestartHint: '{language} · दिशा बदलने के लिए बाकी दोबारा खोलें',
     languageRestartHintBack: '{language} · दिशा वापस लाने के लिए बाकी दोबारा खोलें',
     restartTitle: 'बाकी को बंद करके दोबारा खोलें',
+    restartNow: 'बाकी दोबारा शुरू करें',
+    restartNowMirror: 'दिशा बदलने के लिए बाकी अभी दोबारा शुरू करें?',
+    restartNowUnmirror: 'दिशा वापस लाने के लिए बाकी अभी दोबारा शुरू करें?',
     restartBannerMirror:
       'शब्द तो पहले ही बदल गए हैं। लेआउट को पलटना — तीर, और हर चीज़ किस तरफ़ बैठती है — यह फ़ोन ऐप शुरू होते समय तय करता है, इसलिए यह अगली बार खोलने पर लागू होगा।',
     restartBannerUnmirror:
@@ -2393,6 +2405,9 @@ const ar: UiStrings = {
     languageRestartHint: '{language} · أعد فتح باقي لعكس الاتجاه',
     languageRestartHintBack: '{language} · أعد فتح باقي لإعادة الاتجاه',
     restartTitle: 'أغلق باقي وافتحه من جديد',
+    restartNow: 'أعد تشغيل باقي',
+    restartNowMirror: 'هل نعيد تشغيل باقي الآن لعكس اتجاه الواجهة؟',
+    restartNowUnmirror: 'هل نعيد تشغيل باقي الآن لإعادة الاتجاه؟',
     restartBannerMirror:
       'تغيّرت الكلمات بالفعل. أما عكس اتجاه الواجهة — الأسهم والجهة التي يجلس عليها كل شيء — فيقرره الهاتف عند بدء التطبيق، لذا يسري في المرة القادمة التي تفتحه فيها.',
     restartBannerUnmirror:
