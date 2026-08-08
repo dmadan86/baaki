@@ -296,9 +296,24 @@ SQLite mirror + mutation queue + `/sync` edge function + conflict versioning + d
 Invite links, ghost members, claim/merge flow, anonymous→full account upgrade, Splitwise CSV import.
 ✓ Guest opens link in browser, adds an expense with no install; later installs, claims ghost, history intact; Splitwise CSV round-trips into correct balances.
 
+_Status (2026-08-08):_ **complete.** Every clause has a live run behind it, all against the deployed project: `e2e/m3-web-lite.mjs` 19/19 for the browser half, including that a stranger holding the same anon key sees nothing and that the guest keeps the same account after adding credentials; `e2e/m3-invites.mjs` 20/20 for preview → join → claim, with the ghost's balances carried over unchanged and the same ghost refused to a second claimant; `e2e/m3-splitwise-import.mjs` 17/17 for the CSV, checked at `group_balances` rather than at the parser, and asserting the import is one transaction — a half-finished one still adds up, it is simply a smaller group that never existed.
+
 **M4 — UPI settlement + notifications**
 VPA profiles, UPI intent flow + confirm state machine + auto-confirm job, nudges; full §7 pipeline: push-token registry, notify-fanout with receipts/retries, in-app inbox, Resend templates + webhook ingestion + suppression list.
 ✓ End-to-end: initiate UPI settle → payee push with Confirm action → balances update; 7-day auto-confirm fires; notification prefs respected in fanout tests; settlement-confirm email renders and delivers via Resend sandbox; bounce webhook suppresses future sends; no double-send on retried fanout (idempotency).
+
+_Status (2026-08-08):_ **not complete, and the shortfall is bigger than it looks.**
+
+What is built and tested against a real database: the settle/confirm state machine, the 7-day auto-confirm job (`m4-auto-confirm.test.ts`), the trip nudges (`m4-trip-nudges.test.ts`), expense disputes (`m4-expense-disputes.test.ts`), and the push fan-out with its claim/finish protocol — `m4-push-fanout.test.ts` covers idempotency directly ("never hands the same one over twice"), language, stale rows, revoked devices and limits.
+
+What a live run proves: `e2e/m4-live.mjs` 16/16 against the deployed project. Read what it checks, though — trip dates, the dispute flow, and that `notify-fanout`, `baaki_auto_confirm_settlements`, `baaki_trip_nudges`, `baaki_claim_push_notifications` and `baaki_finish_push` all refuse a merely signed-in caller. It is a check that the deployed surface has the migrations and the grants, which is what its own header says it is. **It does not touch the acceptance criterion above.**
+
+What is missing:
+
+- **The whole Resend half is unbuilt.** There is no email edge function, no webhook handler and no suppression list — the only trace of it anywhere is a `resend_email_id` column in `notifications` from the M0 schema. So "settlement-confirm email renders and delivers via Resend sandbox" and "bounce webhook suppresses future sends" are not failing tests; they are features with no code.
+- **No push has ever reached a device.** The pipeline is built and the fan-out is tested, but FCM and APNs credentials are a console job nobody has done (amendment A15, and README "Turning on push"). Without them a token cannot be issued, so "payee push with Confirm action → balances update" has never run end to end.
+
+Until both are addressed M4 is the largest incomplete block in the project, and the ✓ above should be read as the target rather than the state.
 
 **M5 — AI receipts + analytics + export**
 receipt-parse pipeline, review/claim UX, quotas + usage metering, category charts, JSON/CSV export.
