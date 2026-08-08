@@ -204,12 +204,29 @@ describe('a long string does not freeze the phone it crashed on', () => {
   });
 
   it('scales roughly with the input, not with its square', () => {
-    // The property, rather than a number: quadratic growth would make the
-    // 4x-longer input about 16x slower. A generous ceiling of 6x still catches
-    // that while leaving room for noise on a shared machine.
-    const small = Math.max(timed('a'.repeat(20_000)), 1);
-    const large = timed('a'.repeat(80_000));
-    expect(large / small).toBeLessThan(6);
+    // Measured as a batch at each size rather than a single call, because one
+    // pass over 20k finishes inside the timer's resolution — and an earlier
+    // version of this test floored that denominator at 1ms, which turned the
+    // ratio into fiction. It failed on CI at 6.25x against a 6x ceiling while
+    // the code underneath was perfectly linear.
+    const batch = (length: number): number => {
+      const input = 'a'.repeat(length);
+      const started = performance.now();
+      for (let run = 0; run < 20; run += 1) redactText(input);
+      return performance.now() - started;
+    };
+
+    // Once through first, so the size measured first is not also paying for
+    // the JIT to compile the thing being measured.
+    batch(10_000);
+
+    const small = batch(10_000);
+    const large = batch(80_000);
+
+    // Eight times the input: linear is about 8x, quadratic would be about 64x.
+    // A ceiling of 24 sits far from both, so this fails on a restored
+    // quadratic and not on a busy runner.
+    expect(large / Math.max(small, 0.01)).toBeLessThan(24);
   });
 
   it('still finds an address at the end of a long line', () => {
