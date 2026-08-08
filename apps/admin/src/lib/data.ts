@@ -276,6 +276,96 @@ export async function grantPromo(profileId: string, days: number): Promise<strin
   return 'Granted.';
 }
 
+export interface CampaignRow {
+  id: string;
+  name: string;
+  title: string;
+  body: string;
+  cta_label: string;
+  promo_code: string | null;
+  starts_at: string;
+  ends_at: string;
+  audience_countries: string[] | null;
+  holdout_percent: number;
+}
+
+export interface FunnelRow {
+  cohort: string;
+  people: number;
+  seen: number;
+  redeemed: number;
+  paid: number;
+}
+
+export interface CampaignRevenueRow {
+  cohort: string;
+  currency: string;
+  payers: number;
+  revenue_minor: string;
+}
+
+export async function campaigns(): Promise<CampaignRow[]> {
+  await requireSession();
+  const { data, error } = await client()
+    .from('campaigns')
+    .select(
+      'id, name, title, body, cta_label, promo_code, starts_at, ends_at, audience_countries, holdout_percent',
+    )
+    .order('starts_at', { ascending: false });
+  if (error) {
+    if (error.code === TABLE_MISSING) return [];
+    throw new Error(`reading campaigns failed: ${error.message}`);
+  }
+  return (data ?? []) as CampaignRow[];
+}
+
+export async function createCampaign(input: {
+  name: string;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  promoCode: string | null;
+  endsAt: string;
+  countries: string[] | null;
+  holdoutPercent: number;
+}): Promise<void> {
+  await requireSession();
+
+  if (!input.title.trim()) throw new Error('A campaign needs something to say.');
+  if (!input.endsAt) throw new Error('A campaign needs an end date.');
+  if (input.holdoutPercent < 0 || input.holdoutPercent > 90) {
+    throw new Error('Holdout is between 0 and 90 percent.');
+  }
+  if (input.holdoutPercent === 0) {
+    // Allowed, but the console says what it costs rather than quietly letting
+    // the campaign become unmeasurable.
+    throw new Error(
+      'A 0% holdout leaves nothing to compare against, so the revenue impact cannot be ' +
+        'computed. Use 5–10% unless you genuinely do not want to know.',
+    );
+  }
+
+  const { error } = await client()
+    .from('campaigns')
+    .insert({
+      name: input.name.trim() || input.title.trim(),
+      title: input.title.trim(),
+      body: input.body.trim(),
+      cta_label: input.ctaLabel.trim(),
+      promo_code: input.promoCode || null,
+      ends_at: new Date(input.endsAt).toISOString(),
+      audience_countries: input.countries,
+      holdout_percent: input.holdoutPercent,
+    });
+  if (error) throw new Error(`creating the campaign failed: ${error.message}`);
+}
+
+export const campaignFunnel = (id: string) =>
+  call<FunnelRow>('baaki_admin_campaign_funnel', { p_campaign_id: id });
+
+export const campaignRevenue = (id: string) =>
+  call<CampaignRevenueRow>('baaki_admin_campaign_revenue', { p_campaign_id: id });
+
 export const flagResults = (key: string) =>
   call<FlagResultRow>('baaki_admin_flag_results', { p_key: key });
 

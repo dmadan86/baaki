@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
+import { CampaignPopup } from '@/components/CampaignPopup';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
@@ -115,6 +116,10 @@ function RootLayout() {
                           <PushRouting />
                           <LockGate>
                             <AuthGate />
+                            {/* Inside the lock on purpose: a promotion is not a
+                                reason to show somebody's phone anything before
+                                they have unlocked it. */}
+                            <CampaignPopup />
                           </LockGate>
                           {/* Last, so it paints over the screen rather than
                               under it. */}

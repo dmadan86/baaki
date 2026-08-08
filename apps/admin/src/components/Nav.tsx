@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-/** Three pages so far. A row of links is the right amount of navigation for that. */
-export function Nav({ here }: { here: 'overview' | 'flags' | 'promotions' }) {
+/** Four pages so far. A row of links is the right amount of navigation for that. */
+export function Nav({ here }: { here: 'overview' | 'flags' | 'promotions' | 'campaigns' }) {
   return (
     <nav className="nav">
       <Link href="/" aria-current={here === 'overview' ? 'page' : undefined}>
@@ -12,6 +12,9 @@ export function Nav({ here }: { here: 'overview' | 'flags' | 'promotions' }) {
       </Link>
       <Link href="/promotions" aria-current={here === 'promotions' ? 'page' : undefined}>
         Promotions
+      </Link>
+      <Link href="/campaigns" aria-current={here === 'campaigns' ? 'page' : undefined}>
+        Campaigns
       </Link>
     </nav>
   );

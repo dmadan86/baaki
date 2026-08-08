@@ -149,6 +149,7 @@ model Profile {
   usageEvents       UsageEvent[]
   subscriptions     Subscription[]
   promoRedemptions  PromoRedemption[]
+  campaignImpressions CampaignImpression[]
   purchasedPasses   GroupPass[]
   syncMutations     SyncMutation[]
 
@@ -767,6 +768,7 @@ model PromoCode {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   redemptions PromoRedemption[]
+  campaigns   Campaign[]
 
   @@map("promo_codes")
   @@schema("public")
@@ -788,6 +790,66 @@ model PromoRedemption {
   @@unique([code, profileId], map: "promo_redemptions_once")
   @@index([profileId, redeemedAt], map: "promo_redemptions_profile_idx")
   @@map("promo_redemptions")
+  @@schema("public")
+}
+
+/// A promotion somebody is actually told about.
+///
+/// Closed to clients entirely. The app never selects from here — it asks
+/// `baaki_my_campaign()`, which answers with the one campaign the caller should
+/// see. Reading the table would expose campaigns aimed elsewhere, campaigns not
+/// yet started, and the caller's own holdout status, which is the one thing
+/// that must not leak: a holdout who knows they are a holdout has stopped being
+/// a control group.
+model Campaign {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  /// What the person reads. On the campaign rather than in the app's string
+  /// table because it changes per campaign and is written by whoever runs one.
+  title     String
+  body      String @default("")
+  ctaLabel  String @default("") @map("cta_label")
+  /// NULL is allowed — an announcement that gives nothing away is still a
+  /// campaign.
+  promoCode String? @map("promo_code")
+
+  startsAt DateTime @default(now()) @map("starts_at") @db.Timestamptz(6)
+  endsAt   DateTime @map("ends_at") @db.Timestamptz(6)
+
+  /// ISO-3166 alpha-2, or NULL for everybody. Device locale, with all the
+  /// imprecision that carries.
+  audienceCountries String[] @map("audience_countries")
+  /// The slice withheld on purpose, so there is something to compare against.
+  /// Without it, the honest answer to "did this work" is "no idea".
+  holdoutPercent    Int      @default(10) @map("holdout_percent")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  code        PromoCode?           @relation(fields: [promoCode], references: [code], onDelete: SetNull)
+  impressions CampaignImpression[]
+
+  @@index([startsAt, endsAt], map: "campaigns_window_idx")
+  @@map("campaigns")
+  @@schema("public")
+}
+
+/// That the announcement was actually put in front of somebody — a different
+/// fact from having been targeted. Somebody who never opened the app during the
+/// campaign was targeted and saw nothing.
+model CampaignImpression {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String    @map("campaign_id") @db.Uuid
+  profileId  String    @map("profile_id") @db.Uuid
+  seenAt     DateTime  @default(now()) @map("seen_at") @db.Timestamptz(6)
+  /// Set when they act on it rather than dismiss it.
+  actedAt    DateTime? @map("acted_at") @db.Timestamptz(6)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  profile  Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, profileId], map: "campaign_impressions_once")
+  @@index([campaignId, seenAt], map: "campaign_impressions_campaign_idx")
+  @@map("campaign_impressions")
   @@schema("public")
 }
 
