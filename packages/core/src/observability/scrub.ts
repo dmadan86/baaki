@@ -104,14 +104,33 @@ const PASS_THROUGH_KEYS = new Set([
 
 const canonicalKey = (key: string): string => key.replace(/[_\-\s]/g, '').toLowerCase();
 
-/** `asha@example.co.in` — an address, which needs a dot in the domain. */
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+/**
+ * `asha@example.co.in` — an address, which needs a dot in the domain.
+ *
+ * The `{1,64}` is not cosmetic and must not be relaxed to `+`. Unbounded, the
+ * engine starts at every one of n positions, consumes the whole run looking for
+ * an `@`, fails, and backtracks a character at a time — O(n²) on any long run
+ * of `[\w.+-]` that contains no `@` at all. A JWT is exactly that (base64url is
+ * `[\w-]` throughout, segments joined by dots), and so is any base64url blob.
+ * Measured on this file's own `redactText`: 20k characters took 635ms, 80k took
+ * 10.2s, 320k took over a minute.
+ *
+ * That cost lands in `beforeSend`, on the JS thread, while the app is already
+ * crashing — a frozen phone on top of the fault being reported. 64 is the limit
+ * RFC 5321 puts on a local part, so nothing real is lost by refusing to look
+ * past it; the bound is what stops the retry from every start position.
+ */
+const EMAIL = /[\w.+-]{1,64}@[\w-]+(?:\.[\w-]+)+/g;
 
 /**
  * `9876543210@ybl`, `ravi.k@okaxis` — a UPI handle, which is the same shape
  * without the dot. Checked after email so an address is never mistaken for one.
+ *
+ * Bounded for the same reason as EMAIL, and comfortably above any real handle:
+ * NPCI caps a VPA at 50 characters end to end, so 64 for the part before the
+ * `@` cannot exclude one.
  */
-const VPA = /[\w.-]{2,}@[a-z]{2,}\b/gi;
+const VPA = /[\w.-]{2,64}@[a-z]{2,}\b/gi;
 
 /**
  * `+91 98765 43210` in any of the spacings a keyboard produces. Always with a
