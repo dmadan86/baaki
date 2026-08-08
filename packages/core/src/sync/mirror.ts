@@ -245,8 +245,8 @@ function applyPending(
       return;
     }
     default:
-      // Members, groups and settlements are mirrored but not overlaid: none of
-      // them can be created offline in a way that changes an expense row.
+      // Members, groups and settlements do not change an expense row. They have
+      // their own overlays below, because they can all be created offline now.
       return;
   }
 }
@@ -284,4 +284,204 @@ export function toExpenseSnapshot(expense: MirrorExpense): ExpenseSnapshot | nul
     date: version.expense_date,
     deletedAt: expense.deleted_at,
   };
+}
+
+// ─────────────────────────────── settlements, members and groups ──
+//
+// Expenses were the only thing the app could create offline, so they were the
+// only thing overlaid. Now that every mutation queues, the rest need the same
+// treatment: a settlement recorded in a basement, a friend added on a plane and
+// a group started in a tunnel all have to appear the moment they are made.
+// Without this they sit in the queue, invisible, and the app looks like it
+// dropped them — the failure ADR-005 exists to prevent.
+//
+// All three mark `pending` so a screen can say the row has not left the phone.
+
+export interface MirrorSettlement extends MirrorRow {
+  readonly id: string;
+  readonly group_id: string;
+  readonly from_member_id: string;
+  readonly to_member_id: string;
+  readonly currency: string;
+  readonly amount: string;
+  readonly status: string;
+  readonly initiated_at: string;
+  readonly confirmed_at: string | null;
+  readonly allocations?: readonly { expense_id: string; amount: string }[];
+  readonly pending?: boolean;
+}
+
+export function materialiseSettlements(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  options: { readonly groupId: string },
+): MirrorSettlement[] {
+  const byId = new Map<string, MirrorSettlement>();
+  for (const row of rowsFor(state, 'settlements', options.groupId) as MirrorSettlement[]) {
+    byId.set(row.id, row);
+  }
+
+  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+    if (mutation.groupId !== options.groupId) continue;
+
+    if (mutation.kind === 'settlement.create') {
+      const payload = mutation.payload as {
+        settlementId?: string;
+        from: string;
+        to: string;
+        currency?: string | null;
+        amount: string;
+        note?: string | null;
+        allocations?: readonly { expenseId: string; amount: string }[];
+      };
+      // Falling back to the mutation id keeps the row addressable even for a
+      // client that did not choose an id — two different queued settlements can
+      // never collide, because the mutation id is the idempotency key.
+      const id = payload.settlementId ?? `pending:${mutation.clientMutationId}`;
+      byId.set(id, {
+        id,
+        group_id: mutation.groupId,
+        from_member_id: payload.from,
+        to_member_id: payload.to,
+        currency: payload.currency ?? 'INR',
+        amount: payload.amount,
+        // `initiated`, not `confirmed`: the other person has still not agreed,
+        // and a settlement that counts itself confirmed on the way out would
+        // clear a debt nobody acknowledged.
+        status: 'initiated',
+        initiated_at: mutation.clientCreatedAt,
+        confirmed_at: null,
+        note: payload.note ?? null,
+        allocations: (payload.allocations ?? []).map((allocation) => ({
+          expense_id: allocation.expenseId,
+          amount: allocation.amount,
+        })),
+        pending: true,
+      });
+      continue;
+    }
+
+    if (mutation.kind === 'settlement.transition') {
+      const { settlementId } = mutation.payload as { settlementId: string };
+      const existing = byId.get(settlementId);
+      if (existing) {
+        byId.set(settlementId, {
+          ...existing,
+          status: 'confirmed',
+          confirmed_at: mutation.clientCreatedAt,
+          pending: true,
+        });
+      }
+    }
+  }
+
+  return [...byId.values()].sort((a, b) =>
+    String(b.initiated_at).localeCompare(String(a.initiated_at)),
+  );
+}
+
+export interface MirrorMember extends MirrorRow {
+  readonly id: string;
+  readonly group_id: string;
+  readonly profile_id: string | null;
+  readonly ghost_name: string | null;
+  readonly left_at: string | null;
+  readonly pending?: boolean;
+}
+
+export function materialiseMembers(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  options: { readonly groupId: string },
+): MirrorMember[] {
+  const byId = new Map<string, MirrorMember>();
+  for (const row of rowsFor(state, 'group_members', options.groupId) as MirrorMember[]) {
+    byId.set(row.id, row);
+  }
+
+  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+    if (mutation.groupId !== options.groupId || mutation.kind !== 'member.add_ghost') continue;
+    const payload = mutation.payload as {
+      memberId?: string;
+      name: string;
+      email?: string | null;
+      phone?: string | null;
+    };
+    const id = payload.memberId ?? `pending:${mutation.clientMutationId}`;
+    if (byId.has(id)) continue;
+    byId.set(id, {
+      id,
+      group_id: mutation.groupId,
+      profile_id: null,
+      ghost_name: payload.name,
+      left_at: null,
+      invite_email: payload.email ?? null,
+      invite_phone: payload.phone ?? null,
+      role: 'member',
+      pending: true,
+    });
+  }
+
+  return [...byId.values()].filter((member) => member.left_at === null);
+}
+
+export interface MirrorGroup extends MirrorRow {
+  readonly id: string;
+  readonly name: string | null;
+  readonly default_currency: string;
+  readonly created_at: string;
+  readonly archived_at: string | null;
+  readonly pending?: boolean;
+}
+
+export function materialiseGroups(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+): MirrorGroup[] {
+  const byId = new Map<string, MirrorGroup>();
+  for (const row of rowsFor(state, 'groups') as MirrorGroup[]) byId.set(row.id, row);
+
+  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+    if (mutation.kind === 'group.create') {
+      const payload = mutation.payload as {
+        name?: string | null;
+        type?: string;
+        currency?: string;
+        emoji?: string | null;
+        simplify?: boolean;
+        country?: string | null;
+      };
+      // The id is the group id the client already chose, which is why the
+      // expenses queued behind it can name it before the server has heard of it.
+      byId.set(mutation.groupId, {
+        id: mutation.groupId,
+        name: payload.name ?? null,
+        type: payload.type ?? 'other',
+        default_currency: payload.currency ?? 'INR',
+        cover_emoji: payload.emoji ?? null,
+        simplify_debts: payload.simplify !== false,
+        country_code: payload.country ?? null,
+        created_at: mutation.clientCreatedAt,
+        archived_at: null,
+        pending: true,
+      });
+      continue;
+    }
+
+    if (mutation.kind === 'group.update') {
+      const existing = byId.get(mutation.groupId);
+      if (existing) {
+        byId.set(mutation.groupId, {
+          ...existing,
+          ...(mutation.payload as Record<string, unknown>),
+          id: existing.id,
+          pending: true,
+        });
+      }
+    }
+  }
+
+  return [...byId.values()]
+    .filter((group) => !group.archived_at)
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 }

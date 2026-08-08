@@ -36,6 +36,7 @@ import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { CategoryBadge } from '@/components/Category';
 import { GroupPhoto } from '@/components/GroupPhoto';
+import { PendingMark } from '@/components/PendingMark';
 import { SyncBanner } from '@/components/SyncBanner';
 
 type Tab = 'expenses' | 'balances' | 'activity';
@@ -237,12 +238,15 @@ export default function GroupScreen() {
             <Text variant="subheading">
               {`${nameOf(settlement.from_member_id)} says they paid you`}
             </Text>
-            <MoneyText
-              amount={BigInt(settlement.amount)}
-              currency={settlement.currency}
-              locale={locale}
-              variant="title"
-            />
+            <Row style={{ gap: theme.spacing.sm }}>
+              <MoneyText
+                amount={BigInt(settlement.amount)}
+                currency={settlement.currency}
+                locale={locale}
+                variant="title"
+              />
+              {settlement.pending ? <PendingMark size={16} /> : null}
+            </Row>
             <Row style={{ gap: theme.spacing.md }}>
               <Button
                 label={t.group.confirmReceived}
@@ -310,11 +314,14 @@ export default function GroupScreen() {
                       onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
                       trailing={
                         version ? (
-                          <MoneyText
-                            amount={BigInt(version.amount)}
-                            currency={version.currency}
-                            locale={locale}
-                          />
+                          <Row style={{ gap: theme.spacing.sm }}>
+                            <MoneyText
+                              amount={BigInt(version.amount)}
+                              currency={version.currency}
+                              locale={locale}
+                            />
+                            {expense.pending ? <PendingMark /> : null}
+                          </Row>
                         ) : null
                       }
                     />
@@ -341,12 +348,15 @@ export default function GroupScreen() {
                   }
                   leading={<Avatar name={displayName(member)} ghost={isGhost(member)} />}
                   trailing={
-                    <MoneyText
-                      amount={ledger.balances.get(member.id) ?? 0n}
-                      currency={currency}
-                      locale={locale}
-                      mode="balance"
-                    />
+                    <Row style={{ gap: theme.spacing.sm }}>
+                      <MoneyText
+                        amount={ledger.balances.get(member.id) ?? 0n}
+                        currency={currency}
+                        locale={locale}
+                        mode="balance"
+                      />
+                      {member.pending ? <PendingMark /> : null}
+                    </Row>
                   }
                 />
                 {index < (members.data?.length ?? 0) - 1 ? (

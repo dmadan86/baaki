@@ -32,6 +32,8 @@ export interface GroupRow {
   remind_evening_at: string;
   archived_at: string | null;
   created_at: string;
+  /** True while this row exists only in the local queue (ADR-005). */
+  pending?: boolean;
 }
 
 export interface MemberRow {
@@ -58,6 +60,8 @@ export interface MemberRow {
     payment_rail?: string | null;
     payment_handle?: string | null;
   } | null;
+  /** True while this row exists only in the local queue (ADR-005). */
+  pending?: boolean;
 }
 
 export interface ExpenseVersionRow {
@@ -119,6 +123,8 @@ export interface SettlementRow {
   initiated_at: string;
   confirmed_at: string | null;
   allocations?: { expense_id: string; amount: string }[];
+  /** True while this row exists only in the local queue (ADR-005). */
+  pending?: boolean;
 }
 
 /** Who did the thing. Null when the actor has since left the group. */

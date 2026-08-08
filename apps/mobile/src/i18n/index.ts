@@ -86,6 +86,41 @@ export interface PluralForms {
 }
 
 /**
+ * The plural rules for the four languages Baaki speaks, written out.
+ *
+ * `Intl.PluralRules` is not in the Hermes build this app ships on. It is not
+ * merely inaccurate there — the constructor throws, so every plural in the app
+ * silently fell through to the `other` form and the home screen read "across 1
+ * groups". A `catch` that turns a missing API into the wrong word is worse than
+ * no plural support at all, because nothing about it looks broken in a test.
+ *
+ * These are CLDR's rules for the cardinal case, which is all this is used for.
+ * A language Baaki does not speak still gets the one/other rule, which is right
+ * for most European languages and no worse than the old behaviour anywhere.
+ */
+function selectRule(locale: string, count: number): Intl.LDMLPluralRule | null {
+  const language = locale.toLowerCase().split(/[-_]/)[0];
+
+  if (language === 'ar') {
+    const mod100 = count % 100;
+    if (count === 0) return 'zero';
+    if (count === 1) return 'one';
+    if (count === 2) return 'two';
+    if (mod100 >= 3 && mod100 <= 10) return 'few';
+    if (mod100 >= 11 && mod100 <= 99) return 'many';
+    return 'other';
+  }
+
+  // Tamil and Hindi both take `one` for exactly one. Hindi also takes it for 0,
+  // which English does not — "0 बदलाव है" is right and "0 changes" is too.
+  if (language === 'hi') return count === 0 || count === 1 ? 'one' : 'other';
+  if (language === 'en' || language === 'ta') return count === 1 ? 'one' : 'other';
+
+  // A language Baaki does not speak. Let Intl answer if it can.
+  return null;
+}
+
+/**
  * Picks the form and puts the number in it.
  *
  * `{n}` is replaced with the count formatted for the locale, not with
@@ -93,15 +128,25 @@ export interface PluralForms {
  * "12" beside Arabic words is a phrase in two number systems.
  */
 export function plural(locale: string, count: number, forms: PluralForms): string {
-  let rule: Intl.LDMLPluralRule = 'other';
+  // Our own rules first, Intl only for a language we do not ship. Asking the
+  // platform about the four languages we already know the answer for makes the
+  // wording depend on which Android build somebody happens to be holding.
+  let rule = selectRule(locale, count);
+  if (rule === null) {
+    try {
+      rule = new Intl.PluralRules(locale).select(count);
+    } catch {
+      rule = count === 1 ? 'one' : 'other';
+    }
+  }
+
   let shown = String(count);
   try {
-    rule = new Intl.PluralRules(locale).select(count);
     shown = new Intl.NumberFormat(locale).format(count);
   } catch {
-    // A locale Intl will not take is not a reason to render nothing. The
-    // English-shaped `other` form with a plain number beats an empty row.
+    // A locale Intl will not take is not a reason to render nothing.
   }
+
   return (forms[rule] ?? forms.other).replaceAll('{n}', shown);
 }
 
@@ -570,6 +615,8 @@ export interface UiStrings {
     someone: string;
     serverRefused: string;
     offlineSaved: string;
+    /** The mark on a row that is saved here but has not reached the server. */
+    notSentYet: string;
     offlineWithCount: PluralForms;
     cantReachServer: PluralForms;
     syncingCount: PluralForms;
@@ -1304,6 +1351,7 @@ const en: UiStrings = {
     pickDifferentPeople: 'Pick different people',
     someone: 'Someone',
     serverRefused: 'The server refused this change.',
+    notSentYet: 'Not sent yet',
     offlineWithCount: {
       one: 'Offline — {n} change saved on this phone',
       other: 'Offline — {n} changes saved on this phone',
@@ -2106,6 +2154,7 @@ const ta: UiStrings = {
     pickDifferentPeople: 'வேறு ஆட்களைத் தேர்ந்தெடு',
     someone: 'யாரோ',
     serverRefused: 'இந்த மாற்றத்தை சர்வர் ஏற்கவில்லை.',
+    notSentYet: 'இன்னும் அனுப்பப்படவில்லை',
     offlineWithCount: {
       one: 'இணைப்பு இல்லை — {n} மாற்றம் இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளது',
       other: 'இணைப்பு இல்லை — {n} மாற்றங்கள் இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளன',
@@ -2894,6 +2943,7 @@ const hi: UiStrings = {
     pickDifferentPeople: 'दूसरे लोग चुनें',
     someone: 'कोई',
     serverRefused: 'सर्वर ने यह बदलाव नहीं माना।',
+    notSentYet: 'अभी भेजा नहीं गया',
     offlineWithCount: {
       one: 'ऑफ़लाइन — {n} बदलाव इसी फ़ोन पर सेव है',
       other: 'ऑफ़लाइन — {n} बदलाव इसी फ़ोन पर सेव हैं',
@@ -3697,6 +3747,7 @@ const ar: UiStrings = {
     pickDifferentPeople: 'اختر أشخاصًا آخرين',
     someone: 'أحدهم',
     serverRefused: 'رفض الخادم هذا التغيير.',
+    notSentYet: 'لم يُرسل بعد',
     offlineWithCount: {
       zero: 'دون اتصال — لا تغييرات',
       one: 'دون اتصال — تغيير واحد محفوظ على هذا الهاتف',

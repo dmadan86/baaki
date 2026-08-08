@@ -136,7 +136,21 @@ Deno.serve(async (request) => {
     // Pull every group the client already knows about, plus any it just
     // created — otherwise a group made offline would stay invisible until the
     // next sync.
-    const groupIds = new Set<string>([...Object.keys(cursors), ...session.touchedGroups]);
+    //
+    // And every group this person is actually in, which is not the same set. A
+    // device that has never synced has no cursors to name, and a group somebody
+    // else added you to has no cursor either: without this, "read local-first"
+    // could never get its first row, and being invited would do nothing until
+    // you happened to open the group by link. The membership read runs as the
+    // caller, so it can only ever return groups their own RLS already allows.
+    const mine = await caller.from('group_members').select('group_id').is('left_at', null);
+    if (mine.error) throw new HttpError(500, 'PULL_FAILED', `memberships: ${mine.error.message}`);
+
+    const groupIds = new Set<string>([
+      ...Object.keys(cursors),
+      ...session.touchedGroups,
+      ...(mine.data ?? []).map((row) => row.group_id as string),
+    ]);
     const { changes, cursors: nextCursors } = await pull(caller, groupIds, cursors);
 
     return json({
@@ -250,6 +264,12 @@ class SyncSession {
           p_group_id: mutation.groupId,
           p_name: requireString(mutation.payload.name, 'name'),
           p_member_id: (mutation.payload.memberId as string | undefined) ?? null,
+          // An address is the whole point of adding somebody from your contacts
+          // — it is what lets them claim their share later (ADR-006). This case
+          // dropped it, so the same person added offline and online became two
+          // different rows.
+          p_email: (mutation.payload.email as string | undefined) ?? null,
+          p_phone: (mutation.payload.phone as string | undefined) ?? null,
         });
       case 'group.create':
         return await this.rpcAsCaller('baaki_create_group', {
@@ -260,6 +280,11 @@ class SyncSession {
           p_simplify: mutation.payload.simplify !== false,
           // The client already chose this id and its queued expenses reference it.
           p_group_id: mutation.groupId,
+          p_photo_path: (mutation.payload.photoPath as string | undefined) ?? null,
+          // Which country the group is in decides which payment rails it is
+          // offered (ADR-012). Dropped here, a group created offline came back
+          // with no rails and no way to settle on one.
+          p_country: (mutation.payload.country as string | undefined) ?? null,
         });
       case 'group.update': {
         await this.requireMemberId(mutation.groupId);
@@ -385,6 +410,7 @@ class SyncSession {
       to: string;
       amount: string;
       method: string;
+      rail?: string | null;
       currency?: string | null;
       note?: string | null;
       allocations?: { expenseId: string; amount: string }[];
@@ -396,6 +422,10 @@ class SyncSession {
       p_to_member_id: payload.to,
       p_amount: payload.amount,
       p_method: payload.method,
+      // The enum knows four methods; the rail is the truth (ADR-012). Without
+      // this, a settlement paid over Pix and queued offline arrived as "other"
+      // and the group lost the one detail that says how it was actually paid.
+      p_rail: payload.rail ?? payload.method,
       p_currency: payload.currency ?? null,
       p_note: payload.note ?? null,
       p_allocations: payload.allocations ?? [],

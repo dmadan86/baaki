@@ -127,3 +127,72 @@ describe('the string tables', () => {
     expect(RTL_LANGUAGES).toEqual(['ar']);
   });
 });
+
+/**
+ * The plural rules are ours, not the platform's.
+ *
+ * `Intl.PluralRules` is absent from the Hermes build this app ships on: the
+ * constructor throws, the old helper caught it, and every plural in the app
+ * quietly rendered its `other` form. The home screen read "across 1 groups" and
+ * nothing in CI could see it, because Node has full ICU and always answered
+ * correctly. These run against the rules directly for that reason.
+ */
+describe('plural rules', () => {
+  it('picks singular for one, in every language that has one', async () => {
+    const { plural } = await import('../src/i18n');
+    expect(plural('en', 1, { one: '{n} change', other: '{n} changes' })).toBe('1 change');
+    expect(plural('en-US', 1, { one: '{n} change', other: '{n} changes' })).toBe('1 change');
+    expect(plural('ta', 1, { one: 'one', other: 'many' })).toBe('one');
+    expect(plural('hi', 1, { one: 'one', other: 'many' })).toBe('one');
+    expect(plural('ar', 1, { one: 'one', other: 'many' })).toBe('one');
+  });
+
+  it('picks the plural for everything else', async () => {
+    const { plural } = await import('../src/i18n');
+    for (const count of [0, 2, 5, 21, 100]) {
+      expect(plural('en', count, { one: 'one', other: 'many' })).toBe('many');
+    }
+  });
+
+  it('follows Hindi in treating zero as singular', async () => {
+    const { plural } = await import('../src/i18n');
+    expect(plural('hi', 0, { one: 'one', other: 'many' })).toBe('one');
+    expect(plural('en', 0, { one: 'one', other: 'many' })).toBe('many');
+  });
+
+  it('walks all six Arabic categories', async () => {
+    const { plural } = await import('../src/i18n');
+    const forms = {
+      zero: 'zero',
+      one: 'one',
+      two: 'two',
+      few: 'few',
+      many: 'many',
+      other: 'other',
+    };
+    expect(plural('ar', 0, forms)).toBe('zero');
+    expect(plural('ar', 1, forms)).toBe('one');
+    expect(plural('ar', 2, forms)).toBe('two');
+    expect(plural('ar', 3, forms)).toBe('few');
+    expect(plural('ar', 10, forms)).toBe('few');
+    expect(plural('ar', 11, forms)).toBe('many');
+    expect(plural('ar', 99, forms)).toBe('many');
+    expect(plural('ar', 100, forms)).toBe('other');
+  });
+
+  it('still renders a sentence when the platform has no Intl at all', async () => {
+    const { plural } = await import('../src/i18n');
+    // Hermes does not merely get this wrong — it does not define it, and the
+    // constructor throws. Standing that up here is the only way CI can see what
+    // a phone sees, because Node ships full ICU and always answers.
+    const intl = Intl as unknown as Record<string, unknown>;
+    const original = intl.PluralRules;
+    delete intl.PluralRules;
+    try {
+      expect(plural('en', 1, { one: '{n} change', other: '{n} changes' })).toBe('1 change');
+      expect(plural('ar', 2, { one: 'one', two: 'two', other: 'other' })).toBe('two');
+    } finally {
+      intl.PluralRules = original;
+    }
+  });
+});
