@@ -570,6 +570,9 @@ export interface UiStrings {
     someone: string;
     serverRefused: string;
     offlineSaved: string;
+    offlineWithCount: PluralForms;
+    cantReachServer: PluralForms;
+    syncingCount: PluralForms;
     notAnAmount: string;
     notARate: string;
     paidAnotherCurrency: string;
@@ -1301,6 +1304,15 @@ const en: UiStrings = {
     pickDifferentPeople: 'Pick different people',
     someone: 'Someone',
     serverRefused: 'The server refused this change.',
+    offlineWithCount: {
+      one: 'Offline — {n} change saved on this phone',
+      other: 'Offline — {n} changes saved on this phone',
+    },
+    cantReachServer: {
+      one: "Can't reach the server — {n} change saved here, waiting to send",
+      other: "Can't reach the server — {n} changes saved here, waiting to send",
+    },
+    syncingCount: { one: 'Sending {n} change…', other: 'Sending {n} changes…' },
     offlineSaved: 'Offline — everything here is saved on this phone',
     notAnAmount: 'That does not look like an amount',
     notARate: 'That does not look like a rate',
@@ -2094,6 +2106,18 @@ const ta: UiStrings = {
     pickDifferentPeople: 'வேறு ஆட்களைத் தேர்ந்தெடு',
     someone: 'யாரோ',
     serverRefused: 'இந்த மாற்றத்தை சர்வர் ஏற்கவில்லை.',
+    offlineWithCount: {
+      one: 'இணைப்பு இல்லை — {n} மாற்றம் இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளது',
+      other: 'இணைப்பு இல்லை — {n} மாற்றங்கள் இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளன',
+    },
+    cantReachServer: {
+      one: 'சர்வரை அடைய முடியவில்லை — {n} மாற்றம் இங்கே சேமிக்கப்பட்டு காத்திருக்கிறது',
+      other: 'சர்வரை அடைய முடியவில்லை — {n} மாற்றங்கள் இங்கே சேமிக்கப்பட்டு காத்திருக்கின்றன',
+    },
+    syncingCount: {
+      one: '{n} மாற்றம் அனுப்பப்படுகிறது…',
+      other: '{n} மாற்றங்கள் அனுப்பப்படுகின்றன…',
+    },
     offlineSaved: 'இணைப்பு இல்லை — இங்குள்ள அனைத்தும் இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளது',
     notAnAmount: 'இது ஒரு தொகை போல் தெரியவில்லை',
     notARate: 'இது ஒரு மாற்று விகிதம் போல் தெரியவில்லை',
@@ -2870,6 +2894,15 @@ const hi: UiStrings = {
     pickDifferentPeople: 'दूसरे लोग चुनें',
     someone: 'कोई',
     serverRefused: 'सर्वर ने यह बदलाव नहीं माना।',
+    offlineWithCount: {
+      one: 'ऑफ़लाइन — {n} बदलाव इसी फ़ोन पर सेव है',
+      other: 'ऑफ़लाइन — {n} बदलाव इसी फ़ोन पर सेव हैं',
+    },
+    cantReachServer: {
+      one: 'सर्वर तक नहीं पहुँच पा रहे — {n} बदलाव यहीं सेव है, भेजने का इंतज़ार',
+      other: 'सर्वर तक नहीं पहुँच पा रहे — {n} बदलाव यहीं सेव हैं, भेजने का इंतज़ार',
+    },
+    syncingCount: { one: '{n} बदलाव भेजा जा रहा है…', other: '{n} बदलाव भेजे जा रहे हैं…' },
     offlineSaved: 'ऑफ़लाइन — यहाँ का सब कुछ इसी फ़ोन पर सेव है',
     notAnAmount: 'यह रकम जैसा नहीं लगता',
     notARate: 'यह दर जैसा नहीं लगता',
@@ -3664,6 +3697,30 @@ const ar: UiStrings = {
     pickDifferentPeople: 'اختر أشخاصًا آخرين',
     someone: 'أحدهم',
     serverRefused: 'رفض الخادم هذا التغيير.',
+    offlineWithCount: {
+      zero: 'دون اتصال — لا تغييرات',
+      one: 'دون اتصال — تغيير واحد محفوظ على هذا الهاتف',
+      two: 'دون اتصال — تغييران محفوظان على هذا الهاتف',
+      few: 'دون اتصال — {n} تغييرات محفوظة على هذا الهاتف',
+      many: 'دون اتصال — {n} تغييرًا محفوظًا على هذا الهاتف',
+      other: 'دون اتصال — {n} تغيير محفوظ على هذا الهاتف',
+    },
+    cantReachServer: {
+      zero: 'تعذّر الوصول إلى الخادم',
+      one: 'تعذّر الوصول إلى الخادم — تغيير واحد محفوظ هنا في انتظار الإرسال',
+      two: 'تعذّر الوصول إلى الخادم — تغييران محفوظان هنا في انتظار الإرسال',
+      few: 'تعذّر الوصول إلى الخادم — {n} تغييرات محفوظة هنا في انتظار الإرسال',
+      many: 'تعذّر الوصول إلى الخادم — {n} تغييرًا محفوظًا هنا في انتظار الإرسال',
+      other: 'تعذّر الوصول إلى الخادم — {n} تغيير محفوظ هنا في انتظار الإرسال',
+    },
+    syncingCount: {
+      zero: 'جارٍ الإرسال…',
+      one: 'جارٍ إرسال تغيير واحد…',
+      two: 'جارٍ إرسال تغييرين…',
+      few: 'جارٍ إرسال {n} تغييرات…',
+      many: 'جارٍ إرسال {n} تغييرًا…',
+      other: 'جارٍ إرسال {n} تغيير…',
+    },
     offlineSaved: 'دون اتصال — كل ما هنا محفوظ على هذا الهاتف',
     notAnAmount: 'هذا لا يبدو مبلغًا',
     notARate: 'هذا لا يبدو سعر صرف',
