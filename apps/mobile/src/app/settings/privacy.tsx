@@ -23,6 +23,7 @@ export default function PrivacyScreen() {
   const sections = [
     { title: t.privacy.storeTitle, body: t.privacy.storeBody, icon: 'file-tray-outline' },
     { title: t.privacy.protectTitle, body: t.privacy.protectBody, icon: 'lock-closed-outline' },
+    { title: t.privacy.analyticsTitle, body: t.privacy.analyticsBody, icon: 'stats-chart-outline' },
     { title: t.privacy.choicesTitle, body: t.privacy.choicesBody, icon: 'hand-left-outline' },
   ] as const;
 

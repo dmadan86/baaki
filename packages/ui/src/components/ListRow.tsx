@@ -11,6 +11,12 @@ export interface ListRowProps {
   trailing?: ReactNode;
   onPress?: () => void;
   accessibilityLabel?: string;
+  /**
+   * Colours the title with the negative tone, for rows that end something —
+   * signing out, erasing an account. Only the title: a red subtitle would make
+   * the row shout twice and the explanation harder to read.
+   */
+  destructive?: boolean;
 }
 
 export function ListRow({
@@ -20,6 +26,7 @@ export function ListRow({
   trailing,
   onPress,
   accessibilityLabel,
+  destructive = false,
 }: ListRowProps) {
   const theme = useTheme();
   const content = (
@@ -33,7 +40,7 @@ export function ListRow({
     >
       {leading}
       <View style={{ flex: 1 }}>
-        <Text variant="subheading" numberOfLines={1}>
+        <Text variant="subheading" tone={destructive ? 'negative' : undefined} numberOfLines={1}>
           {title}
         </Text>
         {subtitle ? (

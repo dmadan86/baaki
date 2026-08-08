@@ -44,6 +44,8 @@ interface SettingsRow {
   hint: string;
   route?: string;
   onPress?: () => void;
+  /** Ends something. Red title, red icon. */
+  destructive?: boolean;
 }
 
 function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }) {
@@ -59,6 +61,7 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
               <ListRow
                 title={item.label}
                 subtitle={item.hint}
+                destructive={item.destructive}
                 onPress={
                   item.onPress ?? (item.route ? () => router.push(item.route as never) : undefined)
                 }
@@ -70,13 +73,23 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
                       borderRadius: theme.radius.pill,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: live ? theme.color.brandSoft : theme.color.surfaceMuted,
+                      backgroundColor: item.destructive
+                        ? theme.color.negativeSoft
+                        : live
+                          ? theme.color.brandSoft
+                          : theme.color.surfaceMuted,
                     }}
                   >
                     <Ionicons
                       name={item.icon}
                       size={18}
-                      color={live ? theme.color.brand : theme.color.textMuted}
+                      color={
+                        item.destructive
+                          ? theme.color.negative
+                          : live
+                            ? theme.color.brand
+                            : theme.color.textMuted
+                      }
                     />
                   </View>
                 }
@@ -598,6 +611,7 @@ export default function ProfileScreen() {
                   label: t.lock.signOut,
                   hint: signOutHint,
                   onPress: confirmSignOut,
+                  destructive: true,
                 },
                 // Last row of the last section, under Sign out. It first sat in
                 // the middle of the settings list, because `settingsRows` is
@@ -609,6 +623,7 @@ export default function ProfileScreen() {
                   label: t.privacy.deleteRow,
                   hint: t.privacy.deleteRowHint,
                   route: '/settings/delete-account',
+                  destructive: true,
                 },
               ]}
             />
