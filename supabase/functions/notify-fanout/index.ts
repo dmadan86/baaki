@@ -25,9 +25,32 @@ import {
   type ExpoTicket,
   type PushProblem,
 } from '../_shared/core.js';
-import { asService, CORS_HEADERS, errorResponse, HttpError, json } from '../_shared/auth.ts';
+import {
+  asService,
+  CORS_HEADERS,
+  errorResponse,
+  HttpError,
+  json,
+  type SupabaseClient,
+} from '../_shared/auth.ts';
+import {
+  buildFor,
+  pause,
+  sendEmail,
+  SEND_SPACING_MS,
+  type EmailableRow,
+  type EmailResult,
+} from '../_shared/email.ts';
 
 const EXPO_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
+
+/**
+ * Kept well under what one run could manage, because Resend allows two requests
+ * a second and this function shares its clock with the push half. Twenty-five
+ * every five minutes is three hundred an hour, which is more mail than this app
+ * has any business sending.
+ */
+const EMAIL_BATCH = 25;
 
 interface ClaimedRow {
   id: string;
@@ -72,7 +95,11 @@ Deno.serve(async (request) => {
     if (error) throw new HttpError(500, 'CLAIM_FAILED', error.message);
 
     const rows = (data ?? []) as ClaimedRow[];
-    if (rows.length === 0) return json({ claimed: 0, sent: 0 });
+    if (rows.length === 0) {
+      // Nobody to buzz does not mean nobody to write to. Somebody with no
+      // device at all is exactly the person the email half exists for.
+      return json({ claimed: 0, sent: 0, email: await dispatchEmail(service) });
+    }
 
     const batch = buildPushBatch(
       rows.map((row) => ({
@@ -155,8 +182,84 @@ Deno.serve(async (request) => {
       revoked: revoke.length,
       problems: summary,
       misconfigured: isPushMisconfigured(summary),
+      email: await dispatchEmail(service),
     });
   } catch (error) {
     return errorResponse(error, { fn: 'notify-fanout' });
   }
 });
+
+interface EmailSummary {
+  readonly claimed: number;
+  readonly sent: number;
+  readonly failed: number;
+  readonly retry: number;
+  readonly skipped?: number;
+  readonly error?: string;
+}
+
+/**
+ * The email half of step 5 in TDR §7.1, run after the push half and never
+ * instead of it.
+ *
+ * It cannot throw. Resend having a bad minute is not a reason for the fanout to
+ * return a 500 — the push it already sent happened, the rows it already closed
+ * are closed, and a scheduler reading an error would tell us the wrong thing
+ * about which half is broken.
+ */
+async function dispatchEmail(service: SupabaseClient): Promise<EmailSummary> {
+  const empty: EmailSummary = { claimed: 0, sent: 0, failed: 0, retry: 0 };
+
+  try {
+    // No key configured is a deployment that has not turned email on, not a
+    // fault. Claiming rows first would mark them queued and then strand them.
+    if (!Deno.env.get('RESEND_API_KEY') || !Deno.env.get('EMAIL_UNSUBSCRIBE_SECRET')) {
+      return empty;
+    }
+
+    const { data, error } = await service.rpc('baaki_claim_email_notifications', {
+      p_limit: EMAIL_BATCH,
+    });
+    if (error) return { ...empty, error: error.message };
+
+    const rows = (data ?? []) as EmailableRow[];
+    if (rows.length === 0) return empty;
+
+    const results: EmailResult[] = [];
+    let skipped = 0;
+
+    for (const [index, row] of rows.entries()) {
+      const built = await buildFor(row);
+      if (!built) {
+        // A kind SQL claimed and `@baaki/core` will not mail. The two lists
+        // disagreeing is a bug, but stranding the row is not the way to find
+        // out about it.
+        console.error(`no email template for kind ${row.kind}`);
+        results.push({ id: row.id, status: 'failed', template: 'unknown', error: 'NO_TEMPLATE' });
+        skipped += 1;
+        continue;
+      }
+
+      if (index > 0) await pause(SEND_SPACING_MS);
+      results.push(await sendEmail(built));
+    }
+
+    const { error: finishError } = await service.rpc('baaki_finish_email', { p_results: results });
+    if (finishError) console.error('could not record email results:', finishError.message);
+
+    const count = (status: EmailResult['status']): number =>
+      results.filter((result) => result.status === status).length;
+
+    return {
+      claimed: rows.length,
+      sent: count('sent'),
+      failed: count('failed'),
+      retry: count('retry'),
+      ...(skipped > 0 ? { skipped } : {}),
+      ...(finishError ? { error: finishError.message } : {}),
+    };
+  } catch (unexpected) {
+    console.error('email dispatch failed:', (unexpected as Error).message);
+    return { ...empty, error: (unexpected as Error).message };
+  }
+}

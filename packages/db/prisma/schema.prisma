@@ -112,6 +112,11 @@ enum DeliveryStatus {
   failed
   bounced
   complained
+  /// Deliberately not sent — no confirmed address, email turned off, or the
+  /// mailbox already said no. Distinct from `failed` because a decision is not
+  /// a delivery that went wrong, and counting it as one makes the failure rate
+  /// unreadable.
+  suppressed
 
   @@schema("public")
 }
@@ -665,7 +670,25 @@ model EmailEvent {
   profile      Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, createdAt])
+  /// Every webhook call arrives knowing only Resend's id for the message.
+  @@index([resendEmailId], map: "email_events_resend_email_id_idx")
   @@map("email_events")
+  @@schema("public")
+}
+
+/// Addresses that must not be mailed again (TDR §7.3).
+///
+/// Keyed on the address, not the profile: a complaint is made by a mailbox
+/// rather than by an account, and the mailbox's answer outlives whoever
+/// happened to own the account at the time. The CHECK constraints live in the
+/// migration — Prisma cannot express one.
+model EmailSuppression {
+  address   String   @id
+  reason    String
+  detail    Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("email_suppressions")
   @@schema("public")
 }
 

@@ -22,11 +22,17 @@ for each line; this is the summary.
 | M5 AI receipts + export | **Complete.** All four parts of the criterion have a proof behind them                |
 
 M4 is the largest incomplete block. The settle/confirm state machine, the 7-day
-auto-confirm, trip nudges, disputes and the push fan-out are all built and
-tested against a real database — but **the whole Resend half has no code at
-all**, and **no push has ever reached a device**, because FCM and APNs
-credentials are a console job nobody has done. A tested fan-out that cannot
-issue a token has not delivered anything.
+auto-confirm, trip nudges, disputes, the push fan-out and — since 2026-08-09 —
+the email half are all built and tested against a real database. What is
+missing is that none of it has reached anybody:
+
+- **No push has ever reached a device.** FCM and APNs credentials are a console
+  job nobody has done, and without them a token cannot be issued. A tested
+  fan-out that cannot issue a token has not delivered anything.
+- **No email has ever been sent.** The pipeline, the suppression list, the
+  webhook and the one-click unsubscribe are built and covered by 67 tests, but
+  every one of them stops at the edge of the network. Sending needs
+  `mail.dmadan.com` verified in Resend, a webhook secret, and a deploy.
 
 Also outstanding: `account-delete`. The erasure RPC removes a person's ledger
 rows and their auth identity survives it, which needs an edge function holding
@@ -87,19 +93,27 @@ is what makes a retried run a no-op rather than a second buzz.
 
 ### Edge functions
 
-| Function        | What it owns                                                                |
-| --------------- | --------------------------------------------------------------------------- |
-| `sync`          | Batch mutation replay and the change feed (TDR §4)                          |
-| `expense-write` | Recomputes every share with `@baaki/core` and writes the expense atomically |
-| `invite-mint`   | Signed, expiring, revocable invite links (only a hash is stored)            |
-| `invite-accept` | Preview without an account, join, and asking to claim a ghost               |
-| `receipt-parse` | Vision-model itemization, metered against the monthly quota                 |
-| `fx-rate`       | One upstream rate, cached, never an open proxy                              |
-| `export-data`   | Lossless JSON and CSV export                                                |
-| `notify-fanout` | Claims unsent inbox rows and pushes them via Expo; revokes dead devices     |
+| Function            | What it owns                                                                   |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `sync`              | Batch mutation replay and the change feed (TDR §4)                             |
+| `expense-write`     | Recomputes every share with `@baaki/core` and writes the expense atomically    |
+| `invite-mint`       | Signed, expiring, revocable invite links (only a hash is stored)               |
+| `invite-accept`     | Preview without an account, join, and asking to claim a ghost                  |
+| `receipt-parse`     | Vision-model itemization, metered against the monthly quota                    |
+| `fx-rate`           | One upstream rate, cached, never an open proxy                                 |
+| `export-data`       | Lossless JSON and CSV export                                                   |
+| `notify-fanout`     | Claims unsent inbox rows, pushes them via Expo and mails the few that merit it |
+| `email-events`      | Resend's delivery reports, signature-checked; bounces and complaints suppress  |
+| `email-unsubscribe` | One click, no account, signed address (RFC 8058)                               |
 
-All of them except `notify-fanout` — which refuses anything that is not the
-service role — take a rate limit before doing the expensive or revealing part of
+`email-events` and `email-unsubscribe` are the only two functions that do not
+verify a Supabase JWT, because neither caller can hold one — Resend has no
+account, and a mail client pressing "unsubscribe" has no session. Both are named
+in `supabase/config.toml`; what stands in for the JWT is a Svix signature over
+the webhook body and an HMAC over the address.
+
+All of them except those two and `notify-fanout` — which refuses anything that is
+not the service role — take a rate limit before doing the expensive or revealing part of
 their work. The allowances live in `supabase/functions/_shared/rateLimit.ts` and
 are counted in Postgres, because Supabase discards edge isolates between
 requests and a counter held in one limits nothing. `invite-accept` is the reason
@@ -382,6 +396,50 @@ when those codes are `MismatchSenderId` or `InvalidCredentials` — the two that
 mean the credentials are wrong rather than the devices. Without that, a wrong key
 looks exactly like a country with its phones switched off: rows go out, failures
 climb, and nothing anywhere names the cause.
+
+## Turning on email
+
+Same shape as push: everything between the inbox row and the mailbox is built and
+tested, and the part that is not in this repository is the part a console issues.
+
+The pipeline is `notify-fanout` → Resend → `email-events`. Nothing is sent
+without a verified sending domain, and nothing is sent at all while
+`RESEND_API_KEY` or `EMAIL_UNSUBSCRIBE_SECRET` is unset — the fanout checks for
+both before it claims a row, so a half-configured deployment strands nothing.
+
+**In the Resend dashboard, once:**
+
+1. Add the domain **`mail.dmadan.com`** and publish the SPF, DKIM and DMARC
+   records it gives you. Until it says verified, every send is refused outright —
+   this is not a deliverability problem that shows up as spam, it is a 4xx.
+2. Add a webhook pointing at
+   `https://xvjzbpgcmotoahtqcxve.supabase.co/functions/v1/email-events`,
+   subscribed to `email.delivered`, `email.bounced`, `email.complained` and
+   `email.opened`. Copy its signing secret — it starts `whsec_`.
+
+**Then, once:**
+
+```bash
+supabase secrets set RESEND_WEBHOOK_SECRET=whsec_...
+supabase secrets set EMAIL_FROM='Baaki <hello@mail.dmadan.com>'   # optional; this is the default
+supabase secrets set EMAIL_WEB_URL=https://...                    # optional; see below
+pnpm edge:deploy
+```
+
+`EMAIL_UNSUBSCRIBE_SECRET` is what signs the one-click unsubscribe URL. Changing
+it invalidates every unsubscribe link already sitting in somebody's mailbox, so
+it is set once and left alone.
+
+`EMAIL_WEB_URL` is where the button in an email points. Web-lite is not deployed
+anywhere yet, so with it unset the button falls back to the `baaki://` deep link
+— which works on a phone and does nothing in desktop webmail. That is deliberate:
+an `https://` URL that 404s looks like it should have worked.
+
+**What can be seen without sending anything:** `email_status` on `notifications`
+tells you what happened to each one — `suppressed` means we chose not to mail it
+(no confirmed address, email turned off, or the address is on the suppression
+list), `failed` means Resend refused it, and NULL after a run means it will be
+retried. `email_events` is the trail, one row per send plus one per report.
 
 ## Turning on Sign in with Apple
 
