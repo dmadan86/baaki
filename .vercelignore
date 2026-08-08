@@ -1,0 +1,35 @@
+# What Vercel does not need to build the admin console.
+#
+# The CLI uploads the whole repository so that pnpm can resolve the workspace
+# packages `@baaki/admin` depends on — without this it also uploaded the Android
+# build tree and a 165MB APK, and the transfer aborted at 2.9GB.
+#
+# Only `apps/admin` is built. `packages/*` is kept because the app imports
+# `@baaki/core`, and the lockfile and workspace manifest are kept because
+# `pnpm install --frozen-lockfile` needs them.
+
+node_modules
+**/node_modules
+
+# Other apps. web-lite and mobile are deployed elsewhere and are not imported.
+apps/mobile
+apps/web-lite
+e2e
+supabase
+
+# Build output and native trees.
+**/.next
+**/.expo
+**/dist
+**/build
+**/generated
+*.apk
+*.aab
+*.keystore
+
+# Local noise.
+**/.env.local
+**/*.tsbuildinfo
+.git
+.github
+*.md
