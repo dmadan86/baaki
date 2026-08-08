@@ -12,13 +12,13 @@ import { Pressable, View } from 'react-native';
 
 import { Card, Row, Text, useTheme } from '@baaki/ui';
 
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 
 import { useSync } from '@/sync';
 
 export function SyncBanner({ groupId }: { groupId?: string }) {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const { status, queue, rejected, retry, discard, lastError } = useSync();
 
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
@@ -61,24 +61,32 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
 
   if (pending.length === 0 && status !== 'offline' && status !== 'error') return null;
 
-  const count = `${pending.length} ${pending.length === 1 ? 'change' : 'changes'}`;
-
   // Three different truths, and saying the wrong one is worse than saying
   // nothing: "syncing…" while every request is failing reads as a hang, and
   // eventually as lost data.
+  //
+  // The count is pluralised rather than glued together from a number and a
+  // word. These four sentences were the last English left in the app after the
+  // i18n sweep, and "3 changes" cannot be built by suffixing anything in Tamil,
+  // Hindi or Arabic.
   const { icon, message } =
     status === 'offline'
       ? {
           icon: 'cloud-offline-outline' as const,
           message:
-            pending.length > 0 ? `Offline — ${count} saved on this phone` : t.misc.offlineSaved,
+            pending.length > 0
+              ? plural(locale, pending.length, t.misc.offlineWithCount)
+              : t.misc.offlineSaved,
         }
       : status === 'error'
         ? {
             icon: 'cloud-offline-outline' as const,
-            message: `Can't reach the server — ${count} saved here, waiting to send`,
+            message: plural(locale, pending.length, t.misc.cantReachServer),
           }
-        : { icon: 'sync-outline' as const, message: `Syncing ${count}…` };
+        : {
+            icon: 'sync-outline' as const,
+            message: plural(locale, pending.length, t.misc.syncingCount),
+          };
 
   return (
     <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.xs }}>
