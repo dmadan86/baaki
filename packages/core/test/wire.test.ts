@@ -15,7 +15,10 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import {
+  MoneyError,
+  parseAmount,
   parseSplitParams,
+  serialiseAmount,
   serialiseSplitParams,
   SplitWireError,
   type SplitParams,
@@ -169,5 +172,63 @@ describe('parsing what an older or stranger client sent', () => {
     expect(
       parseSplitParams({ kind: 'adjustment', adjustments: { ravi: '12000', asha: '-4000' } }),
     ).toEqual({ kind: 'adjustment', adjustments: { ravi: 12000n, asha: -4000n } });
+  });
+});
+
+describe('a single amount crossing the wire', () => {
+  it('survives the round trip, for any amount at all', () => {
+    fc.assert(
+      fc.property(fc.bigInt({ min: -(10n ** 24n), max: 10n ** 24n }), (amount) => {
+        expect(parseAmount(serialiseAmount(amount))).toBe(amount);
+      }),
+    );
+  });
+
+  it('refuses rather than inventing a number', () => {
+    // `BigInt` answers 0n to an empty string, so an amount that never arrived
+    // would become a settlement of zero: the ledger stays internally consistent
+    // and describes something nobody did. This is the case worth having a test
+    // for, because nothing throws and nothing looks wrong afterwards.
+    for (const missing of ['', '   ', '\n', '\t']) {
+      expect(() => parseAmount(missing)).toThrow(MoneyError);
+    }
+  });
+
+  it('reads decimal, and only decimal', () => {
+    // `BigInt('0x10')` is 16. A string that is not a decimal number must not
+    // quietly become one — 16 paise is a plausible-looking amount nobody wrote.
+    for (const notDecimal of ['0x10', '0b11', '0o17']) {
+      expect(() => parseAmount(notDecimal)).toThrow(MoneyError);
+    }
+  });
+
+  it('refuses a fraction rather than rounding it', () => {
+    // Same rule as `integer()` in split/wire.ts: rounding here would put a
+    // number in the ledger that nobody chose.
+    for (const fractional of ['1.5', '0.01', '1e3', '-2.0']) {
+      expect(() => parseAmount(fractional)).toThrow(MoneyError);
+    }
+  });
+
+  it('refuses junk with this library’s own error, not the engine’s', () => {
+    // A bare SyntaxError cannot be told apart from a bug in the caller, and the
+    // sync queue has to make that distinction: a malformed payload is worth
+    // giving up on, an exception in our own code is not.
+    for (const junk of ['abc', '1_000', '5n', '١٢٣', '--1', '1-', '+', '-']) {
+      expect(() => parseAmount(junk)).toThrow(MoneyError);
+    }
+  });
+
+  it('accepts the signs and the padding a real payload carries', () => {
+    expect(parseAmount('-4500')).toBe(-4500n);
+    expect(parseAmount('+4500')).toBe(4500n);
+    expect(parseAmount(' 4500 ')).toBe(4500n);
+    expect(parseAmount('0')).toBe(0n);
+    expect(parseAmount('-0')).toBe(0n);
+  });
+
+  it('keeps an amount JSON could not hold', () => {
+    // The reason amounts travel as strings at all: this is past Number.MAX_SAFE_INTEGER.
+    expect(parseAmount('9007199254740993')).toBe(9007199254740993n);
   });
 });
