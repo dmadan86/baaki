@@ -396,4 +396,25 @@ export const daily = (days = 30) => call<DailyRow>('baaki_admin_daily', { p_days
 export const geo = () => call<GeoRow>('baaki_admin_geo');
 export const money = () => call<MoneyRow>('baaki_admin_money');
 export const aiCost = (days = 30) => call<AiCostRow>('baaki_admin_ai_cost', { p_days: days });
-export const logins = (days = 30) => call<LoginRow>('baaki_admin_logins', { p_days: days });
+/**
+ * Sign-ins, and the one panel allowed to fail on its own.
+ *
+ * It is the only aggregate that reads outside `public` — Supabase owns
+ * `auth.audit_log_entries` and grants it to nobody by default — so it is the
+ * one with a way to be unavailable that says nothing about the business. It
+ * took the whole dashboard down once: `permission denied for table
+ * audit_log_entries` reached the browser as "A server error occurred", with
+ * five working panels behind it.
+ *
+ * Not folded into `call`, and not degraded to an empty array. Empty already
+ * means "Supabase has pruned the window", which is a fact about retention; a
+ * permission problem is a fact about deployment, and a panel that shows the
+ * first when it means the second is worse than one that shows neither.
+ */
+export async function logins(days = 30): Promise<{ rows: LoginRow[]; unavailable?: string }> {
+  try {
+    return { rows: await call<LoginRow>('baaki_admin_logins', { p_days: days }) };
+  } catch (caught) {
+    return { rows: [], unavailable: caught instanceof Error ? caught.message : String(caught) };
+  }
+}

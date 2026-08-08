@@ -41,7 +41,7 @@ export default async function Dashboard() {
     );
   }
 
-  const signInTotal = signIns.reduce((sum, row) => sum + Number(row.sign_ins), 0);
+  const signInTotal = signIns.rows.reduce((sum, row) => sum + Number(row.sign_ins), 0);
 
   return (
     <main>
@@ -203,7 +203,15 @@ export default async function Dashboard() {
 
       <h2>Sign-ins, 30 days</h2>
       <section>
-        {signIns.length === 0 ? (
+        {signIns.unavailable ? (
+          // Said plainly, and not as an empty chart. This is the only panel
+          // reading outside `public`, so it is the only one whose failure means
+          // "the grant is missing" rather than "nobody did anything".
+          <p className="note">
+            Sign-in history could not be read: <code>{signIns.unavailable}</code>. Everything else
+            on this page is unaffected.
+          </p>
+        ) : signIns.rows.length === 0 ? (
           <p className="note">
             Nothing to show. Supabase prunes its auth audit log, so an empty result here means the
             retention window has passed — not that nobody signed in.
@@ -212,7 +220,7 @@ export default async function Dashboard() {
           <>
             <Bars
               label="Sign-ins per day"
-              rows={[...signIns]
+              rows={[...signIns.rows]
                 .reverse()
                 .map((row) => ({ day: row.day, value: Number(row.sign_ins) }))}
             />
