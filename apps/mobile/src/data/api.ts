@@ -1316,3 +1316,51 @@ export async function publishReceiptItems(
   });
   if (error) throw new Error(error.message);
 }
+
+// ────────────────────────────────────── feedback, and leaving ──
+
+export async function submitFeedback(input: {
+  message: string;
+  kind: 'general' | 'bug' | 'idea';
+  appVersion: string | null;
+  platform: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc('baaki_submit_feedback', {
+    p_message: input.message,
+    p_kind: input.kind,
+    p_app_version: input.appVersion,
+    p_platform: input.platform,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export interface ErasurePreview {
+  groups_count: number;
+  expenses_authored: number;
+  settlements_involved: number;
+  outstanding_currencies: string[];
+}
+
+/** What erasure would leave behind, so the screen can say so before the button. */
+export async function erasurePreview(): Promise<ErasurePreview | null> {
+  const { data, error } = await supabase.rpc('baaki_my_erasure_preview');
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as ErasurePreview[];
+  return rows[0] ?? null;
+}
+
+/**
+ * Erase the person, keep the ledger.
+ *
+ * The RPC converts every membership to an unnamed ghost and deletes the profile
+ * with everything personal hanging off it. It does not remove the auth identity
+ * — that lives in a schema the database role does not own — so the caller signs
+ * out afterwards and the account can no longer reach anything.
+ */
+export async function deleteMyAccount(
+  reason: string | null,
+): Promise<{ memberships_anonymised?: number }> {
+  const { data, error } = await supabase.rpc('baaki_delete_my_account', { p_feedback: reason });
+  if (error) throw new Error(error.message);
+  return (data ?? {}) as { memberships_anonymised?: number };
+}

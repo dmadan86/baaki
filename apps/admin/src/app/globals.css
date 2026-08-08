@@ -354,3 +354,60 @@ form.flag button {
     padding: 8px 10px;
   }
 }
+
+/* ── feedback list ── */
+
+ul.feedback {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+ul.feedback li {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+ul.feedback li:last-child {
+  border-bottom: none;
+}
+
+ul.feedback p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+ul.feedback .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.tag {
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surfaceMuted, var(--border));
+  color: var(--muted);
+}
+
+.tag-bug {
+  background: #ff7b7222;
+  color: var(--negative);
+}
+.tag-idea {
+  background: #34d39922;
+  color: var(--positive);
+}
+.tag-deletion {
+  background: #9b83ff22;
+  color: var(--brand);
+}
+
+.gone {
+  font-style: italic;
+}

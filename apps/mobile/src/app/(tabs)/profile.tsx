@@ -132,6 +132,26 @@ function settingsRows(t: UiStrings): SettingsRow[] {
       hint: t.account.importHint,
       route: '/settings/import',
     },
+    {
+      icon: 'chatbubble-ellipses-outline',
+      label: t.privacy.feedbackRow,
+      hint: t.privacy.feedbackRowHint,
+      route: '/settings/feedback',
+    },
+    {
+      icon: 'shield-checkmark-outline',
+      label: t.privacy.row,
+      hint: t.privacy.rowHint,
+      route: '/settings/privacy',
+    },
+    // Last, and after the export row above it: somebody who has decided to
+    // leave should pass their own data on the way out.
+    {
+      icon: 'trash-outline',
+      label: t.privacy.deleteRow,
+      hint: t.privacy.deleteRowHint,
+      route: '/settings/delete-account',
+    },
   ];
 }
 

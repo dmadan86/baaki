@@ -150,6 +150,7 @@ model Profile {
   subscriptions     Subscription[]
   promoRedemptions  PromoRedemption[]
   campaignImpressions CampaignImpression[]
+  feedback          Feedback[]
   purchasedPasses   GroupPass[]
   syncMutations     SyncMutation[]
 
@@ -850,6 +851,34 @@ model CampaignImpression {
   @@unique([campaignId, profileId], map: "campaign_impressions_once")
   @@index([campaignId, seenAt], map: "campaign_impressions_campaign_idx")
   @@map("campaign_impressions")
+  @@schema("public")
+}
+
+/// Something somebody chose to tell us.
+///
+/// `profileId` is nullable and SET NULL rather than CASCADE, deliberately: the
+/// most useful thing anybody writes is why they are leaving, and cascading it
+/// away at the moment of deletion would destroy exactly that. A NULL author is
+/// somebody who has since erased their account; their words remain, attached to
+/// nobody.
+model Feedback {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId   String?  @map("profile_id") @db.Uuid
+  /// general | bug | idea | deletion
+  kind        String   @default("general")
+  message     String
+  /// 1–5 where somebody offered one. NULL means they wrote without rating.
+  rating      Int?
+  appVersion  String?  @map("app_version")
+  platform    String?
+  locale      String?
+  countryCode String?  @map("country_code")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)], map: "feedback_recent_idx")
+  @@map("feedback")
   @@schema("public")
 }
 
