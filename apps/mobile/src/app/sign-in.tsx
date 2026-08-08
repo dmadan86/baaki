@@ -154,7 +154,7 @@ export default function SignInScreen() {
               பாக்கி
             </Text>
             <Text variant="caption" tone="onBrand" align="center">
-              baaki · what is left over
+              {t.signIn.tagline}
             </Text>
           </View>
         </CurvedPanel>
@@ -168,22 +168,22 @@ export default function SignInScreen() {
           }}
         >
           <Text variant="display" align="center">
-            Split anything{'\n'}with anyone
+            {t.signIn.splitAnything}
           </Text>
           <Text variant="body" tone="muted" align="center">
-            {`${t.freeForever}. No account needed to start — add one later and everything you have entered comes with you.`}
+            {`${t.freeForever}. ${t.signIn.welcomeBody}`}
           </Text>
 
           <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.md }}>
             <Button
-              label="Start now"
+              label={t.signIn.startNow}
               size="lg"
               fullWidth
               disabled={busy}
               onPress={() => void run(continueAsGuest)}
             />
             <Button
-              label="I already have an account"
+              label={t.signIn.haveAccount}
               variant="ghost"
               fullWidth
               onPress={() => setShowOptions(true)}
@@ -249,16 +249,14 @@ export default function SignInScreen() {
                 பாக்கி
               </Text>
               <Text variant="caption" tone="onBrand" align="center">
-                {isGuest ? 'Keep this account on your next phone' : 'Welcome back'}
+                {isGuest ? t.signIn.keepOnNextPhone : t.signIn.welcomeBack}
               </Text>
             </View>
           </CurvedPanel>
 
           <View style={{ gap: theme.spacing.xxl, paddingHorizontal: theme.spacing.xl }}>
             <Text variant="body" tone="muted" align="center">
-              {isGuest
-                ? 'Add a way to sign in, so this account is still yours on your next phone.'
-                : 'Sign in however you set it up.'}
+              {isGuest ? t.signIn.guestAddWay : t.signIn.signInHowever}
             </Text>
 
             {/* Above the form rather than below it. A guest arrives straight
@@ -269,7 +267,7 @@ export default function SignInScreen() {
             <Card style={{ gap: theme.spacing.lg }}>
               <Row style={{ gap: theme.spacing.sm }}>
                 <Chip
-                  label="Send me a code"
+                  label={t.signIn.sendMeACode}
                   selected={mode === 'otp'}
                   onPress={() => {
                     setMode('otp');
@@ -277,7 +275,7 @@ export default function SignInScreen() {
                   }}
                 />
                 <Chip
-                  label="Use a password"
+                  label={t.signIn.useAPassword}
                   selected={mode === 'password'}
                   onPress={() => {
                     setMode('password');
@@ -289,14 +287,14 @@ export default function SignInScreen() {
               {mode === 'otp' && stage === 'phone' ? (
                 <>
                   <Text variant="caption" tone="muted">
-                    Phone number
+                    {t.signIn.phoneNumber}
                   </Text>
                   <TextInput
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
                     autoComplete="tel"
-                    accessibilityLabel="Phone number"
+                    accessibilityLabel={t.signIn.phoneNumber}
                     placeholderTextColor={theme.color.textFaint}
                     style={{
                       fontSize: 22,
@@ -306,11 +304,10 @@ export default function SignInScreen() {
                     }}
                   />
                   <Text variant="micro" tone="faint">
-                    Start with your country code. Baaki never assumes +91 — a trip is exactly when
-                    foreign numbers turn up.
+                    {t.signIn.countryCodeHint}
                   </Text>
                   <Button
-                    label="Send code"
+                    label={t.signIn.sendCode}
                     size="lg"
                     fullWidth
                     disabled={busy || phone.trim().length < 8}
@@ -327,14 +324,14 @@ export default function SignInScreen() {
               {mode === 'otp' && stage === 'code' ? (
                 <>
                   <Text variant="caption" tone="muted">
-                    {`Code sent to ${phone}`}
+                    {t.signIn.codeSentTo.replace('{value}', phone)}
                   </Text>
                   <TextInput
                     value={code}
                     onChangeText={setCode}
                     keyboardType="number-pad"
                     autoComplete="sms-otp"
-                    accessibilityLabel="Verification code"
+                    accessibilityLabel={t.contact.verificationCode}
                     placeholder="123456"
                     placeholderTextColor={theme.color.textFaint}
                     style={{
@@ -346,14 +343,14 @@ export default function SignInScreen() {
                     }}
                   />
                   <Button
-                    label="Verify"
+                    label={t.signIn.verify}
                     size="lg"
                     fullWidth
                     disabled={busy || code.trim().length < 4}
                     onPress={() => void run(() => verifyOtp(phone.trim(), code.trim()))}
                   />
                   <Button
-                    label="Use a different number"
+                    label={t.signIn.differentNumber}
                     variant="ghost"
                     onPress={() => {
                       setStage('phone');
@@ -366,7 +363,7 @@ export default function SignInScreen() {
               {mode === 'password' ? (
                 <>
                   <Text variant="caption" tone="muted">
-                    Email or phone number
+                    {t.signIn.identifier}
                   </Text>
                   {/* One field: "email or phone?" is a question the text already
                     answers. */}
@@ -377,8 +374,8 @@ export default function SignInScreen() {
                     autoCorrect={false}
                     keyboardType="email-address"
                     autoComplete="username"
-                    accessibilityLabel="Email or phone number"
-                    placeholder="asha@example.com or +91…"
+                    accessibilityLabel={t.signIn.identifier}
+                    placeholder={t.signIn.identifierPlaceholder}
                     placeholderTextColor={theme.color.textFaint}
                     style={{
                       fontSize: 18,
@@ -388,7 +385,7 @@ export default function SignInScreen() {
                     }}
                   />
                   <Text variant="caption" tone="muted">
-                    Password
+                    {t.signIn.password}
                   </Text>
                   <TextInput
                     value={password}
@@ -396,7 +393,7 @@ export default function SignInScreen() {
                     secureTextEntry
                     autoCapitalize="none"
                     autoComplete={intent === 'sign_up' ? 'new-password' : 'current-password'}
-                    accessibilityLabel="Password"
+                    accessibilityLabel={t.signIn.password}
                     placeholderTextColor={theme.color.textFaint}
                     style={{
                       fontSize: 18,
@@ -406,16 +403,15 @@ export default function SignInScreen() {
                     }}
                   />
                   <Text variant="micro" tone="faint">
-                    Eight characters or more. A phrase you will remember beats a puzzle you will
-                    not.
+                    {t.signIn.passwordHint}
                   </Text>
                   <Button
                     label={
                       isGuest
-                        ? 'Add this to my account'
+                        ? t.signIn.addToAccount
                         : intent === 'sign_up'
-                          ? 'Create account'
-                          : 'Sign in'
+                          ? t.signIn.createAccount
+                          : t.signIn.signInAction
                     }
                     size="lg"
                     fullWidth
@@ -427,9 +423,7 @@ export default function SignInScreen() {
                   {isGuest ? null : (
                     <Button
                       label={
-                        intent === 'sign_up'
-                          ? 'I already have an account'
-                          : 'I am new here — create an account'
+                        intent === 'sign_up' ? t.signIn.switchToSignIn : t.signIn.switchToSignUp
                       }
                       variant="ghost"
                       onPress={() => {
@@ -450,7 +444,7 @@ export default function SignInScreen() {
             </Card>
 
             <Button
-              label={isGuest ? 'Continue with Google' : 'Sign in with Google'}
+              label={isGuest ? t.signIn.continueGoogle : t.signIn.signInGoogle}
               variant="secondary"
               size="lg"
               fullWidth
@@ -463,7 +457,7 @@ export default function SignInScreen() {
               looking for their account and decided not to bother. */}
             {isGuest ? null : (
               <Button
-                label="Continue as guest"
+                label={t.signIn.continueGuest}
                 variant="ghost"
                 size="lg"
                 fullWidth
@@ -473,9 +467,7 @@ export default function SignInScreen() {
             )}
 
             <Text variant="micro" tone="faint" align="center">
-              {isGuest
-                ? 'Everything you have already added stays exactly where it is. This only adds a way to sign back in.'
-                : 'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.'}
+              {isGuest ? t.signIn.guestFootnote : t.signIn.memberFootnote}
             </Text>
           </View>
         </ScrollView>

@@ -21,11 +21,12 @@ import { View } from 'react-native';
 
 import { Chip, Row, Text, useTheme } from '@baaki/ui';
 
-import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES } from '@/i18n';
+import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES, useStrings } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
 
 export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-start' }) {
   const theme = useTheme();
+  const { t } = useStrings();
   const { language, setLanguage, restartNeeded } = useLanguage();
 
   return (
@@ -52,9 +53,7 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
 
       {restartNeeded ? (
         <Text variant="micro" tone="faint" align={align === 'center' ? 'center' : 'left'}>
-          {isRtlLanguage(language)
-            ? 'Close and open Baaki once to mirror the layout.'
-            : 'Close and open Baaki once to turn the layout back.'}
+          {isRtlLanguage(language) ? t.signIn.restartToMirror : t.signIn.restartToUnmirror}
         </Text>
       ) : null}
     </View>

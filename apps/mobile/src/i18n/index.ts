@@ -311,6 +311,96 @@ export interface UiStrings {
     motionFollowingOff: string;
     footnote: string;
   };
+  /** Notification preferences, and what the phone will and will not allow. */
+  notifications: {
+    title: string;
+    neverSpam: string;
+    onThisPhone: string;
+    permissionOn: string;
+    permissionOff: string;
+    permissionUnset: string;
+    granted: string;
+    denied: string;
+    undetermined: string;
+    asking: string;
+    turnOn: string;
+    pushSection: string;
+    involvesMe: string;
+    involvesMeBody: string;
+    settlementRequests: string;
+    settlementRequestsBody: string;
+    nudges: string;
+    nudgesBody: string;
+    digest: string;
+    digestBody: string;
+    weeklyEmail: string;
+    weeklyEmailBody: string;
+    failDenied: string;
+    failUnsupported: string;
+    failNotSignedIn: string;
+    failNotConfigured: string;
+    failSaveFailed: string;
+    footnote: string;
+  };
+  /** Attaching an email or phone to the account you already have (ADR-006). */
+  contact: {
+    title: string;
+    signedIn: string;
+    guestBody: string;
+    memberBody: string;
+    email: string;
+    phone: string;
+    alreadyAdded: string;
+    emailAddress: string;
+    phoneNumber: string;
+    emailPlaceholder: string;
+    phonePlaceholder: string;
+    codeEmailed: string;
+    codeTexted: string;
+    verificationCode: string;
+    confirm: string;
+    sendCodeEmail: string;
+    sendCodePhone: string;
+    useDifferent: string;
+    added: string;
+    footnote: string;
+  };
+  /** The welcome and the ways in (ADR-006: nobody registers to split a bill). */
+  signIn: {
+    tagline: string;
+    splitAnything: string;
+    welcomeBody: string;
+    startNow: string;
+    haveAccount: string;
+    welcomeBack: string;
+    keepOnNextPhone: string;
+    guestAddWay: string;
+    signInHowever: string;
+    sendMeACode: string;
+    useAPassword: string;
+    phoneNumber: string;
+    countryCodeHint: string;
+    sendCode: string;
+    codeSentTo: string;
+    verify: string;
+    differentNumber: string;
+    identifier: string;
+    identifierPlaceholder: string;
+    password: string;
+    passwordHint: string;
+    addToAccount: string;
+    createAccount: string;
+    signInAction: string;
+    switchToSignIn: string;
+    switchToSignUp: string;
+    continueGoogle: string;
+    signInGoogle: string;
+    continueGuest: string;
+    guestFootnote: string;
+    memberFootnote: string;
+    restartToMirror: string;
+    restartToUnmirror: string;
+  };
 }
 
 const en: UiStrings = {
@@ -528,6 +618,108 @@ const en: UiStrings = {
     motionFollowingOn: 'Following your phone — animations on',
     motionFollowingOff: 'Following your phone — animations off',
     footnote: 'Baaki · the ledger is free forever. We only ever charge for convenience.',
+  },
+  notifications: {
+    title: 'Notifications',
+    neverSpam:
+      'Baaki never emails you about routine expense activity. Only the six things you would actually want in your inbox, each unsubscribable on its own.',
+    onThisPhone: 'Notifications on this phone',
+    permissionOn:
+      'This device is registered. Everything below still lands in your inbox whether or not a push gets through.',
+    permissionOff:
+      'Your phone is blocking them. Turn them back on in system settings for Baaki — the inbox still has everything either way.',
+    permissionUnset: 'Baaki will only ask once, and only for the things you switch on below.',
+    granted: 'On',
+    denied: 'Off',
+    undetermined: 'Not set',
+    asking: 'Asking…',
+    turnOn: 'Turn on notifications',
+    pushSection: 'Push',
+    involvesMe: 'Only what involves me',
+    involvesMeBody:
+      'Push when you owe, are owed, or are mentioned — not for every expense in every group.',
+    settlementRequests: 'Settlement confirmations',
+    settlementRequestsBody: 'When someone says they paid you, so your baaki stays right.',
+    nudges: 'Reminders',
+    nudgesBody:
+      'A friendly nudge about money owed. Limited to one per person per day, in the database.',
+    digest: 'Daily group summary',
+    digestBody: 'Everything else, batched into one notification a day instead of a stream.',
+    weeklyEmail: 'Weekly email digest',
+    weeklyEmailBody: 'Your net baaki and pending confirmations, once a week. Off by default.',
+    failDenied: 'Not enabled — you can turn it on in your phone settings later.',
+    failUnsupported:
+      'This device cannot receive push notifications. Everything still lands in Activity.',
+    failNotSignedIn: 'Sign in first, so we know which phone is yours.',
+    failNotConfigured:
+      'Push is not set up in this build of Baaki. Nothing you did — everything still lands in Activity.',
+    failSaveFailed: 'Could not save this phone. Check your connection and try again.',
+    footnote:
+      'Email delivery is still to come. Everything here is also in your inbox, which is the record of what Baaki has told you whether or not a notification arrived.',
+  },
+  contact: {
+    title: 'Your account',
+    signedIn: 'Signed in',
+    guestBody:
+      'Everything you have entered is already saved and yours. Adding an email or phone number is only so you can get back to it from another phone.',
+    memberBody: 'This account is reachable from any device you sign in on.',
+    email: 'Email',
+    phone: 'Phone',
+    alreadyAdded: 'Already added: {value}',
+    emailAddress: 'Email address',
+    phoneNumber: 'Phone number',
+    emailPlaceholder: 'you@example.com',
+    phonePlaceholder: '+91 98765 43210',
+    codeEmailed: 'Enter the six-digit code we emailed you',
+    codeTexted: 'Enter the six-digit code we texted you',
+    verificationCode: 'Verification code',
+    confirm: 'Confirm',
+    sendCodeEmail: 'Send me a code',
+    sendCodePhone: 'Text me a code',
+    useDifferent: 'Use a different one',
+    added: 'Added. You can sign in with it on another phone now.',
+    footnote:
+      'Baaki never asks for this to let you in, and never shares it with anyone in your groups. People see the name you choose, nothing else.',
+  },
+  signIn: {
+    tagline: 'baaki · what is left over',
+    splitAnything: 'Split anything\nwith anyone',
+    welcomeBody:
+      'No account needed to start — add one later and everything you have entered comes with you.',
+    startNow: 'Start now',
+    haveAccount: 'I already have an account',
+    welcomeBack: 'Welcome back',
+    keepOnNextPhone: 'Keep this account on your next phone',
+    guestAddWay: 'Add a way to sign in, so this account is still yours on your next phone.',
+    signInHowever: 'Sign in however you set it up.',
+    sendMeACode: 'Send me a code',
+    useAPassword: 'Use a password',
+    phoneNumber: 'Phone number',
+    countryCodeHint:
+      'Start with your country code. Baaki never assumes +91 — a trip is exactly when foreign numbers turn up.',
+    sendCode: 'Send code',
+    codeSentTo: 'Code sent to {value}',
+    verify: 'Verify',
+    differentNumber: 'Use a different number',
+    identifier: 'Email or phone number',
+    identifierPlaceholder: 'asha@example.com or +91…',
+    password: 'Password',
+    passwordHint:
+      'Eight characters or more. A phrase you will remember beats a puzzle you will not.',
+    addToAccount: 'Add this to my account',
+    createAccount: 'Create account',
+    signInAction: 'Sign in',
+    switchToSignIn: 'I already have an account',
+    switchToSignUp: 'I am new here — create an account',
+    continueGoogle: 'Continue with Google',
+    signInGoogle: 'Sign in with Google',
+    continueGuest: 'Continue as guest',
+    guestFootnote:
+      'Everything you have already added stays exactly where it is. This only adds a way to sign back in.',
+    memberFootnote:
+      'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.',
+    restartToMirror: 'Close and open Baaki once to mirror the layout.',
+    restartToUnmirror: 'Close and open Baaki once to turn the layout back.',
   },
 };
 
@@ -758,6 +950,112 @@ const ta: UiStrings = {
     motionFollowingOff: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — அசைவுகள் நிறுத்தத்தில்',
     footnote: 'பாக்கி · கணக்கு எப்போதும் இலவசம். வசதிக்கு மட்டுமே நாங்கள் கட்டணம் வாங்குவோம்.',
   },
+  notifications: {
+    title: 'அறிவிப்புகள்',
+    neverSpam:
+      'வழக்கமான செலவுச் செயல்பாடுகள் குறித்து பாக்கி உங்களுக்கு மின்னஞ்சல் அனுப்புவதே இல்லை. உங்கள் அஞ்சல் பெட்டியில் நீங்கள் உண்மையிலேயே விரும்பும் ஆறு விஷயங்கள் மட்டுமே, ஒவ்வொன்றையும் தனித்தனியே நிறுத்தலாம்.',
+    onThisPhone: 'இந்த ஃபோனில் அறிவிப்புகள்',
+    permissionOn:
+      'இந்தச் சாதனம் பதிவு செய்யப்பட்டுள்ளது. அறிவிப்பு வந்தாலும் வராவிட்டாலும் கீழே உள்ள அனைத்தும் உங்கள் அஞ்சல் பெட்டியில் வந்து சேரும்.',
+    permissionOff:
+      'உங்கள் ஃபோன் அவற்றைத் தடுக்கிறது. பாக்கிக்கான சாதன அமைப்புகளில் மீண்டும் இயக்கவும் — எப்படியிருந்தாலும் அஞ்சல் பெட்டியில் எல்லாம் இருக்கும்.',
+    permissionUnset:
+      'பாக்கி ஒரே ஒரு முறை மட்டுமே கேட்கும், அதுவும் நீங்கள் கீழே இயக்கியவற்றுக்கு மட்டும்.',
+    granted: 'இயக்கத்தில்',
+    denied: 'நிறுத்தத்தில்',
+    undetermined: 'அமைக்கப்படவில்லை',
+    asking: 'கேட்கிறது…',
+    turnOn: 'அறிவிப்புகளை இயக்கு',
+    pushSection: 'அறிவிப்பு',
+    involvesMe: 'என்னைச் சார்ந்தவை மட்டும்',
+    involvesMeBody:
+      'நீங்கள் தர வேண்டியபோதோ, வர வேண்டியபோதோ, குறிப்பிடப்படும்போதோ அறிவிப்பு — ஒவ்வொரு குழுவின் ஒவ்வொரு செலவுக்கும் அல்ல.',
+    settlementRequests: 'தீர்வு உறுதிப்படுத்தல்கள்',
+    settlementRequestsBody:
+      'உங்களுக்குப் பணம் கொடுத்ததாக யாராவது சொல்லும்போது, உங்கள் பாக்கி சரியாக இருக்க.',
+    nudges: 'நினைவூட்டல்கள்',
+    nudgesBody:
+      'தர வேண்டிய பணம் குறித்த மென்மையான நினைவூட்டல். ஒரு நாளைக்கு ஒருவருக்கு ஒன்று மட்டுமே, தரவுத்தளத்திலேயே வரையறுக்கப்பட்டது.',
+    digest: 'நாள்தோறும் குழுச் சுருக்கம்',
+    digestBody: 'மற்ற அனைத்தும், தொடர்ச்சியாக அல்லாமல் நாளுக்கு ஒரு அறிவிப்பாகத் தொகுத்து.',
+    weeklyEmail: 'வாராந்திர மின்னஞ்சல் சுருக்கம்',
+    weeklyEmailBody:
+      'உங்கள் நிகர பாக்கியும் நிலுவையிலுள்ள உறுதிப்படுத்தல்களும், வாரம் ஒருமுறை. இயல்பாக நிறுத்தத்தில்.',
+    failDenied: 'இயக்கப்படவில்லை — பின்னர் ஃபோன் அமைப்புகளில் இயக்கிக்கொள்ளலாம்.',
+    failUnsupported:
+      'இந்தச் சாதனத்தால் அறிவிப்புகளைப் பெற முடியாது. எல்லாம் செயல்பாட்டுப் பக்கத்தில் வந்து சேரும்.',
+    failNotSignedIn: 'முதலில் உள்நுழையவும், எந்த ஃபோன் உங்களுடையது என்று தெரிய.',
+    failNotConfigured:
+      'பாக்கியின் இந்தப் பதிப்பில் அறிவிப்பு அமைக்கப்படவில்லை. நீங்கள் செய்த தவறு ஒன்றுமில்லை — எல்லாம் செயல்பாட்டுப் பக்கத்தில் வந்து சேரும்.',
+    failSaveFailed: 'இந்த ஃபோனைச் சேமிக்க முடியவில்லை. இணைப்பைச் சரிபார்த்து மீண்டும் முயலவும்.',
+    footnote:
+      'மின்னஞ்சல் இன்னும் வரவில்லை. இங்குள்ள அனைத்தும் உங்கள் அஞ்சல் பெட்டியிலும் இருக்கும் — அறிவிப்பு வந்ததா இல்லையா என்பதைப் பொருட்படுத்தாமல் பாக்கி உங்களிடம் சொன்னதற்கான பதிவு அதுவே.',
+  },
+  contact: {
+    title: 'உங்கள் கணக்கு',
+    signedIn: 'உள்நுழைந்துள்ளீர்கள்',
+    guestBody:
+      'நீங்கள் சேர்த்தவை அனைத்தும் ஏற்கனவே சேமிக்கப்பட்டு உங்களுடையவை. மின்னஞ்சலோ தொலைபேசி எண்ணோ சேர்ப்பது வேறு ஃபோனிலிருந்து இதை அணுகுவதற்காக மட்டுமே.',
+    memberBody: 'நீங்கள் உள்நுழையும் எந்தச் சாதனத்திலிருந்தும் இந்தக் கணக்கை அணுகலாம்.',
+    email: 'மின்னஞ்சல்',
+    phone: 'தொலைபேசி',
+    alreadyAdded: 'ஏற்கனவே சேர்க்கப்பட்டது: {value}',
+    emailAddress: 'மின்னஞ்சல் முகவரி',
+    phoneNumber: 'தொலைபேசி எண்',
+    emailPlaceholder: 'you@example.com',
+    phonePlaceholder: '+91 98765 43210',
+    codeEmailed: 'மின்னஞ்சலில் அனுப்பிய ஆறு இலக்கக் குறியீட்டை உள்ளிடவும்',
+    codeTexted: 'குறுஞ்செய்தியில் அனுப்பிய ஆறு இலக்கக் குறியீட்டை உள்ளிடவும்',
+    verificationCode: 'சரிபார்ப்புக் குறியீடு',
+    confirm: 'உறுதிப்படுத்து',
+    sendCodeEmail: 'எனக்கு ஒரு குறியீடு அனுப்பு',
+    sendCodePhone: 'குறுஞ்செய்தியில் குறியீடு அனுப்பு',
+    useDifferent: 'வேறொன்றைப் பயன்படுத்து',
+    added: 'சேர்க்கப்பட்டது. இப்போது வேறு ஃபோனிலும் இதைக் கொண்டு உள்நுழையலாம்.',
+    footnote:
+      'உள்ளே விடுவதற்கு பாக்கி இதை ஒருபோதும் கேட்பதில்லை, உங்கள் குழுக்களில் உள்ள யாருடனும் இதைப் பகிர்வதும் இல்லை. நீங்கள் தேர்ந்தெடுத்த பெயரை மட்டுமே மற்றவர்கள் பார்ப்பார்கள்.',
+  },
+  signIn: {
+    tagline: 'பாக்கி · மீதம் இருப்பது',
+    splitAnything: 'எதையும் பிரி\nயாருடனும்',
+    welcomeBody:
+      'தொடங்க கணக்கு தேவையில்லை — பின்னர் ஒன்றைச் சேர்த்தால் நீங்கள் சேர்த்த அனைத்தும் உங்களுடன் வரும்.',
+    startNow: 'இப்போதே தொடங்கு',
+    haveAccount: 'என்னிடம் ஏற்கனவே கணக்கு உள்ளது',
+    welcomeBack: 'மீண்டும் வரவேற்கிறோம்',
+    keepOnNextPhone: 'அடுத்த ஃபோனிலும் இந்தக் கணக்கை வைத்திருங்கள்',
+    guestAddWay:
+      'உள்நுழைய ஒரு வழியைச் சேர்க்கவும், அடுத்த ஃபோனிலும் இந்தக் கணக்கு உங்களுடையதாக இருக்கும்.',
+    signInHowever: 'நீங்கள் அமைத்த முறையில் உள்நுழையவும்.',
+    sendMeACode: 'எனக்கு ஒரு குறியீடு அனுப்பு',
+    useAPassword: 'கடவுச்சொல்லைப் பயன்படுத்து',
+    phoneNumber: 'தொலைபேசி எண்',
+    countryCodeHint:
+      'நாட்டுக் குறியீட்டுடன் தொடங்குங்கள். பாக்கி +91 என்று ஊகிப்பதே இல்லை — வெளிநாட்டு எண்கள் வருவது பயணத்தின்போதுதான்.',
+    sendCode: 'குறியீடு அனுப்பு',
+    codeSentTo: '{value} க்கு குறியீடு அனுப்பப்பட்டது',
+    verify: 'சரிபார்',
+    differentNumber: 'வேறு எண்ணைப் பயன்படுத்து',
+    identifier: 'மின்னஞ்சல் அல்லது தொலைபேசி எண்',
+    identifierPlaceholder: 'asha@example.com அல்லது +91…',
+    password: 'கடவுச்சொல்',
+    passwordHint:
+      'எட்டு எழுத்துகள் அல்லது அதற்கு மேல். நினைவில் நிற்கும் சொற்றொடர், நினைவில் நிற்காத புதிரை விட மேல்.',
+    addToAccount: 'இதை என் கணக்கில் சேர்',
+    createAccount: 'கணக்கை உருவாக்கு',
+    signInAction: 'உள்நுழை',
+    switchToSignIn: 'என்னிடம் ஏற்கனவே கணக்கு உள்ளது',
+    switchToSignUp: 'நான் புதியவர் — கணக்கை உருவாக்கு',
+    continueGoogle: 'Google மூலம் தொடர்',
+    signInGoogle: 'Google மூலம் உள்நுழை',
+    continueGuest: 'விருந்தினராகத் தொடர்',
+    guestFootnote:
+      'நீங்கள் ஏற்கனவே சேர்த்த அனைத்தும் அப்படியே இருக்கும். இது மீண்டும் உள்நுழைய ஒரு வழியை மட்டுமே சேர்க்கிறது.',
+    memberFootnote:
+      'உள்நுழைய ஒரு வழியைச் சேர்க்கும் வரை விருந்தினர் கணக்கு அனைத்தையும் இந்தச் சாதனத்திலேயே வைத்திருக்கும். உங்கள் கணக்கு எப்போதும் பணயம் வைக்கப்படுவதில்லை.',
+    restartToMirror: 'தளவமைப்பைப் பிரதிபலிக்க பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
+    restartToUnmirror: 'தளவமைப்பை மீண்டும் மாற்ற பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
+  },
 };
 
 const hi: UiStrings = {
@@ -971,6 +1269,106 @@ const hi: UiStrings = {
     motionFollowingOn: 'आपके फ़ोन के अनुसार — एनिमेशन चालू',
     motionFollowingOff: 'आपके फ़ोन के अनुसार — एनिमेशन बंद',
     footnote: 'बाकी · हिसाब हमेशा मुफ़्त है। हम सिर्फ़ सुविधा के पैसे लेते हैं।',
+  },
+  notifications: {
+    title: 'सूचनाएँ',
+    neverSpam:
+      'रोज़मर्रा की खर्च गतिविधि के लिए बाकी कभी ईमेल नहीं करता। सिर्फ़ वे छह चीज़ें जो आप वाकई इनबॉक्स में चाहेंगे, और हर एक अलग से बंद की जा सकती है।',
+    onThisPhone: 'इस फ़ोन पर सूचनाएँ',
+    permissionOn:
+      'यह डिवाइस पंजीकृत है। सूचना पहुँचे या न पहुँचे, नीचे का सब कुछ आपके इनबॉक्स में आता ही है।',
+    permissionOff:
+      'आपका फ़ोन इन्हें रोक रहा है। बाकी के लिए सिस्टम सेटिंग्स में इन्हें दोबारा चालू करें — इनबॉक्स में सब कुछ वैसे भी रहेगा।',
+    permissionUnset:
+      'बाकी सिर्फ़ एक बार पूछेगा, और सिर्फ़ उन्हीं चीज़ों के लिए जो आप नीचे चालू करें।',
+    granted: 'चालू',
+    denied: 'बंद',
+    undetermined: 'तय नहीं',
+    asking: 'पूछ रहे हैं…',
+    turnOn: 'सूचनाएँ चालू करें',
+    pushSection: 'पुश',
+    involvesMe: 'सिर्फ़ वही जिनसे मेरा वास्ता है',
+    involvesMeBody:
+      'जब आप पर बाकी हो, आपको मिलना हो, या आपका ज़िक्र हो तब सूचना — हर समूह के हर खर्च पर नहीं।',
+    settlementRequests: 'निपटान की पुष्टि',
+    settlementRequestsBody: 'जब कोई कहे कि उसने आपको भुगतान किया, ताकि आपकी बाकी सही रहे।',
+    nudges: 'याद दिलाना',
+    nudgesBody: 'बाकी पैसे की एक विनम्र याद। डेटाबेस में ही सीमित — एक व्यक्ति को दिन में एक बार।',
+    digest: 'दैनिक समूह सारांश',
+    digestBody: 'बाकी सब कुछ, लगातार की जगह दिन में एक सूचना में इकट्ठा।',
+    weeklyEmail: 'साप्ताहिक ईमेल सारांश',
+    weeklyEmailBody: 'आपकी कुल बाकी और लंबित पुष्टियाँ, हफ़्ते में एक बार। डिफ़ॉल्ट रूप से बंद।',
+    failDenied: 'चालू नहीं हुआ — आप बाद में फ़ोन सेटिंग्स में इसे चालू कर सकते हैं।',
+    failUnsupported: 'यह डिवाइस पुश सूचनाएँ नहीं ले सकता। सब कुछ गतिविधि में आता ही रहेगा।',
+    failNotSignedIn: 'पहले साइन इन करें, ताकि पता चले कौन सा फ़ोन आपका है।',
+    failNotConfigured:
+      'बाकी के इस बिल्ड में पुश सेट नहीं है। आपकी कोई गलती नहीं — सब कुछ गतिविधि में आता रहेगा।',
+    failSaveFailed: 'यह फ़ोन सेव नहीं हो सका। कनेक्शन जाँचकर दोबारा कोशिश करें।',
+    footnote:
+      'ईमेल अभी आना बाकी है। यहाँ का सब कुछ आपके इनबॉक्स में भी है, और सूचना पहुँची या नहीं, बाकी ने आपसे क्या कहा उसका रिकॉर्ड वही है।',
+  },
+  contact: {
+    title: 'आपका खाता',
+    signedIn: 'साइन इन हैं',
+    guestBody:
+      'आपने जो कुछ जोड़ा है वह पहले ही सेव है और आपका है। ईमेल या फ़ोन नंबर जोड़ना सिर्फ़ इसलिए है कि आप इसे किसी दूसरे फ़ोन से भी पा सकें।',
+    memberBody: 'जिस भी डिवाइस पर साइन इन करें, यह खाता वहाँ मिल जाएगा।',
+    email: 'ईमेल',
+    phone: 'फ़ोन',
+    alreadyAdded: 'पहले से जुड़ा है: {value}',
+    emailAddress: 'ईमेल पता',
+    phoneNumber: 'फ़ोन नंबर',
+    emailPlaceholder: 'you@example.com',
+    phonePlaceholder: '+91 98765 43210',
+    codeEmailed: 'ईमेल पर भेजा गया छह अंकों का कोड डालें',
+    codeTexted: 'मैसेज पर भेजा गया छह अंकों का कोड डालें',
+    verificationCode: 'सत्यापन कोड',
+    confirm: 'पुष्टि करें',
+    sendCodeEmail: 'मुझे कोड भेजें',
+    sendCodePhone: 'मैसेज पर कोड भेजें',
+    useDifferent: 'कोई दूसरा इस्तेमाल करें',
+    added: 'जुड़ गया। अब आप इससे किसी दूसरे फ़ोन पर साइन इन कर सकते हैं।',
+    footnote:
+      'अंदर आने देने के लिए बाकी यह कभी नहीं माँगता, और आपके समूह में किसी के साथ इसे साझा नहीं करता। लोग सिर्फ़ वही नाम देखते हैं जो आप चुनते हैं।',
+  },
+  signIn: {
+    tagline: 'बाकी · जो बच रहता है',
+    splitAnything: 'कुछ भी बाँटें\nकिसी के साथ भी',
+    welcomeBody:
+      'शुरू करने के लिए खाता ज़रूरी नहीं — बाद में जोड़ लें, आपका जोड़ा हुआ सब कुछ साथ आ जाएगा।',
+    startNow: 'अभी शुरू करें',
+    haveAccount: 'मेरा खाता पहले से है',
+    welcomeBack: 'वापस स्वागत है',
+    keepOnNextPhone: 'इस खाते को अगले फ़ोन पर भी रखें',
+    guestAddWay: 'साइन इन का कोई तरीका जोड़ें, ताकि अगले फ़ोन पर भी यह खाता आपका ही रहे।',
+    signInHowever: 'जैसे सेट किया था वैसे साइन इन करें।',
+    sendMeACode: 'मुझे कोड भेजें',
+    useAPassword: 'पासवर्ड इस्तेमाल करें',
+    phoneNumber: 'फ़ोन नंबर',
+    countryCodeHint:
+      'देश कोड से शुरू करें। बाकी +91 कभी नहीं मान लेता — विदेशी नंबर सफ़र में ही तो आते हैं।',
+    sendCode: 'कोड भेजें',
+    codeSentTo: '{value} पर कोड भेजा गया',
+    verify: 'सत्यापित करें',
+    differentNumber: 'कोई दूसरा नंबर इस्तेमाल करें',
+    identifier: 'ईमेल या फ़ोन नंबर',
+    identifierPlaceholder: 'asha@example.com या +91…',
+    password: 'पासवर्ड',
+    passwordHint: 'आठ या ज़्यादा अक्षर। याद रहने वाला वाक्यांश, न याद रहने वाली पहेली से बेहतर है।',
+    addToAccount: 'इसे मेरे खाते में जोड़ें',
+    createAccount: 'खाता बनाएँ',
+    signInAction: 'साइन इन',
+    switchToSignIn: 'मेरा खाता पहले से है',
+    switchToSignUp: 'मैं नया हूँ — खाता बनाएँ',
+    continueGoogle: 'Google से जारी रखें',
+    signInGoogle: 'Google से साइन इन करें',
+    continueGuest: 'मेहमान के तौर पर जारी रखें',
+    guestFootnote:
+      'आपने जो जोड़ा है वह जहाँ है वहीं रहेगा। इससे सिर्फ़ दोबारा साइन इन करने का रास्ता जुड़ता है।',
+    memberFootnote:
+      'जब तक आप साइन इन का कोई तरीका न जोड़ें, मेहमान खाता सब कुछ इसी डिवाइस पर रखता है। आपका हिसाब कभी बंधक नहीं बनाया जाता।',
+    restartToMirror: 'लेआउट की दिशा बदलने के लिए बाकी को एक बार बंद करके खोलें।',
+    restartToUnmirror: 'लेआउट वापस पलटने के लिए बाकी को एक बार बंद करके खोलें।',
   },
 };
 
@@ -1209,6 +1607,101 @@ const ar: UiStrings = {
     motionFollowingOn: 'يتبع هاتفك — الحركات مفعّلة',
     motionFollowingOff: 'يتبع هاتفك — الحركات متوقفة',
     footnote: 'باقي · الدفتر مجاني إلى الأبد. لا نتقاضى إلا مقابل الراحة.',
+  },
+  notifications: {
+    title: 'الإشعارات',
+    neverSpam:
+      'لا يرسل باقي بريدًا عن نشاط المصروفات المعتاد. ستة أشياء فقط قد ترغب فعلًا في وصولها إلى بريدك، ويمكن إيقاف كل منها وحده.',
+    onThisPhone: 'الإشعارات على هذا الهاتف',
+    permissionOn: 'هذا الجهاز مسجَّل. كل ما في الأسفل يصل إلى صندوقك سواء وصل الإشعار أم لا.',
+    permissionOff:
+      'هاتفك يحجبها. أعد تفعيلها من إعدادات النظام لباقي — وصندوق الوارد يحتفظ بكل شيء في الحالتين.',
+    permissionUnset: 'سيسأل باقي مرة واحدة فقط، وللأشياء التي تفعّلها في الأسفل فقط.',
+    granted: 'مفعّلة',
+    denied: 'متوقفة',
+    undetermined: 'غير محددة',
+    asking: 'جارٍ السؤال…',
+    turnOn: 'تفعيل الإشعارات',
+    pushSection: 'الإشعارات الفورية',
+    involvesMe: 'ما يخصّني فقط',
+    involvesMeBody: 'إشعار حين يكون عليك أو لك أو حين تُذكر — لا لكل مصروف في كل مجموعة.',
+    settlementRequests: 'تأكيدات التسوية',
+    settlementRequestsBody: 'حين يقول أحدهم إنه دفع لك، كي يبقى باقيك صحيحًا.',
+    nudges: 'التذكيرات',
+    nudgesBody: 'تذكير لطيف بالمال المستحق. مرة واحدة لكل شخص يوميًا، بحدٍّ في قاعدة البيانات.',
+    digest: 'ملخص المجموعة اليومي',
+    digestBody: 'كل ما تبقّى، مجمّعًا في إشعار واحد يوميًا بدل تدفق مستمر.',
+    weeklyEmail: 'ملخص أسبوعي بالبريد',
+    weeklyEmailBody: 'صافي باقيك والتأكيدات المعلّقة، مرة كل أسبوع. متوقف افتراضيًا.',
+    failDenied: 'لم يُفعَّل — يمكنك تفعيله لاحقًا من إعدادات هاتفك.',
+    failUnsupported: 'لا يستطيع هذا الجهاز استقبال الإشعارات. كل شيء يصل إلى النشاط رغم ذلك.',
+    failNotSignedIn: 'سجّل الدخول أولًا، كي نعرف أي هاتف هو هاتفك.',
+    failNotConfigured:
+      'الإشعارات غير مهيأة في هذه النسخة من باقي. لا ذنب لك — كل شيء يصل إلى النشاط رغم ذلك.',
+    failSaveFailed: 'تعذّر حفظ هذا الهاتف. تحقق من اتصالك وحاول مرة أخرى.',
+    footnote:
+      'البريد لم يصل بعد. كل ما هنا موجود أيضًا في صندوقك، وهو سجل ما أخبرك به باقي سواء وصل إشعار أم لا.',
+  },
+  contact: {
+    title: 'حسابك',
+    signedIn: 'مسجّل الدخول',
+    guestBody:
+      'كل ما أدخلته محفوظ بالفعل وهو ملكك. إضافة بريد إلكتروني أو رقم هاتف هي فقط كي تصل إليه من هاتف آخر.',
+    memberBody: 'يمكن الوصول إلى هذا الحساب من أي جهاز تسجّل الدخول عليه.',
+    email: 'بريد إلكتروني',
+    phone: 'هاتف',
+    alreadyAdded: 'مضاف بالفعل: {value}',
+    emailAddress: 'البريد الإلكتروني',
+    phoneNumber: 'رقم الهاتف',
+    emailPlaceholder: 'you@example.com',
+    phonePlaceholder: '+971 50 123 4567',
+    codeEmailed: 'أدخل الرمز المكوّن من ستة أرقام الذي أرسلناه إلى بريدك',
+    codeTexted: 'أدخل الرمز المكوّن من ستة أرقام الذي أرسلناه برسالة نصية',
+    verificationCode: 'رمز التحقق',
+    confirm: 'تأكيد',
+    sendCodeEmail: 'أرسل لي رمزًا',
+    sendCodePhone: 'أرسل الرمز برسالة',
+    useDifferent: 'استخدم غيره',
+    added: 'تمت الإضافة. يمكنك الآن تسجيل الدخول به على هاتف آخر.',
+    footnote:
+      'لا يطلب باقي هذا ليسمح لك بالدخول، ولا يشاركه مع أحد في مجموعاتك. يرى الناس الاسم الذي تختاره، لا غير.',
+  },
+  signIn: {
+    tagline: 'باقي · ما يتبقّى',
+    splitAnything: 'قسّم أي شيء\nمع أي أحد',
+    welcomeBody: 'لا حاجة لحساب للبدء — أضف واحدًا لاحقًا وسيأتي معك كل ما أدخلته.',
+    startNow: 'ابدأ الآن',
+    haveAccount: 'لديّ حساب بالفعل',
+    welcomeBack: 'أهلًا بعودتك',
+    keepOnNextPhone: 'احتفظ بهذا الحساب على هاتفك التالي',
+    guestAddWay: 'أضف طريقة لتسجيل الدخول، ليبقى هذا الحساب لك على هاتفك التالي.',
+    signInHowever: 'سجّل الدخول بالطريقة التي أعددتها.',
+    sendMeACode: 'أرسل لي رمزًا',
+    useAPassword: 'استخدم كلمة مرور',
+    phoneNumber: 'رقم الهاتف',
+    countryCodeHint:
+      'ابدأ برمز بلدك. لا يفترض باقي أبدًا رمزًا بعينه — فالأرقام الأجنبية تظهر في السفر تحديدًا.',
+    sendCode: 'أرسل الرمز',
+    codeSentTo: 'أُرسل الرمز إلى {value}',
+    verify: 'تحقّق',
+    differentNumber: 'استخدم رقمًا آخر',
+    identifier: 'البريد الإلكتروني أو رقم الهاتف',
+    identifierPlaceholder: 'asha@example.com أو ‎+971…',
+    password: 'كلمة المرور',
+    passwordHint: 'ثمانية أحرف أو أكثر. عبارة تتذكّرها خير من لغز لن تتذكّره.',
+    addToAccount: 'أضف هذا إلى حسابي',
+    createAccount: 'إنشاء حساب',
+    signInAction: 'تسجيل الدخول',
+    switchToSignIn: 'لديّ حساب بالفعل',
+    switchToSignUp: 'أنا جديد هنا — أنشئ حسابًا',
+    continueGoogle: 'المتابعة عبر Google',
+    signInGoogle: 'تسجيل الدخول عبر Google',
+    continueGuest: 'المتابعة كضيف',
+    guestFootnote: 'كل ما أضفته يبقى كما هو تمامًا. هذا يضيف فقط طريقة للعودة وتسجيل الدخول.',
+    memberFootnote:
+      'يحتفظ حساب الضيف بكل شيء على هذا الجهاز حتى تضيف طريقة لتسجيل الدخول. دفترك ليس رهينة أبدًا.',
+    restartToMirror: 'أغلق باقي وافتحه مرة واحدة لعكس اتجاه الواجهة.',
+    restartToUnmirror: 'أغلق باقي وافتحه مرة واحدة لإعادة اتجاه الواجهة.',
   },
 };
 
