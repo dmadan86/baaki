@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
+import { categoryOf } from '@baaki/core';
 import {
   Avatar,
   Badge,
@@ -296,90 +297,132 @@ export default function GroupScreen() {
           visibleExpenses.length === 0 ? (
             <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
           ) : (
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {visibleExpenses.map((expense, index) => {
+            <View style={{ gap: theme.spacing.md }}>
+              {visibleExpenses.map((expense) => {
                 const version = expense.currentVersion;
                 const payer = version?.payers[0]?.member_id ?? null;
                 // Somebody disagreeing with an expense is worth seeing from the
                 // list. A disagreement you only find by opening the row is one
                 // that sits there unanswered.
                 const contested = openDisputes.has(expense.id);
+                // Each row is a card in its category's colour — the amount is a
+                // total, shown neutral in the tint's ink. A deleted row is dimmed
+                // rather than hidden, so the ledger stays visibly append-only.
+                const catTint = categoryOf(version?.category).tint;
+                const catInk = theme.tint[catTint].ink;
+                const title = expenseTitle(version?.description, version?.category, t);
                 return (
-                  <View key={expense.id}>
-                    <ListRow
-                      title={`${expenseTitle(version?.description, version?.category, t)}${
-                        contested ? '  🚩' : ''
-                      }`}
-                      subtitle={[
-                        fill(t.expense.paidByName, { name: nameOf(payer) }),
-                        version
-                          ? new Intl.DateTimeFormat(locale, {
-                              day: 'numeric',
-                              month: 'short',
-                            }).format(new Date(version.expense_date))
-                          : null,
-                        expense.deleted_at ? t.expense.deleted : null,
-                        (version?.version_no ?? 1) > 1
-                          ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                      leading={<CategoryBadge category={version?.category} size={42} />}
-                      onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-                      trailing={
-                        version ? (
+                  <Pressable
+                    key={expense.id}
+                    onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={title}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+                  >
+                    <TintCard
+                      tint={catTint}
+                      style={{
+                        borderRadius: theme.radius.lg,
+                        padding: theme.spacing.lg,
+                        opacity: expense.deleted_at ? 0.55 : 1,
+                      }}
+                    >
+                      <Row style={{ gap: theme.spacing.md }}>
+                        <CategoryBadge category={version?.category} size={40} />
+                        <View style={{ flex: 1 }}>
+                          <Text variant="subheading" numberOfLines={1} style={{ color: catInk }}>
+                            {`${title}${contested ? '  🚩' : ''}`}
+                          </Text>
+                          <Text
+                            variant="caption"
+                            numberOfLines={1}
+                            style={{ color: catInk, opacity: 0.7 }}
+                          >
+                            {[
+                              fill(t.expense.paidByName, { name: nameOf(payer) }),
+                              version
+                                ? new Intl.DateTimeFormat(locale, {
+                                    day: 'numeric',
+                                    month: 'short',
+                                  }).format(new Date(version.expense_date))
+                                : null,
+                              expense.deleted_at ? t.expense.deleted : null,
+                              (version?.version_no ?? 1) > 1
+                                ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </Text>
+                        </View>
+                        {version ? (
                           <Row style={{ gap: theme.spacing.sm }}>
                             <MoneyText
                               amount={BigInt(version.amount)}
                               currency={version.currency}
                               locale={locale}
+                              tone="default"
+                              style={{ color: catInk, fontWeight: '700' }}
                             />
                             {expense.pending ? <PendingMark /> : null}
                           </Row>
-                        ) : null
-                      }
-                    />
-                    {index < visibleExpenses.length - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
+                        ) : null}
+                      </Row>
+                    </TintCard>
+                  </Pressable>
                 );
               })}
-            </Card>
+            </View>
           )
         ) : null}
 
         {tab === 'balances' ? (
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {(members.data ?? []).map((member, index) => (
-              <View key={member.id}>
-                <ListRow
-                  title={displayName(member, profile?.id)}
-                  subtitle={
-                    isGhost(member)
-                      ? t.notJoinedYet
-                      : (member.vpa ?? member.profile?.default_vpa ?? '—')
-                  }
-                  leading={<Avatar name={displayName(member)} ghost={isGhost(member)} />}
-                  trailing={
+          <View style={{ gap: theme.spacing.md }}>
+            {(members.data ?? []).map((member) => {
+              // Each member is a card in the money colour for its meaning: mint
+              // when they are owed, pink when they owe, lilac when square. The
+              // balance is drawn in the pair's ink to stay legible on the tint.
+              const balance = ledger.balances.get(member.id) ?? 0n;
+              const rowTint = balance > 0n ? 'mint' : balance < 0n ? 'pink' : 'lilac';
+              const rowInk = theme.tint[rowTint].ink;
+              return (
+                <TintCard
+                  key={member.id}
+                  tint={rowTint}
+                  style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}
+                >
+                  <Row style={{ gap: theme.spacing.md }}>
+                    <Avatar name={displayName(member)} ghost={isGhost(member)} size={40} />
+                    <View style={{ flex: 1 }}>
+                      <Text variant="subheading" numberOfLines={1} style={{ color: rowInk }}>
+                        {displayName(member, profile?.id)}
+                      </Text>
+                      <Text
+                        variant="caption"
+                        numberOfLines={1}
+                        style={{ color: rowInk, opacity: 0.7 }}
+                      >
+                        {isGhost(member)
+                          ? t.notJoinedYet
+                          : (member.vpa ?? member.profile?.default_vpa ?? '—')}
+                      </Text>
+                    </View>
                     <Row style={{ gap: theme.spacing.sm }}>
                       <MoneyText
-                        amount={ledger.balances.get(member.id) ?? 0n}
+                        amount={balance}
                         currency={currency}
                         locale={locale}
                         mode="balance"
+                        tone="default"
+                        style={{ color: rowInk }}
                       />
                       {member.pending ? <PendingMark /> : null}
                     </Row>
-                  }
-                />
-                {index < (members.data?.length ?? 0) - 1 ? (
-                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                ) : null}
-              </View>
-            ))}
-          </Card>
+                  </Row>
+                </TintCard>
+              );
+            })}
+          </View>
         ) : null}
 
         {tab === 'activity' ? (
