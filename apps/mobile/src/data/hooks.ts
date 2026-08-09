@@ -55,6 +55,7 @@ import {
   withdrawDispute,
   type WriteExpenseInput,
 } from './api';
+import { totalsByCurrency } from './totals';
 import type { ActivityRow, ExpenseRow, GroupRow, MemberRow, SettlementRow } from './types';
 
 export const keys = {
@@ -168,6 +169,9 @@ export function useHomeSummary(profileId: string | null) {
   const summary = useMemo(() => {
     const membersByGroup = new Map<string, MemberRow[]>();
     const byGroup = new Map<string, bigint>();
+    // Which currency each of those balances is in. Without it the totals below
+    // are a pile of numbers with no units.
+    const currencyByGroup = new Map<string, string>();
     const awaiting = new Set<string>();
 
     for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
@@ -188,21 +192,23 @@ export function useHomeSummary(profileId: string | null) {
       const mine = (membersByGroup.get(group.id) ?? []).find(
         (member) => member.profile_id === profileId,
       );
-      if (mine) byGroup.set(group.id, net.get(currency)?.get(mine.id) ?? 0n);
+      if (mine) {
+        byGroup.set(group.id, net.get(currency)?.get(mine.id) ?? 0n);
+        currencyByGroup.set(group.id, currency);
+      }
 
       if (settlements.some((settlement) => settlement.status === 'initiated')) {
         awaiting.add(group.id);
       }
     }
 
-    let owed = 0n;
-    let owing = 0n;
-    for (const balance of byGroup.values()) {
-      if (balance > 0n) owed += balance;
-      else owing += -balance;
-    }
+    const totals = totalsByCurrency(
+      [...byGroup].map(
+        ([groupId, balance]) => [currencyByGroup.get(groupId) ?? 'INR', balance] as const,
+      ),
+    );
 
-    return { byGroup, membersByGroup, awaiting, totals: { net: owed - owing, owed, owing } };
+    return { byGroup, membersByGroup, awaiting, totals };
   }, [mirror, queue, profileId]);
 
   return {
