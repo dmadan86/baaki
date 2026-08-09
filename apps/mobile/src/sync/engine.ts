@@ -214,13 +214,16 @@ export class SyncEngine {
     const cursors = { ...this.state.mirror.cursors };
     for (const groupId of options.groupIds ?? []) cursors[groupId] ??= 0;
 
-    // Nothing to push and nowhere to pull from: a first run before any group
-    // exists. Asking the server would just be a round trip for an empty answer.
-    if (batch.length === 0 && Object.keys(cursors).length === 0) {
-      this.set({ status: 'idle' });
-      return;
-    }
-
+    // An empty mirror with nothing queued is not "nothing to do" — it is exactly
+    // the first run that has to ask. Signing in on a new phone, or into an
+    // account whose groups were created on another device, leaves the mirror
+    // empty, and the only place the group ids live is the server: the `sync`
+    // function reads the caller's own memberships and hands them back whatever
+    // the cursors say (see its `group_members` query). Skipping the call here
+    // meant those groups never arrived and home stayed empty until a deep link
+    // happened to name one. The `!online` case already returned above, so the
+    // one round trip this costs a brand-new guest is against their own empty
+    // ledger, once, and tells them the truth either way.
     this.set({ status: 'syncing' });
 
     try {
