@@ -90,29 +90,18 @@ describe('activeDevices', () => {
 
 describe('deviceLimitStatus', () => {
   it('lets a free account sit at exactly two', () => {
-    const rows = [
-      device({ deviceId: 'a' }),
-      device({ deviceId: 'b' }),
-    ];
+    const rows = [device({ deviceId: 'a' }), device({ deviceId: 'b' })];
     const status = deviceLimitStatus(rows, 'free', NOW);
     expect(status).toEqual({ limit: 2, activeCount: 2, overLimit: false });
   });
 
   it('flags the third phone as over the line', () => {
-    const rows = [
-      device({ deviceId: 'a' }),
-      device({ deviceId: 'b' }),
-      device({ deviceId: 'c' }),
-    ];
+    const rows = [device({ deviceId: 'a' }), device({ deviceId: 'b' }), device({ deviceId: 'c' })];
     expect(deviceLimitStatus(rows, 'free', NOW).overLimit).toBe(true);
   });
 
   it('does not flag three phones on plus', () => {
-    const rows = [
-      device({ deviceId: 'a' }),
-      device({ deviceId: 'b' }),
-      device({ deviceId: 'c' }),
-    ];
+    const rows = [device({ deviceId: 'a' }), device({ deviceId: 'b' }), device({ deviceId: 'c' })];
     expect(deviceLimitStatus(rows, 'plus', NOW).overLimit).toBe(false);
   });
 

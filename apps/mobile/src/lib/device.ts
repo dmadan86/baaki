@@ -32,7 +32,9 @@ export interface DeviceIdentity {
 // for an id that is not a secret so much as a stable name.
 async function readStoredId(): Promise<string | null> {
   try {
-    return Platform.OS === 'web' ? await AsyncStorage.getItem(KEY) : await SecureStore.getItemAsync(KEY);
+    return Platform.OS === 'web'
+      ? await AsyncStorage.getItem(KEY)
+      : await SecureStore.getItemAsync(KEY);
   } catch {
     return null;
   }
@@ -76,7 +78,11 @@ export async function clearDeviceId(): Promise<void> {
 export function deviceLabel(): string {
   const model = Device.modelName ?? Device.deviceName ?? null;
   if (model) return model;
-  return Platform.OS === 'ios' ? 'iPhone' : Platform.OS === 'android' ? 'Android phone' : 'This device';
+  return Platform.OS === 'ios'
+    ? 'iPhone'
+    : Platform.OS === 'android'
+      ? 'Android phone'
+      : 'This device';
 }
 
 /** The platform line under the label, e.g. "android 15". */

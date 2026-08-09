@@ -18,7 +18,15 @@
  * skipped entirely.
  */
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { AppState, Modal, Pressable, View } from 'react-native';
 
 import { type DeviceLimitStatus } from '@baaki/core';
@@ -135,7 +143,9 @@ export function DeviceSessionProvider({ children }: { children: ReactNode }) {
   return (
     <DeviceSessionContext.Provider value={{ status, signOutOthers, refresh }}>
       {children}
-      {showGate ? <DeviceLimitGate onDismiss={() => setDismissed(true)} onSignOutOthers={signOutOthers} /> : null}
+      {showGate ? (
+        <DeviceLimitGate onDismiss={() => setDismissed(true)} onSignOutOthers={signOutOthers} />
+      ) : null}
     </DeviceSessionContext.Provider>
   );
 }

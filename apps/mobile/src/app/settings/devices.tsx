@@ -50,9 +50,7 @@ export default function DevicesScreen() {
   // The server already returns the last three months, newest first.
   const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices });
   const rows = devices.data ?? [];
-  const otherLiveCount = rows.filter(
-    (row) => row.deviceId !== myDeviceId && !row.revokedAt,
-  ).length;
+  const otherLiveCount = rows.filter((row) => row.deviceId !== myDeviceId && !row.revokedAt).length;
 
   async function onSignOutOthers() {
     setBusy(true);

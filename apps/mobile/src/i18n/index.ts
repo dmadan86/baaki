@@ -1180,7 +1180,10 @@ const en: UiStrings = {
     lastActive: 'Last active {when}',
     signOutOthers: 'Log out all other devices',
     signOutOthersHint: 'Signs out every device except this one. They ask for a login next time.',
-    signedOutOthers: { one: 'Signed out {n} other device.', other: 'Signed out {n} other devices.' },
+    signedOutOthers: {
+      one: 'Signed out {n} other device.',
+      other: 'Signed out {n} other devices.',
+    },
     onlyThisDevice: 'This is the only device signed in.',
     historyNote: 'Showing the last three months.',
     row: 'Devices',
@@ -2091,7 +2094,8 @@ const ta: UiStrings = {
     signedOut: 'வெளியேற்றப்பட்டது',
     lastActive: 'கடைசியாகச் செயலில் {when}',
     signOutOthers: 'மற்ற எல்லா சாதனங்களிலும் வெளியேறு',
-    signOutOthersHint: 'இந்தச் சாதனம் தவிர மற்ற அனைத்திலும் வெளியேற்றும். அடுத்த முறை உள்நுழைவு கேட்கப்படும்.',
+    signOutOthersHint:
+      'இந்தச் சாதனம் தவிர மற்ற அனைத்திலும் வெளியேற்றும். அடுத்த முறை உள்நுழைவு கேட்கப்படும்.',
     signedOutOthers: {
       one: '{n} சாதனத்தில் வெளியேற்றப்பட்டது.',
       other: '{n} சாதனங்களில் வெளியேற்றப்பட்டது.',
@@ -3014,8 +3018,12 @@ const hi: UiStrings = {
     signedOut: 'साइन आउट',
     lastActive: 'आख़िरी बार सक्रिय {when}',
     signOutOthers: 'बाकी सभी डिवाइस से साइन आउट करें',
-    signOutOthersHint: 'इस डिवाइस को छोड़कर हर डिवाइस से साइन आउट कर देता है। अगली बार उन पर लॉगिन माँगा जाएगा।',
-    signedOutOthers: { one: '{n} अन्य डिवाइस से साइन आउट किया।', other: '{n} अन्य डिवाइसों से साइन आउट किया।' },
+    signOutOthersHint:
+      'इस डिवाइस को छोड़कर हर डिवाइस से साइन आउट कर देता है। अगली बार उन पर लॉगिन माँगा जाएगा।',
+    signedOutOthers: {
+      one: '{n} अन्य डिवाइस से साइन आउट किया।',
+      other: '{n} अन्य डिवाइसों से साइन आउट किया।',
+    },
     onlyThisDevice: 'सिर्फ़ यही डिवाइस साइन इन है।',
     historyNote: 'पिछले तीन महीने दिखाए जा रहे हैं।',
     row: 'डिवाइस',
@@ -3932,7 +3940,8 @@ const ar: UiStrings = {
     signedOut: 'تم تسجيل الخروج',
     lastActive: 'آخر نشاط {when}',
     signOutOthers: 'تسجيل الخروج من كل الأجهزة الأخرى',
-    signOutOthersHint: 'يُسجّل الخروج من كل جهاز عدا هذا الجهاز. ستُطلب منها تسجيل الدخول في المرة القادمة.',
+    signOutOthersHint:
+      'يُسجّل الخروج من كل جهاز عدا هذا الجهاز. ستُطلب منها تسجيل الدخول في المرة القادمة.',
     signedOutOthers: {
       zero: 'تم تسجيل الخروج من {n} جهاز آخر.',
       one: 'تم تسجيل الخروج من جهاز آخر.',
