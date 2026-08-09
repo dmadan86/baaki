@@ -18,6 +18,8 @@ import {
   Row,
   Screen,
   Text,
+  TintCard,
+  tintForKey,
   useTheme,
 } from '@baaki/ui';
 
@@ -87,6 +89,9 @@ export default function GroupScreen() {
   }
 
   const currency = group.data.default_currency;
+  // The balance hero wears the group's own colour — the same tint its card
+  // shows on home. Ink for contrast; the sign lives in the label, not the hue.
+  const ink = theme.tint[tintForKey(groupId)].ink;
   const visibleExpenses = expenses.rows.filter((expense) => showDeleted || !expense.deleted_at);
   const pendingForMe = (settlements.data ?? []).filter(
     (settlement) =>
@@ -197,20 +202,31 @@ export default function GroupScreen() {
           </Pressable>
         ))}
 
-        <Card style={{ gap: theme.spacing.lg }}>
+        <TintCard
+          tint={tintForKey(groupId)}
+          style={{
+            borderRadius: theme.radius.xl,
+            padding: theme.spacing.xl,
+            gap: theme.spacing.lg,
+          }}
+        >
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="caption" tone="muted">
+            <Text variant="caption" style={{ color: ink, opacity: 0.8 }}>
               {ledger.myBalance >= 0n ? t.youAreOwed : t.youOwe}
             </Text>
             {ledger.pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
           </Row>
 
+          {/* mode="balance" keeps the spoken "You are owed ₹X" label and the
+              absolute value; the colour is overridden to ink for the surface. */}
           <MoneyText
             amount={ledger.myBalance}
             currency={currency}
             locale={locale}
             mode="balance"
             variant="display"
+            tone="default"
+            style={{ color: ink }}
           />
 
           <Row style={{ gap: theme.spacing.md }}>
@@ -225,7 +241,7 @@ export default function GroupScreen() {
               onPress={() => router.push(`/group/${groupId}/simplify`)}
             />
           </Row>
-        </Card>
+        </TintCard>
 
         {pendingForMe.map((settlement) => (
           <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
