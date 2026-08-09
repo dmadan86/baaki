@@ -186,7 +186,27 @@ function FriendCard({
             tone="default"
             style={{ color: ink }}
           />
-          {row.is_ghost ? <Badge label={t.tabs.notJoined} /> : null}
+          {row.is_ghost ? (
+            // A ghost is somebody you added who has no Baaki account yet, so the
+            // badge is the useful action rather than a verdict: send them this
+            // group's invite link, which is the same link that lets them claim
+            // this very row (A25). Only offered when a single group explains the
+            // balance — otherwise there is no one link to share. Its own
+            // Pressable so tapping it invites rather than opening the group.
+            row.only_group_id ? (
+              <Pressable
+                onPress={() => router.push(`/group/${row.only_group_id}/invite`)}
+                accessibilityRole="button"
+                accessibilityLabel={t.people.invite}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+              >
+                <Badge label={t.people.invite} tone="brand" />
+              </Pressable>
+            ) : (
+              <Badge label={t.tabs.notJoined} />
+            )
+          ) : null}
         </View>
       </Row>
     </TintCard>
