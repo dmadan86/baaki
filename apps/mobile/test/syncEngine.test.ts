@@ -29,7 +29,10 @@ const h = vi.hoisted(() => ({
   net: vi.fn(),
   invoke: vi.fn(),
   disk: {
-    rows: new Map<string, { table: string; id: string; groupId: string; seq: number; row: unknown }>(),
+    rows: new Map<
+      string,
+      { table: string; id: string; groupId: string; seq: number; row: unknown }
+    >(),
     cursors: {} as Record<string, number>,
     queue: [] as QueuedMutation[],
   },
