@@ -23,4 +23,5 @@ export * from './auth/identity';
 export * from './observability/index';
 export * from './version/index';
 export * from './billing/index';
+export * from './session/index';
 export * from './trip/index';

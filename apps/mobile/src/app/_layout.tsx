@@ -14,6 +14,7 @@ import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme 
 import { CampaignPopup } from '@/components/CampaignPopup';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { DeviceSessionProvider } from '@/lib/deviceSession';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
@@ -121,11 +122,16 @@ function RootLayout() {
                         <UpdateGate>
                           <PushRouting />
                           <LockGate>
-                            <AuthGate />
-                            {/* Inside the lock on purpose: a promotion is not a
-                                reason to show somebody's phone anything before
-                                they have unlocked it. */}
-                            <CampaignPopup />
+                            {/* Inside the lock so the two-device gate never
+                                paints over the lock screen, and past auth so it
+                                only ever asks a signed-in account. */}
+                            <DeviceSessionProvider>
+                              <AuthGate />
+                              {/* Inside the lock on purpose: a promotion is not a
+                                  reason to show somebody's phone anything before
+                                  they have unlocked it. */}
+                              <CampaignPopup />
+                            </DeviceSessionProvider>
                           </LockGate>
                           {/* Last, so it paints over the screen rather than
                               under it. */}
@@ -324,6 +330,7 @@ function AuthGate() {
       <Stack.Screen name="settings/export" />
       <Stack.Screen name="settings/import" />
       <Stack.Screen name="settings/lock" />
+      <Stack.Screen name="settings/devices" />
       <Stack.Screen name="settings/motion" />
       <Stack.Screen name="settings/language" />
       <Stack.Screen name="settings/upgrade" />
