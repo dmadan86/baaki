@@ -56,9 +56,12 @@ export const SMS_LOW_CONFIDENCE = 0.7;
  */
 const CURRENCY_MARKERS: ReadonlyArray<readonly [RegExp, CurrencyCode]> = [
   [/(?:INR|Rs\.?|₹)/i, 'INR'],
-  [/(?:USD|\$)/, 'USD'],
-  [/(?:EUR|€)/, 'EUR'],
-  [/(?:GBP|£)/, 'GBP'],
+  // The amount regex matches case-insensitively, so "usd 42" yields an amount;
+  // without `i` here the code fell through every marker and defaulted the
+  // currency to INR, mislabelling the proposed expense.
+  [/(?:USD|\$)/i, 'USD'],
+  [/(?:EUR|€)/i, 'EUR'],
+  [/(?:GBP|£)/i, 'GBP'],
   [/AED/i, 'AED'],
   [/SGD/i, 'SGD'],
   [/THB/i, 'THB'],
