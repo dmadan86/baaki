@@ -12,6 +12,8 @@
   "dependencies": {
     "@baaki/core": "workspace:*",
     "@supabase/supabase-js": "^2.112.0",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
     "next": "^16.3.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"

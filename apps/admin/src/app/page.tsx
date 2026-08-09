@@ -1,7 +1,9 @@
 import { format, money, type CurrencyCode } from '@baaki/core';
+import type { ReactNode } from 'react';
 
 import { Bars } from '@/components/Bars';
-import { Nav } from '@/components/Nav';
+import { AreaTrend } from '@/components/charts/AreaTrend';
+import { DonutChart } from '@/components/charts/DonutChart';
 import { aiCost, daily, geo, logins, money as moneyRows, overview } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -43,73 +45,116 @@ export default async function Dashboard() {
 
   const signInTotal = signIns.rows.reduce((sum, row) => sum + Number(row.sign_ins), 0);
 
+  const trend = days.map((d) => ({
+    day: d.day,
+    newProfiles: Number(d.new_profiles),
+    newExpenses: Number(d.new_expenses),
+    active: Number(d.active_profiles),
+  }));
+
+  // Share of live expenses by currency — the one split with few enough slices
+  // to read as a ring. Never summed across currencies, so this counts expenses,
+  // not value.
+  const currencySlices = currencies
+    .map((row) => ({ name: row.currency, value: Number(row.expense_count) }))
+    .filter((s) => s.value > 0)
+    .sort((a, b) => b.value - a.value);
+
   return (
     <main>
       <header className="top">
-        <h1>Baaki admin</h1>
-        <Nav here="overview" />
+        <h1>Dashboard</h1>
+        <p className="faint">
+          {new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+        </p>
       </header>
-      <p className="faint" style={{ marginTop: -18, marginBottom: 22 }}>
-        Aggregates only · {new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
-      </p>
 
-      <div className="tiles">
-        <Tile
+      <section className="hero">
+        <div>
+          <div className="who">Baaki, at a glance</div>
+          <div className="big">{num(head.active_profiles_30d)}</div>
+          <div className="lead">people active in the last 30 days</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div className="big">{num(head.active_profiles_7d)}</div>
+          <div className="lead">active in the last 7 days</div>
+        </div>
+      </section>
+
+      <div className="stats">
+        <Stat
+          tint="purple"
+          icon={ICON.people}
           label="People"
           value={num(head.profiles_total)}
-          sub={`+${head.profiles_new_7d} in 7d`}
+          chip={`+${num(head.profiles_new_7d)} in 7d`}
+          dir={Number(head.profiles_new_7d) > 0 ? 'up' : 'flat'}
         />
-        <Tile
+        <Stat
+          tint="blue"
+          icon={ICON.group}
           label="Groups"
           value={num(head.groups_total)}
-          sub={`${num(head.groups_active_30d)} active in 30d`}
+          chip={`${num(head.groups_active_30d)} active`}
+          dir="flat"
         />
-        <Tile
+        <Stat
+          tint="green"
+          icon={ICON.receipt}
           label="Expenses"
           value={num(head.expenses_total)}
-          sub={`+${num(head.expenses_new_30d)} in 30d`}
+          chip={`+${num(head.expenses_new_30d)} in 30d`}
+          dir={Number(head.expenses_new_30d) > 0 ? 'up' : 'flat'}
         />
-        <Tile
+        <Stat
+          tint="amber"
+          icon={ICON.check}
           label="Settlements"
           value={num(head.settlements_total)}
-          sub={`${num(head.settlements_confirmed)} confirmed`}
+          chip={`${num(head.settlements_confirmed)} confirmed`}
+          dir="flat"
         />
-        <Tile
+        <Stat
+          tint="blue"
+          icon={ICON.pulse}
           label="Active 30d"
           value={num(head.active_profiles_30d)}
-          sub={`${num(head.active_profiles_7d)} in 7d`}
+          chip={`${num(head.active_profiles_7d)} in 7d`}
+          dir="flat"
         />
-        <Tile label="Deleted expenses" value={num(head.expenses_deleted)} sub="soft-deleted" />
+        <Stat
+          tint="red"
+          icon={ICON.trash}
+          label="Deleted expenses"
+          value={num(head.expenses_deleted)}
+          chip="soft-deleted"
+          dir="flat"
+        />
       </div>
 
-      <h2>New people, 30 days</h2>
-      <section>
-        <Bars
-          label="New people per day"
-          rows={days.map((d) => ({ day: d.day, value: Number(d.new_profiles) }))}
-        />
-      </section>
+      <div className="grid-2" style={{ marginTop: 18 }}>
+        <div className="card">
+          <div className="card-head">
+            <h3>Expenses by currency</h3>
+          </div>
+          <p className="card-sub">Live expenses, counted — never summed across currencies.</p>
+          {currencySlices.length === 0 ? (
+            <p className="note">No expenses yet.</p>
+          ) : (
+            <div className="echart">
+              <DonutChart slices={currencySlices} centerLabel="expenses" />
+            </div>
+          )}
+        </div>
 
-      <h2>Expenses created, 30 days</h2>
-      <section>
-        <Bars
-          label="Expenses created per day"
-          rows={days.map((d) => ({ day: d.day, value: Number(d.new_expenses) }))}
-        />
-      </section>
-
-      <h2>Active people, 30 days</h2>
-      <section>
-        <Bars
-          label="Active people per day"
-          rows={days.map((d) => ({ day: d.day, value: Number(d.active_profiles) }))}
-        />
-        <p className="note">
-          Active means somebody did something the ledger recorded. Opening the app is not written
-          down anywhere, so it is not counted here — a number that meant &ldquo;launched&rdquo;
-          would be invented.
-        </p>
-      </section>
+        <div className="card">
+          <AreaTrend days={trend} />
+          <p className="card-sub" style={{ paddingTop: 0 }}>
+            Active means the ledger recorded something. Opening the app is not written down, so it
+            is not counted here.
+          </p>
+        </div>
+      </div>
 
       <h2>Where they are</h2>
       <section className="scroll">
@@ -245,12 +290,68 @@ export default async function Dashboard() {
   );
 }
 
-function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({
+  tint,
+  icon,
+  label,
+  value,
+  chip,
+  dir,
+}: {
+  tint: 'blue' | 'green' | 'amber' | 'red' | 'purple';
+  icon: ReactNode;
+  label: string;
+  value: string;
+  chip: string;
+  dir: 'up' | 'down' | 'flat';
+}) {
   return (
-    <div className="tile">
+    <div className="stat">
+      <div className={`ico tint-${tint}`}>{icon}</div>
       <span className="label">{label}</span>
-      <div className="value">{value}</div>
-      {sub ? <div className="sub">{sub}</div> : null}
+      <div className="figure">
+        <span className="value">{value}</span>
+        <span className={`chip ${dir}`}>{chip}</span>
+      </div>
     </div>
   );
 }
+
+/** Stroke icons for the stat cards, matched to the sidebar's set. */
+const ICON = {
+  people: (
+    <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor">
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M17.5 14.4A5.5 5.5 0 0 1 20.5 19" />
+    </svg>
+  ),
+  group: (
+    <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4v16M4 12h16" />
+    </svg>
+  ),
+  receipt: (
+    <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor">
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
+      <path d="M9 8h6M9 12h6" />
+    </svg>
+  ),
+  check: (
+    <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 12.5l2.5 2.5 4.5-5" />
+    </svg>
+  ),
+  pulse: (
+    <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor">
+      <path d="M3 12h4l2.5-6 4 12 2.5-6H21" />
+    </svg>
+  ),
+  trash: (
+    <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor">
+      <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />
+    </svg>
+  ),
+} as const;

@@ -1,4 +1,3 @@
-import { Nav } from '@/components/Nav';
 import { feedback } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -20,8 +19,7 @@ export default async function FeedbackPage() {
   return (
     <main>
       <header className="top">
-        <h1>Feedback</h1>
-        <Nav here="feedback" />
+        <h1>Feedback</h1>{' '}
       </header>
 
       <div className="tiles">

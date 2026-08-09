@@ -1,7 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-import { Nav } from '@/components/Nav';
 import {
   rateLimitEnabled,
   rateLimitRules,
@@ -61,8 +60,7 @@ export default async function RateLimits({
   return (
     <main>
       <header className="top">
-        <h1>Rate limits</h1>
-        <Nav here="rate-limits" />
+        <h1>Rate limits</h1>{' '}
       </header>
 
       {error ? <p className="error">{error}</p> : null}
