@@ -57,6 +57,12 @@ describe('a real debit', () => {
     const parsed = parseSms('Rs.900 debited at 05-Aug-2026 14:30 to ANJAPPAR');
     expect(parsed?.occurredAt).toBe('2026-08-05T14:30:00.000Z');
   });
+
+  it('detects a lowercase currency word instead of defaulting to INR', () => {
+    const parsed = parseSms('usd 42.50 spent on card XX1234 at STARBUCKS');
+    expect(parsed?.amount.currency).toBe('USD');
+    expect(parsed?.amount.minor).toBe(4250n);
+  });
 });
 
 describe('messages that must not become expenses', () => {

@@ -64,12 +64,21 @@ export default function SettleScreen() {
   const method = rail ?? defaultRailFor(country);
   const myMemberId = ledger.myMemberId;
 
+  // Only people on the other side of my ledger can settle with me: if I am owed
+  // overall I can be paid by a debtor, and if I owe I can pay a creditor. Listing
+  // a fellow debtor (or fellow creditor) offered a settlement that nets negative
+  // — the amount below went below zero and the button stayed enabled, so the
+  // server got a payment for a negative sum and refused it in the user's face.
   const counterparties = useMemo(
     () =>
-      (members.data ?? []).filter(
-        (member) => member.id !== myMemberId && (ledger.balances.get(member.id) ?? 0n) !== 0n,
-      ),
-    [members.data, myMemberId, ledger.balances],
+      (members.data ?? []).filter((member) => {
+        if (member.id === myMemberId) return false;
+        const balance = ledger.balances.get(member.id) ?? 0n;
+        if (ledger.myBalance > 0n) return balance < 0n;
+        if (ledger.myBalance < 0n) return balance > 0n;
+        return false;
+      }),
+    [members.data, myMemberId, ledger.balances, ledger.myBalance],
   );
 
   const counterparty: MemberRow | undefined =
@@ -77,11 +86,15 @@ export default function SettleScreen() {
 
   const theirBalance = counterparty ? (ledger.balances.get(counterparty.id) ?? 0n) : 0n;
   const iPay = ledger.myBalance < 0n && theirBalance > 0n;
-  const amount = counterparty
+  const rawAmount = counterparty
     ? iPay
       ? min(-ledger.myBalance, theirBalance)
       : min(ledger.myBalance, theirBalance < 0n ? -theirBalance : 0n)
     : 0n;
+  // Never below zero: the counterparty filter already keeps us on opposite sides,
+  // and this is the belt to that braces — a settlement is a positive movement or
+  // it is nothing, and the button below disables on 0.
+  const amount = rawAmount > 0n ? rawAmount : 0n;
 
   // What the payer still owes the payee, expense by expense — the settle sheet
   // applies the payment against these oldest-first (ADR-007).
