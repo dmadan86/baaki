@@ -17,7 +17,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
@@ -25,12 +25,12 @@ import {
   Button,
   Card,
   EmptyState,
-  ListRow,
   MoneyText,
   Row,
   Screen,
   SectionHeader,
   Text,
+  TintCard,
   useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
@@ -122,7 +122,7 @@ function FriendsSection({
   const { t } = useStrings();
 
   return (
-    <View>
+    <View style={{ gap: theme.spacing.md }}>
       <SectionHeader title={title} />
       {rows.length === 0 ? (
         <Card>
@@ -131,42 +131,76 @@ function FriendsSection({
           </Text>
         </Card>
       ) : (
-        <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-          {rows.map((row, index) => (
-            <View key={`${row.person_key}-${row.currency}`}>
-              <ListRow
-                title={row.display_name}
-                subtitle={
-                  row.group_count === 1
-                    ? t.tabs.inOneGroup
-                    : plural(locale, row.group_count, t.tabs.acrossGroups)
-                }
-                leading={<Avatar name={row.display_name} size={40} />}
-                // Only linkable when there is a single group to link to;
-                // otherwise this amount is a sum and no one group explains it.
-                onPress={
-                  row.only_group_id ? () => router.push(`/group/${row.only_group_id}`) : undefined
-                }
-                trailing={
-                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                    <MoneyText
-                      amount={BigInt(row.net)}
-                      currency={row.currency}
-                      locale={locale}
-                      variant="subheading"
-                      mode="balance"
-                    />
-                    {row.is_ghost ? <Badge label={t.tabs.notJoined} /> : null}
-                  </View>
-                }
-              />
-              {index < rows.length - 1 ? (
-                <View style={{ height: 1, backgroundColor: theme.color.border }} />
-              ) : null}
-            </View>
-          ))}
-        </Card>
+        rows.map((row) => (
+          <FriendCard key={`${row.person_key}-${row.currency}`} row={row} locale={locale} t={t} />
+        ))
       )}
     </View>
+  );
+}
+
+function FriendCard({
+  row,
+  locale,
+  t,
+}: {
+  row: PersonBalanceRow;
+  locale: string;
+  t: ReturnType<typeof useStrings>['t'];
+}): React.JSX.Element {
+  const theme = useTheme();
+  // The card colour is the money colour, used for its one sanctioned meaning:
+  // mint when they owe you, pink when you owe them. The section already sorts
+  // by that, so the colour never disagrees with the number on it. Ink from the
+  // same pair keeps the amount legible without breaking the semantic.
+  const owed = BigInt(row.net) > 0n;
+  const tint = owed ? 'mint' : 'pink';
+  const ink = theme.tint[tint].ink;
+  // Only linkable when there is a single group to link to; otherwise this
+  // amount is a sum and no one group explains it.
+  const onPress = row.only_group_id ? () => router.push(`/group/${row.only_group_id}`) : undefined;
+
+  const body = (
+    <TintCard tint={tint} style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Row style={{ flex: 1, gap: theme.spacing.md }}>
+          <Avatar name={row.display_name} size={40} />
+          <View style={{ flex: 1 }}>
+            <Text variant="subheading" numberOfLines={1} style={{ color: ink }}>
+              {row.display_name}
+            </Text>
+            <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
+              {row.group_count === 1
+                ? t.tabs.inOneGroup
+                : plural(locale, row.group_count, t.tabs.acrossGroups)}
+            </Text>
+          </View>
+        </Row>
+        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+          <MoneyText
+            amount={BigInt(row.net)}
+            currency={row.currency}
+            locale={locale}
+            variant="subheading"
+            mode="balance"
+            tone="default"
+            style={{ color: ink }}
+          />
+          {row.is_ghost ? <Badge label={t.tabs.notJoined} /> : null}
+        </View>
+      </Row>
+    </TintCard>
+  );
+
+  if (!onPress) return body;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={row.display_name}
+      style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+    >
+      {body}
+    </Pressable>
   );
 }
