@@ -25,6 +25,8 @@ import {
   Row,
   Screen,
   Text,
+  TintCard,
+  tintForKey,
   useTheme,
 } from '@baaki/ui';
 
@@ -49,6 +51,7 @@ export default function SettleScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const currency = group.data?.default_currency ?? 'INR';
+  const settleInk = theme.tint[tintForKey(groupId)].ink;
   /**
    * Where this group settles decides what it can settle with. A group that
    * never said still gets bank, cash and the cross-border wallets — never an
@@ -268,15 +271,32 @@ export default function SettleScreen() {
               </Row>
             </Card>
 
-            <Card style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
+            {/* The amount being paid, in the group's own colour — a payment, not
+                a balance, so it is neutral (no green/red) and drawn in the tint's
+                ink for contrast. */}
+            <TintCard
+              tint={tintForKey(groupId)}
+              style={{
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                borderRadius: theme.radius.xl,
+                padding: theme.spacing.xl,
+              }}
+            >
+              <Text variant="caption" style={{ color: settleInk, opacity: 0.8 }}>
                 {iPay
                   ? `You pay ${displayName(counterparty)}`
                   : `${displayName(counterparty)} pays you`}
               </Text>
-              <MoneyText amount={amount} currency={currency} locale={locale} variant="display" />
+              <MoneyText
+                amount={amount}
+                currency={currency}
+                locale={locale}
+                variant="display"
+                style={{ color: settleInk }}
+              />
               <Badge label={t.group.recordedNotMoved} />
-            </Card>
+            </TintCard>
 
             {/* Whatever this country pays with, best first. In India that is
                 still UPI, cash, bank; in the UAE it is Aani, Wise, Revolut,
