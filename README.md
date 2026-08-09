@@ -26,9 +26,12 @@ auto-confirm, trip nudges, disputes, the push fan-out and — since 2026-08-09 �
 the email half are all built and tested against a real database. What is
 missing is that none of it has reached anybody:
 
-- **No push has ever reached a device.** FCM and APNs credentials are a console
-  job nobody has done, and without them a token cannot be issued. A tested
-  fan-out that cannot issue a token has not delivered anything.
+- **No push has ever reached a device.** Android's half of the credentials was
+  finished on 2026-08-09 — Firebase project `baaki-43455`, its service account
+  key uploaded to EAS, and that key proved live against FCM v1 rather than
+  assumed to be. iOS still has no APNs key at all. And no build has yet been made
+  that contains `google-services.json`, so no phone has been able to ask for a
+  token, which is what reaching a device would take.
 - **No email has ever been sent.** The pipeline, the suppression list, the
   webhook and the one-click unsubscribe are built and covered by 79 tests, but
   every one of them stops at the edge of the network. Sending needs
@@ -384,7 +387,14 @@ is a relay; the credentials at the far end are still yours to supply.
    eas credentials   # Android → production → Google Service Account → Push Notifications
    ```
 
-5. Rebuild. The credential is compiled in; an existing build will not pick it up.
+   That command is an interactive menu with no flags behind it, so it cannot be
+   scripted. The same upload is available on expo.dev under the project's
+   credentials, and both end up in the same place: the key is stored on Expo's
+   servers, not compiled into anything, and takes effect the moment it lands.
+
+5. Rebuild — for `google-services.json`, which **is** compiled in. An existing
+   build has no idea the Firebase project exists, and no service account key
+   changes that.
 
 `apps/mobile/app.config.ts` finds the file from the EAS secret or the local copy,
 and **leaves the key off entirely when there is neither** — so a checkout without
@@ -409,6 +419,17 @@ when those codes are `MismatchSenderId` or `InvalidCredentials` — the two that
 mean the credentials are wrong rather than the devices. Without that, a wrong key
 looks exactly like a country with its phones switched off: rows go out, failures
 climb, and nothing anywhere names the cause.
+
+The service account key can also be tested on its own, with no phone and no
+build: sign a JWT with it, exchange that for an OAuth token against
+`https://oauth2.googleapis.com/token`, and POST to
+`https://fcm.googleapis.com/v1/projects/<project>/messages:send` with
+`validate_only: true` and any nonsense string as the device token. A `400
+INVALID_ARGUMENT` complaining about the registration token is the answer you
+want — it means the key is live, the Firebase Cloud Messaging API is enabled and
+the account is allowed to send, and the only thing wrong was the token you made
+up. `403 SERVICE_DISABLED` and `403 PERMISSION_DENIED` name a real problem
+instead, and name it now rather than after a build and a device.
 
 ## Turning on email
 
