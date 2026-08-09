@@ -607,6 +607,12 @@ export default function ProfileScreen() {
                   route: '/settings/lock',
                 },
                 {
+                  icon: 'phone-portrait-outline',
+                  label: t.devices.row,
+                  hint: t.devices.rowHint,
+                  route: '/settings/devices',
+                },
+                {
                   icon: 'log-out-outline',
                   label: t.lock.signOut,
                   hint: signOutHint,

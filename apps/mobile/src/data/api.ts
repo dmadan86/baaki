@@ -15,6 +15,8 @@ import {
   normalisePhone,
   serialiseSplitParams,
   type CurrencyCode,
+  type DeviceLimitStatus,
+  type DeviceSession,
   type FxRecord,
   type ParsedReceipt,
   type ReceiptCheck,
@@ -22,6 +24,7 @@ import {
 } from '@baaki/core';
 
 import { activeStrings } from '@/i18n';
+import type { DeviceIdentity } from '@/lib/device';
 import { supabase } from '@/lib/supabase';
 import type {
   ActivityGroup,
@@ -1486,4 +1489,42 @@ export async function deleteMyAccount(
   const { data, error } = await supabase.rpc('baaki_delete_my_account', { p_feedback: reason });
   if (error) throw new Error(error.message);
   return (data ?? {}) as { memberships_anonymised?: number };
+}
+
+// ─────────────────────────────────────────────────────────────── devices ──
+
+/**
+ * Register (or refresh) this phone and learn where the account stands against
+ * its device cap. The counting and the tier are the database's to decide — this
+ * only reports the answer back up (`overLimit` drives the gate).
+ */
+export async function registerDevice(identity: DeviceIdentity): Promise<DeviceLimitStatus> {
+  const { data, error } = await supabase.rpc('baaki_register_device', {
+    p_device_id: identity.deviceId,
+    p_label: identity.label,
+    p_platform: identity.platform,
+    p_app_version: identity.appVersion,
+  });
+  if (error) throw new Error(error.message);
+  return data as DeviceLimitStatus;
+}
+
+/** The caller's devices seen in the last three months, newest first. */
+export async function fetchDevices(): Promise<DeviceSession[]> {
+  const { data, error } = await supabase.rpc('baaki_list_devices');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as DeviceSession[];
+}
+
+/**
+ * Mark every other device revoked in the table. The caller pairs this with
+ * `supabase.auth.signOut({ scope: 'others' })`, which tears down the actual
+ * sessions; doing both keeps the devices list honest about what just happened.
+ */
+export async function signOutOtherDevices(currentDeviceId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('baaki_sign_out_other_devices', {
+    p_device_id: currentDeviceId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? 0) as number;
 }

@@ -325,6 +325,25 @@ export interface UiStrings {
     staySignedIn: string;
     footnote: string;
   };
+  /** The devices screen and the free-tier two-device cap. */
+  devices: {
+    title: string;
+    intro: string;
+    thisDevice: string;
+    signedOut: string;
+    lastActive: string;
+    signOutOthers: string;
+    signOutOthersHint: string;
+    signedOutOthers: PluralForms;
+    onlyThisDevice: string;
+    historyNote: string;
+    row: string;
+    rowHint: string;
+    gateTitle: string;
+    gateBody: string;
+    gateAction: string;
+    gateDismiss: string;
+  };
   /** The account screen and its three faces. */
   account: {
     faceYou: string;
@@ -1151,6 +1170,29 @@ const en: UiStrings = {
     staySignedIn: 'Stay signed in',
     footnote:
       'This guards the screen, not the data — your ledger is protected by row-level security on the server whether the lock is on or not.',
+  },
+  devices: {
+    title: 'Devices',
+    intro:
+      'The free plan covers two devices at a time. A device you have not opened in a while stops counting on its own.',
+    thisDevice: 'This device',
+    signedOut: 'Signed out',
+    lastActive: 'Last active {when}',
+    signOutOthers: 'Log out all other devices',
+    signOutOthersHint: 'Signs out every device except this one. They ask for a login next time.',
+    signedOutOthers: {
+      one: 'Signed out {n} other device.',
+      other: 'Signed out {n} other devices.',
+    },
+    onlyThisDevice: 'This is the only device signed in.',
+    historyNote: 'Showing the last three months.',
+    row: 'Devices',
+    rowHint: 'See where you are signed in',
+    gateTitle: 'Signed in on too many devices',
+    gateBody:
+      'The free plan covers two devices at a time, and this account is over that. Log out the others to keep using Baaki on this one.',
+    gateAction: 'Log out other devices',
+    gateDismiss: 'Not now',
   },
   account: {
     faceYou: 'You',
@@ -2043,6 +2085,30 @@ const ta: UiStrings = {
     staySignedIn: 'உள்ளேயே இரு',
     footnote:
       'இது திரையைக் காக்கிறது, தரவை அல்ல — பூட்டு இருந்தாலும் இல்லாவிட்டாலும் உங்கள் கணக்கு சர்வரில் வரிசை அளவிலான பாதுகாப்பால் காக்கப்படுகிறது.',
+  },
+  devices: {
+    title: 'சாதனங்கள்',
+    intro:
+      'இலவசத் திட்டத்தில் ஒரே நேரத்தில் இரண்டு சாதனங்கள். சிறிது காலம் திறக்காத சாதனம் தானாகவே கணக்கில் இருந்து விலகும்.',
+    thisDevice: 'இந்தச் சாதனம்',
+    signedOut: 'வெளியேற்றப்பட்டது',
+    lastActive: 'கடைசியாகச் செயலில் {when}',
+    signOutOthers: 'மற்ற எல்லா சாதனங்களிலும் வெளியேறு',
+    signOutOthersHint:
+      'இந்தச் சாதனம் தவிர மற்ற அனைத்திலும் வெளியேற்றும். அடுத்த முறை உள்நுழைவு கேட்கப்படும்.',
+    signedOutOthers: {
+      one: '{n} சாதனத்தில் வெளியேற்றப்பட்டது.',
+      other: '{n} சாதனங்களில் வெளியேற்றப்பட்டது.',
+    },
+    onlyThisDevice: 'இந்தச் சாதனம் மட்டுமே உள்நுழைந்துள்ளது.',
+    historyNote: 'கடந்த மூன்று மாதங்கள் காட்டப்படுகின்றன.',
+    row: 'சாதனங்கள்',
+    rowHint: 'எங்கு உள்நுழைந்துள்ளீர்கள் என்பதைப் பார்க்கவும்',
+    gateTitle: 'மிக அதிக சாதனங்களில் உள்நுழைந்துள்ளது',
+    gateBody:
+      'இலவசத் திட்டத்தில் ஒரே நேரத்தில் இரண்டு சாதனங்கள் மட்டுமே; இந்தக் கணக்கு அதைத் தாண்டியுள்ளது. இந்தச் சாதனத்தில் பாக்கியைத் தொடர மற்றவற்றில் வெளியேறவும்.',
+    gateAction: 'மற்ற சாதனங்களில் வெளியேறு',
+    gateDismiss: 'இப்போது வேண்டாம்',
   },
   account: {
     faceYou: 'நீங்கள்',
@@ -2944,6 +3010,30 @@ const hi: UiStrings = {
     footnote:
       'यह स्क्रीन की रक्षा करता है, डेटा की नहीं — लॉक चालू हो या बंद, आपका हिसाब सर्वर पर रो-लेवल सुरक्षा से सुरक्षित है।',
   },
+  devices: {
+    title: 'डिवाइस',
+    intro:
+      'मुफ़्त प्लान में एक साथ दो डिवाइस चलते हैं। जो डिवाइस कुछ समय से नहीं खुला, वह अपने आप गिनती से हट जाता है।',
+    thisDevice: 'यह डिवाइस',
+    signedOut: 'साइन आउट',
+    lastActive: 'आख़िरी बार सक्रिय {when}',
+    signOutOthers: 'बाकी सभी डिवाइस से साइन आउट करें',
+    signOutOthersHint:
+      'इस डिवाइस को छोड़कर हर डिवाइस से साइन आउट कर देता है। अगली बार उन पर लॉगिन माँगा जाएगा।',
+    signedOutOthers: {
+      one: '{n} अन्य डिवाइस से साइन आउट किया।',
+      other: '{n} अन्य डिवाइसों से साइन आउट किया।',
+    },
+    onlyThisDevice: 'सिर्फ़ यही डिवाइस साइन इन है।',
+    historyNote: 'पिछले तीन महीने दिखाए जा रहे हैं।',
+    row: 'डिवाइस',
+    rowHint: 'देखें कि आप कहाँ-कहाँ साइन इन हैं',
+    gateTitle: 'बहुत ज़्यादा डिवाइस पर साइन इन',
+    gateBody:
+      'मुफ़्त प्लान में एक साथ दो डिवाइस चलते हैं, और यह अकाउंट उससे ऊपर है। इस डिवाइस पर बाकी इस्तेमाल करते रहने के लिए बाकियों से साइन आउट करें।',
+    gateAction: 'दूसरे डिवाइस से साइन आउट करें',
+    gateDismiss: 'अभी नहीं',
+  },
   account: {
     faceYou: 'आप',
     facePaying: 'भुगतान',
@@ -3841,6 +3931,34 @@ const ar: UiStrings = {
     staySignedIn: 'ابقَ مسجّل الدخول',
     footnote:
       'هذا يحمي الشاشة لا البيانات — دفترك محمي على الخادم بأمان على مستوى الصفوف سواء كان القفل مفعّلًا أم لا.',
+  },
+  devices: {
+    title: 'الأجهزة',
+    intro:
+      'الخطة المجانية تشمل جهازين في وقت واحد. الجهاز الذي لم تفتحه منذ فترة يتوقف عن العدّ من تلقاء نفسه.',
+    thisDevice: 'هذا الجهاز',
+    signedOut: 'تم تسجيل الخروج',
+    lastActive: 'آخر نشاط {when}',
+    signOutOthers: 'تسجيل الخروج من كل الأجهزة الأخرى',
+    signOutOthersHint:
+      'يُسجّل الخروج من كل جهاز عدا هذا الجهاز. ستُطلب منها تسجيل الدخول في المرة القادمة.',
+    signedOutOthers: {
+      zero: 'تم تسجيل الخروج من {n} جهاز آخر.',
+      one: 'تم تسجيل الخروج من جهاز آخر.',
+      two: 'تم تسجيل الخروج من جهازين آخرين.',
+      few: 'تم تسجيل الخروج من {n} أجهزة أخرى.',
+      many: 'تم تسجيل الخروج من {n} جهازًا آخر.',
+      other: 'تم تسجيل الخروج من {n} جهاز آخر.',
+    },
+    onlyThisDevice: 'هذا هو الجهاز الوحيد المسجّل الدخول.',
+    historyNote: 'يتم عرض آخر ثلاثة أشهر.',
+    row: 'الأجهزة',
+    rowHint: 'اطّلع على أماكن تسجيل دخولك',
+    gateTitle: 'مسجّل الدخول على أجهزة أكثر من اللازم',
+    gateBody:
+      'الخطة المجانية تشمل جهازين في وقت واحد، وهذا الحساب تجاوز ذلك. سجّل الخروج من الأجهزة الأخرى لمواصلة استخدام باقي على هذا الجهاز.',
+    gateAction: 'تسجيل الخروج من الأجهزة الأخرى',
+    gateDismiss: 'ليس الآن',
   },
   account: {
     faceYou: 'أنت',

@@ -159,6 +159,7 @@ model Profile {
   purchasedPasses   GroupPass[]
   syncMutations     SyncMutation[]
   memberClaims      MemberClaim[]
+  deviceSessions    DeviceSession[]
 
   @@map("profiles")
   @@schema("public")
@@ -970,6 +971,30 @@ model Subscription {
 
   @@index([profileId, status], map: "subscriptions_profile_idx")
   @@map("subscriptions")
+  @@schema("public")
+}
+
+/// One phone signed into one account. GoTrue tracks refresh tokens; this tracks
+/// the thing a person recognises — a labelled device with a last-seen — and is
+/// what the free-tier two-device cap counts. Written only by
+/// `baaki_register_device` / `baaki_sign_out_other_devices`; the client reads
+/// its own rows and never writes them.
+model DeviceSession {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId  String    @map("profile_id") @db.Uuid
+  deviceId   String    @map("device_id")
+  label      String    @default("This device")
+  platform   String    @default("unknown")
+  appVersion String?   @map("app_version")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, deviceId], map: "device_sessions_one_per_device")
+  @@index([profileId, lastSeenAt(sort: Desc)], map: "device_sessions_profile_seen_idx")
+  @@map("device_sessions")
   @@schema("public")
 }
 
