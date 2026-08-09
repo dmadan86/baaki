@@ -1,7 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-import { Nav } from '@/components/Nav';
 import { flagResults, flags, saveFlag, type FlagResultRow } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -57,8 +56,7 @@ export default async function Flags({
   return (
     <main>
       <header className="top">
-        <h1>Experiments</h1>
-        <Nav here="flags" />
+        <h1>Experiments</h1>{' '}
       </header>
 
       {error ? <p className="error">{error}</p> : null}

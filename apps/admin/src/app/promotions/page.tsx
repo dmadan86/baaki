@@ -1,7 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-import { Nav } from '@/components/Nav';
 import { createPromoCode, grantPromo, promoCodes } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -59,8 +58,7 @@ export default async function Promotions({
   return (
     <main>
       <header className="top">
-        <h1>Promotions</h1>
-        <Nav here="promotions" />
+        <h1>Promotions</h1>{' '}
       </header>
 
       {error ? <p className="error">{error}</p> : null}

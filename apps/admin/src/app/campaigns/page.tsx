@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 
 import { format, money, type CurrencyCode } from '@baaki/core';
 
-import { Nav } from '@/components/Nav';
 import {
   campaignFunnel,
   campaignRevenue,
@@ -107,8 +106,7 @@ export default async function Campaigns({
   return (
     <main>
       <header className="top">
-        <h1>Campaigns</h1>
-        <Nav here="campaigns" />
+        <h1>Campaigns</h1>{' '}
       </header>
 
       {error ? <p className="error">{error}</p> : null}

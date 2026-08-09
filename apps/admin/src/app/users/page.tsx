@@ -1,7 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-import { Nav } from '@/components/Nav';
 import { confirmUserEmail, searchUsers, upgradeUser, type AdminUserRow } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -67,8 +66,7 @@ export default async function Users({
   return (
     <main>
       <header className="top">
-        <h1>Users</h1>
-        <Nav here="users" />
+        <h1>Users</h1>{' '}
       </header>
 
       {error ? <p className="error">{error}</p> : null}
