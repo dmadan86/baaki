@@ -15,19 +15,19 @@
 import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { renderNotification } from '@baaki/core';
 import {
-  Card,
   directionalIcon,
   EmptyState,
   IconButton,
-  ListRow,
   Row,
   Screen,
   SectionHeader,
   Text,
+  TintCard,
+  tintForKey,
   useTheme,
 } from '@baaki/ui';
 
@@ -119,65 +119,74 @@ export default function InboxScreen() {
         ) : rows.length === 0 ? (
           <EmptyState title={t.nothingYet} body={t.inbox.nothingYetBody} />
         ) : (
-          <View>
+          <View style={{ gap: theme.spacing.md }}>
             <SectionHeader title={t.inbox.recent} />
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {rows.map((row, index) => {
-                const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
-                  title: row.title,
-                  body: row.body,
-                });
-                const unreadRow = row.read_at === null;
-                return (
-                  <View key={row.id}>
-                    <ListRow
-                      title={title}
-                      subtitle={body}
-                      onPress={
-                        row.group_id
-                          ? () => router.push(`/group/${row.group_id}` as never)
-                          : undefined
-                      }
-                      leading={
+            {rows.map((row) => {
+              const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
+                title: row.title,
+                body: row.body,
+              });
+              const unreadRow = row.read_at === null;
+              // Each notice is a card in a stable colour for its kind, so a run
+              // of the same kind reads as a run. A read one is dimmed; the icon
+              // sits in a white chip with the tint's ink.
+              const tint = tintForKey(row.kind);
+              const ink = theme.tint[tint].ink;
+              return (
+                <Pressable
+                  key={row.id}
+                  accessibilityRole={row.group_id ? 'button' : undefined}
+                  accessibilityLabel={title}
+                  onPress={
+                    row.group_id ? () => router.push(`/group/${row.group_id}` as never) : undefined
+                  }
+                  style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+                >
+                  <TintCard
+                    tint={tint}
+                    style={{
+                      borderRadius: theme.radius.lg,
+                      padding: theme.spacing.lg,
+                      opacity: unreadRow ? 1 : 0.7,
+                    }}
+                  >
+                    <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: theme.radius.pill,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: theme.color.surface,
+                        }}
+                      >
+                        <Ionicons name={ICONS[row.kind] ?? 'notifications'} size={18} color={ink} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="subheading" style={{ color: ink }}>
+                          {title}
+                        </Text>
+                        <Text variant="caption" style={{ color: ink, opacity: 0.75 }}>
+                          {body}
+                        </Text>
+                      </View>
+                      {unreadRow ? (
                         <View
                           style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: theme.radius.pill,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: unreadRow
-                              ? theme.color.brandSoft
-                              : theme.color.surfaceMuted,
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            marginTop: 6,
+                            backgroundColor: ink,
                           }}
-                        >
-                          <Ionicons
-                            name={ICONS[row.kind] ?? 'notifications'}
-                            size={18}
-                            color={unreadRow ? theme.color.brand : theme.color.textMuted}
-                          />
-                        </View>
-                      }
-                      trailing={
-                        unreadRow ? (
-                          <View
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 4,
-                              backgroundColor: theme.color.brand,
-                            }}
-                          />
-                        ) : null
-                      }
-                    />
-                    {index < rows.length - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </Card>
+                        />
+                      ) : null}
+                    </Row>
+                  </TintCard>
+                </Pressable>
+              );
+            })}
           </View>
         )}
 
