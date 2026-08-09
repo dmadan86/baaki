@@ -18,6 +18,7 @@ import {
   Screen,
   SectionHeader,
   Text,
+  TintCard,
   useTheme,
 } from '@baaki/ui';
 
@@ -57,6 +58,12 @@ export default function MemberScreen() {
   const ghost = isGhost(member);
   const vpaValid = vpa.trim() === '' || isValidVpa(vpa.trim());
   const balance = ledger.balances.get(member.id) ?? 0n;
+  // The hero wears the money colour for its meaning — mint when this person is
+  // owed, pink when they owe — and a neutral lilac when they are square, so a
+  // settled member is never painted a direction they are not in. Ink from the
+  // pair keeps the amount readable on the tint.
+  const heroTint = balance > 0n ? 'mint' : balance < 0n ? 'pink' : 'lilac';
+  const heroInk = theme.tint[heroTint].ink;
 
   // Expenses this person is actually part of.
   const involved = expenses.rows.filter((expense) =>
@@ -98,7 +105,15 @@ export default function MemberScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        <Card style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+        <TintCard
+          tint={heroTint}
+          style={{
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            borderRadius: theme.radius.xl,
+            padding: theme.spacing.xl,
+          }}
+        >
           <Avatar name={displayName(member)} ghost={ghost} size={78} />
           <MoneyText
             amount={balance}
@@ -106,6 +121,8 @@ export default function MemberScreen() {
             locale={locale}
             mode="balance"
             variant="title"
+            tone="default"
+            style={{ color: heroInk }}
           />
           <Row style={{ gap: theme.spacing.sm }}>
             {ghost ? <Badge label={t.notJoinedYet} /> : null}
@@ -115,7 +132,7 @@ export default function MemberScreen() {
           {balance !== 0n && !isMe ? (
             <Button label={t.settleUp} onPress={() => router.push(`/group/${groupId}/settle`)} />
           ) : null}
-        </Card>
+        </TintCard>
 
         {ghost ? (
           <Card style={{ gap: theme.spacing.md }}>
