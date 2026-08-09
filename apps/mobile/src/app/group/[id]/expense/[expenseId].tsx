@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 
+import { categoryOf } from '@baaki/core';
 import {
   Avatar,
   Badge,
@@ -16,6 +17,7 @@ import {
   Screen,
   SectionHeader,
   Text,
+  TintCard,
   useTheme,
 } from '@baaki/ui';
 
@@ -97,6 +99,11 @@ export default function ExpenseDetailScreen() {
 
   const currency = version.currency;
   const deleted = Boolean(expense.deleted_at);
+  // The hero wears the expense's category colour, not a money colour: this
+  // amount is a total that belongs to nobody, shown neutral. Ink from the same
+  // pair keeps it legible on the tint.
+  const heroTint = categoryOf(version.category).tint;
+  const heroInk = theme.tint[heroTint].ink;
 
   const me = (members.data ?? []).find((member) => member.profile_id === profile?.id);
   const mine = (disputes.data ?? []).filter((row) => row.expense_id === expense.id);
@@ -145,15 +152,24 @@ export default function ExpenseDetailScreen() {
           </IconButton>
         </Row>
 
-        <Card style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+        <TintCard
+          tint={heroTint}
+          style={{
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            borderRadius: theme.radius.xl,
+            padding: theme.spacing.xl,
+          }}
+        >
           <CategoryBadge category={version.category} size={48} />
           <MoneyText
             amount={BigInt(version.amount)}
             currency={currency}
             locale={locale}
             variant="display"
+            style={{ color: heroInk }}
           />
-          <Text variant="caption" tone="muted">
+          <Text variant="caption" style={{ color: heroInk, opacity: 0.8 }}>
             {`${fill(t.expense.paidByName, {
               name: nameOf(version.payers[0]?.member_id ?? null),
             })} · ${new Intl.DateTimeFormat(locale, {
@@ -169,7 +185,7 @@ export default function ExpenseDetailScreen() {
             ) : null}
             {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
           </Row>
-        </Card>
+        </TintCard>
 
         {/* A disagreement about money is worth more room than a badge. It sits
             directly under the amount, which is the thing being disagreed with. */}
