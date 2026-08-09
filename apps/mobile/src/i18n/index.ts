@@ -601,6 +601,14 @@ export interface UiStrings {
     deleteQuestion: string;
     deleteBody: string;
     deleted: string;
+    /** An expense nobody described, shown when it has no category to fall back on. */
+    untitled: string;
+    /** "Asha paid" under a row. The name comes first in English and may not elsewhere. */
+    paidByName: string;
+    /** "edited twice" — the count is edits, so it starts at one. */
+    editedTimes: PluralForms;
+    /** "In 4 expenses" over the list on a member. */
+    inCount: PluralForms;
     whoOwesWhat: string;
     history: string;
     restore: string;
@@ -1439,6 +1447,10 @@ const en: UiStrings = {
     deleteBody:
       'It stops counting towards balances but stays in the activity feed, and anyone in the group can restore it for 30 days.',
     deleted: 'deleted',
+    untitled: 'Untitled',
+    paidByName: '{name} paid',
+    editedTimes: { one: 'edited once', other: 'edited {n} times' },
+    inCount: { one: 'In {n} expense', other: 'In {n} expenses' },
     whoOwesWhat: 'Who owes what',
     history: 'History',
     restore: 'Restore this expense',
@@ -2334,6 +2346,10 @@ const ta: UiStrings = {
     deleteBody:
       'இது இருப்புக் கணக்கில் சேராது, ஆனால் செயல்பாட்டுப் பட்டியலில் இருக்கும், 30 நாட்களுக்குள் குழுவில் யார் வேண்டுமானாலும் மீட்கலாம்.',
     deleted: 'நீக்கப்பட்டது',
+    untitled: 'பெயரிடப்படாதது',
+    paidByName: '{name} கொடுத்தார்',
+    editedTimes: { one: 'ஒருமுறை திருத்தப்பட்டது', other: '{n} முறை திருத்தப்பட்டது' },
+    inCount: { one: '{n} செலவில்', other: '{n} செலவுகளில்' },
     whoOwesWhat: 'யார் என்ன தர வேண்டும்',
     history: 'வரலாறு',
     restore: 'இந்தச் செலவை மீட்டெடு',
@@ -3217,6 +3233,10 @@ const hi: UiStrings = {
     deleteBody:
       'यह हिसाब में गिनना बंद कर देगा पर गतिविधि में बना रहेगा, और समूह का कोई भी 30 दिन तक इसे वापस ला सकता है।',
     deleted: 'हटाया गया',
+    untitled: 'बिना नाम',
+    paidByName: '{name} ने भुगतान किया',
+    editedTimes: { one: 'एक बार संपादित', other: '{n} बार संपादित' },
+    inCount: { one: '{n} खर्च में', other: '{n} खर्चों में' },
     whoOwesWhat: 'किस पर क्या बाकी',
     history: 'इतिहास',
     restore: 'यह खर्च वापस लाएँ',
@@ -4121,6 +4141,24 @@ const ar: UiStrings = {
     deleteBody:
       'سيتوقف احتسابه في الأرصدة لكنه يبقى في سجل النشاط، ويمكن لأي عضو استرجاعه خلال 30 يومًا.',
     deleted: 'محذوف',
+    untitled: 'بلا عنوان',
+    paidByName: 'دفع {name}',
+    editedTimes: {
+      zero: 'لم يُعدّل',
+      one: 'عُدّل مرة واحدة',
+      two: 'عُدّل مرتين',
+      few: 'عُدّل {n} مرات',
+      many: 'عُدّل {n} مرة',
+      other: 'عُدّل {n} مرة',
+    },
+    inCount: {
+      zero: 'في {n} مصروف',
+      one: 'في مصروف واحد',
+      two: 'في مصروفين',
+      few: 'في {n} مصروفات',
+      many: 'في {n} مصروفًا',
+      other: 'في {n} مصروف',
+    },
     whoOwesWhat: 'من عليه ماذا',
     history: 'السجل',
     restore: 'استرجاع هذا المصروف',

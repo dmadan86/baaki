@@ -299,7 +299,11 @@ export default function AddExpenseScreen() {
       // is on disk, so the expense is saved whether or not there is a network.
       await mutate(expenseId ? 'expense.update' : 'expense.create', groupId, {
         expenseId: targetExpenseId,
-        description: description.trim() || 'Expense',
+        // Blank stays blank. Writing the English word "Expense" here made every
+        // undescribed row identical in the list, and put a word nobody typed
+        // into an append-only ledger, the CSV export and the notification text —
+        // in one language, for an app that speaks four.
+        description: description.trim(),
         category,
         expenseDate: new Date().toISOString().slice(0, 10),
         currency,

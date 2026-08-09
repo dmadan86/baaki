@@ -29,6 +29,7 @@ import {
 } from '@baaki/ui';
 
 import { toSnapshot, useGroup, useGroupLedger, useRecordSettlement } from '@/data/hooks';
+import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, isGhost, payableAt, type MemberRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -102,9 +103,10 @@ export default function SettleScreen() {
       ? allocateSettlement({ amount }, receivables)
       : { allocations: [], unallocated: amount };
 
-  const expenseTitle = (expenseId: string): string =>
-    expenses.rows.find((expense) => expense.id === expenseId)?.currentVersion?.description ??
-    'Expense';
+  const titleFor = (expenseId: string): string => {
+    const version = expenses.rows.find((expense) => expense.id === expenseId)?.currentVersion;
+    return expenseTitle(version?.description, version?.category, t);
+  };
 
   /**
    * Whether the button hands off to something before recording.
@@ -293,7 +295,7 @@ export default function SettleScreen() {
                 {allocation.allocations.map((entry) => (
                   <Row key={entry.expenseId} style={{ justifyContent: 'space-between' }}>
                     <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>
-                      {expenseTitle(entry.expenseId)}
+                      {titleFor(entry.expenseId)}
                     </Text>
                     <MoneyText
                       amount={entry.amount}

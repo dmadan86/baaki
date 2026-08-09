@@ -31,8 +31,9 @@ import {
   useOpenReceipts,
 } from '@/data/hooks';
 import { describeActivity, verbEmoji } from '@/data/activity';
+import { expenseTitle } from '@/data/expenseTitle';
 import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { CategoryBadge } from '@/components/Category';
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -135,7 +136,7 @@ export default function GroupScreen() {
                 {groupLabel(group.data, members.data ?? [], profile?.id)}
               </Text>
               <Text variant="micro" tone="muted">
-                {`${members.data?.length ?? 0} ${t.members}`}
+                {plural(locale, members.data?.length ?? 0, t.memberCount)}
               </Text>
             </View>
           </Row>
@@ -297,19 +298,24 @@ export default function GroupScreen() {
                 return (
                   <View key={expense.id}>
                     <ListRow
-                      title={`${version?.description ?? 'Expense'}${contested ? '  🚩' : ''}`}
-                      subtitle={`${nameOf(payer)} paid · ${
+                      title={`${expenseTitle(version?.description, version?.category, t)}${
+                        contested ? '  🚩' : ''
+                      }`}
+                      subtitle={[
+                        fill(t.expense.paidByName, { name: nameOf(payer) }),
                         version
                           ? new Intl.DateTimeFormat(locale, {
                               day: 'numeric',
                               month: 'short',
                             }).format(new Date(version.expense_date))
-                          : ''
-                      }${expense.deleted_at ? ' · deleted' : ''}${
+                          : null,
+                        expense.deleted_at ? t.expense.deleted : null,
                         (version?.version_no ?? 1) > 1
-                          ? ` · edited ×${version!.version_no - 1}`
-                          : ''
-                      }`}
+                          ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                       leading={<CategoryBadge category={version?.category} size={42} />}
                       onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
                       trailing={

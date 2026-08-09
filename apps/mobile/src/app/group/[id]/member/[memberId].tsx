@@ -22,8 +22,9 @@ import {
 } from '@baaki/ui';
 
 import { useGroup, useGroupLedger, useUpdateMember } from '@/data/hooks';
+import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function MemberScreen() {
@@ -191,7 +192,7 @@ export default function MemberScreen() {
         ) : null}
 
         <View>
-          <SectionHeader title={`In ${involved.length} expenses`} />
+          <SectionHeader title={plural(locale, involved.length, t.expense.inCount)} />
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             {involved.map((expense, index) => {
               const share = expense.currentVersion?.shares.find(
@@ -200,7 +201,11 @@ export default function MemberScreen() {
               return (
                 <View key={expense.id}>
                   <ListRow
-                    title={expense.currentVersion?.description ?? 'Expense'}
+                    title={expenseTitle(
+                      expense.currentVersion?.description,
+                      expense.currentVersion?.category,
+                      t,
+                    )}
                     subtitle={
                       expense.currentVersion
                         ? new Intl.DateTimeFormat(locale, {
