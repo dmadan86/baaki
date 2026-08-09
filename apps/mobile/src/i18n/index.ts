@@ -183,6 +183,8 @@ export interface UiStrings {
   bankOther: string;
   perExpense: string;
   members: string;
+  /** "3 members" under a group. `members` on its own is a heading, not a count. */
+  memberCount: PluralForms;
   notJoinedYet: string;
   scansLeft: string;
   simplifyOn: string;
@@ -1001,6 +1003,7 @@ const en: UiStrings = {
   bankOther: 'Bank / other',
   perExpense: 'Apply to specific expenses',
   members: 'Members',
+  memberCount: { one: '{n} member', other: '{n} members' },
   notJoinedYet: 'not joined yet',
   scansLeft: 'scans left',
   simplifyOn: 'Simplify on',
@@ -1886,6 +1889,7 @@ const ta: UiStrings = {
   bankOther: 'வங்கி / மற்றவை',
   perExpense: 'குறிப்பிட்ட செலவுகளுக்குப் பயன்படுத்து',
   members: 'உறுப்பினர்கள்',
+  memberCount: { one: '{n} உறுப்பினர்', other: '{n} உறுப்பினர்கள்' },
   notJoinedYet: 'இன்னும் சேரவில்லை',
   scansLeft: 'ஸ்கேன் மீதம்',
   simplifyOn: 'எளிமையாக்கல் இயக்கத்தில்',
@@ -2785,6 +2789,7 @@ const hi: UiStrings = {
   bankOther: 'बैंक / अन्य',
   perExpense: 'कुछ खास खर्चों पर लगाएँ',
   members: 'सदस्य',
+  memberCount: { one: '{n} सदस्य', other: '{n} सदस्य' },
   notJoinedYet: 'अभी शामिल नहीं हुए',
   scansLeft: 'स्कैन बाकी',
   simplifyOn: 'आसान करना चालू',
@@ -3657,6 +3662,14 @@ const ar: UiStrings = {
   bankOther: 'تحويل بنكي / غير ذلك',
   perExpense: 'تطبيق على مصروفات محددة',
   members: 'الأعضاء',
+  memberCount: {
+    zero: '{n} عضو',
+    one: 'عضو واحد',
+    two: 'عضوان',
+    few: '{n} أعضاء',
+    many: '{n} عضوًا',
+    other: '{n} عضو',
+  },
   notJoinedYet: 'لم ينضم بعد',
   scansLeft: 'عمليات مسح متبقية',
   simplifyOn: 'التبسيط مفعّل',

@@ -23,7 +23,7 @@ import {
 } from '@baaki/ui';
 
 import { useGroups, useHomeSummary } from '@/data/hooks';
-import { fill, useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { SyncBanner } from '@/components/SyncBanner';
 import { groupLabel } from '@/data/types';
@@ -39,6 +39,17 @@ export default function HomeScreen() {
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
+
+  /**
+   * The headline is one currency, because there is no such thing as a total
+   * across several (ADR-004). The rest are counted underneath rather than added
+   * in, which is what the profile screen already does with settled totals.
+   *
+   * With no groups there is nothing to be owed in, and the group currency the
+   * app defaults to is the one to show a zero in.
+   */
+  const headline = summary.totals[0] ?? { currency: 'INR', net: 0n, owed: 0n, owing: 0n };
+  const otherCurrencies = summary.totals.length - 1;
 
   /**
    * Which action is waiting to be told a group.
@@ -130,25 +141,31 @@ export default function HomeScreen() {
               {t.yourBaaki}
             </Text>
             <Text variant="micro" tone="onBrand" style={{ opacity: 0.8 }}>
-              {fill(t.acrossGroups, { count: list.length })}
+              {plural(locale, list.length, t.tabs.acrossGroups)}
             </Text>
           </Row>
 
           <View>
             <MoneyText
-              amount={summary.totals.net < 0n ? -summary.totals.net : summary.totals.net}
-              currency="INR"
+              amount={headline.net < 0n ? -headline.net : headline.net}
+              currency={headline.currency as never}
               locale={locale}
               tone="onBrand"
               style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
             />
             <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-              {summary.totals.net === 0n
+              {headline.net === 0n
                 ? t.allSettled
-                : summary.totals.net > 0n
+                : headline.net > 0n
                   ? t.overallOwed
                   : t.overallOwe}
             </Text>
+            {/* No rate turns rupees into euros, so the rest are counted, not added. */}
+            {otherCurrencies > 0 ? (
+              <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
+                {plural(locale, otherCurrencies, t.account.otherCurrencies)}
+              </Text>
+            ) : null}
           </View>
 
           <Row style={{ gap: theme.spacing.xxl }}>
@@ -157,8 +174,8 @@ export default function HomeScreen() {
                 {t.youAreOwed}
               </Text>
               <MoneyText
-                amount={summary.totals.owed}
-                currency="INR"
+                amount={headline.owed}
+                currency={headline.currency as never}
                 locale={locale}
                 tone="onBrand"
               />
@@ -168,8 +185,8 @@ export default function HomeScreen() {
                 {t.youOwe}
               </Text>
               <MoneyText
-                amount={summary.totals.owing}
-                currency="INR"
+                amount={headline.owing}
+                currency={headline.currency as never}
                 locale={locale}
                 tone="onBrand"
               />
@@ -260,7 +277,7 @@ export default function HomeScreen() {
                 <View key={group.id}>
                   <ListRow
                     title={groupLabel(group, summary.membersFor(group.id), profile?.id)}
-                    subtitle={`${summary.memberCountFor(group.id)} ${t.members}`}
+                    subtitle={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
                     leading={
                       <Avatar
                         name={groupLabel(group, summary.membersFor(group.id), profile?.id)}
