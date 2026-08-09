@@ -32,8 +32,9 @@ import {
   useRestoreExpense,
   useWithdrawDispute,
 } from '@/data/hooks';
+import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { useStrings, type UiStrings } from '@/i18n';
+import { fill, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 function splitLabels(t: UiStrings): Record<string, string> {
@@ -130,7 +131,7 @@ export default function ExpenseDetailScreen() {
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading" numberOfLines={1}>
-              {version.description}
+              {expenseTitle(version.description, version.category, t)}
             </Text>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [])}
@@ -153,14 +154,19 @@ export default function ExpenseDetailScreen() {
             variant="display"
           />
           <Text variant="caption" tone="muted">
-            {`${nameOf(version.payers[0]?.member_id ?? null)} paid · ${new Intl.DateTimeFormat(
-              locale,
-              { day: 'numeric', month: 'long', year: 'numeric' },
-            ).format(new Date(version.expense_date))}`}
+            {`${fill(t.expense.paidByName, {
+              name: nameOf(version.payers[0]?.member_id ?? null),
+            })} · ${new Intl.DateTimeFormat(locale, {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            }).format(new Date(version.expense_date))}`}
           </Text>
           <Row style={{ gap: theme.spacing.sm }}>
             <Badge label={splitLabels(t)[version.split_type] ?? version.split_type} tone="brand" />
-            {version.version_no > 1 ? <Badge label={`edited ${version.version_no - 1}×`} /> : null}
+            {version.version_no > 1 ? (
+              <Badge label={plural(locale, version.version_no - 1, t.expense.editedTimes)} />
+            ) : null}
             {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
           </Row>
         </Card>

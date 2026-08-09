@@ -24,7 +24,7 @@ import { CountryRow } from '@/components/CountryPicker';
 import { TripDates } from '@/components/TripDates';
 import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { groupLabel } from '@/data/types';
 
@@ -257,7 +257,7 @@ export default function GroupSettingsScreen() {
           <SectionHeader title={t.members} />
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             <ListRow
-              title={`${members.data?.length ?? 0} ${t.members}`}
+              title={plural(locale, members.data?.length ?? 0, t.memberCount)}
               subtitle={t.group.membersHint}
               leading={<Ionicons name="people-outline" size={22} color={theme.color.textMuted} />}
               onPress={() => router.push(`/group/${groupId}/members`)}
