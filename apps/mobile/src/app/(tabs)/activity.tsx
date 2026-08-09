@@ -1,19 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
-  Card,
   EmptyState,
   IconButton,
-  ListRow,
   MoneyText,
   Row,
   Screen,
   SectionHeader,
   Text,
+  TintCard,
+  tintForKey,
   useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
@@ -98,43 +98,58 @@ export default function ActivityScreen() {
                   month: 'short',
                 }).format(new Date(day))}
               />
-              <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-                {dayEntries.map((entry, index) => (
-                  <View key={entry.id}>
-                    <ListRow
-                      title={describeActivity(entry, myProfileId)}
-                      subtitle={`${entry.group?.name ?? t.tabs.group} · ${new Intl.DateTimeFormat(
-                        locale,
-                        {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        },
-                      ).format(new Date(entry.created_at))}`}
-                      leading={
-                        <Avatar
-                          name={entry.group?.name ?? t.tabs.group}
-                          emoji={entry.group?.cover_emoji ?? undefined}
-                          size={40}
-                        />
-                      }
+              <View style={{ gap: theme.spacing.md }}>
+                {dayEntries.map((entry) => {
+                  // The entry wears its group's colour, tying the feed back to
+                  // the group cards on home. The amount is a recorded figure,
+                  // not a balance, so it is neutral in the tint's ink.
+                  const tint = tintForKey(entry.group_id);
+                  const ink = theme.tint[tint].ink;
+                  return (
+                    <Pressable
+                      key={entry.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={describeActivity(entry, myProfileId)}
                       onPress={() => router.push(`/group/${entry.group_id}`)}
-                      trailing={
-                        typeof entry.payload.amount === 'string' ? (
-                          <MoneyText
-                            amount={BigInt(entry.payload.amount)}
-                            currency={(entry.payload.currency as string) ?? 'INR'}
-                            locale={locale}
-                            variant="subheading"
+                      style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+                    >
+                      <TintCard
+                        tint={tint}
+                        style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}
+                      >
+                        <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
+                          <Avatar
+                            name={entry.group?.name ?? t.tabs.group}
+                            emoji={entry.group?.cover_emoji ?? undefined}
+                            size={40}
                           />
-                        ) : null
-                      }
-                    />
-                    {index < dayEntries.length - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
-                ))}
-              </Card>
+                          <View style={{ flex: 1 }}>
+                            <Text variant="subheading" style={{ color: ink }}>
+                              {describeActivity(entry, myProfileId)}
+                            </Text>
+                            <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
+                              {`${entry.group?.name ?? t.tabs.group} · ${new Intl.DateTimeFormat(
+                                locale,
+                                { hour: 'numeric', minute: '2-digit' },
+                              ).format(new Date(entry.created_at))}`}
+                            </Text>
+                          </View>
+                          {typeof entry.payload.amount === 'string' ? (
+                            <MoneyText
+                              amount={BigInt(entry.payload.amount)}
+                              currency={(entry.payload.currency as string) ?? 'INR'}
+                              locale={locale}
+                              variant="subheading"
+                              tone="default"
+                              style={{ color: ink }}
+                            />
+                          ) : null}
+                        </Row>
+                      </TintCard>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
           ))
         )}
