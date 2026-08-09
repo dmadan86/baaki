@@ -1,18 +1,24 @@
 import Link from 'next/link';
 
-/** Five pages so far. A row of links is the right amount of navigation for that. */
+/** A row of links is the right amount of navigation for a console this size. */
 export function Nav({
   here,
 }: {
-  here: 'overview' | 'flags' | 'promotions' | 'campaigns' | 'feedback';
+  here: 'overview' | 'users' | 'flags' | 'rate-limits' | 'promotions' | 'campaigns' | 'feedback';
 }) {
   return (
     <nav className="nav">
       <Link href="/" aria-current={here === 'overview' ? 'page' : undefined}>
         Overview
       </Link>
+      <Link href="/users" aria-current={here === 'users' ? 'page' : undefined}>
+        Users
+      </Link>
       <Link href="/flags" aria-current={here === 'flags' ? 'page' : undefined}>
         Experiments
+      </Link>
+      <Link href="/rate-limits" aria-current={here === 'rate-limits' ? 'page' : undefined}>
+        Rate limits
       </Link>
       <Link href="/promotions" aria-current={here === 'promotions' ? 'page' : undefined}>
         Promotions
