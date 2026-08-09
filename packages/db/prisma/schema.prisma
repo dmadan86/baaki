@@ -1052,3 +1052,28 @@ model RateLimitHit {
   @@map("rate_limit_hits")
   @@schema("public")
 }
+
+/// Admin-editable overrides for the abuse limiter. A row per bucket overrides
+/// the code default in `_shared/rateLimit.ts`; a bucket with no row is limited
+/// exactly as the code says. `baaki_rate_limit` reads this on every call.
+model RateLimitRule {
+  bucket        String   @id
+  enabled       Boolean  @default(true)
+  maxCalls      Int      @map("max_calls")
+  windowSeconds Int      @map("window_seconds")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("rate_limit_rules")
+  @@schema("public")
+}
+
+/// The master switch, pinned to a single row. Off exempts every bucket at once
+/// — the escape hatch for replaying a stuck queue during an incident.
+model RateLimitSetting {
+  id        Boolean  @id @default(true)
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("rate_limit_settings")
+  @@schema("public")
+}

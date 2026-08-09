@@ -392,6 +392,173 @@ export const feedback = (limit = 100) =>
 export const flagResults = (key: string) =>
   call<FlagResultRow>('baaki_admin_flag_results', { p_key: key });
 
+// ─────────────────────────────────────────────────── rate limiting ──
+// The abuse limiter's numbers, made editable. `baaki_rate_limit` reads these
+// tables on every call; a bucket with no row falls back to the code default in
+// `_shared/rateLimit.ts`, and the master switch exempts everything at once.
+
+export interface RateLimitRuleRow {
+  bucket: string;
+  enabled: boolean;
+  max_calls: number;
+  window_seconds: number;
+  updated_at: string;
+}
+
+/** The master switch. Defaults to on if the table is not deployed yet. */
+export async function rateLimitEnabled(): Promise<boolean> {
+  await requireSession();
+  const { data, error } = await client()
+    .from('rate_limit_settings')
+    .select('enabled')
+    .eq('id', true)
+    .maybeSingle();
+  if (error) {
+    if (error.code === TABLE_MISSING) return true;
+    throw new Error(`reading rate_limit_settings failed: ${error.message}`);
+  }
+  return data?.enabled ?? true;
+}
+
+export async function rateLimitRules(): Promise<RateLimitRuleRow[]> {
+  await requireSession();
+  const { data, error } = await client()
+    .from('rate_limit_rules')
+    .select('bucket, enabled, max_calls, window_seconds, updated_at')
+    .order('bucket');
+  if (error) {
+    if (error.code === TABLE_MISSING) return [];
+    throw new Error(`reading rate_limit_rules failed: ${error.message}`);
+  }
+  return (data ?? []) as RateLimitRuleRow[];
+}
+
+export async function setRateLimitEnabled(enabled: boolean): Promise<void> {
+  await requireSession();
+  const { error } = await client()
+    .from('rate_limit_settings')
+    .update({ enabled, updated_at: new Date().toISOString() })
+    .eq('id', true);
+  if (error) throw new Error(`saving the master switch failed: ${error.message}`);
+}
+
+export async function saveRateLimitRule(input: {
+  bucket: string;
+  enabled: boolean;
+  maxCalls: number;
+  windowSeconds: number;
+}): Promise<void> {
+  await requireSession();
+
+  const bucket = input.bucket.trim();
+  if (!bucket) throw new Error('A rule needs a bucket name.');
+  if (!Number.isInteger(input.maxCalls) || input.maxCalls < 0) {
+    throw new Error('Max calls is a whole number, zero or more.');
+  }
+  if (!Number.isInteger(input.windowSeconds) || input.windowSeconds < 1) {
+    throw new Error('The window is a whole number of seconds, at least one.');
+  }
+
+  const { error } = await client().from('rate_limit_rules').upsert(
+    {
+      bucket,
+      enabled: input.enabled,
+      max_calls: input.maxCalls,
+      window_seconds: input.windowSeconds,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'bucket' },
+  );
+  if (error) throw new Error(`saving ${bucket} failed: ${error.message}`);
+}
+
+// ─────────────────────────────────────────────────────── user admin ──
+// The one place the console reaches into `auth`. Supabase owns that schema and
+// grants it to nobody, so these go through the GoTrue admin API on the service
+// client rather than a SQL read — searching, confirming an address by hand, and
+// comping a paid grant for one named account.
+
+export interface AdminUserRow {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  email_confirmed: boolean;
+  is_anonymous: boolean;
+  created_at: string;
+  last_sign_in_at: string | null;
+  display_name: string | null;
+}
+
+/**
+ * Find a handful of accounts matching a typed fragment.
+ *
+ * GoTrue has no server-side search, so this pages through the directory and
+ * filters here. Fine at the scale a support console works at; capped so a large
+ * project cannot turn one lookup into a walk of every user.
+ */
+export async function searchUsers(query: string): Promise<AdminUserRow[]> {
+  await requireSession();
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+
+  const matches: AdminUserRow[] = [];
+  for (let page = 1; page <= 10 && matches.length < 25; page += 1) {
+    const { data, error } = await client().auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error(`listing users failed: ${error.message}`);
+    for (const u of data.users) {
+      const hay = `${u.email ?? ''} ${u.phone ?? ''} ${u.id}`.toLowerCase();
+      if (hay.includes(q)) {
+        matches.push({
+          id: u.id,
+          email: u.email ?? null,
+          phone: u.phone ?? null,
+          email_confirmed: Boolean(u.email_confirmed_at),
+          is_anonymous: (u as { is_anonymous?: boolean }).is_anonymous ?? false,
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at ?? null,
+          display_name: null,
+        });
+      }
+      if (matches.length >= 25) break;
+    }
+    if (data.users.length < 200) break;
+  }
+
+  // Names live in `profiles`, keyed by the same id. One round trip fills them.
+  if (matches.length > 0) {
+    const { data: profiles } = await client()
+      .from('profiles')
+      .select('id, display_name')
+      .in(
+        'id',
+        matches.map((m) => m.id),
+      );
+    const names = new Map((profiles ?? []).map((p) => [p.id, p.display_name as string]));
+    for (const row of matches) row.display_name = names.get(row.id) ?? null;
+  }
+
+  return matches;
+}
+
+/** Mark an address confirmed by hand — the OTP a person never received. */
+export async function confirmUserEmail(userId: string): Promise<void> {
+  await requireSession();
+  if (!/^[0-9a-f-]{36}$/i.test(userId.trim())) throw new Error('That is not a user id.');
+  const { error } = await client().auth.admin.updateUserById(userId.trim(), {
+    email_confirm: true,
+  });
+  if (error) throw new Error(`confirming failed: ${error.message}`);
+}
+
+/**
+ * Comp a paid grant for one account. The same SECURITY DEFINER path the
+ * promotions page uses, keyed on the profile and the day so pressing it twice
+ * in one conversation is the same grant rather than two.
+ */
+export async function upgradeUser(userId: string, days: number): Promise<string> {
+  return grantPromo(userId, days);
+}
+
 export const daily = (days = 30) => call<DailyRow>('baaki_admin_daily', { p_days: days });
 export const geo = () => call<GeoRow>('baaki_admin_geo');
 export const money = () => call<MoneyRow>('baaki_admin_money');
