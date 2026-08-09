@@ -34,7 +34,7 @@ import {
   View,
 } from 'react-native';
 
-import { Button, Card, Chip, CurvedPanel, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Button, Card, CurvedPanel, Screen, SegmentedTabs, Text, useTheme } from '@baaki/ui';
 
 import { AppleSignInButton } from '@/components/AppleSignInButton';
 import { LanguagePicker } from '@/components/LanguagePicker';
@@ -267,24 +267,21 @@ export default function SignInScreen() {
             <LanguagePicker />
 
             <Card style={{ gap: theme.spacing.lg }}>
-              <Row style={{ gap: theme.spacing.sm }}>
-                <Chip
-                  label={t.signIn.sendMeACode}
-                  selected={mode === 'otp'}
-                  onPress={() => {
-                    setMode('otp');
-                    setError(null);
-                  }}
-                />
-                <Chip
-                  label={t.signIn.useAPassword}
-                  selected={mode === 'password'}
-                  onPress={() => {
-                    setMode('password');
-                    setError(null);
-                  }}
-                />
-              </Row>
+              {/* Two ways in, named for what they ask for. The password face
+                  says "email" out loud: somebody looking for an email field
+                  should not have to guess it lives behind a tab about
+                  passwords. */}
+              <SegmentedTabs<Mode>
+                value={mode}
+                onChange={(next) => {
+                  setMode(next);
+                  setError(null);
+                }}
+                tabs={[
+                  { value: 'otp', label: t.signIn.sendMeACode },
+                  { value: 'password', label: t.signIn.useAPassword },
+                ]}
+              />
 
               {mode === 'otp' && stage === 'phone' ? (
                 <>

@@ -1286,7 +1286,7 @@ const en: UiStrings = {
     guestAddWay: 'Add a way to sign in, so this account is still yours on your next phone.',
     signInHowever: 'Sign in however you set it up.',
     sendMeACode: 'Send me a code',
-    useAPassword: 'Use a password',
+    useAPassword: 'Email or password',
     phoneNumber: 'Phone number',
     countryCodeHint:
       'Start with your country code. Baaki never assumes +91 — a trip is exactly when foreign numbers turn up.',
@@ -2183,7 +2183,7 @@ const ta: UiStrings = {
       'உள்நுழைய ஒரு வழியைச் சேர்க்கவும், அடுத்த ஃபோனிலும் இந்தக் கணக்கு உங்களுடையதாக இருக்கும்.',
     signInHowever: 'நீங்கள் அமைத்த முறையில் உள்நுழையவும்.',
     sendMeACode: 'எனக்கு ஒரு குறியீடு அனுப்பு',
-    useAPassword: 'கடவுச்சொல்லைப் பயன்படுத்து',
+    useAPassword: 'மின்னஞ்சல் அல்லது கடவுச்சொல்',
     phoneNumber: 'தொலைபேசி எண்',
     countryCodeHint:
       'நாட்டுக் குறியீட்டுடன் தொடங்குங்கள். பாக்கி +91 என்று ஊகிப்பதே இல்லை — வெளிநாட்டு எண்கள் வருவது பயணத்தின்போதுதான்.',
@@ -3077,7 +3077,7 @@ const hi: UiStrings = {
     guestAddWay: 'साइन इन का कोई तरीका जोड़ें, ताकि अगले फ़ोन पर भी यह खाता आपका ही रहे।',
     signInHowever: 'जैसे सेट किया था वैसे साइन इन करें।',
     sendMeACode: 'मुझे कोड भेजें',
-    useAPassword: 'पासवर्ड इस्तेमाल करें',
+    useAPassword: 'ईमेल या पासवर्ड',
     phoneNumber: 'फ़ोन नंबर',
     countryCodeHint:
       'देश कोड से शुरू करें। बाकी +91 कभी नहीं मान लेता — विदेशी नंबर सफ़र में ही तो आते हैं।',
@@ -3977,7 +3977,7 @@ const ar: UiStrings = {
     guestAddWay: 'أضف طريقة لتسجيل الدخول، ليبقى هذا الحساب لك على هاتفك التالي.',
     signInHowever: 'سجّل الدخول بالطريقة التي أعددتها.',
     sendMeACode: 'أرسل لي رمزًا',
-    useAPassword: 'استخدم كلمة مرور',
+    useAPassword: 'البريد الإلكتروني أو كلمة المرور',
     phoneNumber: 'رقم الهاتف',
     countryCodeHint:
       'ابدأ برمز بلدك. لا يفترض باقي أبدًا رمزًا بعينه — فالأرقام الأجنبية تظهر في السفر تحديدًا.',
