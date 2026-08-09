@@ -540,6 +540,58 @@ export async function searchUsers(query: string): Promise<AdminUserRow[]> {
   return matches;
 }
 
+export interface AdminUserListRow {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  email_confirmed: boolean;
+  is_anonymous: boolean;
+  created_at: string;
+  last_sign_in_at: string | null;
+  display_name: string | null;
+  country_code: string | null;
+  is_plus: boolean;
+  device_count: number;
+  app_version: string | null;
+  platform: string | null;
+}
+
+export interface AdminUserList {
+  total: number;
+  rows: AdminUserListRow[];
+}
+
+/**
+ * A page of the signup directory, filtered and sorted in SQL.
+ *
+ * Unlike `searchUsers`, which walks the GoTrue directory in Node because that
+ * is all the admin API offers, this goes through `baaki_admin_users` — a
+ * SECURITY DEFINER function that can read `auth.users` and join it to profiles,
+ * subscriptions and device_sessions in one query. That is what lets it filter
+ * by name or country and return a real total for pagination. A missing function
+ * (first run before the migration is deployed) degrades to an empty page.
+ */
+export async function listUsers(params: {
+  limit: number;
+  offset: number;
+  namePrefix?: string;
+  country?: string;
+}): Promise<AdminUserList> {
+  await requireSession();
+  const { data, error } = await client().rpc('baaki_admin_users', {
+    p_limit: params.limit,
+    p_offset: params.offset,
+    p_name_prefix: params.namePrefix?.trim() || null,
+    p_country: params.country?.trim() || null,
+  });
+  if (error) {
+    if (error.code === FUNCTION_MISSING) return { total: 0, rows: [] };
+    throw new Error(`baaki_admin_users failed: ${error.message}`);
+  }
+  const payload = (data ?? {}) as { total?: number | string; rows?: AdminUserListRow[] };
+  return { total: Number(payload.total ?? 0), rows: payload.rows ?? [] };
+}
+
 /** Mark an address confirmed by hand — the OTP a person never received. */
 export async function confirmUserEmail(userId: string): Promise<void> {
   await requireSession();
