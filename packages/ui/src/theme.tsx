@@ -22,6 +22,8 @@ export interface Theme {
     readonly brandPressed: string;
     readonly brandSoft: string;
     readonly onBrand: string;
+    /** The bar a skeleton placeholder is painted in — a shade off the surface it sits on. */
+    readonly skeleton: string;
     /** Semantic money colours — see tokens.ts. */
     readonly positive: string;
     readonly positiveSoft: string;
@@ -72,6 +74,7 @@ const lightTheme: Theme = {
     brandPressed: palette.brand600,
     brandSoft: palette.brand100,
     onBrand: palette.white,
+    skeleton: palette.ink200,
     positive: palette.positive,
     positiveSoft: palette.mint,
     negative: palette.negative,
@@ -100,6 +103,7 @@ const darkTheme: Theme = {
     brandPressed: palette.brand500,
     brandSoft: '#2A2455',
     onBrand: palette.white,
+    skeleton: palette.night600,
     positive: '#34D399',
     positiveSoft: '#123F36',
     negative: '#FF7B72',

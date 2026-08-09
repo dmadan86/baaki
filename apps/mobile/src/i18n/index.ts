@@ -240,6 +240,8 @@ export interface UiStrings {
    */
   common: {
     back: string;
+    /** Generic 'Loading…' — the spoken label a skeleton screen carries. */
+    loading: string;
     close: string;
     cancel: string;
     save: string;
@@ -1054,6 +1056,7 @@ const en: UiStrings = {
   upgrade: 'Upgrade',
   common: {
     back: 'Back',
+    loading: 'Loading…',
     close: 'Close',
     cancel: 'Cancel',
     save: 'Save',
@@ -1945,6 +1948,7 @@ const ta: UiStrings = {
   upgrade: 'மேம்படுத்தல்',
   common: {
     back: 'பின்',
+    loading: 'ஏற்றுகிறது…',
     close: 'மூடு',
     cancel: 'ரத்து',
     save: 'சேமி',
@@ -2848,6 +2852,7 @@ const hi: UiStrings = {
   upgrade: 'अपग्रेड',
   common: {
     back: 'वापस',
+    loading: 'लोड हो रहा है…',
     close: 'बंद करें',
     cancel: 'रद्द करें',
     save: 'सेव करें',
@@ -3732,6 +3737,7 @@ const ar: UiStrings = {
   upgrade: 'الترقية',
   common: {
     back: 'رجوع',
+    loading: 'جارٍ التحميل…',
     close: 'إغلاق',
     cancel: 'إلغاء',
     save: 'حفظ',

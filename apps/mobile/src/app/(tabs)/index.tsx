@@ -26,6 +26,7 @@ import { useGroups, useHomeSummary } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { SyncBanner } from '@/components/SyncBanner';
+import { SkeletonList } from '@/components/Skeletons';
 import { groupLabel } from '@/data/types';
 
 export default function HomeScreen() {
@@ -251,11 +252,7 @@ export default function HomeScreen() {
         ) : null}
 
         {loading ? (
-          <Card>
-            <Text variant="caption" tone="muted">
-              {t.tabs.loadingGroups}
-            </Text>
-          </Card>
+          <SkeletonList rows={3} />
         ) : list.length === 0 ? (
           <EmptyState
             title={t.tabs.noGroups}

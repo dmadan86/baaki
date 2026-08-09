@@ -32,6 +32,7 @@ import {
 } from '@baaki/ui';
 
 import { useMarkNotificationsRead, useNotifications } from '@/data/hooks';
+import { SkeletonList } from '@/components/Skeletons';
 import type { NotificationRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 
@@ -107,7 +108,15 @@ export default function InboxScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        {rows.length === 0 ? (
+        {notifications.isLoading ? (
+          // Until the fetch answers, `rows` is empty — which is not the same as
+          // "you have no notifications". Showing the empty state here told people
+          // their inbox was empty while it was still loading.
+          <View style={{ gap: theme.spacing.md }}>
+            <SectionHeader title={t.inbox.recent} />
+            <SkeletonList rows={5} trailing={false} />
+          </View>
+        ) : rows.length === 0 ? (
           <EmptyState title={t.nothingYet} body={t.inbox.nothingYetBody} />
         ) : (
           <View>

@@ -32,6 +32,7 @@ import {
 } from '@/data/hooks';
 import { describeActivity, verbEmoji } from '@/data/activity';
 import { expenseTitle } from '@/data/expenseTitle';
+import { GroupSkeleton } from '@/components/Skeletons';
 import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -70,15 +71,7 @@ export default function GroupScreen() {
   };
 
   if (group.isLoading) {
-    return (
-      <Screen>
-        <View style={{ padding: theme.spacing.xl }}>
-          <Text variant="caption" tone="muted">
-            {t.group.loading}
-          </Text>
-        </View>
-      </Screen>
-    );
+    return <GroupSkeleton />;
   }
 
   if (group.isError || !group.data) {

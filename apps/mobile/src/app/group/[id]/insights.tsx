@@ -21,7 +21,7 @@
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { categoryOf, format, type CategoryId } from '@baaki/core';
 import {
@@ -43,6 +43,7 @@ import {
 } from '@baaki/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { InsightsSkeleton } from '@/components/Skeletons';
 import type { SpendingRow } from '@/data/api';
 import { useGroup, useGroupSpending } from '@/data/hooks';
 import { useStrings } from '@/i18n';
@@ -124,7 +125,7 @@ export default function InsightsScreen() {
         />
 
         {loading ? (
-          <ActivityIndicator color={theme.color.brand} />
+          <InsightsSkeleton />
         ) : currencies.length === 0 ? (
           <EmptyState title={t.nothingYet} body={t.nothingToChart} />
         ) : (
