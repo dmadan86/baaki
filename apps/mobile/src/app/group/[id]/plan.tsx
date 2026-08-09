@@ -16,7 +16,7 @@
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   budgetVariance,
@@ -40,6 +40,7 @@ import {
 
 import { addPlanItem, removePlanItem, setPlanItemDone } from '@/data/api';
 import { usePlanItems, useGroup } from '@/data/hooks';
+import { ListScreenSkeleton } from '@/components/Skeletons';
 import { useStrings } from '@/i18n';
 
 /** Today where the trip is, not where the server is. */
@@ -155,13 +156,7 @@ export default function PlanScreen() {
   };
 
   if (group.isLoading || plan.isLoading) {
-    return (
-      <Screen>
-        <View style={{ padding: theme.spacing.xl }}>
-          <ActivityIndicator color={theme.color.brand} />
-        </View>
-      </Screen>
-    );
+    return <ListScreenSkeleton rows={5} trailing={false} />;
   }
 
   return (
