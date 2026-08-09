@@ -5,7 +5,6 @@ import { RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
-  Badge,
   Button,
   Card,
   EmptyState,
@@ -27,7 +26,8 @@ import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
-import { groupLabel } from '@/data/types';
+import { GroupCard } from '@/components/GroupCard';
+import { displayName, groupLabel } from '@/data/types';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -269,40 +269,36 @@ export default function HomeScreen() {
                 </Text>
               }
             />
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {list.map((group, index) => (
-                <View key={group.id}>
-                  <ListRow
-                    title={groupLabel(group, summary.membersFor(group.id), profile?.id)}
-                    subtitle={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
-                    leading={
-                      <Avatar
-                        name={groupLabel(group, summary.membersFor(group.id), profile?.id)}
-                        emoji={group.cover_emoji ?? undefined}
-                        tint={tintForKey(group.id)}
-                      />
+            <View style={{ gap: theme.spacing.lg }}>
+              {list.map((group) => {
+                const members = summary.membersFor(group.id);
+                const balance = summary.balanceFor(group.id);
+                // The other people in the group, for the avatar cluster — your
+                // own face is the one at the top of the screen already.
+                const others = members
+                  .filter((member) => !member.left_at)
+                  .filter((member) => !(member.profile_id && member.profile_id === profile?.id))
+                  .map((member) => displayName(member, profile?.id));
+                return (
+                  <GroupCard
+                    key={group.id}
+                    id={group.id}
+                    title={groupLabel(group, members, profile?.id)}
+                    memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
+                    memberNames={others}
+                    coverEmoji={group.cover_emoji}
+                    balance={balance}
+                    currency={group.default_currency}
+                    locale={locale}
+                    statusLabel={
+                      balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe
                     }
+                    pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
                     onPress={() => router.push(`/group/${group.id}`)}
-                    trailing={
-                      <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                        <MoneyText
-                          amount={summary.balanceFor(group.id)}
-                          currency={group.default_currency}
-                          locale={locale}
-                          mode="balance"
-                        />
-                        {summary.hasPending(group.id) ? (
-                          <Badge label={t.pendingConfirmation} tone="brand" />
-                        ) : null}
-                      </View>
-                    }
                   />
-                  {index < list.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
-                </View>
-              ))}
-            </Card>
+                );
+              })}
+            </View>
           </View>
         )}
       </ScrollView>
