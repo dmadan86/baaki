@@ -17,7 +17,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 
-import { COUNTRIES, countryName, railsFor } from '@baaki/core';
+import { COUNTRIES, countryFlag, countryName, railsFor } from '@baaki/core';
 import { Button, Card, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
@@ -43,6 +43,8 @@ export function CountryRow({
     <>
       <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
         <ListRow
+          // A globe stands in for "no country set", where a flag would be a lie.
+          leading={<Text style={{ fontSize: 26 }}>{countryFlag(countryCode) ?? '🌐'}</Text>}
           title={t.pickers.country}
           subtitle={t.pickers.settlesWith
             .replace(
@@ -78,6 +80,7 @@ export function CountryRow({
             showsVerticalScrollIndicator={false}
           >
             <Choice
+              flag="🌐"
               label={t.pickers.notSet}
               hint={t.pickers.notSetRails}
               selected={countryCode === null}
@@ -89,6 +92,7 @@ export function CountryRow({
             {COUNTRIES.map((country) => (
               <Choice
                 key={country.code}
+                flag={countryFlag(country.code) ?? '🌐'}
                 label={country.name}
                 hint={railsFor(country.code)
                   .slice(0, 3)
@@ -118,11 +122,13 @@ export function CountryRow({
 }
 
 function Choice({
+  flag,
   label,
   hint,
   selected,
   onPress,
 }: {
+  flag: string;
   label: string;
   hint: string;
   selected: boolean;
@@ -141,8 +147,9 @@ function Choice({
         backgroundColor: selected ? theme.color.brandSoft : theme.color.surface,
       }}
     >
-      <Row style={{ justifyContent: 'space-between' }}>
-        <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
+      <Row style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
+        <Text style={{ fontSize: 26 }}>{flag}</Text>
+        <View style={{ flex: 1 }}>
           <Text variant="subheading">{label}</Text>
           <Text variant="micro" tone="muted">
             {hint}

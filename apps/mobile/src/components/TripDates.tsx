@@ -23,7 +23,20 @@ import { Button, Card, Row, Text, Toggle, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
-import type { GroupRow } from '@/data/types';
+/**
+ * Only the fields this card reads and writes — not a whole `GroupRow`. A saved
+ * group satisfies it structurally, and so does the local state of a group being
+ * created, which is what lets the create screen reuse this editor before there
+ * is a group to point at.
+ */
+export interface TripDatesValue {
+  start_date: string | null;
+  end_date: string | null;
+  time_zone: string;
+  remind_daily: boolean;
+  remind_morning_at: string;
+  remind_evening_at: string;
+}
 
 type Field = 'start' | 'end' | 'morning' | 'evening';
 
@@ -110,13 +123,17 @@ export function TripDates({
   locale,
   onChange,
 }: {
-  group: GroupRow;
+  group: TripDatesValue;
   locale: string;
   onChange: (patch: TripDatesPatch) => void;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
   const [editing, setEditing] = useState<Field | null>(null);
+  // The why-does-this-exist paragraph is long, and once you have read it once
+  // you do not need it every time you open settings. Folded behind the info
+  // icon by default; the dates themselves stay in view.
+  const [showInfo, setShowInfo] = useState(false);
 
   const hasDates = Boolean(group.start_date && group.end_date);
 
@@ -152,12 +169,30 @@ export function TripDates({
   return (
     <Card style={{ gap: theme.spacing.lg }}>
       <View style={{ gap: theme.spacing.xs }}>
-        <Text variant="subheading">Trip dates</Text>
-        <Text variant="caption" tone="muted">
-          While the trip is on, everybody gets a nudge to add what they spent — at breakfast about
-          yesterday, and at the end of the day about today. Nobody is asked about a day they have
-          already added to.
-        </Text>
+        <Row style={{ justifyContent: 'space-between', gap: theme.spacing.sm }}>
+          <Text variant="subheading">Trip dates</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showInfo }}
+            accessibilityLabel="About trip dates"
+            hitSlop={8}
+            onPress={() => setShowInfo((open) => !open)}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Ionicons
+              name={showInfo ? 'information-circle' : 'information-circle-outline'}
+              size={20}
+              color={showInfo ? theme.color.brand : theme.color.textFaint}
+            />
+          </Pressable>
+        </Row>
+        {showInfo ? (
+          <Text variant="caption" tone="muted">
+            While the trip is on, everybody gets a nudge to add what they spent — at breakfast about
+            yesterday, and at the end of the day about today. Nobody is asked about a day they have
+            already added to.
+          </Text>
+        ) : null}
       </View>
 
       <Row style={{ gap: theme.spacing.lg }}>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, ScrollView, TextInput, View } from 'react-native';
 
 import {
   Button,
@@ -21,14 +21,13 @@ import {
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { pickGroupPhoto } from '@/lib/image';
 import { CountryRow } from '@/components/CountryPicker';
+import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { TripDates } from '@/components/TripDates';
 import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { groupLabel } from '@/data/types';
-
-const EMOJI = ['🏖️', '🏠', '💜', '🎉', '✈️', '🍽️', '⛰️', '🎓', '👥'];
 
 export default function GroupSettingsScreen() {
   const theme = useTheme();
@@ -167,7 +166,10 @@ export default function GroupSettingsScreen() {
             </View>
           </Row>
 
-          <Row style={{ gap: theme.spacing.sm }}>
+          {/* The cover is set two ways from here: the photo by tapping the
+              picture above, and the icon by the picker — which now opens a wide,
+              scrollable set instead of a fixed nine crammed into the card. */}
+          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
             <Button
               label={t.group.saveName}
               size="sm"
@@ -182,6 +184,10 @@ export default function GroupSettingsScreen() {
                 )
               }
             />
+            <CoverEmojiPicker
+              value={group.data.cover_emoji}
+              onChange={(emoji) => updateGroup.mutate({ cover_emoji: emoji })}
+            />
             {group.data.photo_path ? (
               <Button
                 label={t.group.removePhoto}
@@ -190,31 +196,6 @@ export default function GroupSettingsScreen() {
                 onPress={() => void dropPhoto()}
               />
             ) : null}
-          </Row>
-
-          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            {EMOJI.map((option) => (
-              <Pressable
-                key={option}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: group.data?.cover_emoji === option }}
-                accessibilityLabel={`Icon ${option}`}
-                onPress={() => updateGroup.mutate({ cover_emoji: option })}
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: theme.radius.pill,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor:
-                    group.data?.cover_emoji === option
-                      ? theme.color.brandSoft
-                      : theme.color.surfaceMuted,
-                }}
-              >
-                <Text variant="subheading">{option}</Text>
-              </Pressable>
-            ))}
           </Row>
         </Card>
 

@@ -126,3 +126,20 @@ export function countryName(countryCode: string | null | undefined): string | nu
   const country = (countryCode ?? '').trim().toUpperCase();
   return COUNTRIES.find((entry) => entry.code === country)?.name ?? null;
 }
+
+/**
+ * The flag for an ISO-3166 alpha-2 code, built from the two Unicode regional
+ * indicator symbols — 'IN' becomes 🇮🇳. Returns null for a missing or malformed
+ * code so the caller can show a globe or nothing, never an accidental bare
+ * "IN".
+ *
+ * The glyph is only as good as the reader's font: some Android builds ship no
+ * flag emoji and fall back to rendering the two letters. That fallback is still
+ * a true, legible label, which is why this is safe to show without checking.
+ */
+export function countryFlag(countryCode: string | null | undefined): string | null {
+  const code = (countryCode ?? '').trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return null;
+  const base = 0x1f1e6; // 🇦 — regional indicator 'A'
+  return String.fromCodePoint(base + code.charCodeAt(0) - 65, base + code.charCodeAt(1) - 65);
+}
