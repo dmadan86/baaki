@@ -34,7 +34,7 @@ import { DictateButton } from '@/components/DictateButton';
 import { scanReceipt, scanReceiptText } from '@/data/api';
 import { useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { handoverKey } from '@/lib/handover';
 import { captureReceipt } from '@/lib/image';
@@ -416,9 +416,10 @@ export default function AddExpenseScreen() {
   return (
     <Screen edges={['top', 'bottom']}>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: theme.spacing.xl,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
@@ -690,23 +691,47 @@ export default function AddExpenseScreen() {
             </Text>
           ) : null}
         </Card>
-
-        {error ? <Callout tone="negative">{error}</Callout> : null}
-
-        <Button
-          label={editing ? t.expense.saveChanges : t.save}
-          size="lg"
-          fullWidth
-          disabled={amount === 0n || participants.length === 0 || splitIssue !== null || saving}
-          onPress={() => void submit()}
-        />
-
-        {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
-
-        <Text variant="micro" tone="faint" align="center">
-          {t.extras.savedStraightAway}
-        </Text>
       </ScrollView>
+
+      {/* The one action, pinned. The screen is tall — keypad, scan, currency,
+          description, category, split, two rosters — and Save used to sit at the
+          bottom of all of it, a scroll away from wherever you were. Here it
+          rides the bottom edge with the running total and headcount beside it,
+          so what you are about to save is always in view, and so is the button
+          that saves it. A submit error surfaces here too, next to the button
+          that raised it, rather than lost up the scroll. */}
+      <View
+        style={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.md,
+          paddingBottom: theme.spacing.md,
+          gap: theme.spacing.sm,
+          borderTopWidth: 1,
+          borderTopColor: theme.color.border,
+          backgroundColor: theme.color.surface,
+        }}
+      >
+        {error ? <Callout tone="negative">{error}</Callout> : null}
+        <Row style={{ justifyContent: 'space-between', gap: theme.spacing.lg }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <MoneyText amount={amount} currency={currency} locale={locale} variant="heading" />
+            <Text variant="micro" tone="muted">
+              {participants.length > 0
+                ? plural(locale, participants.length, t.memberCount)
+                : t.extras.savedStraightAway}
+            </Text>
+          </View>
+          <Row style={{ gap: theme.spacing.md, flexGrow: 0, flexShrink: 0 }}>
+            {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
+            <Button
+              label={editing ? t.expense.saveChanges : t.save}
+              size="lg"
+              disabled={amount === 0n || participants.length === 0 || splitIssue !== null || saving}
+              onPress={() => void submit()}
+            />
+          </Row>
+        </Row>
+      </View>
     </Screen>
   );
 }
