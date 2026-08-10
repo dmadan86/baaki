@@ -20,6 +20,7 @@ import {
 
 import { describeActivity } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
+import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -86,7 +87,9 @@ export default function ActivityScreen() {
           </IconButton>
         </Row>
 
-        {entries.length === 0 ? (
+        {activity.isLoading ? (
+          <FeedSkeleton />
+        ) : entries.length === 0 ? (
           <EmptyState title={t.nothingYet} body={t.tabs.activityEmptyBody} />
         ) : (
           Object.entries(byDay).map(([day, dayEntries]) => (
