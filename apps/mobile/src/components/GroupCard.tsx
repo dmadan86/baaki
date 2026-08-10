@@ -16,7 +16,7 @@
  */
 
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import type { CurrencyCode } from '@baaki/core';
 import {
@@ -30,6 +30,8 @@ import {
   tintForKey,
   useTheme,
 } from '@baaki/ui';
+
+import { PressableScale } from '@/lib/anim';
 
 export function GroupCard({
   id,
@@ -64,12 +66,7 @@ export function GroupCard({
   const ink = theme.tint[tint].ink;
 
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-    >
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
       <TintCard
         tint={tint}
         style={{ borderRadius: theme.radius.xl, padding: theme.spacing.xl, gap: theme.spacing.lg }}
@@ -134,6 +131,6 @@ export function GroupCard({
           </View>
         </Row>
       </TintCard>
-    </Pressable>
+    </PressableScale>
   );
 }
