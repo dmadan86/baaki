@@ -19,8 +19,10 @@ import {
 } from '@baaki/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
+import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
+import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { pickGroupPhoto, type PickedImage } from '@/lib/image';
 import { uploadGroupPhoto } from '@/data/api';
@@ -67,7 +69,11 @@ export default function NewGroupScreen() {
   const [uploading, setUploading] = useState(false);
   const [type, setType] = useState<GroupType>('trip');
   const [ghostName, setGhostName] = useState('');
-  const [ghosts, setGhosts] = useState<string[]>([]);
+  // People to add on Create — a typed name carries no address, a contact carries
+  // whatever the phone had. Same shape either way, so the create loop treats
+  // them alike.
+  const [ghosts, setGhosts] = useState<PickedContact[]>([]);
+  const [browsing, setBrowsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Read once, not on every render: a phone does not change country mid-form.
   const [country, setCountry] = useState<string | null>(() => deviceCountry());
@@ -119,9 +125,9 @@ export default function NewGroupScreen() {
       for (const ghost of ghosts) {
         await mutate('member.add_ghost', groupId, {
           memberId: randomUUID(),
-          name: ghost,
-          email: null,
-          phone: null,
+          name: ghost.name,
+          email: ghost.email,
+          phone: ghost.phone,
         });
       }
 
@@ -161,6 +167,45 @@ export default function NewGroupScreen() {
     }
   };
 
+  // The address first, because that is what tells two people of the same name
+  // apart; the name only carries the difference when neither has an address.
+  const keyOfGhost = (ghost: PickedContact): string =>
+    `${ghost.email ?? ''}|${ghost.phone ?? ''}|${ghost.name}`;
+
+  const addTypedGhost = (): void => {
+    const name = ghostName.trim();
+    if (!name) return;
+    setGhosts((current) => [...current, { name, email: null, phone: null }]);
+    setGhostName('');
+  };
+
+  // Ticked out of the phone's contacts. Merged rather than replaced — somebody
+  // may have typed a name or picked already — and de-duplicated so the same
+  // person picked twice is added once.
+  const addContacts = (people: readonly PickedContact[]): void => {
+    setGhosts((current) => {
+      const seen = new Set(current.map(keyOfGhost));
+      const merged = [...current];
+      for (const person of people) {
+        const key = keyOfGhost(person);
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(person);
+        }
+      }
+      return merged;
+    });
+    setBrowsing(false);
+  };
+
+  // The contacts already queued, so the picker greys them rather than letting
+  // somebody add the same person twice.
+  const alreadyPicked = new Set(
+    ghosts.flatMap((ghost) =>
+      [ghost.email, ghost.phone].filter((value): value is string => Boolean(value)),
+    ),
+  );
+
   return (
     <Screen edges={['top', 'bottom']}>
       <ScrollView
@@ -192,9 +237,11 @@ export default function NewGroupScreen() {
               onPress={() => void pickGroupPhoto().then(setPhoto)}
             />
             <View style={{ flex: 1, gap: theme.spacing.xs }}>
-              <Text variant="caption" tone="muted">
-                {t.group.nameOptional}
-              </Text>
+              <InfoDisclosure
+                title={t.group.nameOptional}
+                info={t.extras.blankNameHint}
+                titleVariant="caption"
+              />
               <TextInput
                 value={name}
                 onChangeText={setName}
@@ -209,9 +256,6 @@ export default function NewGroupScreen() {
                   paddingVertical: theme.spacing.sm,
                 }}
               />
-              <Text variant="micro" tone="faint">
-                {t.extras.blankNameHint}
-              </Text>
             </View>
           </Row>
 
@@ -250,28 +294,25 @@ export default function NewGroupScreen() {
         {/* ADR-009: simplification is presentation only — the pairwise ledger
             underneath is untouched. */}
         <Card>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">{t.group.simplifyDebts}</Text>
-              <Text variant="caption" tone="muted">
-                {t.group.simplifyDebtsBody}
-              </Text>
-            </View>
-            <Toggle
-              value={effectiveSimplify}
-              onValueChange={setSimplify}
-              accessibilityLabel={t.group.simplifyDebts}
-            />
-          </Row>
+          <InfoDisclosure
+            title={t.group.simplifyDebts}
+            info={t.group.simplifyDebtsBody}
+            right={
+              <Toggle
+                value={effectiveSimplify}
+                onValueChange={setSimplify}
+                accessibilityLabel={t.group.simplifyDebts}
+              />
+            }
+          />
         </Card>
 
         <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.extras.addPeopleByName}
-          </Text>
-          <Text variant="micro" tone="faint">
-            {t.extras.ghostNote}
-          </Text>
+          <InfoDisclosure
+            title={t.extras.addPeopleByName}
+            info={t.extras.ghostNote}
+            titleVariant="caption"
+          />
           <Row>
             <TextInput
               value={ghostName}
@@ -279,12 +320,7 @@ export default function NewGroupScreen() {
               placeholder={t.people.namePlaceholder}
               placeholderTextColor={theme.color.textFaint}
               accessibilityLabel={t.misc.personName}
-              onSubmitEditing={() => {
-                if (ghostName.trim()) {
-                  setGhosts((current) => [...current, ghostName.trim()]);
-                  setGhostName('');
-                }
-              }}
+              onSubmitEditing={addTypedGhost}
               style={{
                 flex: 1,
                 fontSize: 17,
@@ -298,20 +334,34 @@ export default function NewGroupScreen() {
               size="sm"
               variant="secondary"
               disabled={!ghostName.trim()}
-              onPress={() => {
-                setGhosts((current) => [...current, ghostName.trim()]);
-                setGhostName('');
-              }}
+              onPress={addTypedGhost}
             />
           </Row>
+
+          {/* The same phone-contacts picker the Members screen uses. It reads
+              the address book on the device and only the people ticked come
+              back — nobody's book is uploaded (ADR-006). */}
+          <Button
+            label={browsing ? t.people.hideContacts : t.people.browseContacts}
+            variant="ghost"
+            onPress={() => setBrowsing((open) => !open)}
+          />
+
+          {browsing ? (
+            // Tall enough that the letter rail has something to aim at — a
+            // short window turns a thousand contacts back into a peephole.
+            <View style={{ height: 480 }}>
+              <ContactPicker onConfirm={addContacts} existing={alreadyPicked} />
+            </View>
+          ) : null}
 
           {ghosts.length > 0 ? (
             <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
               {ghosts.map((ghost, index) => (
                 <Pressable
-                  key={`${ghost}-${index}`}
+                  key={`${keyOfGhost(ghost)}-${index}`}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${ghost}`}
+                  accessibilityLabel={`Remove ${ghost.name}`}
                   onPress={() => setGhosts((current) => current.filter((_, i) => i !== index))}
                   style={{
                     flexDirection: 'row',
@@ -323,7 +373,7 @@ export default function NewGroupScreen() {
                     backgroundColor: theme.color.surfaceMuted,
                   }}
                 >
-                  <Text variant="caption">{ghost}</Text>
+                  <Text variant="caption">{ghost.name}</Text>
                   <Ionicons name="close" size={14} color={theme.color.textMuted} />
                 </Pressable>
               ))}

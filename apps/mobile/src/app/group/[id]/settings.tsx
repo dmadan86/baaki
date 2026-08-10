@@ -22,6 +22,7 @@ import { GroupPhoto } from '@/components/GroupPhoto';
 import { pickGroupPhoto } from '@/lib/image';
 import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
+import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates } from '@/components/TripDates';
 import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
@@ -219,19 +220,17 @@ export default function GroupSettingsScreen() {
         {/* ADR-009: simplification is presentation only — the pairwise ledger
             underneath is untouched, so this is safe to toggle at any time. */}
         <Card>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">{t.group.simplifyDebts}</Text>
-              <Text variant="caption" tone="muted">
-                {t.group.simplifyDebtsBody}
-              </Text>
-            </View>
-            <Toggle
-              value={group.data.simplify_debts}
-              onValueChange={(value) => updateGroup.mutate({ simplify_debts: value })}
-              accessibilityLabel={t.group.simplifyDebts}
-            />
-          </Row>
+          <InfoDisclosure
+            title={t.group.simplifyDebts}
+            info={t.group.simplifyDebtsBody}
+            right={
+              <Toggle
+                value={group.data.simplify_debts}
+                onValueChange={(value) => updateGroup.mutate({ simplify_debts: value })}
+                accessibilityLabel={t.group.simplifyDebts}
+              />
+            }
+          />
         </Card>
 
         <View>
