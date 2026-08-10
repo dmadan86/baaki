@@ -33,7 +33,7 @@ import { useAuth } from '@/lib/auth';
 export default function AccountScreen() {
   const theme = useTheme();
   const { t } = useStrings();
-  const { session, isGuest, refresh } = useAuth();
+  const { session, isGuest, refresh, withGoogle, withApple } = useAuth();
 
   const [channel, setChannel] = useState<ContactChannel>('email');
   const [value, setValue] = useState('');
@@ -45,6 +45,28 @@ export default function AccountScreen() {
 
   const existing =
     channel === 'email' ? (session?.user.email ?? null) : (session?.user.phone ?? null);
+
+  // Which providers already sign this account in, so a linked one shows as done
+  // rather than offering to link what is already linked. Adding one goes through
+  // the same `withGoogle`/`withApple` the sign-in screen uses: for somebody
+  // already signed in, `planAuth` turns that into a link, never a fresh sign-in
+  // that would strand this account (ADR-006).
+  const linkedProviders = new Set(
+    (session?.user.identities ?? []).map((identity) => identity.provider),
+  );
+
+  const link = async (start: () => Promise<void>): Promise<void> => {
+    setError(null);
+    setBusy(true);
+    try {
+      await start();
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const looksValid =
     channel === 'email'
@@ -219,10 +241,78 @@ export default function AccountScreen() {
           {error ? <Callout tone="negative">{error}</Callout> : null}
         </Card>
 
+        {/* Linking a social account, so it can sign this same account in later
+            on another phone — the OAuth complement to the email/phone above.
+            Only Google and Apple today; the row is built to take more. */}
+        <Card style={{ gap: theme.spacing.md }}>
+          <Text variant="subheading">{t.contact.signInMethodsTitle}</Text>
+          <Text variant="caption" tone="muted">
+            {t.contact.signInMethodsBody}
+          </Text>
+          <View style={{ gap: theme.spacing.md }}>
+            <ProviderRow
+              name="Google"
+              icon="logo-google"
+              linked={linkedProviders.has('google')}
+              busy={busy}
+              linkLabel={t.contact.link}
+              linkedLabel={t.contact.linked}
+              onLink={() => void link(withGoogle)}
+            />
+            <ProviderRow
+              name="Apple"
+              icon="logo-apple"
+              linked={linkedProviders.has('apple')}
+              busy={busy}
+              linkLabel={t.contact.link}
+              linkedLabel={t.contact.linked}
+              onLink={() => void link(withApple)}
+            />
+          </View>
+        </Card>
+
         <Text variant="micro" tone="faint" align="center">
           {t.contact.footnote}
         </Text>
       </ScrollView>
     </Screen>
+  );
+}
+
+/**
+ * One provider in the "ways to sign in" list: its mark, its name, and either a
+ * Linked badge or a button to link it. Icon-and-name so the row reads at a
+ * glance; the action says exactly what it does.
+ */
+function ProviderRow({
+  name,
+  icon,
+  linked,
+  busy,
+  linkLabel,
+  linkedLabel,
+  onLink,
+}: {
+  name: string;
+  icon: 'logo-google' | 'logo-apple';
+  linked: boolean;
+  busy: boolean;
+  linkLabel: string;
+  linkedLabel: string;
+  onLink: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Row style={{ justifyContent: 'space-between' }}>
+      <Row style={{ gap: theme.spacing.md }}>
+        <Ionicons name={icon} size={22} color={theme.color.text} />
+        <Text variant="body">{name}</Text>
+      </Row>
+      {linked ? (
+        <Badge label={linkedLabel} tone="positive" />
+      ) : (
+        <Button label={linkLabel} size="sm" variant="secondary" disabled={busy} onPress={onLink} />
+      )}
+    </Row>
   );
 }

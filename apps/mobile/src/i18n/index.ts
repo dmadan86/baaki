@@ -452,6 +452,10 @@ export interface UiStrings {
     sendCodePhone: string;
     useDifferent: string;
     added: string;
+    signInMethodsTitle: string;
+    signInMethodsBody: string;
+    link: string;
+    linked: string;
     footnote: string;
   };
   /** The welcome and the ways in (ADR-006: nobody registers to split a bill). */
@@ -1324,6 +1328,10 @@ const en: UiStrings = {
     sendCodePhone: 'Text me a code',
     useDifferent: 'Use a different one',
     added: 'Added. You can sign in with it on another phone now.',
+    signInMethodsTitle: 'Ways to sign in',
+    signInMethodsBody: 'Link an account and you can sign in with it next time, on any phone.',
+    link: 'Link',
+    linked: 'Linked',
     footnote:
       'Baaki never asks for this to let you in, and never shares it with anyone in your groups. People see the name you choose, nothing else.',
   },
@@ -2260,6 +2268,10 @@ const ta: UiStrings = {
     sendCodePhone: 'குறுஞ்செய்தியில் குறியீடு அனுப்பு',
     useDifferent: 'வேறொன்றைப் பயன்படுத்து',
     added: 'சேர்க்கப்பட்டது. இப்போது வேறு ஃபோனிலும் இதைக் கொண்டு உள்நுழையலாம்.',
+    signInMethodsTitle: 'உள்நுழையும் வழிகள்',
+    signInMethodsBody: 'ஒரு கணக்கை இணைத்தால், அடுத்த முறை எந்த ஃபோனிலும் அதன் மூலம் உள்நுழையலாம்.',
+    link: 'இணை',
+    linked: 'இணைக்கப்பட்டது',
     footnote:
       'உள்ளே விடுவதற்கு பாக்கி இதை ஒருபோதும் கேட்பதில்லை, உங்கள் குழுக்களில் உள்ள யாருடனும் இதைப் பகிர்வதும் இல்லை. நீங்கள் தேர்ந்தெடுத்த பெயரை மட்டுமே மற்றவர்கள் பார்ப்பார்கள்.',
   },
@@ -3196,6 +3208,10 @@ const hi: UiStrings = {
     sendCodePhone: 'मैसेज पर कोड भेजें',
     useDifferent: 'कोई दूसरा इस्तेमाल करें',
     added: 'जुड़ गया। अब आप इससे किसी दूसरे फ़ोन पर साइन इन कर सकते हैं।',
+    signInMethodsTitle: 'साइन इन करने के तरीके',
+    signInMethodsBody: 'कोई खाता लिंक करें और अगली बार किसी भी फ़ोन पर उससे साइन इन कर सकते हैं।',
+    link: 'लिंक करें',
+    linked: 'लिंक किया गया',
     footnote:
       'अंदर आने देने के लिए बाकी यह कभी नहीं माँगता, और आपके समूह में किसी के साथ इसे साझा नहीं करता। लोग सिर्फ़ वही नाम देखते हैं जो आप चुनते हैं।',
   },
@@ -4141,6 +4157,10 @@ const ar: UiStrings = {
     sendCodePhone: 'أرسل الرمز برسالة',
     useDifferent: 'استخدم غيره',
     added: 'تمت الإضافة. يمكنك الآن تسجيل الدخول به على هاتف آخر.',
+    signInMethodsTitle: 'طرق تسجيل الدخول',
+    signInMethodsBody: 'اربط حسابًا لتتمكن من تسجيل الدخول به في المرة القادمة، على أي هاتف.',
+    link: 'ربط',
+    linked: 'مرتبط',
     footnote:
       'لا يطلب باقي هذا ليسمح لك بالدخول، ولا يشاركه مع أحد في مجموعاتك. يرى الناس الاسم الذي تختاره، لا غير.',
   },
