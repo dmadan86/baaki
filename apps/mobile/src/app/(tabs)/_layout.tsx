@@ -35,7 +35,14 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        // Tabs hard-cut without this. Scenes shift-and-fade as you move between
+        // them, which reads as the tabs sitting side by side rather than
+        // stacking. Honours the app's own motion switch: somebody who turned
+        // motion off gets the instant swap, not a jump they did not ask for.
+        animation: animated ? 'shift' : 'none',
+      }}
       tabBar={({ state, navigation }) => (
         <PillTabBar
           items={items}
