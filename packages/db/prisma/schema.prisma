@@ -155,6 +155,7 @@ model Profile {
   subscriptions     Subscription[]
   promoRedemptions  PromoRedemption[]
   campaignImpressions CampaignImpression[]
+  campaignEmailSends CampaignEmailSend[]
   feedback          Feedback[]
   purchasedPasses   GroupPass[]
   syncMutations     SyncMutation[]
@@ -890,6 +891,7 @@ model Campaign {
 
   code        PromoCode?           @relation(fields: [promoCode], references: [code], onDelete: SetNull)
   impressions CampaignImpression[]
+  emailSends  CampaignEmailSend[]
 
   @@index([startsAt, endsAt], map: "campaigns_window_idx")
   @@map("campaigns")
@@ -913,6 +915,35 @@ model CampaignImpression {
   @@unique([campaignId, profileId], map: "campaign_impressions_once")
   @@index([campaignId, seenAt], map: "campaign_impressions_campaign_idx")
   @@map("campaign_impressions")
+  @@schema("public")
+}
+
+/// One row per person a campaign was emailed to — the broadcast half of A21.
+///
+/// The row is the claim: written 'queued' the moment somebody is picked, and the
+/// UNIQUE(campaign_id, profile_id) is what stops two overlapping runs mailing
+/// the same person twice. By its absence it also records who was held out, which
+/// is why, like the campaigns table itself, it is closed to every client.
+model CampaignEmailSend {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId    String   @map("campaign_id") @db.Uuid
+  profileId     String   @map("profile_id") @db.Uuid
+  /// The address as it was at claim time, lower-cased.
+  address       String
+  /// queued | sent | failed. A transient refusal is not stored — the row is
+  /// deleted so the next run re-picks the person.
+  status        String   @default("queued")
+  resendEmailId String?  @map("resend_email_id")
+  error         String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  profile  Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, profileId], map: "campaign_email_sends_once")
+  @@index([campaignId, status], map: "campaign_email_sends_campaign_idx")
+  @@map("campaign_email_sends")
   @@schema("public")
 }
 
