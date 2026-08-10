@@ -28,6 +28,7 @@ import * as Clipboard from 'expo-clipboard';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   Chip,
   EmptyState,
@@ -414,11 +415,7 @@ export default function ImportSmsScreen() {
           </View>
         ) : null}
 
-        {error ? (
-          <Text variant="caption" tone="negative">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
 
         {saved !== null ? (
           <Card>

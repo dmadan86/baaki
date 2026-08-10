@@ -17,6 +17,7 @@ import {
   Avatar,
   Badge,
   Button,
+  Callout,
   Card,
   ChipRow,
   EmptyState,
@@ -346,11 +347,7 @@ export default function SettleScreen() {
               </Card>
             ) : null}
 
-            {error ? (
-              <Text variant="caption" tone="negative">
-                {error}
-              </Text>
-            ) : null}
+            {error ? <Callout tone="negative">{error}</Callout> : null}
 
             <Button
               label={settleLabel}

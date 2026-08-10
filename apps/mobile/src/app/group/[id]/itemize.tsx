@@ -17,6 +17,7 @@ import {
   Avatar,
   Badge,
   Button,
+  Callout,
   Card,
   EmptyState,
   IconButton,
@@ -714,11 +715,7 @@ export default function ItemizeScreen() {
           ) : null}
         </Card>
 
-        {error ? (
-          <Text variant="caption" tone="negative">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
 
         <Button
           label={t.save}

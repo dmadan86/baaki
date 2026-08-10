@@ -4,7 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Linking, Platform, ScrollView, Share, View } from 'react-native';
 
-import { Badge, Button, Card, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Badge, Button, Callout, Card, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { mintInvite, type MintedInvite } from '@/data/api';
 import { useGroup } from '@/data/hooks';
@@ -187,11 +187,7 @@ export default function InviteScreen() {
         )}
 
         {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
-        {error ? (
-          <Text variant="caption" tone="negative">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
       </ScrollView>
     </Screen>
   );

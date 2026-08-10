@@ -8,6 +8,7 @@ import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   ChipRow,
   directionalIcon,
@@ -159,11 +160,7 @@ export default function ExportScreen() {
           </Card>
         ) : null}
 
-        {error ? (
-          <Text variant="caption" tone="negative">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
 
         <Button
           label={t.exportData.importInstead}

@@ -15,6 +15,7 @@ import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   ChipRow,
   directionalIcon,
@@ -215,11 +216,7 @@ export default function AccountScreen() {
               {t.contact.added}
             </Text>
           ) : null}
-          {error ? (
-            <Text variant="caption" tone="negative">
-              {error}
-            </Text>
-          ) : null}
+          {error ? <Callout tone="negative">{error}</Callout> : null}
         </Card>
 
         <Text variant="micro" tone="faint" align="center">

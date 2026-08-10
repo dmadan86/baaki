@@ -242,14 +242,7 @@ export default function NewGroupScreen() {
           ) : null}
         </Card>
 
-        {error ? (
-          <Callout
-            tone="negative"
-            icon={(color) => <Ionicons name="alert-circle" size={20} color={color} />}
-          >
-            {error}
-          </Callout>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
         {createGroup.isPending || uploading ? (
           <ActivityIndicator color={theme.color.brand} />
         ) : null}

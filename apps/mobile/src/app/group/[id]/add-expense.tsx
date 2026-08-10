@@ -16,6 +16,7 @@ import {
   AmountKeypad,
   Avatar,
   Button,
+  Callout,
   Card,
   ChipRow,
   EmptyState,
@@ -690,11 +691,7 @@ export default function AddExpenseScreen() {
           ) : null}
         </Card>
 
-        {error ? (
-          <Text variant="caption" tone="negative">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
 
         <Button
           label={editing ? t.expense.saveChanges : t.save}

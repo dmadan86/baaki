@@ -25,6 +25,7 @@ import {
   Avatar,
   AvatarStack,
   Button,
+  Callout,
   Card,
   directionalIcon,
   Divider,
@@ -243,11 +244,7 @@ function ChooseGroup({
       )}
 
       {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
-      {error ? (
-        <Text variant="caption" tone="negative">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <Callout tone="negative">{error}</Callout> : null}
 
       <Text variant="micro" tone="faint">
         {t.extras.ghostShareNote}

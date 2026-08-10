@@ -32,7 +32,7 @@ import {
   toFxRecord,
   type FxRecord,
 } from '@baaki/core';
-import { Button, Card, ChipRow, Text, useTheme } from '@baaki/ui';
+import { Button, Callout, Card, ChipRow, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -243,11 +243,7 @@ export function CurrencyRate({
             </Text>
           )}
 
-          {error ? (
-            <Text variant="caption" tone="negative">
-              {error}
-            </Text>
-          ) : null}
+          {error ? <Callout tone="negative">{error}</Callout> : null}
         </>
       ) : null}
     </Card>
