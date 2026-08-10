@@ -165,6 +165,27 @@ describe('erasing an account', () => {
     expect(rows[0].profile_id).toBeNull();
   });
 
+  it('runs a second time without error, so a half-finished delete can be retried', async () => {
+    // The account-delete edge function erases the data and then removes the auth
+    // identity, and the second step can fail on its own. Recovery is simply to
+    // call again — which only works if this RPC is idempotent. It reads the
+    // caller from the JWT, not from a row, so a re-run over an already-erased
+    // profile must anonymise nothing, delete nothing, and still return ok.
+    const { profileIds } = await seedGroup(client, { memberCount: 2 });
+    const profileId = profileIds[0]!;
+
+    const first = await asProfile(profileId, () =>
+      client.query('SELECT public.baaki_delete_my_account() AS r'),
+    );
+    expect(first.rows[0].r.memberships_anonymised).toBe(1);
+
+    const second = await asProfile(profileId, () =>
+      client.query('SELECT public.baaki_delete_my_account() AS r'),
+    );
+    expect(second.rows[0].r.ok).toBe(true);
+    expect(second.rows[0].r.memberships_anonymised).toBe(0);
+  });
+
   it('tells somebody what it will cost before they agree to it', async () => {
     const { groupId, profileIds, memberIds } = await seedGroup(client, { memberCount: 2 });
     await addEqualSplitExpense(client, {

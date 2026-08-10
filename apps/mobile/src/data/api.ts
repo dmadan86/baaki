@@ -1478,16 +1478,21 @@ export async function erasurePreview(): Promise<ErasurePreview | null> {
 /**
  * Erase the person, keep the ledger.
  *
- * The RPC converts every membership to an unnamed ghost and deletes the profile
- * with everything personal hanging off it. It does not remove the auth identity
- * — that lives in a schema the database role does not own — so the caller signs
- * out afterwards and the account can no longer reach anything.
+ * Goes through the `account-delete` edge function rather than the RPC directly,
+ * because the two halves of erasure need two different keys. The function runs
+ * `baaki_delete_my_account` as the caller — every membership becomes an unnamed
+ * ghost, the profile and everything personal hanging off it is deleted — and
+ * then removes the auth identity with the service key, which no client holds.
+ * The RPC alone left an account that could still sign in to nothing; this does
+ * not. The caller still signs out afterwards, and only after the data is gone.
  */
 export async function deleteMyAccount(
   reason: string | null,
 ): Promise<{ memberships_anonymised?: number }> {
-  const { data, error } = await supabase.rpc('baaki_delete_my_account', { p_feedback: reason });
-  if (error) throw new Error(error.message);
+  const { data, error } = await supabase.functions.invoke('account-delete', {
+    body: { reason },
+  });
+  if (error) throw new Error(await readFunctionError(error));
   return (data ?? {}) as { memberships_anonymised?: number };
 }
 
