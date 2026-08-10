@@ -177,6 +177,27 @@ export function ListScreenSkeleton({
   );
 }
 
+/**
+ * The friends tab: the two balance sections — owed to you, and what you owe —
+ * each a heading and a short list. Shaped like the real screen so the swap is a
+ * fill, and shown in place of it rather than the "all square" empty state,
+ * which is a verdict on somebody's money the query has not returned yet.
+ */
+export function PeopleSkeleton() {
+  const theme = useTheme();
+  const { animated } = useMotion();
+  return (
+    <LoadingRegion style={{ gap: theme.spacing.xl }}>
+      {[0, 1].map((section) => (
+        <View key={section} style={{ gap: theme.spacing.md }}>
+          <Skeleton width="35%" height={16} animated={animated} />
+          <SkeletonList rows={2} />
+        </View>
+      ))}
+    </LoadingRegion>
+  );
+}
+
 /** Insights: a heading and a couple of chart-sized blocks. */
 export function InsightsSkeleton() {
   const theme = useTheme();

@@ -36,6 +36,7 @@ import {
 import { Avatar, Button, Card, EmptyState, Row, Text, useTheme } from '@baaki/ui';
 
 import { plural, useStrings } from '@/i18n';
+import { SkeletonList } from '@/components/Skeletons';
 
 export interface PickedContact {
   readonly name: string;
@@ -231,13 +232,10 @@ export function ContactPicker({
   }, []);
 
   if (access === 'asking') {
-    return (
-      <Card>
-        <Text variant="caption" tone="muted">
-          Looking through your contacts…
-        </Text>
-      </Card>
-    );
+    // Reading a full address book is a real wait, so this is the shape of the
+    // list that is coming — rows of a face and a name — not a line of text.
+    // No trailing block: a contact row ends in a tick, not an amount.
+    return <SkeletonList rows={6} trailing={false} />;
   }
 
   if (access === 'denied') {
