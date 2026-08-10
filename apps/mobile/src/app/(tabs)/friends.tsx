@@ -36,6 +36,7 @@ import {
 } from '@baaki/ui';
 
 import { fetchPeopleBalances, type PersonBalanceRow } from '@/data/api';
+import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings } from '@/i18n';
 
 export default function FriendsScreen() {
@@ -80,7 +81,9 @@ export default function FriendsScreen() {
           />
         </Row>
 
-        {rows.length === 0 ? (
+        {people.isLoading ? (
+          <PeopleSkeleton />
+        ) : rows.length === 0 ? (
           <EmptyState title={t.tabs.allSquare} body={t.tabs.allSquareBody} />
         ) : (
           <>
