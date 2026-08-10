@@ -29,7 +29,11 @@
  * outside the project is a surprise worth avoiding where it buys nothing.
  */
 
-const { withSettingsGradle } = require('@expo/config-plugins');
+// The `expo/config-plugins` sub-export, not the `@expo/config-plugins` package
+// directly: same module, but the version is then pinned to the installed expo
+// rather than a second copy this repo would have to keep in step (expo-doctor
+// flags the direct dependency for exactly this reason).
+const { withSettingsGradle } = require('expo/config-plugins');
 
 const MARKER = 'baaki:short-native-build-path';
 
