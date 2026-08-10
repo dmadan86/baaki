@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
@@ -8,8 +9,9 @@ import { Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { pickGroupPhoto, type PickedImage } from '@/lib/image';
-import { addGhostMember, uploadGroupPhoto } from '@/data/api';
+import { uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
+import { useSync } from '@/sync';
 import type { GroupType } from '@/data/types';
 import { deviceCountry, useStrings } from '@/i18n';
 
@@ -31,6 +33,7 @@ export default function NewGroupScreen() {
   const theme = useTheme();
   const { t } = useStrings();
   const createGroup = useCreateGroup();
+  const { mutate, flush } = useSync();
 
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState<PickedImage | null>(null);
@@ -65,14 +68,29 @@ export default function NewGroupScreen() {
         simplify: type === 'trip' || type === 'event',
       });
       // ADR-006: people who have not installed anything are still participants.
+      //
+      // Queued through the same offline pipe as the group, not sent as a direct
+      // RPC. The create above only resolves once it is on disk, not once it has
+      // reached the server — so a direct `baaki_add_ghost_member` here raced the
+      // create and hit a group the server had never seen, which is exactly the
+      // membership check it fails: `NOT_A_MEMBER`. Behind the create in one
+      // ordered queue, each ghost applies after the group it belongs to exists.
       for (const ghost of ghosts) {
-        await addGhostMember(groupId, ghost);
+        await mutate('member.add_ghost', groupId, {
+          memberId: randomUUID(),
+          name: ghost,
+          email: null,
+          phone: null,
+        });
       }
-      // After the group exists, because the storage policy is "members of this
-      // group only" and there is no membership until there is a group.
+      // The photo lives in Storage, not the offline queue, and the storage
+      // policy is "members of this group only" — which needs the group, and the
+      // membership row, to actually be on the server. Flush the queued create
+      // (and the ghosts behind it) before writing an object under its id.
       if (photo) {
         setUploading(true);
         try {
+          await flush([groupId]);
           await uploadGroupPhoto({ groupId, base64: photo.base64, mimeType: photo.mimeType });
         } catch {
           // A photo that would not upload is not worth losing the group over;
