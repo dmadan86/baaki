@@ -491,6 +491,7 @@ export interface UiStrings {
      */
     continueApple: string;
     signInApple: string;
+    orSignInWith: string;
     continueGuest: string;
     guestFootnote: string;
     memberFootnote: string;
@@ -1361,6 +1362,7 @@ const en: UiStrings = {
     signInGoogle: 'Sign in with Google',
     continueApple: 'Continue with Apple',
     signInApple: 'Sign in with Apple',
+    orSignInWith: 'or sign in with',
     continueGuest: 'Continue as guest',
     guestFootnote:
       'Everything you have already added stays exactly where it is. This only adds a way to sign back in.',
@@ -2298,6 +2300,7 @@ const ta: UiStrings = {
     signInGoogle: 'Google மூலம் உள்நுழை',
     continueApple: 'Apple மூலம் தொடர்',
     signInApple: 'Apple மூலம் உள்நுழை',
+    orSignInWith: 'அல்லது இதன் மூலம் உள்நுழை',
     continueGuest: 'விருந்தினராகத் தொடர்',
     guestFootnote:
       'நீங்கள் ஏற்கனவே சேர்த்த அனைத்தும் அப்படியே இருக்கும். இது மீண்டும் உள்நுழைய ஒரு வழியை மட்டுமே சேர்க்கிறது.',
@@ -3232,6 +3235,7 @@ const hi: UiStrings = {
     signInGoogle: 'Google से साइन इन करें',
     continueApple: 'Apple से जारी रखें',
     signInApple: 'Apple से साइन इन करें',
+    orSignInWith: 'या इसके ज़रिए साइन इन करें',
     continueGuest: 'मेहमान के तौर पर जारी रखें',
     guestFootnote:
       'आपने जो जोड़ा है वह जहाँ है वहीं रहेगा। इससे सिर्फ़ दोबारा साइन इन करने का रास्ता जुड़ता है।',
@@ -4176,6 +4180,7 @@ const ar: UiStrings = {
     signInGoogle: 'تسجيل الدخول عبر Google',
     continueApple: 'المتابعة عبر Apple',
     signInApple: 'تسجيل الدخول عبر Apple',
+    orSignInWith: 'أو سجّل الدخول عبر',
     continueGuest: 'المتابعة كضيف',
     guestFootnote: 'كل ما أضفته يبقى كما هو تمامًا. هذا يضيف فقط طريقة للعودة وتسجيل الدخول.',
     memberFootnote:
