@@ -5,9 +5,23 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { currencyForCountry, guessGroupEmoji } from '@baaki/core';
-import { Button, Callout, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Button,
+  Callout,
+  Card,
+  ChipRow,
+  IconButton,
+  Row,
+  Screen,
+  Text,
+  Toggle,
+  useTheme,
+} from '@baaki/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
+import { CountryRow } from '@/components/CountryPicker';
+import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
+import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { pickGroupPhoto, type PickedImage } from '@/lib/image';
 import { uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
@@ -29,9 +43,22 @@ const EMOJI_FOR_TYPE: Record<GroupType, string> = {
   other: '👥',
 };
 
+const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+
+/**
+ * Making a group, wearing the same clothes as the settings that edit one.
+ *
+ * The two screens used to look nothing alike, which made creating a group feel
+ * like a different app from configuring it. So this is the settings screen's
+ * cards — the name-and-icon card, the flagged country row, the trip-dates
+ * editor, the simplify toggle — filled from local state instead of a saved
+ * group. Nothing is written until Create is tapped, so backing out leaves no
+ * half-made group behind; everything picked here is applied in one ordered
+ * burst once the group exists.
+ */
 export default function NewGroupScreen() {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const createGroup = useCreateGroup();
   const { mutate, flush } = useSync();
 
@@ -42,14 +69,30 @@ export default function NewGroupScreen() {
   const [ghostName, setGhostName] = useState('');
   const [ghosts, setGhosts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Read once, not on every render: a phone does not change country mid-form,
-  // and re-reading it would be a new value every time for `useMemo` to chase.
-  const [country] = useState(() => deviceCountry());
+  // Read once, not on every render: a phone does not change country mid-form.
+  const [country, setCountry] = useState<string | null>(() => deviceCountry());
+  // Null until somebody picks: the icon is otherwise read from the name, so an
+  // untouched group still gets a sensible cover.
+  const [pickedEmoji, setPickedEmoji] = useState<string | null>(null);
+  // Null until toggled, so it can follow the group type's default until then.
+  const [simplify, setSimplify] = useState<boolean | null>(null);
+  const [tripDates, setTripDates] = useState<TripDatesValue>(() => ({
+    start_date: null,
+    end_date: null,
+    time_zone: deviceZone(),
+    remind_daily: true,
+    remind_morning_at: '09:00:00',
+    remind_evening_at: '20:00:00',
+  }));
 
-  // Derived, not held: the icon is a reading of the name, so it has no state of
-  // its own to fall out of step with. It changes under the caret as somebody
-  // types "Goa" and again if they change what kind of group this is.
-  const emoji = guessGroupEmoji(name) ?? EMOJI_FOR_TYPE[type];
+  // The icon is a reading of the name, unless somebody has chosen one; it
+  // changes under the caret as they type "Goa" and again if they change the
+  // kind of group.
+  const emoji = pickedEmoji ?? guessGroupEmoji(name) ?? EMOJI_FOR_TYPE[type];
+  // Trips and events benefit most from simplification; a two-person group does
+  // not. Follows the type until somebody says otherwise.
+  const effectiveSimplify = simplify ?? (type === 'trip' || type === 'event');
+  const currency = currencyForCountry(country) ?? 'INR';
 
   const submit = async (): Promise<void> => {
     setError(null);
@@ -62,19 +105,17 @@ export default function NewGroupScreen() {
         // Dubai defaulting to rupees is the small wrongness that makes an app
         // feel written for somewhere else.
         country,
-        currency: currencyForCountry(country) ?? 'INR',
+        currency,
         emoji,
-        // Trips benefit most from simplification; a two-person group does not.
-        simplify: type === 'trip' || type === 'event',
+        simplify: effectiveSimplify,
       });
+
       // ADR-006: people who have not installed anything are still participants.
-      //
-      // Queued through the same offline pipe as the group, not sent as a direct
-      // RPC. The create above only resolves once it is on disk, not once it has
-      // reached the server — so a direct `baaki_add_ghost_member` here raced the
-      // create and hit a group the server had never seen, which is exactly the
-      // membership check it fails: `NOT_A_MEMBER`. Behind the create in one
-      // ordered queue, each ghost applies after the group it belongs to exists.
+      // Queued behind the create in one ordered pipe, not sent as a direct RPC —
+      // the create resolves once it is on disk, not once the server has seen it,
+      // so a direct add would race a group the server does not know yet and fail
+      // its membership check (NOT_A_MEMBER). Behind the create, each applies
+      // after the group it belongs to exists.
       for (const ghost of ghosts) {
         await mutate('member.add_ghost', groupId, {
           memberId: randomUUID(),
@@ -83,10 +124,25 @@ export default function NewGroupScreen() {
           phone: null,
         });
       }
-      // The photo lives in Storage, not the offline queue, and the storage
-      // policy is "members of this group only" — which needs the group, and the
-      // membership row, to actually be on the server. Flush the queued create
-      // (and the ghosts behind it) before writing an object under its id.
+
+      // Trip dates are not part of the create call, so they ride behind it as
+      // an update on the same ordered queue — only when a trip was actually
+      // given a start and end, since that is what turns the reminders on.
+      if (tripDates.start_date && tripDates.end_date) {
+        await mutate('group.update', groupId, {
+          start_date: tripDates.start_date,
+          end_date: tripDates.end_date,
+          time_zone: tripDates.time_zone,
+          remind_daily: tripDates.remind_daily,
+          remind_morning_at: tripDates.remind_morning_at,
+          remind_evening_at: tripDates.remind_evening_at,
+        });
+      }
+
+      // The photo lives in Storage, not the offline queue, and its policy is
+      // "members of this group only" — which needs the group and the membership
+      // row actually on the server. Flush the queued create (and everything
+      // behind it) before writing an object under its id.
       if (photo) {
         setUploading(true);
         try {
@@ -114,6 +170,7 @@ export default function NewGroupScreen() {
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
@@ -136,7 +193,7 @@ export default function NewGroupScreen() {
             />
             <View style={{ flex: 1, gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
-                Group name (optional)
+                {t.group.nameOptional}
               </Text>
               <TextInput
                 value={name}
@@ -157,6 +214,10 @@ export default function NewGroupScreen() {
               </Text>
             </View>
           </Row>
+
+          <Row style={{ gap: theme.spacing.sm }}>
+            <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} />
+          </Row>
         </Card>
 
         <View style={{ gap: theme.spacing.md }}>
@@ -175,6 +236,34 @@ export default function NewGroupScreen() {
             ]}
           />
         </View>
+
+        {/* Decides which payment rails the settle screen offers, and what a new
+            expense starts in. The same flagged row the settings screen uses. */}
+        <CountryRow countryCode={country} onChange={setCountry} />
+
+        <TripDates
+          group={tripDates}
+          locale={locale}
+          onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
+        />
+
+        {/* ADR-009: simplification is presentation only — the pairwise ledger
+            underneath is untouched. */}
+        <Card>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
+              <Text variant="subheading">{t.group.simplifyDebts}</Text>
+              <Text variant="caption" tone="muted">
+                {t.group.simplifyDebtsBody}
+              </Text>
+            </View>
+            <Toggle
+              value={effectiveSimplify}
+              onValueChange={setSimplify}
+              accessibilityLabel={t.group.simplifyDebts}
+            />
+          </Row>
+        </Card>
 
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">

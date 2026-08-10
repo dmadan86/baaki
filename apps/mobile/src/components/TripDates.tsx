@@ -23,7 +23,20 @@ import { Button, Card, Row, Text, Toggle, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
-import type { GroupRow } from '@/data/types';
+/**
+ * Only the fields this card reads and writes — not a whole `GroupRow`. A saved
+ * group satisfies it structurally, and so does the local state of a group being
+ * created, which is what lets the create screen reuse this editor before there
+ * is a group to point at.
+ */
+export interface TripDatesValue {
+  start_date: string | null;
+  end_date: string | null;
+  time_zone: string;
+  remind_daily: boolean;
+  remind_morning_at: string;
+  remind_evening_at: string;
+}
 
 type Field = 'start' | 'end' | 'morning' | 'evening';
 
@@ -110,7 +123,7 @@ export function TripDates({
   locale,
   onChange,
 }: {
-  group: GroupRow;
+  group: TripDatesValue;
   locale: string;
   onChange: (patch: TripDatesPatch) => void;
 }) {
