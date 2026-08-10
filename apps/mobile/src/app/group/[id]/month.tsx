@@ -177,7 +177,9 @@ export default function SpendingMonthScreen() {
 
             {days.map(([day, bucket]) => (
               <View key={day} style={{ gap: theme.spacing.md }}>
-                <Row style={{ justifyContent: 'space-between', paddingHorizontal: theme.spacing.xs }}>
+                <Row
+                  style={{ justifyContent: 'space-between', paddingHorizontal: theme.spacing.xs }}
+                >
                   <Text variant="subheading">{dayLabel(day)}</Text>
                   <MoneyText
                     amount={bucket.total}
