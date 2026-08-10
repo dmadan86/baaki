@@ -4,11 +4,14 @@ import { redirect } from 'next/navigation';
 import { format, money, type CurrencyCode } from '@baaki/core';
 
 import {
+  broadcastCampaign,
+  campaignEmailStats,
   campaignFunnel,
   campaignRevenue,
   campaigns,
   createCampaign,
   promoCodes,
+  type CampaignEmailStatRow,
   type CampaignRevenueRow,
   type FunnelRow,
 } from '@/lib/data';
@@ -68,6 +71,7 @@ export default async function Campaigns({
             {
               funnel: await campaignFunnel(campaign.id),
               revenue: await campaignRevenue(campaign.id),
+              email: await campaignEmailStats(campaign.id),
             },
           ] as const,
       ),
@@ -103,6 +107,27 @@ export default async function Campaigns({
     redirect('/campaigns?done=Campaign+created');
   }
 
+  async function broadcast(formData: FormData) {
+    'use server';
+
+    const id = String(formData.get('id') ?? '');
+    let message: string;
+    try {
+      const result = await broadcastCampaign(id);
+      // The holdout is never in this count — it is the control group, and mailing
+      // it is the one thing the whole design forbids.
+      message = `Sent ${result.sent}, ${result.failed} failed${
+        result.more ? ' · more to send, press again' : ''
+      }`;
+    } catch (caught) {
+      const failure = caught instanceof Error ? caught.message : String(caught);
+      redirect(`/campaigns?error=${encodeURIComponent(failure)}`);
+    }
+
+    revalidatePath('/campaigns');
+    redirect(`/campaigns?done=${encodeURIComponent(message)}`);
+  }
+
   return (
     <main>
       <header className="top">
@@ -132,6 +157,9 @@ export default async function Campaigns({
         const result = results.get(campaign.id);
         const funnel = result?.funnel ?? [];
         const revenue = result?.revenue ?? [];
+        const emailStats: CampaignEmailStatRow[] = result?.email ?? [];
+        const emailCount = (status: string) =>
+          Number(emailStats.find((row) => row.status === status)?.count ?? 0);
         const targeted = funnel.find((row) => row.cohort === 'targeted');
         const currencies = [...new Set(revenue.map((row) => row.currency))];
         const live =
@@ -241,6 +269,24 @@ export default async function Campaigns({
                   </p>
                 </div>
               )}
+              <div style={{ marginTop: 16 }}>
+                <p className="note" style={{ padding: 0 }}>
+                  <strong>Email</strong> — sent {num(emailCount('sent'))}
+                  {emailCount('failed') > 0 ? `, ${num(emailCount('failed'))} failed` : ''}
+                  {emailCount('queued') > 0 ? `, ${num(emailCount('queued'))} in flight` : ''}. The
+                  holdout is never mailed, so this reaches the targeted cohort only.
+                </p>
+                {live ? (
+                  <form action={broadcast}>
+                    <input type="hidden" name="id" value={campaign.id} />
+                    <button type="submit">Send email to targeted cohort</button>
+                  </form>
+                ) : (
+                  <p className="note">
+                    Email only sends while a campaign is live. This one is not running now.
+                  </p>
+                )}
+              </div>
             </section>
           </div>
         );

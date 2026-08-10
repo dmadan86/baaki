@@ -64,6 +64,13 @@ export interface EmailChrome {
   /** Button on everything else. */
   readonly openAction: string;
   readonly why: string;
+  /**
+   * The footer reason on a campaign mail, which has no group to name. A
+   * promotion reaches somebody because they use Baaki, not because of anything
+   * that happened in a ledger — saying so is what keeps it honest and out of
+   * spam.
+   */
+  readonly promoReason: string;
   readonly unsubscribe: string;
   readonly signature: string;
 }
@@ -142,6 +149,7 @@ const en: CopyStrings = {
     confirmAction: 'Confirm you received it',
     openAction: 'Open Baaki',
     why: 'You are getting this because of {group} on Baaki.',
+    promoReason: 'You are getting this because you use Baaki.',
     unsubscribe: 'Stop emails like this',
     signature: 'Baaki',
   },
@@ -209,6 +217,7 @@ const ta: CopyStrings = {
     confirmAction: 'கிடைத்தது என உறுதிப்படுத்தவும்',
     openAction: 'பாக்கியைத் திறக்கவும்',
     why: 'பாக்கியில் {group} காரணமாக இந்த மின்னஞ்சல் வந்துள்ளது.',
+    promoReason: 'நீங்கள் பாக்கியைப் பயன்படுத்துவதால் இந்த மின்னஞ்சல் வந்துள்ளது.',
     unsubscribe: 'இதுபோன்ற மின்னஞ்சல்களை நிறுத்தவும்',
     signature: 'பாக்கி',
   },
@@ -270,6 +279,7 @@ const hi: CopyStrings = {
     confirmAction: 'मिलने की पुष्टि करें',
     openAction: 'बाकी खोलें',
     why: 'यह मेल बाकी पर {group} की वजह से आया है।',
+    promoReason: 'यह मेल इसलिए आया है क्योंकि आप बाकी इस्तेमाल करते हैं।',
     unsubscribe: 'ऐसे मेल बंद करें',
     signature: 'बाकी',
   },
@@ -337,6 +347,7 @@ const ar: CopyStrings = {
     confirmAction: 'أكّد استلامك للمبلغ',
     openAction: 'افتح باقي',
     why: 'وصلك هذا البريد بسبب {group} في باقي.',
+    promoReason: 'وصلك هذا البريد لأنك تستخدم باقي.',
     unsubscribe: 'أوقف هذه الرسائل',
     signature: 'باقي',
   },

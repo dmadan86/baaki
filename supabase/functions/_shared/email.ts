@@ -13,7 +13,14 @@
  * dropped or a dead address is retried every five minutes forever.
  */
 
-import { buildEmail, signUnsubscribe, unsubscribeUrlFor, type BuiltEmail } from './core.js';
+import {
+  buildEmail,
+  renderCampaignEmail,
+  signUnsubscribe,
+  unsubscribeUrlFor,
+  type BuiltCampaignEmail,
+  type BuiltEmail,
+} from './core.js';
 import { HttpError } from './auth.ts';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
@@ -161,4 +168,93 @@ export async function sendEmail(built: BuiltEmail): Promise<EmailResult> {
 
 export function pause(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ───────────────────────────────────────────────── the campaign half ──
+// The broadcast half of A21. Same Resend call, keyed on the send row rather than
+// a notification, and the same one-click unsubscribe — a campaign is bulk mail
+// and cannot ship without it. Everything about who gets one is decided in SQL.
+
+/** A row from `baaki_claim_campaign_emails` — one person to mail, and the words. */
+export interface CampaignEmailRow {
+  readonly send_id: string;
+  readonly address: string;
+  readonly locale: string;
+  readonly title: string;
+  readonly body: string;
+  readonly cta_label: string;
+  readonly promo_code: string | null;
+}
+
+export interface CampaignSendResult {
+  /** The `campaign_email_sends` row id, so `baaki_finish_campaign_emails` matches. */
+  readonly id: string;
+  readonly status: 'sent' | 'failed' | 'retry';
+  readonly resend_email_id?: string;
+  readonly error?: string;
+}
+
+export async function buildCampaignFor(row: CampaignEmailRow): Promise<BuiltCampaignEmail> {
+  const signature = await signUnsubscribe(row.address, requiredEnv('EMAIL_UNSUBSCRIBE_SECRET'));
+  return renderCampaignEmail(
+    {
+      sendId: row.send_id,
+      title: row.title,
+      body: row.body,
+      ctaLabel: row.cta_label,
+      promoCode: row.promo_code,
+      locale: row.locale,
+      to: row.address,
+    },
+    {
+      webUrl: Deno.env.get('EMAIL_WEB_URL') ?? null,
+      unsubscribeUrl: unsubscribeUrlFor(functionsUrl(), row.address, signature),
+    },
+  );
+}
+
+export async function sendCampaignEmail(built: BuiltCampaignEmail): Promise<CampaignSendResult> {
+  let response: Response;
+
+  try {
+    response = await fetch(RESEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${requiredEnv('RESEND_API_KEY')}`,
+        'content-type': 'application/json',
+        // The send row id is the idempotency key, so a run that times out after
+        // Resend accepted does not mail the same person a second copy.
+        'Idempotency-Key': built.sendId,
+      },
+      body: JSON.stringify({
+        from: emailFrom(),
+        to: [built.to],
+        subject: built.subject,
+        html: built.html,
+        text: built.text,
+        headers: built.headers,
+      }),
+    });
+  } catch (unreachable) {
+    return { id: built.sendId, status: 'retry', error: (unreachable as Error).message };
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    id?: string;
+    message?: string;
+    name?: string;
+  };
+
+  if (response.ok && payload.id) {
+    return { id: built.sendId, status: 'sent', resend_email_id: payload.id };
+  }
+
+  // 429 and 5xx come back later; marking them failed would close the row and
+  // the person would never be re-picked. A permanent refusal is a real failure.
+  const transient = response.status === 429 || response.status >= 500;
+  return {
+    id: built.sendId,
+    status: transient ? 'retry' : 'failed',
+    error: `${response.status} ${payload.name ?? ''} ${payload.message ?? ''}`.trim(),
+  };
 }

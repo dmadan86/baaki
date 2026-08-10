@@ -366,6 +366,55 @@ export const campaignFunnel = (id: string) =>
 export const campaignRevenue = (id: string) =>
   call<CampaignRevenueRow>('baaki_admin_campaign_revenue', { p_campaign_id: id });
 
+export interface CampaignEmailStatRow {
+  status: string;
+  count: number;
+}
+
+/** How the broadcast is going: a count of queued/sent/failed rows for a campaign. */
+export const campaignEmailStats = (id: string) =>
+  call<CampaignEmailStatRow>('baaki_admin_campaign_email_stats', { p_campaign_id: id });
+
+export interface BroadcastResult {
+  sent: number;
+  failed: number;
+  retry: number;
+  /** True when a run hit its per-invocation cap — press again to send the rest. */
+  more: boolean;
+}
+
+/**
+ * Email a campaign to its targeted cohort.
+ *
+ * Resend is only ever called from an edge function (TDR §7.3), so this does not
+ * send anything itself — it invokes `campaign-broadcast` with the service key,
+ * which claims the audience, holds the holdout back, and sends. Bounded per
+ * invocation, so a large audience is several presses rather than one request
+ * that runs for minutes and times out.
+ */
+export async function broadcastCampaign(campaignId: string): Promise<BroadcastResult> {
+  await requireSession();
+  if (!/^[0-9a-f-]{36}$/i.test(campaignId.trim())) {
+    throw new Error('That is not a campaign id.');
+  }
+
+  const { data, error } = await client().functions.invoke('campaign-broadcast', {
+    body: { campaign_id: campaignId.trim() },
+  });
+  if (error) {
+    // supabase-js hands back a generic message and keeps the real one on the
+    // Response it carried. The edge function answers `{ code, message }`, and
+    // that message — "Email is not configured", say — is the one worth showing.
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const detail = (await context.json().catch(() => null)) as { message?: string } | null;
+      if (detail?.message) throw new Error(detail.message);
+    }
+    throw new Error(`broadcast failed: ${error.message}`);
+  }
+  return data as BroadcastResult;
+}
+
 export interface FeedbackRow {
   id: string;
   kind: string;
