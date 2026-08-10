@@ -29,6 +29,8 @@ export interface Theme {
     readonly positiveSoft: string;
     readonly negative: string;
     readonly negativeSoft: string;
+    readonly warning: string;
+    readonly warningSoft: string;
   };
   readonly gradient: {
     /** Stops for the brand wash, in paint order. */
@@ -79,6 +81,8 @@ const lightTheme: Theme = {
     positiveSoft: palette.mint,
     negative: palette.negative,
     negativeSoft: palette.pink,
+    warning: palette.warning,
+    warningSoft: palette.peach,
   },
   gradient: { brand: gradients.light },
   tint: lightTints,
@@ -108,6 +112,8 @@ const darkTheme: Theme = {
     positiveSoft: '#123F36',
     negative: '#FF7B72',
     negativeSoft: '#4A2A31',
+    warning: '#E8A54B',
+    warningSoft: '#463020',
   },
   gradient: { brand: gradients.dark },
   tint: darkTints,

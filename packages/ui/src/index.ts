@@ -11,6 +11,7 @@ export * from './theme';
 export * from './curve';
 export * from './components/Text';
 export * from './components/Surfaces';
+export * from './components/Callout';
 export * from './components/CurvedPanel';
 export * from './components/Gradient';
 export * from './components/Button';
