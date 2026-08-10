@@ -12,7 +12,7 @@ import {
 } from '@baaki/core';
 
 import { appleSignInAvailable, signInWithApple, type AppleCredential } from './appleAuth';
-import { identifyForReporting } from './observability';
+import { identifyForReporting, reportHandled } from './observability';
 import { refreshPushToken, revokePushToken } from './push';
 import { supabase } from './supabase';
 
@@ -177,11 +177,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      setLoading(false);
-    });
+    // No `.catch` here used to mean a rejected getSession — a corrupt stored
+    // session, a storage read that fails, no network on a cold start — became
+    // an unhandled rejection at boot ("Uncaught (in promise, id: 0)") and left
+    // the app stuck on the loading spinner, because `setLoading(false)` only
+    // ran on the happy path. A failure to read a session is a signed-out
+    // launch, not a dead one: clear it and let the auth gate send them to
+    // sign-in.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        setSession(data.session);
+      })
+      .catch((caught) => {
+        reportHandled(caught, 'auth.getSession');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
