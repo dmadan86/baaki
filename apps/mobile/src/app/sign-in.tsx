@@ -21,13 +21,15 @@
  * settings row they cannot read, is a door that only opens from the inside.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   TextInput,
   useWindowDimensions,
@@ -45,7 +47,6 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { AppleSignInButton } from '@/components/AppleSignInButton';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
 import { useStrings } from '@/i18n';
@@ -443,20 +444,42 @@ export default function SignInScreen() {
               {error ? <Callout tone="negative">{error}</Callout> : null}
             </Card>
 
-            <Button
-              label={isGuest ? t.signIn.continueGoogle : t.signIn.signInGoogle}
-              variant="secondary"
-              size="lg"
-              fullWidth
-              disabled={busy}
-              onPress={() => void run(withGoogle)}
-            />
+            {/* Icon-only tiles rather than two stacked full-width buttons: the
+                provider is a small choice next to the account above, and a row
+                of marks reads as "one of these" in a glance where a stack of
+                labelled bars reads as two more things to do.
 
-            <AppleSignInButton
-              label={isGuest ? t.signIn.continueApple : t.signIn.signInApple}
-              disabled={busy}
-              onPress={() => void run(withApple)}
-            />
+                Apple's mark is a custom tile here, not its native button. The
+                native sheet is still what opens — `withApple` calls it directly
+                (see auth.tsx), the widget was only ever the surface — so on an
+                iPhone this tile brings up the same system sign-in. */}
+            <View style={{ gap: theme.spacing.md }}>
+              <Text variant="caption" tone="muted" align="center">
+                {t.signIn.orSignInWith}
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: theme.spacing.lg,
+                }}
+              >
+                <ProviderTile
+                  label={isGuest ? t.signIn.continueApple : t.signIn.signInApple}
+                  disabled={busy}
+                  onPress={() => void run(withApple)}
+                >
+                  <Ionicons name="logo-apple" size={26} color={theme.color.text} />
+                </ProviderTile>
+                <ProviderTile
+                  label={isGuest ? t.signIn.continueGoogle : t.signIn.signInGoogle}
+                  disabled={busy}
+                  onPress={() => void run(withGoogle)}
+                >
+                  <Ionicons name="logo-google" size={26} color={theme.color.text} />
+                </ProviderTile>
+              </View>
+            </View>
 
             {/* ADR-006: nobody is forced to register before they can use Baaki.
               Still here, one step back from the welcome, for somebody who came
@@ -479,5 +502,46 @@ export default function SignInScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
+  );
+}
+
+/**
+ * A square, icon-only social button — one mark in the row under "or sign in
+ * with". Icon-only, so it carries the provider's name as its accessibility
+ * label; a screen reader hears "Sign in with Google", not "button".
+ */
+function ProviderTile({
+  label,
+  disabled,
+  onPress,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 64,
+        height: 64,
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.color.border,
+        backgroundColor: theme.color.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.5 : pressed ? 0.7 : 1,
+      })}
+    >
+      {children}
+    </Pressable>
   );
 }
