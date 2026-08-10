@@ -727,6 +727,17 @@ export interface UiStrings {
     adding: string;
     nothingSelected: string;
     addCount: PluralForms;
+    /** Android-only: read the inbox instead of pasting. */
+    readMessages: string;
+    reading: string;
+    readOnAndroid: string;
+    readCount: PluralForms;
+    readNothing: string;
+    permissionDenied: string;
+    permissionBlocked: string;
+    readUnsupported: string;
+    readUnavailable: string;
+    readFailed: string;
   };
   /** Splitting one bill line by line, on one phone or several. */
   itemize: {
@@ -1610,6 +1621,22 @@ const en: UiStrings = {
     adding: 'Adding…',
     nothingSelected: 'Nothing selected',
     addCount: { one: 'Add {n} expense', other: 'Add {n} expenses' },
+    readMessages: 'Read my messages',
+    reading: 'Reading…',
+    readOnAndroid:
+      'On Android, Baaki can read the bank messages in these dates for you. It asks permission first, reads them on this phone, and sends nothing anywhere until you confirm.',
+    readCount: {
+      one: 'Read {n} message from your inbox.',
+      other: 'Read {n} messages from your inbox.',
+    },
+    readNothing: 'No bank messages found in these dates.',
+    permissionDenied:
+      'Baaki needs your permission to read messages. You can still paste them below instead.',
+    permissionBlocked:
+      'Message access is turned off for Baaki. Turn it on in Settings › Apps › Baaki › Permissions, or paste the messages below.',
+    readUnsupported: 'Reading messages only works on Android. Paste them below instead.',
+    readUnavailable: 'This build cannot read messages. Paste them below instead.',
+    readFailed: 'Could not read your messages. Paste them below instead.',
   },
   itemize: {
     title: 'Split by item',
@@ -2537,6 +2564,23 @@ const ta: UiStrings = {
     adding: 'சேர்க்கிறது…',
     nothingSelected: 'எதுவும் தேர்ந்தெடுக்கப்படவில்லை',
     addCount: { one: '{n} செலவைச் சேர்', other: '{n} செலவுகளைச் சேர்' },
+    readMessages: 'என் செய்திகளைப் படி',
+    reading: 'படிக்கிறது…',
+    readOnAndroid:
+      'Android-இல், இந்தத் தேதிகளில் உள்ள வங்கிச் செய்திகளை பாக்கி உங்களுக்காகப் படிக்கும். முதலில் அனுமதி கேட்கும், இந்த ஃபோனிலேயே படிக்கும், நீங்கள் உறுதிப்படுத்தும் வரை எதுவும் எங்கும் அனுப்பப்படாது.',
+    readCount: {
+      one: 'உங்கள் இன்பாக்ஸிலிருந்து {n} செய்தி படிக்கப்பட்டது.',
+      other: 'உங்கள் இன்பாக்ஸிலிருந்து {n} செய்திகள் படிக்கப்பட்டன.',
+    },
+    readNothing: 'இந்தத் தேதிகளில் வங்கிச் செய்திகள் எதுவும் இல்லை.',
+    permissionDenied:
+      'செய்திகளைப் படிக்க பாக்கிக்கு உங்கள் அனுமதி தேவை. அதற்குப் பதிலாக கீழே ஒட்டலாம்.',
+    permissionBlocked:
+      'பாக்கிக்கு செய்தி அணுகல் அணைக்கப்பட்டுள்ளது. அமைப்புகள் › ஆப்ஸ் › Baaki › அனுமதிகள் இல் இயக்கவும், அல்லது கீழே செய்திகளை ஒட்டவும்.',
+    readUnsupported:
+      'செய்திகளைப் படிப்பது Android-இல் மட்டுமே இயங்கும். அதற்குப் பதிலாக கீழே ஒட்டவும்.',
+    readUnavailable: 'இந்தப் பதிப்பால் செய்திகளைப் படிக்க முடியாது. கீழே ஒட்டவும்.',
+    readFailed: 'உங்கள் செய்திகளைப் படிக்க முடியவில்லை. கீழே ஒட்டவும்.',
   },
   itemize: {
     title: 'பொருள் வாரியாகப் பிரி',
@@ -3444,6 +3488,22 @@ const hi: UiStrings = {
     adding: 'जोड़ रहे हैं…',
     nothingSelected: 'कुछ नहीं चुना',
     addCount: { one: '{n} खर्च जोड़ें', other: '{n} खर्च जोड़ें' },
+    readMessages: 'मेरे संदेश पढ़ें',
+    reading: 'पढ़ रहे हैं…',
+    readOnAndroid:
+      'Android पर, Baaki इन तारीखों के बैंक संदेश आपके लिए पढ़ सकता है। यह पहले अनुमति माँगता है, इसी फ़ोन पर पढ़ता है, और जब तक आप किसी खर्च की पुष्टि नहीं करते तब तक कुछ भी कहीं नहीं भेजा जाता।',
+    readCount: {
+      one: 'आपके इनबॉक्स से {n} संदेश पढ़ा गया।',
+      other: 'आपके इनबॉक्स से {n} संदेश पढ़े गए।',
+    },
+    readNothing: 'इन तारीखों में कोई बैंक संदेश नहीं मिला।',
+    permissionDenied:
+      'संदेश पढ़ने के लिए Baaki को आपकी अनुमति चाहिए। आप नीचे उन्हें पेस्ट भी कर सकते हैं।',
+    permissionBlocked:
+      'Baaki के लिए संदेश एक्सेस बंद है। इसे Settings › Apps › Baaki › Permissions में चालू करें, या नीचे संदेश पेस्ट करें।',
+    readUnsupported: 'संदेश पढ़ना केवल Android पर काम करता है। नीचे उन्हें पेस्ट करें।',
+    readUnavailable: 'यह बिल्ड संदेश नहीं पढ़ सकता। नीचे उन्हें पेस्ट करें।',
+    readFailed: 'आपके संदेश पढ़े नहीं जा सके। नीचे उन्हें पेस्ट करें।',
   },
   itemize: {
     title: 'चीज़-वार बाँटें',
@@ -4432,6 +4492,25 @@ const ar: UiStrings = {
       many: 'أضف {n} مصروفًا',
       other: 'أضف {n} مصروف',
     },
+    readMessages: 'اقرأ رسائلي',
+    reading: 'جارٍ القراءة…',
+    readOnAndroid:
+      'على أندرويد، يمكن لـ Baaki قراءة رسائل البنك ضمن هذه التواريخ نيابةً عنك. يطلب الإذن أولًا، ويقرأها على هذا الهاتف، ولا يُرسل أي شيء إلى أي مكان حتى تؤكّد المصروف.',
+    readCount: {
+      zero: 'لم تُقرأ أي رسالة من صندوق الوارد.',
+      one: 'قُرئت رسالة واحدة من صندوق الوارد.',
+      two: 'قُرئت رسالتان من صندوق الوارد.',
+      few: 'قُرئت {n} رسائل من صندوق الوارد.',
+      many: 'قُرئت {n} رسالة من صندوق الوارد.',
+      other: 'قُرئت {n} رسالة من صندوق الوارد.',
+    },
+    readNothing: 'لا توجد رسائل بنكية في هذه التواريخ.',
+    permissionDenied: 'يحتاج Baaki إلى إذنك لقراءة الرسائل. يمكنك بدلًا من ذلك لصقها بالأسفل.',
+    permissionBlocked:
+      'الوصول إلى الرسائل مُعطَّل لـ Baaki. فعِّله من الإعدادات › التطبيقات › Baaki › الأذونات، أو الصق الرسائل بالأسفل.',
+    readUnsupported: 'قراءة الرسائل تعمل على أندرويد فقط. الصقها بالأسفل بدلًا من ذلك.',
+    readUnavailable: 'هذا الإصدار لا يستطيع قراءة الرسائل. الصقها بالأسفل.',
+    readFailed: 'تعذّرت قراءة رسائلك. الصقها بالأسفل.',
   },
   itemize: {
     title: 'التقسيم حسب الصنف',

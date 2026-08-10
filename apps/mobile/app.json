@@ -22,6 +22,7 @@
     },
     "android": {
       "package": "app.baaki.mobile",
+      "permissions": ["android.permission.READ_SMS"],
       "adaptiveIcon": {
         "backgroundColor": "#7A5AF8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

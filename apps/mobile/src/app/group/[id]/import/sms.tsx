@@ -22,7 +22,7 @@
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
 import {
@@ -41,12 +41,14 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { proposeFromSms, type ExpenseCandidate, type MemberId } from '@baaki/core';
+import { proposeFromSms, type ExpenseCandidate, type MemberId, type SmsMessage } from '@baaki/core';
 
 import { useGroup, useGroupLedger } from '@/data/hooks';
 import { planFromSms, toMutationPayload } from '@/data/importPlan';
+import { smsWindowFor } from '@/data/smsWindow';
 import { displayName } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
+import { readSms, type SmsReadFailure } from '@/lib/smsReader';
 import { useAuth } from '@/lib/auth';
 import { importMutationId } from '@/lib/importId';
 import { useImported } from '@/lib/imported';
@@ -79,13 +81,26 @@ export default function ImportSmsScreen() {
   const { keys: alreadyImported, remember } = useImported(groupId);
 
   const [blob, setBlob] = useState('');
-  const [from, setFrom] = useState(() => defaultFrom(expenses.data));
-  const [to, setTo] = useState(() => today());
+  // The window defaults to the trip's own dates (smsWindowFor) and is overridden
+  // only by an explicit edit. Derived during render rather than stored, so it
+  // follows the group loading in without an effect that has to race it — "track
+  // the expenses between the dates of the travel" is simply the default state.
+  const trip = useMemo(() => smsWindowFor(group.data, expenses.data), [group.data, expenses.data]);
+  const [fromEdit, setFromEdit] = useState<string | null>(null);
+  const [toEdit, setToEdit] = useState<string | null>(null);
+  const from = fromEdit ?? trip.from;
+  const to = toEdit ?? trip.to;
+
   const [chosen, setChosen] = useState<Record<string, boolean>>({});
   const [payer, setPayer] = useState<MemberId | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<number | null>(null);
+  // Messages read from the Android inbox, kept apart from the pasted ones so
+  // each keeps its real received time — a dateless bank SMS is filed on the day
+  // it arrived, which the paste flow (received "now") cannot know.
+  const [readMessages, setReadMessages] = useState<SmsMessage[]>([]);
+  const [reading, setReading] = useState(false);
 
   const groupCurrency = group.data?.default_currency ?? 'INR';
   const memberRows = useMemo(() => members.data ?? [], [members.data]);
@@ -95,14 +110,36 @@ export default function ImportSmsScreen() {
 
   const messages = useMemo(() => splitMessages(blob), [blob]);
 
-  const candidates = useMemo(
-    () =>
-      proposeFromSms(
-        messages.map((body) => ({ body, receivedAt: new Date().toISOString() })),
-        { from, to, alreadyImported },
-      ),
-    [messages, from, to, alreadyImported],
+  // The read inbox first (real timestamps), then anything pasted. proposeFromSms
+  // dedupes across the two, so a message that was both read and pasted collapses.
+  const allMessages = useMemo(
+    () => [
+      ...readMessages,
+      ...messages.map((body) => ({ body, receivedAt: new Date().toISOString() })),
+    ],
+    [readMessages, messages],
   );
+
+  const candidates = useMemo(
+    () => proposeFromSms(allMessages, { from, to, alreadyImported }),
+    [allMessages, from, to, alreadyImported],
+  );
+
+  const readInbox = async (): Promise<void> => {
+    setError(null);
+    setReading(true);
+    try {
+      const result = await readSms({ from, to });
+      if (result.ok) {
+        setReadMessages(result.messages);
+        setError(result.messages.length === 0 ? t.smsImport.readNothing : null);
+      } else {
+        setError(readFailureMessage(result.reason, t));
+      }
+    } finally {
+      setReading(false);
+    }
+  };
 
   // A message in another currency needs a rate, and the rate is not in the
   // message. Rather than invent one, these are named and left for the add
@@ -218,6 +255,30 @@ export default function ImportSmsScreen() {
               </Text>
               <Button label={t.smsImport.paste} variant="ghost" onPress={() => void paste()} />
             </Row>
+
+            {/* Android only: read the inbox for this window instead of pasting.
+                Absent everywhere else (iOS, Expo Go, any build without the
+                reader) — smsReader answers those with a sentence, not a crash. */}
+            {Platform.OS === 'android' ? (
+              <View style={{ gap: theme.spacing.sm }}>
+                <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                <Button
+                  label={reading ? t.smsImport.reading : t.smsImport.readMessages}
+                  variant="secondary"
+                  disabled={reading}
+                  onPress={() => void readInbox()}
+                  icon={<Ionicons name="chatbubbles-outline" size={18} color={theme.color.brand} />}
+                />
+                <Text variant="micro" tone="faint">
+                  {t.smsImport.readOnAndroid}
+                </Text>
+                {readMessages.length > 0 ? (
+                  <Text variant="micro" tone="muted">
+                    {plural(locale, readMessages.length, t.smsImport.readCount)}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
           </Card>
         </View>
 
@@ -228,29 +289,29 @@ export default function ImportSmsScreen() {
               {t.smsImport.datesNote}
             </Text>
             <Row style={{ gap: theme.spacing.md }}>
-              <DateField label={t.smsImport.from} value={from} onChange={setFrom} />
-              <DateField label={t.smsImport.to} value={to} onChange={setTo} />
+              <DateField label={t.smsImport.from} value={from} onChange={setFromEdit} />
+              <DateField label={t.smsImport.to} value={to} onChange={setToEdit} />
             </Row>
             <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
               <Chip
                 label={t.smsImport.last7}
                 onPress={() => {
-                  setFrom(daysAgo(7));
-                  setTo(today());
+                  setFromEdit(daysAgo(7));
+                  setToEdit(today());
                 }}
               />
               <Chip
                 label={t.smsImport.last30}
                 onPress={() => {
-                  setFrom(daysAgo(30));
-                  setTo(today());
+                  setFromEdit(daysAgo(30));
+                  setToEdit(today());
                 }}
               />
             </Row>
           </Card>
         </View>
 
-        {messages.length > 0 ? (
+        {allMessages.length > 0 ? (
           <View style={{ gap: theme.spacing.sm }}>
             <SectionHeader title={t.smsImport.foundSection} />
             {importable.length === 0 ? (
@@ -420,15 +481,18 @@ const today = (): string => new Date().toISOString().slice(0, 10);
 const daysAgo = (days: number): string =>
   new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 
-/**
- * The group's own history is a better guess at "the trip" than a fixed number
- * of days: a group made for last month's holiday should not open on a window
- * that contains none of it.
- */
-function defaultFrom(expenses: { created_at?: string }[] | undefined): string {
-  const earliest = (expenses ?? [])
-    .map((expense) => String(expense.created_at ?? ''))
-    .filter(Boolean)
-    .sort()[0];
-  return earliest ? earliest.slice(0, 10) : daysAgo(30);
+/** Why the inbox could not be read, said in a way a person can act on. */
+function readFailureMessage(reason: SmsReadFailure, t: ReturnType<typeof useStrings>['t']): string {
+  switch (reason) {
+    case 'denied':
+      return t.smsImport.permissionDenied;
+    case 'blocked':
+      return t.smsImport.permissionBlocked;
+    case 'unsupported':
+      return t.smsImport.readUnsupported;
+    case 'unavailable':
+      return t.smsImport.readUnavailable;
+    case 'failed':
+      return t.smsImport.readFailed;
+  }
 }
