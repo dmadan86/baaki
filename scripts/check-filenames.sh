@@ -34,6 +34,12 @@ while IFS= read -r path; do
   # they are not the failure this is looking for.
   case $path in apps/*/assets/*) continue ;; esac
 
+  # pnpm names the files under `patches/` after the package and version it
+  # patches — `react-native-get-sms-android@2.1.0.patch`, an `@` and a `.patch`
+  # neither of which this guard would otherwise allow. The name is the tool's,
+  # not a person's, so the directory is exempt the same way assets are.
+  case $path in patches/*.patch) continue ;; esac
+
   # Expo Router names a route group `(tabs)` and a dynamic segment `[id]` or
   # `[...rest]`. Both are directories or files the framework requires.
   if [[ $name =~ ^\(.+\)$ ]]; then continue; fi
