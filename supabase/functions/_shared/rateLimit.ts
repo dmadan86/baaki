@@ -52,6 +52,12 @@ export const LIMITS = {
    * loop before anybody notices.
    */
   'receipt-parse': { limit: 10, windowSeconds: 60 },
+  /**
+   * Erasing an account: rare, idempotent, and a caller only ever does it to
+   * their own. The cap is a fuse on the admin API behind it, so a stuck
+   * recovery retry backs off rather than hammering `deleteUser` all hour.
+   */
+  'account-delete': { limit: 5, windowSeconds: 3600 },
 } as const;
 
 export type Bucket = keyof typeof LIMITS;
