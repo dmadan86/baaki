@@ -601,6 +601,10 @@ export interface UiStrings {
     expires: string;
     hideContacts: string;
     browseContacts: string;
+    /** Reminding somebody who owes you to settle, gently (ADR-010). */
+    remind: string;
+    reminded: string;
+    remindedToday: string;
   };
   /** Adding and editing an expense, and reading one off a bill. */
   expense: {
@@ -1485,6 +1489,9 @@ const en: UiStrings = {
     expires: 'expires {when}',
     hideContacts: 'Hide contacts',
     browseContacts: 'Browse my contacts',
+    remind: 'Remind',
+    reminded: 'Reminded',
+    remindedToday: 'Nudged today',
   },
   expense: {
     edit: 'Edit expense',
@@ -2429,6 +2436,9 @@ const ta: UiStrings = {
     expires: '{when} க்கு காலாவதி',
     hideContacts: 'தொடர்புகளை மறை',
     browseContacts: 'என் தொடர்புகளைப் பார்',
+    remind: 'நினைவூட்டு',
+    reminded: 'நினைவூட்டப்பட்டது',
+    remindedToday: 'இன்று நினைவூட்டிவிட்டீர்கள்',
   },
   expense: {
     edit: 'செலவைத் திருத்து',
@@ -3364,6 +3374,9 @@ const hi: UiStrings = {
     expires: '{when} को खत्म',
     hideContacts: 'संपर्क छिपाएँ',
     browseContacts: 'मेरे संपर्क देखें',
+    remind: 'याद दिलाएँ',
+    reminded: 'याद दिला दिया',
+    remindedToday: 'आज याद दिला चुके',
   },
   expense: {
     edit: 'खर्च बदलें',
@@ -4324,6 +4337,9 @@ const ar: UiStrings = {
     expires: 'ينتهي {when}',
     hideContacts: 'إخفاء جهات الاتصال',
     browseContacts: 'تصفّح جهات اتصالي',
+    remind: 'ذكّر',
+    reminded: 'تم التذكير',
+    remindedToday: 'ذُكّر اليوم',
   },
   expense: {
     edit: 'تعديل المصروف',
