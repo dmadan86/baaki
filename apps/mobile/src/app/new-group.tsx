@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { currencyForCountry, guessGroupEmoji } from '@baaki/core';
-import { Button, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Button, Callout, Card, ChipRow, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { pickGroupPhoto, type PickedImage } from '@/lib/image';
@@ -243,9 +243,12 @@ export default function NewGroupScreen() {
         </Card>
 
         {error ? (
-          <Text variant="caption" tone="negative">
+          <Callout
+            tone="negative"
+            icon={(color) => <Ionicons name="alert-circle" size={20} color={color} />}
+          >
             {error}
-          </Text>
+          </Callout>
         ) : null}
         {createGroup.isPending || uploading ? (
           <ActivityIndicator color={theme.color.brand} />
