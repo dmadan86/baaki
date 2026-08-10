@@ -198,6 +198,35 @@ export function PeopleSkeleton() {
   );
 }
 
+/**
+ * The activity tab: a day heading and a few full-width entry cards, the shape
+ * of the real feed. Shown in place of it while the first page loads, so the
+ * cold screen is not the "nothing yet" empty state — which is a verdict the
+ * query has not returned yet, not the answer.
+ */
+export function FeedSkeleton() {
+  const theme = useTheme();
+  const { animated } = useMotion();
+  return (
+    <LoadingRegion style={{ gap: theme.spacing.xl }}>
+      {[0, 1].map((section) => (
+        <View key={section} style={{ gap: theme.spacing.md }}>
+          <Skeleton width="35%" height={16} animated={animated} />
+          {[0, 1, 2].map((card) => (
+            <Skeleton
+              key={card}
+              width="100%"
+              height={72}
+              radius={theme.radius.lg}
+              animated={animated}
+            />
+          ))}
+        </View>
+      ))}
+    </LoadingRegion>
+  );
+}
+
 /** Insights: a heading and a couple of chart-sized blocks. */
 export function InsightsSkeleton() {
   const theme = useTheme();
