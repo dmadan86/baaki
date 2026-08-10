@@ -11,7 +11,6 @@ import {
   Gradient,
   IconButton,
   ListRow,
-  MoneyText,
   Row,
   Screen,
   SectionHeader,
@@ -22,6 +21,7 @@ import {
 } from '@baaki/ui';
 
 import { useGroups, useHomeSummary } from '@/data/hooks';
+import { CountUpMoney, Stagger } from '@/lib/anim';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { SyncBanner } from '@/components/SyncBanner';
@@ -147,7 +147,7 @@ export default function HomeScreen() {
           </Row>
 
           <View>
-            <MoneyText
+            <CountUpMoney
               amount={headline.net < 0n ? -headline.net : headline.net}
               currency={headline.currency as never}
               locale={locale}
@@ -174,7 +174,7 @@ export default function HomeScreen() {
               <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
                 {t.youAreOwed}
               </Text>
-              <MoneyText
+              <CountUpMoney
                 amount={headline.owed}
                 currency={headline.currency as never}
                 locale={locale}
@@ -185,7 +185,7 @@ export default function HomeScreen() {
               <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
                 {t.youOwe}
               </Text>
-              <MoneyText
+              <CountUpMoney
                 amount={headline.owing}
                 currency={headline.currency as never}
                 locale={locale}
@@ -270,7 +270,7 @@ export default function HomeScreen() {
               }
             />
             <View style={{ gap: theme.spacing.lg }}>
-              {list.map((group) => {
+              {list.map((group, index) => {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
                 // The other people in the group, for the avatar cluster — your
@@ -280,22 +280,23 @@ export default function HomeScreen() {
                   .filter((member) => !(member.profile_id && member.profile_id === profile?.id))
                   .map((member) => displayName(member, profile?.id));
                 return (
-                  <GroupCard
-                    key={group.id}
-                    id={group.id}
-                    title={groupLabel(group, members, profile?.id)}
-                    memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
-                    memberNames={others}
-                    coverEmoji={group.cover_emoji}
-                    balance={balance}
-                    currency={group.default_currency}
-                    locale={locale}
-                    statusLabel={
-                      balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe
-                    }
-                    pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
-                    onPress={() => router.push(`/group/${group.id}`)}
-                  />
+                  <Stagger key={group.id} index={index}>
+                    <GroupCard
+                      id={group.id}
+                      title={groupLabel(group, members, profile?.id)}
+                      memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
+                      memberNames={others}
+                      coverEmoji={group.cover_emoji}
+                      balance={balance}
+                      currency={group.default_currency}
+                      locale={locale}
+                      statusLabel={
+                        balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe
+                      }
+                      pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
+                      onPress={() => router.push(`/group/${group.id}`)}
+                    />
+                  </Stagger>
                 );
               })}
             </View>

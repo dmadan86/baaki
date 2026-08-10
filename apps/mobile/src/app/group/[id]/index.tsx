@@ -39,6 +39,7 @@ import { GroupSkeleton } from '@/components/Skeletons';
 import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { DetailEnter } from '@/lib/anim';
 import { CategoryBadge } from '@/components/Category';
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { PendingMark } from '@/components/PendingMark';
@@ -101,378 +102,383 @@ export default function GroupScreen() {
 
   return (
     <Screen>
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: 180,
-          gap: theme.spacing.xl,
-        }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={expenses.isFetching && !expenses.isLoading}
-            onRefresh={() => {
-              void expenses.refetch();
-              void settlements.refetch();
-              void activity.refetch();
-            }}
-            tintColor={theme.color.brand}
-          />
-        }
-      >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
-          </IconButton>
-          <Row style={{ flex: 1, gap: theme.spacing.md, justifyContent: 'center' }}>
-            <GroupPhoto
-              photoPath={group.data.photo_path}
-              emoji={group.data.cover_emoji}
-              size={38}
+      <DetailEnter>
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: 180,
+            gap: theme.spacing.xl,
+          }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={expenses.isFetching && !expenses.isLoading}
+              onRefresh={() => {
+                void expenses.refetch();
+                void settlements.refetch();
+                void activity.refetch();
+              }}
+              tintColor={theme.color.brand}
             />
-            <View style={{ flexShrink: 1 }}>
-              <Text variant="heading" numberOfLines={1}>
-                {groupLabel(group.data, members.data ?? [], profile?.id)}
-              </Text>
-              <Text variant="micro" tone="muted">
-                {plural(locale, members.data?.length ?? 0, t.memberCount)}
-              </Text>
-            </View>
-          </Row>
-          {/* Only where there is a trip to plan. A planner on a flatshare
-              group is a tab nobody opens twice. */}
-          {group.data.type === 'trip' ? (
-            <IconButton label={t.plan} onPress={() => router.push(`/group/${groupId}/plan`)}>
-              <Ionicons name="map-outline" size={19} color={theme.color.text} />
+          }
+        >
+          <Row style={{ paddingTop: theme.spacing.md }}>
+            <IconButton label={t.common.back} onPress={() => router.back()}>
+              <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
             </IconButton>
-          ) : null}
-          <IconButton label={t.spending} onPress={() => router.push(`/group/${groupId}/insights`)}>
-            <Ionicons name="pie-chart-outline" size={19} color={theme.color.text} />
-          </IconButton>
-          <IconButton
-            label={t.group.settings}
-            onPress={() => router.push(`/group/${groupId}/settings`)}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text} />
-          </IconButton>
-        </Row>
-
-        <SyncBanner groupId={groupId} />
-
-        {/* If the two independent balance computations ever disagree, say so
-            rather than showing a number that might be wrong (ADR-004). */}
-        {ledger.mismatch ? (
-          <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}>
-            <Text variant="subheading" tone="negative">
-              {t.group.mismatch}
-            </Text>
-            <Text variant="caption" tone="muted">
-              {t.group.mismatchBody}
-            </Text>
-          </Card>
-        ) : null}
-
-        {/* A bill somebody at this table scanned and shared. Without this the
-            second person has no way to reach it, and the claims CRDT is
-            plumbing with no tap. */}
-        {(openReceipts.data ?? []).map((receipt) => (
-          <Pressable
-            key={receipt.id}
-            accessibilityRole="button"
-            accessibilityLabel={`Split ${receipt.parsed?.merchant ?? 'the bill'} by item`}
-            onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
-          >
-            <Card style={{ gap: theme.spacing.sm }}>
-              <Row style={{ gap: theme.spacing.sm }}>
-                <Ionicons name="receipt-outline" size={18} color={theme.color.brand} />
-                <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
-                  {receipt.parsed?.merchant ?? 'A bill'}
+            <Row style={{ flex: 1, gap: theme.spacing.md, justifyContent: 'center' }}>
+              <GroupPhoto
+                photoPath={group.data.photo_path}
+                emoji={group.data.cover_emoji}
+                size={38}
+              />
+              <View style={{ flexShrink: 1 }}>
+                <Text variant="heading" numberOfLines={1}>
+                  {groupLabel(group.data, members.data ?? [], profile?.id)}
                 </Text>
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={18}
-                  color={theme.color.textFaint}
-                />
-              </Row>
+                <Text variant="micro" tone="muted">
+                  {plural(locale, members.data?.length ?? 0, t.memberCount)}
+                </Text>
+              </View>
+            </Row>
+            {/* Only where there is a trip to plan. A planner on a flatshare
+              group is a tab nobody opens twice. */}
+            {group.data.type === 'trip' ? (
+              <IconButton label={t.plan} onPress={() => router.push(`/group/${groupId}/plan`)}>
+                <Ionicons name="map-outline" size={19} color={theme.color.text} />
+              </IconButton>
+            ) : null}
+            <IconButton
+              label={t.spending}
+              onPress={() => router.push(`/group/${groupId}/insights`)}
+            >
+              <Ionicons name="pie-chart-outline" size={19} color={theme.color.text} />
+            </IconButton>
+            <IconButton
+              label={t.group.settings}
+              onPress={() => router.push(`/group/${groupId}/settings`)}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text} />
+            </IconButton>
+          </Row>
+
+          <SyncBanner groupId={groupId} />
+
+          {/* If the two independent balance computations ever disagree, say so
+            rather than showing a number that might be wrong (ADR-004). */}
+          {ledger.mismatch ? (
+            <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}>
+              <Text variant="subheading" tone="negative">
+                {t.group.mismatch}
+              </Text>
               <Text variant="caption" tone="muted">
-                {receipt.claimed === 0
-                  ? `${receipt.items} lines, nobody has claimed one yet. Tap what you had.`
-                  : `${receipt.claimed} of ${receipt.items} lines claimed. Tap what you had.`}
+                {t.group.mismatchBody}
               </Text>
             </Card>
-          </Pressable>
-        ))}
+          ) : null}
 
-        <TintCard
-          tint={tintForKey(groupId)}
-          style={{
-            borderRadius: theme.radius.xl,
-            padding: theme.spacing.xl,
-            gap: theme.spacing.lg,
-          }}
-        >
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="caption" style={{ color: ink, opacity: 0.8 }}>
-              {ledger.myBalance >= 0n ? t.youAreOwed : t.youOwe}
-            </Text>
-            {ledger.pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
-          </Row>
+          {/* A bill somebody at this table scanned and shared. Without this the
+            second person has no way to reach it, and the claims CRDT is
+            plumbing with no tap. */}
+          {(openReceipts.data ?? []).map((receipt) => (
+            <Pressable
+              key={receipt.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Split ${receipt.parsed?.merchant ?? 'the bill'} by item`}
+              onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
+            >
+              <Card style={{ gap: theme.spacing.sm }}>
+                <Row style={{ gap: theme.spacing.sm }}>
+                  <Ionicons name="receipt-outline" size={18} color={theme.color.brand} />
+                  <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
+                    {receipt.parsed?.merchant ?? 'A bill'}
+                  </Text>
+                  <Ionicons
+                    name={directionalIcon('chevron-forward')}
+                    size={18}
+                    color={theme.color.textFaint}
+                  />
+                </Row>
+                <Text variant="caption" tone="muted">
+                  {receipt.claimed === 0
+                    ? `${receipt.items} lines, nobody has claimed one yet. Tap what you had.`
+                    : `${receipt.claimed} of ${receipt.items} lines claimed. Tap what you had.`}
+                </Text>
+              </Card>
+            </Pressable>
+          ))}
 
-          {/* mode="balance" keeps the spoken "You are owed ₹X" label and the
-              absolute value; the colour is overridden to ink for the surface. */}
-          <MoneyText
-            amount={ledger.myBalance}
-            currency={currency}
-            locale={locale}
-            mode="balance"
-            variant="display"
-            tone="default"
-            style={{ color: ink }}
-          />
-
-          <Row style={{ gap: theme.spacing.md }}>
-            <Button
-              label={t.settleUp}
-              onPress={() => router.push(`/group/${groupId}/settle`)}
-              icon={<Ionicons name="swap-horizontal" size={18} color={theme.color.onBrand} />}
-            />
-            <Button
-              label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-              variant="secondary"
-              onPress={() => router.push(`/group/${groupId}/simplify`)}
-            />
-          </Row>
-        </TintCard>
-
-        {pendingForMe.map((settlement) => (
-          <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
-            <Text variant="subheading">
-              {`${nameOf(settlement.from_member_id)} says they paid you`}
-            </Text>
-            <Row style={{ gap: theme.spacing.sm }}>
-              <MoneyText
-                amount={BigInt(settlement.amount)}
-                currency={settlement.currency}
-                locale={locale}
-                variant="title"
-              />
-              {settlement.pending ? <PendingMark size={16} /> : null}
+          <TintCard
+            tint={tintForKey(groupId)}
+            style={{
+              borderRadius: theme.radius.xl,
+              padding: theme.spacing.xl,
+              gap: theme.spacing.lg,
+            }}
+          >
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text variant="caption" style={{ color: ink, opacity: 0.8 }}>
+                {ledger.myBalance >= 0n ? t.youAreOwed : t.youOwe}
+              </Text>
+              {ledger.pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
             </Row>
+
+            {/* mode="balance" keeps the spoken "You are owed ₹X" label and the
+              absolute value; the colour is overridden to ink for the surface. */}
+            <MoneyText
+              amount={ledger.myBalance}
+              currency={currency}
+              locale={locale}
+              mode="balance"
+              variant="display"
+              tone="default"
+              style={{ color: ink }}
+            />
+
             <Row style={{ gap: theme.spacing.md }}>
               <Button
-                label={t.group.confirmReceived}
-                onPress={() => confirmSettlement.mutate(settlement.id)}
-                disabled={confirmSettlement.isPending}
+                label={t.settleUp}
+                onPress={() => router.push(`/group/${groupId}/settle`)}
+                icon={<Ionicons name="swap-horizontal" size={18} color={theme.color.onBrand} />}
               />
-              <Text variant="micro" tone="faint" style={{ flex: 1 }}>
-                {t.group.autoConfirms}
+              <Button
+                label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
+                variant="secondary"
+                onPress={() => router.push(`/group/${groupId}/simplify`)}
+              />
+            </Row>
+          </TintCard>
+
+          {pendingForMe.map((settlement) => (
+            <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
+              <Text variant="subheading">
+                {`${nameOf(settlement.from_member_id)} says they paid you`}
+              </Text>
+              <Row style={{ gap: theme.spacing.sm }}>
+                <MoneyText
+                  amount={BigInt(settlement.amount)}
+                  currency={settlement.currency}
+                  locale={locale}
+                  variant="title"
+                />
+                {settlement.pending ? <PendingMark size={16} /> : null}
+              </Row>
+              <Row style={{ gap: theme.spacing.md }}>
+                <Button
+                  label={t.group.confirmReceived}
+                  onPress={() => confirmSettlement.mutate(settlement.id)}
+                  disabled={confirmSettlement.isPending}
+                />
+                <Text variant="micro" tone="faint" style={{ flex: 1 }}>
+                  {t.group.autoConfirms}
+                </Text>
+              </Row>
+            </Card>
+          ))}
+
+          <ChipRow<Tab>
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'expenses', label: t.expenses },
+              { value: 'balances', label: t.balances },
+              { value: 'activity', label: t.activity },
+            ]}
+          />
+
+          {tab === 'expenses' ? (
+            <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
+              <Text
+                variant="caption"
+                tone="muted"
+                onPress={() => setShowDeleted((current) => !current)}
+              >
+                {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
               </Text>
             </Row>
-          </Card>
-        ))}
+          ) : null}
 
-        <ChipRow<Tab>
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'expenses', label: t.expenses },
-            { value: 'balances', label: t.balances },
-            { value: 'activity', label: t.activity },
-          ]}
-        />
-
-        {tab === 'expenses' ? (
-          <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
-            <Text
-              variant="caption"
-              tone="muted"
-              onPress={() => setShowDeleted((current) => !current)}
-            >
-              {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-            </Text>
-          </Row>
-        ) : null}
-
-        {tab === 'expenses' ? (
-          visibleExpenses.length === 0 ? (
-            <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
-          ) : (
-            <View style={{ gap: theme.spacing.md }}>
-              {visibleExpenses.map((expense) => {
-                const version = expense.currentVersion;
-                const payer = version?.payers[0]?.member_id ?? null;
-                // Somebody disagreeing with an expense is worth seeing from the
-                // list. A disagreement you only find by opening the row is one
-                // that sits there unanswered.
-                const contested = openDisputes.has(expense.id);
-                // Each row is a card in its category's colour — the amount is a
-                // total, shown neutral in the tint's ink. A deleted row is dimmed
-                // rather than hidden, so the ledger stays visibly append-only.
-                const catTint = categoryOf(version?.category).tint;
-                const catInk = theme.tint[catTint].ink;
-                const title = expenseTitle(version?.description, version?.category, t);
-                return (
-                  <Pressable
-                    key={expense.id}
-                    onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-                    accessibilityRole="button"
-                    accessibilityLabel={title}
-                    style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-                  >
-                    <TintCard
-                      tint={catTint}
-                      style={{
-                        borderRadius: theme.radius.lg,
-                        padding: theme.spacing.lg,
-                        opacity: expense.deleted_at ? 0.55 : 1,
-                      }}
+          {tab === 'expenses' ? (
+            visibleExpenses.length === 0 ? (
+              <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
+            ) : (
+              <View style={{ gap: theme.spacing.md }}>
+                {visibleExpenses.map((expense) => {
+                  const version = expense.currentVersion;
+                  const payer = version?.payers[0]?.member_id ?? null;
+                  // Somebody disagreeing with an expense is worth seeing from the
+                  // list. A disagreement you only find by opening the row is one
+                  // that sits there unanswered.
+                  const contested = openDisputes.has(expense.id);
+                  // Each row is a card in its category's colour — the amount is a
+                  // total, shown neutral in the tint's ink. A deleted row is dimmed
+                  // rather than hidden, so the ledger stays visibly append-only.
+                  const catTint = categoryOf(version?.category).tint;
+                  const catInk = theme.tint[catTint].ink;
+                  const title = expenseTitle(version?.description, version?.category, t);
+                  return (
+                    <Pressable
+                      key={expense.id}
+                      onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
+                      accessibilityRole="button"
+                      accessibilityLabel={title}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                     >
-                      <Row style={{ gap: theme.spacing.md }}>
-                        <CategoryBadge category={version?.category} size={40} />
-                        <View style={{ flex: 1 }}>
-                          <Text variant="subheading" numberOfLines={1} style={{ color: catInk }}>
-                            {`${title}${contested ? '  🚩' : ''}`}
-                          </Text>
-                          <Text
-                            variant="caption"
-                            numberOfLines={1}
-                            style={{ color: catInk, opacity: 0.7 }}
-                          >
-                            {[
-                              fill(t.expense.paidByName, { name: nameOf(payer) }),
-                              version
-                                ? new Intl.DateTimeFormat(locale, {
-                                    day: 'numeric',
-                                    month: 'short',
-                                  }).format(new Date(version.expense_date))
-                                : null,
-                              expense.deleted_at ? t.expense.deleted : null,
-                              (version?.version_no ?? 1) > 1
-                                ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
-                                : null,
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </Text>
-                        </View>
-                        {version ? (
-                          <Row style={{ gap: theme.spacing.sm }}>
-                            <MoneyText
-                              amount={BigInt(version.amount)}
-                              currency={version.currency}
-                              locale={locale}
-                              tone="default"
-                              style={{ color: catInk, fontWeight: '700' }}
-                            />
-                            {expense.pending ? <PendingMark /> : null}
-                          </Row>
-                        ) : null}
+                      <TintCard
+                        tint={catTint}
+                        style={{
+                          borderRadius: theme.radius.lg,
+                          padding: theme.spacing.lg,
+                          opacity: expense.deleted_at ? 0.55 : 1,
+                        }}
+                      >
+                        <Row style={{ gap: theme.spacing.md }}>
+                          <CategoryBadge category={version?.category} size={40} />
+                          <View style={{ flex: 1 }}>
+                            <Text variant="subheading" numberOfLines={1} style={{ color: catInk }}>
+                              {`${title}${contested ? '  🚩' : ''}`}
+                            </Text>
+                            <Text
+                              variant="caption"
+                              numberOfLines={1}
+                              style={{ color: catInk, opacity: 0.7 }}
+                            >
+                              {[
+                                fill(t.expense.paidByName, { name: nameOf(payer) }),
+                                version
+                                  ? new Intl.DateTimeFormat(locale, {
+                                      day: 'numeric',
+                                      month: 'short',
+                                    }).format(new Date(version.expense_date))
+                                  : null,
+                                expense.deleted_at ? t.expense.deleted : null,
+                                (version?.version_no ?? 1) > 1
+                                  ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </Text>
+                          </View>
+                          {version ? (
+                            <Row style={{ gap: theme.spacing.sm }}>
+                              <MoneyText
+                                amount={BigInt(version.amount)}
+                                currency={version.currency}
+                                locale={locale}
+                                tone="default"
+                                style={{ color: catInk, fontWeight: '700' }}
+                              />
+                              {expense.pending ? <PendingMark /> : null}
+                            </Row>
+                          ) : null}
+                        </Row>
+                      </TintCard>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )
+          ) : null}
+
+          {tab === 'balances' ? (
+            <View style={{ gap: theme.spacing.md }}>
+              {(members.data ?? []).map((member) => {
+                // Each member is a card in the money colour for its meaning: mint
+                // when they are owed, pink when they owe, lilac when square. The
+                // balance is drawn in the pair's ink to stay legible on the tint.
+                const balance = ledger.balances.get(member.id) ?? 0n;
+                const rowTint = balance > 0n ? 'mint' : balance < 0n ? 'pink' : 'lilac';
+                const rowInk = theme.tint[rowTint].ink;
+                return (
+                  <TintCard
+                    key={member.id}
+                    tint={rowTint}
+                    style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}
+                  >
+                    <Row style={{ gap: theme.spacing.md }}>
+                      <Avatar name={displayName(member)} ghost={isGhost(member)} size={40} />
+                      <View style={{ flex: 1 }}>
+                        <Text variant="subheading" numberOfLines={1} style={{ color: rowInk }}>
+                          {displayName(member, profile?.id)}
+                        </Text>
+                        <Text
+                          variant="caption"
+                          numberOfLines={1}
+                          style={{ color: rowInk, opacity: 0.7 }}
+                        >
+                          {isGhost(member)
+                            ? t.notJoinedYet
+                            : (member.vpa ?? member.profile?.default_vpa ?? '—')}
+                        </Text>
+                      </View>
+                      <Row style={{ gap: theme.spacing.sm }}>
+                        <MoneyText
+                          amount={balance}
+                          currency={currency}
+                          locale={locale}
+                          mode="balance"
+                          tone="default"
+                          style={{ color: rowInk }}
+                        />
+                        {member.pending ? <PendingMark /> : null}
                       </Row>
-                    </TintCard>
-                  </Pressable>
+                    </Row>
+                  </TintCard>
                 );
               })}
             </View>
-          )
-        ) : null}
+          ) : null}
 
-        {tab === 'balances' ? (
-          <View style={{ gap: theme.spacing.md }}>
-            {(members.data ?? []).map((member) => {
-              // Each member is a card in the money colour for its meaning: mint
-              // when they are owed, pink when they owe, lilac when square. The
-              // balance is drawn in the pair's ink to stay legible on the tint.
-              const balance = ledger.balances.get(member.id) ?? 0n;
-              const rowTint = balance > 0n ? 'mint' : balance < 0n ? 'pink' : 'lilac';
-              const rowInk = theme.tint[rowTint].ink;
-              return (
-                <TintCard
-                  key={member.id}
-                  tint={rowTint}
-                  style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}
-                >
-                  <Row style={{ gap: theme.spacing.md }}>
-                    <Avatar name={displayName(member)} ghost={isGhost(member)} size={40} />
-                    <View style={{ flex: 1 }}>
-                      <Text variant="subheading" numberOfLines={1} style={{ color: rowInk }}>
-                        {displayName(member, profile?.id)}
-                      </Text>
-                      <Text
-                        variant="caption"
-                        numberOfLines={1}
-                        style={{ color: rowInk, opacity: 0.7 }}
-                      >
-                        {isGhost(member)
-                          ? t.notJoinedYet
-                          : (member.vpa ?? member.profile?.default_vpa ?? '—')}
-                      </Text>
-                    </View>
-                    <Row style={{ gap: theme.spacing.sm }}>
-                      <MoneyText
-                        amount={balance}
-                        currency={currency}
-                        locale={locale}
-                        mode="balance"
-                        tone="default"
-                        style={{ color: rowInk }}
-                      />
-                      {member.pending ? <PendingMark /> : null}
-                    </Row>
-                  </Row>
-                </TintCard>
-              );
-            })}
-          </View>
-        ) : null}
-
-        {tab === 'activity' ? (
-          (activity.data ?? []).length === 0 ? (
-            <EmptyState title={t.nothingYet} body={t.group.activityEmptyBody} />
-          ) : (
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {(activity.data ?? []).map((entry, index) => (
-                <View key={entry.id}>
-                  <ListRow
-                    title={describeActivity(entry, profile?.id ?? null)}
-                    subtitle={new Intl.DateTimeFormat(locale, {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    }).format(new Date(entry.created_at))}
-                    leading={
-                      <Avatar
-                        name={actorName(entry.actor, profile?.id ?? null)}
-                        emoji={verbEmoji(entry.verb)}
-                        size={38}
-                      />
-                    }
-                    trailing={
-                      typeof entry.payload.amount === 'string' ? (
-                        <MoneyText
-                          amount={BigInt(entry.payload.amount)}
-                          currency={(entry.payload.currency as string) ?? currency}
-                          locale={locale}
-                          variant="caption"
+          {tab === 'activity' ? (
+            (activity.data ?? []).length === 0 ? (
+              <EmptyState title={t.nothingYet} body={t.group.activityEmptyBody} />
+            ) : (
+              <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                {(activity.data ?? []).map((entry, index) => (
+                  <View key={entry.id}>
+                    <ListRow
+                      title={describeActivity(entry, profile?.id ?? null)}
+                      subtitle={new Intl.DateTimeFormat(locale, {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      }).format(new Date(entry.created_at))}
+                      leading={
+                        <Avatar
+                          name={actorName(entry.actor, profile?.id ?? null)}
+                          emoji={verbEmoji(entry.verb)}
+                          size={38}
                         />
-                      ) : null
-                    }
-                  />
-                  {index < (activity.data?.length ?? 0) - 1 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
-                </View>
-              ))}
-            </Card>
-          )
-        ) : null}
-      </ScrollView>
+                      }
+                      trailing={
+                        typeof entry.payload.amount === 'string' ? (
+                          <MoneyText
+                            amount={BigInt(entry.payload.amount)}
+                            currency={(entry.payload.currency as string) ?? currency}
+                            locale={locale}
+                            variant="caption"
+                          />
+                        ) : null
+                      }
+                    />
+                    {index < (activity.data?.length ?? 0) - 1 ? (
+                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                    ) : null}
+                  </View>
+                ))}
+              </Card>
+            )
+          ) : null}
+        </ScrollView>
 
-      <Fab
-        label={t.addExpense}
-        onPress={() => router.push(`/group/${groupId}/add-expense`)}
-        icon={<Ionicons name="add" size={22} color={theme.color.onBrand} />}
-      />
+        <Fab
+          label={t.addExpense}
+          onPress={() => router.push(`/group/${groupId}/add-expense`)}
+          icon={<Ionicons name="add" size={22} color={theme.color.onBrand} />}
+        />
+      </DetailEnter>
     </Screen>
   );
 }

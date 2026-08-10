@@ -4,9 +4,11 @@ import { Tabs } from 'expo-router';
 import { PillTabBar, type PillTabItem } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
+import { useMotion } from '@/lib/motion';
 
 export default function TabsLayout() {
   const { t } = useStrings();
+  const { animated } = useMotion();
 
   const items: PillTabItem[] = [
     {
@@ -39,6 +41,7 @@ export default function TabsLayout() {
           items={items}
           activeKey={state.routes[state.index]?.name ?? 'index'}
           onSelect={(key) => navigation.navigate(key)}
+          animated={animated}
         />
       )}
     >
