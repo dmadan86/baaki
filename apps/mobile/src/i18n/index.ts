@@ -196,6 +196,8 @@ export interface UiStrings {
   spending: string;
   byCategory: string;
   byMonth: string;
+  /** Under the month chart — says the columns are a way in, not just a picture. */
+  tapMonthForDays: string;
   nothingToChart: string;
   /** The ten categories of TDR §8, in the language the phone is set to. */
   categories: Record<CategoryId, string>;
@@ -1066,6 +1068,7 @@ const en: UiStrings = {
   spending: 'Spending',
   byCategory: 'Where it went',
   byMonth: 'Month by month',
+  tapMonthForDays: 'Tap a month to see its days.',
   nothingToChart: 'Add a few expenses and this fills in.',
   categories: {
     food: 'Food & drink',
@@ -2005,6 +2008,7 @@ const ta: UiStrings = {
   spending: 'செலவு',
   byCategory: 'எதற்குச் சென்றது',
   byMonth: 'மாதம் வாரியாக',
+  tapMonthForDays: 'நாட்களைக் காண மாதத்தைத் தட்டவும்.',
   nothingToChart: 'சில செலவுகளைச் சேர்த்தால் இது நிரம்பும்.',
   categories: {
     food: 'உணவு',
@@ -2960,6 +2964,7 @@ const hi: UiStrings = {
   spending: 'खर्च',
   byCategory: 'कहाँ गया',
   byMonth: 'महीने के हिसाब से',
+  tapMonthForDays: 'दिन देखने के लिए महीने पर टैप करें।',
   nothingToChart: 'कुछ खर्च जोड़ें, यह अपने आप भर जाएगा।',
   categories: {
     food: 'खाना-पीना',
@@ -3894,6 +3899,7 @@ const ar: UiStrings = {
   spending: 'الإنفاق',
   byCategory: 'أين ذهبت',
   byMonth: 'شهراً بشهر',
+  tapMonthForDays: 'اضغط على شهر لرؤية أيامه.',
   nothingToChart: 'أضف بعض المصروفات وسيمتلئ هذا.',
   categories: {
     food: 'طعام وشراب',

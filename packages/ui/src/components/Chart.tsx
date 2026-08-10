@@ -14,7 +14,7 @@
  * ledger, and this is the one screen where a wrong number looks like a fact.
  */
 
-import { View, type ViewStyle } from 'react-native';
+import { Pressable, View, type ViewStyle } from 'react-native';
 
 import { useTheme } from '../theme';
 import { Text } from './Text';
@@ -107,15 +107,23 @@ export interface ColumnDatum {
   formatted: string;
 }
 
-/** Months across the bottom, height by amount. */
+/**
+ * Months across the bottom, height by amount.
+ *
+ * `onSelect` makes a column a way in, not just a picture: a month total is the
+ * top of a stack of days and expenses, and the tap is how you get down to them.
+ * Left off, the columns stay plain views and nothing is pressable.
+ */
 export function ColumnChart({
   data,
   height = 120,
   style,
+  onSelect,
 }: {
   data: readonly ColumnDatum[];
   height?: number;
   style?: ViewStyle;
+  onSelect?: (key: string) => void;
 }) {
   const theme = useTheme();
   const largest = data.reduce((max, datum) => (datum.value > max ? datum.value : max), 0n);
@@ -132,13 +140,8 @@ export function ColumnChart({
       >
         {data.map((datum) => {
           const percent = largest > 0n ? Number((datum.value * 100n) / largest) : 0;
-          return (
-            <View
-              key={datum.key}
-              accessible
-              accessibilityLabel={`${datum.label}: ${datum.formatted}`}
-              style={{ flex: 1, justifyContent: 'flex-end', gap: 4 }}
-            >
+          const column = (
+            <>
               <Text variant="micro" tone="muted" align="center" numberOfLines={1}>
                 {datum.formatted}
               </Text>
@@ -156,6 +159,27 @@ export function ColumnChart({
                   }}
                 />
               </View>
+            </>
+          );
+          const shared = { flex: 1, justifyContent: 'flex-end', gap: 4 } as const;
+          return onSelect ? (
+            <Pressable
+              key={datum.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${datum.label}: ${datum.formatted}`}
+              onPress={() => onSelect(datum.key)}
+              style={({ pressed }) => [shared, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              {column}
+            </Pressable>
+          ) : (
+            <View
+              key={datum.key}
+              accessible
+              accessibilityLabel={`${datum.label}: ${datum.formatted}`}
+              style={shared}
+            >
+              {column}
             </View>
           );
         })}

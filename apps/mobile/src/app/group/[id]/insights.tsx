@@ -133,12 +133,15 @@ export default function InsightsScreen() {
           currencies.map((currency) => (
             <CurrencySection
               key={currency}
+              groupId={groupId}
+              scope={scope}
               currency={currency}
               locale={locale}
               rows={rows.filter((row) => row.currency === currency)}
               labels={t.categories}
               byCategoryTitle={t.byCategory}
               byMonthTitle={t.byMonth}
+              tapHint={t.tapMonthForDays}
             />
           ))
         )}
@@ -159,19 +162,25 @@ export default function InsightsScreen() {
 }
 
 function CurrencySection({
+  groupId,
+  scope,
   currency,
   locale,
   rows,
   labels,
   byCategoryTitle,
   byMonthTitle,
+  tapHint,
 }: {
+  groupId: string;
+  scope: Scope;
   currency: string;
   locale: string;
   rows: SpendingRow[];
   labels: Record<CategoryId, string>;
   byCategoryTitle: string;
   byMonthTitle: string;
+  tapHint: string;
 }) {
   const theme = useTheme();
 
@@ -237,8 +246,18 @@ function CurrencySection({
 
       <View style={{ gap: theme.spacing.md }}>
         <SectionHeader title={byMonthTitle} />
-        <Card>
-          <ColumnChart data={months} />
+        <Card style={{ gap: theme.spacing.md }}>
+          <ColumnChart
+            data={months}
+            onSelect={(month) =>
+              router.push(
+                `/group/${groupId}/month?month=${month}&currency=${currency}&scope=${scope}`,
+              )
+            }
+          />
+          <Text variant="micro" tone="faint" align="center">
+            {tapHint}
+          </Text>
         </Card>
       </View>
     </View>
