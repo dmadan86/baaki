@@ -14,10 +14,11 @@
  * account are followed across groups, because a profile id is proof.
  */
 
+import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Avatar,
@@ -35,7 +36,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { fetchPeopleBalances, type PersonBalanceRow } from '@/data/api';
+import { fetchPeopleBalances, nudgeToSettle, type PersonBalanceRow } from '@/data/api';
 import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings } from '@/i18n';
 
@@ -209,6 +210,11 @@ function FriendCard({
             ) : (
               <Badge label={t.tabs.notJoined} />
             )
+          ) : owed && row.only_group_id ? (
+            // They owe you and one group explains it, so there is a single pair
+            // to nudge. The server keeps it honest — one a day, never to a
+            // ghost, never for nothing — so the button only has to ask (ADR-010).
+            <RemindButton row={row} />
           ) : null}
         </View>
       </Row>
@@ -224,6 +230,57 @@ function FriendCard({
       style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
     >
       {body}
+    </Pressable>
+  );
+}
+
+/**
+ * The one-tap nudge on a card for somebody who owes you.
+ *
+ * Once tapped it does not offer to be tapped again — it settles into a quiet
+ * "Reminded", and if the server says the daily limit is already spent it says
+ * "Nudged today" in the same muted voice rather than an error. Being told off
+ * for caring twice is exactly the collections-agency feeling ADR-010 forbids,
+ * so a rate limit reads here as reassurance that it already went, not a wall.
+ * Its own Pressable, so a tap nudges rather than opening the group behind it.
+ */
+function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | null {
+  const theme = useTheme();
+  const { t } = useStrings();
+  const [note, setNote] = useState<string | null>(null);
+
+  const nudge = useMutation({
+    mutationFn: () =>
+      nudgeToSettle({
+        groupId: row.only_group_id ?? '',
+        toMemberId: row.member_id,
+        currency: row.currency,
+      }),
+    onSuccess: () => setNote(t.people.reminded),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      setNote(message.includes('NUDGE_RATE_LIMIT') ? t.people.remindedToday : message);
+    },
+  });
+
+  if (note) {
+    return (
+      <Text variant="micro" tone="muted">
+        {note}
+      </Text>
+    );
+  }
+  if (nudge.isPending) return <ActivityIndicator size="small" color={theme.color.brand} />;
+
+  return (
+    <Pressable
+      onPress={() => nudge.mutate()}
+      accessibilityRole="button"
+      accessibilityLabel={t.people.remind}
+      hitSlop={8}
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+    >
+      <Badge label={t.people.remind} tone="brand" />
     </Pressable>
   );
 }

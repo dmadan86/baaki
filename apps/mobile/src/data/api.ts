@@ -1206,6 +1206,29 @@ export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
   return (data ?? []) as PersonBalanceRow[];
 }
 
+/**
+ * Tap somebody who owes you on the shoulder about it (ADR-010).
+ *
+ * The server does the deciding: it only sends when they genuinely owe you in
+ * this group and currency, at most once a day, and never to a ghost. All the
+ * client passes is who, where, and in which currency — the amount and the
+ * wording are the server's to keep honest. The `NUDGE_RATE_LIMIT` message that
+ * comes back on a second nudge the same day is a normal outcome, not a fault,
+ * and the screen says so gently rather than in red.
+ */
+export async function nudgeToSettle(input: {
+  groupId: string;
+  toMemberId: string;
+  currency: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc('baaki_nudge_to_settle', {
+    p_group_id: input.groupId,
+    p_to_member_id: input.toMemberId,
+    p_currency: input.currency,
+  });
+  if (error) throw new Error(error.message);
+}
+
 // ─────────────────────────────────────────────── where the money went ──
 
 export interface SpendingRow {
