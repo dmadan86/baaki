@@ -48,6 +48,7 @@ import { planFromSms, toMutationPayload } from '@/data/importPlan';
 import { smsWindowFor } from '@/data/smsWindow';
 import { displayName } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
+import { useFlagEnabled } from '@/lib/flags';
 import { readSms, type SmsReadFailure } from '@/lib/smsReader';
 import { useAuth } from '@/lib/auth';
 import { importMutationId } from '@/lib/importId';
@@ -101,6 +102,10 @@ export default function ImportSmsScreen() {
   // it arrived, which the paste flow (received "now") cannot know.
   const [readMessages, setReadMessages] = useState<SmsMessage[]>([]);
   const [reading, setReading] = useState(false);
+  // The inbox reader is off until this flag is switched on from the console: the
+  // READ_SMS permission and the native reader ship dormant, so the store build
+  // is paste-only and the capability rolls out to a cohort without a release.
+  const smsReadEnabled = useFlagEnabled('sms_inbox_read');
 
   const groupCurrency = group.data?.default_currency ?? 'INR';
   const memberRows = useMemo(() => members.data ?? [], [members.data]);
@@ -256,10 +261,11 @@ export default function ImportSmsScreen() {
               <Button label={t.smsImport.paste} variant="ghost" onPress={() => void paste()} />
             </Row>
 
-            {/* Android only: read the inbox for this window instead of pasting.
-                Absent everywhere else (iOS, Expo Go, any build without the
-                reader) — smsReader answers those with a sentence, not a crash. */}
-            {Platform.OS === 'android' ? (
+            {/* Android + flag on: read the inbox for this window instead of
+                pasting. Absent everywhere else (iOS, Expo Go, any build without
+                the reader, or the flag off) — smsReader answers a build that
+                cannot read with a sentence, not a crash. */}
+            {Platform.OS === 'android' && smsReadEnabled ? (
               <View style={{ gap: theme.spacing.sm }}>
                 <View style={{ height: 1, backgroundColor: theme.color.border }} />
                 <Button
