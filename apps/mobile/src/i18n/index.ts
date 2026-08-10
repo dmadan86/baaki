@@ -548,6 +548,8 @@ export interface UiStrings {
     nameOptional: string;
     groupName: string;
     saveName: string;
+    /** Opens the group cover-emoji picker. */
+    chooseIcon: string;
     removePhoto: string;
     simplifyDebts: string;
     simplifyDebtsBody: string;
@@ -1432,6 +1434,7 @@ const en: UiStrings = {
     nameOptional: 'Name (optional)',
     groupName: 'Group name',
     saveName: 'Save name',
+    chooseIcon: 'Choose an icon',
     removePhoto: 'Remove photo',
     simplifyDebts: 'Simplify debts',
     simplifyDebtsBody:
@@ -2377,6 +2380,7 @@ const ta: UiStrings = {
     nameOptional: 'பெயர் (விருப்பம்)',
     groupName: 'குழுவின் பெயர்',
     saveName: 'பெயரைச் சேமி',
+    chooseIcon: 'ஐகானைத் தேர்ந்தெடு',
     removePhoto: 'புகைப்படத்தை நீக்கு',
     simplifyDebts: 'கடன்களை எளிமையாக்கு',
     simplifyDebtsBody:
@@ -3318,6 +3322,7 @@ const hi: UiStrings = {
     nameOptional: 'नाम (वैकल्पिक)',
     groupName: 'समूह का नाम',
     saveName: 'नाम सेव करें',
+    chooseIcon: 'आइकन चुनें',
     removePhoto: 'फ़ोटो हटाएँ',
     simplifyDebts: 'हिसाब सरल करें',
     simplifyDebtsBody:
@@ -4276,6 +4281,7 @@ const ar: UiStrings = {
     nameOptional: 'الاسم (اختياري)',
     groupName: 'اسم المجموعة',
     saveName: 'حفظ الاسم',
+    chooseIcon: 'اختر أيقونة',
     removePhoto: 'إزالة الصورة',
     simplifyDebts: 'تبسيط الديون',
     simplifyDebtsBody:

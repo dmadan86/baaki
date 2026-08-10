@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { COUNTRIES, countryName, currencyForCountry, isCountryCode } from '../src/money/region';
+import {
+  COUNTRIES,
+  countryFlag,
+  countryName,
+  currencyForCountry,
+  isCountryCode,
+} from '../src/money/region';
 import { isCurrencyCode, minorUnitExponent } from '../src/money/currency';
 
 describe('what a country counts in', () => {
@@ -96,5 +102,21 @@ describe('the country list', () => {
     expect(isCountryCode('UAE')).toBe(false);
     expect(isCountryCode('')).toBe(false);
     expect(isCountryCode(null)).toBe(false);
+  });
+
+  it('builds a flag from regional indicators, and refuses a bad code', () => {
+    // 🇮🇳 is U+1F1EE U+1F1F3 — the two regional indicators for I and N.
+    expect(countryFlag('IN')).toBe('\u{1F1EE}\u{1F1F3}');
+    expect(countryFlag('us')).toBe('\u{1F1FA}\u{1F1F8}');
+    expect(countryFlag(null)).toBeNull();
+    expect(countryFlag('')).toBeNull();
+    expect(countryFlag('USA')).toBeNull();
+    expect(countryFlag('1N')).toBeNull();
+  });
+
+  it('has a flag for every country it lists', () => {
+    for (const entry of COUNTRIES) {
+      expect(countryFlag(entry.code), entry.code).not.toBeNull();
+    }
   });
 });
