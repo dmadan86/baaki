@@ -27,6 +27,7 @@ import { categoryOf, format, type CategoryId } from '@baaki/core';
 import {
   type BarDatum,
   BarList,
+  Callout,
   Card,
   ChipRow,
   ColumnChart,
@@ -143,9 +144,9 @@ export default function InsightsScreen() {
         )}
 
         {spending.error ? (
-          <Text variant="caption" tone="negative">
+          <Callout tone="negative">
             {spending.error instanceof Error ? spending.error.message : String(spending.error)}
-          </Text>
+          </Callout>
         ) : null}
 
         <Text variant="micro" tone="faint" align="center">

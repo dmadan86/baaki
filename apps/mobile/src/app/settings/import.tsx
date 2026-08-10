@@ -37,6 +37,7 @@ import {
 import {
   Badge,
   Button,
+  Callout,
   Card,
   ChipRow,
   directionalIcon,
@@ -553,11 +554,7 @@ export default function ImportScreen() {
           </Card>
         ) : null}
 
-        {error ? (
-          <Text variant="caption" tone="negative">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
       </ScrollView>
     </Screen>
   );

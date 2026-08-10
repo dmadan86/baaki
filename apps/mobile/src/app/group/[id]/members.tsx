@@ -7,6 +7,7 @@ import {
   Avatar,
   Badge,
   Button,
+  Callout,
   Card,
   directionalIcon,
   IconButton,
@@ -194,11 +195,7 @@ export default function MembersScreen() {
         {(claims.data ?? []).length > 0 ? (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="subheading">{t.claims.requestsTitle}</Text>
-            {claimError ? (
-              <Text variant="caption" tone="negative">
-                {claimError}
-              </Text>
-            ) : null}
+            {claimError ? <Callout tone="negative">{claimError}</Callout> : null}
             {(claims.data ?? []).map((claim) => (
               <View key={claim.id} style={{ gap: theme.spacing.sm }}>
                 <Row style={{ gap: theme.spacing.md }}>
@@ -323,11 +320,7 @@ export default function MembersScreen() {
             everything already recorded under their name.
           </Text>
           {addGhost.isPending || adding ? <ActivityIndicator color={theme.color.brand} /> : null}
-          {error ? (
-            <Text variant="caption" tone="negative">
-              {error}
-            </Text>
-          ) : null}
+          {error ? <Callout tone="negative">{error}</Callout> : null}
         </Card>
 
         {ghosts.length > 0 ? (

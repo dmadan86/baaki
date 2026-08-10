@@ -34,7 +34,16 @@ import {
   View,
 } from 'react-native';
 
-import { Button, Card, CurvedPanel, Screen, SegmentedTabs, Text, useTheme } from '@baaki/ui';
+import {
+  Button,
+  Callout,
+  Card,
+  CurvedPanel,
+  Screen,
+  SegmentedTabs,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { AppleSignInButton } from '@/components/AppleSignInButton';
 import { LanguagePicker } from '@/components/LanguagePicker';
@@ -193,11 +202,7 @@ export default function SignInScreen() {
           </View>
 
           {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
-          {error ? (
-            <Text variant="caption" tone="negative" align="center">
-              {error}
-            </Text>
-          ) : null}
+          {error ? <Callout tone="negative">{error}</Callout> : null}
         </View>
 
         {/* Under the buttons, not above them. The decision this screen exists
@@ -435,11 +440,7 @@ export default function SignInScreen() {
               ) : null}
 
               {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
-              {error ? (
-                <Text variant="caption" tone="negative">
-                  {error}
-                </Text>
-              ) : null}
+              {error ? <Callout tone="negative">{error}</Callout> : null}
             </Card>
 
             <Button

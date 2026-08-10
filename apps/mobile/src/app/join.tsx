@@ -4,7 +4,18 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Avatar, Badge, Button, Card, EmptyState, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Callout,
+  Card,
+  EmptyState,
+  Row,
+  Screen,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { fill, useStrings } from '@/i18n';
 
@@ -234,11 +245,7 @@ export default function JoinScreen() {
           </Card>
         ) : null}
 
-        {shown ? (
-          <Text variant="caption" tone="negative" align="center">
-            {shown}
-          </Text>
-        ) : null}
+        {shown ? <Callout tone="negative">{shown}</Callout> : null}
 
         <Button
           // Claiming asks; joining as somebody new does not. The button says

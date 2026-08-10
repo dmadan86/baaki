@@ -25,6 +25,7 @@ import { randomUUID } from 'expo-crypto';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   Chip,
   IconButton,
@@ -324,11 +325,7 @@ export default function ImportCsvScreen() {
           </>
         ) : null}
 
-        {error ? (
-          <Text variant="caption" tone="negative">
-            {error}
-          </Text>
-        ) : null}
+        {error ? <Callout tone="negative">{error}</Callout> : null}
 
         {parsed ? (
           <Button

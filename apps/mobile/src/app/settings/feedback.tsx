@@ -6,6 +6,7 @@ import { ActivityIndicator, Platform, ScrollView, TextInput, View } from 'react-
 
 import {
   Button,
+  Callout,
   Card,
   ChipRow,
   directionalIcon,
@@ -120,11 +121,7 @@ export default function FeedbackScreen() {
               />
             </Card>
 
-            {error ? (
-              <Text variant="caption" tone="negative">
-                {error}
-              </Text>
-            ) : null}
+            {error ? <Callout tone="negative">{error}</Callout> : null}
             {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
 
             <Button

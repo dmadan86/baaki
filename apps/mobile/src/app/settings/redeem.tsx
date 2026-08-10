@@ -17,7 +17,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 
-import { Button, Card, directionalIcon, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Button,
+  Callout,
+  Card,
+  directionalIcon,
+  IconButton,
+  Row,
+  Screen,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { redeemPromoCode, type PromoOutcome } from '@/data/api';
 import { fill, useStrings, type UiStrings } from '@/i18n';
@@ -142,11 +152,7 @@ export default function RedeemScreen() {
               />
             </Card>
 
-            {error ? (
-              <Text variant="caption" tone="negative">
-                {error}
-              </Text>
-            ) : null}
+            {error ? <Callout tone="negative">{error}</Callout> : null}
             {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
 
             <Button
