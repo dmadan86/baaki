@@ -185,14 +185,16 @@ export default function GroupScreen() {
             <Pressable
               key={receipt.id}
               accessibilityRole="button"
-              accessibilityLabel={`Split ${receipt.parsed?.merchant ?? 'the bill'} by item`}
+              accessibilityLabel={fill(t.expense.splitBillA11y, {
+                merchant: receipt.parsed?.merchant ?? t.expense.aBill,
+              })}
               onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
             >
               <Card style={{ gap: theme.spacing.sm }}>
                 <Row style={{ gap: theme.spacing.sm }}>
                   <Ionicons name="receipt-outline" size={18} color={theme.color.brand} />
                   <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
-                    {receipt.parsed?.merchant ?? 'A bill'}
+                    {receipt.parsed?.merchant ?? t.expense.aBill}
                   </Text>
                   <Ionicons
                     name={directionalIcon('chevron-forward')}
@@ -202,8 +204,11 @@ export default function GroupScreen() {
                 </Row>
                 <Text variant="caption" tone="muted">
                   {receipt.claimed === 0
-                    ? `${receipt.items} lines, nobody has claimed one yet. Tap what you had.`
-                    : `${receipt.claimed} of ${receipt.items} lines claimed. Tap what you had.`}
+                    ? plural(locale, receipt.items, t.expense.receiptClaimedNone)
+                    : fill(t.expense.receiptClaimedSome, {
+                        claimed: receipt.claimed,
+                        items: receipt.items,
+                      })}
                 </Text>
               </Card>
             </Pressable>

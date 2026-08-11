@@ -33,7 +33,7 @@ import { publishReceiptItems, scanReceipt, scanReceiptText, setItemClaim } from 
 import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useItemClaims, useReceipt, useWriteExpense } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { plural, useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { handoverIsFresh, handoverKey, type ReceiptHandover } from '@/lib/handover';
 import { clearDraft, useRestoredDraft } from '@/sync';
@@ -135,7 +135,7 @@ export default function ItemizeScreen() {
     if (handoverIsFresh(handover.draft)) {
       fillFromReceipt(handover.draft.parsed);
       if (handover.draft.receiptId) setScanId(handover.draft.receiptId);
-      setScanNote('Carried over from the scan. Check the lines, then tap who had what.');
+      setScanNote(t.itemize.carriedOver);
     }
   }
 
@@ -174,9 +174,8 @@ export default function ItemizeScreen() {
       // this whole path exists to avoid.
       setScanNote(
         result.check.reconciles && result.check.problems.length === 0
-          ? `Read ${result.parsed.items.length} items. Check them, then tap who had what.`
-          : (result.check.problems[0]?.message ??
-              'Some lines need checking before this can be saved.'),
+          ? plural(locale, result.parsed.items.length, t.itemize.scanReadItems)
+          : (result.check.problems[0]?.message ?? t.itemize.scanCheckLines),
       );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -289,7 +288,7 @@ export default function ItemizeScreen() {
       ...current,
       {
         key: `${Date.now()}-${current.length}`,
-        label: label.trim() || `Item ${current.length + 1}`,
+        label: label.trim() || fill(t.itemize.itemFallback, { n: current.length + 1 }),
         total,
         // Whoever is adding the bill usually had something on it.
         claimers: myMemberId ? [myMemberId] : [],
@@ -331,7 +330,7 @@ export default function ItemizeScreen() {
     const item = shown[index];
     if (index < 0 || !item) return;
     if (!mayClaimFor(memberId)) {
-      setError('They are on Baaki — they tap their own lines.');
+      setError(t.itemize.notYours);
       return;
     }
 
@@ -440,14 +439,13 @@ export default function ItemizeScreen() {
           <Card style={{ gap: theme.spacing.md }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-                <Text variant="subheading">Scan the receipt</Text>
+                <Text variant="subheading">{t.itemize.scanTitle}</Text>
                 <Text variant="caption" tone="muted">
-                  Scan the bill and the items come out filled in. Check them before saving —
-                  entering them by hand is always free.
+                  {t.itemize.scanBody}
                 </Text>
               </View>
               <Button
-                label={scanning ? 'Reading…' : 'Scan'}
+                label={scanning ? t.expense.reading : t.expense.scan}
                 variant="secondary"
                 disabled={scanning}
                 onPress={() => void scan()}
@@ -560,7 +558,7 @@ export default function ItemizeScreen() {
               {isShared ? null : (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${item.label}`}
+                  accessibilityLabel={fill(t.itemize.removeItem, { label: item.label })}
                   onPress={() =>
                     setItems((current) => current.filter((row) => row.key !== item.key))
                   }
@@ -579,7 +577,10 @@ export default function ItemizeScreen() {
                     key={member.id}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: claimed }}
-                    accessibilityLabel={`${displayName(member, profile?.id)} had ${item.label}`}
+                    accessibilityLabel={fill(t.itemize.hadItem, {
+                      name: displayName(member, profile?.id),
+                      label: item.label,
+                    })}
                     // Deliberately still tappable when it is not yours to
                     // change. `disabled` made it a silent no-op: tapping a
                     // friend's face on a shared bill did nothing at all and

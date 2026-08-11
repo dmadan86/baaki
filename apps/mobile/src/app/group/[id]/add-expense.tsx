@@ -490,7 +490,7 @@ export default function AddExpenseScreen() {
               onPress={() => router.replace(`/group/${groupId}/itemize`)}
             >
               <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
-                {`It read ${scannedItems} items — split by item instead →`}
+                {`${plural(locale, scannedItems, t.expense.scanReadItemsCta)} →`}
               </Text>
             </Pressable>
           ) : null}
