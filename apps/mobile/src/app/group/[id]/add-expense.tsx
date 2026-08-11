@@ -36,6 +36,7 @@ import { useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useGuestGuard } from '@/lib/guestGuard';
 import { handoverKey } from '@/lib/handover';
 import { captureReceipt } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
@@ -83,6 +84,7 @@ export default function AddExpenseScreen() {
 
   const { group, members, expenses } = useGroup(groupId);
   const { mutate } = useSync();
+  const guard = useGuestGuard();
 
   const editing = expenses.rows.find((expense) => expense.id === expenseId);
 
@@ -289,6 +291,9 @@ export default function AddExpenseScreen() {
   }
 
   const submit = async (): Promise<void> => {
+    // Read-only once the guest trial is up (ADR-006 addendum): the group and its
+    // history stay visible, but a new or edited expense sends them to sign up.
+    if (guard.blockWrite()) return;
     setError(null);
     if (!payer) {
       setError(t.expense.chooseWhoPaid);

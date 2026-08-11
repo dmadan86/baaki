@@ -22,6 +22,7 @@ import { fill, useStrings } from '@/i18n';
 import { acceptInvite, previewInvite, type InvitePreview } from '@/data/api';
 import { keys } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
+import { useGuestGuard } from '@/lib/guestGuard';
 
 /**
  * Landing screen for an invite link (ADR-006).
@@ -35,6 +36,7 @@ export default function JoinScreen() {
   const { t } = useStrings();
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { session, continueAsGuest } = useAuth();
+  const guard = useGuestGuard();
   const queryClient = useQueryClient();
 
   const [preview, setPreview] = useState<InvitePreview | null>(null);
@@ -89,6 +91,10 @@ export default function JoinScreen() {
    */
   const join = async (claim: string | null = claimId): Promise<void> => {
     if (!token) return;
+    // An existing guest holds one group (ADR-006 addendum); joining a second
+    // sends them to sign up instead. A brand-new person with no session yet is
+    // not a guest, so `guard.gate` is null and their first join is never gated.
+    if (guard.blockAddGroup()) return;
     setJoining(true);
     setError(null);
     try {

@@ -26,6 +26,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import {
   computeShares,
+  GUEST_TRIAL_DAYS,
   parseSplitParams,
   serialiseSplitParams,
   verifyClientShares,
@@ -127,6 +128,14 @@ Deno.serve(async (request) => {
     }
     const profileId = user.user.id;
 
+    // A guest's writes stop after the trial (ADR-006 addendum); the pull below
+    // still runs, so everything they made stays visible — read-only, not gone.
+    // Mirrors GUEST_TRIAL_DAYS in @baaki/core, the number the app gates on too.
+    const guestExpired =
+      user.user.is_anonymous === true &&
+      Date.now() >=
+        new Date(user.user.created_at).getTime() + GUEST_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+
     // After the identity is known, so a person is counted rather than whatever
     // address they happen to be behind — a café full of users on one NAT is not
     // one abuser.
@@ -136,6 +145,17 @@ Deno.serve(async (request) => {
     const outcomes: Outcome[] = [];
 
     for (const mutation of mutations) {
+      if (guestExpired) {
+        // Rejected per mutation, not by failing the request: the client keeps
+        // the queued write to replay once they sign up, and still gets its pull.
+        outcomes.push({
+          clientMutationId: mutation.clientMutationId ?? '',
+          status: 'rejected',
+          code: 'GUEST_TRIAL_EXPIRED',
+          message: 'Your guest trial has ended — sign up to keep adding to Baaki',
+        });
+        continue;
+      }
       outcomes.push(await session.apply(mutation));
     }
 

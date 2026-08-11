@@ -27,6 +27,7 @@ import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { pickGroupPhoto, type PickedImage } from '@/lib/image';
 import { uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
+import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
 import type { GroupType } from '@/data/types';
 import { deviceCountry, useStrings } from '@/i18n';
@@ -62,6 +63,7 @@ export default function NewGroupScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const createGroup = useCreateGroup();
+  const guard = useGuestGuard();
   const { mutate, flush } = useSync();
 
   const [name, setName] = useState('');
@@ -101,6 +103,10 @@ export default function NewGroupScreen() {
   const currency = currencyForCountry(country) ?? 'INR';
 
   const submit = async (): Promise<void> => {
+    // A guest gets one group and ten days (ADR-006 addendum). Past either, this
+    // sends them to the upgrade screen instead of making a group the server
+    // would refuse anyway.
+    if (guard.blockAddGroup()) return;
     setError(null);
     try {
       const groupId = await createGroup.mutateAsync({

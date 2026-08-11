@@ -13,6 +13,7 @@
  * function rather than an RLS-guarded insert (ADR-013).
  */
 
+import { GUEST_GROUP_LIMIT, GUEST_TRIAL_DAYS } from '../_shared/core.js';
 import {
   asCaller,
   asService,
@@ -109,6 +110,30 @@ Deno.serve(async (request) => {
     const existing = (members ?? []).find((member) => member.profile_id === profileId);
     if (existing) {
       return json({ group, memberId: existing.id, alreadyMember: true });
+    }
+
+    // Guest ceilings (ADR-006 addendum): a guest holds one group and writes for
+    // ten days. Checked after the already-a-member short-circuit, so re-opening
+    // a link to a group they are already in is never blocked. A brand-new
+    // person joining their first group is under the limit and inside the window,
+    // so this only ever stops an existing guest joining a *second* group, or one
+    // whose trial has run out. Mirrors the numbers in @baaki/core.
+    if (user.user.is_anonymous === true) {
+      if (
+        Date.now() >=
+        new Date(user.user.created_at).getTime() + GUEST_TRIAL_DAYS * 24 * 60 * 60 * 1000
+      ) {
+        throw new HttpError(403, 'GUEST_TRIAL_EXPIRED', 'Sign up to keep using Baaki');
+      }
+      const { count, error: countError } = await service
+        .from('group_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', profileId)
+        .is('left_at', null);
+      if (countError) throw new HttpError(500, 'INTERNAL', countError.message);
+      if ((count ?? 0) >= GUEST_GROUP_LIMIT) {
+        throw new HttpError(403, 'GUEST_GROUP_LIMIT', 'Sign up to be in more than one group');
+      }
     }
 
     let memberId: string;

@@ -459,6 +459,10 @@ export interface UiStrings {
     link: string;
     linked: string;
     footnote: string;
+    /** Shown when a guest is sent here by a limit rather than arriving on their own. */
+    gateTitle: string;
+    gateGroupBody: string;
+    gateExpiredBody: string;
   };
   /** The welcome and the ways in (ADR-006: nobody registers to split a bill). */
   signIn: {
@@ -508,6 +512,8 @@ export interface UiStrings {
   tabs: {
     guestBanner: string;
     guestBannerBody: string;
+    guestDaysLeft: string;
+    guestReadOnly: string;
     addYourDetails: string;
     loadingGroups: string;
     noGroups: string;
@@ -1366,6 +1372,11 @@ const en: UiStrings = {
     linked: 'Linked',
     footnote:
       'Baaki never asks for this to let you in, and never shares it with anyone in your groups. People see the name you choose, nothing else.',
+    gateTitle: 'Keep your account to carry on',
+    gateGroupBody:
+      "You're in a group as a guest. Add an email, phone or provider to start or join more — everything you've entered stays with you.",
+    gateExpiredBody:
+      'Your guest trial has ended, so the app is read-only for now. Add a way to sign in to keep adding — your groups and expenses are all still here.',
   },
   signIn: {
     tagline: 'baaki · what is left over',
@@ -1414,6 +1425,8 @@ const en: UiStrings = {
     guestBanner: 'You are using Baaki as a guest',
     guestBannerBody:
       'Nothing is missing — everything you enter is saved and yours. Add an email or phone number whenever you want to reach it from another phone.',
+    guestDaysLeft: '{days} days left as a guest — sign up to keep going after that.',
+    guestReadOnly: 'Your guest trial has ended — the app is read-only. Sign up to keep adding.',
     addYourDetails: 'Add your details',
     loadingGroups: 'Loading your groups…',
     noGroups: 'No groups yet',
@@ -2344,6 +2357,11 @@ const ta: UiStrings = {
     linked: 'இணைக்கப்பட்டது',
     footnote:
       'உள்ளே விடுவதற்கு பாக்கி இதை ஒருபோதும் கேட்பதில்லை, உங்கள் குழுக்களில் உள்ள யாருடனும் இதைப் பகிர்வதும் இல்லை. நீங்கள் தேர்ந்தெடுத்த பெயரை மட்டுமே மற்றவர்கள் பார்ப்பார்கள்.',
+    gateTitle: 'தொடர உங்கள் கணக்கை வைத்திருங்கள்',
+    gateGroupBody:
+      'விருந்தினராக ஒரு குழுவில் உள்ளீர்கள். மேலும் குழுக்களைத் தொடங்கவோ சேரவோ ஒரு மின்னஞ்சல், ஃபோன் அல்லது வழங்குநரைச் சேர்க்கவும் — நீங்கள் சேர்த்த அனைத்தும் உங்களுடன் இருக்கும்.',
+    gateExpiredBody:
+      'உங்கள் விருந்தினர் காலம் முடிந்துவிட்டது, எனவே இப்போது ஆப் படிக்க மட்டுமே. தொடர்ந்து சேர்க்க உள்நுழையும் வழியைச் சேர்க்கவும் — உங்கள் குழுக்களும் செலவுகளும் இங்கேயே உள்ளன.',
   },
   signIn: {
     tagline: 'பாக்கி · மீதம் இருப்பது',
@@ -2393,6 +2411,9 @@ const ta: UiStrings = {
     guestBanner: 'நீங்கள் பாக்கியை விருந்தினராகப் பயன்படுத்துகிறீர்கள்',
     guestBannerBody:
       'எதுவும் விடுபடவில்லை — நீங்கள் சேர்ப்பவை அனைத்தும் சேமிக்கப்பட்டு உங்களுடையவை. வேறு ஃபோனிலிருந்து அணுக விரும்பும்போது மின்னஞ்சலையோ தொலைபேசி எண்ணையோ சேர்க்கவும்.',
+    guestDaysLeft: 'விருந்தினராக இன்னும் {days} நாட்கள் — அதன் பிறகு தொடர உள்நுழையவும்.',
+    guestReadOnly:
+      'உங்கள் விருந்தினர் காலம் முடிந்தது — ஆப் படிக்க மட்டுமே. தொடர்ந்து சேர்க்க உள்நுழையவும்.',
     addYourDetails: 'உங்கள் விவரங்களைச் சேர்',
     loadingGroups: 'உங்கள் குழுக்கள் ஏற்றப்படுகின்றன…',
     noGroups: 'இன்னும் குழுக்கள் இல்லை',
@@ -3325,6 +3346,11 @@ const hi: UiStrings = {
     linked: 'लिंक किया गया',
     footnote:
       'अंदर आने देने के लिए बाकी यह कभी नहीं माँगता, और आपके समूह में किसी के साथ इसे साझा नहीं करता। लोग सिर्फ़ वही नाम देखते हैं जो आप चुनते हैं।',
+    gateTitle: 'जारी रखने के लिए अपना खाता रखें',
+    gateGroupBody:
+      'आप बतौर मेहमान एक समूह में हैं। और समूह शुरू करने या उनमें शामिल होने के लिए ईमेल, फ़ोन या प्रोवाइडर जोड़ें — आपका जोड़ा हुआ सब कुछ आपके साथ रहेगा।',
+    gateExpiredBody:
+      'आपकी मेहमान अवधि खत्म हो गई है, इसलिए अभी ऐप सिर्फ़ पढ़ने के लिए है। जोड़ते रहने के लिए साइन इन का कोई तरीका जोड़ें — आपके समूह और खर्च सब यहीं मौजूद हैं।',
   },
   signIn: {
     tagline: 'बाकी · जो बच रहता है',
@@ -3372,6 +3398,9 @@ const hi: UiStrings = {
     guestBanner: 'आप बाकी को मेहमान के तौर पर इस्तेमाल कर रहे हैं',
     guestBannerBody:
       'कुछ छूट नहीं रहा — आप जो भी डालते हैं वह सेव है और आपका है। जब भी किसी दूसरे फ़ोन से पहुँचना हो, ईमेल या फ़ोन नंबर जोड़ लें।',
+    guestDaysLeft: 'मेहमान के तौर पर {days} दिन बाकी — उसके बाद जारी रखने के लिए साइन अप करें।',
+    guestReadOnly:
+      'आपकी मेहमान अवधि खत्म हो गई — ऐप सिर्फ़ पढ़ने के लिए है। जोड़ते रहने के लिए साइन अप करें।',
     addYourDetails: 'अपनी जानकारी जोड़ें',
     loadingGroups: 'आपके समूह आ रहे हैं…',
     noGroups: 'अभी कोई समूह नहीं',
@@ -4313,6 +4342,11 @@ const ar: UiStrings = {
     linked: 'مرتبط',
     footnote:
       'لا يطلب باقي هذا ليسمح لك بالدخول، ولا يشاركه مع أحد في مجموعاتك. يرى الناس الاسم الذي تختاره، لا غير.',
+    gateTitle: 'احتفظ بحسابك للمتابعة',
+    gateGroupBody:
+      'أنت في مجموعة كضيف. أضف بريدًا إلكترونيًا أو هاتفًا أو مزوّدًا لبدء مجموعات أخرى أو الانضمام إليها — كل ما أدخلته يبقى معك.',
+    gateExpiredBody:
+      'انتهت فترتك كضيف، لذا التطبيق للقراءة فقط الآن. أضف طريقة لتسجيل الدخول لمواصلة الإضافة — مجموعاتك ومصروفاتك كلها لا تزال هنا.',
   },
   signIn: {
     tagline: 'باقي · ما يتبقّى',
@@ -4358,6 +4392,8 @@ const ar: UiStrings = {
     guestBanner: 'أنت تستخدم باقي كضيف',
     guestBannerBody:
       'لا شيء ناقص — كل ما تدخله محفوظ وهو ملكك. أضف بريدًا إلكترونيًا أو رقم هاتف متى أردت الوصول إليه من هاتف آخر.',
+    guestDaysLeft: 'بقي {days} أيام كضيف — سجّل بعدها للمتابعة.',
+    guestReadOnly: 'انتهت فترتك كضيف — التطبيق للقراءة فقط. سجّل لمواصلة الإضافة.',
     addYourDetails: 'أضف بياناتك',
     loadingGroups: 'جارٍ تحميل مجموعاتك…',
     noGroups: 'لا مجموعات بعد',
