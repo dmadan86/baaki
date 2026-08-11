@@ -131,6 +131,32 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
         run: pnpm test:db
 
+  web-e2e:
+    name: web e2e (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The one browser these smoke tests drive. --with-deps pulls the system
+      # libraries a headless Chromium needs on a bare runner.
+      - name: Install Chromium
+        run: pnpm --filter @baaki/web exec playwright install --with-deps chromium
+      # The suite boots its own dev server (playwright.config.ts) with placeholder
+      # Supabase env — the unauthenticated surface it drives makes no network call.
+      - name: Playwright
+        run: pnpm --filter @baaki/web e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
   e2e:
     name: e2e (Maestro)
     runs-on: ubuntu-latest
