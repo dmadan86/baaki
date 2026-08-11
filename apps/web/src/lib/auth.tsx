@@ -33,6 +33,7 @@ interface AuthValue {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<void>;
+  withPassword: (email: string, password: string, intent: 'sign_in' | 'sign_up') => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -69,6 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await baaki.signInWithEmail(email, `${window.location.origin}/auth/callback`);
   }, []);
 
+  const withPassword = useCallback(
+    async (email: string, password: string, intent: 'sign_in' | 'sign_up') => {
+      // The one correct call (sign up, sign in, or upgrade-in-place) is chosen
+      // by @baaki/core inside the client — never guessed here.
+      await baaki.withPassword(email, password, intent);
+    },
+    [],
+  );
+
   const signOut = useCallback(async () => {
     await baaki.signOut();
   }, []);
@@ -81,9 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signInWithGoogle,
       signInWithEmail,
+      withPassword,
       signOut,
     }),
-    [session, loading, signInWithGoogle, signInWithEmail, signOut],
+    [session, loading, signInWithGoogle, signInWithEmail, withPassword, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

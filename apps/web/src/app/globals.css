@@ -456,6 +456,12 @@
   .signin-or {
     @apply mx-0 mb-[10px] mt-[14px] text-[12px] text-ink-faint;
   }
+  .linklike {
+    @apply mb-[6px] cursor-pointer border-0 bg-transparent text-[13px] text-brand underline;
+  }
+  .linklike:disabled {
+    @apply cursor-default opacity-60;
+  }
 
   .spinner-page {
     @apply grid min-h-screen place-items-center text-ink-faint;

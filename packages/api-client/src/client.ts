@@ -18,6 +18,8 @@
 
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
+import { checkPassword, planAuth, readIdentifier, type Viewer } from '@baaki/core';
+
 import type { AcceptedInvite, Expense, Group, InvitePreview, Member, Settlement } from './types';
 import {
   coarseMethod,
@@ -151,6 +153,50 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
         email,
         options: { emailRedirectTo: redirectTo },
       });
+      if (error) throw new BaakiApiError(error.message);
+    },
+
+    /**
+     * Email (or phone) and a password. The one call this makes is decided by
+     * `planAuth` in @baaki/core, not here: a guest is upgraded **in place**
+     * (ADR-006) with `updateUser` so the groups and money made as a guest come
+     * with them, and only somebody with no account signs up or signs in fresh.
+     * Getting that wrong strands a week of expenses on an account nobody can
+     * reach — which is exactly why the choice is not left to the screen.
+     *
+     * `readIdentifier` and `checkPassword` throw `IdentityError` before any
+     * round trip (bad address, too-short/too-common password); Supabase errors
+     * become `BaakiApiError`. Either way the caller shows the message.
+     */
+    async withPassword(
+      identifier: string,
+      password: string,
+      intent: 'sign_in' | 'sign_up',
+    ): Promise<void> {
+      const who = readIdentifier(identifier);
+      checkPassword(password);
+      const method = who.kind === 'email' ? 'email_password' : 'phone_password';
+      const credential = who.kind === 'email' ? { email: who.value } : { phone: who.value };
+
+      const { data } = await supabase.auth.getSession();
+      const viewer: Viewer = !data.session?.user
+        ? { kind: 'nobody' }
+        : data.session.user.is_anonymous === true
+          ? { kind: 'guest', userId: data.session.user.id }
+          : { kind: 'user', userId: data.session.user.id };
+      const action = planAuth(viewer, method, intent);
+
+      if (action.call === 'updateUser') {
+        // The upgrade: same user id, so the groups stay put (ADR-006).
+        const { error } = await supabase.auth.updateUser({ ...credential, password });
+        if (error) throw new BaakiApiError(error.message);
+        return;
+      }
+
+      const { error } =
+        action.call === 'signUp'
+          ? await supabase.auth.signUp({ ...credential, password })
+          : await supabase.auth.signInWithPassword({ ...credential, password });
       if (error) throw new BaakiApiError(error.message);
     },
 

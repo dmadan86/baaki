@@ -163,6 +163,11 @@ export interface WebStrings {
     continueWithGoogle: string;
     orDivider: string;
     emailPlaceholder: string;
+    passwordPlaceholder: string;
+    passwordSignIn: string;
+    passwordSignUp: string;
+    toggleToSignUp: string;
+    toggleToSignIn: string;
     sendMagicLink: string;
     sendingLink: string;
     linkSentTitle: string;
@@ -365,7 +370,12 @@ const en: WebStrings = {
     continueWithGoogle: 'Continue with Google',
     orDivider: 'or',
     emailPlaceholder: 'you@email.com',
-    sendMagicLink: 'Email me a sign-in link',
+    passwordPlaceholder: 'Password',
+    passwordSignIn: 'Sign in',
+    passwordSignUp: 'Create account',
+    toggleToSignUp: 'New here? Create an account',
+    toggleToSignIn: 'Already have an account? Sign in',
+    sendMagicLink: 'Email me a sign-in link instead',
     sendingLink: 'Sending…',
     linkSentTitle: 'Check your inbox',
     linkSentBody: 'A sign-in link is on its way to {email}. Open it on this device.',
@@ -566,7 +576,12 @@ const ta: WebStrings = {
     continueWithGoogle: 'Google மூலம் தொடரவும்',
     orDivider: 'அல்லது',
     emailPlaceholder: 'you@email.com',
-    sendMagicLink: 'உள்நுழைவுச் சுட்டியை மின்னஞ்சலில் அனுப்பு',
+    passwordPlaceholder: 'கடவுச்சொல்',
+    passwordSignIn: 'உள்நுழை',
+    passwordSignUp: 'கணக்கை உருவாக்கு',
+    toggleToSignUp: 'புதியவரா? கணக்கை உருவாக்குங்கள்',
+    toggleToSignIn: 'ஏற்கனவே கணக்கு உள்ளதா? உள்நுழையுங்கள்',
+    sendMagicLink: 'அதற்குப் பதிலாக உள்நுழைவுச் சுட்டியை மின்னஞ்சலில் அனுப்பு',
     sendingLink: 'அனுப்புகிறது…',
     linkSentTitle: 'உங்கள் இன்பாக்ஸைப் பாருங்கள்',
     linkSentBody: '{email} க்கு உள்நுழைவுச் சுட்டி வருகிறது. இந்தச் சாதனத்தில் அதைத் திறக்கவும்.',
@@ -768,7 +783,12 @@ const hi: WebStrings = {
     continueWithGoogle: 'Google से जारी रखें',
     orDivider: 'या',
     emailPlaceholder: 'you@email.com',
-    sendMagicLink: 'मुझे साइन-इन लिंक ईमेल करें',
+    passwordPlaceholder: 'पासवर्ड',
+    passwordSignIn: 'साइन इन',
+    passwordSignUp: 'खाता बनाएँ',
+    toggleToSignUp: 'नए हैं? खाता बनाएँ',
+    toggleToSignIn: 'पहले से खाता है? साइन इन करें',
+    sendMagicLink: 'इसके बजाय मुझे साइन-इन लिंक ईमेल करें',
     sendingLink: 'भेजा जा रहा है…',
     linkSentTitle: 'अपना इनबॉक्स देखें',
     linkSentBody: '{email} पर साइन-इन लिंक आ रहा है। इसे इसी डिवाइस पर खोलें।',
@@ -981,7 +1001,12 @@ const ar: WebStrings = {
     continueWithGoogle: 'المتابعة عبر Google',
     orDivider: 'أو',
     emailPlaceholder: 'you@email.com',
-    sendMagicLink: 'أرسِل لي رابط تسجيل الدخول بالبريد',
+    passwordPlaceholder: 'كلمة المرور',
+    passwordSignIn: 'تسجيل الدخول',
+    passwordSignUp: 'إنشاء حساب',
+    toggleToSignUp: 'جديد هنا؟ أنشئ حسابًا',
+    toggleToSignIn: 'لديك حساب بالفعل؟ سجّل الدخول',
+    sendMagicLink: 'أرسِل لي بدلاً من ذلك رابط تسجيل الدخول بالبريد',
     sendingLink: 'جارٍ الإرسال…',
     linkSentTitle: 'تحقّق من بريدك',
     linkSentBody: 'رابط تسجيل الدخول في طريقه إلى {email}. افتحه على هذا الجهاز.',
