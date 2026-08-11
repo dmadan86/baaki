@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import React, { Component, type ReactNode } from 'react';
 import { View, type ViewStyle } from 'react-native';
 
 import { useTheme } from '../theme';
@@ -19,35 +19,67 @@ export interface GradientProps {
  * disagree with the rest of the app about what purple is.
  *
  * `expo-linear-gradient` is a native module, and a native module missing from
- * a build is how this app has previously lost a whole screen. So it is
- * required lazily behind a check that cannot throw, and a build without it
- * paints the flat brand colour and carries on — the balance is still legible,
- * still white on purple, and nobody sees a crash because a decoration was
- * unavailable.
+ * a build is how this app has previously lost a whole screen. There are two
+ * ways it can be missing, and both fall back to the flat brand colour rather
+ * than crash:
+ *
+ *   1. The JS package is absent — `require` throws, caught below.
+ *   2. The JS package is present but the *native* view manager is not in the
+ *      binary (`Can't find ViewManager 'ExpoLinearGradient'`). That does not
+ *      throw from `require`; it throws when React mounts the view, so a
+ *      `require` check cannot see it. An error boundary does — it catches the
+ *      mount failure and paints the flat colour, and latches off for the rest
+ *      of the session so the next gradient does not retry the same crash.
+ *
+ * Either way the balance stays legible, still white on purple, and nobody sees
+ * a red box because a decoration was unavailable.
  */
 export function Gradient({ children, radius, style }: GradientProps) {
   const theme = useTheme();
   const LinearGradient = loadLinearGradient();
   const borderRadius = radius ?? theme.radius.md;
 
-  if (!LinearGradient) {
-    return (
-      <View style={[{ backgroundColor: theme.color.brand, borderRadius }, style]}>{children}</View>
-    );
-  }
+  const flat = (
+    <View style={[{ backgroundColor: theme.color.brand, borderRadius }, style]}>{children}</View>
+  );
+
+  if (!LinearGradient) return flat;
 
   return (
-    <LinearGradient
-      colors={theme.gradient.brand}
-      // Top-left to bottom-right: the reference sweeps diagonally, and a
-      // vertical wash on a short card reads as a printing error.
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[{ borderRadius }, style]}
-    >
-      {children}
-    </LinearGradient>
+    <GradientBoundary fallback={flat}>
+      <LinearGradient
+        colors={theme.gradient.brand}
+        // Top-left to bottom-right: the reference sweeps diagonally, and a
+        // vertical wash on a short card reads as a printing error.
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[{ borderRadius }, style]}
+      >
+        {children}
+      </LinearGradient>
+    </GradientBoundary>
   );
+}
+
+/**
+ * Catches a mount failure from the native gradient view and shows the flat
+ * fallback instead. On the first failure it disables the gradient for the whole
+ * session, so a screen with several gradients does not throw once per gradient.
+ */
+class GradientBoundary extends Component<{ fallback: ReactNode; children: ReactNode }> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  override componentDidCatch() {
+    disabled = true;
+  }
+
+  override render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
 
 type LinearGradientComponent = (props: {
@@ -59,8 +91,11 @@ type LinearGradientComponent = (props: {
 }) => React.JSX.Element;
 
 let resolved: LinearGradientComponent | null | undefined;
+/** Latched on once the native view fails to mount; keeps every gradient flat after. */
+let disabled = false;
 
 function loadLinearGradient(): LinearGradientComponent | null {
+  if (disabled) return null;
   if (resolved !== undefined) return resolved;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
