@@ -94,3 +94,23 @@ export function useAuth(): AuthValue {
   if (!value) throw new Error('useAuth must be used inside AuthProvider');
   return value;
 }
+
+/**
+ * What to call the person and which photo to show — the name Google gave,
+ * else the email, else "Guest". Derived here so the shell and every page agree
+ * rather than each digging through `user_metadata` its own way.
+ */
+export function useAccount(guestLabel: string): { userName: string; avatarUrl: string | null } {
+  const { session, isGuest } = useAuth();
+  const meta = (session?.user.user_metadata ?? {}) as Record<string, unknown>;
+  const userName =
+    (typeof meta.full_name === 'string' && meta.full_name) ||
+    (typeof meta.name === 'string' && meta.name) ||
+    (typeof session?.user.email === 'string' && session.user.email) ||
+    (isGuest ? guestLabel : 'You');
+  const avatarUrl =
+    (typeof meta.avatar_url === 'string' && meta.avatar_url) ||
+    (typeof meta.picture === 'string' && meta.picture) ||
+    null;
+  return { userName, avatarUrl };
+}
