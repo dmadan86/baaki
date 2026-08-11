@@ -310,7 +310,9 @@ export function ExpenseForm({
             aria-label={fill(t.add.amountIn, { currency })}
             style={{ marginTop: 6 }}
           />
-          {amountText.trim() && amount === null ? <p className="error">{t.add.notAnAmount}</p> : null}
+          {amountText.trim() && amount === null ? (
+            <p className="error">{t.add.notAnAmount}</p>
+          ) : null}
         </section>
 
         <section className="panel">
@@ -369,7 +371,11 @@ export function ExpenseForm({
               {participants.map((id) => {
                 const member = members.find((m) => m.id === id);
                 const value =
-                  kind === 'exact' ? (exact[id] ?? '') : kind === 'percent' ? (percent[id] ?? '') : (weights[id] ?? '');
+                  kind === 'exact'
+                    ? (exact[id] ?? '')
+                    : kind === 'percent'
+                      ? (percent[id] ?? '')
+                      : (weights[id] ?? '');
                 const setter =
                   kind === 'exact' ? setExact : kind === 'percent' ? setPercent : setWeights;
                 return (
@@ -394,13 +400,22 @@ export function ExpenseForm({
             </p>
           )}
 
-          {invalid ? <p className="error" style={{ marginTop: 8 }}>{t.add.invalidSplit}</p> : null}
+          {invalid ? (
+            <p className="error" style={{ marginTop: 8 }}>
+              {t.add.invalidSplit}
+            </p>
+          ) : null}
         </section>
 
         {error ? <p className="error">{error}</p> : null}
 
         <div style={{ display: 'flex', gap: 10 }}>
-          <button type="button" className="btn" onClick={() => void save()} disabled={!canSave || saving}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void save()}
+            disabled={!canSave || saving}
+          >
             {saving ? t.add.saving : t.add.save}
           </button>
           <button type="button" className="btn soft" onClick={() => router.back()}>
