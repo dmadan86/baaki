@@ -22,7 +22,7 @@ import {
 
 import { useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, Stagger } from '@/lib/anim';
-import { plural, useStrings } from '@/i18n';
+import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
@@ -46,10 +46,16 @@ export default function HomeScreen() {
    * across several (ADR-004). The rest are counted underneath rather than added
    * in, which is what the profile screen already does with settled totals.
    *
-   * With no groups there is nothing to be owed in, and the group currency the
-   * app defaults to is the one to show a zero in.
+   * With no groups there is nothing to be owed in, so the zero is shown in the
+   * same currency a new group would start in on this phone — otherwise the
+   * empty state reads ₹0 and the first group then counts in dollars.
    */
-  const headline = summary.totals[0] ?? { currency: 'INR', net: 0n, owed: 0n, owing: 0n };
+  const headline = summary.totals[0] ?? {
+    currency: deviceDefaultCurrency(),
+    net: 0n,
+    owed: 0n,
+    owing: 0n,
+  };
   const otherCurrencies = summary.totals.length - 1;
 
   /**

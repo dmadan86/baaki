@@ -211,7 +211,7 @@ export default function NewGroupScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: theme.spacing.xl,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
@@ -380,7 +380,22 @@ export default function NewGroupScreen() {
             </Row>
           ) : null}
         </Card>
+      </ScrollView>
 
+      {/* The primary action is pinned rather than parked at the foot of a long
+          scroll: name, kind, country, dates, simplify and people all sit above
+          it, and "just make the group" should not depend on scrolling past all
+          of them first. */}
+      <View
+        style={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.md,
+          gap: theme.spacing.sm,
+          borderTopWidth: 1,
+          borderTopColor: theme.color.border,
+          backgroundColor: theme.color.bg,
+        }}
+      >
         {error ? <Callout tone="negative">{error}</Callout> : null}
         {createGroup.isPending || uploading ? (
           <ActivityIndicator color={theme.color.brand} />
@@ -393,7 +408,7 @@ export default function NewGroupScreen() {
           disabled={createGroup.isPending || uploading}
           onPress={() => void submit()}
         />
-      </ScrollView>
+      </View>
     </Screen>
   );
 }
