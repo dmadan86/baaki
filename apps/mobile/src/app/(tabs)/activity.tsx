@@ -108,6 +108,7 @@ export default function ActivityScreen() {
                   // not a balance, so it is neutral in the tint's ink.
                   const tint = tintForKey(entry.group_id);
                   const ink = theme.tint[tint].ink;
+                  const inkMuted = theme.tint[tint].inkMuted;
                   return (
                     <Pressable
                       key={entry.id}
@@ -130,7 +131,7 @@ export default function ActivityScreen() {
                             <Text variant="subheading" style={{ color: ink }}>
                               {describeActivity(entry, myProfileId)}
                             </Text>
-                            <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
+                            <Text variant="caption" style={{ color: inkMuted }}>
                               {`${entry.group?.name ?? t.tabs.group} · ${new Intl.DateTimeFormat(
                                 locale,
                                 { hour: 'numeric', minute: '2-digit' },

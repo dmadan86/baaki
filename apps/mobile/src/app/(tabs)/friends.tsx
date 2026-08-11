@@ -160,6 +160,7 @@ function FriendCard({
   const owed = BigInt(row.net) > 0n;
   const tint = owed ? 'mint' : 'pink';
   const ink = theme.tint[tint].ink;
+  const inkMuted = theme.tint[tint].inkMuted;
   // Only linkable when there is a single group to link to; otherwise this
   // amount is a sum and no one group explains it.
   const onPress = row.only_group_id ? () => router.push(`/group/${row.only_group_id}`) : undefined;
@@ -173,7 +174,7 @@ function FriendCard({
             <Text variant="subheading" numberOfLines={1} style={{ color: ink }}>
               {row.display_name}
             </Text>
-            <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
+            <Text variant="caption" style={{ color: inkMuted }}>
               {row.group_count === 1
                 ? t.tabs.inOneGroup
                 : plural(locale, row.group_count, t.tabs.acrossGroups)}

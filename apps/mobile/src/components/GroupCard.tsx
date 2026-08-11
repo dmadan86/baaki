@@ -64,6 +64,7 @@ export function GroupCard({
   const theme = useTheme();
   const tint = tintForKey(id);
   const ink = theme.tint[tint].ink;
+  const inkMuted = theme.tint[tint].inkMuted;
 
   return (
     <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
@@ -91,7 +92,7 @@ export function GroupCard({
               <Text variant="heading" numberOfLines={1} style={{ color: ink }}>
                 {title}
               </Text>
-              <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
+              <Text variant="caption" style={{ color: inkMuted }}>
                 {memberLabel}
               </Text>
             </View>
@@ -108,7 +109,7 @@ export function GroupCard({
               tone="default"
               style={{ color: ink, fontSize: 30, lineHeight: 36, fontWeight: '700' }}
             />
-            <Text variant="caption" style={{ color: ink, opacity: 0.8 }}>
+            <Text variant="caption" style={{ color: inkMuted }}>
               {statusLabel}
             </Text>
             {pendingLabel ? (

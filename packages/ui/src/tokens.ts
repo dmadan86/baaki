@@ -37,21 +37,40 @@ export const palette = {
   lavender: '#F3F1FB',
   white: '#FFFFFF',
 
+  // Two inks per pastel. `Ink` is the strong one (~7:1 on its own bg, for
+  // titles and amounts); `InkMuted` is the quiet one (~4.6:1, for the subtitle
+  // line under it). Both clear WCAG AA — the old single ink was faded with
+  // `opacity: 0.7` for subtitles, which dropped every pastel below 3:1.
+  // Pink and coral sit on very light bgs, so a title dark enough for AA plus a
+  // lighter muted below it forced the ink almost to black — a harsh blood-red.
+  // These two take one friendly ink instead (a dusty berry / a terracotta):
+  // both clear AA on their bg, and the subtitle separates from the title by
+  // weight, not by going darker. `InkMuted` mirrors `Ink` so callers are
+  // unchanged. The warmer hue is drawn from the raspberry/coral reference.
   pink: '#F8D7DA',
-  pinkInk: '#B4404A',
+  pinkInk: '#964450',
+  pinkInkMuted: '#964450',
   peach: '#FBE0C4',
-  peachInk: '#9A6220',
+  peachInk: '#674215',
+  peachInkMuted: '#8E5A1D',
   mint: '#C7EDE4',
-  mintInk: '#0E7A5B',
+  mintInk: '#0A5540',
+  mintInkMuted: '#0D7356',
   lilac: '#DCD9FB',
-  lilacInk: '#4B3FA8',
+  lilacInk: '#413792',
+  lilacInkMuted: '#4B3FA8',
   coral: '#FFC5C5',
-  coralInk: '#C0392F',
+  coralInk: '#963B2F',
+  coralInkMuted: '#963B2F',
   sky: '#CFE6FA',
-  skyInk: '#1E6BA8',
+  skyInk: '#154C77',
+  skyInkMuted: '#1D68A3',
 
   positive: '#0E9F6E',
-  negative: '#E5484D',
+  // Raspberry-leaning red (hue near the #F04770 reference) — friendlier than
+  // the old fire-engine #E5484D, still unmistakably "money leaving" and clear
+  // of the warning orange.
+  negative: '#E84A66',
   warning: '#D98218',
 
   night900: '#0E0E1A',
@@ -68,7 +87,7 @@ export const palette = {
  * to hold white text, because the balance and its labels sit on all of them.
  */
 export const gradients = {
-  light: [palette.brand700, palette.brand500, '#A472F0'],
+  light: [palette.brand700, palette.brand500, '#8148D8'],
   dark: ['#3A2585', '#5B41C9', '#7E52C9'],
 } as const;
 

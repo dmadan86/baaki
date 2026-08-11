@@ -108,7 +108,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       {pageOrder(SLIDES, rtl).map(({ slide, index: slideIndex }) => {
         // The words live in the string table; this file only knows the look.
         const copy = t.onboarding[slideIndex] ?? t.onboarding[0]!;
-        const { bg, ink } = theme.tint[slide.tint];
+        const { bg, ink, inkMuted } = theme.tint[slide.tint];
         const last = slideIndex === SLIDES.length - 1;
 
         return (
@@ -139,7 +139,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 accessibilityLabel={t.skip}
                 hitSlop={12}
               >
-                <Text variant="caption" style={{ color: ink, opacity: 0.7 }}>
+                <Text variant="caption" style={{ color: inkMuted }}>
                   {t.skip}
                 </Text>
               </Pressable>
@@ -159,7 +159,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
             <View style={{ gap: theme.spacing.md }}>
               <Text style={{ fontSize: 36, fontWeight: '700', color: ink }}>{copy.title}</Text>
-              <Text variant="body" style={{ color: ink, opacity: 0.75 }}>
+              <Text variant="body" style={{ color: inkMuted }}>
                 {copy.body}
               </Text>
             </View>

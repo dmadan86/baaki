@@ -138,10 +138,10 @@ export default function HomeScreen() {
           style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
         >
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="caption" tone="onBrand" style={{ opacity: 0.8 }}>
+            <Text variant="caption" tone="onBrand">
               {t.yourBaaki}
             </Text>
-            <Text variant="micro" tone="onBrand" style={{ opacity: 0.8 }}>
+            <Text variant="micro" tone="onBrand">
               {plural(locale, list.length, t.tabs.acrossGroups)}
             </Text>
           </Row>
@@ -154,7 +154,7 @@ export default function HomeScreen() {
               tone="onBrand"
               style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
             />
-            <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+            <Text variant="caption" tone="onBrand">
               {headline.net === 0n
                 ? t.allSettled
                 : headline.net > 0n
@@ -163,7 +163,7 @@ export default function HomeScreen() {
             </Text>
             {/* No rate turns rupees into euros, so the rest are counted, not added. */}
             {otherCurrencies > 0 ? (
-              <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
+              <Text variant="micro" tone="onBrand">
                 {plural(locale, otherCurrencies, t.account.otherCurrencies)}
               </Text>
             ) : null}
@@ -171,7 +171,7 @@ export default function HomeScreen() {
 
           <Row style={{ gap: theme.spacing.xxl }}>
             <View>
-              <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
+              <Text variant="micro" tone="onBrand">
                 {t.youAreOwed}
               </Text>
               <CountUpMoney
@@ -182,7 +182,7 @@ export default function HomeScreen() {
               />
             </View>
             <View>
-              <Text variant="micro" tone="onBrand" style={{ opacity: 0.75 }}>
+              <Text variant="micro" tone="onBrand">
                 {t.youOwe}
               </Text>
               <CountUpMoney
