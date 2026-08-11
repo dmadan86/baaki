@@ -32,6 +32,7 @@ interface AuthValue {
   isGuest: boolean;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -63,6 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await baaki.signInWithGoogle(`${window.location.origin}/auth/callback`);
   }, []);
 
+  const signInWithEmail = useCallback(async (email: string) => {
+    // The mailed link lands on the same callback route as Google does.
+    await baaki.signInWithEmail(email, `${window.location.origin}/auth/callback`);
+  }, []);
+
   const signOut = useCallback(async () => {
     await baaki.signOut();
   }, []);
@@ -74,9 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isGuest: session?.user.is_anonymous === true,
       loading,
       signInWithGoogle,
+      signInWithEmail,
       signOut,
     }),
-    [session, loading, signInWithGoogle, signOut],
+    [session, loading, signInWithGoogle, signInWithEmail, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

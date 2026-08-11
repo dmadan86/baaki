@@ -123,6 +123,21 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       if (error) throw new BaakiApiError(error.message);
     },
 
+    /**
+     * The passwordless email login, matching the phone's approach: a link is
+     * mailed, and clicking it returns to `redirectTo` (the callback route) with
+     * a code this client exchanges for a session. No password to store, forget
+     * or leak. Like Google, an anonymous guest who does this keeps their id and
+     * their history.
+     */
+    async signInWithEmail(email: string, redirectTo: string): Promise<void> {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo },
+      });
+      if (error) throw new BaakiApiError(error.message);
+    },
+
     async signOut(): Promise<void> {
       const { error } = await supabase.auth.signOut();
       if (error) throw new BaakiApiError(error.message);

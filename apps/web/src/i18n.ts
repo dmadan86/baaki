@@ -156,6 +156,13 @@ export interface WebStrings {
     signInTitle: string;
     signInBody: string;
     continueWithGoogle: string;
+    orDivider: string;
+    emailPlaceholder: string;
+    sendMagicLink: string;
+    sendingLink: string;
+    linkSentTitle: string;
+    linkSentBody: string;
+    notAnEmail: string;
     signingIn: string;
     guestInstead: string;
     signOut: string;
@@ -268,6 +275,13 @@ const en: WebStrings = {
     signInTitle: 'Baaki',
     signInBody: 'Split expenses without the argument at the end.',
     continueWithGoogle: 'Continue with Google',
+    orDivider: 'or',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'Email me a sign-in link',
+    sendingLink: 'Sending…',
+    linkSentTitle: 'Check your inbox',
+    linkSentBody: 'A sign-in link is on its way to {email}. Open it on this device.',
+    notAnEmail: 'That does not look like an email address.',
     signingIn: 'Signing in…',
     guestInstead: 'Or open an invite link someone shared with you.',
     signOut: 'Sign out',
@@ -383,6 +397,13 @@ const ta: WebStrings = {
     signInTitle: 'பாக்கி',
     signInBody: 'கடைசியில் வாக்குவாதம் இல்லாமல் செலவுகளைப் பிரியுங்கள்.',
     continueWithGoogle: 'Google மூலம் தொடரவும்',
+    orDivider: 'அல்லது',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'உள்நுழைவுச் சுட்டியை மின்னஞ்சலில் அனுப்பு',
+    sendingLink: 'அனுப்புகிறது…',
+    linkSentTitle: 'உங்கள் இன்பாக்ஸைப் பாருங்கள்',
+    linkSentBody: '{email} க்கு உள்நுழைவுச் சுட்டி வருகிறது. இந்தச் சாதனத்தில் அதைத் திறக்கவும்.',
+    notAnEmail: 'அது மின்னஞ்சல் முகவரி போலத் தெரியவில்லை.',
     signingIn: 'உள்நுழைகிறது…',
     guestInstead: 'அல்லது யாராவது பகிர்ந்த அழைப்புச் சுட்டியைத் திறக்கவும்.',
     signOut: 'வெளியேறு',
@@ -496,6 +517,13 @@ const hi: WebStrings = {
     signInTitle: 'बाकी',
     signInBody: 'आख़िर में बहस किए बिना खर्च बाँटें।',
     continueWithGoogle: 'Google से जारी रखें',
+    orDivider: 'या',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'मुझे साइन-इन लिंक ईमेल करें',
+    sendingLink: 'भेजा जा रहा है…',
+    linkSentTitle: 'अपना इनबॉक्स देखें',
+    linkSentBody: '{email} पर साइन-इन लिंक आ रहा है। इसे इसी डिवाइस पर खोलें।',
+    notAnEmail: 'यह ईमेल पते जैसा नहीं लगता।',
     signingIn: 'साइन इन हो रहा है…',
     guestInstead: 'या किसी के साझा किए न्योते का लिंक खोलें।',
     signOut: 'साइन आउट',
@@ -623,6 +651,13 @@ const ar: WebStrings = {
     signInTitle: 'باقي',
     signInBody: 'قسّموا المصاريف دون خلاف في النهاية.',
     continueWithGoogle: 'المتابعة عبر Google',
+    orDivider: 'أو',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'أرسِل لي رابط تسجيل الدخول بالبريد',
+    sendingLink: 'جارٍ الإرسال…',
+    linkSentTitle: 'تحقّق من بريدك',
+    linkSentBody: 'رابط تسجيل الدخول في طريقه إلى {email}. افتحه على هذا الجهاز.',
+    notAnEmail: 'لا يبدو هذا عنوان بريد إلكتروني.',
     signingIn: 'جارٍ تسجيل الدخول…',
     guestInstead: 'أو افتح رابط دعوة شاركه أحدهم معك.',
     signOut: 'تسجيل الخروج',
