@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 
 import {
@@ -34,6 +34,17 @@ export default function AccountScreen() {
   const theme = useTheme();
   const { t } = useStrings();
   const { session, isGuest, refresh, withGoogle, withApple } = useAuth();
+
+  // Set when a guest was sent here by a limit rather than arriving on their own
+  // (ADR-006 addendum). It only changes the explainer at the top; the linking
+  // below is the same either way.
+  const { reason } = useLocalSearchParams<{ reason?: 'group_limit' | 'trial_expired' }>();
+  const gateBody =
+    reason === 'group_limit'
+      ? t.contact.gateGroupBody
+      : reason === 'trial_expired'
+        ? t.contact.gateExpiredBody
+        : null;
 
   const [channel, setChannel] = useState<ContactChannel>('email');
   const [value, setValue] = useState('');
@@ -130,8 +141,13 @@ export default function AccountScreen() {
               <Badge label={t.contact.signedIn} tone="positive" />
             )}
           </Row>
+          {gateBody ? (
+            <Text variant="subheading" tone="brand">
+              {t.contact.gateTitle}
+            </Text>
+          ) : null}
           <Text variant="caption" tone="muted">
-            {isGuest ? t.contact.guestBody : t.contact.memberBody}
+            {gateBody ?? (isGuest ? t.contact.guestBody : t.contact.memberBody)}
           </Text>
         </Card>
 

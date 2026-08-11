@@ -24,6 +24,7 @@ import { useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, Stagger } from '@/lib/anim';
 import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useGuestGuard } from '@/lib/guestGuard';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
@@ -37,9 +38,18 @@ export default function HomeScreen() {
 
   const groups = useGroups();
   const summary = useHomeSummary(profile?.id ?? null);
+  const guard = useGuestGuard();
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
+
+  // A guest tapping "new group" past their limit is sent to sign up rather than
+  // into a form the server would refuse (ADR-006 addendum). A full user's guard
+  // waves this through.
+  const openNewGroup = (): void => {
+    if (guard.blockAddGroup()) return;
+    router.push('/new-group');
+  };
 
   /**
    * The headline is one currency, because there is no such thing as a total
@@ -69,8 +79,10 @@ export default function HomeScreen() {
   const [pending, setPending] = useState<'add-expense' | 'settle' | null>(null);
 
   const start = (action: 'add-expense' | 'settle'): void => {
+    // Both actions are writes; an expired guest is read-only (ADR-006 addendum).
+    if (guard.blockWrite()) return;
     const only = list.length === 1 ? list[0] : undefined;
-    if (list.length === 0) router.push('/new-group');
+    if (list.length === 0) openNewGroup();
     else if (only) router.push(`/group/${only.id}/${action}`);
     else setPending(action);
   };
@@ -114,7 +126,7 @@ export default function HomeScreen() {
               {profile?.display_name ?? 'You'}
             </Text>
           </View>
-          <IconButton label={t.newGroup} onPress={() => router.push('/new-group')}>
+          <IconButton label={t.newGroup} onPress={openNewGroup}>
             <Ionicons name="add" size={22} color={theme.color.text} />
           </IconButton>
         </Row>
@@ -127,7 +139,11 @@ export default function HomeScreen() {
               {t.tabs.guestBanner}
             </Text>
             <Text variant="caption" tone="muted">
-              {t.tabs.guestBannerBody}
+              {guard.gate?.expired
+                ? t.tabs.guestReadOnly
+                : guard.gate
+                  ? t.tabs.guestDaysLeft.replace('{days}', String(guard.gate.daysLeft))
+                  : t.tabs.guestBannerBody}
             </Text>
             <Button
               label={t.tabs.addYourDetails}
@@ -263,14 +279,14 @@ export default function HomeScreen() {
           <EmptyState
             title={t.tabs.noGroups}
             body={t.tabs.noGroupsBody}
-            action={<Button label={t.newGroup} onPress={() => router.push('/new-group')} />}
+            action={<Button label={t.newGroup} onPress={openNewGroup} />}
           />
         ) : (
           <View>
             <SectionHeader
               title={t.yourGroups}
               action={
-                <Text variant="caption" tone="brand" onPress={() => router.push('/new-group')}>
+                <Text variant="caption" tone="brand" onPress={openNewGroup}>
                   {t.newGroup}
                 </Text>
               }

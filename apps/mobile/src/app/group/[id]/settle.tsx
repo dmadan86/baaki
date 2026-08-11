@@ -36,6 +36,7 @@ import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, isGhost, payableAt, type MemberRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useGuestGuard } from '@/lib/guestGuard';
 
 export default function SettleScreen() {
   const theme = useTheme();
@@ -47,6 +48,7 @@ export default function SettleScreen() {
   const { group, members, expenses } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const recordSettlement = useRecordSettlement(groupId);
+  const guard = useGuestGuard();
 
   const [selected, setSelected] = useState<MemberId | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +144,8 @@ export default function SettleScreen() {
       : t.bankOther;
 
   const record = async (): Promise<void> => {
+    // A settlement is a write; an expired guest is read-only (ADR-006 addendum).
+    if (guard.blockWrite()) return;
     if (!counterparty || !myMemberId || amount === 0n) return;
     setError(null);
     try {

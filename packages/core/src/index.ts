@@ -20,6 +20,7 @@ export * from './notifications/index';
 export * from './sms/index';
 export * from './import/index';
 export * from './auth/identity';
+export * from './auth/guestLimits';
 export * from './observability/index';
 export * from './version/index';
 export * from './billing/index';
