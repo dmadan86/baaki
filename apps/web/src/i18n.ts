@@ -142,6 +142,11 @@ export interface WebStrings {
     saving: string;
     save: string;
     cancel: string;
+    editTitle: string;
+    splitMethod: string;
+    invalidSplit: string;
+    runningSum: string;
+    cannotEditSplit: string;
   };
   /** The signed-in web client: shell, sign-in and the overview dashboard. */
   dash: {
@@ -294,6 +299,11 @@ const en: WebStrings = {
     saving: 'Saving…',
     save: 'Save',
     cancel: 'Cancel',
+    editTitle: 'Edit expense',
+    splitMethod: 'How to split',
+    invalidSplit: 'These shares do not add up yet.',
+    runningSum: '{sum} of {total}',
+    cannotEditSplit: 'This bill was split in a way the web cannot edit yet — open it in the app.',
   },
   dash: {
     nav: {
@@ -447,6 +457,11 @@ const ta: WebStrings = {
     saving: 'சேமிக்கிறது…',
     save: 'சேமி',
     cancel: 'ரத்து',
+    editTitle: 'செலவைத் திருத்து',
+    splitMethod: 'எப்படிப் பிரிப்பது',
+    invalidSplit: 'இந்தப் பங்குகள் இன்னும் சரியாகக் கூடவில்லை.',
+    runningSum: '{total} இல் {sum}',
+    cannotEditSplit: 'இந்த பில் இணையம் இன்னும் திருத்த முடியாத வகையில் பிரிக்கப்பட்டது — செயலியில் திறக்கவும்.',
   },
   dash: {
     nav: {
@@ -598,6 +613,11 @@ const hi: WebStrings = {
     saving: 'सेव हो रहा है…',
     save: 'सेव करें',
     cancel: 'रद्द करें',
+    editTitle: 'खर्च संपादित करें',
+    splitMethod: 'कैसे बाँटें',
+    invalidSplit: 'ये हिस्से अभी पूरे नहीं जुड़ते।',
+    runningSum: '{total} में से {sum}',
+    cannotEditSplit: 'यह बिल ऐसे बाँटा गया जिसे वेब अभी संपादित नहीं कर सकता — इसे ऐप में खोलें।',
   },
   dash: {
     nav: {
@@ -763,6 +783,11 @@ const ar: WebStrings = {
     saving: 'جارٍ الحفظ…',
     save: 'حفظ',
     cancel: 'إلغاء',
+    editTitle: 'تعديل المصروف',
+    splitMethod: 'كيفية التقسيم',
+    invalidSplit: 'هذه الحصص لا تتوافق بعد.',
+    runningSum: '{sum} من {total}',
+    cannotEditSplit: 'قُسّمت هذه الفاتورة بطريقة لا يمكن للويب تعديلها بعد — افتحها في التطبيق.',
   },
   dash: {
     nav: {
