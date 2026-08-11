@@ -135,8 +135,8 @@ export function Shell({
                     position: 'absolute',
                     insetInlineEnd: 0,
                     top: 46,
-                    background: 'var(--app-surface)',
-                    border: '1px solid var(--line-strong)',
+                    background: 'var(--color-app-surface)',
+                    border: '1px solid var(--color-line-strong)',
                     borderRadius: 14,
                     boxShadow: '0 12px 30px rgba(80,45,20,0.16)',
                     padding: 10,
@@ -147,7 +147,7 @@ export function Shell({
                   <div style={{ padding: '4px 8px 8px' }}>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{userName}</div>
                     {isGuest ? (
-                      <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
+                      <div style={{ fontSize: 12, color: 'var(--color-ink-faint)' }}>
                         {t.dash.guestLabel}
                       </div>
                     ) : null}
