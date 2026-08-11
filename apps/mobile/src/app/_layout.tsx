@@ -24,6 +24,7 @@ import { UpdateProvider } from '@/lib/update';
 import { initClarity } from '@/lib/clarity';
 import { initObservability, withObservability } from '@/lib/observability';
 import { ensureAndroidChannel, pushSupported, routeForNotification } from '@/lib/push';
+import { applyStoredSessionReplayConsent } from '@/lib/sessionReplay';
 import { SyncProvider } from '@/sync';
 
 // Before anything else renders, so a crash in the first frame is still caught.
@@ -34,6 +35,10 @@ initObservability();
 // people's expense descriptions, amounts and payment handles from the first
 // frame; `allowSessionReplay` is the only thing that starts it.
 initClarity();
+
+// Resume capture only for someone who opted in on a previous run; everyone
+// else stays paused where `initClarity` left them. Async, and it fails to off.
+void applyStoredSessionReplayConsent();
 
 // Arriving while the app is open should still surface: a notification that is
 // silently swallowed because you happened to be looking at the app is the one
