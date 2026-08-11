@@ -659,6 +659,42 @@ select:focus {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+/* Small inline status badge next to a heading */
+.pill-badge {
+  display: inline-block;
+  margin-inline-start: 10px;
+  vertical-align: middle;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--pill);
+  color: var(--ink-muted);
+}
+.pill-badge.warn {
+  background: #fbe4c9;
+  color: #9a5b18;
+}
+
+/* A raised dispute, shown in the detail panel */
+.dispute-note {
+  margin-top: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.dispute-note .who {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+.dispute-note .why {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+}
+
 /* Guest ceiling / upgrade banner */
 .banner {
   display: flex;
