@@ -93,6 +93,14 @@ Both gate _toward_ the in-place upgrade above, never away from data: signing up 
 
 The rule is defined once as a pure function (`guestGate` in `@baaki/core`) and enforced in three places so a client that bypasses the app's own guard cannot slip past: the mobile UI (disables the actions), `baaki_create_group` (refuses a second group / expired guest, covering the offline `group.create` path too), and the `sync` + `invite-accept` Edge Functions (refuse expired-guest writes and over-limit joins). A full account has no ceiling.
 
+**Addendum (web is a full client, not "lite").** The original decision scoped the browser to a "read-write web-lite group view" — one invited group, upsell the app. That scope is superseded: `apps/web` (renamed from `apps/web-lite`) is now a **full web client** signing in with **Google** (already named above among the upgrade providers) and showing every group the session may see — an overview dashboard, group detail, settle, friends, and the rest, in phases (see `apps/web/PLAN.md`). This is a **product-scope expansion, not a change to any trust boundary**:
+
+- Guest ceilings are **unchanged**. The one-group / ten-day limits still apply to an anonymous session on the web exactly as on the phone; the web UI reads `guestGate` to prompt the upgrade, and the same server enforcers (above) still refuse over-limit writes regardless of client.
+- **Authorization is untouched.** Every web read runs under the caller's own session and every RLS policy applies unchanged (ADR-013); every money write still goes through the Edge Functions, which recompute shares server-side (TDR §4). The browser is given no authority it did not already have as a guest link view.
+- The invite-link + anonymous-guest entry stays; a real login is added beside it, not in front of it. Signing in keeps the same user id, so a guest's history carries into the full account (the in-place upgrade above).
+
+The folder keeps building as `apps/web`; "lite" is historical.
+
 ---
 
 ## ADR-007: UPI settlement via intent deep links; Baaki never moves money
