@@ -27,7 +27,7 @@ import { useAuth } from '@/lib/auth';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
-import { displayName, groupLabel } from '@/data/types';
+import { groupLabel } from '@/data/types';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -269,23 +269,16 @@ export default function HomeScreen() {
                 </Text>
               }
             />
-            <View style={{ gap: theme.spacing.lg }}>
+            <View style={{ gap: theme.spacing.md }}>
               {list.map((group, index) => {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
-                // The other people in the group, for the avatar cluster — your
-                // own face is the one at the top of the screen already.
-                const others = members
-                  .filter((member) => !member.left_at)
-                  .filter((member) => !(member.profile_id && member.profile_id === profile?.id))
-                  .map((member) => displayName(member, profile?.id));
                 return (
                   <Stagger key={group.id} index={index}>
                     <GroupCard
                       id={group.id}
                       title={groupLabel(group, members, profile?.id)}
                       memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
-                      memberNames={others}
                       coverEmoji={group.cover_emoji}
                       balance={balance}
                       currency={group.default_currency}

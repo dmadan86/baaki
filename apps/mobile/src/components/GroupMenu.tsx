@@ -17,7 +17,7 @@ import { router } from 'expo-router';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Card, directionalIcon, IconButton, ListRow, Text, useTheme } from '@baaki/ui';
+import { Card, directionalIcon, IconButton, ListRow, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
