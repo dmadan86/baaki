@@ -19,15 +19,17 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import type { AcceptedInvite, Expense, Group, InvitePreview, Member, Settlement } from './types';
-import type {
-  ActivityGroup,
-  ActivityRow,
-  BalanceRow,
-  DisputeRow,
-  ExpenseVersionSummary,
-  GroupRow,
-  MemberRow,
-  PersonBalanceRow,
+import {
+  coarseMethod,
+  type ActivityGroup,
+  type ActivityRow,
+  type BalanceRow,
+  type DisputeRow,
+  type ExpenseVersionSummary,
+  type GroupRow,
+  type MemberRow,
+  type NotificationRow,
+  type PersonBalanceRow,
 } from './rows';
 
 const GROUP_ROW_COLUMNS = `
@@ -403,6 +405,84 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     /** Every person you are not square with, across every group, per currency. */
     peopleBalances(): Promise<PersonBalanceRow[]> {
       return read<PersonBalanceRow>(supabase.rpc('baaki_people_i_owe'));
+    },
+
+    // ─────────────────────────────────────────────── settling up (ADR-007) ──
+    // Recording a settlement is not performing it: the ledger tracks what people
+    // say they paid, made real only when whoever was paid confirms it. Every
+    // write is a SECURITY DEFINER RPC — the settlements table takes no client
+    // write — and the server recomputes nothing it was handed.
+
+    /**
+     * "I paid them." The coarse `method` enum is derived server-side from the
+     * finer rail, so a rail the enum never heard of still records rather than
+     * being refused. `clientMutationId` makes a double-tapped Save harmless.
+     */
+    async recordSettlement(input: {
+      groupId: string;
+      fromMemberId: string;
+      toMemberId: string;
+      amount: bigint;
+      /** A `RailId` from @baaki/core — `upi`, `pix`, `cash`, … */
+      rail: string;
+      currency?: string | null;
+      note?: string | null;
+      allocations?: { expenseId: string; amount: bigint }[];
+      clientMutationId?: string;
+    }): Promise<string> {
+      return String(
+        await rpc('baaki_record_settlement', {
+          p_group_id: input.groupId,
+          p_from_member_id: input.fromMemberId,
+          p_to_member_id: input.toMemberId,
+          p_amount: input.amount.toString(),
+          p_method: coarseMethod(input.rail),
+          p_rail: input.rail,
+          p_currency: input.currency ?? null,
+          p_note: input.note?.trim() || null,
+          p_allocations: (input.allocations ?? []).map((allocation) => ({
+            expenseId: allocation.expenseId,
+            amount: allocation.amount.toString(),
+          })),
+          p_client_mutation_id: input.clientMutationId ?? crypto.randomUUID(),
+        }),
+      );
+    },
+
+    /** "Yes, that reached me." Only the payee may confirm (server-checked). */
+    confirmSettlement(settlementId: string): Promise<void> {
+      return rpc('baaki_confirm_settlement', { p_settlement_id: settlementId }).then(
+        () => undefined,
+      );
+    },
+
+    /** A gentle poke to someone who owes you in a currency (ADR-010 prefs apply). */
+    nudgeToSettle(input: { groupId: string; toMemberId: string; currency: string }): Promise<void> {
+      return rpc('baaki_nudge_to_settle', {
+        p_group_id: input.groupId,
+        p_to_member_id: input.toMemberId,
+        p_currency: input.currency,
+      }).then(() => undefined);
+    },
+
+    // ─────────────────────────────────────────────────────── the inbox ──
+    // Everything Baaki has told this person, kept whether or not a push ever
+    // landed. No profile filter: `notifications_select_own` decides whose inbox
+    // this is, and a second, weaker check here would only invite disagreement.
+
+    notifications(limit = 50): Promise<NotificationRow[]> {
+      return read<NotificationRow>(
+        supabase
+          .from('notifications')
+          .select('id, group_id, kind, title, body, deep_link, payload, read_at, created_at')
+          .order('created_at', { ascending: false })
+          .limit(limit),
+      );
+    },
+
+    async markNotificationsRead(ids: string[]): Promise<number> {
+      if (ids.length === 0) return 0;
+      return Number(await rpc('baaki_mark_notifications_read', { p_ids: ids }));
     },
 
     /**
