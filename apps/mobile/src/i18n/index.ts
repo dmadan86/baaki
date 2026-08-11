@@ -604,6 +604,10 @@ export interface UiStrings {
     createLink: string;
     linkCopied: string;
     expires: string;
+    usesBadge: string;
+    shareMessage: string;
+    emailSubject: string;
+    mintMistakeNote: string;
     hideContacts: string;
     browseContacts: string;
     /** Reminding somebody who owes you to settle, gently (ADR-010). */
@@ -1512,6 +1516,12 @@ const en: UiStrings = {
     createLink: 'Create an invite link',
     linkCopied: 'Link copied',
     expires: 'expires {when}',
+    usesBadge: '{count} uses',
+    shareMessage:
+      'Join {group} on Baaki to split expenses — no app or account needed to start: {link}',
+    emailSubject: 'Join {group} on Baaki',
+    mintMistakeNote:
+      'Made a link by mistake? Mint a new one — the old link keeps working until it expires, so only share links you mean to.',
     hideContacts: 'Hide contacts',
     browseContacts: 'Browse my contacts',
     remind: 'Remind',
@@ -2487,6 +2497,12 @@ const ta: UiStrings = {
     createLink: 'அழைப்பு இணைப்பை உருவாக்கு',
     linkCopied: 'இணைப்பு நகலெடுக்கப்பட்டது',
     expires: '{when} க்கு காலாவதி',
+    usesBadge: '{count} பயன்பாடுகள்',
+    shareMessage:
+      'செலவுகளைப் பிரிக்க Baaki-ல் {group} குழுவில் சேரவும் — தொடங்க ஆப் அல்லது கணக்கு தேவையில்லை: {link}',
+    emailSubject: 'Baaki-ல் {group} குழுவில் சேரவும்',
+    mintMistakeNote:
+      'தவறுதலாக இணைப்பு உருவாக்கினீர்களா? புதிதாக ஒன்றை உருவாக்கவும் — பழைய இணைப்பு காலாவதியாகும் வரை வேலை செய்யும், எனவே நீங்கள் நினைத்த இணைப்புகளை மட்டும் பகிரவும்.',
     hideContacts: 'தொடர்புகளை மறை',
     browseContacts: 'என் தொடர்புகளைப் பார்',
     remind: 'நினைவூட்டு',
@@ -3456,6 +3472,12 @@ const hi: UiStrings = {
     createLink: 'निमंत्रण लिंक बनाएँ',
     linkCopied: 'लिंक कॉपी हो गया',
     expires: '{when} को खत्म',
+    usesBadge: '{count} उपयोग',
+    shareMessage:
+      'खर्च बाँटने के लिए Baaki पर {group} में शामिल हों — शुरू करने के लिए कोई ऐप या खाता ज़रूरी नहीं: {link}',
+    emailSubject: 'Baaki पर {group} में शामिल हों',
+    mintMistakeNote:
+      'गलती से लिंक बना लिया? नया बनाएँ — पुराना लिंक खत्म होने तक चलता रहेगा, इसलिए वही लिंक साझा करें जो आप चाहते हैं।',
     hideContacts: 'संपर्क छिपाएँ',
     browseContacts: 'मेरे संपर्क देखें',
     remind: 'याद दिलाएँ',
@@ -4448,6 +4470,12 @@ const ar: UiStrings = {
     createLink: 'أنشئ رابط دعوة',
     linkCopied: 'تم نسخ الرابط',
     expires: 'ينتهي {when}',
+    usesBadge: '{count} استخدامات',
+    shareMessage:
+      'انضم إلى {group} على Baaki لتقسيم المصروفات — لا حاجة إلى تطبيق أو حساب للبدء: {link}',
+    emailSubject: 'انضم إلى {group} على Baaki',
+    mintMistakeNote:
+      'أنشأت رابطًا بالخطأ؟ أنشئ رابطًا جديدًا — يظل الرابط القديم صالحًا حتى ينتهي، لذا شارك فقط الروابط التي تقصدها.',
     hideContacts: 'إخفاء جهات الاتصال',
     browseContacts: 'تصفّح جهات اتصالي',
     remind: 'ذكّر',

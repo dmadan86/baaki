@@ -46,7 +46,7 @@ export default function InviteScreen() {
   };
 
   const label = groupLabel(group.data, members.data ?? [], profile?.id);
-  const message = `Join ${label} on Baaki to split expenses — no app or account needed to start: ${link}`;
+  const message = t.people.shareMessage.replace('{group}', label).replace('{link}', link ?? '');
 
   const share = async (): Promise<void> => {
     if (!link) return;
@@ -67,7 +67,7 @@ export default function InviteScreen() {
           ? // iOS wants '&body=', Android wants '?body=' — the separator is the
             // only difference, and getting it wrong silently drops the text.
             `sms:${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`
-          : `mailto:?subject=${encodeURIComponent(`Join ${label} on Baaki`)}&body=${encodeURIComponent(message)}`;
+          : `mailto:?subject=${encodeURIComponent(t.people.emailSubject.replace('{group}', label))}&body=${encodeURIComponent(message)}`;
 
     try {
       await Linking.openURL(url);
@@ -134,7 +134,7 @@ export default function InviteScreen() {
                     }).format(new Date(invite.expiresAt)),
                   )}
                 />
-                <Badge label={`${invite.maxUses} uses`} />
+                <Badge label={t.people.usesBadge.replace('{count}', String(invite.maxUses))} />
               </Row>
             </Card>
 
@@ -172,8 +172,7 @@ export default function InviteScreen() {
             </Row>
 
             <Text variant="micro" tone="faint" align="center">
-              Made a link by mistake? Mint a new one — the old link keeps working until it expires,
-              so only share links you mean to.
+              {t.people.mintMistakeNote}
             </Text>
           </>
         ) : (
