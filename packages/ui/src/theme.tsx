@@ -116,7 +116,7 @@ const darkTheme: Theme = {
     skeleton: palette.night600,
     positive: '#34D399',
     positiveSoft: '#123F36',
-    negative: '#FF7B72',
+    negative: '#FF7088',
     negativeSoft: '#4A2A31',
     warning: '#E8A54B',
     warningSoft: '#463020',

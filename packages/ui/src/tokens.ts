@@ -41,9 +41,15 @@ export const palette = {
   // titles and amounts); `InkMuted` is the quiet one (~4.6:1, for the subtitle
   // line under it). Both clear WCAG AA — the old single ink was faded with
   // `opacity: 0.7` for subtitles, which dropped every pastel below 3:1.
+  // Pink and coral sit on very light bgs, so a title dark enough for AA plus a
+  // lighter muted below it forced the ink almost to black — a harsh blood-red.
+  // These two take one friendly ink instead (a dusty berry / a terracotta):
+  // both clear AA on their bg, and the subtitle separates from the title by
+  // weight, not by going darker. `InkMuted` mirrors `Ink` so callers are
+  // unchanged. The warmer hue is drawn from the raspberry/coral reference.
   pink: '#F8D7DA',
-  pinkInk: '#7A2C32',
-  pinkInkMuted: '#A93C46',
+  pinkInk: '#964450',
+  pinkInkMuted: '#964450',
   peach: '#FBE0C4',
   peachInk: '#674215',
   peachInkMuted: '#8E5A1D',
@@ -54,14 +60,17 @@ export const palette = {
   lilacInk: '#413792',
   lilacInkMuted: '#4B3FA8',
   coral: '#FFC5C5',
-  coralInk: '#75231D',
-  coralInkMuted: '#A53128',
+  coralInk: '#963B2F',
+  coralInkMuted: '#963B2F',
   sky: '#CFE6FA',
   skyInk: '#154C77',
   skyInkMuted: '#1D68A3',
 
   positive: '#0E9F6E',
-  negative: '#E5484D',
+  // Raspberry-leaning red (hue near the #F04770 reference) — friendlier than
+  // the old fire-engine #E5484D, still unmistakably "money leaving" and clear
+  // of the warning orange.
+  negative: '#E84A66',
   warning: '#D98218',
 
   night900: '#0E0E1A',
