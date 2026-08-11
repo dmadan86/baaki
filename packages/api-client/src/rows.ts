@@ -108,6 +108,43 @@ export interface ExpenseVersionSummary {
   split_type: string;
 }
 
+export type SettlementMethod = 'upi' | 'cash' | 'bank' | 'other';
+
+export type SettlementStatus =
+  'initiated' | 'confirmed' | 'auto_confirmed' | 'disputed' | 'cancelled';
+
+/**
+ * The coarse `method` enum the settlements table stores, derived from the finer
+ * `RailId` the group actually settled on. A rail the enum has never heard of —
+ * Pix, PayNow, Wise — records as `other` while the exact rail rides alongside
+ * in its own column, so a new country is data, not a new enum value (see
+ * `@baaki/core`'s rails). Kept pure and exported so the mapping is tested once
+ * and cannot drift between the phone and the browser.
+ */
+export function coarseMethod(rail: string): SettlementMethod {
+  return (['upi', 'cash', 'bank', 'other'] as const).includes(rail as SettlementMethod)
+    ? (rail as SettlementMethod)
+    : 'other';
+}
+
+/**
+ * A line in the inbox — everything Baaki has told this person, whether or not a
+ * push ever reached the device (TDR §7.1 calls it the ledger of record). Which
+ * rows are whose is decided by the `notifications_select_own` RLS policy, not
+ * by any filter here.
+ */
+export interface NotificationRow {
+  id: string;
+  group_id: string | null;
+  kind: string;
+  title: string;
+  body: string;
+  deep_link: string | null;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
 /** One row per person per currency, from the `baaki_people_i_owe` RPC. */
 export interface PersonBalanceRow {
   person_key: string;

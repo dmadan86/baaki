@@ -1,17 +1,17 @@
 'use client';
 
 /**
- * The frame every signed-in page sits in: brand, the section tabs, search, and
- * the account menu. Only Overview is built in Phase 1 — the other tabs are
- * shown but inert, so the shape is right and the later phases have somewhere to
- * land (PLAN.md).
+ * The frame every signed-in page sits in: brand, the section tabs, search, the
+ * inbox bell, and the account menu. Phases 1–3 have filled every tab in; each
+ * one is a real route now rather than an inert button (PLAN.md).
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 
 import { useStrings } from '@/i18n-context';
 
-export type Section = 'overview' | 'groups' | 'activity' | 'friends' | 'settle';
+export type Section = 'overview' | 'groups' | 'activity' | 'friends' | 'settle' | 'inbox';
 
 export function Shell({
   current,
@@ -47,12 +47,15 @@ export function Shell({
     return () => document.removeEventListener('mousedown', onClick);
   }, [menuOpen]);
 
-  const tabs: { key: Section; label: string }[] = [
-    { key: 'overview', label: t.dash.nav.overview },
-    { key: 'groups', label: t.dash.nav.groups },
-    { key: 'activity', label: t.dash.nav.activity },
-    { key: 'friends', label: t.dash.nav.friends },
-    { key: 'settle', label: t.dash.nav.settle },
+  // Groups has no index of its own yet — the overview is where the groups
+  // live, and a group opens at /g/[id]; the tab shares the home route and still
+  // lights up on a group page, which is where `current: 'groups'` comes from.
+  const tabs: { key: Section; label: string; href: string }[] = [
+    { key: 'overview', label: t.dash.nav.overview, href: '/' },
+    { key: 'groups', label: t.dash.nav.groups, href: '/' },
+    { key: 'activity', label: t.dash.nav.activity, href: '/activity' },
+    { key: 'friends', label: t.dash.nav.friends, href: '/friends' },
+    { key: 'settle', label: t.dash.nav.settle, href: '/settle' },
   ];
 
   const initial = userName.trim().charAt(0).toUpperCase() || '🙂';
@@ -70,21 +73,30 @@ export function Shell({
 
           <div className="navtabs" role="tablist">
             {tabs.map((tab) => (
-              <button
+              <Link
                 key={tab.key}
-                type="button"
+                href={tab.href}
                 className="navtab"
                 role="tab"
                 aria-current={tab.key === current}
-                aria-disabled={tab.key !== 'overview'}
-                disabled={tab.key !== 'overview'}
               >
                 {tab.label}
-              </button>
+              </Link>
             ))}
           </div>
 
           <div className="nav-right">
+            <Link
+              href="/inbox"
+              className="avatar icon-btn"
+              aria-current={current === 'inbox'}
+              title={t.inbox.title}
+              aria-label={t.inbox.title}
+              style={{ width: 38, height: 38, textDecoration: 'none' }}
+            >
+              <span aria-hidden>🔔</span>
+            </Link>
+
             <label className="search">
               <span aria-hidden>🔍</span>
               <input

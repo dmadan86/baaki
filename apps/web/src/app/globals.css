@@ -686,6 +686,25 @@ select:focus {
   text-align: end;
 }
 
+/* The inline settle sheet that drops under a "you owe" row */
+.settle-form {
+  margin: 4px 6px 12px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+/* An unread mark in the inbox */
+.unread-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--brand, #d1495b);
+  margin-inline-start: 8px;
+  flex: none;
+}
+
 /* Small inline status badge next to a heading */
 .pill-badge {
   display: inline-block;

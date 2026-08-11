@@ -228,6 +228,52 @@ export interface WebStrings {
       itemized: string;
     };
   };
+  /** The cross-group activity feed. */
+  activity: {
+    title: string;
+    empty: string;
+    loading: string;
+  };
+  /** Everyone you are not square with, netted across every shared group. */
+  friends: {
+    title: string;
+    empty: string;
+    owesYou: string;
+    youOwe: string;
+    inGroups: PluralForms;
+    settleUp: string;
+    loading: string;
+  };
+  /** Recording and confirming settlements (ADR-007). */
+  settle: {
+    title: string;
+    pickGroup: string;
+    allSettled: string;
+    youOweHead: string;
+    owesYouHead: string;
+    pendingHead: string;
+    settleUp: string;
+    howPaid: string;
+    amountLabel: string;
+    payWith: string;
+    noHandle: string;
+    record: string;
+    recording: string;
+    cancel: string;
+    confirm: string;
+    confirming: string;
+    waitingConfirm: string;
+    nudge: string;
+    nudged: string;
+    loading: string;
+  };
+  /** The inbox — everything Baaki has told you, whether a push reached you or not. */
+  inbox: {
+    title: string;
+    empty: string;
+    markAllRead: string;
+    loading: string;
+  };
 }
 
 const en: WebStrings = {
@@ -382,6 +428,48 @@ const en: WebStrings = {
       adjustment: 'With adjustments',
       itemized: 'Itemised',
     },
+  },
+  activity: {
+    title: 'Activity',
+    empty: 'Nothing has happened yet.',
+    loading: 'Loading…',
+  },
+  friends: {
+    title: 'Friends',
+    empty: "You're square with everyone.",
+    owesYou: 'owes you',
+    youOwe: 'you owe',
+    inGroups: { one: 'in {n} group', other: 'across {n} groups' },
+    settleUp: 'Settle up',
+    loading: 'Loading…',
+  },
+  settle: {
+    title: 'Settle up',
+    pickGroup: 'Pick a group',
+    allSettled: "Everyone's square here. Nothing to settle.",
+    youOweHead: 'You owe',
+    owesYouHead: 'Owes you',
+    pendingHead: 'Waiting to be confirmed',
+    settleUp: 'Settle up',
+    howPaid: 'How did you pay?',
+    amountLabel: 'Amount',
+    payWith: 'Open {rail}',
+    noHandle: "{name} hasn't shared how they're paid — settle in cash, or ask them to add it.",
+    record: 'Mark as paid',
+    recording: 'Recording…',
+    cancel: 'Cancel',
+    confirm: 'Confirm it reached you',
+    confirming: 'Confirming…',
+    waitingConfirm: 'Waiting for {name} to confirm',
+    nudge: 'Nudge',
+    nudged: 'Nudged',
+    loading: 'Loading…',
+  },
+  inbox: {
+    title: 'Inbox',
+    empty: 'Nothing in your inbox yet.',
+    markAllRead: 'Mark all read',
+    loading: 'Loading…',
   },
 };
 
@@ -545,6 +633,49 @@ const ta: WebStrings = {
       itemized: 'பொருள்வாரியாக',
     },
   },
+  activity: {
+    title: 'செயல்பாடு',
+    empty: 'இன்னும் எதுவும் நடக்கவில்லை.',
+    loading: 'ஏற்றுகிறது…',
+  },
+  friends: {
+    title: 'நண்பர்கள்',
+    empty: 'அனைவருடனும் கணக்கு தீர்ந்தது.',
+    owesYou: 'உங்களுக்குத் தர வேண்டும்',
+    youOwe: 'நீங்கள் தர வேண்டும்',
+    inGroups: { one: '{n} குழுவில்', other: '{n} குழுக்களில்' },
+    settleUp: 'கணக்கு தீர்',
+    loading: 'ஏற்றுகிறது…',
+  },
+  settle: {
+    title: 'கணக்கு தீர்',
+    pickGroup: 'ஒரு குழுவைத் தேர்வு',
+    allSettled: 'இங்கே அனைவரின் கணக்கும் தீர்ந்தது. தீர்க்க எதுவும் இல்லை.',
+    youOweHead: 'நீங்கள் தர வேண்டியது',
+    owesYouHead: 'உங்களுக்குத் தர வேண்டியது',
+    pendingHead: 'உறுதிப்படுத்த காத்திருப்பவை',
+    settleUp: 'கணக்கு தீர்',
+    howPaid: 'எப்படிக் கொடுத்தீர்கள்?',
+    amountLabel: 'தொகை',
+    payWith: '{rail} திற',
+    noHandle:
+      '{name} எப்படிப் பணம் பெறுகிறார் என்பதைப் பகிரவில்லை — பணமாகத் தீர்க்கவும், அல்லது சேர்க்கச் சொல்லவும்.',
+    record: 'கொடுத்ததாகக் குறி',
+    recording: 'பதிவுசெய்கிறது…',
+    cancel: 'ரத்து',
+    confirm: 'உங்களுக்கு வந்ததை உறுதிசெய்',
+    confirming: 'உறுதிசெய்கிறது…',
+    waitingConfirm: '{name} உறுதிசெய்ய காத்திருக்கிறது',
+    nudge: 'நினைவூட்டு',
+    nudged: 'நினைவூட்டப்பட்டது',
+    loading: 'ஏற்றுகிறது…',
+  },
+  inbox: {
+    title: 'இன்பாக்ஸ்',
+    empty: 'உங்கள் இன்பாக்ஸில் இன்னும் எதுவும் இல்லை.',
+    markAllRead: 'அனைத்தையும் படித்ததாகக் குறி',
+    loading: 'ஏற்றுகிறது…',
+  },
 };
 
 const hi: WebStrings = {
@@ -700,6 +831,49 @@ const hi: WebStrings = {
       adjustment: 'समायोजन के साथ',
       itemized: 'मद-वार',
     },
+  },
+  activity: {
+    title: 'गतिविधि',
+    empty: 'अभी तक कुछ नहीं हुआ।',
+    loading: 'लोड हो रहा है…',
+  },
+  friends: {
+    title: 'दोस्त',
+    empty: 'सबके साथ हिसाब बराबर है।',
+    owesYou: 'आपको मिलने हैं',
+    youOwe: 'आपको देने हैं',
+    inGroups: { one: '{n} समूह में', other: '{n} समूहों में' },
+    settleUp: 'हिसाब चुकाएँ',
+    loading: 'लोड हो रहा है…',
+  },
+  settle: {
+    title: 'हिसाब चुकाएँ',
+    pickGroup: 'कोई समूह चुनें',
+    allSettled: 'यहाँ सबका हिसाब बराबर है। चुकाने को कुछ नहीं।',
+    youOweHead: 'आपको देने हैं',
+    owesYouHead: 'आपको मिलने हैं',
+    pendingHead: 'पुष्टि का इंतज़ार',
+    settleUp: 'हिसाब चुकाएँ',
+    howPaid: 'आपने कैसे दिया?',
+    amountLabel: 'रकम',
+    payWith: '{rail} खोलें',
+    noHandle:
+      '{name} ने नहीं बताया कि उन्हें कैसे भुगतान मिलता है — नकद चुकाएँ, या उनसे जोड़ने को कहें।',
+    record: 'भुगतान किया, दर्ज करें',
+    recording: 'दर्ज हो रहा है…',
+    cancel: 'रद्द करें',
+    confirm: 'पुष्टि करें कि मिल गया',
+    confirming: 'पुष्टि हो रही है…',
+    waitingConfirm: '{name} की पुष्टि का इंतज़ार',
+    nudge: 'याद दिलाएँ',
+    nudged: 'याद दिला दिया',
+    loading: 'लोड हो रहा है…',
+  },
+  inbox: {
+    title: 'इनबॉक्स',
+    empty: 'आपके इनबॉक्स में अभी कुछ नहीं।',
+    markAllRead: 'सभी पढ़ा हुआ चिह्नित करें',
+    loading: 'लोड हो रहा है…',
   },
 };
 
@@ -890,6 +1064,55 @@ const ar: WebStrings = {
       adjustment: 'مع تعديلات',
       itemized: 'بالأصناف',
     },
+  },
+  activity: {
+    title: 'النشاط',
+    empty: 'لم يحدث شيء بعد.',
+    loading: 'جارٍ التحميل…',
+  },
+  friends: {
+    title: 'الأصدقاء',
+    empty: 'حسابك مسوّى مع الجميع.',
+    owesYou: 'لك',
+    youOwe: 'عليك',
+    inGroups: {
+      zero: 'في لا مجموعة',
+      one: 'في مجموعة واحدة',
+      two: 'في مجموعتين',
+      few: 'في {n} مجموعات',
+      many: 'في {n} مجموعة',
+      other: 'في {n} مجموعة',
+    },
+    settleUp: 'سوِّ الحساب',
+    loading: 'جارٍ التحميل…',
+  },
+  settle: {
+    title: 'تسوية الحساب',
+    pickGroup: 'اختر مجموعة',
+    allSettled: 'حساب الجميع هنا مسوّى. لا شيء للتسوية.',
+    youOweHead: 'عليك',
+    owesYouHead: 'لك',
+    pendingHead: 'بانتظار التأكيد',
+    settleUp: 'سوِّ الحساب',
+    howPaid: 'كيف دفعت؟',
+    amountLabel: 'المبلغ',
+    payWith: 'افتح {rail}',
+    noHandle: 'لم يشارك {name} كيف يُدفع له — سوِّ نقدًا، أو اطلب منه إضافتها.',
+    record: 'سجّل أنك دفعت',
+    recording: 'جارٍ التسجيل…',
+    cancel: 'إلغاء',
+    confirm: 'أكّد أنه وصلك',
+    confirming: 'جارٍ التأكيد…',
+    waitingConfirm: 'بانتظار تأكيد {name}',
+    nudge: 'تذكير',
+    nudged: 'تم التذكير',
+    loading: 'جارٍ التحميل…',
+  },
+  inbox: {
+    title: 'صندوق الوارد',
+    empty: 'لا شيء في صندوق واردك بعد.',
+    markAllRead: 'وسم الكل كمقروء',
+    loading: 'جارٍ التحميل…',
   },
 };
 
