@@ -1,35 +1,27 @@
 /**
- * A group as a bold, full-colour card.
+ * A group as a compact, full-colour row.
  *
- * The reference the look is drawn from puts each item on its own saturated
- * panel with the amount as the thing your eye lands on first. Baaki already
- * gives every group a stable tint (`tintForKey`), so the colour is not
- * decoration invented per screen — it is the same colour the group's avatar
- * wears everywhere else, now filling the whole card.
+ * The tint is the same colour the group's avatar wears everywhere else
+ * (`tintForKey`), now filling the whole card — so a list of groups reads as a
+ * stack of stable, recognisable colours rather than a wall of white.
+ *
+ * It used to be a tall two-row panel: a 30pt balance, an avatar cluster, and
+ * generous padding meant three or four groups filled the screen and a longer
+ * list was all scrolling. This is the same information on one row — name and
+ * member count on the left, the balance and its owed/owe word on the right —
+ * so twice as many groups fit before anybody has to scroll.
  *
  * Money colour, on purpose, is NOT the mint/red pair here. On a saturated
  * surface green-on-mint disappears and red-on-pink muddies; the balance is
  * painted in the tint's own ink for contrast and the owed/owe meaning is
- * carried by the label beneath it and the sign. This is the same concession
- * the brand hero already makes with white money on purple — a surface that
- * owns its contrast reads the amount, not the colour (see MoneyText `tone`).
+ * carried by the label beneath it and the sign (see MoneyText `tone`).
  */
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 
 import type { CurrencyCode } from '@baaki/core';
-import {
-  AvatarStack,
-  Badge,
-  directionalIcon,
-  MoneyText,
-  Row,
-  Text,
-  TintCard,
-  tintForKey,
-  useTheme,
-} from '@baaki/ui';
+import { directionalIcon, MoneyText, Row, Text, TintCard, tintForKey, useTheme } from '@baaki/ui';
 
 import { PressableScale } from '@/lib/anim';
 
@@ -37,7 +29,6 @@ export function GroupCard({
   id,
   title,
   memberLabel,
-  memberNames,
   coverEmoji,
   balance,
   currency,
@@ -50,7 +41,6 @@ export function GroupCard({
   title: string;
   /** "4 members", already pluralised for the locale. */
   memberLabel: string;
-  memberNames: readonly string[];
   coverEmoji?: string | null;
   balance: bigint;
   currency: CurrencyCode;
@@ -65,71 +55,80 @@ export function GroupCard({
   const tint = tintForKey(id);
   const ink = theme.tint[tint].ink;
   const inkMuted = theme.tint[tint].inkMuted;
+  const initial = title.trim().charAt(0).toUpperCase() || '•';
 
   return (
-    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
-      <TintCard
-        tint={tint}
-        style={{ borderRadius: theme.radius.xl, padding: theme.spacing.xl, gap: theme.spacing.lg }}
-      >
-        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Row style={{ flex: 1, gap: theme.spacing.md }}>
-            {coverEmoji ? (
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: theme.radius.pill,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: theme.color.surface,
-                }}
-              >
-                <Text variant="subheading">{coverEmoji}</Text>
-              </View>
-            ) : null}
-            <View style={{ flex: 1 }}>
-              <Text variant="heading" numberOfLines={1} style={{ color: ink }}>
-                {title}
-              </Text>
-              <Text variant="caption" style={{ color: inkMuted }}>
-                {memberLabel}
-              </Text>
-            </View>
-          </Row>
-          {memberNames.length > 0 ? <AvatarStack names={memberNames} size={30} max={3} /> : null}
-        </Row>
-
-        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <View style={{ flex: 1 }}>
-            <MoneyText
-              amount={balance < 0n ? -balance : balance}
-              currency={currency}
-              locale={locale}
-              tone="default"
-              style={{ color: ink, fontSize: 30, lineHeight: 36, fontWeight: '700' }}
-            />
-            <Text variant="caption" style={{ color: inkMuted }}>
-              {statusLabel}
-            </Text>
-            {pendingLabel ? (
-              <View style={{ marginTop: theme.spacing.xs, alignSelf: 'flex-start' }}>
-                <Badge label={pendingLabel} tone="brand" />
-              </View>
-            ) : null}
-          </View>
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${statusLabel}${pendingLabel ? `, ${pendingLabel}` : ''}`}
+    >
+      <TintCard tint={tint} style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}>
+        <Row style={{ gap: theme.spacing.md }}>
+          {/* A white chip carries the emoji (or the name's first letter) at
+              full contrast, whatever the card's tint. */}
           <View
             style={{
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               borderRadius: theme.radius.pill,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: theme.color.text,
+              backgroundColor: theme.color.surface,
             }}
           >
-            <Ionicons name={directionalIcon('arrow-forward')} size={20} color={theme.color.bg} />
+            {coverEmoji ? (
+              <Text variant="subheading">{coverEmoji}</Text>
+            ) : (
+              <Text variant="subheading" style={{ color: ink }}>
+                {initial}
+              </Text>
+            )}
           </View>
+
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text variant="subheading" numberOfLines={1} style={{ color: ink }}>
+              {title}
+            </Text>
+            <Text variant="caption" numberOfLines={1} style={{ color: inkMuted }}>
+              {memberLabel}
+            </Text>
+          </View>
+
+          <View style={{ alignItems: 'flex-end' }}>
+            <Row style={{ gap: theme.spacing.xs }}>
+              {/* A pending settlement gets a quiet dot rather than a full-width
+                  badge — the row has no room for a sentence. */}
+              {pendingLabel ? (
+                <View
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 4,
+                    backgroundColor: theme.color.brand,
+                  }}
+                />
+              ) : null}
+              <MoneyText
+                amount={balance < 0n ? -balance : balance}
+                currency={currency}
+                locale={locale}
+                tone="default"
+                variant="heading"
+                style={{ color: ink }}
+              />
+            </Row>
+            <Text variant="micro" style={{ color: inkMuted }}>
+              {statusLabel}
+            </Text>
+          </View>
+
+          <Ionicons
+            name={directionalIcon('chevron-forward')}
+            size={18}
+            color={ink}
+            style={{ opacity: 0.5 }}
+          />
         </Row>
       </TintCard>
     </PressableScale>
