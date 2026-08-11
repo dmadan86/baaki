@@ -193,7 +193,11 @@ function GroupDetail({ profileId, query }: { profileId: string; query: string })
                 const version = expense.currentVersion;
                 if (!version) return null;
                 return (
-                  <div key={expense.id} className="item" style={{ cursor: 'default' }}>
+                  <Link
+                    key={expense.id}
+                    className="item"
+                    href={`/g/${groupId}/expense/${expense.id}`}
+                  >
                     <span className="grow">
                       <span className="title">{version.description}</span>
                       <span className="meta">{version.expense_date}</span>
@@ -201,7 +205,7 @@ function GroupDetail({ profileId, query }: { profileId: string; query: string })
                     <span className="amount">
                       {money(BigInt(version.amount), version.currency, locale)}
                     </span>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
