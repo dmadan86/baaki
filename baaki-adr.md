@@ -84,6 +84,15 @@
 
 **Consequences.** Zero-friction adoption loop; ghost-claiming needs careful merge logic (single Edge Function transaction); anonymous write access is scoped strictly to the invited group by RLS (ADR-013).
 
+**Addendum (guest ceilings).** The zero-friction door stays open, but a guest is not an indefinite free tier. Two limits apply to an anonymous session, and only to an anonymous session:
+
+- **One group.** A guest may belong to **exactly one** group at a time — whether they created it or accepted an invite (any membership counts, not just creation). Starting or joining a second prompts sign-up first.
+- **Ten days.** A guest may write for **ten days** from account creation. After that the session is **read-only**: their groups and history stay fully visible, but any write (add/edit expense, settle, new group, join) prompts sign-up. Reading is never gated.
+
+Both gate _toward_ the in-place upgrade above, never away from data: signing up keeps the same user id, so everything made as a guest comes with them. The limits therefore **gate, never wipe**, and lifting the ceiling is the act of keeping the account, not a purchase — consistent with ADR-011 (the ledger is free forever; only convenience is ever sold).
+
+The rule is defined once as a pure function (`guestGate` in `@baaki/core`) and enforced in three places so a client that bypasses the app's own guard cannot slip past: the mobile UI (disables the actions), `baaki_create_group` (refuses a second group / expired guest, covering the offline `group.create` path too), and the `sync` + `invite-accept` Edge Functions (refuse expired-guest writes and over-limit joins). A full account has no ceiling.
+
 ---
 
 ## ADR-007: UPI settlement via intent deep links; Baaki never moves money
