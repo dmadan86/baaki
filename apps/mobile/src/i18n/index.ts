@@ -966,6 +966,7 @@ export interface UiStrings {
     couldNotSave: string;
     analyticsTitle: string;
     analyticsBody: string;
+    sessionReplayRow: string;
     previewGroups: string;
     previewExpenses: string;
     previewSettlements: string;
@@ -1910,6 +1911,7 @@ const en: UiStrings = {
     analyticsTitle: 'How the app is used',
     analyticsBody:
       'Baaki can record how screens are used — which ones people get stuck on, where a tap lands — through Microsoft Clarity. It ships switched off and records nothing unless it is turned on. It is never used for advertising, there is no advertising identifier, and nothing here is sold or shared.',
+    sessionReplayRow: 'Record how I use the app',
     previewGroups: 'You are in {n} group(s).',
     previewExpenses: 'You entered {n} expense(s) that will stay.',
     previewSettlements: 'You are named in {n} settlement(s).',
@@ -2901,6 +2903,7 @@ const ta: UiStrings = {
     analyticsTitle: 'செயலி எப்படி பயன்படுத்தப்படுகிறது',
     analyticsBody:
       'எந்தத் திரையில் சிக்கல் வருகிறது என்பதைப் புரிந்துகொள்ள Microsoft Clarity மூலம் பயன்பாட்டைப் பதிவு செய்ய முடியும். இது இயல்பாக அணைக்கப்பட்டே வருகிறது; இயக்கப்படாத வரை எதுவும் பதிவாகாது. விளம்பரத்திற்கு ஒருபோதும் பயன்படுத்தப்படுவதில்லை, விளம்பர அடையாளம் இல்லை, எதுவும் விற்கப்படுவதில்லை.',
+    sessionReplayRow: 'நான் செயலியைப் பயன்படுத்தும் விதத்தைப் பதிவு செய்',
     previewGroups: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
     previewExpenses: 'நீங்கள் சேர்த்த {n} செலவுகள் இருக்கும்.',
     previewSettlements: '{n} தீர்வுகளில் உங்கள் பெயர் உள்ளது.',
@@ -3853,6 +3856,7 @@ const hi: UiStrings = {
     analyticsTitle: 'ऐप कैसे इस्तेमाल होता है',
     analyticsBody:
       'Microsoft Clarity के ज़रिए यह दर्ज किया जा सकता है कि कौन-सी स्क्रीन उलझाती है। यह बंद अवस्था में ही आता है और चालू किए बिना कुछ दर्ज नहीं करता। इसका उपयोग विज्ञापन के लिए कभी नहीं होता, कोई विज्ञापन पहचानकर्ता नहीं है, और कुछ भी बेचा या साझा नहीं जाता।',
+    sessionReplayRow: 'ऐप के मेरे इस्तेमाल को दर्ज करने दें',
     previewGroups: 'आप {n} समूह में हैं।',
     previewExpenses: 'आपके डाले {n} ख़र्चे बने रहेंगे।',
     previewSettlements: '{n} भुगतानों में आपका नाम है।',
@@ -4968,6 +4972,7 @@ const ar: UiStrings = {
     analyticsTitle: 'كيف يُستخدم التطبيق',
     analyticsBody:
       'يمكن لـ Microsoft Clarity تسجيل كيفية استخدام الشاشات لمعرفة أين يتعثر الناس. يأتي مُعطّلًا ولا يسجّل شيئًا ما لم يُفعّل. ولا يُستخدم للإعلانات أبدًا، ولا يوجد معرّف إعلاني، ولا يُباع شيء أو يُشارَك.',
+    sessionReplayRow: 'سجّل كيف أستخدم التطبيق',
     previewGroups: 'أنت في {n} مجموعة.',
     previewExpenses: 'ستبقى {n} من المصروفات التي أدخلتها.',
     previewSettlements: 'اسمك مذكور في {n} تسوية.',
