@@ -46,9 +46,7 @@ export default function InviteScreen() {
   };
 
   const label = groupLabel(group.data, members.data ?? [], profile?.id);
-  const message = t.people.shareMessage
-    .replace('{group}', label)
-    .replace('{link}', link ?? '');
+  const message = t.people.shareMessage.replace('{group}', label).replace('{link}', link ?? '');
 
   const share = async (): Promise<void> => {
     if (!link) return;
