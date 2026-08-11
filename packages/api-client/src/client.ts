@@ -16,9 +16,34 @@
  * in `invite-accept`.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import type { AcceptedInvite, Expense, Group, InvitePreview, Member, Settlement } from './types';
+import type {
+  ActivityGroup,
+  ActivityRow,
+  BalanceRow,
+  GroupRow,
+  MemberRow,
+  PersonBalanceRow,
+} from './rows';
+
+const GROUP_ROW_COLUMNS = `
+  id, name, type, country_code, default_currency, simplify_debts, cover_emoji, photo_path,
+  start_date, end_date, archived_at, created_at
+`;
+
+const MEMBER_ROW_COLUMNS = `
+  id, group_id, profile_id, ghost_name, role, vpa, left_at,
+  profile:profiles ( id, display_name, avatar_url, default_vpa )
+`;
+
+const ACTIVITY_COLUMNS = `
+  id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
+  actor:group_members!activity_log_actor_member_id_fkey (
+    id, profile_id, ghost_name, profile:profiles ( display_name )
+  )
+`;
 
 const MEMBER_COLUMNS = `
   id, group_id, profile_id, ghost_name, left_at,
@@ -78,6 +103,50 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       if (data.session) return;
       const { error } = await supabase.auth.signInAnonymously();
       if (error) throw new BaakiApiError(error.message);
+    },
+
+    /**
+     * The real login (ADR-006 names Google among the upgrade providers). An
+     * anonymous guest who does this keeps the same user id, so the groups and
+     * expenses made as a guest come with them — Supabase links the identity in
+     * place rather than minting a second account.
+     *
+     * Returns nothing useful: `signInWithOAuth` navigates the browser to
+     * Google and control does not come back here — it comes back to
+     * `redirectTo` with the session in the URL.
+     */
+    async signInWithGoogle(redirectTo: string): Promise<void> {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo },
+      });
+      if (error) throw new BaakiApiError(error.message);
+    },
+
+    async signOut(): Promise<void> {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw new BaakiApiError(error.message);
+    },
+
+    async session(): Promise<Session | null> {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    },
+
+    /** True once a real identity is linked; a bare guest reads false. */
+    async isGuest(): Promise<boolean> {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+      if (!user) return false;
+      return user.is_anonymous === true;
+    },
+
+    /** Fires on sign-in / sign-out / token refresh. Returns an unsubscribe. */
+    onAuthChange(handler: (session: Session | null) => void): () => void {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        handler(session);
+      });
+      return () => data.subscription.unsubscribe();
     },
 
     async currentProfileId(): Promise<string | null> {
@@ -152,6 +221,82 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
           .eq('group_id', groupId)
           .order('initiated_at', { ascending: false }),
       );
+    },
+
+    // ───────────────────────────────────────────────────── dashboard ──
+    // Every read here is unfiltered by group on purpose: RLS returns exactly
+    // the rows this session may see (ADR-013), so "my groups" is "the groups"
+    // and the client never guesses at membership.
+
+    myGroups(): Promise<GroupRow[]> {
+      return read<GroupRow>(
+        supabase
+          .from('groups')
+          .select(GROUP_ROW_COLUMNS)
+          .is('archived_at', null)
+          .order('created_at', { ascending: false }),
+      );
+    },
+
+    /** Every member of every group I am in, keyed by group — one query. */
+    async membersByGroup(): Promise<Map<string, MemberRow[]>> {
+      const rows = await read<MemberRow>(
+        supabase
+          .from('group_members')
+          .select(MEMBER_ROW_COLUMNS)
+          .is('left_at', null)
+          .order('created_at', { ascending: true }),
+      );
+      const byGroup = new Map<string, MemberRow[]>();
+      for (const row of rows) {
+        const list = byGroup.get(row.group_id);
+        if (list) list.push(row);
+        else byGroup.set(row.group_id, [row]);
+      }
+      return byGroup;
+    },
+
+    /** Just my own balance in each group — the one query the dashboard needs. */
+    async myBalances(profileId: string): Promise<BalanceRow[]> {
+      const rows = await read<BalanceRow & { member: { profile_id: string } }>(
+        supabase
+          .from('group_balances')
+          .select(
+            'group_id, member_id, currency, balance, member:group_members!inner ( profile_id )',
+          )
+          .eq('member.profile_id', profileId),
+      );
+      return rows.map(({ member: _member, ...row }) => row);
+    },
+
+    /** Every balance in every group I can see — for per-group nets. */
+    allBalances(): Promise<BalanceRow[]> {
+      return read<BalanceRow>(
+        supabase.from('group_balances').select('group_id, member_id, currency, balance'),
+      );
+    },
+
+    /** Activity across every group I can see; RLS does the filtering. */
+    recentActivity(limit = 60): Promise<(ActivityRow & { group: ActivityGroup | null })[]> {
+      return read<ActivityRow & { group: ActivityGroup | null }>(
+        supabase
+          .from('activity_log')
+          .select(`${ACTIVITY_COLUMNS}, group:groups ( id, name, cover_emoji )`)
+          .order('created_at', { ascending: false })
+          .limit(limit),
+      );
+    },
+
+    /** Groups with a settlement still waiting on someone to confirm (ADR-007). */
+    pendingSettlements(): Promise<{ group_id: string; id: string }[]> {
+      return read<{ group_id: string; id: string }>(
+        supabase.from('settlements').select('id, group_id').eq('status', 'initiated'),
+      );
+    },
+
+    /** Every person you are not square with, across every group, per currency. */
+    peopleBalances(): Promise<PersonBalanceRow[]> {
+      return read<PersonBalanceRow>(supabase.rpc('baaki_people_i_owe'));
     },
 
     /**
