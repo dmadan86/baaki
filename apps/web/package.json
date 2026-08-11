@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run",
+    "e2e": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.1.0",
     "@types/react": "~19.2.2",
