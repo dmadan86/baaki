@@ -174,7 +174,9 @@ function GroupDetail({ profileId, query }: { profileId: string; query: string })
                       {nameOf(byId.get(transfer.to) ?? fallback(transfer.to))}
                     </span>
                   </span>
-                  <span className="amount">{money(transfer.amount, transfer.currency, locale)}</span>
+                  <span className="amount">
+                    {money(transfer.amount, transfer.currency, locale)}
+                  </span>
                 </div>
               ))}
             </div>

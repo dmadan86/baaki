@@ -303,7 +303,11 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     },
 
     /** Admin only (server-checked): accept means the expense needs fixing. */
-    resolveDispute(input: { disputeId: string; accept: boolean; note?: string | null }): Promise<void> {
+    resolveDispute(input: {
+      disputeId: string;
+      accept: boolean;
+      note?: string | null;
+    }): Promise<void> {
       return rpc('baaki_resolve_dispute', {
         p_dispute_id: input.disputeId,
         p_accept: input.accept,

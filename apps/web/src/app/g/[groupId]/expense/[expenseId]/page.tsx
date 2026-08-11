@@ -147,7 +147,9 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
             <h1>
               {version.description}
               {deleted ? <span className="pill-badge">{t.expense.deletedBadge}</span> : null}
-              {openDispute ? <span className="pill-badge warn">{t.expense.disputedBadge}</span> : null}
+              {openDispute ? (
+                <span className="pill-badge warn">{t.expense.disputedBadge}</span>
+              ) : null}
             </h1>
             <div className="sub">
               {version.expense_date} · {splitLabel}
@@ -242,7 +244,10 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
             className="btn soft block"
             disabled={busy}
             onClick={() => {
-              if (confirmDelete) void run(() => baaki.deleteExpense(expenseId).then(() => router.replace(`/g/${groupId}`)));
+              if (confirmDelete)
+                void run(() =>
+                  baaki.deleteExpense(expenseId).then(() => router.replace(`/g/${groupId}`)),
+                );
               else setConfirmDelete(true);
             }}
           >
@@ -278,9 +283,7 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
                   type="button"
                   className="btn soft block"
                   disabled={busy}
-                  onClick={() =>
-                    void run(() => baaki.disputeExpense({ expenseId, reason }))
-                  }
+                  onClick={() => void run(() => baaki.disputeExpense({ expenseId, reason }))}
                 >
                   {t.expense.raiseDispute}
                 </button>

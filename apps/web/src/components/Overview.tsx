@@ -170,7 +170,9 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
             tint="tint-mint"
             icon="📈"
             label={t.dash.youreOwed}
-            entries={overall.filter((e) => e.owed > 0n).map((e) => ({ currency: e.currency, amount: e.owed }))}
+            entries={overall
+              .filter((e) => e.owed > 0n)
+              .map((e) => ({ currency: e.currency, amount: e.owed }))}
             locale={locale}
             emptyLabel={t.dash.allSettled}
             moreForms={t.dash.moreCurrencies}
@@ -179,7 +181,9 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
             tint="tint-rose"
             icon="📉"
             label={t.dash.youOwe}
-            entries={overall.filter((e) => e.owing > 0n).map((e) => ({ currency: e.currency, amount: e.owing }))}
+            entries={overall
+              .filter((e) => e.owing > 0n)
+              .map((e) => ({ currency: e.currency, amount: e.owing }))}
             locale={locale}
             emptyLabel={t.dash.allSettled}
             moreForms={t.dash.moreCurrencies}
@@ -414,11 +418,7 @@ function DetailPanel({
         ))}
       </div>
 
-      <Link
-        className="btn block"
-        href={`/g/${entry.group.id}`}
-        style={{ marginTop: 14 }}
-      >
+      <Link className="btn block" href={`/g/${entry.group.id}`} style={{ marginTop: 14 }}>
         {openLabel}
       </Link>
     </>
