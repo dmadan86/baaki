@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "m1": "node m1-acceptance.mjs"
+    "m1": "node m1-acceptance.mjs",
+    "guest-ceilings": "node guest-ceilings.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.0"
