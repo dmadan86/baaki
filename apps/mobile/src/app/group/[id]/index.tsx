@@ -9,7 +9,6 @@ import {
   Badge,
   Button,
   Card,
-  ChipRow,
   directionalIcon,
   EmptyState,
   Fab,
@@ -18,6 +17,7 @@ import {
   MoneyText,
   Row,
   Screen,
+  SegmentedTabs,
   Text,
   TintCard,
   tintForKey,
@@ -267,10 +267,13 @@ export default function GroupScreen() {
             </Card>
           ))}
 
-          <ChipRow<Tab>
+          {/* The page has three faces — expenses, balances, activity. This is a
+              tab, not a choice on a form, so it wears the underlined tab look
+              rather than the selection pills the rest of the app fills in. */}
+          <SegmentedTabs<Tab>
             value={tab}
             onChange={setTab}
-            options={[
+            tabs={[
               { value: 'expenses', label: t.expenses },
               { value: 'balances', label: t.balances },
               { value: 'activity', label: t.activity },
