@@ -77,6 +77,37 @@ export interface ActivityRow {
   group?: ActivityGroup | null;
 }
 
+export type DisputeStatus = 'open' | 'resolved' | 'withdrawn' | 'rejected';
+
+/**
+ * Somebody saying an expense is wrong. Never moves a balance on its own — a
+ * share you could remove unilaterally would be a debt you could delete
+ * (ADR-004). The table is read-only to clients; every write goes through an RPC.
+ */
+export interface DisputeRow {
+  id: string;
+  expense_id: string;
+  member_id: string;
+  reason: string | null;
+  status: DisputeStatus;
+  resolved_by_member_id: string | null;
+  resolution_note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+/** A row in an expense's edit history (ADR-004 keeps every version). */
+export interface ExpenseVersionSummary {
+  id: string;
+  version_no: number;
+  description: string;
+  amount: string;
+  currency: string;
+  created_at: string;
+  author_member_id: string | null;
+  split_type: string;
+}
+
 /** One row per person per currency, from the `baaki_people_i_owe` RPC. */
 export interface PersonBalanceRow {
   person_key: string;

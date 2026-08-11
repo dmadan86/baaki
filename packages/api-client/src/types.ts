@@ -24,6 +24,8 @@ export interface Member {
   profile_id: string | null;
   ghost_name: string | null;
   left_at: string | null;
+  /** 'admin' can resolve disputes and manage the group; absent on the leaner reads. */
+  role?: 'admin' | 'member';
   profile: { display_name: string | null } | null;
 }
 
