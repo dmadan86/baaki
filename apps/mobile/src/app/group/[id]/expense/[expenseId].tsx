@@ -104,6 +104,7 @@ export default function ExpenseDetailScreen() {
   // pair keeps it legible on the tint.
   const heroTint = categoryOf(version.category).tint;
   const heroInk = theme.tint[heroTint].ink;
+  const heroInkMuted = theme.tint[heroTint].inkMuted;
 
   const me = (members.data ?? []).find((member) => member.profile_id === profile?.id);
   const mine = (disputes.data ?? []).filter((row) => row.expense_id === expense.id);
@@ -169,7 +170,7 @@ export default function ExpenseDetailScreen() {
             variant="display"
             style={{ color: heroInk }}
           />
-          <Text variant="caption" style={{ color: heroInk, opacity: 0.8 }}>
+          <Text variant="caption" style={{ color: heroInkMuted }}>
             {`${fill(t.expense.paidByName, {
               name: nameOf(version.payers[0]?.member_id ?? null),
             })} · ${new Intl.DateTimeFormat(locale, {

@@ -53,6 +53,7 @@ export default function SettleScreen() {
 
   const currency = group.data?.default_currency ?? 'INR';
   const settleInk = theme.tint[tintForKey(groupId)].ink;
+  const settleInkMuted = theme.tint[tintForKey(groupId)].inkMuted;
   /**
    * Where this group settles decides what it can settle with. A group that
    * never said still gets bank, cash and the cross-border wallets — never an
@@ -297,7 +298,7 @@ export default function SettleScreen() {
                 padding: theme.spacing.xl,
               }}
             >
-              <Text variant="caption" style={{ color: settleInk, opacity: 0.8 }}>
+              <Text variant="caption" style={{ color: settleInkMuted }}>
                 {iPay
                   ? `You pay ${displayName(counterparty)}`
                   : `${displayName(counterparty)} pays you`}

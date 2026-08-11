@@ -94,6 +94,7 @@ export default function GroupScreen() {
   // The balance hero wears the group's own colour — the same tint its card
   // shows on home. Ink for contrast; the sign lives in the label, not the hue.
   const ink = theme.tint[tintForKey(groupId)].ink;
+  const inkMuted = theme.tint[tintForKey(groupId)].inkMuted;
   const visibleExpenses = expenses.rows.filter((expense) => showDeleted || !expense.deleted_at);
   const pendingForMe = (settlements.data ?? []).filter(
     (settlement) =>
@@ -217,7 +218,7 @@ export default function GroupScreen() {
             }}
           >
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text variant="caption" style={{ color: ink, opacity: 0.8 }}>
+              <Text variant="caption" style={{ color: inkMuted }}>
                 {ledger.myBalance >= 0n ? t.youAreOwed : t.youOwe}
               </Text>
               {ledger.pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
@@ -315,6 +316,7 @@ export default function GroupScreen() {
                   // rather than hidden, so the ledger stays visibly append-only.
                   const catTint = categoryOf(version?.category).tint;
                   const catInk = theme.tint[catTint].ink;
+                  const catInkMuted = theme.tint[catTint].inkMuted;
                   const title = expenseTitle(version?.description, version?.category, t);
                   return (
                     <Pressable
@@ -341,7 +343,7 @@ export default function GroupScreen() {
                             <Text
                               variant="caption"
                               numberOfLines={1}
-                              style={{ color: catInk, opacity: 0.7 }}
+                              style={{ color: catInkMuted }}
                             >
                               {[
                                 fill(t.expense.paidByName, { name: nameOf(payer) }),
@@ -390,6 +392,7 @@ export default function GroupScreen() {
                 const balance = ledger.balances.get(member.id) ?? 0n;
                 const rowTint = balance > 0n ? 'mint' : balance < 0n ? 'pink' : 'lilac';
                 const rowInk = theme.tint[rowTint].ink;
+                const rowInkMuted = theme.tint[rowTint].inkMuted;
                 return (
                   <TintCard
                     key={member.id}
@@ -405,7 +408,7 @@ export default function GroupScreen() {
                         <Text
                           variant="caption"
                           numberOfLines={1}
-                          style={{ color: rowInk, opacity: 0.7 }}
+                          style={{ color: rowInkMuted }}
                         >
                           {isGhost(member)
                             ? t.notJoinedYet

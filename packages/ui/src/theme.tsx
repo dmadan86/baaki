@@ -5,7 +5,10 @@ import { gradients, palette, radius, shadow, spacing, typography, type TintName 
 
 export interface TintPair {
   readonly bg: string;
+  /** Strong ink (~7:1 on `bg`) — titles, amounts, icons. */
   readonly ink: string;
+  /** Quiet ink (~4.6:1 on `bg`) — the subtitle line. Both clear WCAG AA. */
+  readonly inkMuted: string;
 }
 
 export interface Theme {
@@ -44,22 +47,22 @@ export interface Theme {
 }
 
 const lightTints: Record<TintName, TintPair> = {
-  lilac: { bg: palette.lilac, ink: palette.lilacInk },
-  pink: { bg: palette.pink, ink: palette.pinkInk },
-  mint: { bg: palette.mint, ink: palette.mintInk },
-  peach: { bg: palette.peach, ink: palette.peachInk },
-  sky: { bg: palette.sky, ink: palette.skyInk },
-  coral: { bg: palette.coral, ink: palette.coralInk },
+  lilac: { bg: palette.lilac, ink: palette.lilacInk, inkMuted: palette.lilacInkMuted },
+  pink: { bg: palette.pink, ink: palette.pinkInk, inkMuted: palette.pinkInkMuted },
+  mint: { bg: palette.mint, ink: palette.mintInk, inkMuted: palette.mintInkMuted },
+  peach: { bg: palette.peach, ink: palette.peachInk, inkMuted: palette.peachInkMuted },
+  sky: { bg: palette.sky, ink: palette.skyInk, inkMuted: palette.skyInkMuted },
+  coral: { bg: palette.coral, ink: palette.coralInk, inkMuted: palette.coralInkMuted },
 };
 
 /** Dark keeps the same hues, dropped in luminance so they stay recognisable. */
 const darkTints: Record<TintName, TintPair> = {
-  lilac: { bg: '#2E2A57', ink: '#C9C2FF' },
-  pink: { bg: '#4A2A31', ink: '#FFC2CA' },
-  mint: { bg: '#123F36', ink: '#9DE8D2' },
-  peach: { bg: '#463020', ink: '#F7CFA2' },
-  sky: { bg: '#1B3A52', ink: '#AFD8F7' },
-  coral: { bg: '#4C2A28', ink: '#FFB3AE' },
+  lilac: { bg: '#2E2A57', ink: '#C9C2FF', inkMuted: '#9993CB' },
+  pink: { bg: '#4A2A31', ink: '#FFC2CA', inkMuted: '#C59199' },
+  mint: { bg: '#123F36', ink: '#9DE8D2', inkMuted: '#6FB09F' },
+  peach: { bg: '#463020', ink: '#F7CFA2', inkMuted: '#BB9976' },
+  sky: { bg: '#1B3A52', ink: '#AFD8F7', inkMuted: '#81A7C4' },
+  coral: { bg: '#4C2A28', ink: '#FFB3AE', inkMuted: '#CF8E8A' },
 };
 
 const lightTheme: Theme = {
@@ -70,8 +73,11 @@ const lightTheme: Theme = {
     surfaceMuted: palette.brand50,
     border: palette.ink100,
     text: palette.ink900,
-    textMuted: palette.ink400,
-    textFaint: palette.ink300,
+    // One rung darker than the ramp's midtones: ink400 muted / ink300 faint
+    // read at ~3.7:1 and ~2.1:1 on the lavender canvas. ink500 clears 6:1 and
+    // ink400 clears 3:1, so muted body text and faint UI marks both pass AA.
+    textMuted: palette.ink500,
+    textFaint: palette.ink400,
     brand: palette.brand500,
     brandPressed: palette.brand600,
     brandSoft: palette.brand100,

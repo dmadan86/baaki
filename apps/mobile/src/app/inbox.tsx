@@ -132,6 +132,7 @@ export default function InboxScreen() {
               // sits in a white chip with the tint's ink.
               const tint = tintForKey(row.kind);
               const ink = theme.tint[tint].ink;
+              const inkMuted = theme.tint[tint].inkMuted;
               return (
                 <Pressable
                   key={row.id}
@@ -167,7 +168,7 @@ export default function InboxScreen() {
                         <Text variant="subheading" style={{ color: ink }}>
                           {title}
                         </Text>
-                        <Text variant="caption" style={{ color: ink, opacity: 0.75 }}>
+                        <Text variant="caption" style={{ color: inkMuted }}>
                           {body}
                         </Text>
                       </View>

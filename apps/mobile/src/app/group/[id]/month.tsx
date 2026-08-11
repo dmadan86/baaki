@@ -196,6 +196,7 @@ export default function SpendingMonthScreen() {
                     const payer = version?.payers[0]?.member_id ?? null;
                     const catTint = categoryOf(version?.category).tint;
                     const catInk = theme.tint[catTint].ink;
+                    const catInkMuted = theme.tint[catTint].inkMuted;
                     const title = expenseTitle(version?.description, version?.category, t);
                     return (
                       <Pressable
@@ -222,7 +223,7 @@ export default function SpendingMonthScreen() {
                               <Text
                                 variant="caption"
                                 numberOfLines={1}
-                                style={{ color: catInk, opacity: 0.7 }}
+                                style={{ color: catInkMuted }}
                               >
                                 {fill(t.expense.paidByName, { name: nameOf(payer) })}
                               </Text>
