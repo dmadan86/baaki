@@ -1,0 +1,752 @@
+/*
+ * The same tokens as packages/ui, written out as CSS variables.
+ *
+ * Not imported from there: packages/ui is React Native, and pulling it into a
+ * browser bundle to read six colours would drag the whole primitive library
+ * with it. The values are duplicated deliberately and kept short enough to
+ * check by eye against packages/ui/src/tokens.ts.
+ *
+ * Money colour stays semantic, as it is everywhere else: owed-to-you is always
+ * the green, you-owe is always the red, and nothing decorative uses either.
+ */
+
+:root {
+  --brand: #7a5af8;
+  --brand-600: #6c4ee3;
+  --brand-100: #e9e4ff;
+  --bg: #f3f1fb;
+  --surface: #ffffff;
+  --text: #14142b;
+  --text-muted: #54566b;
+  --text-faint: #7b7b8f;
+  --border: #ededf5;
+  --positive: #0e9f6e;
+  --negative: #e5484d;
+  --radius: 20px;
+  --shadow: 0 8px 24px rgba(30, 20, 80, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+h2 {
+  font-size: 17px;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.faint {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+button,
+.button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px 20px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  width: 100%;
+}
+
+button:active {
+  background: var(--brand-600);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--brand);
+}
+
+input,
+select {
+  width: 100%;
+  font-size: 16px; /* under 16px, iOS Safari zooms the page on focus */
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 0;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-bottom-color: var(--brand);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* Tabular figures so a column of amounts lines up on the decimal. */
+.money {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.money.owed {
+  color: var(--positive);
+}
+
+.money.owe {
+  color: var(--negative);
+}
+
+.error {
+  color: var(--negative);
+  font-size: 14px;
+}
+
+.people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 14px;
+  width: auto;
+  display: inline-block;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--brand-100);
+  border-color: var(--brand);
+  color: var(--brand-600);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * The full web client (apps/web is no longer "lite" — see PLAN.md / ADR-006).
+ *
+ * A pastel dashboard: a warm paper ground, one rounded app surface, soft
+ * gradient tint cards, a top nav and a right-hand detail panel. Everything
+ * below is scoped under .app so the guest link pages above keep their own,
+ * narrower layout untouched.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper: #f4ebe4;
+  --paper-2: #efd9cb;
+  --app-surface: #fffdfb;
+  --panel: #fbf7f3;
+  --ink: #20180f;
+  --ink-muted: #6d6459;
+  --ink-faint: #9c9389;
+  --line: #efe6dd;
+  --line-strong: #e4d8cc;
+  --pill: #f0e8e0;
+  --owed: #0e9f6e; /* owed-to-you, the one green */
+  --owe: #d21f5b; /* you-owe, raspberry (UX/color audit) */
+  --app-radius: 22px;
+  --card-radius: 18px;
+
+  /* Gradient tints for the stat cards, echoing the reference. */
+  --tint-peach: linear-gradient(150deg, #fbe6ce, #f6d3b2);
+  --tint-blue: linear-gradient(150deg, #d9e8fb, #bfd8f5);
+  --tint-lilac: linear-gradient(150deg, #e8dcf7, #d6c5f0);
+  --tint-rose: linear-gradient(150deg, #fad3de, #f4b9cc);
+  --tint-mint: linear-gradient(150deg, #d6efe0, #bfe6cf);
+  --tint-amber: linear-gradient(150deg, #fdecc8, #f8d99b);
+}
+
+.app {
+  min-height: 100vh;
+  background: linear-gradient(160deg, var(--paper) 0%, var(--paper-2) 100%);
+  padding: 18px;
+}
+
+.app-shell {
+  max-width: 1240px;
+  margin: 0 auto;
+  background: var(--app-surface);
+  border-radius: var(--app-radius);
+  box-shadow: 0 24px 60px rgba(80, 45, 20, 0.14);
+  overflow: hidden;
+}
+
+/* Top navigation */
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--tint-lilac);
+  font-size: 16px;
+}
+
+.navtabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.navtabs::-webkit-scrollbar {
+  display: none;
+}
+
+.navtab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 14.5px;
+  font-weight: 500;
+  padding: 9px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  width: auto;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.navtab:hover {
+  color: var(--ink);
+  background: var(--pill);
+}
+.navtab[aria-current='true'] {
+  background: var(--ink);
+  color: #fff;
+}
+.navtab[aria-current='true']:hover {
+  background: var(--ink);
+  color: #fff;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--pill);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-width: 200px;
+}
+.search input {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  width: 100%;
+}
+.search input:focus {
+  outline: none;
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--app-surface);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--ink-muted);
+  padding: 0;
+  font-size: 16px;
+  flex: none;
+}
+.icon-btn:hover {
+  background: var(--pill);
+}
+
+.avatar {
+  border-radius: 999px;
+  background: var(--tint-blue);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  overflow: hidden;
+  flex: none;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Page body: content + right detail panel */
+.app-body {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+}
+
+.app-main {
+  padding: 22px 24px 40px;
+  min-width: 0;
+}
+
+.detail {
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  padding: 22px 20px 40px;
+}
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  font-size: 24px;
+  letter-spacing: -0.3px;
+}
+.page-head .sub {
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+/* Stat card grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.stat {
+  border-radius: var(--card-radius);
+  padding: 16px 17px;
+  color: var(--ink);
+  position: relative;
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stat.tint-peach {
+  background: var(--tint-peach);
+}
+.stat.tint-blue {
+  background: var(--tint-blue);
+}
+.stat.tint-lilac {
+  background: var(--tint-lilac);
+}
+.stat.tint-rose {
+  background: var(--tint-rose);
+}
+.stat.tint-mint {
+  background: var(--tint-mint);
+}
+.stat.tint-amber {
+  background: var(--tint-amber);
+}
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(32, 24, 15, 0.72);
+}
+.stat-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+.stat-value {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.stat-sub {
+  font-size: 12.5px;
+  color: rgba(32, 24, 15, 0.6);
+}
+.stat-extra {
+  font-size: 12px;
+  color: rgba(32, 24, 15, 0.66);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Panels (white cards inside the main column) */
+.panel {
+  background: var(--app-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.panel-head h2 {
+  font-size: 15px;
+  color: var(--ink);
+}
+.panel-head .link {
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  width: auto;
+  padding: 0;
+}
+.panel-head .link:hover {
+  color: var(--ink);
+}
+
+/* Generic list row inside a panel */
+.list {
+  display: flex;
+  flex-direction: column;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: start;
+  background: none;
+  border: 0;
+  width: 100%;
+  color: inherit;
+}
+.item:hover {
+  background: var(--pill);
+}
+.item[aria-pressed='true'] {
+  background: var(--pill);
+}
+.item + .item {
+  border-top: 1px solid var(--line);
+}
+.item .grow {
+  flex: 1;
+  min-width: 0;
+}
+.item .title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.item .meta {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 14.5px;
+  white-space: nowrap;
+}
+.amount.pos {
+  color: var(--owed);
+}
+.amount.neg {
+  color: var(--owe);
+}
+.amount.zero {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+.tile-emoji {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  background: var(--pill);
+  flex: none;
+}
+
+/* Detail panel content */
+.detail-empty {
+  color: var(--ink-faint);
+  font-size: 14px;
+  text-align: center;
+  margin-top: 40px;
+}
+.detail-hero {
+  text-align: center;
+  padding: 8px 0 16px;
+}
+.detail-hero .avatar {
+  width: 84px;
+  height: 84px;
+  font-size: 30px;
+  margin: 0 auto 12px;
+}
+.detail-hero h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--ink);
+}
+.detail-hero .role {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.detail-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.detail-field .k {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+.detail-field .v {
+  color: var(--ink);
+  font-weight: 600;
+  text-align: end;
+}
+
+/* Buttons in the dashboard idiom */
+.btn {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 18px;
+  cursor: pointer;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  text-decoration: none;
+}
+.btn:hover {
+  opacity: 0.92;
+}
+.btn.block {
+  width: 100%;
+}
+.btn.soft {
+  background: var(--pill);
+  color: var(--ink);
+}
+.btn.google {
+  background: #fff;
+  color: #1f1f1f;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Guest ceiling / upgrade banner */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--tint-amber);
+  border-radius: var(--card-radius);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+.banner .grow {
+  flex: 1;
+}
+.banner .b-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+}
+.banner .b-body {
+  font-size: 12.5px;
+  color: rgba(32, 24, 15, 0.7);
+}
+
+/* Sign-in */
+.signin-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, var(--paper) 0%, var(--paper-2) 100%);
+  padding: 24px;
+}
+.signin-card {
+  background: var(--app-surface);
+  border-radius: var(--app-radius);
+  box-shadow: 0 24px 60px rgba(80, 45, 20, 0.16);
+  padding: 34px 30px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.signin-card .brand {
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+.signin-card p {
+  font-size: 14px;
+  margin-bottom: 22px;
+}
+.signin-card .btn {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 13px 18px;
+  font-size: 15px;
+}
+.signin-or {
+  color: var(--ink-faint);
+  font-size: 12px;
+  margin: 14px 0 10px;
+}
+
+.spinner-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--ink-faint);
+  background: linear-gradient(160deg, var(--paper) 0%, var(--paper-2) 100%);
+}
+
+/* Narrow screens: detail panel drops below, nav condenses */
+@media (max-width: 900px) {
+  .app-body {
+    grid-template-columns: 1fr;
+  }
+  .detail {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .search {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .app {
+    padding: 0;
+  }
+  .app-shell {
+    border-radius: 0;
+  }
+}

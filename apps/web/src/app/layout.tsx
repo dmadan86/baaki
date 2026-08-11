@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 
 import { StringsProvider } from '@/i18n-context';
+import { AuthProvider } from '@/lib/auth';
 import { isRtlLanguage, localeFor, pickLanguage, stringsFor } from '@/i18n';
 
 import './globals.css';
@@ -39,7 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <StringsProvider language={language} locale={locale}>
-          {children}
+          <AuthProvider>{children}</AuthProvider>
         </StringsProvider>
       </body>
     </html>
