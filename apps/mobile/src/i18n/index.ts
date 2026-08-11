@@ -539,6 +539,7 @@ export interface UiStrings {
     notFoundArchived: string;
     loading: string;
     settings: string;
+    more: string;
     mismatch: string;
     mismatchBody: string;
     confirmReceived: string;
@@ -1441,6 +1442,7 @@ const en: UiStrings = {
     notFoundArchived: 'It may have been archived.',
     loading: 'Loading…',
     settings: 'Group settings',
+    more: 'More',
     mismatch: 'Balances need a refresh',
     mismatchBody:
       'This device and the server disagree about this group’s balances. Pull to refresh; if it persists, the ledger below is the source of truth.',
@@ -2412,6 +2414,7 @@ const ta: UiStrings = {
     notFoundArchived: 'அது காப்பகப்படுத்தப்பட்டிருக்கலாம்.',
     loading: 'ஏற்றப்படுகிறது…',
     settings: 'குழு அமைப்புகள்',
+    more: 'மேலும்',
     mismatch: 'இருப்புகளைப் புதுப்பிக்க வேண்டும்',
     mismatchBody:
       'இந்தக் குழுவின் இருப்புகள் குறித்து இந்தச் சாதனமும் சர்வரும் ஒத்துப்போகவில்லை. இழுத்துப் புதுப்பிக்கவும்; தொடர்ந்தால் கீழே உள்ள கணக்கே சரியானது.',
@@ -3382,6 +3385,7 @@ const hi: UiStrings = {
     notFoundArchived: 'हो सकता है यह संग्रहित कर दिया गया हो।',
     loading: 'आ रहा है…',
     settings: 'समूह सेटिंग्स',
+    more: 'और',
     mismatch: 'बाकी को ताज़ा करना होगा',
     mismatchBody:
       'इस समूह के हिसाब पर यह डिवाइस और सर्वर सहमत नहीं हैं। खींचकर ताज़ा करें; फिर भी बना रहे तो नीचे का हिसाब ही सही है।',
@@ -4367,6 +4371,7 @@ const ar: UiStrings = {
     notFoundArchived: 'ربما أُرشفت.',
     loading: 'جارٍ التحميل…',
     settings: 'إعدادات المجموعة',
+    more: 'المزيد',
     mismatch: 'الأرصدة بحاجة إلى تحديث',
     mismatchBody:
       'هذا الجهاز والخادم لا يتفقان على أرصدة هذه المجموعة. اسحب للتحديث؛ وإن استمر الأمر فالدفتر بالأسفل هو المرجع.',

@@ -41,6 +41,7 @@ import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { DetailEnter } from '@/lib/anim';
 import { CategoryBadge } from '@/components/Category';
+import { GroupMenu } from '@/components/GroupMenu';
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { PendingMark } from '@/components/PendingMark';
 import { SyncBanner } from '@/components/SyncBanner';
@@ -142,25 +143,9 @@ export default function GroupScreen() {
                 </Text>
               </View>
             </Row>
-            {/* Only where there is a trip to plan. A planner on a flatshare
-              group is a tab nobody opens twice. */}
-            {group.data.type === 'trip' ? (
-              <IconButton label={t.plan} onPress={() => router.push(`/group/${groupId}/plan`)}>
-                <Ionicons name="map-outline" size={19} color={theme.color.text} />
-              </IconButton>
-            ) : null}
-            <IconButton
-              label={t.spending}
-              onPress={() => router.push(`/group/${groupId}/insights`)}
-            >
-              <Ionicons name="pie-chart-outline" size={19} color={theme.color.text} />
-            </IconButton>
-            <IconButton
-              label={t.group.settings}
-              onPress={() => router.push(`/group/${groupId}/settings`)}
-            >
-              <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text} />
-            </IconButton>
+            {/* Planner, spending and settings live behind one menu now, so the
+              name has the row to itself. Planner only shows for a trip. */}
+            <GroupMenu groupId={groupId} isTrip={group.data.type === 'trip'} />
           </Row>
 
           <SyncBanner groupId={groupId} />
