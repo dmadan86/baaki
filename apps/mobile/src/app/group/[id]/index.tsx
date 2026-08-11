@@ -405,11 +405,7 @@ export default function GroupScreen() {
                         <Text variant="subheading" numberOfLines={1} style={{ color: rowInk }}>
                           {displayName(member, profile?.id)}
                         </Text>
-                        <Text
-                          variant="caption"
-                          numberOfLines={1}
-                          style={{ color: rowInkMuted }}
-                        >
+                        <Text variant="caption" numberOfLines={1} style={{ color: rowInkMuted }}>
                           {isGhost(member)
                             ? t.notJoinedYet
                             : (member.vpa ?? member.profile?.default_vpa ?? '—')}
