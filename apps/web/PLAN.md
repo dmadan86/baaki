@@ -97,6 +97,7 @@ Each ported function gets a unit test mirroring the existing
 Legend: ✳ new web screen · ↺ reskin existing web-lite page.
 
 ### Phase 1 — Shell, auth, dashboard
+
 - ✳ App shell: top nav (Overview · Groups · Activity · Friends · Settle),
   global search, notifications bell, profile avatar menu. Responsive:
   tabs collapse to a bottom bar on narrow screens.
@@ -110,17 +111,20 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
   styled like the design. Guest ceiling honoured. + ADR-006 addendum.
 
 ### Phase 2 — Group detail & expenses
+
 - ↺ Group page: balances, who-pays-whom, expense list — reskinned to
   cards + detail panel; add member/ghost.
 - ✳ Expense detail (versions, dispute) · ✳ Add/Edit expense (all split
   types via `@baaki/core`) — reskin of the current `/add` page.
 
 ### Phase 3 — Settle, friends, activity
+
 - ✳ Settle-up (record + confirm settlement, UPI intent link per ADR-007,
   nudge) · ✳ Friends / people balances · ✳ Activity feed (group + global)
   · ✳ Inbox/notifications.
 
 ### Phase 4 — Insights, plan, itemize, import/export, settings
+
 - ✳ Group insights/spending · ✳ Month view · ✳ Trip plan (checklist)
   · ✳ Receipt itemize + claims (text scan only) · ✳ Import (Splitwise/
   Baaki CSV) + Export · ✳ Settings (account, language, notifications,
@@ -129,6 +133,7 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
 ---
 
 ## Cross-cutting
+
 - **i18n:** web already has `src/i18n.ts` + context; grow the string set
   screen-by-screen (mobile has full coverage to mirror). RTL: web can flip
   with `dir` on `<html>` at request time — simpler than the native restart
@@ -141,6 +146,7 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
   `pnpm --filter @baaki/web-lite lint|typecheck|test` green per PR.
 
 ## Delivery
+
 - One PR per phase (never to `main` directly), each independently
   shippable and reviewable. Phase 1 PR also carries the ADR-006 addendum.
 - Rename note: keep the folder `web-lite` for now (no infra churn); the
@@ -148,6 +154,7 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
   `apps/web` in its own PR.
 
 ## Open questions before Phase 1
+
 1. Keep the `web-lite` folder name, or rename to `apps/web` now?
 2. Currency display on the Overview when a user's groups span currencies —
    one row per currency (mobile does this), confirm same on web.

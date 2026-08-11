@@ -71,7 +71,12 @@ export function SignIn() {
           <>
             <p>{t.dash.signInBody}</p>
 
-            <button type="button" className="btn google" onClick={onGoogle} disabled={busy !== null}>
+            <button
+              type="button"
+              className="btn google"
+              onClick={onGoogle}
+              disabled={busy !== null}
+            >
               <span aria-hidden>G</span>
               {busy === 'google' ? t.dash.signingIn : t.dash.continueWithGoogle}
             </button>
