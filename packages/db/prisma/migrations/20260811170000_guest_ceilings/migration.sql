@@ -75,12 +75,21 @@ BEGIN
   -- Guest ceilings (ADR-006 addendum). Mirrors GUEST_GROUP_LIMIT and
   -- GUEST_TRIAL_DAYS in @baaki/core.
   --
-  -- Guarded on `auth.users` existing, exactly as the admin reports are: CI runs
-  -- these migrations against bare Postgres with no auth schema, and calls this
-  -- function to check ledger invariants. Without the guard that call would fail
-  -- on a missing table. Absent auth.users, there are no anonymous users to
-  -- limit, so skipping the check is the correct behaviour there, not a hole.
-  IF to_regclass('auth.users') IS NOT NULL THEN
+  -- Guarded on the real auth.users *with* its `is_anonymous` column: CI runs
+  -- these migrations against a stub auth schema whose users table has no such
+  -- column, and calls this function to check ledger invariants. The column
+  -- reference inside the branch is only planned when the branch actually runs
+  -- (plpgsql plans statements lazily), so a false guard here means the missing
+  -- column is never touched. Absent an is_anonymous column there are no
+  -- anonymous users to limit anyway, so skipping the check is correct, not a
+  -- hole.
+  IF to_regclass('auth.users') IS NOT NULL
+     AND EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'auth'
+         AND table_name = 'users'
+         AND column_name = 'is_anonymous'
+     ) THEN
     SELECT u.is_anonymous, u.created_at
       INTO v_is_guest, v_created_at
       FROM auth.users u
