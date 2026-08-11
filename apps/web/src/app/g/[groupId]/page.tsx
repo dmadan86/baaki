@@ -1,15 +1,13 @@
 'use client';
 
 /**
- * The group, in a browser.
+ * One group, in the full web client.
  *
- * Deliberately less than the app: balances, who owes whom, the recent
- * expenses, and one way to add another. Everything a guest needs during the
- * trip, and nothing that would need explaining.
- *
- * The balances are computed by @baaki/core from the same rows the app reads,
- * so a guest's browser and the payer's phone cannot disagree about who owes
- * what. If they could, there would be no way to say which one was lying.
+ * The same balances the phone shows, computed by @baaki/core from the same
+ * rows (TDR §1): a guest's browser and the payer's phone cannot disagree about
+ * who owes what. Reskinned into the dashboard frame — panels for where everyone
+ * stands, who pays whom, and the recent expenses, with the group summary and
+ * the way in to add another on the right.
  */
 
 import { useEffect, useState } from 'react';
@@ -25,15 +23,24 @@ import {
   type Settlement,
 } from '@baaki/api-client';
 
+import { AppFrame } from '@/components/AppFrame';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
 import { plural } from '@/i18n';
 import { useStrings } from '@/i18n-context';
 
 export default function GroupPage() {
+  return (
+    <AppFrame current="groups">
+      {({ profileId, query }) => <GroupDetail profileId={profileId} query={query} />}
+    </AppFrame>
+  );
+}
+
+function GroupDetail({ profileId, query }: { profileId: string; query: string }) {
+  const { t, locale } = useStrings();
   const params = useParams<{ groupId: string }>();
   const groupId = params.groupId;
-  const { t, locale } = useStrings();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -43,22 +50,20 @@ export default function GroupPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Guarded, because navigating away mid-fetch would otherwise write one
-    // group's rows into a screen already showing another's.
     let active = true;
     void (async () => {
       try {
-        const [nextGroup, nextMembers, nextExpenses, nextSettlements] = await Promise.all([
+        const [g, m, e, s] = await Promise.all([
           baaki.group(groupId),
           baaki.members(groupId),
           baaki.expenses(groupId),
           baaki.settlements(groupId),
         ]);
         if (!active) return;
-        setGroup(nextGroup);
-        setMembers(nextMembers);
-        setExpenses(nextExpenses);
-        setSettlements(nextSettlements);
+        setGroup(g);
+        setMembers(m);
+        setExpenses(e);
+        setSettlements(s);
       } catch (caught) {
         if (active) setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
@@ -72,24 +77,27 @@ export default function GroupPage() {
 
   if (loading) {
     return (
-      <main>
-        <div className="card">
+      <div className="app-body">
+        <div className="app-main">
           <p className="muted">{t.group.loading}</p>
         </div>
-      </main>
+        <aside className="detail" />
+      </div>
     );
   }
 
-  // RLS answers "not yours" with no rows rather than an error, which is the
-  // right behaviour and a confusing screen unless it is said plainly.
+  // RLS answers "not yours" with no rows rather than an error.
   if (!group) {
     return (
-      <main>
-        <div className="card">
-          <h1>{t.group.notYours}</h1>
-          <p>{error ?? t.group.notYoursBody}</p>
+      <div className="app-body">
+        <div className="app-main">
+          <div className="panel">
+            <h2>{t.group.notYours}</h2>
+            <p className="muted">{error ?? t.group.notYoursBody}</p>
+          </div>
         </div>
-      </main>
+        <aside className="detail" />
+      </div>
     );
   }
 
@@ -98,83 +106,144 @@ export default function GroupPage() {
   const byId = new Map(members.map((member) => [member.id, member]));
   const live = expenses.filter((expense) => !expense.deleted_at && expense.currentVersion);
 
+  const q = query.trim().toLowerCase();
+  const shownExpenses = q
+    ? live.filter((e) => e.currentVersion?.description.toLowerCase().includes(q))
+    : live;
+
+  const myMember = members.find((m) => m.profile_id === profileId) ?? null;
+  const myNet = myMember ? (ledger.balances.get(myMember.id) ?? 0n) : 0n;
+
   return (
-    <main>
-      <div className="card">
-        <h1>
-          {group.cover_emoji ? `${group.cover_emoji} ` : ''}
-          {group.name?.trim() || t.group.yourGroup}
-        </h1>
-        <p className="faint">
-          {plural(locale, members.length, t.group.peopleCount)} ·{' '}
-          {plural(locale, live.length, t.group.expenseCount)}
-        </p>
+    <div className="app-body">
+      <div className="app-main">
+        <div className="page-head">
+          <div>
+            <h1>
+              {group.cover_emoji ? `${group.cover_emoji} ` : ''}
+              {group.name?.trim() || t.group.yourGroup}
+            </h1>
+            <div className="sub">
+              {plural(locale, members.length, t.group.peopleCount)} ·{' '}
+              {plural(locale, live.length, t.group.expenseCount)}
+            </div>
+          </div>
+          <Link className="btn" href={`/g/${groupId}/add`}>
+            {t.group.addAnExpense}
+          </Link>
+        </div>
+
+        <section className="panel">
+          <div className="panel-head">
+            <h2>{t.group.whereEveryoneStands}</h2>
+          </div>
+          <div className="list">
+            {members.map((member) => {
+              const net = ledger.balances.get(member.id) ?? 0n;
+              const cls = net > 0n ? 'pos' : net < 0n ? 'neg' : 'zero';
+              return (
+                <div key={member.id} className="item" style={{ cursor: 'default' }}>
+                  <span className="grow">
+                    <span className="title">{nameOf(member)}</span>
+                  </span>
+                  <span className={`amount ${cls}`}>
+                    {net === 0n
+                      ? t.group.settledUp
+                      : `${net > 0n ? '+' : '−'}${money(net < 0n ? -net : net, currency, locale)}`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {ledger.transfers.length > 0 ? (
+          <section className="panel">
+            <div className="panel-head">
+              <h2>{t.group.whoPaysWhom}</h2>
+            </div>
+            <p className="faint" style={{ marginTop: -6, marginBottom: 10 }}>
+              {t.group.whoPaysWhomNote}
+            </p>
+            <div className="list">
+              {ledger.transfers.map((transfer, index) => (
+                <div key={index} className="item" style={{ cursor: 'default' }}>
+                  <span className="grow">
+                    <span className="title" style={{ fontWeight: 500 }}>
+                      {nameOf(byId.get(transfer.from) ?? fallback(transfer.from))} →{' '}
+                      {nameOf(byId.get(transfer.to) ?? fallback(transfer.to))}
+                    </span>
+                  </span>
+                  <span className="amount">
+                    {money(transfer.amount, transfer.currency, locale)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section className="panel">
+          <div className="panel-head">
+            <h2>{t.group.recent}</h2>
+          </div>
+          {shownExpenses.length === 0 ? (
+            <p className="muted">{t.dash.noActivity}</p>
+          ) : (
+            <div className="list">
+              {shownExpenses.slice(0, 30).map((expense) => {
+                const version = expense.currentVersion;
+                if (!version) return null;
+                return (
+                  <Link
+                    key={expense.id}
+                    className="item"
+                    href={`/g/${groupId}/expense/${expense.id}`}
+                  >
+                    <span className="grow">
+                      <span className="title">{version.description}</span>
+                      <span className="meta">{version.expense_date}</span>
+                    </span>
+                    <span className="amount">
+                      {money(BigInt(version.amount), version.currency, locale)}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
 
-      <div className="card">
-        <h2>{t.group.whereEveryoneStands}</h2>
-        {members.map((member) => {
-          const net = ledger.balances.get(member.id) ?? 0n;
-          return (
-            <div className="row" key={member.id}>
-              <span>{nameOf(member)}</span>
-              <span
-                className={`money ${net > 0n ? 'owed' : net < 0n ? 'owe' : ''}`}
-                aria-label={`${nameOf(member)} ${
-                  net === 0n ? t.group.isSettledUp : net > 0n ? t.group.isOwed : t.group.owes
-                } ${money(net < 0n ? -net : net, currency)}`}
-              >
-                {net === 0n ? t.group.settledUp : money(net < 0n ? -net : net, currency)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {ledger.transfers.length > 0 ? (
-        <div className="card">
-          <h2>{t.group.whoPaysWhom}</h2>
-          <p className="faint">{t.group.whoPaysWhomNote}</p>
-          {ledger.transfers.map((transfer, index) => (
-            <div className="row" key={index}>
-              <span>
-                {nameOf(byId.get(transfer.from) ?? fallback(transfer.from))} →{' '}
-                {nameOf(byId.get(transfer.to) ?? fallback(transfer.to))}
-              </span>
-              <span className="money">{money(transfer.amount, transfer.currency)}</span>
-            </div>
-          ))}
+      <aside className="detail">
+        <div className="detail-hero">
+          <div className="avatar" aria-hidden>
+            {group.cover_emoji ?? '💫'}
+          </div>
+          <h3>{group.name?.trim() || t.group.yourGroup}</h3>
+          <div className="role">{plural(locale, members.length, t.group.peopleCount)}</div>
         </div>
-      ) : null}
 
-      {live.length > 0 ? (
-        <div className="card">
-          <h2>{t.group.recent}</h2>
-          {live.slice(0, 12).map((expense) => {
-            const version = expense.currentVersion;
-            if (!version) return null;
-            return (
-              <div className="row" key={expense.id}>
-                <span>
-                  {version.description}
-                  <br />
-                  <span className="faint">{version.expense_date}</span>
-                </span>
-                <span className="money">{money(BigInt(version.amount), version.currency)}</span>
-              </div>
-            );
-          })}
+        <div className="detail-field">
+          <span className="k">{t.dash.yourNet}</span>
+          <span className="v">
+            <span className={`amount ${myNet > 0n ? 'pos' : myNet < 0n ? 'neg' : 'zero'}`}>
+              {myNet === 0n
+                ? t.dash.settledUp
+                : `${myNet > 0n ? '+' : '−'}${money(myNet < 0n ? -myNet : myNet, currency, locale)}`}
+            </span>
+          </span>
         </div>
-      ) : null}
+        <div className="detail-field">
+          <span className="k">{t.dash.currencyLabel}</span>
+          <span className="v">{currency}</span>
+        </div>
 
-      <Link className="button" href={`/g/${groupId}/add`}>
-        {t.group.addAnExpense}
-      </Link>
-
-      <p className="faint" style={{ textAlign: 'center' }}>
-        {t.group.installNote}
-      </p>
-    </main>
+        <Link className="btn block" href={`/g/${groupId}/add`} style={{ marginTop: 14 }}>
+          {t.group.addAnExpense}
+        </Link>
+      </aside>
+    </div>
   );
 }
 

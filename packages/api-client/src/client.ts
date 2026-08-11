@@ -23,6 +23,8 @@ import type {
   ActivityGroup,
   ActivityRow,
   BalanceRow,
+  DisputeRow,
+  ExpenseVersionSummary,
   GroupRow,
   MemberRow,
   PersonBalanceRow,
@@ -46,7 +48,7 @@ const ACTIVITY_COLUMNS = `
 `;
 
 const MEMBER_COLUMNS = `
-  id, group_id, profile_id, ghost_name, left_at,
+  id, group_id, profile_id, ghost_name, left_at, role,
   profile:profiles ( display_name )
 `;
 
@@ -88,6 +90,18 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
   async function callFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
     const { data, error } = await supabase.functions.invoke(name, { body });
     if (error) throw await describeFunctionError(error);
+    return data as T;
+  }
+
+  /**
+   * A SECURITY DEFINER RPC. The table it writes is read-only to clients, so the
+   * function is the only door and it checks the caller's right to knock — a
+   * dispute filed under someone else's name, or a delete of an expense in a
+   * group you are not in, is refused there, not here (ADR-013).
+   */
+  async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
+    const { data, error } = await supabase.rpc(name, args);
+    if (error) throw new BaakiApiError(String((error as { message?: string }).message ?? error));
     return data as T;
   }
 
@@ -222,6 +236,83 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
           .eq('group_id', groupId)
           .order('created_at', { ascending: false }),
       );
+    },
+
+    /** One expense with its current version (payers and shares), or null. */
+    async expense(expenseId: string): Promise<Expense | null> {
+      const rows = await read<Expense>(
+        supabase.from('expenses').select(EXPENSE_COLUMNS).eq('id', expenseId).limit(1),
+      );
+      return rows[0] ?? null;
+    },
+
+    /** The edit history of one expense, newest version first (ADR-004). */
+    expenseVersions(expenseId: string): Promise<ExpenseVersionSummary[]> {
+      return read<ExpenseVersionSummary>(
+        supabase
+          .from('expense_versions')
+          .select(
+            'id, version_no, description, amount, currency, created_at, author_member_id, split_type',
+          )
+          .eq('expense_id', expenseId)
+          .order('version_no', { ascending: false }),
+      );
+    },
+
+    /**
+     * Soft-delete and its undo (ADR-004): the row stays, its balances stop
+     * counting, and the history — and any restore — remains. Both go through an
+     * RPC so the table itself never takes a client write.
+     */
+    deleteExpense(expenseId: string): Promise<void> {
+      return rpc('baaki_delete_expense', { p_expense_id: expenseId }).then(() => undefined);
+    },
+
+    restoreExpense(expenseId: string): Promise<void> {
+      return rpc('baaki_restore_expense', { p_expense_id: expenseId }).then(() => undefined);
+    },
+
+    // ─────────────────────────────────────── disputes (ADR-004) ──
+    // A dispute is a claim, not a mutation: recorded and visible to everyone,
+    // it moves no number until somebody edits the expense.
+
+    disputes(groupId: string): Promise<DisputeRow[]> {
+      return read<DisputeRow>(
+        supabase
+          .from('expense_disputes')
+          .select(
+            `id, expense_id, member_id, reason, status, resolved_by_member_id, resolution_note,
+             created_at, resolved_at, expense:expenses!inner ( group_id )`,
+          )
+          .eq('expense.group_id', groupId)
+          .order('created_at', { ascending: false }),
+      );
+    },
+
+    async disputeExpense(input: { expenseId: string; reason?: string | null }): Promise<string> {
+      return String(
+        await rpc('baaki_dispute_expense', {
+          p_expense_id: input.expenseId,
+          p_reason: input.reason?.trim() || null,
+        }),
+      );
+    },
+
+    withdrawDispute(expenseId: string): Promise<void> {
+      return rpc('baaki_withdraw_dispute', { p_expense_id: expenseId }).then(() => undefined);
+    },
+
+    /** Admin only (server-checked): accept means the expense needs fixing. */
+    resolveDispute(input: {
+      disputeId: string;
+      accept: boolean;
+      note?: string | null;
+    }): Promise<void> {
+      return rpc('baaki_resolve_dispute', {
+        p_dispute_id: input.disputeId,
+        p_accept: input.accept,
+        p_note: input.note?.trim() || null,
+      }).then(() => undefined);
     },
 
     settlements(groupId: string): Promise<Settlement[]> {

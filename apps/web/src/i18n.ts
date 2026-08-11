@@ -142,6 +142,11 @@ export interface WebStrings {
     saving: string;
     save: string;
     cancel: string;
+    editTitle: string;
+    splitMethod: string;
+    invalidSplit: string;
+    runningSum: string;
+    cannotEditSplit: string;
   };
   /** The signed-in web client: shell, sign-in and the overview dashboard. */
   dash: {
@@ -190,6 +195,38 @@ export interface WebStrings {
     settledUp: string;
     currencyLabel: string;
     loading: string;
+  };
+  /** One expense, in full: who paid, the split, the history, disputes. */
+  expense: {
+    notFound: string;
+    paidBy: string;
+    splitLabel: string;
+    total: string;
+    history: string;
+    versionNo: string;
+    edit: string;
+    delete: string;
+    confirmDelete: string;
+    restore: string;
+    deletedBadge: string;
+    disputes: string;
+    reasonPlaceholder: string;
+    raiseDispute: string;
+    withdraw: string;
+    disputedBadge: string;
+    markNeedsFix: string;
+    markCorrect: string;
+    resolvedNeedsFix: string;
+    resolvedCorrect: string;
+    withdrawn: string;
+    splitKind: {
+      equal: string;
+      exact: string;
+      percent: string;
+      shares: string;
+      adjustment: string;
+      itemized: string;
+    };
   };
 }
 
@@ -262,6 +299,11 @@ const en: WebStrings = {
     saving: 'Saving…',
     save: 'Save',
     cancel: 'Cancel',
+    editTitle: 'Edit expense',
+    splitMethod: 'How to split',
+    invalidSplit: 'These shares do not add up yet.',
+    runningSum: '{sum} of {total}',
+    cannotEditSplit: 'This bill was split in a way the web cannot edit yet — open it in the app.',
   },
   dash: {
     nav: {
@@ -309,6 +351,37 @@ const en: WebStrings = {
     settledUp: 'Settled up',
     currencyLabel: 'Currency',
     loading: 'Loading…',
+  },
+  expense: {
+    notFound: 'This expense is not here — it may have been removed, or it is not yours to see.',
+    paidBy: 'Paid by',
+    splitLabel: 'Split',
+    total: 'Total',
+    history: 'History',
+    versionNo: 'Version {n}',
+    edit: 'Edit',
+    delete: 'Delete',
+    confirmDelete: 'Tap again to delete',
+    restore: 'Restore',
+    deletedBadge: 'Deleted',
+    disputes: 'Disagreements',
+    reasonPlaceholder: "What's wrong with it? (optional)",
+    raiseDispute: 'Flag as wrong',
+    withdraw: 'Take it back',
+    disputedBadge: 'Flagged',
+    markNeedsFix: 'Agree it needs fixing',
+    markCorrect: 'It is correct',
+    resolvedNeedsFix: 'Agreed it needs fixing',
+    resolvedCorrect: 'Marked correct',
+    withdrawn: 'Withdrawn',
+    splitKind: {
+      equal: 'Split equally',
+      exact: 'Exact amounts',
+      percent: 'By percentage',
+      shares: 'By shares',
+      adjustment: 'With adjustments',
+      itemized: 'Itemised',
+    },
   },
 };
 
@@ -384,6 +457,12 @@ const ta: WebStrings = {
     saving: 'சேமிக்கிறது…',
     save: 'சேமி',
     cancel: 'ரத்து',
+    editTitle: 'செலவைத் திருத்து',
+    splitMethod: 'எப்படிப் பிரிப்பது',
+    invalidSplit: 'இந்தப் பங்குகள் இன்னும் சரியாகக் கூடவில்லை.',
+    runningSum: '{total} இல் {sum}',
+    cannotEditSplit:
+      'இந்த பில் இணையம் இன்னும் திருத்த முடியாத வகையில் பிரிக்கப்பட்டது — செயலியில் திறக்கவும்.',
   },
   dash: {
     nav: {
@@ -433,6 +512,38 @@ const ta: WebStrings = {
     settledUp: 'தீர்ந்தது',
     currencyLabel: 'நாணயம்',
     loading: 'ஏற்றுகிறது…',
+  },
+  expense: {
+    notFound:
+      'இந்தச் செலவு இங்கே இல்லை — நீக்கப்பட்டிருக்கலாம், அல்லது இதைப் பார்க்க உங்களுக்கு உரிமை இல்லை.',
+    paidBy: 'கொடுத்தவர்',
+    splitLabel: 'பங்கீடு',
+    total: 'மொத்தம்',
+    history: 'வரலாறு',
+    versionNo: 'பதிப்பு {n}',
+    edit: 'திருத்து',
+    delete: 'நீக்கு',
+    confirmDelete: 'நீக்க மீண்டும் தட்டவும்',
+    restore: 'மீட்டமை',
+    deletedBadge: 'நீக்கப்பட்டது',
+    disputes: 'கருத்து வேறுபாடுகள்',
+    reasonPlaceholder: 'என்ன தவறு? (விருப்பம்)',
+    raiseDispute: 'தவறு எனக் குறி',
+    withdraw: 'திரும்பப் பெறு',
+    disputedBadge: 'குறிக்கப்பட்டது',
+    markNeedsFix: 'சரிசெய்ய வேண்டும் என ஒப்புக்கொள்',
+    markCorrect: 'இது சரியானது',
+    resolvedNeedsFix: 'சரிசெய்ய வேண்டும் என ஒப்புக்கொள்ளப்பட்டது',
+    resolvedCorrect: 'சரியெனக் குறிக்கப்பட்டது',
+    withdrawn: 'திரும்பப் பெறப்பட்டது',
+    splitKind: {
+      equal: 'சமமாகப் பிரி',
+      exact: 'சரியான தொகைகள்',
+      percent: 'சதவீதத்தில்',
+      shares: 'பங்குகளில்',
+      adjustment: 'சரிசெய்தல்களுடன்',
+      itemized: 'பொருள்வாரியாக',
+    },
   },
 };
 
@@ -506,6 +617,11 @@ const hi: WebStrings = {
     saving: 'सेव हो रहा है…',
     save: 'सेव करें',
     cancel: 'रद्द करें',
+    editTitle: 'खर्च संपादित करें',
+    splitMethod: 'कैसे बाँटें',
+    invalidSplit: 'ये हिस्से अभी पूरे नहीं जुड़ते।',
+    runningSum: '{total} में से {sum}',
+    cannotEditSplit: 'यह बिल ऐसे बाँटा गया जिसे वेब अभी संपादित नहीं कर सकता — इसे ऐप में खोलें।',
   },
   dash: {
     nav: {
@@ -553,6 +669,37 @@ const hi: WebStrings = {
     settledUp: 'हिसाब बराबर',
     currencyLabel: 'मुद्रा',
     loading: 'लोड हो रहा है…',
+  },
+  expense: {
+    notFound: 'यह खर्च यहाँ नहीं है — शायद हटा दिया गया, या इसे देखना आपके लिए नहीं है।',
+    paidBy: 'किसने दिया',
+    splitLabel: 'बँटवारा',
+    total: 'कुल',
+    history: 'इतिहास',
+    versionNo: 'संस्करण {n}',
+    edit: 'संपादित करें',
+    delete: 'हटाएँ',
+    confirmDelete: 'हटाने के लिए फिर से टैप करें',
+    restore: 'बहाल करें',
+    deletedBadge: 'हटाया गया',
+    disputes: 'असहमति',
+    reasonPlaceholder: 'इसमें क्या ग़लत है? (वैकल्पिक)',
+    raiseDispute: 'ग़लत बताएँ',
+    withdraw: 'वापस लें',
+    disputedBadge: 'चिह्नित',
+    markNeedsFix: 'मानें कि सुधार चाहिए',
+    markCorrect: 'यह सही है',
+    resolvedNeedsFix: 'माना गया कि सुधार चाहिए',
+    resolvedCorrect: 'सही चिह्नित',
+    withdrawn: 'वापस लिया',
+    splitKind: {
+      equal: 'बराबर बाँटें',
+      exact: 'सटीक रकम',
+      percent: 'प्रतिशत से',
+      shares: 'हिस्सों से',
+      adjustment: 'समायोजन के साथ',
+      itemized: 'मद-वार',
+    },
   },
 };
 
@@ -640,6 +787,11 @@ const ar: WebStrings = {
     saving: 'جارٍ الحفظ…',
     save: 'حفظ',
     cancel: 'إلغاء',
+    editTitle: 'تعديل المصروف',
+    splitMethod: 'كيفية التقسيم',
+    invalidSplit: 'هذه الحصص لا تتوافق بعد.',
+    runningSum: '{sum} من {total}',
+    cannotEditSplit: 'قُسّمت هذه الفاتورة بطريقة لا يمكن للويب تعديلها بعد — افتحها في التطبيق.',
   },
   dash: {
     nav: {
@@ -707,6 +859,37 @@ const ar: WebStrings = {
     settledUp: 'مسوّى',
     currencyLabel: 'العملة',
     loading: 'جارٍ التحميل…',
+  },
+  expense: {
+    notFound: 'هذا المصروف غير موجود هنا — ربما حُذف، أو ليس من حقّك الاطلاع عليه.',
+    paidBy: 'دفعه',
+    splitLabel: 'التقسيم',
+    total: 'الإجمالي',
+    history: 'السجل',
+    versionNo: 'النسخة {n}',
+    edit: 'تعديل',
+    delete: 'حذف',
+    confirmDelete: 'اضغط مرة أخرى للحذف',
+    restore: 'استعادة',
+    deletedBadge: 'محذوف',
+    disputes: 'اعتراضات',
+    reasonPlaceholder: 'ما الخطأ فيه؟ (اختياري)',
+    raiseDispute: 'وسمه كخطأ',
+    withdraw: 'التراجع',
+    disputedBadge: 'موسوم',
+    markNeedsFix: 'أوافق أنه يحتاج إصلاحًا',
+    markCorrect: 'إنه صحيح',
+    resolvedNeedsFix: 'اتُّفق أنه يحتاج إصلاحًا',
+    resolvedCorrect: 'وُسم كصحيح',
+    withdrawn: 'مسحوب',
+    splitKind: {
+      equal: 'تقسيم بالتساوي',
+      exact: 'مبالغ محددة',
+      percent: 'بالنسبة المئوية',
+      shares: 'بالحصص',
+      adjustment: 'مع تعديلات',
+      itemized: 'بالأصناف',
+    },
   },
 };
 
