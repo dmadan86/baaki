@@ -11,9 +11,9 @@
 node_modules
 **/node_modules
 
-# Other apps. web-lite and mobile are deployed elsewhere and are not imported.
+# Other apps. web and mobile are deployed elsewhere and are not imported.
 apps/mobile
-apps/web-lite
+apps/web
 e2e
 supabase
 

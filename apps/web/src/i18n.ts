@@ -143,6 +143,54 @@ export interface WebStrings {
     save: string;
     cancel: string;
   };
+  /** The signed-in web client: shell, sign-in and the overview dashboard. */
+  dash: {
+    nav: {
+      overview: string;
+      groups: string;
+      activity: string;
+      friends: string;
+      settle: string;
+    };
+    searchPlaceholder: string;
+    signInTitle: string;
+    signInBody: string;
+    continueWithGoogle: string;
+    orDivider: string;
+    emailPlaceholder: string;
+    sendMagicLink: string;
+    sendingLink: string;
+    linkSentTitle: string;
+    linkSentBody: string;
+    notAnEmail: string;
+    signingIn: string;
+    guestInstead: string;
+    signOut: string;
+    guestLabel: string;
+    overviewTitle: string;
+    groupsCount: PluralForms;
+    youreOwed: string;
+    youOwe: string;
+    net: string;
+    activeGroups: string;
+    allSettled: string;
+    moreCurrencies: PluralForms;
+    yourGroups: string;
+    noGroups: string;
+    recentActivity: string;
+    noActivity: string;
+    seeAll: string;
+    guestTitle: string;
+    guestBody: string;
+    guestCta: string;
+    selectGroupHint: string;
+    membersCount: PluralForms;
+    yourNet: string;
+    openGroup: string;
+    settledUp: string;
+    currencyLabel: string;
+    loading: string;
+  };
 }
 
 const en: WebStrings = {
@@ -214,6 +262,53 @@ const en: WebStrings = {
     saving: 'Saving…',
     save: 'Save',
     cancel: 'Cancel',
+  },
+  dash: {
+    nav: {
+      overview: 'Overview',
+      groups: 'Groups',
+      activity: 'Activity',
+      friends: 'Friends',
+      settle: 'Settle',
+    },
+    searchPlaceholder: 'Search groups, people, expenses',
+    signInTitle: 'Baaki',
+    signInBody: 'Split expenses without the argument at the end.',
+    continueWithGoogle: 'Continue with Google',
+    orDivider: 'or',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'Email me a sign-in link',
+    sendingLink: 'Sending…',
+    linkSentTitle: 'Check your inbox',
+    linkSentBody: 'A sign-in link is on its way to {email}. Open it on this device.',
+    notAnEmail: 'That does not look like an email address.',
+    signingIn: 'Signing in…',
+    guestInstead: 'Or open an invite link someone shared with you.',
+    signOut: 'Sign out',
+    guestLabel: 'Guest',
+    overviewTitle: 'Overview',
+    groupsCount: { one: '{n} group', other: '{n} groups' },
+    youreOwed: "You're owed",
+    youOwe: 'You owe',
+    net: 'Net position',
+    activeGroups: 'Active groups',
+    allSettled: 'All settled',
+    moreCurrencies: { one: '+{n} more currency', other: '+{n} more currencies' },
+    yourGroups: 'Your groups',
+    noGroups: 'No groups yet. Open an invite link, or start one in the app.',
+    recentActivity: 'Recent activity',
+    noActivity: 'Nothing has happened yet.',
+    seeAll: 'See all',
+    guestTitle: "You're browsing as a guest",
+    guestBody: 'Sign in to keep your groups and add across more than one.',
+    guestCta: 'Sign in',
+    selectGroupHint: 'Pick a group to see who owes whom.',
+    membersCount: { one: '{n} member', other: '{n} members' },
+    yourNet: 'Your balance',
+    openGroup: 'Open group',
+    settledUp: 'Settled up',
+    currencyLabel: 'Currency',
+    loading: 'Loading…',
   },
 };
 
@@ -290,6 +385,55 @@ const ta: WebStrings = {
     save: 'சேமி',
     cancel: 'ரத்து',
   },
+  dash: {
+    nav: {
+      overview: 'கண்ணோட்டம்',
+      groups: 'குழுக்கள்',
+      activity: 'செயல்பாடு',
+      friends: 'நண்பர்கள்',
+      settle: 'தீர்வு',
+    },
+    searchPlaceholder: 'குழுக்கள், நபர்கள், செலவுகளைத் தேடுங்கள்',
+    signInTitle: 'பாக்கி',
+    signInBody: 'கடைசியில் வாக்குவாதம் இல்லாமல் செலவுகளைப் பிரியுங்கள்.',
+    continueWithGoogle: 'Google மூலம் தொடரவும்',
+    orDivider: 'அல்லது',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'உள்நுழைவுச் சுட்டியை மின்னஞ்சலில் அனுப்பு',
+    sendingLink: 'அனுப்புகிறது…',
+    linkSentTitle: 'உங்கள் இன்பாக்ஸைப் பாருங்கள்',
+    linkSentBody: '{email} க்கு உள்நுழைவுச் சுட்டி வருகிறது. இந்தச் சாதனத்தில் அதைத் திறக்கவும்.',
+    notAnEmail: 'அது மின்னஞ்சல் முகவரி போலத் தெரியவில்லை.',
+    signingIn: 'உள்நுழைகிறது…',
+    guestInstead: 'அல்லது யாராவது பகிர்ந்த அழைப்புச் சுட்டியைத் திறக்கவும்.',
+    signOut: 'வெளியேறு',
+    guestLabel: 'விருந்தினர்',
+    overviewTitle: 'கண்ணோட்டம்',
+    groupsCount: { one: '{n} குழு', other: '{n} குழுக்கள்' },
+    youreOwed: 'உங்களுக்கு வர வேண்டியது',
+    youOwe: 'நீங்கள் தர வேண்டியது',
+    net: 'நிகர நிலை',
+    activeGroups: 'செயலில் உள்ள குழுக்கள்',
+    allSettled: 'அனைத்தும் தீர்ந்தது',
+    moreCurrencies: { one: '+இன்னும் {n} நாணயம்', other: '+இன்னும் {n} நாணயங்கள்' },
+    yourGroups: 'உங்கள் குழுக்கள்',
+    noGroups:
+      'இன்னும் குழுக்கள் இல்லை. அழைப்புச் சுட்டியைத் திறக்கவும், அல்லது செயலியில் ஒன்றைத் தொடங்கவும்.',
+    recentActivity: 'சமீபத்திய செயல்பாடு',
+    noActivity: 'இன்னும் எதுவும் நடக்கவில்லை.',
+    seeAll: 'அனைத்தையும் காண்க',
+    guestTitle: 'நீங்கள் விருந்தினராக உலாவுகிறீர்கள்',
+    guestBody:
+      'உங்கள் குழுக்களை வைத்திருக்கவும், ஒன்றுக்கு மேற்பட்டவற்றில் சேர்க்கவும் உள்நுழையவும்.',
+    guestCta: 'உள்நுழை',
+    selectGroupHint: 'யார் யாருக்குத் தர வேண்டும் என்பதைக் காண ஒரு குழுவைத் தேர்ந்தெடுக்கவும்.',
+    membersCount: { one: '{n} உறுப்பினர்', other: '{n} உறுப்பினர்கள்' },
+    yourNet: 'உங்கள் இருப்பு',
+    openGroup: 'குழுவைத் திற',
+    settledUp: 'தீர்ந்தது',
+    currencyLabel: 'நாணயம்',
+    loading: 'ஏற்றுகிறது…',
+  },
 };
 
 const hi: WebStrings = {
@@ -362,6 +506,53 @@ const hi: WebStrings = {
     saving: 'सेव हो रहा है…',
     save: 'सेव करें',
     cancel: 'रद्द करें',
+  },
+  dash: {
+    nav: {
+      overview: 'सिंहावलोकन',
+      groups: 'समूह',
+      activity: 'गतिविधि',
+      friends: 'दोस्त',
+      settle: 'हिसाब',
+    },
+    searchPlaceholder: 'समूह, लोग, खर्च खोजें',
+    signInTitle: 'बाकी',
+    signInBody: 'आख़िर में बहस किए बिना खर्च बाँटें।',
+    continueWithGoogle: 'Google से जारी रखें',
+    orDivider: 'या',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'मुझे साइन-इन लिंक ईमेल करें',
+    sendingLink: 'भेजा जा रहा है…',
+    linkSentTitle: 'अपना इनबॉक्स देखें',
+    linkSentBody: '{email} पर साइन-इन लिंक आ रहा है। इसे इसी डिवाइस पर खोलें।',
+    notAnEmail: 'यह ईमेल पते जैसा नहीं लगता।',
+    signingIn: 'साइन इन हो रहा है…',
+    guestInstead: 'या किसी के साझा किए न्योते का लिंक खोलें।',
+    signOut: 'साइन आउट',
+    guestLabel: 'मेहमान',
+    overviewTitle: 'सिंहावलोकन',
+    groupsCount: { one: '{n} समूह', other: '{n} समूह' },
+    youreOwed: 'आपको मिलने हैं',
+    youOwe: 'आपको देने हैं',
+    net: 'कुल स्थिति',
+    activeGroups: 'सक्रिय समूह',
+    allSettled: 'सब हिसाब बराबर',
+    moreCurrencies: { one: '+{n} और मुद्रा', other: '+{n} और मुद्राएँ' },
+    yourGroups: 'आपके समूह',
+    noGroups: 'अभी कोई समूह नहीं। न्योते का लिंक खोलें, या ऐप में एक शुरू करें।',
+    recentActivity: 'हाल की गतिविधि',
+    noActivity: 'अभी तक कुछ नहीं हुआ।',
+    seeAll: 'सभी देखें',
+    guestTitle: 'आप मेहमान के रूप में देख रहे हैं',
+    guestBody: 'अपने समूह बनाए रखने और एक से ज़्यादा में जोड़ने के लिए साइन इन करें।',
+    guestCta: 'साइन इन करें',
+    selectGroupHint: 'कौन किसे देगा यह देखने के लिए कोई समूह चुनें।',
+    membersCount: { one: '{n} सदस्य', other: '{n} सदस्य' },
+    yourNet: 'आपका हिसाब',
+    openGroup: 'समूह खोलें',
+    settledUp: 'हिसाब बराबर',
+    currencyLabel: 'मुद्रा',
+    loading: 'लोड हो रहा है…',
   },
 };
 
@@ -449,6 +640,73 @@ const ar: WebStrings = {
     saving: 'جارٍ الحفظ…',
     save: 'حفظ',
     cancel: 'إلغاء',
+  },
+  dash: {
+    nav: {
+      overview: 'نظرة عامة',
+      groups: 'المجموعات',
+      activity: 'النشاط',
+      friends: 'الأصدقاء',
+      settle: 'التسوية',
+    },
+    searchPlaceholder: 'ابحث في المجموعات والأشخاص والمصاريف',
+    signInTitle: 'باقي',
+    signInBody: 'قسّموا المصاريف دون خلاف في النهاية.',
+    continueWithGoogle: 'المتابعة عبر Google',
+    orDivider: 'أو',
+    emailPlaceholder: 'you@email.com',
+    sendMagicLink: 'أرسِل لي رابط تسجيل الدخول بالبريد',
+    sendingLink: 'جارٍ الإرسال…',
+    linkSentTitle: 'تحقّق من بريدك',
+    linkSentBody: 'رابط تسجيل الدخول في طريقه إلى {email}. افتحه على هذا الجهاز.',
+    notAnEmail: 'لا يبدو هذا عنوان بريد إلكتروني.',
+    signingIn: 'جارٍ تسجيل الدخول…',
+    guestInstead: 'أو افتح رابط دعوة شاركه أحدهم معك.',
+    signOut: 'تسجيل الخروج',
+    guestLabel: 'ضيف',
+    overviewTitle: 'نظرة عامة',
+    groupsCount: {
+      zero: 'لا مجموعات',
+      one: 'مجموعة واحدة',
+      two: 'مجموعتان',
+      few: '{n} مجموعات',
+      many: '{n} مجموعة',
+      other: '{n} مجموعة',
+    },
+    youreOwed: 'لك',
+    youOwe: 'عليك',
+    net: 'الصافي',
+    activeGroups: 'المجموعات النشطة',
+    allSettled: 'كل الحسابات مسوّاة',
+    moreCurrencies: {
+      one: '+عملة أخرى',
+      two: '+عملتان أخريان',
+      few: '+{n} عملات أخرى',
+      many: '+{n} عملة أخرى',
+      other: '+{n} عملة أخرى',
+    },
+    yourGroups: 'مجموعاتك',
+    noGroups: 'لا مجموعات بعد. افتح رابط دعوة، أو ابدأ واحدة في التطبيق.',
+    recentActivity: 'النشاط الأخير',
+    noActivity: 'لم يحدث شيء بعد.',
+    seeAll: 'عرض الكل',
+    guestTitle: 'أنت تتصفّح كضيف',
+    guestBody: 'سجّل الدخول للاحتفاظ بمجموعاتك وللإضافة في أكثر من واحدة.',
+    guestCta: 'تسجيل الدخول',
+    selectGroupHint: 'اختر مجموعة لترى من يدفع لمن.',
+    membersCount: {
+      zero: 'لا أعضاء',
+      one: 'عضو واحد',
+      two: 'عضوان',
+      few: '{n} أعضاء',
+      many: '{n} عضوًا',
+      other: '{n} عضو',
+    },
+    yourNet: 'رصيدك',
+    openGroup: 'افتح المجموعة',
+    settledUp: 'مسوّى',
+    currencyLabel: 'العملة',
+    loading: 'جارٍ التحميل…',
   },
 };
 
