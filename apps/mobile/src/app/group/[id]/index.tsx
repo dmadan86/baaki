@@ -97,6 +97,10 @@ export default function GroupScreen() {
   const ink = theme.tint[tintForKey(groupId)].ink;
   const inkMuted = theme.tint[tintForKey(groupId)].inkMuted;
   const visibleExpenses = expenses.rows.filter((expense) => showDeleted || !expense.deleted_at);
+  // The show/hide-deleted toggle only earns its place once something has been
+  // deleted. On a group whose ledger has never lost a row it is an answer to a
+  // question nobody asked.
+  const hasDeleted = expenses.rows.some((expense) => Boolean(expense.deleted_at));
   const pendingForMe = (settlements.data ?? []).filter(
     (settlement) =>
       settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,
@@ -280,7 +284,7 @@ export default function GroupScreen() {
             ]}
           />
 
-          {tab === 'expenses' ? (
+          {tab === 'expenses' && hasDeleted ? (
             <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
               <Text
                 variant="caption"

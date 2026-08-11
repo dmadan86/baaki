@@ -32,7 +32,7 @@
 import { createContext, useContext } from 'react';
 import { getLocales } from 'expo-localization';
 
-import type { CategoryId } from '@baaki/core';
+import { currencyForCountry, type CategoryId, type CurrencyCode } from '@baaki/core';
 
 export type Language = 'en' | 'ta' | 'hi' | 'ar';
 
@@ -5124,6 +5124,20 @@ export function deviceLocale(): string {
 export function deviceCountry(): string | null {
   const region = getLocales()[0]?.regionCode ?? null;
   return region && /^[A-Za-z]{2}$/.test(region) ? region.toUpperCase() : null;
+}
+
+/**
+ * The currency a brand-new group starts in on this phone — and therefore the
+ * one to show a zero in before any group exists.
+ *
+ * The new-group form derives its currency the same way (`currencyForCountry`
+ * of the device country, INR when the country is unknown), so the home
+ * screen's empty state and a group made a moment later agree instead of the
+ * home showing ₹0 and the group then counting in dollars. India is the last
+ * resort, not an American fallback: an unrecognised country is not the US.
+ */
+export function deviceDefaultCurrency(): CurrencyCode {
+  return currencyForCountry(deviceCountry()) ?? 'INR';
 }
 
 /**

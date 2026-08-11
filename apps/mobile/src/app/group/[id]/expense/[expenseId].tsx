@@ -74,6 +74,14 @@ export default function ExpenseDetailScreen() {
     const member = memberId ? lookup.get(memberId) : undefined;
     return member ? displayName(member, profile?.id) : 'Someone';
   };
+  // The label reads "You"; the avatar keeps the real name so the current user's
+  // circle is the same initial and colour here as on every other screen — a
+  // balances row keys the avatar off the real name too. Passing "You" to the
+  // avatar made it a lone pink "Y" next to a blue "G" elsewhere for one person.
+  const avatarNameOf = (memberId: string | null): string => {
+    const member = memberId ? lookup.get(memberId) : undefined;
+    return member ? displayName(member) : 'Someone';
+  };
 
   if (expenses.isLoading) {
     return (
@@ -215,7 +223,7 @@ export default function ExpenseDetailScreen() {
                 <View key={payer.member_id}>
                   <ListRow
                     title={nameOf(payer.member_id)}
-                    leading={<Avatar name={nameOf(payer.member_id)} size={38} />}
+                    leading={<Avatar name={avatarNameOf(payer.member_id)} size={38} />}
                     trailing={
                       <MoneyText
                         amount={BigInt(payer.amount)}
@@ -246,7 +254,7 @@ export default function ExpenseDetailScreen() {
                     subtitle={member && isGhost(member) ? 'not joined yet' : undefined}
                     leading={
                       <Avatar
-                        name={nameOf(share.member_id)}
+                        name={avatarNameOf(share.member_id)}
                         ghost={member ? isGhost(member) : false}
                         size={38}
                       />
