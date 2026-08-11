@@ -622,6 +622,12 @@ export interface UiStrings {
     reading: string;
     scanReconciles: string;
     scanCheckTotal: string;
+    /** The scanned-bill card and the receipt hand-off on the group screen. */
+    aBill: string;
+    splitBillA11y: string;
+    receiptClaimedNone: PluralForms;
+    receiptClaimedSome: string;
+    scanReadItemsCta: PluralForms;
     descriptionPlaceholder: string;
     howToSplit: string;
     equally: string;
@@ -785,6 +791,16 @@ export interface UiStrings {
     stillUnclaimed: PluralForms;
     tapWhoHadEach: string;
     taxAndTipShared: string;
+    /** Scanning a bill from the itemize screen, and its editable lines. */
+    scanTitle: string;
+    scanBody: string;
+    scanReadItems: PluralForms;
+    scanCheckLines: string;
+    carriedOver: string;
+    notYours: string;
+    itemFallback: string;
+    removeItem: string;
+    hadItem: string;
   };
   /** Bringing a ledger in from Splitwise or from Baaki's own export. */
   importLedger: {
@@ -1512,6 +1528,17 @@ const en: UiStrings = {
     reading: 'Reading…',
     scanReconciles: 'Read the total off the bill. Check it, then split it however you like.',
     scanCheckTotal: 'Check the total against the bill before saving.',
+    aBill: 'A bill',
+    splitBillA11y: 'Split {merchant} by item',
+    receiptClaimedNone: {
+      one: '{n} line, nobody has claimed it yet. Tap what you had.',
+      other: '{n} lines, nobody has claimed one yet. Tap what you had.',
+    },
+    receiptClaimedSome: '{claimed} of {items} lines claimed. Tap what you had.',
+    scanReadItemsCta: {
+      one: 'It read {n} item — split by item instead',
+      other: 'It read {n} items — split by item instead',
+    },
     descriptionPlaceholder: 'Beach shack dinner',
     howToSplit: 'How to split',
     equally: 'Equally',
@@ -1698,6 +1725,19 @@ const en: UiStrings = {
     },
     tapWhoHadEach: 'Tap who had each line to see the split.',
     taxAndTipShared: 'Tax and tip of {amount} are shared in proportion to each person’s items.',
+    scanTitle: 'Scan the receipt',
+    scanBody:
+      'Scan the bill and the items come out filled in. Check them before saving — entering them by hand is always free.',
+    scanReadItems: {
+      one: 'Read {n} item. Check it, then tap who had what.',
+      other: 'Read {n} items. Check them, then tap who had what.',
+    },
+    scanCheckLines: 'Some lines need checking before this can be saved.',
+    carriedOver: 'Carried over from the scan. Check the lines, then tap who had what.',
+    notYours: 'They are on Baaki — they tap their own lines.',
+    itemFallback: 'Item {n}',
+    removeItem: 'Remove {label}',
+    hadItem: '{name} had {label}',
   },
   importLedger: {
     splitwiseTitle: 'Import a Splitwise export',
@@ -2462,6 +2502,18 @@ const ta: UiStrings = {
     scanReconciles:
       'ரசீதிலிருந்து மொத்தம் படிக்கப்பட்டது. சரிபார்த்து, உங்களுக்கு ஏற்றபடி பிரியுங்கள்.',
     scanCheckTotal: 'சேமிப்பதற்கு முன் ரசீதுடன் மொத்தத்தைச் சரிபாருங்கள்.',
+    aBill: 'ஒரு பில்',
+    splitBillA11y: '{merchant} பொருள் வாரியாகப் பிரி',
+    receiptClaimedNone: {
+      one: '{n} வரி, இன்னும் யாரும் உரிமை கோரவில்லை. நீங்கள் சாப்பிட்டதைத் தட்டவும்.',
+      other: '{n} வரிகள், இன்னும் யாரும் உரிமை கோரவில்லை. நீங்கள் சாப்பிட்டதைத் தட்டவும்.',
+    },
+    receiptClaimedSome:
+      '{items} இல் {claimed} வரிகள் உரிமை கோரப்பட்டன. நீங்கள் சாப்பிட்டதைத் தட்டவும்.',
+    scanReadItemsCta: {
+      one: '{n} வரி படிக்கப்பட்டது — பதிலாக பொருள் வாரியாகப் பிரி',
+      other: '{n} வரிகள் படிக்கப்பட்டன — பதிலாக பொருள் வாரியாகப் பிரி',
+    },
     descriptionPlaceholder: 'கடற்கரை உணவகச் சாப்பாடு',
     howToSplit: 'எப்படிப் பிரிப்பது',
     equally: 'சமமாக',
@@ -2655,6 +2707,21 @@ const ta: UiStrings = {
     tapWhoHadEach: 'பிரிவைப் பார்க்க ஒவ்வொரு வரியையும் யார் சாப்பிட்டார்கள் என்று தட்டுங்கள்.',
     taxAndTipShared:
       '{amount} வரியும் டிப்பும் ஒவ்வொருவரின் பொருட்களுக்கு ஏற்ற விகிதத்தில் பங்கிடப்படுகிறது.',
+    scanTitle: 'ரசீதை ஸ்கேன் செய்',
+    scanBody:
+      'பில்லை ஸ்கேன் செய்தால் வரிகள் தானாக நிரப்பப்படும். சேமிக்கும் முன் அவற்றைச் சரிபாருங்கள் — கையால் உள்ளிடுவது எப்போதும் இலவசம்.',
+    scanReadItems: {
+      one: '{n} வரி படிக்கப்பட்டது. அதைச் சரிபார்த்து, யார் என்ன சாப்பிட்டார் எனத் தட்டவும்.',
+      other:
+        '{n} வரிகள் படிக்கப்பட்டன. அவற்றைச் சரிபார்த்து, யார் என்ன சாப்பிட்டார் எனத் தட்டவும்.',
+    },
+    scanCheckLines: 'சேமிப்பதற்கு முன் சில வரிகளைச் சரிபார்க்க வேண்டும்.',
+    carriedOver:
+      'ஸ்கேனிலிருந்து கொண்டுவரப்பட்டது. வரிகளைச் சரிபார்த்து, யார் என்ன சாப்பிட்டார் எனத் தட்டவும்.',
+    notYours: 'அவர்கள் Baaki-யில் உள்ளனர் — அவர்கள் தங்கள் வரிகளைத் தாங்களே தட்டுவார்கள்.',
+    itemFallback: 'பொருள் {n}',
+    removeItem: '{label} அகற்று',
+    hadItem: '{name} {label} சாப்பிட்டார்',
   },
   importLedger: {
     splitwiseTitle: 'Splitwise ஏற்றுமதியை இறக்குமதி செய்',
@@ -3401,6 +3468,18 @@ const hi: UiStrings = {
     reading: 'पढ़ रहे हैं…',
     scanReconciles: 'बिल से कुल रकम पढ़ ली। जाँच लें, फिर जैसे चाहें बाँटें।',
     scanCheckTotal: 'सेव करने से पहले कुल रकम बिल से मिला लें।',
+    aBill: 'एक बिल',
+    splitBillA11y: '{merchant} को चीज़-वार बाँटें',
+    receiptClaimedNone: {
+      one: '{n} पंक्ति, अभी किसी ने दावा नहीं किया। जो आपने लिया उसे टैप करें।',
+      other: '{n} पंक्तियाँ, अभी किसी ने दावा नहीं किया। जो आपने लिया उसे टैप करें।',
+    },
+    receiptClaimedSome:
+      '{items} में से {claimed} पंक्तियों का दावा हुआ। जो आपने लिया उसे टैप करें।',
+    scanReadItemsCta: {
+      one: '{n} आइटम पढ़ा — इसके बजाय चीज़-वार बाँटें',
+      other: '{n} आइटम पढ़े — इसके बजाय चीज़-वार बाँटें',
+    },
     descriptionPlaceholder: 'बीच शैक का खाना',
     howToSplit: 'कैसे बाँटें',
     equally: 'बराबर',
@@ -3586,6 +3665,19 @@ const hi: UiStrings = {
     },
     tapWhoHadEach: 'बँटवारा देखने के लिए टैप करें कि हर पंक्ति किसने ली।',
     taxAndTipShared: '{amount} का टैक्स और टिप हर किसी की चीज़ों के अनुपात में बाँटा जाता है।',
+    scanTitle: 'रसीद स्कैन करें',
+    scanBody:
+      'बिल स्कैन करें और आइटम अपने आप भर जाते हैं। सेव करने से पहले उन्हें जाँच लें — हाथ से भरना हमेशा मुफ़्त है।',
+    scanReadItems: {
+      one: '{n} आइटम पढ़ा। उसे जाँचें, फिर टैप करें कि किसने क्या लिया।',
+      other: '{n} आइटम पढ़े। उन्हें जाँचें, फिर टैप करें कि किसने क्या लिया।',
+    },
+    scanCheckLines: 'सेव करने से पहले कुछ पंक्तियों की जाँच ज़रूरी है।',
+    carriedOver: 'स्कैन से लाया गया। पंक्तियाँ जाँचें, फिर टैप करें कि किसने क्या लिया।',
+    notYours: 'वे Baaki पर हैं — वे अपनी पंक्तियाँ ख़ुद टैप करते हैं।',
+    itemFallback: 'आइटम {n}',
+    removeItem: '{label} हटाएँ',
+    hadItem: '{name} ने {label} लिया',
   },
   importLedger: {
     splitwiseTitle: 'Splitwise निर्यात आयात करें',
@@ -4364,6 +4456,25 @@ const ar: UiStrings = {
     reading: 'جارٍ القراءة…',
     scanReconciles: 'قرأنا المجموع من الفاتورة. تحقّق منه ثم قسّمه كما تشاء.',
     scanCheckTotal: 'قارن المجموع بالفاتورة قبل الحفظ.',
+    aBill: 'فاتورة',
+    splitBillA11y: 'قسّم {merchant} حسب الصنف',
+    receiptClaimedNone: {
+      zero: 'لا بنود بعد.',
+      one: 'بند واحد، لم يطالب به أحد بعد. اضغط ما كان لك.',
+      two: 'بندان، لم يطالب بهما أحد بعد. اضغط ما كان لك.',
+      few: '{n} بنود، لم يطالب بها أحد بعد. اضغط ما كان لك.',
+      many: '{n} بندًا، لم يطالب بها أحد بعد. اضغط ما كان لك.',
+      other: '{n} بند، لم يطالب به أحد بعد. اضغط ما كان لك.',
+    },
+    receiptClaimedSome: 'تمّت المطالبة بـ {claimed} من {items} بندًا. اضغط ما كان لك.',
+    scanReadItemsCta: {
+      zero: 'لم يُقرأ أي بند',
+      one: 'قرأ بندًا واحدًا — قسّمه حسب الصنف بدلاً من ذلك',
+      two: 'قرأ بندين — قسّمهما حسب الصنف بدلاً من ذلك',
+      few: 'قرأ {n} بنود — قسّمها حسب الصنف بدلاً من ذلك',
+      many: 'قرأ {n} بندًا — قسّمها حسب الصنف بدلاً من ذلك',
+      other: 'قرأ {n} بند — قسّمها حسب الصنف بدلاً من ذلك',
+    },
     descriptionPlaceholder: 'عشاء على الشاطئ',
     howToSplit: 'طريقة التقسيم',
     equally: 'بالتساوي',
@@ -4613,6 +4724,23 @@ const ar: UiStrings = {
     },
     tapWhoHadEach: 'اضغط على من تناول كل صنف لترى التقسيم.',
     taxAndTipShared: 'تُوزَّع ضريبة وإكرامية بقيمة {amount} بنسبة أصناف كل شخص.',
+    scanTitle: 'امسح الفاتورة',
+    scanBody:
+      'امسح الفاتورة فتظهر البنود مملوءة. تحقّق منها قبل الحفظ — إدخالها يدويًا مجاني دائمًا.',
+    scanReadItems: {
+      zero: 'لم نقرأ أي بند. تحقّق ثم اضغط لمن كان ماذا.',
+      one: 'قرأنا بندًا واحدًا. تحقّق منه ثم اضغط لمن كان ماذا.',
+      two: 'قرأنا بندين. تحقّق منهما ثم اضغط لمن كان ماذا.',
+      few: 'قرأنا {n} بنود. تحقّق منها ثم اضغط لمن كان ماذا.',
+      many: 'قرأنا {n} بندًا. تحقّق منها ثم اضغط لمن كان ماذا.',
+      other: 'قرأنا {n} بند. تحقّق منها ثم اضغط لمن كان ماذا.',
+    },
+    scanCheckLines: 'بعض البنود تحتاج مراجعة قبل الحفظ.',
+    carriedOver: 'منقول من المسح. تحقّق من البنود ثم اضغط لمن كان ماذا.',
+    notYours: 'هم على Baaki — يضغطون بنودهم بأنفسهم.',
+    itemFallback: 'بند {n}',
+    removeItem: 'إزالة {label}',
+    hadItem: '{name} تناول {label}',
   },
   importLedger: {
     splitwiseTitle: 'استيراد ملف Splitwise',
