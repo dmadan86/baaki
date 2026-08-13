@@ -391,7 +391,11 @@ export default function PlanScreen() {
                 <Text variant="caption" tone="muted">
                   {t.overallBudget}
                 </Text>
-                <AmountField currency={currency} value={overallAmount} onChange={setOverallAmount} />
+                <AmountField
+                  currency={currency}
+                  value={overallAmount}
+                  onChange={setOverallAmount}
+                />
                 <Row style={{ gap: theme.spacing.sm }}>
                   <Button
                     label={t.saveBudget}
@@ -416,7 +420,13 @@ export default function PlanScreen() {
                 </Row>
               </View>
             ) : overall ? (
-              <BudgetBar label={t.overallBudget} progress={overall} locale={locale} t={t} theme={theme} />
+              <BudgetBar
+                label={t.overallBudget}
+                progress={overall}
+                locale={locale}
+                t={t}
+                theme={theme}
+              />
             ) : null}
 
             {editingMine ? (
@@ -465,7 +475,11 @@ export default function PlanScreen() {
                 </Row>
               </View>
             ) : (
-              <Pressable onPress={openMine} accessibilityRole="button" accessibilityLabel={t.myBudget}>
+              <Pressable
+                onPress={openMine}
+                accessibilityRole="button"
+                accessibilityLabel={t.myBudget}
+              >
                 {myBudget ? (
                   <BudgetBar
                     label={t.myBudget}
@@ -701,7 +715,12 @@ function BudgetBar({
         }}
       >
         <View
-          style={{ width: `${fill * 100}%`, height: '100%', backgroundColor: color, borderRadius: 4 }}
+          style={{
+            width: `${fill * 100}%`,
+            height: '100%',
+            backgroundColor: color,
+            borderRadius: 4,
+          }}
         />
       </View>
       <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>

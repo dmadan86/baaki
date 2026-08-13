@@ -108,7 +108,7 @@ The folder keeps building as `apps/web`; "lite" is historical.
 - Two invariants the RPC enforces that a raw column could not: a **ghost cannot be an admin** (it has no account to act with), and a group **never loses its last admin** (demoting the only one is refused, so a group cannot be orphaned into a state where nobody can promote anybody).
 - The mobile UI offers the toggle only to an admin, only on another real member. The button is a convenience; the RPC is the enforcement. A demote that would remove the last admin is offered by no client and refused by the server regardless.
 
-This is an **authority-model addition, not a change to any trust boundary**: every existing RLS policy and Edge Function privilege is unchanged, and the set of things an admin can do (edit the group, manage members, set the overall trip budget) is unchanged — only *who* can be granted that set is now itself an admin decision instead of fixed at group creation.
+This is an **authority-model addition, not a change to any trust boundary**: every existing RLS policy and Edge Function privilege is unchanged, and the set of things an admin can do (edit the group, manage members, set the overall trip budget) is unchanged — only _who_ can be granted that set is now itself an admin decision instead of fixed at group creation.
 
 ---
 

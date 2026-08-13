@@ -42,8 +42,7 @@ export default function MemberScreen() {
 
   const member = members.data?.find((row) => row.id === memberId);
   const isMe = member?.profile_id === profile?.id;
-  const iAmAdmin =
-    members.data?.find((row) => row.profile_id === profile?.id)?.role === 'admin';
+  const iAmAdmin = members.data?.find((row) => row.profile_id === profile?.id)?.role === 'admin';
   const currency = group.data?.default_currency ?? 'INR';
 
   const [name, setName] = useState(member?.ghost_name ?? '');

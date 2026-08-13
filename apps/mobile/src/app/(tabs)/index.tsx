@@ -433,8 +433,14 @@ function BalanceCarousel({
   const [page, setPage] = useState(0);
 
   const slides = [
-    ...trips.map((trip) => ({ key: `trip:${trip.id}`, node: <TripCard trip={trip} locale={locale} t={t} /> })),
-    ...totals.map((total) => ({ key: `cur:${total.currency}`, node: <BalanceCard total={total} locale={locale} t={t} /> })),
+    ...trips.map((trip) => ({
+      key: `trip:${trip.id}`,
+      node: <TripCard trip={trip} locale={locale} t={t} />,
+    })),
+    ...totals.map((total) => ({
+      key: `cur:${total.currency}`,
+      node: <BalanceCard total={total} locale={locale} t={t} />,
+    })),
   ];
 
   const only = slides[0];

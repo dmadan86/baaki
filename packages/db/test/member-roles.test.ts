@@ -35,9 +35,10 @@ async function as<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 }
 
 const roleOf = async (memberId: string): Promise<string> => {
-  const { rows } = await client.query(`SELECT role::text AS role FROM group_members WHERE id = $1`, [
-    memberId,
-  ]);
+  const { rows } = await client.query(
+    `SELECT role::text AS role FROM group_members WHERE id = $1`,
+    [memberId],
+  );
   return rows[0].role as string;
 };
 
