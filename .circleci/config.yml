@@ -1,0 +1,148 @@
+version: 2.1
+
+# CircleCI mirror of .github/workflows/ci.yml (ADR-014). The same four suites
+# that gate a merge on GitHub — typecheck/lint, money property tests, the app's
+# pure modules, and the database's migrations/RLS/invariants — plus the web
+# Playwright smoke, run here identically. Kept in lockstep with ci.yml: a change
+# to one belongs in the other.
+#
+# The Maestro mobile e2e is intentionally absent, matching `if: false` in the
+# GitHub workflow — it turns on once a build profile exists.
+
+# ── Shared building blocks ────────────────────────────────────────────────────
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:24.18
+    working_directory: ~/baaki
+
+commands:
+  setup:
+    description: Enable pnpm (corepack), restore the store, install frozen.
+    steps:
+      - checkout
+      # The packageManager field pins pnpm@11.20.0; corepack provisions it.
+      - run:
+          name: Enable corepack / pnpm
+          command: |
+            sudo corepack enable
+            corepack prepare pnpm@11.20.0 --activate
+            pnpm config set store-dir ~/.pnpm-store
+            pnpm --version
+      - restore_cache:
+          keys:
+            - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-v1-
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
+      - save_cache:
+          key: pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.pnpm-store
+
+# ── Jobs ──────────────────────────────────────────────────────────────────────
+
+jobs:
+  static:
+    executor: node
+    steps:
+      - setup
+      # Seven empty files called things like `(value.length` once sat in the
+      # repo root from a mis-quoted shell command; nothing type-checks a
+      # filename, so nothing complained. This guards against their return.
+      - run:
+          name: No files from a mis-quoted shell command
+          command: bash scripts/check-filenames.sh
+      # The edge functions import a bundled copy of @baaki/core; build it first
+      # so a broken bundle fails here rather than at deploy time.
+      - run: pnpm edge:build
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+
+  money:
+    executor: node
+    steps:
+      - setup
+      # Shares sum to the total, balances sum to zero, simplification preserves
+      # every net position, FX is reproducible.
+      - run: pnpm test:core
+
+  app:
+    executor: node
+    steps:
+      - setup
+      # The pure modules behind the screens — the activity feed's wording and
+      # anything else that decides what a person is told about their money.
+      - run: pnpm test:app
+      # The browser client: turning wire strings into balances.
+      - run: pnpm test:api
+      # What a crash report is allowed to say — starts the real SDK.
+      - run: pnpm test:web
+
+  database:
+    docker:
+      - image: cimg/node:24.18
+      - image: postgres:17-alpine
+        environment:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: baaki
+    working_directory: ~/baaki
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki_shadow?schema=public
+    steps:
+      - setup
+      - run:
+          name: Wait for Postgres
+          command: dockerize -wait tcp://localhost:5432 -timeout 1m
+      # Every migration must apply cleanly to an empty database — including the
+      # hand-written RLS / trigger / derived-balance SQL.
+      - run:
+          name: Apply migrations to a fresh database
+          command: pnpm db:migrate
+      # Guards schema.prisma against the applied migrations (TDR §2.0), diffed
+      # against the database just built rather than replayed into a shadow one.
+      - run:
+          name: Prisma drift check
+          command: pnpm db:drift
+      # RLS allow/deny matrix + the money invariants, against real Postgres.
+      # TEST_DATABASE_URL is named apart from DATABASE_URL on purpose: this suite
+      # creates, mutates and deletes rows freely.
+      - run:
+          name: Policy and invariant tests
+          command: pnpm test:db
+          environment:
+            TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+
+  web-e2e:
+    executor: node
+    steps:
+      - setup
+      # The one browser these smoke tests drive. --with-deps pulls the system
+      # libraries a headless Chromium needs on a bare runner.
+      - run:
+          name: Install Chromium
+          command: pnpm --filter @baaki/web exec playwright install --with-deps chromium
+      # The suite boots its own dev server (playwright.config.ts) with
+      # placeholder Supabase env — the surface it drives makes no network call.
+      - run:
+          name: Playwright
+          command: pnpm --filter @baaki/web e2e
+      - store_artifacts:
+          path: apps/web/playwright-report
+          destination: playwright-report
+
+# ── Workflow ──────────────────────────────────────────────────────────────────
+
+workflows:
+  ci:
+    jobs:
+      - static
+      - money
+      - app
+      - database
+      - web-e2e

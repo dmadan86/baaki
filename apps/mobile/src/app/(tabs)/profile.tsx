@@ -21,6 +21,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { CountryRow } from '@/components/CountryPicker';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
@@ -37,6 +38,7 @@ import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { describeGrace, useLock } from '@/lib/lock';
 import { useMotion } from '@/lib/motion';
+import { useThemePreference } from '@/lib/theme';
 
 interface SettingsRow {
   icon: keyof typeof Ionicons.glyphMap;
@@ -216,6 +218,10 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
   );
   const top = entries[0];
 
+  // Nothing settled yet is not worth an empty badge — the pill only earns its
+  // place once a real figure has changed hands. Until then, show nothing.
+  if (!top) return null;
+
   return (
     <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
       <Row
@@ -228,24 +234,18 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
         }}
       >
         <Ionicons name="checkmark-done" size={16} color={theme.color.brand} />
-        {top ? (
-          <Row style={{ gap: 4 }}>
-            <MoneyText
-              amount={top[1]}
-              currency={top[0] as never}
-              locale={locale}
-              variant="subheading"
-              tone="brand"
-            />
-            <Text variant="caption" tone="brand">
-              {t.account.settled}
-            </Text>
-          </Row>
-        ) : (
+        <Row style={{ gap: 4 }}>
+          <MoneyText
+            amount={top[1]}
+            currency={top[0] as never}
+            locale={locale}
+            variant="subheading"
+            tone="brand"
+          />
           <Text variant="caption" tone="brand">
-            {t.account.nothingSettledYet}
+            {t.account.settled}
           </Text>
-        )}
+        </Row>
       </Row>
       {/* No rate turns rupees into euros, so the rest are counted, not added. */}
       {entries.length > 1 ? (
@@ -265,6 +265,7 @@ export default function ProfileScreen() {
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
   const { animated, overridden: motionOverridden } = useMotion();
+  const { preference: themePreference, overridden: themeOverridden } = useThemePreference();
   const { language, stored: languageChosen, restartNeeded } = useLanguage();
 
   const [name, setName] = useState(profile?.display_name ?? '');
@@ -273,10 +274,19 @@ export default function ProfileScreen() {
    * `default_vpa` — anything written before rails existed can only have been a
    * UPI ID, and nobody should have to type theirs again.
    */
-  const country = profile?.country_code ?? deviceCountry();
+  const [country, setCountry] = useState<string | null>(profile?.country_code ?? deviceCountry());
   const [rail, setRail] = useState(
     profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : defaultRailFor(country)),
   );
+
+  // Changing country changes which rails exist, so the rail drops to that
+  // country's default and any handle typed for the old rail is cleared — a UPI
+  // ID means nothing once the rail is Aani.
+  const onCountry = (next: string | null): void => {
+    setCountry(next);
+    setRail(defaultRailFor(next));
+    setHandle('');
+  };
   const [handle, setHandle] = useState(profile?.payment_handle ?? profile?.default_vpa ?? '');
   const [status, setStatus] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -352,6 +362,12 @@ export default function ProfileScreen() {
       ? t.account.languageFollowingPhone.replace('{language}', LANGUAGE_NAMES[language].own)
       : `${LANGUAGE_NAMES[language].own} · ${LANGUAGE_NAMES[language].english}`;
 
+  const themeSummary = themeOverridden
+    ? themePreference === 'dark'
+      ? t.theme.dark
+      : t.theme.light
+    : t.theme.followingPhone;
+
   const motionSummary = motionOverridden
     ? animated
       ? t.account.motionOn
@@ -383,6 +399,7 @@ export default function ProfileScreen() {
   const handleValid = handle.trim() === '' || isValidHandle(rail, handle.trim());
   const dirty =
     name.trim() !== (profile?.display_name ?? '') ||
+    country !== (profile?.country_code ?? deviceCountry()) ||
     handle.trim() !== (profile?.payment_handle ?? profile?.default_vpa ?? '') ||
     rail !== (profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : rail));
 
@@ -392,6 +409,7 @@ export default function ProfileScreen() {
     try {
       await updateProfile({
         display_name: name.trim() || t.account.you,
+        country_code: country,
         payment_rail: trimmed === '' ? null : rail,
         payment_handle: trimmed === '' ? null : trimmed,
         // Kept in step while the older screens still read it. A handle on any
@@ -505,53 +523,66 @@ export default function ProfileScreen() {
         ) : null}
 
         {face === 'paying' ? (
-          <Card style={{ gap: theme.spacing.lg }}>
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
-                {t.account.howPeoplePayYou}
-              </Text>
-              {/* Whatever this person's country uses. In India that still starts
-                  on UPI; in the UAE it starts on Aani. */}
-              <ChipRow<string>
-                value={rail}
-                onChange={setRail}
-                options={railsFor(country).map((entry) => ({
-                  value: entry.id,
-                  label: entry.label,
-                }))}
-              />
-              {railInfo && railInfo.handle !== 'none' ? (
-                <>
-                  <TextInput
-                    value={handle}
-                    onChangeText={setHandle}
-                    autoCapitalize="none"
-                    accessibilityLabel={t.account.yourRailDetails.replace('{rail}', railInfo.label)}
-                    placeholder={railInfo.handleHint}
-                    placeholderTextColor={theme.color.textFaint}
-                    style={{
-                      fontSize: 18,
-                      fontWeight: '600',
-                      color: handleValid ? theme.color.text : theme.color.negative,
-                      paddingVertical: theme.spacing.sm,
-                    }}
-                  />
-                  <Text variant="micro" tone={handleValid ? 'faint' : 'negative'}>
-                    {!handleValid
-                      ? t.account.handleWrong.replace('{hint}', railInfo.handleHint.toLowerCase())
-                      : railInfo.link
-                        ? t.account.railLinkNote
-                        : t.account.railManualNote}
-                  </Text>
-                </>
-              ) : (
-                <Text variant="micro" tone="faint">
-                  {t.account.nothingToAdd}
+          <>
+            {/* The country decides which rails exist below, so it sits above
+                them and is changeable here — the device guess is only a start. */}
+            <CountryRow countryCode={country} onChange={onCountry} />
+            <Card style={{ gap: theme.spacing.lg }}>
+              <View style={{ gap: theme.spacing.sm }}>
+                <Text variant="caption" tone="muted">
+                  {t.account.howPeoplePayYou}
                 </Text>
-              )}
-            </View>
-            <SaveRow dirty={dirty} valid={handleValid} status={status} onSave={() => void save()} />
-          </Card>
+                {/* Whatever this person's country uses. In India that still starts
+                    on UPI; in the UAE it starts on Aani. */}
+                <ChipRow<string>
+                  value={rail}
+                  onChange={setRail}
+                  options={railsFor(country).map((entry) => ({
+                    value: entry.id,
+                    label: entry.label,
+                  }))}
+                />
+                {railInfo && railInfo.handle !== 'none' ? (
+                  <>
+                    <TextInput
+                      value={handle}
+                      onChangeText={setHandle}
+                      autoCapitalize="none"
+                      accessibilityLabel={t.account.yourRailDetails.replace(
+                        '{rail}',
+                        railInfo.label,
+                      )}
+                      placeholder={railInfo.handleHint}
+                      placeholderTextColor={theme.color.textFaint}
+                      style={{
+                        fontSize: 18,
+                        fontWeight: '600',
+                        color: handleValid ? theme.color.text : theme.color.negative,
+                        paddingVertical: theme.spacing.sm,
+                      }}
+                    />
+                    <Text variant="micro" tone={handleValid ? 'faint' : 'negative'}>
+                      {!handleValid
+                        ? t.account.handleWrong.replace('{hint}', railInfo.handleHint.toLowerCase())
+                        : railInfo.link
+                          ? t.account.railLinkNote
+                          : t.account.railManualNote}
+                    </Text>
+                  </>
+                ) : (
+                  <Text variant="micro" tone="faint">
+                    {t.account.nothingToAdd}
+                  </Text>
+                )}
+              </View>
+              <SaveRow
+                dirty={dirty}
+                valid={handleValid}
+                status={status}
+                onSave={() => void save()}
+              />
+            </Card>
+          </>
         ) : null}
 
         {face !== 'settings' ? null : (
@@ -586,6 +617,12 @@ export default function ProfileScreen() {
                   route: '/settings/language',
                 },
                 ...settingsRows(t),
+                {
+                  icon: 'contrast-outline',
+                  label: t.account.themeRow,
+                  hint: themeSummary,
+                  route: '/settings/theme',
+                },
                 {
                   icon: 'sparkles-outline',
                   label: t.account.motionRow,

@@ -35,6 +35,7 @@ import { useMarkNotificationsRead, useNotifications } from '@/data/hooks';
 import { SkeletonList } from '@/components/Skeletons';
 import type { NotificationRow } from '@/data/types';
 import { useStrings } from '@/i18n';
+import { usePullRefresh } from '@/lib/pullRefresh';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   settlement_confirmed: 'checkmark-circle',
@@ -64,6 +65,7 @@ function factsOf(row: NotificationRow): Record<string, string | undefined> {
 
 export default function InboxScreen() {
   const theme = useTheme();
+  const pull = usePullRefresh();
   const { t, locale } = useStrings();
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
@@ -92,8 +94,8 @@ export default function InboxScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={notifications.isFetching && !notifications.isLoading}
-            onRefresh={() => void notifications.refetch()}
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
             tintColor={theme.color.brand}
           />
         }

@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import type { NotificationRow } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { useStrings } from '@/i18n-context';
 
@@ -79,7 +80,7 @@ function Inbox() {
 
         <section className="panel">
           {loading ? (
-            <p className="muted">{t.inbox.loading}</p>
+            <SkeletonRows rows={7} amount={false} />
           ) : rows.length === 0 ? (
             <p className="muted">{t.inbox.empty}</p>
           ) : (

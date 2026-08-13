@@ -1,9 +1,12 @@
 'use client';
 
 /**
- * The frame every signed-in page sits in: brand, the section tabs, search, the
- * inbox bell, and the account menu. Phases 1–3 have filled every tab in; each
- * one is a real route now rather than an inert button (PLAN.md).
+ * The frame every signed-in page sits in — reworked into the developer-portal
+ * shape (Port): a dark left rail that carries the brand, the navigation, and the
+ * account, against a light canvas where the widgets live. The top bar holds the
+ * page's name and the global search.
+ *
+ * Phases 1–3 filled every destination in; each rail item is a real route.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -47,56 +50,97 @@ export function Shell({
     return () => document.removeEventListener('mousedown', onClick);
   }, [menuOpen]);
 
-  // Groups has no index of its own yet — the overview is where the groups
-  // live, and a group opens at /g/[id]; the tab shares the home route and still
-  // lights up on a group page, which is where `current: 'groups'` comes from.
-  const tabs: { key: Section; label: string; href: string }[] = [
-    { key: 'overview', label: t.dash.nav.overview, href: '/' },
-    { key: 'groups', label: t.dash.nav.groups, href: '/' },
-    { key: 'activity', label: t.dash.nav.activity, href: '/activity' },
-    { key: 'friends', label: t.dash.nav.friends, href: '/friends' },
-    { key: 'settle', label: t.dash.nav.settle, href: '/settle' },
+  // A group page reports `current: 'groups'`, but there is no separate Groups
+  // destination in the rail — the groups live on the overview — so it lights the
+  // overview item rather than nothing.
+  const activeKey: Section = current === 'groups' ? 'overview' : current;
+
+  const nav: { key: Section; label: string; href: string; icon: string }[] = [
+    { key: 'overview', label: t.dash.nav.overview, href: '/', icon: '▤' },
+    { key: 'activity', label: t.dash.nav.activity, href: '/activity', icon: '📈' },
+    { key: 'friends', label: t.dash.nav.friends, href: '/friends', icon: '🙂' },
+    { key: 'settle', label: t.dash.nav.settle, href: '/settle', icon: '⇄' },
+    { key: 'inbox', label: t.inbox.title, href: '/inbox', icon: '🔔' },
   ];
 
+  const pageTitle = nav.find((item) => item.key === activeKey)?.label ?? t.dash.nav.overview;
   const initial = userName.trim().charAt(0).toUpperCase() || '🙂';
 
   return (
     <div className="app">
       <div className="app-shell">
-        <nav className="topnav">
-          <div className="brand">
+        <aside className="sidebar">
+          <div className="side-brand">
             <span className="brand-mark" aria-hidden>
               ₹
             </span>
             Baaki
           </div>
 
-          <div className="navtabs" role="tablist">
-            {tabs.map((tab) => (
+          <nav className="side-nav">
+            {nav.map((item) => (
               <Link
-                key={tab.key}
-                href={tab.href}
-                className="navtab"
-                role="tab"
-                aria-current={tab.key === current}
+                key={item.key}
+                href={item.href}
+                className="side-link"
+                aria-current={item.key === activeKey}
               >
-                {tab.label}
+                <span className="side-ico" aria-hidden>
+                  {item.icon}
+                </span>
+                {item.label}
               </Link>
             ))}
-          </div>
+          </nav>
 
-          <div className="nav-right">
-            <Link
-              href="/inbox"
-              className="avatar icon-btn"
-              aria-current={current === 'inbox'}
-              title={t.inbox.title}
-              aria-label={t.inbox.title}
-              style={{ width: 38, height: 38, textDecoration: 'none' }}
+          <div ref={menuRef} className="side-foot">
+            {menuOpen ? (
+              <div role="menu" className="side-menu">
+                <button
+                  type="button"
+                  className="side-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onSignOut();
+                  }}
+                >
+                  {t.dash.signOut}
+                </button>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              className="side-account"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
             >
-              <span aria-hidden>🔔</span>
-            </Link>
+              <span className="avatar" aria-hidden>
+                {avatarUrl ? (
+                  // Google's avatar CDN, a small round photo — next/image would
+                  // need every provider host allow-listed to render one <img>.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="" />
+                ) : (
+                  initial
+                )}
+              </span>
+              <span className="grow">
+                <span className="side-account-name">{userName}</span>
+                {isGuest ? <span className="side-account-role">{t.dash.guestLabel}</span> : null}
+              </span>
+              <span className="side-account-caret" aria-hidden>
+                ⋯
+              </span>
+            </button>
+          </div>
+        </aside>
 
+        <div className="main-col">
+          <header className="topbar">
+            <h1 className="topbar-title">{pageTitle}</h1>
             <label className="search">
               <span aria-hidden>🔍</span>
               <input
@@ -107,69 +151,10 @@ export function Shell({
                 aria-label={t.dash.searchPlaceholder}
               />
             </label>
+          </header>
 
-            <div ref={menuRef} style={{ position: 'relative' }}>
-              <button
-                type="button"
-                className="avatar icon-btn"
-                onClick={() => setMenuOpen((open) => !open)}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                title={userName}
-                style={{ width: 38, height: 38, border: 0 }}
-              >
-                {avatarUrl ? (
-                  // Google's avatar CDN, a small round photo — next/image would
-                  // need every provider host allow-listed to render one <img>.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="" />
-                ) : (
-                  initial
-                )}
-              </button>
-
-              {menuOpen ? (
-                <div
-                  role="menu"
-                  style={{
-                    position: 'absolute',
-                    insetInlineEnd: 0,
-                    top: 46,
-                    background: 'var(--color-app-surface)',
-                    border: '1px solid var(--color-line-strong)',
-                    borderRadius: 14,
-                    boxShadow: '0 12px 30px rgba(80,45,20,0.16)',
-                    padding: 10,
-                    minWidth: 180,
-                    zIndex: 20,
-                  }}
-                >
-                  <div style={{ padding: '4px 8px 8px' }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{userName}</div>
-                    {isGuest ? (
-                      <div style={{ fontSize: 12, color: 'var(--color-ink-faint)' }}>
-                        {t.dash.guestLabel}
-                      </div>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    className="btn soft block"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onSignOut();
-                    }}
-                  >
-                    {t.dash.signOut}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </nav>
-
-        {children}
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -101,6 +101,15 @@ The rule is defined once as a pure function (`guestGate` in `@baaki/core`) and e
 
 The folder keeps building as `apps/web`; "lite" is historical.
 
+**Addendum (member roles — an admin can promote another member).** The original decision named an "organizer" who confirms ghost claims but never said how roles are granted, and the security hardening (migration `20260807090000`, §4) pinned roles shut with the note "nothing in the product changes a role at all." That is now superseded for one specific, safe shape: **an existing admin may make another member an admin, or demote one back.**
+
+- The self-promotion attack that hardening closed **stays closed**. The trigger `baaki_guard_membership_columns` still raises on any signed-in client that writes `role`. Nothing about that block is loosened.
+- The only door is a single `SECURITY DEFINER` RPC, `baaki_set_member_role`, gated on `is_group_admin`. It runs as its owner, which is the one caller the trigger already lets through — so authority to change a role lives entirely in "are you already an admin of this group", checked server-side, never in the client (ADR-013).
+- Two invariants the RPC enforces that a raw column could not: a **ghost cannot be an admin** (it has no account to act with), and a group **never loses its last admin** (demoting the only one is refused, so a group cannot be orphaned into a state where nobody can promote anybody).
+- The mobile UI offers the toggle only to an admin, only on another real member. The button is a convenience; the RPC is the enforcement. A demote that would remove the last admin is offered by no client and refused by the server regardless.
+
+This is an **authority-model addition, not a change to any trust boundary**: every existing RLS policy and Edge Function privilege is unchanged, and the set of things an admin can do (edit the group, manage members, set the overall trip budget) is unchanged — only *who* can be granted that set is now itself an admin decision instead of fixed at group creation.
+
 ---
 
 ## ADR-007: UPI settlement via intent deep links; Baaki never moves money

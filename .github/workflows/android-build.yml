@@ -1,0 +1,87 @@
+name: Android build
+
+# On-demand Android builds through EAS (the eas.json profiles are the source of
+# truth). Pick a profile when you run it:
+#   development / preview → an installable APK, attached to the run
+#   production            → a Play Store AAB (not installable; for the release
+#                           flow use android-release.yml, which also submits it)
+#
+# Needs one secret: EXPO_TOKEN (Expo access token, expo.dev → account settings).
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        type: choice
+        default: preview
+        options:
+          - development
+          - preview
+          - production
+
+concurrency:
+  group: android-build-${{ github.ref }}-${{ inputs.profile }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: eas build (${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # The whole workspace installs from the root; EAS packs the monorepo.
+      - name: Install dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      # Cloud build, wait for it, capture the metadata. appVersionSource is
+      # remote (eas.json), so there is no local version to bump.
+      - name: Build
+        run: |
+          eas build \
+            --platform android \
+            --profile "${{ inputs.profile }}" \
+            --non-interactive \
+            --wait \
+            --json > build.json
+          cat build.json
+
+      # Pull the finished binary down so it rides along with the run instead of
+      # living only on the Expo dashboard.
+      - name: Download artifact
+        id: artifact
+        run: |
+          url="$(jq -r '.[0].artifacts.applicationArchiveUrl // .[0].artifacts.buildUrl // empty' build.json)"
+          if [ -z "$url" ]; then
+            echo "No artifact URL in build.json (build may have failed)." >&2
+            exit 1
+          fi
+          case "$url" in
+            *.aab) out="baaki-${{ inputs.profile }}.aab" ;;
+            *)     out="baaki-${{ inputs.profile }}.apk" ;;
+          esac
+          curl -fSL "$url" -o "$out"
+          echo "file=apps/mobile/$out" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ inputs.profile }}
+          path: ${{ steps.artifact.outputs.file }}
+          retention-days: 14

@@ -209,10 +209,22 @@ export interface UiStrings {
    */
   onboarding: readonly { title: string; body: string }[];
   plan: string;
+  /** Trip carousel card: which day of the trip today is. `{day}`/`{total}`. */
+  tripDay: string;
   planned: string;
   spent: string;
   overBudget: string;
   underBudget: string;
+  /** Trip budgets. */
+  budgets: string;
+  overallBudget: string;
+  myBudget: string;
+  budgetAmount: string;
+  shareWithGroup: string;
+  budgetPrivate: string;
+  saveBudget: string;
+  clearBudget: string;
+  budgetLeft: string;
   nothingPlannedYet: string;
   planEmptyBody: string;
   whatIsPlanned: string;
@@ -305,6 +317,19 @@ export interface UiStrings {
     followPhone: string;
     footnote: string;
   };
+  /** Light, dark, or follow the phone. */
+  theme: {
+    title: string;
+    light: string;
+    dark: string;
+    lightHint: string;
+    darkHint: string;
+    /** "Currently {scheme}" — the phone's own setting, on the follow-phone row. */
+    currently: string;
+    /** Settings-row subtitle when following the phone. */
+    followingPhone: string;
+    footnote: string;
+  };
   /** The app lock, the delay before it asks again, and the way out. */
   lock: {
     title: string;
@@ -381,6 +406,7 @@ export interface UiStrings {
     importSplitwise: string;
     importHint: string;
     motionRow: string;
+    themeRow: string;
     languageFollowingPhone: string;
     languageRestartHint: string;
     languageRestartHintBack: string;
@@ -519,6 +545,7 @@ export interface UiStrings {
     noGroups: string;
     noGroupsBody: string;
     activityEmptyBody: string;
+    quickActions: string;
     inbox: string;
     fromContacts: string;
     allSquare: string;
@@ -595,6 +622,10 @@ export interface UiStrings {
     memberNotFound: string;
     memberNotFoundBody: string;
     admin: string;
+    role: string;
+    makeAdmin: string;
+    removeAdmin: string;
+    adminNote: string;
     you: string;
     memberName: string;
     ghostNote: string;
@@ -1111,10 +1142,20 @@ const en: UiStrings = {
     other: 'Other',
   },
   plan: 'Plan',
+  tripDay: 'Day {day} of {total}',
   planned: 'Planned',
   spent: 'Spent',
   overBudget: 'over',
   underBudget: 'under',
+  budgets: 'Budgets',
+  overallBudget: 'Overall',
+  myBudget: 'My budget',
+  budgetAmount: 'Amount',
+  shareWithGroup: 'Share with group',
+  budgetPrivate: 'Only me',
+  saveBudget: 'Save',
+  clearBudget: 'Clear',
+  budgetLeft: 'left',
   nothingPlannedYet: 'Nothing planned yet',
   planEmptyBody: 'Add the days and what you mean to do. What it actually costs fills itself in.',
   whatIsPlanned: 'What are you doing?',
@@ -1198,6 +1239,16 @@ const en: UiStrings = {
     followPhone: "Follow my phone's setting",
     footnote:
       'Turning motion off does not shorten the animations — it removes them. A faster animation is still an animation to somebody who cannot watch one.',
+  },
+  theme: {
+    title: 'Appearance',
+    light: 'Light',
+    dark: 'Dark',
+    lightHint: 'The pale lavender canvas.',
+    darkHint: 'Easier on the eyes at night.',
+    currently: 'Currently {scheme}',
+    followingPhone: 'Following your phone',
+    footnote: 'Following your phone lets the app turn dark when your phone does.',
   },
   lock: {
     title: 'Security',
@@ -1283,6 +1334,7 @@ const en: UiStrings = {
     importSplitwise: 'Import from Splitwise',
     importHint: 'Bring a group across from a CSV export',
     motionRow: 'Motion',
+    themeRow: 'Appearance',
     languageFollowingPhone: 'Following your phone — {language}',
     languageRestartHint: '{language} · reopen Baaki to mirror it',
     languageRestartHintBack: '{language} · reopen Baaki to turn the layout back',
@@ -1434,6 +1486,7 @@ const en: UiStrings = {
       'Start one for a trip, a flat, or the two of you. Adding expenses is free and unlimited, forever.',
     activityEmptyBody:
       'Every expense, edit, deletion and settlement lands here — for everyone in the group.',
+    quickActions: 'Quick actions',
     inbox: 'Inbox',
     fromContacts: 'From contacts',
     allSquare: 'All square',
@@ -1512,6 +1565,10 @@ const en: UiStrings = {
     memberNotFound: 'Member not found',
     memberNotFoundBody: 'They may have left the group.',
     admin: 'admin',
+    role: 'Role',
+    makeAdmin: 'Make admin',
+    removeAdmin: 'Remove admin',
+    adminNote: 'Admins can edit the group, manage members, and set the overall budget.',
     you: 'you',
     memberName: 'Member name',
     ghostNote: 'This person holds real balances. When they join, they can claim this history.',
@@ -2090,10 +2147,20 @@ const ta: UiStrings = {
     other: 'மற்றவை',
   },
   plan: 'திட்டம்',
+  tripDay: 'நாள் {day}/{total}',
   planned: 'திட்டமிட்டது',
   spent: 'செலவானது',
   overBudget: 'அதிகம்',
   underBudget: 'குறைவு',
+  budgets: 'பட்ஜெட்',
+  overallBudget: 'மொத்தம்',
+  myBudget: 'என் பட்ஜெட்',
+  budgetAmount: 'தொகை',
+  shareWithGroup: 'குழுவுடன் பகிர்',
+  budgetPrivate: 'எனக்கு மட்டும்',
+  saveBudget: 'சேமி',
+  clearBudget: 'அழி',
+  budgetLeft: 'மீதம்',
   nothingPlannedYet: 'இன்னும் திட்டம் ஏதுமில்லை',
   planEmptyBody:
     'நாட்களையும் செய்யப் போவதையும் சேருங்கள். உண்மையில் ஆன செலவு தானே நிரம்பிக்கொள்ளும்.',
@@ -2177,6 +2244,16 @@ const ta: UiStrings = {
     followPhone: 'என் ஃபோனின் அமைப்பைப் பின்பற்று',
     footnote:
       'அசைவை நிறுத்துவது அசைவுகளைக் குறைப்பதில்லை — அவற்றை நீக்குகிறது. பார்க்க முடியாதவருக்கு வேகமான அசைவும் அசைவுதான்.',
+  },
+  theme: {
+    title: 'தோற்றம்',
+    light: 'வெளிச்சம்',
+    dark: 'இருள்',
+    lightHint: 'வெளிர் லாவெண்டர் திரை.',
+    darkHint: 'இரவில் கண்களுக்கு எளிது.',
+    currently: 'தற்போது {scheme}',
+    followingPhone: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது',
+    footnote: 'உங்கள் ஃபோனைப் பின்பற்றினால், ஃபோன் இருளும்போது ஆப்பும் இருளும்.',
   },
   lock: {
     title: 'பாதுகாப்பு',
@@ -2265,6 +2342,7 @@ const ta: UiStrings = {
     importSplitwise: 'Splitwise இலிருந்து இறக்குமதி',
     importHint: 'CSV ஏற்றுமதியிலிருந்து ஒரு குழுவைக் கொண்டுவா',
     motionRow: 'அசைவு',
+    themeRow: 'தோற்றம்',
     languageFollowingPhone: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — {language}',
     languageRestartHint: '{language} · பிரதிபலிக்க பாக்கியை மீண்டும் திற',
     languageRestartHintBack: '{language} · தளவமைப்பை மீட்க பாக்கியை மீண்டும் திற',
@@ -2421,6 +2499,7 @@ const ta: UiStrings = {
       'ஒரு பயணத்துக்கோ, வீட்டுக்கோ, இருவருக்கோ ஒன்றைத் தொடங்குங்கள். செலவுகளைச் சேர்ப்பது எப்போதும் இலவசம், வரம்பில்லாதது.',
     activityEmptyBody:
       'ஒவ்வொரு செலவும், திருத்தமும், நீக்கமும், தீர்வும் இங்கே வந்து சேரும் — குழுவில் உள்ள அனைவருக்கும்.',
+    quickActions: 'விரைவுச் செயல்கள்',
     inbox: 'அஞ்சல் பெட்டி',
     fromContacts: 'தொடர்புகளிலிருந்து',
     allSquare: 'எல்லாம் சரி',
@@ -2500,6 +2579,10 @@ const ta: UiStrings = {
     memberNotFound: 'உறுப்பினர் கிடைக்கவில்லை',
     memberNotFoundBody: 'அவர்கள் குழுவிலிருந்து விலகியிருக்கலாம்.',
     admin: 'நிர்வாகி',
+    role: 'பங்கு',
+    makeAdmin: 'நிர்வாகியாக்கு',
+    removeAdmin: 'நிர்வாகியை நீக்கு',
+    adminNote: 'நிர்வாகிகள் குழுவைத் திருத்தலாம், உறுப்பினர்களை நிர்வகிக்கலாம், மொத்த பட்ஜெட்டை அமைக்கலாம்.',
     you: 'நீங்கள்',
     memberName: 'உறுப்பினர் பெயர்',
     ghostNote:
@@ -3089,10 +3172,20 @@ const hi: UiStrings = {
     other: 'अन्य',
   },
   plan: 'योजना',
+  tripDay: 'दिन {day}/{total}',
   planned: 'तय किया',
   spent: 'खर्च हुआ',
   overBudget: 'ज़्यादा',
   underBudget: 'कम',
+  budgets: 'बजट',
+  overallBudget: 'कुल',
+  myBudget: 'मेरा बजट',
+  budgetAmount: 'राशि',
+  shareWithGroup: 'ग्रुप के साथ साझा करें',
+  budgetPrivate: 'सिर्फ़ मैं',
+  saveBudget: 'सेव',
+  clearBudget: 'हटाएँ',
+  budgetLeft: 'बचा',
   nothingPlannedYet: 'अभी कोई योजना नहीं',
   planEmptyBody: 'दिन और जो करना है वह जोड़िए। असल में जो लगा वह अपने आप भर जाएगा।',
   whatIsPlanned: 'क्या करना है?',
@@ -3173,6 +3266,16 @@ const hi: UiStrings = {
     followPhone: 'मेरे फ़ोन की सेटिंग मानें',
     footnote:
       'गति बंद करने से एनिमेशन छोटे नहीं होते — वे हट जाते हैं। जो उन्हें देख नहीं सकता, उसके लिए तेज़ एनिमेशन भी एनिमेशन ही है।',
+  },
+  theme: {
+    title: 'रूप-रंग',
+    light: 'हल्का',
+    dark: 'गहरा',
+    lightHint: 'हल्का लैवेंडर पर्दा।',
+    darkHint: 'रात में आँखों के लिए आसान।',
+    currently: 'अभी {scheme}',
+    followingPhone: 'आपके फ़ोन के अनुसार',
+    footnote: 'फ़ोन के अनुसार रखने पर, फ़ोन गहरा होने पर ऐप भी गहरा हो जाता है।',
   },
   lock: {
     title: 'सुरक्षा',
@@ -3258,6 +3361,7 @@ const hi: UiStrings = {
     importSplitwise: 'Splitwise से आयात',
     importHint: 'CSV निर्यात से कोई समूह ले आएँ',
     motionRow: 'गति',
+    themeRow: 'रूप-रंग',
     languageFollowingPhone: 'आपके फ़ोन के अनुसार — {language}',
     languageRestartHint: '{language} · दिशा बदलने के लिए बाकी दोबारा खोलें',
     languageRestartHintBack: '{language} · दिशा वापस लाने के लिए बाकी दोबारा खोलें',
@@ -3407,6 +3511,7 @@ const hi: UiStrings = {
     noGroupsBody:
       'किसी सफ़र, फ़्लैट, या बस आप दोनों के लिए एक शुरू करें। खर्च जोड़ना हमेशा मुफ़्त और असीमित है।',
     activityEmptyBody: 'हर खर्च, बदलाव, हटाना और निपटान यहीं आता है — समूह के हर व्यक्ति के लिए।',
+    quickActions: 'त्वरित क्रियाएँ',
     inbox: 'इनबॉक्स',
     fromContacts: 'संपर्कों से',
     allSquare: 'सब बराबर',
@@ -3484,6 +3589,10 @@ const hi: UiStrings = {
     memberNotFound: 'सदस्य नहीं मिला',
     memberNotFoundBody: 'हो सकता है उन्होंने समूह छोड़ दिया हो।',
     admin: 'एडमिन',
+    role: 'भूमिका',
+    makeAdmin: 'एडमिन बनाएँ',
+    removeAdmin: 'एडमिन हटाएँ',
+    adminNote: 'एडमिन ग्रुप बदल सकते हैं, सदस्य संभाल सकते हैं, और कुल बजट तय कर सकते हैं.',
     you: 'आप',
     memberName: 'सदस्य का नाम',
     ghostNote: 'इस व्यक्ति का असली हिसाब है। जुड़ने पर वे यह इतिहास अपने नाम कर सकते हैं।',
@@ -4065,10 +4174,20 @@ const ar: UiStrings = {
     other: 'أخرى',
   },
   plan: 'الخطة',
+  tripDay: 'اليوم {day} من {total}',
   planned: 'المخطط',
   spent: 'المصروف',
   overBudget: 'زيادة',
   underBudget: 'أقل',
+  budgets: 'الميزانية',
+  overallBudget: 'الإجمالي',
+  myBudget: 'ميزانيتي',
+  budgetAmount: 'المبلغ',
+  shareWithGroup: 'مشاركة مع المجموعة',
+  budgetPrivate: 'لي فقط',
+  saveBudget: 'حفظ',
+  clearBudget: 'مسح',
+  budgetLeft: 'المتبقي',
   nothingPlannedYet: 'لا خطة بعد',
   planEmptyBody: 'أضف الأيام وما تنوي فعله. أما التكلفة الفعلية فتُملأ من تلقاء نفسها.',
   whatIsPlanned: 'ماذا ستفعل؟',
@@ -4148,6 +4267,16 @@ const ar: UiStrings = {
     followPhone: 'اتبع إعداد هاتفي',
     footnote:
       'إيقاف الحركة لا يجعل الحركات أقصر — بل يزيلها. الحركة السريعة تظل حركة لمن لا يستطيع مشاهدتها.',
+  },
+  theme: {
+    title: 'المظهر',
+    light: 'فاتح',
+    dark: 'داكن',
+    lightHint: 'خلفية الخزامى الفاتحة.',
+    darkHint: 'أرفق بالعينين ليلًا.',
+    currently: 'حاليًا {scheme}',
+    followingPhone: 'يتبع هاتفك',
+    footnote: 'اتباع هاتفك يجعل التطبيق يصير داكنًا حين يصير هاتفك داكنًا.',
   },
   lock: {
     title: 'الأمان',
@@ -4257,6 +4386,7 @@ const ar: UiStrings = {
     importSplitwise: 'استيراد من Splitwise',
     importHint: 'أحضر مجموعة من ملف CSV مُصدَّر',
     motionRow: 'الحركة',
+    themeRow: 'المظهر',
     languageFollowingPhone: 'يتبع هاتفك — {language}',
     languageRestartHint: '{language} · أعد فتح باقي لعكس الاتجاه',
     languageRestartHintBack: '{language} · أعد فتح باقي لإعادة الاتجاه',
@@ -4400,6 +4530,7 @@ const ar: UiStrings = {
     noGroupsBody:
       'ابدأ واحدة لرحلة أو لشقة أو لكما أنتما. إضافة المصروفات مجانية وبلا حدود، دائمًا.',
     activityEmptyBody: 'كل مصروف وتعديل وحذف وتسوية يصل إلى هنا — لكل من في المجموعة.',
+    quickActions: 'إجراءات سريعة',
     inbox: 'صندوق الوارد',
     fromContacts: 'من جهات الاتصال',
     allSquare: 'كل شيء متساوٍ',
@@ -4491,6 +4622,10 @@ const ar: UiStrings = {
     memberNotFound: 'العضو غير موجود',
     memberNotFoundBody: 'ربما غادر المجموعة.',
     admin: 'مشرف',
+    role: 'الدور',
+    makeAdmin: 'تعيين كمشرف',
+    removeAdmin: 'إزالة الإشراف',
+    adminNote: 'يمكن للمشرفين تعديل المجموعة وإدارة الأعضاء وتحديد الميزانية الإجمالية.',
     you: 'أنت',
     memberName: 'اسم العضو',
     ghostNote: 'لهذا الشخص أرصدة حقيقية. حين ينضم يمكنه أن يطالب بهذا السجل.',

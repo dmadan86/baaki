@@ -36,6 +36,7 @@ import {
 } from '@baaki/core';
 
 import { AppFrame } from '@/components/AppFrame';
+import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
 import { useStrings } from '@/i18n-context';
@@ -91,7 +92,9 @@ function Settle({ profileId }: { profileId: string }) {
     return (
       <div className="app-body">
         <div className="app-main">
-          <p className="muted">{t.settle.loading}</p>
+          <section className="panel">
+            <SkeletonRows rows={5} />
+          </section>
         </div>
         <aside className="detail" />
       </div>
@@ -189,7 +192,7 @@ function GroupSettle({
   if (loading) {
     return (
       <section className="panel">
-        <p className="muted">{t.settle.loading}</p>
+        <SkeletonRows rows={3} />
       </section>
     );
   }

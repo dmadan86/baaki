@@ -146,21 +146,21 @@ model Profile {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships       GroupMember[]
-  pushTokens        PushToken[]
-  notifications     Notification[]
-  emailEvents       EmailEvent[]
-  createdInvites    Invite[]        @relation("InviteCreatedBy")
-  usageEvents       UsageEvent[]
-  subscriptions     Subscription[]
-  promoRedemptions  PromoRedemption[]
+  memberships         GroupMember[]
+  pushTokens          PushToken[]
+  notifications       Notification[]
+  emailEvents         EmailEvent[]
+  createdInvites      Invite[]             @relation("InviteCreatedBy")
+  usageEvents         UsageEvent[]
+  subscriptions       Subscription[]
+  promoRedemptions    PromoRedemption[]
   campaignImpressions CampaignImpression[]
-  campaignEmailSends CampaignEmailSend[]
-  feedback          Feedback[]
-  purchasedPasses   GroupPass[]
-  syncMutations     SyncMutation[]
-  memberClaims      MemberClaim[]
-  deviceSessions    DeviceSession[]
+  campaignEmailSends  CampaignEmailSend[]
+  feedback            Feedback[]
+  purchasedPasses     GroupPass[]
+  syncMutations       SyncMutation[]
+  memberClaims        MemberClaim[]
+  deviceSessions      DeviceSession[]
 
   @@map("profiles")
   @@schema("public")
@@ -186,6 +186,14 @@ model Group {
   simplifyDebts   Boolean   @default(true) @map("simplify_debts")
   coverEmoji      String?   @map("cover_emoji")
 
+  /// An admin's overall spend ceiling for the trip, in minor units of
+  /// `budgetCurrency`. NULL is "no cap set" — a different thing from zero.
+  /// Group-visible by design: everyone sees the overall budget; only an admin
+  /// sets it. Personal per-member caps live in `trip_member_budgets`, which is
+  /// where privacy lives — this one never is private.
+  budgetMinor    BigInt? @map("budget_minor")
+  budgetCurrency String? @map("budget_currency") @db.Char(3)
+
   /// When the trip is. Both ends inclusive — the last day of a trip is the one
   /// with the most unrecorded spending on it.
   startDate       DateTime? @map("start_date") @db.Date
@@ -199,28 +207,29 @@ model Group {
   remindMorningAt DateTime  @default(dbgenerated("'09:00:00'::time without time zone")) @map("remind_morning_at") @db.Time(6)
   remindEveningAt DateTime  @default(dbgenerated("'21:00:00'::time without time zone")) @map("remind_evening_at") @db.Time(6)
 
-  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
-  createdBy       String?   @map("created_by") @db.Uuid
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdBy  String?   @map("created_by") @db.Uuid
   /// Monotonic per-group counter driving the sync cursor (TDR §4).
-  updatedSeq      BigInt    @default(0) @map("updated_seq")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedSeq BigInt    @default(0) @map("updated_seq")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  members         GroupMember[]
-  invites         Invite[]
-  expenses        Expense[]
-  receipts        Receipt[]
-  settlements     Settlement[]
-  activity        ActivityLog[]
-  reminders       Reminder[]
-  balances        GroupBalance[]
-  pairwise        PairwiseBalance[]
-  notifications   Notification[]
-  usageEvents     UsageEvent[]
-  passes          GroupPass[]
-  planItems       TripPlanItem[]
-  syncMutations   SyncMutation[]
-  memberClaims    MemberClaim[]
+  members       GroupMember[]
+  invites       Invite[]
+  expenses      Expense[]
+  receipts      Receipt[]
+  settlements   Settlement[]
+  activity      ActivityLog[]
+  reminders     Reminder[]
+  balances      GroupBalance[]
+  pairwise      PairwiseBalance[]
+  notifications Notification[]
+  usageEvents   UsageEvent[]
+  passes        GroupPass[]
+  planItems     TripPlanItem[]
+  syncMutations SyncMutation[]
+  memberClaims  MemberClaim[]
+  memberBudgets TripMemberBudget[]
 
   @@index([archivedAt])
   /// The nudge job only ever looks at groups that have said when they are
@@ -233,53 +242,54 @@ model Group {
 /// A member is either a real profile or a ghost (name only) — ADR-006.
 /// Exactly one of profile_id / ghost_name is set (CHECK in migration SQL).
 model GroupMember {
-  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId    String     @map("group_id") @db.Uuid
-  profileId  String?    @map("profile_id") @db.Uuid
-  ghostName  String?    @map("ghost_name")
-  role       MemberRole @default(member)
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId       String     @map("group_id") @db.Uuid
+  profileId     String?    @map("profile_id") @db.Uuid
+  ghostName     String?    @map("ghost_name")
+  role          MemberRole @default(member)
   /// How they got here: 'creator' | 'invite_link' | 'ghost' | 'import'.
-  joinedVia  String?    @map("joined_via")
+  joinedVia     String?    @map("joined_via")
   /// Where this person's invite should go. Lowercased. A hint for one invited
   /// person — never a copy of anybody's address book.
-  inviteEmail String?   @map("invite_email")
+  inviteEmail   String?    @map("invite_email")
   /// E.164 only, e.g. +919876543210.
-  invitePhone String?   @map("invite_phone")
+  invitePhone   String?    @map("invite_phone")
   /// Per-group override of the profile's default VPA. Superseded by
   /// `paymentRail` + `paymentHandle`; kept until the screens move over.
-  vpa        String?
+  vpa           String?
   /// Per-group override of how this person is paid — the same pair as on the
   /// profile. One group settles over UPI and another over Wise, and the person
   /// is the same person.
-  paymentRail   String? @map("payment_rail")
-  paymentHandle String? @map("payment_handle")
-  leftAt     DateTime?  @map("left_at") @db.Timestamptz(6)
-  updatedSeq BigInt     @default(0) @map("updated_seq")
-  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  paymentRail   String?    @map("payment_rail")
+  paymentHandle String?    @map("payment_handle")
+  leftAt        DateTime?  @map("left_at") @db.Timestamptz(6)
+  updatedSeq    BigInt     @default(0) @map("updated_seq")
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  profile    Profile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  profile Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
-  authoredVersions   ExpenseVersion[] @relation("VersionAuthor")
-  paidFor            ExpensePayer[]
-  owes               ExpenseShare[]
-  settlementsSent    Settlement[]     @relation("SettlementFrom")
-  settlementsGot     Settlement[]     @relation("SettlementTo")
-  itemClaims         ReceiptItemClaim[]
-  planItems          TripPlanItem[]
-  activity           ActivityLog[]
-  disputesRaised     ExpenseDispute[] @relation("DisputeRaisedBy")
-  disputesResolved   ExpenseDispute[] @relation("DisputeResolvedBy")
-  remindersSent      Reminder[]       @relation("ReminderFrom")
-  remindersGot       Reminder[]       @relation("ReminderTo")
-  balances           GroupBalance[]
-  pairwiseFrom       PairwiseBalance[] @relation("PairwiseFrom")
-  pairwiseTo         PairwiseBalance[] @relation("PairwiseTo")
-  createdExpenses    Expense[]        @relation("ExpenseCreatedBy")
-  deletedExpenses    Expense[]        @relation("ExpenseDeletedBy")
-  claimsOnThisPlace  MemberClaim[]    @relation("ClaimTarget")
-  claimsDecided      MemberClaim[]    @relation("ClaimDecider")
+  authoredVersions  ExpenseVersion[]   @relation("VersionAuthor")
+  paidFor           ExpensePayer[]
+  owes              ExpenseShare[]
+  settlementsSent   Settlement[]       @relation("SettlementFrom")
+  settlementsGot    Settlement[]       @relation("SettlementTo")
+  itemClaims        ReceiptItemClaim[]
+  planItems         TripPlanItem[]
+  activity          ActivityLog[]
+  disputesRaised    ExpenseDispute[]   @relation("DisputeRaisedBy")
+  disputesResolved  ExpenseDispute[]   @relation("DisputeResolvedBy")
+  remindersSent     Reminder[]         @relation("ReminderFrom")
+  remindersGot      Reminder[]         @relation("ReminderTo")
+  balances          GroupBalance[]
+  pairwiseFrom      PairwiseBalance[]  @relation("PairwiseFrom")
+  pairwiseTo        PairwiseBalance[]  @relation("PairwiseTo")
+  createdExpenses   Expense[]          @relation("ExpenseCreatedBy")
+  deletedExpenses   Expense[]          @relation("ExpenseDeletedBy")
+  claimsOnThisPlace MemberClaim[]      @relation("ClaimTarget")
+  claimsDecided     MemberClaim[]      @relation("ClaimDecider")
+  tripBudget        TripMemberBudget?
 
   @@unique([groupId, profileId])
   @@index([groupId])
@@ -335,8 +345,8 @@ model Invite {
   useCount  Int       @default(0) @map("use_count")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  creator   Profile?  @relation("InviteCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator Profile? @relation("InviteCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([groupId])
   @@map("invites")
@@ -358,11 +368,11 @@ model Expense {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  group          Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  creator        GroupMember?     @relation("ExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  deleter        GroupMember?     @relation("ExpenseDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
-  currentVersion ExpenseVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
-  versions       ExpenseVersion[] @relation("ExpenseVersions")
+  group          Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creator        GroupMember?           @relation("ExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  deleter        GroupMember?           @relation("ExpenseDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
+  currentVersion ExpenseVersion?        @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions       ExpenseVersion[]       @relation("ExpenseVersions")
   allocations    SettlementAllocation[]
   disputes       ExpenseDispute[]
   planItems      TripPlanItem[]
@@ -382,17 +392,17 @@ model Expense {
 /// impossible. One row per person per expense; how their position changed over
 /// time is in `activity_log`.
 model ExpenseDispute {
-  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expenseId String  @map("expense_id") @db.Uuid
-  memberId  String  @map("member_id") @db.Uuid
-  reason    String?
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId          String    @map("expense_id") @db.Uuid
+  memberId           String    @map("member_id") @db.Uuid
+  reason             String?
   /// open | resolved | withdrawn | rejected (CHECK in the migration).
-  status    String  @default("open")
-  resolvedByMemberId String? @map("resolved_by_member_id") @db.Uuid
-  resolutionNote     String? @map("resolution_note")
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
-  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz(6)
+  status             String    @default("open")
+  resolvedByMemberId String?   @map("resolved_by_member_id") @db.Uuid
+  resolutionNote     String?   @map("resolution_note")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  resolvedAt         DateTime? @map("resolved_at") @db.Timestamptz(6)
 
   expense    Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   member     GroupMember  @relation("DisputeRaisedBy", fields: [memberId], references: [id], onDelete: Cascade)
@@ -406,34 +416,34 @@ model ExpenseDispute {
 
 /// Immutable. An edit inserts a new version; nothing is ever updated in place.
 model ExpenseVersion {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expenseId        String    @map("expense_id") @db.Uuid
-  versionNo        Int       @map("version_no")
-  authorMemberId   String?   @map("author_member_id") @db.Uuid
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId        String        @map("expense_id") @db.Uuid
+  versionNo        Int           @map("version_no")
+  authorMemberId   String?       @map("author_member_id") @db.Uuid
   description      String
   category         String?
-  expenseDate      DateTime  @map("expense_date") @db.Date
-  currency         String    @db.Char(3)
+  expenseDate      DateTime      @map("expense_date") @db.Date
+  currency         String        @db.Char(3)
   amount           BigInt
-  splitType        SplitType @map("split_type")
+  splitType        SplitType     @map("split_type")
   /// Weights / percents / adjustments / item claims — the server recomputes
   /// shares from this and rejects any client that disagrees (TDR §4).
-  splitParams      Json      @map("split_params")
+  splitParams      Json          @map("split_params")
   /// {num, den, ts, source} when the expense currency ≠ the group currency.
   fx               Json?
-  receiptId        String?   @map("receipt_id") @db.Uuid
+  receiptId        String?       @map("receipt_id") @db.Uuid
   notes            String?
   /// Idempotency key from the offline mutation queue (ADR-005).
-  clientMutationId String?   @unique @map("client_mutation_id") @db.Uuid
+  clientMutationId String?       @unique @map("client_mutation_id") @db.Uuid
   source           ExpenseSource @default(manual)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  expense       Expense        @relation("ExpenseVersions", fields: [expenseId], references: [id], onDelete: Cascade)
-  currentOf     Expense?       @relation("CurrentVersion")
-  author        GroupMember?   @relation("VersionAuthor", fields: [authorMemberId], references: [id], onDelete: SetNull)
-  receipt       Receipt?       @relation(fields: [receiptId], references: [id], onDelete: SetNull)
-  payers        ExpensePayer[]
-  shares        ExpenseShare[]
+  expense   Expense        @relation("ExpenseVersions", fields: [expenseId], references: [id], onDelete: Cascade)
+  currentOf Expense?       @relation("CurrentVersion")
+  author    GroupMember?   @relation("VersionAuthor", fields: [authorMemberId], references: [id], onDelete: SetNull)
+  receipt   Receipt?       @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  payers    ExpensePayer[]
+  shares    ExpenseShare[]
 
   @@unique([expenseId, versionNo])
   @@index([expenseId])
@@ -499,18 +509,18 @@ model Receipt {
 
 /// Live item claiming — each participant taps their own lines (ADR-008).
 model ReceiptItemClaim {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  receiptId String   @map("receipt_id") @db.Uuid
-  itemIndex Int      @map("item_index")
-  memberId  String   @map("member_id") @db.Uuid
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptId  String    @map("receipt_id") @db.Uuid
+  itemIndex  Int       @map("item_index")
+  memberId   String    @map("member_id") @db.Uuid
   /// Tombstone rather than a delete: an observed-remove set converges, a
   /// delete-to-unclaim set does not. NULL means the claim stands.
   releasedAt DateTime? @map("released_at") @db.Timestamptz(6)
   /// Bumped on every claim and release, so two devices racing on one line
   /// resolve deterministically instead of by whichever arrived last.
-  revision  Int      @default(1)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  revision   Int       @default(1)
+  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   receipt Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   member  GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
@@ -866,13 +876,13 @@ model PromoRedemption {
 /// that must not leak: a holdout who knows they are a holdout has stopped being
 /// a control group.
 model Campaign {
-  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      String
   /// What the person reads. On the campaign rather than in the app's string
   /// table because it changes per campaign and is written by whoever runs one.
   title     String
-  body      String @default("")
-  ctaLabel  String @default("") @map("cta_label")
+  body      String  @default("")
+  ctaLabel  String  @default("") @map("cta_label")
   /// NULL is allowed — an announcement that gives nothing away is still a
   /// campaign.
   promoCode String? @map("promo_code")
@@ -1032,15 +1042,15 @@ model DeviceSession {
 /// One group, thirty days, bought by one person and enjoyed by everybody in
 /// it — the shape that fits how Baaki is actually used.
 model GroupPass {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId      String   @map("group_id") @db.Uuid
-  purchasedBy  String?  @map("purchased_by") @db.Uuid
-  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6)
-  store        String   @default("play")
-  storeTxnId   String?  @unique @map("store_txn_id")
-  priceMinor   BigInt?  @map("price_minor")
-  currency     String?  @db.Char(3)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String   @map("group_id") @db.Uuid
+  purchasedBy String?  @map("purchased_by") @db.Uuid
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  store       String   @default("play")
+  storeTxnId  String?  @unique @map("store_txn_id")
+  priceMinor  BigInt?  @map("price_minor")
+  currency    String?  @db.Char(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   purchaser Profile? @relation(fields: [purchasedBy], references: [id], onDelete: SetNull)
@@ -1081,6 +1091,35 @@ model TripPlanItem {
 
   @@index([groupId, day, position], map: "trip_plan_items_group_day_idx")
   @@map("trip_plan_items")
+  @@schema("public")
+}
+
+/// One member's personal spend ceiling for a trip.
+///
+/// A cap of its own, per member, so privacy is row-level and RLS can do the
+/// gating the app must not be trusted to: a `private` row is simply never
+/// returned to anybody but its owner, so a co-member's direct read cannot see
+/// it. `group` makes the cap — and the progress bar built from it — visible to
+/// the whole group. What a person *spent* is not stored here and is never
+/// private; it is the sum of their `ExpenseShare` rows, which the shared ledger
+/// already shows everyone. Only the target this cap sets is hidden.
+model TripMemberBudget {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String   @map("group_id") @db.Uuid
+  memberId    String   @unique @map("member_id") @db.Uuid
+  /// The ceiling, in minor units of `currency`. Zero is allowed; negative is not.
+  amountMinor BigInt   @map("amount_minor")
+  currency    String   @default("INR") @db.Char(3)
+  /// 'private' (owner-only) | 'group' (whole group). CHECK in migration SQL.
+  visibility  String   @default("private")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group  Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@map("trip_member_budgets")
   @@schema("public")
 }
 

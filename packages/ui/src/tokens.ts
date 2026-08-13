@@ -89,6 +89,11 @@ export const palette = {
 export const gradients = {
   light: [palette.brand700, palette.brand500, '#8148D8'],
   dark: ['#3A2585', '#5B41C9', '#7E52C9'],
+  // A second, unmistakably-blue wash for the paired action tile — vibrant like
+  // the reference's yellow second tile, but kept off the money hues (mint/red)
+  // and off warning amber so it never reads as a status. Every stop holds white.
+  accentLight: ['#0369A1', '#2563EB', '#4F46E5'],
+  accentDark: ['#0C4A6E', '#1E40AF', '#3730A3'],
 } as const;
 
 /** The pastel family, in the order groups cycle through it. */

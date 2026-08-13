@@ -328,6 +328,11 @@ export function ContactPicker({
               ref={listRef}
               data={sections.entries}
               extraData={picked}
+              // The picker lives inside the members screen's own ScrollView. On
+              // Android a parent ScrollView swallows a nested list's vertical
+              // drag unless the inner list claims it — without this the contact
+              // list simply will not scroll.
+              nestedScrollEnabled
               stickyHeaderIndices={sections.sticky}
               // Headings and people are different shapes; telling the list so
               // lets it recycle each against its own kind instead of throwing

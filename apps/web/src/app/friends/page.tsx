@@ -15,6 +15,7 @@ import Link from 'next/link';
 import type { PersonBalanceRow } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
 import { plural } from '@/i18n';
@@ -68,7 +69,7 @@ function Friends({ query }: { query: string }) {
 
         <section className="panel">
           {loading ? (
-            <p className="muted">{t.friends.loading}</p>
+            <SkeletonRows rows={6} />
           ) : shown.length === 0 ? (
             <p className="muted">{t.friends.empty}</p>
           ) : (

@@ -121,7 +121,7 @@ export function SignIn() {
                 placeholder={t.dash.emailPlaceholder}
                 onChange={(e) => setEmail(e.target.value)}
                 aria-label={t.dash.emailPlaceholder}
-                style={{ marginBottom: 12, textAlign: 'center' }}
+                style={{ textAlign: 'start' }}
               />
               <input
                 type="password"
@@ -130,9 +130,9 @@ export function SignIn() {
                 placeholder={t.dash.passwordPlaceholder}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-label={t.dash.passwordPlaceholder}
-                style={{ marginBottom: 12, textAlign: 'center' }}
+                style={{ textAlign: 'start' }}
               />
-              <button type="submit" className="btn soft block" disabled={busy !== null}>
+              <button type="submit" className="btn block" disabled={busy !== null}>
                 {busy === 'password'
                   ? t.dash.signingIn
                   : mode === 'sign_up'

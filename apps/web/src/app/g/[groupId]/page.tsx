@@ -24,6 +24,7 @@ import {
 } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
 import { plural } from '@/i18n';
@@ -77,11 +78,23 @@ function GroupDetail({ profileId, query }: { profileId: string; query: string })
 
   if (loading) {
     return (
-      <div className="app-body">
+      <div className="app-body" aria-hidden>
         <div className="app-main">
-          <p className="muted">{t.group.loading}</p>
+          {[0, 1].map((panel) => (
+            <section key={panel} className="panel">
+              <div className="panel-head">
+                <span className="sk sk-head" />
+              </div>
+              <SkeletonRows rows={panel === 0 ? 3 : 5} />
+            </section>
+          ))}
         </div>
-        <aside className="detail" />
+        <aside className="detail">
+          <div className="detail-hero">
+            <span className="sk sk-avatar" />
+            <span className="sk sk-line" style={{ width: 130, margin: '0 auto' }} />
+          </div>
+        </aside>
       </div>
     );
   }

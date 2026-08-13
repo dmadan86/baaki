@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,11 +13,28 @@ export interface PillTabItem {
   icon: (color: string, focused: boolean) => ReactNode;
 }
 
-/** A destination's touch target. 44 is the floor both platforms ask for. */
-const ITEM_HEIGHT = 44;
+/**
+ * The centred, raised primary action — the circle that sits proud of the
+ * capsule in the reference board. It is not a destination, so it is a button
+ * rather than a tab: tapping it starts something rather than moving you.
+ */
+export interface PillTabAction {
+  icon: (color: string) => ReactNode;
+  onPress: () => void;
+  accessibilityLabel: string;
+}
 
-/** The capsule itself: one touch target plus the padding wrapped around it. */
+/** One destination: an icon over its label. 48 clears both comfortably. */
+const ITEM_HEIGHT = 48;
+
+/** The capsule itself: the item column plus the padding wrapped around it. */
 const BAR_HEIGHT = ITEM_HEIGHT + spacing.sm * 2;
+
+/** The raised action circle. */
+const ACTION_SIZE = 58;
+
+/** How far the action lifts above the capsule's top edge. */
+const ACTION_LIFT = 16;
 
 /** How far the capsule floats above whatever sits below it. */
 const FLOAT = spacing.lg;
@@ -41,27 +58,46 @@ export function useTabBarClearance(): number {
 
 /**
  * The floating pill navigation from the reference boards: a white capsule that
- * hovers over the content, with the active destination expanding into a filled
- * purple pill that also shows its label.
+ * hovers over the content, its destinations drawn as an icon over a label. When
+ * a `centerAction` is given, the items split around a raised circle in the
+ * middle — the primary workflow action, sitting proud of the bar so it reads as
+ * "do", not "go".
  *
- * `animated` gives each destination a dip under the finger and fades its label
- * in as it becomes active. It defaults off so the bar is still and deterministic
- * unless a caller opts in — the tabs layout passes the app's motion preference,
- * so a phone with reduce-motion set keeps the plain switch.
+ * `animated` gives each target a dip under the finger. It defaults off so the
+ * bar is still and deterministic unless a caller opts in — the tabs layout
+ * passes the app's motion preference, so a phone with reduce-motion set keeps
+ * the plain switch.
  */
 export function PillTabBar({
   items,
   activeKey,
   onSelect,
   animated = false,
+  centerAction,
 }: {
   items: readonly PillTabItem[];
   activeKey: string;
   onSelect: (key: string) => void;
   animated?: boolean;
+  centerAction?: PillTabAction;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+
+  // Even halves around the action; with an odd count the extra item sits left.
+  const split = centerAction ? Math.floor(items.length / 2) : items.length;
+  const left = items.slice(0, split);
+  const right = items.slice(split);
+
+  const renderItem = (item: PillTabItem): ReactNode => (
+    <TabItem
+      key={item.key}
+      item={item}
+      focused={item.key === activeKey}
+      animated={animated}
+      onSelect={onSelect}
+    />
+  );
 
   return (
     <View
@@ -77,23 +113,24 @@ export function PillTabBar({
         bottom: insets.bottom + FLOAT,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         backgroundColor: theme.color.surface,
         borderRadius: theme.radius.pill,
-        paddingHorizontal: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
         paddingVertical: theme.spacing.sm,
         ...theme.shadow.lifted,
       }}
     >
-      {items.map((item) => (
-        <TabItem
-          key={item.key}
-          item={item}
-          focused={item.key === activeKey}
-          animated={animated}
-          onSelect={onSelect}
-        />
-      ))}
+      <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around' }}>
+        {left.map(renderItem)}
+      </View>
+
+      {centerAction ? <CenterAction action={centerAction} animated={animated} /> : null}
+
+      {centerAction ? (
+        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around' }}>
+          {right.map(renderItem)}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -111,27 +148,10 @@ function TabItem({
 }) {
   const theme = useTheme();
 
-  // Built on core Animated, both on the native driver: the press scale and the
-  // label fade are transform and opacity, which the UI thread owns, so neither
-  // waits on JavaScript. Kept out of the UI package's dependencies on purpose —
-  // this is the one bit of motion the shared kit needs, and it does not need a
-  // whole animation library to get it.
+  // Core Animated on the native driver: the press scale is a transform the UI
+  // thread owns, so it never waits on JavaScript. Kept out of the UI package's
+  // dependencies on purpose — the one bit of motion the shared kit needs.
   const scale = useRef(new Animated.Value(1)).current;
-  const labelOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
-
-  useEffect(() => {
-    if (!focused) return;
-    if (!animated) {
-      labelOpacity.setValue(1);
-      return;
-    }
-    labelOpacity.setValue(0);
-    Animated.timing(labelOpacity, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  }, [focused, animated, labelOpacity]);
 
   const press = (to: number): void => {
     if (!animated) return;
@@ -155,24 +175,66 @@ function TabItem({
     >
       <Animated.View
         style={{
-          flexDirection: 'row',
           alignItems: 'center',
-          gap: focused ? theme.spacing.sm : 0,
-          paddingHorizontal: focused ? theme.spacing.lg : theme.spacing.md,
+          justifyContent: 'center',
+          gap: 3,
           height: ITEM_HEIGHT,
-          borderRadius: theme.radius.pill,
-          backgroundColor: focused ? theme.color.brand : 'transparent',
+          minWidth: 56,
           transform: [{ scale }],
         }}
       >
-        {item.icon(focused ? theme.color.onBrand : theme.color.textMuted, focused)}
-        {focused ? (
-          <Animated.View style={{ opacity: labelOpacity }}>
-            <Text variant="caption" tone="onBrand">
-              {item.label}
-            </Text>
-          </Animated.View>
-        ) : null}
+        {item.icon(focused ? theme.color.brand : theme.color.textMuted, focused)}
+        <Text
+          variant="micro"
+          tone={focused ? 'brand' : 'muted'}
+          style={{ fontWeight: focused ? '700' : '600' }}
+        >
+          {item.label}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function CenterAction({ action, animated }: { action: PillTabAction; animated: boolean }) {
+  const theme = useTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const press = (to: number): void => {
+    if (!animated) return;
+    Animated.spring(scale, {
+      toValue: to,
+      damping: 18,
+      stiffness: 280,
+      mass: 0.5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={action.accessibilityLabel}
+      onPress={action.onPress}
+      onPressIn={() => press(0.92)}
+      onPressOut={() => press(1)}
+      // The lift is on the Pressable, not just the visual, so the touch target
+      // travels up with the circle rather than staying down in the capsule.
+      style={{ marginHorizontal: theme.spacing.sm, transform: [{ translateY: -ACTION_LIFT }] }}
+    >
+      <Animated.View
+        style={{
+          width: ACTION_SIZE,
+          height: ACTION_SIZE,
+          borderRadius: ACTION_SIZE / 2,
+          backgroundColor: theme.color.brand,
+          alignItems: 'center',
+          justifyContent: 'center',
+          transform: [{ scale }],
+          ...theme.shadow.soft,
+        }}
+      >
+        {action.icon(theme.color.onBrand)}
       </Animated.View>
     </Pressable>
   );

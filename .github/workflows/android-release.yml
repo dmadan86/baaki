@@ -1,0 +1,70 @@
+name: Android release
+
+# Build the production AAB and submit it to Google Play in one EAS pass
+# (--auto-submit). Fires on a version tag, or by hand.
+#
+# Secrets:
+#   EXPO_TOKEN                    Expo access token.
+#   GOOGLE_SERVICE_ACCOUNT_KEY   The full JSON of a Play Console service account
+#                                with the Play Developer API enabled. Written to
+#                                the path eas.json's submit config points at.
+#
+# The Play track is set in eas.json (submit.production.android.track); it starts
+# at `internal` so a tag never rolls straight to the public track by accident.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: build + submit to Play
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      # eas.json references ./google-service-account.json; materialise it from
+      # the secret. Gitignored so it never lands in a commit.
+      - name: Write Play service account key
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY" > google-service-account.json
+
+      # Build the store AAB (production profile, autoIncrement remote) and, once
+      # it finishes, submit it to the configured Play track.
+      - name: Build and submit
+        run: |
+          eas build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --auto-submit
+
+      - name: Scrub key
+        if: ${{ always() }}
+        run: rm -f google-service-account.json

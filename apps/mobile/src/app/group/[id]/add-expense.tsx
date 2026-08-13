@@ -13,7 +13,7 @@ import {
   type SplitParams,
 } from '@baaki/core';
 import {
-  AmountKeypad,
+  AmountField,
   Avatar,
   Button,
   Callout,
@@ -461,10 +461,10 @@ export default function AddExpenseScreen() {
         ) : null}
 
         <Card>
-          <AmountKeypad currency={currency} value={amount} onChange={setAmount} />
+          <AmountField currency={currency} value={amount} onChange={setAmount} />
         </Card>
 
-        {/* Below the keypad, not above it. Typing a number is the fast path and
+        {/* Below the amount, not above it. Typing a number is the fast path and
             stays the first thing on the screen; the camera is for the bill that
             is easier to point at than to read. */}
         <Card style={{ gap: theme.spacing.md }}>

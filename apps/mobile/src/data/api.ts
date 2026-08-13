@@ -693,6 +693,19 @@ export async function updateMember(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Promote a member to admin, or demote one back. Admin-only and last-admin
+ * safety live in the RPC — a role is never a column a client writes, so this
+ * cannot go through `updateMember` (a trigger would reject it).
+ */
+export async function setMemberRole(memberId: string, role: 'admin' | 'member'): Promise<void> {
+  const { error } = await supabase.rpc('baaki_set_member_role', {
+    p_member_id: memberId,
+    p_role: role,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /** Leaving is a soft exit: history stays, the person stops accruing new shares. */
 export async function leaveGroup(memberId: string): Promise<void> {
   const { error } = await supabase
@@ -1348,6 +1361,86 @@ export async function setPlanItemDone(itemId: string, done: boolean): Promise<vo
 
 export async function removePlanItem(itemId: string): Promise<void> {
   const { error } = await supabase.rpc('baaki_remove_plan_item', { p_item_id: itemId });
+  if (error) throw new Error(error.message);
+}
+
+// ─────────────────────────────────────────────────────────── trip budgets ──
+
+/**
+ * A member's personal trip budget. The read is governed by RLS: a `private`
+ * row belonging to somebody else is never returned here, so this list is
+ * already what the caller is allowed to see — the client does no filtering of
+ * its own, because a client that filtered would be trusted to, and it is not.
+ */
+export interface MemberBudgetRow {
+  id: string;
+  group_id: string;
+  member_id: string;
+  amount_minor: string;
+  currency: string;
+  visibility: 'private' | 'group';
+}
+
+export async function fetchMemberBudgets(groupId: string): Promise<MemberBudgetRow[]> {
+  const { data, error } = await supabase
+    .from('trip_member_budgets')
+    .select('id, group_id, member_id, amount_minor, currency, visibility')
+    .eq('group_id', groupId);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as MemberBudgetRow[];
+}
+
+/** The overall trip budget, read straight off the group. NULL amount is unset. */
+export interface GroupBudget {
+  amountMinor: bigint | null;
+  currency: string | null;
+}
+
+export async function fetchGroupBudget(groupId: string): Promise<GroupBudget> {
+  const { data, error } = await supabase
+    .from('groups')
+    .select('budget_minor, budget_currency')
+    .eq('id', groupId)
+    .single();
+  if (error) throw new Error(error.message);
+  return {
+    amountMinor: data?.budget_minor == null ? null : BigInt(data.budget_minor),
+    currency: data?.budget_currency ?? null,
+  };
+}
+
+/** Set or change the caller's own budget, and whether the group can see it. */
+export async function setMyTripBudget(input: {
+  groupId: string;
+  amountMinor: bigint;
+  currency?: string | null;
+  visibility: 'private' | 'group';
+}): Promise<void> {
+  const { error } = await supabase.rpc('baaki_set_my_trip_budget', {
+    p_group_id: input.groupId,
+    p_amount_minor: input.amountMinor.toString(),
+    p_currency: input.currency ?? null,
+    p_visibility: input.visibility,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function clearMyTripBudget(groupId: string): Promise<void> {
+  const { error } = await supabase.rpc('baaki_clear_my_trip_budget', { p_group_id: groupId });
+  if (error) throw new Error(error.message);
+}
+
+/** Admin only, enforced in the RPC. NULL amount clears the overall budget. */
+export async function setGroupBudget(input: {
+  groupId: string;
+  amountMinor: bigint | null;
+  currency?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.rpc('baaki_set_group_budget', {
+    p_group_id: input.groupId,
+    p_amount_minor: input.amountMinor == null ? null : input.amountMinor.toString(),
+    p_currency: input.currency ?? null,
+  });
   if (error) throw new Error(error.message);
 }
 
