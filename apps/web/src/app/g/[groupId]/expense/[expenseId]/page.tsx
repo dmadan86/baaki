@@ -23,6 +23,7 @@ import {
 } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
 import { fill } from '@/i18n';
@@ -100,9 +101,14 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
 
   if (loading) {
     return (
-      <div className="app-body">
+      <div className="app-body" aria-hidden>
         <div className="app-main">
-          <p className="muted">{t.dash.loading}</p>
+          <section className="panel">
+            <div className="panel-head">
+              <span className="sk sk-head" />
+            </div>
+            <SkeletonRows rows={4} />
+          </section>
         </div>
         <aside className="detail" />
       </div>

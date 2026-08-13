@@ -32,25 +32,41 @@
   --color-positive: #0e9f6e;
   --color-negative: #e5484d;
 
-  /* Full-client pastel palette */
-  --color-app-surface: #fffdfb;
-  --color-panel: #fbf7f3;
-  --color-ink: #20180f;
-  --color-ink-muted: #6d6459;
-  --color-ink-faint: #9c9389;
-  --color-line: #efe6dd;
-  --color-line-strong: #e4d8cc;
-  --color-pill: #f0e8e0;
+  /* ── Full web client: the developer-portal palette (Port) ──
+   * A dark left rail against a light canvas of white, hairline-bordered
+   * widgets. One indigo accent owns every active state and primary action;
+   * money colour stays semantic (owed green, you-owe raspberry). */
+  --color-canvas: #f4f5f7; /* the page behind the cards (flat fallback) */
+  /* The canvas itself: a soft lavender→pink wash the white widgets float on. */
+  --gradient-canvas: linear-gradient(135deg, #dcd9fb 0%, #cfcbf6 28%, #e6d3ee 60%, #f9dcec 100%);
+  --color-app-surface: #ffffff; /* a card */
+  --color-panel: #f8f9fb; /* an inset inside a card */
+  --color-ink: #171a23;
+  --color-ink-muted: #5a6472;
+  --color-ink-faint: #98a1b0;
+  --color-line: #e7e9ee;
+  --color-line-strong: #d7dae1;
+  --color-pill: #eef0f4; /* hover wash / chips */
+
+  --color-accent: #5b50f0; /* the one indigo */
+  --color-accent-600: #4a3fe0;
+  --color-accent-soft: #eeecfe;
+
+  --color-sidebar: #14161f; /* the dark rail */
+  --color-sidebar-2: #1f222e; /* a hovered rail item */
+  --color-sidebar-ink: #c3c8d4;
+  --color-sidebar-faint: #7c8393;
+
   --color-owed: #0e9f6e; /* owed-to-you, the one green */
   --color-owe: #d21f5b; /* you-owe, raspberry (UX/color audit) */
 
-  --radius-app: 22px;
-  --radius-card: 18px;
+  --radius-app: 14px;
+  --radius-card: 12px;
 
-  --shadow-card: 0 8px 24px rgb(30 20 80 / 0.08);
-  --shadow-app: 0 24px 60px rgb(80 45 20 / 0.14);
-  --shadow-signin: 0 24px 60px rgb(80 45 20 / 0.16);
-  --shadow-menu: 0 12px 30px rgb(80 45 20 / 0.16);
+  --shadow-card: 0 1px 2px rgb(17 20 30 / 0.06), 0 1px 3px rgb(17 20 30 / 0.05);
+  --shadow-app: 0 1px 3px rgb(17 20 30 / 0.06);
+  --shadow-signin: 0 10px 40px rgb(17 20 30 / 0.12);
+  --shadow-menu: 0 10px 30px rgb(17 20 30 / 0.18);
 }
 
 /*
@@ -159,65 +175,118 @@
     @apply border-brand bg-brand-100 text-brand-600;
   }
 
-  /* ── The full web client, a pastel dashboard (PLAN.md / ADR-006) ── */
+  /* ── The full web client, a developer-portal dashboard (PLAN.md / ADR-006) ── */
   .app {
-    @apply min-h-screen p-[18px];
-    background-image: var(--tint-paper);
+    @apply min-h-screen;
+    background: var(--gradient-canvas) fixed;
   }
   .app-shell {
-    @apply mx-auto max-w-[1240px] overflow-hidden rounded-app bg-app-surface shadow-app;
+    @apply grid min-h-screen;
+    grid-template-columns: 244px 1fr;
   }
 
-  .topnav {
-    @apply flex items-center gap-5 border-b border-line px-6 py-4;
-  }
+  /* The wordmark, shared with the sign-in card. */
   .brand {
     @apply flex items-center gap-[9px] whitespace-nowrap text-[18px] font-bold text-ink;
   }
+
+  /* The dark left rail: brand, navigation, account. */
+  .sidebar {
+    @apply sticky top-0 flex h-screen flex-col gap-1 px-3 py-4;
+    background: var(--color-sidebar);
+  }
+  .side-brand {
+    @apply mb-3 flex items-center gap-[9px] whitespace-nowrap px-2 text-[18px] font-bold text-white;
+  }
   .brand-mark {
-    @apply grid h-[30px] w-[30px] place-items-center rounded-[9px] text-[16px];
-    background: var(--tint-lilac);
+    @apply grid h-[30px] w-[30px] place-items-center rounded-[9px] text-[15px] font-bold text-white;
+    background: var(--color-accent);
   }
 
-  .navtabs {
-    @apply flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none];
+  .side-nav {
+    @apply flex flex-1 flex-col gap-[3px];
   }
-  .navtabs::-webkit-scrollbar {
-    display: none;
+  .side-link {
+    @apply flex items-center gap-3 rounded-[10px] px-3 py-[10px] text-[14px] font-medium no-underline;
+    color: var(--color-sidebar-ink);
   }
-  .navtab {
-    @apply w-auto cursor-pointer appearance-none whitespace-nowrap rounded-full border-0 bg-transparent px-[15px] py-[9px] text-[14.5px] font-medium text-ink-muted no-underline;
+  .side-link:hover {
+    background: var(--color-sidebar-2);
+    @apply text-white;
   }
-  .navtab:hover {
-    @apply bg-pill text-ink;
+  .side-link[aria-current='true'] {
+    background: var(--color-accent);
+    @apply text-white;
   }
-  .navtab[aria-current='true'],
-  .navtab[aria-current='true']:hover {
-    @apply bg-ink text-white;
+  .side-ico {
+    @apply grid h-[20px] w-[20px] flex-none place-items-center text-[15px];
   }
 
-  .nav-right {
-    @apply flex items-center gap-[10px];
+  /* The account, pinned to the foot of the rail, its menu rising above it. */
+  .side-foot {
+    @apply relative mt-1 border-t pt-2;
+    border-color: rgb(255 255 255 / 0.08);
+  }
+  .side-account {
+    @apply flex w-full cursor-pointer items-center gap-[10px] rounded-[10px] border-0 bg-transparent px-2 py-2 text-start;
+  }
+  .side-account:hover {
+    background: var(--color-sidebar-2);
+  }
+  .side-account .grow {
+    @apply min-w-0 flex-1;
+  }
+  .side-account-name {
+    @apply block overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold text-white;
+  }
+  .side-account-role {
+    @apply block text-[11.5px];
+    color: var(--color-sidebar-faint);
+  }
+  .side-account-caret {
+    @apply flex-none text-[16px];
+    color: var(--color-sidebar-faint);
+  }
+  .side-menu {
+    @apply absolute inset-x-2 bottom-[calc(100%+6px)] rounded-[10px] p-1;
+    background: var(--color-sidebar-2);
+    box-shadow: var(--shadow-menu);
+  }
+  .side-menu-item {
+    @apply block w-full cursor-pointer rounded-[7px] border-0 bg-transparent px-3 py-2 text-start text-[13.5px] font-medium;
+    color: var(--color-sidebar-ink);
+  }
+  .side-menu-item:hover {
+    background: rgb(255 255 255 / 0.06);
+    @apply text-white;
+  }
+
+  /* The light working column: a top bar, then the widgets. */
+  .main-col {
+    @apply flex min-w-0 flex-col;
+  }
+  .topbar {
+    @apply sticky top-0 z-10 flex items-center gap-4 border-b border-line px-7 py-[14px];
+    background: rgb(255 255 255 / 0.85);
+    backdrop-filter: saturate(1.2) blur(8px);
+  }
+  .topbar-title {
+    @apply m-0 flex-1 text-[19px] font-bold text-ink [letter-spacing:-0.2px];
   }
   .search {
-    @apply flex min-w-[200px] items-center gap-2 rounded-full bg-pill px-[14px] py-2;
+    @apply flex min-w-[220px] items-center gap-2 rounded-[9px] border border-line bg-panel px-[12px] py-[7px];
   }
   .search input {
-    @apply w-full border-0 bg-transparent p-0 text-[14px];
+    @apply w-full border-0 bg-transparent p-0 text-[14px] text-ink;
   }
   .search input:focus {
     @apply outline-none;
   }
 
-  .icon-btn {
-    @apply grid h-[38px] w-[38px] flex-none cursor-pointer place-items-center rounded-full border border-line-strong bg-app-surface p-0 text-[16px] text-ink-muted;
-  }
-  .icon-btn:hover {
-    @apply bg-pill;
-  }
   .avatar {
-    @apply grid flex-none place-items-center overflow-hidden rounded-full font-semibold text-ink;
-    background: var(--tint-blue);
+    @apply grid flex-none place-items-center overflow-hidden rounded-[9px] text-[13px] font-semibold text-white;
+    @apply h-[34px] w-[34px];
+    background: var(--color-accent);
   }
   .avatar img {
     @apply h-full w-full object-cover;
@@ -227,17 +296,20 @@
     @apply grid grid-cols-[1fr_320px];
   }
   .app-main {
-    @apply min-w-0 px-6 pb-10 pt-[22px];
+    @apply min-w-0 px-7 pb-10 pt-6;
   }
   .detail {
-    @apply border-l border-line bg-panel px-5 pb-10 pt-[22px];
+    @apply border-l border-line px-5 pb-10 pt-6;
+    background: transparent;
   }
 
   .page-head {
     @apply mb-[18px] flex flex-wrap items-baseline justify-between gap-3;
   }
+  /* The top bar already names the page; the canvas heading would just say it a
+     second time, so it drops out and the subtitle carries the context alone. */
   .page-head h1 {
-    @apply text-[24px] [letter-spacing:-0.3px];
+    @apply hidden;
   }
   .page-head .sub {
     @apply text-[14px] text-ink-muted;
@@ -247,54 +319,53 @@
     @apply mb-[22px] grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-[14px];
   }
   .stat {
-    @apply relative flex min-h-[118px] flex-col gap-[6px] rounded-card px-[17px] py-4 text-ink;
+    @apply relative flex min-h-[108px] flex-col gap-[6px] rounded-card border border-line bg-app-surface px-[18px] py-4 text-ink shadow-card;
   }
-  .stat.tint-peach {
+  /* The tint no longer floods the card — it colours the little icon badge, so a
+     row of widgets reads as white cards with a dab of colour each, not blocks. */
+  .stat.tint-peach .stat-badge {
     background: var(--tint-peach);
   }
-  .stat.tint-blue {
+  .stat.tint-blue .stat-badge {
     background: var(--tint-blue);
   }
-  .stat.tint-lilac {
+  .stat.tint-lilac .stat-badge {
     background: var(--tint-lilac);
   }
-  .stat.tint-rose {
+  .stat.tint-rose .stat-badge {
     background: var(--tint-rose);
   }
-  .stat.tint-mint {
+  .stat.tint-mint .stat-badge {
     background: var(--tint-mint);
   }
-  .stat.tint-amber {
+  .stat.tint-amber .stat-badge {
     background: var(--tint-amber);
   }
   .stat-top {
-    @apply flex items-center gap-2 text-[13px] font-semibold;
-    color: rgb(32 24 15 / 0.72);
+    @apply flex items-center gap-2 text-[12px] font-semibold uppercase [letter-spacing:0.3px] text-ink-muted;
   }
   .stat-badge {
     @apply grid h-[26px] w-[26px] place-items-center rounded-lg text-[14px];
-    background: rgb(255 255 255 / 0.55);
+    background: var(--color-pill);
   }
   .stat-value {
     @apply text-[27px] font-bold [font-variant-numeric:tabular-nums] [letter-spacing:-0.5px];
   }
   .stat-sub {
-    @apply text-[12.5px];
-    color: rgb(32 24 15 / 0.6);
+    @apply text-[12.5px] text-ink-muted;
   }
   .stat-extra {
-    @apply text-[12px] [font-variant-numeric:tabular-nums];
-    color: rgb(32 24 15 / 0.66);
+    @apply text-[12px] text-ink-faint [font-variant-numeric:tabular-nums];
   }
 
   .panel {
-    @apply mb-4 rounded-card border border-line bg-app-surface px-[18px] py-4;
+    @apply mb-[18px] rounded-card border border-line bg-app-surface px-[18px] py-[14px] shadow-card;
   }
   .panel-head {
-    @apply mb-3 flex items-center justify-between;
+    @apply mb-1 flex items-center justify-between border-b border-line pb-[10px];
   }
   .panel-head h2 {
-    @apply text-[15px] text-ink;
+    @apply text-[14px] font-semibold text-ink;
   }
   .panel-head .link {
     @apply w-auto cursor-pointer border-0 bg-none p-0 text-[13px] text-ink-muted no-underline;
@@ -307,7 +378,7 @@
     @apply flex flex-col;
   }
   .item {
-    @apply flex w-full cursor-pointer items-center gap-3 rounded-xl border-0 bg-none px-2 py-[11px] text-start text-inherit;
+    @apply flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-0 bg-transparent px-2 py-[11px] text-start text-inherit;
   }
   .item:hover,
   .item[aria-pressed='true'] {
@@ -317,7 +388,7 @@
     @apply border-t border-line;
   }
   .item .grow {
-    @apply min-w-0 flex-1;
+    @apply flex min-w-0 flex-1 flex-col;
   }
   .item .title {
     @apply overflow-hidden text-ellipsis whitespace-nowrap text-[14.5px] font-semibold text-ink;
@@ -340,6 +411,62 @@
 
   .tile-emoji {
     @apply grid h-[38px] w-[38px] flex-none place-items-center rounded-[11px] bg-pill text-[18px];
+  }
+
+  /* Skeleton — the dashboard's shape while the server's numbers are still in
+     flight. A shimmer, not a spinner, so the page reads as "this is loading
+     here" rather than a blank hold. Each block stands in for a real element at
+     its real size, so nothing jumps when the data lands. */
+  .sk {
+    @apply block rounded-[7px];
+    background: linear-gradient(
+      90deg,
+      var(--color-pill) 25%,
+      var(--color-line) 37%,
+      var(--color-pill) 63%
+    );
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.3s ease-in-out infinite;
+  }
+  @keyframes sk-shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sk {
+      animation: none;
+    }
+  }
+  .sk-badge {
+    @apply h-[26px] w-[26px] rounded-lg;
+  }
+  .sk-emoji {
+    @apply h-[38px] w-[38px] flex-none rounded-[11px];
+  }
+  .sk-sub {
+    @apply h-[14px] w-[120px];
+  }
+  .sk-value {
+    @apply mt-1 h-[24px] w-[96px];
+  }
+  .sk-title {
+    @apply mb-[7px] h-[13px] w-[55%];
+  }
+  .sk-meta {
+    @apply h-[11px] w-[34%];
+  }
+  .sk-amount {
+    @apply h-[15px] w-[64px] flex-none;
+  }
+  .sk-head {
+    @apply h-[14px] w-[128px];
+  }
+  .sk-avatar {
+    @apply mx-auto mb-3 h-[84px] w-[84px] rounded-full;
+  }
+  .sk-line {
+    @apply h-[13px];
   }
 
   .detail-empty {
@@ -368,16 +495,20 @@
   }
 
   .btn {
-    @apply inline-flex w-auto cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 bg-ink px-[18px] py-[11px] text-[14px] font-semibold text-white no-underline;
+    @apply inline-flex w-auto cursor-pointer appearance-none items-center justify-center gap-2 rounded-[9px] border-0 px-[18px] py-[10px] text-[14px] font-semibold text-white no-underline;
+    background: var(--color-accent);
   }
   .btn:hover {
-    @apply opacity-[0.92];
+    background: var(--color-accent-600);
   }
   .btn.block {
     @apply w-full;
   }
   .btn.soft {
     @apply bg-pill text-ink;
+  }
+  .btn.soft:hover {
+    @apply bg-pill opacity-90;
   }
   .btn.google {
     @apply border border-line-strong bg-white text-[#1f1f1f];
@@ -439,10 +570,10 @@
 
   .signin-wrap {
     @apply grid min-h-screen place-items-center p-6;
-    background-image: var(--tint-paper);
+    background: var(--gradient-canvas) fixed;
   }
   .signin-card {
-    @apply w-full max-w-[380px] rounded-app bg-app-surface px-[30px] py-[34px] text-center shadow-signin;
+    @apply w-full max-w-[400px] rounded-app border border-line bg-app-surface px-[32px] py-[36px] text-center shadow-signin;
   }
   .signin-card .brand {
     @apply mb-2 justify-center text-[22px];
@@ -451,63 +582,118 @@
     @apply mb-[22px] text-[14px];
   }
   .signin-card .btn {
-    @apply mb-[10px] w-full px-[18px] py-[13px] text-[15px];
+    @apply mb-[10px] w-full px-[18px] py-[12px] text-[15px];
+  }
+  /* Port-style boxed fields, overriding the shared underline input. */
+  .signin-card input {
+    @apply mb-3 rounded-[9px] border border-line-strong bg-app-surface px-[13px] py-[11px] text-[15px];
+  }
+  .signin-card input:focus {
+    @apply outline-none;
+    border-color: var(--color-accent);
   }
   .signin-or {
     @apply mx-0 mb-[10px] mt-[14px] text-[12px] text-ink-faint;
   }
+  .linklike {
+    @apply mb-[6px] cursor-pointer border-0 bg-transparent text-[13px] underline;
+    color: var(--color-accent);
+  }
+  .linklike:disabled {
+    @apply cursor-default opacity-60;
+  }
 
   .spinner-page {
     @apply grid min-h-screen place-items-center text-ink-faint;
-    background-image: var(--tint-paper);
+    background: var(--gradient-canvas) fixed;
   }
 }
 
 /*
- * Responsive. The base layout is the two-column desktop dashboard; these
- * breakpoints fold it down. At the tablet width the right-hand detail panel
- * drops beneath the main column and the nav's search collapses; at the phone
- * width the app runs edge to edge and every inset tightens so a 320px screen
+ * Responsive. The base layout is the rail-and-canvas desktop dashboard; these
+ * breakpoints fold it down. At the tablet width the rail lies down into a
+ * horizontal strip across the top and the right-hand detail panel drops beneath
+ * the main column; at the phone width every inset tightens so a 320px screen
  * never has to scroll sideways.
  */
 @media (max-width: 900px) {
-  .app {
-    @apply p-3;
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+  .side-brand {
+    margin: 0;
+  }
+  .side-nav {
+    flex: 1;
+    flex-direction: row;
+    gap: 3px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .side-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .side-link {
+    white-space: nowrap;
+    padding: 8px 12px;
+  }
+  .side-foot {
+    margin: 0;
+    border-top: 0;
+    border-inline-start: 1px solid rgb(255 255 255 / 0.08);
+    padding: 0 0 0 8px;
+  }
+  .side-account-name,
+  .side-account-role,
+  .side-account-caret {
+    display: none;
+  }
+  .side-menu {
+    inset-inline: auto;
+    inset-inline-end: 8px;
+    bottom: auto;
+    top: calc(100% + 6px);
+    min-width: 160px;
   }
   .app-body {
-    @apply grid-cols-[1fr];
+    grid-template-columns: 1fr;
   }
   .detail {
-    @apply border-l-0 border-t border-line;
-  }
-  .search {
-    @apply hidden;
+    border-inline-start: 0;
+    border-top: 1px solid var(--color-line);
   }
 }
 
 @media (max-width: 560px) {
-  .app {
-    @apply p-0;
+  .topbar {
+    padding: 10px 16px;
   }
-  .app-shell {
-    @apply rounded-none;
+  .topbar-title {
+    font-size: 16px;
   }
-  .topnav {
-    @apply gap-3 px-4 py-3;
+  .search {
+    min-width: 0;
   }
   .app-main {
-    @apply px-4 pb-8 pt-4;
+    padding: 16px;
   }
   .detail {
-    @apply px-4;
-  }
-  .page-head h1 {
-    @apply text-[20px];
+    padding-inline: 16px;
   }
   .stat-value {
-    @apply text-[23px];
-  }
-  .btn {
-    @apply px-[15px];
+    font-size: 23px;
   }
 }

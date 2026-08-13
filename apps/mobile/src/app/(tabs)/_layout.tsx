@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 
 import { PillTabBar, type PillTabItem } from '@baaki/ui';
 
@@ -49,6 +49,11 @@ export default function TabsLayout() {
           activeKey={state.routes[state.index]?.name ?? 'index'}
           onSelect={(key) => navigation.navigate(key)}
           animated={animated}
+          centerAction={{
+            accessibilityLabel: t.newGroup,
+            icon: (color) => <Ionicons name="add" size={30} color={color} />,
+            onPress: () => router.push('/new-group'),
+          }}
         />
       )}
     >

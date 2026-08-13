@@ -24,9 +24,11 @@ import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { usePullRefresh } from '@/lib/pullRefresh';
 
 export default function ActivityScreen() {
   const theme = useTheme();
+  const pull = usePullRefresh();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const { session } = useAuth();
@@ -58,8 +60,8 @@ export default function ActivityScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={activity.isFetching && !activity.isLoading}
-            onRefresh={() => void activity.refetch()}
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
             tintColor={theme.color.brand}
           />
         }

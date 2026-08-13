@@ -236,12 +236,17 @@ export default function MembersScreen() {
                 leading={<Avatar name={displayName(member)} ghost={isGhost(member)} />}
                 onPress={() => router.push(`/group/${groupId}/member/${member.id}`)}
                 trailing={
-                  <MoneyText
-                    amount={ledger.balances.get(member.id) ?? 0n}
-                    currency={currency}
-                    locale={locale}
-                    mode="balance"
-                  />
+                  <Row style={{ gap: theme.spacing.sm }}>
+                    {member.role === 'admin' && !isGhost(member) ? (
+                      <Badge label={t.people.admin} tone="brand" />
+                    ) : null}
+                    <MoneyText
+                      amount={ledger.balances.get(member.id) ?? 0n}
+                      currency={currency}
+                      locale={locale}
+                      mode="balance"
+                    />
+                  </Row>
                 }
               />
               {index < (members.data?.length ?? 0) - 1 ? (

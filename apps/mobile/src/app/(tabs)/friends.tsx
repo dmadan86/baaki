@@ -39,9 +39,11 @@ import {
 import { fetchPeopleBalances, nudgeToSettle, type PersonBalanceRow } from '@/data/api';
 import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings } from '@/i18n';
+import { usePullRefresh } from '@/lib/pullRefresh';
 
 export default function FriendsScreen() {
   const theme = useTheme();
+  const pull = usePullRefresh();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
 
@@ -65,8 +67,8 @@ export default function FriendsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={people.isFetching && !people.isLoading}
-            onRefresh={() => void people.refetch()}
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
             tintColor={theme.color.brand}
           />
         }

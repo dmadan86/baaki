@@ -137,10 +137,11 @@ export default function SignInScreen() {
   }
 
   /**
-   * The welcome: the wordmark on a coloured sweep, one sentence, and the button
-   * that gets somebody straight into a ledger. ADR-006 says nobody registers
-   * before they can split a bill, so "carry on as a guest" *is* the primary
-   * action here rather than the small print under a sign-up form.
+   * The welcome: the wordmark on a coloured sweep, the language in the corner,
+   * and the three ways in — sign in, sign up, or carry on as a guest — with the
+   * social marks under them. ADR-006 says nobody registers before they can split
+   * a bill, so the guest way stays on this first screen rather than behind a
+   * form; it is only quieter than the two account buttons, not hidden.
    */
   if (!showOptions) {
     return (
@@ -171,57 +172,119 @@ export default function SignInScreen() {
           </View>
         </CurvedPanel>
 
+        {/* The language sits in the corner of the hero — reachable from the
+            first frame for somebody who opened the app in a script they cannot
+            read, without taking a line in the action column. */}
         <View
           style={{
-            flex: 1,
-            justifyContent: 'center',
-            paddingHorizontal: theme.spacing.xxxl,
-            gap: theme.spacing.lg,
-          }}
-        >
-          <Text variant="display" align="center">
-            {t.signIn.splitAnything}
-          </Text>
-          <Text variant="body" tone="muted" align="center">
-            {`${t.freeForever}. ${t.signIn.welcomeBody}`}
-          </Text>
-
-          <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.md }}>
-            <Button
-              label={t.signIn.startNow}
-              size="lg"
-              fullWidth
-              disabled={busy}
-              onPress={() => void run(continueAsGuest)}
-            />
-            <Button
-              label={t.signIn.haveAccount}
-              variant="ghost"
-              fullWidth
-              onPress={() => setShowOptions(true)}
-            />
-          </View>
-
-          {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
-          {error ? <Callout tone="negative">{error}</Callout> : null}
-        </View>
-
-        {/* Under the buttons, not above them. The decision this screen exists
-            to get is "start now"; the language is the one thing somebody might
-            have to fix before they can read it, which earns a place on the
-            screen but not the top of it. */}
-        <View
-          style={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: theme.spacing.xxxl,
-            gap: theme.spacing.md,
+            position: 'absolute',
+            top: Constants.statusBarHeight + theme.spacing.sm,
+            right: theme.spacing.xl,
+            zIndex: 10,
           }}
         >
           <LanguagePicker />
-          <Text variant="micro" tone="faint" align="center">
-            Baaki {Constants.expoConfig?.version ?? ''}
-          </Text>
         </View>
+
+        {/* Below the curve, the ways in — centred in the space the hero leaves.
+            A ScrollView so a short screen scrolls rather than clipping. */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            paddingHorizontal: theme.spacing.xxxl,
+            paddingTop: theme.spacing.xxl,
+            paddingBottom: theme.spacing.xl,
+          }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ gap: theme.spacing.xl }}>
+            <View style={{ gap: theme.spacing.sm }}>
+              <Button
+                label={t.signIn.signInAction}
+                size="lg"
+                fullWidth
+                disabled={busy}
+                onPress={() => {
+                  setIntent('sign_in');
+                  setMode('password');
+                  setShowOptions(true);
+                }}
+              />
+              <Button
+                label={t.signIn.createAccount}
+                variant="secondary"
+                size="lg"
+                fullWidth
+                disabled={busy}
+                onPress={() => {
+                  setIntent('sign_up');
+                  setMode('password');
+                  setShowOptions(true);
+                }}
+              />
+              {/* ADR-006: nobody is made to register before splitting a bill, so
+                  the guest way in stays on the first screen — quieter than the
+                  two account buttons, never hidden. */}
+              <Button
+                label={t.signIn.continueGuest}
+                variant="ghost"
+                fullWidth
+                disabled={busy}
+                onPress={() => void run(continueAsGuest)}
+              />
+            </View>
+
+            {/* A hairline either side of the label, not bare text — the seam
+                between "have an account" above and "one tap" below. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+              <Text variant="caption" tone="muted">
+                {t.signIn.orSignInWith}
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+            </View>
+
+            {/* The social marks up front, one tap in without a form — the same
+                providers the options screen offers. */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: theme.spacing.xl,
+              }}
+            >
+              <ProviderTile
+                label={t.signIn.signInApple}
+                disabled={busy}
+                onPress={() => void run(withApple)}
+              >
+                <Ionicons name="logo-apple" size={26} color={theme.color.text} />
+              </ProviderTile>
+              <ProviderTile
+                label={t.signIn.signInGoogle}
+                disabled={busy}
+                onPress={() => void run(withGoogle)}
+              >
+                <Ionicons name="logo-google" size={26} color={theme.color.text} />
+              </ProviderTile>
+            </View>
+
+            {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
+            {error ? <Callout tone="negative">{error}</Callout> : null}
+
+            <Text
+              variant="micro"
+              tone="faint"
+              align="center"
+              style={{ paddingTop: theme.spacing.xs }}
+            >
+              Baaki {Constants.expoConfig?.version ?? ''}
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -530,15 +593,17 @@ function ProviderTile({
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => ({
-        width: 64,
-        height: 64,
-        borderRadius: theme.radius.md,
+        width: 96,
+        height: 60,
+        borderRadius: theme.radius.lg,
         borderWidth: 1,
         borderColor: theme.color.border,
         backgroundColor: theme.color.surface,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: disabled ? 0.5 : pressed ? 0.7 : 1,
+        opacity: disabled ? 0.5 : 1,
+        transform: [{ scale: pressed ? 0.97 : 1 }],
+        ...theme.shadow.soft,
       })}
     >
       {children}

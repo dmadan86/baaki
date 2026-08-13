@@ -38,6 +38,8 @@ export interface Theme {
   readonly gradient: {
     /** Stops for the brand wash, in paint order. */
     readonly brand: readonly string[];
+    /** A second, blue wash for the paired action tile. */
+    readonly accent: readonly string[];
   };
   readonly tint: Readonly<Record<TintName, TintPair>>;
   readonly radius: typeof radius;
@@ -90,7 +92,7 @@ const lightTheme: Theme = {
     warning: palette.warning,
     warningSoft: palette.peach,
   },
-  gradient: { brand: gradients.light },
+  gradient: { brand: gradients.light, accent: gradients.accentLight },
   tint: lightTints,
   radius,
   spacing,
@@ -121,7 +123,7 @@ const darkTheme: Theme = {
     warning: '#E8A54B',
     warningSoft: '#463020',
   },
-  gradient: { brand: gradients.dark },
+  gradient: { brand: gradients.dark, accent: gradients.accentDark },
   tint: darkTints,
 };
 

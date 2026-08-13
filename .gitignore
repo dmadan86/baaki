@@ -38,6 +38,10 @@ coverage/
 # local web export used for visual checks
 .tmp-web-export/
 
+# Play Store service-account key, written from a CI secret at release time
+google-service-account.json
+**/google-service-account.json
+
 # generated: core bundled for the Deno edge runtime
 supabase/functions/_shared/core.js
 packages/core/dist/
@@ -67,3 +71,6 @@ apps/web/playwright-report/
 apps/web/test-results/
 apps/web/blob-report/
 apps/web/playwright/.cache/
+
+.vercel
+.env*

@@ -16,6 +16,7 @@ import Link from 'next/link';
 import type { ActivityGroup, ActivityRow } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { describeActivity, verbEmoji } from '@/lib/activity';
 import { useStrings } from '@/i18n-context';
@@ -64,7 +65,7 @@ function ActivityFeed({ profileId, query }: { profileId: string; query: string }
 
         <section className="panel">
           {loading ? (
-            <p className="muted">{t.activity.loading}</p>
+            <SkeletonRows rows={7} amount={false} />
           ) : shown.length === 0 ? (
             <p className="muted">{t.activity.empty}</p>
           ) : (

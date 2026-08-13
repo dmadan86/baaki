@@ -25,6 +25,7 @@ import {
 import { totalsByCurrency, type CurrencyTotals } from '@baaki/core';
 
 import { baaki } from '@/lib/baaki';
+import { SkeletonRows } from '@/components/Skeleton';
 import { money } from '@/lib/money';
 import { describeActivity, verbEmoji } from '@/lib/activity';
 import { plural, type PluralForms } from '@/i18n';
@@ -134,14 +135,7 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
   const selected = groupNets.find((entry) => entry.group.id === effectiveId) ?? null;
 
   if (loading) {
-    return (
-      <div className="app-body">
-        <div className="app-main">
-          <p className="muted">{t.dash.loading}</p>
-        </div>
-        <aside className="detail" />
-      </div>
-    );
+    return <OverviewSkeleton />;
   }
 
   if (error) {
@@ -286,6 +280,57 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
           currencyLabel={t.dash.currencyLabel}
           settledLabel={t.dash.settledUp}
         />
+      </aside>
+    </div>
+  );
+}
+
+/**
+ * The dashboard's shape held open while the numbers load — same grid, same
+ * card sizes, so the real content drops in without the layout jumping. Purely
+ * decorative, so it's hidden from the accessibility tree.
+ */
+function OverviewSkeleton() {
+  return (
+    <div className="app-body" aria-hidden>
+      <div className="app-main">
+        <div className="page-head">
+          <span className="sk sk-sub" />
+        </div>
+
+        <div className="stat-grid">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="stat">
+              <div className="stat-top">
+                <span className="sk sk-badge" />
+                <span className="sk sk-line" style={{ width: 84 }} />
+              </div>
+              <span className="sk sk-value" />
+            </div>
+          ))}
+        </div>
+
+        {[0, 1].map((panel) => (
+          <section key={panel} className="panel">
+            <div className="panel-head">
+              <span className="sk sk-head" />
+            </div>
+            <SkeletonRows rows={3} />
+          </section>
+        ))}
+      </div>
+
+      <aside className="detail">
+        <div className="detail-hero">
+          <span className="sk sk-avatar" />
+          <span className="sk sk-line" style={{ width: 130, margin: '0 auto' }} />
+        </div>
+        {[0, 1].map((f) => (
+          <div key={f} className="detail-field">
+            <span className="sk sk-line" style={{ width: 70 }} />
+            <span className="sk sk-line" style={{ width: 90 }} />
+          </div>
+        ))}
       </aside>
     </div>
   );

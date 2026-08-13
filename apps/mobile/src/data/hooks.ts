@@ -46,12 +46,15 @@ import {
   fetchMemberClaims,
   decideMemberClaim,
   fetchPlanItems,
+  fetchMemberBudgets,
+  fetchGroupBudget,
   markNotificationsRead,
   recordSettlement,
   resolveDispute,
   leaveGroup,
   updateGroup,
   updateMember,
+  setMemberRole,
   withdrawDispute,
   type WriteExpenseInput,
 } from './api';
@@ -71,6 +74,8 @@ export const keys = {
   disputes: (id: string) => ['group', id, 'disputes'] as const,
   spending: (id: string) => ['group', id, 'spending'] as const,
   memberClaims: (id: string) => ['group', id, 'member-claims'] as const,
+  memberBudgets: (id: string) => ['group', id, 'member-budgets'] as const,
+  groupBudget: (id: string) => ['group', id, 'budget'] as const,
 };
 
 /**
@@ -732,6 +737,16 @@ export function useUpdateMember(groupId: string) {
   });
 }
 
+/** Promote a member to admin, or demote back. Guards live in the RPC. */
+export function useSetMemberRole(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, role }: { memberId: string; role: 'admin' | 'member' }) =>
+      setMemberRole(memberId, role),
+    onSuccess: () => invalidateGroup(queryClient, groupId),
+  });
+}
+
 export function useLeaveGroup(groupId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -745,6 +760,29 @@ export function usePlanItems(groupId: string) {
   return useQuery({
     queryKey: ['plan', groupId],
     queryFn: () => fetchPlanItems(groupId),
+    enabled: groupId !== '',
+  });
+}
+
+/**
+ * Personal trip budgets for the group. RLS decides what comes back: the
+ * caller's own row always, plus anybody who shared theirs with the group. A
+ * private budget belonging to somebody else is never in this list — the screen
+ * cannot render, and cannot leak, what it never received.
+ */
+export function useMemberBudgets(groupId: string) {
+  return useQuery({
+    queryKey: keys.memberBudgets(groupId),
+    queryFn: () => fetchMemberBudgets(groupId),
+    enabled: groupId !== '',
+  });
+}
+
+/** The overall trip budget, read straight off the group row. */
+export function useGroupBudget(groupId: string) {
+  return useQuery({
+    queryKey: keys.groupBudget(groupId),
+    queryFn: () => fetchGroupBudget(groupId),
     enabled: groupId !== '',
   });
 }

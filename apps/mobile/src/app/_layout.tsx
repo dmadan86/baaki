@@ -20,6 +20,7 @@ import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
 import { UpdateProvider } from '@/lib/update';
 import { initClarity } from '@/lib/clarity';
 import { initObservability, withObservability } from '@/lib/observability';
@@ -119,30 +120,32 @@ function RootLayout() {
                 <LockProvider>
                   <MotionProvider>
                     <UpdateProvider>
-                      <ThemeProvider>
-                        <StatusBar style="auto" />
-                        {/* Outside the lock and the auth gate on purpose: a build
+                      <ThemePreferenceProvider>
+                        <ThemedRoot>
+                          <ThemedStatusBar />
+                          {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                        <UpdateGate>
-                          <PushRouting />
-                          <LockGate>
-                            {/* Inside the lock so the two-device gate never
+                          <UpdateGate>
+                            <PushRouting />
+                            <LockGate>
+                              {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                            <DeviceSessionProvider>
-                              <AuthGate />
-                              {/* Inside the lock on purpose: a promotion is not a
+                              <DeviceSessionProvider>
+                                <AuthGate />
+                                {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                              <CampaignPopup />
-                            </DeviceSessionProvider>
-                          </LockGate>
-                          {/* Last, so it paints over the screen rather than
+                                <CampaignPopup />
+                              </DeviceSessionProvider>
+                            </LockGate>
+                            {/* Last, so it paints over the screen rather than
                               under it. */}
-                          <UpdateBanner />
-                        </UpdateGate>
-                      </ThemeProvider>
+                            <UpdateBanner />
+                          </UpdateGate>
+                        </ThemedRoot>
+                      </ThemePreferenceProvider>
                     </UpdateProvider>
                   </MotionProvider>
                 </LockProvider>
@@ -156,6 +159,28 @@ function RootLayout() {
 }
 
 export default withObservability(RootLayout);
+
+/**
+ * Bridges the stored scheme preference into the design system.
+ *
+ * `ThemeProvider` already reads the OS scheme on its own, so a null preference
+ * (follow the phone) passes `undefined` and lets it — only an explicit light or
+ * dark choice forces its hand.
+ */
+function ThemedRoot({ children }: { children: React.ReactNode }) {
+  const { preference } = useThemePreference();
+  return <ThemeProvider forceScheme={preference ?? undefined}>{children}</ThemeProvider>;
+}
+
+/**
+ * The status bar's icons, following the scheme actually in force — light icons
+ * on the dark canvas, dark on the light. `style="auto"` reads the OS instead,
+ * so an overridden theme would leave it inverted against its own background.
+ */
+function ThemedStatusBar() {
+  const theme = useTheme();
+  return <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />;
+}
 
 /**
  * Sends a tapped notification where it points.
@@ -337,6 +362,7 @@ function AuthGate() {
       <Stack.Screen name="settings/lock" />
       <Stack.Screen name="settings/devices" />
       <Stack.Screen name="settings/motion" />
+      <Stack.Screen name="settings/theme" />
       <Stack.Screen name="settings/language" />
       <Stack.Screen name="settings/upgrade" />
       <Stack.Screen name="settings/redeem" />

@@ -22,7 +22,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { useGroup, useGroupLedger, useUpdateMember } from '@/data/hooks';
+import { useGroup, useGroupLedger, useSetMemberRole, useUpdateMember } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
@@ -38,9 +38,11 @@ export default function MemberScreen() {
   const { group, members, expenses } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const updateMember = useUpdateMember(groupId);
+  const setRole = useSetMemberRole(groupId);
 
   const member = members.data?.find((row) => row.id === memberId);
   const isMe = member?.profile_id === profile?.id;
+  const iAmAdmin = members.data?.find((row) => row.profile_id === profile?.id)?.role === 'admin';
   const currency = group.data?.default_currency ?? 'INR';
 
   const [name, setName] = useState(member?.ghost_name ?? '');
@@ -198,6 +200,39 @@ export default function MemberScreen() {
             </Row>
             <Text variant="micro" tone="faint">
               {t.people.upiForGroupNote}
+            </Text>
+          </Card>
+        ) : null}
+
+        {/* An admin can make another real member an admin, or take it back. Not
+            for a ghost (no account to act with) and not for yourself. The
+            server refuses demoting the last admin — the button offers it, the
+            RPC is what actually keeps the rule. */}
+        {iAmAdmin && !isMe && !ghost ? (
+          <Card style={{ gap: theme.spacing.sm }}>
+            <Text variant="caption" tone="muted">
+              {t.people.role}
+            </Text>
+            <Button
+              label={member.role === 'admin' ? t.people.removeAdmin : t.people.makeAdmin}
+              variant="secondary"
+              disabled={setRole.isPending}
+              onPress={() =>
+                setRole.mutate(
+                  {
+                    memberId: member.id,
+                    role: member.role === 'admin' ? 'member' : 'admin',
+                  },
+                  {
+                    onSuccess: () => setStatus(t.account.saved),
+                    onError: (caught) =>
+                      setStatus(caught instanceof Error ? caught.message : String(caught)),
+                  },
+                )
+              }
+            />
+            <Text variant="micro" tone="faint">
+              {t.people.adminNote}
             </Text>
           </Card>
         ) : null}

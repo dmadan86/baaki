@@ -7,6 +7,12 @@ export interface GradientProps {
   children?: ReactNode;
   /** Corner radius; defaults to the card radius so it drops into a layout. */
   radius?: number;
+  /**
+   * The stops, dark corner to light. Defaults to the brand wash; pass a theme
+   * gradient (e.g. `theme.gradient.accent`) for a second-hued tile. The flat
+   * fallback paints the first stop, so the first colour must hold white text.
+   */
+  colors?: readonly string[];
   style?: ViewStyle;
 }
 
@@ -34,13 +40,16 @@ export interface GradientProps {
  * Either way the balance stays legible, still white on purple, and nobody sees
  * a red box because a decoration was unavailable.
  */
-export function Gradient({ children, radius, style }: GradientProps) {
+export function Gradient({ children, radius, colors, style }: GradientProps) {
   const theme = useTheme();
   const LinearGradient = loadLinearGradient();
   const borderRadius = radius ?? theme.radius.md;
+  const stops = colors ?? theme.gradient.brand;
 
   const flat = (
-    <View style={[{ backgroundColor: theme.color.brand, borderRadius }, style]}>{children}</View>
+    <View style={[{ backgroundColor: stops[0] ?? theme.color.brand, borderRadius }, style]}>
+      {children}
+    </View>
   );
 
   if (!LinearGradient) return flat;
@@ -48,7 +57,7 @@ export function Gradient({ children, radius, style }: GradientProps) {
   return (
     <GradientBoundary fallback={flat}>
       <LinearGradient
-        colors={theme.gradient.brand}
+        colors={stops}
         // Top-left to bottom-right: the reference sweeps diagonally, and a
         // vertical wash on a short card reads as a printing error.
         start={{ x: 0, y: 0 }}

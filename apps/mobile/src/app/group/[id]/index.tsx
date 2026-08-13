@@ -45,11 +45,13 @@ import { GroupMenu } from '@/components/GroupMenu';
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { PendingMark } from '@/components/PendingMark';
 import { SyncBanner } from '@/components/SyncBanner';
+import { usePullRefresh } from '@/lib/pullRefresh';
 
 type Tab = 'expenses' | 'balances' | 'activity';
 
 export default function GroupScreen() {
   const theme = useTheme();
+  const pull = usePullRefresh();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -118,12 +120,8 @@ export default function GroupScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={expenses.isFetching && !expenses.isLoading}
-              onRefresh={() => {
-                void expenses.refetch();
-                void settlements.refetch();
-                void activity.refetch();
-              }}
+              refreshing={pull.refreshing}
+              onRefresh={pull.onRefresh}
               tintColor={theme.color.brand}
             />
           }
@@ -399,9 +397,18 @@ export default function GroupScreen() {
                     <Row style={{ gap: theme.spacing.md }}>
                       <Avatar name={displayName(member)} ghost={isGhost(member)} size={40} />
                       <View style={{ flex: 1 }}>
-                        <Text variant="subheading" numberOfLines={1} style={{ color: rowInk }}>
-                          {displayName(member, profile?.id)}
-                        </Text>
+                        <Row style={{ gap: theme.spacing.sm }}>
+                          <Text
+                            variant="subheading"
+                            numberOfLines={1}
+                            style={{ color: rowInk, flexShrink: 1 }}
+                          >
+                            {displayName(member, profile?.id)}
+                          </Text>
+                          {member.role === 'admin' && !isGhost(member) ? (
+                            <Badge label={t.people.admin} tone="brand" />
+                          ) : null}
+                        </Row>
                         <Text variant="caption" numberOfLines={1} style={{ color: rowInkMuted }}>
                           {isGhost(member)
                             ? t.notJoinedYet
