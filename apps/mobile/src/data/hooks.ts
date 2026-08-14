@@ -15,6 +15,7 @@ import { randomUUID } from 'expo-crypto';
 import {
   computeNetBalances,
   computePairwiseBalances,
+  materialiseArchivedGroups,
   materialiseCaptures,
   materialiseExpenses,
   materialiseGroups,
@@ -131,6 +132,21 @@ export function useGroups(): LocalRead<GroupRow[]> {
   const { mirror, queue } = useSync();
   const groups = useMemo(
     () => materialiseGroups(mirror, queue) as unknown as GroupRow[],
+    [mirror, queue],
+  );
+  return useLocalRead(groups);
+}
+
+/**
+ * The archived groups, read local-first like everything else (ADR-005). These
+ * are the groups `useGroups` hides; the archived screen is their only way back
+ * into view, and unarchiving one (an ordinary group.update clearing
+ * `archived_at`) drops it out of this list and back into `useGroups` at once.
+ */
+export function useArchivedGroups(): LocalRead<GroupRow[]> {
+  const { mirror, queue } = useSync();
+  const groups = useMemo(
+    () => materialiseArchivedGroups(mirror, queue) as unknown as GroupRow[],
     [mirror, queue],
   );
   return useLocalRead(groups);

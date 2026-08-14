@@ -438,10 +438,7 @@ export interface MirrorGroup extends MirrorRow {
   readonly pending?: boolean;
 }
 
-export function materialiseGroups(
-  state: MirrorState,
-  queue: readonly QueuedMutation[],
-): MirrorGroup[] {
+function buildGroups(state: MirrorState, queue: readonly QueuedMutation[]): MirrorGroup[] {
   const byId = new Map<string, MirrorGroup>();
   for (const row of rowsFor(state, SyncTable.Groups) as MirrorGroup[]) byId.set(row.id, row);
 
@@ -485,9 +482,36 @@ export function materialiseGroups(
     }
   }
 
-  return [...byId.values()]
+  return [...byId.values()];
+}
+
+/**
+ * The active groups — everything not archived, newest first. The dashboard and
+ * every summary read through here, so archiving a group drops it out of all of
+ * them at once.
+ */
+export function materialiseGroups(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+): MirrorGroup[] {
+  return buildGroups(state, queue)
     .filter((group) => !group.archived_at)
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+}
+
+/**
+ * The archived groups — the ones `materialiseGroups` hides — newest-archived
+ * first, so the archive reads as a most-recent-on-top history. Unarchiving is
+ * an ordinary group.update clearing `archived_at`, so the same queue overlay
+ * moves a group back into the active list the instant the row is tapped.
+ */
+export function materialiseArchivedGroups(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+): MirrorGroup[] {
+  return buildGroups(state, queue)
+    .filter((group) => Boolean(group.archived_at))
+    .sort((a, b) => String(b.archived_at ?? '').localeCompare(String(a.archived_at ?? '')));
 }
 
 // ───────────────────────────────────────────────── captures (A34) ──

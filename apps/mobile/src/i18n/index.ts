@@ -682,6 +682,13 @@ export interface UiStrings {
     archiveQuestion: string;
     archiveBody: string;
     archive: string;
+    /** The archived-groups screen, its empty state, and the way back. */
+    archivedTitle: string;
+    archivedEmpty: string;
+    archivedEmptyBody: string;
+    unarchive: string;
+    /** Caption on an archived row — `{date}` is when it was archived. */
+    archivedOn: string;
     nobodyOwes: string;
     recordedNotMoved: string;
   };
@@ -1741,6 +1748,11 @@ const en: UiStrings = {
     archiveBody:
       'It disappears from your list but nothing is deleted, and anyone can unarchive it.',
     archive: 'Archive',
+    archivedTitle: 'Archived groups',
+    archivedEmpty: 'Nothing archived',
+    archivedEmptyBody: 'Groups you archive show up here, ready to bring back.',
+    unarchive: 'Unarchive',
+    archivedOn: 'Archived {date}',
     nobodyOwes: 'Nobody owes anybody in this group.',
     recordedNotMoved: 'Recorded, not moved by Baaki',
   },
@@ -2872,6 +2884,12 @@ const ta: UiStrings = {
     archiveBody:
       'இது உங்கள் பட்டியலிலிருந்து மறையும், ஆனால் எதுவும் அழிக்கப்படாது, யார் வேண்டுமானாலும் மீண்டும் கொண்டுவரலாம்.',
     archive: 'காப்பகப்படுத்து',
+    archivedTitle: 'காப்பகக் குழுக்கள்',
+    archivedEmpty: 'காப்பகத்தில் ஏதுமில்லை',
+    archivedEmptyBody:
+      'நீங்கள் காப்பகப்படுத்தும் குழுக்கள் இங்கே தோன்றும், மீண்டும் கொண்டுவரத் தயார்.',
+    unarchive: 'மீட்டெடு',
+    archivedOn: '{date} அன்று காப்பகப்படுத்தப்பட்டது',
     nobodyOwes: 'இந்தக் குழுவில் யாரும் யாருக்கும் தர வேண்டியதில்லை.',
     recordedNotMoved: 'பதிவு செய்யப்பட்டது, பாக்கி பணத்தை அனுப்பவில்லை',
   },
@@ -4001,6 +4019,11 @@ const hi: UiStrings = {
     archiveQuestion: 'यह समूह संग्रहित करें?',
     archiveBody: 'यह आपकी सूची से हट जाएगा पर मिटेगा कुछ नहीं, और कोई भी इसे वापस ला सकता है।',
     archive: 'संग्रहित करें',
+    archivedTitle: 'संग्रहित समूह',
+    archivedEmpty: 'कुछ भी संग्रहित नहीं',
+    archivedEmptyBody: 'आप जो समूह संग्रहित करते हैं वे यहाँ दिखते हैं, वापस लाने के लिए तैयार।',
+    unarchive: 'वापस लाएँ',
+    archivedOn: '{date} को संग्रहित',
     nobodyOwes: 'इस समूह में किसी पर किसी का कुछ बाकी नहीं है।',
     recordedNotMoved: 'दर्ज किया गया, बाकी ने पैसा नहीं भेजा',
   },
@@ -5152,6 +5175,11 @@ const ar: UiStrings = {
     archiveQuestion: 'أرشفة هذه المجموعة؟',
     archiveBody: 'تختفي من قائمتك دون حذف أي شيء، ويمكن لأي أحد إعادتها.',
     archive: 'أرشفة',
+    archivedTitle: 'المجموعات المؤرشفة',
+    archivedEmpty: 'لا شيء في الأرشيف',
+    archivedEmptyBody: 'المجموعات التي تؤرشفها تظهر هنا، جاهزة للاستعادة.',
+    unarchive: 'إلغاء الأرشفة',
+    archivedOn: 'أُرشفت في {date}',
     nobodyOwes: 'لا أحد يدين لأحد في هذه المجموعة.',
     recordedNotMoved: 'مسجَّل، ولم يحوّل باقي المال',
   },

@@ -68,6 +68,7 @@ export default function HomeScreen() {
         label: t.account.notifications,
         route: '/settings/notifications',
       },
+      { icon: 'archive-outline', label: t.group.archivedTitle, route: '/settings/archived' },
       { icon: 'cloud-done-outline', label: t.backup.title, route: '/settings/backup' },
       { icon: 'language-outline', label: t.language, route: '/settings/language' },
       { icon: 'contrast-outline', label: t.account.themeRow, route: '/settings/theme' },
@@ -285,9 +286,13 @@ export default function HomeScreen() {
             <SectionHeader
               title={t.yourGroups}
               action={
-                <Text variant="caption" tone="brand" onPress={openNewGroup}>
-                  {t.newGroup}
-                </Text>
+                <Button
+                  label={t.newGroup}
+                  variant="secondary"
+                  size="sm"
+                  icon={<Ionicons name="add" size={16} color={theme.color.brand} />}
+                  onPress={openNewGroup}
+                />
               }
             />
             {presentTypes.length > 1 ? (
