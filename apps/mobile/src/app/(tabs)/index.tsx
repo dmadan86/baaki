@@ -15,10 +15,8 @@ import {
   Screen,
   SectionHeader,
   Text,
-  TintCard,
   useTabBarClearance,
   useTheme,
-  type TintName,
 } from '@baaki/ui';
 
 import { useGroups, useHomeSummary } from '@/data/hooks';
@@ -29,7 +27,7 @@ import { useGuestGuard } from '@/lib/guestGuard';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
-import { groupLabel } from '@/data/types';
+import { groupLabel, type GroupType } from '@/data/types';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
 export default function HomeScreen() {
@@ -45,6 +43,17 @@ export default function HomeScreen() {
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
+
+  // The group list gets a category filter strip — but only worth showing once
+  // there is more than one kind of group to sort between. Chips appear in the
+  // canonical group-type order, and only for types the person actually has, so
+  // no chip ever leads to an empty shelf. 'all' is the resting state.
+  const [category, setCategory] = useState<GroupType | 'all'>('all');
+  const presentTypes = GROUP_TYPE_ORDER.filter((type) => list.some((g) => g.type === type));
+  // A filter can outlive the group it matched — leaving the last trip snaps the
+  // strip back to 'all' rather than a chip pointing at nothing.
+  const active = category !== 'all' && presentTypes.includes(category) ? category : 'all';
+  const visible = active === 'all' ? list : list.filter((g) => g.type === active);
 
   // A guest tapping "new group" past their limit is sent to sign up rather than
   // into a form the server would refuse (ADR-006 addendum). A full user's guard
@@ -166,15 +175,6 @@ export default function HomeScreen() {
           t={t}
         />
 
-        {/* The dashboard's shortcuts, in the reference's shape: two big washed
-            tiles for the things you start most, then a row of pastel tiles for
-            the rest. Only once there is a group to act on — a brand-new account
-            gets the empty state's single "new group" prompt instead of five
-            tiles that would all just send it back here. */}
-        {list.length > 0 ? (
-          <QuickActions primaryGroupId={list[0]!.id} onNewGroup={openNewGroup} t={t} />
-        ) : null}
-
         {loading ? (
           <SkeletonList rows={3} />
         ) : list.length === 0 ? (
@@ -193,8 +193,11 @@ export default function HomeScreen() {
                 </Text>
               }
             />
+            {presentTypes.length > 1 ? (
+              <CategoryStrip types={presentTypes} active={active} onSelect={setCategory} t={t} />
+            ) : null}
             <View style={{ gap: theme.spacing.md }}>
-              {list.map((group, index) => {
+              {visible.map((group, index) => {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
                 return (
@@ -224,161 +227,105 @@ export default function HomeScreen() {
   );
 }
 
+/** The group types in the order chips appear — matches the new-group picker. */
+const GROUP_TYPE_ORDER: readonly GroupType[] = ['trip', 'home', 'couple', 'event', 'other'];
+
+/** One Ionicon per group type, echoing the emoji the new-group picker uses. */
+const CATEGORY_ICON: Record<GroupType, keyof typeof Ionicons.glyphMap> = {
+  trip: 'airplane',
+  home: 'home',
+  couple: 'heart',
+  event: 'sparkles',
+  other: 'people',
+};
+
+/** The localized label for a group type, from the same strings the picker uses. */
+function categoryLabel(type: GroupType, t: UiStrings): string {
+  switch (type) {
+    case 'trip':
+      return t.extras.typeTrip;
+    case 'home':
+      return t.extras.typeHome;
+    case 'couple':
+      return t.extras.typeCouple;
+    case 'event':
+      return t.extras.typeEvent;
+    case 'other':
+      return t.extras.typeOther;
+  }
+}
+
 /**
- * The shortcut deck under the balance.
- *
- * Two washed hero tiles for the two things you start most — a new group, and an
- * expense on the group you touched last — then a pastel row for settling,
- * scanning a bill, and the inbox. The group-bound actions target the most
- * recent group (`primaryGroupId`); picking a different one is what its own card
- * lower down is for.
+ * The group filter as a strip of icon-over-label tiles — a leading "All" chip,
+ * then one per group type the person actually has. The active tile wears the
+ * brand fill with a soft shadow; the rest sit quiet in white behind a hairline
+ * border. The strip scrolls sideways, so more types never crowd the row.
  */
-function QuickActions({
-  primaryGroupId,
-  onNewGroup,
+function CategoryStrip({
+  types,
+  active,
+  onSelect,
   t,
 }: {
-  primaryGroupId: string;
-  onNewGroup: () => void;
+  types: readonly GroupType[];
+  active: GroupType | 'all';
+  onSelect: (value: GroupType | 'all') => void;
   t: UiStrings;
 }) {
   const theme = useTheme();
 
+  const chips: { key: GroupType | 'all'; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+    { key: 'all', icon: 'apps', label: t.filterAll },
+    ...types.map((type) => ({
+      key: type,
+      icon: CATEGORY_ICON[type],
+      label: categoryLabel(type, t),
+    })),
+  ];
+
   return (
-    <View style={{ gap: theme.spacing.md }}>
-      <SectionHeader title={t.tabs.quickActions} />
-
-      <Row style={{ gap: theme.spacing.md, alignItems: 'stretch' }}>
-        <HeroTile
-          colors={theme.gradient.brand}
-          icon="people"
-          label={t.newGroup}
-          onPress={onNewGroup}
-        />
-        <HeroTile
-          colors={theme.gradient.accent}
-          icon="add"
-          label={t.addExpense}
-          onPress={() => router.push(`/group/${primaryGroupId}/add-expense`)}
-        />
-      </Row>
-
-      <Row style={{ gap: theme.spacing.md, alignItems: 'stretch' }}>
-        <QuickTile
-          tint="mint"
-          icon="swap-horizontal"
-          label={t.settleUp}
-          onPress={() => router.push(`/group/${primaryGroupId}/settle`)}
-        />
-        <QuickTile
-          tint="peach"
-          icon="scan"
-          label={t.expense.scan}
-          onPress={() => router.push(`/group/${primaryGroupId}/itemize`)}
-        />
-        <QuickTile
-          tint="sky"
-          icon="mail"
-          label={t.tabs.inbox}
-          onPress={() => router.push('/inbox')}
-        />
-      </Row>
-    </View>
-  );
-}
-
-/** A big washed tile — an icon chip over its label, filling half the row. */
-function HeroTile({
-  colors,
-  icon,
-  label,
-  onPress,
-}: {
-  colors: readonly string[];
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{ flex: 1 }}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: theme.spacing.sm, paddingVertical: theme.spacing.xs }}
     >
-      <Gradient
-        colors={colors}
-        radius={theme.radius.lg}
-        style={{ padding: theme.spacing.lg, height: 116, justifyContent: 'space-between' }}
-      >
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: theme.radius.pill,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.22)',
-          }}
-        >
-          <Ionicons name={icon} size={22} color={theme.color.onBrand} />
-        </View>
-        <Text variant="subheading" tone="onBrand" numberOfLines={1}>
-          {label}
-        </Text>
-      </Gradient>
-    </PressableScale>
-  );
-}
-
-/** A small pastel tile — a white icon badge over a one-word label. */
-function QuickTile({
-  tint,
-  icon,
-  label,
-  onPress,
-}: {
-  tint: TintName;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  const ink = theme.tint[tint].ink;
-  return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{ flex: 1 }}
-    >
-      <TintCard
-        tint={tint}
-        style={{
-          borderRadius: theme.radius.lg,
-          paddingVertical: theme.spacing.lg,
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: theme.radius.pill,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: theme.color.surface,
-          }}
-        >
-          <Ionicons name={icon} size={22} color={ink} />
-        </View>
-        <Text variant="caption" numberOfLines={1} style={{ color: ink }}>
-          {label}
-        </Text>
-      </TintCard>
-    </PressableScale>
+      {chips.map((chip) => {
+        const selected = chip.key === active;
+        const ink = selected ? theme.color.onBrand : theme.color.text;
+        return (
+          <PressableScale
+            key={chip.key}
+            onPress={() => onSelect(chip.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            accessibilityLabel={chip.label}
+          >
+            <View
+              style={{
+                width: 74,
+                paddingVertical: theme.spacing.md,
+                borderRadius: theme.radius.lg,
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                backgroundColor: selected ? theme.color.brand : theme.color.surface,
+                borderWidth: 1,
+                borderColor: selected ? theme.color.brand : theme.color.border,
+                ...(selected ? theme.shadow.soft : null),
+              }}
+            >
+              <Ionicons
+                name={chip.icon}
+                size={22}
+                color={selected ? theme.color.onBrand : theme.color.textMuted}
+              />
+              <Text variant="micro" numberOfLines={1} style={{ color: ink }}>
+                {chip.label}
+              </Text>
+            </View>
+          </PressableScale>
+        );
+      })}
+    </ScrollView>
   );
 }
 

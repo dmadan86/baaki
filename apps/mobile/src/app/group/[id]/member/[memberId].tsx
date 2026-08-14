@@ -204,11 +204,14 @@ export default function MemberScreen() {
           </Card>
         ) : null}
 
-        {/* An admin can make another real member an admin, or take it back. Not
-            for a ghost (no account to act with) and not for yourself. The
-            server refuses demoting the last admin — the button offers it, the
-            RPC is what actually keeps the rule. */}
-        {iAmAdmin && !isMe && !ghost ? (
+        {/* An admin can make another member an admin, or take it back — for
+            anyone but themselves. A ghost still shows the card, but disabled
+            with the reason: no account means nothing to act as an admin with,
+            which the server enforces (GHOST_CANNOT_ADMIN). Showing it greyed
+            beats hiding it, so the capability is discoverable rather than a
+            secret. The server refuses demoting the last admin — the button
+            offers it, the RPC is what actually keeps the rule. */}
+        {iAmAdmin && !isMe ? (
           <Card style={{ gap: theme.spacing.sm }}>
             <Text variant="caption" tone="muted">
               {t.people.role}
@@ -216,7 +219,7 @@ export default function MemberScreen() {
             <Button
               label={member.role === 'admin' ? t.people.removeAdmin : t.people.makeAdmin}
               variant="secondary"
-              disabled={setRole.isPending}
+              disabled={ghost || setRole.isPending}
               onPress={() =>
                 setRole.mutate(
                   {
@@ -232,7 +235,7 @@ export default function MemberScreen() {
               }
             />
             <Text variant="micro" tone="faint">
-              {t.people.adminNote}
+              {ghost ? t.people.adminNeedsAccount : t.people.adminNote}
             </Text>
           </Card>
         ) : null}

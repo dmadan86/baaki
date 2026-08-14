@@ -305,15 +305,27 @@ function AuthGate() {
   const sheet = animated ? ('slide_from_bottom' as const) : ('none' as const);
   const modal = { presentation: 'modal' as const, animation: sheet };
 
+  const onSignIn = segments[0] === 'sign-in';
+  const onPublicRoute = onSignIn || segments[0] === 'join';
+
+  /**
+   * The route we are on disagrees with the session we have, and the effect
+   * below is about to `replace` to the right one. The Stack's default route is
+   * `(tabs)` — the dashboard — so rendering it now, for the frame before the
+   * redirect lands, is exactly the flash of the dashboard a signed-out person
+   * sees on a cold start. Hold the spinner until the route and the session
+   * agree, and the app tree never mounts the wrong screen at all.
+   */
+  const needsRedirect =
+    !loading && ((!session && !onPublicRoute) || (Boolean(session) && onSignIn));
+
   useEffect(() => {
     if (loading) return;
-    const onSignIn = segments[0] === 'sign-in';
-    const onPublicRoute = onSignIn || segments[0] === 'join';
     if (!session && !onPublicRoute) router.replace('/sign-in');
     else if (session && onSignIn) router.replace('/');
-  }, [session, loading, segments, router]);
+  }, [session, loading, onSignIn, onPublicRoute, router]);
 
-  if (loading) {
+  if (loading || needsRedirect) {
     return (
       <View
         style={{

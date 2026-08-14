@@ -228,16 +228,24 @@ export default function GroupScreen() {
               style={{ color: ink }}
             />
 
+            {/* Two equal-width pills on the tinted hero. Settle up stays the
+                filled brand CTA; the simplify toggle uses the on-panel white
+                treatment (white pill, brand label) so it reads on any tint
+                instead of the muddy soft-purple secondary. A soft shadow lifts
+                the white pill off the pastel. Reduced side padding keeps longer
+                labels ("Who pays whom?") on one line at half width. */}
             <Row style={{ gap: theme.spacing.md }}>
               <Button
                 label={t.settleUp}
                 onPress={() => router.push(`/group/${groupId}/settle`)}
                 icon={<Ionicons name="swap-horizontal" size={18} color={theme.color.onBrand} />}
+                style={{ flex: 1, paddingHorizontal: theme.spacing.md }}
               />
               <Button
                 label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                variant="secondary"
+                variant="onBrand"
                 onPress={() => router.push(`/group/${groupId}/simplify`)}
+                style={{ flex: 1, paddingHorizontal: theme.spacing.md, ...theme.shadow.soft }}
               />
             </Row>
           </TintCard>
