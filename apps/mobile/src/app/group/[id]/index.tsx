@@ -140,7 +140,22 @@ export default function GroupScreen() {
             >
               <Ionicons name={directionalIcon('chevron-back')} size={24} color={theme.color.text} />
             </Pressable>
-            <Row style={{ flex: 1, gap: theme.spacing.md, justifyContent: 'flex-start' }}>
+            {/* The photo-and-name cluster is itself the way into settings, the
+              way tapping a chat's title bar opens its info in WhatsApp — so the
+              name is a tap target, not just a label above a menu. */}
+            <Pressable
+              onPress={() => router.push(`/group/${groupId}/settings`)}
+              accessibilityRole="button"
+              accessibilityLabel={t.group.settings}
+              style={({ pressed }) => ({
+                flex: 1,
+                flexDirection: 'row',
+                gap: theme.spacing.md,
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
               <GroupPhoto
                 photoPath={group.data.photo_path}
                 emoji={group.data.cover_emoji}
@@ -154,7 +169,7 @@ export default function GroupScreen() {
                   {plural(locale, members.data?.length ?? 0, t.memberCount)}
                 </Text>
               </View>
-            </Row>
+            </Pressable>
             {/* Planner, spending and settings live behind this one menu; planner
               only shows for a trip. Bare icon, no chip, to match the back
               arrow. */}
