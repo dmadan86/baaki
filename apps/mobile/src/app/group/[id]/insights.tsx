@@ -156,8 +156,7 @@ export default function InsightsScreen() {
         ) : null}
 
         <Text variant="micro" tone="faint" align="center">
-          Live expenses only — an edited expense counts at what it now says, and a deleted one does
-          not count at all. Amounts are never converted between currencies.
+          {t.misc.insightsLiveNote}
         </Text>
       </ScrollView>
     </Screen>

@@ -72,7 +72,7 @@ export default function ExpenseDetailScreen() {
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id) : 'Someone';
+    return member ? displayName(member, profile?.id) : t.misc.someone;
   };
   // The label reads "You"; the avatar keeps the real name so the current user's
   // circle is the same initial and colour here as on every other screen — a
@@ -80,7 +80,7 @@ export default function ExpenseDetailScreen() {
   // avatar made it a lone pink "Y" next to a blue "G" elsewhere for one person.
   const avatarNameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member) : 'Someone';
+    return member ? displayName(member) : t.misc.someone;
   };
 
   if (expenses.isLoading) {

@@ -219,9 +219,9 @@ export default function ImportCsvScreen() {
             {!currencyMatches ? (
               <Card>
                 <Text variant="caption" tone="negative">
-                  This file is in {parsed.currency} and this group keeps its money in{' '}
-                  {groupCurrency}. Importing it would need a rate for every row, and the file does
-                  not carry one — start a {parsed.currency} group for it instead.
+                  {t.misc.csvCurrencyMismatch
+                    .replace(/\{fileCur\}/g, parsed.currency)
+                    .replace('{groupCur}', groupCurrency)}
                 </Text>
               </Card>
             ) : null}

@@ -254,7 +254,7 @@ export default function ImportScreen() {
 
   const describeMapping = (person: string): string => {
     const chosen = mapping[person] ?? { kind: 'ghost' };
-    if (chosen.kind === 'me') return 'You';
+    if (chosen.kind === 'me') return t.account.you;
     if (chosen.kind === 'ghost') return t.importLedger.newPerson;
     const member = members.find((one) => one.id === chosen.memberId);
     return member ? displayName(member, profile?.id) : t.importLedger.newPerson;

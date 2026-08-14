@@ -156,7 +156,7 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
 
       {listening ? (
         <Text variant="micro" tone="brand">
-          Listening…
+          {t.misc.listening}
         </Text>
       ) : null}
 

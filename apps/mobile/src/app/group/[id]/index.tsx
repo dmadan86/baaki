@@ -78,7 +78,7 @@ export default function GroupScreen() {
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id) : 'Someone';
+    return member ? displayName(member, profile?.id) : t.misc.someone;
   };
 
   if (group.isLoading) {

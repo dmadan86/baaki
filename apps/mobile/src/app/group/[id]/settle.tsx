@@ -182,8 +182,8 @@ export default function SettleScreen() {
 
     if (!payable) {
       Alert.alert(
-        `No ${railInfo?.label ?? 'payment'} details yet`,
-        `${displayName(counterparty)} hasn't added how they're paid. Settle in cash, or ask them to add it.`,
+        t.misc.settleNoDetailsTitle.replace('{rail}', railInfo?.label ?? t.misc.settleRailFallback),
+        t.misc.settleNoDetailsBody.replace('{name}', displayName(counterparty)),
       );
       return;
     }
@@ -210,18 +210,20 @@ export default function SettleScreen() {
     if (uri && canOpen) {
       await Linking.openURL(uri.uri);
       Alert.alert(t.extras.paymentWentThrough, t.extras.onlyIfCompleted, [
-        { text: 'No', style: 'cancel' },
-        { text: 'Yes, record it', onPress: () => void record() },
+        { text: t.misc.recordNo, style: 'cancel' },
+        { text: t.misc.recordYes, onPress: () => void record() },
       ]);
       return;
     }
 
     Alert.alert(
-      `Pay ${displayName(counterparty)}`,
-      `${railById(payable.rail)?.label ?? 'Send to'}\n${payable.handle}\n\nThen come back and record it.`,
+      t.misc.settlePayTitle.replace('{name}', displayName(counterparty)),
+      t.misc.settlePayBody
+        .replace('{rail}', railById(payable.rail)?.label ?? t.misc.settleSendTo)
+        .replace('{handle}', payable.handle),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Record it', onPress: () => void record() },
+        { text: t.common.cancel, style: 'cancel' },
+        { text: t.misc.recordIt, onPress: () => void record() },
       ],
     );
   };
@@ -265,7 +267,7 @@ export default function SettleScreen() {
           <>
             <Card style={{ gap: theme.spacing.md }}>
               <Text variant="caption" tone="muted">
-                With
+                {t.misc.withLabel}
               </Text>
               <Row style={{ flexWrap: 'wrap', gap: theme.spacing.lg }}>
                 {counterparties.map((member) => (

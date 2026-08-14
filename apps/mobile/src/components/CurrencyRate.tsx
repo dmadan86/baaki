@@ -193,7 +193,7 @@ export function CurrencyRate({
                 style={inputStyle(theme)}
               />
               <Text variant="micro" tone="faint">
-                Your bank&apos;s rate, markup included — this is what your statement says.
+                {t.misc.bankRateNote}
               </Text>
             </View>
           ) : null}

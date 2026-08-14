@@ -34,7 +34,7 @@ export default function SimplifyScreen() {
 
   const nameOf = (memberId: string): string => {
     const member = lookup.get(memberId);
-    return member ? displayName(member, profile?.id) : 'Someone';
+    return member ? displayName(member, profile?.id) : t.misc.someone;
   };
 
   return (

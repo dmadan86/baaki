@@ -232,7 +232,7 @@ export default function MembersScreen() {
             <View key={member.id}>
               <ListRow
                 title={displayName(member, profile?.id)}
-                subtitle={isGhost(member) ? t.notJoinedYet : (vpaOf(member) ?? 'no UPI ID yet')}
+                subtitle={isGhost(member) ? t.notJoinedYet : (vpaOf(member) ?? t.misc.noUpiYet)}
                 leading={<Avatar name={displayName(member)} ghost={isGhost(member)} />}
                 onPress={() => router.push(`/group/${groupId}/member/${member.id}`)}
                 trailing={
@@ -320,9 +320,7 @@ export default function MembersScreen() {
             </View>
           ) : null}
           <Text variant="micro" tone="faint">
-            A name alone is enough — nobody needs the app, or an email, to be part of the split. An
-            address just means you can send them the link. When they join later they can claim
-            everything already recorded under their name.
+            {t.misc.nameAloneBody}
           </Text>
           {addGhost.isPending || adding ? <ActivityIndicator color={theme.color.brand} /> : null}
           {error ? <Callout tone="negative">{error}</Callout> : null}

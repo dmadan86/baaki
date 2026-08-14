@@ -65,7 +65,7 @@ export function CountryRow({
               gap: theme.spacing.xs,
             }}
           >
-            <Text variant="heading">Where does this group settle?</Text>
+            <Text variant="heading">{t.misc.whereSettle}</Text>
             <Text variant="caption" tone="muted">
               {t.pickers.countryNote}
             </Text>
