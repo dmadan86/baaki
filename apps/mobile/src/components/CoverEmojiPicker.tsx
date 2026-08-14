@@ -30,9 +30,12 @@ const EMOJI_GROUPS: readonly (readonly string[])[] = [
 export function CoverEmojiPicker({
   value,
   onChange,
+  compact = false,
 }: {
   value: string | null;
   onChange: (emoji: string) => void;
+  /** A small emoji-swatch pill instead of a full button, for tight layouts. */
+  compact?: boolean;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
@@ -40,12 +43,36 @@ export function CoverEmojiPicker({
 
   return (
     <>
-      <Button
-        label={t.group.chooseIcon}
-        size="sm"
-        variant="secondary"
-        onPress={() => setOpen(true)}
-      />
+      {compact ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.group.chooseIcon}
+          onPress={() => setOpen(true)}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            gap: 6,
+            height: 32,
+            paddingHorizontal: theme.spacing.md,
+            borderRadius: theme.radius.pill,
+            backgroundColor: theme.color.surfaceMuted,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 16 }}>{value ?? '🙂'}</Text>
+          <Text variant="caption" tone="muted">
+            {t.group.chooseIcon}
+          </Text>
+        </Pressable>
+      ) : (
+        <Button
+          label={t.group.chooseIcon}
+          size="sm"
+          variant="secondary"
+          onPress={() => setOpen(true)}
+        />
+      )}
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <Screen edges={['top', 'bottom']}>

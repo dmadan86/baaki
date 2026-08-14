@@ -257,14 +257,7 @@ export function TripDates({
             </>
           ) : null}
         </>
-      ) : (
-        <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-          <Ionicons name="information-circle-outline" size={16} color={theme.color.textFaint} />
-          <Text variant="micro" tone="faint" style={{ flex: 1 }}>
-            A flatshare has no start and no end — leave these empty and nothing is sent.
-          </Text>
-        </Row>
-      )}
+      ) : null}
 
       {group.start_date && group.end_date ? (
         <Button

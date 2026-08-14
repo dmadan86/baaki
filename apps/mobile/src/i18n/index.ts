@@ -665,6 +665,8 @@ export interface UiStrings {
     mintMistakeNote: string;
     hideContacts: string;
     browseContacts: string;
+    /** Short label for the phone-contacts entry point. */
+    contacts: string;
     /** Reminding somebody who owes you to settle, gently (ADR-010). */
     remind: string;
     reminded: string;
@@ -1618,6 +1620,7 @@ const en: UiStrings = {
       'Made a link by mistake? Mint a new one — the old link keeps working until it expires, so only share links you mean to.',
     hideContacts: 'Hide contacts',
     browseContacts: 'Browse my contacts',
+    contacts: 'Contacts',
     remind: 'Remind',
     reminded: 'Reminded',
     remindedToday: 'Nudged today',
@@ -2062,7 +2065,7 @@ const en: UiStrings = {
     typeCouple: 'Couple',
     typeEvent: 'Event',
     typeOther: 'Other',
-    addPeopleByName: 'Add people by name',
+    addPeopleByName: 'Add friends',
     ghostNote: 'They do not need the app. Add them now and they can claim their history later.',
     claimHistoryNote: 'Pick your name and everything already recorded for you comes with you.',
     theirPastBecomesYours: 'Their past expenses and balances become yours.',
@@ -2639,6 +2642,7 @@ const ta: UiStrings = {
       'தவறுதலாக இணைப்பு உருவாக்கினீர்களா? புதிதாக ஒன்றை உருவாக்கவும் — பழைய இணைப்பு காலாவதியாகும் வரை வேலை செய்யும், எனவே நீங்கள் நினைத்த இணைப்புகளை மட்டும் பகிரவும்.',
     hideContacts: 'தொடர்புகளை மறை',
     browseContacts: 'என் தொடர்புகளைப் பார்',
+    contacts: 'தொடர்புகள்',
     remind: 'நினைவூட்டு',
     reminded: 'நினைவூட்டப்பட்டது',
     remindedToday: 'இன்று நினைவூட்டிவிட்டீர்கள்',
@@ -3100,7 +3104,7 @@ const ta: UiStrings = {
     typeCouple: 'தம்பதி',
     typeEvent: 'நிகழ்வு',
     typeOther: 'மற்றவை',
-    addPeopleByName: 'பெயரால் நபர்களைச் சேர்',
+    addPeopleByName: 'நண்பர்களைச் சேர்',
     ghostNote:
       'அவர்களுக்குச் செயலி தேவையில்லை. இப்போதே சேருங்கள், பிறகு அவர்கள் தங்கள் வரலாற்றைக் கோரலாம்.',
     claimHistoryNote:
@@ -3652,6 +3656,7 @@ const hi: UiStrings = {
       'गलती से लिंक बना लिया? नया बनाएँ — पुराना लिंक खत्म होने तक चलता रहेगा, इसलिए वही लिंक साझा करें जो आप चाहते हैं।',
     hideContacts: 'संपर्क छिपाएँ',
     browseContacts: 'मेरे संपर्क देखें',
+    contacts: 'संपर्क',
     remind: 'याद दिलाएँ',
     reminded: 'याद दिला दिया',
     remindedToday: 'आज याद दिला चुके',
@@ -4097,7 +4102,7 @@ const hi: UiStrings = {
     typeCouple: 'जोड़ा',
     typeEvent: 'आयोजन',
     typeOther: 'अन्य',
-    addPeopleByName: 'नाम से लोग जोड़ें',
+    addPeopleByName: 'दोस्त जोड़ें',
     ghostNote: 'उन्हें ऐप की ज़रूरत नहीं। अभी जोड़ दें, बाद में वे अपना इतिहास ले सकते हैं।',
     claimHistoryNote: 'अपना नाम चुनें और आपके लिए जो कुछ पहले से दर्ज है, सब साथ आ जाएगा।',
     theirPastBecomesYours: 'उनके पुराने खर्च और हिसाब आपके हो जाएँगे।',
@@ -4687,6 +4692,7 @@ const ar: UiStrings = {
       'أنشأت رابطًا بالخطأ؟ أنشئ رابطًا جديدًا — يظل الرابط القديم صالحًا حتى ينتهي، لذا شارك فقط الروابط التي تقصدها.',
     hideContacts: 'إخفاء جهات الاتصال',
     browseContacts: 'تصفّح جهات اتصالي',
+    contacts: 'جهات الاتصال',
     remind: 'ذكّر',
     reminded: 'تم التذكير',
     remindedToday: 'ذُكّر اليوم',
@@ -5255,7 +5261,7 @@ const ar: UiStrings = {
     typeCouple: 'ثنائي',
     typeEvent: 'مناسبة',
     typeOther: 'أخرى',
-    addPeopleByName: 'أضف أشخاصًا بالاسم',
+    addPeopleByName: 'أضف أصدقاء',
     ghostNote: 'لا يحتاجون التطبيق. أضفهم الآن ويمكنهم المطالبة بسجلّهم لاحقًا.',
     claimHistoryNote: 'اختر اسمك فيأتي معك كل ما سُجّل لك من قبل.',
     theirPastBecomesYours: 'تصبح مصاريفهم وأرصدتهم السابقة لك.',
