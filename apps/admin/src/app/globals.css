@@ -60,13 +60,14 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
+  /* Same system-font stack as apps/web (globals.css --font-sans), so admin and
+     the web client resolve to the same UI font on every platform. */
   font-family:
-    ui-sans-serif,
-    system-ui,
     -apple-system,
+    BlinkMacSystemFont,
     'Segoe UI',
     Roboto,
-    Helvetica,
+    'Helvetica Neue',
     Arial,
     sans-serif;
   font-size: 15px;
