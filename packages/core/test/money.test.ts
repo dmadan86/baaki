@@ -100,10 +100,15 @@ describe('parse and render', () => {
 
   it('labels money for screen readers (TDR §11)', () => {
     const strings = copyFor('en').money;
-    const label = moneyAccessibilityLabel(money(42000n, 'INR'), BalanceDirection.OwedToYou, strings, {
-      locale: 'en-IN',
-      compactFraction: true,
-    });
+    const label = moneyAccessibilityLabel(
+      money(42000n, 'INR'),
+      BalanceDirection.OwedToYou,
+      strings,
+      {
+        locale: 'en-IN',
+        compactFraction: true,
+      },
+    );
     expect(label).toMatch(/^You are owed/);
     expect(balanceDirection(-1n)).toBe('you_owe');
     expect(balanceDirection(0n)).toBe('settled');

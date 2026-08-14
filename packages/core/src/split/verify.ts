@@ -64,6 +64,9 @@ function toBigInt(value: string | bigint, member: MemberId): bigint {
   try {
     return BigInt(value);
   } catch {
-    throw new SplitError(SplitErrorCode.ShareMismatch, `Client sent "${value}" as ${member}'s share`);
+    throw new SplitError(
+      SplitErrorCode.ShareMismatch,
+      `Client sent "${value}" as ${member}'s share`,
+    );
   }
 }

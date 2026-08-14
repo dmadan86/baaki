@@ -440,7 +440,12 @@ describe('the mutation queue', () => {
     const result = applyOutcomes(queue, [
       { clientMutationId: 'a', status: 'applied' },
       { clientMutationId: 'b', status: 'duplicate' },
-      { clientMutationId: 'c', status: 'rejected', code: SyncRejectionCode.ShareMismatch, message: 'no' },
+      {
+        clientMutationId: 'c',
+        status: 'rejected',
+        code: SyncRejectionCode.ShareMismatch,
+        message: 'no',
+      },
     ]);
 
     expect(result.queue).toHaveLength(0);
@@ -453,7 +458,9 @@ describe('the mutation queue', () => {
     expect(backoffMs(2)).toBe(4000);
     expect(backoffMs(99)).toBe(5 * 60_000);
 
-    let queue: QueuedMutation[] = [enqueue([], envelope('a', GROUP, MutationKind.ExpenseCreate))[0]!];
+    let queue: QueuedMutation[] = [
+      enqueue([], envelope('a', GROUP, MutationKind.ExpenseCreate))[0]!,
+    ];
     for (let attempt = 0; attempt < 8; attempt += 1) {
       queue = markFailed(queue, queue, 'offline', 0);
     }

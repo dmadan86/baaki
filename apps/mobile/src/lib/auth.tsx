@@ -285,8 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async withPassword(identifier, password, intent) {
         const who = readIdentifier(identifier);
         checkPassword(password);
-        const method =
-          who.kind === 'email' ? AuthMethod.EmailPassword : AuthMethod.PhonePassword;
+        const method = who.kind === 'email' ? AuthMethod.EmailPassword : AuthMethod.PhonePassword;
         const credential = who.kind === 'email' ? { email: who.value } : { phone: who.value };
         const action = planAuth(viewerFrom(session), method, intent);
 

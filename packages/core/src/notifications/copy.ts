@@ -106,8 +106,14 @@ const en: CopyStrings = {
       title: '{actor} added an expense',
       body: '{description} · {amount} in {group}',
     },
-    [NotificationKind.ExpenseEdited]: { title: '{actor} edited an expense', body: '{description} in {group}' },
-    [NotificationKind.ExpenseDeleted]: { title: '{actor} removed an expense', body: '{description} in {group}' },
+    [NotificationKind.ExpenseEdited]: {
+      title: '{actor} edited an expense',
+      body: '{description} in {group}',
+    },
+    [NotificationKind.ExpenseDeleted]: {
+      title: '{actor} removed an expense',
+      body: '{description} in {group}',
+    },
     [NotificationKind.YouOwe]: { title: 'You owe {amount}', body: '{description} in {group}' },
     [NotificationKind.SettlementInitiated]: {
       title: '{actor} paid you {amount}',
@@ -117,11 +123,23 @@ const en: CopyStrings = {
       title: '{actor} says they paid you {amount}',
       body: 'Confirm so your baaki stays right',
     },
-    [NotificationKind.SettlementConfirmed]: { title: 'Settled with {actor}', body: '{amount} in {group}' },
-    [NotificationKind.Nudge]: { title: 'A gentle nudge from {actor}', body: '{amount} pending in {group}' },
-    [NotificationKind.GhostClaimed]: { title: '{actor} joined {group}', body: 'Their past expenses are now linked' },
+    [NotificationKind.SettlementConfirmed]: {
+      title: 'Settled with {actor}',
+      body: '{amount} in {group}',
+    },
+    [NotificationKind.Nudge]: {
+      title: 'A gentle nudge from {actor}',
+      body: '{amount} pending in {group}',
+    },
+    [NotificationKind.GhostClaimed]: {
+      title: '{actor} joined {group}',
+      body: 'Their past expenses are now linked',
+    },
     [NotificationKind.GroupInviteAccepted]: { title: '{actor} joined {group}', body: 'Say hello' },
-    [NotificationKind.DigestDaily]: { title: 'Today in {group}', body: '{count} updates · your baaki is {amount}' },
+    [NotificationKind.DigestDaily]: {
+      title: 'Today in {group}',
+      body: '{count} updates · your baaki is {amount}',
+    },
     [NotificationKind.TripNudgeMorning]: {
       title: 'Anything from yesterday?',
       body: 'Add what you spent on {group} while you still remember it',
@@ -174,9 +192,18 @@ const ta: CopyStrings = {
       title: '{actor} ஒரு செலவைச் சேர்த்தார்',
       body: '{description} · {amount} ({group})',
     },
-    [NotificationKind.ExpenseEdited]: { title: '{actor} செலவைத் திருத்தினார்', body: '{description} ({group})' },
-    [NotificationKind.ExpenseDeleted]: { title: '{actor} செலவை நீக்கினார்', body: '{description} ({group})' },
-    [NotificationKind.YouOwe]: { title: 'நீங்கள் {amount} தர வேண்டும்', body: '{description} ({group})' },
+    [NotificationKind.ExpenseEdited]: {
+      title: '{actor} செலவைத் திருத்தினார்',
+      body: '{description} ({group})',
+    },
+    [NotificationKind.ExpenseDeleted]: {
+      title: '{actor} செலவை நீக்கினார்',
+      body: '{description} ({group})',
+    },
+    [NotificationKind.YouOwe]: {
+      title: 'நீங்கள் {amount} தர வேண்டும்',
+      body: '{description} ({group})',
+    },
     [NotificationKind.SettlementInitiated]: {
       title: '{actor} உங்களுக்கு {amount} அனுப்பியுள்ளார்',
       body: 'கிடைத்ததா என உறுதிப்படுத்தவும்',
@@ -185,11 +212,26 @@ const ta: CopyStrings = {
       title: '{actor} {amount} கொடுத்ததாகச் சொல்கிறார்',
       body: 'உறுதிப்படுத்தினால் பாக்கி சரியாக இருக்கும்',
     },
-    [NotificationKind.SettlementConfirmed]: { title: '{actor} உடன் தீர்ந்தது', body: '{amount} ({group})' },
-    [NotificationKind.Nudge]: { title: '{actor} இடமிருந்து ஒரு நினைவூட்டல்', body: '{group} இல் {amount} பாக்கி' },
-    [NotificationKind.GhostClaimed]: { title: '{actor} {group} இல் இணைந்தார்', body: 'பழைய செலவுகள் இணைக்கப்பட்டன' },
-    [NotificationKind.GroupInviteAccepted]: { title: '{actor} {group} இல் இணைந்தார்', body: 'வரவேற்கலாம்' },
-    [NotificationKind.DigestDaily]: { title: 'இன்று {group} இல்', body: '{count} புதுப்பிப்புகள் · பாக்கி {amount}' },
+    [NotificationKind.SettlementConfirmed]: {
+      title: '{actor} உடன் தீர்ந்தது',
+      body: '{amount} ({group})',
+    },
+    [NotificationKind.Nudge]: {
+      title: '{actor} இடமிருந்து ஒரு நினைவூட்டல்',
+      body: '{group} இல் {amount} பாக்கி',
+    },
+    [NotificationKind.GhostClaimed]: {
+      title: '{actor} {group} இல் இணைந்தார்',
+      body: 'பழைய செலவுகள் இணைக்கப்பட்டன',
+    },
+    [NotificationKind.GroupInviteAccepted]: {
+      title: '{actor} {group} இல் இணைந்தார்',
+      body: 'வரவேற்கலாம்',
+    },
+    [NotificationKind.DigestDaily]: {
+      title: 'இன்று {group} இல்',
+      body: '{count} புதுப்பிப்புகள் · பாக்கி {amount}',
+    },
     [NotificationKind.TripNudgeMorning]: {
       title: 'நேற்று ஏதாவது இருக்கா?',
       body: 'நினைவிருக்கும் போதே {group} செலவுகளைச் சேர்க்கவும்',
@@ -238,20 +280,47 @@ const hi: CopyStrings = {
     netNegative: 'आपकी बाकी {amount} है',
   },
   notifications: {
-    [NotificationKind.ExpenseAdded]: { title: '{actor} ने खर्च जोड़ा', body: '{description} · {amount} ({group})' },
-    [NotificationKind.ExpenseEdited]: { title: '{actor} ने खर्च बदला', body: '{description} ({group})' },
-    [NotificationKind.ExpenseDeleted]: { title: '{actor} ने खर्च हटाया', body: '{description} ({group})' },
+    [NotificationKind.ExpenseAdded]: {
+      title: '{actor} ने खर्च जोड़ा',
+      body: '{description} · {amount} ({group})',
+    },
+    [NotificationKind.ExpenseEdited]: {
+      title: '{actor} ने खर्च बदला',
+      body: '{description} ({group})',
+    },
+    [NotificationKind.ExpenseDeleted]: {
+      title: '{actor} ने खर्च हटाया',
+      body: '{description} ({group})',
+    },
     [NotificationKind.YouOwe]: { title: 'आपको {amount} देने हैं', body: '{description} ({group})' },
-    [NotificationKind.SettlementInitiated]: { title: '{actor} ने आपको {amount} भेजे', body: 'मिलने की पुष्टि करें' },
+    [NotificationKind.SettlementInitiated]: {
+      title: '{actor} ने आपको {amount} भेजे',
+      body: 'मिलने की पुष्टि करें',
+    },
     [NotificationKind.SettlementConfirmRequest]: {
       title: '{actor} कहते हैं उन्होंने {amount} भेजे',
       body: 'पुष्टि करें ताकि बाकी सही रहे',
     },
-    [NotificationKind.SettlementConfirmed]: { title: '{actor} के साथ हिसाब बराबर', body: '{amount} ({group})' },
-    [NotificationKind.Nudge]: { title: '{actor} की ओर से एक याद', body: '{group} में {amount} बाकी' },
-    [NotificationKind.GhostClaimed]: { title: '{actor} {group} में शामिल हुए', body: 'पुराने खर्च जुड़ गए' },
-    [NotificationKind.GroupInviteAccepted]: { title: '{actor} {group} में शामिल हुए', body: 'नमस्ते कहें' },
-    [NotificationKind.DigestDaily]: { title: 'आज {group} में', body: '{count} अपडेट · बाकी {amount}' },
+    [NotificationKind.SettlementConfirmed]: {
+      title: '{actor} के साथ हिसाब बराबर',
+      body: '{amount} ({group})',
+    },
+    [NotificationKind.Nudge]: {
+      title: '{actor} की ओर से एक याद',
+      body: '{group} में {amount} बाकी',
+    },
+    [NotificationKind.GhostClaimed]: {
+      title: '{actor} {group} में शामिल हुए',
+      body: 'पुराने खर्च जुड़ गए',
+    },
+    [NotificationKind.GroupInviteAccepted]: {
+      title: '{actor} {group} में शामिल हुए',
+      body: 'नमस्ते कहें',
+    },
+    [NotificationKind.DigestDaily]: {
+      title: 'आज {group} में',
+      body: '{count} अपडेट · बाकी {amount}',
+    },
     [NotificationKind.TripNudgeMorning]: {
       title: 'कल का कुछ बाकी है?',
       body: 'याद रहते ही {group} के खर्च जोड़ दें',
@@ -304,8 +373,14 @@ const ar: CopyStrings = {
       title: 'أضاف {actor} مصروفًا',
       body: '{description} · {amount} في {group}',
     },
-    [NotificationKind.ExpenseEdited]: { title: 'عدّل {actor} مصروفًا', body: '{description} في {group}' },
-    [NotificationKind.ExpenseDeleted]: { title: 'حذف {actor} مصروفًا', body: '{description} في {group}' },
+    [NotificationKind.ExpenseEdited]: {
+      title: 'عدّل {actor} مصروفًا',
+      body: '{description} في {group}',
+    },
+    [NotificationKind.ExpenseDeleted]: {
+      title: 'حذف {actor} مصروفًا',
+      body: '{description} في {group}',
+    },
     [NotificationKind.YouOwe]: { title: 'عليك {amount}', body: '{description} في {group}' },
     [NotificationKind.SettlementInitiated]: {
       title: 'دفع لك {actor} مبلغ {amount}',
@@ -315,11 +390,26 @@ const ar: CopyStrings = {
       title: 'يقول {actor} إنه دفع لك {amount}',
       body: 'أكّد حتى يبقى باقيك صحيحًا',
     },
-    [NotificationKind.SettlementConfirmed]: { title: 'تمت التسوية مع {actor}', body: '{amount} في {group}' },
-    [NotificationKind.Nudge]: { title: 'تذكير لطيف من {actor}', body: '{amount} معلّقة في {group}' },
-    [NotificationKind.GhostClaimed]: { title: 'انضم {actor} إلى {group}', body: 'رُبطت مصروفاته السابقة' },
-    [NotificationKind.GroupInviteAccepted]: { title: 'انضم {actor} إلى {group}', body: 'ألقِ التحية' },
-    [NotificationKind.DigestDaily]: { title: 'اليوم في {group}', body: '{count} تحديثات · باقيك {amount}' },
+    [NotificationKind.SettlementConfirmed]: {
+      title: 'تمت التسوية مع {actor}',
+      body: '{amount} في {group}',
+    },
+    [NotificationKind.Nudge]: {
+      title: 'تذكير لطيف من {actor}',
+      body: '{amount} معلّقة في {group}',
+    },
+    [NotificationKind.GhostClaimed]: {
+      title: 'انضم {actor} إلى {group}',
+      body: 'رُبطت مصروفاته السابقة',
+    },
+    [NotificationKind.GroupInviteAccepted]: {
+      title: 'انضم {actor} إلى {group}',
+      body: 'ألقِ التحية',
+    },
+    [NotificationKind.DigestDaily]: {
+      title: 'اليوم في {group}',
+      body: '{count} تحديثات · باقيك {amount}',
+    },
     [NotificationKind.TripNudgeMorning]: {
       title: 'هل بقي شيء من الأمس؟',
       body: 'أضف ما أنفقته على {group} ما دمت تتذكره',

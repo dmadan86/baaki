@@ -68,7 +68,9 @@ describe('splitProblem', () => {
   });
 
   it('refuses shares that are all zero', () => {
-    expect(splitProblem(SplitKind.Shares, { a: '0', b: '0', c: '0' }, people)).toMatch(/at least one/);
+    expect(splitProblem(SplitKind.Shares, { a: '0', b: '0', c: '0' }, people)).toMatch(
+      /at least one/,
+    );
   });
 
   it('says how much percentage is left, and how much is too much', () => {
@@ -81,7 +83,9 @@ describe('splitProblem', () => {
   });
 
   it('accepts percentages that sum to exactly 100', () => {
-    expect(splitProblem(SplitKind.Percent, { a: '33.34', b: '33.33', c: '33.33' }, people)).toBeNull();
+    expect(
+      splitProblem(SplitKind.Percent, { a: '33.34', b: '33.33', c: '33.33' }, people),
+    ).toBeNull();
   });
 
   it('ignores members who are not in the split', () => {

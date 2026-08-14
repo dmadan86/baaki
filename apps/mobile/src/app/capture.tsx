@@ -1,18 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { randomUUID } from 'expo-crypto';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { guessCategory, type CategoryId } from '@baaki/core';
+import {
+  guessCategory,
+  parseReceiptText,
+  type CategoryId,
+  type HeuristicReceipt,
+} from '@baaki/core';
 import {
   AmountField,
   Button,
   Callout,
   Card,
+  Divider,
   IconButton,
+  MoneyText,
   Row,
   Screen,
   Text,
@@ -20,12 +27,26 @@ import {
 } from '@baaki/ui';
 
 import { CategoryPicker } from '@/components/Category';
-import { uploadCapturePhoto } from '@/data/api';
 import { useCreateCapture } from '@/data/hooks';
-import { deviceDefaultCurrency, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
+import { saveReceipt } from '@/lib/receiptStore';
+import { markPending } from '@/lib/receiptIndex';
+import { useBackup } from '@/lib/cloud/BackupProvider';
+
+/**
+ * An OCR-derived number turned into a safe minor-unit bigint.
+ *
+ * The values here come off a photograph through a heuristic parser, so they are
+ * never fully trusted: a stray `NaN`, an `Infinity`, or a non-integer would make
+ * `BigInt()` throw — and a throw during render is a white screen, not a bad
+ * total. Anything that is not a finite number collapses to zero, which the UI
+ * already knows how to show (an amount the person types themselves).
+ */
+function safeMinor(value: number): bigint {
+  return Number.isFinite(value) ? BigInt(Math.round(value)) : 0n;
+}
 
 /** Today as `YYYY-MM-DD` in the phone's own zone — never midnight UTC. */
 function todayIso(): string {
@@ -72,8 +93,11 @@ function showDate(iso: string, locale: string): string {
 export default function CaptureScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
-  const { session } = useAuth();
   const createCapture = useCreateCapture();
+  const backup = useBackup();
+  // The dashboard camera opens this screen with `?scan=1` to mean "go straight
+  // to the camera", rather than showing an empty form to fill in first.
+  const { scan } = useLocalSearchParams<{ scan?: string }>();
 
   // Chosen here so the photo can be uploaded under it before the row exists —
   // the storage path keys off the capture id, exactly as add-expense seeds its
@@ -89,6 +113,9 @@ export default function CaptureScreen() {
   const [editingDate, setEditingDate] = useState(false);
   const [photo, setPhoto] = useState<PickedImage | null>(null);
   const [rawText, setRawText] = useState<string | null>(null);
+  // What the on-device parser recovered from the bill: total, item count, lines.
+  // Null until a receipt is read; low `confidence` means show it as a draft.
+  const [parsed, setParsed] = useState<HeuristicReceipt | null>(null);
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,37 +140,91 @@ export default function CaptureScreen() {
    * sent to be parsed — the amount stays the user's to type.
    */
   const addReceipt = async (): Promise<void> => {
-    const picked = await captureReceipt();
-    if (!picked) return;
     setError(null);
+
+    // The camera and the document scanner are native, and a native failure —
+    // a denied permission mid-flow, a scanner that will not open, an out-of-
+    // memory during the resize — must not escape as an unhandled rejection and
+    // take the screen down. A failed capture is simply no photo: the person
+    // types the amount, exactly as before this feature existed.
+    let picked: PickedImage | null = null;
+    try {
+      picked = await captureReceipt();
+    } catch {
+      picked = null;
+    }
+    if (!picked) return;
+
     setPhoto(picked);
     setScanning(true);
     try {
       const recognised = await recogniseReceipt(picked.uri);
       setRawText(recognised?.text ?? null);
+
+      // Read the total and the line items off the OCR text on the phone (A34 /
+      // A5). The model path (`receipt-parse`) stays the eventual source of truth
+      // once it is funded, but the heuristic is what makes the amount appear now
+      // rather than leaving it for the user to type off the photo.
+      const receipt = recognised ? parseReceiptText(recognised.text, { currency }) : null;
+      setParsed(receipt);
+      if (receipt && receipt.grandTotal > 0) {
+        setAmount(safeMinor(receipt.grandTotal));
+        if (receipt.merchant && description.trim().length === 0) setDescription(receipt.merchant);
+      }
     } catch {
       setRawText(null);
+      setParsed(null);
     } finally {
       setScanning(false);
     }
   };
 
+  // "Straight to the camera": when opened from the dashboard scanner icon, fire
+  // the capture once on mount rather than waiting for a tap on "Add receipt".
+  // The ref guards against the effect running twice (React 18 strict mode, or a
+  // re-render mid-scan).
+  const autoScanned = useRef(false);
+  useEffect(() => {
+    if (scan && !autoScanned.current) {
+      autoScanned.current = true;
+      void addReceipt();
+    }
+    // addReceipt is stable enough for a one-shot; deps intentionally minimal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scan]);
+
   const submit = async (): Promise<void> => {
     setError(null);
     setSaving(true);
     try {
-      // The photo lives in the owner-scoped bucket, uploaded before the row is
-      // queued so its path can ride in the create payload (like new-group's
-      // cover, but keyed on the capture id rather than a group id).
-      let photoPath: string | null = null;
-      if (photo && session?.user?.id) {
-        photoPath = await uploadCapturePhoto({
-          ownerUserId: session.user.id,
-          captureId,
+      // The receipt photo is deliberately NOT uploaded to Baaki. It is written
+      // to the on-device vault and, if the person connected a personal cloud,
+      // queued for backup there — the privacy choice behind this feature. Only
+      // the parsed fields (amount, text, itemisation) ride the capture sync, so
+      // `photoPath` on the synced row is always null.
+      if (photo) {
+        const saved = saveReceipt(captureId, {
           base64: photo.base64,
-          mimeType: photo.mimeType,
+          sidecar: {
+            captureId,
+            currency,
+            amountMinor: Number(amount),
+            itemCount: parsed?.items.length ?? 0,
+            items: (parsed?.items ?? []).map((item) => ({ label: item.label, total: item.total })),
+            date,
+            category,
+            rawText,
+            createdAt: new Date().toISOString(),
+          },
         });
+        if (saved) {
+          await markPending(captureId, saved, new Date().toISOString());
+          // Try to back it up now; the queue itself no-ops when offline, when a
+          // Wi‑Fi-only policy is set on mobile data, or when no provider is set.
+          void backup.kick();
+        }
       }
+
       await createCapture.mutateAsync({
         captureId,
         description: description.trim(),
@@ -151,8 +232,9 @@ export default function CaptureScreen() {
         expenseDate: date,
         currency,
         amount,
-        photoPath,
+        photoPath: null,
         rawText,
+        parsed: parsed ? (parsed as unknown as Record<string, unknown>) : null,
       });
       router.back();
     } catch (caught) {
@@ -268,6 +350,51 @@ export default function CaptureScreen() {
               contentFit="cover"
               transition={150}
             />
+          ) : null}
+
+          {/* What the phone read off the bill. A confident parse shows the lines
+              and the total it filled in; a scan it could not make sense of says
+              so and leaves the amount to the person. */}
+          {parsed && parsed.items.length > 0 ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Divider />
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Text variant="caption" tone="muted">
+                  {t.captures.itemizedTitle}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  {plural(locale, parsed.items.length, t.captures.itemCount)}
+                </Text>
+              </Row>
+              {parsed.items.map((item, index) => (
+                <Row
+                  key={`${item.label}-${index}`}
+                  style={{ justifyContent: 'space-between', gap: theme.spacing.md }}
+                >
+                  <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>
+                    {item.label}
+                  </Text>
+                  <MoneyText
+                    amount={safeMinor(item.total)}
+                    currency={currency as never}
+                    locale={locale}
+                    variant="body"
+                  />
+                </Row>
+              ))}
+              <Divider />
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Text variant="subheading">{t.captures.amount}</Text>
+                <MoneyText
+                  amount={safeMinor(parsed.grandTotal)}
+                  currency={currency as never}
+                  locale={locale}
+                  variant="subheading"
+                />
+              </Row>
+            </View>
+          ) : parsed && photo ? (
+            <Callout tone="info">{t.captures.couldNotRead}</Callout>
           ) : null}
         </Card>
       </ScrollView>

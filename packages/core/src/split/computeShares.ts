@@ -161,7 +161,10 @@ function splitItemized(
   seed: string,
 ): ShareMap {
   if (params.items.length === 0) {
-    throw new SplitError(SplitErrorCode.InvalidItem, 'An itemized split needs at least one line item');
+    throw new SplitError(
+      SplitErrorCode.InvalidItem,
+      'An itemized split needs at least one line item',
+    );
   }
 
   const subtotals = new Map<MemberId, bigint>();
@@ -221,7 +224,10 @@ function splitItemized(
 
 function validateParticipants(participants: readonly MemberId[]): MemberId[] {
   if (participants.length === 0) {
-    throw new SplitError(SplitErrorCode.EmptyParticipants, 'An expense needs at least one participant');
+    throw new SplitError(
+      SplitErrorCode.EmptyParticipants,
+      'An expense needs at least one participant',
+    );
   }
   const unique = new Set(participants);
   if (unique.size !== participants.length) {

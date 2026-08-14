@@ -109,7 +109,10 @@ describe('somebody with no account at all', () => {
   });
 
   it('goes to the provider for Apple', () => {
-    expect(planAuth(NOBODY, AuthMethod.Apple)).toEqual({ call: 'signInWithOAuth', method: 'apple' });
+    expect(planAuth(NOBODY, AuthMethod.Apple)).toEqual({
+      call: 'signInWithOAuth',
+      method: 'apple',
+    });
   });
 
   it('will not be talked into a sign-up for either provider', () => {

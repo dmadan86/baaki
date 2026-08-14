@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { CampaignPopup } from '@/components/CampaignPopup';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
@@ -20,6 +21,7 @@ import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { BackupProvider } from '@/lib/cloud/BackupProvider';
 import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
 import { UpdateProvider } from '@/lib/update';
 import { initClarity } from '@/lib/clarity';
@@ -119,34 +121,36 @@ function RootLayout() {
               <SyncProvider>
                 <LockProvider>
                   <MotionProvider>
-                    <UpdateProvider>
-                      <ThemePreferenceProvider>
-                        <ThemedRoot>
-                          <ThemedStatusBar />
-                          {/* Outside the lock and the auth gate on purpose: a build
+                    <BackupProvider>
+                      <UpdateProvider>
+                        <ThemePreferenceProvider>
+                          <ThemedRoot>
+                            <ThemedStatusBar />
+                            {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                          <UpdateGate>
-                            <PushRouting />
-                            <LockGate>
-                              {/* Inside the lock so the two-device gate never
+                            <UpdateGate>
+                              <PushRouting />
+                              <LockGate>
+                                {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                              <DeviceSessionProvider>
-                                <AuthGate />
-                                {/* Inside the lock on purpose: a promotion is not a
+                                <DeviceSessionProvider>
+                                  <AuthGate />
+                                  {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                <CampaignPopup />
-                              </DeviceSessionProvider>
-                            </LockGate>
-                            {/* Last, so it paints over the screen rather than
+                                  <CampaignPopup />
+                                </DeviceSessionProvider>
+                              </LockGate>
+                              {/* Last, so it paints over the screen rather than
                               under it. */}
-                            <UpdateBanner />
-                          </UpdateGate>
-                        </ThemedRoot>
-                      </ThemePreferenceProvider>
-                    </UpdateProvider>
+                              <UpdateBanner />
+                            </UpdateGate>
+                          </ThemedRoot>
+                        </ThemePreferenceProvider>
+                      </UpdateProvider>
+                    </BackupProvider>
                   </MotionProvider>
                 </LockProvider>
               </SyncProvider>
@@ -169,7 +173,14 @@ export default withObservability(RootLayout);
  */
 function ThemedRoot({ children }: { children: React.ReactNode }) {
   const { preference } = useThemePreference();
-  return <ThemeProvider forceScheme={preference ?? undefined}>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider forceScheme={preference ?? undefined}>
+      {/* Inside the theme so the recover screen is themed, and around the whole
+          app below it so a render error on any screen lands here instead of on a
+          blank root. */}
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </ThemeProvider>
+  );
 }
 
 /**
@@ -370,6 +381,7 @@ function AuthGate() {
       <Stack.Screen name="group/[id]/invite" options={modal} />
       <Stack.Screen name="group/[id]/itemize" options={modal} />
       <Stack.Screen name="friends/contacts" />
+      <Stack.Screen name="settings/backup" />
       <Stack.Screen name="settings/notifications" />
       <Stack.Screen name="settings/export" />
       <Stack.Screen name="settings/import" />

@@ -55,7 +55,9 @@ export default function AccountScreen() {
   const [done, setDone] = useState(false);
 
   const existing =
-    channel === ContactChannel.Email ? (session?.user.email ?? null) : (session?.user.phone ?? null);
+    channel === ContactChannel.Email
+      ? (session?.user.email ?? null)
+      : (session?.user.phone ?? null);
 
   // Which providers already sign this account in, so a linked one shows as done
   // rather than offering to link what is already linked. Adding one goes through

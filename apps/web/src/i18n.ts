@@ -21,12 +21,7 @@ export enum Language {
   Ar = 'ar',
 }
 
-export const LANGUAGES: readonly Language[] = [
-  Language.En,
-  Language.Ta,
-  Language.Hi,
-  Language.Ar,
-];
+export const LANGUAGES: readonly Language[] = [Language.En, Language.Ta, Language.Hi, Language.Ar];
 
 export function isRtlLanguage(language: Language): boolean {
   return language === Language.Ar;

@@ -600,7 +600,29 @@ export interface UiStrings {
     delete: string;
     unassigned: string;
     unassignedBody: PluralForms;
+    itemizedTitle: string;
+    itemCount: PluralForms;
+    couldNotRead: string;
+    savedOnDevice: string;
     save: string;
+  };
+  /** Backing up scanned receipts to the user's own cloud drive (Drive/Dropbox/OneDrive). */
+  backup: {
+    title: string;
+    subtitle: string;
+    primaryTitle: string;
+    primaryBody: string;
+    off: string;
+    connect: string;
+    disconnect: string;
+    connected: string;
+    notConfigured: string;
+    networkTitle: string;
+    wifiOnly: string;
+    wifiAndData: string;
+    pending: PluralForms;
+    allBackedUp: string;
+    privacyNote: string;
   };
   /** A group: its screen, its settings, and the ways out of it. */
   group: {
@@ -1124,6 +1146,11 @@ export interface UiStrings {
     savedStraightAway: string;
     nothingOverwritten: string;
   };
+  errorBoundary: {
+    title: string;
+    body: string;
+    action: string;
+  };
 }
 
 const en: UiStrings = {
@@ -1578,7 +1605,36 @@ const en: UiStrings = {
       one: '{n} capture waiting for a group',
       other: '{n} captures waiting for a group',
     },
+    itemizedTitle: 'Itemized',
+    itemCount: {
+      one: '{n} item',
+      other: '{n} items',
+    },
+    couldNotRead: "Couldn't read this bill — enter the amount yourself.",
+    savedOnDevice: 'Saved on this device',
     save: 'Save capture',
+  },
+  backup: {
+    title: 'Receipt backup',
+    subtitle: 'Keep scanned receipts on your own cloud',
+    primaryTitle: 'Back up receipts to',
+    primaryBody:
+      'Scanned receipts are saved on this device and copied to the drive you choose. They never touch Baaki’s servers.',
+    off: 'Off',
+    connect: 'Connect',
+    disconnect: 'Disconnect',
+    connected: 'Connected',
+    notConfigured: 'Not set up in this build',
+    networkTitle: 'Upload over',
+    wifiOnly: 'Wi‑Fi only',
+    wifiAndData: 'Wi‑Fi & mobile data',
+    pending: {
+      one: '{n} receipt waiting to back up',
+      other: '{n} receipts waiting to back up',
+    },
+    allBackedUp: 'All receipts backed up',
+    privacyNote:
+      'The photo stays on your phone and your chosen cloud. Baaki only ever sees the amount you save.',
   },
   group: {
     notFound: 'Group not found',
@@ -2153,6 +2209,11 @@ const en: UiStrings = {
     nothingOverwritten:
       'Nothing here is ever overwritten. Every version above is kept, and a deleted expense can be brought back for 30 days.',
   },
+  errorBoundary: {
+    title: 'Something went wrong',
+    body: 'That screen hit an error. Nothing you saved is lost — go back and try again.',
+    action: 'Back to home',
+  },
 };
 
 /**
@@ -2625,7 +2686,36 @@ const ta: UiStrings = {
       one: 'குழுவுக்காகக் காத்திருக்கும் {n} பதிவு',
       other: 'குழுவுக்காகக் காத்திருக்கும் {n} பதிவுகள்',
     },
+    itemizedTitle: 'உருப்படிகள்',
+    itemCount: {
+      one: '{n} உருப்படி',
+      other: '{n} உருப்படிகள்',
+    },
+    couldNotRead: 'இந்த ரசீதைப் படிக்க முடியவில்லை — தொகையை நீங்களே உள்ளிடவும்.',
+    savedOnDevice: 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது',
     save: 'சேமி',
+  },
+  backup: {
+    title: 'ரசீது காப்புப்படி',
+    subtitle: 'ஸ்கேன் செய்த ரசீதுகளை உங்கள் சொந்த கிளவுடில் வைத்திருங்கள்',
+    primaryTitle: 'ரசீதுகளை காப்புப்பிடி',
+    primaryBody:
+      'ஸ்கேன் செய்த ரசீதுகள் இந்தச் சாதனத்தில் சேமிக்கப்பட்டு நீங்கள் தேர்ந்தெடுத்த கிளவுடுக்கு நகலெடுக்கப்படும். அவை Baaki சேவையகங்களைத் தொடாது.',
+    off: 'அணை',
+    connect: 'இணை',
+    disconnect: 'துண்டி',
+    connected: 'இணைக்கப்பட்டது',
+    notConfigured: 'இந்த பதிப்பில் அமைக்கப்படவில்லை',
+    networkTitle: 'இதன் மூலம் பதிவேற்று',
+    wifiOnly: 'வைஃபை மட்டும்',
+    wifiAndData: 'வைஃபை & மொபைல் டேட்டா',
+    pending: {
+      one: '{n} ரசீது காப்புப்படிக்கக் காத்திருக்கிறது',
+      other: '{n} ரசீதுகள் காப்புப்படிக்கக் காத்திருக்கின்றன',
+    },
+    allBackedUp: 'அனைத்து ரசீதுகளும் காப்புப்படி எடுக்கப்பட்டன',
+    privacyNote:
+      'புகைப்படம் உங்கள் ஃபோனிலும் நீங்கள் தேர்ந்தெடுத்த கிளவுடிலும் இருக்கும். Baaki நீங்கள் சேமிக்கும் தொகையை மட்டுமே பார்க்கும்.',
   },
   group: {
     notFound: 'குழு கிடைக்கவில்லை',
@@ -3223,6 +3313,11 @@ const ta: UiStrings = {
     nothingOverwritten:
       'இங்கே எதுவும் மேலெழுதப்படுவதில்லை. மேலே உள்ள ஒவ்வொரு பதிப்பும் வைக்கப்படுகிறது, நீக்கப்பட்ட செலவை 30 நாட்களுக்கு மீட்கலாம்.',
   },
+  errorBoundary: {
+    title: 'ஏதோ தவறாகிவிட்டது',
+    body: 'அந்தத் திரையில் பிழை ஏற்பட்டது. நீங்கள் சேமித்தது எதுவும் இழக்கப்படவில்லை — திரும்பிச் சென்று மீண்டும் முயலுங்கள்.',
+    action: 'முகப்புக்குத் திரும்பு',
+  },
 };
 
 const hi: UiStrings = {
@@ -3672,7 +3767,36 @@ const hi: UiStrings = {
       one: 'समूह की प्रतीक्षा में {n} प्रविष्टि',
       other: 'समूह की प्रतीक्षा में {n} प्रविष्टियाँ',
     },
+    itemizedTitle: 'मदवार',
+    itemCount: {
+      one: '{n} वस्तु',
+      other: '{n} वस्तुएँ',
+    },
+    couldNotRead: 'यह रसीद पढ़ी नहीं जा सकी — राशि स्वयं दर्ज करें।',
+    savedOnDevice: 'इस डिवाइस पर सहेजा गया',
     save: 'सहेजें',
+  },
+  backup: {
+    title: 'रसीद बैकअप',
+    subtitle: 'स्कैन की गई रसीदें अपने क्लाउड पर रखें',
+    primaryTitle: 'रसीदें यहाँ बैकअप करें',
+    primaryBody:
+      'स्कैन की गई रसीदें इस डिवाइस पर सहेजी जाती हैं और आपके चुने हुए क्लाउड पर कॉपी होती हैं। वे Baaki के सर्वर पर कभी नहीं जातीं।',
+    off: 'बंद',
+    connect: 'कनेक्ट करें',
+    disconnect: 'डिसकनेक्ट करें',
+    connected: 'कनेक्टेड',
+    notConfigured: 'इस बिल्ड में सेट नहीं है',
+    networkTitle: 'इसके ज़रिए अपलोड करें',
+    wifiOnly: 'केवल वाई‑फाई',
+    wifiAndData: 'वाई‑फाई और मोबाइल डेटा',
+    pending: {
+      one: '{n} रसीद बैकअप के लिए प्रतीक्षारत',
+      other: '{n} रसीदें बैकअप के लिए प्रतीक्षारत',
+    },
+    allBackedUp: 'सभी रसीदें बैकअप हो गईं',
+    privacyNote:
+      'फ़ोटो आपके फ़ोन और आपके चुने हुए क्लाउड पर रहती है। Baaki केवल वह राशि देखता है जो आप सहेजते हैं।',
   },
   group: {
     notFound: 'समूह नहीं मिला',
@@ -4246,6 +4370,11 @@ const hi: UiStrings = {
     nothingOverwritten:
       'यहाँ कुछ भी मिटाकर ऊपर नहीं लिखा जाता। ऊपर का हर संस्करण रखा जाता है, और हटाया गया खर्च 30 दिन तक वापस लाया जा सकता है।',
   },
+  errorBoundary: {
+    title: 'कुछ गड़बड़ हो गई',
+    body: 'उस स्क्रीन में कोई त्रुटि आ गई। आपका सहेजा हुआ कुछ भी नहीं खोया — वापस जाकर फिर कोशिश करें।',
+    action: 'होम पर वापस',
+  },
 };
 
 /**
@@ -4735,7 +4864,42 @@ const ar: UiStrings = {
       many: '{n} التقاطًا تنتظر مجموعة',
       other: '{n} التقاط ينتظر مجموعة',
     },
+    itemizedTitle: 'مفصّل',
+    itemCount: {
+      one: 'عنصر واحد',
+      two: 'عنصران',
+      few: '{n} عناصر',
+      many: '{n} عنصرًا',
+      other: '{n} عنصر',
+    },
+    couldNotRead: 'تعذّر قراءة هذا الإيصال — أدخل المبلغ بنفسك.',
+    savedOnDevice: 'محفوظ على هذا الجهاز',
     save: 'حفظ',
+  },
+  backup: {
+    title: 'نسخ الإيصالات احتياطيًا',
+    subtitle: 'احتفظ بالإيصالات الممسوحة على سحابتك الخاصة',
+    primaryTitle: 'انسخ الإيصالات احتياطيًا إلى',
+    primaryBody:
+      'تُحفظ الإيصالات الممسوحة على هذا الجهاز وتُنسخ إلى السحابة التي تختارها. لا تصل أبدًا إلى خوادم Baaki.',
+    off: 'إيقاف',
+    connect: 'اتصال',
+    disconnect: 'قطع الاتصال',
+    connected: 'متصل',
+    notConfigured: 'غير مُهيّأ في هذه النسخة',
+    networkTitle: 'الرفع عبر',
+    wifiOnly: 'واي‑فاي فقط',
+    wifiAndData: 'واي‑فاي وبيانات الجوال',
+    pending: {
+      zero: 'لا إيصالات بانتظار النسخ',
+      one: 'إيصال واحد بانتظار النسخ الاحتياطي',
+      two: 'إيصالان بانتظار النسخ',
+      few: '{n} إيصالات بانتظار النسخ',
+      many: '{n} إيصالًا بانتظار النسخ',
+      other: '{n} إيصال بانتظار النسخ',
+    },
+    allBackedUp: 'تم نسخ جميع الإيصالات احتياطيًا',
+    privacyNote: 'تبقى الصورة على هاتفك وسحابتك المختارة. لا يرى Baaki سوى المبلغ الذي تحفظه.',
   },
   group: {
     notFound: 'المجموعة غير موجودة',
@@ -5437,6 +5601,11 @@ const ar: UiStrings = {
       'يُحفظ على هذا الهاتف فورًا، بإشارة أو بدونها. يعيد الخادم حساب كل حصة قبل تخزينها، فلا يستطيع أي جهاز دفع رقم خاطئ إلى الدفتر.',
     nothingOverwritten:
       'لا يُستبدل هنا شيء أبدًا. تُحفظ كل نسخة أعلاه، ويمكن استرجاع مصروف محذوف خلال 30 يومًا.',
+  },
+  errorBoundary: {
+    title: 'حدث خطأ ما',
+    body: 'واجهت تلك الشاشة خطأ. لم يُفقد أي شيء حفظته — ارجع وحاول مرة أخرى.',
+    action: 'العودة إلى الرئيسية',
   },
 };
 
