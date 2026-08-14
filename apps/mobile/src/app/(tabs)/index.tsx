@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
@@ -27,6 +27,7 @@ import { useGuestGuard } from '@/lib/guestGuard';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { groupLabel, GroupType } from '@/data/types';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -55,6 +56,26 @@ export default function HomeScreen() {
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
+
+  // The header overflow menu (the three-dot dropdown): the settings and the
+  // less-used destinations, surfaced from the dashboard rather than only from
+  // the profile tab.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuItems: OverflowMenuItem[] = useMemo(
+    () => [
+      { icon: 'person-circle-outline', label: t.account.yourAccount, route: '/settings/account' },
+      {
+        icon: 'notifications-outline',
+        label: t.account.notifications,
+        route: '/settings/notifications',
+      },
+      { icon: 'cloud-done-outline', label: t.backup.title, route: '/settings/backup' },
+      { icon: 'language-outline', label: t.language, route: '/settings/language' },
+      { icon: 'contrast-outline', label: t.account.themeRow, route: '/settings/theme' },
+      { icon: 'settings-outline', label: t.account.faceSettings, route: '/profile' },
+    ],
+    [t],
+  );
 
   // The group list gets a category filter strip — but only worth showing once
   // there is more than one kind of group to sort between. Chips appear in the
@@ -130,33 +151,37 @@ export default function HomeScreen() {
           />
         }
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
+        <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center', gap: theme.spacing.md }}>
           {/* Your own face at the top of your own dashboard reads as a way in
               to your account, so it is one. It goes to the same place the last
               tab does rather than somewhere only reachable from here — two
               routes to one screen, not a second screen that drifts. */}
           <Avatar
             name={profile?.display_name ?? 'You'}
-            size={46}
+            size={44}
             photoUrl={avatarUrl}
             accessibilityLabel={t.profile}
             onPress={() => router.navigate('/profile')}
           />
-          <View style={{ flex: 1 }}>
-            <Text variant="caption" tone="muted">
-              {t.greeting},
-            </Text>
-            <Text variant="heading" numberOfLines={1}>
-              {profile?.display_name ?? 'You'}
-            </Text>
-          </View>
+          {/* Just the name, sized up — the greeting was a word that said nothing
+              and pushed the name down into a caption. */}
+          <Text variant="title" numberOfLines={1} style={{ flex: 1 }}>
+            {profile?.display_name ?? 'You'}
+          </Text>
           {/* Straight to the camera: the icon is a scanner, so it opens one
               rather than a form to fill in first (the capture screen reads the
               `scan` flag and launches the camera on mount). */}
           <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture?scan=1')}>
             <Ionicons name="camera-outline" size={22} color={theme.color.text} />
           </IconButton>
+          {/* The overflow: the settings and the less-used destinations, dropped
+              from here rather than owning a tab. */}
+          <IconButton label={t.account.faceSettings} onPress={() => setMenuOpen(true)}>
+            <Ionicons name="ellipsis-vertical" size={22} color={theme.color.text} />
+          </IconButton>
         </Row>
+
+        <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
 
         <SyncBanner />
 
