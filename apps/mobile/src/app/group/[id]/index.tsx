@@ -40,7 +40,7 @@ import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { DetailEnter } from '@/lib/anim';
 import { CategoryBadge } from '@/components/Category';
-import { GroupMenu } from '@/components/GroupMenu';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { PendingMark } from '@/components/PendingMark';
 import { SyncBanner } from '@/components/SyncBanner';
@@ -111,6 +111,23 @@ export default function GroupScreen() {
     (settlement) =>
       settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,
   );
+
+  // The overflow: the same three-dot dropdown the dashboard uses, not a bottom
+  // sheet, so the two headers behave alike. Planner only appears where there is
+  // a trip to plan; a flatshare has no use for the row.
+  const menuItems: OverflowMenuItem[] = [
+    { icon: 'pie-chart-outline', label: t.spending, route: `/group/${groupId}/insights` },
+    ...(group.data.type === 'trip'
+      ? [
+          {
+            icon: 'map-outline',
+            label: t.plan,
+            route: `/group/${groupId}/plan`,
+          } as OverflowMenuItem,
+        ]
+      : []),
+    { icon: 'settings-outline', label: t.group.settings, route: `/group/${groupId}/settings` },
+  ];
 
   return (
     <Screen>
@@ -183,12 +200,7 @@ export default function GroupScreen() {
             </Pressable>
           </Row>
 
-          <GroupMenu
-            groupId={groupId}
-            isTrip={group.data.type === 'trip'}
-            open={menuOpen}
-            onClose={() => setMenuOpen(false)}
-          />
+          <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
 
           <SyncBanner groupId={groupId} />
 
