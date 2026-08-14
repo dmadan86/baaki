@@ -1,0 +1,23 @@
+# Weekly dependency PRs. The CI `security` job blocks a merge on a high-severity
+# advisory in production code; this is the other half — the routine bumps that
+# keep us off those advisories in the first place, across the workspace and the
+# GitHub Actions we pin.
+version: 2
+updates:
+  - package-ecosystem: npm # pnpm workspaces use the npm ecosystem
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for the routine patch/minor noise instead of dozens; majors still
+      # come as their own reviewable PRs.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
