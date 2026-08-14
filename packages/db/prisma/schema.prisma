@@ -143,10 +143,15 @@ model Profile {
   defaultCurrency   String   @default("INR") @map("default_currency") @db.Char(3)
   locale            String   @default("en")
   notificationPrefs Json     @default("{}") @map("notification_prefs")
+  /// Per-owner monotonic counter behind the personal sync scope (TDR A34), the
+  /// captures equivalent of `groups.updated_seq`. Bumped under row lock by
+  /// `baaki_next_capture_seq`.
+  capturesSeq       BigInt   @default(0) @map("captures_seq")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships         GroupMember[]
+  captures            Capture[]
   pushTokens          PushToken[]
   notifications       Notification[]
   emailEvents         EmailEvent[]
@@ -780,6 +785,46 @@ model SyncMutation {
 
   @@index([profileId, appliedAt(sort: Desc)], map: "sync_mutations_profile_idx")
   @@map("sync_mutations")
+  @@schema("public")
+}
+
+/// An expense caught before it has a group (TDR A34). Personal until assigned:
+/// owned by one user, synced under that owner's own scope rather than any
+/// group's, carrying no members and no split. On assignment it becomes an
+/// ordinary `expenses` row in the chosen group and this row flips to
+/// `assigned`, which removes it from the inbox. Writes go through `/sync` as
+/// the caller; owner-only RLS is the gate. `updated_seq` is stamped per owner
+/// by `baaki_next_capture_seq` (the personal mirror of the group counter).
+model Capture {
+  id                String    @id @db.Uuid
+  ownerUserId       String    @map("owner_user_id") @db.Uuid
+  description       String    @default("")
+  category          String?
+  expenseDate       DateTime  @map("expense_date") @db.Date
+  currency          String
+  /// Minor units. Never a float.
+  amount            BigInt
+  notes             String?
+  /// Object path in the private `captures` bucket, read via a signed URL.
+  photoPath         String?   @map("photo_path")
+  /// On-device OCR text (A5), kept so assignment can prefill the expense form.
+  rawText           String?   @map("raw_text")
+  parsed            Json?
+  /// 'open' while in the inbox, 'assigned' once it became a real expense.
+  status            String    @default("open")
+  /// Advisory pointers to what it became — not FKs, since the target lives in a
+  /// different (group) scope.
+  assignedExpenseId String?   @map("assigned_expense_id") @db.Uuid
+  assignedGroupId   String?   @map("assigned_group_id") @db.Uuid
+  updatedSeq        BigInt    @default(0) @map("updated_seq")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  owner Profile @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId, updatedSeq], map: "captures_owner_user_id_updated_seq_idx")
+  @@map("captures")
   @@schema("public")
 }
 

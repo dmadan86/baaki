@@ -357,6 +357,8 @@ function AuthGate() {
       <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
       <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
       <Stack.Screen name="new-group" options={modal} />
+      <Stack.Screen name="capture" options={modal} />
+      <Stack.Screen name="captures" />
       <Stack.Screen name="group/[id]/index" />
       <Stack.Screen name="group/[id]/add-expense" options={modal} />
       <Stack.Screen name="group/[id]/settle" options={modal} />

@@ -22,6 +22,9 @@ import type { ExpenseSnapshot } from '../balances/types';
 
 import { SyncTable } from './protocol';
 import type {
+  CaptureAssignPayload,
+  CaptureCreatePayload,
+  CaptureDeletePayload,
   ExpenseCreatePayload,
   ExpenseDeletePayload,
   MutationEnvelope,
@@ -48,6 +51,7 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.Settlements,
   SyncTable.SettlementAllocations,
   SyncTable.ActivityLog,
+  SyncTable.Captures,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -484,4 +488,113 @@ export function materialiseGroups(
   return [...byId.values()]
     .filter((group) => !group.archived_at)
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+}
+
+// ───────────────────────────────────────────────── captures (A34) ──
+//
+// The personal inbox needs the same server+pending treatment as everything
+// else: a capture made offline is only in the queue, and without the overlay it
+// would be invisible until it synced — the same data-loss illusion ADR-005
+// exists to prevent. Captures ride a *personal* scope, so the envelope's
+// `groupId` slot holds the owner's user id rather than a group.
+
+export interface MirrorCapture extends MirrorRow {
+  readonly id: string;
+  readonly owner_user_id: string;
+  readonly description: string;
+  readonly category: string | null;
+  readonly expense_date: string;
+  readonly currency: string;
+  readonly amount: string;
+  readonly notes: string | null;
+  readonly photo_path: string | null;
+  readonly raw_text: string | null;
+  readonly parsed: Record<string, unknown> | null;
+  readonly status: 'open' | 'assigned';
+  readonly assigned_expense_id: string | null;
+  readonly assigned_group_id: string | null;
+  readonly created_at: string;
+  readonly deleted_at: string | null;
+  readonly pending?: boolean;
+}
+
+/**
+ * The captures to render: the server's rows with the queue replayed on top.
+ *
+ * `ownerId` is the personal scope — the caller's own user id, which is what
+ * every queued capture mutation carries in place of a group id.
+ */
+export function materialiseCaptures(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  options: { readonly ownerId: string },
+): MirrorCapture[] {
+  const byId = new Map<string, MirrorCapture>();
+  for (const row of rowsFor(state, SyncTable.Captures) as MirrorCapture[]) byId.set(row.id, row);
+
+  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+    if (mutation.groupId !== options.ownerId) continue;
+
+    switch (mutation.kind) {
+      case 'capture.create':
+      case 'capture.update': {
+        const payload = mutation.payload as CaptureCreatePayload;
+        const existing = byId.get(payload.captureId);
+        byId.set(payload.captureId, {
+          id: payload.captureId,
+          owner_user_id: options.ownerId,
+          description: payload.description,
+          category: payload.category ?? null,
+          expense_date: payload.expenseDate,
+          currency: payload.currency,
+          amount: payload.amount,
+          notes: payload.notes ?? null,
+          photo_path: payload.photoPath ?? null,
+          raw_text: payload.rawText ?? null,
+          parsed: payload.parsed ?? null,
+          // An edit never un-assigns; only assignment sets it, below.
+          status: existing?.status ?? 'open',
+          assigned_expense_id: existing?.assigned_expense_id ?? null,
+          assigned_group_id: existing?.assigned_group_id ?? null,
+          created_at: existing?.created_at ?? mutation.clientCreatedAt,
+          deleted_at: existing?.deleted_at ?? null,
+          pending: true,
+        });
+        break;
+      }
+      case 'capture.delete': {
+        const { captureId } = mutation.payload as CaptureDeletePayload;
+        const existing = byId.get(captureId);
+        if (existing) {
+          byId.set(captureId, { ...existing, deleted_at: mutation.clientCreatedAt, pending: true });
+        }
+        break;
+      }
+      case 'capture.assign': {
+        const payload = mutation.payload as CaptureAssignPayload;
+        const existing = byId.get(payload.captureId);
+        if (existing) {
+          byId.set(payload.captureId, {
+            ...existing,
+            status: 'assigned',
+            assigned_group_id: payload.groupId,
+            assigned_expense_id: payload.expenseId,
+            pending: true,
+          });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return [...byId.values()].sort((a, b) =>
+    String(b.created_at).localeCompare(String(a.created_at)),
+  );
+}
+
+/** The inbox: open, not deleted. What has been assigned or removed is gone from it. */
+export function openCaptures(captures: readonly MirrorCapture[]): MirrorCapture[] {
+  return captures.filter((capture) => capture.status === 'open' && capture.deleted_at === null);
 }

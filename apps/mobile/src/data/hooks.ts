@@ -15,11 +15,13 @@ import { randomUUID } from 'expo-crypto';
 import {
   computeNetBalances,
   computePairwiseBalances,
+  materialiseCaptures,
   materialiseExpenses,
   materialiseGroups,
   materialiseMembers,
   materialiseSettlements,
   MutationKind,
+  openCaptures,
   overlayPending,
   rowsFor,
   simplify,
@@ -31,6 +33,7 @@ import {
   type Transfer,
 } from '@baaki/core';
 
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { syncEngine, useSync } from '@/sync';
 import {
@@ -62,7 +65,14 @@ import {
 } from './api';
 import { totalsByCurrency } from './totals';
 import { SettlementStatus } from './types';
-import type { ActivityRow, ExpenseRow, GroupRow, MemberRow, SettlementRow } from './types';
+import type {
+  ActivityRow,
+  CaptureRow,
+  ExpenseRow,
+  GroupRow,
+  MemberRow,
+  SettlementRow,
+} from './types';
 
 export const keys = {
   groups: ['groups'] as const,
@@ -153,7 +163,10 @@ export function useSettledTotals(profileId: string | null): LocalRead<Map<string
 
     const out = new Map<string, bigint>();
     for (const row of rowsFor(mirror, SyncTable.Settlements) as unknown as SettlementRow[]) {
-      if (row.status !== SettlementStatus.Confirmed && row.status !== SettlementStatus.AutoConfirmed)
+      if (
+        row.status !== SettlementStatus.Confirmed &&
+        row.status !== SettlementStatus.AutoConfirmed
+      )
         continue;
       if (!mine.has(row.from_member_id) && !mine.has(row.to_member_id)) continue;
       out.set(row.currency, (out.get(row.currency) ?? 0n) + BigInt(row.amount));
@@ -266,16 +279,16 @@ export function useGroup(groupId: string) {
     const settlements = materialiseSettlements(mirror, queue, {
       groupId,
     }) as unknown as SettlementRow[];
-    const activity = (rowsFor(mirror, SyncTable.ActivityLog, groupId) as unknown as ActivityRow[]).sort(
-      (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
-    );
+    const activity = (
+      rowsFor(mirror, SyncTable.ActivityLog, groupId) as unknown as ActivityRow[]
+    ).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
     // Server rows, and server rows with the queue replayed on top. Screens want
     // the second; anything checking what the server actually knows wants the
     // first, and conflating them is how a queued expense starts looking real
     // enough to reconcile against.
-    const stored = (rowsFor(mirror, SyncTable.Expenses, groupId) as unknown as ExpenseRow[]).sort((a, b) =>
-      String(b.created_at).localeCompare(String(a.created_at)),
+    const stored = (rowsFor(mirror, SyncTable.Expenses, groupId) as unknown as ExpenseRow[]).sort(
+      (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
     );
     const withPending = materialiseExpenses(mirror, queue, {
       groupId,
@@ -554,10 +567,14 @@ export function useWriteExpense(groupId: string) {
   return useMutation({
     mutationFn: async (input: Omit<WriteExpenseInput, 'groupId'>) => {
       const expenseId = input.expenseId ?? randomUUID();
-      await mutate(input.expenseId ? MutationKind.ExpenseUpdate : MutationKind.ExpenseCreate, groupId, {
-        ...serialiseExpense(input),
-        expenseId,
-      });
+      await mutate(
+        input.expenseId ? MutationKind.ExpenseUpdate : MutationKind.ExpenseCreate,
+        groupId,
+        {
+          ...serialiseExpense(input),
+          expenseId,
+        },
+      );
       return expenseId;
     },
   });
@@ -614,6 +631,120 @@ export function useConfirmSettlement(groupId: string) {
   return useMutation({
     mutationFn: (settlementId: string) =>
       mutate(MutationKind.SettlementTransition, groupId, { settlementId }),
+  });
+}
+
+// ─────────────────────────────────────────────── captures / inbox (A34) ──
+//
+// A capture syncs under a *personal scope*: the owner's own user id sits where a
+// group id normally would, so `mutate(kind, ownerId, …)` queues it in a
+// per-user order and the server authorises it by ownership. Everything else —
+// offline-first, replayed-on-top, force-kill-safe — is the same queue the group
+// mutations use.
+
+/** The inbox: this person's open, unassigned captures, newest first. */
+export function useCaptures(): LocalRead<CaptureRow[]> {
+  const { session } = useAuth();
+  const ownerId = session?.user?.id ?? '';
+  const { mirror, queue } = useSync();
+  const captures = useMemo(
+    () =>
+      ownerId
+        ? (openCaptures(materialiseCaptures(mirror, queue, { ownerId })) as unknown as CaptureRow[])
+        : [],
+    [mirror, queue, ownerId],
+  );
+  return useLocalRead(captures);
+}
+
+export interface CaptureInput {
+  captureId?: string;
+  description: string;
+  category?: string | null;
+  expenseDate: string;
+  currency: string;
+  amount: bigint;
+  notes?: string | null;
+  photoPath?: string | null;
+  rawText?: string | null;
+  parsed?: Record<string, unknown> | null;
+}
+
+/** bigint → decimal string at the queue boundary, like `serialiseExpense`. */
+function serialiseCapture(input: CaptureInput, captureId: string): Record<string, unknown> {
+  return {
+    captureId,
+    description: input.description.trim(),
+    category: input.category ?? null,
+    expenseDate: input.expenseDate,
+    currency: input.currency,
+    amount: input.amount.toString(),
+    notes: input.notes ?? null,
+    photoPath: input.photoPath ?? null,
+    rawText: input.rawText ?? null,
+    parsed: input.parsed ?? null,
+  };
+}
+
+export function useCreateCapture() {
+  const { mutate } = useSync();
+  const { session } = useAuth();
+  return useMutation({
+    mutationFn: async (input: CaptureInput) => {
+      const ownerId = session?.user?.id;
+      if (!ownerId) throw new Error('Sign in to capture an expense');
+      const captureId = input.captureId ?? randomUUID();
+      await mutate(MutationKind.CaptureCreate, ownerId, serialiseCapture(input, captureId));
+      return captureId;
+    },
+  });
+}
+
+export function useUpdateCapture() {
+  const { mutate } = useSync();
+  const { session } = useAuth();
+  return useMutation({
+    mutationFn: async (input: CaptureInput & { captureId: string }) => {
+      const ownerId = session?.user?.id;
+      if (!ownerId) throw new Error('Sign in first');
+      await mutate(MutationKind.CaptureUpdate, ownerId, serialiseCapture(input, input.captureId));
+      return input.captureId;
+    },
+  });
+}
+
+export function useDeleteCapture() {
+  const { mutate } = useSync();
+  const { session } = useAuth();
+  return useMutation({
+    mutationFn: async (captureId: string) => {
+      const ownerId = session?.user?.id;
+      if (!ownerId) throw new Error('Sign in first');
+      await mutate(MutationKind.CaptureDelete, ownerId, { captureId });
+      return captureId;
+    },
+  });
+}
+
+/**
+ * Close a capture once it has become a real expense. The expense is an ordinary
+ * `expense.create` on the group's scope (the add-expense flow already made it);
+ * this only marks the capture assigned, which removes it from the inbox.
+ */
+export function useAssignCapture() {
+  const { mutate } = useSync();
+  const { session } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { captureId: string; groupId: string; expenseId: string }) => {
+      const ownerId = session?.user?.id;
+      if (!ownerId) throw new Error('Sign in first');
+      await mutate(MutationKind.CaptureAssign, ownerId, {
+        captureId: input.captureId,
+        groupId: input.groupId,
+        expenseId: input.expenseId,
+      });
+      return input.captureId;
+    },
   });
 }
 

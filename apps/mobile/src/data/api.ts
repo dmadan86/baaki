@@ -347,6 +347,48 @@ function normaliseImageMime(mimeType: string | null | undefined): string {
   return 'image/jpeg';
 }
 
+function imageExt(mime: string): string {
+  return mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+}
+
+// ─────────────────────────────────────── capture receipts (Storage, A34) ──
+
+const CAPTURE_BUCKET = 'captures';
+
+/**
+ * Upload a capture's receipt photo and return its storage path.
+ *
+ * Unlike a group photo, this does not write the owning row — a capture is
+ * written only through the sync queue, so the path this returns rides in the
+ * `capture.create`/`capture.update` payload as `photoPath`. The path is
+ * `<ownerUserId>/<captureId>.<ext>`, which is exactly what the owner-only bucket
+ * policy keys off (its first segment must equal the caller's own id).
+ */
+export async function uploadCapturePhoto(input: {
+  ownerUserId: string;
+  captureId: string;
+  base64: string;
+  mimeType?: string | null;
+}): Promise<string> {
+  const mime = normaliseImageMime(input.mimeType);
+  const path = `${input.ownerUserId}/${input.captureId}.${imageExt(mime)}`;
+  const { error } = await supabase.storage
+    .from(CAPTURE_BUCKET)
+    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
+/** Resolve a capture photo path to a displayable signed URL (private bucket). */
+export async function capturePhotoUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from(CAPTURE_BUCKET)
+    .createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
 // ───────────────────────────────────────── profile photos (Storage) ──
 
 const AVATAR_BUCKET = 'avatars';

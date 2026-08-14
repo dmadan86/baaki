@@ -33,7 +33,7 @@ import { CategoryPicker } from '@/components/Category';
 import { CurrencyRate } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
 import { scanReceipt, scanReceiptText } from '@/data/api';
-import { useGroup } from '@/data/hooks';
+import { useAssignCapture, useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -79,12 +79,32 @@ function textEntries(
 export default function AddExpenseScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
-  const { id, expenseId } = useLocalSearchParams<{ id: string; expenseId?: string }>();
+  // The capture params are the inbox handoff (A34): assigning a capture opens
+  // this form prefilled and carries the capture id so a successful save can
+  // close it. Absent for every ordinary add or edit, which behave unchanged.
+  const {
+    id,
+    expenseId,
+    captureId,
+    amount: captureAmount,
+    description: captureDescription,
+    category: captureCategory,
+    expenseDate: captureExpenseDate,
+  } = useLocalSearchParams<{
+    id: string;
+    expenseId?: string;
+    captureId?: string;
+    amount?: string;
+    description?: string;
+    category?: string;
+    expenseDate?: string;
+  }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
 
   const { group, members, expenses } = useGroup(groupId);
   const { mutate } = useSync();
+  const assignCapture = useAssignCapture();
   const guard = useGuestGuard();
 
   const editing = expenses.rows.find((expense) => expense.id === expenseId);
@@ -153,7 +173,19 @@ export default function AddExpenseScreen() {
     setSeededFor(seedKey);
     const version = editing?.currentVersion;
     const draft = restored.draft;
-    if (draft) {
+    if (captureId && !editing) {
+      // Assigned from the inbox (A34): the capture's own values seed the form,
+      // ahead of any stale draft, since arriving here from a capture is an
+      // explicit choice to turn that capture into this expense. Payer and
+      // participants take the ordinary new-expense defaults — the capture never
+      // had either.
+      setAmount(BigInt(captureAmount ?? '0'));
+      setDescription(captureDescription ?? '');
+      setCategory((captureCategory as CategoryId) || null);
+      setCategoryChosen(Boolean(captureCategory));
+      setParticipants((members.data ?? []).map((member) => member.id));
+      setPayer(myMemberId);
+    } else if (draft) {
       // A draft outranks the saved version: it is what the user was in the
       // middle of writing when the app went away.
       setAmount(BigInt(draft.amount));
@@ -312,7 +344,11 @@ export default function AddExpenseScreen() {
         // in one language, for an app that speaks four.
         description: description.trim(),
         category,
-        expenseDate: new Date().toISOString().slice(0, 10),
+        // A capture keeps the day it was caught; an ordinary expense is today's.
+        expenseDate:
+          captureId && captureExpenseDate
+            ? captureExpenseDate
+            : new Date().toISOString().slice(0, 10),
         currency,
         amount: amount.toString(),
         fx,
@@ -326,6 +362,12 @@ export default function AddExpenseScreen() {
         baseVersionNo: editing?.currentVersion?.version_no ?? null,
       });
       await clearDraft(draftKey);
+      // The expense exists now; closing the capture removes it from the inbox
+      // and records which expense it became (A34). Done before leaving so a
+      // successful save never leaves the capture orphaned in the list.
+      if (captureId) {
+        await assignCapture.mutateAsync({ captureId, groupId, expenseId: targetExpenseId });
+      }
       router.back();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -656,7 +698,9 @@ export default function AddExpenseScreen() {
                       placeholder={splitKind === SplitKind.Percent ? '0' : '1'}
                       placeholderTextColor={theme.color.textFaint}
                       accessibilityLabel={
-                        splitKind === SplitKind.Percent ? `${name}'s percentage` : `${name}'s shares`
+                        splitKind === SplitKind.Percent
+                          ? `${name}'s percentage`
+                          : `${name}'s shares`
                       }
                       style={{
                         width: 72,
