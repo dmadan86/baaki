@@ -12,7 +12,6 @@ import {
   directionalIcon,
   EmptyState,
   Fab,
-  IconButton,
   ListRow,
   MoneyText,
   Row,
@@ -62,6 +61,7 @@ export default function GroupScreen() {
   const { profile } = useAuth();
   const [tab, setTab] = useState<Tab>(Tab.Expenses);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Live updates from the other devices in this group (TDR §1).
   useGroupRealtime(groupId);
@@ -130,11 +130,32 @@ export default function GroupScreen() {
             />
           }
         >
-          <Row style={{ paddingTop: theme.spacing.md }}>
-            <IconButton label={t.common.back} onPress={() => router.back()}>
-              <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
-            </IconButton>
-            <Row style={{ flex: 1, gap: theme.spacing.md, justifyContent: 'center' }}>
+          <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.sm }}>
+            {/* Just the arrow and its tap target — no chip behind it. */}
+            <Pressable
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.back}
+              hitSlop={10}
+            >
+              <Ionicons name={directionalIcon('chevron-back')} size={24} color={theme.color.text} />
+            </Pressable>
+            {/* The photo-and-name cluster is itself the way into settings, the
+              way tapping a chat's title bar opens its info in WhatsApp — so the
+              name is a tap target, not just a label above a menu. */}
+            <Pressable
+              onPress={() => router.push(`/group/${groupId}/settings`)}
+              accessibilityRole="button"
+              accessibilityLabel={t.group.settings}
+              style={({ pressed }) => ({
+                flex: 1,
+                flexDirection: 'row',
+                gap: theme.spacing.md,
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
               <GroupPhoto
                 photoPath={group.data.photo_path}
                 emoji={group.data.cover_emoji}
@@ -148,11 +169,26 @@ export default function GroupScreen() {
                   {plural(locale, members.data?.length ?? 0, t.memberCount)}
                 </Text>
               </View>
-            </Row>
-            {/* Planner, spending and settings live behind one menu now, so the
-              name has the row to itself. Planner only shows for a trip. */}
-            <GroupMenu groupId={groupId} isTrip={group.data.type === 'trip'} />
+            </Pressable>
+            {/* Planner, spending and settings live behind this one menu; planner
+              only shows for a trip. Bare icon, no chip, to match the back
+              arrow. */}
+            <Pressable
+              onPress={() => setMenuOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t.group.more}
+              hitSlop={10}
+            >
+              <Ionicons name="ellipsis-vertical" size={22} color={theme.color.text} />
+            </Pressable>
           </Row>
+
+          <GroupMenu
+            groupId={groupId}
+            isTrip={group.data.type === 'trip'}
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+          />
 
           <SyncBanner groupId={groupId} />
 

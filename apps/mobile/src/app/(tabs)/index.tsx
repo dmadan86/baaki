@@ -163,10 +163,21 @@ export default function HomeScreen() {
             onPress={() => router.navigate('/profile')}
           />
           {/* Just the name, next to the avatar — the greeting was a word that
-              said nothing and pushed the name down into a caption. */}
-          <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>
-            {profile?.display_name ?? t.account.you}
-          </Text>
+              said nothing and pushed the name down into a caption. The name is
+              a tap target too, to the same account screen the avatar opens: the
+              whole name-and-face cluster reads as one way in, not a live icon
+              beside dead text. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.profile}
+            onPress={() => router.navigate('/profile')}
+            hitSlop={8}
+            style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.5 : 1 })}
+          >
+            <Text variant="heading" numberOfLines={1}>
+              {profile?.display_name ?? t.account.you}
+            </Text>
+          </Pressable>
           {/* Bare icons, no button chrome — the header reads as a title row, not
               a toolbar of pills. Straight to the camera: the icon is a scanner,
               so it opens one rather than a form to fill in first (the capture
@@ -523,11 +534,26 @@ function BalanceCarousel({
   );
 }
 
-/** One balance card: the brand wash, the net big, the owed/owe split beneath. */
+/**
+ * One balance card, coloured by its verdict: a green wash when the net is owed
+ * to you, red when you owe, and the neutral brand wash once everything is
+ * settled — so the card's colour, not just its number, tells you where you
+ * stand at a glance. The net big, the owed/owe split beneath.
+ */
 function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: string; t: UiStrings }) {
   const theme = useTheme();
+  const wash =
+    total.net > 0n
+      ? theme.gradient.positive
+      : total.net < 0n
+        ? theme.gradient.negative
+        : theme.gradient.brand;
   return (
-    <Gradient radius={theme.radius.md} style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}>
+    <Gradient
+      colors={wash}
+      radius={theme.radius.lg}
+      style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+    >
       <Row style={{ justifyContent: 'space-between' }}>
         <Text variant="caption" tone="onBrand">
           {t.yourBaaki}
@@ -594,7 +620,7 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
     >
       <Gradient
         colors={theme.gradient.accent}
-        radius={theme.radius.md}
+        radius={theme.radius.lg}
         style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
       >
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>

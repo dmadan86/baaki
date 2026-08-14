@@ -40,6 +40,10 @@ export interface Theme {
     readonly brand: readonly string[];
     /** A second, blue wash for the paired action tile. */
     readonly accent: readonly string[];
+    /** Green wash for a balance in your favour. */
+    readonly positive: readonly string[];
+    /** Red wash for a balance you owe. */
+    readonly negative: readonly string[];
   };
   readonly tint: Readonly<Record<TintName, TintPair>>;
   readonly radius: typeof radius;
@@ -92,7 +96,12 @@ const lightTheme: Theme = {
     warning: palette.warning,
     warningSoft: palette.peach,
   },
-  gradient: { brand: gradients.light, accent: gradients.accentLight },
+  gradient: {
+    brand: gradients.light,
+    accent: gradients.accentLight,
+    positive: gradients.positiveLight,
+    negative: gradients.negativeLight,
+  },
   tint: lightTints,
   radius,
   spacing,
@@ -123,7 +132,12 @@ const darkTheme: Theme = {
     warning: '#E8A54B',
     warningSoft: '#463020',
   },
-  gradient: { brand: gradients.dark, accent: gradients.accentDark },
+  gradient: {
+    brand: gradients.dark,
+    accent: gradients.accentDark,
+    positive: gradients.positiveDark,
+    negative: gradients.negativeDark,
+  },
   tint: darkTints,
 };
 
