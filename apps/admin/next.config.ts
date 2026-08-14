@@ -21,6 +21,16 @@ const nextConfig: NextConfig = {
         { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
         { key: 'X-Frame-Options', value: 'DENY' },
         { key: 'Referrer-Policy', value: 'no-referrer' },
+        // Added alongside the existing three: pin HTTPS, stop MIME sniffing,
+        // and forbid framing at the CSP level too. A private console has no
+        // reason ever to be embedded or served over plaintext.
+        { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        {
+          key: 'Content-Security-Policy',
+          value: "frame-ancestors 'none'; upgrade-insecure-requests",
+        },
       ],
     },
   ],

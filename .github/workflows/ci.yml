@@ -157,6 +157,35 @@ jobs:
           path: apps/web/playwright-report/
           retention-days: 7
 
+  security:
+    name: secret + dependency scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # Full history so the secret scan sees every commit, not just the tip —
+        # a key added and "removed" in a later commit still lives in the history.
+        with:
+          fetch-depth: 0
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Merge-blocking only on CRITICAL production advisories — the ones worth
+      # stopping a release for. The tree currently carries several high-severity
+      # advisories that live entirely in transitive build tooling (metro's
+      # image-size, postcss's nanoid, prisma's effect) with no non-major fix at
+      # our level; gating merges on those would wedge every PR for something we
+      # cannot patch. High/moderate remediation is the weekly Dependabot PRs'
+      # job (.github/dependabot.yml); this gate catches a genuine critical.
+      - name: Dependency audit (production, critical)
+        run: pnpm audit --prod --audit-level=critical
+
   e2e:
     name: e2e (Maestro)
     runs-on: ubuntu-latest

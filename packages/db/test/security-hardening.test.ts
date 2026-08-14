@@ -314,6 +314,51 @@ describe('a membership is not yours to rewrite', () => {
   });
 });
 
+describe('a group’s own columns are not a member’s to rewrite', () => {
+  it('refuses poisoning updated_seq straight through the table', async () => {
+    // `groups_update` checks membership on the row, not the columns, and the
+    // sync whitelist that would have stopped this lives in the edge function —
+    // a direct PATCH went around it. Setting `updated_seq` to a large number
+    // jumps every member's pull cursor past all future real changes.
+    await asClient(scene.profiles[1] as string, async () => {
+      const message = await expectDenied(
+        client.query(`UPDATE groups SET updated_seq = 999999 WHERE id = $1`, [scene.groupId]),
+      );
+      expect(message).toMatch(/FORBIDDEN_COLUMN/);
+    });
+  });
+
+  it('refuses rewriting who created the group', async () => {
+    await asClient(scene.profiles[1] as string, async () => {
+      const message = await expectDenied(
+        client.query(`UPDATE groups SET created_by = $2 WHERE id = $1`, [
+          scene.groupId,
+          scene.profiles[1],
+        ]),
+      );
+      expect(message).toMatch(/FORBIDDEN_COLUMN/);
+    });
+  });
+
+  it('still lets a member rename the group, and stamps the sequence itself', async () => {
+    await asClient(scene.profiles[1] as string, async () => {
+      const before = await client.query(`SELECT updated_seq FROM groups WHERE id = $1`, [
+        scene.groupId,
+      ]);
+      const renamed = await client.query(`UPDATE groups SET name = 'Goa 2' WHERE id = $1`, [
+        scene.groupId,
+      ]);
+      expect(renamed.rowCount).toBe(1);
+      const after = await client.query(`SELECT updated_seq FROM groups WHERE id = $1`, [
+        scene.groupId,
+      ]);
+      // The guard runs before the stamp trigger, so a legitimate edit still
+      // gets its cursor bumped by the server.
+      expect(BigInt(after.rows[0].updated_seq)).toBeGreaterThan(BigInt(before.rows[0].updated_seq));
+    });
+  });
+});
+
 describe('the parts of the database that are nobody’s business', () => {
   it('hides the migration ledger', async () => {
     // Prisma creates this table outside the migration that turns RLS on, so it
