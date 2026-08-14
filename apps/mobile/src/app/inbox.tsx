@@ -26,7 +26,6 @@ import {
   Screen,
   SectionHeader,
   Text,
-  TintCard,
   tintForKey,
   useTabBarClearance,
   useTheme,
@@ -125,73 +124,80 @@ export default function InboxScreen() {
         ) : (
           <View style={{ gap: theme.spacing.md }}>
             <SectionHeader title={t.inbox.recent} />
-            {rows.map((row) => {
-              const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
-                title: row.title,
-                body: row.body,
-              });
-              const unreadRow = row.read_at === null;
-              // Each notice is a card in a stable colour for its kind, so a run
-              // of the same kind reads as a run. A read one is dimmed; the icon
-              // sits in a white chip with the tint's ink.
-              const tint = tintForKey(row.kind);
-              const ink = theme.tint[tint].ink;
-              const inkMuted = theme.tint[tint].inkMuted;
-              return (
-                <Pressable
-                  key={row.id}
-                  accessibilityRole={row.group_id ? 'button' : undefined}
-                  accessibilityLabel={title}
-                  onPress={
-                    row.group_id ? () => router.push(`/group/${row.group_id}` as never) : undefined
-                  }
-                  style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-                >
-                  <TintCard
-                    tint={tint}
-                    style={{
-                      borderRadius: theme.radius.lg,
-                      padding: theme.spacing.lg,
-                      opacity: unreadRow ? 1 : 0.7,
-                    }}
-                  >
-                    <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
-                      <View
+            <View>
+              {rows.map((row, index) => {
+                const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
+                  title: row.title,
+                  body: row.body,
+                });
+                const unreadRow = row.read_at === null;
+                // Flat row: the kind's colour lives in the icon chip on the left,
+                // not the whole row. A read one is dimmed.
+                const tint = tintForKey(row.kind);
+                return (
+                  <View key={row.id}>
+                    <Pressable
+                      accessibilityRole={row.group_id ? 'button' : undefined}
+                      accessibilityLabel={title}
+                      onPress={
+                        row.group_id
+                          ? () => router.push(`/group/${row.group_id}` as never)
+                          : undefined
+                      }
+                      style={({ pressed }) => ({
+                        opacity: pressed ? 0.6 : unreadRow ? 1 : 0.7,
+                      })}
+                    >
+                      <Row
                         style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: theme.radius.pill,
+                          gap: theme.spacing.md,
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: theme.color.surface,
+                          paddingVertical: theme.spacing.md,
                         }}
                       >
-                        <Ionicons name={ICONS[row.kind] ?? 'notifications'} size={18} color={ink} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text variant="subheading" style={{ color: ink }}>
-                          {title}
-                        </Text>
-                        <Text variant="caption" style={{ color: inkMuted }}>
-                          {body}
-                        </Text>
-                      </View>
-                      {unreadRow ? (
                         <View
                           style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            marginTop: 6,
-                            backgroundColor: ink,
+                            width: 40,
+                            height: 40,
+                            borderRadius: theme.radius.pill,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: theme.tint[tint].bg,
                           }}
-                        />
-                      ) : null}
-                    </Row>
-                  </TintCard>
-                </Pressable>
-              );
-            })}
+                        >
+                          <Ionicons
+                            name={ICONS[row.kind] ?? 'notifications'}
+                            size={18}
+                            color={theme.tint[tint].ink}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text variant="subheading" numberOfLines={2}>
+                            {title}
+                          </Text>
+                          <Text variant="caption" tone="muted" numberOfLines={2}>
+                            {body}
+                          </Text>
+                        </View>
+                        {unreadRow ? (
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: theme.color.brand,
+                            }}
+                          />
+                        ) : null}
+                      </Row>
+                    </Pressable>
+                    {index < rows.length - 1 ? (
+                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
