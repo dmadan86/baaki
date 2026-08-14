@@ -25,6 +25,7 @@ import {
   errorResponse,
   HttpError,
   json,
+  parseMinor,
   requireMembership,
 } from '../_shared/auth.ts';
 import { enforceRateLimit } from '../_shared/rateLimit.ts';
@@ -88,11 +89,11 @@ Deno.serve(async (request) => {
       });
     }
 
-    const amount = BigInt(body.amount);
+    const amount = parseMinor(body.amount, 'amount');
     if (amount < 0n) throw new HttpError(400, 'INVALID_AMOUNT', 'Amount cannot be negative');
 
     const payers = Object.entries(body.payers ?? {}).map(
-      ([id, value]) => [id, BigInt(value)] as const,
+      ([id, value]) => [id, parseMinor(value, 'payer amount')] as const,
     );
     const paid = payers.reduce((total, [, value]) => total + value, 0n);
     if (paid !== amount) {

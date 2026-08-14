@@ -40,6 +40,7 @@ import {
   errorResponse,
   HttpError,
   json,
+  parseMinor,
 } from '../_shared/auth.ts';
 import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
@@ -60,6 +61,31 @@ interface MutationEnvelope {
   groupId: string;
   clientCreatedAt: string;
   payload: Record<string, unknown>;
+}
+
+/** Columns a member is allowed to set via `group.update` (mirrors client `updateGroup`). */
+const GROUP_UPDATABLE_FIELDS = [
+  'name',
+  'cover_emoji',
+  'photo_path',
+  'simplify_debts',
+  'default_currency',
+  'country_code',
+  'archived_at',
+  'start_date',
+  'end_date',
+  'time_zone',
+  'remind_daily',
+  'remind_morning_at',
+  'remind_evening_at',
+] as const;
+
+function pick(source: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) out[key] = source[key];
+  }
+  return out;
 }
 
 interface SyncRequest {
@@ -314,10 +340,16 @@ class SyncSession {
         });
       case 'group.update': {
         await this.requireMemberId(mutation.groupId);
-        const { error } = await this.caller
-          .from('groups')
-          .update(mutation.payload)
-          .eq('id', mutation.groupId);
+        // Whitelist the columns a member may set. RLS scopes the row, not the
+        // columns, and PostgREST grants UPDATE on every column of `groups` to
+        // `authenticated` — so spreading the raw payload let a member write any
+        // column (e.g. poison `updated_seq` and break every member's sync).
+        // These are exactly the fields `updateGroup` in the client sends.
+        const patch = pick(mutation.payload, GROUP_UPDATABLE_FIELDS);
+        if (Object.keys(patch).length === 0) {
+          throw new HttpError(400, 'VALIDATION_FAILED', 'No updatable fields in payload');
+        }
+        const { error } = await this.caller.from('groups').update(patch).eq('id', mutation.groupId);
         if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
         return { groupId: mutation.groupId };
       }
@@ -355,11 +387,11 @@ class SyncSession {
       baseVersionNo?: number;
     };
 
-    const amount = BigInt(payload.amount);
+    const amount = parseMinor(payload.amount, 'amount');
     if (amount < 0n) throw new HttpError(400, 'INVALID_AMOUNT', 'Amount cannot be negative');
 
     const payers = Object.entries(payload.payers ?? {}).map(
-      ([id, value]) => [id, BigInt(value)] as const,
+      ([id, value]) => [id, parseMinor(value, 'payer amount')] as const,
     );
     const paid = payers.reduce((total, [, value]) => total + value, 0n);
     if (paid !== amount) {

@@ -1,8 +1,9 @@
 import 'react-native-url-polyfill/auto';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
+
+import { secureAuthStorage } from './secureStorage';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -26,7 +27,9 @@ const isServer = typeof window === 'undefined';
 
 export const supabase = createClient(url, anonKey, {
   auth: {
-    storage: isServer ? undefined : AsyncStorage,
+    // Native keeps the session (incl. the long-lived refresh token) in the OS
+    // keystore, not plaintext AsyncStorage; web falls back inside the adapter.
+    storage: isServer ? undefined : secureAuthStorage,
     autoRefreshToken: !isServer,
     persistSession: !isServer,
     // No URL-based session handoff on native; deep links are handled explicitly.

@@ -1,8 +1,8 @@
 'use client';
 
 import type { EChartsOption } from 'echarts';
-import ReactECharts from 'echarts-for-react';
 
+import { ReactEChartsCore } from './echarts-core';
 import { WHEEL } from './palette';
 
 export interface Slice {
@@ -76,6 +76,6 @@ export function DonutChart({
   };
 
   return (
-    <ReactECharts option={option} style={{ height: 260 }} opts={{ renderer: 'svg' }} notMerge />
+    <ReactEChartsCore option={option} style={{ height: 260 }} opts={{ renderer: 'svg' }} notMerge />
   );
 }

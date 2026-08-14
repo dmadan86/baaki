@@ -36,6 +36,19 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Parse a minor-unit money string to BigInt, or fail with a 400 — never a 500.
+ * A bare `BigInt(value)` on a malformed field throws a SyntaxError that escapes
+ * as a generic 500 INTERNAL, which `/sync` then treats as retryable and replays.
+ * Bad client input is a client error and must be reported as one.
+ */
+export function parseMinor(value: unknown, field: string): bigint {
+  if (typeof value !== 'string' || !/^-?\d+$/.test(value)) {
+    throw new HttpError(400, 'INVALID_AMOUNT', `${field} must be an integer in minor units`);
+  }
+  return BigInt(value);
+}
+
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
