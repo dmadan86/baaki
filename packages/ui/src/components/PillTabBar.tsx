@@ -14,9 +14,9 @@ export interface PillTabItem {
 }
 
 /**
- * The centred, raised primary action — the circle that sits proud of the
- * capsule in the reference board. It is not a destination, so it is a button
- * rather than a tab: tapping it starts something rather than moving you.
+ * Kept for source compatibility with callers that used the old raised centre
+ * button. The WhatsApp-style bar has no floating action, so this is inert — a
+ * primary action lives in a screen header now, not in the nav.
  */
 export interface PillTabAction {
   icon: (color: string) => ReactNode;
@@ -24,113 +24,84 @@ export interface PillTabAction {
   accessibilityLabel: string;
 }
 
-/** One destination: an icon over its label. 48 clears both comfortably. */
-const ITEM_HEIGHT = 48;
+/** The bar's own content height, above the system inset. WhatsApp sits ~56–64. */
+const BAR_HEIGHT = 60;
 
-/** The capsule itself: the item column plus the padding wrapped around it. */
-const BAR_HEIGHT = ITEM_HEIGHT + spacing.sm * 2;
-
-/** The raised action circle. */
-const ACTION_SIZE = 58;
-
-/** How far the action lifts above the capsule's top edge. */
-const ACTION_LIFT = 16;
-
-/** How far the capsule floats above whatever sits below it. */
-const FLOAT = spacing.lg;
+/** The rounded active indicator behind the selected icon (Material 3). */
+const INDICATOR_WIDTH = 56;
+const INDICATOR_HEIGHT = 30;
 
 /**
  * How much room a scrolling tab screen has to leave at its foot.
  *
- * The bar is positioned absolutely, so it covers the end of a list rather than
- * pushing it up: without this the last row is parked underneath it and cannot
- * be read or tapped. Derived rather than guessed at, because the two things it
- * depends on both move — the capsule's height with the type scale, and the
- * inset with the phone, which is the half a hardcoded number gets wrong.
- *
- * The trailing gap is `xxxl` rather than the list's own rhythm so the foot of
- * the list reads as an ending rather than as a row that got cut off.
+ * The bar is anchored flush to the bottom edge and is opaque, so a list has to
+ * end above it rather than scroll behind it. Derived from the bar height plus
+ * the system inset — both move with the phone, which is the half a hardcoded
+ * number gets wrong — with a small breath so the last row is not jammed to the
+ * bar's top edge.
  */
 export function useTabBarClearance(): number {
   const insets = useSafeAreaInsets();
-  return insets.bottom + FLOAT + BAR_HEIGHT + spacing.xxxl;
+  return insets.bottom + BAR_HEIGHT + spacing.lg;
 }
 
 /**
- * The floating pill navigation from the reference boards: a white capsule that
- * hovers over the content, its destinations drawn as an icon over a label. When
- * a `centerAction` is given, the items split around a raised circle in the
- * middle — the primary workflow action, sitting proud of the bar so it reads as
- * "do", not "go".
+ * The bottom navigation, WhatsApp / Material 3 style: a flat opaque bar pinned
+ * to the bottom edge, a hairline along its top, and each destination drawn as
+ * an icon over its label. The selected destination wears a rounded "active
+ * indicator" pill behind its icon in the brand's soft tint, and its icon and
+ * label take the brand colour — the rest sit muted.
  *
- * `animated` gives each target a dip under the finger. It defaults off so the
- * bar is still and deterministic unless a caller opts in — the tabs layout
- * passes the app's motion preference, so a phone with reduce-motion set keeps
- * the plain switch.
+ * `animated` gives the pressed target a small dip under the finger. It defaults
+ * off so the bar is still unless a caller opts in — the tabs layout passes the
+ * app's motion preference, so reduce-motion keeps the plain switch.
+ *
+ * `centerAction` is accepted but ignored: this bar has no raised button.
  */
 export function PillTabBar({
   items,
   activeKey,
   onSelect,
   animated = false,
-  centerAction,
 }: {
   items: readonly PillTabItem[];
   activeKey: string;
   onSelect: (key: string) => void;
   animated?: boolean;
+  /** Ignored — kept so existing callers still type-check. */
   centerAction?: PillTabAction;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  // Even halves around the action; with an odd count the extra item sits left.
-  const split = centerAction ? Math.floor(items.length / 2) : items.length;
-  const left = items.slice(0, split);
-  const right = items.slice(split);
-
-  const renderItem = (item: PillTabItem): ReactNode => (
-    <TabItem
-      key={item.key}
-      item={item}
-      focused={item.key === activeKey}
-      animated={animated}
-      onSelect={onSelect}
-    />
-  );
-
   return (
     <View
       style={{
         position: 'absolute',
-        left: theme.spacing.xl,
-        right: theme.spacing.xl,
-        // The inset clears the system bar; the float is the gap the design
-        // wants underneath the capsule. They add — taking the larger of the two
-        // spends the inset on the gap, and on Android, where edge-to-edge is
-        // the default and this view is drawn behind a 48dp navigation bar, that
-        // leaves the pill sitting flush on the buttons with its shadow clipped.
-        bottom: insets.bottom + FLOAT,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        // The inset is padding, not margin, so the bar's fill runs all the way
+        // to the screen edge behind the system navigation buttons rather than
+        // leaving a strip of content showing beneath it.
+        paddingBottom: insets.bottom,
+        height: BAR_HEIGHT + insets.bottom,
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: theme.color.surface,
-        borderRadius: theme.radius.pill,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.sm,
-        ...theme.shadow.lifted,
+        borderTopWidth: 1,
+        borderTopColor: theme.color.border,
       }}
     >
-      <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around' }}>
-        {left.map(renderItem)}
-      </View>
-
-      {centerAction ? <CenterAction action={centerAction} animated={animated} /> : null}
-
-      {centerAction ? (
-        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around' }}>
-          {right.map(renderItem)}
-        </View>
-      ) : null}
+      {items.map((item) => (
+        <TabItem
+          key={item.key}
+          item={item}
+          focused={item.key === activeKey}
+          animated={animated}
+          onSelect={onSelect}
+        />
+      ))}
     </View>
   );
 }
@@ -164,6 +135,8 @@ function TabItem({
     }).start();
   };
 
+  const ink = focused ? theme.color.brand : theme.color.textMuted;
+
   return (
     <Pressable
       accessibilityRole="tab"
@@ -172,18 +145,32 @@ function TabItem({
       onPress={() => onSelect(item.key)}
       onPressIn={() => press(0.9)}
       onPressOut={() => press(1)}
+      style={{ flex: 1 }}
     >
       <Animated.View
         style={{
           alignItems: 'center',
           justifyContent: 'center',
           gap: 3,
-          height: ITEM_HEIGHT,
-          minWidth: 56,
           transform: [{ scale }],
         }}
       >
-        {item.icon(focused ? theme.color.brand : theme.color.textMuted, focused)}
+        <View
+          style={{
+            width: INDICATOR_WIDTH,
+            height: INDICATOR_HEIGHT,
+            // A fixed stadium radius, larger than the box, so the ends stay
+            // fully round however the box is measured — half-the-height reads as
+            // square for the frame before layout settles the exact height.
+            borderRadius: 999,
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            backgroundColor: focused ? theme.color.brandSoft : 'transparent',
+          }}
+        >
+          {item.icon(ink, focused)}
+        </View>
         <Text
           variant="micro"
           tone={focused ? 'brand' : 'muted'}
@@ -191,50 +178,6 @@ function TabItem({
         >
           {item.label}
         </Text>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-function CenterAction({ action, animated }: { action: PillTabAction; animated: boolean }) {
-  const theme = useTheme();
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const press = (to: number): void => {
-    if (!animated) return;
-    Animated.spring(scale, {
-      toValue: to,
-      damping: 18,
-      stiffness: 280,
-      mass: 0.5,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={action.accessibilityLabel}
-      onPress={action.onPress}
-      onPressIn={() => press(0.92)}
-      onPressOut={() => press(1)}
-      // The lift is on the Pressable, not just the visual, so the touch target
-      // travels up with the circle rather than staying down in the capsule.
-      style={{ marginHorizontal: theme.spacing.sm, transform: [{ translateY: -ACTION_LIFT }] }}
-    >
-      <Animated.View
-        style={{
-          width: ACTION_SIZE,
-          height: ACTION_SIZE,
-          borderRadius: ACTION_SIZE / 2,
-          backgroundColor: theme.color.brand,
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: [{ scale }],
-          ...theme.shadow.soft,
-        }}
-      >
-        {action.icon(theme.color.onBrand)}
       </Animated.View>
     </Pressable>
   );
