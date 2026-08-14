@@ -24,6 +24,7 @@ import {
   Row,
   Screen,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -86,6 +87,7 @@ function CaptureThumb({ path, size }: { path: string; size: number }) {
 
 export default function CapturesScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const pull = usePullRefresh();
   const { profile } = useAuth();
@@ -146,7 +148,7 @@ export default function CapturesScreen() {
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
-            paddingBottom: theme.spacing.xl,
+            paddingBottom: clearance,
             gap: theme.spacing.md,
           }}
           showsVerticalScrollIndicator={false}

@@ -22,6 +22,7 @@ import {
   Screen,
   Text,
   Toggle,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -31,6 +32,7 @@ import { describeGrace, GRACE_CHOICES, useLock } from '@/lib/lock';
 
 export default function LockSettingsScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const { enabled, supported, graceSeconds, setEnabled, setGraceSeconds } = useLock();
   const { isGuest, signOut } = useAuth();
@@ -56,7 +58,7 @@ export default function LockSettingsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
       >

@@ -28,6 +28,7 @@ import {
   Text,
   TintCard,
   tintForKey,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -65,6 +66,7 @@ function factsOf(row: NotificationRow): Record<string, string | undefined> {
 
 export default function InboxScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const pull = usePullRefresh();
   const { t, locale } = useStrings();
   const notifications = useNotifications();
@@ -88,7 +90,7 @@ export default function InboxScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

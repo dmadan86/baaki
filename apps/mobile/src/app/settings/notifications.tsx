@@ -14,6 +14,7 @@ import {
   SectionHeader,
   Text,
   Toggle,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -72,6 +73,7 @@ function pushFailureCopy(t: UiStrings): Record<PushFailure, string> {
 
 export default function NotificationSettingsScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const { profile } = useAuth();
 
@@ -141,7 +143,7 @@ export default function NotificationSettingsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

@@ -25,6 +25,7 @@ import {
   Row,
   Screen,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -35,6 +36,7 @@ import { useDeviceSession } from '@/lib/deviceSession';
 
 export default function DevicesScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const queryClient = useQueryClient();
   const { signOutOthers } = useDeviceSession();
@@ -69,7 +71,7 @@ export default function DevicesScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

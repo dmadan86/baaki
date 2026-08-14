@@ -12,13 +12,24 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { Card, directionalIcon, IconButton, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Card,
+  directionalIcon,
+  IconButton,
+  ListRow,
+  Row,
+  Screen,
+  Text,
+  useTabBarClearance,
+  useTheme,
+} from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 import { SchemePreference, useThemePreference } from '@/lib/theme';
 
 export default function ThemeSettingsScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const { preference, systemScheme, setPreference } = useThemePreference();
 
@@ -60,7 +71,7 @@ export default function ThemeSettingsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

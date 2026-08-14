@@ -26,6 +26,7 @@ import {
   Row,
   Screen,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -58,6 +59,7 @@ function refusal(reason: Extract<PromoOutcome, { ok: false }>['reason'], t: UiSt
 
 export default function RedeemScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
 
   const [code, setCode] = useState('');
@@ -86,7 +88,7 @@ export default function RedeemScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"

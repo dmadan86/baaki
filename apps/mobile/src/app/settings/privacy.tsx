@@ -3,7 +3,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { Card, directionalIcon, IconButton, Row, Screen, Text, Toggle, useTheme } from '@baaki/ui';
+import {
+  Card,
+  directionalIcon,
+  IconButton,
+  Row,
+  Screen,
+  Text,
+  Toggle,
+  useTabBarClearance,
+  useTheme,
+} from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 import { clarityConfigured } from '@/lib/clarity';
@@ -21,6 +31,7 @@ import { sessionReplayConsent, setSessionReplayConsent } from '@/lib/sessionRepl
  */
 export default function PrivacyScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
 
   // The session-replay opt-in, mirrored from storage. Only meaningful when a
@@ -68,7 +79,7 @@ export default function PrivacyScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

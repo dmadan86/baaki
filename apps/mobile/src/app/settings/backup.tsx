@@ -31,6 +31,7 @@ import {
   SectionHeader,
   SegmentedTabs,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -41,6 +42,7 @@ import type { BackupNetworkPolicy, CloudProviderId } from '@/lib/cloud/types';
 
 export default function BackupSettingsScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const backup = useBackup();
   const [busy, setBusy] = useState<CloudProviderId | null>(null);
@@ -61,7 +63,7 @@ export default function BackupSettingsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

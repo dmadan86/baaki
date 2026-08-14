@@ -16,6 +16,7 @@ import {
   Row,
   Screen,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -36,6 +37,7 @@ enum Format {
  */
 export default function ExportScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const groups = useGroups();
   const { t } = useStrings();
 
@@ -81,7 +83,7 @@ export default function ExportScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
