@@ -143,7 +143,10 @@ export default function HomeScreen() {
               {profile?.display_name ?? 'You'}
             </Text>
           </View>
-          <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture')}>
+          {/* Straight to the camera: the icon is a scanner, so it opens one
+              rather than a form to fill in first (the capture screen reads the
+              `scan` flag and launches the camera on mount). */}
+          <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture?scan=1')}>
             <Ionicons name="camera-outline" size={22} color={theme.color.text} />
           </IconButton>
           <IconButton

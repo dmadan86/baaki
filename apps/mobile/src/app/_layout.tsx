@@ -20,6 +20,7 @@ import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { BackupProvider } from '@/lib/cloud/BackupProvider';
 import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
 import { UpdateProvider } from '@/lib/update';
 import { initClarity } from '@/lib/clarity';
@@ -119,6 +120,7 @@ function RootLayout() {
               <SyncProvider>
                 <LockProvider>
                   <MotionProvider>
+                    <BackupProvider>
                     <UpdateProvider>
                       <ThemePreferenceProvider>
                         <ThemedRoot>
@@ -147,6 +149,7 @@ function RootLayout() {
                         </ThemedRoot>
                       </ThemePreferenceProvider>
                     </UpdateProvider>
+                    </BackupProvider>
                   </MotionProvider>
                 </LockProvider>
               </SyncProvider>
@@ -370,6 +373,7 @@ function AuthGate() {
       <Stack.Screen name="group/[id]/invite" options={modal} />
       <Stack.Screen name="group/[id]/itemize" options={modal} />
       <Stack.Screen name="friends/contacts" />
+      <Stack.Screen name="settings/backup" />
       <Stack.Screen name="settings/notifications" />
       <Stack.Screen name="settings/export" />
       <Stack.Screen name="settings/import" />
