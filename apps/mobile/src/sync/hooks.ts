@@ -15,6 +15,7 @@ import {
   materialiseExpenses,
   rowsFor,
   simplify,
+  SyncTable,
   toExpenseSnapshot,
   type ExpenseSnapshot,
   type MemberId,
@@ -40,7 +41,7 @@ export function useLocalGroups(): GroupRow[] {
   const { mirror } = useSync();
   return useMemo(
     () =>
-      (rowsFor(mirror, 'groups') as unknown as GroupRow[])
+      (rowsFor(mirror, SyncTable.Groups) as unknown as GroupRow[])
         .filter((group) => !group.archived_at)
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
     [mirror],
@@ -52,10 +53,10 @@ export function useLocalGroup(groupId: string): LocalGroup {
 
   return useMemo(() => {
     const group = (mirror.tables.groups[groupId] as unknown as GroupRow | undefined) ?? null;
-    const members = (rowsFor(mirror, 'group_members', groupId) as unknown as MemberRow[]).filter(
+    const members = (rowsFor(mirror, SyncTable.GroupMembers, groupId) as unknown as MemberRow[]).filter(
       (member) => !member.left_at,
     );
-    const settlements = rowsFor(mirror, 'settlements', groupId) as unknown as SettlementRow[];
+    const settlements = rowsFor(mirror, SyncTable.Settlements, groupId) as unknown as SettlementRow[];
     const expenses = materialiseExpenses(mirror, queue, { groupId });
 
     return {

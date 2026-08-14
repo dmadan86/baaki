@@ -13,7 +13,11 @@
  * ledger that nobody chose.
  */
 
-export type SplitKind = 'equal' | 'shares' | 'percent';
+export enum SplitKind {
+  Equal = 'equal',
+  Shares = 'shares',
+  Percent = 'percent',
+}
 
 /** What a weighted split kind holds: one line of text per member. */
 export type SplitEntries = Record<string, string>;

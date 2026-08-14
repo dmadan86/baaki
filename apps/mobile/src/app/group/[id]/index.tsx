@@ -47,7 +47,11 @@ import { PendingMark } from '@/components/PendingMark';
 import { SyncBanner } from '@/components/SyncBanner';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
-type Tab = 'expenses' | 'balances' | 'activity';
+enum Tab {
+  Expenses = 'expenses',
+  Balances = 'balances',
+  Activity = 'activity',
+}
 
 export default function GroupScreen() {
   const theme = useTheme();
@@ -56,7 +60,7 @@ export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
-  const [tab, setTab] = useState<Tab>('expenses');
+  const [tab, setTab] = useState<Tab>(Tab.Expenses);
   const [showDeleted, setShowDeleted] = useState(false);
 
   // Live updates from the other devices in this group (TDR §1).
@@ -284,13 +288,13 @@ export default function GroupScreen() {
             value={tab}
             onChange={setTab}
             tabs={[
-              { value: 'expenses', label: t.expenses },
-              { value: 'balances', label: t.balances },
-              { value: 'activity', label: t.activity },
+              { value: Tab.Expenses, label: t.expenses },
+              { value: Tab.Balances, label: t.balances },
+              { value: Tab.Activity, label: t.activity },
             ]}
           />
 
-          {tab === 'expenses' && hasDeleted ? (
+          {tab === Tab.Expenses && hasDeleted ? (
             <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
               <Text
                 variant="caption"
@@ -302,7 +306,7 @@ export default function GroupScreen() {
             </Row>
           ) : null}
 
-          {tab === 'expenses' ? (
+          {tab === Tab.Expenses ? (
             visibleExpenses.length === 0 ? (
               <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
             ) : (
@@ -386,7 +390,7 @@ export default function GroupScreen() {
             )
           ) : null}
 
-          {tab === 'balances' ? (
+          {tab === Tab.Balances ? (
             <View style={{ gap: theme.spacing.md }}>
               {(members.data ?? []).map((member) => {
                 // Each member is a card in the money colour for its meaning: mint
@@ -441,7 +445,7 @@ export default function GroupScreen() {
             </View>
           ) : null}
 
-          {tab === 'activity' ? (
+          {tab === Tab.Activity ? (
             (activity.data ?? []).length === 0 ? (
               <EmptyState title={t.nothingYet} body={t.group.activityEmptyBody} />
             ) : (

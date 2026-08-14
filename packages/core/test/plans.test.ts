@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BillingPeriod,
   FREE_ENTITLEMENT,
   FREE_MONTHLY_SCANS,
   PLUS_MONTHLY_SCANS,
@@ -20,14 +21,19 @@ describe('prices', () => {
     // ₹79 is about $0.95. Charging that in the United States leaves most of the
     // revenue on the floor; charging $4.99 in India sells nothing. That is the
     // whole reason this is a table and not an exchange rate.
-    expect(priceFor('IN', 'monthly')).toEqual({ minor: 7900n, currency: 'INR' });
-    expect(priceFor('US', 'monthly')).toEqual({ minor: 499n, currency: 'USD' });
-    expect(priceFor('AU', 'monthly')).toEqual({ minor: 799n, currency: 'AUD' });
+    expect(priceFor('IN', BillingPeriod.Monthly)).toEqual({ minor: 7900n, currency: 'INR' });
+    expect(priceFor('US', BillingPeriod.Monthly)).toEqual({ minor: 499n, currency: 'USD' });
+    expect(priceFor('AU', BillingPeriod.Monthly)).toEqual({ minor: 799n, currency: 'AUD' });
   });
 
   it('prices every period in every market it names', () => {
     for (const country of PRICED_COUNTRIES) {
-      for (const period of ['monthly', 'yearly', 'lifetime', 'trip_pass'] as const) {
+      for (const period of [
+        BillingPeriod.Monthly,
+        BillingPeriod.Yearly,
+        BillingPeriod.Lifetime,
+        BillingPeriod.TripPass,
+      ]) {
         const price = priceFor(country, period);
         expect(price.minor, `${country} ${period}`).toBeGreaterThan(0n);
         expect(isCurrencyCode(price.currency), `${country} ${period}`).toBe(true);
@@ -41,7 +47,7 @@ describe('prices', () => {
     for (const country of PRICED_COUNTRIES) {
       const expected = currencyForCountry(country);
       if (!expected) continue;
-      expect(priceFor(country, 'monthly').currency, country).toBe(expected);
+      expect(priceFor(country, BillingPeriod.Monthly).currency, country).toBe(expected);
     }
   });
 
@@ -49,8 +55,8 @@ describe('prices', () => {
     // If it is not, the yearly plan is a worse deal than the thing it is meant
     // to convert people away from.
     for (const country of PRICED_COUNTRIES) {
-      const monthly = priceFor(country, 'monthly').minor;
-      const yearly = priceFor(country, 'yearly').minor;
+      const monthly = priceFor(country, BillingPeriod.Monthly).minor;
+      const yearly = priceFor(country, BillingPeriod.Yearly).minor;
       expect(yearly, country).toBeLessThan(monthly * 12n);
     }
   });
@@ -59,16 +65,16 @@ describe('prices', () => {
     // Cheap enough that one person covers a group without thinking, dear
     // enough that it does not undercut the subscription it feeds.
     for (const country of PRICED_COUNTRIES) {
-      const pass = priceFor(country, 'trip_pass').minor;
-      expect(pass, country).toBeGreaterThan(priceFor(country, 'monthly').minor);
-      expect(pass, country).toBeLessThan(priceFor(country, 'yearly').minor);
+      const pass = priceFor(country, BillingPeriod.TripPass).minor;
+      expect(pass, country).toBeGreaterThan(priceFor(country, BillingPeriod.Monthly).minor);
+      expect(pass, country).toBeLessThan(priceFor(country, BillingPeriod.Yearly).minor);
     }
   });
 
   it('falls back rather than returning nothing for a country with no row', () => {
-    expect(priceFor('ZZ', 'monthly')).toEqual(priceFor('US', 'monthly'));
-    expect(priceFor(null, 'yearly')).toEqual(priceFor('US', 'yearly'));
-    expect(priceFor(' in ', 'monthly').currency).toBe('INR');
+    expect(priceFor('ZZ', BillingPeriod.Monthly)).toEqual(priceFor('US', BillingPeriod.Monthly));
+    expect(priceFor(null, BillingPeriod.Yearly)).toEqual(priceFor('US', BillingPeriod.Yearly));
+    expect(priceFor(' in ', BillingPeriod.Monthly).currency).toBe('INR');
   });
 });
 

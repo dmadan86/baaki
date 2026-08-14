@@ -32,43 +32,45 @@
 
 import type { CurrencyCode } from '../money/currency';
 
-export type RailId =
+export enum RailId {
   // Instant, national, free at the point of use.
-  | 'upi' // India
-  | 'pix' // Brazil
-  | 'paynow' // Singapore
-  | 'promptpay' // Thailand
-  | 'qris' // Indonesia
-  | 'aani' // United Arab Emirates
-  | 'payid' // Australia
+  Upi = 'upi', // India
+  Pix = 'pix', // Brazil
+  Paynow = 'paynow', // Singapore
+  Promptpay = 'promptpay', // Thailand
+  Qris = 'qris', // Indonesia
+  Aani = 'aani', // United Arab Emirates
+  Payid = 'payid', // Australia
   // Consumer apps.
-  | 'zelle'
-  | 'venmo'
-  | 'cashapp'
-  | 'interac'
-  | 'wise'
-  | 'revolut'
-  | 'paypal'
+  Zelle = 'zelle',
+  Venmo = 'venmo',
+  Cashapp = 'cashapp',
+  Interac = 'interac',
+  Wise = 'wise',
+  Revolut = 'revolut',
+  Paypal = 'paypal',
   // Always available, everywhere.
-  | 'bank'
-  | 'cash'
-  | 'other';
+  Bank = 'bank',
+  Cash = 'cash',
+  Other = 'other',
+}
 
 /** What you need from the person being paid before anything can happen. */
-export type HandleKind =
+export enum HandleKind {
   /** UPI ID — `name@bank`. */
-  | 'vpa'
+  Vpa = 'vpa',
   /** A Pix key: CPF, phone, email or a random UUID. Anything goes. */
-  | 'pix_key'
+  PixKey = 'pix_key',
   /** A mobile number, usually with country code. */
-  | 'phone'
-  | 'email'
+  Phone = 'phone',
+  Email = 'email',
   /** `$cashtag`, `@venmo-handle`. */
-  | 'tag'
+  Tag = 'tag',
   /** IBAN, or an account and sort code, or whatever the country uses. */
-  | 'account'
+  Account = 'account',
   /** Nothing to collect — cash changed hands. */
-  | 'none';
+  None = 'none',
+}
 
 export interface PaymentRail {
   readonly id: RailId;
@@ -106,99 +108,99 @@ export interface PaymentRail {
  */
 export const PAYMENT_RAILS: readonly PaymentRail[] = [
   {
-    id: 'upi',
+    id: RailId.Upi,
     label: 'UPI',
     icon: 'flash-outline',
     countries: ['IN'],
-    handle: 'vpa',
+    handle: HandleKind.Vpa,
     handleHint: 'Their UPI ID, like ravi@okhdfcbank',
     link: 'app',
   },
   {
-    id: 'pix',
+    id: RailId.Pix,
     label: 'Pix',
     icon: 'flash-outline',
     countries: ['BR'],
-    handle: 'pix_key',
+    handle: HandleKind.PixKey,
     // A Pix key is whatever the person registered — that is the whole design of
     // it, and pretending it is one shape rejects valid keys.
     handleHint: 'Their Pix key — CPF, phone, email or random key',
     link: null,
   },
   {
-    id: 'paynow',
+    id: RailId.Paynow,
     label: 'PayNow',
     icon: 'flash-outline',
     countries: ['SG'],
-    handle: 'phone',
+    handle: HandleKind.Phone,
     handleHint: 'Their mobile number or NRIC',
     link: null,
   },
   {
-    id: 'promptpay',
+    id: RailId.Promptpay,
     label: 'PromptPay',
     icon: 'flash-outline',
     countries: ['TH'],
-    handle: 'phone',
+    handle: HandleKind.Phone,
     handleHint: 'Their mobile number or national ID',
     link: null,
   },
   {
-    id: 'qris',
+    id: RailId.Qris,
     label: 'QRIS',
     icon: 'qr-code-outline',
     countries: ['ID'],
-    handle: 'phone',
+    handle: HandleKind.Phone,
     handleHint: 'Their registered mobile number',
     link: null,
   },
   {
-    id: 'aani',
+    id: RailId.Aani,
     label: 'Aani',
     icon: 'flash-outline',
     // The UAE's instant payment service. Transfers settle by mobile number
     // inside the bank apps; there is no public intent to hand off to.
     countries: ['AE'],
-    handle: 'phone',
+    handle: HandleKind.Phone,
     handleHint: 'Their mobile number, like +971 50 123 4567',
     link: null,
   },
   {
-    id: 'payid',
+    id: RailId.Payid,
     label: 'PayID',
     icon: 'flash-outline',
     // Australia's instant rail over the NPP. Like Aani and PayNow, it settles
     // inside the bank apps by mobile number or email, with no public intent.
     countries: ['AU'],
-    handle: 'phone',
+    handle: HandleKind.Phone,
     handleHint: 'Their PayID — mobile number or email',
     link: null,
   },
   {
-    id: 'zelle',
+    id: RailId.Zelle,
     label: 'Zelle',
     icon: 'send-outline',
     countries: ['US'],
-    handle: 'phone',
+    handle: HandleKind.Phone,
     handleHint: 'The mobile number or email on their Zelle',
     // Zelle lives inside each bank's own app and publishes nothing to link to.
     link: null,
   },
   {
-    id: 'venmo',
+    id: RailId.Venmo,
     label: 'Venmo',
     icon: 'send-outline',
     countries: ['US'],
-    handle: 'tag',
+    handle: HandleKind.Tag,
     handleHint: 'Their Venmo handle, like @ravi-kumar',
     link: null,
   },
   {
-    id: 'cashapp',
+    id: RailId.Cashapp,
     label: 'Cash App',
     icon: 'send-outline',
     countries: ['US', 'GB'],
-    handle: 'tag',
+    handle: HandleKind.Tag,
     handleHint: 'Their $cashtag',
     // `cash.app/$tag/25` is a public, long-standing URL: it opens the app when
     // it is installed and a web page when it is not, so there is no silent
@@ -206,69 +208,69 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     link: 'web',
   },
   {
-    id: 'paypal',
+    id: RailId.Paypal,
     label: 'PayPal',
     icon: 'globe-outline',
     // PayPal.me works in every market Baaki is going to, and is the one link
     // somebody in the US, Canada or Australia can send to somebody in India.
     countries: 'any',
-    handle: 'tag',
+    handle: HandleKind.Tag,
     handleHint: 'Their PayPal.me name',
     link: 'web',
   },
   {
-    id: 'interac',
+    id: RailId.Interac,
     label: 'Interac e-Transfer',
     icon: 'send-outline',
     countries: ['CA'],
-    handle: 'email',
+    handle: HandleKind.Email,
     handleHint: 'The email on their Interac',
     link: null,
   },
   {
-    id: 'wise',
+    id: RailId.Wise,
     label: 'Wise',
     icon: 'globe-outline',
     // The one that matters for a group split across countries, which is most
     // trips: everybody can receive into it.
     countries: 'any',
-    handle: 'email',
+    handle: HandleKind.Email,
     handleHint: 'The email on their Wise account',
     link: null,
   },
   {
-    id: 'revolut',
+    id: RailId.Revolut,
     label: 'Revolut',
     icon: 'globe-outline',
     countries: 'any',
-    handle: 'tag',
+    handle: HandleKind.Tag,
     handleHint: 'Their @revtag',
     link: null,
   },
   {
-    id: 'bank',
+    id: RailId.Bank,
     label: 'Bank transfer',
     icon: 'business-outline',
     countries: 'any',
-    handle: 'account',
+    handle: HandleKind.Account,
     handleHint: 'Their IBAN or account number',
     link: null,
   },
   {
-    id: 'cash',
+    id: RailId.Cash,
     label: 'Cash',
     icon: 'cash-outline',
     countries: 'any',
-    handle: 'none',
+    handle: HandleKind.None,
     handleHint: '',
     link: null,
   },
   {
-    id: 'other',
+    id: RailId.Other,
     label: 'Something else',
     icon: 'ellipsis-horizontal-outline',
     countries: 'any',
-    handle: 'none',
+    handle: HandleKind.None,
     handleHint: '',
     link: null,
   },
@@ -281,7 +283,7 @@ export function railById(id: string): PaymentRail | null {
 }
 
 /** Rails that always appear, wherever somebody is. Cash is never not an option. */
-const UNIVERSAL_LAST: readonly RailId[] = ['bank', 'cash', 'other'];
+const UNIVERSAL_LAST: readonly RailId[] = [RailId.Bank, RailId.Cash, RailId.Other];
 
 /**
  * What this country can pay with, best first.
@@ -315,7 +317,7 @@ export function railsFor(countryCode: string | null | undefined): readonly Payme
 
 /** The rail a country leads with — what the settle screen selects by default. */
 export function defaultRailFor(countryCode: string | null | undefined): RailId {
-  return railsFor(countryCode)[0]?.id ?? 'cash';
+  return railsFor(countryCode)[0]?.id ?? RailId.Cash;
 }
 
 // ─────────────────────────────────────────────────── handles ──
@@ -341,21 +343,21 @@ export function isValidHandle(railId: string, handle: string): boolean {
   if (!rail) return false;
 
   const value = handle.trim();
-  if (rail.handle === 'none') return true;
+  if (rail.handle === HandleKind.None) return true;
   if (value === '') return false;
 
   switch (rail.handle) {
-    case 'vpa':
+    case HandleKind.Vpa:
       return VPA_RE.test(value);
-    case 'email':
+    case HandleKind.Email:
       return EMAIL_RE.test(value);
-    case 'phone':
+    case HandleKind.Phone:
       return PHONE_RE.test(value);
-    case 'tag':
+    case HandleKind.Tag:
       return TAG_RE.test(value);
-    case 'account':
+    case HandleKind.Account:
       return ACCOUNT_RE.test(value);
-    case 'pix_key':
+    case HandleKind.PixKey:
       // Deliberately permissive: a Pix key is a CPF, a phone, an email or a
       // UUID, and the person registering it chose which.
       return value.length >= 4 && value.length <= 77;
@@ -403,7 +405,7 @@ export function buildPaymentUri(
   const handle = input.handle.trim();
   const major = formatMajor(input.amount, input.currency);
 
-  if (rail.id === 'upi') {
+  if (rail.id === RailId.Upi) {
     // Built by hand rather than with URLSearchParams: this package has to
     // compile unchanged for React Native, Deno and the browser.
     const params: [string, string][] = [
@@ -419,7 +421,7 @@ export function buildPaymentUri(
     return { kind: 'app', uri: `upi://pay?${query}` };
   }
 
-  if (rail.id === 'cashapp') {
+  if (rail.id === RailId.Cashapp) {
     // Cash App settles in dollars. A link carrying "25" for an amount that is
     // 25 pounds would open a request for 25 of something else, which is worse
     // than no link — so anything but USD copies the handle instead.
@@ -427,7 +429,7 @@ export function buildPaymentUri(
     return { kind: 'web', uri: `https://cash.app/${encodeURIComponent(cashtag(handle))}/${major}` };
   }
 
-  if (rail.id === 'paypal') {
+  if (rail.id === RailId.Paypal) {
     // PayPal.me takes the currency in the path, so unlike Cash App it is safe
     // in any of them.
     const name = handle.replace(/^@/, '');

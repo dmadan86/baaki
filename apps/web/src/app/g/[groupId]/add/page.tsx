@@ -13,11 +13,12 @@ import { Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
 import { AppFrame } from '@/components/AppFrame';
+import { Section } from '@/components/Shell';
 import { ExpenseForm } from '@/components/ExpenseForm';
 
 export default function AddExpensePage() {
   return (
-    <AppFrame current="groups">
+    <AppFrame current={Section.Groups}>
       {({ profileId }) => (
         <Suspense fallback={null}>
           <AddOrEdit profileId={profileId} />

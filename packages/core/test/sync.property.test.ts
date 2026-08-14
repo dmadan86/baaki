@@ -25,10 +25,13 @@ import {
   liveExpenses,
   markFailed,
   materialiseExpenses,
+  MutationKind,
   nextBatch,
   overlayPending,
   reconcile,
   retryNow,
+  SyncRejectionCode,
+  SyncTable,
   toExpenseSnapshot,
   type MirrorExpense,
   type MirrorState,
@@ -86,7 +89,7 @@ class ModelServer {
         outcomes.push({
           clientMutationId: mutation.clientMutationId,
           status: 'rejected',
-          code: 'VALIDATION_FAILED',
+          code: SyncRejectionCode.ValidationFailed,
           message: error instanceof Error ? error.message : String(error),
         });
       }
@@ -96,7 +99,7 @@ class ModelServer {
     const changes: SyncChange[] = [...this.expenses.values()]
       .filter((row) => row.updated_seq > since)
       .sort((a, b) => a.updated_seq - b.updated_seq)
-      .map((row) => ({ table: 'expenses' as const, groupId: GROUP, seq: row.updated_seq, row }));
+      .map((row) => ({ table: SyncTable.Expenses, groupId: GROUP, seq: row.updated_seq, row }));
 
     return {
       outcomes,
@@ -176,7 +179,7 @@ class Device {
   add(payload: ExpenseCreatePayload, clientMutationId: string, at: string): void {
     this.queue = enqueue(this.queue, {
       clientMutationId,
-      kind: 'expense.create',
+      kind: MutationKind.ExpenseCreate,
       groupId: GROUP,
       clientCreatedAt: at,
       payload,
@@ -309,8 +312,8 @@ describe('the M2 acceptance scenario (TDR §10)', () => {
 describe('reconciliation', () => {
   it('is idempotent — re-applying a pull changes nothing', () => {
     const changes: SyncChange[] = [
-      { table: 'expenses', groupId: GROUP, seq: 1, row: { id: 'e1', group_id: GROUP } },
-      { table: 'expenses', groupId: GROUP, seq: 2, row: { id: 'e2', group_id: GROUP } },
+      { table: SyncTable.Expenses, groupId: GROUP, seq: 1, row: { id: 'e1', group_id: GROUP } },
+      { table: SyncTable.Expenses, groupId: GROUP, seq: 2, row: { id: 'e2', group_id: GROUP } },
     ];
     const once = reconcile(emptyMirror(), changes);
     const twice = reconcile(once.state, changes);
@@ -324,7 +327,7 @@ describe('reconciliation', () => {
     fc.assert(
       fc.property(fc.shuffledSubarray([1, 2, 3, 4, 5], { minLength: 5 }), (order) => {
         const changes: SyncChange[] = order.map((seq) => ({
-          table: 'expenses' as const,
+          table: SyncTable.Expenses,
           groupId: GROUP,
           seq,
           row: { id: 'e1', group_id: GROUP, version: seq },
@@ -339,10 +342,10 @@ describe('reconciliation', () => {
 
   it('never moves a cursor backwards', () => {
     const ahead = reconcile(emptyMirror(), [
-      { table: 'expenses', groupId: GROUP, seq: 9, row: { id: 'e1', group_id: GROUP } },
+      { table: SyncTable.Expenses, groupId: GROUP, seq: 9, row: { id: 'e1', group_id: GROUP } },
     ]).state;
     const stale = reconcile(ahead, [
-      { table: 'expenses', groupId: GROUP, seq: 3, row: { id: 'e2', group_id: GROUP } },
+      { table: SyncTable.Expenses, groupId: GROUP, seq: 3, row: { id: 'e2', group_id: GROUP } },
     ]).state;
 
     expect(stale.cursors[GROUP]).toBe(9);
@@ -371,7 +374,7 @@ describe('reconciliation', () => {
 
     device.queue = enqueue(device.queue, {
       clientMutationId: 'm-2',
-      kind: 'expense.delete',
+      kind: MutationKind.ExpenseDelete,
       groupId: GROUP,
       clientCreatedAt: '2026-03-02T00:00:00Z',
       payload: { expenseId: 'e1' },
@@ -400,7 +403,8 @@ describe('the mutation queue', () => {
 
   it('sends in the order the user made the changes', () => {
     let queue: QueuedMutation[] = [];
-    for (const id of ['a', 'b', 'c']) queue = enqueue(queue, envelope(id, GROUP, 'expense.create'));
+    for (const id of ['a', 'b', 'c'])
+      queue = enqueue(queue, envelope(id, GROUP, MutationKind.ExpenseCreate));
     expect(nextBatch(queue, { now: 0 }).map((item) => item.clientMutationId)).toEqual([
       'a',
       'b',
@@ -410,9 +414,9 @@ describe('the mutation queue', () => {
 
   it('holds back a group whose head is in backoff, but not other groups', () => {
     let queue: QueuedMutation[] = [];
-    queue = enqueue(queue, envelope('a1', 'g1', 'expense.create'));
-    queue = enqueue(queue, envelope('a2', 'g1', 'expense.create'));
-    queue = enqueue(queue, envelope('b1', 'g2', 'expense.create'));
+    queue = enqueue(queue, envelope('a1', 'g1', MutationKind.ExpenseCreate));
+    queue = enqueue(queue, envelope('a2', 'g1', MutationKind.ExpenseCreate));
+    queue = enqueue(queue, envelope('b1', 'g2', MutationKind.ExpenseCreate));
 
     const head = queue.filter((item) => item.clientMutationId === 'a1');
     queue = markFailed(queue, head, 'network down', 1_000);
@@ -429,14 +433,14 @@ describe('the mutation queue', () => {
 
   it('treats applied and duplicate identically — both mean the server has it', () => {
     let queue: QueuedMutation[] = [];
-    queue = enqueue(queue, envelope('a', GROUP, 'expense.create'));
-    queue = enqueue(queue, envelope('b', GROUP, 'expense.create'));
-    queue = enqueue(queue, envelope('c', GROUP, 'expense.create'));
+    queue = enqueue(queue, envelope('a', GROUP, MutationKind.ExpenseCreate));
+    queue = enqueue(queue, envelope('b', GROUP, MutationKind.ExpenseCreate));
+    queue = enqueue(queue, envelope('c', GROUP, MutationKind.ExpenseCreate));
 
     const result = applyOutcomes(queue, [
       { clientMutationId: 'a', status: 'applied' },
       { clientMutationId: 'b', status: 'duplicate' },
-      { clientMutationId: 'c', status: 'rejected', code: 'SHARE_MISMATCH', message: 'no' },
+      { clientMutationId: 'c', status: 'rejected', code: SyncRejectionCode.ShareMismatch, message: 'no' },
     ]);
 
     expect(result.queue).toHaveLength(0);
@@ -449,7 +453,7 @@ describe('the mutation queue', () => {
     expect(backoffMs(2)).toBe(4000);
     expect(backoffMs(99)).toBe(5 * 60_000);
 
-    let queue: QueuedMutation[] = [enqueue([], envelope('a', GROUP, 'expense.create'))[0]!];
+    let queue: QueuedMutation[] = [enqueue([], envelope('a', GROUP, MutationKind.ExpenseCreate))[0]!];
     for (let attempt = 0; attempt < 8; attempt += 1) {
       queue = markFailed(queue, queue, 'offline', 0);
     }
@@ -464,7 +468,7 @@ describe('the mutation queue', () => {
   it('collapses un-sent consecutive edits of the same expense', () => {
     const edit = (id: string, description: string): MutationEnvelope => ({
       clientMutationId: id,
-      kind: 'expense.update',
+      kind: MutationKind.ExpenseUpdate,
       groupId: GROUP,
       clientCreatedAt: '2026-03-01T00:00:00Z',
       payload: { expenseId: 'e1', description },
@@ -484,7 +488,7 @@ describe('the mutation queue', () => {
   it('never collapses an edit the server has already seen', () => {
     const edit = (id: string): MutationEnvelope => ({
       clientMutationId: id,
-      kind: 'expense.update',
+      kind: MutationKind.ExpenseUpdate,
       groupId: GROUP,
       clientCreatedAt: '2026-03-01T00:00:00Z',
       payload: { expenseId: 'e1' },
@@ -502,7 +506,7 @@ describe('the mutation queue', () => {
   it('does not collapse edits of different expenses', () => {
     const edit = (id: string, expenseId: string): MutationEnvelope => ({
       clientMutationId: id,
-      kind: 'expense.update',
+      kind: MutationKind.ExpenseUpdate,
       groupId: GROUP,
       clientCreatedAt: '2026-03-01T00:00:00Z',
       payload: { expenseId },
@@ -567,7 +571,7 @@ describe('the pending overlay', () => {
     ];
     const queue = enqueue([], {
       clientMutationId: 'm-1',
-      kind: 'expense.create',
+      kind: MutationKind.ExpenseCreate,
       groupId: GROUP,
       clientCreatedAt: '2026-03-02T00:00:00Z',
       payload: {

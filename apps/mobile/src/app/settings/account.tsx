@@ -26,7 +26,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { confirmContact, startAddingContact, type ContactChannel } from '@/data/api';
+import { confirmContact, startAddingContact, ContactChannel } from '@/data/api';
 import { deviceDialingCode, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
@@ -46,7 +46,7 @@ export default function AccountScreen() {
         ? t.contact.gateExpiredBody
         : null;
 
-  const [channel, setChannel] = useState<ContactChannel>('email');
+  const [channel, setChannel] = useState<ContactChannel>(ContactChannel.Email);
   const [value, setValue] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
@@ -55,7 +55,7 @@ export default function AccountScreen() {
   const [done, setDone] = useState(false);
 
   const existing =
-    channel === 'email' ? (session?.user.email ?? null) : (session?.user.phone ?? null);
+    channel === ContactChannel.Email ? (session?.user.email ?? null) : (session?.user.phone ?? null);
 
   // Which providers already sign this account in, so a linked one shows as done
   // rather than offering to link what is already linked. Adding one goes through
@@ -80,7 +80,7 @@ export default function AccountScreen() {
   };
 
   const looksValid =
-    channel === 'email'
+    channel === ContactChannel.Email
       ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
       : /^\+?[0-9]{8,15}$/.test(value.trim().replace(/[\s-]/g, ''));
 
@@ -162,8 +162,8 @@ export default function AccountScreen() {
               setValue('');
             }}
             options={[
-              { value: 'email', label: t.contact.email },
-              { value: 'phone', label: t.contact.phone },
+              { value: ContactChannel.Email, label: t.contact.email },
+              { value: ContactChannel.Phone, label: t.contact.phone },
             ]}
           />
 
@@ -175,7 +175,7 @@ export default function AccountScreen() {
 
           <View style={{ gap: theme.spacing.xs }}>
             <Text variant="caption" tone="muted">
-              {channel === 'email' ? t.contact.emailAddress : t.contact.phoneNumber}
+              {channel === ContactChannel.Email ? t.contact.emailAddress : t.contact.phoneNumber}
             </Text>
             <TextInput
               value={value}
@@ -186,13 +186,13 @@ export default function AccountScreen() {
               }}
               editable={!busy}
               autoCapitalize="none"
-              autoComplete={channel === 'email' ? 'email' : 'tel'}
-              keyboardType={channel === 'email' ? 'email-address' : 'phone-pad'}
+              autoComplete={channel === ContactChannel.Email ? 'email' : 'tel'}
+              keyboardType={channel === ContactChannel.Email ? 'email-address' : 'phone-pad'}
               accessibilityLabel={
-                channel === 'email' ? t.contact.emailAddress : t.contact.phoneNumber
+                channel === ContactChannel.Email ? t.contact.emailAddress : t.contact.phoneNumber
               }
               placeholder={
-                channel === 'email'
+                channel === ContactChannel.Email
                   ? t.contact.emailPlaceholder
                   : t.contact.phonePlaceholder.replace('{code}', deviceDialingCode())
               }
@@ -209,7 +209,7 @@ export default function AccountScreen() {
           {sent ? (
             <View style={{ gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
-                {channel === 'email' ? t.contact.codeEmailed : t.contact.codeTexted}
+                {channel === ContactChannel.Email ? t.contact.codeEmailed : t.contact.codeTexted}
               </Text>
               <TextInput
                 value={code}
@@ -237,7 +237,7 @@ export default function AccountScreen() {
             label={
               sent
                 ? t.contact.confirm
-                : channel === 'email'
+                : channel === ContactChannel.Email
                   ? t.contact.sendCodeEmail
                   : t.contact.sendCodePhone
             }

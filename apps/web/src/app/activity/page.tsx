@@ -16,6 +16,7 @@ import Link from 'next/link';
 import type { ActivityGroup, ActivityRow } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { describeActivity, verbEmoji } from '@/lib/activity';
@@ -25,7 +26,7 @@ type FeedRow = ActivityRow & { group: ActivityGroup | null };
 
 export default function ActivityPage() {
   return (
-    <AppFrame current="activity">
+    <AppFrame current={Section.Activity}>
       {({ profileId, query }) => <ActivityFeed profileId={profileId} query={query} />}
     </AppFrame>
   );

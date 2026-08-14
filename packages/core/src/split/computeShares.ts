@@ -14,24 +14,25 @@ import {
 } from './remainder';
 import {
   SplitError,
+  SplitErrorCode,
+  SplitType,
   type ComputeSharesInput,
   type ItemizedParams,
   type MemberId,
   type ShareMap,
   type SplitParams,
-  type SplitType,
 } from './types';
 
 const TOTAL_BASIS_POINTS = 10000;
 
 export function splitTypeOf(params: SplitParams): SplitType {
-  return params.kind;
+  return params.kind as SplitType;
 }
 
 export function computeShares(input: ComputeSharesInput): ShareMap {
   const participants = validateParticipants(input.participants);
   if (input.amount < 0n) {
-    throw new SplitError('NEGATIVE_TOTAL', 'Expense total cannot be negative');
+    throw new SplitError(SplitErrorCode.NegativeTotal, 'Expense total cannot be negative');
   }
 
   const shares = computeByType(input, participants);
@@ -61,7 +62,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
       }
       if (total !== input.amount) {
         throw new SplitError(
-          'EXACT_SUM_MISMATCH',
+          SplitErrorCode.ExactSumMismatch,
           `Exact shares sum to ${total} but the expense is ${input.amount}`,
         );
       }
@@ -75,7 +76,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
         requireParticipant(member, participants);
         if (!Number.isInteger(basisPoints) || basisPoints < 0) {
           throw new SplitError(
-            'INVALID_WEIGHT',
+            SplitErrorCode.InvalidWeight,
             `Basis points must be non-negative integers, got ${basisPoints} for ${member}`,
           );
         }
@@ -84,7 +85,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
       }
       if (total !== TOTAL_BASIS_POINTS) {
         throw new SplitError(
-          'PERCENT_SUM_MISMATCH',
+          SplitErrorCode.PercentSumMismatch,
           `Percentages must sum to 100% (10000 basis points), got ${total}`,
         );
       }
@@ -98,7 +99,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
         requireParticipant(member, participants);
         if (!Number.isInteger(weight) || weight < 0) {
           throw new SplitError(
-            'INVALID_WEIGHT',
+            SplitErrorCode.InvalidWeight,
             `Weights must be non-negative integers, got ${weight} for ${member}`,
           );
         }
@@ -106,7 +107,10 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
         weights.set(member, BigInt(weight));
       }
       if (!positive) {
-        throw new SplitError('NO_POSITIVE_WEIGHT', 'At least one member needs a positive weight');
+        throw new SplitError(
+          SplitErrorCode.NoPositiveWeight,
+          'At least one member needs a positive weight',
+        );
       }
       return distributeProportionally(input.amount, weights, input.seed);
     }
@@ -157,7 +161,7 @@ function splitItemized(
   seed: string,
 ): ShareMap {
   if (params.items.length === 0) {
-    throw new SplitError('INVALID_ITEM', 'An itemized split needs at least one line item');
+    throw new SplitError(SplitErrorCode.InvalidItem, 'An itemized split needs at least one line item');
   }
 
   const subtotals = new Map<MemberId, bigint>();
@@ -166,13 +170,16 @@ function splitItemized(
   let itemsTotal = 0n;
   params.items.forEach((item, index) => {
     if (item.total < 0n) {
-      throw new SplitError('INVALID_ITEM', `Line ${index} has a negative total`);
+      throw new SplitError(SplitErrorCode.InvalidItem, `Line ${index} has a negative total`);
     }
     const claimers = params.claims[index] ?? [];
     if (claimers.length === 0) {
       // ADR-008: unclaimed items block finalization — the UI must chase the
       // last person before the expense can be created.
-      throw new SplitError('UNCLAIMED_ITEM', `Line ${index} ("${item.label ?? ''}") is unclaimed`);
+      throw new SplitError(
+        SplitErrorCode.UnclaimedItem,
+        `Line ${index} ("${item.label ?? ''}") is unclaimed`,
+      );
     }
     for (const claimer of claimers) requireParticipant(claimer, participants);
 
@@ -191,7 +198,7 @@ function splitItemized(
 
   if (itemsTotal + extras !== amount) {
     throw new SplitError(
-      'ITEMIZED_TOTAL_MISMATCH',
+      SplitErrorCode.ItemizedTotalMismatch,
       `Items (${itemsTotal}) plus tax/tip/discounts (${extras}) is ${itemsTotal + extras}, but the expense total is ${amount}`,
     );
   }
@@ -214,18 +221,21 @@ function splitItemized(
 
 function validateParticipants(participants: readonly MemberId[]): MemberId[] {
   if (participants.length === 0) {
-    throw new SplitError('EMPTY_PARTICIPANTS', 'An expense needs at least one participant');
+    throw new SplitError(SplitErrorCode.EmptyParticipants, 'An expense needs at least one participant');
   }
   const unique = new Set(participants);
   if (unique.size !== participants.length) {
-    throw new SplitError('DUPLICATE_PARTICIPANT', 'Participants must be unique');
+    throw new SplitError(SplitErrorCode.DuplicateParticipant, 'Participants must be unique');
   }
   return [...participants];
 }
 
 function requireParticipant(member: MemberId, participants: readonly MemberId[]): void {
   if (!participants.includes(member)) {
-    throw new SplitError('UNKNOWN_MEMBER', `"${member}" is not a participant in this expense`);
+    throw new SplitError(
+      SplitErrorCode.UnknownMember,
+      `"${member}" is not a participant in this expense`,
+    );
   }
 }
 
@@ -239,7 +249,7 @@ function assertSumsTo(shares: ShareMap, amount: bigint): void {
   const total = sumShares(shares);
   if (total !== amount) {
     throw new SplitError(
-      'SHARE_MISMATCH',
+      SplitErrorCode.ShareMismatch,
       `Computed shares sum to ${total}, expected ${amount}. This is a bug in computeShares.`,
     );
   }

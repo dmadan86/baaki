@@ -19,6 +19,7 @@ import {
   buildSmsFilter,
   mapSmsRow,
   parseSmsList,
+  PermissionOutcome,
   readSmsInbox,
   type NativeSmsModule,
   type SmsReaderDeps,
@@ -39,7 +40,7 @@ function deps(over: Partial<SmsReaderDeps> = {}): SmsReaderDeps {
   return {
     platformOS: 'android',
     loadModule: () => moduleReturning([]),
-    requestPermission: async () => 'granted',
+    requestPermission: async () => PermissionOutcome.Granted,
     ...over,
   };
 }
@@ -158,17 +159,23 @@ describe('readSmsInbox — refusals', () => {
   });
 
   it('reports a plain denial', async () => {
-    const res = await readSmsInbox(WINDOW, deps({ requestPermission: async () => 'denied' }));
+    const res = await readSmsInbox(
+      WINDOW,
+      deps({ requestPermission: async () => PermissionOutcome.Denied }),
+    );
     expect(res).toEqual({ ok: false, reason: 'denied' });
   });
 
   it('reports a blocked (never-ask-again) permission distinctly', async () => {
-    const res = await readSmsInbox(WINDOW, deps({ requestPermission: async () => 'blocked' }));
+    const res = await readSmsInbox(
+      WINDOW,
+      deps({ requestPermission: async () => PermissionOutcome.Blocked }),
+    );
     expect(res).toEqual({ ok: false, reason: 'blocked' });
   });
 
   it('does not ask for permission before the module is known to exist', async () => {
-    const requestPermission = vi.fn(async () => 'granted' as const);
+    const requestPermission = vi.fn(async () => PermissionOutcome.Granted);
     await readSmsInbox(WINDOW, deps({ loadModule: () => null, requestPermission }));
     expect(requestPermission).not.toHaveBeenCalled();
   });

@@ -21,13 +21,17 @@ import { submitFeedback } from '@/data/api';
 import { useStrings } from '@/i18n';
 import { friendlyError } from '@/lib/errors';
 
-type Kind = 'general' | 'bug' | 'idea';
+enum Kind {
+  General = 'general',
+  Bug = 'bug',
+  Idea = 'idea',
+}
 
 export default function FeedbackScreen() {
   const theme = useTheme();
   const { t } = useStrings();
 
-  const [kind, setKind] = useState<Kind>('general');
+  const [kind, setKind] = useState<Kind>(Kind.General);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,9 +100,9 @@ export default function FeedbackScreen() {
               value={kind}
               onChange={setKind}
               options={[
-                { value: 'general', label: t.privacy.kindGeneral },
-                { value: 'bug', label: t.privacy.kindBug },
-                { value: 'idea', label: t.privacy.kindIdea },
+                { value: Kind.General, label: t.privacy.kindGeneral },
+                { value: Kind.Bug, label: t.privacy.kindBug },
+                { value: Kind.Idea, label: t.privacy.kindIdea },
               ]}
             />
 

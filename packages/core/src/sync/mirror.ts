@@ -20,12 +20,12 @@ import type { MemberId, SplitParams, SplitType } from '../split/types';
 import type { CurrencyCode } from '../money/currency';
 import type { ExpenseSnapshot } from '../balances/types';
 
+import { SyncTable } from './protocol';
 import type {
   ExpenseCreatePayload,
   ExpenseDeletePayload,
   MutationEnvelope,
   SyncChange,
-  SyncTable,
 } from './protocol';
 import type { QueuedMutation } from './queue';
 
@@ -39,15 +39,15 @@ export interface MirrorState {
 }
 
 const TABLES: readonly SyncTable[] = [
-  'groups',
-  'group_members',
-  'expenses',
-  'expense_versions',
-  'expense_payers',
-  'expense_shares',
-  'settlements',
-  'settlement_allocations',
-  'activity_log',
+  SyncTable.Groups,
+  SyncTable.GroupMembers,
+  SyncTable.Expenses,
+  SyncTable.ExpenseVersions,
+  SyncTable.ExpensePayers,
+  SyncTable.ExpenseShares,
+  SyncTable.Settlements,
+  SyncTable.SettlementAllocations,
+  SyncTable.ActivityLog,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -161,7 +161,7 @@ export function materialiseExpenses(
   options: MaterialiseOptions,
 ): MirrorExpense[] {
   return overlayPending(
-    rowsFor(state, 'expenses', options.groupId) as MirrorExpense[],
+    rowsFor(state, SyncTable.Expenses, options.groupId) as MirrorExpense[],
     queue,
     options,
   );
@@ -216,7 +216,7 @@ function applyPending(
           expense_date: payload.expenseDate,
           currency: payload.currency,
           amount: payload.amount,
-          split_type: payload.splitParams.kind,
+          split_type: payload.splitParams.kind as SplitType,
           split_params: payload.splitParams,
           author_member_id: options.authorMemberId ?? null,
           notes: payload.notes ?? null,
@@ -317,7 +317,7 @@ export function materialiseSettlements(
   options: { readonly groupId: string },
 ): MirrorSettlement[] {
   const byId = new Map<string, MirrorSettlement>();
-  for (const row of rowsFor(state, 'settlements', options.groupId) as MirrorSettlement[]) {
+  for (const row of rowsFor(state, SyncTable.Settlements, options.groupId) as MirrorSettlement[]) {
     byId.set(row.id, row);
   }
 
@@ -395,7 +395,7 @@ export function materialiseMembers(
   options: { readonly groupId: string },
 ): MirrorMember[] {
   const byId = new Map<string, MirrorMember>();
-  for (const row of rowsFor(state, 'group_members', options.groupId) as MirrorMember[]) {
+  for (const row of rowsFor(state, SyncTable.GroupMembers, options.groupId) as MirrorMember[]) {
     byId.set(row.id, row);
   }
 
@@ -439,7 +439,7 @@ export function materialiseGroups(
   queue: readonly QueuedMutation[],
 ): MirrorGroup[] {
   const byId = new Map<string, MirrorGroup>();
-  for (const row of rowsFor(state, 'groups') as MirrorGroup[]) byId.set(row.id, row);
+  for (const row of rowsFor(state, SyncTable.Groups) as MirrorGroup[]) byId.set(row.id, row);
 
   for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
     if (mutation.kind === 'group.create') {

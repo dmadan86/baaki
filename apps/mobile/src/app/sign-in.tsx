@@ -56,7 +56,10 @@ import { Onboarding } from '@/components/Onboarding';
 import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
-type Mode = 'otp' | 'password';
+enum Mode {
+  Otp = 'otp',
+  Password = 'password',
+}
 
 const TOUR_KEY = 'baaki.onboarding_seen';
 
@@ -112,7 +115,7 @@ export default function SignInScreen() {
   });
   const dialCode = dialingCodeForCountry(country) ?? '+91';
 
-  const [mode, setMode] = useState<Mode>('otp');
+  const [mode, setMode] = useState<Mode>(Mode.Otp);
   const [phone, setPhone] = useState('');
   // What actually goes to Supabase: the dial code and the local digits, no
   // spaces or punctuation — E.164 in all but the leading-zero rules the server
@@ -228,7 +231,7 @@ export default function SignInScreen() {
                 disabled={busy}
                 onPress={() => {
                   setIntent('sign_in');
-                  setMode('password');
+                  setMode(Mode.Password);
                   setShowOptions(true);
                 }}
               />
@@ -240,7 +243,7 @@ export default function SignInScreen() {
                 disabled={busy}
                 onPress={() => {
                   setIntent('sign_up');
-                  setMode('password');
+                  setMode(Mode.Password);
                   setShowOptions(true);
                 }}
               />
@@ -366,12 +369,12 @@ export default function SignInScreen() {
                   setError(null);
                 }}
                 tabs={[
-                  { value: 'otp', label: t.signIn.sendMeACode },
-                  { value: 'password', label: t.signIn.useAPassword },
+                  { value: Mode.Otp, label: t.signIn.sendMeACode },
+                  { value: Mode.Password, label: t.signIn.useAPassword },
                 ]}
               />
 
-              {mode === 'otp' && stage === 'phone' ? (
+              {mode === Mode.Otp && stage === 'phone' ? (
                 <>
                   <Text variant="caption" tone="muted">
                     {t.signIn.phoneNumber}
@@ -415,7 +418,7 @@ export default function SignInScreen() {
                 </>
               ) : null}
 
-              {mode === 'otp' && stage === 'code' ? (
+              {mode === Mode.Otp && stage === 'code' ? (
                 <>
                   <Text variant="caption" tone="muted">
                     {t.signIn.codeSentTo.replace('{value}', `${dialCode} ${phone}`)}
@@ -454,7 +457,7 @@ export default function SignInScreen() {
                 </>
               ) : null}
 
-              {mode === 'password' ? (
+              {mode === Mode.Password ? (
                 <>
                   {/* The way between sign-in and sign-up sits above the fields, not
                       below the submit: on Android the keyboard opens over the

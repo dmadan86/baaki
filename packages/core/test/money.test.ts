@@ -7,6 +7,7 @@ import {
   formatParts,
   balanceDirection,
   moneyAccessibilityLabel,
+  BalanceDirection,
 } from '../src/money/format.js';
 import { convert, fxRate, fromFxRecord, invertRate, toFxRecord } from '../src/money/fx.js';
 import {
@@ -99,7 +100,7 @@ describe('parse and render', () => {
 
   it('labels money for screen readers (TDR §11)', () => {
     const strings = copyFor('en').money;
-    const label = moneyAccessibilityLabel(money(42000n, 'INR'), 'owed_to_you', strings, {
+    const label = moneyAccessibilityLabel(money(42000n, 'INR'), BalanceDirection.OwedToYou, strings, {
       locale: 'en-IN',
       compactFraction: true,
     });

@@ -18,11 +18,12 @@ export interface Receivable {
   readonly amount: bigint;
 }
 
-export type SettlementErrorCode =
-  | 'ALLOCATION_EXCEEDS_SETTLEMENT'
-  | 'ALLOCATION_EXCEEDS_RECEIVABLE'
-  | 'UNKNOWN_RECEIVABLE'
-  | 'NON_POSITIVE_AMOUNT';
+export enum SettlementErrorCode {
+  AllocationExceedsSettlement = 'ALLOCATION_EXCEEDS_SETTLEMENT',
+  AllocationExceedsReceivable = 'ALLOCATION_EXCEEDS_RECEIVABLE',
+  UnknownReceivable = 'UNKNOWN_RECEIVABLE',
+  NonPositiveAmount = 'NON_POSITIVE_AMOUNT',
+}
 
 export class SettlementError extends Error {
   readonly code: SettlementErrorCode;
@@ -50,7 +51,10 @@ export function allocateSettlement(
   receivables: readonly Receivable[],
 ): AllocationResult {
   if (settlement.amount <= 0n) {
-    throw new SettlementError('NON_POSITIVE_AMOUNT', 'A settlement must be for a positive amount');
+    throw new SettlementError(
+      SettlementErrorCode.NonPositiveAmount,
+      'A settlement must be for a positive amount',
+    );
   }
 
   const outstanding = new Map<string, bigint>();
@@ -66,24 +70,27 @@ export function allocateSettlement(
 
   for (const explicit of settlement.allocations ?? []) {
     if (explicit.amount <= 0n) {
-      throw new SettlementError('NON_POSITIVE_AMOUNT', 'Allocation amounts must be positive');
+      throw new SettlementError(
+        SettlementErrorCode.NonPositiveAmount,
+        'Allocation amounts must be positive',
+      );
     }
     if (!outstanding.has(explicit.expenseId)) {
       throw new SettlementError(
-        'UNKNOWN_RECEIVABLE',
+        SettlementErrorCode.UnknownReceivable,
         `Expense ${explicit.expenseId} carries no debt between these two members`,
       );
     }
     const available = outstanding.get(explicit.expenseId) ?? 0n;
     if (explicit.amount > available) {
       throw new SettlementError(
-        'ALLOCATION_EXCEEDS_RECEIVABLE',
+        SettlementErrorCode.AllocationExceedsReceivable,
         `Allocated ${explicit.amount} to expense ${explicit.expenseId} but only ${available} is outstanding`,
       );
     }
     if (explicit.amount > remaining) {
       throw new SettlementError(
-        'ALLOCATION_EXCEEDS_SETTLEMENT',
+        SettlementErrorCode.AllocationExceedsSettlement,
         'Allocations add up to more than the settlement amount',
       );
     }
@@ -144,7 +151,10 @@ export function buildUpiIntentUri(
   formatMajor: (amount: bigint, currency: CurrencyCode) => string,
 ): string {
   if (!isValidVpa(input.vpa)) {
-    throw new SettlementError('UNKNOWN_RECEIVABLE', `"${input.vpa}" is not a valid UPI ID`);
+    throw new SettlementError(
+      SettlementErrorCode.UnknownReceivable,
+      `"${input.vpa}" is not a valid UPI ID`,
+    );
   }
   // Built by hand rather than with URLSearchParams: this package has to compile
   // unchanged for React Native, Deno and the browser, with no lib assumptions.
@@ -166,13 +176,23 @@ export function buildUpiIntentUri(
 /** Settlement state machine (ADR-007). */
 export const SETTLEMENT_AUTO_CONFIRM_DAYS = 7;
 
-export type SettlementTransition = 'confirm' | 'dispute' | 'cancel' | 'auto_confirm';
+export enum SettlementTransition {
+  Confirm = 'confirm',
+  Dispute = 'dispute',
+  Cancel = 'cancel',
+  AutoConfirm = 'auto_confirm',
+}
 
 const TRANSITIONS: Readonly<Record<string, readonly SettlementTransition[]>> = {
-  initiated: ['confirm', 'dispute', 'cancel', 'auto_confirm'],
+  initiated: [
+    SettlementTransition.Confirm,
+    SettlementTransition.Dispute,
+    SettlementTransition.Cancel,
+    SettlementTransition.AutoConfirm,
+  ],
   confirmed: [],
-  auto_confirmed: ['dispute'],
-  disputed: ['confirm', 'cancel'],
+  auto_confirmed: [SettlementTransition.Dispute],
+  disputed: [SettlementTransition.Confirm, SettlementTransition.Cancel],
   cancelled: [],
 };
 

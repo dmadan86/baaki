@@ -26,8 +26,13 @@
 import { minorUnitExponent, type CurrencyCode } from '../money/currency';
 import type { ExactParams } from '../split/types';
 
-export type ImportProblemKind =
-  'unparseable_row' | 'row_does_not_balance' | 'unknown_currency' | 'no_people' | 'no_rows';
+export enum ImportProblemKind {
+  UnparseableRow = 'unparseable_row',
+  RowDoesNotBalance = 'row_does_not_balance',
+  UnknownCurrency = 'unknown_currency',
+  NoPeople = 'no_people',
+  NoRows = 'no_rows',
+}
 
 export interface ImportProblem {
   readonly kind: ImportProblemKind;
@@ -208,7 +213,7 @@ export function importSplitwiseCsv(csv: string): SplitwiseImport {
 
   if (fixedCount < FIXED_COLUMNS.length || people.length === 0) {
     problems.push({
-      kind: 'no_people',
+      kind: ImportProblemKind.NoPeople,
       row: 1,
       message:
         'This does not look like a Splitwise export — expected Date, Description, Category, Cost, Currency and then one column per person.',
@@ -232,7 +237,7 @@ export function importSplitwiseCsv(csv: string): SplitwiseImport {
     const rowCurrency = (fields[4] ?? '').trim().toUpperCase() || currency;
     if (!/^[A-Z]{3}$/.test(rowCurrency)) {
       problems.push({
-        kind: 'unknown_currency',
+        kind: ImportProblemKind.UnknownCurrency,
         row: rowNumber,
         message: `Row ${rowNumber}: "${fields[4]}" is not a currency code.`,
       });
@@ -243,7 +248,7 @@ export function importSplitwiseCsv(csv: string): SplitwiseImport {
     const amount = parseCsvAmount(fields[3] ?? '', rowCurrency);
     if (!date || amount === null) {
       problems.push({
-        kind: 'unparseable_row',
+        kind: ImportProblemKind.UnparseableRow,
         row: rowNumber,
         message: `Row ${rowNumber}: could not read ${!date ? 'the date' : 'the cost'}.`,
       });
@@ -264,7 +269,7 @@ export function importSplitwiseCsv(csv: string): SplitwiseImport {
     // so it is named and skipped rather than adjusted into shape.
     if (net !== 0n) {
       problems.push({
-        kind: 'row_does_not_balance',
+        kind: ImportProblemKind.RowDoesNotBalance,
         row: rowNumber,
         message: `Row ${rowNumber} ("${description}"): the people's columns add up to ${net}, not 0.`,
       });
@@ -289,7 +294,11 @@ export function importSplitwiseCsv(csv: string): SplitwiseImport {
   }
 
   if (expenses.length === 0 && problems.length === 0) {
-    problems.push({ kind: 'no_rows', row: null, message: 'There were no expenses in this file.' });
+    problems.push({
+      kind: ImportProblemKind.NoRows,
+      row: null,
+      message: 'There were no expenses in this file.',
+    });
   }
 
   return {

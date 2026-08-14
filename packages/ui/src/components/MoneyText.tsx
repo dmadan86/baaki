@@ -2,10 +2,10 @@ import { StyleSheet, Text as RNText, type TextStyle } from 'react-native';
 
 import {
   balanceDirection,
+  BalanceDirection,
   copyFor,
   formatParts,
   moneyAccessibilityLabel,
-  type BalanceDirection,
   type CurrencyCode,
   type Money,
 } from '@baaki/core';
@@ -86,9 +86,9 @@ export function MoneyText({
   const resolvedTone =
     tone ??
     (mode === 'balance'
-      ? resolvedDirection === 'owed_to_you'
+      ? resolvedDirection === BalanceDirection.OwedToYou
         ? 'positive'
-        : resolvedDirection === 'you_owe'
+        : resolvedDirection === BalanceDirection.YouOwe
           ? 'negative'
           : 'muted'
       : 'default');

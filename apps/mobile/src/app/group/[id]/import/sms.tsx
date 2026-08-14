@@ -42,7 +42,13 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { proposeFromSms, type ExpenseCandidate, type MemberId, type SmsMessage } from '@baaki/core';
+import {
+  MutationKind,
+  proposeFromSms,
+  type ExpenseCandidate,
+  type MemberId,
+  type SmsMessage,
+} from '@baaki/core';
 
 import { useGroup, useGroupLedger } from '@/data/hooks';
 import { planFromSms, toMutationPayload } from '@/data/importPlan';
@@ -50,7 +56,7 @@ import { smsWindowFor } from '@/data/smsWindow';
 import { displayName } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
 import { useFlagEnabled } from '@/lib/flags';
-import { readSms, type SmsReadFailure } from '@/lib/smsReader';
+import { readSms, SmsReadFailure } from '@/lib/smsReader';
 import { useAuth } from '@/lib/auth';
 import { importMutationId } from '@/lib/importId';
 import { useImported } from '@/lib/imported';
@@ -179,7 +185,7 @@ export default function ImportSmsScreen() {
         const expenseId = await importMutationId(groupId, `expense:${plan.seed}`);
         const clientMutationId = await importMutationId(groupId, plan.seed);
         await mutate(
-          'expense.create',
+          MutationKind.ExpenseCreate,
           groupId,
           toMutationPayload(plan, { expenseId }),
           clientMutationId,
@@ -487,15 +493,15 @@ const daysAgo = (days: number): string =>
 /** Why the inbox could not be read, said in a way a person can act on. */
 function readFailureMessage(reason: SmsReadFailure, t: ReturnType<typeof useStrings>['t']): string {
   switch (reason) {
-    case 'denied':
+    case SmsReadFailure.Denied:
       return t.smsImport.permissionDenied;
-    case 'blocked':
+    case SmsReadFailure.Blocked:
       return t.smsImport.permissionBlocked;
-    case 'unsupported':
+    case SmsReadFailure.Unsupported:
       return t.smsImport.readUnsupported;
-    case 'unavailable':
+    case SmsReadFailure.Unavailable:
       return t.smsImport.readUnavailable;
-    case 'failed':
+    case SmsReadFailure.Failed:
       return t.smsImport.readFailed;
   }
 }

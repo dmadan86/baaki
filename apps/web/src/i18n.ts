@@ -14,12 +14,22 @@
  * the page turn around.
  */
 
-export type Language = 'en' | 'ta' | 'hi' | 'ar';
+export enum Language {
+  En = 'en',
+  Ta = 'ta',
+  Hi = 'hi',
+  Ar = 'ar',
+}
 
-export const LANGUAGES: readonly Language[] = ['en', 'ta', 'hi', 'ar'];
+export const LANGUAGES: readonly Language[] = [
+  Language.En,
+  Language.Ta,
+  Language.Hi,
+  Language.Ar,
+];
 
 export function isRtlLanguage(language: Language): boolean {
-  return language === 'ar';
+  return language === Language.Ar;
 }
 
 /**
@@ -30,7 +40,7 @@ export function isRtlLanguage(language: Language): boolean {
  * is the answer, and English is the answer when none of them is.
  */
 export function pickLanguage(acceptLanguage: string | null | undefined): Language {
-  if (!acceptLanguage) return 'en';
+  if (!acceptLanguage) return Language.En;
   for (const part of acceptLanguage.split(',')) {
     const tag = part.split(';')[0]?.trim().toLowerCase();
     const subtag = tag?.split('-')[0];
@@ -38,7 +48,7 @@ export function pickLanguage(acceptLanguage: string | null | undefined): Languag
       return subtag as Language;
     }
   }
-  return 'en';
+  return Language.En;
 }
 
 /**
@@ -1141,7 +1151,12 @@ const ar: WebStrings = {
   },
 };
 
-export const STRINGS_BY_LANGUAGE: Record<Language, WebStrings> = { en, ta, hi, ar };
+export const STRINGS_BY_LANGUAGE: Record<Language, WebStrings> = {
+  [Language.En]: en,
+  [Language.Ta]: ta,
+  [Language.Hi]: hi,
+  [Language.Ar]: ar,
+};
 
 export function stringsFor(language: Language): WebStrings {
   return STRINGS_BY_LANGUAGE[language];

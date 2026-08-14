@@ -6,34 +6,40 @@
  * already typed, and turning a platform error code into a blank screen.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { dictationError, mergeTranscript, speechLocale } from '@/lib/dictation';
+import { Language } from '@/i18n';
+
+// The Language enum lives in the i18n module, which imports expo-localization
+// (and through it react-native) at load. This test only needs the enum, so the
+// native dependency is stubbed out — the same shim language.test.ts uses.
+vi.mock('expo-localization', () => ({ getLocales: () => [] }));
 
 describe('speechLocale', () => {
   it('keeps the phone’s own region when it agrees with the app language', () => {
     // Somebody in London is recognised as British English, not corrected to
     // Indian English because the app happens to be India-first.
-    expect(speechLocale('en', 'en-GB')).toBe('en-GB');
-    expect(speechLocale('ta', 'ta-LK')).toBe('ta-LK');
+    expect(speechLocale(Language.En, 'en-GB')).toBe('en-GB');
+    expect(speechLocale(Language.Ta, 'ta-LK')).toBe('ta-LK');
   });
 
   it('falls back to India when the tag carries no region', () => {
     // Bare "ta" is a lottery on Android — some recognisers take it, some
     // return language-not-supported.
-    expect(speechLocale('ta', 'ta')).toBe('ta-IN');
-    expect(speechLocale('hi', 'hi')).toBe('hi-IN');
+    expect(speechLocale(Language.Ta, 'ta')).toBe('ta-IN');
+    expect(speechLocale(Language.Hi, 'hi')).toBe('hi-IN');
   });
 
   it('follows the app language, not the phone, when they disagree', () => {
     // The app is showing Tamil, so Tamil is what the user is about to speak.
-    expect(speechLocale('ta', 'en-US')).toBe('ta-IN');
+    expect(speechLocale(Language.Ta, 'en-US')).toBe('ta-IN');
   });
 
   it('survives the shapes a locale tag actually arrives in', () => {
-    expect(speechLocale('en', 'en_IN')).toBe('en-IN');
-    expect(speechLocale('en', 'en-in')).toBe('en-IN');
-    expect(speechLocale('en', '')).toBe('en-IN');
+    expect(speechLocale(Language.En, 'en_IN')).toBe('en-IN');
+    expect(speechLocale(Language.En, 'en-in')).toBe('en-IN');
+    expect(speechLocale(Language.En, '')).toBe('en-IN');
   });
 });
 

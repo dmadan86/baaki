@@ -4,10 +4,11 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
 import {
+  AuthMethod,
   checkPassword,
+  OAuthMethod,
   planAuth,
   readIdentifier,
-  type OAuthMethod,
   type Viewer,
 } from '@baaki/core';
 
@@ -284,7 +285,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async withPassword(identifier, password, intent) {
         const who = readIdentifier(identifier);
         checkPassword(password);
-        const method = who.kind === 'email' ? 'email_password' : 'phone_password';
+        const method =
+          who.kind === 'email' ? AuthMethod.EmailPassword : AuthMethod.PhonePassword;
         const credential = who.kind === 'email' ? { email: who.value } : { phone: who.value };
         const action = planAuth(viewerFrom(session), method, intent);
 
@@ -306,13 +308,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       async withGoogle() {
-        const action = planAuth(viewerFrom(session), 'google');
-        const next = await oauthThroughBrowser('google', action.call === 'linkIdentity');
+        const action = planAuth(viewerFrom(session), AuthMethod.Google);
+        const next = await oauthThroughBrowser(OAuthMethod.Google, action.call === 'linkIdentity');
         if (next !== undefined) setSession(next);
       },
 
       async withApple() {
-        const action = planAuth(viewerFrom(session), 'apple');
+        const action = planAuth(viewerFrom(session), AuthMethod.Apple);
 
         // The native sheet is bound to this one branch, and the branch is the
         // one `planAuth` only ever returns for a viewer of kind 'nobody'
@@ -339,7 +341,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const next = await oauthThroughBrowser('apple', action.call === 'linkIdentity');
+        const next = await oauthThroughBrowser(OAuthMethod.Apple, action.call === 'linkIdentity');
         if (next !== undefined) setSession(next);
       },
 

@@ -7,7 +7,11 @@
  * exists between the photograph and the expense.
  */
 
-export type ReceiptSource = 'camera' | 'gallery' | 'text_paste';
+export enum ReceiptSource {
+  Camera = 'camera',
+  Gallery = 'gallery',
+  TextPaste = 'text_paste',
+}
 
 export interface ParsedReceiptLine {
   readonly label: string;

@@ -13,15 +13,19 @@ export interface TrendDay {
   active: number;
 }
 
-type Metric = 'newProfiles' | 'newExpenses' | 'active';
+enum Metric {
+  NewProfiles = 'newProfiles',
+  NewExpenses = 'newExpenses',
+  Active = 'active',
+}
 
 const SERIES: Record<Metric, { label: string; color: string }> = {
-  newProfiles: { label: 'New people', color: PALETTE.purple },
-  newExpenses: { label: 'Expenses', color: PALETTE.blue },
-  active: { label: 'Active', color: PALETTE.green },
+  [Metric.NewProfiles]: { label: 'New people', color: PALETTE.purple },
+  [Metric.NewExpenses]: { label: 'Expenses', color: PALETTE.blue },
+  [Metric.Active]: { label: 'Active', color: PALETTE.green },
 };
 
-const ORDER: Metric[] = ['newProfiles', 'newExpenses', 'active'];
+const ORDER: Metric[] = [Metric.NewProfiles, Metric.NewExpenses, Metric.Active];
 
 /**
  * One smooth area over the 30-day series, with a segmented switch to change
@@ -30,7 +34,7 @@ const ORDER: Metric[] = ['newProfiles', 'newExpenses', 'active'];
  * the same side of the server/client line.
  */
 export function AreaTrend({ days }: { days: TrendDay[] }) {
-  const [metric, setMetric] = useState<Metric>('newProfiles');
+  const [metric, setMetric] = useState<Metric>(Metric.NewProfiles);
   const active = SERIES[metric];
 
   const option: EChartsOption = {

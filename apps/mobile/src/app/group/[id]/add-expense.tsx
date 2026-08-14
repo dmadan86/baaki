@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react
 import {
   computeShares,
   guessCategory,
+  MutationKind,
   type CategoryId,
   type FxRecord,
   type MemberId,
@@ -46,8 +47,8 @@ import {
   formatEntry,
   parseEntry,
   splitProblem,
+  SplitKind,
   type SplitEntries,
-  type SplitKind,
 } from '@/lib/split';
 import { clearDraft, syncEngine, useDraft, useRestoredDraft, useSync } from '@/sync';
 
@@ -102,7 +103,7 @@ export default function AddExpenseScreen() {
 
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
-  const [splitKind, setSplitKind] = useState<SplitKind>('equal');
+  const [splitKind, setSplitKind] = useState<SplitKind>(SplitKind.Equal);
   const [payer, setPayer] = useState<MemberId | null>(null);
   const [participants, setParticipants] = useState<MemberId[]>([]);
   // What was typed into each member's field, as text. Two maps, not one: the
@@ -175,10 +176,10 @@ export default function AddExpenseScreen() {
       setParticipants(version.shares.map((share) => share.member_id));
       setSplitKind(
         version.split_type === 'percent'
-          ? 'percent'
+          ? SplitKind.Percent
           : version.split_type === 'shares'
-            ? 'shares'
-            : 'equal',
+            ? SplitKind.Shares
+            : SplitKind.Equal,
       );
       // The numbers somebody chose the first time, back in the fields they were
       // typed into — an edit that silently re-divided them equally would be a
@@ -207,18 +208,18 @@ export default function AddExpenseScreen() {
   // Everybody in a weighted split needs a number to start from, and the set
   // changes as people are ticked on and off. `fillEntries` returns null once
   // there is nothing left to fill, which is what stops this looping.
-  if (splitKind === 'shares') {
+  if (splitKind === SplitKind.Shares) {
     const filled = fillEntries('shares', weights, participants);
     if (filled) setWeights(filled);
-  } else if (splitKind === 'percent') {
+  } else if (splitKind === SplitKind.Percent) {
     const filled = fillEntries('percent', percents, participants);
     if (filled) setPercents(filled);
   }
 
-  const entries = splitKind === 'shares' ? weights : percents;
+  const entries = splitKind === SplitKind.Shares ? weights : percents;
   const setEntry = (memberId: MemberId, text: string): void => {
     const update = (current: SplitEntries): SplitEntries => ({ ...current, [memberId]: text });
-    if (splitKind === 'shares') setWeights(update);
+    if (splitKind === SplitKind.Shares) setWeights(update);
     else setPercents(update);
   };
   const splitIssue = splitProblem(splitKind, entries, participants);
@@ -246,10 +247,10 @@ export default function AddExpenseScreen() {
   );
 
   const splitParams: SplitParams = useMemo(() => {
-    if (splitKind === 'shares') {
+    if (splitKind === SplitKind.Shares) {
       return { kind: 'shares', weights: entryValues('shares', weights, participants) };
     }
-    if (splitKind === 'percent') {
+    if (splitKind === SplitKind.Percent) {
       return { kind: 'percent', basisPoints: entryValues('percent', percents, participants) };
     }
     return { kind: 'equal' };
@@ -303,7 +304,7 @@ export default function AddExpenseScreen() {
     try {
       // Straight into the durable queue: this returns as soon as the mutation
       // is on disk, so the expense is saved whether or not there is a network.
-      await mutate(expenseId ? 'expense.update' : 'expense.create', groupId, {
+      await mutate(expenseId ? MutationKind.ExpenseUpdate : MutationKind.ExpenseCreate, groupId, {
         expenseId: targetExpenseId,
         // Blank stays blank. Writing the English word "Expense" here made every
         // undescribed row identical in the list, and put a word nobody typed
@@ -348,7 +349,7 @@ export default function AddExpenseScreen() {
   const lineAmount = (memberId: MemberId): bigint => {
     const previewed = preview?.get(memberId);
     if (previewed !== undefined) return previewed;
-    if (splitKind !== 'percent') return 0n;
+    if (splitKind !== SplitKind.Percent) return 0n;
     const basisPoints = parseEntry('percent', percents[memberId] ?? '') ?? 0;
     return (amount * BigInt(basisPoints)) / 10000n;
   };
@@ -560,9 +561,9 @@ export default function AddExpenseScreen() {
             value={splitKind}
             onChange={setSplitKind}
             options={[
-              { value: 'equal', label: t.expense.equally },
-              { value: 'shares', label: t.expense.shares },
-              { value: 'percent', label: t.expense.percent },
+              { value: SplitKind.Equal, label: t.expense.equally },
+              { value: SplitKind.Shares, label: t.expense.shares },
+              { value: SplitKind.Percent, label: t.expense.percent },
             ]}
           />
         </View>
@@ -645,17 +646,17 @@ export default function AddExpenseScreen() {
                   </View>
                 </Pressable>
 
-                {splitKind !== 'equal' && selected ? (
+                {splitKind !== SplitKind.Equal && selected ? (
                   <Row style={{ gap: 2, alignItems: 'center', flexGrow: 0, flexShrink: 0 }}>
                     <TextInput
                       value={entries[member.id] ?? ''}
                       onChangeText={(text) => setEntry(member.id, text)}
-                      keyboardType={splitKind === 'percent' ? 'decimal-pad' : 'number-pad'}
+                      keyboardType={splitKind === SplitKind.Percent ? 'decimal-pad' : 'number-pad'}
                       selectTextOnFocus
-                      placeholder={splitKind === 'percent' ? '0' : '1'}
+                      placeholder={splitKind === SplitKind.Percent ? '0' : '1'}
                       placeholderTextColor={theme.color.textFaint}
                       accessibilityLabel={
-                        splitKind === 'percent' ? `${name}'s percentage` : `${name}'s shares`
+                        splitKind === SplitKind.Percent ? `${name}'s percentage` : `${name}'s shares`
                       }
                       style={{
                         width: 72,
@@ -670,7 +671,7 @@ export default function AddExpenseScreen() {
                       }}
                     />
                     <Text variant="micro" tone="muted">
-                      {splitKind === 'percent' ? '%' : '×'}
+                      {splitKind === SplitKind.Percent ? '%' : '×'}
                     </Text>
                   </Row>
                 ) : null}

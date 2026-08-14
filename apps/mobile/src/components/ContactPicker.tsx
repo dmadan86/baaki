@@ -66,7 +66,12 @@ interface ContactPickerProps {
  * failure into the same sentence does not just lose the reason — it prints a
  * confident lie.
  */
-type Access = 'asking' | 'granted' | 'denied' | 'unavailable';
+enum Access {
+  Asking = 'asking',
+  Granted = 'granted',
+  Denied = 'denied',
+  Unavailable = 'unavailable',
+}
 
 /**
  * Only these. Asking for less than the platform offers is the cheapest privacy
@@ -99,7 +104,7 @@ export function ContactPicker({
 }: ContactPickerProps): React.JSX.Element {
   const theme = useTheme();
   const { t, locale } = useStrings();
-  const [access, setAccess] = useState<Access>('asking');
+  const [access, setAccess] = useState<Access>(Access.Asking);
   const [contacts, setContacts] = useState<PickedContact[]>([]);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<ReadonlyMap<string, PickedContact>>(new Map());
@@ -114,12 +119,12 @@ export function ContactPicker({
     } catch {
       // Permission itself could not be asked: no contacts module on this
       // platform (web) or an OS that refused the question.
-      if (!cancelled.current) setAccess('unavailable');
+      if (!cancelled.current) setAccess(Access.Unavailable);
       return;
     }
     if (cancelled.current) return;
     if (!granted) {
-      setAccess('denied');
+      setAccess(Access.Denied);
       return;
     }
 
@@ -127,7 +132,7 @@ export function ContactPicker({
     try {
       rows = await Contact.getAllDetails(FIELDS);
     } catch {
-      if (!cancelled.current) setAccess('unavailable');
+      if (!cancelled.current) setAccess(Access.Unavailable);
       return;
     }
     if (cancelled.current) return;
@@ -144,7 +149,7 @@ export function ContactPicker({
         .filter((contact) => contact.name && (contact.email || contact.phone))
         .sort((a, b) => a.name.localeCompare(b.name)),
     );
-    setAccess('granted');
+    setAccess(Access.Granted);
   }, []);
 
   // Read on a tick rather than in the effect body: the React Compiler counts a
@@ -166,7 +171,7 @@ export function ContactPicker({
    */
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && access === 'denied') void load();
+      if (state === 'active' && access === Access.Denied) void load();
     });
     return () => subscription.remove();
   }, [access, load]);
@@ -231,14 +236,14 @@ export function ContactPicker({
     });
   }, []);
 
-  if (access === 'asking') {
+  if (access === Access.Asking) {
     // Reading a full address book is a real wait, so this is the shape of the
     // list that is coming — rows of a face and a name — not a line of text.
     // No trailing block: a contact row ends in a tick, not an amount.
     return <SkeletonList rows={6} trailing={false} />;
   }
 
-  if (access === 'denied') {
+  if (access === Access.Denied) {
     return (
       <Card style={{ gap: theme.spacing.sm }}>
         <Text variant="caption" tone="muted">

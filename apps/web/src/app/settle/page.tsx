@@ -36,6 +36,7 @@ import {
 } from '@baaki/core';
 
 import { AppFrame } from '@/components/AppFrame';
+import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
@@ -43,7 +44,7 @@ import { useStrings } from '@/i18n-context';
 
 export default function SettlePage() {
   return (
-    <AppFrame current="settle">
+    <AppFrame current={Section.Settle}>
       {({ profileId }) => (
         <Suspense fallback={null}>
           <Settle profileId={profileId} />

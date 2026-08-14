@@ -15,7 +15,7 @@ import { ScrollView, View } from 'react-native';
 import { Card, directionalIcon, IconButton, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
-import { useThemePreference, type SchemePreference } from '@/lib/theme';
+import { SchemePreference, useThemePreference } from '@/lib/theme';
 
 export default function ThemeSettingsScreen() {
   const theme = useTheme();
@@ -27,7 +27,7 @@ export default function ThemeSettingsScreen() {
     title: string;
     subtitle: string;
     icon: keyof typeof Ionicons.glyphMap;
-    value: SchemePreference;
+    value: SchemePreference | null;
   }[] = [
     {
       key: 'system',
@@ -44,14 +44,14 @@ export default function ThemeSettingsScreen() {
       title: t.theme.light,
       subtitle: t.theme.lightHint,
       icon: 'sunny-outline',
-      value: 'light',
+      value: SchemePreference.Light,
     },
     {
       key: 'dark',
       title: t.theme.dark,
       subtitle: t.theme.darkHint,
       icon: 'moon-outline',
-      value: 'dark',
+      value: SchemePreference.Dark,
     },
   ];
 

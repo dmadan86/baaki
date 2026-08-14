@@ -27,11 +27,14 @@ import { useColorScheme } from 'react-native';
 const KEY = 'baaki.theme_scheme';
 
 /** What the user picked. Null means "follow the phone". */
-export type SchemePreference = 'light' | 'dark' | null;
+export enum SchemePreference {
+  Light = 'light',
+  Dark = 'dark',
+}
 
 interface ThemeValue {
   /** The user's choice, or null when following the phone. */
-  preference: SchemePreference;
+  preference: SchemePreference | null;
   /** The scheme actually in force once the phone's setting is resolved. */
   resolved: 'light' | 'dark';
   /** What the phone's own setting says, for explaining the default. */
@@ -39,7 +42,7 @@ interface ThemeValue {
   /** True while the stored preference is still being read. */
   loading: boolean;
   /** Null puts it back under the system setting's control. */
-  setPreference: (value: SchemePreference) => Promise<void>;
+  setPreference: (value: SchemePreference | null) => Promise<void>;
   /** Whether the person has overridden the system setting. */
   overridden: boolean;
 }
@@ -50,7 +53,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
   const systemRaw = useColorScheme();
   const systemScheme: 'light' | 'dark' = systemRaw === 'dark' ? 'dark' : 'light';
 
-  const [stored, setStored] = useState<SchemePreference>(null);
+  const [stored, setStored] = useState<SchemePreference | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,7 +61,13 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const saved = await AsyncStorage.getItem(KEY).catch(() => null);
       if (!active) return;
-      setStored(saved === 'light' || saved === 'dark' ? saved : null);
+      setStored(
+        saved === 'light'
+          ? SchemePreference.Light
+          : saved === 'dark'
+            ? SchemePreference.Dark
+            : null,
+      );
       setLoading(false);
     })();
     return () => {
@@ -66,7 +75,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const setPreference = useCallback(async (value: SchemePreference) => {
+  const setPreference = useCallback(async (value: SchemePreference | null) => {
     setStored(value);
     if (value === null) await AsyncStorage.removeItem(KEY).catch(() => undefined);
     else await AsyncStorage.setItem(KEY, value).catch(() => undefined);
@@ -75,7 +84,12 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ThemeValue>(
     () => ({
       preference: stored,
-      resolved: stored ?? systemScheme,
+      resolved:
+        stored === SchemePreference.Dark
+          ? 'dark'
+          : stored === SchemePreference.Light
+            ? 'light'
+            : systemScheme,
       systemScheme,
       loading,
       setPreference,

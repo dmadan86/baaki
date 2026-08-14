@@ -34,7 +34,12 @@ import { supabase } from '@/lib/supabase';
 
 import { createLocalStore, type LocalStore, type StoredRow } from './store';
 
-export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error';
+export enum SyncStatus {
+  Idle = 'idle',
+  Syncing = 'syncing',
+  Offline = 'offline',
+  Error = 'error',
+}
 
 export interface RejectedMutation {
   clientMutationId: string;
@@ -73,7 +78,7 @@ const POLL_INTERVAL_MS = 30_000;
 export class SyncEngine {
   private store: LocalStore = createLocalStore();
   private state: SyncState = {
-    status: 'idle',
+    status: SyncStatus.Idle,
     hydrated: false,
     mirror: emptyMirror(),
     queue: [],
@@ -139,7 +144,7 @@ export class SyncEngine {
       mirror: emptyMirror(),
       queue: [],
       rejected: [],
-      status: 'idle',
+      status: SyncStatus.Idle,
       lastError: null,
       lastSyncedAt: null,
     });
@@ -192,7 +197,7 @@ export class SyncEngine {
         // uncaught promise rejection instead. The banner is where this belongs.
         const message = error instanceof Error ? error.message : String(error);
         reportHandled(error, 'sync.flush');
-        this.set({ status: 'error', lastError: message });
+        this.set({ status: SyncStatus.Error, lastError: message });
       })
       .finally(() => {
         this.flushing = null;
@@ -205,7 +210,7 @@ export class SyncEngine {
 
     const online = await isOnline();
     if (!online) {
-      this.set({ status: 'offline' });
+      this.set({ status: SyncStatus.Offline });
       return;
     }
 
@@ -224,7 +229,7 @@ export class SyncEngine {
     // happened to name one. The `!online` case already returned above, so the
     // one round trip this costs a brand-new guest is against their own empty
     // ledger, once, and tells them the truth either way.
-    this.set({ status: 'syncing' });
+    this.set({ status: SyncStatus.Syncing });
 
     try {
       const { data, error } = await supabase.functions.invoke('sync', {
@@ -278,7 +283,7 @@ export class SyncEngine {
       await this.persist(response.changes ?? [], mirror, folded.queue);
 
       this.set({
-        status: 'idle',
+        status: SyncStatus.Idle,
         mirror,
         queue: folded.queue,
         rejected: [...this.state.rejected, ...rejected],
@@ -288,7 +293,7 @@ export class SyncEngine {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const queue = markFailed(this.state.queue, batch, message, now);
-      this.set({ status: 'error', queue, lastError: message });
+      this.set({ status: SyncStatus.Error, queue, lastError: message });
       // Writing down *why* the sync failed must not itself become a louder
       // failure that replaces the reason. The attempt counts are already in
       // memory and the next flush writes them again.

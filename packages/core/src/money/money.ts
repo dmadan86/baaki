@@ -8,6 +8,7 @@
 import {
   assertCurrencyCode,
   MoneyError,
+  MoneyErrorCode,
   minorUnitExponent,
   minorUnitScale,
   type CurrencyCode,
@@ -23,7 +24,10 @@ export function money(minor: bigint | number, currency: CurrencyCode): Money {
   assertCurrencyCode(currency);
   if (typeof minor === 'number') {
     if (!Number.isSafeInteger(minor)) {
-      throw new MoneyError('INVALID_AMOUNT', `Minor units must be a safe integer, got ${minor}`);
+      throw new MoneyError(
+        MoneyErrorCode.InvalidAmount,
+        `Minor units must be a safe integer, got ${minor}`,
+      );
     }
     return { minor: BigInt(minor), currency };
   }
@@ -37,7 +41,7 @@ export function zero(currency: CurrencyCode): Money {
 function sameCurrency(a: Money, b: Money): void {
   if (a.currency !== b.currency) {
     throw new MoneyError(
-      'CURRENCY_MISMATCH',
+      MoneyErrorCode.CurrencyMismatch,
       `Cannot combine ${a.currency} with ${b.currency}. Convert explicitly with an FX rate.`,
     );
   }
@@ -66,7 +70,7 @@ export function sum(items: readonly Money[], currency: CurrencyCode): Money {
   for (const item of items) {
     if (item.currency !== currency) {
       throw new MoneyError(
-        'CURRENCY_MISMATCH',
+        MoneyErrorCode.CurrencyMismatch,
         `Expected all amounts in ${currency}, found ${item.currency}`,
       );
     }
@@ -97,7 +101,7 @@ export function equals(a: Money, b: Money): boolean {
 /** Integer division rounding halves away from zero. Deterministic on negatives. */
 export function divideRoundHalfAwayFromZero(numerator: bigint, denominator: bigint): bigint {
   if (denominator === 0n) {
-    throw new MoneyError('INVALID_AMOUNT', 'Division by zero');
+    throw new MoneyError(MoneyErrorCode.InvalidAmount, 'Division by zero');
   }
   const negative = numerator < 0n !== denominator < 0n;
   const absNumerator = numerator < 0n ? -numerator : numerator;
@@ -117,12 +121,15 @@ export function parseMajor(input: string, currency: CurrencyCode): Money {
   const exponent = minorUnitExponent(currency);
   const match = /^(-)?(\d+)(?:\.(\d+))?$/.exec(input.trim());
   if (!match) {
-    throw new MoneyError('INVALID_AMOUNT', `Cannot parse "${input}" as a ${currency} amount`);
+    throw new MoneyError(
+      MoneyErrorCode.InvalidAmount,
+      `Cannot parse "${input}" as a ${currency} amount`,
+    );
   }
   const [, sign, whole = '0', fractionRaw = ''] = match;
   if (fractionRaw.length > exponent) {
     throw new MoneyError(
-      'INVALID_AMOUNT',
+      MoneyErrorCode.InvalidAmount,
       `${currency} has ${exponent} decimal places, got "${input}"`,
     );
   }

@@ -13,6 +13,7 @@ import {
   computePairwiseBalances,
   netFromPairwise,
 } from '../src/balances/balances.js';
+import { SettlementStatus } from '../src/balances/types.js';
 import type { ExpenseSnapshot, SettlementSnapshot } from '../src/balances/types.js';
 import { computeShares } from '../src/split/computeShares.js';
 import type { MemberId } from '../src/split/types.js';
@@ -48,10 +49,10 @@ const groupLedger = fc
           fromIndex: fc.integer({ min: 0, max: members.length - 1 }),
           toOffset: fc.integer({ min: 1, max: Math.max(1, members.length - 1) }),
           status: fc.constantFrom(
-            'initiated' as const,
-            'confirmed' as const,
-            'auto_confirmed' as const,
-            'cancelled' as const,
+            SettlementStatus.Initiated,
+            SettlementStatus.Confirmed,
+            SettlementStatus.AutoConfirmed,
+            SettlementStatus.Cancelled,
           ),
         }),
         { minLength: settlementCount, maxLength: settlementCount },
@@ -184,7 +185,7 @@ describe('derived balances', () => {
       to: 'asha',
       currency: INR,
       amount: 5000n,
-      status: 'initiated',
+      status: SettlementStatus.Initiated,
       at: '2026-03-02T00:00:00Z',
     };
 
@@ -193,7 +194,7 @@ describe('derived balances', () => {
       computeNetBalances([expense], [pending], { includePending: true }).get(INR)?.get('ravi'),
     ).toBe(0n);
     expect(
-      computeNetBalances([expense], [{ ...pending, status: 'confirmed' }])
+      computeNetBalances([expense], [{ ...pending, status: SettlementStatus.Confirmed }])
         .get(INR)
         ?.get('ravi'),
     ).toBe(0n);

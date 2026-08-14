@@ -19,9 +19,11 @@ import {
   materialiseGroups,
   materialiseMembers,
   materialiseSettlements,
+  MutationKind,
   overlayPending,
   rowsFor,
   simplify,
+  SyncTable,
   type ExpenseSnapshot,
   type MemberId,
   type MirrorExpense,
@@ -59,6 +61,7 @@ import {
   type WriteExpenseInput,
 } from './api';
 import { totalsByCurrency } from './totals';
+import { SettlementStatus } from './types';
 import type { ActivityRow, ExpenseRow, GroupRow, MemberRow, SettlementRow } from './types';
 
 export const keys = {
@@ -143,14 +146,15 @@ export function useSettledTotals(profileId: string | null): LocalRead<Map<string
 
   const totals = useMemo(() => {
     const mine = new Set(
-      (rowsFor(mirror, 'group_members') as unknown as MemberRow[])
+      (rowsFor(mirror, SyncTable.GroupMembers) as unknown as MemberRow[])
         .filter((member) => member.profile_id === profileId)
         .map((member) => member.id),
     );
 
     const out = new Map<string, bigint>();
-    for (const row of rowsFor(mirror, 'settlements') as unknown as SettlementRow[]) {
-      if (row.status !== 'confirmed' && row.status !== 'auto_confirmed') continue;
+    for (const row of rowsFor(mirror, SyncTable.Settlements) as unknown as SettlementRow[]) {
+      if (row.status !== SettlementStatus.Confirmed && row.status !== SettlementStatus.AutoConfirmed)
+        continue;
       if (!mine.has(row.from_member_id) && !mine.has(row.to_member_id)) continue;
       out.set(row.currency, (out.get(row.currency) ?? 0n) + BigInt(row.amount));
     }
@@ -202,7 +206,7 @@ export function useHomeSummary(profileId: string | null) {
         currencyByGroup.set(group.id, currency);
       }
 
-      if (settlements.some((settlement) => settlement.status === 'initiated')) {
+      if (settlements.some((settlement) => settlement.status === SettlementStatus.Initiated)) {
         awaiting.add(group.id);
       }
     }
@@ -262,7 +266,7 @@ export function useGroup(groupId: string) {
     const settlements = materialiseSettlements(mirror, queue, {
       groupId,
     }) as unknown as SettlementRow[];
-    const activity = (rowsFor(mirror, 'activity_log', groupId) as unknown as ActivityRow[]).sort(
+    const activity = (rowsFor(mirror, SyncTable.ActivityLog, groupId) as unknown as ActivityRow[]).sort(
       (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
     );
 
@@ -270,7 +274,7 @@ export function useGroup(groupId: string) {
     // the second; anything checking what the server actually knows wants the
     // first, and conflating them is how a queued expense starts looking real
     // enough to reconcile against.
-    const stored = (rowsFor(mirror, 'expenses', groupId) as unknown as ExpenseRow[]).sort((a, b) =>
+    const stored = (rowsFor(mirror, SyncTable.Expenses, groupId) as unknown as ExpenseRow[]).sort((a, b) =>
       String(b.created_at).localeCompare(String(a.created_at)),
     );
     const withPending = materialiseExpenses(mirror, queue, {
@@ -531,7 +535,7 @@ export function useCreateGroup() {
   return useMutation({
     mutationFn: async (input: Parameters<typeof createGroup>[0]) => {
       const groupId = input.groupId ?? randomUUID();
-      await mutate('group.create', groupId, {
+      await mutate(MutationKind.GroupCreate, groupId, {
         name: input.name?.trim() || null,
         type: input.type,
         currency: input.currency,
@@ -550,7 +554,7 @@ export function useWriteExpense(groupId: string) {
   return useMutation({
     mutationFn: async (input: Omit<WriteExpenseInput, 'groupId'>) => {
       const expenseId = input.expenseId ?? randomUUID();
-      await mutate(input.expenseId ? 'expense.update' : 'expense.create', groupId, {
+      await mutate(input.expenseId ? MutationKind.ExpenseUpdate : MutationKind.ExpenseCreate, groupId, {
         ...serialiseExpense(input),
         expenseId,
       });
@@ -562,14 +566,14 @@ export function useWriteExpense(groupId: string) {
 export function useDeleteExpense(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
-    mutationFn: (expenseId: string) => mutate('expense.delete', groupId, { expenseId }),
+    mutationFn: (expenseId: string) => mutate(MutationKind.ExpenseDelete, groupId, { expenseId }),
   });
 }
 
 export function useRestoreExpense(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
-    mutationFn: (expenseId: string) => mutate('expense.restore', groupId, { expenseId }),
+    mutationFn: (expenseId: string) => mutate(MutationKind.ExpenseRestore, groupId, { expenseId }),
   });
 }
 
@@ -578,7 +582,7 @@ export function useRecordSettlement(groupId: string) {
   return useMutation({
     mutationFn: (input: Parameters<typeof recordSettlement>[0]) =>
       mutate(
-        'settlement.create',
+        MutationKind.SettlementCreate,
         input.groupId,
         {
           // Chosen here so the overlay has a stable row to show while it waits.
@@ -609,7 +613,7 @@ export function useConfirmSettlement(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
     mutationFn: (settlementId: string) =>
-      mutate('settlement.transition', groupId, { settlementId }),
+      mutate(MutationKind.SettlementTransition, groupId, { settlementId }),
   });
 }
 
@@ -691,7 +695,7 @@ export function useAddGhostMember(groupId: string) {
       // them. Adding somebody and immediately splitting a bill with them is one
       // action to a person, and offline it has to work like one.
       const memberId = randomUUID();
-      await mutate('member.add_ghost', groupId, {
+      await mutate(MutationKind.MemberAddGhost, groupId, {
         memberId,
         name: person.name,
         email: 'email' in person ? (person.email ?? null) : null,
@@ -719,7 +723,7 @@ export function useUpdateGroup(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
     mutationFn: (patch: Parameters<typeof updateGroup>[1]) =>
-      mutate('group.update', groupId, patch as Record<string, unknown>),
+      mutate(MutationKind.GroupUpdate, groupId, patch as Record<string, unknown>),
   });
 }
 

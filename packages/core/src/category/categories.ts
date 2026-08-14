@@ -22,17 +22,18 @@
 
 import { keywordsForMarket } from './markets';
 
-export type CategoryId =
-  | 'food'
-  | 'groceries'
-  | 'travel'
-  | 'stay'
-  | 'shopping'
-  | 'entertainment'
-  | 'home'
-  | 'health'
-  | 'gifts'
-  | 'other';
+export enum CategoryId {
+  Food = 'food',
+  Groceries = 'groceries',
+  Travel = 'travel',
+  Stay = 'stay',
+  Shopping = 'shopping',
+  Entertainment = 'entertainment',
+  Home = 'home',
+  Health = 'health',
+  Gifts = 'gifts',
+  Other = 'other',
+}
 
 export interface Category {
   readonly id: CategoryId;
@@ -48,7 +49,7 @@ export interface Category {
 
 export const CATEGORIES: readonly Category[] = [
   {
-    id: 'food',
+    id: CategoryId.Food,
     label: 'Food & drink',
     icon: 'restaurant-outline',
     tint: 'peach',
@@ -94,7 +95,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'groceries',
+    id: CategoryId.Groceries,
     label: 'Groceries',
     icon: 'basket-outline',
     tint: 'mint',
@@ -123,7 +124,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'travel',
+    id: CategoryId.Travel,
     label: 'Travel',
     icon: 'car-outline',
     tint: 'sky',
@@ -161,7 +162,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'stay',
+    id: CategoryId.Stay,
     label: 'Stay',
     icon: 'bed-outline',
     tint: 'lilac',
@@ -185,7 +186,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'shopping',
+    id: CategoryId.Shopping,
     label: 'Shopping',
     icon: 'bag-handle-outline',
     tint: 'pink',
@@ -210,7 +211,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'entertainment',
+    id: CategoryId.Entertainment,
     label: 'Fun',
     icon: 'game-controller-outline',
     tint: 'coral',
@@ -242,7 +243,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'home',
+    id: CategoryId.Home,
     label: 'Home & bills',
     icon: 'home-outline',
     tint: 'lilac',
@@ -276,7 +277,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'health',
+    id: CategoryId.Health,
     label: 'Health',
     icon: 'medkit-outline',
     tint: 'mint',
@@ -300,7 +301,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'gifts',
+    id: CategoryId.Gifts,
     label: 'Gifts',
     icon: 'gift-outline',
     tint: 'pink',
@@ -318,7 +319,7 @@ export const CATEGORIES: readonly Category[] = [
     ],
   },
   {
-    id: 'other',
+    id: CategoryId.Other,
     label: 'Other',
     icon: 'ellipsis-horizontal-circle-outline',
     tint: 'sky',

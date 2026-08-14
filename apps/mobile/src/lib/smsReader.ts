@@ -34,7 +34,13 @@ export interface SmsWindow {
   readonly to: string;
 }
 
-export type SmsReadFailure = 'unsupported' | 'unavailable' | 'denied' | 'blocked' | 'failed';
+export enum SmsReadFailure {
+  Unsupported = 'unsupported',
+  Unavailable = 'unavailable',
+  Denied = 'denied',
+  Blocked = 'blocked',
+  Failed = 'failed',
+}
 
 export type SmsReadResult =
   { ok: true; messages: SmsMessage[] } | { ok: false; reason: SmsReadFailure; message?: string };
@@ -58,7 +64,11 @@ export interface NativeSmsModule {
 }
 
 /** What a permission request resolves to, flattened to the three we act on. */
-export type PermissionOutcome = 'granted' | 'denied' | 'blocked';
+export enum PermissionOutcome {
+  Granted = 'granted',
+  Denied = 'denied',
+  Blocked = 'blocked',
+}
 
 export interface SmsReaderDeps {
   readonly platformOS: string;
@@ -140,7 +150,7 @@ export function parseSmsList(json: string): SmsMessage[] {
  */
 export async function readSmsInbox(window: SmsWindow, deps: SmsReaderDeps): Promise<SmsReadResult> {
   if (deps.platformOS !== 'android') {
-    return { ok: false, reason: 'unsupported' };
+    return { ok: false, reason: SmsReadFailure.Unsupported };
   }
 
   let native: NativeSmsModule | null;
@@ -150,12 +160,12 @@ export async function readSmsInbox(window: SmsWindow, deps: SmsReaderDeps): Prom
     native = null;
   }
   if (!native || typeof native.list !== 'function') {
-    return { ok: false, reason: 'unavailable' };
+    return { ok: false, reason: SmsReadFailure.Unavailable };
   }
 
   const outcome = await deps.requestPermission();
-  if (outcome === 'denied') return { ok: false, reason: 'denied' };
-  if (outcome === 'blocked') return { ok: false, reason: 'blocked' };
+  if (outcome === PermissionOutcome.Denied) return { ok: false, reason: SmsReadFailure.Denied };
+  if (outcome === PermissionOutcome.Blocked) return { ok: false, reason: SmsReadFailure.Blocked };
 
   const filter = buildSmsFilter(window, deps.maxCount ?? DEFAULT_MAX_COUNT);
 
@@ -169,13 +179,13 @@ export async function readSmsInbox(window: SmsWindow, deps: SmsReaderDeps): Prom
     try {
       native.list(
         filter,
-        (error) => done({ ok: false, reason: 'failed', message: error }),
+        (error) => done({ ok: false, reason: SmsReadFailure.Failed, message: error }),
         (_count, json) => done({ ok: true, messages: parseSmsList(json) }),
       );
     } catch (error) {
       done({
         ok: false,
-        reason: 'failed',
+        reason: SmsReadFailure.Failed,
         message: error instanceof Error ? error.message : String(error),
       });
     }
@@ -218,11 +228,11 @@ export async function readSms(window: SmsWindow): Promise<SmsReadResult> {
           buttonPositive: 'Allow',
           buttonNegative: 'Not now',
         });
-        if (status === PermissionsAndroid.RESULTS.GRANTED) return 'granted';
-        if (status === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) return 'blocked';
-        return 'denied';
+        if (status === PermissionsAndroid.RESULTS.GRANTED) return PermissionOutcome.Granted;
+        if (status === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) return PermissionOutcome.Blocked;
+        return PermissionOutcome.Denied;
       } catch {
-        return 'denied';
+        return PermissionOutcome.Denied;
       }
     },
   });

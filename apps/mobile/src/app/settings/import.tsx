@@ -54,7 +54,7 @@ import {
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useGroups } from '@/data/hooks';
-import { displayName, groupLabel, type MemberRow } from '@/data/types';
+import { displayName, groupLabel, GroupType, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
 
 /** What a column in the file has been mapped to. */
@@ -271,7 +271,7 @@ export default function ImportScreen() {
       if (groupId === NEW_GROUP) {
         groupId = await createGroup({
           name: parsed.suggestedName || t.importLedger.importedGroup,
-          type: 'other',
+          type: GroupType.Other,
           currency: parsed.currency,
         });
       }
