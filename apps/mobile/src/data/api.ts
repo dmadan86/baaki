@@ -1249,6 +1249,8 @@ export interface PersonBalanceRow {
   net: string;
   group_count: number;
   only_group_id: string | null;
+  /** Newest expense/settlement touching this person; null if none is visible. */
+  last_activity_at: string | null;
 }
 
 /**
