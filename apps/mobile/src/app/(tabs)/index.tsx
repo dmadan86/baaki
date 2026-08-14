@@ -163,10 +163,21 @@ export default function HomeScreen() {
             onPress={() => router.navigate('/profile')}
           />
           {/* Just the name, next to the avatar — the greeting was a word that
-              said nothing and pushed the name down into a caption. */}
-          <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>
-            {profile?.display_name ?? t.account.you}
-          </Text>
+              said nothing and pushed the name down into a caption. The name is
+              a tap target too, to the same account screen the avatar opens: the
+              whole name-and-face cluster reads as one way in, not a live icon
+              beside dead text. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.profile}
+            onPress={() => router.navigate('/profile')}
+            hitSlop={8}
+            style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.5 : 1 })}
+          >
+            <Text variant="heading" numberOfLines={1}>
+              {profile?.display_name ?? t.account.you}
+            </Text>
+          </Pressable>
           {/* Bare icons, no button chrome — the header reads as a title row, not
               a toolbar of pills. Straight to the camera: the icon is a scanner,
               so it opens one rather than a form to fill in first (the capture

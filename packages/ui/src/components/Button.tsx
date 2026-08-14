@@ -129,10 +129,13 @@ export function IconButton({
           borderRadius: theme.radius.pill,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: tone === 'brand' ? theme.color.brand : theme.color.surface,
+          // Default (surface) is a bare icon — no chip, no shadow — so a top bar
+          // reads as just its icons and their actions. `brand` stays a filled
+          // circle: it marks the one deliberate call to action, not navigation.
+          backgroundColor: tone === 'brand' ? theme.color.brand : 'transparent',
           opacity: pressed ? 0.8 : 1,
         },
-        theme.shadow.soft,
+        tone === 'brand' ? theme.shadow.soft : null,
       ]}
     >
       {children}
