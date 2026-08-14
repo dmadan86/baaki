@@ -27,7 +27,7 @@ import {
 } from '@baaki/ui';
 
 import { confirmContact, startAddingContact, type ContactChannel } from '@/data/api';
-import { useStrings } from '@/i18n';
+import { deviceDialingCode, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function AccountScreen() {
@@ -192,7 +192,9 @@ export default function AccountScreen() {
                 channel === 'email' ? t.contact.emailAddress : t.contact.phoneNumber
               }
               placeholder={
-                channel === 'email' ? t.contact.emailPlaceholder : t.contact.phonePlaceholder
+                channel === 'email'
+                  ? t.contact.emailPlaceholder
+                  : t.contact.phonePlaceholder.replace('{code}', deviceDialingCode())
               }
               placeholderTextColor={theme.color.textFaint}
               style={{

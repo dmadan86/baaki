@@ -41,15 +41,19 @@ import {
   Callout,
   Card,
   CurvedPanel,
+  Row,
   Screen,
   SegmentedTabs,
   Text,
   useTheme,
 } from '@baaki/ui';
 
+import { dialingCodeForCountry } from '@baaki/core';
+
+import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
-import { useStrings } from '@/i18n';
+import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 type Mode = 'otp' | 'password';
@@ -97,8 +101,23 @@ export default function SignInScreen() {
     };
   }, [tourSeen]);
 
+  // The dial code is a tappable country, not a prefix typed into the field. It
+  // starts on the country this handset is set to — +971 in the UAE, +44 in the
+  // UK — and falls back to India only when the region is unknown or unstocked,
+  // because the picker beside it makes any wrong guess a one-tap fix rather than
+  // a number to backspace over. The number field holds the local digits alone.
+  const [country, setCountry] = useState<string>(() => {
+    const guess = deviceCountry();
+    return guess && dialingCodeForCountry(guess) ? guess : 'IN';
+  });
+  const dialCode = dialingCodeForCountry(country) ?? '+91';
+
   const [mode, setMode] = useState<Mode>('otp');
-  const [phone, setPhone] = useState('+91');
+  const [phone, setPhone] = useState('');
+  // What actually goes to Supabase: the dial code and the local digits, no
+  // spaces or punctuation — E.164 in all but the leading-zero rules the server
+  // enforces. Display keeps the two apart; the wire joins them.
+  const fullPhone = `${dialCode}${phone.replace(/\D/g, '')}`;
   const [code, setCode] = useState('');
   const [stage, setStage] = useState<'phone' | 'code'>('phone');
   const [identifier, setIdentifier] = useState('');
@@ -357,20 +376,27 @@ export default function SignInScreen() {
                   <Text variant="caption" tone="muted">
                     {t.signIn.phoneNumber}
                   </Text>
-                  <TextInput
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                    autoComplete="tel"
-                    accessibilityLabel={t.signIn.phoneNumber}
-                    placeholderTextColor={theme.color.textFaint}
-                    style={{
-                      fontSize: 22,
-                      fontWeight: '600',
-                      color: theme.color.text,
-                      paddingVertical: theme.spacing.sm,
-                    }}
-                  />
+                  {/* The code is its own control now — a tapped country, not a
+                      prefix in the field — so the number beside it is just the
+                      local digits. */}
+                  <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                    <CountryCodePicker code={country} onChange={setCountry} />
+                    <TextInput
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                      autoComplete="tel"
+                      accessibilityLabel={t.signIn.phoneNumber}
+                      placeholderTextColor={theme.color.textFaint}
+                      style={{
+                        flex: 1,
+                        fontSize: 22,
+                        fontWeight: '600',
+                        color: theme.color.text,
+                        paddingVertical: theme.spacing.sm,
+                      }}
+                    />
+                  </Row>
                   <Text variant="micro" tone="faint">
                     {t.signIn.countryCodeHint}
                   </Text>
@@ -378,10 +404,10 @@ export default function SignInScreen() {
                     label={t.signIn.sendCode}
                     size="lg"
                     fullWidth
-                    disabled={busy || phone.trim().length < 8}
+                    disabled={busy || phone.replace(/\D/g, '').length < 6}
                     onPress={() =>
                       void run(async () => {
-                        await sendOtp(phone.trim());
+                        await sendOtp(fullPhone);
                         setStage('code');
                       })
                     }
@@ -392,7 +418,7 @@ export default function SignInScreen() {
               {mode === 'otp' && stage === 'code' ? (
                 <>
                   <Text variant="caption" tone="muted">
-                    {t.signIn.codeSentTo.replace('{value}', phone)}
+                    {t.signIn.codeSentTo.replace('{value}', `${dialCode} ${phone}`)}
                   </Text>
                   <TextInput
                     value={code}
@@ -415,7 +441,7 @@ export default function SignInScreen() {
                     size="lg"
                     fullWidth
                     disabled={busy || code.trim().length < 4}
-                    onPress={() => void run(() => verifyOtp(phone.trim(), code.trim()))}
+                    onPress={() => void run(() => verifyOtp(fullPhone, code.trim()))}
                   />
                   <Button
                     label={t.signIn.differentNumber}
@@ -430,6 +456,24 @@ export default function SignInScreen() {
 
               {mode === 'password' ? (
                 <>
+                  {/* The way between sign-in and sign-up sits above the fields, not
+                      below the submit: on Android the keyboard opens over the
+                      lower half while typing, and a toggle hidden behind it is a
+                      toggle that does not exist to the person looking for it. A
+                      guest has no such choice — they are adding a way back to the
+                      account they already have, never signing up or in. */}
+                  {isGuest ? null : (
+                    <Button
+                      label={
+                        intent === 'sign_up' ? t.signIn.switchToSignIn : t.signIn.switchToSignUp
+                      }
+                      variant="ghost"
+                      onPress={() => {
+                        setIntent(intent === 'sign_up' ? 'sign_in' : 'sign_up');
+                        setError(null);
+                      }}
+                    />
+                  )}
                   <Text variant="caption" tone="muted">
                     {t.signIn.identifier}
                   </Text>
@@ -443,7 +487,7 @@ export default function SignInScreen() {
                     keyboardType="email-address"
                     autoComplete="username"
                     accessibilityLabel={t.signIn.identifier}
-                    placeholder={t.signIn.identifierPlaceholder}
+                    placeholder={t.signIn.identifierPlaceholder.replace('{code}', dialCode)}
                     placeholderTextColor={theme.color.textFaint}
                     style={{
                       fontSize: 18,
@@ -486,20 +530,6 @@ export default function SignInScreen() {
                     disabled={busy || !identifier.trim() || password.length < 8}
                     onPress={() => void run(() => withPassword(identifier, password, intent))}
                   />
-                  {/* A guest is never signing up or in — they are adding a way
-                    back to the account they already have. */}
-                  {isGuest ? null : (
-                    <Button
-                      label={
-                        intent === 'sign_up' ? t.signIn.switchToSignIn : t.signIn.switchToSignUp
-                      }
-                      variant="ghost"
-                      onPress={() => {
-                        setIntent(intent === 'sign_up' ? 'sign_in' : 'sign_up');
-                        setError(null);
-                      }}
-                    />
-                  )}
                 </>
               ) : null}
 

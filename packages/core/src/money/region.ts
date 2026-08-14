@@ -82,6 +82,68 @@ export function isCountryCode(value: string | null | undefined): boolean {
 }
 
 /**
+ * The international dialing prefix for a country, as `+<digits>`.
+ *
+ * Same principle as the currency map: it covers the markets Baaki is for and
+ * the ones its users travel between, and returns null for anything else rather
+ * than guessing. A null means "no opinion" — the caller keeps the field a bare
+ * `+` rather than assuming +91, which is the whole point: Baaki follows the
+ * phone, it does not presume India.
+ *
+ * US and Canada share `+1`; that is correct, not a bug — the NANP is one plan.
+ */
+const DIALING_CODE_BY_COUNTRY: Readonly<Record<string, string>> = {
+  IN: '+91',
+  AE: '+971',
+  SA: '+966',
+  QA: '+974',
+  KW: '+965',
+  BH: '+973',
+  OM: '+968',
+  SG: '+65',
+  MY: '+60',
+  ID: '+62',
+  TH: '+66',
+  PH: '+63',
+  VN: '+84',
+  LK: '+94',
+  NP: '+977',
+  BD: '+880',
+  PK: '+92',
+  BR: '+55',
+  GB: '+44',
+  US: '+1',
+  CA: '+1',
+  AU: '+61',
+  NZ: '+64',
+  DE: '+49',
+  FR: '+33',
+  ES: '+34',
+  IT: '+39',
+  NL: '+31',
+  PT: '+351',
+  IE: '+353',
+  CH: '+41',
+  JP: '+81',
+  AT: '+43',
+  BE: '+32',
+  GR: '+30',
+  FI: '+358',
+};
+
+/**
+ * The dialing prefix a phone in this country most likely uses, or null.
+ *
+ * Null is "no opinion", never a fallback: an unrecognised country is not India.
+ * The caller decides what an empty answer looks like — a bare `+` to be typed
+ * over is the right default for a sign-in field.
+ */
+export function dialingCodeForCountry(countryCode: string | null | undefined): string | null {
+  const country = (countryCode ?? '').trim().toUpperCase();
+  return DIALING_CODE_BY_COUNTRY[country] ?? null;
+}
+
+/**
  * The countries worth showing in a picker, most relevant first.
  *
  * Ordered rather than alphabetical: somebody in the Gulf should not scroll past

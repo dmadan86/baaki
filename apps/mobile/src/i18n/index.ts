@@ -32,7 +32,12 @@
 import { createContext, useContext } from 'react';
 import { getLocales } from 'expo-localization';
 
-import { currencyForCountry, type CategoryId, type CurrencyCode } from '@baaki/core';
+import {
+  currencyForCountry,
+  dialingCodeForCountry,
+  type CategoryId,
+  type CurrencyCode,
+} from '@baaki/core';
 
 export type Language = 'en' | 'ta' | 'hi' | 'ar';
 
@@ -158,6 +163,8 @@ export interface UiStrings {
   youOwe: string;
   allSettled: string;
   yourGroups: string;
+  /** The "show every category" chip at the head of the group filter strip. */
+  filterAll: string;
   newGroup: string;
   activity: string;
   friends: string;
@@ -626,6 +633,7 @@ export interface UiStrings {
     makeAdmin: string;
     removeAdmin: string;
     adminNote: string;
+    adminNeedsAccount: string;
     you: string;
     memberName: string;
     ghostNote: string;
@@ -904,6 +912,10 @@ export interface UiStrings {
     onlyPickedAreSent: string;
     jumpToLetter: string;
     country: string;
+    /** Title of the phone dialing-code picker sheet. */
+    dialCodeTitle: string;
+    /** Search field placeholder in the dialing-code picker. */
+    searchCountry: string;
     settlesWith: string;
     notSet: string;
     notSetRails: string;
@@ -1090,6 +1102,7 @@ const en: UiStrings = {
   youOwe: 'You owe',
   allSettled: 'All settled',
   yourGroups: 'Your groups',
+  filterAll: 'All',
   newGroup: 'New group',
   activity: 'Activity',
   friends: 'Friends',
@@ -1409,7 +1422,7 @@ const en: UiStrings = {
     emailAddress: 'Email address',
     phoneNumber: 'Phone number',
     emailPlaceholder: 'you@example.com',
-    phonePlaceholder: '+91 98765 43210',
+    phonePlaceholder: '{code} 98765 43210',
     codeEmailed: 'Enter the six-digit code we emailed you',
     codeTexted: 'Enter the six-digit code we texted you',
     verificationCode: 'Verification code',
@@ -1451,15 +1464,15 @@ const en: UiStrings = {
     verify: 'Verify',
     differentNumber: 'Use a different number',
     identifier: 'Email or phone number',
-    identifierPlaceholder: 'asha@example.com or +91…',
+    identifierPlaceholder: 'alex@example.com or {code}…',
     password: 'Password',
     passwordHint:
       'Eight characters or more. A phrase you will remember beats a puzzle you will not.',
     addToAccount: 'Add this to my account',
     createAccount: 'Create account',
     signInAction: 'Sign in',
-    switchToSignIn: 'I already have an account',
-    switchToSignUp: 'I am new here — create an account',
+    switchToSignIn: 'Already have an account? Sign in',
+    switchToSignUp: 'New here? Create an account',
     continueGoogle: 'Continue with Google',
     signInGoogle: 'Sign in with Google',
     continueApple: 'Continue with Apple',
@@ -1569,6 +1582,7 @@ const en: UiStrings = {
     makeAdmin: 'Make admin',
     removeAdmin: 'Remove admin',
     adminNote: 'Admins can edit the group, manage members, and set the overall budget.',
+    adminNeedsAccount: 'They have not joined yet. Only a member with an account can be an admin.',
     you: 'you',
     memberName: 'Member name',
     ghostNote: 'This person holds real balances. When they join, they can claim this history.',
@@ -1898,6 +1912,8 @@ const en: UiStrings = {
       'Only the people you pick are sent to Baaki. Your contacts stay on this phone.',
     jumpToLetter: 'Jump to a letter',
     country: 'Country',
+    dialCodeTitle: 'Country code',
+    searchCountry: 'Search countries',
     settlesWith: '{country} · settles with {rails}',
     notSet: 'Not set',
     notSetRails: 'Bank transfer, cash, Wise and Revolut',
@@ -2095,6 +2111,7 @@ const ta: UiStrings = {
   youOwe: 'நீங்கள் தர வேண்டியது',
   allSettled: 'எல்லாம் சரி',
   yourGroups: 'உங்கள் குழுக்கள்',
+  filterAll: 'அனைத்தும்',
   newGroup: 'புதிய குழு',
   activity: 'செயல்பாடு',
   friends: 'நண்பர்கள்',
@@ -2420,7 +2437,7 @@ const ta: UiStrings = {
     emailAddress: 'மின்னஞ்சல் முகவரி',
     phoneNumber: 'தொலைபேசி எண்',
     emailPlaceholder: 'you@example.com',
-    phonePlaceholder: '+91 98765 43210',
+    phonePlaceholder: '{code} 98765 43210',
     codeEmailed: 'மின்னஞ்சலில் அனுப்பிய ஆறு இலக்கக் குறியீட்டை உள்ளிடவும்',
     codeTexted: 'குறுஞ்செய்தியில் அனுப்பிய ஆறு இலக்கக் குறியீட்டை உள்ளிடவும்',
     verificationCode: 'சரிபார்ப்புக் குறியீடு',
@@ -2463,15 +2480,15 @@ const ta: UiStrings = {
     verify: 'சரிபார்',
     differentNumber: 'வேறு எண்ணைப் பயன்படுத்து',
     identifier: 'மின்னஞ்சல் அல்லது தொலைபேசி எண்',
-    identifierPlaceholder: 'asha@example.com அல்லது +91…',
+    identifierPlaceholder: 'alex@example.com அல்லது {code}…',
     password: 'கடவுச்சொல்',
     passwordHint:
       'எட்டு எழுத்துகள் அல்லது அதற்கு மேல். நினைவில் நிற்கும் சொற்றொடர், நினைவில் நிற்காத புதிரை விட மேல்.',
     addToAccount: 'இதை என் கணக்கில் சேர்',
     createAccount: 'கணக்கை உருவாக்கு',
     signInAction: 'உள்நுழை',
-    switchToSignIn: 'என்னிடம் ஏற்கனவே கணக்கு உள்ளது',
-    switchToSignUp: 'நான் புதியவர் — கணக்கை உருவாக்கு',
+    switchToSignIn: 'ஏற்கனவே கணக்கு உள்ளதா? உள்நுழையவும்',
+    switchToSignUp: 'புதியவரா? கணக்கை உருவாக்கவும்',
     continueGoogle: 'Google மூலம் தொடர்',
     signInGoogle: 'Google மூலம் உள்நுழை',
     continueApple: 'Apple மூலம் தொடர்',
@@ -2584,6 +2601,8 @@ const ta: UiStrings = {
     removeAdmin: 'நிர்வாகியை நீக்கு',
     adminNote:
       'நிர்வாகிகள் குழுவைத் திருத்தலாம், உறுப்பினர்களை நிர்வகிக்கலாம், மொத்த பட்ஜெட்டை அமைக்கலாம்.',
+    adminNeedsAccount:
+      'இவர் இன்னும் சேரவில்லை. கணக்கு உள்ள உறுப்பினர் மட்டுமே நிர்வாகியாக முடியும்.',
     you: 'நீங்கள்',
     memberName: 'உறுப்பினர் பெயர்',
     ghostNote:
@@ -2929,6 +2948,8 @@ const ta: UiStrings = {
       'நீங்கள் தேர்ந்தெடுத்த நபர்கள் மட்டுமே பாக்கிக்கு அனுப்பப்படுவார்கள். உங்கள் தொடர்புகள் இந்த ஃபோனிலேயே இருக்கும்.',
     jumpToLetter: 'ஒரு எழுத்துக்குச் செல்',
     country: 'நாடு',
+    dialCodeTitle: 'நாட்டுக் குறியீடு',
+    searchCountry: 'நாடுகளைத் தேடு',
     settlesWith: '{country} · {rails} மூலம் தீர்க்கும்',
     notSet: 'அமைக்கப்படவில்லை',
     notSetRails: 'வங்கிப் பரிமாற்றம், பணம், Wise மற்றும் Revolut',
@@ -3121,6 +3142,7 @@ const hi: UiStrings = {
   youOwe: 'आपको देने हैं',
   allSettled: 'सब बराबर',
   yourGroups: 'आपके समूह',
+  filterAll: 'सभी',
   newGroup: 'नया समूह',
   activity: 'गतिविधि',
   friends: 'दोस्त',
@@ -3436,7 +3458,7 @@ const hi: UiStrings = {
     emailAddress: 'ईमेल पता',
     phoneNumber: 'फ़ोन नंबर',
     emailPlaceholder: 'you@example.com',
-    phonePlaceholder: '+91 98765 43210',
+    phonePlaceholder: '{code} 98765 43210',
     codeEmailed: 'ईमेल पर भेजा गया छह अंकों का कोड डालें',
     codeTexted: 'मैसेज पर भेजा गया छह अंकों का कोड डालें',
     verificationCode: 'सत्यापन कोड',
@@ -3478,14 +3500,14 @@ const hi: UiStrings = {
     verify: 'सत्यापित करें',
     differentNumber: 'कोई दूसरा नंबर इस्तेमाल करें',
     identifier: 'ईमेल या फ़ोन नंबर',
-    identifierPlaceholder: 'asha@example.com या +91…',
+    identifierPlaceholder: 'alex@example.com या {code}…',
     password: 'पासवर्ड',
     passwordHint: 'आठ या ज़्यादा अक्षर। याद रहने वाला वाक्यांश, न याद रहने वाली पहेली से बेहतर है।',
     addToAccount: 'इसे मेरे खाते में जोड़ें',
     createAccount: 'खाता बनाएँ',
     signInAction: 'साइन इन',
-    switchToSignIn: 'मेरा खाता पहले से है',
-    switchToSignUp: 'मैं नया हूँ — खाता बनाएँ',
+    switchToSignIn: 'पहले से खाता है? साइन इन करें',
+    switchToSignUp: 'नए हैं? खाता बनाएँ',
     continueGoogle: 'Google से जारी रखें',
     signInGoogle: 'Google से साइन इन करें',
     continueApple: 'Apple से जारी रखें',
@@ -3594,6 +3616,7 @@ const hi: UiStrings = {
     makeAdmin: 'एडमिन बनाएँ',
     removeAdmin: 'एडमिन हटाएँ',
     adminNote: 'एडमिन ग्रुप बदल सकते हैं, सदस्य संभाल सकते हैं, और कुल बजट तय कर सकते हैं.',
+    adminNeedsAccount: 'ये अभी शामिल नहीं हुए हैं. सिर्फ़ अकाउंट वाला सदस्य ही एडमिन बन सकता है.',
     you: 'आप',
     memberName: 'सदस्य का नाम',
     ghostNote: 'इस व्यक्ति का असली हिसाब है। जुड़ने पर वे यह इतिहास अपने नाम कर सकते हैं।',
@@ -3925,6 +3948,8 @@ const hi: UiStrings = {
       'सिर्फ़ वही लोग बाकी को भेजे जाते हैं जिन्हें आप चुनते हैं। आपके संपर्क इसी फ़ोन पर रहते हैं।',
     jumpToLetter: 'किसी अक्षर पर जाएँ',
     country: 'देश',
+    dialCodeTitle: 'देश कोड',
+    searchCountry: 'देश खोजें',
     settlesWith: '{country} · {rails} से निपटान',
     notSet: 'तय नहीं',
     notSetRails: 'बैंक ट्रांसफ़र, नकद, Wise और Revolut',
@@ -4116,6 +4141,7 @@ const ar: UiStrings = {
   youOwe: 'عليك',
   allSettled: 'تمت التسوية',
   yourGroups: 'مجموعاتك',
+  filterAll: 'الكل',
   newGroup: 'مجموعة جديدة',
   activity: 'النشاط',
   friends: 'الأصدقاء',
@@ -4458,7 +4484,7 @@ const ar: UiStrings = {
     emailAddress: 'البريد الإلكتروني',
     phoneNumber: 'رقم الهاتف',
     emailPlaceholder: 'you@example.com',
-    phonePlaceholder: '+971 50 123 4567',
+    phonePlaceholder: '{code} 50 123 4567',
     codeEmailed: 'أدخل الرمز المكوّن من ستة أرقام الذي أرسلناه إلى بريدك',
     codeTexted: 'أدخل الرمز المكوّن من ستة أرقام الذي أرسلناه برسالة نصية',
     verificationCode: 'رمز التحقق',
@@ -4499,14 +4525,14 @@ const ar: UiStrings = {
     verify: 'تحقّق',
     differentNumber: 'استخدم رقمًا آخر',
     identifier: 'البريد الإلكتروني أو رقم الهاتف',
-    identifierPlaceholder: 'asha@example.com أو ‎+971…',
+    identifierPlaceholder: 'alex@example.com أو ‎{code}…',
     password: 'كلمة المرور',
     passwordHint: 'ثمانية أحرف أو أكثر. عبارة تتذكّرها خير من لغز لن تتذكّره.',
     addToAccount: 'أضف هذا إلى حسابي',
     createAccount: 'إنشاء حساب',
     signInAction: 'تسجيل الدخول',
-    switchToSignIn: 'لديّ حساب بالفعل',
-    switchToSignUp: 'أنا جديد هنا — أنشئ حسابًا',
+    switchToSignIn: 'لديك حساب بالفعل؟ سجّل الدخول',
+    switchToSignUp: 'جديد هنا؟ أنشئ حسابًا',
     continueGoogle: 'المتابعة عبر Google',
     signInGoogle: 'تسجيل الدخول عبر Google',
     continueApple: 'المتابعة عبر Apple',
@@ -4627,6 +4653,7 @@ const ar: UiStrings = {
     makeAdmin: 'تعيين كمشرف',
     removeAdmin: 'إزالة الإشراف',
     adminNote: 'يمكن للمشرفين تعديل المجموعة وإدارة الأعضاء وتحديد الميزانية الإجمالية.',
+    adminNeedsAccount: 'لم ينضم بعد. المشرف يجب أن يكون عضوًا لديه حساب.',
     you: 'أنت',
     memberName: 'اسم العضو',
     ghostNote: 'لهذا الشخص أرصدة حقيقية. حين ينضم يمكنه أن يطالب بهذا السجل.',
@@ -5081,6 +5108,8 @@ const ar: UiStrings = {
     onlyPickedAreSent: 'لا يُرسل إلى باقي إلا من تختارهم. تبقى جهات اتصالك على هذا الهاتف.',
     jumpToLetter: 'انتقل إلى حرف',
     country: 'البلد',
+    dialCodeTitle: 'رمز الدولة',
+    searchCountry: 'ابحث عن دولة',
     settlesWith: '{country} · التسوية عبر {rails}',
     notSet: 'غير محدد',
     notSetRails: 'تحويل بنكي ونقد وWise وRevolut',
@@ -5322,8 +5351,24 @@ export function deviceLocale(): string {
  * confident wrong answer is worse than no answer — it gets missed.
  */
 export function deviceCountry(): string | null {
-  const region = getLocales()[0]?.regionCode ?? null;
-  return region && /^[A-Za-z]{2}$/.test(region) ? region.toUpperCase() : null;
+  const alpha2 = (value: string | null | undefined): string | null =>
+    value && /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : null;
+
+  // Walk the phone's locale list, not just the first entry. `regionCode` is the
+  // device Region setting (Language & Region), so a phone whose Region is India
+  // reads IN even with an English (US) display language — but on a device where
+  // the top locale carries no region, a later one or the tag itself still can.
+  for (const locale of getLocales()) {
+    const fromRegion = alpha2(locale.regionCode) ?? alpha2(locale.languageRegionCode);
+    if (fromRegion) return fromRegion;
+    // `en-IN` with a null regionCode still names the region in its tag. Only a
+    // tag that actually carries a region subtag counts — a bare `en` has no
+    // country in it and must not be read as the country "EN".
+    const tag = locale.languageTag ?? '';
+    const fromTag = tag.includes('-') ? alpha2(tag.split('-').pop()) : null;
+    if (fromTag) return fromTag;
+  }
+  return null;
 }
 
 /**
@@ -5338,6 +5383,18 @@ export function deviceCountry(): string | null {
  */
 export function deviceDefaultCurrency(): CurrencyCode {
   return currencyForCountry(deviceCountry()) ?? 'INR';
+}
+
+/**
+ * The dialing prefix to start a phone field with on this phone, as `+<digits>`,
+ * or a bare `+` when the region is unknown or unlisted.
+ *
+ * Follows the phone rather than assuming +91: a handset set to the UAE opens on
+ * +971, one set to the UK on +44, and one whose region Baaki does not stock
+ * gets a lone `+` to type over — never a confident wrong country code.
+ */
+export function deviceDialingCode(): string {
+  return dialingCodeForCountry(deviceCountry()) ?? '+';
 }
 
 /**
