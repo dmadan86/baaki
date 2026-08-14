@@ -27,6 +27,13 @@ export default function TabsLayout() {
       icon: (color) => <Ionicons name="pulse" size={20} color={color} />,
     },
     {
+      // The notifications inbox is a stacked route, not a tab screen, so it is
+      // reached with a push rather than a tab navigate (handled in onSelect).
+      key: 'inbox',
+      label: t.tabs.inbox,
+      icon: (color) => <Ionicons name="file-tray-outline" size={20} color={color} />,
+    },
+    {
       key: 'profile',
       label: t.profile,
       icon: (color) => <Ionicons name="person" size={20} color={color} />,
@@ -47,13 +54,8 @@ export default function TabsLayout() {
         <PillTabBar
           items={items}
           activeKey={state.routes[state.index]?.name ?? 'index'}
-          onSelect={(key) => navigation.navigate(key)}
+          onSelect={(key) => (key === 'inbox' ? router.push('/inbox') : navigation.navigate(key))}
           animated={animated}
-          centerAction={{
-            accessibilityLabel: t.newGroup,
-            icon: (color) => <Ionicons name="add" size={30} color={color} />,
-            onPress: () => router.push('/new-group'),
-          }}
         />
       )}
     >

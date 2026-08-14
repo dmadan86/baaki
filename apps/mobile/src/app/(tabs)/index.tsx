@@ -27,6 +27,7 @@ import { useGuestGuard } from '@/lib/guestGuard';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
+import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { groupLabel, GroupType } from '@/data/types';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
@@ -36,6 +37,11 @@ export default function HomeScreen() {
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const { profile, isGuest } = useAuth();
+  // The header avatar sits in the private bucket, so its path has to be signed
+  // before an Image can show it — the same resolution the profile screen does.
+  // Without this the dashboard falls back to initials while settings shows the
+  // photo, which reads as the picture "not loading" on the home screen.
+  const avatarUrl = useAvatarUrl(profile?.avatar_url);
 
   const groups = useGroups();
   const summary = useHomeSummary(profile?.id ?? null);
@@ -132,6 +138,7 @@ export default function HomeScreen() {
           <Avatar
             name={profile?.display_name ?? 'You'}
             size={46}
+            photoUrl={avatarUrl}
             accessibilityLabel={t.profile}
             onPress={() => router.navigate('/profile')}
           />
@@ -145,16 +152,6 @@ export default function HomeScreen() {
           </View>
           <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture')}>
             <Ionicons name="camera-outline" size={22} color={theme.color.text} />
-          </IconButton>
-          <IconButton
-            label={t.captures.title}
-            badge={captureCount > 0}
-            onPress={() => router.push('/captures')}
-          >
-            <Ionicons name="file-tray-outline" size={22} color={theme.color.text} />
-          </IconButton>
-          <IconButton label={t.tabs.inbox} onPress={() => router.push('/inbox')}>
-            <Ionicons name="notifications-outline" size={22} color={theme.color.text} />
           </IconButton>
         </Row>
 
