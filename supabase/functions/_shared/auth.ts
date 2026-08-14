@@ -20,6 +20,56 @@ export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+/**
+ * The origins allowed to read a response in a browser, from `ALLOWED_ORIGINS`
+ * (comma-separated). Left empty the value is `*` — the historical default —
+ * so nothing changes until the env var is set; every function goes through the
+ * same list the moment it is.
+ *
+ * This only ever matters to a browser: these APIs authenticate on the
+ * `Authorization` header, never a cookie, and set no `Allow-Credentials`, so a
+ * permissive value cannot be turned into credentialed cross-origin theft. The
+ * allowlist is defence in depth against a stray site scripting the API in a
+ * signed-in user's browser, not the thing standing between an attacker and the
+ * data. Native clients send no `Origin` and ignore CORS entirely.
+ */
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+function allowedOrigin(request: Request): string {
+  if (ALLOWED_ORIGINS.length === 0) return '*';
+  const origin = request.headers.get('origin');
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return origin;
+  // A configured origin the browser did not send: any real allowlisted value
+  // works as a deliberate non-match, so an unlisted site's request fails the
+  // browser's own origin check.
+  return ALLOWED_ORIGINS[0];
+}
+
+/**
+ * `Deno.serve` with CORS handled once, in one place: the preflight is answered
+ * and every response leaves with the resolved `Access-Control-Allow-Origin`
+ * (overriding the `*` that `json()` still carries for the no-allowlist case).
+ * Functions call this instead of `Deno.serve` and drop their own OPTIONS line.
+ */
+export function serveWithCors(handler: (request: Request) => Promise<Response>): void {
+  Deno.serve(async (request) => {
+    if (request.method === 'OPTIONS') {
+      return new Response('ok', {
+        headers: { ...CORS_HEADERS, 'Access-Control-Allow-Origin': allowedOrigin(request) },
+      });
+    }
+    const response = await handler(request);
+    response.headers.set('Access-Control-Allow-Origin', allowedOrigin(request));
+    // Cached by any proxy keyed on the origin it was resolved for, never reused
+    // across origins.
+    if (ALLOWED_ORIGINS.length > 0) response.headers.set('Vary', 'Origin');
+    return response;
+  });
+}
+
 export class HttpError extends Error {
   constructor(
     readonly status: number,

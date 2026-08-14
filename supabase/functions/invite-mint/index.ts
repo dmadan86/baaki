@@ -9,7 +9,7 @@
 import {
   asCaller,
   asService,
-  CORS_HEADERS,
+  serveWithCors,
   errorResponse,
   HttpError,
   json,
@@ -34,9 +34,7 @@ async function sha256Hex(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     if (request.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST');
 

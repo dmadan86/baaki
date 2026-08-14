@@ -27,7 +27,7 @@
 
 import {
   asService,
-  CORS_HEADERS,
+  serveWithCors,
   errorResponse,
   HttpError,
   json,
@@ -54,9 +54,7 @@ const MAX_PER_RUN = 150;
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     if (request.method !== 'POST') {
       throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'POST a campaign id to broadcast it');

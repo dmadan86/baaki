@@ -18,7 +18,7 @@
  * quietly frozen at whatever it happened to hold.
  */
 
-import { asService, CORS_HEADERS, errorResponse, HttpError, json } from '../_shared/auth.ts';
+import { asService, errorResponse, serveWithCors, HttpError, json } from '../_shared/auth.ts';
 import { verifyWebhookSignature } from '../_shared/core.js';
 
 interface ResendWebhook {
@@ -35,9 +35,7 @@ function eventNameOf(type: string): string {
   return type.startsWith('email.') ? type.slice('email.'.length) : type;
 }
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     if (request.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST');
 

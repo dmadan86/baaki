@@ -17,7 +17,14 @@
  * button; the button posts.
  */
 
-import { asService, CORS_HEADERS, errorResponse, HttpError, json } from '../_shared/auth.ts';
+import {
+  asService,
+  CORS_HEADERS,
+  errorResponse,
+  HttpError,
+  json,
+  serveWithCors,
+} from '../_shared/auth.ts';
 import { normaliseAddress, verifyUnsubscribe } from '../_shared/core.js';
 
 const HTML_HEADERS = { ...CORS_HEADERS, 'content-type': 'text/html; charset=utf-8' };
@@ -46,9 +53,7 @@ function escape(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     const url = new URL(request.url);
     let address = url.searchParams.get('address') ?? '';

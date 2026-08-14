@@ -20,7 +20,7 @@
 import {
   asCaller,
   asService,
-  CORS_HEADERS,
+  serveWithCors,
   errorResponse,
   HttpError,
   json,
@@ -49,9 +49,7 @@ function toRational(value: number): { num: string; den: string } {
   };
 }
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     const url = new URL(request.url);
     const from = (url.searchParams.get('from') ?? '').toUpperCase();
