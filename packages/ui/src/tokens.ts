@@ -94,6 +94,16 @@ export const gradients = {
   // and off warning amber so it never reads as a status. Every stop holds white.
   accentLight: ['#0369A1', '#2563EB', '#4F46E5'],
   accentDark: ['#0C4A6E', '#1E40AF', '#3730A3'],
+  // The balance card wears its verdict: a green wash when the net is in your
+  // favour, a red one when you owe. Both are the money hues (positive/negative)
+  // deepened across three stops so the white balance and its small labels stay
+  // legible on every corner — the same rule the brand wash follows above. The
+  // neutral, all-settled state keeps the brand wash, so colour only ever
+  // appears when there is a debt to point at.
+  positiveLight: ['#065F46', '#0A6E4E', '#0E9F6E'],
+  positiveDark: ['#053D2E', '#065F46', '#0A7E59'],
+  negativeLight: ['#8C1D3F', '#B01D50', '#D22C63'],
+  negativeDark: ['#611228', '#8C1D3F', '#A81F4C'],
 } as const;
 
 /** The pastel family, in the order groups cycle through it. */

@@ -523,11 +523,26 @@ function BalanceCarousel({
   );
 }
 
-/** One balance card: the brand wash, the net big, the owed/owe split beneath. */
+/**
+ * One balance card, coloured by its verdict: a green wash when the net is owed
+ * to you, red when you owe, and the neutral brand wash once everything is
+ * settled — so the card's colour, not just its number, tells you where you
+ * stand at a glance. The net big, the owed/owe split beneath.
+ */
 function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: string; t: UiStrings }) {
   const theme = useTheme();
+  const wash =
+    total.net > 0n
+      ? theme.gradient.positive
+      : total.net < 0n
+        ? theme.gradient.negative
+        : theme.gradient.brand;
   return (
-    <Gradient radius={theme.radius.md} style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}>
+    <Gradient
+      colors={wash}
+      radius={theme.radius.lg}
+      style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+    >
       <Row style={{ justifyContent: 'space-between' }}>
         <Text variant="caption" tone="onBrand">
           {t.yourBaaki}
@@ -594,7 +609,7 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
     >
       <Gradient
         colors={theme.gradient.accent}
-        radius={theme.radius.md}
+        radius={theme.radius.lg}
         style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
       >
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
