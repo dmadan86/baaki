@@ -159,9 +159,13 @@ function TabItem({
           style={{
             width: INDICATOR_WIDTH,
             height: INDICATOR_HEIGHT,
-            borderRadius: INDICATOR_HEIGHT / 2,
+            // A fixed stadium radius, larger than the box, so the ends stay
+            // fully round however the box is measured — half-the-height reads as
+            // square for the frame before layout settles the exact height.
+            borderRadius: 999,
             alignItems: 'center',
             justifyContent: 'center',
+            overflow: 'hidden',
             backgroundColor: focused ? theme.color.brandSoft : 'transparent',
           }}
         >
