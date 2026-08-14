@@ -80,7 +80,7 @@ function BlockingScreen(): React.JSX.Element {
         />
       </View>
 
-      <Text variant="micro" tone="faint" align="center">
+      <Text variant="micro" tone="muted" align="center">
         {t.misc.youHaveVersion.replace('{installed}', installed)}
         {latest ? t.misc.versionAvailable.replace('{latest}', latest) : ''}
       </Text>
@@ -119,7 +119,7 @@ export function UpdateBanner(): React.JSX.Element | null {
             <Text variant="caption">
               {latest ? `Baaki ${latest} is out` : 'A new Baaki is out'}
             </Text>
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {t.extras.worthAMinute}
             </Text>
           </View>

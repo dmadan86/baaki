@@ -230,7 +230,7 @@ export default function ImportCsvScreen() {
             <View style={{ gap: theme.spacing.sm }}>
               <SectionHeader title={t.importLedger.whoIsWho} />
               <Card style={{ gap: theme.spacing.lg }}>
-                <Text variant="micro" tone="faint">
+                <Text variant="micro" tone="muted">
                   {t.importLedger.whoIsWhoNote}
                 </Text>
                 {parsed.people.map((person) => (
@@ -293,7 +293,7 @@ export default function ImportCsvScreen() {
                 ))}
               </Card>
               {parsed.expenses.length > 20 ? (
-                <Text variant="micro" tone="faint">
+                <Text variant="micro" tone="muted">
                   and {parsed.expenses.length - 20} more
                 </Text>
               ) : null}
@@ -303,7 +303,7 @@ export default function ImportCsvScreen() {
               <View style={{ gap: theme.spacing.sm }}>
                 <SectionHeader title={t.importLedger.rowsLeftOut} />
                 <Card style={{ gap: theme.spacing.sm }}>
-                  <Text variant="micro" tone="faint">
+                  <Text variant="micro" tone="muted">
                     {t.importLedger.rowsLeftOutNote}
                   </Text>
                   {parsed.problems.map((problem, index) => (

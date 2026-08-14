@@ -19,7 +19,7 @@ import {
 
 import { memberLookup, useGroup, useGroupLedger } from '@/data/hooks';
 import { displayName } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function SimplifyScreen() {
@@ -70,12 +70,13 @@ export default function SimplifyScreen() {
             <Text variant="subheading">
               {group.data?.simplify_debts ? t.simplifyOn : t.simplifyOff}
             </Text>
-            <Badge label={`${ledger.transfers.length} payments`} tone="brand" />
+            <Badge
+              label={plural(locale, ledger.transfers.length, t.simplifyPaymentsCount)}
+              tone="brand"
+            />
           </Row>
           <Text variant="caption" tone="muted">
-            {group.data?.simplify_debts
-              ? 'Baaki suggests the fewest payments that settle the group. The real who-owes-whom ledger underneath is never rewritten.'
-              : 'Showing the actual pairwise ledger, exactly as the expenses created it.'}
+            {group.data?.simplify_debts ? t.simplifySuggestBody : t.simplifyPairwiseBody}
           </Text>
         </Card>
 
@@ -98,11 +99,16 @@ export default function SimplifyScreen() {
                   <Avatar name={nameOf(transfer.to)} size={38} />
                   <View style={{ flex: 1, marginLeft: theme.spacing.sm }}>
                     <Text variant="body" numberOfLines={1}>
-                      {`${nameOf(transfer.from)} → ${nameOf(transfer.to)}`}
+                      {fill(t.simplifyPaysWhom, {
+                        from: nameOf(transfer.from),
+                        to: nameOf(transfer.to),
+                      })}
                     </Text>
                     {transfer.from === ledger.myMemberId || transfer.to === ledger.myMemberId ? (
                       <Text variant="micro" tone="brand">
-                        {transfer.from === ledger.myMemberId ? 'You pay' : 'You receive'}
+                        {transfer.from === ledger.myMemberId
+                          ? t.simplifyYouPay
+                          : t.simplifyYouReceive}
                       </Text>
                     ) : null}
                   </View>

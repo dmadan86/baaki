@@ -40,7 +40,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { addGhostMember, fetchGroups } from '@/data/api';
@@ -48,11 +48,11 @@ import { groupLabel } from '@/data/types';
 
 export default function ContactsScreen(): React.JSX.Element {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const queryClient = useQueryClient();
 
   const [picked, setPicked] = useState<readonly PickedContact[]>([]);
-  const [added, setAdded] = useState<string | null>(null);
+  const [added, setAdded] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const groups = useQuery({ queryKey: ['groups'], queryFn: fetchGroups });
@@ -86,11 +86,16 @@ export default function ContactsScreen(): React.JSX.Element {
           last = caught instanceof Error ? caught.message : String(caught);
         }
       }
-      if (failed.length > 0) throw new Error(`Could not add ${failed.join(', ')}: ${last}`);
+      if (failed.length > 0) {
+        // `last` holds the raw (unlocalised) server message — kept for logs, not
+        // shown; the user sees whose names did not make it, in their language.
+        void last;
+        throw new Error(fill(t.misc.couldNotAdd, { names: failed.join(', ') }));
+      }
       return contacts.length;
     },
     onSuccess: async (count, { groupId }) => {
-      setAdded(`${count} ${count === 1 ? 'person' : 'people'}`);
+      setAdded(count);
       setPicked([]);
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['members', groupId] });
@@ -143,10 +148,12 @@ export default function ContactsScreen(): React.JSX.Element {
           />
         ) : (
           <>
-            {added ? (
+            {added !== null ? (
               <Card style={{ backgroundColor: theme.color.brandSoft }}>
                 <Text variant="caption" tone="brand">
-                  {added} added. Pick somebody else, or go back.
+                  {fill(t.misc.contactsAdded, {
+                    count: plural(locale, added, t.misc.peopleCount),
+                  })}
                 </Text>
               </Card>
             ) : null}
@@ -181,7 +188,7 @@ function ChooseGroup({
 }): React.JSX.Element {
   const theme = useTheme();
   const clearance = useTabBarClearance();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const only = contacts.length === 1 ? contacts[0] : undefined;
 
   return (
@@ -198,9 +205,9 @@ function ChooseGroup({
           )}
           <View style={{ flex: 1 }}>
             <Text variant="subheading" numberOfLines={1}>
-              {only ? only.name : `${contacts.length} people`}
+              {only ? only.name : plural(locale, contacts.length, t.misc.peopleCount)}
             </Text>
-            <Text variant="micro" tone="faint" numberOfLines={2}>
+            <Text variant="micro" tone="muted" numberOfLines={2}>
               {only
                 ? (only.email ?? only.phone ?? t.misc.noAddress)
                 : contacts.map((contact) => contact.name).join(', ')}
@@ -253,7 +260,7 @@ function ChooseGroup({
       {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
       {error ? <Callout tone="negative">{error}</Callout> : null}
 
-      <Text variant="micro" tone="faint">
+      <Text variant="micro" tone="muted">
         {t.extras.ghostShareNote}
       </Text>
 

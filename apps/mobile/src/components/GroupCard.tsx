@@ -15,6 +15,7 @@ import { View } from 'react-native';
 import type { CurrencyCode } from '@baaki/core';
 import {
   Avatar,
+  Badge,
   directionalIcon,
   iconSize,
   MoneyText,
@@ -76,30 +77,28 @@ export function GroupCard({
           </Text>
         </View>
 
-        <View style={{ alignItems: 'flex-end' }}>
-          <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-            {/* A pending settlement gets a quiet dot rather than a badge. */}
-            {pendingLabel ? (
-              <View
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: 4,
-                  backgroundColor: theme.color.brand,
-                }}
-              />
-            ) : null}
-            <MoneyText
-              amount={balance < 0n ? -balance : balance}
-              currency={currency}
-              locale={locale}
-              tone="default"
-              variant="subheading"
-            />
-          </Row>
-          <Text variant="micro" tone="muted">
-            {statusLabel}
-          </Text>
+        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+          {/* Semantic money colour carries owed/owe at a glance (the tokens rule);
+              `mode="balance"` abs-es the number and speaks the sign for a11y. */}
+          <MoneyText
+            amount={balance}
+            currency={currency}
+            locale={locale}
+            mode="balance"
+            variant="subheading"
+          />
+          {/* A pending settlement is a real, actionable state — it earns a
+              labelled badge, not a 7px dot that reads as an unread mark. */}
+          {pendingLabel ? (
+            <Badge label={pendingLabel} tone="brand" />
+          ) : (
+            <Text
+              variant="micro"
+              tone={balance === 0n ? 'muted' : balance > 0n ? 'positive' : 'negative'}
+            >
+              {statusLabel}
+            </Text>
+          )}
         </View>
 
         <Ionicons

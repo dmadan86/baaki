@@ -188,6 +188,13 @@ export default function FriendsScreen() {
 
         {people.isLoading ? (
           <PeopleSkeleton />
+        ) : people.isError ? (
+          // A failed fetch is not "all square" — say so, and give a way back.
+          <EmptyState
+            title={t.loadError}
+            body={t.loadErrorBody}
+            action={<Button label={t.retry} variant="secondary" onPress={() => people.refetch()} />}
+          />
         ) : rows.length === 0 ? (
           <EmptyState title={t.tabs.allSquare} body={t.tabs.allSquareBody} />
         ) : (
@@ -205,7 +212,7 @@ export default function FriendsScreen() {
               emptyBody={t.tabs.youAreNotBehind}
             />
 
-            <Text variant="micro" tone="faint" align="center">
+            <Text variant="micro" tone="muted" align="center">
               {t.extras.perCurrencyNote}
             </Text>
           </>
@@ -288,13 +295,15 @@ function FriendCard({
         </View>
       </Row>
       <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        {/* Semantic money colour (owed green, owe red) is the one signal that
+            tells direction at a glance — the section header alone is lost the
+            moment it scrolls off. Sign is spoken via the balance a11y label. */}
         <MoneyText
           amount={BigInt(row.net)}
           currency={row.currency}
           locale={locale}
           variant="subheading"
           mode="balance"
-          tone="default"
         />
         {row.is_ghost ? (
           // A ghost is somebody you added who has no Baaki account yet, so the
@@ -308,7 +317,7 @@ function FriendCard({
               onPress={() => router.push(`/group/${row.only_group_id}/invite`)}
               accessibilityRole="button"
               accessibilityLabel={t.people.invite}
-              hitSlop={8}
+              hitSlop={12}
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
               <Badge label={t.people.invite} tone="brand" />
@@ -382,7 +391,7 @@ function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | n
       onPress={() => nudge.mutate()}
       accessibilityRole="button"
       accessibilityLabel={t.people.remind}
-      hitSlop={8}
+      hitSlop={12}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >
       <Badge label={t.people.remind} tone="brand" />

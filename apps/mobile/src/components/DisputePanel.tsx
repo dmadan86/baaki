@@ -151,7 +151,7 @@ export function DisputePanel({
               {mine.reason}
             </Text>
           ) : null}
-          <Text variant="micro" tone="faint">
+          <Text variant="micro" tone="muted">
             {t.misc.disputeStands}
           </Text>
           <Button
@@ -198,7 +198,7 @@ export function DisputePanel({
               }}
             />
           </Row>
-          <Text variant="micro" tone="faint">
+          <Text variant="micro" tone="muted">
             {t.dispute.reasonOptional}
           </Text>
         </View>

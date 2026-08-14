@@ -298,7 +298,7 @@ export default function AccountScreen() {
           </View>
         </Card>
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.contact.footnote}
         </Text>
       </ScrollView>

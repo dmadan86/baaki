@@ -186,7 +186,7 @@ export default function InviteScreen() {
               />
             </Row>
 
-            <Text variant="micro" tone="faint" align="center">
+            <Text variant="micro" tone="muted" align="center">
               {t.people.mintMistakeNote}
             </Text>
           </>

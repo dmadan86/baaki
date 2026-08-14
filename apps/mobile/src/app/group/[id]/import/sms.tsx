@@ -237,7 +237,7 @@ export default function ImportSmsScreen() {
           <Text variant="caption" tone="muted">
             {t.smsImport.howTo}
           </Text>
-          <Text variant="micro" tone="faint">
+          <Text variant="micro" tone="muted">
             {t.smsImport.whyNotAutomatic}
           </Text>
         </Card>
@@ -261,7 +261,7 @@ export default function ImportSmsScreen() {
               }}
             />
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text variant="micro" tone="faint">
+              <Text variant="micro" tone="muted">
                 {messages.length === 0
                   ? t.smsImport.nothingPasted
                   : plural(locale, messages.length, t.smsImport.messageCount)}
@@ -289,7 +289,7 @@ export default function ImportSmsScreen() {
                     />
                   }
                 />
-                <Text variant="micro" tone="faint">
+                <Text variant="micro" tone="muted">
                   {t.smsImport.readOnAndroid}
                 </Text>
                 {readMessages.length > 0 ? (
@@ -305,7 +305,7 @@ export default function ImportSmsScreen() {
         <View style={{ gap: theme.spacing.sm }}>
           <SectionHeader title={t.smsImport.datesSection} />
           <Card style={{ gap: theme.spacing.md }}>
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {t.smsImport.datesNote}
             </Text>
             <Row style={{ gap: theme.spacing.md }}>
@@ -411,7 +411,7 @@ export default function ImportSmsScreen() {
           <View style={{ gap: theme.spacing.sm }}>
             <SectionHeader title={t.smsImport.whoPaidSection} />
             <Card style={{ gap: theme.spacing.md }}>
-              <Text variant="micro" tone="faint">
+              <Text variant="micro" tone="muted">
                 {t.smsImport.whoPaidNote}
               </Text>
               <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
@@ -465,7 +465,7 @@ function DateField({
   const { t } = useStrings();
   return (
     <View style={{ flex: 1, gap: 2 }}>
-      <Text variant="micro" tone="faint">
+      <Text variant="micro" tone="muted">
         {label}
       </Text>
       <TextInput

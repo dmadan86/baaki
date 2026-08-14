@@ -401,7 +401,7 @@ export default function SignInScreen() {
                       }}
                     />
                   </Row>
-                  <Text variant="micro" tone="faint">
+                  <Text variant="micro" tone="muted">
                     {t.signIn.countryCodeHint}
                   </Text>
                   <Button
@@ -518,7 +518,7 @@ export default function SignInScreen() {
                       paddingVertical: theme.spacing.sm,
                     }}
                   />
-                  <Text variant="micro" tone="faint">
+                  <Text variant="micro" tone="muted">
                     {t.signIn.passwordHint}
                   </Text>
                   <Button
@@ -592,7 +592,7 @@ export default function SignInScreen() {
               />
             )}
 
-            <Text variant="micro" tone="faint" align="center">
+            <Text variant="micro" tone="muted" align="center">
               {isGuest ? t.signIn.guestFootnote : t.signIn.memberFootnote}
             </Text>
           </View>

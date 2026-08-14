@@ -128,13 +128,13 @@ export default function DeleteAccountScreen() {
               erase themselves. */}
           {preview.data ? (
             <View style={{ gap: 2, paddingTop: theme.spacing.xs }}>
-              <Text variant="micro" tone="faint">
+              <Text variant="micro" tone="muted">
                 {fill(t.privacy.previewGroups, { n: String(preview.data.groups_count) })}
               </Text>
-              <Text variant="micro" tone="faint">
+              <Text variant="micro" tone="muted">
                 {fill(t.privacy.previewExpenses, { n: String(preview.data.expenses_authored) })}
               </Text>
-              <Text variant="micro" tone="faint">
+              <Text variant="micro" tone="muted">
                 {fill(t.privacy.previewSettlements, {
                   n: String(preview.data.settlements_involved),
                 })}

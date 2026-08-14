@@ -389,7 +389,7 @@ export function ContactPicker({
         </View>
       )}
 
-      <Text variant="micro" tone="faint">
+      <Text variant="micro" tone="muted">
         {t.pickers.onlyPickedAreSent}
       </Text>
 
@@ -480,7 +480,7 @@ function ContactRow({
           <Text variant="body" numberOfLines={1}>
             {contact.name}
           </Text>
-          <Text variant="micro" tone="faint" numberOfLines={1}>
+          <Text variant="micro" tone="muted" numberOfLines={1}>
             {already ? 'Already in this group' : (contact.email ?? contact.phone ?? '')}
           </Text>
         </View>

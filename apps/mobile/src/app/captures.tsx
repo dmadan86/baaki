@@ -13,11 +13,12 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
   Button,
   Card,
+  directionalIcon,
   EmptyState,
   IconButton,
   iconSize,
@@ -125,7 +126,11 @@ export default function CapturesScreen() {
     <Screen edges={['top', 'bottom']}>
       <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
         <IconButton label={t.common.back} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={iconSize.xl} color={theme.color.text} />
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
         </IconButton>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text variant="heading">{t.captures.title}</Text>
@@ -181,7 +186,7 @@ export default function CapturesScreen() {
                       {capture.description}
                     </Text>
                   ) : null}
-                  <Text variant="micro" tone="faint">
+                  <Text variant="micro" tone="muted">
                     {shortDate(capture.expense_date, locale)}
                     {capture.pending ? ` · ${t.captures.notSynced}` : ''}
                   </Text>
@@ -197,7 +202,16 @@ export default function CapturesScreen() {
                 />
                 <IconButton
                   label={t.captures.delete}
-                  onPress={() => void deleteCapture.mutateAsync(capture.id)}
+                  onPress={() =>
+                    Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
+                      { text: t.common.cancel, style: 'cancel' },
+                      {
+                        text: t.captures.delete,
+                        style: 'destructive',
+                        onPress: () => void deleteCapture.mutateAsync(capture.id),
+                      },
+                    ])
+                  }
                 >
                   <Ionicons name="trash-outline" size={iconSize.lg} color={theme.color.textMuted} />
                 </IconButton>

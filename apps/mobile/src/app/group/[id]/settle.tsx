@@ -35,7 +35,7 @@ import {
 import { toSnapshot, useGroup, useGroupLedger, useRecordSettlement } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, isGhost, payableAt, type MemberRow } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { fill, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 
@@ -139,7 +139,7 @@ export default function SettleScreen() {
   const handsOff = iPay && (railById(method)?.handle ?? 'none') !== 'none';
 
   const settleLabel = handsOff
-    ? `Pay via ${railById(method)?.label ?? ''}`.trim()
+    ? fill(t.payViaRail, { rail: railById(method)?.label ?? '' })
     : method === 'cash'
       ? t.paidInCash
       : t.bankOther;
@@ -307,8 +307,8 @@ export default function SettleScreen() {
             >
               <Text variant="caption" style={{ color: settleInkMuted }}>
                 {iPay
-                  ? `You pay ${displayName(counterparty)}`
-                  : `${displayName(counterparty)} pays you`}
+                  ? fill(t.youPayName, { name: displayName(counterparty) })
+                  : fill(t.namePaysYou, { name: displayName(counterparty) })}
               </Text>
               <MoneyText
                 amount={amount}
@@ -372,10 +372,10 @@ export default function SettleScreen() {
 
             {recordSettlement.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
 
-            <Text variant="micro" tone="faint" align="center">
+            <Text variant="micro" tone="muted" align="center">
               {iPay
-                ? `${displayName(counterparty)} gets asked to confirm. Nothing changes hands through Baaki.`
-                : 'You will be asked to confirm once they mark it paid.'}
+                ? fill(t.settleConfirmYouPay, { name: displayName(counterparty) })
+                : t.settleConfirmTheyPay}
             </Text>
           </>
         )}

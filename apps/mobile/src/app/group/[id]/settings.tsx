@@ -333,7 +333,7 @@ export default function GroupSettingsScreen() {
           <Button label={t.group.archiveGroup} variant="ghost" fullWidth onPress={archive} />
           <Button label={t.group.leaveGroup} variant="ghost" fullWidth onPress={leave} />
           {!settled ? (
-            <Text variant="micro" tone="faint" align="center">
+            <Text variant="micro" tone="muted" align="center">
               {t.group.leaveWhenZero}
             </Text>
           ) : null}

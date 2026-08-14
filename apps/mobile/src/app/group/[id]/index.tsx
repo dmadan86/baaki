@@ -328,7 +328,7 @@ export default function GroupScreen() {
                   onPress={() => confirmSettlement.mutate(settlement.id)}
                   disabled={confirmSettlement.isPending}
                 />
-                <Text variant="micro" tone="faint" style={{ flex: 1 }}>
+                <Text variant="micro" tone="muted" style={{ flex: 1 }}>
                   {t.group.autoConfirms}
                 </Text>
               </Row>
@@ -381,7 +381,7 @@ export default function GroupScreen() {
                       <Pressable
                         onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
                         accessibilityRole="button"
-                        accessibilityLabel={title}
+                        accessibilityLabel={contested ? `${title}, ${t.expense.disputed}` : title}
                         style={({ pressed }) => ({
                           opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
                         })}
@@ -395,9 +395,18 @@ export default function GroupScreen() {
                         >
                           <CategoryBadge category={version?.category} size={40} />
                           <View style={{ flex: 1 }}>
-                            <Text variant="subheading" numberOfLines={1}>
-                              {`${title}${contested ? '  🚩' : ''}`}
-                            </Text>
+                            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                              <Text
+                                variant="subheading"
+                                numberOfLines={1}
+                                style={{ flexShrink: 1 }}
+                              >
+                                {title}
+                              </Text>
+                              {contested ? (
+                                <Badge label={t.expense.disputed} tone="negative" />
+                              ) : null}
+                            </Row>
                             <Text variant="caption" tone="muted" numberOfLines={1}>
                               {[
                                 fill(t.expense.paidByName, { name: nameOf(payer) }),
@@ -477,7 +486,6 @@ export default function GroupScreen() {
                           currency={currency}
                           locale={locale}
                           mode="balance"
-                          tone="default"
                         />
                         {member.pending ? <PendingMark /> : null}
                       </Row>
@@ -495,7 +503,9 @@ export default function GroupScreen() {
             (activity.data ?? []).length === 0 ? (
               <EmptyState title={t.nothingYet} body={t.group.activityEmptyBody} />
             ) : (
-              <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+              // Flat like the Expenses and Balances tabs — bare rows and
+              // hairlines, not a boxed Card, so all three tabs read alike.
+              <View>
                 {(activity.data ?? []).map((entry, index) => (
                   <View key={entry.id}>
                     <ListRow
@@ -529,7 +539,7 @@ export default function GroupScreen() {
                     ) : null}
                   </View>
                 ))}
-              </Card>
+              </View>
             )
           ) : null}
         </ScrollView>

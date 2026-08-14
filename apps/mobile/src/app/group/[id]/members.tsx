@@ -324,7 +324,7 @@ export default function MembersScreen() {
               />
             </View>
           ) : null}
-          <Text variant="micro" tone="faint">
+          <Text variant="micro" tone="muted">
             {t.misc.nameAloneBody}
           </Text>
           {addGhost.isPending || adding ? <ActivityIndicator color={theme.color.brand} /> : null}
