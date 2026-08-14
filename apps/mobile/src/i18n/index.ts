@@ -1146,6 +1146,11 @@ export interface UiStrings {
     savedStraightAway: string;
     nothingOverwritten: string;
   };
+  errorBoundary: {
+    title: string;
+    body: string;
+    action: string;
+  };
 }
 
 const en: UiStrings = {
@@ -2201,6 +2206,11 @@ const en: UiStrings = {
       'Saved on this phone straight away, with or without a signal. The server recomputes every share before it is stored, so no device can push a wrong number into the ledger.',
     nothingOverwritten:
       'Nothing here is ever overwritten. Every version above is kept, and a deleted expense can be brought back for 30 days.',
+  },
+  errorBoundary: {
+    title: 'Something went wrong',
+    body: 'That screen hit an error. Nothing you saved is lost — go back and try again.',
+    action: 'Back to home',
   },
 };
 
@@ -3301,6 +3311,11 @@ const ta: UiStrings = {
     nothingOverwritten:
       'இங்கே எதுவும் மேலெழுதப்படுவதில்லை. மேலே உள்ள ஒவ்வொரு பதிப்பும் வைக்கப்படுகிறது, நீக்கப்பட்ட செலவை 30 நாட்களுக்கு மீட்கலாம்.',
   },
+  errorBoundary: {
+    title: 'ஏதோ தவறாகிவிட்டது',
+    body: 'அந்தத் திரையில் பிழை ஏற்பட்டது. நீங்கள் சேமித்தது எதுவும் இழக்கப்படவில்லை — திரும்பிச் சென்று மீண்டும் முயலுங்கள்.',
+    action: 'முகப்புக்குத் திரும்பு',
+  },
 };
 
 const hi: UiStrings = {
@@ -4352,6 +4367,11 @@ const hi: UiStrings = {
       'सिग्नल हो या न हो, इसी फ़ोन पर तुरंत सेव। सर्वर हर हिस्सा दोबारा जोड़कर ही रखता है, इसलिए कोई डिवाइस हिसाब में ग़लत आँकड़ा नहीं डाल सकती।',
     nothingOverwritten:
       'यहाँ कुछ भी मिटाकर ऊपर नहीं लिखा जाता। ऊपर का हर संस्करण रखा जाता है, और हटाया गया खर्च 30 दिन तक वापस लाया जा सकता है।',
+  },
+  errorBoundary: {
+    title: 'कुछ गड़बड़ हो गई',
+    body: 'उस स्क्रीन में कोई त्रुटि आ गई। आपका सहेजा हुआ कुछ भी नहीं खोया — वापस जाकर फिर कोशिश करें।',
+    action: 'होम पर वापस',
   },
 };
 
@@ -5579,6 +5599,11 @@ const ar: UiStrings = {
       'يُحفظ على هذا الهاتف فورًا، بإشارة أو بدونها. يعيد الخادم حساب كل حصة قبل تخزينها، فلا يستطيع أي جهاز دفع رقم خاطئ إلى الدفتر.',
     nothingOverwritten:
       'لا يُستبدل هنا شيء أبدًا. تُحفظ كل نسخة أعلاه، ويمكن استرجاع مصروف محذوف خلال 30 يومًا.',
+  },
+  errorBoundary: {
+    title: 'حدث خطأ ما',
+    body: 'واجهت تلك الشاشة خطأ. لم يُفقد أي شيء حفظته — ارجع وحاول مرة أخرى.',
+    action: 'العودة إلى الرئيسية',
   },
 };
 

@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
 import { CampaignPopup } from '@/components/CampaignPopup';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
@@ -172,7 +173,14 @@ export default withObservability(RootLayout);
  */
 function ThemedRoot({ children }: { children: React.ReactNode }) {
   const { preference } = useThemePreference();
-  return <ThemeProvider forceScheme={preference ?? undefined}>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider forceScheme={preference ?? undefined}>
+      {/* Inside the theme so the recover screen is themed, and around the whole
+          app below it so a render error on any screen lands here instead of on a
+          blank root. */}
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </ThemeProvider>
+  );
 }
 
 /**

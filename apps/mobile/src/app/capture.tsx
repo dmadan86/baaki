@@ -30,6 +30,19 @@ import { saveReceipt } from '@/lib/receiptStore';
 import { markPending } from '@/lib/receiptIndex';
 import { useBackup } from '@/lib/cloud/BackupProvider';
 
+/**
+ * An OCR-derived number turned into a safe minor-unit bigint.
+ *
+ * The values here come off a photograph through a heuristic parser, so they are
+ * never fully trusted: a stray `NaN`, an `Infinity`, or a non-integer would make
+ * `BigInt()` throw — and a throw during render is a white screen, not a bad
+ * total. Anything that is not a finite number collapses to zero, which the UI
+ * already knows how to show (an amount the person types themselves).
+ */
+function safeMinor(value: number): bigint {
+  return Number.isFinite(value) ? BigInt(Math.round(value)) : 0n;
+}
+
 /** Today as `YYYY-MM-DD` in the phone's own zone — never midnight UTC. */
 function todayIso(): string {
   const now = new Date();
@@ -122,9 +135,21 @@ export default function CaptureScreen() {
    * sent to be parsed — the amount stays the user's to type.
    */
   const addReceipt = async (): Promise<void> => {
-    const picked = await captureReceipt();
-    if (!picked) return;
     setError(null);
+
+    // The camera and the document scanner are native, and a native failure —
+    // a denied permission mid-flow, a scanner that will not open, an out-of-
+    // memory during the resize — must not escape as an unhandled rejection and
+    // take the screen down. A failed capture is simply no photo: the person
+    // types the amount, exactly as before this feature existed.
+    let picked: PickedImage | null = null;
+    try {
+      picked = await captureReceipt();
+    } catch {
+      picked = null;
+    }
+    if (!picked) return;
+
     setPhoto(picked);
     setScanning(true);
     try {
@@ -138,7 +163,7 @@ export default function CaptureScreen() {
       const receipt = recognised ? parseReceiptText(recognised.text, { currency }) : null;
       setParsed(receipt);
       if (receipt && receipt.grandTotal > 0) {
-        setAmount(BigInt(receipt.grandTotal));
+        setAmount(safeMinor(receipt.grandTotal));
         if (receipt.merchant && description.trim().length === 0) setDescription(receipt.merchant);
       }
     } catch {
@@ -341,14 +366,14 @@ export default function CaptureScreen() {
                   <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>
                     {item.label}
                   </Text>
-                  <MoneyText amount={BigInt(item.total)} currency={currency as never} locale={locale} variant="body" />
+                  <MoneyText amount={safeMinor(item.total)} currency={currency as never} locale={locale} variant="body" />
                 </Row>
               ))}
               <Divider />
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text variant="subheading">{t.captures.amount}</Text>
                 <MoneyText
-                  amount={BigInt(parsed.grandTotal)}
+                  amount={safeMinor(parsed.grandTotal)}
                   currency={currency as never}
                   locale={locale}
                   variant="subheading"
