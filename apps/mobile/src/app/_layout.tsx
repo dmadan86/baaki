@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme } from '@baaki/ui';
 
+import { AppTabBar } from '@/components/AppTabBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
@@ -352,17 +353,18 @@ function AuthGate() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: 'transparent' },
-        animation: push,
-        animationDuration: TRANSITION_MS,
-        // Swiping back is the same journey as the animation, so it belongs to
-        // the same switch: with motion off there is nothing to drag.
-        gestureEnabled: animated,
-      }}
-    >
+    <View style={{ flex: 1 }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: 'transparent' },
+          animation: push,
+          animationDuration: TRANSITION_MS,
+          // Swiping back is the same journey as the animation, so it belongs to
+          // the same switch: with motion off there is nothing to drag.
+          gestureEnabled: animated,
+        }}
+      >
       {/* Signing in and out replaces the whole tree; sliding it would suggest a
           place to go back to, and there is not one. */}
       <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
@@ -398,6 +400,10 @@ function AuthGate() {
       <Stack.Screen name="settings/delete-account" />
       <Stack.Screen name="join" />
       <Stack.Screen name="inbox" />
-    </Stack>
+      </Stack>
+      {/* One bar over the whole stack, so every screen keeps it — it hides
+          itself on the modals and the camera. */}
+      <AppTabBar />
+    </View>
   );
 }
