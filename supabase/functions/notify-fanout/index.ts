@@ -27,7 +27,7 @@ import {
 } from '../_shared/core.js';
 import {
   asService,
-  CORS_HEADERS,
+  serveWithCors,
   errorResponse,
   HttpError,
   json,
@@ -77,9 +77,7 @@ function factsOf(payload: Record<string, unknown>): Record<string, string | unde
   };
 }
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     // A plain comparison against the service key rather than a JWT check: this
     // is machine-to-machine, the caller is a scheduler, and the key never

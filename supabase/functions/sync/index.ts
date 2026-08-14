@@ -36,7 +36,7 @@ import {
 import {
   asCaller,
   asService,
-  CORS_HEADERS,
+  serveWithCors,
   errorResponse,
   HttpError,
   json,
@@ -144,9 +144,7 @@ const SETTLEMENT_SELECT = `
   allocations:settlement_allocations ( expense_id, amount )
 `;
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     if (request.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST');
 

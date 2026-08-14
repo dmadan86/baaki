@@ -16,7 +16,7 @@ import { checkReceipt, type ParsedReceipt } from '../_shared/core.js';
 import {
   asCaller,
   asService,
-  CORS_HEADERS,
+  serveWithCors,
   errorResponse,
   HttpError,
   json,
@@ -140,9 +140,7 @@ const MODEL = 'claude-opus-5';
  */
 const FALLBACK_SCAN_LIMIT = 20;
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
+serveWithCors(async (request) => {
   try {
     if (request.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST');
 
