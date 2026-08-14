@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
@@ -47,6 +47,17 @@ const EMOJI_FOR_TYPE: Record<GroupType, string> = {
 };
 
 const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+
+/**
+ * A chip icon renderer that takes the chip's resolved colour (selected/not).
+ * Not a component — a render callback the Chip calls with its own ink colour, so
+ * the display-name rule (which assumes a returned element means a component) does
+ * not apply here.
+ */
+const iconFor =
+  (name: keyof typeof Ionicons.glyphMap) =>
+  // eslint-disable-next-line react/display-name
+  (color: string): ReactNode => <Ionicons name={name} size={16} color={color} />;
 
 /**
  * Making a group, wearing the same clothes as the settings that edit one.
@@ -99,7 +110,7 @@ export default function NewGroupScreen() {
   const emoji = pickedEmoji ?? guessGroupEmoji(name) ?? EMOJI_FOR_TYPE[type];
   // Trips and events benefit most from simplification; a two-person group does
   // not. Follows the type until somebody says otherwise.
-  const effectiveSimplify = simplify ?? (type === 'trip' || type === 'event');
+  const effectiveSimplify = simplify ?? (type === GroupType.Trip || type === GroupType.Event);
   const currency = currencyForCountry(country) ?? 'INR';
 
   const submit = async (): Promise<void> => {
@@ -140,7 +151,7 @@ export default function NewGroupScreen() {
       // Trip dates are not part of the create call, so they ride behind it as
       // an update on the same ordered queue — only when a trip was actually
       // given a start and end, since that is what turns the reminders on.
-      if (tripDates.start_date && tripDates.end_date) {
+      if (type === GroupType.Trip && tripDates.start_date && tripDates.end_date) {
         await mutate(MutationKind.GroupUpdate, groupId, {
           start_date: tripDates.start_date,
           end_date: tripDates.end_date,
@@ -204,14 +215,6 @@ export default function NewGroupScreen() {
     setBrowsing(false);
   };
 
-  // The contacts already queued, so the picker greys them rather than letting
-  // somebody add the same person twice.
-  const alreadyPicked = new Set(
-    ghosts.flatMap((ghost) =>
-      [ghost.email, ghost.phone].filter((value): value is string => Boolean(value)),
-    ),
-  );
-
   return (
     <Screen edges={['top', 'bottom']}>
       <ScrollView
@@ -262,11 +265,11 @@ export default function NewGroupScreen() {
                   paddingVertical: theme.spacing.sm,
                 }}
               />
+              {/* A compact swatch rather than a full-width button — the icon is
+                  already shown large on the avatar beside it, so this only needs
+                  to be a way in, not a billboard. */}
+              <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
             </View>
-          </Row>
-
-          <Row style={{ gap: theme.spacing.sm }}>
-            <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} />
           </Row>
         </Card>
 
@@ -278,11 +281,11 @@ export default function NewGroupScreen() {
             value={type}
             onChange={setType}
             options={[
-              { value: GroupType.Trip, label: t.extras.typeTrip },
-              { value: GroupType.Home, label: t.extras.typeHome },
-              { value: GroupType.Couple, label: t.extras.typeCouple },
-              { value: GroupType.Event, label: t.extras.typeEvent },
-              { value: GroupType.Other, label: t.extras.typeOther },
+              { value: GroupType.Trip, label: t.extras.typeTrip, icon: iconFor('airplane') },
+              { value: GroupType.Home, label: t.extras.typeHome, icon: iconFor('home') },
+              { value: GroupType.Couple, label: t.extras.typeCouple, icon: iconFor('heart') },
+              { value: GroupType.Event, label: t.extras.typeEvent, icon: iconFor('sparkles') },
+              { value: GroupType.Other, label: t.extras.typeOther, icon: iconFor('people') },
             ]}
           />
         </View>
@@ -291,11 +294,15 @@ export default function NewGroupScreen() {
             expense starts in. The same flagged row the settings screen uses. */}
         <CountryRow countryCode={country} onChange={setCountry} />
 
-        <TripDates
-          group={tripDates}
-          locale={locale}
-          onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
-        />
+        {/* Dates and their daily nudges only mean anything for a trip — a
+            flatshare or a couple has no start and end. Shown only for trips. */}
+        {type === GroupType.Trip ? (
+          <TripDates
+            group={tripDates}
+            locale={locale}
+            onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
+          />
+        ) : null}
 
         {/* ADR-009: simplification is presentation only — the pairwise ledger
             underneath is untouched. */}
@@ -318,6 +325,33 @@ export default function NewGroupScreen() {
             title={t.extras.addPeopleByName}
             info={t.extras.ghostNote}
             titleVariant="caption"
+            right={
+              // The same phone-contacts picker, moved to the section heading so
+              // it reads as an action on People rather than a stray button below
+              // the name field. Nobody's book is uploaded (ADR-006).
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: browsing }}
+                accessibilityLabel={browsing ? t.people.hideContacts : t.people.browseContacts}
+                hitSlop={8}
+                onPress={() => setBrowsing((open) => !open)}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Ionicons
+                  name={browsing ? 'people' : 'people-outline'}
+                  size={16}
+                  color={theme.color.brand}
+                />
+                <Text variant="caption" style={{ color: theme.color.brand }}>
+                  {t.people.contacts}
+                </Text>
+              </Pressable>
+            }
           />
           <Row>
             <TextInput
@@ -344,20 +378,18 @@ export default function NewGroupScreen() {
             />
           </Row>
 
-          {/* The same phone-contacts picker the Members screen uses. It reads
-              the address book on the device and only the people ticked come
-              back — nobody's book is uploaded (ADR-006). */}
-          <Button
-            label={browsing ? t.people.hideContacts : t.people.browseContacts}
-            variant="ghost"
-            onPress={() => setBrowsing((open) => !open)}
-          />
-
           {browsing ? (
             // Tall enough that the letter rail has something to aim at — a
             // short window turns a thousand contacts back into a peephole.
-            <View style={{ height: 480 }}>
-              <ContactPicker onConfirm={addContacts} existing={alreadyPicked} />
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="caption" tone="muted">
+                {t.misc.fromYourContacts}
+              </Text>
+              <View style={{ height: 480 }}>
+                {/* Seeded with whoever is already added, so the people already
+                    selected show ticked here rather than the picker opening blank. */}
+                <ContactPicker onConfirm={addContacts} initialSelected={ghosts} />
+              </View>
             </View>
           ) : null}
 

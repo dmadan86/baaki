@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { useTheme } from '../theme';
@@ -7,10 +8,13 @@ export interface ChipProps {
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  /** Receives the resolved colour so the icon matches the selected state. */
+  icon?: (color: string) => ReactNode;
 }
 
-export function Chip({ label, selected = false, onPress }: ChipProps) {
+export function Chip({ label, selected = false, onPress, icon }: ChipProps) {
   const theme = useTheme();
+  const color = selected ? theme.color.onBrand : theme.color.textMuted;
   return (
     <Pressable
       accessibilityRole="button"
@@ -18,14 +22,17 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
       accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
         paddingHorizontal: theme.spacing.lg,
         height: 36,
-        justifyContent: 'center',
         borderRadius: theme.radius.pill,
         backgroundColor: selected ? theme.color.brand : theme.color.surface,
         opacity: pressed ? 0.85 : 1,
       })}
     >
+      {icon ? icon(color) : null}
       <Text variant="caption" tone={selected ? 'onBrand' : 'muted'}>
         {label}
       </Text>
@@ -38,7 +45,7 @@ export function ChipRow<T extends string>({
   value,
   onChange,
 }: {
-  options: readonly { value: T; label: string }[];
+  options: readonly { value: T; label: string; icon?: (color: string) => ReactNode }[];
   value: T;
   onChange: (value: T) => void;
 }) {
@@ -53,6 +60,7 @@ export function ChipRow<T extends string>({
         <Chip
           key={option.value}
           label={option.label}
+          icon={option.icon}
           selected={option.value === value}
           onPress={() => onChange(option.value)}
         />

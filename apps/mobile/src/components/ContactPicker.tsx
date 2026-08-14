@@ -49,6 +49,9 @@ interface ContactPickerProps {
   onConfirm: (contacts: readonly PickedContact[]) => void;
   /** Already in the group — shown greyed rather than hidden, so it is obvious why. */
   existing?: ReadonlySet<string>;
+  /** Already chosen elsewhere on the screen — opens ticked and in the strip, so
+   *  the picker reflects who is already selected rather than starting blank. */
+  initialSelected?: readonly PickedContact[];
   /** The verb on the confirm button. The count and noun are added here. */
   confirmVerb?: string;
   /** Disables confirming while the caller is still writing the last lot away. */
@@ -99,6 +102,7 @@ const STRIP_HEIGHT = 62;
 export function ContactPicker({
   onConfirm,
   existing,
+  initialSelected,
   confirmVerb = 'Add',
   busy = false,
 }: ContactPickerProps): React.JSX.Element {
@@ -107,7 +111,11 @@ export function ContactPicker({
   const [access, setAccess] = useState<Access>(Access.Asking);
   const [contacts, setContacts] = useState<PickedContact[]>([]);
   const [query, setQuery] = useState('');
-  const [picked, setPicked] = useState<ReadonlyMap<string, PickedContact>>(new Map());
+  // Seeded from whoever is already chosen, so opening the picker shows them
+  // ticked and in the strip rather than an empty selection.
+  const [picked, setPicked] = useState<ReadonlyMap<string, PickedContact>>(
+    () => new Map((initialSelected ?? []).map((contact) => [keyOf(contact), contact])),
+  );
   const cancelled = useRef(false);
 
   const load = useCallback(async (): Promise<void> => {
