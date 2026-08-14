@@ -53,8 +53,15 @@ export default function FriendsScreen() {
   });
   const rows = people.data ?? [];
 
-  const owedToYou = rows.filter((row) => BigInt(row.net) > 0n);
-  const youOwe = rows.filter((row) => BigInt(row.net) < 0n);
+  // Biggest balance first in each list — the person who owes you most, and the
+  // one you owe most, are the two worth acting on. Sorting by magnitude puts
+  // them at the top rather than leaving the order to however the server replied.
+  const owedToYou = rows
+    .filter((row) => BigInt(row.net) > 0n)
+    .sort((a, b) => (BigInt(b.net) > BigInt(a.net) ? 1 : BigInt(b.net) < BigInt(a.net) ? -1 : 0));
+  const youOwe = rows
+    .filter((row) => BigInt(row.net) < 0n)
+    .sort((a, b) => (BigInt(a.net) > BigInt(b.net) ? 1 : BigInt(a.net) < BigInt(b.net) ? -1 : 0));
 
   return (
     <Screen>
