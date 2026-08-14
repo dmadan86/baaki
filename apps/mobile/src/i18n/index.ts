@@ -173,6 +173,13 @@ export interface UiStrings {
   newGroup: string;
   activity: string;
   friends: string;
+  /** The Friends list sort menu — the header, and its three keys. */
+  sort: {
+    by: string;
+    amount: string;
+    date: string;
+    name: string;
+  };
   profile: string;
   home: string;
   addExpense: string;
@@ -1220,6 +1227,7 @@ const en: UiStrings = {
   newGroup: 'New group',
   activity: 'Activity',
   friends: 'Friends',
+  sort: { by: 'Sort by', amount: 'Amount', date: 'Recent activity', name: 'Name' },
   profile: 'Account',
   home: 'Home',
   addExpense: 'Add expense',
@@ -2345,6 +2353,7 @@ const ta: UiStrings = {
   newGroup: 'புதிய குழு',
   activity: 'செயல்பாடு',
   friends: 'நண்பர்கள்',
+  sort: { by: 'வரிசைப்படுத்து', amount: 'தொகை', date: 'சமீபத்திய செயல்பாடு', name: 'பெயர்' },
   profile: 'கணக்கு',
   home: 'முகப்பு',
   addExpense: 'செலவு சேர்',
@@ -3496,6 +3505,7 @@ const hi: UiStrings = {
   newGroup: 'नया समूह',
   activity: 'गतिविधि',
   friends: 'दोस्त',
+  sort: { by: 'क्रमबद्ध करें', amount: 'राशि', date: 'हाल की गतिविधि', name: 'नाम' },
   profile: 'खाता',
   home: 'होम',
   addExpense: 'खर्च जोड़ें',
@@ -4612,6 +4622,7 @@ const ar: UiStrings = {
   newGroup: 'مجموعة جديدة',
   activity: 'النشاط',
   friends: 'الأصدقاء',
+  sort: { by: 'ترتيب حسب', amount: 'المبلغ', date: 'النشاط الأخير', name: 'الاسم' },
   profile: 'الحساب',
   home: 'الرئيسية',
   addExpense: 'إضافة مصروف',

@@ -18,7 +18,15 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   Avatar,
@@ -38,8 +46,39 @@ import {
 
 import { fetchPeopleBalances, nudgeToSettle, type PersonBalanceRow } from '@/data/api';
 import { PeopleSkeleton } from '@/components/Skeletons';
-import { plural, useStrings } from '@/i18n';
+import { plural, useStrings, type UiStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
+
+type SortKey = 'amount' | 'date' | 'name';
+type SortDir = 'asc' | 'desc';
+
+/** Each key's icon and the direction it opens in — biggest/newest first, A→Z. */
+const SORT_META: Record<SortKey, { icon: keyof typeof Ionicons.glyphMap; defaultDir: SortDir }> = {
+  amount: { icon: 'cash-outline', defaultDir: 'desc' },
+  date: { icon: 'time-outline', defaultDir: 'desc' },
+  name: { icon: 'text-outline', defaultDir: 'asc' },
+};
+
+const SORT_ORDER: readonly SortKey[] = ['amount', 'date', 'name'];
+
+/** Sort a section by the chosen key; `asc`/`desc` flips whatever the key means. */
+function sortPeople(rows: PersonBalanceRow[], key: SortKey, dir: SortDir): PersonBalanceRow[] {
+  const sign = dir === 'asc' ? 1 : -1;
+  const cmp = (a: PersonBalanceRow, b: PersonBalanceRow): number => {
+    if (key === 'name') return a.display_name.localeCompare(b.display_name) * sign;
+    if (key === 'date') {
+      const at = a.last_activity_at ? Date.parse(a.last_activity_at) : 0;
+      const bt = b.last_activity_at ? Date.parse(b.last_activity_at) : 0;
+      return (at < bt ? -1 : at > bt ? 1 : 0) * sign;
+    }
+    const av = BigInt(a.net);
+    const aAbs = av < 0n ? -av : av;
+    const bv = BigInt(b.net);
+    const bAbs = bv < 0n ? -bv : bv;
+    return (aAbs < bAbs ? -1 : aAbs > bAbs ? 1 : 0) * sign;
+  };
+  return [...rows].sort(cmp);
+}
 
 export default function FriendsScreen() {
   const theme = useTheme();
@@ -53,15 +92,32 @@ export default function FriendsScreen() {
   });
   const rows = people.data ?? [];
 
-  // Biggest balance first in each list — the person who owes you most, and the
-  // one you owe most, are the two worth acting on. Sorting by magnitude puts
-  // them at the top rather than leaving the order to however the server replied.
-  const owedToYou = rows
-    .filter((row) => BigInt(row.net) > 0n)
-    .sort((a, b) => (BigInt(b.net) > BigInt(a.net) ? 1 : BigInt(b.net) < BigInt(a.net) ? -1 : 0));
-  const youOwe = rows
-    .filter((row) => BigInt(row.net) < 0n)
-    .sort((a, b) => (BigInt(a.net) > BigInt(b.net) ? 1 : BigInt(a.net) < BigInt(b.net) ? -1 : 0));
+  // The sort the whole list obeys. Tapping a key in the menu switches to it;
+  // tapping the key already chosen flips its direction — amount and recent
+  // activity open biggest/newest first, name A→Z, and either can be reversed.
+  const [sortKey, setSortKey] = useState<SortKey>('amount');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [sortOpen, setSortOpen] = useState(false);
+
+  const pickSort = (key: SortKey): void => {
+    if (key === sortKey) {
+      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(SORT_META[key].defaultDir);
+    }
+  };
+
+  const owedToYou = sortPeople(
+    rows.filter((row) => BigInt(row.net) > 0n),
+    sortKey,
+    sortDir,
+  );
+  const youOwe = sortPeople(
+    rows.filter((row) => BigInt(row.net) < 0n),
+    sortKey,
+    sortDir,
+  );
 
   return (
     <Screen>
@@ -82,13 +138,35 @@ export default function FriendsScreen() {
       >
         <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
           <Text variant="title">{t.friends}</Text>
-          <Button
-            label={t.tabs.fromContacts}
-            size="sm"
-            icon={<Ionicons name="person-add-outline" size={16} color={theme.color.onBrand} />}
-            onPress={() => router.push('/friends/contacts')}
-          />
+          <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+            <Button
+              label={t.tabs.fromContacts}
+              size="sm"
+              icon={<Ionicons name="person-add-outline" size={16} color={theme.color.onBrand} />}
+              onPress={() => router.push('/friends/contacts')}
+            />
+            {/* The sort control — a bare vertical three-dot beside the button,
+                opening the same corner dropdown the rest of the app uses. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.sort.by}
+              onPress={() => setSortOpen(true)}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+            >
+              <Ionicons name="ellipsis-vertical" size={22} color={theme.color.text} />
+            </Pressable>
+          </Row>
         </Row>
+
+        <SortMenu
+          open={sortOpen}
+          onClose={() => setSortOpen(false)}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onPick={pickSort}
+          t={t}
+        />
 
         {people.isLoading ? (
           <PeopleSkeleton />
@@ -291,5 +369,103 @@ function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | n
     >
       <Badge label={t.people.remind} tone="brand" />
     </Pressable>
+  );
+}
+
+/**
+ * The sort dropdown — a bare corner card, WhatsApp-style, matching the app's
+ * other overflow menus. One row per key with its icon; the active key wears the
+ * brand ink and a direction arrow, and tapping it again flips the arrow.
+ */
+function SortMenu({
+  open,
+  onClose,
+  sortKey,
+  sortDir,
+  onPick,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onPick: (key: SortKey) => void;
+  t: UiStrings;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' }}
+      >
+        <View
+          style={{
+            position: 'absolute',
+            top: insets.top + 56,
+            right: theme.spacing.xl,
+            minWidth: 220,
+            backgroundColor: theme.color.surface,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.color.border,
+            paddingVertical: theme.spacing.xs,
+            ...theme.shadow.lifted,
+          }}
+        >
+          <Text
+            variant="micro"
+            tone="faint"
+            style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+          >
+            {t.sort.by}
+          </Text>
+          {SORT_ORDER.map((key) => {
+            const active = key === sortKey;
+            const label =
+              key === 'amount' ? t.sort.amount : key === 'date' ? t.sort.date : t.sort.name;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => onPick(key)}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: active }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.md,
+                  paddingHorizontal: theme.spacing.lg,
+                  paddingVertical: theme.spacing.md,
+                  backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
+                })}
+              >
+                <Ionicons
+                  name={SORT_META[key].icon}
+                  size={20}
+                  color={active ? theme.color.brand : theme.color.textMuted}
+                />
+                <Text
+                  variant="body"
+                  style={{ flex: 1, color: active ? theme.color.brand : theme.color.text }}
+                >
+                  {label}
+                </Text>
+                {active ? (
+                  <Ionicons
+                    name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'}
+                    size={18}
+                    color={theme.color.brand}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
