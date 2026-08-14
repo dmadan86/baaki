@@ -48,9 +48,15 @@ const EMOJI_FOR_TYPE: Record<GroupType, string> = {
 
 const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
 
-/** A chip icon renderer that takes the chip's resolved colour (selected/not). */
+/**
+ * A chip icon renderer that takes the chip's resolved colour (selected/not).
+ * Not a component — a render callback the Chip calls with its own ink colour, so
+ * the display-name rule (which assumes a returned element means a component) does
+ * not apply here.
+ */
 const iconFor =
   (name: keyof typeof Ionicons.glyphMap) =>
+  // eslint-disable-next-line react/display-name
   (color: string): ReactNode => <Ionicons name={name} size={16} color={color} />;
 
 /**
@@ -104,7 +110,7 @@ export default function NewGroupScreen() {
   const emoji = pickedEmoji ?? guessGroupEmoji(name) ?? EMOJI_FOR_TYPE[type];
   // Trips and events benefit most from simplification; a two-person group does
   // not. Follows the type until somebody says otherwise.
-  const effectiveSimplify = simplify ?? (type === 'trip' || type === 'event');
+  const effectiveSimplify = simplify ?? (type === GroupType.Trip || type === GroupType.Event);
   const currency = currencyForCountry(country) ?? 'INR';
 
   const submit = async (): Promise<void> => {
@@ -145,7 +151,7 @@ export default function NewGroupScreen() {
       // Trip dates are not part of the create call, so they ride behind it as
       // an update on the same ordered queue — only when a trip was actually
       // given a start and end, since that is what turns the reminders on.
-      if (tripDates.start_date && tripDates.end_date) {
+      if (type === GroupType.Trip && tripDates.start_date && tripDates.end_date) {
         await mutate(MutationKind.GroupUpdate, groupId, {
           start_date: tripDates.start_date,
           end_date: tripDates.end_date,
@@ -288,11 +294,15 @@ export default function NewGroupScreen() {
             expense starts in. The same flagged row the settings screen uses. */}
         <CountryRow countryCode={country} onChange={setCountry} />
 
-        <TripDates
-          group={tripDates}
-          locale={locale}
-          onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
-        />
+        {/* Dates and their daily nudges only mean anything for a trip — a
+            flatshare or a couple has no start and end. Shown only for trips. */}
+        {type === GroupType.Trip ? (
+          <TripDates
+            group={tripDates}
+            locale={locale}
+            onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
+          />
+        ) : null}
 
         {/* ADR-009: simplification is presentation only — the pairwise ledger
             underneath is untouched. */}
