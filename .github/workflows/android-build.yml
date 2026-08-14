@@ -80,7 +80,7 @@ jobs:
           curl -fSL "$url" -o "$out"
           echo "file=apps/mobile/$out" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android-${{ inputs.profile }}
           path: ${{ steps.artifact.outputs.file }}
