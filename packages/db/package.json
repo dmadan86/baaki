@@ -17,7 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@prisma/client": "6.19.1",
+    "@prisma/client": "7.9.1",
     "@baaki/core": "workspace:*"
   },
   "devDependencies": {
