@@ -16,6 +16,7 @@ import {
   Card,
   directionalIcon,
   IconButton,
+  iconSize,
   ListRow,
   Row,
   Screen,
@@ -78,7 +79,11 @@ export default function ThemeSettingsScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.theme.title}</Text>
@@ -96,10 +101,10 @@ export default function ThemeSettingsScreen() {
                   subtitle={row.subtitle}
                   onPress={() => void setPreference(row.value)}
                   accessibilityLabel={`${row.title}${chosen ? ', selected' : ''}`}
-                  leading={<Ionicons name={row.icon} size={22} color={theme.color.text} />}
+                  leading={<Ionicons name={row.icon} size={iconSize.xl} color={theme.color.text} />}
                   trailing={
                     chosen ? (
-                      <Ionicons name="checkmark" size={20} color={theme.color.brand} />
+                      <Ionicons name="checkmark" size={iconSize.lg} color={theme.color.brand} />
                     ) : null
                   }
                 />

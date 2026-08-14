@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { directionalIcon, isRtlLayout, Text, useTheme, type TintName } from '@baaki/ui';
+import { directionalIcon, iconSize, isRtlLayout, Text, type TintName, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 import { pageForSlide, pageOrder, slideForPage } from '@/lib/carousel';
@@ -207,7 +207,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   // not, and this one kept pointing right in a mirrored screen
                   // — "next" pointing backwards, on the very first screen.
                   name={last ? 'checkmark' : directionalIcon('arrow-forward')}
-                  size={24}
+                  size={iconSize.xxl}
                   color={theme.color.text}
                 />
               </Pressable>

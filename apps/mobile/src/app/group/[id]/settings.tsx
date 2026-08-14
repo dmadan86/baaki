@@ -9,6 +9,7 @@ import {
   directionalIcon,
   EmptyState,
   IconButton,
+  iconSize,
   ListRow,
   Row,
   Screen,
@@ -127,11 +128,15 @@ export default function GroupSettingsScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-              <Ionicons name="settings-outline" size={18} color={theme.color.brand} />
+              <Ionicons name="settings-outline" size={iconSize.md} color={theme.color.brand} />
               <Text variant="heading">{t.group.settings}</Text>
             </Row>
             <Text variant="micro" tone="muted">
@@ -242,12 +247,14 @@ export default function GroupSettingsScreen() {
             <ListRow
               title={plural(locale, members.data?.length ?? 0, t.memberCount)}
               subtitle={t.group.membersHint}
-              leading={<Ionicons name="people-outline" size={22} color={theme.color.textMuted} />}
+              leading={
+                <Ionicons name="people-outline" size={iconSize.xl} color={theme.color.textMuted} />
+              }
               onPress={() => router.push(`/group/${groupId}/members`)}
               trailing={
                 <Ionicons
                   name={directionalIcon('chevron-forward')}
-                  size={18}
+                  size={iconSize.md}
                   color={theme.color.textFaint}
                 />
               }
@@ -256,12 +263,14 @@ export default function GroupSettingsScreen() {
             <ListRow
               title={t.group.invitePeople}
               subtitle={t.group.invitePeopleHint}
-              leading={<Ionicons name="share-outline" size={22} color={theme.color.textMuted} />}
+              leading={
+                <Ionicons name="share-outline" size={iconSize.xl} color={theme.color.textMuted} />
+              }
               onPress={() => router.push(`/group/${groupId}/invite`)}
               trailing={
                 <Ionicons
                   name={directionalIcon('chevron-forward')}
-                  size={18}
+                  size={iconSize.md}
                   color={theme.color.textFaint}
                 />
               }
@@ -276,13 +285,17 @@ export default function GroupSettingsScreen() {
               title={t.group.importMessages}
               subtitle={t.group.importMessagesHint}
               leading={
-                <Ionicons name="chatbox-ellipses-outline" size={22} color={theme.color.textMuted} />
+                <Ionicons
+                  name="chatbox-ellipses-outline"
+                  size={iconSize.xl}
+                  color={theme.color.textMuted}
+                />
               }
               onPress={() => router.push(`/group/${groupId}/import/sms`)}
               trailing={
                 <Ionicons
                   name={directionalIcon('chevron-forward')}
-                  size={18}
+                  size={iconSize.md}
                   color={theme.color.textFaint}
                 />
               }
@@ -292,13 +305,17 @@ export default function GroupSettingsScreen() {
               title={t.group.importSplitwise}
               subtitle={t.group.importSplitwiseHint}
               leading={
-                <Ionicons name="document-text-outline" size={22} color={theme.color.textMuted} />
+                <Ionicons
+                  name="document-text-outline"
+                  size={iconSize.xl}
+                  color={theme.color.textMuted}
+                />
               }
               onPress={() => router.push(`/group/${groupId}/import/csv`)}
               trailing={
                 <Ionicons
                   name={directionalIcon('chevron-forward')}
-                  size={18}
+                  size={iconSize.md}
                   color={theme.color.textFaint}
                 />
               }

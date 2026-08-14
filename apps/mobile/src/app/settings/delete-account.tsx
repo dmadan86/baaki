@@ -10,6 +10,7 @@ import {
   Card,
   directionalIcon,
   IconButton,
+  iconSize,
   Row,
   Screen,
   Text,
@@ -96,7 +97,11 @@ export default function DeleteAccountScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.privacy.deleteTitle}</Text>
@@ -111,7 +116,7 @@ export default function DeleteAccountScreen() {
         {/* What stays comes first: it is the surprising half. */}
         <Card style={{ gap: theme.spacing.sm, borderWidth: 1, borderColor: theme.color.border }}>
           <Row style={{ gap: theme.spacing.sm }}>
-            <Ionicons name="people-outline" size={18} color={theme.color.text} />
+            <Ionicons name="people-outline" size={iconSize.md} color={theme.color.text} />
             <Text variant="subheading">{t.privacy.deleteStaysTitle}</Text>
           </Row>
           <Text variant="caption" tone="muted">
@@ -147,7 +152,7 @@ export default function DeleteAccountScreen() {
 
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ gap: theme.spacing.sm }}>
-            <Ionicons name="trash-outline" size={18} color={theme.color.negative} />
+            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
             <Text variant="subheading">{t.privacy.deleteGoesTitle}</Text>
           </Row>
           <Text variant="caption" tone="muted">

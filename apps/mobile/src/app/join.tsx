@@ -11,6 +11,7 @@ import {
   Callout,
   Card,
   EmptyState,
+  iconSize,
   Row,
   Screen,
   Text,
@@ -154,7 +155,7 @@ export default function JoinScreen() {
           }}
         >
           <Card style={{ alignItems: 'center', gap: theme.spacing.md }}>
-            <Ionicons name="hourglass-outline" size={40} color={theme.color.brand} />
+            <Ionicons name="hourglass-outline" size={iconSize.hero} color={theme.color.brand} />
             <Text variant="subheading" align="center">
               {t.claims.waitingTitle}
             </Text>
@@ -242,7 +243,11 @@ export default function JoinScreen() {
             </Row>
             {claimId ? (
               <Row style={{ gap: theme.spacing.sm }}>
-                <Ionicons name="information-circle-outline" size={16} color={theme.color.brand} />
+                <Ionicons
+                  name="information-circle-outline"
+                  size={iconSize.base}
+                  color={theme.color.brand}
+                />
                 <Text variant="micro" tone="brand" style={{ flex: 1 }}>
                   {`${t.extras.theirPastBecomesYours} ${t.claims.needsConfirming}`}
                 </Text>

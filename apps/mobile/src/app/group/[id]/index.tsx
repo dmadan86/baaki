@@ -11,6 +11,7 @@ import {
   directionalIcon,
   EmptyState,
   Fab,
+  iconSize,
   ListRow,
   MoneyText,
   Row,
@@ -154,7 +155,11 @@ export default function GroupScreen() {
               accessibilityLabel={t.common.back}
               hitSlop={10}
             >
-              <Ionicons name={directionalIcon('chevron-back')} size={24} color={theme.color.text} />
+              <Ionicons
+                name={directionalIcon('chevron-back')}
+                size={iconSize.xxl}
+                color={theme.color.text}
+              />
             </Pressable>
             {/* The photo-and-name cluster is itself the way into settings, the
               way tapping a chat's title bar opens its info in WhatsApp — so the
@@ -195,7 +200,7 @@ export default function GroupScreen() {
               accessibilityLabel={t.group.more}
               hitSlop={10}
             >
-              <Ionicons name="ellipsis-vertical" size={22} color={theme.color.text} />
+              <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
             </Pressable>
           </Row>
 
@@ -230,13 +235,13 @@ export default function GroupScreen() {
             >
               <Card style={{ gap: theme.spacing.sm }}>
                 <Row style={{ gap: theme.spacing.sm }}>
-                  <Ionicons name="receipt-outline" size={18} color={theme.color.brand} />
+                  <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
                   <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
                     {receipt.parsed?.merchant ?? t.expense.aBill}
                   </Text>
                   <Ionicons
                     name={directionalIcon('chevron-forward')}
-                    size={18}
+                    size={iconSize.md}
                     color={theme.color.textFaint}
                   />
                 </Row>
@@ -289,7 +294,9 @@ export default function GroupScreen() {
               <Button
                 label={t.settleUp}
                 onPress={() => router.push(`/group/${groupId}/settle`)}
-                icon={<Ionicons name="swap-horizontal" size={18} color={theme.color.onBrand} />}
+                icon={
+                  <Ionicons name="swap-horizontal" size={iconSize.md} color={theme.color.onBrand} />
+                }
                 style={{ flex: 1, paddingHorizontal: theme.spacing.md }}
               />
               <Button
@@ -530,7 +537,7 @@ export default function GroupScreen() {
         <Fab
           label={t.addExpense}
           onPress={() => router.push(`/group/${groupId}/add-expense`)}
-          icon={<Ionicons name="add" size={22} color={theme.color.onBrand} />}
+          icon={<Ionicons name="add" size={iconSize.xl} color={theme.color.onBrand} />}
         />
       </DetailEnter>
     </Screen>

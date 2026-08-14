@@ -16,7 +16,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useSegments } from 'expo-router';
 
-import { PillTabBar, type PillTabItem } from '@baaki/ui';
+import { iconSize, PillTabBar, type PillTabItem } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';
@@ -37,22 +37,22 @@ export function AppTabBar() {
     {
       key: 'index',
       label: t.home,
-      icon: (color) => <Ionicons name="home" size={20} color={color} />,
+      icon: (color) => <Ionicons name="home" size={iconSize.lg} color={color} />,
     },
     {
       key: 'friends',
       label: t.friends,
-      icon: (color) => <Ionicons name="people" size={20} color={color} />,
+      icon: (color) => <Ionicons name="people" size={iconSize.lg} color={color} />,
     },
     {
       key: 'activity',
       label: t.activity,
-      icon: (color) => <Ionicons name="pulse" size={20} color={color} />,
+      icon: (color) => <Ionicons name="pulse" size={iconSize.lg} color={color} />,
     },
     {
       key: 'inbox',
       label: t.tabs.inbox,
-      icon: (color) => <Ionicons name="file-tray-outline" size={20} color={color} />,
+      icon: (color) => <Ionicons name="file-tray-outline" size={iconSize.lg} color={color} />,
     },
   ];
 

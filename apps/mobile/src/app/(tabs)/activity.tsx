@@ -6,6 +6,7 @@ import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import {
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -59,14 +60,14 @@ export default function ActivityScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md, justifyContent: 'space-between' }}>
           <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            <Ionicons name="pulse" size={22} color={theme.color.brand} />
+            <Ionicons name="pulse" size={iconSize.xl} color={theme.color.brand} />
             <Text variant="title">{t.activity}</Text>
           </Row>
           {/* The feed is what happened in the groups; the inbox is what Baaki
               said to you. Related enough to sit together, different enough not
               to be interleaved. */}
           <IconButton label={t.tabs.inbox} onPress={() => router.push('/inbox' as never)}>
-            <Ionicons name="notifications-outline" size={20} color={theme.color.text} />
+            <Ionicons name="notifications-outline" size={iconSize.lg} color={theme.color.text} />
             {unread > 0 ? (
               <View
                 style={{

@@ -7,6 +7,7 @@ import {
   Card,
   directionalIcon,
   IconButton,
+  iconSize,
   Row,
   Screen,
   Text,
@@ -86,7 +87,11 @@ export default function PrivacyScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.privacy.title}</Text>
@@ -101,7 +106,7 @@ export default function PrivacyScreen() {
         {sections.map((section) => (
           <Card key={section.id} style={{ gap: theme.spacing.sm }}>
             <Row style={{ gap: theme.spacing.sm }}>
-              <Ionicons name={section.icon} size={18} color={theme.color.brand} />
+              <Ionicons name={section.icon} size={iconSize.md} color={theme.color.brand} />
               <Text variant="subheading">{section.title}</Text>
             </Row>
             <Text variant="caption" tone="muted">

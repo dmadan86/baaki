@@ -43,6 +43,7 @@ import {
   directionalIcon,
   Divider,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -342,7 +343,11 @@ export default function ImportScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.importLedger.ledgerTitle}</Text>
@@ -370,7 +375,7 @@ export default function ImportScreen() {
           icon={
             <Ionicons
               name="document-attach-outline"
-              size={18}
+              size={iconSize.md}
               color={file ? theme.color.brand : theme.color.onBrand}
             />
           }
@@ -519,7 +524,11 @@ export default function ImportScreen() {
                   disabled={busy || !claimedByMe}
                   onPress={() => void run()}
                   icon={
-                    <Ionicons name="cloud-upload-outline" size={18} color={theme.color.onBrand} />
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={iconSize.md}
+                      color={theme.color.onBrand}
+                    />
                   }
                 />
                 {!claimedByMe ? (
@@ -588,7 +597,7 @@ function TargetRow({
         </View>
         <Ionicons
           name={selected ? 'radio-button-on' : 'radio-button-off'}
-          size={22}
+          size={iconSize.xl}
           color={selected ? theme.color.brand : theme.color.textFaint}
         />
       </Row>

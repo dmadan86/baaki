@@ -119,6 +119,27 @@ export const radius = {
   pill: 999,
 } as const;
 
+/**
+ * Icon glyph sizes — the `size` a vector icon (Ionicons, etc.) is drawn at.
+ * A named scale so a screen asks for `iconSize.lg`, not a bare `20` nobody can
+ * find or keep consistent. These are icon sizes only; avatar/photo/badge
+ * dimensions are component props, not this scale.
+ */
+export const iconSize = {
+  micro: 10,
+  xs: 12,
+  sm: 14,
+  base: 16,
+  md: 18,
+  lg: 20,
+  xl: 22,
+  xxl: 24,
+  xxxl: 26,
+  jumbo: 30,
+  huge: 36,
+  hero: 40,
+} as const;
+
 /** 4px base scale. */
 export const spacing = {
   xs: 4,

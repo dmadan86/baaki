@@ -22,6 +22,7 @@ import {
   ChipRow,
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -250,7 +251,7 @@ export default function SettleScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={20} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.settleUp}</Text>
@@ -364,7 +365,7 @@ export default function SettleScreen() {
               onPress={() => (handsOff ? void payThen() : void record())}
               icon={
                 handsOff ? (
-                  <Ionicons name="open-outline" size={18} color={theme.color.onBrand} />
+                  <Ionicons name="open-outline" size={iconSize.md} color={theme.color.onBrand} />
                 ) : undefined
               }
             />

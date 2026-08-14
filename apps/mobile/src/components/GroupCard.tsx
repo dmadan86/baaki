@@ -13,7 +13,16 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 
 import type { CurrencyCode } from '@baaki/core';
-import { Avatar, directionalIcon, MoneyText, Row, Text, tintForKey, useTheme } from '@baaki/ui';
+import {
+  Avatar,
+  directionalIcon,
+  iconSize,
+  MoneyText,
+  Row,
+  Text,
+  tintForKey,
+  useTheme,
+} from '@baaki/ui';
 
 import { PressableScale } from '@/lib/anim';
 
@@ -95,7 +104,7 @@ export function GroupCard({
 
         <Ionicons
           name={directionalIcon('chevron-forward')}
-          size={18}
+          size={iconSize.md}
           color={theme.color.textFaint}
         />
       </Row>

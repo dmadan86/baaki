@@ -34,6 +34,7 @@ import {
   Button,
   Card,
   EmptyState,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -137,14 +138,20 @@ export default function FriendsScreen() {
       >
         <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
           <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            <Ionicons name="people" size={22} color={theme.color.brand} />
+            <Ionicons name="people" size={iconSize.xl} color={theme.color.brand} />
             <Text variant="title">{t.friends}</Text>
           </Row>
           <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
             <Button
               label={t.tabs.fromContacts}
               size="sm"
-              icon={<Ionicons name="person-add-outline" size={15} color={theme.color.onBrand} />}
+              icon={
+                <Ionicons
+                  name="person-add-outline"
+                  size={iconSize.base}
+                  color={theme.color.onBrand}
+                />
+              }
               onPress={() => router.push('/friends/contacts')}
               style={{ height: 32, paddingHorizontal: theme.spacing.md, gap: theme.spacing.xs }}
             />
@@ -157,7 +164,7 @@ export default function FriendsScreen() {
               hitSlop={10}
               style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
             >
-              <Ionicons name="ellipsis-vertical" size={22} color={theme.color.text} />
+              <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
             </Pressable>
           </Row>
         </Row>
@@ -454,7 +461,7 @@ function SortMenu({
                 >
                   <Ionicons
                     name={SORT_META[key].icon}
-                    size={20}
+                    size={iconSize.lg}
                     color={active ? theme.color.brand : theme.color.textMuted}
                   />
                   <Text
@@ -466,7 +473,7 @@ function SortMenu({
                   {active ? (
                     <Ionicons
                       name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'}
-                      size={18}
+                      size={iconSize.md}
                       color={theme.color.brand}
                     />
                   ) : null}

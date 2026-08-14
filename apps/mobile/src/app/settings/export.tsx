@@ -13,6 +13,7 @@ import {
   ChipRow,
   directionalIcon,
   IconButton,
+  iconSize,
   Row,
   Screen,
   Text,
@@ -90,7 +91,11 @@ export default function ExportScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.exportData.title}</Text>
@@ -145,7 +150,7 @@ export default function ExportScreen() {
           fullWidth
           disabled={busy}
           onPress={() => void run()}
-          icon={<Ionicons name="download-outline" size={18} color={theme.color.onBrand} />}
+          icon={<Ionicons name="download-outline" size={iconSize.md} color={theme.color.onBrand} />}
         />
         {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
 
@@ -172,7 +177,9 @@ export default function ExportScreen() {
           variant="ghost"
           fullWidth
           onPress={() => router.push('/settings/import')}
-          icon={<Ionicons name="cloud-upload-outline" size={18} color={theme.color.brand} />}
+          icon={
+            <Ionicons name="cloud-upload-outline" size={iconSize.md} color={theme.color.brand} />
+          }
         />
       </ScrollView>
     </Screen>

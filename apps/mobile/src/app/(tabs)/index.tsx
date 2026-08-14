@@ -10,6 +10,7 @@ import {
   Card,
   EmptyState,
   Gradient,
+  iconSize,
   Row,
   Screen,
   SectionHeader,
@@ -190,7 +191,7 @@ export default function HomeScreen() {
             hitSlop={10}
             style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
           >
-            <Ionicons name="camera-outline" size={24} color={theme.color.text} />
+            <Ionicons name="camera-outline" size={iconSize.xxl} color={theme.color.text} />
           </Pressable>
           {/* The overflow: the settings and the less-used destinations, dropped
               from here rather than owning a tab. */}
@@ -201,7 +202,7 @@ export default function HomeScreen() {
             hitSlop={10}
             style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
           >
-            <Ionicons name="ellipsis-vertical" size={24} color={theme.color.text} />
+            <Ionicons name="ellipsis-vertical" size={iconSize.xxl} color={theme.color.text} />
           </Pressable>
         </Row>
 
@@ -229,7 +230,11 @@ export default function HomeScreen() {
                   backgroundColor: theme.color.brandSoft,
                 }}
               >
-                <Ionicons name="file-tray-full-outline" size={22} color={theme.color.brand} />
+                <Ionicons
+                  name="file-tray-full-outline"
+                  size={iconSize.xl}
+                  color={theme.color.brand}
+                />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text variant="subheading">{t.captures.unassigned}</Text>
@@ -237,7 +242,7 @@ export default function HomeScreen() {
                   {plural(locale, captureCount, t.captures.unassignedBody)}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={theme.color.textFaint} />
+              <Ionicons name="chevron-forward" size={iconSize.lg} color={theme.color.textFaint} />
             </Card>
           </Pressable>
         ) : null}
@@ -289,7 +294,7 @@ export default function HomeScreen() {
                 <Button
                   label={t.newGroup}
                   size="sm"
-                  icon={<Ionicons name="add" size={15} color={theme.color.onBrand} />}
+                  icon={<Ionicons name="add" size={iconSize.base} color={theme.color.onBrand} />}
                   onPress={openNewGroup}
                   style={{ height: 32, paddingHorizontal: theme.spacing.md, gap: theme.spacing.xs }}
                 />
@@ -426,7 +431,7 @@ function CategoryStrip({
             >
               <Ionicons
                 name={chip.icon}
-                size={22}
+                size={iconSize.xl}
                 color={selected ? theme.color.onBrand : theme.color.textMuted}
               />
               <Text variant="micro" numberOfLines={1} style={{ color: ink }}>

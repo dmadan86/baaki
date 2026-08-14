@@ -30,6 +30,7 @@ import {
   directionalIcon,
   Divider,
   IconButton,
+  iconSize,
   ListRow,
   Row,
   Screen,
@@ -116,7 +117,11 @@ export default function ContactsScreen(): React.JSX.Element {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.misc.fromYourContacts}</Text>
@@ -234,7 +239,7 @@ function ChooseGroup({
                 trailing={
                   <Ionicons
                     name={directionalIcon('chevron-forward')}
-                    size={18}
+                    size={iconSize.md}
                     color={theme.color.textFaint}
                   />
                 }

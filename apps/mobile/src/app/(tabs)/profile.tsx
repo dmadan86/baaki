@@ -10,6 +10,7 @@ import {
   Card,
   ChipRow,
   directionalIcon,
+  iconSize,
   ListRow,
   MoneyText,
   Row,
@@ -85,7 +86,7 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
                   >
                     <Ionicons
                       name={item.icon}
-                      size={18}
+                      size={iconSize.md}
                       color={
                         item.destructive
                           ? theme.color.negative
@@ -100,7 +101,7 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
                   item.route ? (
                     <Ionicons
                       name={directionalIcon('chevron-forward')}
-                      size={18}
+                      size={iconSize.md}
                       color={theme.color.textFaint}
                     />
                   ) : null
@@ -244,7 +245,7 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
           backgroundColor: theme.color.brandSoft,
         }}
       >
-        <Ionicons name="checkmark-done" size={16} color={theme.color.brand} />
+        <Ionicons name="checkmark-done" size={iconSize.base} color={theme.color.brand} />
         <Row style={{ gap: 4 }}>
           <MoneyText
             amount={top[1]}

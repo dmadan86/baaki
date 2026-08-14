@@ -21,6 +21,7 @@ import {
   Card,
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -409,7 +410,7 @@ export default function ItemizeScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={20} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.itemize.title}</Text>
@@ -425,7 +426,7 @@ export default function ItemizeScreen() {
              is say who had what. Everybody sees everybody else's taps. */
           <Card style={{ gap: theme.spacing.sm }}>
             <Row style={{ gap: theme.spacing.sm }}>
-              <Ionicons name="people-outline" size={18} color={theme.color.brand} />
+              <Ionicons name="people-outline" size={iconSize.md} color={theme.color.brand} />
               <Text variant="subheading" style={{ flex: 1 }}>
                 {t.itemize.splittingTogether}
               </Text>
@@ -449,7 +450,9 @@ export default function ItemizeScreen() {
                 variant="secondary"
                 disabled={scanning}
                 onPress={() => void scan()}
-                icon={<Ionicons name="camera-outline" size={18} color={theme.color.brand} />}
+                icon={
+                  <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
+                }
               />
             </Row>
             {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
@@ -474,7 +477,7 @@ export default function ItemizeScreen() {
               variant="secondary"
               disabled={publishing}
               onPress={() => void publish()}
-              icon={<Ionicons name="people-outline" size={18} color={theme.color.brand} />}
+              icon={<Ionicons name="people-outline" size={iconSize.md} color={theme.color.brand} />}
             />
           </Card>
         ) : null}
@@ -563,7 +566,7 @@ export default function ItemizeScreen() {
                     setItems((current) => current.filter((row) => row.key !== item.key))
                   }
                 >
-                  <Ionicons name="trash-outline" size={18} color={theme.color.textFaint} />
+                  <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
                 </Pressable>
               )}
             </Row>

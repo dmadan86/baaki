@@ -33,6 +33,7 @@ import {
   Chip,
   EmptyState,
   IconButton,
+  iconSize,
   ListRow,
   MoneyText,
   Row,
@@ -225,7 +226,7 @@ export default function ImportSmsScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={22} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.xl} color={theme.color.text} />
           </IconButton>
           <Text variant="subheading" style={{ marginLeft: theme.spacing.md }}>
             {t.smsImport.title}
@@ -280,7 +281,13 @@ export default function ImportSmsScreen() {
                   variant="secondary"
                   disabled={reading}
                   onPress={() => void readInbox()}
-                  icon={<Ionicons name="chatbubbles-outline" size={18} color={theme.color.brand} />}
+                  icon={
+                    <Ionicons
+                      name="chatbubbles-outline"
+                      size={iconSize.md}
+                      color={theme.color.brand}
+                    />
+                  }
                 />
                 <Text variant="micro" tone="faint">
                   {t.smsImport.readOnAndroid}
@@ -361,7 +368,7 @@ export default function ImportSmsScreen() {
                           leading={
                             <Ionicons
                               name={picked ? 'checkbox' : 'square-outline'}
-                              size={24}
+                              size={iconSize.xxl}
                               color={picked ? theme.color.brand : theme.color.textFaint}
                             />
                           }

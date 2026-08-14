@@ -22,6 +22,7 @@ import {
   ChipRow,
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -475,7 +476,7 @@ export default function AddExpenseScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={20} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
@@ -490,7 +491,7 @@ export default function AddExpenseScreen() {
               label={t.expense.splitByItem}
               onPress={() => router.replace(`/group/${groupId}/itemize`)}
             >
-              <Ionicons name="list-outline" size={20} color={theme.color.brand} />
+              <Ionicons name="list-outline" size={iconSize.lg} color={theme.color.brand} />
             </IconButton>
           )}
         </Row>
@@ -523,7 +524,7 @@ export default function AddExpenseScreen() {
               variant="secondary"
               disabled={scanning || saving}
               onPress={() => void scan()}
-              icon={<Ionicons name="camera-outline" size={18} color={theme.color.brand} />}
+              icon={<Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />}
             />
           </Row>
           {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
@@ -727,7 +728,7 @@ export default function AddExpenseScreen() {
                 >
                   <Ionicons
                     name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={22}
+                    size={iconSize.xl}
                     color={selected ? theme.color.brand : theme.color.textFaint}
                   />
                 </Pressable>

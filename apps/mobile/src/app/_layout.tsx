@@ -9,7 +9,15 @@ import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Button, CurvedPanel, setLayoutDirection, ThemeProvider, Text, useTheme } from '@baaki/ui';
+import {
+  Button,
+  CurvedPanel,
+  iconSize,
+  setLayoutDirection,
+  Text,
+  ThemeProvider,
+  useTheme,
+} from '@baaki/ui';
 
 import { AppTabBar } from '@/components/AppTabBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
@@ -267,7 +275,7 @@ function LockGate({ children }: { children: React.ReactNode }) {
           >
             பாக்கி
           </Text>
-          <Ionicons name="lock-closed" size={22} color={theme.color.onBrand} />
+          <Ionicons name="lock-closed" size={iconSize.xl} color={theme.color.onBrand} />
         </View>
       </CurvedPanel>
 

@@ -9,6 +9,7 @@ import {
   directionalIcon,
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -49,7 +50,11 @@ export default function SimplifyScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.whoPaysWhom}</Text>
@@ -87,7 +92,7 @@ export default function SimplifyScreen() {
                   <Avatar name={nameOf(transfer.from)} size={38} />
                   <Ionicons
                     name={directionalIcon('arrow-forward')}
-                    size={16}
+                    size={iconSize.base}
                     color={theme.color.textFaint}
                   />
                   <Avatar name={nameOf(transfer.to)} size={38} />
