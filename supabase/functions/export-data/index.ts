@@ -140,7 +140,13 @@ Deno.serve(async (request) => {
 
     const separator = body.csvSeparator ?? ',';
     const escape = (value: unknown): string => {
-      const text = value === null || value === undefined ? '' : String(value);
+      let text = value === null || value === undefined ? '' : String(value);
+      // Formula injection: a cell an app opens as a spreadsheet treats a leading
+      // =, +, -, @ (or tab/CR) as a formula, so `=HYPERLINK(...)` in an expense
+      // description would run on open. Descriptions and names are user-typed and
+      // land here verbatim. Neutralise by prefixing a single quote, then quote
+      // as usual.
+      if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
       return /["\n]|,|;/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
     };
 

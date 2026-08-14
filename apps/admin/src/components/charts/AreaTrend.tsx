@@ -1,9 +1,9 @@
 'use client';
 
 import type { EChartsOption } from 'echarts';
-import ReactECharts from 'echarts-for-react';
 import { useState } from 'react';
 
+import { ReactEChartsCore } from './echarts-core';
 import { PALETTE } from './palette';
 
 export interface TrendDay {
@@ -96,7 +96,12 @@ export function AreaTrend({ days }: { days: TrendDay[] }) {
         </div>
       </div>
       <div className="echart">
-        <ReactECharts option={option} style={{ height: 240 }} opts={{ renderer: 'svg' }} notMerge />
+        <ReactEChartsCore
+          option={option}
+          style={{ height: 240 }}
+          opts={{ renderer: 'svg' }}
+          notMerge
+        />
       </div>
     </>
   );

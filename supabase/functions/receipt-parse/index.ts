@@ -185,6 +185,13 @@ Deno.serve(async (request) => {
 
     const content: unknown[] = [];
     if (body.storagePath) {
+      // IDOR guard: the download runs with the service role, which bypasses
+      // bucket RLS. `groupId` was checked by requireMembership above; the client
+      // uploads to `${groupId}/${receiptId}.ext`, so require that prefix or a
+      // caller could read another group's receipt by passing its object path.
+      if (!body.storagePath.startsWith(`${body.groupId}/`)) {
+        throw new HttpError(403, 'FORBIDDEN', 'That image does not belong to this group');
+      }
       // Downloaded with the service role and sent as base64: the model never
       // gets a URL into our storage, signed or otherwise.
       const { data: file, error: downloadError } = await service.storage
@@ -296,7 +303,7 @@ Deno.serve(async (request) => {
       status,
       parsed,
       check,
-      quota: { used: used + 1, limit: MONTHLY_SCAN_LIMIT },
+      quota: { used: used + 1, limit },
     });
   } catch (error) {
     return errorResponse(error, { fn: 'receipt-parse' });

@@ -136,6 +136,19 @@ Deno.serve(async (request) => {
       }
     }
 
+    // Reserve a use atomically before creating anything. A plain read-then-write
+    // let two redemptions of the same link race past `max_uses`; this conditional
+    // increment lets exactly one of them win the last slot (and re-checks
+    // revocation/expiry under the row lock). Placed after the already-a-member
+    // and guest-ceiling short-circuits so those never burn a use.
+    const { data: consumed, error: consumeError } = await service.rpc('baaki_consume_invite', {
+      p_invite_id: invite.id,
+    });
+    if (consumeError) throw new HttpError(500, 'INTERNAL', consumeError.message);
+    if (consumed !== true) {
+      throw new HttpError(404, 'INVITE_INVALID', 'This invite link is no longer valid');
+    }
+
     let memberId: string;
 
     if (body.claimMemberId) {
@@ -187,11 +200,6 @@ Deno.serve(async (request) => {
       if (insertError) throw new HttpError(500, 'INTERNAL', insertError.message);
       memberId = inserted.id;
     }
-
-    await service
-      .from('invites')
-      .update({ use_count: invite.use_count + 1 })
-      .eq('id', invite.id);
 
     await service.from('activity_log').insert({
       group_id: invite.group_id,
