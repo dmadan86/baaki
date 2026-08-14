@@ -39,7 +39,10 @@ const HIDE_ON = new Set([
 export function AppTabBar() {
   const { t } = useStrings();
   const { animated } = useMotion();
-  const segments = useSegments();
+  // `useSegments` is typed as a union of fixed-length route tuples, so indexing
+  // past the first element trips the tuple bounds check under the CI tsconfig.
+  // We only ever read positions generically, so widen to a plain string array.
+  const segments = useSegments() as readonly string[];
 
   const root = segments[0] ?? '';
   const leaf = segments[segments.length - 1] ?? '';
