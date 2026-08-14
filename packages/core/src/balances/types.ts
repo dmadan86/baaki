@@ -17,8 +17,13 @@ export interface ExpenseSnapshot {
   readonly deletedAt?: string | null;
 }
 
-export type SettlementStatus =
-  'initiated' | 'confirmed' | 'auto_confirmed' | 'disputed' | 'cancelled';
+export enum SettlementStatus {
+  Initiated = 'initiated',
+  Confirmed = 'confirmed',
+  AutoConfirmed = 'auto_confirmed',
+  Disputed = 'disputed',
+  Cancelled = 'cancelled',
+}
 
 export interface SettlementAllocation {
   readonly expenseId: string;

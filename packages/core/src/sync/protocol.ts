@@ -8,20 +8,21 @@
  * network can never double-post an expense.
  */
 
-import { MoneyError, type CurrencyCode } from '../money/currency';
+import { MoneyError, MoneyErrorCode, type CurrencyCode } from '../money/currency';
 import type { MemberId, SplitParams } from '../split/types';
 import type { SettlementAllocation, SettlementStatus } from '../balances/types';
 
-export type MutationKind =
-  | 'expense.create'
-  | 'expense.update'
-  | 'expense.delete'
-  | 'expense.restore'
-  | 'settlement.create'
-  | 'settlement.transition'
-  | 'member.add_ghost'
-  | 'group.create'
-  | 'group.update';
+export enum MutationKind {
+  ExpenseCreate = 'expense.create',
+  ExpenseUpdate = 'expense.update',
+  ExpenseDelete = 'expense.delete',
+  ExpenseRestore = 'expense.restore',
+  SettlementCreate = 'settlement.create',
+  SettlementTransition = 'settlement.transition',
+  MemberAddGhost = 'member.add_ghost',
+  GroupCreate = 'group.create',
+  GroupUpdate = 'group.update',
+}
 
 export interface MutationEnvelope<K extends MutationKind = MutationKind, P = unknown> {
   /** Client-generated UUID v4. The idempotency key. */
@@ -91,13 +92,14 @@ export type SyncMutationOutcome =
       readonly message: string;
     };
 
-export type SyncRejectionCode =
-  | 'SHARE_MISMATCH'
-  | 'NOT_A_MEMBER'
-  | 'GROUP_ARCHIVED'
-  | 'VALIDATION_FAILED'
-  | 'CONFLICT_SUPERSEDED'
-  | 'RATE_LIMITED';
+export enum SyncRejectionCode {
+  ShareMismatch = 'SHARE_MISMATCH',
+  NotAMember = 'NOT_A_MEMBER',
+  GroupArchived = 'GROUP_ARCHIVED',
+  ValidationFailed = 'VALIDATION_FAILED',
+  ConflictSuperseded = 'CONFLICT_SUPERSEDED',
+  RateLimited = 'RATE_LIMITED',
+}
 
 export interface SyncResponse {
   readonly outcomes: readonly SyncMutationOutcome[];
@@ -116,16 +118,17 @@ export interface SyncChange {
   readonly deleted?: boolean;
 }
 
-export type SyncTable =
-  | 'groups'
-  | 'group_members'
-  | 'expenses'
-  | 'expense_versions'
-  | 'expense_payers'
-  | 'expense_shares'
-  | 'settlements'
-  | 'settlement_allocations'
-  | 'activity_log';
+export enum SyncTable {
+  Groups = 'groups',
+  GroupMembers = 'group_members',
+  Expenses = 'expenses',
+  ExpenseVersions = 'expense_versions',
+  ExpensePayers = 'expense_payers',
+  ExpenseShares = 'expense_shares',
+  Settlements = 'settlements',
+  SettlementAllocations = 'settlement_allocations',
+  ActivityLog = 'activity_log',
+}
 
 /** bigint ↔ string at the wire boundary; JSON has no integers this size. */
 export function serialiseAmount(amount: bigint): string {
@@ -156,7 +159,10 @@ export function serialiseAmount(amount: bigint): string {
  */
 export function parseAmount(amount: string): bigint {
   if (typeof amount !== 'string' || !/^[+-]?\d+$/.test(amount.trim())) {
-    throw new MoneyError('INVALID_AMOUNT', `${String(amount)} is not a whole minor-unit amount`);
+    throw new MoneyError(
+      MoneyErrorCode.InvalidAmount,
+      `${String(amount)} is not a whole minor-unit amount`,
+    );
   }
   return BigInt(amount.trim());
 }

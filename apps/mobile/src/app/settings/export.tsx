@@ -24,7 +24,10 @@ import { useGroups } from '@/data/hooks';
 import { groupLabel } from '@/data/types';
 import { useStrings } from '@/i18n';
 
-type Format = 'json' | 'csv';
+enum Format {
+  Json = 'json',
+  Csv = 'csv',
+}
 
 /**
  * ADR-012: your ledger leaves whenever you want it to, in full, for free.
@@ -36,7 +39,7 @@ export default function ExportScreen() {
   const groups = useGroups();
   const { t } = useStrings();
 
-  const [format, setFormat] = useState<Format>('json');
+  const [format, setFormat] = useState<Format>(Format.Json);
   const [scope, setScope] = useState<string>('all');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export default function ExportScreen() {
         await Sharing.shareAsync(file.uri, {
           mimeType: result.contentType,
           dialogTitle: t.exportData.shareTitle,
-          UTI: format === 'json' ? 'public.json' : 'public.comma-separated-values-text',
+          UTI: format === Format.Json ? 'public.json' : 'public.comma-separated-values-text',
         });
       }
       setDone(`${result.filename} · ${Math.ceil(result.content.length / 1024)} KB`);
@@ -111,8 +114,8 @@ export default function ExportScreen() {
             value={format}
             onChange={setFormat}
             options={[
-              { value: 'json', label: t.exportData.json },
-              { value: 'csv', label: t.exportData.csv },
+              { value: Format.Json, label: t.exportData.json },
+              { value: Format.Csv, label: t.exportData.csv },
             ]}
           />
         </View>

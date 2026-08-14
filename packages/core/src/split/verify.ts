@@ -11,7 +11,7 @@
  * computed one for.
  */
 
-import { SplitError, type MemberId, type ShareMap } from './types';
+import { SplitError, SplitErrorCode, type MemberId, type ShareMap } from './types';
 
 /**
  * Compare the authoritative shares against what the client believed.
@@ -34,13 +34,13 @@ export function verifyClientShares(
     const raw = claimed[member];
     if (raw === undefined) {
       throw new SplitError(
-        'SHARE_MISMATCH',
+        SplitErrorCode.ShareMismatch,
         `Server computed ${share} for ${member}, client said nothing`,
       );
     }
     if (toBigInt(raw, member) !== share) {
       throw new SplitError(
-        'SHARE_MISMATCH',
+        SplitErrorCode.ShareMismatch,
         `Server computed ${share} for ${member}, client said ${String(raw)}`,
       );
     }
@@ -52,7 +52,7 @@ export function verifyClientShares(
   for (const member of Object.keys(claimed)) {
     if (!computed.has(member)) {
       throw new SplitError(
-        'SHARE_MISMATCH',
+        SplitErrorCode.ShareMismatch,
         `Client claimed a share for ${member}, who is not in this split`,
       );
     }
@@ -64,6 +64,6 @@ function toBigInt(value: string | bigint, member: MemberId): bigint {
   try {
     return BigInt(value);
   } catch {
-    throw new SplitError('SHARE_MISMATCH', `Client sent "${value}" as ${member}'s share`);
+    throw new SplitError(SplitErrorCode.ShareMismatch, `Client sent "${value}" as ${member}'s share`);
   }
 }

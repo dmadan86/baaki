@@ -26,12 +26,7 @@ import { describe, expect, it } from 'vitest';
 
 import { computeShares, sumShares } from '../src/split/computeShares.js';
 import { verifyClientShares } from '../src/split/verify.js';
-import {
-  SplitError,
-  type MemberId,
-  type ShareMap,
-  type SplitErrorCode,
-} from '../src/split/types.js';
+import { SplitError, SplitErrorCode, type MemberId, type ShareMap } from '../src/split/types.js';
 
 /**
  * Assert on the machine-readable code rather than the prose. The message is for
@@ -183,7 +178,7 @@ describe('percentage splits — every composition of 100%', () => {
             participants: ids,
             seed: SEED,
           }),
-        'PERCENT_SUM_MISMATCH',
+        SplitErrorCode.PercentSumMismatch,
       );
     }
   });
@@ -200,7 +195,7 @@ describe('percentage splits — every composition of 100%', () => {
             participants: ids,
             seed: SEED,
           }),
-        'INVALID_WEIGHT',
+        SplitErrorCode.InvalidWeight,
       );
     }
   });
@@ -299,7 +294,7 @@ describe('share splits — every composition of ten shares', () => {
           participants: ids,
           seed: SEED,
         }),
-      'NO_POSITIVE_WEIGHT',
+      SplitErrorCode.NoPositiveWeight,
     );
   });
 
@@ -315,7 +310,7 @@ describe('share splits — every composition of ten shares', () => {
             participants: ids,
             seed: SEED,
           }),
-        'INVALID_WEIGHT',
+        SplitErrorCode.InvalidWeight,
       );
     }
   });
@@ -363,7 +358,7 @@ describe('fixed value splits — exact amounts per person', () => {
             participants: ids,
             seed: SEED,
           }),
-        'EXACT_SUM_MISMATCH',
+        SplitErrorCode.ExactSumMismatch,
       );
     }
   });
@@ -408,7 +403,7 @@ describe('rules that apply to every split type', () => {
     it(`${name}: refuses an expense with no participants`, () => {
       expectSplitError(
         () => computeShares({ amount: 1000n, currency: INR, params, participants: [], seed: SEED }),
-        'EMPTY_PARTICIPANTS',
+        SplitErrorCode.EmptyParticipants,
       );
     });
 
@@ -422,7 +417,7 @@ describe('rules that apply to every split type', () => {
             participants: ['m1', 'm2', 'm1'],
             seed: SEED,
           }),
-        'DUPLICATE_PARTICIPANT',
+        SplitErrorCode.DuplicateParticipant,
       );
     });
 
@@ -436,7 +431,7 @@ describe('rules that apply to every split type', () => {
             participants: ['m1', 'm2'],
             seed: SEED,
           }),
-        'NEGATIVE_TOTAL',
+        SplitErrorCode.NegativeTotal,
       );
     });
   }
@@ -457,7 +452,7 @@ describe('rules that apply to every split type', () => {
             participants: ['m1', 'm2'],
             seed: SEED,
           }),
-        'UNKNOWN_MEMBER',
+        SplitErrorCode.UnknownMember,
       );
     }
   });
@@ -527,13 +522,13 @@ describe('the server is the one that decides (TDR §4)', () => {
   it('rejects a client that is one paisa out', () => {
     const claimed = Object.fromEntries([...authoritative].map(([id, s]) => [id, s.toString()]));
     claimed.m1 = (BigInt(claimed.m1 ?? '0') + 1n).toString();
-    expectSplitError(() => verifyClientShares(authoritative, claimed), 'SHARE_MISMATCH');
+    expectSplitError(() => verifyClientShares(authoritative, claimed), SplitErrorCode.ShareMismatch);
   });
 
   it('rejects a client that omits somebody', () => {
     const claimed = Object.fromEntries([...authoritative].map(([id, s]) => [id, s.toString()]));
     delete claimed.m3;
-    expectSplitError(() => verifyClientShares(authoritative, claimed), 'SHARE_MISMATCH');
+    expectSplitError(() => verifyClientShares(authoritative, claimed), SplitErrorCode.ShareMismatch);
   });
 
   it('rejects a client that invents somebody', () => {
@@ -542,13 +537,13 @@ describe('the server is the one that decides (TDR §4)', () => {
     // wave this through.
     const claimed = Object.fromEntries([...authoritative].map(([id, s]) => [id, s.toString()]));
     claimed.mallory = '0';
-    expectSplitError(() => verifyClientShares(authoritative, claimed), 'SHARE_MISMATCH');
+    expectSplitError(() => verifyClientShares(authoritative, claimed), SplitErrorCode.ShareMismatch);
   });
 
   it('rejects a client that sends something that is not a number', () => {
     const claimed = Object.fromEntries([...authoritative].map(([id, s]) => [id, s.toString()]));
     claimed.m1 = 'five hundred';
-    expectSplitError(() => verifyClientShares(authoritative, claimed), 'SHARE_MISMATCH');
+    expectSplitError(() => verifyClientShares(authoritative, claimed), SplitErrorCode.ShareMismatch);
   });
 
   it('cannot be told what a share should be — it is a function of the inputs only', () => {

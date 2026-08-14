@@ -2,7 +2,14 @@ import type { CurrencyCode } from '../money/currency';
 
 export type MemberId = string;
 
-export type SplitType = 'equal' | 'exact' | 'percent' | 'shares' | 'adjustment' | 'itemized';
+export enum SplitType {
+  Equal = 'equal',
+  Exact = 'exact',
+  Percent = 'percent',
+  Shares = 'shares',
+  Adjustment = 'adjustment',
+  Itemized = 'itemized',
+}
 
 /** Everyone in `participants` pays the same, remainder rotated (TDR §3.1). */
 export interface EqualParams {
@@ -77,19 +84,20 @@ export interface ComputeSharesInput {
   readonly seed: string;
 }
 
-export type SplitErrorCode =
-  | 'EMPTY_PARTICIPANTS'
-  | 'DUPLICATE_PARTICIPANT'
-  | 'UNKNOWN_MEMBER'
-  | 'NEGATIVE_TOTAL'
-  | 'EXACT_SUM_MISMATCH'
-  | 'PERCENT_SUM_MISMATCH'
-  | 'INVALID_WEIGHT'
-  | 'NO_POSITIVE_WEIGHT'
-  | 'UNCLAIMED_ITEM'
-  | 'INVALID_ITEM'
-  | 'ITEMIZED_TOTAL_MISMATCH'
-  | 'SHARE_MISMATCH';
+export enum SplitErrorCode {
+  EmptyParticipants = 'EMPTY_PARTICIPANTS',
+  DuplicateParticipant = 'DUPLICATE_PARTICIPANT',
+  UnknownMember = 'UNKNOWN_MEMBER',
+  NegativeTotal = 'NEGATIVE_TOTAL',
+  ExactSumMismatch = 'EXACT_SUM_MISMATCH',
+  PercentSumMismatch = 'PERCENT_SUM_MISMATCH',
+  InvalidWeight = 'INVALID_WEIGHT',
+  NoPositiveWeight = 'NO_POSITIVE_WEIGHT',
+  UnclaimedItem = 'UNCLAIMED_ITEM',
+  InvalidItem = 'INVALID_ITEM',
+  ItemizedTotalMismatch = 'ITEMIZED_TOTAL_MISMATCH',
+  ShareMismatch = 'SHARE_MISMATCH',
+}
 
 export class SplitError extends Error {
   readonly code: SplitErrorCode;

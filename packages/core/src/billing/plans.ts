@@ -24,13 +24,16 @@
 
 import type { CurrencyCode } from '../money/currency';
 
-export type PlanTier = 'free' | 'plus';
+export enum PlanTier {
+  Free = 'free',
+  Plus = 'plus',
+}
 
-export type BillingPeriod =
-  | 'monthly'
-  | 'yearly'
+export enum BillingPeriod {
+  Monthly = 'monthly',
+  Yearly = 'yearly',
   /** Bought once. India converts on one-time purchases where it will not on subscriptions. */
-  | 'lifetime'
+  Lifetime = 'lifetime',
   /**
    * One group, thirty days, bought by one person and enjoyed by everyone in it.
    *
@@ -40,7 +43,8 @@ export type BillingPeriod =
    * makes the buyer generous rather than out of pocket, and puts the paid
    * features in front of five people who did not buy.
    */
-  | 'trip_pass';
+  TripPass = 'trip_pass',
+}
 
 export interface Price {
   readonly minor: bigint;
@@ -61,52 +65,52 @@ export const PLUS_MONTHLY_SCANS = 300;
  */
 const PRICES: Readonly<Record<string, Readonly<Record<BillingPeriod, Price>>>> = {
   IN: {
-    monthly: { minor: 7900n, currency: 'INR' },
-    yearly: { minor: 69900n, currency: 'INR' },
-    lifetime: { minor: 199900n, currency: 'INR' },
-    trip_pass: { minor: 14900n, currency: 'INR' },
+    [BillingPeriod.Monthly]: { minor: 7900n, currency: 'INR' },
+    [BillingPeriod.Yearly]: { minor: 69900n, currency: 'INR' },
+    [BillingPeriod.Lifetime]: { minor: 199900n, currency: 'INR' },
+    [BillingPeriod.TripPass]: { minor: 14900n, currency: 'INR' },
   },
   AE: {
-    monthly: { minor: 1499n, currency: 'AED' },
-    yearly: { minor: 12900n, currency: 'AED' },
-    lifetime: { minor: 34900n, currency: 'AED' },
-    trip_pass: { minor: 2900n, currency: 'AED' },
+    [BillingPeriod.Monthly]: { minor: 1499n, currency: 'AED' },
+    [BillingPeriod.Yearly]: { minor: 12900n, currency: 'AED' },
+    [BillingPeriod.Lifetime]: { minor: 34900n, currency: 'AED' },
+    [BillingPeriod.TripPass]: { minor: 2900n, currency: 'AED' },
   },
   SA: {
-    monthly: { minor: 1499n, currency: 'SAR' },
-    yearly: { minor: 12900n, currency: 'SAR' },
-    lifetime: { minor: 34900n, currency: 'SAR' },
-    trip_pass: { minor: 2900n, currency: 'SAR' },
+    [BillingPeriod.Monthly]: { minor: 1499n, currency: 'SAR' },
+    [BillingPeriod.Yearly]: { minor: 12900n, currency: 'SAR' },
+    [BillingPeriod.Lifetime]: { minor: 34900n, currency: 'SAR' },
+    [BillingPeriod.TripPass]: { minor: 2900n, currency: 'SAR' },
   },
   US: {
-    monthly: { minor: 499n, currency: 'USD' },
-    yearly: { minor: 3999n, currency: 'USD' },
-    lifetime: { minor: 9999n, currency: 'USD' },
-    trip_pass: { minor: 799n, currency: 'USD' },
+    [BillingPeriod.Monthly]: { minor: 499n, currency: 'USD' },
+    [BillingPeriod.Yearly]: { minor: 3999n, currency: 'USD' },
+    [BillingPeriod.Lifetime]: { minor: 9999n, currency: 'USD' },
+    [BillingPeriod.TripPass]: { minor: 799n, currency: 'USD' },
   },
   CA: {
-    monthly: { minor: 699n, currency: 'CAD' },
-    yearly: { minor: 5499n, currency: 'CAD' },
-    lifetime: { minor: 13999n, currency: 'CAD' },
-    trip_pass: { minor: 1099n, currency: 'CAD' },
+    [BillingPeriod.Monthly]: { minor: 699n, currency: 'CAD' },
+    [BillingPeriod.Yearly]: { minor: 5499n, currency: 'CAD' },
+    [BillingPeriod.Lifetime]: { minor: 13999n, currency: 'CAD' },
+    [BillingPeriod.TripPass]: { minor: 1099n, currency: 'CAD' },
   },
   AU: {
-    monthly: { minor: 799n, currency: 'AUD' },
-    yearly: { minor: 5999n, currency: 'AUD' },
-    lifetime: { minor: 14999n, currency: 'AUD' },
-    trip_pass: { minor: 1199n, currency: 'AUD' },
+    [BillingPeriod.Monthly]: { minor: 799n, currency: 'AUD' },
+    [BillingPeriod.Yearly]: { minor: 5999n, currency: 'AUD' },
+    [BillingPeriod.Lifetime]: { minor: 14999n, currency: 'AUD' },
+    [BillingPeriod.TripPass]: { minor: 1199n, currency: 'AUD' },
   },
   BR: {
-    monthly: { minor: 1490n, currency: 'BRL' },
-    yearly: { minor: 12900n, currency: 'BRL' },
-    lifetime: { minor: 29900n, currency: 'BRL' },
-    trip_pass: { minor: 2490n, currency: 'BRL' },
+    [BillingPeriod.Monthly]: { minor: 1490n, currency: 'BRL' },
+    [BillingPeriod.Yearly]: { minor: 12900n, currency: 'BRL' },
+    [BillingPeriod.Lifetime]: { minor: 29900n, currency: 'BRL' },
+    [BillingPeriod.TripPass]: { minor: 2490n, currency: 'BRL' },
   },
   GB: {
-    monthly: { minor: 399n, currency: 'GBP' },
-    yearly: { minor: 2999n, currency: 'GBP' },
-    lifetime: { minor: 7999n, currency: 'GBP' },
-    trip_pass: { minor: 599n, currency: 'GBP' },
+    [BillingPeriod.Monthly]: { minor: 399n, currency: 'GBP' },
+    [BillingPeriod.Yearly]: { minor: 2999n, currency: 'GBP' },
+    [BillingPeriod.Lifetime]: { minor: 7999n, currency: 'GBP' },
+    [BillingPeriod.TripPass]: { minor: 599n, currency: 'GBP' },
   },
 };
 
@@ -145,7 +149,7 @@ export interface Entitlement {
 }
 
 export const FREE_ENTITLEMENT: Entitlement = {
-  tier: 'free',
+  tier: PlanTier.Free,
   until: null,
   source: 'free',
   scanLimit: FREE_MONTHLY_SCANS,
@@ -164,7 +168,7 @@ export function readEntitlement(value: unknown): Entitlement {
   if (typeof value !== 'object' || value === null) return FREE_ENTITLEMENT;
   const row = value as Record<string, unknown>;
 
-  const tier = row.tier === 'plus' ? 'plus' : 'free';
+  const tier = row.tier === 'plus' ? PlanTier.Plus : PlanTier.Free;
   const source =
     row.source === 'subscription' || row.source === 'lifetime' || row.source === 'trip_pass'
       ? row.source
@@ -176,11 +180,11 @@ export function readEntitlement(value: unknown): Entitlement {
     until: typeof row.until === 'string' ? row.until : null,
     // A free tier with a paid source, or the reverse, is a database that has
     // been edited by hand. Trust the tier and let the source be cosmetic.
-    source: tier === 'free' ? 'free' : source === 'free' ? 'subscription' : source,
+    source: tier === PlanTier.Free ? 'free' : source === 'free' ? 'subscription' : source,
     scanLimit:
       Number.isFinite(limit) && limit > 0
         ? Math.floor(limit)
-        : tier === 'plus'
+        : tier === PlanTier.Plus
           ? PLUS_MONTHLY_SCANS
           : FREE_MONTHLY_SCANS,
   };

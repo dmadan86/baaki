@@ -14,7 +14,14 @@ import Link from 'next/link';
 
 import { useStrings } from '@/i18n-context';
 
-export type Section = 'overview' | 'groups' | 'activity' | 'friends' | 'settle' | 'inbox';
+export enum Section {
+  Overview = 'overview',
+  Groups = 'groups',
+  Activity = 'activity',
+  Friends = 'friends',
+  Settle = 'settle',
+  Inbox = 'inbox',
+}
 
 export function Shell({
   current,
@@ -53,14 +60,14 @@ export function Shell({
   // A group page reports `current: 'groups'`, but there is no separate Groups
   // destination in the rail — the groups live on the overview — so it lights the
   // overview item rather than nothing.
-  const activeKey: Section = current === 'groups' ? 'overview' : current;
+  const activeKey: Section = current === Section.Groups ? Section.Overview : current;
 
   const nav: { key: Section; label: string; href: string; icon: string }[] = [
-    { key: 'overview', label: t.dash.nav.overview, href: '/', icon: '▤' },
-    { key: 'activity', label: t.dash.nav.activity, href: '/activity', icon: '📈' },
-    { key: 'friends', label: t.dash.nav.friends, href: '/friends', icon: '🙂' },
-    { key: 'settle', label: t.dash.nav.settle, href: '/settle', icon: '⇄' },
-    { key: 'inbox', label: t.inbox.title, href: '/inbox', icon: '🔔' },
+    { key: Section.Overview, label: t.dash.nav.overview, href: '/', icon: '▤' },
+    { key: Section.Activity, label: t.dash.nav.activity, href: '/activity', icon: '📈' },
+    { key: Section.Friends, label: t.dash.nav.friends, href: '/friends', icon: '🙂' },
+    { key: Section.Settle, label: t.dash.nav.settle, href: '/settle', icon: '⇄' },
+    { key: Section.Inbox, label: t.inbox.title, href: '/inbox', icon: '🔔' },
   ];
 
   const pageTitle = nav.find((item) => item.key === activeKey)?.label ?? t.dash.nav.overview;

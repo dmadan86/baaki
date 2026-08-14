@@ -38,7 +38,12 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { importSplitwiseCsv, type MemberId, type SplitwiseImport } from '@baaki/core';
+import {
+  importSplitwiseCsv,
+  MutationKind,
+  type MemberId,
+  type SplitwiseImport,
+} from '@baaki/core';
 
 import { useGroup } from '@/data/hooks';
 import { planFromCsv, toMutationPayload, UnmappedPersonError } from '@/data/importPlan';
@@ -131,7 +136,7 @@ export default function ImportCsvScreen() {
         const choice = mapping[person];
         if (choice === NEW_PERSON) {
           const memberId = randomUUID();
-          await mutate('member.add_ghost', groupId, { name: person, memberId });
+          await mutate(MutationKind.MemberAddGhost, groupId, { name: person, memberId });
           resolved[person] = memberId;
         } else if (choice) {
           resolved[person] = choice;
@@ -143,7 +148,7 @@ export default function ImportCsvScreen() {
         const expenseId = await importMutationId(groupId, `expense:${plan.seed}`);
         const clientMutationId = await importMutationId(groupId, plan.seed);
         await mutate(
-          'expense.create',
+          MutationKind.ExpenseCreate,
           groupId,
           toMutationPayload(plan, { expenseId }),
           clientMutationId,

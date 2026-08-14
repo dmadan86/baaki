@@ -15,6 +15,7 @@ import Link from 'next/link';
 import type { PersonBalanceRow } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
@@ -32,7 +33,7 @@ interface Person {
 }
 
 export default function FriendsPage() {
-  return <AppFrame current="friends">{({ query }) => <Friends query={query} />}</AppFrame>;
+  return <AppFrame current={Section.Friends}>{({ query }) => <Friends query={query} />}</AppFrame>;
 }
 
 function Friends({ query }: { query: string }) {

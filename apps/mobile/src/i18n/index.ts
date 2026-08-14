@@ -39,13 +39,23 @@ import {
   type CurrencyCode,
 } from '@baaki/core';
 
-export type Language = 'en' | 'ta' | 'hi' | 'ar';
+export enum Language {
+  En = 'en',
+  Ta = 'ta',
+  Hi = 'hi',
+  Ar = 'ar',
+}
 
 /** Every language this app speaks, in the order the picker lists them. */
-export const LANGUAGES: readonly Language[] = ['en', 'ta', 'hi', 'ar'];
+export const LANGUAGES: readonly Language[] = [
+  Language.En,
+  Language.Ta,
+  Language.Hi,
+  Language.Ar,
+];
 
 /** The languages that read right to left. */
-export const RTL_LANGUAGES: readonly Language[] = ['ar'];
+export const RTL_LANGUAGES: readonly Language[] = [Language.Ar];
 
 /**
  * What each language calls itself, and what English calls it.
@@ -56,10 +66,10 @@ export const RTL_LANGUAGES: readonly Language[] = ['ar'];
  * read. The English gloss follows for everyone else.
  */
 export const LANGUAGE_NAMES: Readonly<Record<Language, { own: string; english: string }>> = {
-  en: { own: 'English', english: 'English' },
-  ta: { own: 'தமிழ்', english: 'Tamil' },
-  hi: { own: 'हिन्दी', english: 'Hindi' },
-  ar: { own: 'العربية', english: 'Arabic' },
+  [Language.En]: { own: 'English', english: 'English' },
+  [Language.Ta]: { own: 'தமிழ்', english: 'Tamil' },
+  [Language.Hi]: { own: 'हिन्दी', english: 'Hindi' },
+  [Language.Ar]: { own: 'العربية', english: 'Arabic' },
 };
 
 export function isRtlLanguage(language: Language): boolean {
@@ -5287,7 +5297,12 @@ const ar: UiStrings = {
   },
 };
 
-const STRINGS: Record<Language, UiStrings> = { en, ta, hi, ar };
+const STRINGS: Record<Language, UiStrings> = {
+  [Language.En]: en,
+  [Language.Ta]: ta,
+  [Language.Hi]: hi,
+  [Language.Ar]: ar,
+};
 
 /**
  * The tables themselves, so a test can check that every language says
@@ -5299,7 +5314,13 @@ export const STRINGS_BY_LANGUAGE = STRINGS;
 
 export function deviceLanguage(): Language {
   const tag = getLocales()[0]?.languageCode ?? 'en';
-  return tag === 'ta' || tag === 'hi' || tag === 'ar' ? tag : 'en';
+  return tag === 'ta'
+    ? Language.Ta
+    : tag === 'hi'
+      ? Language.Hi
+      : tag === 'ar'
+        ? Language.Ar
+        : Language.En;
 }
 
 /**

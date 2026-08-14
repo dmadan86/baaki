@@ -27,7 +27,7 @@ import { useGuestGuard } from '@/lib/guestGuard';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
-import { groupLabel, type GroupType } from '@/data/types';
+import { groupLabel, GroupType } from '@/data/types';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
 export default function HomeScreen() {
@@ -85,7 +85,7 @@ export default function HomeScreen() {
   // trip's own timezone, not the phone's — a Goa trip run from Dubai turns over
   // at midnight in Goa (the same rule `dayNumber` and the planner already use).
   const activeTrips: readonly TripSlide[] = list
-    .filter((g) => g.type === 'trip' && g.start_date && g.end_date)
+    .filter((g) => g.type === GroupType.Trip && g.start_date && g.end_date)
     .map((g) => {
       const day = dayNumber(todayIn(g.time_zone), g.start_date, g.end_date);
       if (day === null) return null;
@@ -228,29 +228,35 @@ export default function HomeScreen() {
 }
 
 /** The group types in the order chips appear — matches the new-group picker. */
-const GROUP_TYPE_ORDER: readonly GroupType[] = ['trip', 'home', 'couple', 'event', 'other'];
+const GROUP_TYPE_ORDER: readonly GroupType[] = [
+  GroupType.Trip,
+  GroupType.Home,
+  GroupType.Couple,
+  GroupType.Event,
+  GroupType.Other,
+];
 
 /** One Ionicon per group type, echoing the emoji the new-group picker uses. */
 const CATEGORY_ICON: Record<GroupType, keyof typeof Ionicons.glyphMap> = {
-  trip: 'airplane',
-  home: 'home',
-  couple: 'heart',
-  event: 'sparkles',
-  other: 'people',
+  [GroupType.Trip]: 'airplane',
+  [GroupType.Home]: 'home',
+  [GroupType.Couple]: 'heart',
+  [GroupType.Event]: 'sparkles',
+  [GroupType.Other]: 'people',
 };
 
 /** The localized label for a group type, from the same strings the picker uses. */
 function categoryLabel(type: GroupType, t: UiStrings): string {
   switch (type) {
-    case 'trip':
+    case GroupType.Trip:
       return t.extras.typeTrip;
-    case 'home':
+    case GroupType.Home:
       return t.extras.typeHome;
-    case 'couple':
+    case GroupType.Couple:
       return t.extras.typeCouple;
-    case 'event':
+    case GroupType.Event:
       return t.extras.typeEvent;
-    case 'other':
+    case GroupType.Other:
       return t.extras.typeOther;
   }
 }

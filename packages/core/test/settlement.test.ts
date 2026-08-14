@@ -7,8 +7,10 @@ import {
   canTransition,
   isValidVpa,
   SettlementError,
+  SettlementTransition,
   type Receivable,
 } from '../src/settlement/apply.js';
+import { SettlementStatus } from '../src/balances/types.js';
 import { toMajorString } from '../src/money/money.js';
 
 const formatMajor = (amount: bigint, currency: string): string =>
@@ -112,13 +114,13 @@ describe('UPI intent (ADR-007: Baaki never moves the money)', () => {
 
 describe('settlement state machine', () => {
   it('allows confirm, dispute, cancel and auto-confirm from initiated', () => {
-    expect(canTransition('initiated', 'confirm')).toBe(true);
-    expect(canTransition('initiated', 'auto_confirm')).toBe(true);
+    expect(canTransition(SettlementStatus.Initiated, SettlementTransition.Confirm)).toBe(true);
+    expect(canTransition(SettlementStatus.Initiated, SettlementTransition.AutoConfirm)).toBe(true);
   });
 
   it('is terminal once confirmed or cancelled, but auto-confirmed can be disputed', () => {
-    expect(canTransition('confirmed', 'cancel')).toBe(false);
-    expect(canTransition('cancelled', 'confirm')).toBe(false);
-    expect(canTransition('auto_confirmed', 'dispute')).toBe(true);
+    expect(canTransition(SettlementStatus.Confirmed, SettlementTransition.Cancel)).toBe(false);
+    expect(canTransition(SettlementStatus.Cancelled, SettlementTransition.Confirm)).toBe(false);
+    expect(canTransition(SettlementStatus.AutoConfirmed, SettlementTransition.Dispute)).toBe(true);
   });
 });

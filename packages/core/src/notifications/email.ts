@@ -39,7 +39,11 @@ import { copyFor, interpolate } from './copy';
  * signed URL in the same response. Adding renderers for them now would be
  * three untested code paths waiting for a feature.
  */
-export type EmailTemplate = 'settlement-confirm' | 'digest' | 'nudge';
+export enum EmailTemplate {
+  SettlementConfirm = 'settlement-confirm',
+  Digest = 'digest',
+  Nudge = 'nudge',
+}
 
 /**
  * Which notification kinds leave the building as mail.
@@ -49,14 +53,14 @@ export type EmailTemplate = 'settlement-confirm' | 'digest' | 'nudge';
  * people to filter the sender.
  */
 export const TEMPLATE_FOR_KIND: Readonly<Record<string, EmailTemplate>> = {
-  settlement_initiated: 'settlement-confirm',
-  settlement_confirm_request: 'settlement-confirm',
-  digest_daily: 'digest',
+  settlement_initiated: EmailTemplate.SettlementConfirm,
+  settlement_confirm_request: EmailTemplate.SettlementConfirm,
+  digest_daily: EmailTemplate.Digest,
   /**
    * A nudge is mailed only when the person has no live device — TDR §7.4. That
    * condition is not checked here; it is checked in SQL, where the tokens are.
    */
-  nudge: 'nudge',
+  nudge: EmailTemplate.Nudge,
 };
 
 export function templateForKind(kind: string): EmailTemplate | null {

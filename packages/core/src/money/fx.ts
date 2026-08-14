@@ -3,7 +3,7 @@
  * its provenance, so any conversion can be reproduced byte-for-byte later.
  */
 
-import { MoneyError, minorUnitExponent, type CurrencyCode } from './currency';
+import { MoneyError, MoneyErrorCode, minorUnitExponent, type CurrencyCode } from './currency';
 import { divideRoundHalfAwayFromZero, money, type Money } from './money';
 
 export interface FxRate {
@@ -20,11 +20,14 @@ export interface FxRate {
 
 export function fxRate(rate: FxRate): FxRate {
   if (rate.num <= 0n || rate.den <= 0n) {
-    throw new MoneyError('INVALID_FX_RATE', 'FX rate numerator and denominator must be positive');
+    throw new MoneyError(
+      MoneyErrorCode.InvalidFxRate,
+      'FX rate numerator and denominator must be positive',
+    );
   }
   if (rate.from === rate.to) {
     throw new MoneyError(
-      'INVALID_FX_RATE',
+      MoneyErrorCode.InvalidFxRate,
       'FX rate must convert between two different currencies',
     );
   }
@@ -39,7 +42,7 @@ export function fxRate(rate: FxRate): FxRate {
 export function convert(amount: Money, rate: FxRate): Money {
   if (amount.currency !== rate.from) {
     throw new MoneyError(
-      'CURRENCY_MISMATCH',
+      MoneyErrorCode.CurrencyMismatch,
       `Rate converts ${rate.from}→${rate.to}, but amount is ${amount.currency}`,
     );
   }
@@ -115,7 +118,7 @@ export function rateFromDecimal(
 ): FxRate {
   const trimmed = decimal.trim();
   if (!/^\d+(\.\d+)?$/.test(trimmed)) {
-    throw new MoneyError('INVALID_FX_RATE', `"${decimal}" is not a rate`);
+    throw new MoneyError(MoneyErrorCode.InvalidFxRate, `"${decimal}" is not a rate`);
   }
   const [whole = '0', fraction = ''] = trimmed.split('.');
   return fxRate({
@@ -143,7 +146,10 @@ export function rateFromAmounts(
   options: { ts?: string; source?: string } = {},
 ): FxRate {
   if (spent.minor <= 0n || charged.minor <= 0n) {
-    throw new MoneyError('INVALID_FX_RATE', 'Both amounts must be positive to imply a rate');
+    throw new MoneyError(
+      MoneyErrorCode.InvalidFxRate,
+      'Both amounts must be positive to imply a rate',
+    );
   }
   // Both sides are in minor units, so the exponents have to come back out or a
   // JPY↔INR rate would be wrong by a factor of a hundred.

@@ -25,7 +25,7 @@ import {
 } from '@/data/api';
 import { useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { enablePush, pushPermission, type PushFailure, type PushPermission } from '@/lib/push';
+import { enablePush, PushFailure, PushPermission, pushPermission } from '@/lib/push';
 
 function rows(t: UiStrings): { key: keyof NotificationPrefs; title: string; body: string }[] {
   return [
@@ -62,11 +62,11 @@ function rows(t: UiStrings): { key: keyof NotificationPrefs; title: string; body
  */
 function pushFailureCopy(t: UiStrings): Record<PushFailure, string> {
   return {
-    denied: t.notifications.failDenied,
-    unsupported: t.notifications.failUnsupported,
-    not_signed_in: t.notifications.failNotSignedIn,
-    not_configured: t.notifications.failNotConfigured,
-    save_failed: t.notifications.failSaveFailed,
+    [PushFailure.Denied]: t.notifications.failDenied,
+    [PushFailure.Unsupported]: t.notifications.failUnsupported,
+    [PushFailure.NotSignedIn]: t.notifications.failNotSignedIn,
+    [PushFailure.NotConfigured]: t.notifications.failNotConfigured,
+    [PushFailure.SaveFailed]: t.notifications.failSaveFailed,
   };
 }
 
@@ -78,7 +78,7 @@ export default function NotificationSettingsScreen() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
-  const [permission, setPermission] = useState<PushPermission>('undetermined');
+  const [permission, setPermission] = useState<PushPermission>(PushPermission.Undetermined);
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {

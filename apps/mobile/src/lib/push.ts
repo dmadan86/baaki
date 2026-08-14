@@ -60,12 +60,20 @@ function projectId(): string | null {
   return extra?.eas?.projectId ?? null;
 }
 
-export type PushPermission = 'granted' | 'denied' | 'undetermined';
+export enum PushPermission {
+  Granted = 'granted',
+  Denied = 'denied',
+  Undetermined = 'undetermined',
+}
 
 export async function pushPermission(): Promise<PushPermission> {
-  if (!pushSupported || !Device.isDevice) return 'denied';
+  if (!pushSupported || !Device.isDevice) return PushPermission.Denied;
   const { status } = await Notifications.getPermissionsAsync();
-  return status as PushPermission;
+  return status === 'granted'
+    ? PushPermission.Granted
+    : status === 'undetermined'
+      ? PushPermission.Undetermined
+      : PushPermission.Denied;
 }
 
 /**
@@ -74,17 +82,18 @@ export async function pushPermission(): Promise<PushPermission> {
  * when the real problem is a missing Firebase key sends them somewhere that
  * cannot help them.
  */
-export type PushFailure =
+export enum PushFailure {
   /** Web, or a simulator — neither has a push token to give. */
-  | 'unsupported'
+  Unsupported = 'unsupported',
   /** They said no, which is an answer. */
-  | 'denied'
+  Denied = 'denied',
   /** Nobody is signed in, so there is no profile to hang the token on. */
-  | 'not_signed_in'
+  NotSignedIn = 'not_signed_in',
   /** This build has no FCM/APNs credentials. Ours to fix, not theirs. */
-  | 'not_configured'
+  NotConfigured = 'not_configured',
   /** We got a token and could not store it. */
-  | 'save_failed';
+  SaveFailed = 'save_failed',
+}
 
 export type PushResult = { readonly ok: true } | { readonly ok: false; readonly why: PushFailure };
 
@@ -95,14 +104,14 @@ export type PushResult = { readonly ok: true } | { readonly ok: false; readonly 
 export async function enablePush(): Promise<PushResult> {
   // A simulator has no push token to give, and web has no push at all. Failing
   // loudly here would make every development run look broken.
-  if (!pushSupported || !Device.isDevice) return { ok: false, why: 'unsupported' };
+  if (!pushSupported || !Device.isDevice) return { ok: false, why: PushFailure.Unsupported };
 
   const existing = await Notifications.getPermissionsAsync();
   const status =
     existing.status === 'granted'
       ? existing.status
       : (await Notifications.requestPermissionsAsync()).status;
-  if (status !== 'granted') return { ok: false, why: 'denied' };
+  if (status !== 'granted') return { ok: false, why: PushFailure.Denied };
 
   // Android 13+ wants the channel to exist before the token is asked for.
   await ensureAndroidChannel();
@@ -117,16 +126,16 @@ export async function enablePush(): Promise<PushResult> {
  * silently stops working.
  */
 export async function refreshPushToken(): Promise<PushResult> {
-  if (!pushSupported || !Device.isDevice) return { ok: false, why: 'unsupported' };
+  if (!pushSupported || !Device.isDevice) return { ok: false, why: PushFailure.Unsupported };
   const { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted') return { ok: false, why: 'denied' };
+  if (status !== 'granted') return { ok: false, why: PushFailure.Denied };
 
   const id = projectId();
-  if (!id) return { ok: false, why: 'not_configured' };
+  if (!id) return { ok: false, why: PushFailure.NotConfigured };
 
   const { data: session } = await supabase.auth.getSession();
   const profileId = session.session?.user?.id;
-  if (!profileId) return { ok: false, why: 'not_signed_in' };
+  if (!profileId) return { ok: false, why: PushFailure.NotSignedIn };
 
   let token: string;
   try {
@@ -138,7 +147,7 @@ export async function refreshPushToken(): Promise<PushResult> {
     // None of them are anything the person can act on, and none of them are
     // worth taking the app down for.
     console.warn('push token unavailable:', (caught as Error).message);
-    return { ok: false, why: 'not_configured' };
+    return { ok: false, why: PushFailure.NotConfigured };
   }
 
   const { error } = await supabase.from('push_tokens').upsert(
@@ -153,7 +162,7 @@ export async function refreshPushToken(): Promise<PushResult> {
     },
     { onConflict: 'expo_push_token' },
   );
-  return error ? { ok: false, why: 'save_failed' } : { ok: true };
+  return error ? { ok: false, why: PushFailure.SaveFailed } : { ok: true };
 }
 
 /** On the way out. Leaves the row, so a return is recognised as a return. */

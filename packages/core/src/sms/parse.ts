@@ -23,7 +23,10 @@
 import { minorUnitExponent, type CurrencyCode } from '../money/currency';
 import { money, type Money } from '../money/money';
 
-export type TransactionDirection = 'debit' | 'credit';
+export enum TransactionDirection {
+  Debit = 'debit',
+  Credit = 'credit',
+}
 
 export interface ParsedSms {
   /** What moved, in minor units. */
@@ -216,7 +219,7 @@ export function parseSms(text: string): ParsedSms | null {
 
   return {
     amount: money(minor, currency),
-    direction: debit ? 'debit' : 'credit',
+    direction: debit ? TransactionDirection.Debit : TransactionDirection.Credit,
     merchant,
     accountTail,
     reference,
@@ -275,7 +278,7 @@ export function proposeFromSms(
     if (!parsed) continue;
     // Money coming in is not an expense. Refunds are real and worth showing one
     // day, but as a reversal of a known expense — not as a negative one.
-    if (parsed.direction !== 'debit') continue;
+    if (parsed.direction !== TransactionDirection.Debit) continue;
 
     const at = parsed.occurredAt ?? message.receivedAt;
     const stamp = Date.parse(at);

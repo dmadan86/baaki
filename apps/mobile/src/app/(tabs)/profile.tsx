@@ -163,7 +163,11 @@ function settingsRows(t: UiStrings): SettingsRow[] {
 }
 
 /** The three faces of this screen. */
-type Face = 'you' | 'paying' | 'settings';
+enum Face {
+  You = 'you',
+  Paying = 'paying',
+  Settings = 'settings',
+}
 
 /**
  * One Save, shown on whichever face you are looking at.
@@ -290,7 +294,7 @@ export default function ProfileScreen() {
   const [handle, setHandle] = useState(profile?.payment_handle ?? profile?.default_vpa ?? '');
   const [status, setStatus] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [face, setFace] = useState<Face>('you');
+  const [face, setFace] = useState<Face>(Face.You);
 
   /**
    * Pick, shrink, upload, then tell the profile where it landed. The upload
@@ -463,13 +467,13 @@ export default function ProfileScreen() {
           tabs={[
             // Not `t.profile` — that reads "Account", which is the whole
             // screen. A tab has to name the part, not the page.
-            { value: 'you', label: t.account.faceYou },
-            { value: 'paying', label: t.account.facePaying },
-            { value: 'settings', label: t.account.faceSettings },
+            { value: Face.You, label: t.account.faceYou },
+            { value: Face.Paying, label: t.account.facePaying },
+            { value: Face.Settings, label: t.account.faceSettings },
           ]}
         />
 
-        {face === 'you' ? (
+        {face === Face.You ? (
           <>
             <Card style={{ gap: theme.spacing.lg }}>
               <View style={{ gap: theme.spacing.xs }}>
@@ -522,7 +526,7 @@ export default function ProfileScreen() {
           </>
         ) : null}
 
-        {face === 'paying' ? (
+        {face === Face.Paying ? (
           <>
             {/* The country decides which rails exist below, so it sits above
                 them and is changeable here — the device guess is only a start. */}
@@ -585,7 +589,7 @@ export default function ProfileScreen() {
           </>
         ) : null}
 
-        {face !== 'settings' ? null : (
+        {face !== Face.Settings ? null : (
           <>
             {/* Its own section, above the settings rather than among them.
                 Paying for something is not a preference, and a row that sells

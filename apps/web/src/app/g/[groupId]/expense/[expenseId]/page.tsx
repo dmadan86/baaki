@@ -23,6 +23,7 @@ import {
 } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
@@ -31,7 +32,7 @@ import { useStrings } from '@/i18n-context';
 
 export default function ExpensePage() {
   return (
-    <AppFrame current="groups">
+    <AppFrame current={Section.Groups}>
       {({ profileId }) => <ExpenseDetail profileId={profileId} />}
     </AppFrame>
   );

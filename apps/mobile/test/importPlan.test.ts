@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { TransactionDirection } from '@baaki/core';
 import type { ExpenseCandidate, ImportedExpense } from '@baaki/core';
 
 import {
@@ -21,7 +22,7 @@ import {
 function candidate(over: Partial<ExpenseCandidate> = {}): ExpenseCandidate {
   return {
     amount: { minor: 45000n, currency: 'INR' },
-    direction: 'debit',
+    direction: TransactionDirection.Debit,
     merchant: 'SWIGGY',
     accountTail: '4821',
     reference: '412345678901',

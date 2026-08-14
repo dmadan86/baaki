@@ -1043,7 +1043,10 @@ export async function saveNotificationPrefs(
 // number later is what makes the account reachable from a second device — it
 // does not create a new account, so nothing entered as a guest is lost.
 
-export type ContactChannel = 'email' | 'phone';
+export enum ContactChannel {
+  Email = 'email',
+  Phone = 'phone',
+}
 
 /**
  * Attach a contact to the current (possibly anonymous) user. Supabase sends a

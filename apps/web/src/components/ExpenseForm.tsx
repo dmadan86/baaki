@@ -32,8 +32,13 @@ import { money as fmtMoney } from '@/lib/money';
 import { fill } from '@/i18n';
 import { useStrings } from '@/i18n-context';
 
-type SplitKind = 'equal' | 'exact' | 'percent' | 'shares';
-const KINDS: SplitKind[] = ['equal', 'exact', 'percent', 'shares'];
+enum SplitKind {
+  Equal = 'equal',
+  Exact = 'exact',
+  Percent = 'percent',
+  Shares = 'shares',
+}
+const KINDS: SplitKind[] = [SplitKind.Equal, SplitKind.Exact, SplitKind.Percent, SplitKind.Shares];
 
 export function ExpenseForm({
   groupId,
@@ -58,7 +63,7 @@ export function ExpenseForm({
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [payer, setPayer] = useState<string | null>(null);
   const [participants, setParticipants] = useState<string[]>([]);
-  const [kind, setKind] = useState<SplitKind>('equal');
+  const [kind, setKind] = useState<SplitKind>(SplitKind.Equal);
   // Per-member raw text, kept as typed; parsed only when building the params.
   const [exact, setExact] = useState<Record<string, string>>({});
   const [percent, setPercent] = useState<Record<string, string>>({});
@@ -93,10 +98,10 @@ export function ExpenseForm({
           const parsed = parseSplitParams(version.split_params);
           switch (parsed.kind) {
             case 'equal':
-              setKind('equal');
+              setKind(SplitKind.Equal);
               break;
             case 'exact':
-              setKind('exact');
+              setKind(SplitKind.Exact);
               setExact(
                 Object.fromEntries(
                   Object.entries(parsed.amounts).map(([id, minor]) => [
@@ -107,7 +112,7 @@ export function ExpenseForm({
               );
               break;
             case 'percent':
-              setKind('percent');
+              setKind(SplitKind.Percent);
               setPercent(
                 Object.fromEntries(
                   Object.entries(parsed.basisPoints).map(([id, bp]) => [id, String(bp / 100)]),
@@ -115,7 +120,7 @@ export function ExpenseForm({
               );
               break;
             case 'shares':
-              setKind('shares');
+              setKind(SplitKind.Shares);
               setWeights(
                 Object.fromEntries(
                   Object.entries(parsed.weights).map(([id, w]) => [id, String(w)]),
@@ -155,16 +160,16 @@ export function ExpenseForm({
     if (participants.length === 0) return null;
     try {
       switch (kind) {
-        case 'equal':
+        case SplitKind.Equal:
           return { kind: 'equal' };
-        case 'exact': {
+        case SplitKind.Exact: {
           const amounts: Record<string, bigint> = {};
           for (const id of participants) {
             amounts[id] = parseMajor(exact[id]?.trim() || '0', currency).minor;
           }
           return { kind: 'exact', amounts };
         }
-        case 'percent': {
+        case SplitKind.Percent: {
           const basisPoints: Record<string, number> = {};
           for (const id of participants) {
             const value = Number.parseFloat(percent[id]?.trim() || '0');
@@ -173,7 +178,7 @@ export function ExpenseForm({
           }
           return { kind: 'percent', basisPoints };
         }
-        case 'shares': {
+        case SplitKind.Shares: {
           const w: Record<string, number> = {};
           for (const id of participants) {
             const value = Number.parseInt(weights[id]?.trim() || '0', 10);
@@ -366,29 +371,33 @@ export function ExpenseForm({
             ))}
           </div>
 
-          {kind !== 'equal' ? (
+          {kind !== SplitKind.Equal ? (
             <div className="list" style={{ marginTop: 12 }}>
               {participants.map((id) => {
                 const member = members.find((m) => m.id === id);
                 const value =
-                  kind === 'exact'
+                  kind === SplitKind.Exact
                     ? (exact[id] ?? '')
-                    : kind === 'percent'
+                    : kind === SplitKind.Percent
                       ? (percent[id] ?? '')
                       : (weights[id] ?? '');
                 const setter =
-                  kind === 'exact' ? setExact : kind === 'percent' ? setPercent : setWeights;
+                  kind === SplitKind.Exact
+                    ? setExact
+                    : kind === SplitKind.Percent
+                      ? setPercent
+                      : setWeights;
                 return (
                   <div key={id} className="split-input">
                     <span className="grow">{member ? nameOf(member) : id}</span>
                     <input
                       value={value}
-                      inputMode={kind === 'shares' ? 'numeric' : 'decimal'}
+                      inputMode={kind === SplitKind.Shares ? 'numeric' : 'decimal'}
                       onChange={(e) => setter((cur) => ({ ...cur, [id]: e.target.value }))}
                       aria-label={member ? nameOf(member) : id}
                     />
                     <span className="unit">
-                      {kind === 'exact' ? currency : kind === 'percent' ? '%' : '×'}
+                      {kind === SplitKind.Exact ? currency : kind === SplitKind.Percent ? '%' : '×'}
                     </span>
                   </div>
                 );

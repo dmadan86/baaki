@@ -10,6 +10,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Language } from '../src/i18n';
+
 interface FakeLocale {
   languageCode?: string;
   regionCode?: string;
@@ -59,8 +61,8 @@ describe('the languages on offer', () => {
     for (const language of LANGUAGES) {
       expect(isRtlLanguage(language), language).toBe(RTL_LANGUAGES.includes(language));
     }
-    expect(isRtlLanguage('ar')).toBe(true);
-    expect(isRtlLanguage('en')).toBe(false);
+    expect(isRtlLanguage(Language.Ar)).toBe(true);
+    expect(isRtlLanguage(Language.En)).toBe(false);
   });
 });
 
@@ -69,18 +71,18 @@ describe('the locale a chosen language is formatted in', () => {
     // Reading the app in Hindi in Dubai does not move you to India. Dates and
     // currency belong to where somebody is, not to what they read.
     locales = [{ languageCode: 'ar', regionCode: 'AE', languageTag: 'ar-AE' }];
-    expect(localeFor('hi')).toBe('hi-AE');
-    expect(localeFor('en')).toBe('en-AE');
+    expect(localeFor(Language.Hi)).toBe('hi-AE');
+    expect(localeFor(Language.En)).toBe('en-AE');
   });
 
   it('falls back to the bare language when the phone will not say where it is', () => {
     locales = [{ languageCode: 'en' }];
-    expect(localeFor('ta')).toBe('ta');
+    expect(localeFor(Language.Ta)).toBe('ta');
   });
 
   it('ignores a region the phone reports as nonsense', () => {
     locales = [{ languageCode: 'en', regionCode: '419' }];
-    expect(localeFor('en')).toBe('en');
+    expect(localeFor(Language.En)).toBe('en');
   });
 
   it('produces a tag Intl will actually take', () => {
@@ -145,7 +147,7 @@ describe('what every table owes the others', () => {
   it('keeps every placeholder the English says', () => {
     const english = new Map(leaves(STRINGS_BY_LANGUAGE.en));
     for (const language of LANGUAGES) {
-      if (language === 'en') continue;
+      if (language === Language.En) continue;
       for (const [path, text] of leaves(STRINGS_BY_LANGUAGE[language])) {
         const source = english.get(path);
         // Plural tables legitimately have forms English does not (Arabic's

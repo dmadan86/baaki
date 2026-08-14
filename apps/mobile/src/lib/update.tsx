@@ -38,7 +38,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { AppState, Linking, Platform } from 'react-native';
 
-import { decideUpdate, type UpdateDecision } from '@baaki/core';
+import { decideUpdate, UpdateDecision } from '@baaki/core';
 
 import { fetchReleasePolicy } from '@/data/api';
 
@@ -148,7 +148,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
         latestVersion: policy.latestVersion,
         minimumVersion: policy.minimumVersion,
       })
-    : 'none';
+    : UpdateDecision.None;
 
   const dismiss = useCallback(() => {
     const version = policy?.latestVersion;

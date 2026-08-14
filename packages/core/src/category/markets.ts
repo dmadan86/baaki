@@ -27,8 +27,21 @@ import type { CategoryId } from './categories';
  * currencies and shops are keyed by — not a language, which several of these
  * share.
  */
-export type MarketId =
-  'IN' | 'AE' | 'SA' | 'QA' | 'KW' | 'BH' | 'OM' | 'BR' | 'SG' | 'ID' | 'US' | 'CA' | 'AU';
+export enum MarketId {
+  IN = 'IN',
+  AE = 'AE',
+  SA = 'SA',
+  QA = 'QA',
+  KW = 'KW',
+  BH = 'BH',
+  OM = 'OM',
+  BR = 'BR',
+  SG = 'SG',
+  ID = 'ID',
+  US = 'US',
+  CA = 'CA',
+  AU = 'AU',
+}
 
 type Keywords = Partial<Record<CategoryId, readonly string[]>>;
 
@@ -120,16 +133,16 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
   // India's vocabulary already lives in the shared list, where it was the
   // starting point. Nothing to add here; the entry exists so the type is
   // complete and so it is obvious the omission is deliberate.
-  IN: {},
+  [MarketId.IN]: {},
 
-  AE: GULF,
-  SA: GULF,
-  QA: GULF,
-  KW: GULF,
-  BH: GULF,
-  OM: GULF,
+  [MarketId.AE]: GULF,
+  [MarketId.SA]: GULF,
+  [MarketId.QA]: GULF,
+  [MarketId.KW]: GULF,
+  [MarketId.BH]: GULF,
+  [MarketId.OM]: GULF,
 
-  BR: {
+  [MarketId.BR]: {
     food: ['ifood', 'rappi', 'padaria', 'churrasco', 'lanche', 'almoco', 'jantar', 'cafe'],
     groceries: ['mercado', 'supermercado', 'carrefour', 'assai', 'atacadao', 'feira', 'hortifruti'],
     travel: ['uber', 'noventa', 'metro', 'onibus', 'gasolina', 'posto', 'pedagio', 'latam', 'gol'],
@@ -140,7 +153,7 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
     shopping: ['shopping', 'americanas', 'magalu'],
   },
 
-  US: {
+  [MarketId.US]: {
     ...ANGLOSPHERE,
     groceries: [
       ...(ANGLOSPHERE.groceries ?? []),
@@ -156,7 +169,7 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
     health: [...(ANGLOSPHERE.health ?? []), 'cvs', 'walgreens'],
   },
 
-  CA: {
+  [MarketId.CA]: {
     ...ANGLOSPHERE,
     food: [...(ANGLOSPHERE.food ?? []), 'tims', 'timhortons', 'skipthedishes', 'poutine'],
     groceries: [
@@ -174,7 +187,7 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
     home: [...(ANGLOSPHERE.home ?? []), 'hydro', 'rogers', 'telus', 'bell'],
   },
 
-  AU: {
+  [MarketId.AU]: {
     ...ANGLOSPHERE,
     food: [...(ANGLOSPHERE.food ?? []), 'menulog', 'deliveroo', 'maccas', 'brekkie'],
     groceries: [...(ANGLOSPHERE.groceries ?? []), 'woolworths', 'woolies', 'coles', 'iga'],
@@ -184,7 +197,7 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
     shopping: [...(ANGLOSPHERE.shopping ?? []), 'bunnings', 'kmart', 'bigw'],
   },
 
-  SG: {
+  [MarketId.SG]: {
     food: ['grabfood', 'foodpanda', 'hawker', 'kopitiam', 'zichar', 'chicken', 'laksa'],
     groceries: ['ntuc', 'fairprice', 'coldstorage', 'sheng', 'giant', 'redmart'],
     travel: ['grab', 'gojek', 'mrt', 'ez-link', 'ezlink', 'comfort', 'erp'],
@@ -192,7 +205,7 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
     home: ['sp', 'singtel', 'starhub', 'conservancy'],
   },
 
-  ID: {
+  [MarketId.ID]: {
     food: ['gofood', 'grabfood', 'warung', 'padang', 'bakso', 'nasi', 'sate', 'kopi'],
     groceries: ['indomaret', 'alfamart', 'hypermart', 'superindo', 'pasar'],
     travel: ['gojek', 'grab', 'transjakarta', 'krl', 'pertamina', 'bensin', 'tol', 'garuda'],

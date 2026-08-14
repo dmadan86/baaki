@@ -20,15 +20,35 @@
  * Nothing here talks to Supabase. It decides; the caller performs.
  */
 
-export type AuthMethod = 'email_password' | 'phone_password' | 'phone_otp' | 'google' | 'apple';
+export enum AuthMethod {
+  EmailPassword = 'email_password',
+  PhonePassword = 'phone_password',
+  PhoneOtp = 'phone_otp',
+  Google = 'google',
+  Apple = 'apple',
+}
 
 /** The providers reached through an identity provider rather than a credential. */
-export type OAuthMethod = 'google' | 'apple';
+export enum OAuthMethod {
+  Google = 'google',
+  Apple = 'apple',
+}
 
-const OAUTH: readonly AuthMethod[] = ['google', 'apple'];
-
-function isOAuth(method: AuthMethod): method is OAuthMethod {
-  return OAUTH.includes(method);
+/**
+ * The OAuth providers, as their own enum. `AuthMethod` and `OAuthMethod` share
+ * the same string values but are distinct enums, so an `AuthMethod` is mapped
+ * across rather than assigned; `null` means this method is a credential, not an
+ * identity provider.
+ */
+function asOAuth(method: AuthMethod): OAuthMethod | null {
+  switch (method) {
+    case AuthMethod.Google:
+      return OAuthMethod.Google;
+    case AuthMethod.Apple:
+      return OAuthMethod.Apple;
+    default:
+      return null;
+  }
 }
 
 /** Who is asking. */
@@ -86,23 +106,25 @@ export function planAuth(
   method: AuthMethod,
   intent: 'sign_in' | 'sign_up' = 'sign_in',
 ): AuthAction {
+  const oauth = asOAuth(method);
+
   if (viewer.kind === 'guest') {
     // Whatever the screen thought it was doing, this is an upgrade.
-    return isOAuth(method) ? { call: 'linkIdentity', method } : { call: 'updateUser', method };
+    return oauth ? { call: 'linkIdentity', method: oauth } : { call: 'updateUser', method };
   }
 
   if (viewer.kind === 'user') {
     // Already a real account. Adding a second way in is still a link, never a
     // sign-up — somebody with an email adding Google must not end up with two
     // accounts and half their groups in each.
-    return isOAuth(method) ? { call: 'linkIdentity', method } : { call: 'updateUser', method };
+    return oauth ? { call: 'linkIdentity', method: oauth } : { call: 'updateUser', method };
   }
 
   switch (method) {
-    case 'google':
-    case 'apple':
-      return { call: 'signInWithOAuth', method };
-    case 'phone_otp':
+    case AuthMethod.Google:
+    case AuthMethod.Apple:
+      return { call: 'signInWithOAuth', method: oauth! };
+    case AuthMethod.PhoneOtp:
       return { call: 'signInWithOtp', method: 'phone_otp' };
     default:
       return intent === 'sign_up'

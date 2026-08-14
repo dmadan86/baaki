@@ -14,12 +14,13 @@ import { useEffect, useState } from 'react';
 import type { NotificationRow } from '@baaki/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
+import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { useStrings } from '@/i18n-context';
 
 export default function InboxPage() {
-  return <AppFrame current="inbox">{() => <Inbox />}</AppFrame>;
+  return <AppFrame current={Section.Inbox}>{() => <Inbox />}</AppFrame>;
 }
 
 function Inbox() {

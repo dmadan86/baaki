@@ -13,24 +13,24 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { coarseMethod } from '../src/index';
+import { coarseMethod, SettlementMethod } from '../src/index';
 
 describe('coarseMethod', () => {
   it('keeps the four the enum knows', () => {
-    expect(coarseMethod('upi')).toBe('upi');
-    expect(coarseMethod('cash')).toBe('cash');
-    expect(coarseMethod('bank')).toBe('bank');
-    expect(coarseMethod('other')).toBe('other');
+    expect(coarseMethod('upi')).toBe(SettlementMethod.Upi);
+    expect(coarseMethod('cash')).toBe(SettlementMethod.Cash);
+    expect(coarseMethod('bank')).toBe(SettlementMethod.Bank);
+    expect(coarseMethod('other')).toBe(SettlementMethod.Other);
   });
 
   it('folds every other rail down to other', () => {
     for (const rail of ['pix', 'paynow', 'promptpay', 'wise', 'zelle', 'venmo', 'revolut']) {
-      expect(coarseMethod(rail)).toBe('other');
+      expect(coarseMethod(rail)).toBe(SettlementMethod.Other);
     }
   });
 
   it('does not mistake an unknown string for a known method', () => {
-    expect(coarseMethod('')).toBe('other');
-    expect(coarseMethod('UPI')).toBe('other'); // case matters — the enum is lower-case
+    expect(coarseMethod('')).toBe(SettlementMethod.Other);
+    expect(coarseMethod('UPI')).toBe(SettlementMethod.Other); // case matters — the enum is lower-case
   });
 });

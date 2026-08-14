@@ -39,7 +39,10 @@ export interface GuestGate {
 }
 
 /** Why a guest is being asked to sign up, or `null` when nothing blocks them. */
-export type GuestBlock = 'group_limit' | 'trial_expired';
+export enum GuestBlock {
+  GroupLimit = 'group_limit',
+  TrialExpired = 'trial_expired',
+}
 
 /**
  * Where a guest stands against both limits.
@@ -80,12 +83,12 @@ export function guestGate(input: {
 
 /** The reason to gate a "start or join a group" action, or `null` to allow it. */
 export function guestGroupBlock(gate: GuestGate): GuestBlock | null {
-  if (gate.expired) return 'trial_expired';
-  if (gate.atGroupLimit) return 'group_limit';
+  if (gate.expired) return GuestBlock.TrialExpired;
+  if (gate.atGroupLimit) return GuestBlock.GroupLimit;
   return null;
 }
 
 /** The reason to gate any other write, or `null` to allow it. */
 export function guestWriteBlock(gate: GuestGate): GuestBlock | null {
-  return gate.expired ? 'trial_expired' : null;
+  return gate.expired ? GuestBlock.TrialExpired : null;
 }

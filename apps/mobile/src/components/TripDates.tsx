@@ -38,7 +38,12 @@ export interface TripDatesValue {
   remind_evening_at: string;
 }
 
-type Field = 'start' | 'end' | 'morning' | 'evening';
+enum Field {
+  Start = 'start',
+  End = 'end',
+  Morning = 'morning',
+  Evening = 'evening',
+}
 
 export interface TripDatesPatch {
   start_date?: string | null;
@@ -144,7 +149,7 @@ export function TripDates({
     if (event.type === 'dismissed' || !picked) return;
 
     switch (field) {
-      case 'start': {
+      case Field.Start: {
         const start = isoDate(picked);
         // An end date before the start is not a trip. Dragging the start past
         // the end moves the end rather than refusing the tap.
@@ -152,13 +157,13 @@ export function TripDates({
         onChange({ start_date: start, end_date: end ?? start, time_zone: group.time_zone });
         return;
       }
-      case 'end': {
+      case Field.End: {
         const end = isoDate(picked);
         const start = group.start_date && group.start_date > end ? end : group.start_date;
         onChange({ end_date: end, start_date: start ?? end });
         return;
       }
-      case 'morning':
+      case Field.Morning:
         onChange({ remind_morning_at: isoTime(picked) });
         return;
       default:
@@ -199,12 +204,12 @@ export function TripDates({
         <FieldRow
           label={t.pickers.starts}
           value={showDate(group.start_date, locale)}
-          onPress={() => setEditing('start')}
+          onPress={() => setEditing(Field.Start)}
         />
         <FieldRow
           label={t.pickers.ends}
           value={showDate(group.end_date, locale)}
-          onPress={() => setEditing('end')}
+          onPress={() => setEditing(Field.End)}
         />
       </Row>
 
@@ -232,12 +237,12 @@ export function TripDates({
                 <FieldRow
                   label={t.pickers.breakfast}
                   value={showTime(group.remind_morning_at, locale)}
-                  onPress={() => setEditing('morning')}
+                  onPress={() => setEditing(Field.Morning)}
                 />
                 <FieldRow
                   label={t.pickers.endOfDay}
                   value={showTime(group.remind_evening_at, locale)}
-                  onPress={() => setEditing('evening')}
+                  onPress={() => setEditing(Field.Evening)}
                 />
               </Row>
 
@@ -273,18 +278,18 @@ export function TripDates({
       {editing ? (
         <DateTimePicker
           value={
-            editing === 'start'
+            editing === Field.Start
               ? dateFrom(group.start_date)
-              : editing === 'end'
+              : editing === Field.End
                 ? dateFrom(group.end_date)
                 : timeFrom(
-                    editing === 'morning' ? group.remind_morning_at : group.remind_evening_at,
+                    editing === Field.Morning ? group.remind_morning_at : group.remind_evening_at,
                   )
           }
-          mode={editing === 'start' || editing === 'end' ? 'date' : 'time'}
+          mode={editing === Field.Start || editing === Field.End ? 'date' : 'time'}
           // The end of a trip cannot be before its beginning, so the picker
           // does not offer it.
-          minimumDate={editing === 'end' ? dateFrom(group.start_date) : undefined}
+          minimumDate={editing === Field.End ? dateFrom(group.start_date) : undefined}
           onChange={(event, picked) => apply(editing, event, picked)}
         />
       ) : null}

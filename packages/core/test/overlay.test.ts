@@ -18,7 +18,9 @@ import {
   materialiseGroups,
   materialiseMembers,
   materialiseSettlements,
+  MutationKind,
   reconcile,
+  SyncTable,
   type MutationEnvelope,
   type QueuedMutation,
 } from '../src/sync/index.js';
@@ -42,7 +44,7 @@ function queued(...envelopes: MutationEnvelope[]): QueuedMutation[] {
 }
 
 describe('settlements', () => {
-  const settle = envelope('m-1', 'settlement.create', {
+  const settle = envelope('m-1', MutationKind.SettlementCreate, {
     settlementId: 's-1',
     from: 'member-a',
     to: 'member-b',
@@ -75,7 +77,7 @@ describe('settlements', () => {
   it('applies a queued confirmation to a settlement the server already sent', () => {
     const mirror = reconcile(emptyMirror(), [
       {
-        table: 'settlements',
+        table: SyncTable.Settlements,
         groupId: GROUP,
         seq: 1,
         row: {
@@ -92,7 +94,7 @@ describe('settlements', () => {
       },
     ]).state;
 
-    const queue = queued(envelope('m-2', 'settlement.transition', { settlementId: 's-9' }));
+    const queue = queued(envelope('m-2', MutationKind.SettlementTransition, { settlementId: 's-9' }));
     const [row] = materialiseSettlements(mirror, queue, { groupId: GROUP });
     expect(row).toMatchObject({ id: 's-9', status: 'confirmed', pending: true });
   });
@@ -101,7 +103,7 @@ describe('settlements', () => {
     const elsewhere = queued(
       envelope(
         'm-3',
-        'settlement.create',
+        MutationKind.SettlementCreate,
         { ...(settle.payload as Record<string, unknown>), settlementId: 's-2' },
         'g-2',
       ),
@@ -113,7 +115,7 @@ describe('settlements', () => {
 describe('members', () => {
   it('shows a ghost added offline, with the address that lets them claim later', () => {
     const queue = queued(
-      envelope('m-1', 'member.add_ghost', {
+      envelope('m-1', MutationKind.MemberAddGhost, {
         memberId: 'mem-1',
         name: 'Ravi',
         email: 'ravi@example.com',
@@ -136,7 +138,7 @@ describe('members', () => {
     // back replaces the queued one rather than sitting beside it.
     const mirror = reconcile(emptyMirror(), [
       {
-        table: 'group_members',
+        table: SyncTable.GroupMembers,
         groupId: GROUP,
         seq: 1,
         row: {
@@ -149,7 +151,7 @@ describe('members', () => {
       },
     ]).state;
 
-    const queue = queued(envelope('m-1', 'member.add_ghost', { memberId: 'mem-1', name: 'Ravi' }));
+    const queue = queued(envelope('m-1', MutationKind.MemberAddGhost, { memberId: 'mem-1', name: 'Ravi' }));
     const rows = materialiseMembers(mirror, queue, { groupId: GROUP });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.pending).toBeUndefined();
@@ -157,7 +159,7 @@ describe('members', () => {
 });
 
 describe('groups', () => {
-  const create = envelope('m-1', 'group.create', {
+  const create = envelope('m-1', MutationKind.GroupCreate, {
     name: 'Goa',
     currency: 'INR',
     emoji: '🏖️',
@@ -179,7 +181,7 @@ describe('groups', () => {
   it('replays an edit over the row the server sent', () => {
     const mirror = reconcile(emptyMirror(), [
       {
-        table: 'groups',
+        table: SyncTable.Groups,
         groupId: GROUP,
         seq: 1,
         row: {
@@ -192,7 +194,7 @@ describe('groups', () => {
       },
     ]).state;
 
-    const queue = queued(envelope('m-2', 'group.update', { name: 'Goa 2026' }));
+    const queue = queued(envelope('m-2', MutationKind.GroupUpdate, { name: 'Goa 2026' }));
     const [row] = materialiseGroups(mirror, queue);
     expect(row).toMatchObject({ id: GROUP, name: 'Goa 2026', pending: true });
   });
@@ -200,7 +202,7 @@ describe('groups', () => {
   it('keeps an archived group out, however it was archived', () => {
     const mirror = reconcile(emptyMirror(), [
       {
-        table: 'groups',
+        table: SyncTable.Groups,
         groupId: GROUP,
         seq: 1,
         row: { id: GROUP, name: 'Old', default_currency: 'INR', created_at: AT, archived_at: AT },
@@ -221,7 +223,7 @@ describe('the overlay as a whole', () => {
         (ids) => {
           const queue = queued(
             ...ids.map((id) =>
-              envelope(`m-${id}`, 'settlement.create', {
+              envelope(`m-${id}`, MutationKind.SettlementCreate, {
                 settlementId: `s-${id}`,
                 from: 'a',
                 to: 'b',

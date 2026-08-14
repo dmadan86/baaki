@@ -17,6 +17,7 @@ import {
   recentDevices,
   type DeviceSession,
 } from '../src/session/devices';
+import { PlanTier } from '../src/billing/plans';
 
 const NOW = Date.parse('2026-08-09T12:00:00.000Z');
 const DAY = 86_400_000;
@@ -37,8 +38,8 @@ function device(over: Partial<DeviceSession> = {}): DeviceSession {
 
 describe('deviceLimitFor', () => {
   it('gives free two and plus more', () => {
-    expect(deviceLimitFor('free')).toBe(2);
-    expect(deviceLimitFor('plus')).toBeGreaterThan(2);
+    expect(deviceLimitFor(PlanTier.Free)).toBe(2);
+    expect(deviceLimitFor(PlanTier.Plus)).toBeGreaterThan(2);
   });
 });
 
@@ -91,18 +92,18 @@ describe('activeDevices', () => {
 describe('deviceLimitStatus', () => {
   it('lets a free account sit at exactly two', () => {
     const rows = [device({ deviceId: 'a' }), device({ deviceId: 'b' })];
-    const status = deviceLimitStatus(rows, 'free', NOW);
+    const status = deviceLimitStatus(rows, PlanTier.Free, NOW);
     expect(status).toEqual({ limit: 2, activeCount: 2, overLimit: false });
   });
 
   it('flags the third phone as over the line', () => {
     const rows = [device({ deviceId: 'a' }), device({ deviceId: 'b' }), device({ deviceId: 'c' })];
-    expect(deviceLimitStatus(rows, 'free', NOW).overLimit).toBe(true);
+    expect(deviceLimitStatus(rows, PlanTier.Free, NOW).overLimit).toBe(true);
   });
 
   it('does not flag three phones on plus', () => {
     const rows = [device({ deviceId: 'a' }), device({ deviceId: 'b' }), device({ deviceId: 'c' })];
-    expect(deviceLimitStatus(rows, 'plus', NOW).overLimit).toBe(false);
+    expect(deviceLimitStatus(rows, PlanTier.Plus, NOW).overLimit).toBe(false);
   });
 
   it('a freed slot brings a would-be-third back under the limit', () => {
@@ -111,7 +112,7 @@ describe('deviceLimitStatus', () => {
       device({ deviceId: 'b', lastSeenAt: daysAgo(40) }), // silent: slot freed
       device({ deviceId: 'c', lastSeenAt: daysAgo(0) }),
     ];
-    expect(deviceLimitStatus(rows, 'free', NOW).overLimit).toBe(false);
+    expect(deviceLimitStatus(rows, PlanTier.Free, NOW).overLimit).toBe(false);
   });
 });
 

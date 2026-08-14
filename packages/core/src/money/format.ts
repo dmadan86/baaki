@@ -96,12 +96,16 @@ export function currencySymbol(currency: CurrencyCode, locale: Locale = DEFAULT_
   return parts.find((part) => part.type === 'currency')?.value ?? currency;
 }
 
-export type BalanceDirection = 'owed_to_you' | 'you_owe' | 'settled';
+export enum BalanceDirection {
+  OwedToYou = 'owed_to_you',
+  YouOwe = 'you_owe',
+  Settled = 'settled',
+}
 
 export function balanceDirection(minor: bigint): BalanceDirection {
-  if (minor > 0n) return 'owed_to_you';
-  if (minor < 0n) return 'you_owe';
-  return 'settled';
+  if (minor > 0n) return BalanceDirection.OwedToYou;
+  if (minor < 0n) return BalanceDirection.YouOwe;
+  return BalanceDirection.Settled;
 }
 
 /**
@@ -119,11 +123,11 @@ export function moneyAccessibilityLabel(
     options,
   );
   switch (direction) {
-    case 'owed_to_you':
+    case BalanceDirection.OwedToYou:
       return strings.owedToYou.replace('{amount}', rendered);
-    case 'you_owe':
+    case BalanceDirection.YouOwe:
       return strings.youOwe.replace('{amount}', rendered);
-    case 'settled':
+    case BalanceDirection.Settled:
       return strings.settled;
   }
 }

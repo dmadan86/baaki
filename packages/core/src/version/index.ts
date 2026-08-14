@@ -21,7 +21,11 @@
  */
 
 /** What to do about the installed version. */
-export type UpdateDecision = 'none' | 'suggested' | 'required';
+export enum UpdateDecision {
+  None = 'none',
+  Suggested = 'suggested',
+  Required = 'required',
+}
 
 /** What the server says about a platform's builds. */
 export interface ReleasePolicy {
@@ -79,10 +83,10 @@ export function compareVersions(a: string, b: string): number | null {
 export function decideUpdate(installed: string, policy: ReleasePolicy): UpdateDecision {
   const belowMinimum = compareVersions(installed, policy.minimumVersion);
   const minimumIsReal = (compareVersions(policy.minimumVersion, policy.latestVersion) ?? 1) <= 0;
-  if (minimumIsReal && belowMinimum !== null && belowMinimum < 0) return 'required';
+  if (minimumIsReal && belowMinimum !== null && belowMinimum < 0) return UpdateDecision.Required;
 
   const behindLatest = compareVersions(installed, policy.latestVersion);
-  if (behindLatest !== null && behindLatest < 0) return 'suggested';
+  if (behindLatest !== null && behindLatest < 0) return UpdateDecision.Suggested;
 
-  return 'none';
+  return UpdateDecision.None;
 }

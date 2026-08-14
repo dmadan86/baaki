@@ -4,7 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { currencyForCountry, guessGroupEmoji } from '@baaki/core';
+import { currencyForCountry, guessGroupEmoji, MutationKind } from '@baaki/core';
 import {
   Button,
   Callout,
@@ -29,7 +29,7 @@ import { uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
-import type { GroupType } from '@/data/types';
+import { GroupType } from '@/data/types';
 import { deviceCountry, useStrings } from '@/i18n';
 
 /**
@@ -39,11 +39,11 @@ import { deviceCountry, useStrings } from '@/i18n';
  * better fallback than one fixed emoji for everybody.
  */
 const EMOJI_FOR_TYPE: Record<GroupType, string> = {
-  trip: '✈️',
-  home: '🏠',
-  couple: '💜',
-  event: '🎉',
-  other: '👥',
+  [GroupType.Trip]: '✈️',
+  [GroupType.Home]: '🏠',
+  [GroupType.Couple]: '💜',
+  [GroupType.Event]: '🎉',
+  [GroupType.Other]: '👥',
 };
 
 const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
@@ -69,7 +69,7 @@ export default function NewGroupScreen() {
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState<PickedImage | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [type, setType] = useState<GroupType>('trip');
+  const [type, setType] = useState<GroupType>(GroupType.Trip);
   const [ghostName, setGhostName] = useState('');
   // People to add on Create — a typed name carries no address, a contact carries
   // whatever the phone had. Same shape either way, so the create loop treats
@@ -129,7 +129,7 @@ export default function NewGroupScreen() {
       // its membership check (NOT_A_MEMBER). Behind the create, each applies
       // after the group it belongs to exists.
       for (const ghost of ghosts) {
-        await mutate('member.add_ghost', groupId, {
+        await mutate(MutationKind.MemberAddGhost, groupId, {
           memberId: randomUUID(),
           name: ghost.name,
           email: ghost.email,
@@ -141,7 +141,7 @@ export default function NewGroupScreen() {
       // an update on the same ordered queue — only when a trip was actually
       // given a start and end, since that is what turns the reminders on.
       if (tripDates.start_date && tripDates.end_date) {
-        await mutate('group.update', groupId, {
+        await mutate(MutationKind.GroupUpdate, groupId, {
           start_date: tripDates.start_date,
           end_date: tripDates.end_date,
           time_zone: tripDates.time_zone,
@@ -278,11 +278,11 @@ export default function NewGroupScreen() {
             value={type}
             onChange={setType}
             options={[
-              { value: 'trip', label: t.extras.typeTrip },
-              { value: 'home', label: t.extras.typeHome },
-              { value: 'couple', label: t.extras.typeCouple },
-              { value: 'event', label: t.extras.typeEvent },
-              { value: 'other', label: t.extras.typeOther },
+              { value: GroupType.Trip, label: t.extras.typeTrip },
+              { value: GroupType.Home, label: t.extras.typeHome },
+              { value: GroupType.Couple, label: t.extras.typeCouple },
+              { value: GroupType.Event, label: t.extras.typeEvent },
+              { value: GroupType.Other, label: t.extras.typeOther },
             ]}
           />
         </View>

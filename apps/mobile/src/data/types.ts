@@ -1,9 +1,25 @@
 import type { MemberId, SplitParams } from '@baaki/core';
 
-export type GroupType = 'trip' | 'home' | 'couple' | 'event' | 'other';
-export type SettlementMethod = 'upi' | 'cash' | 'bank' | 'other';
-export type SettlementStatus =
-  'initiated' | 'confirmed' | 'auto_confirmed' | 'disputed' | 'cancelled';
+export enum GroupType {
+  Trip = 'trip',
+  Home = 'home',
+  Couple = 'couple',
+  Event = 'event',
+  Other = 'other',
+}
+export enum SettlementMethod {
+  Upi = 'upi',
+  Cash = 'cash',
+  Bank = 'bank',
+  Other = 'other',
+}
+export enum SettlementStatus {
+  Initiated = 'initiated',
+  Confirmed = 'confirmed',
+  AutoConfirmed = 'auto_confirmed',
+  Disputed = 'disputed',
+  Cancelled = 'cancelled',
+}
 
 export interface GroupRow {
   id: string;
@@ -92,7 +108,12 @@ export interface ExpenseRow {
   pending?: boolean;
 }
 
-export type DisputeStatus = 'open' | 'resolved' | 'withdrawn' | 'rejected';
+export enum DisputeStatus {
+  Open = 'open',
+  Resolved = 'resolved',
+  Withdrawn = 'withdrawn',
+  Rejected = 'rejected',
+}
 
 /**
  * Somebody saying an expense is wrong. Never changes a balance on its own —

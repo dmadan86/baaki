@@ -9,7 +9,13 @@
  * a number.
  */
 
-export type GroupType = 'trip' | 'home' | 'couple' | 'event' | 'other';
+export enum GroupType {
+  Trip = 'trip',
+  Home = 'home',
+  Couple = 'couple',
+  Event = 'event',
+  Other = 'other',
+}
 
 export interface GroupRow {
   id: string;
@@ -77,7 +83,12 @@ export interface ActivityRow {
   group?: ActivityGroup | null;
 }
 
-export type DisputeStatus = 'open' | 'resolved' | 'withdrawn' | 'rejected';
+export enum DisputeStatus {
+  Open = 'open',
+  Resolved = 'resolved',
+  Withdrawn = 'withdrawn',
+  Rejected = 'rejected',
+}
 
 /**
  * Somebody saying an expense is wrong. Never moves a balance on its own — a
@@ -108,10 +119,20 @@ export interface ExpenseVersionSummary {
   split_type: string;
 }
 
-export type SettlementMethod = 'upi' | 'cash' | 'bank' | 'other';
+export enum SettlementMethod {
+  Upi = 'upi',
+  Cash = 'cash',
+  Bank = 'bank',
+  Other = 'other',
+}
 
-export type SettlementStatus =
-  'initiated' | 'confirmed' | 'auto_confirmed' | 'disputed' | 'cancelled';
+export enum SettlementStatus {
+  Initiated = 'initiated',
+  Confirmed = 'confirmed',
+  AutoConfirmed = 'auto_confirmed',
+  Disputed = 'disputed',
+  Cancelled = 'cancelled',
+}
 
 /**
  * The coarse `method` enum the settlements table stores, derived from the finer
@@ -122,9 +143,16 @@ export type SettlementStatus =
  * and cannot drift between the phone and the browser.
  */
 export function coarseMethod(rail: string): SettlementMethod {
-  return (['upi', 'cash', 'bank', 'other'] as const).includes(rail as SettlementMethod)
+  return (
+    [
+      SettlementMethod.Upi,
+      SettlementMethod.Cash,
+      SettlementMethod.Bank,
+      SettlementMethod.Other,
+    ] as const
+  ).includes(rail as SettlementMethod)
     ? (rail as SettlementMethod)
-    : 'other';
+    : SettlementMethod.Other;
 }
 
 /**

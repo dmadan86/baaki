@@ -18,7 +18,7 @@
 
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
-import { checkPassword, planAuth, readIdentifier, type Viewer } from '@baaki/core';
+import { AuthMethod, checkPassword, planAuth, readIdentifier, type Viewer } from '@baaki/core';
 
 import type { AcceptedInvite, Expense, Group, InvitePreview, Member, Settlement } from './types';
 import {
@@ -175,7 +175,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     ): Promise<void> {
       const who = readIdentifier(identifier);
       checkPassword(password);
-      const method = who.kind === 'email' ? 'email_password' : 'phone_password';
+      const method = who.kind === 'email' ? AuthMethod.EmailPassword : AuthMethod.PhonePassword;
       const credential = who.kind === 'email' ? { email: who.value } : { phone: who.value };
 
       const { data } = await supabase.auth.getSession();

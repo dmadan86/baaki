@@ -41,7 +41,11 @@ import { fetchFxRate } from '@/data/api';
 /** Enough for the currencies an India-first app actually sees. */
 const COMMON = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'THB', 'JPY', 'LKR', 'NPR'];
 
-type Method = 'charged' | 'typed' | 'fetched';
+enum Method {
+  Charged = 'charged',
+  Typed = 'typed',
+  Fetched = 'fetched',
+}
 
 export interface CurrencyRateProps {
   /** What the group settles in. */
@@ -66,7 +70,7 @@ export function CurrencyRate({
   const theme = useTheme();
   const { t } = useStrings();
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState<Method>('charged');
+  const [method, setMethod] = useState<Method>(Method.Charged);
   const [chargedText, setChargedText] = useState('');
   const [rateText, setRateText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -168,13 +172,13 @@ export function CurrencyRate({
               setError(null);
             }}
             options={[
-              { value: 'charged', label: t.misc.whatIWasCharged },
-              { value: 'typed', label: t.extras.iKnowTheRate },
-              { value: 'fetched', label: "Today's rate" },
+              { value: Method.Charged, label: t.misc.whatIWasCharged },
+              { value: Method.Typed, label: t.extras.iKnowTheRate },
+              { value: Method.Fetched, label: "Today's rate" },
             ]}
           />
 
-          {method === 'charged' ? (
+          {method === Method.Charged ? (
             <View style={{ gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
                 {`Amount on your statement, in ${groupCurrency}`}
@@ -194,7 +198,7 @@ export function CurrencyRate({
             </View>
           ) : null}
 
-          {method === 'typed' ? (
+          {method === Method.Typed ? (
             <View style={{ gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
                 {`1 ${currency} = ? ${groupCurrency}`}
@@ -211,7 +215,7 @@ export function CurrencyRate({
             </View>
           ) : null}
 
-          {method === 'fetched' ? (
+          {method === Method.Fetched ? (
             <Button
               label={
                 busy

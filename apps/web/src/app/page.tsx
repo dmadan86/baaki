@@ -11,11 +11,12 @@
  */
 
 import { AppFrame } from '@/components/AppFrame';
+import { Section } from '@/components/Shell';
 import { Overview } from '@/components/Overview';
 
 export default function Home() {
   return (
-    <AppFrame current="overview">
+    <AppFrame current={Section.Overview}>
       {({ profileId, query }) => <Overview profileId={profileId} query={query} />}
     </AppFrame>
   );

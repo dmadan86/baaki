@@ -20,7 +20,7 @@ import {
   normalisePhone,
   planAuth,
   readIdentifier,
-  type AuthMethod,
+  AuthMethod,
   type Viewer,
 } from '../src/index';
 
@@ -29,11 +29,11 @@ const USER: Viewer = { kind: 'user', userId: 'u-real' };
 const NOBODY: Viewer = { kind: 'nobody' };
 
 const EVERY_METHOD: AuthMethod[] = [
-  'email_password',
-  'phone_password',
-  'phone_otp',
-  'google',
-  'apple',
+  AuthMethod.EmailPassword,
+  AuthMethod.PhonePassword,
+  AuthMethod.PhoneOtp,
+  AuthMethod.Google,
+  AuthMethod.Apple,
 ];
 
 describe('a guest is upgraded, never replaced', () => {
@@ -52,7 +52,7 @@ describe('a guest is upgraded, never replaced', () => {
   });
 
   it('links Google rather than signing in with it', () => {
-    expect(planAuth(GUEST, 'google')).toEqual({ call: 'linkIdentity', method: 'google' });
+    expect(planAuth(GUEST, AuthMethod.Google)).toEqual({ call: 'linkIdentity', method: 'google' });
   });
 
   it('links Apple rather than signing in with it', () => {
@@ -62,14 +62,14 @@ describe('a guest is upgraded, never replaced', () => {
     // Apple ID, and for a guest that is a brand new one. Returning `linkIdentity`
     // here is what sends the caller down the web flow instead, which is the only
     // one that can add a provider to the session already held.
-    expect(planAuth(GUEST, 'apple')).toEqual({ call: 'linkIdentity', method: 'apple' });
+    expect(planAuth(GUEST, AuthMethod.Apple)).toEqual({ call: 'linkIdentity', method: 'apple' });
   });
 
   it('ignores a screen that thinks it is a sign-up', () => {
     // The screen does not get a say. Whatever it believes it is doing, a guest
     // with data can only ever be upgraded.
-    expect(planAuth(GUEST, 'email_password', 'sign_up').call).toBe('updateUser');
-    expect(planAuth(GUEST, 'email_password', 'sign_in').call).toBe('updateUser');
+    expect(planAuth(GUEST, AuthMethod.EmailPassword, 'sign_up').call).toBe('updateUser');
+    expect(planAuth(GUEST, AuthMethod.EmailPassword, 'sign_in').call).toBe('updateUser');
   });
 });
 
@@ -84,14 +84,14 @@ describe('somebody who already has an account', () => {
 
 describe('somebody with no account at all', () => {
   it('signs in with a password', () => {
-    expect(planAuth(NOBODY, 'email_password')).toEqual({
+    expect(planAuth(NOBODY, AuthMethod.EmailPassword)).toEqual({
       call: 'signInWithPassword',
       method: 'email_password',
     });
   });
 
   it('signs up when that is what they asked for', () => {
-    expect(planAuth(NOBODY, 'email_password', 'sign_up')).toEqual({
+    expect(planAuth(NOBODY, AuthMethod.EmailPassword, 'sign_up')).toEqual({
       call: 'signUp',
       method: 'email_password',
     });
@@ -100,24 +100,24 @@ describe('somebody with no account at all', () => {
   it('sends a code for phone OTP whichever they asked for', () => {
     // There is no separate sign-up for an OTP: the code both proves the number
     // and creates the account.
-    expect(planAuth(NOBODY, 'phone_otp').call).toBe('signInWithOtp');
-    expect(planAuth(NOBODY, 'phone_otp', 'sign_up').call).toBe('signInWithOtp');
+    expect(planAuth(NOBODY, AuthMethod.PhoneOtp).call).toBe('signInWithOtp');
+    expect(planAuth(NOBODY, AuthMethod.PhoneOtp, 'sign_up').call).toBe('signInWithOtp');
   });
 
   it('goes to the provider for Google', () => {
-    expect(planAuth(NOBODY, 'google').call).toBe('signInWithOAuth');
+    expect(planAuth(NOBODY, AuthMethod.Google).call).toBe('signInWithOAuth');
   });
 
   it('goes to the provider for Apple', () => {
-    expect(planAuth(NOBODY, 'apple')).toEqual({ call: 'signInWithOAuth', method: 'apple' });
+    expect(planAuth(NOBODY, AuthMethod.Apple)).toEqual({ call: 'signInWithOAuth', method: 'apple' });
   });
 
   it('will not be talked into a sign-up for either provider', () => {
     // There is no such thing as signing *up* with a provider: the first time
     // through is the account being made. A screen passing 'sign_up' must not
     // reach `signUp`, which wants a password there is none of.
-    expect(planAuth(NOBODY, 'google', 'sign_up').call).toBe('signInWithOAuth');
-    expect(planAuth(NOBODY, 'apple', 'sign_up').call).toBe('signInWithOAuth');
+    expect(planAuth(NOBODY, AuthMethod.Google, 'sign_up').call).toBe('signInWithOAuth');
+    expect(planAuth(NOBODY, AuthMethod.Apple, 'sign_up').call).toBe('signInWithOAuth');
   });
 });
 
@@ -129,8 +129,8 @@ describe('the native Apple sheet is unreachable for anybody with data', () => {
   // `signInWithOAuth` branch, so that branch has to stay unreachable for a
   // guest or a user. This is that guarantee, stated where it is enforced.
   it.each([GUEST, USER])('never returns signInWithOAuth for %o', (viewer) => {
-    expect(planAuth(viewer, 'apple').call).not.toBe('signInWithOAuth');
-    expect(planAuth(viewer, 'apple', 'sign_up').call).not.toBe('signInWithOAuth');
+    expect(planAuth(viewer, AuthMethod.Apple).call).not.toBe('signInWithOAuth');
+    expect(planAuth(viewer, AuthMethod.Apple, 'sign_up').call).not.toBe('signInWithOAuth');
   });
 });
 

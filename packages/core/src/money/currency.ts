@@ -64,7 +64,7 @@ export function isCurrencyCode(value: string): boolean {
 
 export function assertCurrencyCode(value: string): asserts value is CurrencyCode {
   if (!isCurrencyCode(value)) {
-    throw new MoneyError('INVALID_CURRENCY', `Not an ISO-4217 alpha-3 code: "${value}"`);
+    throw new MoneyError(MoneyErrorCode.InvalidCurrency, `Not an ISO-4217 alpha-3 code: "${value}"`);
   }
 }
 
@@ -79,12 +79,13 @@ export function minorUnitScale(currency: CurrencyCode): bigint {
   return 10n ** BigInt(minorUnitExponent(currency));
 }
 
-export type MoneyErrorCode =
-  | 'INVALID_CURRENCY'
-  | 'CURRENCY_MISMATCH'
-  | 'INVALID_AMOUNT'
-  | 'NEGATIVE_AMOUNT'
-  | 'INVALID_FX_RATE';
+export enum MoneyErrorCode {
+  InvalidCurrency = 'INVALID_CURRENCY',
+  CurrencyMismatch = 'CURRENCY_MISMATCH',
+  InvalidAmount = 'INVALID_AMOUNT',
+  NegativeAmount = 'NEGATIVE_AMOUNT',
+  InvalidFxRate = 'INVALID_FX_RATE',
+}
 
 export class MoneyError extends Error {
   readonly code: MoneyErrorCode;

@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { computeShares } from '@baaki/core';
 
-import { entryValues, fillEntries, formatEntry, parseEntry, splitProblem } from '../src/lib/split';
+import {
+  entryValues,
+  fillEntries,
+  formatEntry,
+  parseEntry,
+  SplitKind,
+  splitProblem,
+} from '../src/lib/split';
 
 describe('parseEntry', () => {
   it('reads whole shares', () => {
@@ -53,32 +60,32 @@ describe('splitProblem', () => {
   const people = ['a', 'b', 'c'];
 
   it('says nothing about an equal split', () => {
-    expect(splitProblem('equal', {}, people)).toBeNull();
+    expect(splitProblem(SplitKind.Equal, {}, people)).toBeNull();
   });
 
   it('accepts shares with at least one positive weight', () => {
-    expect(splitProblem('shares', { a: '2', b: '1', c: '0' }, people)).toBeNull();
+    expect(splitProblem(SplitKind.Shares, { a: '2', b: '1', c: '0' }, people)).toBeNull();
   });
 
   it('refuses shares that are all zero', () => {
-    expect(splitProblem('shares', { a: '0', b: '0', c: '0' }, people)).toMatch(/at least one/);
+    expect(splitProblem(SplitKind.Shares, { a: '0', b: '0', c: '0' }, people)).toMatch(/at least one/);
   });
 
   it('says how much percentage is left, and how much is too much', () => {
-    expect(splitProblem('percent', { a: '30', b: '30', c: '30' }, people)).toBe(
+    expect(splitProblem(SplitKind.Percent, { a: '30', b: '30', c: '30' }, people)).toBe(
       'That is 90% — 10% left to give out.',
     );
-    expect(splitProblem('percent', { a: '50', b: '30', c: '30' }, people)).toBe(
+    expect(splitProblem(SplitKind.Percent, { a: '50', b: '30', c: '30' }, people)).toBe(
       'That is 110% — 10% too much.',
     );
   });
 
   it('accepts percentages that sum to exactly 100', () => {
-    expect(splitProblem('percent', { a: '33.34', b: '33.33', c: '33.33' }, people)).toBeNull();
+    expect(splitProblem(SplitKind.Percent, { a: '33.34', b: '33.33', c: '33.33' }, people)).toBeNull();
   });
 
   it('ignores members who are not in the split', () => {
-    expect(splitProblem('percent', { a: '50', b: '50', c: '80' }, ['a', 'b'])).toBeNull();
+    expect(splitProblem(SplitKind.Percent, { a: '50', b: '50', c: '80' }, ['a', 'b'])).toBeNull();
   });
 });
 
@@ -87,7 +94,7 @@ describe('fillEntries', () => {
 
   it('opens a fresh percent split on something valid', () => {
     const filled = fillEntries('percent', {}, people);
-    expect(splitProblem('percent', filled ?? {}, people)).toBeNull();
+    expect(splitProblem(SplitKind.Percent, filled ?? {}, people)).toBeNull();
   });
 
   it('starts somebody added later at zero rather than rewriting the others', () => {
@@ -137,7 +144,7 @@ describe('what the screen hands to the money engine', () => {
 
   it('never reaches the engine while the problem message is showing', () => {
     const entries = { a: '30', b: '30', c: '30' };
-    expect(splitProblem('percent', entries, people)).not.toBeNull();
+    expect(splitProblem(SplitKind.Percent, entries, people)).not.toBeNull();
     expect(() =>
       computeShares({
         amount: 10000n,

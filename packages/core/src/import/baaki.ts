@@ -30,6 +30,7 @@
  */
 
 import type { CurrencyCode } from '../money/currency';
+import { ImportProblemKind } from './splitwise';
 import type { ImportProblem } from './splitwise';
 
 /** Statuses that move a balance (TDR §3.3). The rest are carried as history. */
@@ -137,7 +138,11 @@ export function parseBaakiExport(text: string): BaakiImport {
       schemaVersion: 0,
       groups: [],
       problems: [
-        { kind: 'unparseable_row', row: null, message: 'That file is not a Baaki export.' },
+        {
+          kind: ImportProblemKind.UnparseableRow,
+          row: null,
+          message: 'That file is not a Baaki export.',
+        },
       ],
     };
   }
@@ -148,7 +153,7 @@ export function parseBaakiExport(text: string): BaakiImport {
 
   if (!root || groupsRaw.length === 0) {
     problems.push({
-      kind: 'no_rows',
+      kind: ImportProblemKind.NoRows,
       row: null,
       message: 'That file has no groups in it.',
     });
@@ -157,7 +162,7 @@ export function parseBaakiExport(text: string): BaakiImport {
     // silently drop, and dropping half of somebody's ledger without saying so
     // is exactly what this whole module exists to avoid.
     problems.push({
-      kind: 'unparseable_row',
+      kind: ImportProblemKind.UnparseableRow,
       row: null,
       message: `That file was written by a newer version of Baaki (format ${schemaVersion}). Update the app and try again.`,
     });
@@ -204,7 +209,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
 
   if (people.length === 0) {
     problems.push({
-      kind: 'no_people',
+      kind: ImportProblemKind.NoPeople,
       row: null,
       message: 'That group has nobody in it.',
     });
@@ -231,7 +236,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
 
     if (amount === null || payers === null || shares === null) {
       problems.push({
-        kind: 'unparseable_row',
+        kind: ImportProblemKind.UnparseableRow,
         row,
         message: `"${String(current.description ?? 'An expense')}" holds an amount that could not be read.`,
       });
@@ -245,7 +250,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
       // breaks it would be rejected server-side anyway; saying so here names
       // the row instead of failing the whole import with a constraint error.
       problems.push({
-        kind: 'row_does_not_balance',
+        kind: ImportProblemKind.RowDoesNotBalance,
         row,
         message: `"${String(current.description ?? 'An expense')}" does not add up: paid ${paid}, owed ${owed}, total ${amount}.`,
       });
@@ -272,7 +277,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
     const amount = minor(settlement.amount);
     if (!from || !to || amount === null) {
       problems.push({
-        kind: 'unparseable_row',
+        kind: ImportProblemKind.UnparseableRow,
         row: index + 1,
         message: 'A settlement names somebody who is not in the file.',
       });

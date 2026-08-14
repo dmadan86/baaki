@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { checkReceipt, toItemizedParams } from '../src/receipt/reconcile.js';
 import { LOW_CONFIDENCE, type ParsedReceipt } from '../src/receipt/types.js';
 import { computeShares } from '../src/split/computeShares.js';
-import { SplitError, type SplitErrorCode } from '../src/split/types.js';
+import { SplitError, SplitErrorCode } from '../src/split/types.js';
 
 /** The code is the contract a client branches on; the prose is not. */
 function expectSplitError(run: () => unknown, code: SplitErrorCode): void {
@@ -179,7 +179,7 @@ describe('turning a receipt into an expense', () => {
           participants: ['asha'],
           seed: 'receipt-2',
         }),
-      'ITEMIZED_TOTAL_MISMATCH',
+      SplitErrorCode.ItemizedTotalMismatch,
     );
   });
 
@@ -196,7 +196,7 @@ describe('turning a receipt into an expense', () => {
           participants: ['asha', 'ravi'],
           seed: 'receipt-3',
         }),
-      'UNCLAIMED_ITEM',
+      SplitErrorCode.UnclaimedItem,
     );
   });
 });

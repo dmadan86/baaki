@@ -50,7 +50,10 @@ import { useGroup, useGroupSpending } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
-type Scope = 'group' | 'mine';
+enum Scope {
+  Group = 'group',
+  Mine = 'mine',
+}
 
 /** How many months of columns fit on a phone without becoming a smear. */
 const MONTHS_SHOWN = 6;
@@ -65,7 +68,7 @@ export default function InsightsScreen() {
   const { group, members } = useGroup(groupId);
   const spending = useGroupSpending(groupId);
 
-  const [scope, setScope] = useState<Scope>('group');
+  const [scope, setScope] = useState<Scope>(Scope.Group);
 
   const myMemberId = useMemo(
     () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
@@ -78,7 +81,7 @@ export default function InsightsScreen() {
 
   const rows = useMemo(() => {
     const all = spending.data ?? [];
-    if (scope === 'mine') {
+    if (scope === Scope.Mine) {
       return myMemberId ? all.filter((row) => row.member_id === myMemberId) : [];
     }
     return all;
@@ -120,8 +123,8 @@ export default function InsightsScreen() {
           value={scope}
           onChange={setScope}
           options={[
-            { value: 'group', label: t.extras.theGroup },
-            { value: 'mine', label: t.extras.justMe },
+            { value: Scope.Group, label: t.extras.theGroup },
+            { value: Scope.Mine, label: t.extras.justMe },
           ]}
         />
 
