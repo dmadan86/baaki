@@ -94,7 +94,11 @@ export async function authorize(config: OAuthConfig): Promise<CloudTokens | null
 export async function refresh(config: OAuthConfig, tokens: CloudTokens): Promise<CloudTokens> {
   if (!tokens.refreshToken) return tokens;
   const token = await refreshAsync(
-    { clientId: config.clientId, refreshToken: tokens.refreshToken, extraParams: config.extraParams },
+    {
+      clientId: config.clientId,
+      refreshToken: tokens.refreshToken,
+      extraParams: config.extraParams,
+    },
     config.discovery,
   );
   return toTokens(token, tokens.refreshToken);

@@ -13,9 +13,13 @@ import { LOW_CONFIDENCE, checkReceipt, parseReceiptText } from '../src/receipt/i
 describe('parseReceiptText', () => {
   it('reads a clean grocery bill: items, total, count, reconciles', () => {
     const receipt = parseReceiptText(
-      ['FreshMart', 'Milk 1L        2.50', 'Bread          1.20', 'Eggs x6        3.00', 'TOTAL          6.70'].join(
-        '\n',
-      ),
+      [
+        'FreshMart',
+        'Milk 1L        2.50',
+        'Bread          1.20',
+        'Eggs x6        3.00',
+        'TOTAL          6.70',
+      ].join('\n'),
     );
 
     expect(receipt.items).toHaveLength(3);
@@ -78,9 +82,13 @@ describe('parseReceiptText', () => {
 
   it('drops payment-mechanics noise instead of counting it as an item', () => {
     const receipt = parseReceiptText(
-      ['Deli', 'Sandwich       8.00', 'Total          8.00', 'Cash          10.00', 'Change         2.00'].join(
-        '\n',
-      ),
+      [
+        'Deli',
+        'Sandwich       8.00',
+        'Total          8.00',
+        'Cash          10.00',
+        'Change         2.00',
+      ].join('\n'),
     );
     expect(receipt.items).toHaveLength(1);
     expect(receipt.grandTotal).toBe(800);

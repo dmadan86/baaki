@@ -71,11 +71,15 @@ async function putFile(
     body: { name, parents: [folderId] },
   });
   const id = meta.id as string;
-  await uploadFile(localUri, `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`, {
-    method: 'PATCH',
-    headers: authHeader(tokens),
-    mimeType,
-  });
+  await uploadFile(
+    localUri,
+    `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`,
+    {
+      method: 'PATCH',
+      headers: authHeader(tokens),
+      mimeType,
+    },
+  );
   return id;
 }
 
@@ -84,7 +88,8 @@ export const googleDrive: CloudProvider = {
   label: 'Google Drive',
   isConfigured: () => clientConfigured('gdrive'),
   connect: () => authorize(config()),
-  ensureValid: (tokens) => (isExpired(tokens) ? refresh(config(), tokens) : Promise.resolve(tokens)),
+  ensureValid: (tokens) =>
+    isExpired(tokens) ? refresh(config(), tokens) : Promise.resolve(tokens),
   async upload(tokens: CloudTokens, input: CloudUploadInput): Promise<CloudUploadResult> {
     const folderId = await ensureFolder(tokens);
     const remoteId = await putFile(

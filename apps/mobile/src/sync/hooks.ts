@@ -53,10 +53,14 @@ export function useLocalGroup(groupId: string): LocalGroup {
 
   return useMemo(() => {
     const group = (mirror.tables.groups[groupId] as unknown as GroupRow | undefined) ?? null;
-    const members = (rowsFor(mirror, SyncTable.GroupMembers, groupId) as unknown as MemberRow[]).filter(
-      (member) => !member.left_at,
-    );
-    const settlements = rowsFor(mirror, SyncTable.Settlements, groupId) as unknown as SettlementRow[];
+    const members = (
+      rowsFor(mirror, SyncTable.GroupMembers, groupId) as unknown as MemberRow[]
+    ).filter((member) => !member.left_at);
+    const settlements = rowsFor(
+      mirror,
+      SyncTable.Settlements,
+      groupId,
+    ) as unknown as SettlementRow[];
     const expenses = materialiseExpenses(mirror, queue, { groupId });
 
     return {

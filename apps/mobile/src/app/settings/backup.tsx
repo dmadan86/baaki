@@ -97,7 +97,13 @@ export default function BackupSettingsScreen() {
               return (
                 <View key={provider.id} style={{ gap: theme.spacing.md }}>
                   <Divider />
-                  <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: theme.spacing.md }}>
+                  <Row
+                    style={{
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: theme.spacing.md,
+                    }}
+                  >
                     <SelectRow
                       label={provider.label}
                       // Only a connected provider can be the destination.

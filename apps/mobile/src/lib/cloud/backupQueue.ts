@@ -30,13 +30,7 @@ export interface BackupContext {
  * Surfaced to the settings screen so "not syncing" can say why.
  */
 export type BackupSkip =
-  | 'busy'
-  | 'no-provider'
-  | 'not-configured'
-  | 'not-connected'
-  | 'offline'
-  | 'policy'
-  | 'auth';
+  'busy' | 'no-provider' | 'not-configured' | 'not-connected' | 'offline' | 'policy' | 'auth';
 
 export interface BackupOutcome {
   readonly uploaded: number;
@@ -94,7 +88,11 @@ export async function runBackup(ctx: BackupContext): Promise<BackupOutcome> {
           imageUri: entry.imageUri,
           jsonUri: entry.jsonUri,
         });
-        await markSynced(entry.captureId, { provider: ctx.primary, remoteId: result.remoteId }, nowIso());
+        await markSynced(
+          entry.captureId,
+          { provider: ctx.primary, remoteId: result.remoteId },
+          nowIso(),
+        );
         uploaded += 1;
       } catch (error) {
         await markError(entry.captureId, messageOf(error), nowIso());

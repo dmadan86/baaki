@@ -6,7 +6,12 @@ import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { guessCategory, parseReceiptText, type CategoryId, type HeuristicReceipt } from '@baaki/core';
+import {
+  guessCategory,
+  parseReceiptText,
+  type CategoryId,
+  type HeuristicReceipt,
+} from '@baaki/core';
 import {
   AmountField,
   Button,
@@ -362,11 +367,19 @@ export default function CaptureScreen() {
                 </Text>
               </Row>
               {parsed.items.map((item, index) => (
-                <Row key={`${item.label}-${index}`} style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
+                <Row
+                  key={`${item.label}-${index}`}
+                  style={{ justifyContent: 'space-between', gap: theme.spacing.md }}
+                >
                   <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>
                     {item.label}
                   </Text>
-                  <MoneyText amount={safeMinor(item.total)} currency={currency as never} locale={locale} variant="body" />
+                  <MoneyText
+                    amount={safeMinor(item.total)}
+                    currency={currency as never}
+                    locale={locale}
+                    variant="body"
+                  />
                 </Row>
               ))}
               <Divider />

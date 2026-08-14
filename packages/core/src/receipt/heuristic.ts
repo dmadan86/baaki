@@ -85,7 +85,10 @@ const NOISE =
  * exception, because the caller's fallback is "let the person type it", not
  * "handle an error".
  */
-export function parseReceiptText(text: string, opts: ParseReceiptTextOptions = {}): HeuristicReceipt {
+export function parseReceiptText(
+  text: string,
+  opts: ParseReceiptTextOptions = {},
+): HeuristicReceipt {
   const fallbackCurrency = opts.currency ?? 'USD';
   const currency = detectCurrency(text) ?? fallbackCurrency;
   const date = detectDate(text);
@@ -261,7 +264,10 @@ function parseMoney(raw: string): number | null {
   }
 
   const whole = Number(cleaned.slice(0, dot) || '0');
-  const fraction = cleaned.slice(dot + 1).padEnd(2, '0').slice(0, 2);
+  const fraction = cleaned
+    .slice(dot + 1)
+    .padEnd(2, '0')
+    .slice(0, 2);
   const minor = Number(fraction);
   if (!Number.isFinite(whole) || !Number.isFinite(minor)) return null;
   return Math.round(whole) * 100 + minor;

@@ -61,7 +61,8 @@ export const dropbox: CloudProvider = {
   label: 'Dropbox',
   isConfigured: () => clientConfigured('dropbox'),
   connect: () => authorize(config()),
-  ensureValid: (tokens) => (isExpired(tokens) ? refresh(config(), tokens) : Promise.resolve(tokens)),
+  ensureValid: (tokens) =>
+    isExpired(tokens) ? refresh(config(), tokens) : Promise.resolve(tokens),
   async upload(tokens: CloudTokens, input: CloudUploadInput): Promise<CloudUploadResult> {
     const remoteId = await putFile(tokens, input.imageUri, `${input.captureId}.jpg`, 'image/jpeg');
     await putFile(tokens, input.jsonUri, `${input.captureId}.json`, 'application/json');

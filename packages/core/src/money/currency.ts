@@ -64,7 +64,10 @@ export function isCurrencyCode(value: string): boolean {
 
 export function assertCurrencyCode(value: string): asserts value is CurrencyCode {
   if (!isCurrencyCode(value)) {
-    throw new MoneyError(MoneyErrorCode.InvalidCurrency, `Not an ISO-4217 alpha-3 code: "${value}"`);
+    throw new MoneyError(
+      MoneyErrorCode.InvalidCurrency,
+      `Not an ISO-4217 alpha-3 code: "${value}"`,
+    );
   }
 }
 

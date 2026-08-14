@@ -1618,7 +1618,8 @@ const en: UiStrings = {
     title: 'Receipt backup',
     subtitle: 'Keep scanned receipts on your own cloud',
     primaryTitle: 'Back up receipts to',
-    primaryBody: 'Scanned receipts are saved on this device and copied to the drive you choose. They never touch Baaki’s servers.',
+    primaryBody:
+      'Scanned receipts are saved on this device and copied to the drive you choose. They never touch Baaki’s servers.',
     off: 'Off',
     connect: 'Connect',
     disconnect: 'Disconnect',
@@ -1632,7 +1633,8 @@ const en: UiStrings = {
       other: '{n} receipts waiting to back up',
     },
     allBackedUp: 'All receipts backed up',
-    privacyNote: 'The photo stays on your phone and your chosen cloud. Baaki only ever sees the amount you save.',
+    privacyNote:
+      'The photo stays on your phone and your chosen cloud. Baaki only ever sees the amount you save.',
   },
   group: {
     notFound: 'Group not found',

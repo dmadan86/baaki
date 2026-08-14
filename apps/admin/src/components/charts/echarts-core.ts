@@ -17,6 +17,13 @@ import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/compon
 import { SVGRenderer } from 'echarts/renderers';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 
-registerECharts([PieChart, LineChart, TooltipComponent, LegendComponent, GridComponent, SVGRenderer]);
+registerECharts([
+  PieChart,
+  LineChart,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  SVGRenderer,
+]);
 
 export { ReactEChartsCore };

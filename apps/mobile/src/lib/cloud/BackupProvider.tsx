@@ -29,11 +29,7 @@ import { pendingCount as readPendingCount } from '../receiptIndex';
 import { runBackup, type BackupContext, type BackupSkip } from './backupQueue';
 import { providerFor } from './providers';
 import { clearTokens, isConnected, saveTokens } from './tokens';
-import {
-  CLOUD_PROVIDER_IDS,
-  type BackupNetworkPolicy,
-  type CloudProviderId,
-} from './types';
+import { CLOUD_PROVIDER_IDS, type BackupNetworkPolicy, type CloudProviderId } from './types';
 
 const PRIMARY_KEY = 'baaki.cloud.primary';
 const POLICY_KEY = 'baaki.cloud.policy';
@@ -128,38 +124,50 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     };
   }, [kick]);
 
-  const setPrimary = useCallback(async (id: CloudProviderId | null): Promise<void> => {
-    setPrimaryState(id);
-    if (id) await AsyncStorage.setItem(PRIMARY_KEY, id).catch(() => undefined);
-    else await AsyncStorage.removeItem(PRIMARY_KEY).catch(() => undefined);
-    ctxRef.current = { ...ctxRef.current, primary: id };
-    void kick();
-  }, [kick]);
+  const setPrimary = useCallback(
+    async (id: CloudProviderId | null): Promise<void> => {
+      setPrimaryState(id);
+      if (id) await AsyncStorage.setItem(PRIMARY_KEY, id).catch(() => undefined);
+      else await AsyncStorage.removeItem(PRIMARY_KEY).catch(() => undefined);
+      ctxRef.current = { ...ctxRef.current, primary: id };
+      void kick();
+    },
+    [kick],
+  );
 
-  const setPolicy = useCallback(async (next: BackupNetworkPolicy): Promise<void> => {
-    setPolicyState(next);
-    await AsyncStorage.setItem(POLICY_KEY, next).catch(() => undefined);
-    ctxRef.current = { ...ctxRef.current, policy: next };
-    void kick();
-  }, [kick]);
+  const setPolicy = useCallback(
+    async (next: BackupNetworkPolicy): Promise<void> => {
+      setPolicyState(next);
+      await AsyncStorage.setItem(POLICY_KEY, next).catch(() => undefined);
+      ctxRef.current = { ...ctxRef.current, policy: next };
+      void kick();
+    },
+    [kick],
+  );
 
-  const connect = useCallback(async (id: CloudProviderId): Promise<boolean> => {
-    const tokens = await providerFor(id).connect();
-    if (!tokens) return false;
-    await saveTokens(id, tokens);
-    await refreshConnected();
-    // First provider connected becomes primary, so a single tap is enough to
-    // start backing up without a second trip to change the default.
-    if (!ctxRef.current.primary) await setPrimary(id);
-    else void kick();
-    return true;
-  }, [refreshConnected, setPrimary, kick]);
+  const connect = useCallback(
+    async (id: CloudProviderId): Promise<boolean> => {
+      const tokens = await providerFor(id).connect();
+      if (!tokens) return false;
+      await saveTokens(id, tokens);
+      await refreshConnected();
+      // First provider connected becomes primary, so a single tap is enough to
+      // start backing up without a second trip to change the default.
+      if (!ctxRef.current.primary) await setPrimary(id);
+      else void kick();
+      return true;
+    },
+    [refreshConnected, setPrimary, kick],
+  );
 
-  const disconnect = useCallback(async (id: CloudProviderId): Promise<void> => {
-    await clearTokens(id);
-    await refreshConnected();
-    if (ctxRef.current.primary === id) await setPrimary(null);
-  }, [refreshConnected, setPrimary]);
+  const disconnect = useCallback(
+    async (id: CloudProviderId): Promise<void> => {
+      await clearTokens(id);
+      await refreshConnected();
+      if (ctxRef.current.primary === id) await setPrimary(null);
+    },
+    [refreshConnected, setPrimary],
+  );
 
   const value = useMemo<BackupValue>(
     () => ({
@@ -175,7 +183,19 @@ export function BackupProvider({ children }: { children: ReactNode }) {
       disconnect,
       kick,
     }),
-    [loading, primary, policy, connected, pending, lastSkip, setPrimary, setPolicy, connect, disconnect, kick],
+    [
+      loading,
+      primary,
+      policy,
+      connected,
+      pending,
+      lastSkip,
+      setPrimary,
+      setPolicy,
+      connect,
+      disconnect,
+      kick,
+    ],
   );
 
   return <BackupCtx.Provider value={value}>{children}</BackupCtx.Provider>;
