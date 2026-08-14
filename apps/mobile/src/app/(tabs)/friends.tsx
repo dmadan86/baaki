@@ -39,7 +39,6 @@ import {
   Screen,
   SectionHeader,
   Text,
-  TintCard,
   useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
@@ -137,13 +136,17 @@ export default function FriendsScreen() {
         }
       >
         <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
-          <Text variant="title">{t.friends}</Text>
+          <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+            <Ionicons name="people" size={22} color={theme.color.brand} />
+            <Text variant="title">{t.friends}</Text>
+          </Row>
           <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
             <Button
               label={t.tabs.fromContacts}
               size="sm"
-              icon={<Ionicons name="person-add-outline" size={16} color={theme.color.onBrand} />}
+              icon={<Ionicons name="person-add-outline" size={15} color={theme.color.onBrand} />}
               onPress={() => router.push('/friends/contacts')}
+              style={{ height: 32, paddingHorizontal: theme.spacing.md, gap: theme.spacing.xs }}
             />
             {/* The sort control — a bare vertical three-dot beside the button,
                 opening the same corner dropdown the rest of the app uses. */}
@@ -221,9 +224,16 @@ function FriendsSection({
           </Text>
         </Card>
       ) : (
-        rows.map((row) => (
-          <FriendCard key={`${row.person_key}-${row.currency}`} row={row} locale={locale} t={t} />
-        ))
+        <View>
+          {rows.map((row, index) => (
+            <View key={`${row.person_key}-${row.currency}`}>
+              <FriendCard row={row} locale={locale} t={t} />
+              {index < rows.length - 1 ? (
+                <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              ) : null}
+            </View>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -239,73 +249,66 @@ function FriendCard({
   t: ReturnType<typeof useStrings>['t'];
 }): React.JSX.Element {
   const theme = useTheme();
-  // The card colour is the money colour, used for its one sanctioned meaning:
-  // mint when they owe you, pink when you owe them. The section already sorts
-  // by that, so the colour never disagrees with the number on it. Ink from the
-  // same pair keeps the amount legible without breaking the semantic.
+  // Flat WhatsApp row: the money colour is gone from the background, the amount
+  // reads in ordinary ink, and the owed/owe meaning is carried by the sign and
+  // the section this row sits under. The avatar keeps the person's own colour.
   const owed = BigInt(row.net) > 0n;
-  const tint = owed ? 'mint' : 'pink';
-  const ink = theme.tint[tint].ink;
-  const inkMuted = theme.tint[tint].inkMuted;
   // Only linkable when there is a single group to link to; otherwise this
   // amount is a sum and no one group explains it.
   const onPress = row.only_group_id ? () => router.push(`/group/${row.only_group_id}`) : undefined;
 
   const body = (
-    <TintCard tint={tint} style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Row style={{ flex: 1, gap: theme.spacing.md }}>
-          <Avatar name={row.display_name} size={40} />
-          <View style={{ flex: 1 }}>
-            <Text variant="subheading" numberOfLines={1} style={{ color: ink }}>
-              {row.display_name}
-            </Text>
-            <Text variant="caption" style={{ color: inkMuted }}>
-              {row.group_count === 1
-                ? t.tabs.inOneGroup
-                : plural(locale, row.group_count, t.tabs.acrossGroups)}
-            </Text>
-          </View>
-        </Row>
-        <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <MoneyText
-            amount={BigInt(row.net)}
-            currency={row.currency}
-            locale={locale}
-            variant="subheading"
-            mode="balance"
-            tone="default"
-            style={{ color: ink }}
-          />
-          {row.is_ghost ? (
-            // A ghost is somebody you added who has no Baaki account yet, so the
-            // badge is the useful action rather than a verdict: send them this
-            // group's invite link, which is the same link that lets them claim
-            // this very row (A25). Only offered when a single group explains the
-            // balance — otherwise there is no one link to share. Its own
-            // Pressable so tapping it invites rather than opening the group.
-            row.only_group_id ? (
-              <Pressable
-                onPress={() => router.push(`/group/${row.only_group_id}/invite`)}
-                accessibilityRole="button"
-                accessibilityLabel={t.people.invite}
-                hitSlop={8}
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-              >
-                <Badge label={t.people.invite} tone="brand" />
-              </Pressable>
-            ) : (
-              <Badge label={t.tabs.notJoined} />
-            )
-          ) : owed && row.only_group_id ? (
-            // They owe you and one group explains it, so there is a single pair
-            // to nudge. The server keeps it honest — one a day, never to a
-            // ghost, never for nothing — so the button only has to ask (ADR-010).
-            <RemindButton row={row} />
-          ) : null}
+    <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}>
+      <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
+        <Avatar name={row.display_name} size={44} ghost={row.is_ghost} />
+        <View style={{ flex: 1 }}>
+          <Text variant="subheading" numberOfLines={1}>
+            {row.display_name}
+          </Text>
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {row.group_count === 1
+              ? t.tabs.inOneGroup
+              : plural(locale, row.group_count, t.tabs.acrossGroups)}
+          </Text>
         </View>
       </Row>
-    </TintCard>
+      <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        <MoneyText
+          amount={BigInt(row.net)}
+          currency={row.currency}
+          locale={locale}
+          variant="subheading"
+          mode="balance"
+          tone="default"
+        />
+        {row.is_ghost ? (
+          // A ghost is somebody you added who has no Baaki account yet, so the
+          // badge is the useful action rather than a verdict: send them this
+          // group's invite link, which is the same link that lets them claim
+          // this very row (A25). Only offered when a single group explains the
+          // balance — otherwise there is no one link to share. Its own
+          // Pressable so tapping it invites rather than opening the group.
+          row.only_group_id ? (
+            <Pressable
+              onPress={() => router.push(`/group/${row.only_group_id}/invite`)}
+              accessibilityRole="button"
+              accessibilityLabel={t.people.invite}
+              hitSlop={8}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <Badge label={t.people.invite} tone="brand" />
+            </Pressable>
+          ) : (
+            <Badge label={t.tabs.notJoined} />
+          )
+        ) : owed && row.only_group_id ? (
+          // They owe you and one group explains it, so there is a single pair
+          // to nudge. The server keeps it honest — one a day, never to a
+          // ghost, never for nothing — so the button only has to ask (ADR-010).
+          <RemindButton row={row} />
+        ) : null}
+      </View>
+    </Row>
   );
 
   if (!onPress) return body;
@@ -408,62 +411,69 @@ function SortMenu({
             top: insets.top + 56,
             right: theme.spacing.xl,
             minWidth: 220,
-            backgroundColor: theme.color.surface,
             borderRadius: theme.radius.lg,
-            borderWidth: 1,
-            borderColor: theme.color.border,
-            paddingVertical: theme.spacing.xs,
             ...theme.shadow.lifted,
           }}
         >
-          <Text
-            variant="micro"
-            tone="faint"
-            style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+          <View
+            style={{
+              borderRadius: theme.radius.lg,
+              borderWidth: 1,
+              borderColor: theme.color.border,
+              backgroundColor: theme.color.surface,
+              paddingVertical: theme.spacing.xs,
+              overflow: 'hidden',
+            }}
           >
-            {t.sort.by}
-          </Text>
-          {SORT_ORDER.map((key) => {
-            const active = key === sortKey;
-            const label =
-              key === 'amount' ? t.sort.amount : key === 'date' ? t.sort.date : t.sort.name;
-            return (
-              <Pressable
-                key={key}
-                onPress={() => onPick(key)}
-                accessibilityRole="button"
-                accessibilityLabel={label}
-                accessibilityState={{ selected: active }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.md,
-                  paddingHorizontal: theme.spacing.lg,
-                  paddingVertical: theme.spacing.md,
-                  backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
-                })}
-              >
-                <Ionicons
-                  name={SORT_META[key].icon}
-                  size={20}
-                  color={active ? theme.color.brand : theme.color.textMuted}
-                />
-                <Text
-                  variant="body"
-                  style={{ flex: 1, color: active ? theme.color.brand : theme.color.text }}
+            <Text
+              variant="micro"
+              tone="faint"
+              style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+            >
+              {t.sort.by}
+            </Text>
+            {SORT_ORDER.map((key) => {
+              const active = key === sortKey;
+              const label =
+                key === 'amount' ? t.sort.amount : key === 'date' ? t.sort.date : t.sort.name;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => onPick(key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected: active }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing.md,
+                    paddingHorizontal: theme.spacing.lg,
+                    paddingVertical: theme.spacing.md,
+                    backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
+                  })}
                 >
-                  {label}
-                </Text>
-                {active ? (
                   <Ionicons
-                    name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'}
-                    size={18}
-                    color={theme.color.brand}
+                    name={SORT_META[key].icon}
+                    size={20}
+                    color={active ? theme.color.brand : theme.color.textMuted}
                   />
-                ) : null}
-              </Pressable>
-            );
-          })}
+                  <Text
+                    variant="body"
+                    style={{ flex: 1, color: active ? theme.color.brand : theme.color.text }}
+                  >
+                    {label}
+                  </Text>
+                  {active ? (
+                    <Ionicons
+                      name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'}
+                      size={18}
+                      color={theme.color.brand}
+                    />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </Pressable>
     </Modal>

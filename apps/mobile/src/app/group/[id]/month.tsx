@@ -18,7 +18,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
-import { categoryOf } from '@baaki/core';
 import {
   directionalIcon,
   EmptyState,
@@ -190,41 +189,32 @@ export default function SpendingMonthScreen() {
                   />
                 </Row>
 
-                <View style={{ gap: theme.spacing.md }}>
-                  {bucket.items.map(({ expense, amount }) => {
+                <View>
+                  {bucket.items.map(({ expense, amount }, index, arr) => {
                     const version = expense.currentVersion;
                     const payer = version?.payers[0]?.member_id ?? null;
-                    const catTint = categoryOf(version?.category).tint;
-                    const catInk = theme.tint[catTint].ink;
-                    const catInkMuted = theme.tint[catTint].inkMuted;
                     const title = expenseTitle(version?.description, version?.category, t);
                     return (
-                      <Pressable
-                        key={expense.id}
-                        onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-                        accessibilityRole="button"
-                        accessibilityLabel={title}
-                        style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-                      >
-                        <TintCard
-                          tint={catTint}
-                          style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}
+                      <View key={expense.id}>
+                        <Pressable
+                          onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
+                          accessibilityRole="button"
+                          accessibilityLabel={title}
+                          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                         >
-                          <Row style={{ gap: theme.spacing.md }}>
+                          <Row
+                            style={{
+                              gap: theme.spacing.md,
+                              alignItems: 'center',
+                              paddingVertical: theme.spacing.md,
+                            }}
+                          >
                             <CategoryBadge category={version?.category} size={40} />
                             <View style={{ flex: 1 }}>
-                              <Text
-                                variant="subheading"
-                                numberOfLines={1}
-                                style={{ color: catInk }}
-                              >
+                              <Text variant="subheading" numberOfLines={1}>
                                 {title}
                               </Text>
-                              <Text
-                                variant="caption"
-                                numberOfLines={1}
-                                style={{ color: catInkMuted }}
-                              >
+                              <Text variant="caption" tone="muted" numberOfLines={1}>
                                 {fill(t.expense.paidByName, { name: nameOf(payer) })}
                               </Text>
                             </View>
@@ -233,11 +223,14 @@ export default function SpendingMonthScreen() {
                               currency={currency}
                               locale={locale}
                               tone="default"
-                              style={{ color: catInk, fontWeight: '700' }}
+                              style={{ fontWeight: '700' }}
                             />
                           </Row>
-                        </TintCard>
-                      </Pressable>
+                        </Pressable>
+                        {index < arr.length - 1 ? (
+                          <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                        ) : null}
+                      </View>
                     );
                   })}
                 </View>

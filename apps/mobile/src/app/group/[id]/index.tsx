@@ -3,7 +3,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
-import { categoryOf } from '@baaki/core';
 import {
   Avatar,
   Badge,
@@ -358,48 +357,41 @@ export default function GroupScreen() {
             visibleExpenses.length === 0 ? (
               <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
             ) : (
-              <View style={{ gap: theme.spacing.md }}>
-                {visibleExpenses.map((expense) => {
+              <View>
+                {visibleExpenses.map((expense, index) => {
                   const version = expense.currentVersion;
                   const payer = version?.payers[0]?.member_id ?? null;
                   // Somebody disagreeing with an expense is worth seeing from the
                   // list. A disagreement you only find by opening the row is one
                   // that sits there unanswered.
                   const contested = openDisputes.has(expense.id);
-                  // Each row is a card in its category's colour — the amount is a
-                  // total, shown neutral in the tint's ink. A deleted row is dimmed
-                  // rather than hidden, so the ledger stays visibly append-only.
-                  const catTint = categoryOf(version?.category).tint;
-                  const catInk = theme.tint[catTint].ink;
-                  const catInkMuted = theme.tint[catTint].inkMuted;
+                  // Flat row: the category is the badge on the left, not the row's
+                  // colour. A deleted row is dimmed rather than hidden, so the
+                  // ledger stays visibly append-only.
                   const title = expenseTitle(version?.description, version?.category, t);
                   return (
-                    <Pressable
-                      key={expense.id}
-                      onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-                      accessibilityRole="button"
-                      accessibilityLabel={title}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-                    >
-                      <TintCard
-                        tint={catTint}
-                        style={{
-                          borderRadius: theme.radius.lg,
-                          padding: theme.spacing.lg,
-                          opacity: expense.deleted_at ? 0.55 : 1,
-                        }}
+                    <View key={expense.id}>
+                      <Pressable
+                        onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
+                        accessibilityRole="button"
+                        accessibilityLabel={title}
+                        style={({ pressed }) => ({
+                          opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
+                        })}
                       >
-                        <Row style={{ gap: theme.spacing.md }}>
+                        <Row
+                          style={{
+                            gap: theme.spacing.md,
+                            alignItems: 'center',
+                            paddingVertical: theme.spacing.md,
+                          }}
+                        >
                           <CategoryBadge category={version?.category} size={40} />
                           <View style={{ flex: 1 }}>
-                            <Text variant="subheading" numberOfLines={1} style={{ color: catInk }}>
+                            <Text variant="subheading" numberOfLines={1}>
                               {`${title}${contested ? '  🚩' : ''}`}
                             </Text>
-                            <Text
-                              variant="caption"
-                              numberOfLines={1}
-                              style={{ color: catInkMuted }}
-                            >
+                            <Text variant="caption" tone="muted" numberOfLines={1}>
                               {[
                                 fill(t.expense.paidByName, { name: nameOf(payer) }),
                                 version
@@ -418,20 +410,23 @@ export default function GroupScreen() {
                             </Text>
                           </View>
                           {version ? (
-                            <Row style={{ gap: theme.spacing.sm }}>
+                            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
                               <MoneyText
                                 amount={BigInt(version.amount)}
                                 currency={version.currency}
                                 locale={locale}
                                 tone="default"
-                                style={{ color: catInk, fontWeight: '700' }}
+                                style={{ fontWeight: '700' }}
                               />
                               {expense.pending ? <PendingMark /> : null}
                             </Row>
                           ) : null}
                         </Row>
-                      </TintCard>
-                    </Pressable>
+                      </Pressable>
+                      {index < visibleExpenses.length - 1 ? (
+                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                      ) : null}
+                    </View>
                   );
                 })}
               </View>
@@ -439,55 +434,51 @@ export default function GroupScreen() {
           ) : null}
 
           {tab === Tab.Balances ? (
-            <View style={{ gap: theme.spacing.md }}>
-              {(members.data ?? []).map((member) => {
-                // Each member is a card in the money colour for its meaning: mint
-                // when they are owed, pink when they owe, lilac when square. The
-                // balance is drawn in the pair's ink to stay legible on the tint.
+            <View>
+              {(members.data ?? []).map((member, index, arr) => {
+                // Flat row: the money meaning is the sign on the amount and its
+                // "you are owed / you owe" label, not the row's colour.
                 const balance = ledger.balances.get(member.id) ?? 0n;
-                const rowTint = balance > 0n ? 'mint' : balance < 0n ? 'pink' : 'lilac';
-                const rowInk = theme.tint[rowTint].ink;
-                const rowInkMuted = theme.tint[rowTint].inkMuted;
                 return (
-                  <TintCard
-                    key={member.id}
-                    tint={rowTint}
-                    style={{ borderRadius: theme.radius.lg, padding: theme.spacing.lg }}
-                  >
-                    <Row style={{ gap: theme.spacing.md }}>
+                  <View key={member.id}>
+                    <Row
+                      style={{
+                        gap: theme.spacing.md,
+                        alignItems: 'center',
+                        paddingVertical: theme.spacing.md,
+                      }}
+                    >
                       <Avatar name={displayName(member)} ghost={isGhost(member)} size={40} />
                       <View style={{ flex: 1 }}>
                         <Row style={{ gap: theme.spacing.sm }}>
-                          <Text
-                            variant="subheading"
-                            numberOfLines={1}
-                            style={{ color: rowInk, flexShrink: 1 }}
-                          >
+                          <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
                             {displayName(member, profile?.id)}
                           </Text>
                           {member.role === 'admin' && !isGhost(member) ? (
                             <Badge label={t.people.admin} tone="brand" />
                           ) : null}
                         </Row>
-                        <Text variant="caption" numberOfLines={1} style={{ color: rowInkMuted }}>
+                        <Text variant="caption" tone="muted" numberOfLines={1}>
                           {isGhost(member)
                             ? t.notJoinedYet
                             : (member.vpa ?? member.profile?.default_vpa ?? '—')}
                         </Text>
                       </View>
-                      <Row style={{ gap: theme.spacing.sm }}>
+                      <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
                         <MoneyText
                           amount={balance}
                           currency={currency}
                           locale={locale}
                           mode="balance"
                           tone="default"
-                          style={{ color: rowInk }}
                         />
                         {member.pending ? <PendingMark /> : null}
                       </Row>
                     </Row>
-                  </TintCard>
+                    {index < arr.length - 1 ? (
+                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                    ) : null}
+                  </View>
                 );
               })}
             </View>

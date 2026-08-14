@@ -48,39 +48,50 @@ export function OverflowMenu({
       >
         <View
           // Dropped from the top-right, clear of the status bar and roughly
-          // where the header's three-dot sits.
+          // where the header's three-dot sits. The shadow and the radius live on
+          // this outer layer; the inner one clips the rows so a pressed row's
+          // highlight follows the rounded corner instead of poking a square
+          // through it (`overflow: 'hidden'` would eat the shadow if they shared
+          // a layer, so they do not).
           style={{
             position: 'absolute',
             top: insets.top + 56,
             right: theme.spacing.xl,
             minWidth: 220,
-            backgroundColor: theme.color.surface,
             borderRadius: theme.radius.lg,
-            borderWidth: 1,
-            borderColor: theme.color.border,
-            paddingVertical: theme.spacing.xs,
             ...theme.shadow.lifted,
           }}
         >
-          {items.map((item) => (
-            <Pressable
-              key={item.label}
-              onPress={() => go(item.route)}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: theme.spacing.md,
-                paddingHorizontal: theme.spacing.lg,
-                paddingVertical: theme.spacing.md,
-                backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
-              })}
-            >
-              <Ionicons name={item.icon} size={20} color={theme.color.textMuted} />
-              <Text variant="body">{item.label}</Text>
-            </Pressable>
-          ))}
+          <View
+            style={{
+              borderRadius: theme.radius.lg,
+              borderWidth: 1,
+              borderColor: theme.color.border,
+              backgroundColor: theme.color.surface,
+              paddingVertical: theme.spacing.xs,
+              overflow: 'hidden',
+            }}
+          >
+            {items.map((item) => (
+              <Pressable
+                key={item.label}
+                onPress={() => go(item.route)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.md,
+                  paddingHorizontal: theme.spacing.lg,
+                  paddingVertical: theme.spacing.md,
+                  backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
+                })}
+              >
+                <Ionicons name={item.icon} size={20} color={theme.color.textMuted} />
+                <Text variant="body">{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </Pressable>
     </Modal>

@@ -130,7 +130,10 @@ export default function GroupSettingsScreen() {
             <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.group.settings}</Text>
+            <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+              <Ionicons name="settings-outline" size={18} color={theme.color.brand} />
+              <Text variant="heading">{t.group.settings}</Text>
+            </Row>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [])}
             </Text>

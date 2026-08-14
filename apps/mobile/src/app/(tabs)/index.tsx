@@ -289,15 +289,16 @@ export default function HomeScreen() {
                 <Button
                   label={t.newGroup}
                   size="sm"
-                  icon={<Ionicons name="add" size={16} color={theme.color.onBrand} />}
+                  icon={<Ionicons name="add" size={15} color={theme.color.onBrand} />}
                   onPress={openNewGroup}
+                  style={{ height: 32, paddingHorizontal: theme.spacing.md, gap: theme.spacing.xs }}
                 />
               }
             />
             {presentTypes.length > 1 ? (
               <CategoryStrip types={presentTypes} active={active} onSelect={setCategory} t={t} />
             ) : null}
-            <View style={{ gap: theme.spacing.md }}>
+            <View>
               {visible.map((group, index) => {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
@@ -317,6 +318,9 @@ export default function HomeScreen() {
                       pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
                       onPress={() => router.push(`/group/${group.id}`)}
                     />
+                    {index < visible.length - 1 ? (
+                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                    ) : null}
                   </Stagger>
                 );
               })}
