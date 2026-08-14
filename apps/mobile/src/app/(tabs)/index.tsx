@@ -157,16 +157,16 @@ export default function HomeScreen() {
               tab does rather than somewhere only reachable from here — two
               routes to one screen, not a second screen that drifts. */}
           <Avatar
-            name={profile?.display_name ?? 'You'}
+            name={profile?.display_name ?? t.account.you}
             size={44}
             photoUrl={avatarUrl}
             accessibilityLabel={t.profile}
             onPress={() => router.navigate('/profile')}
           />
-          {/* Just the name, sized up — the greeting was a word that said nothing
-              and pushed the name down into a caption. */}
-          <Text variant="title" numberOfLines={1} style={{ flex: 1 }}>
-            {profile?.display_name ?? 'You'}
+          {/* Just the name, next to the avatar — the greeting was a word that
+              said nothing and pushed the name down into a caption. */}
+          <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>
+            {profile?.display_name ?? t.account.you}
           </Text>
           {/* Straight to the camera: the icon is a scanner, so it opens one
               rather than a form to fill in first (the capture screen reads the

@@ -65,8 +65,11 @@ tablet width, where `xl` reads as a gentle curve; on a phone the same radius eat
 into a card only a few hundred points wide and the panel starts to look like a
 pill, and pills are for things you tap.
 
-Exactly two shadows: `soft` for resting cards, `lifted` for the floating tab bar
-and the FAB. Depth means "this floats above the page", never "this is pretty".
+Exactly two shadows: `soft` for resting cards, `lifted` for the header overflow
+menu and the FAB. Depth means "this floats above the page", never "this is
+pretty". The bottom bar is the exception that proves it — it sits flat on the
+page behind a top hairline rather than floating on a shadow (see **Bottom
+navigation**).
 
 The doorway screens — the welcome and the lock screen — open with a brand-purple
 panel whose bottom edge sweeps rather than cuts (`CurvedPanel`). It is the one
@@ -123,10 +126,11 @@ The account screen opens with a hero rather than a title: the avatar, the name,
 and one number in a pill under it. Below that, `SegmentedTabs` splits what used
 to be a single long scroll into **You · Paying · Settings**.
 
-`SegmentedTabs` is not `PillTabBar`. The pill bar floats above everything and
-moves you between destinations; this sits in the page, under a rule, because the
-page you are on has three faces and this chooses which one. Two floating pills on
-one screen would be two things claiming to be the navigation.
+`SegmentedTabs` is not `PillTabBar`. The bottom bar spans the foot of every
+screen and moves you between destinations; this sits in the page, under a rule,
+because the page you are on has three faces and this chooses which one. A bar and
+an in-page switch read as two different things — where you can go, and which face
+of this page you are on — which is the point.
 
 The pill under the name is **what has actually changed hands through you** —
 settled settlements only, per currency, in both directions. The board this was
@@ -215,8 +219,29 @@ Notifications and Export is a row dressed up as a setting.
 ## Spacing
 
 4px base: `xs 4 · sm 8 · md 12 · lg 16 · xl 20 · xxl 24 · xxxl 32`. Screens use
-`xl` horizontal padding; scroll containers reserve ~170px at the bottom so the
-floating tab bar never covers the last row.
+`xl` horizontal padding; scroll containers reserve room at the bottom
+(`useTabBarClearance`) so the opaque bottom bar never covers the last row.
+
+## Bottom navigation
+
+The bar is flat and pinned to the bottom edge on **every** screen, WhatsApp
+style — a top hairline, no float, no shadow. The selected destination wears a
+rounded active-indicator pill behind its icon in the brand's soft tint; its icon
+and label take the brand colour, the rest sit muted.
+
+It is rendered once at the root over the whole navigation stack (`AppTabBar`),
+not inside the tabs navigator, so it stays put when a screen is pushed on top —
+a group, a settings page, the inbox. The tabs navigator keeps the scene
+switching but hides its own bar so there is never a second copy. The rules for
+when it hides (the camera and the rise-from-bottom modals, the signed-out
+screens) and which destination reads as current are pure and tested in
+`lib/tabBar.ts` / `test/tabBar.test.ts`.
+
+Four destinations: **Home · Friends · Activity · Inbox**. The account is not one
+of them — it is reached from the header avatar, and its settings from the
+header's three-dot overflow menu (`OverflowMenu`), a small rounded card that
+drops from the top-right over a tap-away scrim. A face you own is a way in, not a
+tab.
 
 ## Components
 
