@@ -815,6 +815,39 @@ export interface UiStrings {
     followMyPhone: string;
     currentlyLanguage: string;
     rightToLeft: string;
+    // Settle payment alerts, dispute panel, trip dates, currency-rate note,
+    // dictation status, country picker, update footer, campaign popup,
+    // insights note, members note, and the CSV currency mismatch.
+    withLabel: string;
+    settleNoDetailsTitle: string;
+    settleNoDetailsBody: string;
+    settleRailFallback: string;
+    settlePayTitle: string;
+    settlePayBody: string;
+    settleSendTo: string;
+    recordYes: string;
+    recordNo: string;
+    recordIt: string;
+    noReasonGiven: string;
+    disputeStands: string;
+    neverMind: string;
+    whatsWrongWithIt: string;
+    somethingsWrong: string;
+    tripDatesTitle: string;
+    aboutTripDates: string;
+    tripDatesBody: string;
+    bankRateNote: string;
+    listening: string;
+    whereSettle: string;
+    youHaveVersion: string;
+    versionAvailable: string;
+    gotIt: string;
+    copied: string;
+    tapToCopy: string;
+    insightsLiveNote: string;
+    nameAloneBody: string;
+    noUpiYet: string;
+    csvCurrencyMismatch: string;
   };
   /** Pasting bank messages in, and what can be made of them (TDR §10). */
   smsImport: {
@@ -1838,6 +1871,42 @@ const en: UiStrings = {
     followMyPhone: 'Follow my phone',
     currentlyLanguage: 'Currently {language}',
     rightToLeft: 'right to left',
+    withLabel: 'With',
+    settleNoDetailsTitle: 'No {rail} details yet',
+    settleNoDetailsBody:
+      "{name} hasn't added how they're paid. Settle in cash, or ask them to add it.",
+    settleRailFallback: 'payment',
+    settlePayTitle: 'Pay {name}',
+    settlePayBody: '{rail}\n{handle}\n\nThen come back and record it.',
+    settleSendTo: 'Send to',
+    recordYes: 'Yes, record it',
+    recordNo: 'No',
+    recordIt: 'Record it',
+    noReasonGiven: 'No reason given',
+    disputeStands:
+      'Nothing has changed yet — your share stands until the expense is corrected. That is deliberate: a share anybody could drop on their own would not be a ledger.',
+    neverMind: 'Never mind, it’s fine',
+    whatsWrongWithIt: 'What’s wrong with it?',
+    somethingsWrong: 'Something’s wrong',
+    tripDatesTitle: 'Trip dates',
+    aboutTripDates: 'About trip dates',
+    tripDatesBody:
+      'While the trip is on, everybody gets a nudge to add what they spent — at breakfast about yesterday, and at the end of the day about today. Nobody is asked about a day they have already added to.',
+    bankRateNote: 'Your bank’s rate, markup included — this is what your statement says.',
+    listening: 'Listening…',
+    whereSettle: 'Where does this group settle?',
+    youHaveVersion: 'You have {installed}',
+    versionAvailable: ' · {latest} is available',
+    gotIt: 'Got it',
+    copied: 'Copied',
+    tapToCopy: 'Tap the button to copy',
+    insightsLiveNote:
+      'Live expenses only — an edited expense counts at what it now says, and a deleted one does not count at all. Amounts are never converted between currencies.',
+    nameAloneBody:
+      'A name alone is enough — nobody needs the app, or an email, to be part of the split. An address just means you can send them the link. When they join later they can claim everything already recorded under their name.',
+    noUpiYet: 'no UPI ID yet',
+    csvCurrencyMismatch:
+      'This file is in {fileCur} and this group keeps its money in {groupCur}. Importing it would need a rate for every row, and the file does not carry one — start a {fileCur} group for it instead.',
   },
   smsImport: {
     title: 'Import from messages',
@@ -2928,6 +2997,43 @@ const ta: UiStrings = {
     followMyPhone: 'என் ஃபோனைப் பின்பற்று',
     currentlyLanguage: 'தற்போது {language}',
     rightToLeft: 'வலமிருந்து இடம்',
+    withLabel: 'உடன்',
+    settleNoDetailsTitle: '{rail} விவரங்கள் இன்னும் இல்லை',
+    settleNoDetailsBody:
+      '{name} தாங்கள் எப்படி பணம் பெறுகிறார்கள் என்பதைச் சேர்க்கவில்லை. பணமாகத் தீர்த்துக்கொள்ளுங்கள் அல்லது அதைச் சேர்க்கச் சொல்லுங்கள்.',
+    settleRailFallback: 'கட்டணம்',
+    settlePayTitle: '{name}க்குச் செலுத்து',
+    settlePayBody: '{rail}\n{handle}\n\nபிறகு திரும்பி வந்து பதிவு செய்யுங்கள்.',
+    settleSendTo: 'இதற்கு அனுப்பு',
+    recordYes: 'ஆம், பதிவு செய்',
+    recordNo: 'இல்லை',
+    recordIt: 'பதிவு செய்',
+    noReasonGiven: 'காரணம் எதுவும் தரப்படவில்லை',
+    disputeStands:
+      'இன்னும் எதுவும் மாறவில்லை — செலவு திருத்தப்படும் வரை உங்கள் பங்கு நிலைக்கும். இது வேண்டுமென்றே: யாரும் தாமாகவே நீக்கக்கூடிய பங்கு ஒரு கணக்கேடாக இருக்காது.',
+    neverMind: 'பரவாயில்லை, சரிதான்',
+    whatsWrongWithIt: 'இதில் என்ன தவறு?',
+    somethingsWrong: 'ஏதோ தவறு',
+    tripDatesTitle: 'பயணத் தேதிகள்',
+    aboutTripDates: 'பயணத் தேதிகள் பற்றி',
+    tripDatesBody:
+      'பயணம் நடக்கும்போது, செலவழித்ததைச் சேர்க்க அனைவருக்கும் நினைவூட்டல் வரும் — காலை உணவின்போது நேற்றைக்கும், நாள் முடிவில் இன்றைக்கும். ஏற்கனவே சேர்த்த நாளைப் பற்றி யாரையும் கேட்கப்படாது.',
+    bankRateNote:
+      'உங்கள் வங்கியின் விகிதம், கூடுதல் கட்டணம் உட்பட — இதுதான் உங்கள் அறிக்கையில் இருக்கும்.',
+    listening: 'கேட்கிறது…',
+    whereSettle: 'இந்தக் குழு எங்கே தீர்த்துக்கொள்கிறது?',
+    youHaveVersion: 'உங்களிடம் {installed} உள்ளது',
+    versionAvailable: ' · {latest} கிடைக்கிறது',
+    gotIt: 'சரி',
+    copied: 'நகலெடுக்கப்பட்டது',
+    tapToCopy: 'நகலெடுக்க பொத்தானைத் தட்டவும்',
+    insightsLiveNote:
+      'நேரடிச் செலவுகள் மட்டும் — திருத்தப்பட்ட செலவு இப்போது சொல்வதன்படி கணக்கிடப்படும், நீக்கப்பட்டது கணக்கில் வராது. தொகைகள் நாணயங்களுக்கிடையே மாற்றப்படாது.',
+    nameAloneBody:
+      'ஒரு பெயர் மட்டும் போதும் — பிரிவில் பங்கேற்க யாருக்கும் ஆப் அல்லது மின்னஞ்சல் தேவையில்லை. முகவரி என்பது அவர்களுக்கு இணைப்பை அனுப்பலாம் என்பதுதான். பின்னர் அவர்கள் சேரும்போது தங்கள் பெயரில் பதிவான அனைத்தையும் உரிமை கொள்ளலாம்.',
+    noUpiYet: 'இன்னும் UPI ஐடி இல்லை',
+    csvCurrencyMismatch:
+      'இந்தக் கோப்பு {fileCur} இல் உள்ளது, இந்தக் குழு தன் பணத்தை {groupCur} இல் வைத்திருக்கிறது. இதை இறக்குமதி செய்ய ஒவ்வொரு வரிசைக்கும் ஒரு விகிதம் தேவை, கோப்பு அதைக் கொண்டிருக்கவில்லை — அதற்குப் பதிலாக ஒரு {fileCur} குழுவைத் தொடங்குங்கள்.',
   },
   smsImport: {
     title: 'செய்திகளிலிருந்து இறக்குமதி',
@@ -4000,6 +4106,42 @@ const hi: UiStrings = {
     followMyPhone: 'मेरे फ़ोन के अनुसार',
     currentlyLanguage: 'अभी {language}',
     rightToLeft: 'दाएँ से बाएँ',
+    withLabel: 'किसके साथ',
+    settleNoDetailsTitle: '{rail} का विवरण अभी नहीं है',
+    settleNoDetailsBody:
+      '{name} ने यह नहीं जोड़ा कि उन्हें भुगतान कैसे मिलता है। नकद में निपटाएँ, या उनसे जोड़ने को कहें।',
+    settleRailFallback: 'भुगतान',
+    settlePayTitle: '{name} को भुगतान करें',
+    settlePayBody: '{rail}\n{handle}\n\nफिर वापस आकर दर्ज करें।',
+    settleSendTo: 'यहाँ भेजें',
+    recordYes: 'हाँ, दर्ज करें',
+    recordNo: 'नहीं',
+    recordIt: 'दर्ज करें',
+    noReasonGiven: 'कोई कारण नहीं दिया गया',
+    disputeStands:
+      'अभी कुछ नहीं बदला — खर्च ठीक होने तक आपका हिस्सा बना रहता है। यह जानबूझकर है: जिस हिस्से को कोई अकेले हटा सके, वह बहीखाता नहीं होगा।',
+    neverMind: 'कोई बात नहीं, ठीक है',
+    whatsWrongWithIt: 'इसमें क्या गलत है?',
+    somethingsWrong: 'कुछ गलत है',
+    tripDatesTitle: 'यात्रा की तारीखें',
+    aboutTripDates: 'यात्रा की तारीखों के बारे में',
+    tripDatesBody:
+      'जब तक यात्रा चलती है, सभी को खर्च जोड़ने का संकेत मिलता है — नाश्ते के समय कल के बारे में, और दिन के अंत में आज के बारे में। जिस दिन को पहले ही जोड़ लिया गया, उसके बारे में किसी से नहीं पूछा जाता।',
+    bankRateNote: 'आपके बैंक की दर, मार्कअप सहित — यही आपके स्टेटमेंट में दिखता है।',
+    listening: 'सुन रहा है…',
+    whereSettle: 'यह समूह कहाँ निपटान करता है?',
+    youHaveVersion: 'आपके पास {installed} है',
+    versionAvailable: ' · {latest} उपलब्ध है',
+    gotIt: 'समझ गया',
+    copied: 'कॉपी हो गया',
+    tapToCopy: 'कॉपी करने के लिए बटन दबाएँ',
+    insightsLiveNote:
+      'केवल सक्रिय खर्च — संपादित खर्च अब जो कहता है उसी पर गिना जाता है, और हटाया गया बिल्कुल नहीं गिना जाता। रकम कभी मुद्राओं के बीच नहीं बदली जाती।',
+    nameAloneBody:
+      'सिर्फ़ एक नाम काफ़ी है — बँटवारे में शामिल होने के लिए किसी को ऐप या ईमेल की ज़रूरत नहीं। पता होने का मतलब बस इतना कि आप उन्हें लिंक भेज सकते हैं। बाद में जब वे जुड़ते हैं, तो अपने नाम पर दर्ज सब कुछ अपना बना सकते हैं।',
+    noUpiYet: 'अभी कोई UPI आईडी नहीं',
+    csvCurrencyMismatch:
+      'यह फ़ाइल {fileCur} में है और यह समूह अपना पैसा {groupCur} में रखता है। इसे आयात करने के लिए हर पंक्ति के लिए एक दर चाहिए, और फ़ाइल में वह नहीं है — इसके बजाय एक {fileCur} समूह शुरू करें।',
   },
   smsImport: {
     title: 'संदेशों से आयात',
@@ -5141,6 +5283,42 @@ const ar: UiStrings = {
     followMyPhone: 'اتبع هاتفي',
     currentlyLanguage: 'حاليًا {language}',
     rightToLeft: 'من اليمين إلى اليسار',
+    withLabel: 'مع',
+    settleNoDetailsTitle: 'لا توجد تفاصيل {rail} بعد',
+    settleNoDetailsBody:
+      'لم يُضِف {name} كيفية استلامه للمدفوعات. سوِّ نقدًا، أو اطلب منه إضافتها.',
+    settleRailFallback: 'الدفع',
+    settlePayTitle: 'ادفع إلى {name}',
+    settlePayBody: '{rail}\n{handle}\n\nثم عُد وسجِّل ذلك.',
+    settleSendTo: 'أرسل إلى',
+    recordYes: 'نعم، سجِّلها',
+    recordNo: 'لا',
+    recordIt: 'سجِّلها',
+    noReasonGiven: 'لم يُذكر سبب',
+    disputeStands:
+      'لم يتغيّر شيء بعد — يبقى نصيبك قائمًا حتى يُصحَّح المصروف. هذا مقصود: نصيب يستطيع أي شخص إسقاطه بمفرده لن يكون دفترًا.',
+    neverMind: 'لا بأس، الأمر جيّد',
+    whatsWrongWithIt: 'ما الخطأ فيه؟',
+    somethingsWrong: 'هناك خطأ ما',
+    tripDatesTitle: 'تواريخ الرحلة',
+    aboutTripDates: 'حول تواريخ الرحلة',
+    tripDatesBody:
+      'أثناء الرحلة، يتلقّى الجميع تذكيرًا بإضافة ما أنفقوه — عند الإفطار عن الأمس، وفي نهاية اليوم عن اليوم. لا يُسأل أحد عن يوم سبق أن أضافه.',
+    bankRateNote: 'سعر بنكك، شاملًا الهامش — هذا ما يقوله كشف حسابك.',
+    listening: 'يستمع…',
+    whereSettle: 'أين تُسوّي هذه المجموعة حساباتها؟',
+    youHaveVersion: 'لديك {installed}',
+    versionAvailable: ' · {latest} متاح',
+    gotIt: 'حسنًا',
+    copied: 'تم النسخ',
+    tapToCopy: 'اضغط الزر للنسخ',
+    insightsLiveNote:
+      'المصروفات الحيّة فقط — المصروف المُعدَّل يُحتسب بما يقوله الآن، والمحذوف لا يُحتسب إطلاقًا. لا تُحوَّل المبالغ بين العملات أبدًا.',
+    nameAloneBody:
+      'الاسم وحده يكفي — لا يحتاج أحد إلى التطبيق أو بريد إلكتروني ليكون جزءًا من التقسيم. العنوان يعني فقط أنه يمكنك إرسال الرابط إليه. وعندما ينضمّون لاحقًا يمكنهم المطالبة بكل ما سُجِّل باسمهم.',
+    noUpiYet: 'لا يوجد معرّف UPI بعد',
+    csvCurrencyMismatch:
+      'هذا الملف بعملة {fileCur} وهذه المجموعة تحتفظ بأموالها بعملة {groupCur}. استيراده يحتاج إلى سعر لكل صف، والملف لا يحمل ذلك — ابدأ بدلًا من ذلك مجموعة بعملة {fileCur}.',
   },
   smsImport: {
     title: 'استيراد من الرسائل',

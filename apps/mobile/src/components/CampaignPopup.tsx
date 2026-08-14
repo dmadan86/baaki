@@ -21,6 +21,7 @@ import * as Clipboard from 'expo-clipboard';
 
 import { Button, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -43,6 +44,7 @@ async function fetchCampaign(): Promise<Campaign | null> {
 
 export function CampaignPopup() {
   const theme = useTheme();
+  const { t } = useStrings();
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
@@ -92,7 +94,7 @@ export function CampaignPopup() {
           advertisement, and this is not one. */}
       <Pressable
         onPress={close}
-        accessibilityLabel="Dismiss"
+        accessibilityLabel={t.common.close}
         style={{
           flex: 1,
           backgroundColor: 'rgba(10, 10, 26, 0.55)',
@@ -134,19 +136,19 @@ export function CampaignPopup() {
                 {campaign.promo_code}
               </Text>
               <Text variant="micro" tone="muted">
-                {copied ? 'Copied' : 'Tap the button to copy'}
+                {copied ? t.misc.copied : t.misc.tapToCopy}
               </Text>
             </View>
           ) : null}
 
           <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.sm }}>
             <Button
-              label={campaign.cta_label || 'Got it'}
+              label={campaign.cta_label || t.misc.gotIt}
               size="lg"
               fullWidth
               onPress={() => void act()}
             />
-            <Button label="Not now" variant="secondary" size="sm" fullWidth onPress={close} />
+            <Button label={t.misc.notNow} variant="secondary" size="sm" fullWidth onPress={close} />
           </View>
         </Pressable>
       </Pressable>

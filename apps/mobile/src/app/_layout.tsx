@@ -365,41 +365,41 @@ function AuthGate() {
           gestureEnabled: animated,
         }}
       >
-      {/* Signing in and out replaces the whole tree; sliding it would suggest a
+        {/* Signing in and out replaces the whole tree; sliding it would suggest a
           place to go back to, and there is not one. */}
-      <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
-      <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
-      <Stack.Screen name="new-group" options={modal} />
-      <Stack.Screen name="capture" options={modal} />
-      <Stack.Screen name="captures" />
-      <Stack.Screen name="group/[id]/index" />
-      <Stack.Screen name="group/[id]/add-expense" options={modal} />
-      <Stack.Screen name="group/[id]/settle" options={modal} />
-      <Stack.Screen name="group/[id]/simplify" />
-      <Stack.Screen name="group/[id]/settings" />
-      <Stack.Screen name="group/[id]/members" />
-      <Stack.Screen name="group/[id]/member/[memberId]" />
-      <Stack.Screen name="group/[id]/expense/[expenseId]" />
-      <Stack.Screen name="group/[id]/invite" options={modal} />
-      <Stack.Screen name="group/[id]/itemize" options={modal} />
-      <Stack.Screen name="friends/contacts" />
-      <Stack.Screen name="settings/backup" />
-      <Stack.Screen name="settings/notifications" />
-      <Stack.Screen name="settings/export" />
-      <Stack.Screen name="settings/import" />
-      <Stack.Screen name="settings/lock" />
-      <Stack.Screen name="settings/devices" />
-      <Stack.Screen name="settings/motion" />
-      <Stack.Screen name="settings/theme" />
-      <Stack.Screen name="settings/language" />
-      <Stack.Screen name="settings/upgrade" />
-      <Stack.Screen name="settings/redeem" />
-      <Stack.Screen name="settings/account" />
-      <Stack.Screen name="settings/feedback" />
-      <Stack.Screen name="settings/privacy" />
-      <Stack.Screen name="settings/delete-account" />
-      <Stack.Screen name="join" />
-      <Stack.Screen name="inbox" />
+        <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+        <Stack.Screen name="new-group" options={modal} />
+        <Stack.Screen name="capture" options={modal} />
+        <Stack.Screen name="captures" />
+        <Stack.Screen name="group/[id]/index" />
+        <Stack.Screen name="group/[id]/add-expense" options={modal} />
+        <Stack.Screen name="group/[id]/settle" options={modal} />
+        <Stack.Screen name="group/[id]/simplify" />
+        <Stack.Screen name="group/[id]/settings" />
+        <Stack.Screen name="group/[id]/members" />
+        <Stack.Screen name="group/[id]/member/[memberId]" />
+        <Stack.Screen name="group/[id]/expense/[expenseId]" />
+        <Stack.Screen name="group/[id]/invite" options={modal} />
+        <Stack.Screen name="group/[id]/itemize" options={modal} />
+        <Stack.Screen name="friends/contacts" />
+        <Stack.Screen name="settings/backup" />
+        <Stack.Screen name="settings/notifications" />
+        <Stack.Screen name="settings/export" />
+        <Stack.Screen name="settings/import" />
+        <Stack.Screen name="settings/lock" />
+        <Stack.Screen name="settings/devices" />
+        <Stack.Screen name="settings/motion" />
+        <Stack.Screen name="settings/theme" />
+        <Stack.Screen name="settings/language" />
+        <Stack.Screen name="settings/upgrade" />
+        <Stack.Screen name="settings/redeem" />
+        <Stack.Screen name="settings/account" />
+        <Stack.Screen name="settings/feedback" />
+        <Stack.Screen name="settings/privacy" />
+        <Stack.Screen name="settings/delete-account" />
+        <Stack.Screen name="join" />
+        <Stack.Screen name="inbox" />
       </Stack>
       {/* One bar over the whole stack, so every screen keeps it — it hides
           itself on the modals and the camera. */}

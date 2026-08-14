@@ -23,6 +23,7 @@ import {
   Row,
   Screen,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -32,6 +33,7 @@ import { useAuth } from '@/lib/auth';
 
 export default function AccountScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const { session, isGuest, refresh, withGoogle, withApple } = useAuth();
 
@@ -120,7 +122,7 @@ export default function AccountScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"

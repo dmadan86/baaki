@@ -10,7 +10,6 @@ import {
   Card,
   EmptyState,
   Gradient,
-  IconButton,
   Row,
   Screen,
   SectionHeader,
@@ -157,28 +156,41 @@ export default function HomeScreen() {
               tab does rather than somewhere only reachable from here — two
               routes to one screen, not a second screen that drifts. */}
           <Avatar
-            name={profile?.display_name ?? 'You'}
+            name={profile?.display_name ?? t.account.you}
             size={44}
             photoUrl={avatarUrl}
             accessibilityLabel={t.profile}
             onPress={() => router.navigate('/profile')}
           />
-          {/* Just the name, sized up — the greeting was a word that said nothing
-              and pushed the name down into a caption. */}
-          <Text variant="title" numberOfLines={1} style={{ flex: 1 }}>
-            {profile?.display_name ?? 'You'}
+          {/* Just the name, next to the avatar — the greeting was a word that
+              said nothing and pushed the name down into a caption. */}
+          <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>
+            {profile?.display_name ?? t.account.you}
           </Text>
-          {/* Straight to the camera: the icon is a scanner, so it opens one
-              rather than a form to fill in first (the capture screen reads the
-              `scan` flag and launches the camera on mount). */}
-          <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture?scan=1')}>
-            <Ionicons name="camera-outline" size={22} color={theme.color.text} />
-          </IconButton>
+          {/* Bare icons, no button chrome — the header reads as a title row, not
+              a toolbar of pills. Straight to the camera: the icon is a scanner,
+              so it opens one rather than a form to fill in first (the capture
+              screen reads the `scan` flag and launches the camera on mount). */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.captures.captureCta}
+            onPress={() => router.push('/capture?scan=1')}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+          >
+            <Ionicons name="camera-outline" size={24} color={theme.color.text} />
+          </Pressable>
           {/* The overflow: the settings and the less-used destinations, dropped
               from here rather than owning a tab. */}
-          <IconButton label={t.account.faceSettings} onPress={() => setMenuOpen(true)}>
-            <Ionicons name="ellipsis-vertical" size={22} color={theme.color.text} />
-          </IconButton>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.account.faceSettings}
+            onPress={() => setMenuOpen(true)}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color={theme.color.text} />
+          </Pressable>
         </Row>
 
         <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />

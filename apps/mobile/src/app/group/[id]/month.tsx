@@ -71,7 +71,7 @@ export default function SpendingMonthScreen() {
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id) : 'Someone';
+    return member ? displayName(member, profile?.id) : t.misc.someone;
   };
 
   // The expenses that make up the tapped column: live, in this currency, in this

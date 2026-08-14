@@ -81,8 +81,8 @@ function BlockingScreen(): React.JSX.Element {
       </View>
 
       <Text variant="micro" tone="faint" align="center">
-        You have {installed}
-        {latest ? ` · ${latest} is available` : ''}
+        {t.misc.youHaveVersion.replace('{installed}', installed)}
+        {latest ? t.misc.versionAvailable.replace('{latest}', latest) : ''}
       </Text>
     </View>
   );

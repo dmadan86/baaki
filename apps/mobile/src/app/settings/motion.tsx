@@ -22,6 +22,7 @@ import {
   Screen,
   Text,
   Toggle,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -30,6 +31,7 @@ import { useMotion } from '@/lib/motion';
 
 export default function MotionSettingsScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const { animated, systemReducesMotion, overridden, setAnimated } = useMotion();
 
@@ -38,7 +40,7 @@ export default function MotionSettingsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

@@ -25,6 +25,7 @@ import {
   Row,
   Screen,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -34,6 +35,7 @@ import { canRestart, restartApp } from '@/lib/restart';
 
 export default function LanguageSettingsScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const { stored, language, phoneLanguage, setLanguage, restartNeeded } = useLanguage();
 
@@ -59,7 +61,7 @@ export default function LanguageSettingsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

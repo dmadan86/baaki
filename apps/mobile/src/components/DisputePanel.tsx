@@ -92,7 +92,7 @@ export function DisputePanel({
           <Text variant="caption" tone="muted">
             {`${nameOf(row.member_id)} says:`}
           </Text>
-          <Text variant="body">{row.reason ?? 'No reason given'}</Text>
+          <Text variant="body">{row.reason ?? t.misc.noReasonGiven}</Text>
 
           {canAnswer ? (
             answering === row.id ? (
@@ -152,11 +152,10 @@ export function DisputePanel({
             </Text>
           ) : null}
           <Text variant="micro" tone="faint">
-            Nothing has changed yet — your share stands until the expense is corrected. That is
-            deliberate: a share anybody could drop on their own would not be a ledger.
+            {t.misc.disputeStands}
           </Text>
           <Button
-            label="Never mind, it’s fine"
+            label={t.misc.neverMind}
             size="sm"
             variant="ghost"
             disabled={busy}
@@ -166,7 +165,7 @@ export function DisputePanel({
       ) : writing ? (
         <View style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
-            What’s wrong with it?
+            {t.misc.whatsWrongWithIt}
           </Text>
           <TextInput
             value={reason}
@@ -209,7 +208,7 @@ export function DisputePanel({
               say, so it is offered first and equally. */}
           <Button label={t.dispute.fixItMyself} size="sm" variant="secondary" onPress={onEdit} />
           <Button
-            label="Something’s wrong"
+            label={t.misc.somethingsWrong}
             size="sm"
             variant="ghost"
             onPress={() => setWriting(true)}

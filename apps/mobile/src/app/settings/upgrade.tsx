@@ -17,7 +17,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { Card, directionalIcon, IconButton, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Card,
+  directionalIcon,
+  IconButton,
+  ListRow,
+  Row,
+  Screen,
+  Text,
+  useTabBarClearance,
+  useTheme,
+} from '@baaki/ui';
 
 import { useStrings, type UiStrings } from '@/i18n';
 
@@ -41,6 +51,7 @@ function conveniences(
 
 export default function UpgradeScreen() {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
 
   return (
@@ -48,7 +59,7 @@ export default function UpgradeScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

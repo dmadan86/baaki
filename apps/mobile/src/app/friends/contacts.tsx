@@ -35,6 +35,7 @@ import {
   Screen,
   SectionHeader,
   Text,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -174,12 +175,13 @@ function ChooseGroup({
   onChoose: (groupId: string) => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const only = contacts.length === 1 ? contacts[0] : undefined;
 
   return (
     <ScrollView
-      contentContainerStyle={{ paddingBottom: theme.spacing.xxxl, gap: theme.spacing.lg }}
+      contentContainerStyle={{ paddingBottom: clearance, gap: theme.spacing.lg }}
       showsVerticalScrollIndicator={false}
     >
       <Card style={{ gap: theme.spacing.xs }}>
