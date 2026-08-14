@@ -49,24 +49,32 @@ import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
-type SortKey = 'amount' | 'date' | 'name';
-type SortDir = 'asc' | 'desc';
+enum SortKey {
+  Amount = 'amount',
+  Date = 'date',
+  Name = 'name',
+}
+
+enum SortDir {
+  Asc = 'asc',
+  Desc = 'desc',
+}
 
 /** Each key's icon and the direction it opens in — biggest/newest first, A→Z. */
 const SORT_META: Record<SortKey, { icon: keyof typeof Ionicons.glyphMap; defaultDir: SortDir }> = {
-  amount: { icon: 'cash-outline', defaultDir: 'desc' },
-  date: { icon: 'time-outline', defaultDir: 'desc' },
-  name: { icon: 'text-outline', defaultDir: 'asc' },
+  [SortKey.Amount]: { icon: 'cash-outline', defaultDir: SortDir.Desc },
+  [SortKey.Date]: { icon: 'time-outline', defaultDir: SortDir.Desc },
+  [SortKey.Name]: { icon: 'text-outline', defaultDir: SortDir.Asc },
 };
 
-const SORT_ORDER: readonly SortKey[] = ['amount', 'date', 'name'];
+const SORT_ORDER: readonly SortKey[] = [SortKey.Amount, SortKey.Date, SortKey.Name];
 
-/** Sort a section by the chosen key; `asc`/`desc` flips whatever the key means. */
+/** Sort a section by the chosen key; asc/desc flips whatever the key means. */
 function sortPeople(rows: PersonBalanceRow[], key: SortKey, dir: SortDir): PersonBalanceRow[] {
-  const sign = dir === 'asc' ? 1 : -1;
+  const sign = dir === SortDir.Asc ? 1 : -1;
   const cmp = (a: PersonBalanceRow, b: PersonBalanceRow): number => {
-    if (key === 'name') return a.display_name.localeCompare(b.display_name) * sign;
-    if (key === 'date') {
+    if (key === SortKey.Name) return a.display_name.localeCompare(b.display_name) * sign;
+    if (key === SortKey.Date) {
       const at = a.last_activity_at ? Date.parse(a.last_activity_at) : 0;
       const bt = b.last_activity_at ? Date.parse(b.last_activity_at) : 0;
       return (at < bt ? -1 : at > bt ? 1 : 0) * sign;
@@ -95,13 +103,13 @@ export default function FriendsScreen() {
   // The sort the whole list obeys. Tapping a key in the menu switches to it;
   // tapping the key already chosen flips its direction — amount and recent
   // activity open biggest/newest first, name A→Z, and either can be reversed.
-  const [sortKey, setSortKey] = useState<SortKey>('amount');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [sortKey, setSortKey] = useState<SortKey>(SortKey.Amount);
+  const [sortDir, setSortDir] = useState<SortDir>(SortDir.Desc);
   const [sortOpen, setSortOpen] = useState(false);
 
   const pickSort = (key: SortKey): void => {
     if (key === sortKey) {
-      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+      setSortDir((dir) => (dir === SortDir.Asc ? SortDir.Desc : SortDir.Asc));
     } else {
       setSortKey(key);
       setSortDir(SORT_META[key].defaultDir);
@@ -442,7 +450,11 @@ function SortMenu({
             {SORT_ORDER.map((key) => {
               const active = key === sortKey;
               const label =
-                key === 'amount' ? t.sort.amount : key === 'date' ? t.sort.date : t.sort.name;
+                key === SortKey.Amount
+                  ? t.sort.amount
+                  : key === SortKey.Date
+                    ? t.sort.date
+                    : t.sort.name;
               return (
                 <Pressable
                   key={key}
@@ -472,7 +484,7 @@ function SortMenu({
                   </Text>
                   {active ? (
                     <Ionicons
-                      name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'}
+                      name={sortDir === SortDir.Asc ? 'arrow-up' : 'arrow-down'}
                       size={iconSize.md}
                       color={theme.color.brand}
                     />
