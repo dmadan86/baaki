@@ -8,9 +8,14 @@
 -- still limits every row scanned here to groups they belong to — this exposes
 -- no timestamp from a group you cannot already see.
 --
--- Idempotent: CREATE OR REPLACE with the same signature plus one output column.
+-- Adding an output column changes the function's return type, which
+-- CREATE OR REPLACE refuses ("cannot change return type of existing function")
+-- — so drop it first. Nothing in the schema depends on it (the app calls it by
+-- RPC), so the drop is clean; the grant is re-issued below.
 
-CREATE OR REPLACE FUNCTION public.baaki_people_i_owe()
+DROP FUNCTION IF EXISTS public.baaki_people_i_owe();
+
+CREATE FUNCTION public.baaki_people_i_owe()
 RETURNS TABLE (
   person_key       text,
   profile_id       uuid,
