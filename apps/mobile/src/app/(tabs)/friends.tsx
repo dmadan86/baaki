@@ -77,9 +77,8 @@ export default function FriendsScreen() {
           <Text variant="title">{t.friends}</Text>
           <Button
             label={t.tabs.fromContacts}
-            variant="secondary"
             size="sm"
-            icon={<Ionicons name="person-add-outline" size={16} color={theme.color.brand} />}
+            icon={<Ionicons name="person-add-outline" size={16} color={theme.color.onBrand} />}
             onPress={() => router.push('/friends/contacts')}
           />
         </Row>

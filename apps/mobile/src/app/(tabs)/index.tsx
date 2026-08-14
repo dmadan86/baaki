@@ -288,9 +288,8 @@ export default function HomeScreen() {
               action={
                 <Button
                   label={t.newGroup}
-                  variant="secondary"
                   size="sm"
-                  icon={<Ionicons name="add" size={16} color={theme.color.brand} />}
+                  icon={<Ionicons name="add" size={16} color={theme.color.onBrand} />}
                   onPress={openNewGroup}
                 />
               }
