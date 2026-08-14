@@ -31,6 +31,7 @@ import {
 
 import { reportHandled } from '@/lib/observability';
 import { supabase } from '@/lib/supabase';
+import { loadSyncNetworkPreference, SyncNetworkPreference } from '@/lib/syncNetwork';
 
 import { createLocalStore, type LocalStore, type StoredRow } from './store';
 
@@ -38,6 +39,8 @@ export enum SyncStatus {
   Idle = 'idle',
   Syncing = 'syncing',
   Offline = 'offline',
+  /** Online, but the connection is not one the user allows sync over. */
+  Metered = 'metered',
   Error = 'error',
 }
 
@@ -214,6 +217,14 @@ export class SyncEngine {
       return;
     }
 
+    // Online, but maybe not over a connection the user has agreed to spend.
+    // Wi‑Fi is the default, so a phone on mobile data holds its queue rather
+    // than syncing until Wi‑Fi returns — the change is already safe on disk.
+    if (!(await networkAllowed())) {
+      this.set({ status: SyncStatus.Metered });
+      return;
+    }
+
     const now = Date.now();
     const batch = nextBatch(this.state.queue, { now });
     const cursors = { ...this.state.mirror.cursors };
@@ -354,6 +365,31 @@ async function isOnline(): Promise<boolean> {
     // interface is the best signal available there, and a failed request is
     // handled by the backoff anyway.
     return state.isInternetReachable ?? state.isConnected ?? true;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Whether the current connection is one the user allows sync over. "Both" is
+ * always allowed; the specific choices are matched against the interface type.
+ *
+ * Fail-open on both fronts: if the preference or the network type can't be
+ * read, we sync rather than silently stall a ledger. An unknown type only
+ * happens off real phones (web/desktop), where "Wi‑Fi only" is not a
+ * meaningful gate anyway, and a genuinely bad request is caught by the backoff.
+ */
+async function networkAllowed(): Promise<boolean> {
+  const preference = await loadSyncNetworkPreference().catch(
+    () => SyncNetworkPreference.Both,
+  );
+  if (preference === SyncNetworkPreference.Both) return true;
+  try {
+    const { type } = await Network.getNetworkStateAsync();
+    if (type == null) return true;
+    return preference === SyncNetworkPreference.Wifi
+      ? type === Network.NetworkStateType.WIFI
+      : type === Network.NetworkStateType.CELLULAR;
   } catch {
     return true;
   }

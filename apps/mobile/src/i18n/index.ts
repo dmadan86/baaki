@@ -342,6 +342,21 @@ export interface UiStrings {
     followingPhone: string;
     footnote: string;
   };
+  /** Which networks sync may use, and what the banner says while it waits. */
+  sync: {
+    title: string;
+    wifi: string;
+    wifiHint: string;
+    cellular: string;
+    cellularHint: string;
+    both: string;
+    bothHint: string;
+    footnote: string;
+    /** Banner while holding the queue for Wi‑Fi. */
+    waitingWifi: string;
+    /** Banner while holding the queue for mobile data. */
+    waitingCellular: string;
+  };
   /** The app lock, the delay before it asks again, and the way out. */
   lock: {
     title: string;
@@ -1354,6 +1369,18 @@ const en: UiStrings = {
     currently: 'Currently {scheme}',
     followingPhone: 'Following your phone',
     footnote: 'Following your phone lets the app turn dark when your phone does.',
+  },
+  sync: {
+    title: 'Sync over',
+    wifi: 'Wi‑Fi only',
+    wifiHint: 'Sync only on Wi‑Fi. Never spends mobile data.',
+    cellular: 'Mobile data only',
+    cellularHint: 'Sync only on mobile data, never Wi‑Fi.',
+    both: 'Wi‑Fi & mobile data',
+    bothHint: 'Sync on whatever connection is up.',
+    footnote: 'Changes are always saved on your phone. This only decides when they leave it.',
+    waitingWifi: 'Saved — waiting for Wi‑Fi to sync.',
+    waitingCellular: 'Saved — waiting for mobile data to sync.',
   },
   lock: {
     title: 'Security',
@@ -2462,6 +2489,18 @@ const ta: UiStrings = {
     currently: 'தற்போது {scheme}',
     followingPhone: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது',
     footnote: 'உங்கள் ஃபோனைப் பின்பற்றினால், ஃபோன் இருளும்போது ஆப்பும் இருளும்.',
+  },
+  sync: {
+    title: 'எதன் மூலம் ஒத்திசைவு',
+    wifi: 'வைஃபை மட்டும்',
+    wifiHint: 'வைஃபையில் மட்டும் ஒத்திசைக்கும். மொபைல் டேட்டா செலவாகாது.',
+    cellular: 'மொபைல் டேட்டா மட்டும்',
+    cellularHint: 'மொபைல் டேட்டாவில் மட்டும் ஒத்திசைக்கும், வைஃபையில் இல்லை.',
+    both: 'வைஃபை & மொபைல் டேட்டா',
+    bothHint: 'இணைப்பு எதுவாக இருந்தாலும் ஒத்திசைக்கும்.',
+    footnote: 'மாற்றங்கள் எப்போதும் உங்கள் ஃபோனில் சேமிக்கப்படும். எப்போது வெளியேறும் என்பதை மட்டுமே இது தீர்மானிக்கிறது.',
+    waitingWifi: 'சேமிக்கப்பட்டது — ஒத்திசைக்க வைஃபைக்காகக் காத்திருக்கிறது.',
+    waitingCellular: 'சேமிக்கப்பட்டது — ஒத்திசைக்க மொபைல் டேட்டாவுக்காகக் காத்திருக்கிறது.',
   },
   lock: {
     title: 'பாதுகாப்பு',
@@ -3592,6 +3631,18 @@ const hi: UiStrings = {
     followingPhone: 'आपके फ़ोन के अनुसार',
     footnote: 'फ़ोन के अनुसार रखने पर, फ़ोन गहरा होने पर ऐप भी गहरा हो जाता है।',
   },
+  sync: {
+    title: 'किस पर सिंक करें',
+    wifi: 'केवल वाई‑फ़ाई',
+    wifiHint: 'केवल वाई‑फ़ाई पर सिंक करें। मोबाइल डेटा कभी खर्च नहीं होगा।',
+    cellular: 'केवल मोबाइल डेटा',
+    cellularHint: 'केवल मोबाइल डेटा पर सिंक करें, वाई‑फ़ाई पर नहीं।',
+    both: 'वाई‑फ़ाई और मोबाइल डेटा',
+    bothHint: 'जो भी कनेक्शन उपलब्ध हो, उस पर सिंक करें।',
+    footnote: 'बदलाव हमेशा आपके फ़ोन पर सहेजे जाते हैं। यह केवल तय करता है कि वे कब फ़ोन से बाहर जाएँ।',
+    waitingWifi: 'सहेजा गया — सिंक के लिए वाई‑फ़ाई की प्रतीक्षा है।',
+    waitingCellular: 'सहेजा गया — सिंक के लिए मोबाइल डेटा की प्रतीक्षा है।',
+  },
   lock: {
     title: 'सुरक्षा',
     requireBiometrics: 'बायोमेट्रिक या पासकोड माँगें',
@@ -4695,6 +4746,18 @@ const ar: UiStrings = {
     currently: 'حاليًا {scheme}',
     followingPhone: 'يتبع هاتفك',
     footnote: 'اتباع هاتفك يجعل التطبيق يصير داكنًا حين يصير هاتفك داكنًا.',
+  },
+  sync: {
+    title: 'المزامنة عبر',
+    wifi: 'واي‑فاي فقط',
+    wifiHint: 'المزامنة عبر واي‑فاي فقط. لا تستهلك بيانات الجوال أبدًا.',
+    cellular: 'بيانات الجوال فقط',
+    cellularHint: 'المزامنة عبر بيانات الجوال فقط، وليس واي‑فاي.',
+    both: 'واي‑فاي وبيانات الجوال',
+    bothHint: 'المزامنة عبر أي اتصال متاح.',
+    footnote: 'تُحفظ التغييرات دائمًا على هاتفك. هذا يحدد فقط متى تغادره.',
+    waitingWifi: 'محفوظ — بانتظار واي‑فاي للمزامنة.',
+    waitingCellular: 'محفوظ — بانتظار بيانات الجوال للمزامنة.',
   },
   lock: {
     title: 'الأمان',
