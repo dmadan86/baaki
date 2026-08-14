@@ -15,14 +15,17 @@ import fc from 'fast-check';
 import {
   emptyMirror,
   enqueue,
+  materialiseCaptures,
   materialiseGroups,
   materialiseMembers,
   materialiseSettlements,
   MutationKind,
+  openCaptures,
   reconcile,
   SyncTable,
   type MutationEnvelope,
   type QueuedMutation,
+  type SyncChange,
 } from '../src/sync/index.js';
 
 const GROUP = 'g-1';
@@ -94,7 +97,9 @@ describe('settlements', () => {
       },
     ]).state;
 
-    const queue = queued(envelope('m-2', MutationKind.SettlementTransition, { settlementId: 's-9' }));
+    const queue = queued(
+      envelope('m-2', MutationKind.SettlementTransition, { settlementId: 's-9' }),
+    );
     const [row] = materialiseSettlements(mirror, queue, { groupId: GROUP });
     expect(row).toMatchObject({ id: 's-9', status: 'confirmed', pending: true });
   });
@@ -151,7 +156,9 @@ describe('members', () => {
       },
     ]).state;
 
-    const queue = queued(envelope('m-1', MutationKind.MemberAddGhost, { memberId: 'mem-1', name: 'Ravi' }));
+    const queue = queued(
+      envelope('m-1', MutationKind.MemberAddGhost, { memberId: 'mem-1', name: 'Ravi' }),
+    );
     const rows = materialiseMembers(mirror, queue, { groupId: GROUP });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.pending).toBeUndefined();
@@ -241,5 +248,129 @@ describe('the overlay as a whole', () => {
         },
       ),
     );
+  });
+});
+
+// ─────────────────────────────────────────────────── captures (A34) ──
+//
+// A capture rides a *personal* scope: the envelope's groupId slot holds the
+// owner's user id. These check the overlay behaves under that scope and that the
+// inbox filter (`openCaptures`) hides what has been assigned or deleted.
+
+describe('captures', () => {
+  const OWNER = 'user-1';
+
+  const create = envelope(
+    'c-1',
+    MutationKind.CaptureCreate,
+    {
+      captureId: 'cap-1',
+      description: 'Petrol',
+      category: 'transport',
+      expenseDate: '2026-03-01',
+      currency: 'INR',
+      amount: '250000',
+    },
+    OWNER,
+  );
+
+  it('shows a capture made with no network, marked unsent', () => {
+    const rows = materialiseCaptures(emptyMirror(), queued(create), { ownerId: OWNER });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: 'cap-1',
+      description: 'Petrol',
+      amount: '250000',
+      status: 'open',
+      pending: true,
+    });
+    expect(openCaptures(rows)).toHaveLength(1);
+  });
+
+  it('is invisible under a different owner — the scope is the person', () => {
+    const rows = materialiseCaptures(emptyMirror(), queued(create), { ownerId: 'someone-else' });
+    expect(rows).toHaveLength(0);
+  });
+
+  it('merges an offline edit onto the same capture', () => {
+    const update = envelope(
+      'c-2',
+      MutationKind.CaptureUpdate,
+      {
+        captureId: 'cap-1',
+        description: 'Petrol — highway',
+        expenseDate: '2026-03-01',
+        currency: 'INR',
+        amount: '260000',
+      },
+      OWNER,
+    );
+    const rows = materialiseCaptures(emptyMirror(), queued(create, update), { ownerId: OWNER });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ description: 'Petrol — highway', amount: '260000' });
+  });
+
+  it('drops a deleted capture from the inbox', () => {
+    const remove = envelope('c-3', MutationKind.CaptureDelete, { captureId: 'cap-1' }, OWNER);
+    const rows = materialiseCaptures(emptyMirror(), queued(create, remove), { ownerId: OWNER });
+    expect(openCaptures(rows)).toHaveLength(0);
+  });
+
+  it('drops an assigned capture from the inbox but keeps the record', () => {
+    const assign = envelope(
+      'c-4',
+      MutationKind.CaptureAssign,
+      { captureId: 'cap-1', groupId: 'g-9', expenseId: 'e-9' },
+      OWNER,
+    );
+    const rows = materialiseCaptures(emptyMirror(), queued(create, assign), { ownerId: OWNER });
+    expect(openCaptures(rows)).toHaveLength(0);
+    expect(rows[0]).toMatchObject({
+      status: 'assigned',
+      assigned_group_id: 'g-9',
+      assigned_expense_id: 'e-9',
+    });
+  });
+
+  it('overlays a queued edit on a server row, keyed by the owner scope', () => {
+    const serverRow: SyncChange = {
+      table: SyncTable.Captures,
+      groupId: OWNER,
+      seq: 1,
+      row: {
+        id: 'cap-1',
+        owner_user_id: OWNER,
+        description: 'Petrol',
+        category: 'transport',
+        expense_date: '2026-03-01',
+        currency: 'INR',
+        amount: '250000',
+        notes: null,
+        photo_path: null,
+        raw_text: null,
+        parsed: null,
+        status: 'open',
+        assigned_expense_id: null,
+        assigned_group_id: null,
+        created_at: AT,
+        deleted_at: null,
+      },
+    };
+    const { state } = reconcile(emptyMirror(), [serverRow]);
+    const edit = envelope(
+      'c-5',
+      MutationKind.CaptureUpdate,
+      {
+        captureId: 'cap-1',
+        description: 'Petrol (edited)',
+        expenseDate: '2026-03-01',
+        currency: 'INR',
+        amount: '250000',
+      },
+      OWNER,
+    );
+    const rows = materialiseCaptures(state, queued(edit), { ownerId: OWNER });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ description: 'Petrol (edited)', pending: true });
   });
 });

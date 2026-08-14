@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { dayNumber, daysBetween } from '@baaki/core';
 import {
@@ -19,7 +19,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { useGroups, useHomeSummary } from '@/data/hooks';
+import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale, Stagger } from '@/lib/anim';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -39,7 +39,13 @@ export default function HomeScreen() {
 
   const groups = useGroups();
   const summary = useHomeSummary(profile?.id ?? null);
+  const captures = useCaptures();
   const guard = useGuestGuard();
+
+  // Captures waiting in the personal inbox (A34) — surfaced as a card and a
+  // badged header entry so a caught expense is not forgotten before it lands in
+  // a group.
+  const captureCount = captures.data?.length ?? 0;
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
@@ -137,12 +143,55 @@ export default function HomeScreen() {
               {profile?.display_name ?? 'You'}
             </Text>
           </View>
+          <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture')}>
+            <Ionicons name="camera-outline" size={22} color={theme.color.text} />
+          </IconButton>
+          <IconButton
+            label={t.captures.title}
+            badge={captureCount > 0}
+            onPress={() => router.push('/captures')}
+          >
+            <Ionicons name="file-tray-outline" size={22} color={theme.color.text} />
+          </IconButton>
           <IconButton label={t.tabs.inbox} onPress={() => router.push('/inbox')}>
             <Ionicons name="notifications-outline" size={22} color={theme.color.text} />
           </IconButton>
         </Row>
 
         <SyncBanner />
+
+        {/* Expenses caught without a group yet (A34). Sits near the top so an
+            inbox with something in it is the first thing after the balance, not
+            a screen nobody remembers to open. */}
+        {captureCount > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.captures.unassigned}
+            onPress={() => router.push('/captures')}
+          >
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: theme.color.brandSoft,
+                }}
+              >
+                <Ionicons name="file-tray-full-outline" size={22} color={theme.color.brand} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="subheading">{t.captures.unassigned}</Text>
+                <Text variant="caption" tone="muted">
+                  {plural(locale, captureCount, t.captures.unassignedBody)}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.color.textFaint} />
+            </Card>
+          </Pressable>
+        ) : null}
 
         {isGuest ? (
           <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>

@@ -47,12 +47,7 @@ export enum Language {
 }
 
 /** Every language this app speaks, in the order the picker lists them. */
-export const LANGUAGES: readonly Language[] = [
-  Language.En,
-  Language.Ta,
-  Language.Hi,
-  Language.Ar,
-];
+export const LANGUAGES: readonly Language[] = [Language.En, Language.Ta, Language.Hi, Language.Ar];
 
 /** The languages that read right to left. */
 export const RTL_LANGUAGES: readonly Language[] = [Language.Ar];
@@ -581,6 +576,31 @@ export interface UiStrings {
     title: string;
     nothingYetBody: string;
     recent: string;
+  };
+  /** Captures (A34): an expense caught before it has a group, kept in a personal inbox. */
+  captures: {
+    title: string;
+    captureCta: string;
+    newTitle: string;
+    emptyTitle: string;
+    emptyBody: string;
+    amount: string;
+    description: string;
+    descriptionPlaceholder: string;
+    category: string;
+    date: string;
+    receipt: string;
+    addReceipt: string;
+    reading: string;
+    notSynced: string;
+    assign: string;
+    assignTitle: string;
+    assignBody: string;
+    noGroups: string;
+    delete: string;
+    unassigned: string;
+    unassignedBody: PluralForms;
+    save: string;
   };
   /** A group: its screen, its settings, and the ways out of it. */
   group: {
@@ -1531,6 +1551,34 @@ const en: UiStrings = {
     nothingYetBody:
       'Reminders, settlement confirmations and anything else Baaki tells you collect here — even when the notification never reached your phone.',
     recent: 'Recent',
+  },
+  captures: {
+    title: 'Captures',
+    captureCta: 'Capture an expense',
+    newTitle: 'Capture an expense',
+    emptyTitle: 'Nothing captured yet',
+    emptyBody:
+      'Catch a spend the moment it happens — the amount, a note, a photo of the bill — and decide which group it belongs to later.',
+    amount: 'Amount',
+    description: 'What was it?',
+    descriptionPlaceholder: 'Coffee, taxi, groceries…',
+    category: 'What for?',
+    date: 'Date',
+    receipt: 'Receipt',
+    addReceipt: 'Add receipt',
+    reading: 'Reading…',
+    notSynced: 'Not synced yet',
+    assign: 'Assign to group',
+    assignTitle: 'Assign to a group',
+    assignBody: 'Pick the group this belongs to. You can set who paid and how it splits next.',
+    noGroups: 'You have no groups yet. Make one first, then assign this to it.',
+    delete: 'Delete',
+    unassigned: 'Unassigned',
+    unassignedBody: {
+      one: '{n} capture waiting for a group',
+      other: '{n} captures waiting for a group',
+    },
+    save: 'Save capture',
   },
   group: {
     notFound: 'Group not found',
@@ -2550,6 +2598,35 @@ const ta: UiStrings = {
       'நினைவூட்டல்கள், தீர்வு உறுதிப்படுத்தல்கள், பாக்கி உங்களிடம் சொல்லும் மற்ற அனைத்தும் இங்கே சேரும் — அறிவிப்பு உங்கள் ஃபோனுக்கு வராவிட்டாலும் கூட.',
     recent: 'சமீபத்தியவை',
   },
+  captures: {
+    title: 'விரைவுப் பதிவுகள்',
+    captureCta: 'ஒரு செலவைப் பதிவு செய்யுங்கள்',
+    newTitle: 'ஒரு செலவைப் பதிவு செய்யுங்கள்',
+    emptyTitle: 'இன்னும் எதுவும் பதிவாகவில்லை',
+    emptyBody:
+      'செலவு நடந்த அந்த நொடியிலேயே பிடித்து வையுங்கள் — தொகை, ஒரு குறிப்பு, ரசீதின் படம் — எந்தக் குழுவுக்கு உரியது என்பதைப் பிறகு தீர்மானியுங்கள்.',
+    amount: 'தொகை',
+    description: 'இது என்ன?',
+    descriptionPlaceholder: 'காபி, டாக்ஸி, மளிகை…',
+    category: 'எதற்காக?',
+    date: 'தேதி',
+    receipt: 'ரசீது',
+    addReceipt: 'ரசீதைச் சேர்',
+    reading: 'படிக்கிறது…',
+    notSynced: 'இன்னும் ஒத்திசைக்கவில்லை',
+    assign: 'குழுவுக்கு ஒதுக்கு',
+    assignTitle: 'ஒரு குழுவுக்கு ஒதுக்குங்கள்',
+    assignBody:
+      'இது எந்தக் குழுவுக்கு உரியது என்பதைத் தேர்ந்தெடுங்கள். யார் கட்டினார், எப்படிப் பிரிக்கிறது என்பதை அடுத்து அமைக்கலாம்.',
+    noGroups: 'உங்களிடம் இன்னும் குழுக்கள் இல்லை. முதலில் ஒன்றை உருவாக்கி, பிறகு இதை ஒதுக்குங்கள்.',
+    delete: 'நீக்கு',
+    unassigned: 'ஒதுக்கப்படாதவை',
+    unassignedBody: {
+      one: 'குழுவுக்காகக் காத்திருக்கும் {n} பதிவு',
+      other: 'குழுவுக்காகக் காத்திருக்கும் {n} பதிவுகள்',
+    },
+    save: 'சேமி',
+  },
   group: {
     notFound: 'குழு கிடைக்கவில்லை',
     notFoundBody: 'அது காப்பகப்படுத்தப்பட்டிருக்கலாம், அல்லது நீங்கள் இனி உறுப்பினர் இல்லை.',
@@ -3568,6 +3645,34 @@ const hi: UiStrings = {
     nothingYetBody:
       'याद दिलाना, निपटान की पुष्टि और बाकी जो कुछ भी आपसे कहता है, सब यहाँ जमा होता है — भले ही सूचना आपके फ़ोन तक कभी न पहुँची हो।',
     recent: 'हाल के',
+  },
+  captures: {
+    title: 'त्वरित प्रविष्टियाँ',
+    captureCta: 'एक खर्च दर्ज करें',
+    newTitle: 'एक खर्च दर्ज करें',
+    emptyTitle: 'अभी तक कुछ दर्ज नहीं हुआ',
+    emptyBody:
+      'खर्च होते ही उसे पकड़ लें — रकम, एक नोट, बिल की तस्वीर — और बाद में तय करें कि यह किस समूह का है।',
+    amount: 'रकम',
+    description: 'यह क्या था?',
+    descriptionPlaceholder: 'कॉफ़ी, टैक्सी, राशन…',
+    category: 'किसलिए?',
+    date: 'तारीख़',
+    receipt: 'रसीद',
+    addReceipt: 'रसीद जोड़ें',
+    reading: 'पढ़ रहे हैं…',
+    notSynced: 'अभी सिंक नहीं हुआ',
+    assign: 'समूह को सौंपें',
+    assignTitle: 'किसी समूह को सौंपें',
+    assignBody: 'चुनें कि यह किस समूह का है। किसने चुकाया और कैसे बँटेगा, यह आगे तय कर सकते हैं।',
+    noGroups: 'आपके पास अभी कोई समूह नहीं है। पहले एक बनाएँ, फिर इसे उसमें सौंपें।',
+    delete: 'हटाएँ',
+    unassigned: 'असौंपे',
+    unassignedBody: {
+      one: 'समूह की प्रतीक्षा में {n} प्रविष्टि',
+      other: 'समूह की प्रतीक्षा में {n} प्रविष्टियाँ',
+    },
+    save: 'सहेजें',
   },
   group: {
     notFound: 'समूह नहीं मिला',
@@ -4599,6 +4704,38 @@ const ar: UiStrings = {
     nothingYetBody:
       'التذكيرات وتأكيدات التسوية وكل ما يخبرك به باقي يتجمّع هنا — حتى حين لا يصل الإشعار إلى هاتفك.',
     recent: 'الأحدث',
+  },
+  captures: {
+    title: 'الالتقاطات',
+    captureCta: 'التقط مصروفًا',
+    newTitle: 'التقط مصروفًا',
+    emptyTitle: 'لا شيء ملتقط بعد',
+    emptyBody:
+      'التقط المصروف لحظة حدوثه — المبلغ، ملاحظة، صورة الفاتورة — وقرّر لاحقًا إلى أي مجموعة ينتمي.',
+    amount: 'المبلغ',
+    description: 'ما هذا؟',
+    descriptionPlaceholder: 'قهوة، تاكسي، بقالة…',
+    category: 'لماذا؟',
+    date: 'التاريخ',
+    receipt: 'الإيصال',
+    addReceipt: 'أضف إيصالًا',
+    reading: 'جارٍ القراءة…',
+    notSynced: 'لم تتم المزامنة بعد',
+    assign: 'أسنِد إلى مجموعة',
+    assignTitle: 'أسنِد إلى مجموعة',
+    assignBody: 'اختر المجموعة التي ينتمي إليها. يمكنك تحديد من دفع وكيفية التقسيم بعد ذلك.',
+    noGroups: 'ليست لديك مجموعات بعد. أنشئ واحدة أولًا ثم أسنِد هذا إليها.',
+    delete: 'حذف',
+    unassigned: 'غير مُسنَد',
+    unassignedBody: {
+      zero: 'لا التقاطات تنتظر مجموعة',
+      one: 'التقاط واحد ينتظر مجموعة',
+      two: 'التقاطان ينتظران مجموعة',
+      few: '{n} التقاطات تنتظر مجموعة',
+      many: '{n} التقاطًا تنتظر مجموعة',
+      other: '{n} التقاط ينتظر مجموعة',
+    },
+    save: 'حفظ',
   },
   group: {
     notFound: 'المجموعة غير موجودة',

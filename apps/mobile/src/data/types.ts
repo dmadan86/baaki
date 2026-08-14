@@ -108,6 +108,44 @@ export interface ExpenseRow {
   pending?: boolean;
 }
 
+export enum CaptureStatus {
+  /** In the inbox, waiting to be assigned to a group. */
+  Open = 'open',
+  /** Turned into a real expense; kept for the record but out of the inbox. */
+  Assigned = 'assigned',
+}
+
+/**
+ * An expense caught before it has a group (TDR A34).
+ *
+ * It is personal until it is assigned: owned by one user, synced under that
+ * user's own scope rather than any group's, and split among nobody yet. On
+ * assignment it becomes an ordinary `expenses` row in the chosen group and this
+ * row flips to `assigned`, which is what removes it from the inbox.
+ */
+export interface CaptureRow {
+  id: string;
+  owner_user_id: string;
+  description: string;
+  category: string | null;
+  expense_date: string;
+  currency: string;
+  /** BIGINT arrives as a string from PostgREST — parse, never Number(). */
+  amount: string;
+  notes: string | null;
+  /** Object path in the owner-scoped receipts bucket, or null. */
+  photo_path: string | null;
+  /** On-device OCR text (A5), kept so assignment can prefill the expense form. */
+  raw_text: string | null;
+  parsed: Record<string, unknown> | null;
+  status: CaptureStatus;
+  assigned_expense_id: string | null;
+  assigned_group_id: string | null;
+  created_at: string;
+  /** True while this row exists only in the local queue (ADR-005). */
+  pending?: boolean;
+}
+
 export enum DisputeStatus {
   Open = 'open',
   Resolved = 'resolved',

@@ -155,6 +155,36 @@ export function coarseMethod(rail: string): SettlementMethod {
     : SettlementMethod.Other;
 }
 
+export enum CaptureStatus {
+  Open = 'open',
+  Assigned = 'assigned',
+}
+
+/**
+ * A captured expense with no group yet (TDR A34). Personal until assigned:
+ * owned by one user, synced under that owner's own scope, carrying no members
+ * and no split. Which rows are whose is decided by the owner-only `captures_own`
+ * RLS policy, not by any filter here.
+ */
+export interface CaptureRow {
+  id: string;
+  owner_user_id: string;
+  description: string;
+  category: string | null;
+  expense_date: string;
+  currency: string;
+  /** Minor units as a decimal string — BIGINT never fits a JS number. */
+  amount: string;
+  notes: string | null;
+  photo_path: string | null;
+  raw_text: string | null;
+  parsed: Record<string, unknown> | null;
+  status: CaptureStatus;
+  assigned_expense_id: string | null;
+  assigned_group_id: string | null;
+  created_at: string;
+}
+
 /**
  * A line in the inbox — everything Baaki has told this person, whether or not a
  * push ever reached the device (TDR §7.1 calls it the ledger of record). Which

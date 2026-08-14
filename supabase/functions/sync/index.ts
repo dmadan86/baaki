@@ -53,7 +53,24 @@ type MutationKind =
   | 'settlement.transition'
   | 'member.add_ghost'
   | 'group.create'
-  | 'group.update';
+  | 'group.update'
+  // Personal-scope kinds (TDR A34): a capture is owned by one user and its
+  // envelope `groupId` carries that user's own id, not a group. Authorised by
+  // ownership rather than membership, and recorded with a null group.
+  | 'capture.create'
+  | 'capture.update'
+  | 'capture.delete'
+  | 'capture.assign';
+
+/** True for the kinds whose scope is a user, not a group. */
+function isPersonalKind(kind: MutationKind): boolean {
+  return (
+    kind === 'capture.create' ||
+    kind === 'capture.update' ||
+    kind === 'capture.delete' ||
+    kind === 'capture.assign'
+  );
+}
 
 interface MutationEnvelope {
   clientMutationId: string;
@@ -203,7 +220,7 @@ Deno.serve(async (request) => {
       ...session.touchedGroups,
       ...(mine.data ?? []).map((row) => row.group_id as string),
     ]);
-    const { changes, cursors: nextCursors } = await pull(caller, groupIds, cursors);
+    const { changes, cursors: nextCursors } = await pull(caller, groupIds, cursors, profileId);
 
     return json({
       outcomes,
@@ -241,6 +258,8 @@ class SyncSession {
       };
     }
 
+    const personal = isPersonalKind(mutation.kind);
+
     // Replay: return exactly what the first attempt produced.
     const { data: seen } = await this.service
       .from('sync_mutations')
@@ -248,13 +267,15 @@ class SyncSession {
       .eq('client_mutation_id', clientMutationId)
       .maybeSingle();
     if (seen) {
-      this.touchedGroups.add(mutation.groupId);
+      if (!personal) this.touchedGroups.add(mutation.groupId);
       return { clientMutationId, status: 'duplicate', result: seen.result };
     }
 
     try {
       const result = await this.dispatch(mutation);
-      this.touchedGroups.add(mutation.groupId);
+      // A capture's scope is the owner, not a group — it must not join the group
+      // pull set, and its `groups` FK on the idempotency row would be violated.
+      if (!personal) this.touchedGroups.add(mutation.groupId);
 
       // Recorded after the fact: if the write succeeded but this insert fails,
       // the mutation's own idempotency key (on expense_versions, settlements,
@@ -262,7 +283,7 @@ class SyncSession {
       await this.service.from('sync_mutations').insert({
         client_mutation_id: clientMutationId,
         profile_id: this.profileId,
-        group_id: mutation.groupId,
+        group_id: personal ? null : mutation.groupId,
         kind: mutation.kind,
         result: result ?? {},
       });
@@ -353,6 +374,14 @@ class SyncSession {
         if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
         return { groupId: mutation.groupId };
       }
+      case 'capture.create':
+        return await this.createCapture(mutation);
+      case 'capture.update':
+        return await this.updateCapture(mutation);
+      case 'capture.delete':
+        return await this.deleteCapture(mutation);
+      case 'capture.assign':
+        return await this.assignCapture(mutation);
       default:
         throw new HttpError(
           400,
@@ -490,6 +519,132 @@ class SyncSession {
       p_client_mutation_id: mutation.clientMutationId,
     });
   }
+
+  // ─────────────────────────────────────────────────── captures (A34) ──
+  // The scope of a personal mutation is the owner. A client that put someone
+  // else's id in `groupId` would be trying to write into another person's inbox
+  // — the row RLS would refuse it anyway, but rejecting here says why. Ownership
+  // is set from the authenticated identity, never trusted from the payload.
+
+  private requireOwnScope(mutation: MutationEnvelope): void {
+    if (mutation.groupId !== this.profileId) {
+      throw new HttpError(403, 'NOT_OWNER', 'A capture may only be written under its own owner');
+    }
+  }
+
+  private async createCapture(mutation: MutationEnvelope): Promise<unknown> {
+    this.requireOwnScope(mutation);
+    const payload = mutation.payload as {
+      captureId?: string;
+      description?: string;
+      category?: string | null;
+      expenseDate: string;
+      currency: string;
+      amount: string;
+      notes?: string | null;
+      photoPath?: string | null;
+      rawText?: string | null;
+      parsed?: Record<string, unknown> | null;
+    };
+
+    const captureId = requireString(payload.captureId, 'captureId');
+    const amount = parseMinor(payload.amount, 'amount');
+    if (amount < 0n) throw new HttpError(400, 'INVALID_AMOUNT', 'Amount cannot be negative');
+
+    const { error } = await this.caller.from('captures').insert({
+      id: captureId,
+      // From the authenticated identity, not the payload — the row's owner is
+      // who is signed in, full stop.
+      owner_user_id: this.profileId,
+      description: payload.description ?? '',
+      category: payload.category ?? null,
+      expense_date: payload.expenseDate,
+      currency: payload.currency.toUpperCase(),
+      amount: amount.toString(),
+      notes: payload.notes ?? null,
+      photo_path: payload.photoPath ?? null,
+      raw_text: payload.rawText ?? null,
+      parsed: payload.parsed ?? null,
+      status: 'open',
+    });
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { captureId };
+  }
+
+  private async updateCapture(mutation: MutationEnvelope): Promise<unknown> {
+    this.requireOwnScope(mutation);
+    const payload = mutation.payload as Record<string, unknown>;
+    const captureId = requireString(payload.captureId, 'captureId');
+
+    // The payload is camelCase on the wire; the columns are snake_case. Map only
+    // the fields that are present, so a partial edit does not blank the rest.
+    const CAPTURE_FIELD_COLUMNS: Record<string, string> = {
+      description: 'description',
+      category: 'category',
+      expenseDate: 'expense_date',
+      currency: 'currency',
+      amount: 'amount',
+      notes: 'notes',
+      photoPath: 'photo_path',
+      rawText: 'raw_text',
+      parsed: 'parsed',
+    };
+    const patch: Record<string, unknown> = {};
+    for (const [key, column] of Object.entries(CAPTURE_FIELD_COLUMNS)) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) patch[column] = payload[key];
+    }
+    if (typeof patch.amount === 'string') {
+      const amount = parseMinor(patch.amount, 'amount');
+      if (amount < 0n) throw new HttpError(400, 'INVALID_AMOUNT', 'Amount cannot be negative');
+      patch.amount = amount.toString();
+    }
+    if (typeof patch.currency === 'string') patch.currency = patch.currency.toUpperCase();
+    if (Object.keys(patch).length === 0) {
+      throw new HttpError(400, 'VALIDATION_FAILED', 'No updatable fields in payload');
+    }
+    patch.updated_at = new Date().toISOString();
+    // Only an open capture may be edited — once assigned it is a record, not a draft.
+    const { error } = await this.caller
+      .from('captures')
+      .update(patch)
+      .eq('id', captureId)
+      .eq('status', 'open');
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { captureId };
+  }
+
+  private async deleteCapture(mutation: MutationEnvelope): Promise<unknown> {
+    this.requireOwnScope(mutation);
+    const captureId = requireString(mutation.payload.captureId, 'captureId');
+    // Soft delete, so the removal propagates to the owner's other devices.
+    const { error } = await this.caller
+      .from('captures')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', captureId);
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { captureId };
+  }
+
+  private async assignCapture(mutation: MutationEnvelope): Promise<unknown> {
+    this.requireOwnScope(mutation);
+    const captureId = requireString(mutation.payload.captureId, 'captureId');
+    const groupId = requireString(mutation.payload.groupId, 'groupId');
+    const expenseId = requireString(mutation.payload.expenseId, 'expenseId');
+    // Idempotent and one-way: only an open capture flips, so a replay after the
+    // expense already exists is a no-op rather than a second assignment.
+    const { error } = await this.caller
+      .from('captures')
+      .update({
+        status: 'assigned',
+        assigned_group_id: groupId,
+        assigned_expense_id: expenseId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', captureId)
+      .eq('status', 'open');
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { captureId, expenseId, groupId };
+  }
 }
 
 /**
@@ -508,9 +663,15 @@ async function pull(
   caller: SupabaseClient,
   groupIds: Set<string>,
   cursors: Record<string, number>,
+  profileId: string,
 ): Promise<{ changes: SyncChange[]; cursors: Record<string, number> }> {
   const changes: SyncChange[] = [];
   const nextCursors: Record<string, number> = {};
+
+  // The personal scope is keyed by the caller's own user id (A34). It rides the
+  // same cursor map as the groups, but it is not a group — drop it here so the
+  // group loop does not waste a `groups` lookup on it.
+  groupIds.delete(profileId);
 
   for (const groupId of groupIds) {
     const since = cursors[groupId] ?? 0;
@@ -555,6 +716,29 @@ async function pull(
       }
     }
   }
+
+  // Personal scope (A34): the caller's own captures, keyed by their user id.
+  // Read as the caller, so owner-only RLS already guarantees these are theirs —
+  // the same safety property the group reads above rely on. A user is never a
+  // member of a group whose id equals their own, so the key cannot collide.
+  const meSince = cursors[profileId] ?? 0;
+  const { data: captures, error: capturesError } = await caller
+    .from('captures')
+    .select('*')
+    .eq('owner_user_id', profileId)
+    .gt('updated_seq', meSince)
+    .order('updated_seq', { ascending: true })
+    .limit(MAX_ROWS_PER_TABLE);
+  if (capturesError) throw new HttpError(500, 'PULL_FAILED', `captures: ${capturesError.message}`);
+
+  let capturesHighWater = meSince;
+  for (const row of captures ?? []) {
+    const record = row as Record<string, unknown>;
+    const seq = Number(record.updated_seq ?? 0);
+    changes.push({ table: 'captures', groupId: profileId, seq, row: record });
+    if (seq > capturesHighWater) capturesHighWater = seq;
+  }
+  nextCursors[profileId] = capturesHighWater;
 
   return { changes, cursors: nextCursors };
 }

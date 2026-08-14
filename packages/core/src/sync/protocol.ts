@@ -22,6 +22,18 @@ export enum MutationKind {
   MemberAddGhost = 'member.add_ghost',
   GroupCreate = 'group.create',
   GroupUpdate = 'group.update',
+  // Personal-scope kinds (TDR A34). A capture is an expense caught before it has
+  // a group — it carries no members and no split, so it cannot be an `expenses`
+  // row (that table is group-scoped, NOT NULL). It rides the same offline queue
+  // under a *personal scope*: the envelope's `groupId` slot holds the owner's
+  // user id, so ordering is per-user and the server authorises by ownership
+  // rather than group membership. `capture.assign` records the moment a capture
+  // became a real expense in some group; the expense itself is a normal
+  // `expense.create` on that group's scope.
+  CaptureCreate = 'capture.create',
+  CaptureUpdate = 'capture.update',
+  CaptureDelete = 'capture.delete',
+  CaptureAssign = 'capture.assign',
 }
 
 export interface MutationEnvelope<K extends MutationKind = MutationKind, P = unknown> {
@@ -73,6 +85,48 @@ export interface SettlementCreatePayload {
 export interface SettlementTransitionPayload {
   readonly settlementId: string;
   readonly to: SettlementStatus;
+}
+
+/**
+ * A captured expense with no group yet (TDR A34). Everything a normal expense
+ * knows *before* there are members to split it among: what it cost, roughly
+ * what for, when, and the receipt behind it. No payer, no participants, no
+ * split — those are decided at assignment, against a specific group's members.
+ */
+export interface CaptureCreatePayload {
+  readonly captureId: string;
+  readonly description: string;
+  readonly category?: string | null;
+  readonly expenseDate: string;
+  readonly currency: CurrencyCode;
+  readonly amount: string; // bigint serialised as a decimal string
+  readonly notes?: string | null;
+  /** Storage path of the receipt photo, owner-scoped; null when none. */
+  readonly photoPath?: string | null;
+  /** On-device OCR text (ADR-008 / A5), kept so assignment can prefill. */
+  readonly rawText?: string | null;
+  /** Parsed receipt fields, if the scan produced any. */
+  readonly parsed?: Readonly<Record<string, unknown>> | null;
+}
+
+/** Editing a capture before it is assigned. Last write wins — a capture has one owner and no versions. */
+export type CaptureUpdatePayload = CaptureCreatePayload;
+
+export interface CaptureDeletePayload {
+  readonly captureId: string;
+}
+
+/**
+ * Records that a capture turned into a real expense. The expense itself is a
+ * normal {@link ExpenseCreatePayload} on the target group's scope; this only
+ * closes the capture so it leaves the inbox and cannot be assigned twice.
+ */
+export interface CaptureAssignPayload {
+  readonly captureId: string;
+  /** The group the expense was created in. */
+  readonly groupId: string;
+  /** The expense the capture became. */
+  readonly expenseId: string;
 }
 
 export interface SyncRequest {
@@ -128,6 +182,8 @@ export enum SyncTable {
   Settlements = 'settlements',
   SettlementAllocations = 'settlement_allocations',
   ActivityLog = 'activity_log',
+  /** Personal scope (TDR A34): captured expenses not yet assigned to a group. */
+  Captures = 'captures',
 }
 
 /** bigint ↔ string at the wire boundary; JSON has no integers this size. */
