@@ -123,38 +123,38 @@ function RootLayout() {
               <SyncProvider>
                 <LockProvider>
                   <MotionProvider>
-                   <SyncNetworkProvider>
-                    <BackupProvider>
-                      <UpdateProvider>
-                        <ThemePreferenceProvider>
-                          <ThemedRoot>
-                            <ThemedStatusBar />
-                            {/* Outside the lock and the auth gate on purpose: a build
+                    <SyncNetworkProvider>
+                      <BackupProvider>
+                        <UpdateProvider>
+                          <ThemePreferenceProvider>
+                            <ThemedRoot>
+                              <ThemedStatusBar />
+                              {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                            <UpdateGate>
-                              <PushRouting />
-                              <LockGate>
-                                {/* Inside the lock so the two-device gate never
+                              <UpdateGate>
+                                <PushRouting />
+                                <LockGate>
+                                  {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                <DeviceSessionProvider>
-                                  <AuthGate />
-                                  {/* Inside the lock on purpose: a promotion is not a
+                                  <DeviceSessionProvider>
+                                    <AuthGate />
+                                    {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                  <CampaignPopup />
-                                </DeviceSessionProvider>
-                              </LockGate>
-                              {/* Last, so it paints over the screen rather than
+                                    <CampaignPopup />
+                                  </DeviceSessionProvider>
+                                </LockGate>
+                                {/* Last, so it paints over the screen rather than
                               under it. */}
-                              <UpdateBanner />
-                            </UpdateGate>
-                          </ThemedRoot>
-                        </ThemePreferenceProvider>
-                      </UpdateProvider>
-                    </BackupProvider>
-                   </SyncNetworkProvider>
+                                <UpdateBanner />
+                              </UpdateGate>
+                            </ThemedRoot>
+                          </ThemePreferenceProvider>
+                        </UpdateProvider>
+                      </BackupProvider>
+                    </SyncNetworkProvider>
                   </MotionProvider>
                 </LockProvider>
               </SyncProvider>

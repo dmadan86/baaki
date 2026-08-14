@@ -380,9 +380,7 @@ async function isOnline(): Promise<boolean> {
  * meaningful gate anyway, and a genuinely bad request is caught by the backoff.
  */
 async function networkAllowed(): Promise<boolean> {
-  const preference = await loadSyncNetworkPreference().catch(
-    () => SyncNetworkPreference.Both,
-  );
+  const preference = await loadSyncNetworkPreference().catch(() => SyncNetworkPreference.Both);
   if (preference === SyncNetworkPreference.Both) return true;
   try {
     const { type } = await Network.getNetworkStateAsync();
