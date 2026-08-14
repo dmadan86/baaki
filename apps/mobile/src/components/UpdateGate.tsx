@@ -14,7 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Card, Row, Text, useTheme } from '@baaki/ui';
+import { Button, Card, iconSize, Row, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -52,7 +52,7 @@ function BlockingScreen(): React.JSX.Element {
           backgroundColor: theme.color.brandSoft,
         }}
       >
-        <Ionicons name="arrow-up-circle" size={36} color={theme.color.brand} />
+        <Ionicons name="arrow-up-circle" size={iconSize.huge} color={theme.color.brand} />
       </View>
 
       <Text variant="heading" align="center">
@@ -114,7 +114,7 @@ export function UpdateBanner(): React.JSX.Element | null {
     >
       <Card style={{ gap: theme.spacing.sm, ...theme.shadow.lifted }}>
         <Row style={{ gap: theme.spacing.md }}>
-          <Ionicons name="arrow-up-circle-outline" size={22} color={theme.color.brand} />
+          <Ionicons name="arrow-up-circle-outline" size={iconSize.xl} color={theme.color.brand} />
           <View style={{ flex: 1 }}>
             <Text variant="caption">
               {latest ? `Baaki ${latest} is out` : 'A new Baaki is out'}

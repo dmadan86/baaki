@@ -29,6 +29,7 @@ import {
   Card,
   Chip,
   IconButton,
+  iconSize,
   ListRow,
   MoneyText,
   Row,
@@ -189,7 +190,7 @@ export default function ImportCsvScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={22} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.xl} color={theme.color.text} />
           </IconButton>
           <Text variant="subheading" style={{ marginLeft: theme.spacing.md }}>
             {t.importLedger.splitwiseTitle}

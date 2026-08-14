@@ -33,7 +33,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
-import { Avatar, Button, Card, EmptyState, Row, Text, useTheme } from '@baaki/ui';
+import { Avatar, Button, Card, EmptyState, iconSize, Row, Text, useTheme } from '@baaki/ui';
 
 import { plural, useStrings } from '@/i18n';
 import { SkeletonList } from '@/components/Skeletons';
@@ -295,7 +295,7 @@ export function ContactPicker({
           backgroundColor: theme.color.surfaceMuted,
         }}
       >
-        <Ionicons name="search" size={18} color={theme.color.textFaint} />
+        <Ionicons name="search" size={iconSize.md} color={theme.color.textFaint} />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -315,7 +315,7 @@ export function ContactPicker({
             accessibilityLabel={t.pickers.clearSearch}
             hitSlop={8}
           >
-            <Ionicons name="close-circle" size={18} color={theme.color.textFaint} />
+            <Ionicons name="close-circle" size={iconSize.md} color={theme.color.textFaint} />
           </Pressable>
         ) : null}
       </View>
@@ -486,7 +486,7 @@ function ContactRow({
         </View>
         <Ionicons
           name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-          size={24}
+          size={iconSize.xxl}
           color={selected ? theme.color.brand : theme.color.border}
         />
       </Row>
@@ -548,7 +548,7 @@ function PickedStrip({
                 borderColor: theme.color.bg,
               }}
             >
-              <Ionicons name="close" size={10} color={theme.color.surface} />
+              <Ionicons name="close" size={iconSize.micro} color={theme.color.surface} />
             </View>
           </View>
           {/* Full width and centred, or Android measures the label against the

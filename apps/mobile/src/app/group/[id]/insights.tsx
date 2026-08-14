@@ -25,21 +25,22 @@ import { ScrollView, View } from 'react-native';
 
 import { categoryOf, format, type CategoryId } from '@baaki/core';
 import {
-  type BarDatum,
   BarList,
   Callout,
   Card,
   ChipRow,
   ColumnChart,
-  type ColumnDatum,
   directionalIcon,
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
   SectionHeader,
   Text,
+  type BarDatum,
+  type ColumnDatum,
   useTheme,
 } from '@baaki/ui';
 
@@ -108,7 +109,11 @@ export default function InsightsScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.spending}</Text>

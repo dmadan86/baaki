@@ -23,6 +23,7 @@ import {
   Card,
   directionalIcon,
   IconButton,
+  iconSize,
   Row,
   Screen,
   Text,
@@ -96,7 +97,11 @@ export default function RedeemScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.promo.title}</Text>
@@ -106,7 +111,7 @@ export default function RedeemScreen() {
 
         {granted ? (
           <Card style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-            <Ionicons name="checkmark-circle" size={40} color={theme.color.positive} />
+            <Ionicons name="checkmark-circle" size={iconSize.hero} color={theme.color.positive} />
             <Text variant="subheading" align="center">
               {t.promo.granted}
             </Text>

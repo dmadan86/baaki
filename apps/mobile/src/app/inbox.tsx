@@ -22,6 +22,7 @@ import {
   directionalIcon,
   EmptyState,
   IconButton,
+  iconSize,
   Row,
   Screen,
   SectionHeader,
@@ -103,7 +104,11 @@ export default function InboxScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.inbox.title}</Text>
@@ -167,7 +172,7 @@ export default function InboxScreen() {
                         >
                           <Ionicons
                             name={ICONS[row.kind] ?? 'notifications'}
-                            size={18}
+                            size={iconSize.md}
                             color={theme.tint[tint].ink}
                           />
                         </View>

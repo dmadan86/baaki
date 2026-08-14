@@ -19,7 +19,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Pressable, View } from 'react-native';
 
-import { Button, Card, Row, Text, Toggle, useTheme } from '@baaki/ui';
+import { Button, Card, iconSize, Row, Text, Toggle, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -186,7 +186,7 @@ export function TripDates({
           >
             <Ionicons
               name={showInfo ? 'information-circle' : 'information-circle-outline'}
-              size={20}
+              size={iconSize.lg}
               color={showInfo ? theme.color.brand : theme.color.textFaint}
             />
           </Pressable>

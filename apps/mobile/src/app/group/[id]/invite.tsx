@@ -4,7 +4,18 @@ import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Linking, Platform, ScrollView, Share, View } from 'react-native';
 
-import { Badge, Button, Callout, Card, IconButton, Row, Screen, Text, useTheme } from '@baaki/ui';
+import {
+  Badge,
+  Button,
+  Callout,
+  Card,
+  IconButton,
+  iconSize,
+  Row,
+  Screen,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { mintInvite, type MintedInvite } from '@/data/api';
 import { useGroup } from '@/data/hooks';
@@ -97,7 +108,7 @@ export default function InviteScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={20} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.people.inviteTitle}</Text>
@@ -151,7 +162,9 @@ export default function InviteScreen() {
                   label={option.label}
                   variant="secondary"
                   onPress={() => void shareVia(option.channel)}
-                  icon={<Ionicons name={option.icon} size={18} color={theme.color.brand} />}
+                  icon={
+                    <Ionicons name={option.icon} size={iconSize.md} color={theme.color.brand} />
+                  }
                 />
               ))}
             </Row>
@@ -161,7 +174,9 @@ export default function InviteScreen() {
                 label={t.people.shareAnotherWay}
                 size="lg"
                 onPress={() => void share()}
-                icon={<Ionicons name="share-outline" size={18} color={theme.color.onBrand} />}
+                icon={
+                  <Ionicons name="share-outline" size={iconSize.md} color={theme.color.onBrand} />
+                }
               />
               <Button
                 label={copied ? t.people.linkCopied : t.people.copyLink}

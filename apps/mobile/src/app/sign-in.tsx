@@ -41,6 +41,7 @@ import {
   Callout,
   Card,
   CurvedPanel,
+  iconSize,
   Row,
   Screen,
   SegmentedTabs,
@@ -283,14 +284,14 @@ export default function SignInScreen() {
                 disabled={busy}
                 onPress={() => void run(withApple)}
               >
-                <Ionicons name="logo-apple" size={26} color={theme.color.text} />
+                <Ionicons name="logo-apple" size={iconSize.xxxl} color={theme.color.text} />
               </ProviderTile>
               <ProviderTile
                 label={t.signIn.signInGoogle}
                 disabled={busy}
                 onPress={() => void run(withGoogle)}
               >
-                <Ionicons name="logo-google" size={26} color={theme.color.text} />
+                <Ionicons name="logo-google" size={iconSize.xxxl} color={theme.color.text} />
               </ProviderTile>
             </View>
 
@@ -565,14 +566,14 @@ export default function SignInScreen() {
                   disabled={busy}
                   onPress={() => void run(withApple)}
                 >
-                  <Ionicons name="logo-apple" size={26} color={theme.color.text} />
+                  <Ionicons name="logo-apple" size={iconSize.xxxl} color={theme.color.text} />
                 </ProviderTile>
                 <ProviderTile
                   label={isGuest ? t.signIn.continueGoogle : t.signIn.signInGoogle}
                   disabled={busy}
                   onPress={() => void run(withGoogle)}
                 >
-                  <Ionicons name="logo-google" size={26} color={theme.color.text} />
+                  <Ionicons name="logo-google" size={iconSize.xxxl} color={theme.color.text} />
                 </ProviderTile>
               </View>
             </View>

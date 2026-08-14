@@ -20,6 +20,7 @@ import {
   Card,
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -124,13 +125,13 @@ export default function CapturesScreen() {
     <Screen edges={['top', 'bottom']}>
       <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
         <IconButton label={t.common.back} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color={theme.color.text} />
+          <Ionicons name="chevron-back" size={iconSize.xl} color={theme.color.text} />
         </IconButton>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text variant="heading">{t.captures.title}</Text>
         </View>
         <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture')}>
-          <Ionicons name="add" size={24} color={theme.color.brand} />
+          <Ionicons name="add" size={iconSize.xxl} color={theme.color.brand} />
         </IconButton>
       </Row>
 
@@ -198,7 +199,7 @@ export default function CapturesScreen() {
                   label={t.captures.delete}
                   onPress={() => void deleteCapture.mutateAsync(capture.id)}
                 >
-                  <Ionicons name="trash-outline" size={20} color={theme.color.textMuted} />
+                  <Ionicons name="trash-outline" size={iconSize.lg} color={theme.color.textMuted} />
                 </IconButton>
               </Row>
             </Card>
@@ -270,7 +271,11 @@ export default function CapturesScreen() {
                       <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>
                         {groupLabel(group, summary.membersFor(group.id), profile?.id)}
                       </Text>
-                      <Ionicons name="chevron-forward" size={18} color={theme.color.textFaint} />
+                      <Ionicons
+                        name="chevron-forward"
+                        size={iconSize.md}
+                        color={theme.color.textFaint}
+                      />
                     </Pressable>
                   ))}
                 </View>

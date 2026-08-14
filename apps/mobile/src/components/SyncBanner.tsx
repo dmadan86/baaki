@@ -10,7 +10,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, View } from 'react-native';
 
-import { Card, Row, Text, useTheme } from '@baaki/ui';
+import { Card, iconSize, Row, Text, useTheme } from '@baaki/ui';
 
 import { plural, useStrings } from '@/i18n';
 
@@ -31,7 +31,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
     return (
       <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.md }}>
         <Row style={{ gap: theme.spacing.sm }}>
-          <Ionicons name="alert-circle" size={18} color={theme.color.negative} />
+          <Ionicons name="alert-circle" size={iconSize.md} color={theme.color.negative} />
           <Text variant="subheading" tone="negative">
             {t.extras.oneChangeFailed}
           </Text>
@@ -70,7 +70,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
     return (
       <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.xs }}>
         <Row style={{ gap: theme.spacing.sm }}>
-          <Ionicons name="cloud-offline-outline" size={18} color={theme.color.brand} />
+          <Ionicons name="cloud-offline-outline" size={iconSize.md} color={theme.color.brand} />
           <View style={{ flex: 1 }}>
             <Text variant="caption" tone="brand">
               {syncNetwork === SyncNetworkPreference.Cellular
@@ -113,7 +113,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
   return (
     <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.xs }}>
       <Row style={{ gap: theme.spacing.sm }}>
-        <Ionicons name={icon} size={18} color={theme.color.brand} />
+        <Ionicons name={icon} size={iconSize.md} color={theme.color.brand} />
         <View style={{ flex: 1 }}>
           <Text variant="caption" tone="brand">
             {message}

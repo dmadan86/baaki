@@ -11,6 +11,7 @@ import {
   Card,
   ChipRow,
   IconButton,
+  iconSize,
   Row,
   Screen,
   Text,
@@ -57,7 +58,7 @@ const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZon
 const iconFor =
   (name: keyof typeof Ionicons.glyphMap) =>
   // eslint-disable-next-line react/display-name
-  (color: string): ReactNode => <Ionicons name={name} size={16} color={color} />;
+  (color: string): ReactNode => <Ionicons name={name} size={iconSize.base} color={color} />;
 
 /**
  * Making a group, wearing the same clothes as the settings that edit one.
@@ -228,7 +229,7 @@ export default function NewGroupScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={20} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.newGroup}</Text>
@@ -344,7 +345,7 @@ export default function NewGroupScreen() {
               >
                 <Ionicons
                   name={browsing ? 'people' : 'people-outline'}
-                  size={16}
+                  size={iconSize.base}
                   color={theme.color.brand}
                 />
                 <Text variant="caption" style={{ color: theme.color.brand }}>
@@ -412,7 +413,7 @@ export default function NewGroupScreen() {
                   }}
                 >
                   <Text variant="caption">{ghost.name}</Text>
-                  <Ionicons name="close" size={14} color={theme.color.textMuted} />
+                  <Ionicons name="close" size={iconSize.sm} color={theme.color.textMuted} />
                 </Pressable>
               ))}
             </Row>

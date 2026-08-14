@@ -20,6 +20,7 @@ import {
   ChipRow,
   directionalIcon,
   IconButton,
+  iconSize,
   Row,
   Screen,
   Text,
@@ -129,7 +130,11 @@ export default function AccountScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.contact.title}</Text>
@@ -327,7 +332,7 @@ function ProviderRow({
   return (
     <Row style={{ justifyContent: 'space-between' }}>
       <Row style={{ gap: theme.spacing.md }}>
-        <Ionicons name={icon} size={22} color={theme.color.text} />
+        <Ionicons name={icon} size={iconSize.xl} color={theme.color.text} />
         <Text variant="body">{name}</Text>
       </Row>
       {linked ? (

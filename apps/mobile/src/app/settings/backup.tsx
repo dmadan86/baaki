@@ -23,9 +23,10 @@ import {
   Badge,
   Button,
   Card,
-  Divider,
   directionalIcon,
+  Divider,
   IconButton,
+  iconSize,
   Row,
   Screen,
   SectionHeader,
@@ -70,7 +71,11 @@ export default function BackupSettingsScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.backup.title}</Text>
@@ -205,7 +210,7 @@ function SelectRow({
     >
       <Ionicons
         name={selected ? 'radio-button-on' : 'radio-button-off'}
-        size={22}
+        size={iconSize.xl}
         color={selected ? theme.color.brand : theme.color.textFaint}
       />
       <View style={{ flex: 1 }}>

@@ -21,6 +21,7 @@ import {
   Card,
   directionalIcon,
   IconButton,
+  iconSize,
   ListRow,
   Row,
   Screen,
@@ -68,7 +69,11 @@ export default function LanguageSettingsScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.language}</Text>
@@ -82,7 +87,7 @@ export default function LanguageSettingsScreen() {
         {restartNeeded ? (
           <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
             <Row style={{ gap: theme.spacing.sm }}>
-              <Ionicons name="refresh" size={18} color={theme.color.brand} />
+              <Ionicons name="refresh" size={iconSize.md} color={theme.color.brand} />
               <Text variant="subheading" tone="brand">
                 {t.account.restartTitle}
               </Text>
@@ -117,7 +122,7 @@ export default function LanguageSettingsScreen() {
                   accessibilityLabel={`${row.title}${chosen ? ', selected' : ''}`}
                   trailing={
                     chosen ? (
-                      <Ionicons name="checkmark" size={20} color={theme.color.brand} />
+                      <Ionicons name="checkmark" size={iconSize.lg} color={theme.color.brand} />
                     ) : null
                   }
                 />

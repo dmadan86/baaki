@@ -35,12 +35,13 @@ import {
   directionalIcon,
   EmptyState,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
   Text,
-  useTheme,
   type Theme,
+  useTheme,
 } from '@baaki/ui';
 
 import {
@@ -315,7 +316,11 @@ export default function PlanScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.sm }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <Text variant="heading">{t.plan}</Text>
         </Row>
@@ -445,7 +450,7 @@ export default function PlanScreen() {
                   <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
                     <Ionicons
                       name={myShare ? 'checkbox' : 'square-outline'}
-                      size={20}
+                      size={iconSize.lg}
                       color={myShare ? theme.color.brand : theme.color.textFaint}
                     />
                     <Text variant="caption">{myShare ? t.shareWithGroup : t.budgetPrivate}</Text>
@@ -548,7 +553,7 @@ export default function PlanScreen() {
                   >
                     <Ionicons
                       name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
+                      size={iconSize.xl}
                       color={item.done ? theme.color.positive : theme.color.textFaint}
                     />
                   </Pressable>
@@ -577,7 +582,7 @@ export default function PlanScreen() {
                     accessibilityLabel={`Remove ${item.title}`}
                     hitSlop={10}
                   >
-                    <Ionicons name="close" size={18} color={theme.color.textFaint} />
+                    <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
                   </Pressable>
                 </Row>
               ))}
@@ -589,7 +594,11 @@ export default function PlanScreen() {
                   key={expense.id}
                   style={{ paddingVertical: theme.spacing.sm, gap: theme.spacing.md }}
                 >
-                  <Ionicons name="receipt-outline" size={18} color={theme.color.textFaint} />
+                  <Ionicons
+                    name="receipt-outline"
+                    size={iconSize.md}
+                    color={theme.color.textFaint}
+                  />
                   <Text variant="caption" tone="muted" style={{ flex: 1 }} numberOfLines={1}>
                     {expense.description}
                   </Text>
@@ -681,7 +690,9 @@ function BudgetBar({
     <View style={{ gap: theme.spacing.xs }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flex: 1 }}>
-          {badge ? <Ionicons name={badge} size={12} color={theme.color.textFaint} /> : null}
+          {badge ? (
+            <Ionicons name={badge} size={iconSize.xs} color={theme.color.textFaint} />
+          ) : null}
           <Text variant="caption" numberOfLines={1} style={{ flex: 1 }}>
             {label}
           </Text>

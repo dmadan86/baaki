@@ -21,6 +21,7 @@ import {
   Card,
   directionalIcon,
   IconButton,
+  iconSize,
   ListRow,
   Row,
   Screen,
@@ -66,7 +67,11 @@ export default function UpgradeScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.upgrade}</Text>
@@ -93,7 +98,7 @@ export default function UpgradeScreen() {
           {conveniences(t).map((item) => (
             <Card key={item.title} style={{ gap: theme.spacing.sm }}>
               <Row style={{ gap: theme.spacing.sm }}>
-                <Ionicons name={item.icon} size={18} color={theme.color.brand} />
+                <Ionicons name={item.icon} size={iconSize.md} color={theme.color.brand} />
                 <Text variant="subheading">{item.title}</Text>
               </Row>
               <Text variant="caption" tone="muted">
@@ -105,7 +110,7 @@ export default function UpgradeScreen() {
 
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ gap: theme.spacing.sm }}>
-            <Ionicons name="lock-open-outline" size={18} color={theme.color.positive} />
+            <Ionicons name="lock-open-outline" size={iconSize.md} color={theme.color.positive} />
             <Text variant="subheading">{t.upgradeScreen.whatNeverWill}</Text>
           </Row>
           <Text variant="caption" tone="muted">
@@ -120,11 +125,13 @@ export default function UpgradeScreen() {
           <ListRow
             title={t.promo.row}
             subtitle={t.promo.rowHint}
-            leading={<Ionicons name="pricetag-outline" size={20} color={theme.color.brand} />}
+            leading={
+              <Ionicons name="pricetag-outline" size={iconSize.lg} color={theme.color.brand} />
+            }
             trailing={
               <Ionicons
                 name={directionalIcon('chevron-forward')}
-                size={18}
+                size={iconSize.md}
                 color={theme.color.textFaint}
               />
             }

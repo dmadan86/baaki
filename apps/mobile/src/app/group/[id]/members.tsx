@@ -11,6 +11,7 @@ import {
   Card,
   directionalIcon,
   IconButton,
+  iconSize,
   ListRow,
   MoneyText,
   Row,
@@ -173,7 +174,11 @@ export default function MembersScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons name={directionalIcon('chevron-back')} size={20} color={theme.color.text} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.members}</Text>
@@ -185,7 +190,7 @@ export default function MembersScreen() {
             label={t.people.invite}
             onPress={() => router.push(`/group/${groupId}/invite`)}
           >
-            <Ionicons name="share-outline" size={18} color={theme.color.brand} />
+            <Ionicons name="share-outline" size={iconSize.md} color={theme.color.brand} />
           </IconButton>
         </Row>
 

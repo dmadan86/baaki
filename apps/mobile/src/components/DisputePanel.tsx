@@ -19,7 +19,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { TextInput, View } from 'react-native';
 
-import { Badge, Button, Card, Row, Text, useTheme } from '@baaki/ui';
+import { Badge, Button, Card, iconSize, Row, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -78,7 +78,7 @@ export function DisputePanel({
     <Card style={{ gap: theme.spacing.lg }}>
       {open.length > 0 ? (
         <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-          <Ionicons name="alert-circle" size={18} color={theme.color.negative} />
+          <Ionicons name="alert-circle" size={iconSize.md} color={theme.color.negative} />
           <Text variant="subheading" tone="negative">
             {open.length === 1
               ? 'Someone thinks this is off'

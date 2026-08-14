@@ -12,7 +12,7 @@ import { router, type Href } from 'expo-router';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Text, useTheme } from '@baaki/ui';
+import { iconSize, Text, useTheme } from '@baaki/ui';
 
 export interface OverflowMenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -87,7 +87,7 @@ export function OverflowMenu({
                   backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
                 })}
               >
-                <Ionicons name={item.icon} size={20} color={theme.color.textMuted} />
+                <Ionicons name={item.icon} size={iconSize.lg} color={theme.color.textMuted} />
                 <Text variant="body">{item.label}</Text>
               </Pressable>
             ))}

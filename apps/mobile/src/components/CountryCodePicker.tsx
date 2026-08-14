@@ -18,7 +18,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { COUNTRIES, countryFlag, dialingCodeForCountry } from '@baaki/core';
-import { Button, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Button, iconSize, Row, Screen, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -77,7 +77,7 @@ export function CountryCodePicker({
       >
         <Text style={{ fontSize: 20 }}>{flag}</Text>
         <Text variant="subheading">{dial}</Text>
-        <Ionicons name="chevron-down" size={16} color={theme.color.textMuted} />
+        <Ionicons name="chevron-down" size={iconSize.base} color={theme.color.textMuted} />
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={close}>

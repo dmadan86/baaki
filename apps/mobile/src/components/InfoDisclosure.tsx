@@ -14,7 +14,7 @@ import { useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, View } from 'react-native';
 
-import { Row, Text, useTheme } from '@baaki/ui';
+import { iconSize, Row, Text, useTheme } from '@baaki/ui';
 
 export function InfoDisclosure({
   title,
@@ -52,7 +52,7 @@ export function InfoDisclosure({
           >
             <Ionicons
               name={open ? 'information-circle' : 'information-circle-outline'}
-              size={18}
+              size={iconSize.md}
               color={open ? theme.color.brand : theme.color.textFaint}
             />
           </Pressable>

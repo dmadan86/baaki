@@ -19,6 +19,7 @@ import {
   Card,
   Divider,
   IconButton,
+  iconSize,
   MoneyText,
   Row,
   Screen,
@@ -258,7 +259,7 @@ export default function CaptureScreen() {
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={20} color={theme.color.text} />
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.captures.newTitle}</Text>
@@ -339,7 +340,7 @@ export default function CaptureScreen() {
               size="sm"
               disabled={scanning || saving}
               onPress={() => void addReceipt()}
-              icon={<Ionicons name="camera-outline" size={18} color={theme.color.brand} />}
+              icon={<Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />}
             />
           </Row>
           {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}

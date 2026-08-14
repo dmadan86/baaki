@@ -16,7 +16,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { CATEGORIES, categoryOf, type CategoryId } from '@baaki/core';
-import { Text, useTheme } from '@baaki/ui';
+import { iconSize, Text, useTheme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -93,7 +93,7 @@ export function CategoryPicker({
           >
             <Ionicons
               name={category.icon as keyof typeof Ionicons.glyphMap}
-              size={15}
+              size={iconSize.base}
               color={selected ? tint.ink : theme.color.textMuted}
             />
             <Text variant="caption" style={{ color: selected ? tint.ink : theme.color.textMuted }}>

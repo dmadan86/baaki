@@ -22,7 +22,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, View } from 'react-native';
 
-import { Text, useTheme } from '@baaki/ui';
+import { iconSize, Text, useTheme } from '@baaki/ui';
 
 import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES, useStrings } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
@@ -58,11 +58,11 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
           opacity: pressed ? 0.85 : 1,
         })}
       >
-        <Ionicons name="globe-outline" size={18} color={theme.color.brand} />
+        <Ionicons name="globe-outline" size={iconSize.md} color={theme.color.brand} />
         <Text variant="caption" style={{ fontWeight: '600' }}>
           {current}
         </Text>
-        <Ionicons name="chevron-down" size={16} color={theme.color.textMuted} />
+        <Ionicons name="chevron-down" size={iconSize.base} color={theme.color.textMuted} />
       </Pressable>
 
       {restartNeeded ? (
@@ -139,7 +139,7 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
                     {LANGUAGE_NAMES[entry].own}
                   </Text>
                   {active ? (
-                    <Ionicons name="checkmark" size={18} color={theme.color.brand} />
+                    <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} />
                   ) : null}
                 </Pressable>
               );
