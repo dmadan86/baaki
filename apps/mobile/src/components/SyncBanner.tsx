@@ -14,12 +14,14 @@ import { Card, Row, Text, useTheme } from '@baaki/ui';
 
 import { plural, useStrings } from '@/i18n';
 
+import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { useSync } from '@/sync';
 
 export function SyncBanner({ groupId }: { groupId?: string }) {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const { status, queue, rejected, retry, discard, lastError } = useSync();
+  const { preference: syncNetwork } = useSyncNetwork();
 
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
   const refused = groupId ? rejected.filter((item) => item.groupId === groupId) : rejected;
@@ -60,6 +62,26 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
   }
 
   if (pending.length === 0 && status !== 'offline' && status !== 'error') return null;
+
+  // Held back by the network preference: online, but not over a connection the
+  // user allows sync on. Say which network it is waiting for, not "offline" —
+  // the phone is not offline, it is being polite about data.
+  if (status === 'metered') {
+    return (
+      <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.xs }}>
+        <Row style={{ gap: theme.spacing.sm }}>
+          <Ionicons name="cloud-offline-outline" size={18} color={theme.color.brand} />
+          <View style={{ flex: 1 }}>
+            <Text variant="caption" tone="brand">
+              {syncNetwork === SyncNetworkPreference.Cellular
+                ? t.sync.waitingCellular
+                : t.sync.waitingWifi}
+            </Text>
+          </View>
+        </Row>
+      </Card>
+    );
+  }
 
   // Three different truths, and saying the wrong one is worse than saying
   // nothing: "syncing…" while every request is failing reads as a hang, and

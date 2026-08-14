@@ -38,6 +38,7 @@ import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { describeGrace, useLock } from '@/lib/lock';
 import { useMotion } from '@/lib/motion';
+import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { useThemePreference } from '@/lib/theme';
 
 interface SettingsRow {
@@ -275,6 +276,7 @@ export default function ProfileScreen() {
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
   const { animated, overridden: motionOverridden } = useMotion();
+  const { preference: syncNetwork } = useSyncNetwork();
   const { preference: themePreference, overridden: themeOverridden } = useThemePreference();
   const { language, stored: languageChosen, restartNeeded } = useLanguage();
 
@@ -377,6 +379,13 @@ export default function ProfileScreen() {
       ? t.theme.dark
       : t.theme.light
     : t.theme.followingPhone;
+
+  const syncNetworkSummary =
+    syncNetwork === SyncNetworkPreference.Cellular
+      ? t.sync.cellular
+      : syncNetwork === SyncNetworkPreference.Both
+        ? t.sync.both
+        : t.sync.wifi;
 
   const motionSummary = motionOverridden
     ? animated
@@ -638,6 +647,12 @@ export default function ProfileScreen() {
                   label: t.account.motionRow,
                   hint: motionSummary,
                   route: '/settings/motion',
+                },
+                {
+                  icon: 'cloud-outline',
+                  label: t.sync.title,
+                  hint: syncNetworkSummary,
+                  route: '/settings/sync',
                 },
               ]}
             />

@@ -22,6 +22,7 @@ import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { SyncNetworkProvider } from '@/lib/syncNetwork';
 import { BackupProvider } from '@/lib/cloud/BackupProvider';
 import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
 import { UpdateProvider } from '@/lib/update';
@@ -122,36 +123,38 @@ function RootLayout() {
               <SyncProvider>
                 <LockProvider>
                   <MotionProvider>
-                    <BackupProvider>
-                      <UpdateProvider>
-                        <ThemePreferenceProvider>
-                          <ThemedRoot>
-                            <ThemedStatusBar />
-                            {/* Outside the lock and the auth gate on purpose: a build
+                    <SyncNetworkProvider>
+                      <BackupProvider>
+                        <UpdateProvider>
+                          <ThemePreferenceProvider>
+                            <ThemedRoot>
+                              <ThemedStatusBar />
+                              {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                            <UpdateGate>
-                              <PushRouting />
-                              <LockGate>
-                                {/* Inside the lock so the two-device gate never
+                              <UpdateGate>
+                                <PushRouting />
+                                <LockGate>
+                                  {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                <DeviceSessionProvider>
-                                  <AuthGate />
-                                  {/* Inside the lock on purpose: a promotion is not a
+                                  <DeviceSessionProvider>
+                                    <AuthGate />
+                                    {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                  <CampaignPopup />
-                                </DeviceSessionProvider>
-                              </LockGate>
-                              {/* Last, so it paints over the screen rather than
+                                    <CampaignPopup />
+                                  </DeviceSessionProvider>
+                                </LockGate>
+                                {/* Last, so it paints over the screen rather than
                               under it. */}
-                              <UpdateBanner />
-                            </UpdateGate>
-                          </ThemedRoot>
-                        </ThemePreferenceProvider>
-                      </UpdateProvider>
-                    </BackupProvider>
+                                <UpdateBanner />
+                              </UpdateGate>
+                            </ThemedRoot>
+                          </ThemePreferenceProvider>
+                        </UpdateProvider>
+                      </BackupProvider>
+                    </SyncNetworkProvider>
                   </MotionProvider>
                 </LockProvider>
               </SyncProvider>
@@ -390,6 +393,7 @@ function AuthGate() {
         <Stack.Screen name="settings/lock" />
         <Stack.Screen name="settings/devices" />
         <Stack.Screen name="settings/motion" />
+        <Stack.Screen name="settings/sync" />
         <Stack.Screen name="settings/theme" />
         <Stack.Screen name="settings/language" />
         <Stack.Screen name="settings/upgrade" />
