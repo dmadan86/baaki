@@ -168,7 +168,7 @@ export default function MemberScreen() {
                 onPress={() => save({ ghost_name: name.trim() })}
               />
             </Row>
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {t.people.ghostNote}
             </Text>
           </Card>
@@ -203,7 +203,7 @@ export default function MemberScreen() {
                 onPress={() => save({ vpa: vpa.trim() === '' ? null : vpa.trim() })}
               />
             </Row>
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {t.people.upiForGroupNote}
             </Text>
           </Card>
@@ -239,7 +239,7 @@ export default function MemberScreen() {
                 )
               }
             />
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {ghost ? t.people.adminNeedsAccount : t.people.adminNote}
             </Text>
           </Card>

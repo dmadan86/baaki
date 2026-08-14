@@ -28,6 +28,7 @@ import {
   Screen,
   Text,
   TintCard,
+  tintForKey,
   useTheme,
 } from '@baaki/ui';
 
@@ -165,7 +166,7 @@ export default function SpendingMonthScreen() {
         ) : (
           <>
             <TintCard
-              tint="lilac"
+              tint={tintForKey(groupId)}
               style={{
                 alignItems: 'center',
                 gap: theme.spacing.xs,
@@ -243,8 +244,8 @@ export default function SpendingMonthScreen() {
             ))}
 
             {mine ? (
-              <Text variant="micro" tone="faint" align="center">
-                {t.extras.justMe} — each amount is your share, not the whole expense.
+              <Text variant="micro" tone="muted" align="center">
+                {t.extras.yourShareNote}
               </Text>
             ) : null}
           </>

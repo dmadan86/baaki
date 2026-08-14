@@ -192,7 +192,7 @@ export function CurrencyRate({
                 placeholderTextColor={theme.color.textFaint}
                 style={inputStyle(theme)}
               />
-              <Text variant="micro" tone="faint">
+              <Text variant="micro" tone="muted">
                 {t.misc.bankRateNote}
               </Text>
             </View>
@@ -235,13 +235,13 @@ export function CurrencyRate({
           ) : null}
 
           {fx ? (
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {`Rate ${rateToDecimal(fromFxRecord(fx), 4)} from ${
                 fx.source === 'ecb' ? 'the ECB' : fx.source === 'implied' ? 'your statement' : 'you'
               }. Stored with the expense, so this converts the same way later.`}
             </Text>
           ) : (
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               Without a rate the expense still saves — it just stays in {currency}, and the group
               keeps a separate {currency} balance.
             </Text>

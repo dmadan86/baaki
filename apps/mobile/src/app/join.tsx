@@ -18,7 +18,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { fill, useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 
 import { acceptInvite, previewInvite, type InvitePreview } from '@/data/api';
 import { keys } from '@/data/hooks';
@@ -34,7 +34,7 @@ import { useGuestGuard } from '@/lib/guestGuard';
  */
 export default function JoinScreen() {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { session, continueAsGuest } = useAuth();
   const guard = useGuestGuard();
@@ -205,7 +205,7 @@ export default function JoinScreen() {
             {preview.group.name}
           </Text>
           <Text variant="caption" tone="muted" align="center">
-            {`${preview.memberCount} people are splitting expenses here`}
+            {plural(locale, preview.memberCount, t.misc.peopleSplitting)}
           </Text>
           <Badge label={t.misc.freeNoAccount} tone="positive" />
         </Card>
@@ -277,7 +277,7 @@ export default function JoinScreen() {
         />
         {joining ? <ActivityIndicator color={theme.color.brand} /> : null}
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.extras.guestKeepsItHere}
         </Text>
       </ScrollView>

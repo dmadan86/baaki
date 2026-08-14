@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
+  Button,
   EmptyState,
   IconButton,
   iconSize,
@@ -86,6 +87,14 @@ export default function ActivityScreen() {
 
         {activity.isLoading ? (
           <FeedSkeleton />
+        ) : activity.isError ? (
+          <EmptyState
+            title={t.loadError}
+            body={t.loadErrorBody}
+            action={
+              <Button label={t.retry} variant="secondary" onPress={() => activity.refetch()} />
+            }
+          />
         ) : entries.length === 0 ? (
           <EmptyState title={t.nothingYet} body={t.tabs.activityEmptyBody} />
         ) : (
@@ -135,7 +144,7 @@ export default function ActivityScreen() {
                     <View
                       style={{
                         flex: 1,
-                        paddingLeft: theme.spacing.md,
+                        paddingStart: theme.spacing.md,
                         paddingBottom: isLast ? 0 : theme.spacing.xl,
                       }}
                     >

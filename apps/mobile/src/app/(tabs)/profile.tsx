@@ -261,7 +261,7 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
       </Row>
       {/* No rate turns rupees into euros, so the rest are counted, not added. */}
       {entries.length > 1 ? (
-        <Text variant="micro" tone="faint">
+        <Text variant="micro" tone="muted">
           {plural(locale, entries.length - 1, t.account.otherCurrencies)}
         </Text>
       ) : null}
@@ -590,7 +590,7 @@ export default function ProfileScreen() {
                     </Text>
                   </>
                 ) : (
-                  <Text variant="micro" tone="faint">
+                  <Text variant="micro" tone="muted">
                     {t.account.nothingToAdd}
                   </Text>
                 )}
@@ -699,7 +699,7 @@ export default function ProfileScreen() {
           </>
         )}
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.account.footnote}
         </Text>
       </ScrollView>

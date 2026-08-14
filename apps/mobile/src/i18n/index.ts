@@ -201,6 +201,14 @@ export interface UiStrings {
   paidInCash: string;
   bankOther: string;
   perExpense: string;
+  /** Settle button when a rail hands off to a payment app — "Pay via UPI". */
+  payViaRail: string;
+  /** The settle sheet's headline, either direction. */
+  youPayName: string;
+  namePaysYou: string;
+  /** The muted note under the settle button, either direction. */
+  settleConfirmYouPay: string;
+  settleConfirmTheyPay: string;
   members: string;
   /** "3 members" under a group. `members` on its own is a heading, not a count. */
   memberCount: PluralForms;
@@ -208,9 +216,24 @@ export interface UiStrings {
   scansLeft: string;
   simplifyOn: string;
   simplifyOff: string;
+  /** The two explainer lines on the who-pays-whom screen. */
+  simplifySuggestBody: string;
+  simplifyPairwiseBody: string;
+  /** "3 payments" badge over the transfer list. */
+  simplifyPaymentsCount: PluralForms;
+  /** "{from} pays {to}" — a sentence, so it reads right-to-left too. */
+  simplifyPaysWhom: string;
+  /** The micro line on my own transfer row. */
+  simplifyYouPay: string;
+  simplifyYouReceive: string;
   freeForever: string;
   nothingYet: string;
   nothingYetBody: string;
+  /** A list failed to load — shown in place of the empty state so a network
+   *  error never reads as "you have nothing". */
+  loadError: string;
+  loadErrorBody: string;
+  retry: string;
   whatFor: string;
   spending: string;
   byCategory: string;
@@ -620,6 +643,7 @@ export interface UiStrings {
     assignBody: string;
     noGroups: string;
     delete: string;
+    deleteConfirm: string;
     unassigned: string;
     unassignedBody: PluralForms;
     itemizedTitle: string;
@@ -774,6 +798,9 @@ export interface UiStrings {
     deleteQuestion: string;
     deleteBody: string;
     deleted: string;
+    /** Badge on a list row somebody has disputed — a flag alone is silent to
+     *  a screen reader and easy to miss. */
+    disputed: string;
     /** An expense nobody described, shown when it has no category to fall back on. */
     untitled: string;
     /** "Asha paid" under a row. The name comes first in English and may not elsewhere. */
@@ -804,6 +831,14 @@ export interface UiStrings {
     goToBaaki: string;
     freeNoAccount: string;
     isOneOfTheseYou: string;
+    /** The line under a group's name on the invite landing screen. */
+    peopleSplitting: PluralForms;
+    /** "3 people" — a bare count of people, used mid-sentence. */
+    peopleCount: PluralForms;
+    /** Confirmation after adding contacts to a group. `{count}` is a peopleCount. */
+    contactsAdded: string;
+    /** Error when one or more contacts could not be added. */
+    couldNotAdd: string;
     unnamed: string;
     joinAndClaim: string;
     joinGroup: string;
@@ -1197,6 +1232,8 @@ export interface UiStrings {
     noGroupsYet: string;
     ghostShareNote: string;
     justMe: string;
+    /** The footnote under the "just me" month drill-down. */
+    yourShareNote: string;
     sms: string;
     email: string;
     paymentWentThrough: string;
@@ -1249,15 +1286,30 @@ const en: UiStrings = {
   paidInCash: 'Paid in cash',
   bankOther: 'Bank / other',
   perExpense: 'Apply to specific expenses',
+  payViaRail: 'Pay via {rail}',
+  youPayName: 'You pay {name}',
+  namePaysYou: '{name} pays you',
+  settleConfirmYouPay: '{name} gets asked to confirm. Nothing changes hands through Baaki.',
+  settleConfirmTheyPay: 'You will be asked to confirm once they mark it paid.',
   members: 'Members',
   memberCount: { one: '{n} member', other: '{n} members' },
   notJoinedYet: 'not joined yet',
   scansLeft: 'scans left',
   simplifyOn: 'Simplify on',
   simplifyOff: 'Simplify off',
+  simplifySuggestBody:
+    'Baaki suggests the fewest payments that settle the group. The real who-owes-whom ledger underneath is never rewritten.',
+  simplifyPairwiseBody: 'Showing the actual pairwise ledger, exactly as the expenses created it.',
+  simplifyPaymentsCount: { one: '{n} payment', other: '{n} payments' },
+  simplifyPaysWhom: '{from} pays {to}',
+  simplifyYouPay: 'You pay',
+  simplifyYouReceive: 'You receive',
   freeForever: 'Unlimited and free, forever',
   nothingYet: 'Nothing here yet',
   nothingYetBody: 'Add your first expense and the maths takes care of itself.',
+  loadError: "Couldn't load this",
+  loadErrorBody: 'Check your connection and pull to refresh, or try again.',
+  retry: 'Try again',
   whatFor: 'What kind of expense',
   spending: 'Spending',
   byCategory: 'Where it went',
@@ -1675,6 +1727,7 @@ const en: UiStrings = {
     assignBody: 'Pick the group this belongs to. You can set who paid and how it splits next.',
     noGroups: 'You have no groups yet. Make one first, then assign this to it.',
     delete: 'Delete',
+    deleteConfirm: 'Delete this capture? The amount and any bill photo go with it.',
     unassigned: 'Unassigned',
     unassignedBody: {
       one: '{n} capture waiting for a group',
@@ -1847,6 +1900,7 @@ const en: UiStrings = {
     deleteBody:
       'It stops counting towards balances but stays in the activity feed, and anyone in the group can restore it for 30 days.',
     deleted: 'deleted',
+    disputed: 'Disputed',
     untitled: 'Untitled',
     paidByName: '{name} paid',
     editedTimes: { one: 'edited once', other: 'edited {n} times' },
@@ -1873,6 +1927,13 @@ const en: UiStrings = {
     goToBaaki: 'Go to Baaki',
     freeNoAccount: 'Free forever, no account needed',
     isOneOfTheseYou: 'Is one of these you?',
+    peopleSplitting: {
+      one: '{n} person is splitting expenses here',
+      other: '{n} people are splitting expenses here',
+    },
+    peopleCount: { one: '{n} person', other: '{n} people' },
+    contactsAdded: '{count} added. Pick somebody else, or go back.',
+    couldNotAdd: 'Could not add {names}.',
     unnamed: 'Unnamed',
     joinAndClaim: 'Join and claim my history',
     joinGroup: 'Join this group',
@@ -2310,6 +2371,7 @@ const en: UiStrings = {
     ghostShareNote:
       'They do not need the app. Their share is recorded under their name, and if they join later with this email or number they claim everything already sitting there.',
     justMe: 'Just me',
+    yourShareNote: 'Just me — each amount is your share, not the whole expense.',
     sms: 'SMS',
     email: 'Email',
     paymentWentThrough: 'Did the payment go through?',
@@ -2375,15 +2437,31 @@ const ta: UiStrings = {
   paidInCash: 'ரொக்கமாகக் கொடுத்தாயிற்று',
   bankOther: 'வங்கி / மற்றவை',
   perExpense: 'குறிப்பிட்ட செலவுகளுக்குப் பயன்படுத்து',
+  payViaRail: '{rail} மூலம் செலுத்து',
+  youPayName: 'நீங்கள் {name}க்குச் செலுத்துகிறீர்கள்',
+  namePaysYou: '{name} உங்களுக்குச் செலுத்துகிறார்',
+  settleConfirmYouPay: '{name} உறுதிப்படுத்தக் கேட்கப்படுவார். Baaki வழியாக பணம் மாறுவதில்லை.',
+  settleConfirmTheyPay:
+    'அவர் செலுத்தியதாகக் குறித்ததும் நீங்கள் உறுதிப்படுத்தக் கேட்கப்படுவீர்கள்.',
   members: 'உறுப்பினர்கள்',
   memberCount: { one: '{n} உறுப்பினர்', other: '{n} உறுப்பினர்கள்' },
   notJoinedYet: 'இன்னும் சேரவில்லை',
   scansLeft: 'ஸ்கேன் மீதம்',
   simplifyOn: 'எளிமையாக்கல் இயக்கத்தில்',
   simplifyOff: 'எளிமையாக்கல் நிறுத்தத்தில்',
+  simplifySuggestBody:
+    'குழுவைத் தீர்க்கும் குறைந்தபட்சப் பரிமாற்றங்களை Baaki பரிந்துரைக்கிறது. அடிப்படையிலுள்ள யார் யாருக்குத் தர வேண்டும் என்ற கணக்கு மாற்றப்படுவதில்லை.',
+  simplifyPairwiseBody: 'செலவுகள் உருவாக்கியபடி, உண்மையான இணை-கணக்கைக் காட்டுகிறது.',
+  simplifyPaymentsCount: { one: '{n} பரிமாற்றம்', other: '{n} பரிமாற்றங்கள்' },
+  simplifyPaysWhom: '{from} {to}க்குச் செலுத்துகிறார்',
+  simplifyYouPay: 'நீங்கள் செலுத்துகிறீர்கள்',
+  simplifyYouReceive: 'நீங்கள் பெறுகிறீர்கள்',
   freeForever: 'எப்போதும் இலவசம்',
   nothingYet: 'இங்கே இன்னும் ஒன்றுமில்லை',
   nothingYetBody: 'முதல் செலவைச் சேருங்கள் — கணக்கு தானே பார்த்துக்கொள்ளும்.',
+  loadError: 'இதை ஏற்ற முடியவில்லை',
+  loadErrorBody: 'இணைப்பைச் சரிபார்த்து இழுத்துப் புதுப்பிக்கவும், அல்லது மீண்டும் முயலவும்.',
+  retry: 'மீண்டும் முயற்சி',
   whatFor: 'எந்த வகைச் செலவு',
   spending: 'செலவு',
   byCategory: 'எதற்குச் சென்றது',
@@ -2811,6 +2889,7 @@ const ta: UiStrings = {
       'இது எந்தக் குழுவுக்கு உரியது என்பதைத் தேர்ந்தெடுங்கள். யார் கட்டினார், எப்படிப் பிரிக்கிறது என்பதை அடுத்து அமைக்கலாம்.',
     noGroups: 'உங்களிடம் இன்னும் குழுக்கள் இல்லை. முதலில் ஒன்றை உருவாக்கி, பிறகு இதை ஒதுக்குங்கள்.',
     delete: 'நீக்கு',
+    deleteConfirm: 'இந்தப் பதிவை நீக்கவா? தொகையும் ரசீதுப் படமும் சேர்ந்து போகும்.',
     unassigned: 'ஒதுக்கப்படாதவை',
     unassignedBody: {
       one: 'குழுவுக்காகக் காத்திருக்கும் {n} பதிவு',
@@ -2990,6 +3069,7 @@ const ta: UiStrings = {
     deleteBody:
       'இது இருப்புக் கணக்கில் சேராது, ஆனால் செயல்பாட்டுப் பட்டியலில் இருக்கும், 30 நாட்களுக்குள் குழுவில் யார் வேண்டுமானாலும் மீட்கலாம்.',
     deleted: 'நீக்கப்பட்டது',
+    disputed: 'மறுப்பு',
     untitled: 'பெயரிடப்படாதது',
     paidByName: '{name} கொடுத்தார்',
     editedTimes: { one: 'ஒருமுறை திருத்தப்பட்டது', other: '{n} முறை திருத்தப்பட்டது' },
@@ -3016,6 +3096,14 @@ const ta: UiStrings = {
     goToBaaki: 'பாக்கிக்குச் செல்',
     freeNoAccount: 'எப்போதும் இலவசம், கணக்கு தேவையில்லை',
     isOneOfTheseYou: 'இவர்களில் ஒருவர் நீங்களா?',
+    peopleSplitting: {
+      one: '{n} நபர் இங்கே செலவுகளைப் பகிர்கிறார்',
+      other: '{n} பேர் இங்கே செலவுகளைப் பகிர்கிறார்கள்',
+    },
+    peopleCount: { one: '{n} நபர்', other: '{n} பேர்' },
+    contactsAdded:
+      '{count} சேர்க்கப்பட்டனர். வேறு ஒருவரைத் தேர்ந்தெடுக்கவும், அல்லது பின் செல்லவும்.',
+    couldNotAdd: '{names} சேர்க்க முடியவில்லை.',
     unnamed: 'பெயரிடப்படாதவர்',
     joinAndClaim: 'சேர்ந்து என் வரலாற்றை உரிமை கொள்',
     joinGroup: 'இந்தக் குழுவில் சேர்',
@@ -3471,6 +3559,7 @@ const ta: UiStrings = {
     ghostShareNote:
       'அவர்களுக்குச் செயலி தேவையில்லை. அவர்களின் பங்கு அவர்கள் பெயரில் பதிவாகும், பிறகு இதே மின்னஞ்சல் அல்லது எண்ணுடன் சேர்ந்தால் ஏற்கெனவே அங்கே உள்ள அனைத்தையும் கோரலாம்.',
     justMe: 'நான் மட்டும்',
+    yourShareNote: 'நான் மட்டும் — ஒவ்வொரு தொகையும் உங்கள் பங்கு, முழுச் செலவு அல்ல.',
     sms: 'SMS',
     email: 'மின்னஞ்சல்',
     paymentWentThrough: 'கொடுப்பனவு சென்றதா?',
@@ -3527,15 +3616,30 @@ const hi: UiStrings = {
   paidInCash: 'नकद दिया',
   bankOther: 'बैंक / अन्य',
   perExpense: 'कुछ खास खर्चों पर लगाएँ',
+  payViaRail: '{rail} से भुगतान करें',
+  youPayName: 'आप {name} को भुगतान करते हैं',
+  namePaysYou: '{name} आपको भुगतान करते हैं',
+  settleConfirmYouPay: '{name} से पुष्टि माँगी जाएगी। Baaki के ज़रिए पैसा हाथ नहीं बदलता।',
+  settleConfirmTheyPay: 'जब वे इसे चुकाया हुआ चिह्नित करेंगे, तब आपसे पुष्टि माँगी जाएगी।',
   members: 'सदस्य',
   memberCount: { one: '{n} सदस्य', other: '{n} सदस्य' },
   notJoinedYet: 'अभी शामिल नहीं हुए',
   scansLeft: 'स्कैन बाकी',
   simplifyOn: 'आसान करना चालू',
   simplifyOff: 'आसान करना बंद',
+  simplifySuggestBody:
+    'Baaki सबसे कम भुगतानों का सुझाव देता है जो समूह का हिसाब चुका दें। नीचे का असली कौन-किसका-देनदार हिसाब कभी नहीं बदला जाता।',
+  simplifyPairwiseBody: 'खर्चों ने जैसा बनाया, ठीक वैसा असली जोड़ीवार हिसाब दिखाया जा रहा है।',
+  simplifyPaymentsCount: { one: '{n} भुगतान', other: '{n} भुगतान' },
+  simplifyPaysWhom: '{from} {to} को भुगतान करते हैं',
+  simplifyYouPay: 'आप भुगतान करते हैं',
+  simplifyYouReceive: 'आपको मिलते हैं',
   freeForever: 'हमेशा मुफ़्त',
   nothingYet: 'यहाँ अभी कुछ नहीं है',
   nothingYetBody: 'पहला खर्च जोड़िए, हिसाब अपने आप संभल जाएगा।',
+  loadError: 'यह लोड नहीं हो सका',
+  loadErrorBody: 'कनेक्शन जाँचें और खींचकर रिफ़्रेश करें, या फिर कोशिश करें।',
+  retry: 'फिर कोशिश करें',
   whatFor: 'किस तरह का खर्च',
   spending: 'खर्च',
   byCategory: 'कहाँ गया',
@@ -3949,6 +4053,7 @@ const hi: UiStrings = {
     assignBody: 'चुनें कि यह किस समूह का है। किसने चुकाया और कैसे बँटेगा, यह आगे तय कर सकते हैं।',
     noGroups: 'आपके पास अभी कोई समूह नहीं है। पहले एक बनाएँ, फिर इसे उसमें सौंपें।',
     delete: 'हटाएँ',
+    deleteConfirm: 'यह कैप्चर हटाएँ? राशि और बिल की फ़ोटो भी चली जाएगी।',
     unassigned: 'असौंपे',
     unassignedBody: {
       one: 'समूह की प्रतीक्षा में {n} प्रविष्टि',
@@ -4121,6 +4226,7 @@ const hi: UiStrings = {
     deleteBody:
       'यह हिसाब में गिनना बंद कर देगा पर गतिविधि में बना रहेगा, और समूह का कोई भी 30 दिन तक इसे वापस ला सकता है।',
     deleted: 'हटाया गया',
+    disputed: 'विवादित',
     untitled: 'बिना नाम',
     paidByName: '{name} ने भुगतान किया',
     editedTimes: { one: 'एक बार संपादित', other: '{n} बार संपादित' },
@@ -4147,6 +4253,13 @@ const hi: UiStrings = {
     goToBaaki: 'बाकी पर जाएँ',
     freeNoAccount: 'हमेशा मुफ़्त, खाता ज़रूरी नहीं',
     isOneOfTheseYou: 'क्या इनमें से कोई आप हैं?',
+    peopleSplitting: {
+      one: '{n} व्यक्ति यहाँ खर्च बाँट रहा है',
+      other: '{n} लोग यहाँ खर्च बाँट रहे हैं',
+    },
+    peopleCount: { one: '{n} व्यक्ति', other: '{n} लोग' },
+    contactsAdded: '{count} जोड़े गए। किसी और को चुनें, या वापस जाएँ।',
+    couldNotAdd: '{names} को नहीं जोड़ा जा सका।',
     unnamed: 'बिना नाम',
     joinAndClaim: 'जुड़ें और अपना इतिहास लें',
     joinGroup: 'इस समूह में जुड़ें',
@@ -4584,6 +4697,7 @@ const hi: UiStrings = {
     ghostShareNote:
       'उन्हें ऐप की ज़रूरत नहीं। उनका हिस्सा उन्हीं के नाम दर्ज होता है, और अगर वे बाद में इसी ईमेल या नंबर से जुड़ते हैं तो वहाँ रखा सब कुछ ले लेते हैं।',
     justMe: 'सिर्फ़ मैं',
+    yourShareNote: 'सिर्फ़ मैं — हर राशि आपका हिस्सा है, पूरा खर्च नहीं।',
     sms: 'SMS',
     email: 'ईमेल',
     paymentWentThrough: 'क्या भुगतान हो गया?',
@@ -4644,6 +4758,11 @@ const ar: UiStrings = {
   paidInCash: 'دُفعت نقداً',
   bankOther: 'تحويل بنكي / غير ذلك',
   perExpense: 'تطبيق على مصروفات محددة',
+  payViaRail: 'ادفع عبر {rail}',
+  youPayName: 'تدفع لـ {name}',
+  namePaysYou: 'يدفع لك {name}',
+  settleConfirmYouPay: 'سيُطلب من {name} التأكيد. لا تنتقل الأموال عبر Baaki.',
+  settleConfirmTheyPay: 'سيُطلب منك التأكيد بمجرد أن يضع علامة الدفع.',
   members: 'الأعضاء',
   memberCount: {
     zero: '{n} عضو',
@@ -4657,9 +4776,19 @@ const ar: UiStrings = {
   scansLeft: 'عمليات مسح متبقية',
   simplifyOn: 'التبسيط مفعّل',
   simplifyOff: 'التبسيط متوقف',
+  simplifySuggestBody:
+    'يقترح Baaki أقل عدد من الدفعات لتسوية المجموعة. أمّا سجل مَن يدين لِمَن الحقيقي في الأسفل فلا يُعاد كتابته أبداً.',
+  simplifyPairwiseBody: 'يعرض السجل الثنائي الفعلي تماماً كما أنشأته المصروفات.',
+  simplifyPaymentsCount: { one: 'دفعة واحدة', other: '{n} دفعات' },
+  simplifyPaysWhom: 'يدفع {from} لـ {to}',
+  simplifyYouPay: 'تدفع',
+  simplifyYouReceive: 'تستلم',
   freeForever: 'بلا حدود ومجاني، للأبد',
   nothingYet: 'لا شيء هنا بعد',
   nothingYetBody: 'أضف أول مصروف والحساب يتكفل بنفسه.',
+  loadError: 'تعذّر تحميل هذا',
+  loadErrorBody: 'تحقّق من اتصالك واسحب للتحديث، أو أعد المحاولة.',
+  retry: 'حاول مرة أخرى',
   whatFor: 'نوع المصروف',
   spending: 'الإنفاق',
   byCategory: 'أين ذهبت',
@@ -5096,6 +5225,7 @@ const ar: UiStrings = {
     assignBody: 'اختر المجموعة التي ينتمي إليها. يمكنك تحديد من دفع وكيفية التقسيم بعد ذلك.',
     noGroups: 'ليست لديك مجموعات بعد. أنشئ واحدة أولًا ثم أسنِد هذا إليها.',
     delete: 'حذف',
+    deleteConfirm: 'حذف هذا الالتقاط؟ سيُحذف المبلغ وصورة الفاتورة معه.',
     unassigned: 'غير مُسنَد',
     unassignedBody: {
       zero: 'لا التقاطات تنتظر مجموعة',
@@ -5288,6 +5418,7 @@ const ar: UiStrings = {
     deleteBody:
       'سيتوقف احتسابه في الأرصدة لكنه يبقى في سجل النشاط، ويمكن لأي عضو استرجاعه خلال 30 يومًا.',
     deleted: 'محذوف',
+    disputed: 'متنازع عليه',
     untitled: 'بلا عنوان',
     paidByName: 'دفع {name}',
     editedTimes: {
@@ -5327,6 +5458,13 @@ const ar: UiStrings = {
     goToBaaki: 'اذهب إلى باقي',
     freeNoAccount: 'مجاني دائمًا، بلا حاجة إلى حساب',
     isOneOfTheseYou: 'هل أحد هؤلاء أنت؟',
+    peopleSplitting: {
+      one: 'يتقاسم شخص واحد المصروفات هنا',
+      other: 'يتقاسم {n} أشخاص المصروفات هنا',
+    },
+    peopleCount: { one: 'شخص واحد', other: '{n} أشخاص' },
+    contactsAdded: 'أُضيف {count}. اختر شخصاً آخر، أو ارجع.',
+    couldNotAdd: 'تعذّرت إضافة {names}.',
     unnamed: 'بلا اسم',
     joinAndClaim: 'انضم وطالب بسجلي',
     joinGroup: 'انضم إلى هذه المجموعة',
@@ -5869,6 +6007,7 @@ const ar: UiStrings = {
     ghostShareNote:
       'لا يحتاجون التطبيق. تُسجَّل حصتهم باسمهم، وإن انضمّوا لاحقًا بهذا البريد أو الرقم طالبوا بكل ما ينتظرهم هناك.',
     justMe: 'أنا فقط',
+    yourShareNote: 'أنا فقط — كل مبلغ هو حصتك، وليس المصروف كاملاً.',
     sms: 'رسالة نصية',
     email: 'البريد',
     paymentWentThrough: 'هل تمّت الدفعة؟',

@@ -163,7 +163,7 @@ export default function ExportScreen() {
               {done}
             </Text>
             {Platform.OS === 'web' ? (
-              <Text variant="micro" tone="faint">
+              <Text variant="micro" tone="muted">
                 {t.exportData.webNote}
               </Text>
             ) : null}

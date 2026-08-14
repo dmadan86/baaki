@@ -13,7 +13,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { type DeviceSession } from '@baaki/core';
 import {
@@ -95,23 +95,35 @@ export default function DevicesScreen() {
           {t.devices.intro}
         </Text>
 
-        <View style={{ gap: theme.spacing.md }}>
-          {rows.map((row) => (
-            <DeviceCard
-              key={`${row.deviceId}-${row.lastSeenAt}`}
-              row={row}
-              current={row.deviceId === myDeviceId}
-              locale={locale}
-              t={t}
-            />
-          ))}
-        </View>
-
-        {otherLiveCount === 0 ? (
-          <Text variant="caption" tone="muted" align="center">
-            {t.devices.onlyThisDevice}
-          </Text>
+        {devices.isLoading ? (
+          // Until the list loads, `rows` is empty — showing "only this device"
+          // here would tell people they have no other sessions before we know.
+          <View style={{ padding: theme.spacing.xl }}>
+            <ActivityIndicator color={theme.color.brand} />
+          </View>
         ) : (
+          <>
+            <View style={{ gap: theme.spacing.md }}>
+              {rows.map((row) => (
+                <DeviceCard
+                  key={`${row.deviceId}-${row.lastSeenAt}`}
+                  row={row}
+                  current={row.deviceId === myDeviceId}
+                  locale={locale}
+                  t={t}
+                />
+              ))}
+            </View>
+
+            {otherLiveCount === 0 ? (
+              <Text variant="caption" tone="muted" align="center">
+                {t.devices.onlyThisDevice}
+              </Text>
+            ) : null}
+          </>
+        )}
+
+        {!devices.isLoading && otherLiveCount > 0 ? (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="caption" tone="muted">
               {t.devices.signOutOthersHint}
@@ -123,7 +135,7 @@ export default function DevicesScreen() {
               onPress={() => void onSignOutOthers()}
             />
           </Card>
-        )}
+        ) : null}
 
         {message ? (
           <Text variant="caption" tone="muted" align="center">
@@ -131,7 +143,7 @@ export default function DevicesScreen() {
           </Text>
         ) : null}
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.devices.historyNote}
         </Text>
       </ScrollView>

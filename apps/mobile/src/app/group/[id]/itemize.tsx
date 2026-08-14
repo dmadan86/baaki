@@ -596,7 +596,9 @@ export default function ItemizeScreen() {
                       gap: 4,
                       // Somebody else's claim still shows — that is the point of
                       // doing this together — it just is not yours to change.
-                      opacity: claimed ? 1 : mine ? 0.35 : 0.2,
+                      // Unclaimed stays legible (you must be able to read who you
+                      // would assign an item to); claimed gets the strongest ink.
+                      opacity: claimed ? 1 : mine ? 0.6 : 0.5,
                     }}
                   >
                     <Avatar name={displayName(member)} ghost={isGhost(member)} size={38} />
@@ -710,7 +712,7 @@ export default function ItemizeScreen() {
           )}
 
           {preview ? (
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {t.itemize.taxAndTipShared.replace(
                 '{amount}',
                 format({ minor: taxes + tip, currency }, { locale, compactFraction: true }),

@@ -337,7 +337,7 @@ export default function ExpenseDetailScreen() {
           />
         )}
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.extras.nothingOverwritten}
         </Text>
       </ScrollView>

@@ -131,7 +131,7 @@ export default function PrivacyScreen() {
           </Card>
         ))}
 
-        <Text variant="micro" tone="faint">
+        <Text variant="micro" tone="muted">
           {t.privacy.englishGoverns}
         </Text>
       </ScrollView>

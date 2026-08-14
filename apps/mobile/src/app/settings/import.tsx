@@ -425,7 +425,7 @@ export default function ImportScreen() {
               </Text>
 
               {parsed.otherCurrencies.length > 0 ? (
-                <Text variant="micro" tone="faint">
+                <Text variant="micro" tone="muted">
                   {t.importLedger.otherCurrenciesNote
                     .replace('{currency}', parsed.currency)
                     .replace('{others}', parsed.otherCurrencies.join(', '))}
@@ -444,7 +444,7 @@ export default function ImportScreen() {
                   </Text>
                 ))}
                 {parsed.problems.length > 6 ? (
-                  <Text variant="micro" tone="faint">
+                  <Text variant="micro" tone="muted">
                     {t.importLedger.andMore.replace('{n}', String(parsed.problems.length - 6))}
                   </Text>
                 ) : null}
@@ -505,7 +505,7 @@ export default function ImportScreen() {
                     </View>
                   ))}
                 </Card>
-                <Text variant="micro" tone="faint" style={{ paddingTop: theme.spacing.sm }}>
+                <Text variant="micro" tone="muted" style={{ paddingTop: theme.spacing.sm }}>
                   {t.importLedger.tapANameNote}
                 </Text>
               </View>

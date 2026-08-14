@@ -112,7 +112,7 @@ export default function LockSettingsScreen() {
                 />
               ))}
             </Row>
-            <Text variant="micro" tone="faint">
+            <Text variant="micro" tone="muted">
               {t.lock.reopenAlwaysAsks}
             </Text>
           </Card>
@@ -126,7 +126,7 @@ export default function LockSettingsScreen() {
           <Button label={t.lock.signOut} variant="secondary" fullWidth onPress={confirmSignOut} />
         </Card>
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.lock.footnote}
         </Text>
       </ScrollView>

@@ -160,7 +160,7 @@ export default function InsightsScreen() {
           </Callout>
         ) : null}
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.misc.insightsLiveNote}
         </Text>
       </ScrollView>
@@ -262,7 +262,7 @@ function CurrencySection({
               )
             }
           />
-          <Text variant="micro" tone="faint" align="center">
+          <Text variant="micro" tone="muted" align="center">
             {tapHint}
           </Text>
         </Card>

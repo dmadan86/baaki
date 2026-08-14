@@ -19,6 +19,7 @@ import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { renderNotification } from '@baaki/core';
 import {
+  Button,
   directionalIcon,
   EmptyState,
   IconButton,
@@ -124,6 +125,14 @@ export default function InboxScreen() {
             <SectionHeader title={t.inbox.recent} />
             <SkeletonList rows={5} trailing={false} />
           </View>
+        ) : notifications.isError ? (
+          <EmptyState
+            title={t.loadError}
+            body={t.loadErrorBody}
+            action={
+              <Button label={t.retry} variant="secondary" onPress={() => notifications.refetch()} />
+            }
+          />
         ) : rows.length === 0 ? (
           <EmptyState title={t.nothingYet} body={t.inbox.nothingYetBody} />
         ) : (
@@ -206,7 +215,7 @@ export default function InboxScreen() {
           </View>
         )}
 
-        <Text variant="micro" tone="faint" align="center">
+        <Text variant="micro" tone="muted" align="center">
           {t.extras.deliveryComesLater}
         </Text>
       </ScrollView>

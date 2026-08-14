@@ -66,7 +66,7 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
       </Pressable>
 
       {restartNeeded ? (
-        <Text variant="micro" tone="faint" align={align === 'center' ? 'center' : 'left'}>
+        <Text variant="micro" tone="muted" align={align === 'center' ? 'center' : 'left'}>
           {isRtlLanguage(language) ? t.signIn.restartToMirror : t.signIn.restartToUnmirror}
         </Text>
       ) : null}
