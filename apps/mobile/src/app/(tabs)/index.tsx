@@ -671,6 +671,7 @@ function HeroBackdropIcon({ name }: { name: keyof typeof Ionicons.glyphMap }) {
       name={name}
       size={140}
       color={theme.color.onBrand}
+      accessible={false}
       style={{
         position: 'absolute',
         right: -20,
