@@ -15,6 +15,7 @@ import {
   Screen,
   Text,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { mintInvite, type MintedInvite } from '@/data/api';
@@ -31,6 +32,7 @@ const INVITE_BASE = 'https://baaki.app/join';
 
 export default function InviteScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -97,11 +99,11 @@ export default function InviteScreen() {
   };
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

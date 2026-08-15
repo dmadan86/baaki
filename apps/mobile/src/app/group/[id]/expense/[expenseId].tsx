@@ -20,6 +20,7 @@ import {
   Text,
   TintCard,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { CategoryBadge } from '@/components/Category';
@@ -53,6 +54,7 @@ function splitLabels(t: UiStrings): Record<string, string> {
 
 export default function ExpenseDetailScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id, expenseId } = useLocalSearchParams<{ id: string; expenseId: string }>();
   const groupId = id ?? '';
@@ -137,7 +139,7 @@ export default function ExpenseDetailScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

@@ -50,6 +50,7 @@ import {
   SectionHeader,
   Text,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
@@ -110,6 +111,7 @@ function fromBaaki(group: BaakiImportGroup, fallbackName: string): Loaded {
 
 export default function ImportScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const groups = useGroups();
   const { profile } = useAuth();
@@ -336,7 +338,7 @@ export default function ImportScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

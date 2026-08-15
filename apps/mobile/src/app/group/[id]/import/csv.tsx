@@ -37,6 +37,7 @@ import {
   SectionHeader,
   Text,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { importSplitwiseCsv, MutationKind, type MemberId, type SplitwiseImport } from '@baaki/core';
@@ -54,6 +55,7 @@ const NEW_PERSON = '__new__';
 
 export default function ImportCsvScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -179,11 +181,11 @@ export default function ImportCsvScreen() {
   }
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

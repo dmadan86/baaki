@@ -46,6 +46,22 @@ export function useTabBarClearance(): number {
 }
 
 /**
+ * How much room a scrolling screen that is NOT under the tab bar has to leave at
+ * its foot — a pushed detail screen, a settings page, a modal.
+ *
+ * The app draws edge-to-edge, so the system navigation bar (gesture pill or the
+ * three buttons) sits *over* the bottom of the content. A fixed `paddingBottom`
+ * that ignores it leaves the last row hidden behind the bar — you scroll to the
+ * end and the end is under the system UI. This is the system inset plus a
+ * caller-chosen breath, so the last row always clears it on every phone. Pass a
+ * larger `base` on a screen with a floating action or a pinned footer.
+ */
+export function useScreenClearance(base: number = spacing.xxxl): number {
+  const insets = useSafeAreaInsets();
+  return insets.bottom + base;
+}
+
+/**
  * The bottom navigation, WhatsApp / Material 3 style: a flat opaque bar pinned
  * to the bottom edge, a hairline along its top, and each destination drawn as
  * an icon over its label. The selected destination wears a rounded "active

@@ -21,6 +21,7 @@ import {
   TintCard,
   tintForKey,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import {
@@ -54,6 +55,7 @@ enum Tab {
 
 export default function GroupScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance(112);
   const pull = usePullRefresh();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -135,7 +137,7 @@ export default function GroupScreen() {
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
-            paddingBottom: 180,
+            paddingBottom: clearance,
             gap: theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
