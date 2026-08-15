@@ -150,19 +150,28 @@ export default function FriendsScreen() {
             <Text variant="title">{t.friends}</Text>
           </Row>
           <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            <Button
-              label={t.tabs.fromContacts}
-              size="sm"
-              icon={
-                <Ionicons
-                  name="person-add-outline"
-                  size={iconSize.base}
-                  color={theme.color.onBrand}
-                />
-              }
+            {/* Add somebody who is not in your contacts — just a name and the
+                amount between you. A person icon, bare like the rest of the row. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.addPerson.title}
+              onPress={() => router.push('/friends/add-person' as never)}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+            >
+              <Ionicons name="person-add-outline" size={iconSize.xl} color={theme.color.text} />
+            </Pressable>
+            {/* Pull people from the phone's address book — icon only, no button
+                chrome, so the header reads as a title row not a toolbar. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.tabs.fromContacts}
               onPress={() => router.push('/friends/contacts')}
-              style={{ height: 32, paddingHorizontal: theme.spacing.md, gap: theme.spacing.xs }}
-            />
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+            >
+              <Ionicons name="people-outline" size={iconSize.xl} color={theme.color.text} />
+            </Pressable>
             {/* The sort control — a bare vertical three-dot beside the button,
                 opening the same corner dropdown the rest of the app uses. */}
             <Pressable

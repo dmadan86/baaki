@@ -180,6 +180,21 @@ export interface UiStrings {
     date: string;
     name: string;
   };
+  /** The "add a person" quick IOU screen, reached from the Friends header. */
+  addPerson: {
+    title: string;
+    subtitle: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    amountLabel: string;
+    directionQuestion: string;
+    theyOweMe: string;
+    iOweThem: string;
+    noteLabel: string;
+    notePlaceholder: string;
+    save: string;
+    couldNotRecord: string;
+  };
   profile: string;
   home: string;
   addExpense: string;
@@ -1265,6 +1280,20 @@ const en: UiStrings = {
   activity: 'Activity',
   friends: 'Friends',
   sort: { by: 'Sort by', amount: 'Amount', date: 'Recent activity', name: 'Name' },
+  addPerson: {
+    title: 'Add a person',
+    subtitle: 'Track what someone owes you — nobody needs the app, and no group to set up.',
+    nameLabel: 'Their name',
+    namePlaceholder: 'e.g. Ravi',
+    amountLabel: 'Amount',
+    directionQuestion: 'Which way?',
+    theyOweMe: 'They owe me',
+    iOweThem: 'I owe them',
+    noteLabel: 'Note (optional)',
+    notePlaceholder: 'What is it for?',
+    save: 'Record it',
+    couldNotRecord: 'Could not record this. Please try again.',
+  },
   profile: 'Account',
   home: 'Home',
   addExpense: 'Add expense',
@@ -2416,6 +2445,21 @@ const ta: UiStrings = {
   activity: 'செயல்பாடு',
   friends: 'நண்பர்கள்',
   sort: { by: 'வரிசைப்படுத்து', amount: 'தொகை', date: 'சமீபத்திய செயல்பாடு', name: 'பெயர்' },
+  addPerson: {
+    title: 'ஒருவரைச் சேர்',
+    subtitle:
+      'யார் உங்களுக்குத் தர வேண்டும் என்பதைக் கண்காணி — அவருக்கு ஆப் தேவையில்லை, குழுவும் தேவையில்லை.',
+    nameLabel: 'அவரது பெயர்',
+    namePlaceholder: 'எ.கா. ரவி',
+    amountLabel: 'தொகை',
+    directionQuestion: 'எந்தப் பக்கம்?',
+    theyOweMe: 'அவர் எனக்குத் தர வேண்டும்',
+    iOweThem: 'நான் அவருக்குத் தர வேண்டும்',
+    noteLabel: 'குறிப்பு (விருப்பம்)',
+    notePlaceholder: 'எதற்காக?',
+    save: 'பதிவு செய்',
+    couldNotRecord: 'இதைப் பதிவு செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  },
   profile: 'கணக்கு',
   home: 'முகப்பு',
   addExpense: 'செலவு சேர்',
@@ -3595,6 +3639,20 @@ const hi: UiStrings = {
   activity: 'गतिविधि',
   friends: 'दोस्त',
   sort: { by: 'क्रमबद्ध करें', amount: 'राशि', date: 'हाल की गतिविधि', name: 'नाम' },
+  addPerson: {
+    title: 'एक व्यक्ति जोड़ें',
+    subtitle: 'किसी को आप पर कितना देना है, यह रखें — न उन्हें ऐप चाहिए, न कोई समूह बनाना है।',
+    nameLabel: 'उनका नाम',
+    namePlaceholder: 'जैसे रवि',
+    amountLabel: 'राशि',
+    directionQuestion: 'किस ओर?',
+    theyOweMe: 'वे मुझे देंगे',
+    iOweThem: 'मैं उन्हें दूँगा',
+    noteLabel: 'नोट (वैकल्पिक)',
+    notePlaceholder: 'किस लिए?',
+    save: 'दर्ज करें',
+    couldNotRecord: 'यह दर्ज नहीं हो सका। कृपया फिर कोशिश करें।',
+  },
   profile: 'खाता',
   home: 'होम',
   addExpense: 'खर्च जोड़ें',
@@ -4737,6 +4795,20 @@ const ar: UiStrings = {
   activity: 'النشاط',
   friends: 'الأصدقاء',
   sort: { by: 'ترتيب حسب', amount: 'المبلغ', date: 'النشاط الأخير', name: 'الاسم' },
+  addPerson: {
+    title: 'إضافة شخص',
+    subtitle: 'تتبّع ما يدين لك به أحدهم — لا يحتاج إلى التطبيق، ولا إلى إنشاء مجموعة.',
+    nameLabel: 'اسمه',
+    namePlaceholder: 'مثل: رافي',
+    amountLabel: 'المبلغ',
+    directionQuestion: 'في أي اتجاه؟',
+    theyOweMe: 'يدين لي',
+    iOweThem: 'أدين له',
+    noteLabel: 'ملاحظة (اختياري)',
+    notePlaceholder: 'لأجل ماذا؟',
+    save: 'سجّل',
+    couldNotRecord: 'تعذّر تسجيل هذا. حاول مرة أخرى.',
+  },
   profile: 'الحساب',
   home: 'الرئيسية',
   addExpense: 'إضافة مصروف',
