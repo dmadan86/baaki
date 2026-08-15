@@ -156,7 +156,7 @@ describe('the group-photo paid gate', () => {
     // A lifetime purchase — active with no period end, so it never lapses.
     await client.query(
       `INSERT INTO subscriptions (profile_id, period, status, store, current_period_end)
-       VALUES ($1, 'lifetime', 'active', 'test', NULL)`,
+       VALUES ($1, 'lifetime', 'active', 'promo', NULL)`,
       [profileId],
     );
   }
