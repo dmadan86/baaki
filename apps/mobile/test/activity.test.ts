@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { describeActivity, verbEmoji } from '@/data/activity';
+import { describeActivity, relativeTime, verbEmoji } from '@/data/activity';
 import type { ActivityActor, ActivityRow } from '@/data/types';
 
 const RAVI: ActivityActor = {
@@ -201,5 +201,37 @@ describe('somebody says an expense is wrong', () => {
     const line = describeActivity(row({ verb: 'auto_confirmed', payload: {} }), null);
     expect(line).not.toContain('Ravi');
     expect(line).toContain('automatically');
+  });
+});
+
+describe('how long ago', () => {
+  const now = Date.parse('2026-08-15T12:00:00Z');
+  const ago = (seconds: number): string =>
+    relativeTime('en', new Date(now - seconds * 1000).toISOString(), now);
+
+  it('words a recent event in minutes, not seconds', () => {
+    // 19 minutes reads in minutes; the largest unit with a count of at least one.
+    expect(ago(19 * 60)).toBe('19 minutes ago');
+  });
+
+  it('turns a day into "yesterday" (numeric: auto)', () => {
+    expect(ago(24 * 3600)).toBe('yesterday');
+  });
+
+  it('never throws when Intl.RelativeTimeFormat is missing (Android Hermes)', () => {
+    // The exact crash that took the Activity screen down: `new
+    // Intl.RelativeTimeFormat` is a constructor on `undefined` there. The
+    // fallback must produce a string, not blow up.
+    const mutable = Intl as unknown as { RelativeTimeFormat?: typeof Intl.RelativeTimeFormat };
+    const original = mutable.RelativeTimeFormat;
+    try {
+      delete mutable.RelativeTimeFormat;
+      const stamp = relativeTime('en', new Date(now - 19 * 60 * 1000).toISOString(), now);
+      expect(typeof stamp).toBe('string');
+      expect(stamp.length).toBeGreaterThan(0);
+      expect(stamp).not.toContain('undefined');
+    } finally {
+      mutable.RelativeTimeFormat = original;
+    }
   });
 });
