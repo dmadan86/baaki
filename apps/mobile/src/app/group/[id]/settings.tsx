@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, ScrollView, TextInput, View } from 'react-native';
 
@@ -26,7 +27,8 @@ import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates } from '@/components/TripDates';
-import { removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
+import { photoGateParam, photoGateStatus, photoTapAction } from '@/lib/groupPhotoGate';
+import { canUploadGroupPhoto, removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -49,6 +51,16 @@ export default function GroupSettingsScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // A group photo is a paid feature; the cover emoji is free. The group may
+  // carry a photo if anyone in it is paid (or it holds a pass) — a server-side
+  // question, since one member cannot read another's subscription.
+  const photoGate = useQuery({
+    queryKey: ['photoGate', groupId],
+    queryFn: () => canUploadGroupPhoto(photoGateParam(groupId)),
+    enabled: groupId.length > 0,
+  });
+  const photoStatus = photoGateStatus(photoGate.data, photoGate.isLoading);
+
   const changePhoto = async (): Promise<void> => {
     const picked = await pickGroupPhoto();
     if (!picked) return;
@@ -63,6 +75,15 @@ export default function GroupSettingsScreen() {
     } finally {
       setUploading(false);
     }
+  };
+
+  // Tapping the photo: pick when allowed, otherwise point at the upgrade screen.
+  // Removing an existing photo is never gated — a group that loses its paying
+  // member can always fall back to an icon.
+  const onPhotoPress = (): void => {
+    const action = photoTapAction(photoStatus);
+    if (action === 'pick') void changePhoto();
+    else if (action === 'showLockedHint') router.push('/settings/upgrade');
   };
 
   const dropPhoto = async (): Promise<void> => {
@@ -155,7 +176,7 @@ export default function GroupSettingsScreen() {
               emoji={group.data.cover_emoji}
               size={72}
               busy={uploading}
-              onPress={() => void changePhoto()}
+              onPress={onPhotoPress}
             />
             <View style={{ flex: 1, gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
@@ -208,6 +229,14 @@ export default function GroupSettingsScreen() {
               />
             ) : null}
           </Row>
+
+          {/* Photos are a paid feature; the icon picker above is always free.
+              Only surfaced when the group cannot set one and has none to remove. */}
+          {photoStatus === 'locked' && !group.data.photo_path ? (
+            <Text variant="micro" tone="muted">
+              {t.groupPhoto.paidHint}
+            </Text>
+          ) : null}
         </Card>
 
         {/* Decides which payment rails the settle screen offers, and what a new

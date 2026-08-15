@@ -659,6 +659,10 @@ export interface UiStrings {
     errorNameRequired: string;
     errorGeneric: string;
   };
+  /** Group photos are a paid feature; the cover emoji stays free for everyone. */
+  groupPhoto: {
+    paidHint: string;
+  };
   /** The inbox — the record of what Baaki said, whether or not push arrived. */
   inbox: {
     title: string;
@@ -1783,6 +1787,9 @@ const en: UiStrings = {
     errorNotMergeable: 'You can only merge guests you share a group with.',
     errorNameRequired: 'Give the merged person a name.',
     errorGeneric: 'Could not merge. Please try again.',
+  },
+  groupPhoto: {
+    paidHint: 'Group photos are a Plus feature. Pick an icon, or upgrade to add a photo.',
   },
   inbox: {
     title: 'Inbox',
@@ -2989,6 +2996,10 @@ const ta: UiStrings = {
     errorNotMergeable: 'நீங்கள் பகிரும் குழுவில் உள்ள விருந்தினர்களை மட்டுமே இணைக்க முடியும்.',
     errorNameRequired: 'இணைந்த நபருக்கு ஒரு பெயரைக் கொடுக்கவும்.',
     errorGeneric: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  },
+  groupPhoto: {
+    paidHint:
+      'குழு புகைப்படங்கள் Plus அம்சம். ஒரு ஐகானைத் தேர்ந்தெடுக்கவும், அல்லது புகைப்படம் சேர்க்க மேம்படுத்தவும்.',
   },
   inbox: {
     title: 'அஞ்சல் பெட்டி',
@@ -4197,6 +4208,9 @@ const hi: UiStrings = {
       'आप केवल उन मेहमानों को मर्ज कर सकते हैं जिनके साथ आप कोई समूह साझा करते हैं.',
     errorNameRequired: 'मर्ज किए गए व्यक्ति को एक नाम दें.',
     errorGeneric: 'मर्ज नहीं हो सका. कृपया फिर से प्रयास करें.',
+  },
+  groupPhoto: {
+    paidHint: 'ग्रुप फ़ोटो एक Plus सुविधा है। कोई आइकन चुनें, या फ़ोटो जोड़ने के लिए अपग्रेड करें।',
   },
   inbox: {
     title: 'इनबॉक्स',
@@ -5408,6 +5422,9 @@ const ar: UiStrings = {
     errorNotMergeable: 'يمكنك دمج الضيوف الذين تشاركهم مجموعة فقط.',
     errorNameRequired: 'أعطِ الشخص المدمج اسمًا.',
     errorGeneric: 'تعذّر الدمج. يرجى المحاولة مرة أخرى.',
+  },
+  groupPhoto: {
+    paidHint: 'صور المجموعة ميزة Plus. اختر أيقونة، أو قم بالترقية لإضافة صورة.',
   },
   inbox: {
     title: 'صندوق الوارد',

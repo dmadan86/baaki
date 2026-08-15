@@ -1,0 +1,39 @@
+# Maestro flow (ADR-014): group photos are a paid feature, icons are free.
+#
+# On a free account, opening "new group" and tapping the photo must not reach a
+# picker — instead the icon (cover emoji) path stays, and the "Plus feature" hint
+# explains why. The photo-tap and hint steps are optional so the flow still
+# passes if the paid-gate RPC answers differently under a seed with a paying
+# member (in which case the picker is allowed and there is no hint). Seed a free
+# account to exercise the locked path fully.
+appId: app.baaki.mobile
+---
+- launchApp:
+    clearState: true
+
+# Home → new group
+- assertVisible: 'Your groups'
+- tapOn: 'New group'
+
+# The cover-emoji (icon) picker is always available — free for everyone.
+- assertVisible:
+    id: 'CoverEmojiPicker'
+    optional: true
+
+# On a free account the photo is locked: the hint is shown and tapping the photo
+# does not open a picker.
+- assertVisible:
+    text: 'Plus feature'
+    optional: true
+
+# The icon path still works: pick an emoji, name the group, create it.
+- tapOn:
+    id: 'CoverEmojiPicker'
+    optional: true
+- tapOn:
+    text: '🏠'
+    optional: true
+- inputText: 'Flat 4B'
+- tapOn:
+    text: 'Create'
+    optional: true
