@@ -16,6 +16,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // The v3 async-storage ESM build can't be resolved by Node under vitest;
+      // swap in an in-memory stub so importing it doesn't crash collection.
+      '@react-native-async-storage/async-storage': fileURLToPath(
+        new URL('./test/mocks/async-storage.ts', import.meta.url),
+      ),
     },
   },
 });

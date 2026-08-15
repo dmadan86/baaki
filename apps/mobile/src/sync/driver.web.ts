@@ -108,7 +108,7 @@ class AsyncStorageStore implements LocalStore {
   }
 
   reset(): Promise<void> {
-    return this.serial.run(() => AsyncStorage.multiRemove(Object.values(WEB_KEYS)));
+    return this.serial.run(() => AsyncStorage.removeMany(Object.values(WEB_KEYS)));
   }
 }
 
