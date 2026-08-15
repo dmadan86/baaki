@@ -14,6 +14,7 @@ import {
   Row,
   Screen,
   SectionHeader,
+  Skeleton,
   Text,
   useTabBarClearance,
   useTheme,
@@ -21,6 +22,7 @@ import {
 
 import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale, Stagger } from '@/lib/anim';
+import { useMotion } from '@/lib/motion';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
@@ -270,13 +272,19 @@ export default function HomeScreen() {
 
         {/* The balance, one card per currency — there is no total across them
             (ADR-004), so several currencies read as several cards you swipe
-            rather than one sum that would be a lie. */}
-        <HeroCarousel
-          trips={activeTrips}
-          totals={summary.totals.length > 0 ? summary.totals : [headline]}
-          locale={locale}
-          t={t}
-        />
+            rather than one sum that would be a lie. While the balance is still
+            loading a hero-shaped skeleton stands in, rather than a card of
+            confident zeros the query has not actually returned yet. */}
+        {summary.isLoading ? (
+          <HeroSkeleton />
+        ) : (
+          <HeroCarousel
+            trips={activeTrips}
+            totals={summary.totals.length > 0 ? summary.totals : [headline]}
+            locale={locale}
+            t={t}
+          />
+        )}
 
         {loading ? (
           <SkeletonList rows={3} />
@@ -471,10 +479,12 @@ function todayIn(timeZone: string): string {
   }
 }
 
-/** The shared minimum height for every hero slide, so the balance, trip and
-    action cards line up at the same bottom edge in the swipe deck instead of
-    each sizing to its own content. */
-const HERO_MIN_HEIGHT = 176;
+/** The one fixed height every hero slide takes, so the balance, trip and action
+    cards are exactly the same size in the deck — a minimum let the balance card
+    (the tallest content) grow past the others and the deck looked ragged. The
+    loading skeleton takes this same height, so the swap in is a clean fill. Tall
+    enough for the balance card's content at the default text size (~191px). */
+export const HERO_CARD_HEIGHT = 196;
 
 /**
  * The dashboard hero: a swipeable deck of cards with a peek of the next one at
@@ -593,6 +603,54 @@ function HeroCarousel({
 }
 
 /**
+ * The hero while the balance is still loading — a card-shaped block at the exact
+ * `HERO_CARD_HEIGHT` the real deck uses, with a sliver of the next card at the
+ * right (the peek) and a three-dot pager beneath. Shaped so the swap to the real
+ * carousel is a fill, not a jump: same height, same peek, same dots.
+ */
+function HeroSkeleton() {
+  const theme = useTheme();
+  const { animated } = useMotion();
+  const { width } = useWindowDimensions();
+  const available = width - theme.spacing.xl * 2;
+  const peek = theme.spacing.xxl + theme.spacing.xs;
+  const cardWidth = available - peek;
+  return (
+    <View style={{ gap: theme.spacing.md }}>
+      {/* The card and the peek sliver, clipped so the sliver never widens the
+          row past the gutter. */}
+      <View style={{ flexDirection: 'row', gap: theme.spacing.md, overflow: 'hidden' }}>
+        <Skeleton
+          width={cardWidth}
+          height={HERO_CARD_HEIGHT}
+          radius={theme.radius.lg}
+          animated={animated}
+        />
+        <Skeleton
+          width={peek}
+          height={HERO_CARD_HEIGHT}
+          radius={theme.radius.lg}
+          animated={animated}
+        />
+      </View>
+      <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
+        {[0, 1, 2].map((dot) => (
+          <View
+            key={dot}
+            style={{
+              width: dot === 0 ? 18 : 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: dot === 0 ? theme.color.brand : theme.color.border,
+            }}
+          />
+        ))}
+      </Row>
+    </View>
+  );
+}
+
+/**
  * A hero action card — the promo-style slide that rides at the tail of the deck.
  * It wears the same gradient wash as the balance cards so the deck reads as one
  * family, with an oversized icon bled into the bottom-right as the "illustration"
@@ -622,7 +680,7 @@ function ActionSlide({
         radius={theme.radius.lg}
         style={{
           padding: theme.spacing.xl,
-          minHeight: HERO_MIN_HEIGHT,
+          height: HERO_CARD_HEIGHT,
           justifyContent: 'space-between',
           gap: theme.spacing.lg,
           overflow: 'hidden',
@@ -680,7 +738,12 @@ function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: strin
     <Gradient
       colors={wash}
       radius={theme.radius.lg}
-      style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+      style={{
+        padding: theme.spacing.xl,
+        gap: theme.spacing.lg,
+        height: HERO_CARD_HEIGHT,
+        justifyContent: 'space-between',
+      }}
     >
       <Row style={{ justifyContent: 'space-between' }}>
         <Text variant="caption" tone="onBrand">
@@ -752,7 +815,7 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
         style={{
           padding: theme.spacing.xl,
           gap: theme.spacing.lg,
-          minHeight: HERO_MIN_HEIGHT,
+          height: HERO_CARD_HEIGHT,
           justifyContent: 'space-between',
         }}
       >
