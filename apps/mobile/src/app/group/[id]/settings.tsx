@@ -361,8 +361,8 @@ export default function GroupSettingsScreen() {
         ) : null}
 
         <View style={{ gap: theme.spacing.md }}>
-          <Button label={t.group.archiveGroup} variant="ghost" fullWidth onPress={archive} />
-          <Button label={t.group.leaveGroup} variant="ghost" fullWidth onPress={leave} />
+          <Button label={t.group.archiveGroup} variant="ghostDanger" fullWidth onPress={archive} />
+          <Button label={t.group.leaveGroup} variant="ghostDanger" fullWidth onPress={leave} />
           {!settled ? (
             <Text variant="micro" tone="muted" align="center">
               {t.group.leaveWhenZero}
