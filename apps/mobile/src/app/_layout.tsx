@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -19,6 +20,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
+import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { AppTabBar } from '@/components/AppTabBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -39,6 +41,14 @@ import { initObservability, withObservability } from '@/lib/observability';
 import { ensureAndroidChannel, pushSupported, routeForNotification } from '@/lib/push';
 import { applyStoredSessionReplayConsent } from '@/lib/sessionReplay';
 import { SyncProvider } from '@/sync';
+
+// Hold the native splash up past its auto-hide, so `AnimatedSplash` can take
+// over the field without a blank frame between them. Native only — there is no
+// native splash on web, where reaching into this is a no-op at best. It fails to
+// off: a rejection here must never keep the splash up forever.
+if (Platform.OS !== 'web') {
+  void SplashScreen.preventAutoHideAsync().catch(() => {});
+}
 
 // Before anything else renders, so a crash in the first frame is still caught.
 // Inert unless a DSN is configured.
@@ -158,6 +168,10 @@ function RootLayout() {
                               under it. */}
                                 <UpdateBanner />
                               </UpdateGate>
+                              {/* Topmost of all: the launch field, painting over
+                                  the whole app until it fades itself out. Native
+                                  only; renders nothing on web. */}
+                              <AnimatedSplash />
                             </ThemedRoot>
                           </ThemePreferenceProvider>
                         </UpdateProvider>
