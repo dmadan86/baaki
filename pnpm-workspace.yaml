@@ -62,5 +62,4 @@ packageExtensions:
       '@expo/config-plugins': '^57.0.7'
 
 patchedDependencies:
-  expo: patches/expo.patch
   react-native-get-sms-android@2.1.0: patches/react-native-get-sms-android@2.1.0.patch
