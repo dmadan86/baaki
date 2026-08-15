@@ -110,6 +110,8 @@ The folder keeps building as `apps/web`; "lite" is historical.
 
 This is an **authority-model addition, not a change to any trust boundary**: every existing RLS policy and Edge Function privilege is unchanged, and the set of things an admin can do (edit the group, manage members, set the overall trip budget) is unchanged — only _who_ can be granted that set is now itself an admin decision instead of fixed at group creation.
 
+**Addendum (folding one guest seen across groups — for the viewer, not the ledger).** This ADR always warned that ghost-claiming "needs careful merge logic," and the ledger's rule (TDR A11) is absolute: ghosts are never merged by name, because a name is not proof two records are one human. That rule stands, and nothing below touches it. What it did not cover is the reading problem it creates: a person who adds "Rahul" as a fresh ghost in four separate groups sees four Rahuls on their Friends list. So a viewer may now **fold those into one name — for their own eyes only.** The fold is a `ghost_merges` row scoped to the owner by RLS, read by `baaki_people_i_owe` as a coalesce on `person_key`; each group keeps its own ghost and its own per-group balance (ADR-004), no expense or share is rewritten, and a later real-person claim is unaffected. Because a `group_member` is per-group by construction, "one member with summed debts" is impossible — the fold is identity aggregation in front of the ledger, never a change to it. It is presented as permanent (a hard "cannot be undone" warning, no un-merge screen); the row is recoverable at the database, but no client offers the reverse, because fusing two people is a deliberate act. `baaki_merge_ghosts` is SECURITY DEFINER and requires two or more distinct ghosts the caller shares a group with. See TDR A38.
+
 ---
 
 ## ADR-007: UPI settlement via intent deep links; Baaki never moves money
@@ -181,6 +183,8 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 **Decision.** Constitutional rules enforced in code review: **(1)** manual expense entry, groups, split types, balances, settlement recording, and export are unlimited and free, forever — no daily caps, no interstitial ads, ever. **(2)** Monetize convenience: AI scan volume beyond free quota, analytics/charts depth, auto-import (future), group/trip passes (Settle Up-style shareable premium), themes. **(3)** India pricing in INR at local purchasing power (~₹49–99/mo tier), regional pricing elsewhere. **(4)** No third-party ads in any money flow.
 
 **Consequences.** Slower revenue early; durable trust moat and the marketing wedge ("the ledger is free forever") that the entire alternatives market currently wins with.
+
+**Addendum (a group photo is one of the cosmetics sold).** Rule (2) lists themes among the convenience/cosmetic upsells; a **group cover photograph** is another, and is now gated the same way. A group may carry a photo if anyone in it is on a paid plan or the group holds a pass; a cover **emoji is free for everyone, always**, so a group is never left unidentifiable — only the photo is sold, never the ledger or the ability to name and find a group. Because one member cannot read another's subscription under RLS (ADR-013), "is anyone here paid" is answered by a `SECURITY DEFINER` function (`baaki_can_upload_group_photo`), not the client. Consistent with rule (1): nothing about recording, splitting or settling is touched. See TDR A39.
 
 ---
 
