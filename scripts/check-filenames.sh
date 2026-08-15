@@ -45,6 +45,11 @@ while IFS= read -r path; do
   if [[ $name =~ ^\(.+\)$ ]]; then continue; fi
   if [[ $name =~ ^\[\.{0,3}[A-Za-z0-9_-]+\](\.[A-Za-z0-9]+)?$ ]]; then continue; fi
 
+  # Expo Router's special files carry a leading `+` — `+native-intent.ts`,
+  # `+not-found.tsx`, `+html.tsx`. The `+` is the framework's; the rest is an
+  # ordinary name with a known extension.
+  if [[ $name =~ ^\+[A-Za-z0-9._-]+\.($EXTENSIONS)$ ]]; then continue; fi
+
   if [[ ! $name =~ ^[A-Za-z0-9._-]+$ ]] || [[ ! $name =~ \.($EXTENSIONS)$ ]]; then
     bad+="  $path"$'\n'
   fi
