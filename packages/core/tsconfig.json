@@ -3,6 +3,12 @@
   "compilerOptions": {
     "rootDir": ".",
     "noEmit": true,
+    // Web-platform globals (crypto.subtle, TextEncoder, URLSearchParams, atob,
+    // btoa, performance) used by the edge-runtime notification code. These live
+    // in WindowOrWorkerGlobalScope, which the WebWorker lib exposes without
+    // pulling in document/window — the right fit for Deno edge functions. Vitest
+    // 3's global types brought these in transitively; vitest 4 no longer does.
+    "lib": ["ES2022", "WebWorker"],
     "types": ["vitest/globals"]
   },
   "include": ["src", "test"]
