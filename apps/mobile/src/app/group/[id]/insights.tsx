@@ -42,6 +42,7 @@ import {
   type BarDatum,
   type ColumnDatum,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { CategoryBadge } from '@/components/Category';
@@ -61,6 +62,7 @@ const MONTHS_SHOWN = 6;
 
 export default function InsightsScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -102,7 +104,7 @@ export default function InsightsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: 140,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

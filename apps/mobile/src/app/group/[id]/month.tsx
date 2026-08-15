@@ -30,6 +30,7 @@ import {
   TintCard,
   tintForKey,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { CategoryBadge } from '@/components/Category';
@@ -49,6 +50,7 @@ function myShare(shares: { member_id: string; amount: string }[], memberId: stri
 
 export default function SpendingMonthScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const params = useLocalSearchParams<{
     id: string;
@@ -132,7 +134,7 @@ export default function SpendingMonthScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

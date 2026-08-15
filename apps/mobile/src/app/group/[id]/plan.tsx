@@ -41,6 +41,7 @@ import {
   Screen,
   Text,
   type Theme,
+  useScreenClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -81,6 +82,7 @@ function dayLabel(day: string, locale: string): string {
 
 export default function PlanScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -305,11 +307,11 @@ export default function PlanScreen() {
   }
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.lg,
         }}
         showsVerticalScrollIndicator={false}

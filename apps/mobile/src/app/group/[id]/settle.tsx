@@ -30,6 +30,7 @@ import {
   TintCard,
   tintForKey,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { toSnapshot, useGroup, useGroupLedger, useRecordSettlement } from '@/data/hooks';
@@ -41,6 +42,7 @@ import { useGuestGuard } from '@/lib/guestGuard';
 
 export default function SettleScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -240,11 +242,11 @@ export default function SettleScreen() {
   }
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

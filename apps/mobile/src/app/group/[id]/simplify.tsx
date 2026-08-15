@@ -15,6 +15,7 @@ import {
   Screen,
   Text,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { memberLookup, useGroup, useGroupLedger } from '@/data/hooks';
@@ -24,6 +25,7 @@ import { useAuth } from '@/lib/auth';
 
 export default function SimplifyScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -43,7 +45,7 @@ export default function SimplifyScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: 140,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}

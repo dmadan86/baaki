@@ -41,6 +41,7 @@ import {
   SectionHeader,
   Text,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import {
@@ -79,6 +80,7 @@ function splitMessages(blob: string): string[] {
 
 export default function ImportSmsScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -214,11 +216,11 @@ export default function ImportSmsScreen() {
   }
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"

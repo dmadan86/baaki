@@ -17,6 +17,7 @@ import {
   Text,
   Toggle,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -33,6 +34,7 @@ import { groupLabel } from '@/data/types';
 
 export default function GroupSettingsScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -120,7 +122,7 @@ export default function GroupSettingsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"

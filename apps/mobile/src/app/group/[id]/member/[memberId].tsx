@@ -21,6 +21,7 @@ import {
   Text,
   TintCard,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { useGroup, useGroupLedger, useSetMemberRole, useUpdateMember } from '@/data/hooks';
@@ -31,6 +32,7 @@ import { useAuth } from '@/lib/auth';
 
 export default function MemberScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id, memberId } = useLocalSearchParams<{ id: string; memberId: string }>();
   const groupId = id ?? '';
@@ -89,7 +91,7 @@ export default function MemberScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"

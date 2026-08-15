@@ -18,6 +18,7 @@ import {
   Screen,
   Text,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
@@ -35,6 +36,7 @@ import { friendlyError } from '@/lib/errors';
 
 export default function MembersScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
@@ -166,7 +168,7 @@ export default function MembersScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"

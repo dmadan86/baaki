@@ -27,6 +27,7 @@ import {
   Screen,
   Text,
   useTheme,
+  useScreenClearance,
 } from '@baaki/ui';
 
 import { captureReceipt } from '@/lib/image';
@@ -76,6 +77,7 @@ interface DraftItem {
  */
 export default function ItemizeScreen() {
   const theme = useTheme();
+  const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id, receipt: receiptParam } = useLocalSearchParams<{ id: string; receipt?: string }>();
   const groupId = id ?? '';
@@ -398,11 +400,11 @@ export default function ItemizeScreen() {
   };
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xxxl,
+          paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
