@@ -17,7 +17,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { describeActivity, verbEmoji } from '@/data/activity';
+import { describeActivity, relativeTime, verbEmoji } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
 import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
@@ -175,25 +175,4 @@ export default function ActivityScreen() {
       </ScrollView>
     </Screen>
   );
-}
-
-/**
- * "19m ago", "yesterday" — a localized relative time for a timeline entry.
- *
- * Intl.RelativeTimeFormat does the wording and the plural in every locale, and
- * `numeric: 'auto'` is what turns "1 day ago" into "yesterday". The unit is the
- * largest that leaves a count of at least one, so a three-hour-old event reads
- * in hours, not 180 minutes.
- */
-function relativeTime(locale: string, iso: string): string {
-  const seconds = Math.round((Date.parse(iso) - Date.now()) / 1000);
-  const abs = Math.abs(seconds);
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  if (abs < 60) return rtf.format(Math.round(seconds), 'second');
-  if (abs < 3600) return rtf.format(Math.round(seconds / 60), 'minute');
-  if (abs < 86400) return rtf.format(Math.round(seconds / 3600), 'hour');
-  if (abs < 604800) return rtf.format(Math.round(seconds / 86400), 'day');
-  if (abs < 2629800) return rtf.format(Math.round(seconds / 604800), 'week');
-  if (abs < 31557600) return rtf.format(Math.round(seconds / 2629800), 'month');
-  return rtf.format(Math.round(seconds / 31557600), 'year');
 }

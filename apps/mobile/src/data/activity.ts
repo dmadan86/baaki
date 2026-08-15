@@ -102,3 +102,46 @@ export function verbEmoji(verb: string): string {
       return '•';
   }
 }
+
+/**
+ * "19m ago", "yesterday" — a localized relative time for a timeline entry.
+ *
+ * `Intl.RelativeTimeFormat` does the wording and the plural in every locale, and
+ * `numeric: 'auto'` is what turns "1 day ago" into "yesterday". The unit is the
+ * largest that leaves a count of at least one, so a three-hour-old event reads
+ * in hours, not 180 minutes.
+ *
+ * Android's Hermes ships `Intl.DateTimeFormat`/`NumberFormat` but not always
+ * `RelativeTimeFormat` — reaching for it there is a constructor on `undefined`,
+ * which took the whole Activity screen down. So it is feature-detected, and when
+ * it is missing the entry falls back to a short absolute date/time, which Hermes
+ * always has. Degraded wording, never a crash.
+ *
+ * `now` is injectable so the two branches are testable without a live clock.
+ */
+export function relativeTime(locale: string, iso: string, now: number = Date.now()): string {
+  const seconds = Math.round((Date.parse(iso) - now) / 1000);
+  const abs = Math.abs(seconds);
+
+  const RTF = Intl.RelativeTimeFormat as typeof Intl.RelativeTimeFormat | undefined;
+  if (typeof RTF === 'function') {
+    const rtf = new RTF(locale, { numeric: 'auto' });
+    if (abs < 60) return rtf.format(Math.round(seconds), 'second');
+    if (abs < 3600) return rtf.format(Math.round(seconds / 60), 'minute');
+    if (abs < 86400) return rtf.format(Math.round(seconds / 3600), 'hour');
+    if (abs < 604800) return rtf.format(Math.round(seconds / 86400), 'day');
+    if (abs < 2629800) return rtf.format(Math.round(seconds / 604800), 'week');
+    if (abs < 31557600) return rtf.format(Math.round(seconds / 2629800), 'month');
+    return rtf.format(Math.round(seconds / 31557600), 'year');
+  }
+
+  // Fallback: a short absolute stamp. Same-year events drop the year.
+  const withinYear = abs < 31557600;
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    ...(withinYear ? {} : { year: 'numeric' }),
+    hour: withinYear ? 'numeric' : undefined,
+    minute: withinYear ? '2-digit' : undefined,
+  }).format(new Date(Date.parse(iso)));
+}
