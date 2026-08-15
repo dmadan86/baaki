@@ -37,10 +37,10 @@ CREATE TABLE "ghost_merges" (
 
     CONSTRAINT "ghost_merges_pkey" PRIMARY KEY ("owner", "member_id"),
     CONSTRAINT "ghost_merges_owner_fkey"
-      FOREIGN KEY ("owner") REFERENCES "profiles"("id") ON DELETE CASCADE,
+      FOREIGN KEY ("owner") REFERENCES "profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     -- A ghost that leaves for good takes its merge row with it.
     CONSTRAINT "ghost_merges_member_id_fkey"
-      FOREIGN KEY ("member_id") REFERENCES "group_members"("id") ON DELETE CASCADE
+      FOREIGN KEY ("member_id") REFERENCES "group_members"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- The view groups by `person_id`, so that is the hot lookup.
