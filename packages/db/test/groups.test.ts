@@ -144,3 +144,97 @@ describe('group photos', () => {
     }
   });
 });
+
+/**
+ * A group photo is a paid feature (ADR-011 addendum, TDR A39). The client asks
+ * `baaki_can_upload_group_photo` to pick the picker vs the icon, but the gate is
+ * enforced server-side (20260815180000) so a member cannot bypass the UI with a
+ * direct write. These pin the enforcement, not the suggestion.
+ */
+describe('the group-photo paid gate', () => {
+  async function makePaid(profileId: string): Promise<void> {
+    // A lifetime purchase — active with no period end, so it never lapses.
+    await client.query(
+      `INSERT INTO subscriptions (profile_id, period, status, store, current_period_end)
+       VALUES ($1, 'lifetime', 'active', 'test', NULL)`,
+      [profileId],
+    );
+  }
+
+  it('will not let a client read another profile’s paid status directly', async () => {
+    // baaki_profile_is_paid reads `subscriptions`, which RLS hides. It is a
+    // SECURITY DEFINER helper for the wrapper only; a client that could call it
+    // on any uuid would have an oracle for who pays.
+    const profileId = await createProfile('Asha');
+    const message = await asUser(profileId, () =>
+      expectDenied(client.query(`SELECT baaki_profile_is_paid($1)`, [profileId])),
+    );
+    expect(message).toMatch(/permission denied/i);
+  });
+
+  it('answers the new-group question from the caller’s own plan', async () => {
+    const free = await createProfile('Free');
+    const paid = await createProfile('Paid');
+    await makePaid(paid);
+
+    // p_group_id NULL = "a group I am about to create": gate on me alone.
+    expect(await asUser(free, async () => canUpload(null))).toBe(false);
+    expect(await asUser(paid, async () => canUpload(null))).toBe(true);
+  });
+
+  it('refuses a direct photo_path write when nobody in the group pays', async () => {
+    const profileId = await createProfile('Asha');
+    const groupId = await createGroup(profileId);
+
+    // The UI would never offer this, but a raw PATCH under the caller's JWT must
+    // still be refused — the gate is a boundary, not a hint.
+    const message = await asUser(profileId, () =>
+      expectDenied(
+        client.query(`UPDATE groups SET photo_path = $2 WHERE id = $1`, [
+          groupId,
+          `${groupId}/cover.jpg`,
+        ]),
+      ),
+    );
+    expect(message).toMatch(/PHOTO_GATE/);
+  });
+
+  it('allows the photo_path write once a member pays', async () => {
+    const profileId = await createProfile('Asha');
+    const groupId = await createGroup(profileId);
+    await makePaid(profileId);
+
+    await asUser(profileId, () =>
+      client.query(`UPDATE groups SET photo_path = $2 WHERE id = $1`, [
+        groupId,
+        `${groupId}/cover.jpg`,
+      ]),
+    );
+    expect((await readGroup(groupId)).photo_path).toBe(`${groupId}/cover.jpg`);
+  });
+
+  it('never gates clearing a photo — losing a paying member falls back to an icon', async () => {
+    const profileId = await createProfile('Asha');
+    const groupId = await createGroup(profileId);
+    // Seed a photo through the definer create path, then let an unpaid member
+    // remove it: clearing to NULL must always work.
+    await makePaid(profileId);
+    await asUser(profileId, () =>
+      client.query(`UPDATE groups SET photo_path = $2 WHERE id = $1`, [
+        groupId,
+        `${groupId}/cover.jpg`,
+      ]),
+    );
+    await client.query(`DELETE FROM subscriptions WHERE profile_id = $1`, [profileId]);
+
+    await asUser(profileId, () =>
+      client.query(`UPDATE groups SET photo_path = NULL WHERE id = $1`, [groupId]),
+    );
+    expect((await readGroup(groupId)).photo_path).toBeNull();
+  });
+});
+
+async function canUpload(groupId: string | null): Promise<boolean> {
+  const { rows } = await client.query(`SELECT baaki_can_upload_group_photo($1) AS ok`, [groupId]);
+  return rows[0]?.ok === true;
+}
