@@ -641,6 +641,24 @@ export interface UiStrings {
     inviteBody: string;
     inviteCta: string;
   };
+  /** Merging same-person guests into one on the Friends screen (irreversible). */
+  mergePeople: {
+    entry: string;
+    title: string;
+    subtitle: string;
+    empty: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    warningTitle: string;
+    warningBody: string;
+    cta: string;
+    selected: PluralForms;
+    merged: string;
+    errorTooFew: string;
+    errorNotMergeable: string;
+    errorNameRequired: string;
+    errorGeneric: string;
+  };
   /** The inbox — the record of what Baaki said, whether or not push arrived. */
   inbox: {
     title: string;
@@ -1746,6 +1764,25 @@ const en: UiStrings = {
     inviteTitle: 'Settle up together',
     inviteBody: 'Add the people you share costs with and keep everyone square.',
     inviteCta: 'Add a person',
+  },
+  mergePeople: {
+    entry: 'Merge people',
+    title: 'Merge people',
+    subtitle:
+      'Pick the guests who are the same person. Their balances are combined under one name.',
+    empty: 'No guests to merge — only people without a Baaki account can be merged.',
+    nameLabel: 'Name for the merged person',
+    namePlaceholder: 'e.g. Ravi',
+    warningTitle: 'This can’t be undone',
+    warningBody:
+      'Their separate balances are combined into one person for good. There’s no way to split them back apart.',
+    cta: 'Merge',
+    selected: { one: '{n} person selected', other: '{n} people selected' },
+    merged: 'Merged into {name}',
+    errorTooFew: 'Pick at least two people to merge.',
+    errorNotMergeable: 'You can only merge guests you share a group with.',
+    errorNameRequired: 'Give the merged person a name.',
+    errorGeneric: 'Could not merge. Please try again.',
   },
   inbox: {
     title: 'Inbox',
@@ -2930,6 +2967,28 @@ const ta: UiStrings = {
     inviteTitle: 'சேர்ந்து கணக்கு தீர்க்கலாம்',
     inviteBody: 'செலவுகளைப் பகிர்பவர்களைச் சேர்த்து அனைவரையும் சரிசெய்யுங்கள்.',
     inviteCta: 'ஒருவரைச் சேர்',
+  },
+  mergePeople: {
+    entry: 'நபர்களை இணை',
+    title: 'நபர்களை இணை',
+    subtitle:
+      'ஒரே நபராக இருக்கும் விருந்தினர்களைத் தேர்ந்தெடுக்கவும். அவர்களின் இருப்புகள் ஒரே பெயரின் கீழ் இணைக்கப்படும்.',
+    empty: 'இணைக்க விருந்தினர்கள் இல்லை — Baaki கணக்கு இல்லாதவர்களை மட்டுமே இணைக்க முடியும்.',
+    nameLabel: 'இணைந்த நபருக்கான பெயர்',
+    namePlaceholder: 'எ.கா. ரவி',
+    warningTitle: 'இதை மீட்டெடுக்க முடியாது',
+    warningBody:
+      'அவர்களின் தனித்தனி இருப்புகள் நிரந்தரமாக ஒரே நபராக இணைக்கப்படும். மீண்டும் பிரிக்க வழி இல்லை.',
+    cta: 'இணை',
+    selected: {
+      one: '{n} நபர் தேர்ந்தெடுக்கப்பட்டார்',
+      other: '{n} நபர்கள் தேர்ந்தெடுக்கப்பட்டனர்',
+    },
+    merged: '{name} ஆக இணைக்கப்பட்டது',
+    errorTooFew: 'இணைக்க குறைந்தது இரண்டு நபர்களைத் தேர்ந்தெடுக்கவும்.',
+    errorNotMergeable: 'நீங்கள் பகிரும் குழுவில் உள்ள விருந்தினர்களை மட்டுமே இணைக்க முடியும்.',
+    errorNameRequired: 'இணைந்த நபருக்கு ஒரு பெயரைக் கொடுக்கவும்.',
+    errorGeneric: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   },
   inbox: {
     title: 'அஞ்சல் பெட்டி',
@@ -4117,6 +4176,27 @@ const hi: UiStrings = {
     inviteTitle: 'मिलकर हिसाब बराबर करें',
     inviteBody: 'जिनके साथ खर्च बाँटते हैं उन्हें जोड़ें और सबका हिसाब बराबर रखें.',
     inviteCta: 'व्यक्ति जोड़ें',
+  },
+  mergePeople: {
+    entry: 'लोगों को मर्ज करें',
+    title: 'लोगों को मर्ज करें',
+    subtitle:
+      'उन मेहमानों को चुनें जो एक ही व्यक्ति हैं। उनके बैलेंस एक नाम के तहत जोड़ दिए जाएँगे.',
+    empty:
+      'मर्ज करने के लिए कोई मेहमान नहीं — केवल बिना Baaki खाते वाले लोग ही मर्ज किए जा सकते हैं.',
+    nameLabel: 'मर्ज किए गए व्यक्ति का नाम',
+    namePlaceholder: 'जैसे रवि',
+    warningTitle: 'इसे पहले जैसा नहीं किया जा सकता',
+    warningBody:
+      'उनके अलग-अलग बैलेंस हमेशा के लिए एक व्यक्ति में जोड़ दिए जाते हैं। इन्हें वापस अलग करने का कोई तरीका नहीं है.',
+    cta: 'मर्ज करें',
+    selected: { one: '{n} व्यक्ति चुना गया', other: '{n} लोग चुने गए' },
+    merged: '{name} में मर्ज किया गया',
+    errorTooFew: 'मर्ज करने के लिए कम से कम दो लोग चुनें.',
+    errorNotMergeable:
+      'आप केवल उन मेहमानों को मर्ज कर सकते हैं जिनके साथ आप कोई समूह साझा करते हैं.',
+    errorNameRequired: 'मर्ज किए गए व्यक्ति को एक नाम दें.',
+    errorGeneric: 'मर्ज नहीं हो सका. कृपया फिर से प्रयास करें.',
   },
   inbox: {
     title: 'इनबॉक्स',
@@ -5311,6 +5391,23 @@ const ar: UiStrings = {
     inviteTitle: 'سوّوا الحساب معًا',
     inviteBody: 'أضف من تتشارك معهم النفقات وابقوا جميعًا على حساب متوازن.',
     inviteCta: 'إضافة شخص',
+  },
+  mergePeople: {
+    entry: 'دمج الأشخاص',
+    title: 'دمج الأشخاص',
+    subtitle: 'اختر الضيوف الذين هم الشخص نفسه. تُجمع أرصدتهم تحت اسم واحد.',
+    empty: 'لا يوجد ضيوف للدمج — يمكن دمج من ليس لديهم حساب Baaki فقط.',
+    nameLabel: 'اسم الشخص المدمج',
+    namePlaceholder: 'مثال: رافي',
+    warningTitle: 'لا يمكن التراجع عن هذا',
+    warningBody: 'تُجمع أرصدتهم المنفصلة في شخص واحد نهائيًا. لا توجد طريقة لفصلهم مرة أخرى.',
+    cta: 'دمج',
+    selected: { one: 'تم اختيار شخص واحد', other: 'تم اختيار {n} أشخاص' },
+    merged: 'تم الدمج في {name}',
+    errorTooFew: 'اختر شخصين على الأقل للدمج.',
+    errorNotMergeable: 'يمكنك دمج الضيوف الذين تشاركهم مجموعة فقط.',
+    errorNameRequired: 'أعطِ الشخص المدمج اسمًا.',
+    errorGeneric: 'تعذّر الدمج. يرجى المحاولة مرة أخرى.',
   },
   inbox: {
     title: 'صندوق الوارد',

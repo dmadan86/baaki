@@ -165,6 +165,7 @@ model Profile {
   syncMutations       SyncMutation[]
   memberClaims        MemberClaim[]
   deviceSessions      DeviceSession[]
+  ghostMerges         GhostMerge[]
 
   @@map("profiles")
   @@schema("public")
@@ -294,11 +295,35 @@ model GroupMember {
   claimsOnThisPlace MemberClaim[]      @relation("ClaimTarget")
   claimsDecided     MemberClaim[]      @relation("ClaimDecider")
   tripBudget        TripMemberBudget?
+  ghostMerges       GhostMerge[]
 
   @@unique([groupId, profileId])
   @@index([groupId])
   @@index([groupId, updatedSeq])
   @@map("group_members")
+  @@schema("public")
+}
+
+/// A ghost folded into a merged person, from one viewer's point of view
+/// (Friends screen). Private to `owner`; never edits the shared ledger — only
+/// changes which `person_key` a ghost rolls up under in `baaki_people_i_owe`,
+/// and only for the owner. `personId` is the shared identity across every ghost
+/// in one merge; `displayName` is the name the owner chose. See the
+/// `20260815160000_merge_ghosts` migration for why this is a safe, per-viewer
+/// claim rather than an irreversible ledger merge.
+model GhostMerge {
+  owner       String   @db.Uuid
+  memberId    String   @map("member_id") @db.Uuid
+  personId    String   @map("person_id") @db.Uuid
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ownerProfile Profile     @relation(fields: [owner], references: [id], onDelete: Cascade)
+  member       GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([owner, memberId])
+  @@index([owner, personId])
+  @@map("ghost_merges")
   @@schema("public")
 }
 

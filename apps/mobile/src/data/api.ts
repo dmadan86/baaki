@@ -1267,6 +1267,25 @@ export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
 }
 
 /**
+ * Fold a set of ghosts into one merged person for this viewer (Friends screen).
+ *
+ * A direct server RPC — the Friends balances are a server query, not the local
+ * mirror, so there is nothing to queue offline. The merge is per-viewer and
+ * never rewrites the ledger; see the `baaki_merge_ghosts` migration for the
+ * safety argument. `memberIds` must be at least two distinct ghosts you share a
+ * group with; `name` is the merged person's name. Throws with the RPC's own
+ * message so the caller can map it to something a person can read (see
+ * `mergeErrorMessage`).
+ */
+export async function mergeGhosts(memberIds: string[], name: string): Promise<void> {
+  const { error } = await supabase.rpc('baaki_merge_ghosts', {
+    p_member_ids: memberIds,
+    p_name: name,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/**
  * Tap somebody who owes you on the shoulder about it (ADR-010).
  *
  * The server does the deciding: it only sends when they genuinely owe you in
