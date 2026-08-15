@@ -13,7 +13,7 @@
  * dots are there for anyone who wants to count.
  */
 
-import { useRef, useState } from 'react';
+import { type ComponentRef, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   Pressable,
@@ -55,7 +55,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const { animated } = useMotion();
   const { t } = useStrings();
   const { width, height } = useWindowDimensions();
-  const scroller = useRef<ScrollView>(null);
+  // RN 0.87 makes ScrollView a function component; its ref instance is
+  // ScrollViewInstance, not the component type. ComponentRef reads that off the
+  // component and stays correct across the 0.86/0.87 change.
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const [index, setIndex] = useState(0);
   const rtl = isRtlLayout();
   const placed = useRef(false);
