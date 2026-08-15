@@ -159,7 +159,11 @@ export default function FriendsScreen() {
               hitSlop={10}
               style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
             >
-              <Ionicons name="person-add-outline" size={iconSize.xl} color={theme.color.text} />
+              {/* Optically one step down: Ionicons draws `person-add-outline`'s
+                  single figure larger in its viewbox than `people-outline` and
+                  the three-dot, so at an equal nominal size it reads bigger.
+                  lg here makes the three header icons appear the same size. */}
+              <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.text} />
             </Pressable>
             {/* Pull people from the phone's address book — icon only, no button
                 chrome, so the header reads as a title row not a toolbar. */}
