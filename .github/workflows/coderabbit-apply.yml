@@ -1,0 +1,140 @@
+name: CodeRabbit auto-apply
+
+# When CodeRabbit finishes reviewing a pull request — or a maintainer types
+# `/coderabbit-apply` on one — Claude reads its comments, verifies each against
+# the CURRENT code, applies the valid ones with the smallest change, and pushes
+# the fixes straight to the PR branch. Invalid, stale, or nitpick suggestions
+# are skipped with a reason printed in the run log.
+#
+# Auto-commit mode (chosen deliberately): commits land on the branch without a
+# further human gate, so the blast radius is kept small on purpose —
+#   * it acts ONLY on CodeRabbit's own comments, never invents work;
+#   * it is told to treat every comment as untrusted review data;
+#   * it never touches CI, secrets, or workflow files (see apply-prompt.md);
+#   * it never force-pushes, and a run that changes nothing commits nothing, so
+#     a re-review with no new actionable comment terminates instead of looping.
+#
+# Secrets:
+#   ANTHROPIC_API_KEY  (required) — the key Claude runs under.
+#   APPLY_TOKEN        (optional) — a PAT used to check out and push. Supply it
+#                      so the applied commit re-triggers CI and a fresh
+#                      CodeRabbit pass; without it the built-in GITHUB_TOKEN is
+#                      used, and GitHub will not start new workflow runs for a
+#                      commit that token pushed (so CI validates on the next
+#                      human push instead).
+#
+# Fork PRs are skipped: the token cannot write to a fork's branch, and applying
+# code to a fork from the base repo is not a thing this should do.
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to apply CodeRabbit comments on
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: coderabbit-apply-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    # Run for: a manual dispatch; a CodeRabbit review that is not a plain
+    # approval; or a maintainer comment carrying the command. Never for forks.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_review' &&
+        github.event.review.user.login == 'coderabbitai[bot]' &&
+        github.event.review.state != 'approved' &&
+        github.event.pull_request.head.repo.fork == false) ||
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '/coderabbit-apply'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve PR number
+        id: pr
+        run: |
+          NUM="${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr }}"
+          echo "number=$NUM" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Check out the PR branch
+        env:
+          GH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
+        run: gh pr checkout ${{ steps.pr.outputs.number }}
+
+      - name: Refuse to run on a fork branch
+        env:
+          GH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          IS_FORK=$(gh pr view ${{ steps.pr.outputs.number }} --json isCrossRepository --jq .isCrossRepository)
+          if [ "$IS_FORK" = "true" ]; then
+            echo "PR is from a fork; the token cannot push to it. Skipping."
+            exit 78
+          fi
+
+      - name: Gather CodeRabbit comments
+        env:
+          GH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/gather-coderabbit.sh ${{ steps.pr.outputs.number }} > coderabbit-comments.md
+
+      - name: Anything to do?
+        id: check
+        run: |
+          if grep -q '^- ' coderabbit-comments.md; then
+            echo "has_comments=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_comments=false" >> "$GITHUB_OUTPUT"
+            echo "No actionable CodeRabbit comments found; nothing to apply."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.has_comments == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Claude Code
+        if: steps.check.outputs.has_comments == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Verify and apply the valid comments
+        if: steps.check.outputs.has_comments == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PROMPT="$(cat .github/scripts/apply-prompt.md)
+
+          $(cat coderabbit-comments.md)"
+          claude -p "$PROMPT" \
+            --model claude-opus-4-8 \
+            --allowedTools "Read,Edit,Write,Grep,Glob,Bash" \
+            --dangerously-skip-permissions
+
+      - name: Commit and push what was applied
+        if: steps.check.outputs.has_comments == 'true'
+        run: |
+          # Never let the agent hand us a workflow or secret change.
+          git checkout -- .github/workflows .github/scripts 2>/dev/null || true
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes — every comment was already addressed or judged invalid."
+            exit 0
+          fi
+          git config user.name "coderabbit-apply[bot]"
+          git config user.email "coderabbit-apply[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: apply valid CodeRabbit review comments" \
+            -m "Applied by the CodeRabbit auto-apply agent (.github/workflows/coderabbit-apply.yml). Invalid or stale suggestions were skipped; see the run log for the reasoning."
+          git push
