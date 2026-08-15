@@ -229,30 +229,68 @@ export function PeopleSkeleton() {
 }
 
 /**
- * The activity tab: a day heading and a few full-width entry cards, the shape
- * of the real feed. Shown in place of it while the first page loads, so the
- * cold screen is not the "nothing yet" empty state — which is a verdict the
- * query has not returned yet, not the answer.
+ * The activity tab: the vertical timeline — a tinted node on a connector line
+ * running down the left, the sentence and its amount beside it, the relative
+ * time beneath. Shaped to the real feed to the pixel so the swap is a fill, not
+ * a jump: an earlier version drew day headings over full-width rounded cards, a
+ * layout the feed no longer has, so the whole shape lurched when the timeline
+ * arrived. The rail node, the 2px connector, the `md` gap to the text and the
+ * `xl` drop between rows all match `ActivityScreen`'s timeline. Shown in place
+ * of the "nothing yet" empty state, which is a verdict the query has not
+ * returned yet.
  */
-export function FeedSkeleton() {
+export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
   const theme = useTheme();
   const { animated } = useMotion();
   return (
-    <LoadingRegion style={{ gap: theme.spacing.xl }}>
-      {[0, 1].map((section) => (
-        <View key={section} style={{ gap: theme.spacing.md }}>
-          <Skeleton width="35%" height={16} animated={animated} />
-          {[0, 1, 2].map((card) => (
-            <Skeleton
-              key={card}
-              width="100%"
-              height={72}
-              radius={theme.radius.lg}
-              animated={animated}
-            />
-          ))}
-        </View>
-      ))}
+    <LoadingRegion>
+      {Array.from({ length: rows }, (_, index) => {
+        const isLast = index === rows - 1;
+        return (
+          <Row key={index} style={{ alignItems: 'stretch' }}>
+            {/* The rail: the node circle, then the connector running down to the
+                next node — dropped on the last row so it stops, not dangles. */}
+            <View style={{ width: 38, alignItems: 'center' }}>
+              <Skeleton width={38} height={38} radius={theme.radius.pill} animated={animated} />
+              {!isLast ? (
+                <View
+                  style={{
+                    flex: 1,
+                    width: 2,
+                    marginVertical: 2,
+                    backgroundColor: theme.color.border,
+                  }}
+                />
+              ) : null}
+            </View>
+
+            <View
+              style={{
+                flex: 1,
+                paddingStart: theme.spacing.md,
+                paddingBottom: isLast ? 0 : theme.spacing.xl,
+              }}
+            >
+              <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
+                {/* Two lines standing in for the wrapped sentence, and the
+                    amount that rides at its end. */}
+                <View style={{ flex: 1, gap: theme.spacing.sm }}>
+                  <Skeleton width="92%" height={15} animated={animated} />
+                  <Skeleton width="58%" height={15} animated={animated} />
+                </View>
+                <Skeleton width={56} height={16} animated={animated} />
+              </Row>
+              {/* The relative time, at its 11px height and the same 2px drop. */}
+              <Skeleton
+                width="26%"
+                height={11}
+                animated={animated}
+                style={{ marginTop: 2 }}
+              />
+            </View>
+          </Row>
+        );
+      })}
     </LoadingRegion>
   );
 }
