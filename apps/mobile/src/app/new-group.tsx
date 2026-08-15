@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQuery } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -26,7 +27,13 @@ import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { pickGroupPhoto, type PickedImage } from '@/lib/image';
-import { uploadGroupPhoto } from '@/data/api';
+import {
+  photoGateParam,
+  photoGateStatus,
+  photoTapAction,
+  shouldClearPickedPhoto,
+} from '@/lib/groupPhotoGate';
+import { canUploadGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import { useCreateGroup } from '@/data/hooks';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
@@ -81,6 +88,24 @@ export default function NewGroupScreen() {
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState<PickedImage | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // A group photo is a paid feature; a cover emoji is free. A new group has only
+  // its creator, so the server gates on whether the creator is paid (null group).
+  const photoGate = useQuery({
+    queryKey: ['photoGate', null],
+    queryFn: () => canUploadGroupPhoto(photoGateParam(null)),
+  });
+  const photoStatus = photoGateStatus(photoGate.data, photoGate.isLoading);
+  // If the gate resolves locked after a photo was somehow chosen, ignore it — a
+  // locked group falls back to its icon, and this photo could never upload.
+  // Derived, not stored, so there is no setState-in-effect and no stale flash.
+  const effectivePhoto = shouldClearPickedPhoto(photoStatus, photo !== null) ? null : photo;
+
+  const onPhotoPress = (): void => {
+    const action = photoTapAction(photoStatus);
+    if (action === 'pick') void pickGroupPhoto().then(setPhoto);
+    else if (action === 'showLockedHint') router.push('/settings/upgrade');
+  };
   const [type, setType] = useState<GroupType>(GroupType.Trip);
   const [ghostName, setGhostName] = useState('');
   // People to add on Create — a typed name carries no address, a contact carries
@@ -167,11 +192,15 @@ export default function NewGroupScreen() {
       // "members of this group only" — which needs the group and the membership
       // row actually on the server. Flush the queued create (and everything
       // behind it) before writing an object under its id.
-      if (photo) {
+      if (effectivePhoto) {
         setUploading(true);
         try {
           await flush([groupId]);
-          await uploadGroupPhoto({ groupId, base64: photo.base64, mimeType: photo.mimeType });
+          await uploadGroupPhoto({
+            groupId,
+            base64: effectivePhoto.base64,
+            mimeType: effectivePhoto.mimeType,
+          });
         } catch {
           // A photo that would not upload is not worth losing the group over;
           // it can be added again from group settings.
@@ -241,10 +270,10 @@ export default function NewGroupScreen() {
           <Row style={{ gap: theme.spacing.lg }}>
             <GroupPhoto
               photoPath={null}
-              localUri={photo?.uri ?? null}
+              localUri={effectivePhoto?.uri ?? null}
               emoji={emoji}
               size={72}
-              onPress={() => void pickGroupPhoto().then(setPhoto)}
+              onPress={onPhotoPress}
             />
             <View style={{ flex: 1, gap: theme.spacing.xs }}>
               <InfoDisclosure
@@ -270,6 +299,13 @@ export default function NewGroupScreen() {
                   already shown large on the avatar beside it, so this only needs
                   to be a way in, not a billboard. */}
               <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
+              {/* Photos are a paid feature; the icon above is always free. Said
+                  quietly here rather than as a wall in front of the tap. */}
+              {photoStatus === 'locked' ? (
+                <Text variant="micro" tone="muted">
+                  {t.groupPhoto.paidHint}
+                </Text>
+              ) : null}
             </View>
           </Row>
         </Card>

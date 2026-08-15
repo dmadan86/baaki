@@ -341,6 +341,24 @@ export async function removeGroupPhoto(groupId: string, path: string | null): Pr
   if (error) throw new Error(error.message);
 }
 
+/**
+ * May a real photo be set on this group — or, with no group yet, on the group
+ * the caller is about to create? A group photo is a paid feature; a cover emoji
+ * stays free. True when anyone in the group is paid (or the group holds a pass);
+ * for a new group that is just "is the creator paid".
+ *
+ * Answered by a SECURITY DEFINER RPC because a member cannot read another
+ * member's subscription under RLS — the server returns only the boolean, never
+ * whose subscription it was. Pass `null` for the new-group case.
+ */
+export async function canUploadGroupPhoto(groupId: string | null): Promise<boolean> {
+  const { data, error } = await supabase.rpc('baaki_can_upload_group_photo', {
+    p_group_id: groupId,
+  });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
 /** The bucket accepts three types; anything else is stored as JPEG. */
 function normaliseImageMime(mimeType: string | null | undefined): string {
   if (mimeType === 'image/png' || mimeType === 'image/webp') return mimeType;
