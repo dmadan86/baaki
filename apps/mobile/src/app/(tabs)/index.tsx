@@ -657,6 +657,32 @@ function HeroSkeleton() {
  * the reference design leans on, and a call to action beneath the copy. The whole
  * card is the tap target.
  */
+/**
+ * The faint oversized icon bled off a hero card's bottom-right corner — the
+ * "illustration" every slide in the deck carries, so the balance, trip and
+ * action cards all read as one family rather than some plain and some drawn on.
+ * The card's `Gradient` must set `overflow: 'hidden'` so the bleed clips to the
+ * rounded corner. `pointerEvents none` so it never eats the card's own tap.
+ */
+function HeroBackdropIcon({ name }: { name: keyof typeof Ionicons.glyphMap }) {
+  const theme = useTheme();
+  return (
+    <Ionicons
+      name={name}
+      size={140}
+      color={theme.color.onBrand}
+      accessible={false}
+      style={{
+        position: 'absolute',
+        right: -20,
+        bottom: -28,
+        opacity: 0.16,
+        pointerEvents: 'none',
+      }}
+    />
+  );
+}
+
 function ActionSlide({
   icon,
   title,
@@ -686,21 +712,7 @@ function ActionSlide({
           overflow: 'hidden',
         }}
       >
-        {/* The illustration stand-in: an oversized, faint copy of the action's
-            own icon, bled off the bottom-right corner. `pointerEvents none` so it
-            never eats the card's own tap. */}
-        <Ionicons
-          name={icon}
-          size={140}
-          color={theme.color.onBrand}
-          style={{
-            position: 'absolute',
-            right: -20,
-            bottom: -28,
-            opacity: 0.16,
-            pointerEvents: 'none',
-          }}
-        />
+        <HeroBackdropIcon name={icon} />
         <View style={{ gap: theme.spacing.xs, paddingRight: 88 }}>
           <Text variant="subheading" tone="onBrand">
             {title}
@@ -743,8 +755,10 @@ function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: strin
         gap: theme.spacing.lg,
         height: HERO_CARD_HEIGHT,
         justifyContent: 'space-between',
+        overflow: 'hidden',
       }}
     >
+      <HeroBackdropIcon name="wallet-outline" />
       <Row style={{ justifyContent: 'space-between' }}>
         <Text variant="caption" tone="onBrand">
           {t.yourBaaki}
@@ -817,8 +831,10 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
           gap: theme.spacing.lg,
           height: HERO_CARD_HEIGHT,
           justifyContent: 'space-between',
+          overflow: 'hidden',
         }}
       >
+        <HeroBackdropIcon name="airplane-outline" />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row style={{ gap: theme.spacing.sm, alignItems: 'center', flex: 1 }}>
             <Text variant="subheading">{trip.coverEmoji ?? '🧳'}</Text>
