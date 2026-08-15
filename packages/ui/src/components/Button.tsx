@@ -14,9 +14,14 @@ import { Text } from './Text';
  * cannot be mistaken for the secondary button beside it, and it borrows the
  * semantic negative colour deliberately: in this app red already means money
  * leaving, and a destructive action is the same warning in a different place.
+ *
+ * `ghostDanger` is the quieter cousin: a chromeless button (like `ghost`) but
+ * with a red label, for the leave-and-archive kind of action that reads as a
+ * warning without shouting like a filled block — it sits at the foot of a
+ * settings screen, not in the main flow.
  */
 export type ButtonVariant =
-  'primary' | 'secondary' | 'ghost' | 'onBrand' | 'onBrandOutline' | 'danger';
+  'primary' | 'secondary' | 'ghost' | 'ghostDanger' | 'onBrand' | 'onBrandOutline' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
@@ -93,7 +98,9 @@ export function Button({
         tone={
           variant === 'primary' || variant === 'onBrandOutline' || variant === 'danger'
             ? 'onBrand'
-            : 'brand'
+            : variant === 'ghostDanger'
+              ? 'negative'
+              : 'brand'
         }
       >
         {label}
