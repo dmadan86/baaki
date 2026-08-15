@@ -100,6 +100,14 @@ export default function FriendsScreen() {
   });
   const rows = people.data ?? [];
 
+  // The merge entry earns its place in the header only once there are two or
+  // more guests to merge — for everyone else it would be a control that leads to
+  // an empty screen. Counted by distinct person, so a guest unsettled in two
+  // currencies is one, not two.
+  const mergeableGuestCount = new Set(
+    rows.filter((row) => row.is_ghost).map((row) => row.person_key),
+  ).size;
+
   // The sort the whole list obeys. Tapping a key in the menu switches to it;
   // tapping the key already chosen flips its direction — amount and recent
   // activity open biggest/newest first, name A→Z, and either can be reversed.
@@ -150,6 +158,19 @@ export default function FriendsScreen() {
             <Text variant="title">{t.friends}</Text>
           </Row>
           <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+            {/* Merge same-person guests into one — only once there are at least
+                two guests to merge, so the control never leads to a dead end. */}
+            {mergeableGuestCount >= 2 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.mergePeople.entry}
+                onPress={() => router.push('/friends/merge' as never)}
+                hitSlop={10}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+              >
+                <Ionicons name="git-merge-outline" size={iconSize.xl} color={theme.color.text} />
+              </Pressable>
+            ) : null}
             {/* Add somebody who is not in your contacts — just a name and the
                 amount between you. A person icon, bare like the rest of the row. */}
             <Pressable

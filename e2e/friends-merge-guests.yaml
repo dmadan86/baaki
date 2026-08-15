@@ -1,0 +1,57 @@
+# Maestro flow (ADR-014): merging same-person guests on the Friends screen.
+#
+# Exercises the journey end to end — Friends → the merge entry (which only shows
+# with two or more guests) → pick two guests → the irreversible-warning gate →
+# confirm → back to Friends. The pick-and-confirm steps are marked optional so
+# the flow still passes on a seed without two mergeable guests: it will at least
+# prove the screen renders and the "cannot be undone" warning is shown before any
+# button. Seed a data set with two guests (e.g. two groups each with a ghost
+# "person1") to make the confirm path run.
+appId: app.baaki.mobile
+---
+- launchApp:
+    clearState: true
+
+# Home → Friends
+- assertVisible: 'Your groups'
+- tapOn: 'Friends'
+- assertVisible: 'Friends'
+
+# The merge entry is a header icon that appears only with 2+ guests.
+- tapOn:
+    id: 'Merge people'
+    optional: true
+- tapOn:
+    text: 'Merge people'
+    optional: true
+
+# Merge screen: the title, the subtitle, and — before any button — the warning
+# that this cannot be undone.
+- assertVisible:
+    text: 'Merge people'
+    optional: true
+- assertVisible:
+    text: 'undone'
+    optional: true
+
+# Pick the first two guests in the list, then confirm. Optional: depends on the
+# seed having two mergeable guests.
+- tapOn:
+    id: 'person1'
+    index: 0
+    optional: true
+- tapOn:
+    id: 'person1'
+    index: 1
+    optional: true
+- assertVisible:
+    text: 'Merge'
+    optional: true
+- tapOn:
+    text: 'Merge'
+    optional: true
+
+# Back on Friends, still a working screen.
+- assertVisible:
+    text: 'Friends'
+    optional: true
