@@ -271,7 +271,7 @@ export default function HomeScreen() {
         {/* The balance, one card per currency — there is no total across them
             (ADR-004), so several currencies read as several cards you swipe
             rather than one sum that would be a lie. */}
-        <BalanceCarousel
+        <HeroCarousel
           trips={activeTrips}
           totals={summary.totals.length > 0 ? summary.totals : [headline]}
           locale={locale}
@@ -471,15 +471,26 @@ function todayIn(timeZone: string): string {
   }
 }
 
+/** The shared minimum height for every hero slide, so the balance, trip and
+    action cards line up at the same bottom edge in the swipe deck instead of
+    each sizing to its own content. */
+const HERO_MIN_HEIGHT = 176;
+
 /**
- * The balance as a swipeable deck. Any trip running today rides at the front —
- * it is the most "now" thing on the dashboard — then one card per currency,
- * because a total across currencies is a number that does not exist (ADR-004).
- * A single card shows bare; two or more get a pager with a dot each, the live
- * one stretched into a pill. Dots count slides, not currencies — the trip card
- * is a slide like any other.
+ * The dashboard hero: a swipeable deck of cards with a peek of the next one at
+ * the right edge and a dot pager beneath (the live dot stretched into a pill),
+ * modelled on the podcast-style featured carousel. Any trip running today rides
+ * at the front — the most "now" thing on the dashboard — then one card per
+ * currency (a total across currencies is a number that does not exist, ADR-004),
+ * then the action slides (scan a receipt, add a person) that turn the empty
+ * right of the deck into a shortcut instead of dead space.
+ *
+ * Unlike a bare card, the deck always shows its dots — the peek and the pager
+ * are the two signals that say "swipe me", so they stay even when there is a
+ * single slide (a fresh account with one currency and no trip). The peek is
+ * dropped to zero in that lone case so a single card still fills the width.
  */
-function BalanceCarousel({
+function HeroCarousel({
   trips,
   totals,
   locale,
@@ -492,7 +503,6 @@ function BalanceCarousel({
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
-  const cardWidth = width - theme.spacing.xl * 2;
   const [page, setPage] = useState(0);
 
   const slides = [
@@ -504,23 +514,58 @@ function BalanceCarousel({
       key: `cur:${total.currency}`,
       node: <BalanceCard total={total} locale={locale} t={t} />,
     })),
+    {
+      key: 'act:scan',
+      node: (
+        <ActionSlide
+          icon="scan-outline"
+          title={t.dashHero.scanTitle}
+          body={t.dashHero.scanBody}
+          cta={t.dashHero.scanCta}
+          colors={theme.gradient.brand}
+          onPress={() => router.push('/capture?scan=1')}
+        />
+      ),
+    },
+    {
+      key: 'act:invite',
+      node: (
+        <ActionSlide
+          icon="person-add-outline"
+          title={t.dashHero.inviteTitle}
+          body={t.dashHero.inviteBody}
+          cta={t.dashHero.inviteCta}
+          colors={theme.gradient.accent}
+          onPress={() => router.push('/friends/add-person')}
+        />
+      ),
+    },
   ];
 
-  const only = slides[0];
-  if (!only) return null;
-  if (slides.length === 1) {
-    return only.node;
-  }
+  // The deck sits inside the screen's `spacing.xl` gutter. A card is that inner
+  // width less a sliver, so the next card's edge shows through on the right; the
+  // sliver collapses to nothing when there is only one slide to swipe to.
+  const available = width - theme.spacing.xl * 2;
+  const gap = theme.spacing.md;
+  const peek = slides.length > 1 ? theme.spacing.xxl + theme.spacing.xs : 0;
+  const cardWidth = available - peek;
+  // Snap card-to-card; the trailing pad lets the last card reach its own snap
+  // point instead of stopping a peek short of the edge.
+  const snap = cardWidth + gap;
 
   return (
     <View style={{ gap: theme.spacing.md }}>
       <ScrollView
         horizontal
-        pagingEnabled
         showsHorizontalScrollIndicator={false}
+        snapToInterval={snap}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
         scrollEventThrottle={16}
+        contentContainerStyle={{ gap, paddingRight: peek }}
         onMomentumScrollEnd={(event) =>
-          setPage(Math.round(event.nativeEvent.contentOffset.x / cardWidth))
+          setPage(Math.round(event.nativeEvent.contentOffset.x / snap))
         }
       >
         {slides.map((slide) => (
@@ -544,6 +589,76 @@ function BalanceCarousel({
         ))}
       </Row>
     </View>
+  );
+}
+
+/**
+ * A hero action card — the promo-style slide that rides at the tail of the deck.
+ * It wears the same gradient wash as the balance cards so the deck reads as one
+ * family, with an oversized icon bled into the bottom-right as the "illustration"
+ * the reference design leans on, and a call to action beneath the copy. The whole
+ * card is the tap target.
+ */
+function ActionSlide({
+  icon,
+  title,
+  body,
+  cta,
+  colors,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  body: string;
+  cta: string;
+  colors: readonly string[];
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+      <Gradient
+        colors={colors}
+        radius={theme.radius.lg}
+        style={{
+          padding: theme.spacing.xl,
+          minHeight: HERO_MIN_HEIGHT,
+          justifyContent: 'space-between',
+          gap: theme.spacing.lg,
+          overflow: 'hidden',
+        }}
+      >
+        {/* The illustration stand-in: an oversized, faint copy of the action's
+            own icon, bled off the bottom-right corner. `pointerEvents none` so it
+            never eats the card's own tap. */}
+        <Ionicons
+          name={icon}
+          size={140}
+          color={theme.color.onBrand}
+          style={{
+            position: 'absolute',
+            right: -20,
+            bottom: -28,
+            opacity: 0.16,
+            pointerEvents: 'none',
+          }}
+        />
+        <View style={{ gap: theme.spacing.xs, paddingRight: 88 }}>
+          <Text variant="subheading" tone="onBrand">
+            {title}
+          </Text>
+          <Text variant="caption" tone="onBrand" style={{ opacity: 0.9 }}>
+            {body}
+          </Text>
+        </View>
+        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+          <Text variant="caption" tone="onBrand" style={{ fontWeight: '700' }}>
+            {cta}
+          </Text>
+          <Ionicons name="arrow-forward" size={iconSize.base} color={theme.color.onBrand} />
+        </Row>
+      </Gradient>
+    </PressableScale>
   );
 }
 
@@ -634,7 +749,12 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
       <Gradient
         colors={theme.gradient.accent}
         radius={theme.radius.lg}
-        style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+        style={{
+          padding: theme.spacing.xl,
+          gap: theme.spacing.lg,
+          minHeight: HERO_MIN_HEIGHT,
+          justifyContent: 'space-between',
+        }}
       >
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row style={{ gap: theme.spacing.sm, alignItems: 'center', flex: 1 }}>
