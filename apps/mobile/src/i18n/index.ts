@@ -631,6 +631,16 @@ export interface UiStrings {
     notJoined: string;
     group: string;
   };
+  /** The dashboard hero carousel's action slides — the promo-style cards that
+      sit in the swipe deck after the balance (scan a receipt, add a person). */
+  dashHero: {
+    scanTitle: string;
+    scanBody: string;
+    scanCta: string;
+    inviteTitle: string;
+    inviteBody: string;
+    inviteCta: string;
+  };
   /** The inbox — the record of what Baaki said, whether or not push arrived. */
   inbox: {
     title: string;
@@ -1728,6 +1738,14 @@ const en: UiStrings = {
     acrossGroups: { one: 'across {n} group', other: 'across {n} groups' },
     notJoined: 'Not joined',
     group: 'Group',
+  },
+  dashHero: {
+    scanTitle: 'Snap a receipt',
+    scanBody: 'Scan a bill and the items fill themselves in — split it in seconds.',
+    scanCta: 'Scan',
+    inviteTitle: 'Settle up together',
+    inviteBody: 'Add the people you share costs with and keep everyone square.',
+    inviteCta: 'Add a person',
   },
   inbox: {
     title: 'Inbox',
@@ -2904,6 +2922,14 @@ const ta: UiStrings = {
     acrossGroups: { one: '{n} குழுவில்', other: '{n} குழுக்களில்' },
     notJoined: 'சேரவில்லை',
     group: 'குழு',
+  },
+  dashHero: {
+    scanTitle: 'ரசீதைப் படம் எடுங்கள்',
+    scanBody: 'பில்லை ஸ்கேன் செய்தால் பொருட்கள் தானாக நிரம்பும் — நொடிகளில் பங்கிடுங்கள்.',
+    scanCta: 'ஸ்கேன்',
+    inviteTitle: 'சேர்ந்து கணக்கு தீர்க்கலாம்',
+    inviteBody: 'செலவுகளைப் பகிர்பவர்களைச் சேர்த்து அனைவரையும் சரிசெய்யுங்கள்.',
+    inviteCta: 'ஒருவரைச் சேர்',
   },
   inbox: {
     title: 'அஞ்சல் பெட்டி',
@@ -4083,6 +4109,14 @@ const hi: UiStrings = {
     acrossGroups: { one: '{n} समूह में', other: '{n} समूहों में' },
     notJoined: 'शामिल नहीं',
     group: 'समूह',
+  },
+  dashHero: {
+    scanTitle: 'रसीद स्कैन करें',
+    scanBody: 'बिल स्कैन करें और आइटम अपने आप भर जाते हैं — कुछ ही पलों में बाँटें.',
+    scanCta: 'स्कैन',
+    inviteTitle: 'मिलकर हिसाब बराबर करें',
+    inviteBody: 'जिनके साथ खर्च बाँटते हैं उन्हें जोड़ें और सबका हिसाब बराबर रखें.',
+    inviteCta: 'व्यक्ति जोड़ें',
   },
   inbox: {
     title: 'इनबॉक्स',
@@ -5269,6 +5303,14 @@ const ar: UiStrings = {
     },
     notJoined: 'لم ينضم',
     group: 'مجموعة',
+  },
+  dashHero: {
+    scanTitle: 'صوّر الإيصال',
+    scanBody: 'امسح الفاتورة وتُملأ البنود تلقائيًا — قسّمها في ثوانٍ.',
+    scanCta: 'مسح',
+    inviteTitle: 'سوّوا الحساب معًا',
+    inviteBody: 'أضف من تتشارك معهم النفقات وابقوا جميعًا على حساب متوازن.',
+    inviteCta: 'إضافة شخص',
   },
   inbox: {
     title: 'صندوق الوارد',
