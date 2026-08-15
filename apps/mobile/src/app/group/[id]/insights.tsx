@@ -26,7 +26,6 @@ import { ScrollView, View } from 'react-native';
 import { categoryOf, format, type CategoryId } from '@baaki/core';
 import {
   BarList,
-  Callout,
   Card,
   ChipRow,
   ColumnChart,
@@ -48,7 +47,8 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { InsightsSkeleton } from '@/components/Skeletons';
 import type { SpendingRow } from '@/data/api';
-import { useGroup, useGroupSpending } from '@/data/hooks';
+import { computeSpendingRows } from '@/data/spending';
+import { useGroup } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
@@ -68,8 +68,12 @@ export default function InsightsScreen() {
   const groupId = id ?? '';
   const { profile } = useAuth();
 
-  const { group, members } = useGroup(groupId);
-  const spending = useGroupSpending(groupId);
+  const { group, members, expenses } = useGroup(groupId);
+
+  // Spending is a read of expenses the phone already mirrors, so it is computed
+  // on the device (ADR-005) rather than fetched — the local-first twin of the
+  // baaki_group_spending RPC, same rows, and it works with no connection.
+  const spendingRows = useMemo(() => computeSpendingRows(expenses.rows), [expenses.rows]);
 
   const [scope, setScope] = useState<Scope>(Scope.Group);
 
@@ -83,12 +87,11 @@ export default function InsightsScreen() {
   const groupCurrency = group.data?.default_currency ?? 'INR';
 
   const rows = useMemo(() => {
-    const all = spending.data ?? [];
     if (scope === Scope.Mine) {
-      return myMemberId ? all.filter((row) => row.member_id === myMemberId) : [];
+      return myMemberId ? spendingRows.filter((row) => row.member_id === myMemberId) : [];
     }
-    return all;
-  }, [spending.data, scope, myMemberId]);
+    return spendingRows;
+  }, [spendingRows, scope, myMemberId]);
 
   const currencies = useMemo(() => {
     const seen = [...new Set(rows.map((row) => row.currency))];
@@ -97,7 +100,7 @@ export default function InsightsScreen() {
     );
   }, [rows, groupCurrency]);
 
-  const loading = group.isLoading || members.isLoading || spending.isLoading;
+  const loading = group.isLoading || members.isLoading || expenses.isLoading;
 
   return (
     <Screen>
@@ -155,12 +158,6 @@ export default function InsightsScreen() {
             />
           ))
         )}
-
-        {spending.error ? (
-          <Callout tone="negative">
-            {spending.error instanceof Error ? spending.error.message : String(spending.error)}
-          </Callout>
-        ) : null}
 
         <Text variant="micro" tone="muted" align="center">
           {t.misc.insightsLiveNote}
