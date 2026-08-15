@@ -14,12 +14,11 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  // Pooled (pgbouncer) connection used at runtime by edge functions.
-  url       = env("DATABASE_URL")
-  // Direct connection used by migrations.
-  directUrl = env("DIRECT_URL")
-  schemas   = ["public"]
+  provider = "postgresql"
+  // Prisma 7 moved connection URLs out of the schema into prisma.config.ts.
+  // Migrations connect through the direct (non-pooled) URL configured there;
+  // the pooled runtime URL is a client-constructor concern (TDR §2.0).
+  schemas  = ["public"]
 }
 
 // ─────────────────────────────────────────────────────────────── enums ──
