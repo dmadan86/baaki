@@ -83,12 +83,15 @@ BEGIN
       FROM unnest(p_member_ids) AS m
      WHERE m IS NOT NULL;
 
-  -- Any existing merge groups that overlap the selection: reusing the smallest
-  -- of their person_ids keeps a repeated merge stable rather than churning.
-  SELECT min(gm.person_id) INTO v_canonical
+  -- Any existing merge groups that overlap the selection: reusing the lowest of
+  -- their person_ids (uuid has no min() aggregate, so order and take one) keeps a
+  -- repeated merge stable rather than churning. No overlap leaves it NULL.
+  SELECT gm.person_id INTO v_canonical
     FROM public.ghost_merges gm
    WHERE gm.owner = v_profile_id
-     AND gm.member_id IN (SELECT member_id FROM _sel);
+     AND gm.member_id IN (SELECT member_id FROM _sel)
+   ORDER BY gm.person_id
+   LIMIT 1;
 
   -- No overlap with a prior merge: this is a brand-new person.
   IF v_canonical IS NULL THEN
