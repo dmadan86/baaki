@@ -223,7 +223,13 @@ export function PeopleSkeleton() {
       ))}
       {/* The per-currency footnote holds its spot so nothing shifts up under it
           when the real note arrives. */}
-      <Skeleton width="70%" height={11} radius={theme.radius.sm} animated={animated} style={{ alignSelf: 'center' }} />
+      <Skeleton
+        width="70%"
+        height={11}
+        radius={theme.radius.sm}
+        animated={animated}
+        style={{ alignSelf: 'center' }}
+      />
     </LoadingRegion>
   );
 }
@@ -281,12 +287,7 @@ export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
                 <Skeleton width={56} height={16} animated={animated} />
               </Row>
               {/* The relative time, at its 11px height and the same 2px drop. */}
-              <Skeleton
-                width="26%"
-                height={11}
-                animated={animated}
-                style={{ marginTop: 2 }}
-              />
+              <Skeleton width="26%" height={11} animated={animated} style={{ marginTop: 2 }} />
             </View>
           </Row>
         );
