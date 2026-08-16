@@ -385,6 +385,10 @@ export function ContactPicker({
                     contact={item}
                     already={already}
                     single={single}
+                    // Single-pick confirms on the tap, so `busy` has no button to
+                    // disable — it has to lock the rows themselves, or a second
+                    // tap fires a second confirm while the first is still writing.
+                    disabled={single && busy}
                     selected={single ? false : picked.has(key)}
                     onPress={() => (single ? onConfirm([item]) : toggle(key, item))}
                   />
@@ -470,31 +474,37 @@ function ContactRow({
   already,
   selected,
   single = false,
+  disabled = false,
   onPress,
 }: {
   contact: PickedContact;
   already: boolean;
   selected: boolean;
   single?: boolean;
+  /** Locked for a reason other than membership (a single-pick write in flight). */
+  disabled?: boolean;
   onPress: () => void;
 }): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
   const inset = theme.spacing.lg + 40 + theme.spacing.md;
+  // `already` is one reason a row is inert (and the only one that renames the
+  // subtitle); `disabled` is the other. Both dim and deafen the row the same way.
+  const locked = already || disabled;
 
   return (
     <Pressable
-      onPress={already ? undefined : onPress}
-      disabled={already}
+      onPress={locked ? undefined : onPress}
+      disabled={locked}
       // Single-pick is a choose-one list, so each row is a radio button that
       // acts on the tap; multi keeps the checkbox it fills and unfills.
       accessibilityRole={single ? 'button' : 'checkbox'}
-      accessibilityState={single ? { disabled: already } : { checked: selected, disabled: already }}
+      accessibilityState={single ? { disabled: locked } : { checked: selected, disabled: locked }}
       accessibilityLabel={
         already ? t.pickers.alreadyAddedName.replace('{name}', contact.name) : contact.name
       }
       style={({ pressed }) => ({
-        opacity: already ? 0.45 : 1,
+        opacity: locked ? 0.45 : 1,
         backgroundColor: pressed ? theme.color.surfaceMuted : theme.color.surface,
       })}
     >

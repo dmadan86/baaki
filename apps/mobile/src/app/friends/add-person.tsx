@@ -16,9 +16,12 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+
+import { parseReceiptText, type HeuristicReceipt } from '@baaki/core';
 
 import {
   AmountField,
@@ -42,7 +45,12 @@ import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks
 import { GroupType } from '@/data/types';
 import { deviceDefaultCurrency, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useBackup } from '@/lib/cloud/BackupProvider';
+import { captureReceipt, type PickedImage } from '@/lib/image';
 import { useGuestGuard } from '@/lib/guestGuard';
+import { recogniseReceipt } from '@/lib/ocr';
+import { markPending } from '@/lib/receiptIndex';
+import { saveReceipt } from '@/lib/receiptStore';
 
 type Direction = 'theyOwe' | 'iOwe';
 
@@ -72,6 +80,7 @@ export default function AddPersonScreen() {
   const createGroup = useCreateGroup();
   const addGhost = useAddGhostMember(groupId);
   const writeExpense = useWriteExpense(groupId);
+  const backup = useBackup();
 
   const currency = deviceDefaultCurrency();
   const [name, setName] = useState('');
@@ -81,6 +90,48 @@ export default function AddPersonScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // A receipt for the IOU. The photo is read on the phone (A5); the merchant
+  // prefills the note, and the image and its OCR text are kept in the device
+  // vault + your own cloud — never uploaded to Baaki (the receipt-scan privacy
+  // choice). Keyed by an id chosen up front so the vault path is stable.
+  const [receiptId] = useState(() => randomUUID());
+  const [photo, setPhoto] = useState<PickedImage | null>(null);
+  const [rawText, setRawText] = useState<string | null>(null);
+  const [parsed, setParsed] = useState<HeuristicReceipt | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  /**
+   * Photograph the bill and keep it. On-device OCR reads the text so it can
+   * travel with the expense; the heuristic parser pulls the merchant to prefill
+   * the note. The amount stays yours to type — reading a trustworthy total needs
+   * the metered server parser, which needs a group this screen has not made yet.
+   */
+  const addReceipt = async (): Promise<void> => {
+    setError(null);
+    let picked: PickedImage | null = null;
+    try {
+      picked = await captureReceipt();
+    } catch {
+      picked = null;
+    }
+    if (!picked) return;
+
+    setPhoto(picked);
+    setScanning(true);
+    try {
+      const recognised = await recogniseReceipt(picked.uri);
+      setRawText(recognised?.text ?? null);
+      const receipt = recognised ? parseReceiptText(recognised.text, { currency }) : null;
+      setParsed(receipt);
+      if (receipt?.merchant && note.trim().length === 0) setNote(receipt.merchant);
+    } catch {
+      setRawText(null);
+      setParsed(null);
+    } finally {
+      setScanning(false);
+    }
+  };
 
   // Pull the name straight off a contact instead of typing it. This is a 1:1
   // IOU, so only the first ticked person is used; the address book never leaves
@@ -129,6 +180,31 @@ export default function AddPersonScreen() {
         payers: { [payerId]: amount },
         splitParams: { kind: 'exact', amounts: { [debtorId]: amount, [payerId]: 0n } },
       });
+
+      // Keep the receipt image on the device and, if a personal cloud is
+      // connected, queue it there — it is never uploaded to Baaki. The photo and
+      // its OCR text stay in the vault sidecar; only the amount and note reached
+      // the expense (A5, receipt-scan privacy).
+      if (photo) {
+        const saved = saveReceipt(receiptId, {
+          base64: photo.base64,
+          sidecar: {
+            captureId: receiptId,
+            currency,
+            amountMinor: Number(amount),
+            itemCount: parsed?.items.length ?? 0,
+            items: (parsed?.items ?? []).map((item) => ({ label: item.label, total: item.total })),
+            date: today(),
+            category: null,
+            rawText,
+            createdAt: new Date().toISOString(),
+          },
+        });
+        if (saved) {
+          await markPending(receiptId, saved, new Date().toISOString());
+          void backup.kick();
+        }
+      }
 
       // All three writes went through the offline queue, which updates the mirror
       // synchronously — the now-local Friends list already shows the new person,
@@ -281,6 +357,35 @@ export default function AddPersonScreen() {
               hints={name.trim() ? [name.trim()] : undefined}
             />
           </Row>
+        </Card>
+
+        {/* The bill, for when pointing a camera beats typing. The photo is kept
+            on the device (and your own cloud), never on Baaki; its text is read
+            here and rides the expense, and the merchant prefills the note. */}
+        <Card style={{ gap: theme.spacing.md }}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text variant="subheading">{t.captures.receipt}</Text>
+            <Button
+              label={t.captures.addReceipt}
+              variant="secondary"
+              size="sm"
+              disabled={scanning || saving}
+              onPress={() => void addReceipt()}
+              icon={<Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />}
+            />
+          </Row>
+          {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
+          {photo ? (
+            <Image
+              source={{ uri: photo.uri }}
+              style={{ width: '100%', height: 160, borderRadius: theme.radius.md }}
+              contentFit="cover"
+              transition={150}
+            />
+          ) : null}
+          {photo && parsed && parsed.items.length === 0 ? (
+            <Callout tone="info">{t.captures.couldNotRead}</Callout>
+          ) : null}
         </Card>
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
