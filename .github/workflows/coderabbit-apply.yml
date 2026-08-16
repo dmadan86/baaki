@@ -86,13 +86,31 @@ jobs:
             exit 78
           fi
 
+      # Secrets cannot be read in an `if:` directly, so map the key to an env var
+      # and record whether it is set. Without it there is nothing to run — the job
+      # then does nothing and stays green rather than failing every PR until the
+      # secret is added.
+      - name: Is the API key configured?
+        id: key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ANTHROPIC_API_KEY is not set — skipping CodeRabbit auto-apply. Add the repository secret to enable it."
+          fi
+
       - name: Gather CodeRabbit comments
+        if: steps.key.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
         run: bash .github/scripts/gather-coderabbit.sh ${{ steps.pr.outputs.number }} > coderabbit-comments.md
 
       - name: Anything to do?
         id: check
+        if: steps.key.outputs.present == 'true'
         run: |
           if grep -q '^- ' coderabbit-comments.md; then
             echo "has_comments=true" >> "$GITHUB_OUTPUT"
