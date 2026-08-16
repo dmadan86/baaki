@@ -45,7 +45,8 @@ import { memberIds, positiveAmounts } from './arbitraries.js';
 // run count stays env-tunable without pulling @types/node into the package.
 const envRuns = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
   ?.env?.MONKEY_RUNS;
-const RUNS = Number(envRuns ?? 200);
+const parsedRuns = Number(envRuns);
+const RUNS = Number.isFinite(parsedRuns) && parsedRuns > 0 ? Math.floor(parsedRuns) : 200;
 const SCALE_RUNS = Math.max(20, Math.round(RUNS / 5));
 const GROUP = 'g-monkey';
 const OTHER = 'g-other';

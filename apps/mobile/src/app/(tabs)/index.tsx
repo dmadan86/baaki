@@ -585,15 +585,20 @@ function HeroCarousel({
         ))}
       </ScrollView>
 
+      {/* The deck can lose a slide under a stale index — a trip ends, a
+          currency settles — so the live dot is clamped, not trusted. */}
       <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
         {slides.map((slide, index) => (
           <View
             key={slide.key}
             style={{
-              width: index === page ? 18 : 6,
+              width: index === Math.min(page, slides.length - 1) ? 18 : 6,
               height: 6,
               borderRadius: 3,
-              backgroundColor: index === page ? theme.color.brand : theme.color.border,
+              backgroundColor:
+                index === Math.min(page, slides.length - 1)
+                  ? theme.color.brand
+                  : theme.color.border,
             }}
           />
         ))}

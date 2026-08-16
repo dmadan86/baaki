@@ -13,7 +13,35 @@
  * reader's point of view, so their own actions read as "You".
  */
 
+import { isCurrencyCode } from '@baaki/core';
+
 import { actorName, type ActivityRow } from './types';
+
+/**
+ * An activity `payload` is an untyped JSON blob, so a bad amount must render as
+ * no amount, not as a crashed feed. Shared by both feed screens so they parse
+ * it the same way. `fallbackCurrency` is the caller's default — 'INR' on the
+ * cross-group tab, the group's own currency on a group.
+ */
+export function parseMoney(
+  payload: unknown,
+  fallbackCurrency = 'INR',
+): { amount: bigint; currency: string } | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const record = payload as Record<string, unknown>;
+  if (typeof record.amount !== 'string') return null;
+  const trimmed = record.amount.trim();
+  if (trimmed === '') return null;
+  try {
+    const currency =
+      typeof record.currency === 'string' && isCurrencyCode(record.currency)
+        ? record.currency
+        : fallbackCurrency;
+    return { amount: BigInt(trimmed), currency };
+  } catch {
+    return null;
+  }
+}
 
 export function describeActivity(entry: ActivityRow, myProfileId: string | null): string {
   const { payload } = entry;
@@ -120,7 +148,9 @@ export function verbEmoji(verb: string): string {
  * `now` is injectable so the two branches are testable without a live clock.
  */
 export function relativeTime(locale: string, iso: string, now: number = Date.now()): string {
-  const seconds = Math.round((Date.parse(iso) - now) / 1000);
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+  const seconds = Math.round((parsed - now) / 1000);
   const abs = Math.abs(seconds);
 
   const RTF = Intl.RelativeTimeFormat as typeof Intl.RelativeTimeFormat | undefined;

@@ -1137,11 +1137,11 @@ export async function confirmContact(
   value: string,
   token: string,
 ): Promise<void> {
-  const trimmed = value.trim();
+  const normalised = channel === 'email' ? normaliseEmail(value) : normalisePhone(value);
   const { error } = await supabase.auth.verifyOtp(
     channel === 'email'
-      ? { email: trimmed, token: token.trim(), type: 'email_change' }
-      : { phone: trimmed, token: token.trim(), type: 'phone_change' },
+      ? { email: normalised, token: token.trim(), type: 'email_change' }
+      : { phone: normalised, token: token.trim(), type: 'phone_change' },
   );
   if (error) throw new Error(error.message);
 }

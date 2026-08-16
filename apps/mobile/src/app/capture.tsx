@@ -252,7 +252,7 @@ export default function CaptureScreen() {
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: theme.spacing.xl,
-          gap: theme.spacing.xl,
+          gap: theme.spacing.lg,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -267,7 +267,7 @@ export default function CaptureScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        <Card>
+        <Card style={{ paddingVertical: theme.spacing.lg }}>
           <AmountField currency={currency} value={amount} onChange={setAmount} />
         </Card>
 

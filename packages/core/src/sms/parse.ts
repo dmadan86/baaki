@@ -84,14 +84,21 @@ const CREDIT_WORDS = /\b(credited|credit|received|refund|reversed|cashback)\b/i;
  * the number is real and the message is from the right sender.
  */
 const NOT_A_TRANSACTION =
-  /\b(OTP|one[- ]time\s*password|will\s+be\s+debited|request(?:ed)?\s+(?:for|to)|is\s+due|due\s+on|reminder|failed|declined|unsuccessful|balance\s+is|avl\s*bal|available\s+balance\s+is|statement|e-?mandate|auto[- ]?pay\s+scheduled)\b/i;
+  /\b(OTP|one[- ]time\s*password|will\s+be\s+debited|request(?:ed)?\s+(?:for|to)|is\s+due|due\s+on|reminder|failed|declined|unsuccessful|statement|e-?mandate|auto[- ]?pay\s+scheduled)\b/i;
+
+/**
+ * A balance report on its own is not a transaction. The same words appear as a
+ * trailer on a real debit alert ("... Avl Bal: Rs 12,340"), so these only
+ * disqualify a message that says nothing about money moving.
+ */
+const BALANCE_ONLY = /\b(balance\s+is|avl\s*bal|available\s+balance\s+is)\b/i;
 
 /**
  * Amount, as digits: "1,234.56" or "1234" or "1.234,56" is not attempted —
  * Indian and international banks both write "1,23,456.78" or "1,234.56", and
  * both use the dot as the decimal separator.
  */
-const AMOUNT = /(?:INR|Rs\.?|₹|USD|\$|EUR|€|GBP|£|AED|SGD|THB)\s*([\d,]+(?:\.\d{1,2})?)/i;
+const AMOUNT = /(INR|Rs\.?|₹|USD|\$|EUR|€|GBP|£|AED|SGD|THB)\s*([\d,]+(?:\.\d{1,2})?)/i;
 
 /** "to AMAZON", "at STARBUCKS", "towards SWIGGY" — whoever was paid. */
 const MERCHANT =
@@ -159,7 +166,10 @@ function detectDate(text: string): string | null {
   if (numeric) {
     const day = Number(numeric[1]);
     const month = Number(numeric[2]);
-    // A day above 12 is unambiguous; otherwise trust the Indian convention.
+    // Always day-first, the Indian convention these alerts are written in. A
+    // US-format message (08/05/2026) is read as 8 August; without the sender's
+    // locale there is nothing here to tell the two apart, so this is a known
+    // limitation rather than a check.
     if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
       return `${expandYear(numeric[3])}-${pad(month)}-${pad(day)}${clock}`;
     }
@@ -182,12 +192,15 @@ export function parseSms(text: string): ParsedSms | null {
   // Checked before anything else: an OTP quotes a real amount from a real bank
   // and is the false positive most likely to be confirmed by accident.
   if (NOT_A_TRANSACTION.test(body)) return null;
+  if (BALANCE_ONLY.test(body) && !DEBIT_WORDS.test(body) && !CREDIT_WORDS.test(body)) return null;
 
   const amountMatch = AMOUNT.exec(body);
-  if (!amountMatch?.[1]) return null;
+  if (!amountMatch?.[2]) return null;
 
-  const currency = detectCurrency(body);
-  const minor = toMinor(amountMatch[1], currency);
+  // Prefer the marker next to the amount; a body-wide scan can pick a different
+  // currency word than the one actually beside the number.
+  const currency = detectCurrency(amountMatch[1] ?? body);
+  const minor = toMinor(amountMatch[2], currency);
   if (minor <= 0n) return null;
 
   const debit = DEBIT_WORDS.test(body);

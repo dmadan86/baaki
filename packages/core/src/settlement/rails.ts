@@ -325,7 +325,7 @@ export function defaultRailFor(countryCode: string | null | undefined): RailId {
 const VPA_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Digits, with optional `+` and the spaces, dashes and brackets people type. */
-const PHONE_RE = /^\+?[\d\s\-()]{6,20}$/;
+const PHONE_RE = /^(?=(?:.*\d){6,})\+?[\d\s\-()]{6,20}$/;
 const TAG_RE = /^[@$]?[a-zA-Z0-9._-]{2,64}$/;
 const ACCOUNT_RE = /^[a-zA-Z0-9\s-]{4,40}$/;
 
@@ -404,6 +404,10 @@ export function buildPaymentUri(
 
   const handle = input.handle.trim();
   const major = formatMajor(input.amount, input.currency);
+  // The web rails put the amount in the path, where only a bare decimal is
+  // meaningful. A formatter may return grouping separators or a symbol, so
+  // reject anything it decorated rather than open a request for the wrong sum.
+  const bareMajor = /^\d+(\.\d+)?$/.test(major) ? major : null;
 
   if (rail.id === RailId.Upi) {
     // Built by hand rather than with URLSearchParams: this package has to
@@ -426,16 +430,21 @@ export function buildPaymentUri(
     // 25 pounds would open a request for 25 of something else, which is worse
     // than no link — so anything but USD copies the handle instead.
     if (input.currency !== 'USD') return null;
-    return { kind: 'web', uri: `https://cash.app/${encodeURIComponent(cashtag(handle))}/${major}` };
+    if (!bareMajor) return null;
+    return {
+      kind: 'web',
+      uri: `https://cash.app/${encodeURIComponent(cashtag(handle))}/${bareMajor}`,
+    };
   }
 
   if (rail.id === RailId.Paypal) {
     // PayPal.me takes the currency in the path, so unlike Cash App it is safe
     // in any of them.
     const name = handle.replace(/^@/, '');
+    if (!bareMajor) return null;
     return {
       kind: 'web',
-      uri: `https://paypal.me/${encodeURIComponent(name)}/${major}${input.currency}`,
+      uri: `https://paypal.me/${encodeURIComponent(name)}/${bareMajor}${input.currency}`,
     };
   }
 

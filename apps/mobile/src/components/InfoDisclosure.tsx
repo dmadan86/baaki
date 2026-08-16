@@ -16,6 +16,8 @@ import { Pressable, View } from 'react-native';
 
 import { iconSize, Row, Text, useTheme } from '@baaki/ui';
 
+import { useStrings } from '@/i18n';
+
 export function InfoDisclosure({
   title,
   info,
@@ -29,6 +31,7 @@ export function InfoDisclosure({
   titleVariant?: 'subheading' | 'caption';
 }) {
   const theme = useTheme();
+  const { t } = useStrings();
   const [open, setOpen] = useState(false);
 
   return (
@@ -45,7 +48,7 @@ export function InfoDisclosure({
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: open }}
-            accessibilityLabel={`About ${title}`}
+            accessibilityLabel={t.common.about.replace('{title}', title)}
             hitSlop={8}
             onPress={() => setOpen((value) => !value)}
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}

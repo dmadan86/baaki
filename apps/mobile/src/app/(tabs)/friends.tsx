@@ -402,7 +402,9 @@ function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | n
     onSuccess: () => setNote(t.people.reminded),
     onError: (error) => {
       const message = error instanceof Error ? error.message : String(error);
-      setNote(message.includes('NUDGE_RATE_LIMIT') ? t.people.remindedToday : message);
+      // A backend message is neither translated nor meant for the person being
+      // nudged. The limit case is the one that has something true to say.
+      setNote(message.includes('NUDGE_RATE_LIMIT') ? t.people.remindedToday : t.loadError);
     },
   });
 
@@ -456,6 +458,7 @@ function SortMenu({
       <Pressable
         onPress={onClose}
         accessibilityRole="button"
+        accessibilityLabel={t.common.close}
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' }}
       >
         <View

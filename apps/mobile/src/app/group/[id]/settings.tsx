@@ -51,6 +51,14 @@ export default function GroupSettingsScreen() {
   const leaveGroup = useLeaveGroup(groupId);
 
   const [name, setName] = useState(group.data?.name ?? '');
+  // Seed the name field once the group query resolves (and re-seed if the
+  // loaded group changes) — synced in render, the app's idiom for following a
+  // value until the user edits it, rather than a setState-in-effect.
+  const [seededId, setSeededId] = useState<string | null>(null);
+  if (group.data && seededId !== group.data.id) {
+    setSeededId(group.data.id);
+    setName(group.data.name ?? '');
+  }
   const [status, setStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 

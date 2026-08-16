@@ -305,30 +305,37 @@ async function addVersion(
 ): Promise<void> {
   const versionId = randomUUID();
   const share = amount / BigInt(participants.length);
+  const remainder = amount - share * BigInt(participants.length);
   await client.query('BEGIN');
-  await client.query(
-    `INSERT INTO expense_versions
-       (id, expense_id, version_no, author_member_id, description, expense_date,
-        currency, amount, split_type, split_params)
-     VALUES ($1, $2, 2, $3, 'Dinner', '2026-03-01', 'INR', $4, 'equal', '{"kind":"equal"}'::jsonb)`,
-    [versionId, scene.expenseId, authorMemberId, amount.toString()],
-  );
-  await client.query(
-    `INSERT INTO expense_payers (id, expense_version_id, member_id, amount) VALUES ($1, $2, $3, $4)`,
-    [randomUUID(), versionId, scene.memberIds[0], amount.toString()],
-  );
-  for (const memberId of participants) {
+  try {
     await client.query(
-      `INSERT INTO expense_shares (id, expense_version_id, member_id, amount)
-       VALUES ($1, $2, $3, $4)`,
-      [randomUUID(), versionId, memberId, share.toString()],
+      `INSERT INTO expense_versions
+         (id, expense_id, version_no, author_member_id, description, expense_date,
+          currency, amount, split_type, split_params)
+       VALUES ($1, $2, 2, $3, 'Dinner', '2026-03-01', 'INR', $4, 'equal', '{"kind":"equal"}'::jsonb)`,
+      [versionId, scene.expenseId, authorMemberId, amount.toString()],
     );
+    await client.query(
+      `INSERT INTO expense_payers (id, expense_version_id, member_id, amount) VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), versionId, scene.memberIds[0], amount.toString()],
+    );
+    for (const [index, memberId] of participants.entries()) {
+      const value = index === participants.length - 1 ? share + remainder : share;
+      await client.query(
+        `INSERT INTO expense_shares (id, expense_version_id, member_id, amount)
+         VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), versionId, memberId, value.toString()],
+      );
+    }
+    await client.query(`UPDATE expenses SET current_version_id = $1 WHERE id = $2`, [
+      versionId,
+      scene.expenseId,
+    ]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   }
-  await client.query(`UPDATE expenses SET current_version_id = $1 WHERE id = $2`, [
-    versionId,
-    scene.expenseId,
-  ]);
-  await client.query('COMMIT');
 }
 
 describe('who can see one', () => {

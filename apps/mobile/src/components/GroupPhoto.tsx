@@ -118,9 +118,13 @@ export function useGroupPhotoUrl(photoPath: string | null | undefined): string |
   useEffect(() => {
     if (!path) return;
     let active = true;
-    void groupPhotoUrl(path).then((url) => {
-      if (active) setResolved({ path, url });
-    });
+    void groupPhotoUrl(path)
+      .then((url) => {
+        if (active) setResolved({ path, url });
+      })
+      .catch(() => {
+        if (active) setResolved({ path, url: null });
+      });
     return () => {
       active = false;
     };

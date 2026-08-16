@@ -65,11 +65,9 @@ const GULF: Keywords = {
     'lulu',
     'carrefour',
     'spinneys',
-    'union',
     'choithrams',
     'instashop',
     'kibsons',
-    'noon',
     'baqala',
     'tamimi',
     'othaim',
@@ -120,7 +118,7 @@ const ANGLOSPHERE: Keywords = {
     'takeout',
     'coffee',
   ],
-  groceries: ['costco', 'walmart', 'target', 'aldi', 'groceries'],
+  groceries: ['costco', 'walmart', 'aldi', 'groceries'],
   travel: ['uber', 'lyft', 'gas', 'petrol', 'parking', 'toll', 'flight', 'rental'],
   stay: ['airbnb', 'hotel', 'motel', 'hostel'],
   entertainment: ['netflix', 'spotify', 'cinema', 'movies', 'tickets', 'concert'],
@@ -172,14 +170,7 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
   [MarketId.CA]: {
     ...ANGLOSPHERE,
     food: [...(ANGLOSPHERE.food ?? []), 'tims', 'timhortons', 'skipthedishes', 'poutine'],
-    groceries: [
-      ...(ANGLOSPHERE.groceries ?? []),
-      'loblaws',
-      'sobeys',
-      'metro',
-      'superstore',
-      'nofrills',
-    ],
+    groceries: [...(ANGLOSPHERE.groceries ?? []), 'loblaws', 'sobeys', 'superstore', 'nofrills'],
     travel: [...(ANGLOSPHERE.travel ?? []), 'presto', 'ttc', 'via', 'petrocanada', 'esso'],
     health: [...(ANGLOSPHERE.health ?? []), 'shoppers'],
     // Canadians call the power bill hydro, and it is the one word here that
@@ -200,9 +191,9 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
   [MarketId.SG]: {
     food: ['grabfood', 'foodpanda', 'hawker', 'kopitiam', 'zichar', 'chicken', 'laksa'],
     groceries: ['ntuc', 'fairprice', 'coldstorage', 'sheng', 'giant', 'redmart'],
-    travel: ['grab', 'gojek', 'mrt', 'ez-link', 'ezlink', 'comfort', 'erp'],
+    travel: ['grab', 'gojek', 'mrt', 'ezlink', 'erp'],
     entertainment: ['golden', 'cathay', 'shaw', 'sentosa'],
-    home: ['sp', 'singtel', 'starhub', 'conservancy'],
+    home: ['singtel', 'starhub', 'conservancy'],
   },
 
   [MarketId.ID]: {
@@ -223,6 +214,48 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
 export function keywordsForMarket(countryCode: string | null | undefined): Keywords {
   const country = (countryCode ?? '').trim().toUpperCase();
   return MARKET_KEYWORDS[country as MarketId] ?? {};
+}
+
+/**
+ * Shared keywords a market must *not* honour, per category.
+ *
+ * The layer above only adds. That is right until a shared word means different
+ * things in different places, and `hotel` is the one that does: a restaurant in
+ * India, a place to sleep almost everywhere else. Additive keywords cannot
+ * express "here it is not food", so a market states the subtractions too.
+ */
+export type Excludes = Partial<Record<CategoryId, readonly string[]>>;
+
+/**
+ * Outside India a hotel is where you sleep, so drop it from the shared Food
+ * list and let the market's own Stay keyword win. India keeps it as food, which
+ * is why there is no `IN` entry.
+ */
+const STAY_NOT_FOOD: Excludes = { food: ['hotel'] };
+
+export const MARKET_EXCLUDES: Partial<Record<MarketId, Excludes>> = {
+  [MarketId.AE]: STAY_NOT_FOOD,
+  [MarketId.SA]: STAY_NOT_FOOD,
+  [MarketId.QA]: STAY_NOT_FOOD,
+  [MarketId.KW]: STAY_NOT_FOOD,
+  [MarketId.BH]: STAY_NOT_FOOD,
+  [MarketId.OM]: STAY_NOT_FOOD,
+  [MarketId.BR]: STAY_NOT_FOOD,
+  [MarketId.US]: STAY_NOT_FOOD,
+  [MarketId.CA]: STAY_NOT_FOOD,
+  [MarketId.AU]: STAY_NOT_FOOD,
+  [MarketId.ID]: STAY_NOT_FOOD,
+};
+
+/**
+ * The shared keywords a country overrides, or nothing.
+ *
+ * Same contract as `keywordsForMarket`: an unrecognised country subtracts
+ * nothing, so the shared list stands exactly as it did before markets existed.
+ */
+export function excludesForMarket(countryCode: string | null | undefined): Excludes {
+  const country = (countryCode ?? '').trim().toUpperCase();
+  return MARKET_EXCLUDES[country as MarketId] ?? {};
 }
 
 /** Every country this file knows something about. */

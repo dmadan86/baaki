@@ -39,19 +39,24 @@ function amount(minor: string, currency: string): string {
  * is not an impact, it is a cost.
  */
 function incremental(rows: CampaignRevenueRow[], funnel: FunnelRow[], currency: string) {
-  const heads = new Map(funnel.map((row) => [row.cohort, Number(row.people)]));
+  const heads = new Map(funnel.map((row) => [row.cohort, BigInt(row.people)]));
   const revenueFor = (cohort: string) =>
-    Number(
+    BigInt(
       rows.find((row) => row.cohort === cohort && row.currency === currency)?.revenue_minor ?? 0,
     );
 
-  const targetedPeople = heads.get('targeted') ?? 0;
-  const holdoutPeople = heads.get('holdout') ?? 0;
-  if (targetedPeople === 0 || holdoutPeople === 0) return null;
+  const targetedPeople = heads.get('targeted') ?? 0n;
+  const holdoutPeople = heads.get('holdout') ?? 0n;
+  if (targetedPeople === 0n || holdoutPeople === 0n) return null;
 
-  const perTargeted = revenueFor('targeted') / targetedPeople;
-  const perHoldout = revenueFor('holdout') / holdoutPeople;
-  return Math.round((perTargeted - perHoldout) * targetedPeople);
+  // Per-person revenue times the targeted population, done in exact minor units.
+  // The per-targeted term collapses to the targeted revenue itself; only the
+  // holdout share carries a division, rounded to the nearest minor unit
+  // (round half up — both operands are non-negative here).
+  const revTargeted = revenueFor('targeted');
+  const revHoldout = revenueFor('holdout');
+  const holdoutShare = (revHoldout * targetedPeople + holdoutPeople / 2n) / holdoutPeople;
+  return revTargeted - holdoutShare;
 }
 
 export default async function Campaigns({
@@ -241,7 +246,7 @@ export default async function Campaigns({
                                 color:
                                   lift === null
                                     ? 'var(--muted)'
-                                    : lift >= 0
+                                    : lift >= 0n
                                       ? 'var(--positive)'
                                       : 'var(--negative)',
                                 fontWeight: 600,

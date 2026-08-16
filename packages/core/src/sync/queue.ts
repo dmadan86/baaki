@@ -16,6 +16,7 @@
  *     rejects it with a reason the user can be shown.
  */
 
+import { MutationKind } from './protocol';
 import type { MutationEnvelope, SyncMutationOutcome, SyncRejectionCode } from './protocol';
 
 export interface QueuedMutation extends MutationEnvelope {
@@ -66,8 +67,8 @@ function coalesce(queue: readonly QueuedMutation[]): QueuedMutation[] {
     const previous = result[result.length - 1];
     const collapsible =
       previous !== undefined &&
-      previous.kind === 'expense.update' &&
-      item.kind === 'expense.update' &&
+      previous.kind === MutationKind.ExpenseUpdate &&
+      item.kind === MutationKind.ExpenseUpdate &&
       previous.attempts === 0 &&
       item.attempts === 0 &&
       previous.groupId === item.groupId &&

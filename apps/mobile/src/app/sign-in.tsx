@@ -56,6 +56,7 @@ import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
 import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { friendlyError } from '@/lib/errors';
 
 enum Mode {
   Otp = 'otp',
@@ -136,7 +137,7 @@ export default function SignInScreen() {
     try {
       await action();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.signIn'));
     } finally {
       setBusy(false);
     }

@@ -191,9 +191,14 @@ export const pickGroupPhoto = () => pickSquarePhoto(COVER_MAX_EDGE);
  */
 export async function pickReceiptPhoto(): Promise<PickedImage | null> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
-  const launch = permission.granted
-    ? ImagePicker.launchCameraAsync
-    : ImagePicker.launchImageLibraryAsync;
+  let launch = ImagePicker.launchCameraAsync;
+  if (!permission.granted) {
+    // Falling back to the library needs its own permission, or the picker can
+    // throw or return nothing on a restricted Android library.
+    const library = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!library.granted) return null;
+    launch = ImagePicker.launchImageLibraryAsync;
+  }
 
   const result = await launch({ mediaTypes: ['images'], quality: 1, base64: false });
   if (result.canceled) return null;

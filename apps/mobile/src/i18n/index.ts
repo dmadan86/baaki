@@ -96,6 +96,23 @@ export interface PluralForms {
 }
 
 /**
+ * The dictation failure messages, threaded into `dictationError` from the caller.
+ *
+ * `dictationError` lives in `lib/dictation.ts`, deliberately free of React so it
+ * can be tested without a device — so it cannot reach `useStrings` itself. The
+ * screen that owns the mic passes this in, the same way the other non-hook
+ * helpers here receive their strings.
+ */
+export interface DictationErrorStrings {
+  readonly notAllowed: string;
+  readonly noSpeech: string;
+  readonly audioBusy: string;
+  readonly network: string;
+  readonly languageNotSupported: string;
+  readonly stopped: string;
+}
+
+/**
  * The plural rules for the four languages Baaki speaks, written out.
  *
  * `Intl.PluralRules` is not in the Hermes build this app ships on. It is not
@@ -163,7 +180,9 @@ export function plural(locale: string, count: number, forms: PluralForms): strin
 export interface UiStrings {
   greeting: string;
   yourBaaki: string;
-  acrossGroups: string;
+  /** "across N groups" on the dashboard total. Plural so it never reads
+   *  "across 1 groups". */
+  acrossGroups: PluralForms;
   youAreOwed: string;
   youOwe: string;
   allSettled: string;
@@ -253,6 +272,9 @@ export interface UiStrings {
   spending: string;
   byCategory: string;
   byMonth: string;
+  /** Caption under the total: `{currency}` is the code. Two moods, one shape. */
+  totalIn: string;
+  nothingIn: string;
   /** Under the month chart — says the columns are a way in, not just a picture. */
   tapMonthForDays: string;
   nothingToChart: string;
@@ -266,6 +288,8 @@ export interface UiStrings {
    */
   onboarding: readonly { title: string; body: string }[];
   plan: string;
+  /** The plan header's "day N" section marker. `{n}` is the current day. */
+  dayNumber: string;
   /** Trip carousel card: which day of the trip today is. `{day}`/`{total}`. */
   tripDay: string;
   planned: string;
@@ -321,6 +345,8 @@ export interface UiStrings {
     delete: string;
     share: string;
     done: string;
+    /** Accessibility prefix for a disclosure's info toggle — "About {title}". */
+    about: string;
     guest: string;
     name: string;
     yourName: string;
@@ -397,6 +423,8 @@ export interface UiStrings {
     both: string;
     bothHint: string;
     footnote: string;
+    /** Screen-reader suffix on the chosen network row ("Wi‑Fi, selected"). */
+    selected: string;
     /** Banner while holding the queue for Wi‑Fi. */
     waitingWifi: string;
     /** Banner while holding the queue for mobile data. */
@@ -522,6 +550,8 @@ export interface UiStrings {
     nudgesBody: string;
     digest: string;
     digestBody: string;
+    /** The weekly email is not a push notification, so it gets its own section. */
+    emailSection: string;
     weeklyEmail: string;
     weeklyEmailBody: string;
     failDenied: string;
@@ -603,6 +633,8 @@ export interface UiStrings {
     continueGuest: string;
     guestFootnote: string;
     memberFootnote: string;
+    /** Fallback when a sign-in attempt fails with nothing a person can act on. */
+    couldNotSignIn: string;
     restartToMirror: string;
     restartToUnmirror: string;
   };
@@ -728,6 +760,8 @@ export interface UiStrings {
     mismatch: string;
     mismatchBody: string;
     confirmReceived: string;
+    /** Heading over an incoming settlement claim; `{name}` is the payer. */
+    saysTheyPaidYou: string;
     autoConfirms: string;
     hideDeleted: string;
     showDeleted: string;
@@ -886,6 +920,8 @@ export interface UiStrings {
     contactsAdded: string;
     /** Error when one or more contacts could not be added. */
     couldNotAdd: string;
+    /** Partial add-contacts failure, carrying why the server refused. `{reason}`. */
+    couldNotAddSome: string;
     unnamed: string;
     joinAndClaim: string;
     joinGroup: string;
@@ -913,6 +949,8 @@ export interface UiStrings {
     micPermission: string;
     micBlocked: string;
     dictationFailed: string;
+    /** Every way dictation can end, in words — threaded into `dictationError`. */
+    dictationErrors: DictationErrorStrings;
     stopDictating: string;
     dictateNote: string;
     updateBaaki: string;
@@ -959,6 +997,29 @@ export interface UiStrings {
     nameAloneBody: string;
     noUpiYet: string;
     csvCurrencyMismatch: string;
+    // CurrencyRate: the rate methods, labels and notes that were literals.
+    rateFetchFailedSuffix: string;
+    settlesInHint: string;
+    howDoYouKnowRate: string;
+    todaysRate: string;
+    statementAmountLabel: string;
+    amountChargedIn: string;
+    fxOneEquals: string;
+    fxRateFromTo: string;
+    convertedApprox: string;
+    rateStoredNote: string;
+    rateSourceEcb: string;
+    rateSourceImplied: string;
+    rateSourceYou: string;
+    noRateNote: string;
+    // DisputePanel.
+    thinkThisOff: PluralForms;
+    sending: string;
+    tellThem: string;
+    // The update wall's fallback body and the banner's title.
+    versionStoppedBody: string;
+    newBaakiOut: string;
+    baakiVersionOut: string;
   };
   /** Pasting bank messages in, and what can be made of them (TDR §10). */
   smsImport: {
@@ -1005,11 +1066,21 @@ export interface UiStrings {
     readUnsupported: string;
     readUnavailable: string;
     readFailed: string;
+    /** The Android runtime-permission dialog shown before READ_SMS is granted. */
+    permissionRationale: {
+      title: string;
+      message: string;
+      allow: string;
+      notNow: string;
+    };
+    /** Note under a candidate whose date was inferred, not read from the text. */
+    dateNotInMessage: string;
   };
   /** Splitting one bill line by line, on one phone or several. */
   itemize: {
     title: string;
     notAMember: string;
+    invalidTaxOrTip: string;
     defaultDescription: string;
     sharedNow: string;
     splittingTogether: string;
@@ -1094,6 +1165,10 @@ export interface UiStrings {
     fromBaakiNote: string;
     fromSplitwiseNote: string;
     otherCurrenciesNote: string;
+    /** A Baaki export that parsed but held no groups to bring in. */
+    noGroupsInFile: string;
+    /** Rejects the import when the person marked "me" is not in the target group. */
+    couldNotFindYou: string;
   };
   /** Picking people, a country, and the dates a trip runs between. */
   pickers: {
@@ -1124,6 +1199,13 @@ export interface UiStrings {
     breakfast: string;
     endOfDay: string;
     clearDates: string;
+    nobodyPickedYet: string;
+    personCount: PluralForms;
+    alreadyAddedName: string;
+    alreadyInGroup: string;
+    removeName: string;
+    remindZoneNote: string;
+    useMyTimezone: string;
   };
   /** Somebody saying an expense is wrong, and the answer to it. */
   dispute: {
@@ -1218,9 +1300,9 @@ export interface UiStrings {
     analyticsTitle: string;
     analyticsBody: string;
     sessionReplayRow: string;
-    previewGroups: string;
-    previewExpenses: string;
-    previewSettlements: string;
+    previewGroups: PluralForms;
+    previewExpenses: PluralForms;
+    previewSettlements: PluralForms;
     previewOutstanding: string;
     feedbackRow: string;
     feedbackRowHint: string;
@@ -1248,7 +1330,7 @@ export interface UiStrings {
     deleteButton: string;
     deleteWorking: string;
     deleteDone: string;
-    deleteSummary: string;
+    deleteSummary: PluralForms;
   };
   extras: {
     blankNameHint: string;
@@ -1302,7 +1384,7 @@ export interface UiStrings {
 const en: UiStrings = {
   greeting: 'Hello',
   yourBaaki: 'Your baaki',
-  acrossGroups: 'across {count} groups',
+  acrossGroups: { one: 'across {n} group', other: 'across {n} groups' },
   youAreOwed: 'You are owed',
   youOwe: 'You owe',
   allSettled: 'All settled',
@@ -1375,6 +1457,8 @@ const en: UiStrings = {
   spending: 'Spending',
   byCategory: 'Where it went',
   byMonth: 'Month by month',
+  totalIn: 'total in {currency}',
+  nothingIn: 'nothing in {currency}',
   tapMonthForDays: 'Tap a month to see its days.',
   nothingToChart: 'Add a few expenses and this fills in.',
   categories: {
@@ -1390,6 +1474,7 @@ const en: UiStrings = {
     other: 'Other',
   },
   plan: 'Plan',
+  dayNumber: 'day {n}',
   tripDay: 'Day {day} of {total}',
   planned: 'Planned',
   spent: 'Spent',
@@ -1426,6 +1511,7 @@ const en: UiStrings = {
     delete: 'Delete',
     share: 'Share',
     done: 'Done',
+    about: 'About {title}',
     guest: 'Guest',
     name: 'Name',
     yourName: 'Your name',
@@ -1507,6 +1593,7 @@ const en: UiStrings = {
     both: 'Wi‑Fi & mobile data',
     bothHint: 'Sync on whatever connection is up.',
     footnote: 'Changes are always saved on your phone. This only decides when they leave it.',
+    selected: 'selected',
     waitingWifi: 'Saved — waiting for Wi‑Fi to sync.',
     waitingCellular: 'Saved — waiting for mobile data to sync.',
   },
@@ -1645,6 +1732,7 @@ const en: UiStrings = {
       'A friendly nudge about money owed. Limited to one per person per day, in the database.',
     digest: 'Daily group summary',
     digestBody: 'Everything else, batched into one notification a day instead of a stream.',
+    emailSection: 'By email',
     weeklyEmail: 'Weekly email digest',
     weeklyEmailBody: 'Your net baaki and pending confirmations, once a week. Off by default.',
     failDenied: 'Not enabled — you can turn it on in your phone settings later.',
@@ -1730,6 +1818,7 @@ const en: UiStrings = {
       'Everything you have already added stays exactly where it is. This only adds a way to sign back in.',
     memberFootnote:
       'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.',
+    couldNotSignIn: 'Could not sign in. Please try again.',
     restartToMirror: 'Close and open Baaki once to mirror the layout.',
     restartToUnmirror: 'Close and open Baaki once to turn the layout back.',
   },
@@ -1866,6 +1955,7 @@ const en: UiStrings = {
     mismatchBody:
       'This device and the server disagree about this group’s balances. Pull to refresh; if it persists, the ledger below is the source of truth.',
     confirmReceived: 'Confirm received',
+    saysTheyPaidYou: '{name} says they paid you',
     autoConfirms: 'Auto-confirms in 7 days if nobody responds.',
     hideDeleted: 'Hide deleted',
     showDeleted: 'Show deleted',
@@ -2025,6 +2115,7 @@ const en: UiStrings = {
     peopleCount: { one: '{n} person', other: '{n} people' },
     contactsAdded: '{count} added. Pick somebody else, or go back.',
     couldNotAdd: 'Could not add {names}.',
+    couldNotAddSome: 'Could not add everyone. {reason}',
     unnamed: 'Unnamed',
     joinAndClaim: 'Join and claim my history',
     joinGroup: 'Join this group',
@@ -2057,6 +2148,14 @@ const en: UiStrings = {
     micPermission: 'Baaki needs permission to use the microphone.',
     micBlocked: 'Microphone access is off for Baaki. You can turn it on in Settings.',
     dictationFailed: 'Dictation could not start. Type the note instead.',
+    dictationErrors: {
+      notAllowed: 'Baaki needs permission to use the microphone. You can turn it on in Settings.',
+      noSpeech: 'Did not catch anything. Tap the mic and speak again.',
+      audioBusy: 'The microphone is busy. Close anything else that is recording and try again.',
+      network: 'Speech recognition needs a connection on this phone. Type the note instead.',
+      languageNotSupported: 'This phone cannot recognise that language yet. Type the note instead.',
+      stopped: 'Dictation stopped. Type the note instead.',
+    },
     stopDictating: 'Stop dictating',
     dictateNote: 'Dictate the note',
     updateBaaki: 'Update Baaki',
@@ -2106,6 +2205,29 @@ const en: UiStrings = {
     noUpiYet: 'no UPI ID yet',
     csvCurrencyMismatch:
       'This file is in {fileCur} and this group keeps its money in {groupCur}. Importing it would need a rate for every row, and the file does not carry one — start a {fileCur} group for it instead.',
+    rateFetchFailedSuffix: ' — you can type the rate instead',
+    settlesInHint: 'This group settles in {currency}',
+    howDoYouKnowRate: 'This group settles in {currency}. How do you know the rate?',
+    todaysRate: 'Today’s rate',
+    statementAmountLabel: 'Amount on your statement, in {currency}',
+    amountChargedIn: 'Amount charged in {currency}',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: 'Rate from {from} to {to}',
+    convertedApprox: '≈ {amount} in {currency}',
+    rateStoredNote:
+      'Rate {rate} from {source}. Stored with the expense, so this converts the same way later.',
+    rateSourceEcb: 'the ECB',
+    rateSourceImplied: 'your statement',
+    rateSourceYou: 'you',
+    noRateNote:
+      'Without a rate the expense still saves — it just stays in {currency}, and the group keeps a separate {currency} balance.',
+    thinkThisOff: { one: 'Someone thinks this is off', other: '{n} people think this is off' },
+    sending: 'Sending…',
+    tellThem: 'Tell them',
+    versionStoppedBody:
+      'This version can no longer talk to Baaki, so it has been stopped rather than left to show you numbers that might be wrong.',
+    newBaakiOut: 'A new Baaki is out',
+    baakiVersionOut: 'Baaki {latest} is out',
   },
   smsImport: {
     title: 'Import from messages',
@@ -2169,10 +2291,19 @@ const en: UiStrings = {
     readUnsupported: 'Reading messages only works on Android. Paste them below instead.',
     readUnavailable: 'This build cannot read messages. Paste them below instead.',
     readFailed: 'Could not read your messages. Paste them below instead.',
+    permissionRationale: {
+      title: 'Read bank messages',
+      message:
+        'Baaki reads bank payment messages on this phone to suggest expenses for your trip. The messages stay on your phone — nothing is sent anywhere until you confirm an expense.',
+      allow: 'Allow',
+      notNow: 'Not now',
+    },
+    dateNotInMessage: 'date not in the message',
   },
   itemize: {
     title: 'Split by item',
     notAMember: 'You are not a member of this group',
+    invalidTaxOrTip: 'Enter a valid amount for tax and tip.',
     defaultDescription: 'Itemized bill',
     sharedNow: 'Everybody in the group can see this bill now. Tap the lines you had.',
     splittingTogether: 'Splitting together',
@@ -2279,6 +2410,8 @@ const en: UiStrings = {
       'Balances come across exactly. Who paid does not: a Splitwise export records only what each person came out up or down on a row, and many different payers produce the same result. Every imported expense is marked, and you can correct any of them.',
     otherCurrenciesNote:
       'The amounts below are the {currency} ones. {others} come across too, and are never converted.',
+    noGroupsInFile: 'That file has no groups to import.',
+    couldNotFindYou: 'Could not find you in that group. Open it and try again.',
   },
   pickers: {
     contactsDenied:
@@ -2310,6 +2443,13 @@ const en: UiStrings = {
     breakfast: 'Breakfast',
     endOfDay: 'End of day',
     clearDates: 'Clear dates',
+    nobodyPickedYet: 'Nobody picked yet',
+    personCount: { one: '{n} person', other: '{n} people' },
+    alreadyAddedName: '{name}, already added',
+    alreadyInGroup: 'Already in this group',
+    removeName: 'Remove {name}',
+    remindZoneNote: 'Asked in {zone} — where the trip is, not where each person is.',
+    useMyTimezone: 'Use my timezone ({zone})',
   },
   dispute: {
     yourReply: 'Your reply',
@@ -2393,9 +2533,15 @@ const en: UiStrings = {
     analyticsBody:
       'Baaki can record how screens are used — which ones people get stuck on, where a tap lands — through Microsoft Clarity. It ships switched off and records nothing unless it is turned on. It is never used for advertising, there is no advertising identifier, and nothing here is sold or shared.',
     sessionReplayRow: 'Record how I use the app',
-    previewGroups: 'You are in {n} group(s).',
-    previewExpenses: 'You entered {n} expense(s) that will stay.',
-    previewSettlements: 'You are named in {n} settlement(s).',
+    previewGroups: { one: 'You are in {n} group.', other: 'You are in {n} groups.' },
+    previewExpenses: {
+      one: 'You entered {n} expense that will stay.',
+      other: 'You entered {n} expenses that will stay.',
+    },
+    previewSettlements: {
+      one: 'You are named in {n} settlement.',
+      other: 'You are named in {n} settlements.',
+    },
     previewOutstanding: 'You still have an unsettled balance in {list}.',
     feedbackRow: 'Send feedback',
     feedbackRowHint: 'Tell us what is wrong, or what is missing',
@@ -2427,7 +2573,10 @@ const en: UiStrings = {
     deleteButton: 'Delete my data',
     deleteWorking: 'Deleting…',
     deleteDone: 'Your data has been deleted.',
-    deleteSummary: 'You are now a former member of {n} group(s).',
+    deleteSummary: {
+      one: 'You are now a former member of {n} group.',
+      other: 'You are now a former member of {n} groups.',
+    },
   },
   extras: {
     blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
@@ -2497,7 +2646,7 @@ const en: UiStrings = {
 const ta: UiStrings = {
   greeting: 'வணக்கம்',
   yourBaaki: 'உங்கள் பாக்கி',
-  acrossGroups: '{count} குழுக்களில்',
+  acrossGroups: { one: '{n} குழுவில்', other: '{n} குழுக்களில்' },
   youAreOwed: 'உங்களுக்கு வர வேண்டியது',
   youOwe: 'நீங்கள் தர வேண்டியது',
   allSettled: 'எல்லாம் சரி',
@@ -2572,6 +2721,8 @@ const ta: UiStrings = {
   spending: 'செலவு',
   byCategory: 'எதற்குச் சென்றது',
   byMonth: 'மாதம் வாரியாக',
+  totalIn: '{currency} இல் மொத்தம்',
+  nothingIn: '{currency} இல் ஏதுமில்லை',
   tapMonthForDays: 'நாட்களைக் காண மாதத்தைத் தட்டவும்.',
   nothingToChart: 'சில செலவுகளைச் சேர்த்தால் இது நிரம்பும்.',
   categories: {
@@ -2587,6 +2738,7 @@ const ta: UiStrings = {
     other: 'மற்றவை',
   },
   plan: 'திட்டம்',
+  dayNumber: 'நாள் {n}',
   tripDay: 'நாள் {day}/{total}',
   planned: 'திட்டமிட்டது',
   spent: 'செலவானது',
@@ -2624,6 +2776,7 @@ const ta: UiStrings = {
     delete: 'அழி',
     share: 'பகிர்',
     done: 'முடிந்தது',
+    about: '{title} பற்றி',
     guest: 'விருந்தினர்',
     name: 'பெயர்',
     yourName: 'உங்கள் பெயர்',
@@ -2705,6 +2858,7 @@ const ta: UiStrings = {
     bothHint: 'இணைப்பு எதுவாக இருந்தாலும் ஒத்திசைக்கும்.',
     footnote:
       'மாற்றங்கள் எப்போதும் உங்கள் ஃபோனில் சேமிக்கப்படும். எப்போது வெளியேறும் என்பதை மட்டுமே இது தீர்மானிக்கிறது.',
+    selected: 'தேர்ந்தெடுக்கப்பட்டது',
     waitingWifi: 'சேமிக்கப்பட்டது — ஒத்திசைக்க வைஃபைக்காகக் காத்திருக்கிறது.',
     waitingCellular: 'சேமிக்கப்பட்டது — ஒத்திசைக்க மொபைல் டேட்டாவுக்காகக் காத்திருக்கிறது.',
   },
@@ -2848,6 +3002,7 @@ const ta: UiStrings = {
       'தர வேண்டிய பணம் குறித்த மென்மையான நினைவூட்டல். ஒரு நாளைக்கு ஒருவருக்கு ஒன்று மட்டுமே, தரவுத்தளத்திலேயே வரையறுக்கப்பட்டது.',
     digest: 'நாள்தோறும் குழுச் சுருக்கம்',
     digestBody: 'மற்ற அனைத்தும், தொடர்ச்சியாக அல்லாமல் நாளுக்கு ஒரு அறிவிப்பாகத் தொகுத்து.',
+    emailSection: 'மின்னஞ்சல் வழியாக',
     weeklyEmail: 'வாராந்திர மின்னஞ்சல் சுருக்கம்',
     weeklyEmailBody:
       'உங்கள் நிகர பாக்கியும் நிலுவையிலுள்ள உறுதிப்படுத்தல்களும், வாரம் ஒருமுறை. இயல்பாக நிறுத்தத்தில்.',
@@ -2935,6 +3090,7 @@ const ta: UiStrings = {
       'நீங்கள் ஏற்கனவே சேர்த்த அனைத்தும் அப்படியே இருக்கும். இது மீண்டும் உள்நுழைய ஒரு வழியை மட்டுமே சேர்க்கிறது.',
     memberFootnote:
       'உள்நுழைய ஒரு வழியைச் சேர்க்கும் வரை விருந்தினர் கணக்கு அனைத்தையும் இந்தச் சாதனத்திலேயே வைத்திருக்கும். உங்கள் கணக்கு எப்போதும் பணயம் வைக்கப்படுவதில்லை.',
+    couldNotSignIn: 'உள்நுழைய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     restartToMirror: 'தளவமைப்பைப் பிரதிபலிக்க பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
     restartToUnmirror: 'தளவமைப்பை மீண்டும் மாற்ற பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
   },
@@ -3077,6 +3233,7 @@ const ta: UiStrings = {
     mismatchBody:
       'இந்தக் குழுவின் இருப்புகள் குறித்து இந்தச் சாதனமும் சர்வரும் ஒத்துப்போகவில்லை. இழுத்துப் புதுப்பிக்கவும்; தொடர்ந்தால் கீழே உள்ள கணக்கே சரியானது.',
     confirmReceived: 'கிடைத்தது என்று உறுதிப்படுத்து',
+    saysTheyPaidYou: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்',
     autoConfirms: 'யாரும் பதிலளிக்காவிட்டால் 7 நாட்களில் தானாகவே உறுதியாகும்.',
     hideDeleted: 'நீக்கியவற்றை மறை',
     showDeleted: 'நீக்கியவற்றைக் காட்டு',
@@ -3244,6 +3401,7 @@ const ta: UiStrings = {
     contactsAdded:
       '{count} சேர்க்கப்பட்டனர். வேறு ஒருவரைத் தேர்ந்தெடுக்கவும், அல்லது பின் செல்லவும்.',
     couldNotAdd: '{names} சேர்க்க முடியவில்லை.',
+    couldNotAddSome: 'எல்லாரையும் சேர்க்க முடியவில்லை. {reason}',
     unnamed: 'பெயரிடப்படாதவர்',
     joinAndClaim: 'சேர்ந்து என் வரலாற்றை உரிமை கொள்',
     joinGroup: 'இந்தக் குழுவில் சேர்',
@@ -3279,6 +3437,16 @@ const ta: UiStrings = {
     micPermission: 'ஒலிவாங்கியைப் பயன்படுத்த பாக்கிக்கு அனுமதி தேவை.',
     micBlocked: 'பாக்கிக்கு ஒலிவாங்கி அணுகல் நிறுத்தப்பட்டுள்ளது. அமைப்புகளில் இயக்கலாம்.',
     dictationFailed: 'சொல்வதைப் பதிவு செய்ய முடியவில்லை. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+    dictationErrors: {
+      notAllowed: 'மைக்ரோஃபோனைப் பயன்படுத்த பாக்கிக்கு அனுமதி தேவை. அமைப்புகளில் அதை இயக்கலாம்.',
+      noSpeech: 'எதுவும் கேட்கவில்லை. மைக்கைத் தட்டி மீண்டும் பேசுங்கள்.',
+      audioBusy:
+        'மைக்ரோஃபோன் பயன்பாட்டில் உள்ளது. பதிவு செய்யும் மற்றதை மூடிவிட்டு மீண்டும் முயற்சிக்கவும்.',
+      network: 'இந்தப் ஃபோனில் பேச்சு அறிதலுக்கு இணைப்பு தேவை. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+      languageNotSupported:
+        'இந்த ஃபோன் அந்த மொழியை இன்னும் அறிய முடியாது. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+      stopped: 'சொல்வது நின்றது. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+    },
     stopDictating: 'சொல்வதை நிறுத்து',
     dictateNote: 'குறிப்பைச் சொல்',
     updateBaaki: 'பாக்கியைப் புதுப்பி',
@@ -3329,6 +3497,33 @@ const ta: UiStrings = {
     noUpiYet: 'இன்னும் UPI ஐடி இல்லை',
     csvCurrencyMismatch:
       'இந்தக் கோப்பு {fileCur} இல் உள்ளது, இந்தக் குழு தன் பணத்தை {groupCur} இல் வைத்திருக்கிறது. இதை இறக்குமதி செய்ய ஒவ்வொரு வரிசைக்கும் ஒரு விகிதம் தேவை, கோப்பு அதைக் கொண்டிருக்கவில்லை — அதற்குப் பதிலாக ஒரு {fileCur} குழுவைத் தொடங்குங்கள்.',
+    rateFetchFailedSuffix: ' — நீங்கள் விகிதத்தை நேரடியாகத் தட்டச்சு செய்யலாம்',
+    settlesInHint: 'இந்தக் குழு {currency} இல் தீர்க்கிறது',
+    howDoYouKnowRate:
+      'இந்தக் குழு {currency} இல் தீர்க்கிறது. விகிதம் உங்களுக்கு எப்படித் தெரியும்?',
+    todaysRate: 'இன்றைய விகிதம்',
+    statementAmountLabel: 'உங்கள் அறிக்கையில் உள்ள தொகை, {currency} இல்',
+    amountChargedIn: '{currency} இல் வசூலிக்கப்பட்ட தொகை',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: '{from} இலிருந்து {to} க்கு விகிதம்',
+    convertedApprox: '≈ {amount} ({currency} இல்)',
+    rateStoredNote:
+      'விகிதம் {rate}, {source} இலிருந்து. செலவுடன் சேமிக்கப்படுகிறது, எனவே பின்னரும் இதே போல் மாற்றப்படும்.',
+    rateSourceEcb: 'ECB',
+    rateSourceImplied: 'உங்கள் அறிக்கை',
+    rateSourceYou: 'நீங்கள்',
+    noRateNote:
+      'விகிதம் இல்லாமலும் செலவு சேமிக்கப்படும் — அது {currency} இல் இருக்கும், மேலும் குழு ஒரு தனி {currency} இருப்பை வைத்திருக்கும்.',
+    thinkThisOff: {
+      one: 'இது சரியில்லை என ஒருவர் நினைக்கிறார்',
+      other: 'இது சரியில்லை என {n} பேர் நினைக்கிறார்கள்',
+    },
+    sending: 'அனுப்புகிறது…',
+    tellThem: 'அவர்களிடம் சொல்',
+    versionStoppedBody:
+      'இந்தப் பதிப்பால் இனி பாக்கியுடன் தொடர்பு கொள்ள முடியாது, எனவே தவறாக இருக்கக்கூடிய எண்களைக் காட்டுவதற்குப் பதிலாக அது நிறுத்தப்பட்டுள்ளது.',
+    newBaakiOut: 'புதிய பாக்கி வெளியாகிவிட்டது',
+    baakiVersionOut: 'பாக்கி {latest} வெளியாகிவிட்டது',
   },
   smsImport: {
     title: 'செய்திகளிலிருந்து இறக்குமதி',
@@ -3393,10 +3588,19 @@ const ta: UiStrings = {
       'செய்திகளைப் படிப்பது Android-இல் மட்டுமே இயங்கும். அதற்குப் பதிலாக கீழே ஒட்டவும்.',
     readUnavailable: 'இந்தப் பதிப்பால் செய்திகளைப் படிக்க முடியாது. கீழே ஒட்டவும்.',
     readFailed: 'உங்கள் செய்திகளைப் படிக்க முடியவில்லை. கீழே ஒட்டவும்.',
+    permissionRationale: {
+      title: 'வங்கிச் செய்திகளைப் படிக்க',
+      message:
+        'உங்கள் பயணத்திற்கான செலவுகளைப் பரிந்துரைக்க பாக்கி இந்த ஃபோனில் உள்ள வங்கிப் பணச் செய்திகளைப் படிக்கிறது. செய்திகள் உங்கள் ஃபோனிலேயே இருக்கும் — நீங்கள் ஒரு செலவை உறுதிப்படுத்தும் வரை எதுவும் எங்கும் அனுப்பப்படாது.',
+      allow: 'அனுமதி',
+      notNow: 'இப்போது வேண்டாம்',
+    },
+    dateNotInMessage: 'செய்தியில் தேதி இல்லை',
   },
   itemize: {
     title: 'பொருள் வாரியாகப் பிரி',
     notAMember: 'நீங்கள் இந்தக் குழுவின் உறுப்பினர் அல்ல',
+    invalidTaxOrTip: 'வரி மற்றும் டிப்பிற்கு சரியான தொகையை உள்ளிடவும்.',
     defaultDescription: 'பொருள் வாரியான ரசீது',
     sharedNow:
       'இப்போது குழுவில் உள்ள அனைவரும் இந்த ரசீதைப் பார்க்கலாம். நீங்கள் சாப்பிட்ட வரிகளைத் தட்டுங்கள்.',
@@ -3512,6 +3716,9 @@ const ta: UiStrings = {
       'இருப்புகள் அப்படியே வரும். யார் கொடுத்தார்கள் என்பது வராது: Splitwise ஏற்றுமதி ஒரு வரிசையில் ஒவ்வொருவரும் எவ்வளவு மேலே அல்லது கீழே போனார்கள் என்பதை மட்டுமே பதிவு செய்கிறது, பல வேறுபட்ட செலுத்துபவர்கள் ஒரே முடிவைத் தருவார்கள். இறக்குமதி செய்யப்பட்ட ஒவ்வொரு செலவும் குறிக்கப்படும், நீங்கள் எதையும் திருத்தலாம்.',
     otherCurrenciesNote:
       'கீழே உள்ள தொகைகள் {currency} இல் உள்ளவை. {others} உம் வரும், அவை ஒருபோதும் மாற்றப்படுவதில்லை.',
+    noGroupsInFile: 'அந்தக் கோப்பில் இறக்குமதி செய்ய குழுக்கள் இல்லை.',
+    couldNotFindYou:
+      'அந்தக் குழுவில் உங்களைக் கண்டறிய முடியவில்லை. அதைத் திறந்து மீண்டும் முயற்சிக்கவும்.',
   },
   pickers: {
     contactsDenied:
@@ -3543,6 +3750,14 @@ const ta: UiStrings = {
     breakfast: 'காலை உணவு',
     endOfDay: 'நாள் முடிவு',
     clearDates: 'தேதிகளை அழி',
+    nobodyPickedYet: 'இன்னும் யாரையும் தேர்ந்தெடுக்கவில்லை',
+    personCount: { one: '{n} நபர்', other: '{n} நபர்கள்' },
+    alreadyAddedName: '{name}, ஏற்கனவே சேர்க்கப்பட்டது',
+    alreadyInGroup: 'ஏற்கனவே இந்தக் குழுவில் உள்ளார்',
+    removeName: '{name} ஐ நீக்கு',
+    remindZoneNote:
+      '{zone} இல் கேட்கப்படுகிறது — பயணம் இருக்கும் இடம், ஒவ்வொருவரும் இருக்கும் இடம் அல்ல.',
+    useMyTimezone: 'என் நேர மண்டலத்தைப் பயன்படுத்து ({zone})',
   },
   dispute: {
     yourReply: 'உங்கள் பதில்',
@@ -3628,9 +3843,18 @@ const ta: UiStrings = {
     analyticsBody:
       'எந்தத் திரையில் சிக்கல் வருகிறது என்பதைப் புரிந்துகொள்ள Microsoft Clarity மூலம் பயன்பாட்டைப் பதிவு செய்ய முடியும். இது இயல்பாக அணைக்கப்பட்டே வருகிறது; இயக்கப்படாத வரை எதுவும் பதிவாகாது. விளம்பரத்திற்கு ஒருபோதும் பயன்படுத்தப்படுவதில்லை, விளம்பர அடையாளம் இல்லை, எதுவும் விற்கப்படுவதில்லை.',
     sessionReplayRow: 'நான் செயலியைப் பயன்படுத்தும் விதத்தைப் பதிவு செய்',
-    previewGroups: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
-    previewExpenses: 'நீங்கள் சேர்த்த {n} செலவுகள் இருக்கும்.',
-    previewSettlements: '{n} தீர்வுகளில் உங்கள் பெயர் உள்ளது.',
+    previewGroups: {
+      one: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
+      other: 'நீங்கள் {n} குழுக்களில் உள்ளீர்கள்.',
+    },
+    previewExpenses: {
+      one: 'நீங்கள் சேர்த்த {n} செலவு இருக்கும்.',
+      other: 'நீங்கள் சேர்த்த {n} செலவுகள் இருக்கும்.',
+    },
+    previewSettlements: {
+      one: '{n} தீர்வில் உங்கள் பெயர் உள்ளது.',
+      other: '{n} தீர்வுகளில் உங்கள் பெயர் உள்ளது.',
+    },
     previewOutstanding: '{list} இல் இன்னும் தீராத நிலுவை உள்ளது.',
     feedbackRow: 'கருத்து அனுப்பு',
     feedbackRowHint: 'என்ன தவறு, அல்லது என்ன இல்லை என்று சொல்லுங்கள்',
@@ -3662,7 +3886,10 @@ const ta: UiStrings = {
     deleteButton: 'என் தரவை நீக்கு',
     deleteWorking: 'நீக்கப்படுகிறது…',
     deleteDone: 'உங்கள் தரவு நீக்கப்பட்டது.',
-    deleteSummary: 'நீங்கள் இப்போது {n} குழுவின் முன்னாள் உறுப்பினர்.',
+    deleteSummary: {
+      one: 'நீங்கள் இப்போது {n} குழுவின் முன்னாள் உறுப்பினர்.',
+      other: 'நீங்கள் இப்போது {n} குழுக்களின் முன்னாள் உறுப்பினர்.',
+    },
   },
   extras: {
     blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
@@ -3725,7 +3952,7 @@ const ta: UiStrings = {
 const hi: UiStrings = {
   greeting: 'नमस्ते',
   yourBaaki: 'आपकी बाकी',
-  acrossGroups: '{count} समूहों में',
+  acrossGroups: { one: '{n} समूह में', other: '{n} समूहों में' },
   youAreOwed: 'आपको मिलने हैं',
   youOwe: 'आपको देने हैं',
   allSettled: 'सब बराबर',
@@ -3798,6 +4025,8 @@ const hi: UiStrings = {
   spending: 'खर्च',
   byCategory: 'कहाँ गया',
   byMonth: 'महीने के हिसाब से',
+  totalIn: '{currency} में कुल',
+  nothingIn: '{currency} में कुछ नहीं',
   tapMonthForDays: 'दिन देखने के लिए महीने पर टैप करें।',
   nothingToChart: 'कुछ खर्च जोड़ें, यह अपने आप भर जाएगा।',
   categories: {
@@ -3813,6 +4042,7 @@ const hi: UiStrings = {
     other: 'अन्य',
   },
   plan: 'योजना',
+  dayNumber: 'दिन {n}',
   tripDay: 'दिन {day}/{total}',
   planned: 'तय किया',
   spent: 'खर्च हुआ',
@@ -3849,6 +4079,7 @@ const hi: UiStrings = {
     delete: 'मिटाएँ',
     share: 'साझा करें',
     done: 'हो गया',
+    about: '{title} के बारे में',
     guest: 'मेहमान',
     name: 'नाम',
     yourName: 'आपका नाम',
@@ -3928,6 +4159,7 @@ const hi: UiStrings = {
     bothHint: 'जो भी कनेक्शन उपलब्ध हो, उस पर सिंक करें।',
     footnote:
       'बदलाव हमेशा आपके फ़ोन पर सहेजे जाते हैं। यह केवल तय करता है कि वे कब फ़ोन से बाहर जाएँ।',
+    selected: 'चुना गया',
     waitingWifi: 'सहेजा गया — सिंक के लिए वाई‑फ़ाई की प्रतीक्षा है।',
     waitingCellular: 'सहेजा गया — सिंक के लिए मोबाइल डेटा की प्रतीक्षा है।',
   },
@@ -4066,6 +4298,7 @@ const hi: UiStrings = {
     nudgesBody: 'बाकी पैसे की एक विनम्र याद। डेटाबेस में ही सीमित — एक व्यक्ति को दिन में एक बार।',
     digest: 'दैनिक समूह सारांश',
     digestBody: 'बाकी सब कुछ, लगातार की जगह दिन में एक सूचना में इकट्ठा।',
+    emailSection: 'ईमेल से',
     weeklyEmail: 'साप्ताहिक ईमेल सारांश',
     weeklyEmailBody: 'आपकी कुल बाकी और लंबित पुष्टियाँ, हफ़्ते में एक बार। डिफ़ॉल्ट रूप से बंद।',
     failDenied: 'चालू नहीं हुआ — आप बाद में फ़ोन सेटिंग्स में इसे चालू कर सकते हैं।',
@@ -4149,6 +4382,7 @@ const hi: UiStrings = {
       'आपने जो जोड़ा है वह जहाँ है वहीं रहेगा। इससे सिर्फ़ दोबारा साइन इन करने का रास्ता जुड़ता है।',
     memberFootnote:
       'जब तक आप साइन इन का कोई तरीका न जोड़ें, मेहमान खाता सब कुछ इसी डिवाइस पर रखता है। आपका हिसाब कभी बंधक नहीं बनाया जाता।',
+    couldNotSignIn: 'साइन इन नहीं हो सका। फिर से कोशिश करें।',
     restartToMirror: 'लेआउट की दिशा बदलने के लिए बाकी को एक बार बंद करके खोलें।',
     restartToUnmirror: 'लेआउट वापस पलटने के लिए बाकी को एक बार बंद करके खोलें।',
   },
@@ -4287,6 +4521,7 @@ const hi: UiStrings = {
     mismatchBody:
       'इस समूह के हिसाब पर यह डिवाइस और सर्वर सहमत नहीं हैं। खींचकर ताज़ा करें; फिर भी बना रहे तो नीचे का हिसाब ही सही है।',
     confirmReceived: 'मिलने की पुष्टि करें',
+    saysTheyPaidYou: '{name} कहते हैं कि उन्होंने आपको भुगतान किया',
     autoConfirms: 'कोई जवाब न दे तो 7 दिन में अपने आप पुष्ट हो जाएगा।',
     hideDeleted: 'हटाए हुए छिपाएँ',
     showDeleted: 'हटाए हुए दिखाएँ',
@@ -4446,6 +4681,7 @@ const hi: UiStrings = {
     peopleCount: { one: '{n} व्यक्ति', other: '{n} लोग' },
     contactsAdded: '{count} जोड़े गए। किसी और को चुनें, या वापस जाएँ।',
     couldNotAdd: '{names} को नहीं जोड़ा जा सका।',
+    couldNotAddSome: 'सभी को नहीं जोड़ा जा सका। {reason}',
     unnamed: 'बिना नाम',
     joinAndClaim: 'जुड़ें और अपना इतिहास लें',
     joinGroup: 'इस समूह में जुड़ें',
@@ -4478,6 +4714,14 @@ const hi: UiStrings = {
     micPermission: 'माइक्रोफ़ोन इस्तेमाल करने के लिए बाकी को अनुमति चाहिए।',
     micBlocked: 'बाकी के लिए माइक्रोफ़ोन बंद है। आप इसे सेटिंग्स में चालू कर सकते हैं।',
     dictationFailed: 'बोलकर लिखना शुरू नहीं हो सका। नोट टाइप कर लें।',
+    dictationErrors: {
+      notAllowed: 'माइक्रोफ़ोन के लिए बाकी को अनुमति चाहिए। इसे सेटिंग्स में चालू कर सकते हैं।',
+      noSpeech: 'कुछ सुनाई नहीं दिया। माइक पर टैप करके फिर बोलें।',
+      audioBusy: 'माइक्रोफ़ोन व्यस्त है। रिकॉर्ड करने वाला कुछ और बंद करके फिर कोशिश करें।',
+      network: 'इस फ़ोन पर आवाज़ पहचान के लिए कनेक्शन चाहिए। नोट टाइप कर लें।',
+      languageNotSupported: 'यह फ़ोन अभी उस भाषा को नहीं पहचान सकता। नोट टाइप कर लें।',
+      stopped: 'बोलकर लिखना रुक गया। नोट टाइप कर लें।',
+    },
     stopDictating: 'बोलना बंद करें',
     dictateNote: 'नोट बोलें',
     updateBaaki: 'बाकी अपडेट करें',
@@ -4527,6 +4771,32 @@ const hi: UiStrings = {
     noUpiYet: 'अभी कोई UPI आईडी नहीं',
     csvCurrencyMismatch:
       'यह फ़ाइल {fileCur} में है और यह समूह अपना पैसा {groupCur} में रखता है। इसे आयात करने के लिए हर पंक्ति के लिए एक दर चाहिए, और फ़ाइल में वह नहीं है — इसके बजाय एक {fileCur} समूह शुरू करें।',
+    rateFetchFailedSuffix: ' — आप दर खुद टाइप कर सकते हैं',
+    settlesInHint: 'यह समूह {currency} में हिसाब करता है',
+    howDoYouKnowRate: 'यह समूह {currency} में हिसाब करता है। दर आपको कैसे पता है?',
+    todaysRate: 'आज की दर',
+    statementAmountLabel: 'आपके स्टेटमेंट पर रकम, {currency} में',
+    amountChargedIn: '{currency} में ली गई रकम',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: '{from} से {to} की दर',
+    convertedApprox: '≈ {amount} ({currency} में)',
+    rateStoredNote:
+      'दर {rate}, {source} से। खर्च के साथ सहेजी गई है, इसलिए बाद में भी यही रूपांतरण होगा।',
+    rateSourceEcb: 'ECB',
+    rateSourceImplied: 'आपके स्टेटमेंट',
+    rateSourceYou: 'आप',
+    noRateNote:
+      'दर के बिना भी खर्च सहेजा जाता है — यह {currency} में ही रहता है, और समूह एक अलग {currency} बैलेंस रखता है।',
+    thinkThisOff: {
+      one: 'किसी को लगता है कि यह ठीक नहीं है',
+      other: '{n} लोगों को लगता है कि यह ठीक नहीं है',
+    },
+    sending: 'भेज रहे हैं…',
+    tellThem: 'उन्हें बताएँ',
+    versionStoppedBody:
+      'यह संस्करण अब बाकी से बात नहीं कर सकता, इसलिए ग़लत आँकड़े दिखाने के बजाय इसे रोक दिया गया है।',
+    newBaakiOut: 'नया बाकी आ गया है',
+    baakiVersionOut: 'बाकी {latest} आ गया है',
   },
   smsImport: {
     title: 'संदेशों से आयात',
@@ -4588,10 +4858,19 @@ const hi: UiStrings = {
     readUnsupported: 'संदेश पढ़ना केवल Android पर काम करता है। नीचे उन्हें पेस्ट करें।',
     readUnavailable: 'यह बिल्ड संदेश नहीं पढ़ सकता। नीचे उन्हें पेस्ट करें।',
     readFailed: 'आपके संदेश पढ़े नहीं जा सके। नीचे उन्हें पेस्ट करें।',
+    permissionRationale: {
+      title: 'बैंक संदेश पढ़ें',
+      message:
+        'आपकी यात्रा के ख़र्चे सुझाने के लिए बाकी इस फ़ोन पर बैंक भुगतान संदेश पढ़ता है। संदेश आपके फ़ोन पर ही रहते हैं — जब तक आप कोई ख़र्च पुष्टि न करें, कुछ भी कहीं नहीं भेजा जाता।',
+      allow: 'अनुमति दें',
+      notNow: 'अभी नहीं',
+    },
+    dateNotInMessage: 'संदेश में तारीख नहीं थी',
   },
   itemize: {
     title: 'चीज़-वार बाँटें',
     notAMember: 'आप इस समूह के सदस्य नहीं हैं',
+    invalidTaxOrTip: 'कर और टिप के लिए मान्य राशि दर्ज करें।',
     defaultDescription: 'चीज़-वार बिल',
     sharedNow: 'अब समूह के सब लोग यह बिल देख सकते हैं। जो आपने लिया उन पंक्तियों पर टैप करें।',
     splittingTogether: 'साथ मिलकर बाँट रहे हैं',
@@ -4701,6 +4980,8 @@ const hi: UiStrings = {
       'हिसाब बिल्कुल सही आता है। किसने दिया, यह नहीं: Splitwise निर्यात सिर्फ़ यह दर्ज करता है कि एक पंक्ति पर हर व्यक्ति कितना ऊपर या नीचे रहा, और कई अलग-अलग भुगतानकर्ता एक ही नतीजा देते हैं। हर आयातित खर्च पर निशान लगा होता है, और आप किसी को भी ठीक कर सकते हैं।',
     otherCurrenciesNote:
       'नीचे की रकमें {currency} वाली हैं। {others} भी आती हैं, और कभी बदली नहीं जातीं।',
+    noGroupsInFile: 'उस फ़ाइल में आयात करने के लिए कोई समूह नहीं है।',
+    couldNotFindYou: 'उस समूह में आप नहीं मिले। उसे खोलकर फिर कोशिश करें।',
   },
   pickers: {
     contactsDenied:
@@ -4732,6 +5013,13 @@ const hi: UiStrings = {
     breakfast: 'नाश्ता',
     endOfDay: 'दिन का अंत',
     clearDates: 'तारीखें हटाएँ',
+    nobodyPickedYet: 'अभी किसी को नहीं चुना',
+    personCount: { one: '{n} व्यक्ति', other: '{n} लोग' },
+    alreadyAddedName: '{name}, पहले से जुड़ा है',
+    alreadyInGroup: 'पहले से इस समूह में है',
+    removeName: '{name} को हटाएँ',
+    remindZoneNote: '{zone} में पूछा जाता है — जहाँ यात्रा है, न कि जहाँ हर कोई है।',
+    useMyTimezone: 'मेरा टाइमज़ोन इस्तेमाल करें ({zone})',
   },
   dispute: {
     yourReply: 'आपका जवाब',
@@ -4814,9 +5102,15 @@ const hi: UiStrings = {
     analyticsBody:
       'Microsoft Clarity के ज़रिए यह दर्ज किया जा सकता है कि कौन-सी स्क्रीन उलझाती है। यह बंद अवस्था में ही आता है और चालू किए बिना कुछ दर्ज नहीं करता। इसका उपयोग विज्ञापन के लिए कभी नहीं होता, कोई विज्ञापन पहचानकर्ता नहीं है, और कुछ भी बेचा या साझा नहीं जाता।',
     sessionReplayRow: 'ऐप के मेरे इस्तेमाल को दर्ज करने दें',
-    previewGroups: 'आप {n} समूह में हैं।',
-    previewExpenses: 'आपके डाले {n} ख़र्चे बने रहेंगे।',
-    previewSettlements: '{n} भुगतानों में आपका नाम है।',
+    previewGroups: { one: 'आप {n} समूह में हैं।', other: 'आप {n} समूहों में हैं।' },
+    previewExpenses: {
+      one: 'आपका डाला {n} ख़र्च बना रहेगा।',
+      other: 'आपके डाले {n} ख़र्चे बने रहेंगे।',
+    },
+    previewSettlements: {
+      one: '{n} भुगतान में आपका नाम है।',
+      other: '{n} भुगतानों में आपका नाम है।',
+    },
     previewOutstanding: '{list} में अब भी बकाया है।',
     feedbackRow: 'सुझाव भेजें',
     feedbackRowHint: 'बताइए क्या ग़लत है, या क्या नहीं है',
@@ -4848,7 +5142,10 @@ const hi: UiStrings = {
     deleteButton: 'मेरा डेटा मिटाएँ',
     deleteWorking: 'मिटाया जा रहा है…',
     deleteDone: 'आपका डेटा मिटा दिया गया।',
-    deleteSummary: 'अब आप {n} समूह के पूर्व-सदस्य हैं।',
+    deleteSummary: {
+      one: 'अब आप {n} समूह के पूर्व-सदस्य हैं।',
+      other: 'अब आप {n} समूहों के पूर्व-सदस्य हैं।',
+    },
   },
   extras: {
     blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
@@ -4913,7 +5210,14 @@ const hi: UiStrings = {
 const ar: UiStrings = {
   greeting: 'أهلاً',
   yourBaaki: 'باقيك',
-  acrossGroups: 'في {count} مجموعات',
+  acrossGroups: {
+    zero: 'في {n} مجموعة',
+    one: 'في مجموعة واحدة',
+    two: 'في مجموعتين',
+    few: 'في {n} مجموعات',
+    many: 'في {n} مجموعة',
+    other: 'في {n} مجموعة',
+  },
   youAreOwed: 'لك',
   youOwe: 'عليك',
   allSettled: 'تمت التسوية',
@@ -4993,6 +5297,8 @@ const ar: UiStrings = {
   spending: 'الإنفاق',
   byCategory: 'أين ذهبت',
   byMonth: 'شهراً بشهر',
+  totalIn: 'الإجمالي بعملة {currency}',
+  nothingIn: 'لا شيء بعملة {currency}',
   tapMonthForDays: 'اضغط على شهر لرؤية أيامه.',
   nothingToChart: 'أضف بعض المصروفات وسيمتلئ هذا.',
   categories: {
@@ -5008,6 +5314,7 @@ const ar: UiStrings = {
     other: 'أخرى',
   },
   plan: 'الخطة',
+  dayNumber: 'اليوم {n}',
   tripDay: 'اليوم {day} من {total}',
   planned: 'المخطط',
   spent: 'المصروف',
@@ -5044,6 +5351,7 @@ const ar: UiStrings = {
     delete: 'حذف',
     share: 'مشاركة',
     done: 'تم',
+    about: 'حول {title}',
     guest: 'ضيف',
     name: 'الاسم',
     yourName: 'اسمك',
@@ -5121,6 +5429,7 @@ const ar: UiStrings = {
     both: 'واي‑فاي وبيانات الجوال',
     bothHint: 'المزامنة عبر أي اتصال متاح.',
     footnote: 'تُحفظ التغييرات دائمًا على هاتفك. هذا يحدد فقط متى تغادره.',
+    selected: 'محدَّد',
     waitingWifi: 'محفوظ — بانتظار واي‑فاي للمزامنة.',
     waitingCellular: 'محفوظ — بانتظار بيانات الجوال للمزامنة.',
   },
@@ -5280,6 +5589,7 @@ const ar: UiStrings = {
     nudgesBody: 'تذكير لطيف بالمال المستحق. مرة واحدة لكل شخص يوميًا، بحدٍّ في قاعدة البيانات.',
     digest: 'ملخص المجموعة اليومي',
     digestBody: 'كل ما تبقّى، مجمّعًا في إشعار واحد يوميًا بدل تدفق مستمر.',
+    emailSection: 'عبر البريد',
     weeklyEmail: 'ملخص أسبوعي بالبريد',
     weeklyEmailBody: 'صافي باقيك والتأكيدات المعلّقة، مرة كل أسبوع. متوقف افتراضيًا.',
     failDenied: 'لم يُفعَّل — يمكنك تفعيله لاحقًا من إعدادات هاتفك.',
@@ -5361,6 +5671,7 @@ const ar: UiStrings = {
     guestFootnote: 'كل ما أضفته يبقى كما هو تمامًا. هذا يضيف فقط طريقة للعودة وتسجيل الدخول.',
     memberFootnote:
       'يحتفظ حساب الضيف بكل شيء على هذا الجهاز حتى تضيف طريقة لتسجيل الدخول. دفترك ليس رهينة أبدًا.',
+    couldNotSignIn: 'تعذّر تسجيل الدخول. حاول مرة أخرى.',
     restartToMirror: 'أغلق باقي وافتحه مرة واحدة لعكس اتجاه الواجهة.',
     restartToUnmirror: 'أغلق باقي وافتحه مرة واحدة لإعادة اتجاه الواجهة.',
   },
@@ -5511,6 +5822,7 @@ const ar: UiStrings = {
     mismatchBody:
       'هذا الجهاز والخادم لا يتفقان على أرصدة هذه المجموعة. اسحب للتحديث؛ وإن استمر الأمر فالدفتر بالأسفل هو المرجع.',
     confirmReceived: 'أكّد الاستلام',
+    saysTheyPaidYou: 'يقول {name} إنه دفع لك',
     autoConfirms: 'يتأكد تلقائيًا خلال 7 أيام إن لم يردّ أحد.',
     hideDeleted: 'إخفاء المحذوف',
     showDeleted: 'إظهار المحذوف',
@@ -5693,6 +6005,7 @@ const ar: UiStrings = {
     peopleCount: { one: 'شخص واحد', other: '{n} أشخاص' },
     contactsAdded: 'أُضيف {count}. اختر شخصاً آخر، أو ارجع.',
     couldNotAdd: 'تعذّرت إضافة {names}.',
+    couldNotAddSome: 'تعذّرت إضافة الجميع. {reason}',
     unnamed: 'بلا اسم',
     joinAndClaim: 'انضم وطالب بسجلي',
     joinGroup: 'انضم إلى هذه المجموعة',
@@ -5740,6 +6053,15 @@ const ar: UiStrings = {
     micPermission: 'يحتاج باقي إلى إذن لاستخدام الميكروفون.',
     micBlocked: 'الوصول إلى الميكروفون معطّل لباقي. يمكنك تفعيله من الإعدادات.',
     dictationFailed: 'تعذّر بدء الإملاء. اكتب الملاحظة بدلًا من ذلك.',
+    dictationErrors: {
+      notAllowed: 'يحتاج باقي إلى إذن لاستخدام الميكروفون. يمكنك تفعيله من الإعدادات.',
+      noSpeech: 'لم يُلتقط أي شيء. انقر الميكروفون وتحدّث مرة أخرى.',
+      audioBusy: 'الميكروفون مشغول. أغلق أي تطبيق آخر يسجّل وحاول مرة أخرى.',
+      network: 'يحتاج التعرّف على الكلام إلى اتصال على هذا الهاتف. اكتب الملاحظة بدلًا من ذلك.',
+      languageNotSupported:
+        'لا يستطيع هذا الهاتف التعرّف على تلك اللغة بعد. اكتب الملاحظة بدلًا من ذلك.',
+      stopped: 'توقّف الإملاء. اكتب الملاحظة بدلًا من ذلك.',
+    },
     stopDictating: 'إيقاف الإملاء',
     dictateNote: 'أملِ الملاحظة',
     updateBaaki: 'حدّث باقي',
@@ -5789,6 +6111,36 @@ const ar: UiStrings = {
     noUpiYet: 'لا يوجد معرّف UPI بعد',
     csvCurrencyMismatch:
       'هذا الملف بعملة {fileCur} وهذه المجموعة تحتفظ بأموالها بعملة {groupCur}. استيراده يحتاج إلى سعر لكل صف، والملف لا يحمل ذلك — ابدأ بدلًا من ذلك مجموعة بعملة {fileCur}.',
+    rateFetchFailedSuffix: ' — يمكنك إدخال السعر يدويًا بدلًا من ذلك',
+    settlesInHint: 'تُسوّى حسابات هذه المجموعة بعملة {currency}',
+    howDoYouKnowRate: 'تُسوّى حسابات هذه المجموعة بعملة {currency}. كيف عرفت سعر الصرف؟',
+    todaysRate: 'سعر اليوم',
+    statementAmountLabel: 'المبلغ في كشف حسابك، بعملة {currency}',
+    amountChargedIn: 'المبلغ المخصوم بعملة {currency}',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: 'السعر من {from} إلى {to}',
+    convertedApprox: '≈ {amount} بعملة {currency}',
+    rateStoredNote:
+      'السعر {rate} من {source}. يُحفظ مع المصروف، لذا يُحوَّل بالطريقة نفسها لاحقًا.',
+    rateSourceEcb: 'البنك المركزي الأوروبي',
+    rateSourceImplied: 'كشف حسابك',
+    rateSourceYou: 'أنت',
+    noRateNote:
+      'يُحفظ المصروف حتى بدون سعر — يبقى بعملة {currency}، وتحتفظ المجموعة برصيد {currency} منفصل.',
+    thinkThisOff: {
+      zero: 'لا أحد يظن أن هذا غير صحيح',
+      one: 'يظن أحدهم أن هذا غير صحيح',
+      two: 'يظن شخصان أن هذا غير صحيح',
+      few: 'يظن {n} أشخاص أن هذا غير صحيح',
+      many: 'يظن {n} شخصًا أن هذا غير صحيح',
+      other: 'يظن {n} شخص أن هذا غير صحيح',
+    },
+    sending: 'جارٍ الإرسال…',
+    tellThem: 'أخبرهم',
+    versionStoppedBody:
+      'لم يعد بإمكان هذه النسخة التواصل مع باقي، لذا أُوقفت بدلًا من أن تعرض عليك أرقامًا قد تكون خاطئة.',
+    newBaakiOut: 'صدر إصدار جديد من باقي',
+    baakiVersionOut: 'صدر باقي {latest}',
   },
   smsImport: {
     title: 'استيراد من الرسائل',
@@ -5876,10 +6228,19 @@ const ar: UiStrings = {
     readUnsupported: 'قراءة الرسائل تعمل على أندرويد فقط. الصقها بالأسفل بدلًا من ذلك.',
     readUnavailable: 'هذا الإصدار لا يستطيع قراءة الرسائل. الصقها بالأسفل.',
     readFailed: 'تعذّرت قراءة رسائلك. الصقها بالأسفل.',
+    permissionRationale: {
+      title: 'قراءة رسائل البنك',
+      message:
+        'يقرأ باقي رسائل مدفوعات البنك على هذا الهاتف ليقترح مصروفات رحلتك. تبقى الرسائل على هاتفك — لا يُرسل أي شيء إلى أي مكان حتى تؤكّد مصروفًا.',
+      allow: 'السماح',
+      notNow: 'ليس الآن',
+    },
+    dateNotInMessage: 'التاريخ غير مذكور في الرسالة',
   },
   itemize: {
     title: 'التقسيم حسب الصنف',
     notAMember: 'لست عضوًا في هذه المجموعة',
+    invalidTaxOrTip: 'أدخل مبلغًا صالحًا للضريبة والبقشيش.',
     defaultDescription: 'فاتورة بالأصناف',
     sharedNow: 'صار بإمكان كل أعضاء المجموعة رؤية هذه الفاتورة. اضغط على الأصناف التي تناولتها.',
     splittingTogether: 'نقسّمها معًا',
@@ -6049,6 +6410,8 @@ const ar: UiStrings = {
       'تأتي الأرصدة بالضبط. أما من دفع فلا: ملف Splitwise يسجّل فقط كم ارتفع أو انخفض كل شخص في صفٍّ ما، وكثير من الدافعين المختلفين يعطون النتيجة نفسها. كل مصروف مستورد يُوسم، ويمكنك تصحيح أي منها.',
     otherCurrenciesNote:
       'المبالغ أدناه هي مبالغ {currency}. وتأتي {others} أيضًا، ولا تُحوَّل أبدًا.',
+    noGroupsInFile: 'لا توجد مجموعات في ذلك الملف لاستيرادها.',
+    couldNotFindYou: 'تعذّر العثور عليك في تلك المجموعة. افتحها وحاول مرة أخرى.',
   },
   pickers: {
     contactsDenied:
@@ -6086,6 +6449,20 @@ const ar: UiStrings = {
     breakfast: 'الإفطار',
     endOfDay: 'نهاية اليوم',
     clearDates: 'امسح التواريخ',
+    nobodyPickedYet: 'لم تختر أحدًا بعد',
+    personCount: {
+      zero: '{n} شخص',
+      one: 'شخص واحد',
+      two: 'شخصان',
+      few: '{n} أشخاص',
+      many: '{n} شخصًا',
+      other: '{n} شخص',
+    },
+    alreadyAddedName: '{name}، مضاف بالفعل',
+    alreadyInGroup: 'موجود بالفعل في هذه المجموعة',
+    removeName: 'إزالة {name}',
+    remindZoneNote: 'يُسأل بتوقيت {zone} — حيث الرحلة، لا حيث كل شخص.',
+    useMyTimezone: 'استخدم منطقتي الزمنية ({zone})',
   },
   dispute: {
     yourReply: 'ردّك',
@@ -6167,9 +6544,30 @@ const ar: UiStrings = {
     analyticsBody:
       'يمكن لـ Microsoft Clarity تسجيل كيفية استخدام الشاشات لمعرفة أين يتعثر الناس. يأتي مُعطّلًا ولا يسجّل شيئًا ما لم يُفعّل. ولا يُستخدم للإعلانات أبدًا، ولا يوجد معرّف إعلاني، ولا يُباع شيء أو يُشارَك.',
     sessionReplayRow: 'سجّل كيف أستخدم التطبيق',
-    previewGroups: 'أنت في {n} مجموعة.',
-    previewExpenses: 'ستبقى {n} من المصروفات التي أدخلتها.',
-    previewSettlements: 'اسمك مذكور في {n} تسوية.',
+    previewGroups: {
+      zero: 'أنت في {n} مجموعة.',
+      one: 'أنت في مجموعة واحدة.',
+      two: 'أنت في مجموعتين.',
+      few: 'أنت في {n} مجموعات.',
+      many: 'أنت في {n} مجموعة.',
+      other: 'أنت في {n} مجموعة.',
+    },
+    previewExpenses: {
+      zero: 'ستبقى {n} من المصروفات التي أدخلتها.',
+      one: 'سيبقى مصروف واحد أدخلته.',
+      two: 'سيبقى مصروفان أدخلتهما.',
+      few: 'ستبقى {n} مصروفات أدخلتها.',
+      many: 'ستبقى {n} مصروفًا أدخلته.',
+      other: 'ستبقى {n} من المصروفات التي أدخلتها.',
+    },
+    previewSettlements: {
+      zero: 'اسمك مذكور في {n} تسوية.',
+      one: 'اسمك مذكور في تسوية واحدة.',
+      two: 'اسمك مذكور في تسويتين.',
+      few: 'اسمك مذكور في {n} تسويات.',
+      many: 'اسمك مذكور في {n} تسوية.',
+      other: 'اسمك مذكور في {n} تسوية.',
+    },
     previewOutstanding: 'لا يزال لديك رصيد غير مسوّى بـ {list}.',
     feedbackRow: 'أرسل ملاحظاتك',
     feedbackRowHint: 'أخبرنا بما لا يعمل أو بما ينقص',
@@ -6200,7 +6598,14 @@ const ar: UiStrings = {
     deleteButton: 'احذف بياناتي',
     deleteWorking: 'جارٍ الحذف…',
     deleteDone: 'تم حذف بياناتك.',
-    deleteSummary: 'أنت الآن عضو سابق في {n} مجموعة.',
+    deleteSummary: {
+      zero: 'أنت الآن عضو سابق في {n} مجموعة.',
+      one: 'أنت الآن عضو سابق في مجموعة واحدة.',
+      two: 'أنت الآن عضو سابق في مجموعتين.',
+      few: 'أنت الآن عضو سابق في {n} مجموعات.',
+      many: 'أنت الآن عضو سابق في {n} مجموعة.',
+      other: 'أنت الآن عضو سابق في {n} مجموعة.',
+    },
   },
   extras: {
     blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',

@@ -122,13 +122,14 @@ export function LockProvider({ children }: { children: ReactNode }) {
       });
       if (!result.success) return;
     }
-    await SecureStore.setItemAsync(KEY, value ? 'true' : 'false');
+    // SecureStore has no web implementation, same as the read path above.
+    if (Platform.OS !== 'web') await SecureStore.setItemAsync(KEY, value ? 'true' : 'false');
     setEnabledState(value);
     setLocked(false);
   }, []);
 
   const setGraceSeconds = useCallback(async (value: number) => {
-    await SecureStore.setItemAsync(GRACE_KEY, String(value));
+    if (Platform.OS !== 'web') await SecureStore.setItemAsync(GRACE_KEY, String(value));
     setGraceState(value);
   }, []);
 

@@ -160,7 +160,7 @@ export default function ImportCsvScreen() {
     } catch (caught) {
       setError(
         caught instanceof UnmappedPersonError
-          ? `Choose who "${caught.person}" is before importing`
+          ? t.importLedger.chooseWhoIs.replace('{name}', caught.person)
           : caught instanceof Error
             ? caught.message
             : String(caught),
@@ -272,7 +272,9 @@ export default function ImportCsvScreen() {
             </View>
 
             <View style={{ gap: theme.spacing.sm }}>
-              <SectionHeader title={`${parsed.expenses.length} expenses`} />
+              <SectionHeader
+                title={plural(locale, parsed.expenses.length, t.importLedger.expenseCount)}
+              />
               <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                 {parsed.expenses.slice(0, 20).map((expense, index) => (
                   <View key={`${expense.date}-${expense.description}-${index}`}>
@@ -296,7 +298,7 @@ export default function ImportCsvScreen() {
               </Card>
               {parsed.expenses.length > 20 ? (
                 <Text variant="micro" tone="muted">
-                  and {parsed.expenses.length - 20} more
+                  {t.importLedger.andMore.replace('{n}', String(parsed.expenses.length - 20))}
                 </Text>
               ) : null}
             </View>

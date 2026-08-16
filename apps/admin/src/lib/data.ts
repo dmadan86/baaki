@@ -20,6 +20,8 @@ import { isValidToken, SESSION_COOKIE } from './session';
  * dozen pages.
  */
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function client() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -254,7 +256,7 @@ export async function createPromoCode(input: {
 export async function grantPromo(profileId: string, days: number): Promise<string> {
   await requireSession();
 
-  if (!/^[0-9a-f-]{36}$/i.test(profileId.trim())) {
+  if (!UUID.test(profileId.trim())) {
     throw new Error('That is not a profile id. Copy the uuid from the account you mean.');
   }
 
@@ -394,7 +396,7 @@ export interface BroadcastResult {
  */
 export async function broadcastCampaign(campaignId: string): Promise<BroadcastResult> {
   await requireSession();
-  if (!/^[0-9a-f-]{36}$/i.test(campaignId.trim())) {
+  if (!UUID.test(campaignId.trim())) {
     throw new Error('That is not a campaign id.');
   }
 
@@ -644,7 +646,7 @@ export async function listUsers(params: {
 /** Mark an address confirmed by hand — the OTP a person never received. */
 export async function confirmUserEmail(userId: string): Promise<void> {
   await requireSession();
-  if (!/^[0-9a-f-]{36}$/i.test(userId.trim())) throw new Error('That is not a user id.');
+  if (!UUID.test(userId.trim())) throw new Error('That is not a user id.');
   const { error } = await client().auth.admin.updateUserById(userId.trim(), {
     email_confirm: true,
   });

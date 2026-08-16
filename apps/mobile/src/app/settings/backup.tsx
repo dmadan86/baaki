@@ -22,6 +22,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   directionalIcon,
   Divider,
@@ -47,13 +48,17 @@ export default function BackupSettingsScreen() {
   const { t, locale } = useStrings();
   const backup = useBackup();
   const [busy, setBusy] = useState<CloudProviderId | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const providers = allProviders();
 
   const onConnect = async (id: CloudProviderId): Promise<void> => {
     setBusy(id);
+    setError(null);
     try {
       await backup.connect(id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(null);
     }
@@ -116,13 +121,7 @@ export default function BackupSettingsScreen() {
                       // Only a connected provider can be the destination.
                       selected={isPrimary}
                       disabled={!connected}
-                      status={
-                        !configured
-                          ? t.backup.notConfigured
-                          : connected
-                            ? t.backup.connected
-                            : undefined
-                      }
+                      status={configured && connected ? t.backup.connected : undefined}
                       onPress={() => (connected ? void backup.setPrimary(provider.id) : undefined)}
                     />
                     {!configured ? (
@@ -148,6 +147,7 @@ export default function BackupSettingsScreen() {
               );
             })}
           </Card>
+          {error ? <Callout tone="negative">{error}</Callout> : null}
         </View>
 
         {/* Only worth choosing a network policy once something will actually be

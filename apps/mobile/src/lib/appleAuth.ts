@@ -19,6 +19,7 @@
  * `auth.tsx` still works, on this platform and every other one.
  */
 
+import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -30,6 +31,14 @@ type AppleModule = typeof import('expo-apple-authentication');
 export interface AppleCredential {
   /** The JWT Supabase exchanges for a session. */
   readonly identityToken: string;
+  /**
+   * The **raw** nonce, the one Supabase must be handed. Apple was given its
+   * SHA-256 and embeds that hash in the token; Supabase hashes this value and
+   * checks the two match, which is what proves the token was minted for this
+   * request and not replayed. Raw here, hashed to Apple — getting the two
+   * backwards fails every sign-in.
+   */
+  readonly rawNonce: string;
   /**
    * Apple hands this over **on the first authorization only**, and never again
    * — not on a reinstall, not on a second device. If it is not captured now it
@@ -121,20 +130,34 @@ export function useAppleSignInAvailable(): boolean {
  * `appleSignInAvailable()` first; anything else that goes wrong throws, because
  * a sheet that failed is worth saying out loud.
  *
- * No nonce. `signInAsync` would pass one through to Apple and Supabase would
- * compare it, but the two disagree about whether the value travelling in the
- * token is the raw string or its SHA-256, and getting that backwards fails
- * every sign-in on a device this repository cannot test from. Supabase's own
- * Expo guide omits it, the token still carries a signature and an audience that
- * are verified server-side, and it never leaves this process except over TLS to
- * Supabase.
+ * The nonce, the canonical way round. A raw random string is generated here;
+ * Apple is handed its **SHA-256**, which it embeds in the identity token, and
+ * Supabase is later handed the **raw** value (`auth.tsx`), hashes it, and
+ * checks the two agree — which is what binds the token to this one request and
+ * defeats replay. Raw and hash must not be swapped: the wrong wiring fails
+ * every sign-in on a device this repository cannot test from. Generating the
+ * nonce is the last thing that can fail before the sheet, and it fails the same
+ * safe way everything else here does — by throwing, never a false cancellation.
  */
 export async function signInWithApple(): Promise<AppleCredential | null> {
   const apple = load();
-  if (!apple) return null;
+  // A missing module is not a cancellation — null is reserved for the person
+  // closing the sheet, so throw here to keep the two states distinguishable.
+  if (!apple) throw new Error('Sign in with Apple is not available in this build');
 
   try {
+    // Raw nonce for Supabase, its SHA-256 for Apple. Apple stamps the hash into
+    // the token; Supabase re-hashes the raw value and compares.
+    const rawNonce = [...Crypto.getRandomBytes(16)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      rawNonce,
+    );
+
     const credential = await apple.signInAsync({
+      nonce: hashedNonce,
       requestedScopes: [
         apple.AppleAuthenticationScope.FULL_NAME,
         apple.AppleAuthenticationScope.EMAIL,
@@ -144,6 +167,7 @@ export async function signInWithApple(): Promise<AppleCredential | null> {
 
     return {
       identityToken: credential.identityToken,
+      rawNonce,
       fullName: appleFullName(credential.fullName),
     };
   } catch (error) {

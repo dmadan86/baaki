@@ -80,13 +80,15 @@ export function activeDevices(
 ): DeviceSession[] {
   const byDevice = new Map<string, DeviceSession>();
   for (const session of sessions) {
-    if (!isDeviceActive(session, now, windowDays)) continue;
+    // Resolve the newest row per device *first*, then judge activity: a revoked
+    // newer row must suppress an older active row for the same phone, not be
+    // skipped so the older one keeps the device alive.
     const held = byDevice.get(session.deviceId);
     if (!held || Date.parse(session.lastSeenAt) > Date.parse(held.lastSeenAt)) {
       byDevice.set(session.deviceId, session);
     }
   }
-  return [...byDevice.values()];
+  return [...byDevice.values()].filter((session) => isDeviceActive(session, now, windowDays));
 }
 
 export interface DeviceLimitStatus {

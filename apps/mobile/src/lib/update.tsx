@@ -52,6 +52,28 @@ interface CachedPolicy {
   message: string | null;
 }
 
+/**
+ * Parse a cached policy and verify its shape. `JSON.parse` accepts null, a
+ * number, or an older shape — any of which would leave the version fields
+ * undefined and could break the fail-open render this module must never cause.
+ */
+function readPolicy(raw: string): CachedPolicy | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<CachedPolicy> | null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    const { latestVersion, minimumVersion, storeUrl } = parsed;
+    if (typeof latestVersion !== 'string' || typeof minimumVersion !== 'string') return null;
+    return {
+      latestVersion,
+      minimumVersion,
+      storeUrl: typeof storeUrl === 'string' ? storeUrl : '',
+      message: typeof parsed.message === 'string' ? parsed.message : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 interface UpdateValue {
   decision: UpdateDecision;
   /** The version installed on this phone. */
@@ -120,12 +142,11 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       const raw = await AsyncStorage.getItem(POLICY_KEY).catch(() => null);
       const dismissed = await AsyncStorage.getItem(DISMISSED_KEY).catch(() => null);
       if (!active) return;
+      // A cache we cannot read, or cannot trust the shape of, is a cache we do
+      // not have.
       if (raw) {
-        try {
-          setPolicy(JSON.parse(raw) as CachedPolicy);
-        } catch {
-          // A cache we cannot read is a cache we do not have.
-        }
+        const cached = readPolicy(raw);
+        if (cached) setPolicy(cached);
       }
       setDismissedVersion(dismissed);
       loaded.current = true;

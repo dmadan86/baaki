@@ -45,12 +45,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    // `onAuthChange` is authoritative once it has spoken. The initial read may
+    // resolve after it and would otherwise reinstate a stale session.
+    let fromSubscription = false;
     void baaki.session().then((next) => {
-      if (!active) return;
+      if (!active || fromSubscription) return;
       setSession(next);
       setLoading(false);
     });
     const unsubscribe = baaki.onAuthChange((next) => {
+      fromSubscription = true;
       setSession(next);
       setLoading(false);
     });

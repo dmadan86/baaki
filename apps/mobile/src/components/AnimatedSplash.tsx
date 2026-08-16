@@ -88,6 +88,10 @@ export function AnimatedSplash() {
         if (finished) runOnJS(finish)();
       }),
     );
+    // Safety net: a cancelled animation never calls back, and the field would
+    // stay up at zero opacity, eating every touch.
+    const guard = setTimeout(finish, 2000);
+    return () => clearTimeout(guard);
   }, [animated, finish, fieldOpacity, logoOpacity, logoScale]);
 
   const fieldStyle = useAnimatedStyle(() => ({ opacity: fieldOpacity.value }));

@@ -89,7 +89,16 @@ export function AmountKeypad({
       if (entry.length > 0) {
         const trimmed = entry.slice(0, -1);
         setEntry(trimmed);
-        commit(accumulator !== null && operator ? value : entryToMinor(trimmed));
+        // Recompute the pending result from the trimmed entry so the emitted
+        // amount matches the display. When the entry empties out, the display
+        // falls back to the accumulator, so emit that.
+        commit(
+          accumulator !== null && operator
+            ? trimmed === ''
+              ? accumulator
+              : apply(accumulator, entryToMinor(trimmed), operator)
+            : entryToMinor(trimmed),
+        );
       } else {
         setEntry('');
         setAccumulator(null);
@@ -101,8 +110,11 @@ export function AmountKeypad({
 
     if (key === '+' || key === '-' || key === '×' || key === '÷') {
       const current = entry === '' ? value : entryToMinor(entry);
-      const base =
+      const raw =
         accumulator !== null && operator ? apply(accumulator, current, operator) : current;
+      // Clamp the internal accumulator too, so the running total never diverges
+      // from the clamped value the parent (and the display) actually sees.
+      const base = raw < 0n ? 0n : raw;
       setAccumulator(base);
       setOperator(key as Operator);
       setEntry('');

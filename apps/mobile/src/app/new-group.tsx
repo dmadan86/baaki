@@ -38,7 +38,7 @@ import { useCreateGroup } from '@/data/hooks';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
 import { GroupType } from '@/data/types';
-import { deviceCountry, useStrings } from '@/i18n';
+import { deviceCountry, fill, useStrings } from '@/i18n';
 
 /**
  * Where the icon comes from when the name has not said anything yet — which is
@@ -436,7 +436,7 @@ export default function NewGroupScreen() {
                 <Pressable
                   key={`${keyOfGhost(ghost)}-${index}`}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${ghost.name}`}
+                  accessibilityLabel={fill(t.itemize.removeItem, { label: ghost.name })}
                   onPress={() => setGhosts((current) => current.filter((_, i) => i !== index))}
                   style={{
                     flexDirection: 'row',

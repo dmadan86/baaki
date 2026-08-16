@@ -133,7 +133,7 @@ export default function MembersScreen() {
     setError(null);
     setAdding(true);
     const failed: string[] = [];
-    let last = '';
+    let reason: string | null = null;
     for (const person of people) {
       try {
         await addGhost.mutateAsync({
@@ -143,7 +143,9 @@ export default function MembersScreen() {
         });
       } catch (caught) {
         failed.push(person.name);
-        last = caught instanceof Error ? caught.message : String(caught);
+        // The first refusal's own words, kept so the message can say why rather
+        // than only which names did not make it.
+        if (!reason) reason = caught instanceof Error ? caught.message : String(caught);
       }
     }
     setAdding(false);
@@ -151,7 +153,7 @@ export default function MembersScreen() {
       setBrowsing(false);
       return;
     }
-    setError(`Could not add ${failed.join(', ')}: ${last}`);
+    setError(fill(t.misc.couldNotAddSome, { reason: reason ?? '' }));
   };
 
   // Contacts already used, so the picker can grey them out instead of letting

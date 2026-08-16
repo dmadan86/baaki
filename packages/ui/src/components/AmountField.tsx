@@ -82,12 +82,19 @@ export function AmountField({
     <View
       style={{
         flexDirection: 'row',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         justifyContent: 'center',
-        gap: theme.spacing.sm,
+        gap: theme.spacing.xs,
       }}
     >
-      <Text variant="title" tone="muted">
+      <Text
+        style={{
+          fontSize: 30,
+          lineHeight: 44,
+          fontWeight: '700',
+          color: theme.color.textMuted,
+        }}
+      >
         {currencySymbol(currency)}
       </Text>
       <TextInput
@@ -100,14 +107,14 @@ export function AmountField({
         accessibilityLabel={`Amount ${format(value) || '0'} ${currency}`}
         maxFontSizeMultiplier={1.4}
         style={{
-          minWidth: 96,
+          minWidth: 28,
           padding: 0,
           fontSize: 44,
           lineHeight: 50,
           fontWeight: '700',
           color: theme.color.text,
           fontVariant: ['tabular-nums'],
-          textAlign: 'center',
+          textAlign: 'left',
         }}
       />
     </View>

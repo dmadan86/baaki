@@ -121,7 +121,7 @@ export function AvatarStack({
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {shown.map((name, index) => (
-        <View key={name} style={{ marginLeft: index === 0 ? 0 : -size / 3 }}>
+        <View key={`${name}-${index}`} style={{ marginLeft: index === 0 ? 0 : -size / 3 }}>
           <Avatar name={name} size={size} />
         </View>
       ))}

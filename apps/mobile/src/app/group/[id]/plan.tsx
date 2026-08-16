@@ -31,6 +31,7 @@ import {
 import {
   AmountField,
   Button,
+  Callout,
   Card,
   directionalIcon,
   EmptyState,
@@ -60,7 +61,7 @@ import {
 import { displayName } from '@/data/types';
 import { useAuth } from '@/lib/auth';
 import { ListScreenSkeleton } from '@/components/Skeletons';
-import { useStrings, type UiStrings } from '@/i18n';
+import { fill, useStrings, type UiStrings } from '@/i18n';
 
 /** Today where the trip is, not where the server is. */
 function todayIn(timeZone: string): string {
@@ -108,6 +109,7 @@ export default function PlanScreen() {
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const currency = group.data?.default_currency ?? 'INR';
   const timeZone = group.data?.time_zone ?? 'Asia/Kolkata';
@@ -236,6 +238,7 @@ export default function PlanScreen() {
 
   const saveMine = async (): Promise<void> => {
     setBusy(true);
+    setError(null);
     try {
       await setMine.mutateAsync({
         amountMinor: myAmount,
@@ -243,6 +246,8 @@ export default function PlanScreen() {
         visibility: myShare ? 'group' : 'private',
       });
       setEditingMine(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(false);
     }
@@ -250,9 +255,12 @@ export default function PlanScreen() {
 
   const clearMine = async (): Promise<void> => {
     setBusy(true);
+    setError(null);
     try {
       await clearMineBudget.mutateAsync();
       setEditingMine(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(false);
     }
@@ -265,9 +273,12 @@ export default function PlanScreen() {
 
   const saveOverall = async (): Promise<void> => {
     setBusy(true);
+    setError(null);
     try {
       await setOverall.mutateAsync({ amountMinor: overallAmount, currency });
       setEditingOverall(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(false);
     }
@@ -275,9 +286,12 @@ export default function PlanScreen() {
 
   const clearOverall = async (): Promise<void> => {
     setBusy(true);
+    setError(null);
     try {
       await setOverall.mutateAsync({ amountMinor: null });
       setEditingOverall(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(false);
     }
@@ -293,10 +307,13 @@ export default function PlanScreen() {
     if (!title.trim() || submitting.current) return;
     submitting.current = true;
     setBusy(true);
+    setError(null);
     try {
       await addItem.mutateAsync({ day, title: title.trim(), currency });
       setTitle('');
       setAddingTo(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -304,11 +321,21 @@ export default function PlanScreen() {
   };
 
   const toggle = async (item: PlanItem): Promise<void> => {
-    await toggleItem.mutateAsync({ itemId: item.id, done: !item.done });
+    setError(null);
+    try {
+      await toggleItem.mutateAsync({ itemId: item.id, done: !item.done });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
   };
 
   const remove = async (item: PlanItem): Promise<void> => {
-    await removeItem.mutateAsync(item.id);
+    setError(null);
+    try {
+      await removeItem.mutateAsync(item.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
   };
 
   if (group.isLoading || plan.isLoading) {
@@ -336,10 +363,12 @@ export default function PlanScreen() {
           <Text variant="heading">{t.plan}</Text>
         </Row>
 
+        {error ? <Callout tone="negative">{error}</Callout> : null}
+
         {/* Planned against actual, per currency and never added together. */}
         <Card style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
-            {currentDay ? `${t.plan} · day ${currentDay}` : t.plan}
+            {currentDay ? `${t.plan} · ${fill(t.dayNumber, { n: String(currentDay) })}` : t.plan}
           </Text>
           {Object.keys(variance).length === 0 ? (
             <Text variant="caption" tone="faint">
@@ -590,7 +619,7 @@ export default function PlanScreen() {
                   <Pressable
                     onPress={() => void remove(item)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Remove ${item.title}`}
+                    accessibilityLabel={fill(t.itemize.removeItem, { label: item.title })}
                     hitSlop={10}
                   >
                     <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />

@@ -128,6 +128,12 @@ export function parseReceiptText(
       subtotal = amount;
       continue;
     }
+    // Discount before the total labels: a "Total Savings 50.00" line matches the
+    // lone \btotal\b and would otherwise be taken as the grand total.
+    if (DISCOUNT.test(lower)) {
+      discounts.push({ label, amount: Math.abs(amount) });
+      continue;
+    }
     const totalRank = TOTAL_LABELS.findIndex((pattern) => pattern.test(lower));
     if (totalRank !== -1) {
       // Keep the most specific wording seen; on a tie keep the later (lower)
@@ -135,10 +141,6 @@ export function parseReceiptText(
       if (!totalCandidate || totalRank <= totalCandidate.rank) {
         totalCandidate = { amount, rank: totalRank };
       }
-      continue;
-    }
-    if (DISCOUNT.test(lower)) {
-      discounts.push({ label, amount: Math.abs(amount) });
       continue;
     }
     if (TIP.test(lower)) {
@@ -241,8 +243,9 @@ function trailingAmount(line: string): { label: string; amount: number } | null 
   const amount = parseMoney(rawNumber);
   if (amount === null) return null;
 
-  const negative = /[(-]\s*$|^\s*-/.test(line.slice(rawLabel.length));
-  const label = rawLabel.replace(/[\s:.\-–]+$/, '').trim();
+  const rest = line.slice(rawLabel.length);
+  const negative = /^\s*[(-]/.test(rest) || /[(-]\s*$/.test(rawLabel);
+  const label = rawLabel.replace(/[\s:.\-–(]+$/, '').trim();
   return { label, amount: negative ? -amount : amount };
 }
 
@@ -275,7 +278,7 @@ function parseMoney(raw: string): number | null {
 
 /** At least two letters — enough to call it a name rather than a code. */
 function hasWords(text: string): boolean {
-  return (text.match(/[A-Za-zÀ-ɏऀ-෿]/g)?.length ?? 0) >= 2;
+  return (text.match(/[A-Za-zÀ-ɏ؀-ۿऀ-෿]/g)?.length ?? 0) >= 2;
 }
 
 function detectCurrency(text: string): string | null {

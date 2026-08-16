@@ -657,7 +657,7 @@ export function invalidateGroup(queryClient: QueryClient, groupId: string): void
  */
 function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<string, unknown> {
   return {
-    description: input.description.trim() || 'Expense',
+    description: input.description.trim(),
     category: input.category ?? null,
     expenseDate: input.expenseDate,
     currency: input.currency,
@@ -1216,11 +1216,8 @@ export function useDecideMemberClaim(groupId: string) {
     mutationFn: ({ claimId, approve }: { claimId: string; approve: boolean }) =>
       decideMemberClaim(claimId, approve),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: keys.memberClaims(groupId) }),
-        queryClient.invalidateQueries({ queryKey: keys.members(groupId) }),
-        queryClient.invalidateQueries({ queryKey: keys.activity(groupId) }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: keys.memberClaims(groupId) });
+      invalidateGroup(queryClient, groupId);
     },
   });
 }

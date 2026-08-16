@@ -50,28 +50,67 @@ async function writeStoredId(id: string): Promise<void> {
 }
 
 let cached: string | null = null;
+let pending: Promise<string> | null = null;
+// Bumped by every clear. A mint captures the value at its start and refuses to
+// write storage or publish the cache once it has moved, so a clear that lands
+// mid-mint can't be undone by that mint's late write.
+let generation = 0;
+// One keystore op at a time, so a mint's read+write and a clear's delete run as
+// ordered critical sections rather than interleaving at the native layer.
+let opChain: Promise<unknown> = Promise.resolve();
+
+function serialize<T>(op: () => Promise<T>): Promise<T> {
+  const run = opChain.then(op, op);
+  opChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
 
 /** The stable id for this install, minted and stored on first ask. */
 export async function deviceId(): Promise<string> {
   if (cached) return cached;
-  let id = await readStoredId();
-  if (!id) {
-    id = randomUUID();
-    await writeStoredId(id);
+  // Memoize the in-flight mint so two callers can't both read null and mint
+  // two different ids for one install.
+  pending ??= (async () => {
+    const gen = generation;
+    const id = await serialize(async () => {
+      const existing = await readStoredId();
+      if (existing) return existing;
+      const minted = randomUUID();
+      // A clear that landed before we wrote invalidates this mint; don't write
+      // the just-cleared id back over cleared storage.
+      if (gen !== generation) return minted;
+      await writeStoredId(minted);
+      return minted;
+    });
+    // Publish to the cache only if no clear intervened while we minted.
+    if (gen === generation) cached = id;
+    return id;
+  })();
+  try {
+    return await pending;
+  } finally {
+    pending = null;
   }
-  cached = id;
-  return id;
 }
 
 /** Signing out must not leave the next account inheriting this device row. */
 export async function clearDeviceId(): Promise<void> {
+  // Invalidate any in-flight mint before touching storage, so its late write
+  // and cache assignment both no-op.
+  generation += 1;
   cached = null;
-  try {
-    if (Platform.OS === 'web') await AsyncStorage.removeItem(KEY);
-    else await SecureStore.deleteItemAsync(KEY);
-  } catch {
-    /* nothing to undo */
-  }
+  pending = null;
+  await serialize(async () => {
+    try {
+      if (Platform.OS === 'web') await AsyncStorage.removeItem(KEY);
+      else await SecureStore.deleteItemAsync(KEY);
+    } catch {
+      /* nothing to undo */
+    }
+  });
 }
 
 /** What a person would call this phone: its model, falling back to the OS. */

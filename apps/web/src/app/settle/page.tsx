@@ -63,6 +63,7 @@ function Settle({ profileId }: { profileId: string }) {
   const [membersByGroup, setMembersByGroup] = useState<Map<string, MemberRow[]>>(new Map());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -72,6 +73,8 @@ function Settle({ profileId }: { profileId: string }) {
         if (!active) return;
         setGroups(g);
         setMembersByGroup(m);
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         if (active) setLoading(false);
       }
@@ -108,6 +111,8 @@ function Settle({ profileId }: { profileId: string }) {
         <div className="page-head">
           <h1>{t.settle.title}</h1>
         </div>
+
+        {error ? <p className="error">{error}</p> : null}
 
         {groups.length > 1 ? (
           <div className="people" style={{ marginBottom: 14 }}>
@@ -157,15 +162,15 @@ function GroupSettle({
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [nudged, setNudged] = useState<Set<string>>(new Set());
   const [openSettle, setOpenSettle] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // The component is keyed by group id, so a group switch remounts with
-    // loading already true; a `reload` bump refetches in place without blanking
-    // what is on screen (the row's own button carries the busy state).
+    // loading already true; `refresh` refetches in place without blanking what
+    // is on screen (the row's own button carries the busy state).
     let active = true;
     void (async () => {
       try {
@@ -173,6 +178,8 @@ function GroupSettle({
         if (!active) return;
         setExpenses(e);
         setSettlements(s);
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         if (active) setLoading(false);
       }
@@ -180,7 +187,7 @@ function GroupSettle({
     return () => {
       active = false;
     };
-  }, [group.id, reload]);
+  }, [group.id]);
 
   const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
   const myMemberId = members.find((member) => member.profile_id === profileId)?.id ?? null;
@@ -202,7 +209,11 @@ function GroupSettle({
   const owesMe = ledger.transfers.filter((transfer) => transfer.to === myMemberId);
   const pending = settlements.filter((settlement) => settlement.status === 'initiated');
 
-  if (iOwe.length === 0 && owesMe.length === 0 && pending.length === 0) {
+  // A failed initial load leaves the ledger empty, which looks identical to a
+  // genuinely settled group. Skip the all-settled fallback when an error is
+  // set — the main body below surfaces it — so we never tell someone they are
+  // settled up when we simply could not fetch their figures.
+  if (!error && iOwe.length === 0 && owesMe.length === 0 && pending.length === 0) {
     return (
       <section className="panel">
         <p className="muted">{t.settle.allSettled}</p>
@@ -210,15 +221,22 @@ function GroupSettle({
     );
   }
 
+  // Refetch in place and wait for it, so callers that `await refresh()` only
+  // clear their busy state once the new figures are on screen.
   async function refresh() {
-    setReload((n) => n + 1);
+    const [e, s] = await Promise.all([baaki.expenses(group.id), baaki.settlements(group.id)]);
+    setExpenses(e);
+    setSettlements(s);
   }
 
   async function confirm(settlementId: string) {
     setBusy(settlementId);
+    setError(null);
     try {
       await baaki.confirmSettlement(settlementId);
       await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(null);
     }
@@ -226,9 +244,12 @@ function GroupSettle({
 
   async function nudge(toMemberId: string, currency: string) {
     setBusy(toMemberId);
+    setError(null);
     try {
       await baaki.nudgeToSettle({ groupId: group.id, toMemberId, currency });
       setNudged((prev) => new Set(prev).add(toMemberId));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(null);
     }
@@ -236,6 +257,8 @@ function GroupSettle({
 
   return (
     <>
+      {error ? <p className="error">{error}</p> : null}
+
       {iOwe.length > 0 ? (
         <section className="panel">
           <div className="panel-head">
@@ -386,6 +409,12 @@ function SettleForm({
   const [rail, setRail] = useState<string>(() => defaultRailFor(group.country_code));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The idempotency key for this settlement attempt. Minted once when the form
+  // opens and held stable, so a Record the user taps twice — or retries after a
+  // dropped connection — is deduped server-side rather than recording the
+  // payment twice. Rolled forward only after a payment actually records, so the
+  // next settlement is a new one and not a replay of this one.
+  const [mutationId, setMutationId] = useState<string>(() => crypto.randomUUID());
 
   const handle = payee.vpa ?? payee.profile?.default_vpa ?? '';
   const railInfo = railById(rail);
@@ -417,9 +446,16 @@ function SettleForm({
         amount,
         rail,
         currency,
+        clientMutationId: mutationId,
       });
+      // Recorded: any further settlement to this person is a new payment, so
+      // roll the key forward. (This form unmounts on success, but a fresh key
+      // keeps a reused instance from replaying the payment just made.)
+      setMutationId(crypto.randomUUID());
       await onRecorded();
     } catch (caught) {
+      // A failed attempt keeps the same key, so the retry the user is about to
+      // make is deduped rather than recording a second payment.
       setError(caught instanceof Error ? caught.message : String(caught));
       setSaving(false);
     }
@@ -466,7 +502,7 @@ function SettleForm({
         </a>
       ) : null}
 
-      {error ? <p className="dispute-note">{error}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
         <button type="button" className="btn" onClick={() => void record()} disabled={saving}>

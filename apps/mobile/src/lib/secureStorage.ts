@@ -23,6 +23,11 @@ const partKey = (key: string, i: number) => `${key}.p${i}`;
 
 const isWeb = Platform.OS === 'web';
 
+// Keys whose legacy plaintext has been cleared this process. If the removal
+// fails, the key is left out so a later read retries — otherwise the marker is
+// already in SecureStore and the plaintext would sit in AsyncStorage forever.
+const legacyCleared = new Set<string>();
+
 async function getItem(key: string): Promise<string | null> {
   if (isWeb) return AsyncStorage.getItem(key);
 
@@ -34,9 +39,17 @@ async function getItem(key: string): Promise<string | null> {
     const legacy = await AsyncStorage.getItem(key);
     if (legacy !== null) {
       await setItem(key, legacy);
-      await AsyncStorage.removeItem(key);
+      legacyCleared.add(key);
+      await AsyncStorage.removeItem(key).catch(() => legacyCleared.delete(key));
     }
     return legacy;
+  }
+
+  // Already migrated. If an earlier cleanup rejected, the plaintext copy is
+  // still in AsyncStorage; retry its removal so it does not linger in the clear.
+  if (!legacyCleared.has(key)) {
+    legacyCleared.add(key);
+    void AsyncStorage.removeItem(key).catch(() => legacyCleared.delete(key));
   }
 
   const count = Number(countRaw);

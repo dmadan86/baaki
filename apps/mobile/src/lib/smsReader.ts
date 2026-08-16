@@ -82,6 +82,9 @@ export interface SmsReaderDeps {
 const DEFAULT_MAX_COUNT = 500;
 const DAY_MS = 86_400_000;
 
+/** A native call that never answers is failed rather than left hanging forever. */
+const READ_TIMEOUT_MS = 15_000;
+
 /**
  * The native `list` filter for a date window.
  *
@@ -171,11 +174,16 @@ export async function readSmsInbox(window: SmsWindow, deps: SmsReaderDeps): Prom
 
   return new Promise<SmsReadResult>((resolve) => {
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const done = (result: SmsReadResult): void => {
       if (settled) return;
       settled = true;
+      if (timer) clearTimeout(timer);
       resolve(result);
     };
+    // A native module that answers with neither callback must not leave the
+    // screen loading forever.
+    timer = setTimeout(() => done({ ok: false, reason: SmsReadFailure.Failed }), READ_TIMEOUT_MS);
     try {
       native.list(
         filter,
@@ -193,6 +201,20 @@ export async function readSmsInbox(window: SmsWindow, deps: SmsReaderDeps): Prom
 }
 
 /**
+ * The words shown in the Android runtime-permission dialog for READ_SMS.
+ *
+ * Threaded in from the screen rather than hardcoded here: this file is reached
+ * on a background path with no `useStrings`, so the caller passes the reader's
+ * own language, the same way the other non-hook lib helpers receive strings.
+ */
+export interface SmsPermissionRationale {
+  readonly title: string;
+  readonly message: string;
+  readonly allow: string;
+  readonly notNow: string;
+}
+
+/**
  * The real device wiring for `readSmsInbox`.
  *
  * Everything native is reached through `require` inside the callbacks, not at
@@ -202,7 +224,10 @@ export async function readSmsInbox(window: SmsWindow, deps: SmsReaderDeps): Prom
  * so the type checker treats a missing module as `any` rather than an error —
  * this package is intentionally optional.
  */
-export async function readSms(window: SmsWindow): Promise<SmsReadResult> {
+export async function readSms(
+  window: SmsWindow,
+  rationale: SmsPermissionRationale,
+): Promise<SmsReadResult> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Platform, PermissionsAndroid } = require('react-native') as typeof import('react-native');
 
@@ -221,12 +246,10 @@ export async function readSms(window: SmsWindow): Promise<SmsReadResult> {
     requestPermission: async () => {
       try {
         const status = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_SMS, {
-          title: 'Read bank messages',
-          message:
-            'Baaki reads bank payment messages on this phone to suggest expenses for your trip. ' +
-            'The messages stay on your phone — nothing is sent anywhere until you confirm an expense.',
-          buttonPositive: 'Allow',
-          buttonNegative: 'Not now',
+          title: rationale.title,
+          message: rationale.message,
+          buttonPositive: rationale.allow,
+          buttonNegative: rationale.notNow,
         });
         if (status === PermissionsAndroid.RESULTS.GRANTED) return PermissionOutcome.Granted;
         if (status === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) return PermissionOutcome.Blocked;

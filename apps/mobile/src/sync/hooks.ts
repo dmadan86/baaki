@@ -52,7 +52,7 @@ export function useLocalGroup(groupId: string): LocalGroup {
   const { mirror, queue } = useSync();
 
   return useMemo(() => {
-    const group = (mirror.tables.groups[groupId] as unknown as GroupRow | undefined) ?? null;
+    const group = (mirror.tables.groups?.[groupId] as unknown as GroupRow | undefined) ?? null;
     const members = (
       rowsFor(mirror, SyncTable.GroupMembers, groupId) as unknown as MemberRow[]
     ).filter((member) => !member.left_at);

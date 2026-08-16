@@ -263,7 +263,7 @@ describe('the markets Baaki is going to next', () => {
     }
   });
 
-  it('still refuses to invent a link for Zelle, Venmo or PayID', () => {
+  it('still refuses to invent a link for Zelle, Venmo, PayID or Interac', () => {
     // All three live inside somebody else's app and publish nothing stable.
     for (const railId of ['zelle', 'venmo', 'payid', 'interac']) {
       expect(

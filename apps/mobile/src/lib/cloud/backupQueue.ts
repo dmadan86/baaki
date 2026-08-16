@@ -54,34 +54,48 @@ function messageOf(error: unknown): string {
 
 export async function runBackup(ctx: BackupContext): Promise<BackupOutcome> {
   if (running) return { uploaded: 0, skipped: 'busy' };
-  if (!ctx.primary) return { uploaded: 0, skipped: 'no-provider' };
 
-  const provider = providerFor(ctx.primary);
-  if (!provider.isConfigured()) return { uploaded: 0, skipped: 'not-configured' };
-
-  const net = await Network.getNetworkStateAsync();
-  if (!net.isConnected || net.isInternetReachable === false) {
-    return { uploaded: 0, skipped: 'offline' };
-  }
-  if (ctx.policy === 'wifi' && net.type !== Network.NetworkStateType.WIFI) {
-    return { uploaded: 0, skipped: 'policy' };
-  }
-
-  const pending = await pendingEntries();
-  if (pending.length === 0) return { uploaded: 0, skipped: null };
-
-  const stored = await loadTokens(ctx.primary);
-  if (!stored) return { uploaded: 0, skipped: 'not-connected' };
-
+  // Claim the guard synchronously, before the first await, so two overlapping
+  // triggers can't both pass the check above and reach the upload loop.
   running = true;
   let uploaded = 0;
   try {
+    if (!ctx.primary) return { uploaded: 0, skipped: 'no-provider' };
+
+    const provider = providerFor(ctx.primary);
+    if (!provider.isConfigured()) return { uploaded: 0, skipped: 'not-configured' };
+
+    const net = await Network.getNetworkStateAsync();
+    if (!net.isConnected || net.isInternetReachable === false) {
+      return { uploaded: 0, skipped: 'offline' };
+    }
+    if (ctx.policy === 'wifi' && net.type !== Network.NetworkStateType.WIFI) {
+      return { uploaded: 0, skipped: 'policy' };
+    }
+
+    const pending = await pendingEntries();
+    if (pending.length === 0) return { uploaded: 0, skipped: null };
+
+    const stored = await loadTokens(ctx.primary);
+    if (!stored) return { uploaded: 0, skipped: 'not-connected' };
+
     // Refresh once up front; every upload in this pass reuses the fresh token.
     const tokens = await provider.ensureValid(stored);
     await saveTokens(ctx.primary, tokens);
 
     for (const entry of pending) {
       if (entry.attempts >= MAX_ATTEMPTS) continue;
+      // A receipt with no sidecar has nothing valid to upload as its metadata.
+      // Mark it errored rather than skip silently: a silent `continue` leaves it
+      // pending forever with no reason the settings screen can show.
+      if (!entry.jsonUri) {
+        await markError(
+          entry.captureId,
+          'This receipt is missing its saved details and cannot be backed up.',
+          nowIso(),
+        );
+        continue;
+      }
       try {
         const result = await provider.upload(tokens, {
           captureId: entry.captureId,

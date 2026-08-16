@@ -26,7 +26,8 @@ export type BackupState = 'pending' | 'synced' | 'error';
 export interface ReceiptIndexEntry {
   readonly captureId: string;
   readonly imageUri: string;
-  readonly jsonUri: string;
+  /** The JSON sidecar's URI, or null when the receipt has only an image. */
+  readonly jsonUri: string | null;
   readonly state: BackupState;
   /** Which provider it was uploaded to, once synced. */
   readonly provider: CloudProviderId | null;
@@ -55,6 +56,19 @@ async function writeMap(map: IndexMap): Promise<void> {
   await AsyncStorage.setItem(KEY, JSON.stringify(map)).catch(() => undefined);
 }
 
+let queue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs read-modify-write mutations one at a time. The capture screen and the
+ * backup queue both mutate this map; without serialising, a write that started
+ * from an older snapshot can clobber an update that landed in between.
+ */
+function serial<T>(work: () => Promise<T>): Promise<T> {
+  const next = queue.then(work, work);
+  queue = next.catch(() => undefined);
+  return next;
+}
+
 export async function allEntries(): Promise<ReceiptIndexEntry[]> {
   return Object.values(await readMap());
 }
@@ -70,22 +84,28 @@ export async function pendingEntries(): Promise<ReceiptIndexEntry[]> {
  */
 export async function markPending(
   captureId: string,
-  files: { imageUri: string; jsonUri: string },
+  files: { imageUri: string; jsonUri: string | null },
   now: string,
 ): Promise<void> {
-  const map = await readMap();
-  map[captureId] = {
-    captureId,
-    imageUri: files.imageUri,
-    jsonUri: files.jsonUri,
-    state: 'pending',
-    provider: null,
-    remoteId: null,
-    attempts: 0,
-    error: null,
-    updatedAt: now,
-  };
-  await writeMap(map);
+  await serial(async () => {
+    const map = await readMap();
+    // A re-scan overwrites the same capture id; keep any remote id/provider
+    // from an already-synced upload so the queue can replace the remote copy
+    // rather than orphan it in the user's cloud.
+    const existing = map[captureId];
+    map[captureId] = {
+      captureId,
+      imageUri: files.imageUri,
+      jsonUri: files.jsonUri,
+      state: 'pending',
+      provider: existing?.provider ?? null,
+      remoteId: existing?.remoteId ?? null,
+      attempts: 0,
+      error: null,
+      updatedAt: now,
+    };
+    await writeMap(map);
+  });
 }
 
 export async function markSynced(
@@ -93,40 +113,46 @@ export async function markSynced(
   result: { provider: CloudProviderId; remoteId: string },
   now: string,
 ): Promise<void> {
-  const map = await readMap();
-  const entry = map[captureId];
-  if (!entry) return;
-  map[captureId] = {
-    ...entry,
-    state: 'synced',
-    provider: result.provider,
-    remoteId: result.remoteId,
-    attempts: 0,
-    error: null,
-    updatedAt: now,
-  };
-  await writeMap(map);
+  await serial(async () => {
+    const map = await readMap();
+    const entry = map[captureId];
+    if (!entry) return;
+    map[captureId] = {
+      ...entry,
+      state: 'synced',
+      provider: result.provider,
+      remoteId: result.remoteId,
+      attempts: 0,
+      error: null,
+      updatedAt: now,
+    };
+    await writeMap(map);
+  });
 }
 
 export async function markError(captureId: string, message: string, now: string): Promise<void> {
-  const map = await readMap();
-  const entry = map[captureId];
-  if (!entry) return;
-  map[captureId] = {
-    ...entry,
-    state: 'error',
-    attempts: entry.attempts + 1,
-    error: message,
-    updatedAt: now,
-  };
-  await writeMap(map);
+  await serial(async () => {
+    const map = await readMap();
+    const entry = map[captureId];
+    if (!entry) return;
+    map[captureId] = {
+      ...entry,
+      state: 'error',
+      attempts: entry.attempts + 1,
+      error: message,
+      updatedAt: now,
+    };
+    await writeMap(map);
+  });
 }
 
 export async function removeEntry(captureId: string): Promise<void> {
-  const map = await readMap();
-  if (!(captureId in map)) return;
-  delete map[captureId];
-  await writeMap(map);
+  await serial(async () => {
+    const map = await readMap();
+    if (!(captureId in map)) return;
+    delete map[captureId];
+    await writeMap(map);
+  });
 }
 
 /** How many receipts are still waiting to reach the cloud — for the badge/label. */

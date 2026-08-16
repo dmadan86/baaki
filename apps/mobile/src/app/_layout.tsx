@@ -238,10 +238,12 @@ function PushRouting() {
 
     // A tap that launched the app from cold arrives as the "last response"
     // rather than as an event, so both paths are needed.
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      const route = response ? routeForNotification(response) : null;
-      if (route) router.push(route as never);
-    });
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        const route = response ? routeForNotification(response) : null;
+        if (route) router.push(route as never);
+      })
+      .catch(() => {});
 
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const route = routeForNotification(response);

@@ -60,8 +60,7 @@ function BlockingScreen(): React.JSX.Element {
       </Text>
 
       <Text variant="caption" tone="muted" align="center">
-        {message ??
-          'This version can no longer talk to Baaki, so it has been stopped rather than left to show you numbers that might be wrong.'}
+        {message ?? t.misc.versionStoppedBody}
       </Text>
 
       {/* Said plainly, because "will I lose my data" is the actual worry and
@@ -117,7 +116,7 @@ export function UpdateBanner(): React.JSX.Element | null {
           <Ionicons name="arrow-up-circle-outline" size={iconSize.xl} color={theme.color.brand} />
           <View style={{ flex: 1 }}>
             <Text variant="caption">
-              {latest ? `Baaki ${latest} is out` : 'A new Baaki is out'}
+              {latest ? t.misc.baakiVersionOut.replace('{latest}', latest) : t.misc.newBaakiOut}
             </Text>
             <Text variant="micro" tone="muted">
               {t.extras.worthAMinute}

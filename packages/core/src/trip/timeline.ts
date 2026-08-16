@@ -70,9 +70,13 @@ export interface Timeline {
 
 /** `'2026-03-14'` + n days, as text. No Date, no timezone, no drift. */
 export function addDays(day: string, count: number): string {
-  const [year, month, date] = day.split('-').map(Number);
+  // A malformed label yields NaN, which the ?? fallbacks cannot catch and which
+  // makes toISOString throw. Hand it back unchanged; daysBetween still
+  // terminates because its limit guard holds.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
+  const [year, month, date] = day.split('-').map(Number) as [number, number, number];
   // UTC deliberately: this is date arithmetic on a label, not a moment in time.
-  const moment = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (date ?? 1) + count));
+  const moment = new Date(Date.UTC(year, month - 1, date + count));
   return moment.toISOString().slice(0, 10);
 }
 

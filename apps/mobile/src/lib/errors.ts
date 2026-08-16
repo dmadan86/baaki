@@ -25,7 +25,8 @@ interface Postgrestish {
 
 export function friendlyError(caught: unknown, fallback: string, where: string): string {
   const error = (caught ?? {}) as Postgrestish;
-  const message = typeof error.message === 'string' ? error.message : String(caught);
+  const message =
+    typeof error.message === 'string' ? error.message : typeof caught === 'string' ? caught : '';
 
   // Reported, then replaced. A build that reaches a project without the
   // migration is a deployment mistake somebody has to hear about.
@@ -45,6 +46,8 @@ export function friendlyError(caught: unknown, fallback: string, where: string):
   }
 
   // A network failure already reads plainly, and telling somebody their
-  // connection dropped is worth more than a generic apology.
-  return message;
+  // connection dropped is worth more than a generic apology. Everything else is
+  // a sentence about the schema, so it stays in the crash report only.
+  if (/network request failed|fetch failed|timeout|offline/i.test(message)) return message;
+  return fallback;
 }

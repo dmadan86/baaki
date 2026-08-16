@@ -57,7 +57,13 @@ export function localeFor(language: Language, acceptLanguage: string | null | un
   if (!acceptLanguage) return language;
   for (const part of acceptLanguage.split(',')) {
     const tag = part.split(';')[0]?.trim();
-    if (tag?.toLowerCase().startsWith(language + '-')) return tag;
+    if (!tag?.toLowerCase().startsWith(language + '-')) continue;
+    try {
+      // Rejects structurally invalid tags; a header is client-supplied.
+      return Intl.getCanonicalLocales(tag)[0] ?? language;
+    } catch {
+      return language;
+    }
   }
   return language;
 }

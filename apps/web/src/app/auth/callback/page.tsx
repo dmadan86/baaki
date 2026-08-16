@@ -25,9 +25,9 @@ export default function AuthCallback() {
   useEffect(() => {
     void (async () => {
       try {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
-          window.location.href,
-        );
+        const code = new URLSearchParams(window.location.search).get('code');
+        if (!code) throw new Error('Missing authorization code');
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         if (exchangeError) throw exchangeError;
         router.replace('/');
       } catch (caught) {

@@ -144,13 +144,15 @@ export default function ImportSmsScreen() {
     setError(null);
     setReading(true);
     try {
-      const result = await readSms({ from, to });
+      const result = await readSms({ from, to }, t.smsImport.permissionRationale);
       if (result.ok) {
         setReadMessages(result.messages);
         setError(result.messages.length === 0 ? t.smsImport.readNothing : null);
       } else {
         setError(readFailureMessage(result.reason, t));
       }
+    } catch {
+      setError(readFailureMessage(SmsReadFailure.Failed, t));
     } finally {
       setReading(false);
     }
@@ -366,7 +368,7 @@ export default function ImportSmsScreen() {
                       >
                         <ListRow
                           title={candidate.merchant ?? t.smsImport.cardPayment}
-                          subtitle={subtitleFor(candidate, locale)}
+                          subtitle={subtitleFor(candidate, locale, t)}
                           leading={
                             <Ionicons
                               name={picked ? 'checkbox' : 'square-outline'}
@@ -484,12 +486,16 @@ function DateField({
   );
 }
 
-function subtitleFor(candidate: ExpenseCandidate, locale: string): string {
+function subtitleFor(
+  candidate: ExpenseCandidate,
+  locale: string,
+  t: ReturnType<typeof useStrings>['t'],
+): string {
   const when = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(
     new Date(candidate.at),
   );
   const parts = [when];
-  if (candidate.dateInferred) parts.push('date not in the message');
+  if (candidate.dateInferred) parts.push(t.smsImport.dateNotInMessage);
   if (candidate.accountTail) parts.push(`⋯${candidate.accountTail}`);
   return parts.join(' · ');
 }

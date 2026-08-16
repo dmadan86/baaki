@@ -7,23 +7,22 @@
  * bundle to what is actually painted. Every chart component imports its renderer
  * from here, never from `echarts-for-react` directly.
  */
-// Aliased: ECharts' registrar is named `use`, which the React hooks lint rule
-// flags as a hook called at the top level. It is not a hook — it is the
-// tree-shaking registration below — so the alias both silences the false
-// positive and reads as what it does.
-import { use as registerECharts } from 'echarts/core';
+// Namespace import: `echarts-for-react/lib/core` calls `props.echarts.init(...)`
+// on mount, so it needs the same registered core namespace the charts were
+// registered against. The wrapper below injects it so no call site has to.
+import * as echarts from 'echarts/core';
 import { PieChart, LineChart } from 'echarts/charts';
 import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
 import { SVGRenderer } from 'echarts/renderers';
-import ReactEChartsCore from 'echarts-for-react/lib/core';
+import ReactEChartsCoreBase from 'echarts-for-react/lib/core';
+import { createElement, type ComponentProps } from 'react';
 
-registerECharts([
-  PieChart,
-  LineChart,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  SVGRenderer,
-]);
+// `use` is ECharts' registrar; it is not a React hook despite the name, so the
+// tree-shaking registration below is a plain call.
+echarts.use([PieChart, LineChart, TooltipComponent, LegendComponent, GridComponent, SVGRenderer]);
 
-export { ReactEChartsCore };
+export function ReactEChartsCore(
+  props: Omit<ComponentProps<typeof ReactEChartsCoreBase>, 'echarts'>,
+) {
+  return createElement(ReactEChartsCoreBase, { echarts, ...props });
+}

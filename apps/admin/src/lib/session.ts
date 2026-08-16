@@ -61,10 +61,19 @@ async function hmac(message: string, secret: string): Promise<string> {
  * does not offer one. A plain `===` on the password would leak its length and
  * its prefix through timing.
  */
-const compareKey = crypto.getRandomValues(new Uint8Array(32)).join('');
+let cachedCompareKey: string | null = null;
+function compareKey(): string {
+  // Generated on first use, not at module load: module-scope
+  // crypto.getRandomValues can fail Next.js prerendering.
+  if (cachedCompareKey === null) {
+    cachedCompareKey = crypto.getRandomValues(new Uint8Array(32)).join('');
+  }
+  return cachedCompareKey;
+}
 
 async function equals(a: string, b: string): Promise<boolean> {
-  const [left, right] = await Promise.all([hmac(a, compareKey), hmac(b, compareKey)]);
+  const key = compareKey();
+  const [left, right] = await Promise.all([hmac(a, key), hmac(b, key)]);
   return left === right;
 }
 

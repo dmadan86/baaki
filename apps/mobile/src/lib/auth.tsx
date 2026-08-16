@@ -331,6 +331,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data, error } = await supabase.auth.signInWithIdToken({
             provider: 'apple',
             token: credential.identityToken,
+            // Raw nonce; Supabase hashes it and matches it against the SHA-256
+            // Apple embedded in the token, binding the token to this request.
+            nonce: credential.rawNonce,
           });
           if (error) throw error;
           setSession(data.session);

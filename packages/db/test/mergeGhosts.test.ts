@@ -168,6 +168,9 @@ describe('merging guests unions overlapping groups', () => {
       expect(free.rows[0]?.got).toBe(true);
     } finally {
       await client.query('RESET ROLE').catch(() => undefined);
+      // No-op after COMMIT; releases the lock and the connection if an
+      // assertion above threw before the commit.
+      await client.query('ROLLBACK').catch(() => undefined);
       await other.end();
     }
 

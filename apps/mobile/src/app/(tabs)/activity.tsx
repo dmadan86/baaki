@@ -17,7 +17,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { describeActivity, relativeTime, verbEmoji } from '@/data/activity';
+import { describeActivity, parseMoney, relativeTime, verbEmoji } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
 import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
@@ -152,15 +152,21 @@ export default function ActivityScreen() {
                         <Text variant="body" numberOfLines={3} style={{ flex: 1 }}>
                           {describeActivity(entry, myProfileId)}
                         </Text>
-                        {typeof entry.payload.amount === 'string' ? (
-                          <MoneyText
-                            amount={BigInt(entry.payload.amount)}
-                            currency={(entry.payload.currency as string) ?? 'INR'}
-                            locale={locale}
-                            variant="subheading"
-                            tone="default"
-                          />
-                        ) : null}
+                        {/* `payload` is an untyped JSON blob, so a bad amount
+                            must render as no amount, not as a crashed tab. */}
+                        {(() => {
+                          const money = parseMoney(entry.payload);
+                          if (!money) return null;
+                          return (
+                            <MoneyText
+                              amount={money.amount}
+                              currency={money.currency}
+                              locale={locale}
+                              variant="subheading"
+                              tone="default"
+                            />
+                          );
+                        })()}
                       </Row>
                       <Text variant="micro" tone="muted" style={{ marginTop: 2 }}>
                         {relativeTime(locale, entry.created_at)}

@@ -144,7 +144,9 @@ function integer(value: unknown, field: string): bigint {
     }
     return BigInt(value);
   }
-  if (typeof value === 'string' && /^-?\d+$/.test(value.trim())) {
+  // Optional sign then digits — the same rule parseAmount holds in
+  // sync/protocol.ts, so a payload one boundary accepts the other does not refuse.
+  if (typeof value === 'string' && /^[+-]?\d+$/.test(value.trim())) {
     return BigInt(value.trim());
   }
   throw new SplitWireError('NOT_AN_INTEGER', `${field}: ${String(value)} is not a whole number`);

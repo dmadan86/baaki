@@ -462,7 +462,14 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     /**
      * "I paid them." The coarse `method` enum is derived server-side from the
      * finer rail, so a rail the enum never heard of still records rather than
-     * being refused. `clientMutationId` makes a double-tapped Save harmless.
+     * being refused.
+     *
+     * `clientMutationId` is what makes a double-tapped Save harmless, and it is
+     * required rather than defaulted here on purpose: a key minted inside this
+     * call would be a *new* key on every retry, so the server would dedup
+     * nothing and a flaky-network retry would record the payment twice. The
+     * caller owns the key so it can hold one stable value across retries of the
+     * same settlement and mint a fresh one only once a payment has recorded.
      */
     async recordSettlement(input: {
       groupId: string;
@@ -474,7 +481,8 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       currency?: string | null;
       note?: string | null;
       allocations?: { expenseId: string; amount: bigint }[];
-      clientMutationId?: string;
+      /** Stable across retries of the same settlement; the server dedups on it. */
+      clientMutationId: string;
     }): Promise<string> {
       return String(
         await rpc('baaki_record_settlement', {
@@ -490,7 +498,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
             expenseId: allocation.expenseId,
             amount: allocation.amount.toString(),
           })),
-          p_client_mutation_id: input.clientMutationId ?? crypto.randomUUID(),
+          p_client_mutation_id: input.clientMutationId,
         }),
       );
     },
