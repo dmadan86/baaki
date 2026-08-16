@@ -1,0 +1,42 @@
+# Maestro flow (ADR-014): leaving a group removes it from the dashboard.
+#
+# Regression guard for the bug where a left group lingered on Home forever.
+# Leaving flips `left_at`, which `is_group_member` gates the group's RLS on, so
+# the server can never pull the group again to signal it is gone — the client
+# has to forget it locally (`SyncEngine.forgetGroup`, covered as a unit test in
+# apps/mobile/test/syncEngine.test.ts). This is the on-device half: leave, and
+# assert the group is no longer on Home even after a relaunch.
+#
+# Precondition: the seeded "Goa trip" is settled for the acting member (leaving
+# is refused while a balance is open — that guard has its own copy). If the seed
+# carries an open balance, settle it first with the settle flow.
+appId: app.baaki.mobile
+---
+- launchApp:
+    clearState: true
+
+# Home shows the group
+- assertVisible: 'Your groups'
+- assertVisible: 'Goa trip'
+
+# Into the group, then its settings
+- tapOn: 'Goa trip'
+- tapOn: 'Settings'
+- assertVisible: 'Members'
+
+# The Leave button sits below Archive at the very bottom, under the tab bar —
+# scroll it into reach (the clearance this flow also guards) and confirm.
+- scrollUntilVisible:
+    element: 'Leave group'
+    direction: DOWN
+- tapOn: 'Leave group'
+- tapOn: 'Leave'
+
+# Back on Home, the group is gone
+- assertVisible: 'Your groups'
+- assertNotVisible: 'Goa trip'
+
+# And it stays gone across a relaunch — the mirror forgot it, so hydrate cannot
+# bring the stale group back (the whole point of the fix).
+- launchApp
+- assertNotVisible: 'Goa trip'

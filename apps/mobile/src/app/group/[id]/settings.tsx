@@ -18,7 +18,7 @@ import {
   Text,
   Toggle,
   useTheme,
-  useScreenClearance,
+  useTabBarClearance,
 } from '@baaki/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -36,7 +36,10 @@ import { groupLabel } from '@/data/types';
 
 export default function GroupSettingsScreen() {
   const theme = useTheme();
-  const clearance = useScreenClearance();
+  // This screen renders under the persistent bottom nav, so it must pad for the
+  // bar, not just the system inset — with the plain inset the last row (Leave
+  // group, below Archive) sat behind the bar and could not be reached.
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';

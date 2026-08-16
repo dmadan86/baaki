@@ -107,6 +107,25 @@ class AsyncStorageStore implements LocalStore {
     });
   }
 
+  forgetGroup(groupId: string, queue: readonly QueuedMutation[]): Promise<void> {
+    return this.serial.run(async () => {
+      // AsyncStorage has no cross-key transaction, so web cannot make these three
+      // writes atomic the way SQLite does — but the web store is best-effort by
+      // design (a torn write is rebuilt by the next pull), so consolidating the
+      // three writes here is as far as it goes; a journal would be a new
+      // mechanism for a loss the next sync already heals.
+      const rows = await this.read<StoredRow[]>(WEB_KEYS.rows, []);
+      await AsyncStorage.setItem(
+        WEB_KEYS.rows,
+        JSON.stringify(rows.filter((row) => row.groupId !== groupId)),
+      );
+      const cursors = await this.read<Record<string, number>>(WEB_KEYS.cursors, {});
+      delete cursors[groupId];
+      await AsyncStorage.setItem(WEB_KEYS.cursors, JSON.stringify(cursors));
+      await AsyncStorage.setItem(WEB_KEYS.queue, JSON.stringify(queue));
+    });
+  }
+
   reset(): Promise<void> {
     return this.serial.run(() => AsyncStorage.removeMany(Object.values(WEB_KEYS)));
   }

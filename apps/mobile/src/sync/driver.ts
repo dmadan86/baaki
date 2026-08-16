@@ -217,6 +217,26 @@ class SqliteStore implements LocalStore {
     });
   }
 
+  forgetGroup(groupId: string, queue: readonly QueuedMutation[]): Promise<void> {
+    return this.serial.run(async () => {
+      const database = await this.db();
+      // All three in one transaction: the mirror rows, the cursor and the queue
+      // are one fact — "this group is gone" — so a kill between them must not
+      // leave the queue replaying against rows that no longer exist.
+      await database.withTransactionAsync(async () => {
+        await database.runAsync(`DELETE FROM mirror_rows WHERE group_id = ?`, [groupId]);
+        await database.runAsync(`DELETE FROM sync_cursors WHERE group_id = ?`, [groupId]);
+        await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
+        for (const mutation of queue) {
+          await database.runAsync(
+            `INSERT INTO pending_mutations (client_mutation_id, seq, json) VALUES (?, ?, ?)`,
+            [mutation.clientMutationId, mutation.seq, JSON.stringify(mutation)],
+          );
+        }
+      });
+    });
+  }
+
   reset(): Promise<void> {
     return this.serial.run(async () => {
       const database = await this.db();
