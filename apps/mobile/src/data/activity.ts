@@ -13,6 +13,8 @@
  * reader's point of view, so their own actions read as "You".
  */
 
+import { isCurrencyCode } from '@baaki/core';
+
 import { actorName, type ActivityRow } from './types';
 
 /**
@@ -31,10 +33,11 @@ export function parseMoney(
   const trimmed = record.amount.trim();
   if (trimmed === '') return null;
   try {
-    return {
-      amount: BigInt(trimmed),
-      currency: typeof record.currency === 'string' ? record.currency : fallbackCurrency,
-    };
+    const currency =
+      typeof record.currency === 'string' && isCurrencyCode(record.currency)
+        ? record.currency
+        : fallbackCurrency;
+    return { amount: BigInt(trimmed), currency };
   } catch {
     return null;
   }

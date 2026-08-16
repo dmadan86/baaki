@@ -134,7 +134,11 @@ export function DeviceSessionProvider({ children }: { children: ReactNode }) {
     // the other phones out; the table update below only makes the list say so.
     // If this itself fails, nothing was revoked: surface the error, keep the gate.
     try {
-      await supabase.auth.signOut({ scope: 'others' });
+      // signOut resolves with `{ error }` rather than throwing, so a revocation
+      // failure has to be read off the result and re-thrown; otherwise the gate
+      // below would dismiss on a sign-out that never happened.
+      const { error } = await supabase.auth.signOut({ scope: 'others' });
+      if (error) throw error;
     } catch (caught) {
       await register();
       throw caught;

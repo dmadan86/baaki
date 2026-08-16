@@ -114,14 +114,17 @@ export default function ItemizeScreen() {
   const toMajor = (minor: bigint): string =>
     digits === 0 ? minor.toString() : (Number(minor) / Number(scale)).toFixed(digits);
 
-  const toMinor = (text: string): bigint => {
-    // A zero-decimal currency (JPY, scale 1) has no fraction, so a decimal point
-    // is invalid input, not extra minor units — reject it rather than folding
-    // the digits in. Currencies with digits > 0 keep their fractional parse.
+  // Empty means "none" (a valid zero); a non-empty but malformed value returns
+  // null so the caller can reject it instead of silently reading it as zero. A
+  // zero-decimal currency (JPY, scale 1) has no fraction, so a decimal point is
+  // malformed there; currencies with digits > 0 keep their fractional parse.
+  const toMinor = (text: string): bigint | null => {
+    const trimmed = text.trim();
+    if (trimmed === '') return 0n;
     const pattern =
       digits === 0 ? /^(\d+)$/ : new RegExp(`^(\\d+)(?:\\.(\\d{1,${digits}}))?$`);
-    const match = pattern.exec(text.trim());
-    if (!match) return 0n;
+    const match = pattern.exec(trimmed);
+    if (!match) return null;
     const [, whole = '0', fraction = ''] = match;
     return BigInt(whole) * scale + BigInt(fraction.padEnd(digits, '0') || '0');
   };
@@ -250,8 +253,12 @@ export default function ItemizeScreen() {
 
   const shown = isShared ? sharedItems : items;
 
-  const taxes = toMinor(taxText);
-  const tip = toMinor(tipText);
+  // null marks a malformed entry; the running total treats it as zero, and
+  // `save` refuses to write while either is still invalid.
+  const taxMinor = toMinor(taxText);
+  const tipMinor = toMinor(tipText);
+  const taxes = taxMinor ?? 0n;
+  const tip = tipMinor ?? 0n;
   const itemsTotal = shown.reduce((total, item) => total + item.total, 0n);
   const grandTotal = itemsTotal + taxes + tip;
 
@@ -305,7 +312,7 @@ export default function ItemizeScreen() {
 
   const addItem = (): void => {
     const total = toMinor(amountText);
-    if (total <= 0n) return;
+    if (total === null || total <= 0n) return;
     setItems((current) => [
       ...current,
       {
@@ -399,6 +406,10 @@ export default function ItemizeScreen() {
     setError(null);
     if (!myMemberId) {
       setError(t.itemize.notAMember);
+      return;
+    }
+    if (taxMinor === null || tipMinor === null) {
+      setError(t.itemize.invalidTaxOrTip);
       return;
     }
     try {
@@ -565,7 +576,10 @@ export default function ItemizeScreen() {
                 label={t.add}
                 size="sm"
                 variant="secondary"
-                disabled={toMinor(amountText) <= 0n}
+                disabled={(() => {
+                  const parsed = toMinor(amountText);
+                  return parsed === null || parsed <= 0n;
+                })()}
                 onPress={addItem}
               />
             </Row>

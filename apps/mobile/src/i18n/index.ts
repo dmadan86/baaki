@@ -1080,6 +1080,7 @@ export interface UiStrings {
   itemize: {
     title: string;
     notAMember: string;
+    invalidTaxOrTip: string;
     defaultDescription: string;
     sharedNow: string;
     splittingTogether: string;
@@ -2302,6 +2303,7 @@ const en: UiStrings = {
   itemize: {
     title: 'Split by item',
     notAMember: 'You are not a member of this group',
+    invalidTaxOrTip: 'Enter a valid amount for tax and tip.',
     defaultDescription: 'Itemized bill',
     sharedNow: 'Everybody in the group can see this bill now. Tap the lines you had.',
     splittingTogether: 'Splitting together',
@@ -3598,6 +3600,7 @@ const ta: UiStrings = {
   itemize: {
     title: 'பொருள் வாரியாகப் பிரி',
     notAMember: 'நீங்கள் இந்தக் குழுவின் உறுப்பினர் அல்ல',
+    invalidTaxOrTip: 'வரி மற்றும் டிப்பிற்கு சரியான தொகையை உள்ளிடவும்.',
     defaultDescription: 'பொருள் வாரியான ரசீது',
     sharedNow:
       'இப்போது குழுவில் உள்ள அனைவரும் இந்த ரசீதைப் பார்க்கலாம். நீங்கள் சாப்பிட்ட வரிகளைத் தட்டுங்கள்.',
@@ -4867,6 +4870,7 @@ const hi: UiStrings = {
   itemize: {
     title: 'चीज़-वार बाँटें',
     notAMember: 'आप इस समूह के सदस्य नहीं हैं',
+    invalidTaxOrTip: 'कर और टिप के लिए मान्य राशि दर्ज करें।',
     defaultDescription: 'चीज़-वार बिल',
     sharedNow: 'अब समूह के सब लोग यह बिल देख सकते हैं। जो आपने लिया उन पंक्तियों पर टैप करें।',
     splittingTogether: 'साथ मिलकर बाँट रहे हैं',
@@ -6236,6 +6240,7 @@ const ar: UiStrings = {
   itemize: {
     title: 'التقسيم حسب الصنف',
     notAMember: 'لست عضوًا في هذه المجموعة',
+    invalidTaxOrTip: 'أدخل مبلغًا صالحًا للضريبة والبقشيش.',
     defaultDescription: 'فاتورة بالأصناف',
     sharedNow: 'صار بإمكان كل أعضاء المجموعة رؤية هذه الفاتورة. اضغط على الأصناف التي تناولتها.',
     splittingTogether: 'نقسّمها معًا',
