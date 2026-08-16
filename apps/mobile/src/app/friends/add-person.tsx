@@ -16,7 +16,7 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQueryClient } from '@tanstack/react-query';
+import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
@@ -35,7 +35,7 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { addGhostMember, createGroup, fetchMembers, writeExpense } from '@/data/api';
+import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks';
 import { GroupType } from '@/data/types';
 import { deviceDefaultCurrency, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -54,7 +54,16 @@ export default function AddPersonScreen() {
   const { t } = useStrings();
   const { profile } = useAuth();
   const guard = useGuestGuard();
-  const queryClient = useQueryClient();
+
+  // The 1:1 group and my own membership id, chosen once on the device so the
+  // whole IOU — group, ghost, expense — can be built and queued offline (ADR-005)
+  // and land under these exact ids when it syncs. Was a chain of direct RPCs
+  // (the add-person deviation); now it rides the queue like every other write.
+  const [groupId] = useState(() => randomUUID());
+  const [myMemberId] = useState(() => randomUUID());
+  const createGroup = useCreateGroup();
+  const addGhost = useAddGhostMember(groupId);
+  const writeExpense = useWriteExpense(groupId);
 
   const currency = deviceDefaultCurrency();
   const [name, setName] = useState('');
@@ -75,35 +84,37 @@ export default function AddPersonScreen() {
     setSaving(true);
     try {
       const personName = name.trim();
-      const groupId = await createGroup({ name: personName, type: GroupType.Other, currency });
-      const ghostId = await addGhostMember(groupId, personName);
-      const members = await fetchMembers(groupId);
-      const me = members.find((member) => member.profile_id === profile.id);
-      if (!me) throw new Error(t.addPerson.couldNotRecord);
+      // Create the 1:1 group with my membership under the id chosen above, so the
+      // expense two lines down can already name me as payer or debtor.
+      await createGroup.mutateAsync({
+        name: personName,
+        type: GroupType.Other,
+        currency,
+        groupId,
+        creatorMemberId: myMemberId,
+      });
+      const ghostId = await addGhost.mutateAsync(personName);
 
       // One expense that books the whole amount against the debtor: the payer
       // put the money in, the debtor's share is the lot, so the debtor owes the
       // payer exactly `amount`. "They owe me" makes me the payer; "I owe them"
       // makes the person the payer and the amount my share.
       const theyOwe = direction === 'theyOwe';
-      const payerId = theyOwe ? me.id : ghostId;
-      const debtorId = theyOwe ? ghostId : me.id;
-      await writeExpense({
-        groupId,
+      const payerId = theyOwe ? myMemberId : ghostId;
+      const debtorId = theyOwe ? ghostId : myMemberId;
+      await writeExpense.mutateAsync({
         description: note.trim() || personName,
         expenseDate: today(),
         currency,
         amount,
-        participants: [me.id, ghostId],
+        participants: [myMemberId, ghostId],
         payers: { [payerId]: amount },
         splitParams: { kind: 'exact', amounts: { [debtorId]: amount, [payerId]: 0n } },
       });
 
-      // These were direct writes, not the offline queue, so the local mirror
-      // does not know about them yet — the Friends list reads the server, so
-      // nudge it to refetch and the new person shows the moment we land back on
-      // it. The 1:1 group itself appears on the dashboard on the next sync pull.
-      await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
+      // All three writes went through the offline queue, which updates the mirror
+      // synchronously — the now-local Friends list already shows the new person,
+      // and the whole IOU syncs when there is a connection. Nothing to refetch.
       router.back();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));

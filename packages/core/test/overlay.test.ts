@@ -163,6 +163,72 @@ describe('members', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.pending).toBeUndefined();
   });
+
+  it('shows the creator of a group started offline, under the id the client chose', () => {
+    // Without this a group made offline has no members until it syncs, so an
+    // expense queued behind it (an add-person IOU) has no "me" to name.
+    const queue = queued(
+      envelope('m-1', MutationKind.GroupCreate, {
+        name: 'Ravi',
+        currency: 'INR',
+        creatorMemberId: 'me-1',
+        creatorProfileId: 'profile-1',
+      }),
+    );
+    const rows = materialiseMembers(emptyMirror(), queue, { groupId: GROUP });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: 'me-1',
+      profile_id: 'profile-1',
+      ghost_name: null,
+      role: 'admin',
+      pending: true,
+    });
+  });
+
+  it('shows both the creator and the ghost of an add-person IOU built offline', () => {
+    const queue = queued(
+      envelope('m-1', MutationKind.GroupCreate, {
+        name: 'Ravi',
+        currency: 'INR',
+        creatorMemberId: 'me-1',
+        creatorProfileId: 'profile-1',
+      }),
+      envelope('m-2', MutationKind.MemberAddGhost, { memberId: 'ghost-1', name: 'Ravi' }),
+    );
+    const rows = materialiseMembers(emptyMirror(), queue, { groupId: GROUP });
+    expect(rows.map((row) => row.id).sort()).toEqual(['ghost-1', 'me-1']);
+    expect(rows.find((row) => row.id === 'me-1')?.profile_id).toBe('profile-1');
+    expect(rows.find((row) => row.id === 'ghost-1')?.profile_id).toBeNull();
+  });
+
+  it('does not duplicate the creator once the server has confirmed it', () => {
+    const mirror = reconcile(emptyMirror(), [
+      {
+        table: SyncTable.GroupMembers,
+        groupId: GROUP,
+        seq: 1,
+        row: {
+          id: 'me-1',
+          group_id: GROUP,
+          profile_id: 'profile-1',
+          ghost_name: null,
+          left_at: null,
+        },
+      },
+    ]).state;
+    const queue = queued(
+      envelope('m-1', MutationKind.GroupCreate, {
+        name: 'Ravi',
+        currency: 'INR',
+        creatorMemberId: 'me-1',
+        creatorProfileId: 'profile-1',
+      }),
+    );
+    const rows = materialiseMembers(mirror, queue, { groupId: GROUP });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.pending).toBeUndefined();
+  });
 });
 
 describe('groups', () => {
