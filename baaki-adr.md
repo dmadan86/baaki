@@ -210,6 +210,8 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 
 **Consequences.** Security lives in one reviewable place (SQL policies + few functions); every new table ships with policies + policy tests or fails CI.
 
+**Addendum (a boundary-crossing mutation may run as a `SECURITY DEFINER` RPC instead of an Edge Function).** The decision routes "ghost claim/merge" through Edge Functions with the service role. The viewer-scoped guest fold (ADR-006 addendum, TDR A38) instead runs as `baaki_merge_ghosts`, a `SECURITY DEFINER` Postgres function gated on the caller sharing a group with every ghost named. This is the **same trust boundary reached by a different mechanism**: authority is decided server-side under the function's owner, never in the client, and the fold writes only `ghost_merges` (owner-scoped by RLS) while touching no ledger row — so it needs no service-role privilege over money tables. An Edge Function and a definer RPC are interchangeable here precisely because both take the check out of the client; the choice is which one carries the least privilege. The service-role-only rule stands unchanged for the boundary-crossing mutations it still governs: invite minting, quota-metered AI calls, notification fanout and exports. The same pattern already backs `baaki_set_member_role` (ADR-006 addendum) and the photo gate `baaki_can_upload_group_photo` (ADR-011 addendum).
+
 ---
 
 ## ADR-014: Testing & quality strategy
