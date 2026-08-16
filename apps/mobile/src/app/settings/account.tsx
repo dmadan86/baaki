@@ -33,6 +33,22 @@ import { deviceDialingCode, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function AccountScreen() {
+  const { profile } = useAuth();
+  // The name field seeds from `profile` exactly once. Mount the form only once
+  // there is a profile to seed from, keyed on its id, so a name that arrives
+  // after the first paint is not left as an empty seed that Save would write
+  // back over the real row.
+  if (!profile) {
+    return (
+      <Screen>
+        <View />
+      </Screen>
+    );
+  }
+  return <AccountForm key={profile.id} />;
+}
+
+function AccountForm() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t } = useStrings();

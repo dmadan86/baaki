@@ -473,7 +473,6 @@ export interface UiStrings {
   };
   /** The account screen and its three faces. */
   account: {
-    faceYou: string;
     facePaying: string;
     faceSettings: string;
     settled: string;
@@ -1647,7 +1646,6 @@ const en: UiStrings = {
     gateDismiss: 'Not now',
   },
   account: {
-    faceYou: 'You',
     facePaying: 'Paying',
     faceSettings: 'Settings',
     settled: 'settled',
@@ -2915,7 +2913,6 @@ const ta: UiStrings = {
     gateDismiss: 'இப்போது வேண்டாம்',
   },
   account: {
-    faceYou: 'நீங்கள்',
     facePaying: 'பணம் பெற',
     faceSettings: 'அமைப்புகள்',
     settled: 'தீர்ந்தது',
@@ -4215,7 +4212,6 @@ const hi: UiStrings = {
     gateDismiss: 'अभी नहीं',
   },
   account: {
-    faceYou: 'आप',
     facePaying: 'भुगतान',
     faceSettings: 'सेटिंग्स',
     settled: 'निपटा',
@@ -5504,7 +5500,6 @@ const ar: UiStrings = {
     gateDismiss: 'ليس الآن',
   },
   account: {
-    faceYou: 'أنت',
     facePaying: 'الدفع',
     faceSettings: 'الإعدادات',
     settled: 'تمت تسويته',

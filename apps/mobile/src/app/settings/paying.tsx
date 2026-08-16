@@ -77,22 +77,30 @@ function PayingForm() {
 
   const railInfo = railById(rail);
   const handleValid = handle.trim() === '' || isValidHandle(rail, handle.trim());
+  // The rail falls back to the country's default — the same seed the state took
+  // — so switching rail alone still counts as a change. Comparing rail against
+  // itself never did.
   const dirty =
     country !== (profile?.country_code ?? deviceCountry()) ||
     handle.trim() !== (profile?.payment_handle ?? profile?.default_vpa ?? '') ||
-    rail !== (profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : rail));
+    rail !== (profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : defaultRailFor(country)));
 
   const save = async (): Promise<void> => {
     setStatus(null);
     const trimmed = handle.trim();
+    // Some rails carry no handle at all (railInfo.handle === 'none') — you pick
+    // the rail and there is nothing to type. Those save the rail with no handle;
+    // only a rail that needs a handle is dropped when the handle is left empty.
+    const needsHandle = railInfo?.handle !== 'none';
+    const hasHandle = needsHandle && trimmed !== '';
     try {
       await updateProfile({
         country_code: country,
-        payment_rail: trimmed === '' ? null : rail,
-        payment_handle: trimmed === '' ? null : trimmed,
+        payment_rail: needsHandle && trimmed === '' ? null : rail,
+        payment_handle: hasHandle ? trimmed : null,
         // Kept in step while the older screens still read it. A handle on any
         // other rail is not a UPI ID and must not masquerade as one.
-        default_vpa: rail === 'upi' && trimmed !== '' ? trimmed : null,
+        default_vpa: rail === 'upi' && hasHandle ? trimmed : null,
       });
       setStatus(t.account.saved);
     } catch (caught) {
