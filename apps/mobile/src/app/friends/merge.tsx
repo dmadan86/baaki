@@ -39,7 +39,7 @@ import {
   Row,
   Screen,
   Text,
-  useScreenClearance,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -57,7 +57,10 @@ import { plural, useStrings } from '@/i18n';
 
 export default function MergePeopleScreen() {
   const theme = useTheme();
-  const clearance = useScreenClearance();
+  // This screen renders under the persistent bottom nav (like friends/contacts),
+  // so it needs the tab-bar clearance — the plain screen inset left the Merge
+  // button hidden behind the bar, unreachable by scrolling.
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const queryClient = useQueryClient();
   const { flush } = useSync();
@@ -231,14 +234,11 @@ export default function MergePeopleScreen() {
               </Card>
 
               {/* The irreversibility, spelled out before the button rather than
-                buried in a toast after the fact. */}
-              <Callout tone="negative">
-                <Text variant="subheading" tone="negative">
-                  {t.mergePeople.warningTitle}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  {t.mergePeople.warningBody}
-                </Text>
+                buried in a toast after the fact. Title + body go through Callout's
+                own props: it wraps children in a single Text, so passing two Text
+                nodes made the heading and body run together as inline spans. */}
+              <Callout tone="negative" title={t.mergePeople.warningTitle}>
+                {t.mergePeople.warningBody}
               </Callout>
 
               {error ? <Callout tone="negative">{error}</Callout> : null}

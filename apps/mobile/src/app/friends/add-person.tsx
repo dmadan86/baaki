@@ -18,7 +18,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   AmountField,
@@ -31,10 +31,11 @@ import {
   Row,
   Screen,
   Text,
-  useScreenClearance,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
+import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks';
 import { GroupType } from '@/data/types';
 import { deviceDefaultCurrency, useStrings } from '@/i18n';
@@ -50,7 +51,9 @@ function today(): string {
 
 export default function AddPersonScreen() {
   const theme = useTheme();
-  const clearance = useScreenClearance();
+  // Under the persistent bottom nav (like friends/contacts and friends/merge),
+  // so pad for the bar, not just the system inset.
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const { profile } = useAuth();
   const guard = useGuestGuard();
@@ -72,6 +75,16 @@ export default function AddPersonScreen() {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Pull the name straight off a contact instead of typing it. This is a 1:1
+  // IOU, so only the first ticked person is used; the address book never leaves
+  // the device (ContactPicker reads it locally).
+  const onPickContact = (chosen: readonly PickedContact[]): void => {
+    const first = chosen[0];
+    if (first) setName(first.name);
+    setPickerOpen(false);
+  };
 
   const canSave = name.trim().length > 0 && amount > 0n && direction !== null && !saving;
 
@@ -170,6 +183,24 @@ export default function AddPersonScreen() {
               paddingVertical: theme.spacing.sm,
             }}
           />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.tabs.fromContacts}
+            onPress={() => setPickerOpen(true)}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              alignSelf: 'flex-start',
+              paddingVertical: theme.spacing.xs,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Ionicons name="person-add-outline" size={iconSize.sm} color={theme.color.brand} />
+            <Text variant="caption" style={{ color: theme.color.brand }}>
+              {t.tabs.fromContacts}
+            </Text>
+          </Pressable>
         </Card>
 
         <View style={{ gap: theme.spacing.sm }}>
@@ -245,6 +276,30 @@ export default function AddPersonScreen() {
         />
         {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
       </ScrollView>
+
+      <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
+        <Screen edges={['top', 'bottom']}>
+          <View
+            style={{
+              flex: 1,
+              paddingHorizontal: theme.spacing.xl,
+              paddingBottom: theme.spacing.md,
+              gap: theme.spacing.lg,
+            }}
+          >
+            <Row style={{ paddingTop: theme.spacing.md }}>
+              <IconButton label={t.common.close} onPress={() => setPickerOpen(false)}>
+                <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+              </IconButton>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text variant="heading">{t.tabs.fromContacts}</Text>
+              </View>
+              <View style={{ width: 44 }} />
+            </Row>
+            <ContactPicker onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
+          </View>
+        </Screen>
+      </Modal>
     </Screen>
   );
 }
