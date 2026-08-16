@@ -304,9 +304,19 @@ function FriendCard({
   // reads in ordinary ink, and the owed/owe meaning is carried by the sign and
   // the section this row sits under. The avatar keeps the person's own colour.
   const owed = BigInt(row.net) > 0n;
-  // Only linkable when there is a single group to link to; otherwise this
-  // amount is a sum and no one group explains it.
-  const onPress = row.only_group_id ? () => router.push(`/group/${row.only_group_id}`) : undefined;
+  // One group explains the balance: open it. Several do: the amount is a sum, so
+  // open the person instead — a screen that splits it back out per group. Either
+  // way the row is now a doorway; it used to be a dead end once it spanned two.
+  const onPress = row.only_group_id
+    ? () => router.push(`/group/${row.only_group_id}`)
+    : () =>
+        router.push(
+          // The route is typed once expo regenerates its route map; `as never`
+          // matches how the other friends/* pushes bridge that gap.
+          `/friends/person/${encodeURIComponent(row.person_key)}?name=${encodeURIComponent(
+            row.display_name,
+          )}` as never,
+        );
 
   const body = (
     <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}>
@@ -364,7 +374,6 @@ function FriendCard({
     </Row>
   );
 
-  if (!onPress) return body;
   return (
     <Pressable
       onPress={onPress}

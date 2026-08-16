@@ -1294,6 +1294,34 @@ export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
   return (data ?? []) as PersonBalanceRow[];
 }
 
+/** One group's worth of a single person's balance, for the person-detail screen. */
+export interface PersonGroupBalanceRow {
+  group_id: string;
+  group_name: string | null;
+  cover_emoji: string | null;
+  currency: string;
+  /** Positive: they owe you in this group. Negative: you owe them. Minor units. */
+  net: string;
+  is_ghost: boolean;
+  display_name: string;
+}
+
+/**
+ * One person, un-collapsed: their balance in each group, so tapping somebody who
+ * spans more than one group on the Friends list has somewhere to go. Same
+ * identity and same viewer-scoped edges as {@link fetchPeopleBalances}; the
+ * server keys on the same `person_key` the list rolls people up under.
+ */
+export async function fetchPersonGroupBalances(
+  personKey: string,
+): Promise<PersonGroupBalanceRow[]> {
+  const { data, error } = await supabase.rpc('baaki_person_group_balances', {
+    p_person_key: personKey,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PersonGroupBalanceRow[];
+}
+
 /**
  * Fold a set of ghosts into one merged person for this viewer (Friends screen).
  *
