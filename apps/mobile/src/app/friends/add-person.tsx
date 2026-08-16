@@ -16,12 +16,16 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
+import { parseReceiptText, type HeuristicReceipt } from '@baaki/core';
+
 import {
   AmountField,
+  Avatar,
   Button,
   Callout,
   Card,
@@ -36,11 +40,17 @@ import {
 } from '@baaki/ui';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
+import { DictateButton } from '@/components/DictateButton';
 import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks';
 import { GroupType } from '@/data/types';
 import { deviceDefaultCurrency, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useBackup } from '@/lib/cloud/BackupProvider';
+import { captureReceipt, type PickedImage } from '@/lib/image';
 import { useGuestGuard } from '@/lib/guestGuard';
+import { recogniseReceipt } from '@/lib/ocr';
+import { markPending } from '@/lib/receiptIndex';
+import { saveReceipt } from '@/lib/receiptStore';
 
 type Direction = 'theyOwe' | 'iOwe';
 
@@ -70,6 +80,7 @@ export default function AddPersonScreen() {
   const createGroup = useCreateGroup();
   const addGhost = useAddGhostMember(groupId);
   const writeExpense = useWriteExpense(groupId);
+  const backup = useBackup();
 
   const currency = deviceDefaultCurrency();
   const [name, setName] = useState('');
@@ -79,6 +90,48 @@ export default function AddPersonScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // A receipt for the IOU. The photo is read on the phone (A5); the merchant
+  // prefills the note, and the image and its OCR text are kept in the device
+  // vault + your own cloud — never uploaded to Baaki (the receipt-scan privacy
+  // choice). Keyed by an id chosen up front so the vault path is stable.
+  const [receiptId] = useState(() => randomUUID());
+  const [photo, setPhoto] = useState<PickedImage | null>(null);
+  const [rawText, setRawText] = useState<string | null>(null);
+  const [parsed, setParsed] = useState<HeuristicReceipt | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  /**
+   * Photograph the bill and keep it. On-device OCR reads the text so it can
+   * travel with the expense; the heuristic parser pulls the merchant to prefill
+   * the note. The amount stays yours to type — reading a trustworthy total needs
+   * the metered server parser, which needs a group this screen has not made yet.
+   */
+  const addReceipt = async (): Promise<void> => {
+    setError(null);
+    let picked: PickedImage | null = null;
+    try {
+      picked = await captureReceipt();
+    } catch {
+      picked = null;
+    }
+    if (!picked) return;
+
+    setPhoto(picked);
+    setScanning(true);
+    try {
+      const recognised = await recogniseReceipt(picked.uri);
+      setRawText(recognised?.text ?? null);
+      const receipt = recognised ? parseReceiptText(recognised.text, { currency }) : null;
+      setParsed(receipt);
+      if (receipt?.merchant && note.trim().length === 0) setNote(receipt.merchant);
+    } catch {
+      setRawText(null);
+      setParsed(null);
+    } finally {
+      setScanning(false);
+    }
+  };
 
   // Pull the name straight off a contact instead of typing it. This is a 1:1
   // IOU, so only the first ticked person is used; the address book never leaves
@@ -128,6 +181,31 @@ export default function AddPersonScreen() {
         splitParams: { kind: 'exact', amounts: { [debtorId]: amount, [payerId]: 0n } },
       });
 
+      // Keep the receipt image on the device and, if a personal cloud is
+      // connected, queue it there — it is never uploaded to Baaki. The photo and
+      // its OCR text stay in the vault sidecar; only the amount and note reached
+      // the expense (A5, receipt-scan privacy).
+      if (photo) {
+        const saved = saveReceipt(receiptId, {
+          base64: photo.base64,
+          sidecar: {
+            captureId: receiptId,
+            currency,
+            amountMinor: Number(amount),
+            itemCount: parsed?.items.length ?? 0,
+            items: (parsed?.items ?? []).map((item) => ({ label: item.label, total: item.total })),
+            date: today(),
+            category: null,
+            rawText,
+            createdAt: new Date().toISOString(),
+          },
+        });
+        if (saved) {
+          await markPending(receiptId, saved, new Date().toISOString());
+          void backup.kick();
+        }
+      }
+
       // All three writes went through the offline queue, which updates the mirror
       // synchronously — the now-local Friends list already shows the new person,
       // and the whole IOU syncs when there is a connection. Nothing to refetch.
@@ -168,42 +246,40 @@ export default function AddPersonScreen() {
           {t.addPerson.subtitle}
         </Text>
 
-        <Card style={{ gap: theme.spacing.xs }}>
-          <Text variant="caption" tone="muted">
-            {t.addPerson.nameLabel}
-          </Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            accessibilityLabel={t.addPerson.nameLabel}
-            placeholder={t.addPerson.namePlaceholder}
-            placeholderTextColor={theme.color.textFaint}
-            autoFocus
-            style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: theme.color.text,
-              paddingVertical: theme.spacing.sm,
-            }}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.tabs.fromContacts}
+        {/* The person is the subject of this screen, so the card leads with
+            them: an avatar that fills in with the name's own colour and initial
+            as it is typed, the name as the field beside it, and picking from
+            contacts as a real button rather than a footnote link. */}
+        <Card style={{ gap: theme.spacing.lg }}>
+          <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+            <Avatar name={name.trim() || '?'} size={56} ghost />
+            <View style={{ flex: 1, gap: theme.spacing.xs }}>
+              <Text variant="caption" tone="muted">
+                {t.addPerson.nameLabel}
+              </Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                accessibilityLabel={t.addPerson.nameLabel}
+                placeholder={t.addPerson.namePlaceholder}
+                placeholderTextColor={theme.color.textFaint}
+                autoFocus
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: theme.color.text,
+                  paddingVertical: theme.spacing.xs,
+                }}
+              />
+            </View>
+          </Row>
+          <Button
+            label={t.tabs.fromContacts}
+            variant="secondary"
+            size="sm"
+            fullWidth
             onPress={() => setPickerOpen(true)}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-              alignSelf: 'flex-start',
-              paddingVertical: theme.spacing.xs,
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Ionicons name="person-add-outline" size={iconSize.sm} color={theme.color.brand} />
-            <Text variant="caption" style={{ color: theme.color.brand }}>
-              {t.tabs.fromContacts}
-            </Text>
-          </Pressable>
+          />
         </Card>
 
         <View style={{ gap: theme.spacing.sm }}>
@@ -258,14 +334,58 @@ export default function AddPersonScreen() {
           <Text variant="caption" tone="muted">
             {t.addPerson.noteLabel}
           </Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            accessibilityLabel={t.addPerson.noteLabel}
-            placeholder={t.addPerson.notePlaceholder}
-            placeholderTextColor={theme.color.textFaint}
-            style={{ fontSize: 16, color: theme.color.text, paddingVertical: theme.spacing.sm }}
-          />
+          <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              accessibilityLabel={t.addPerson.noteLabel}
+              placeholder={t.addPerson.notePlaceholder}
+              placeholderTextColor={theme.color.textFaint}
+              style={{
+                flex: 1,
+                fontSize: 16,
+                color: theme.color.text,
+                paddingVertical: theme.spacing.sm,
+              }}
+            />
+            {/* Speak the note instead of typing it — the same mic the expense
+                description has. The person's name is handed to the recogniser as
+                a hint, since a name is exactly what a general model mishears. */}
+            <DictateButton
+              value={note}
+              onChange={setNote}
+              hints={name.trim() ? [name.trim()] : undefined}
+            />
+          </Row>
+        </Card>
+
+        {/* The bill, for when pointing a camera beats typing. The photo is kept
+            on the device (and your own cloud), never on Baaki; its text is read
+            here and rides the expense, and the merchant prefills the note. */}
+        <Card style={{ gap: theme.spacing.md }}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text variant="subheading">{t.captures.receipt}</Text>
+            <Button
+              label={t.captures.addReceipt}
+              variant="secondary"
+              size="sm"
+              disabled={scanning || saving}
+              onPress={() => void addReceipt()}
+              icon={<Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />}
+            />
+          </Row>
+          {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
+          {photo ? (
+            <Image
+              source={{ uri: photo.uri }}
+              style={{ width: '100%', height: 160, borderRadius: theme.radius.md }}
+              contentFit="cover"
+              transition={150}
+            />
+          ) : null}
+          {photo && parsed && parsed.items.length === 0 ? (
+            <Callout tone="info">{t.captures.couldNotRead}</Callout>
+          ) : null}
         </Card>
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
@@ -306,7 +426,9 @@ export default function AddPersonScreen() {
                 person (onPickContact takes the first of the set). Remounting on
                 each open starts it empty. */}
             {pickerOpen ? (
-              <ContactPicker onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
+              // Single-pick: a one-to-one IOU has room for exactly one name, so
+              // a tap chooses that person and closes the sheet.
+              <ContactPicker single onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
             ) : null}
           </View>
         </Screen>
