@@ -125,15 +125,16 @@ describe('mergeErrorMessage', () => {
     expect(mergeErrorMessage(new Error('NOT_SIGNED_IN'), t)).toBe('signed out');
   });
 
-  it('appends the raw message to the generic line for an unrecognised error', () => {
-    expect(mergeErrorMessage(new Error('Network request failed'), t)).toBe(
-      'something went wrong (Network request failed)',
-    );
+  it('falls back to the generic line for an unrecognised error, leaking nothing', () => {
+    // Raw Postgres/network text is developer detail — never surfaced to a person.
+    expect(mergeErrorMessage(new Error('Network request failed'), t)).toBe('something went wrong');
+    expect(
+      mergeErrorMessage(new Error('function public.baaki_merge_ghosts does not exist'), t),
+    ).toBe('something went wrong');
   });
 
   it('handles a non-Error thrown value', () => {
-    expect(mergeErrorMessage('boom', t)).toBe('something went wrong (boom)');
-    // Nothing to append when there is no message — stays clean.
+    expect(mergeErrorMessage('boom', t)).toBe('something went wrong');
     expect(mergeErrorMessage(null, t)).toBe('something went wrong');
   });
 });

@@ -79,10 +79,10 @@ export interface MergeErrorStrings {
  * so a named outcome reads as plain language.
  *
  * Anything unrecognised — a dropped connection, or a server that is missing or
- * behind on the merge function — is not one of those outcomes, and a bare "try
- * again" hides what actually went wrong. Those fall back to the generic line
- * with the raw message appended, so a failure in the field can be read off the
- * screen rather than guessed at.
+ * behind on the merge function — is not one of those named outcomes and falls
+ * back to the generic line. The raw error is deliberately NOT shown: a Postgres
+ * or schema message is developer text, and putting it in front of a person both
+ * leaks internals and reads as noise. Named outcomes above carry the meaning.
  */
 export function mergeErrorMessage(error: unknown, t: MergeErrorStrings): string {
   const message = error instanceof Error ? error.message : String(error ?? '');
@@ -90,6 +90,5 @@ export function mergeErrorMessage(error: unknown, t: MergeErrorStrings): string 
   if (message.includes('NOT_MERGEABLE')) return t.errorNotMergeable;
   if (message.includes('NAME_REQUIRED')) return t.errorNameRequired;
   if (message.includes('NOT_SIGNED_IN')) return t.errorNotSignedIn;
-  const detail = message.trim();
-  return detail ? `${t.errorGeneric} (${detail})` : t.errorGeneric;
+  return t.errorGeneric;
 }
