@@ -473,7 +473,6 @@ export interface UiStrings {
   };
   /** The account screen and its three faces. */
   account: {
-    faceYou: string;
     facePaying: string;
     faceSettings: string;
     settled: string;
@@ -493,6 +492,7 @@ export interface UiStrings {
     railLinkNote: string;
     railManualNote: string;
     nothingToAdd: string;
+    sectionProfile: string;
     sectionBaaki: string;
     sectionSettings: string;
     sectionSecurity: string;
@@ -1646,7 +1646,6 @@ const en: UiStrings = {
     gateDismiss: 'Not now',
   },
   account: {
-    faceYou: 'You',
     facePaying: 'Paying',
     faceSettings: 'Settings',
     settled: 'settled',
@@ -1668,6 +1667,7 @@ const en: UiStrings = {
     railManualNote:
       'People settling with you see this to pay you from their own bank app. Baaki never handles the money.',
     nothingToAdd: 'Nothing to add — people will record what they paid you by hand.',
+    sectionProfile: 'Profile',
     sectionBaaki: 'Baaki',
     sectionSettings: 'Settings',
     sectionSecurity: 'Security',
@@ -2913,7 +2913,6 @@ const ta: UiStrings = {
     gateDismiss: 'இப்போது வேண்டாம்',
   },
   account: {
-    faceYou: 'நீங்கள்',
     facePaying: 'பணம் பெற',
     faceSettings: 'அமைப்புகள்',
     settled: 'தீர்ந்தது',
@@ -2936,6 +2935,7 @@ const ta: UiStrings = {
     railManualNote:
       'உங்களுடன் தீர்ப்பவர்கள் இதைப் பார்த்து தங்கள் வங்கி ஆப்பிலிருந்து பணம் அனுப்புவார்கள். பாக்கி பணத்தைக் கையாள்வதே இல்லை.',
     nothingToAdd: 'சேர்க்க ஒன்றுமில்லை — கொடுத்ததை மற்றவர்கள் கையால் பதிவு செய்வார்கள்.',
+    sectionProfile: 'சுயவிவரம்',
     sectionBaaki: 'பாக்கி',
     sectionSettings: 'அமைப்புகள்',
     sectionSecurity: 'பாதுகாப்பு',
@@ -4212,7 +4212,6 @@ const hi: UiStrings = {
     gateDismiss: 'अभी नहीं',
   },
   account: {
-    faceYou: 'आप',
     facePaying: 'भुगतान',
     faceSettings: 'सेटिंग्स',
     settled: 'निपटा',
@@ -4234,6 +4233,7 @@ const hi: UiStrings = {
     railManualNote:
       'आपसे हिसाब करने वाले इसे देखकर अपने बैंक ऐप से भुगतान करते हैं। बाकी पैसा कभी नहीं छूता।',
     nothingToAdd: 'जोड़ने को कुछ नहीं — लोग जो चुकाया है उसे खुद दर्ज करेंगे।',
+    sectionProfile: 'प्रोफ़ाइल',
     sectionBaaki: 'बाकी',
     sectionSettings: 'सेटिंग्स',
     sectionSecurity: 'सुरक्षा',
@@ -5500,7 +5500,6 @@ const ar: UiStrings = {
     gateDismiss: 'ليس الآن',
   },
   account: {
-    faceYou: 'أنت',
     facePaying: 'الدفع',
     faceSettings: 'الإعدادات',
     settled: 'تمت تسويته',
@@ -5528,6 +5527,7 @@ const ar: UiStrings = {
     railLinkNote: 'من يسوّي معك يدفع بضغطة واحدة. باقي لا يلمس المال أبدًا.',
     railManualNote: 'من يسوّي معك يرى هذا ليدفع لك من تطبيق مصرفه. باقي لا يلمس المال أبدًا.',
     nothingToAdd: 'لا شيء تضيفه — سيسجّل الناس ما دفعوه لك يدويًا.',
+    sectionProfile: 'الملف الشخصي',
     sectionBaaki: 'باقي',
     sectionSettings: 'الإعدادات',
     sectionSecurity: 'الأمان',
