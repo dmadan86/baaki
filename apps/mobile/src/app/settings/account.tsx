@@ -253,6 +253,10 @@ function AccountForm() {
             <ChipRow<ContactChannel>
               value={channel}
               onChange={(next) => {
+                // Not mid-request: switching the target while a code is in flight
+                // would have confirm() check the code against a different address
+                // than it was sent to.
+                if (busy) return;
                 setChannel(next);
                 setSent(false);
                 setDone(false);
@@ -297,7 +301,21 @@ function AccountForm() {
                 // only local digits. This is the country-code picker the phone
                 // flow was missing.
                 <Row style={{ gap: theme.spacing.sm, alignItems: 'stretch' }}>
-                  <CountryCodePicker code={phoneCountry} onChange={setPhoneCountry} />
+                  <CountryCodePicker
+                    code={phoneCountry}
+                    onChange={(next) => {
+                      // Changing the dial code changes the number, so any code
+                      // already sent no longer matches — drop back to sending.
+                      // And never mid-request, for the same reason the channel
+                      // switch is guarded.
+                      if (busy) return;
+                      setPhoneCountry(next);
+                      setSent(false);
+                      setDone(false);
+                      setError(null);
+                      setCode('');
+                    }}
+                  />
                   <TextInput
                     value={value}
                     onChangeText={(next) => {
