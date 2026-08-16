@@ -19,6 +19,7 @@ import {
   materialiseArchivedGroups,
   materialiseCaptures,
   materialiseExpenses,
+  materialiseGroup,
   materialiseGroups,
   materialiseMemberBudgets,
   materialiseMembers,
@@ -1066,9 +1067,9 @@ export function useMemberBudgets(groupId: string): LocalRead<MemberBudgetRow[]> 
 export function useGroupBudget(groupId: string): LocalRead<GroupBudget> {
   const { mirror, queue } = useSync();
   const budget = useMemo(() => {
-    const group = (materialiseGroups(mirror, queue) as unknown as GroupRow[]).find(
-      (row) => row.id === groupId,
-    );
+    // materialiseGroup (not materialiseGroups) so an archived trip still shows
+    // its budget, and a queued group_budget.set on it is not filtered away.
+    const group = materialiseGroup(mirror, queue, groupId) as unknown as GroupRow | undefined;
     const minor = group?.budget_minor;
     return {
       amountMinor: minor === null || minor === undefined ? null : BigInt(minor),

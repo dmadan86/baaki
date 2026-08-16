@@ -556,6 +556,20 @@ export function materialiseGroups(
 }
 
 /**
+ * One group by id, archived or not. `materialiseGroups` hides archived groups so
+ * they leave the dashboard, but a per-group screen (the plan, its budget) still
+ * opens on an archived trip and must see its row — including a queued
+ * `group_budget.set` that has not synced yet.
+ */
+export function materialiseGroup(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  groupId: string,
+): MirrorGroup | undefined {
+  return buildGroups(state, queue).find((group) => group.id === groupId);
+}
+
+/**
  * The archived groups — the ones `materialiseGroups` hides — newest-archived
  * first, so the archive reads as a most-recent-on-top history. Unarchiving is
  * an ordinary group.update clearing `archived_at`, so the same queue overlay
@@ -721,6 +735,9 @@ export interface MirrorPlanItem extends MirrorRow {
   readonly position: number;
   readonly deleted_at: string | null;
   readonly pending?: boolean;
+  /** Queue order for a pending create the server has not positioned yet, so two
+   *  items added back-to-back sort in the order they were typed, not by UUID. */
+  readonly pending_rank?: number;
 }
 
 /** The plan of one group: server rows with queued create/update/delete on top. */
@@ -754,8 +771,9 @@ export function materialisePlanItems(
           done_at: null,
           expense_id: null,
           // The server sets the real position (last within its day); until then
-          // sort a fresh item after the known ones, tie-broken by insertion.
+          // sort a fresh item after the known ones, tie-broken by queue order.
           position: Number.MAX_SAFE_INTEGER,
+          pending_rank: mutation.seq,
           deleted_at: null,
           pending: true,
         });
@@ -803,6 +821,11 @@ export function materialisePlanItems(
   return [...byId.values()].sort((a, b) => {
     if (a.day !== b.day) return a.day.localeCompare(b.day);
     if (a.position !== b.position) return a.position - b.position;
+    // Same position means two not-yet-positioned pending creates; keep the order
+    // they were queued in before falling back to a (stable but arbitrary) id.
+    if (a.pending_rank !== undefined && b.pending_rank !== undefined) {
+      return a.pending_rank - b.pending_rank;
+    }
     return String(a.id).localeCompare(String(b.id));
   });
 }

@@ -165,9 +165,13 @@ export interface PlanItemUpdatePayload {
   readonly plannedMinor?: string | null;
   readonly done?: boolean;
   readonly expenseId?: string | null;
-  /** Fields to clear to NULL — maps to the RPC's `p_clear text[]`. */
-  readonly clear?: readonly string[];
+  /** Fields to clear to NULL — maps to the RPC's `p_clear text[]`. Only the
+   *  nullable plan-item columns; anything else the RPC would ignore anyway. */
+  readonly clear?: readonly PlanItemClearField[];
 }
+
+/** The nullable plan-item columns a {@link PlanItemUpdatePayload} may clear. */
+export type PlanItemClearField = 'starts_at' | 'note' | 'category' | 'planned_minor' | 'expense_id';
 
 export interface PlanItemDeletePayload {
   readonly itemId: string;

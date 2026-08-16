@@ -13,7 +13,7 @@
  * it.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -285,14 +285,20 @@ export default function PlanScreen() {
 
   const isTrip = group.data?.type === 'trip';
 
+  // `busy` is async state, so a double-tap can fire two submits in the same tick
+  // before it re-renders — each mints a fresh itemId, so both post. A synchronous
+  // ref closes that window; the button still reflects `busy` for the UI.
+  const submitting = useRef(false);
   const submit = async (day: string): Promise<void> => {
-    if (!title.trim()) return;
+    if (!title.trim() || submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     try {
       await addItem.mutateAsync({ day, title: title.trim(), currency });
       setTitle('');
       setAddingTo(null);
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };

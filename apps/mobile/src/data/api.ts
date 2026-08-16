@@ -1410,6 +1410,9 @@ export async function fetchPlanItems(groupId: string): Promise<PlanItemRow[]> {
       'id, group_id, day, starts_at, title, note, category, planned_minor, currency, done_at, expense_id, position',
     )
     .eq('group_id', groupId)
+    // Soft-deleted rows are tombstones for sync (ADR-005); a direct read wants
+    // only what is live. The pull query stays unfiltered so it can propagate them.
+    .is('deleted_at', null)
     .order('day', { ascending: true })
     .order('position', { ascending: true });
   if (error) throw new Error(error.message);
@@ -1476,7 +1479,9 @@ export async function fetchMemberBudgets(groupId: string): Promise<MemberBudgetR
   const { data, error } = await supabase
     .from('trip_member_budgets')
     .select('id, group_id, member_id, amount_minor, currency, visibility')
-    .eq('group_id', groupId);
+    .eq('group_id', groupId)
+    // Live budgets only; a cleared one is a soft-delete tombstone (ADR-005).
+    .is('deleted_at', null);
   if (error) throw new Error(error.message);
   return (data ?? []) as MemberBudgetRow[];
 }

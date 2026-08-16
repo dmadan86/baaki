@@ -165,20 +165,27 @@ describe('clearing a personal budget is a soft delete (so it syncs)', () => {
   it('marks the row deleted and bumps the seq rather than dropping it', async () => {
     const member = group.profileIds[1] as string;
     const memberId = group.memberIds[1] as string;
-    await as(member, async () => {
+    const seqAfterSet = await as(member, async () => {
       await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'private')`, [
         group.groupId,
       ]);
+      const { rows } = await client.query(
+        `SELECT updated_seq FROM trip_member_budgets WHERE member_id = $1`,
+        [memberId],
+      );
       await client.query(`SELECT baaki_clear_my_trip_budget($1)`, [group.groupId]);
+      return Number(rows[0].updated_seq);
     });
     const { rows } = await client.query(
       `SELECT deleted_at, updated_seq FROM trip_member_budgets WHERE member_id = $1`,
       [memberId],
     );
-    // The tombstone stays so a second device learns the budget is gone.
+    // The tombstone stays so a second device learns the budget is gone, and the
+    // clear must bump the seq past the set so that pull actually carries it.
     expect(rows).toHaveLength(1);
     expect(rows[0].deleted_at).not.toBeNull();
-    expect(Number(rows[0].updated_seq)).toBeGreaterThan(0);
+    expect(seqAfterSet).toBeGreaterThan(0);
+    expect(Number(rows[0].updated_seq)).toBeGreaterThan(seqAfterSet);
   });
 
   it('revives the one row when the budget is set again, not a second row', async () => {
