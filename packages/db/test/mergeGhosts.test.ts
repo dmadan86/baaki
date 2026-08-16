@@ -13,6 +13,9 @@ import type { Client } from 'pg';
 
 import { connect, seedGroup } from './helpers.js';
 
+/** The owner-scoped advisory key baaki_merge_ghosts takes, mirrored for the test. */
+const LOCK_PROBE = `SELECT pg_try_advisory_xact_lock(hashtext('baaki_merge_ghosts:' || $1)::bigint) AS got`;
+
 let client: Client;
 
 beforeAll(async () => {
@@ -80,6 +83,18 @@ describe('merging guests unions overlapping groups', () => {
     const [, ghostA, ghostB] = memberIds;
 
     const first = await merge(caller, [ghostA!, ghostB!], 'Rahul');
+
+    // Snapshot after the first merge, so the repeat can be proven a no-op.
+    const snapshot = async (): Promise<{ created: string; seq: number }[]> => {
+      const { rows } = await client.query(
+        `SELECT created_at::text AS created, updated_seq FROM ghost_merges
+          WHERE owner = $1 AND member_id = ANY($2::uuid[]) ORDER BY member_id`,
+        [caller, [ghostA, ghostB]],
+      );
+      return rows.map((row) => ({ created: String(row.created), seq: Number(row.updated_seq) }));
+    };
+    const before = await snapshot();
+
     const second = await merge(caller, [ghostA!, ghostB!], 'Rahul');
     expect(second).toBe(first);
 
@@ -90,6 +105,10 @@ describe('merging guests unions overlapping groups', () => {
     );
     expect(rows[0]?.people).toBe(1);
     expect(rows[0]?.rows).toBe(2);
+
+    // A true no-op: created_at is preserved and no new updated_seq is stamped,
+    // so an identical re-merge does not re-propagate to every device.
+    expect(await snapshot()).toEqual(before);
   });
 
   it('stamps updated_seq so the merge can be pulled into the mirror', async () => {
@@ -116,5 +135,55 @@ describe('merging guests unions overlapping groups', () => {
       caller,
     ]);
     expect(Number(counter.rows[0]?.ghost_merges_seq)).toBeGreaterThanOrEqual(2);
+  });
+
+  it('serialises overlapping merges by the same owner, so a race cannot split them', async () => {
+    // The bug this guards: {A,B} and {B,C} racing both read "no existing person"
+    // and mint separate identities, splitting A from C. The fix is an
+    // owner-scoped transaction advisory lock; this proves the merge holds it, so
+    // a concurrent overlapping merge must wait rather than interleave.
+    const { profileIds, memberIds } = await seedGroup(client, { memberCount: 1, ghostCount: 3 });
+    const caller = profileIds[0]!;
+    const [, ghostA, ghostB, ghostC] = memberIds;
+
+    const other = await connect();
+    try {
+      // Hold an open transaction across the first merge, so its advisory lock stays held.
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
+        JSON.stringify({ sub: caller, role: 'authenticated' }),
+      ]);
+      await client.query('SET ROLE authenticated');
+      await client.query(`SELECT baaki_merge_ghosts($1::uuid[], $2)`, [[ghostA, ghostB], 'Rahul']);
+
+      // A second session cannot take the same owner's merge lock while it is held.
+      const held = await other.query(LOCK_PROBE, [caller]);
+      expect(held.rows[0]?.got).toBe(false);
+
+      await client.query('RESET ROLE');
+      await client.query('COMMIT');
+
+      // Once the first merge commits, the lock is free again.
+      const free = await other.query(LOCK_PROBE, [caller]);
+      expect(free.rows[0]?.got).toBe(true);
+    } finally {
+      await client.query('RESET ROLE').catch(() => undefined);
+      await other.end();
+    }
+
+    // And the overlapping merge the lock forces racers to run sequentially still
+    // converges all three onto one identity, never a split.
+    await client.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
+      JSON.stringify({ sub: caller, role: 'authenticated' }),
+    ]);
+    await client.query('SET ROLE authenticated');
+    await client.query(`SELECT baaki_merge_ghosts($1::uuid[], $2)`, [[ghostB, ghostC], 'Rahul']);
+    await client.query('RESET ROLE');
+    await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
+
+    const pa = await personIdOf(caller, ghostA!);
+    expect(pa).not.toBeNull();
+    expect(await personIdOf(caller, ghostB!)).toBe(pa);
+    expect(await personIdOf(caller, ghostC!)).toBe(pa);
   });
 });
