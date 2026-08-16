@@ -209,7 +209,11 @@ function GroupSettle({
   const owesMe = ledger.transfers.filter((transfer) => transfer.to === myMemberId);
   const pending = settlements.filter((settlement) => settlement.status === 'initiated');
 
-  if (iOwe.length === 0 && owesMe.length === 0 && pending.length === 0) {
+  // A failed initial load leaves the ledger empty, which looks identical to a
+  // genuinely settled group. Skip the all-settled fallback when an error is
+  // set — the main body below surfaces it — so we never tell someone they are
+  // settled up when we simply could not fetch their figures.
+  if (!error && iOwe.length === 0 && owesMe.length === 0 && pending.length === 0) {
     return (
       <section className="panel">
         <p className="muted">{t.settle.allSettled}</p>

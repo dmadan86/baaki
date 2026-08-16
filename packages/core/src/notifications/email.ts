@@ -141,6 +141,17 @@ export function webLinkFor(
   const safeDeepLink = deepLink && SAFE_LINK.test(deepLink) ? deepLink : null;
   if (!webUrl) return safeDeepLink;
 
+  // webUrl is the href base for the email button; a non-HTTP(S) scheme
+  // (`javascript:`, `data:`) would reach an href in any web preview. Only
+  // valid HTTP(S) origins survive; anything else falls back to the deep link.
+  let parsed: URL;
+  try {
+    parsed = new URL(webUrl);
+  } catch {
+    return safeDeepLink;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return safeDeepLink;
+
   const base = webUrl.replace(/\/+$/, '');
   if (!safeDeepLink) return base;
   if (safeDeepLink.startsWith('http://') || safeDeepLink.startsWith('https://'))
