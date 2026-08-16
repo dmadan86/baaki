@@ -31,7 +31,7 @@ import {
   Row,
   Screen,
   Text,
-  useScreenClearance,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -50,7 +50,9 @@ function today(): string {
 
 export default function AddPersonScreen() {
   const theme = useTheme();
-  const clearance = useScreenClearance();
+  // Under the persistent bottom nav (like friends/contacts and friends/merge),
+  // so pad for the bar, not just the system inset.
+  const clearance = useTabBarClearance();
   const { t } = useStrings();
   const { profile } = useAuth();
   const guard = useGuestGuard();

@@ -39,7 +39,7 @@ import {
   Row,
   Screen,
   Text,
-  useScreenClearance,
+  useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
@@ -57,7 +57,10 @@ import { plural, useStrings } from '@/i18n';
 
 export default function MergePeopleScreen() {
   const theme = useTheme();
-  const clearance = useScreenClearance();
+  // This screen renders under the persistent bottom nav (like friends/contacts),
+  // so it needs the tab-bar clearance — the plain screen inset left the Merge
+  // button hidden behind the bar, unreachable by scrolling.
+  const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const queryClient = useQueryClient();
   const { flush } = useSync();
