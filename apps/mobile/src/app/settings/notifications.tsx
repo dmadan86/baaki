@@ -29,7 +29,10 @@ import { useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { enablePush, PushFailure, PushPermission, pushPermission } from '@/lib/push';
 
-function rows(t: UiStrings): { key: keyof NotificationPrefs; title: string; body: string }[] {
+type PrefRow = { key: keyof NotificationPrefs; title: string; body: string };
+
+/** The push notifications — everything the phone delivers. */
+function pushRows(t: UiStrings): PrefRow[] {
   return [
     {
       key: 'involvesMe',
@@ -47,6 +50,12 @@ function rows(t: UiStrings): { key: keyof NotificationPrefs; title: string; body
       title: t.notifications.digest,
       body: t.notifications.digestBody,
     },
+  ];
+}
+
+/** The weekly digest arrives by email, not push, so it sits in its own section. */
+function emailRows(t: UiStrings): PrefRow[] {
+  return [
     {
       key: 'weeklyEmail',
       title: t.notifications.weeklyEmail,
@@ -212,26 +221,16 @@ export default function NotificationSettingsScreen() {
         {loading ? (
           <ActivityIndicator color={theme.color.brand} />
         ) : (
-          <View>
-            <SectionHeader title={t.notifications.pushSection} />
-            <Card style={{ gap: theme.spacing.xl }}>
-              {rows(t).map((row) => (
-                <Row key={row.key} style={{ justifyContent: 'space-between' }}>
-                  <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-                    <Text variant="subheading">{row.title}</Text>
-                    <Text variant="caption" tone="muted">
-                      {row.body}
-                    </Text>
-                  </View>
-                  <Toggle
-                    value={prefs[row.key]}
-                    onValueChange={(value) => toggle(row.key, value)}
-                    accessibilityLabel={row.title}
-                  />
-                </Row>
-              ))}
-            </Card>
-          </View>
+          <>
+            <View>
+              <SectionHeader title={t.notifications.pushSection} />
+              <PrefSection rows={pushRows(t)} prefs={prefs} onToggle={toggle} />
+            </View>
+            <View>
+              <SectionHeader title={t.notifications.emailSection} />
+              <PrefSection rows={emailRows(t)} prefs={prefs} onToggle={toggle} />
+            </View>
+          </>
         )}
 
         {status ? (
@@ -245,5 +244,37 @@ export default function NotificationSettingsScreen() {
         </Text>
       </ScrollView>
     </Screen>
+  );
+}
+
+/** One card of preference toggles, shared by the push and email sections. */
+function PrefSection({
+  rows,
+  prefs,
+  onToggle,
+}: {
+  rows: PrefRow[];
+  prefs: NotificationPrefs;
+  onToggle: (key: keyof NotificationPrefs, value: boolean) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Card style={{ gap: theme.spacing.xl }}>
+      {rows.map((row) => (
+        <Row key={row.key} style={{ justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
+            <Text variant="subheading">{row.title}</Text>
+            <Text variant="caption" tone="muted">
+              {row.body}
+            </Text>
+          </View>
+          <Toggle
+            value={prefs[row.key]}
+            onValueChange={(value) => onToggle(row.key, value)}
+            accessibilityLabel={row.title}
+          />
+        </Row>
+      ))}
+    </Card>
   );
 }

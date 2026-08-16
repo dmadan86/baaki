@@ -368,7 +368,7 @@ export default function PlanScreen() {
         {/* Planned against actual, per currency and never added together. */}
         <Card style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
-            {currentDay ? `${t.plan} · day ${currentDay}` : t.plan}
+            {currentDay ? `${t.plan} · ${fill(t.dayNumber, { n: String(currentDay) })}` : t.plan}
           </Text>
           {Object.keys(variance).length === 0 ? (
             <Text variant="caption" tone="faint">

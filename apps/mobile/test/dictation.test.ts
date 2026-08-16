@@ -9,7 +9,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { dictationError, mergeTranscript, speechLocale } from '@/lib/dictation';
-import { Language } from '@/i18n';
+import { Language, STRINGS_BY_LANGUAGE } from '@/i18n';
 
 // The Language enum lives in the i18n module, which imports expo-localization
 // (and through it react-native) at load. This test only needs the enum, so the
@@ -75,25 +75,30 @@ describe('mergeTranscript', () => {
 });
 
 describe('dictationError', () => {
+  // The messages are now in the catalogue and threaded in from the caller, so
+  // this passes the English table the same way the mic screen passes the
+  // reader's own language.
+  const messages = STRINGS_BY_LANGUAGE.en.misc.dictationErrors;
+
   it('says what to do about a refused microphone', () => {
-    expect(dictationError('not-allowed')).toMatch(/Settings/);
-    expect(dictationError('service-not-allowed')).toMatch(/Settings/);
+    expect(dictationError('not-allowed', messages)).toMatch(/Settings/);
+    expect(dictationError('service-not-allowed', messages)).toMatch(/Settings/);
   });
 
   it('stays quiet when the user stopped it themselves', () => {
     // Stopping emits `aborted`. Telling somebody their own tap was an error is
     // how an app teaches people to ignore its messages.
-    expect(dictationError('aborted')).toBe('');
+    expect(dictationError('aborted', messages)).toBe('');
   });
 
   it('still says something useful for a code it has never seen', () => {
-    expect(dictationError('some-future-code')).not.toBe('');
+    expect(dictationError('some-future-code', messages)).not.toBe('');
   });
 
   it('never leaves somebody without a way forward', () => {
     const codes = ['no-speech', 'audio-capture', 'network', 'language-not-supported', 'client'];
     for (const code of codes) {
-      expect(dictationError(code)).toMatch(/try again|Type the note|speak again/i);
+      expect(dictationError(code, messages)).toMatch(/try again|Type the note|speak again/i);
     }
   });
 });

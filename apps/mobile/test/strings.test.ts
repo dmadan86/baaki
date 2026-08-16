@@ -75,11 +75,13 @@ describe('the string tables', () => {
     }
   });
 
-  it('keeps the placeholder in the one string that has one', () => {
-    // `acrossGroups` interpolates {count}. A translation that drops it renders
-    // "across groups" and the number simply disappears.
+  it('keeps the placeholder in the plural that carries a count', () => {
+    // `acrossGroups` is a plural now; its `other` form interpolates {n}. A
+    // translation that drops it renders "across groups" and the number simply
+    // disappears. (Arabic's `one`/`two` spell the count out and rightly have
+    // no {n}, so only the always-numeric `other` form is checked.)
     for (const language of LANGUAGES) {
-      expect(STRINGS_BY_LANGUAGE[language].acrossGroups, language).toContain('{count}');
+      expect(STRINGS_BY_LANGUAGE[language].acrossGroups.other, language).toContain('{n}');
     }
   });
 

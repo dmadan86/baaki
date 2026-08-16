@@ -70,7 +70,7 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   });
 
   useSpeechRecognitionEvent('error', (event) => {
-    const message = dictationError(event.error);
+    const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
   });
 

@@ -96,7 +96,7 @@ export default function SyncSettingsScreen() {
                   title={row.title}
                   subtitle={row.subtitle}
                   onPress={() => void setPreference(row.value)}
-                  accessibilityLabel={`${row.title}${chosen ? ', selected' : ''}`}
+                  accessibilityLabel={`${row.title}${chosen ? `, ${t.sync.selected}` : ''}`}
                   leading={<Ionicons name={row.icon} size={iconSize.xl} color={theme.color.text} />}
                   trailing={
                     chosen ? (

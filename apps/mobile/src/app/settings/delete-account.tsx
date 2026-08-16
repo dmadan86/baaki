@@ -19,7 +19,7 @@ import {
 } from '@baaki/ui';
 
 import { deleteMyAccount, erasurePreview } from '@/data/api';
-import { fill, useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { friendlyError } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 
@@ -39,7 +39,7 @@ import { useAuth } from '@/lib/auth';
 export default function DeleteAccountScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const { signOut } = useAuth();
 
   const [reason, setReason] = useState('');
@@ -64,7 +64,7 @@ export default function DeleteAccountScreen() {
       // A failure here is its own report: the data is already gone, so the
       // screen must not claim success while the session is still live.
       await signOut();
-      setDone(fill(t.privacy.deleteSummary, { n: String(result.memberships_anonymised ?? 0) }));
+      setDone(plural(locale, result.memberships_anonymised ?? 0, t.privacy.deleteSummary));
     } catch (caught) {
       setError(friendlyError(caught, t.privacy.couldNotSave, 'account.delete'));
     } finally {
@@ -132,15 +132,13 @@ export default function DeleteAccountScreen() {
           {preview.data ? (
             <View style={{ gap: 2, paddingTop: theme.spacing.xs }}>
               <Text variant="micro" tone="muted">
-                {fill(t.privacy.previewGroups, { n: String(preview.data.groups_count) })}
+                {plural(locale, preview.data.groups_count, t.privacy.previewGroups)}
               </Text>
               <Text variant="micro" tone="muted">
-                {fill(t.privacy.previewExpenses, { n: String(preview.data.expenses_authored) })}
+                {plural(locale, preview.data.expenses_authored, t.privacy.previewExpenses)}
               </Text>
               <Text variant="micro" tone="muted">
-                {fill(t.privacy.previewSettlements, {
-                  n: String(preview.data.settlements_involved),
-                })}
+                {plural(locale, preview.data.settlements_involved, t.privacy.previewSettlements)}
               </Text>
               {preview.data.outstanding_currencies.length > 0 ? (
                 <Text variant="micro" tone="negative">

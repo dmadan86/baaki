@@ -144,7 +144,7 @@ export default function ImportSmsScreen() {
     setError(null);
     setReading(true);
     try {
-      const result = await readSms({ from, to });
+      const result = await readSms({ from, to }, t.smsImport.permissionRationale);
       if (result.ok) {
         setReadMessages(result.messages);
         setError(result.messages.length === 0 ? t.smsImport.readNothing : null);

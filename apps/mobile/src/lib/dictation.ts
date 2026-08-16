@@ -9,7 +9,7 @@
  * "error 7".
  */
 
-import type { Language } from '@/i18n';
+import type { DictationErrorStrings, Language } from '@/i18n';
 
 /**
  * The BCP-47 tag to recognise in.
@@ -53,23 +53,23 @@ export function mergeTranscript(before: string, transcript: string): string {
  * mapped onto. Anything unrecognised gets a sentence that is still true, so a
  * new code in a future version is a vague message rather than a blank one.
  */
-export function dictationError(code: string): string {
+export function dictationError(code: string, messages: DictationErrorStrings): string {
   switch (code) {
     case 'not-allowed':
     case 'service-not-allowed':
-      return 'Baaki needs permission to use the microphone. You can turn it on in Settings.';
+      return messages.notAllowed;
     case 'no-speech':
-      return 'Did not catch anything. Tap the mic and speak again.';
+      return messages.noSpeech;
     case 'audio-capture':
-      return 'The microphone is busy. Close anything else that is recording and try again.';
+      return messages.audioBusy;
     case 'network':
-      return 'Speech recognition needs a connection on this phone. Type the note instead.';
+      return messages.network;
     case 'language-not-supported':
-      return 'This phone cannot recognise that language yet. Type the note instead.';
+      return messages.languageNotSupported;
     // Not an error anybody needs telling about: it is what stopping produces.
     case 'aborted':
       return '';
     default:
-      return 'Dictation stopped. Type the note instead.';
+      return messages.stopped;
   }
 }

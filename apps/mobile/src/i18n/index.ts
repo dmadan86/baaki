@@ -96,6 +96,23 @@ export interface PluralForms {
 }
 
 /**
+ * The dictation failure messages, threaded into `dictationError` from the caller.
+ *
+ * `dictationError` lives in `lib/dictation.ts`, deliberately free of React so it
+ * can be tested without a device — so it cannot reach `useStrings` itself. The
+ * screen that owns the mic passes this in, the same way the other non-hook
+ * helpers here receive their strings.
+ */
+export interface DictationErrorStrings {
+  readonly notAllowed: string;
+  readonly noSpeech: string;
+  readonly audioBusy: string;
+  readonly network: string;
+  readonly languageNotSupported: string;
+  readonly stopped: string;
+}
+
+/**
  * The plural rules for the four languages Baaki speaks, written out.
  *
  * `Intl.PluralRules` is not in the Hermes build this app ships on. It is not
@@ -163,7 +180,9 @@ export function plural(locale: string, count: number, forms: PluralForms): strin
 export interface UiStrings {
   greeting: string;
   yourBaaki: string;
-  acrossGroups: string;
+  /** "across N groups" on the dashboard total. Plural so it never reads
+   *  "across 1 groups". */
+  acrossGroups: PluralForms;
   youAreOwed: string;
   youOwe: string;
   allSettled: string;
@@ -269,6 +288,8 @@ export interface UiStrings {
    */
   onboarding: readonly { title: string; body: string }[];
   plan: string;
+  /** The plan header's "day N" section marker. `{n}` is the current day. */
+  dayNumber: string;
   /** Trip carousel card: which day of the trip today is. `{day}`/`{total}`. */
   tripDay: string;
   planned: string;
@@ -402,6 +423,8 @@ export interface UiStrings {
     both: string;
     bothHint: string;
     footnote: string;
+    /** Screen-reader suffix on the chosen network row ("Wi‑Fi, selected"). */
+    selected: string;
     /** Banner while holding the queue for Wi‑Fi. */
     waitingWifi: string;
     /** Banner while holding the queue for mobile data. */
@@ -527,6 +550,8 @@ export interface UiStrings {
     nudgesBody: string;
     digest: string;
     digestBody: string;
+    /** The weekly email is not a push notification, so it gets its own section. */
+    emailSection: string;
     weeklyEmail: string;
     weeklyEmailBody: string;
     failDenied: string;
@@ -608,6 +633,8 @@ export interface UiStrings {
     continueGuest: string;
     guestFootnote: string;
     memberFootnote: string;
+    /** Fallback when a sign-in attempt fails with nothing a person can act on. */
+    couldNotSignIn: string;
     restartToMirror: string;
     restartToUnmirror: string;
   };
@@ -893,6 +920,8 @@ export interface UiStrings {
     contactsAdded: string;
     /** Error when one or more contacts could not be added. */
     couldNotAdd: string;
+    /** Partial add-contacts failure, carrying why the server refused. `{reason}`. */
+    couldNotAddSome: string;
     unnamed: string;
     joinAndClaim: string;
     joinGroup: string;
@@ -920,6 +949,8 @@ export interface UiStrings {
     micPermission: string;
     micBlocked: string;
     dictationFailed: string;
+    /** Every way dictation can end, in words — threaded into `dictationError`. */
+    dictationErrors: DictationErrorStrings;
     stopDictating: string;
     dictateNote: string;
     updateBaaki: string;
@@ -1035,6 +1066,13 @@ export interface UiStrings {
     readUnsupported: string;
     readUnavailable: string;
     readFailed: string;
+    /** The Android runtime-permission dialog shown before READ_SMS is granted. */
+    permissionRationale: {
+      title: string;
+      message: string;
+      allow: string;
+      notNow: string;
+    };
     /** Note under a candidate whose date was inferred, not read from the text. */
     dateNotInMessage: string;
   };
@@ -1126,6 +1164,10 @@ export interface UiStrings {
     fromBaakiNote: string;
     fromSplitwiseNote: string;
     otherCurrenciesNote: string;
+    /** A Baaki export that parsed but held no groups to bring in. */
+    noGroupsInFile: string;
+    /** Rejects the import when the person marked "me" is not in the target group. */
+    couldNotFindYou: string;
   };
   /** Picking people, a country, and the dates a trip runs between. */
   pickers: {
@@ -1257,9 +1299,9 @@ export interface UiStrings {
     analyticsTitle: string;
     analyticsBody: string;
     sessionReplayRow: string;
-    previewGroups: string;
-    previewExpenses: string;
-    previewSettlements: string;
+    previewGroups: PluralForms;
+    previewExpenses: PluralForms;
+    previewSettlements: PluralForms;
     previewOutstanding: string;
     feedbackRow: string;
     feedbackRowHint: string;
@@ -1287,7 +1329,7 @@ export interface UiStrings {
     deleteButton: string;
     deleteWorking: string;
     deleteDone: string;
-    deleteSummary: string;
+    deleteSummary: PluralForms;
   };
   extras: {
     blankNameHint: string;
@@ -1341,7 +1383,7 @@ export interface UiStrings {
 const en: UiStrings = {
   greeting: 'Hello',
   yourBaaki: 'Your baaki',
-  acrossGroups: 'across {count} groups',
+  acrossGroups: { one: 'across {n} group', other: 'across {n} groups' },
   youAreOwed: 'You are owed',
   youOwe: 'You owe',
   allSettled: 'All settled',
@@ -1431,6 +1473,7 @@ const en: UiStrings = {
     other: 'Other',
   },
   plan: 'Plan',
+  dayNumber: 'day {n}',
   tripDay: 'Day {day} of {total}',
   planned: 'Planned',
   spent: 'Spent',
@@ -1549,6 +1592,7 @@ const en: UiStrings = {
     both: 'Wi‑Fi & mobile data',
     bothHint: 'Sync on whatever connection is up.',
     footnote: 'Changes are always saved on your phone. This only decides when they leave it.',
+    selected: 'selected',
     waitingWifi: 'Saved — waiting for Wi‑Fi to sync.',
     waitingCellular: 'Saved — waiting for mobile data to sync.',
   },
@@ -1687,6 +1731,7 @@ const en: UiStrings = {
       'A friendly nudge about money owed. Limited to one per person per day, in the database.',
     digest: 'Daily group summary',
     digestBody: 'Everything else, batched into one notification a day instead of a stream.',
+    emailSection: 'By email',
     weeklyEmail: 'Weekly email digest',
     weeklyEmailBody: 'Your net baaki and pending confirmations, once a week. Off by default.',
     failDenied: 'Not enabled — you can turn it on in your phone settings later.',
@@ -1772,6 +1817,7 @@ const en: UiStrings = {
       'Everything you have already added stays exactly where it is. This only adds a way to sign back in.',
     memberFootnote:
       'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.',
+    couldNotSignIn: 'Could not sign in. Please try again.',
     restartToMirror: 'Close and open Baaki once to mirror the layout.',
     restartToUnmirror: 'Close and open Baaki once to turn the layout back.',
   },
@@ -2068,6 +2114,7 @@ const en: UiStrings = {
     peopleCount: { one: '{n} person', other: '{n} people' },
     contactsAdded: '{count} added. Pick somebody else, or go back.',
     couldNotAdd: 'Could not add {names}.',
+    couldNotAddSome: 'Could not add everyone. {reason}',
     unnamed: 'Unnamed',
     joinAndClaim: 'Join and claim my history',
     joinGroup: 'Join this group',
@@ -2100,6 +2147,14 @@ const en: UiStrings = {
     micPermission: 'Baaki needs permission to use the microphone.',
     micBlocked: 'Microphone access is off for Baaki. You can turn it on in Settings.',
     dictationFailed: 'Dictation could not start. Type the note instead.',
+    dictationErrors: {
+      notAllowed: 'Baaki needs permission to use the microphone. You can turn it on in Settings.',
+      noSpeech: 'Did not catch anything. Tap the mic and speak again.',
+      audioBusy: 'The microphone is busy. Close anything else that is recording and try again.',
+      network: 'Speech recognition needs a connection on this phone. Type the note instead.',
+      languageNotSupported: 'This phone cannot recognise that language yet. Type the note instead.',
+      stopped: 'Dictation stopped. Type the note instead.',
+    },
     stopDictating: 'Stop dictating',
     dictateNote: 'Dictate the note',
     updateBaaki: 'Update Baaki',
@@ -2235,6 +2290,13 @@ const en: UiStrings = {
     readUnsupported: 'Reading messages only works on Android. Paste them below instead.',
     readUnavailable: 'This build cannot read messages. Paste them below instead.',
     readFailed: 'Could not read your messages. Paste them below instead.',
+    permissionRationale: {
+      title: 'Read bank messages',
+      message:
+        'Baaki reads bank payment messages on this phone to suggest expenses for your trip. The messages stay on your phone — nothing is sent anywhere until you confirm an expense.',
+      allow: 'Allow',
+      notNow: 'Not now',
+    },
     dateNotInMessage: 'date not in the message',
   },
   itemize: {
@@ -2346,6 +2408,8 @@ const en: UiStrings = {
       'Balances come across exactly. Who paid does not: a Splitwise export records only what each person came out up or down on a row, and many different payers produce the same result. Every imported expense is marked, and you can correct any of them.',
     otherCurrenciesNote:
       'The amounts below are the {currency} ones. {others} come across too, and are never converted.',
+    noGroupsInFile: 'That file has no groups to import.',
+    couldNotFindYou: 'Could not find you in that group. Open it and try again.',
   },
   pickers: {
     contactsDenied:
@@ -2467,9 +2531,15 @@ const en: UiStrings = {
     analyticsBody:
       'Baaki can record how screens are used — which ones people get stuck on, where a tap lands — through Microsoft Clarity. It ships switched off and records nothing unless it is turned on. It is never used for advertising, there is no advertising identifier, and nothing here is sold or shared.',
     sessionReplayRow: 'Record how I use the app',
-    previewGroups: 'You are in {n} group(s).',
-    previewExpenses: 'You entered {n} expense(s) that will stay.',
-    previewSettlements: 'You are named in {n} settlement(s).',
+    previewGroups: { one: 'You are in {n} group.', other: 'You are in {n} groups.' },
+    previewExpenses: {
+      one: 'You entered {n} expense that will stay.',
+      other: 'You entered {n} expenses that will stay.',
+    },
+    previewSettlements: {
+      one: 'You are named in {n} settlement.',
+      other: 'You are named in {n} settlements.',
+    },
     previewOutstanding: 'You still have an unsettled balance in {list}.',
     feedbackRow: 'Send feedback',
     feedbackRowHint: 'Tell us what is wrong, or what is missing',
@@ -2501,7 +2571,10 @@ const en: UiStrings = {
     deleteButton: 'Delete my data',
     deleteWorking: 'Deleting…',
     deleteDone: 'Your data has been deleted.',
-    deleteSummary: 'You are now a former member of {n} group(s).',
+    deleteSummary: {
+      one: 'You are now a former member of {n} group.',
+      other: 'You are now a former member of {n} groups.',
+    },
   },
   extras: {
     blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
@@ -2571,7 +2644,7 @@ const en: UiStrings = {
 const ta: UiStrings = {
   greeting: 'வணக்கம்',
   yourBaaki: 'உங்கள் பாக்கி',
-  acrossGroups: '{count} குழுக்களில்',
+  acrossGroups: { one: '{n} குழுவில்', other: '{n} குழுக்களில்' },
   youAreOwed: 'உங்களுக்கு வர வேண்டியது',
   youOwe: 'நீங்கள் தர வேண்டியது',
   allSettled: 'எல்லாம் சரி',
@@ -2663,6 +2736,7 @@ const ta: UiStrings = {
     other: 'மற்றவை',
   },
   plan: 'திட்டம்',
+  dayNumber: 'நாள் {n}',
   tripDay: 'நாள் {day}/{total}',
   planned: 'திட்டமிட்டது',
   spent: 'செலவானது',
@@ -2782,6 +2856,7 @@ const ta: UiStrings = {
     bothHint: 'இணைப்பு எதுவாக இருந்தாலும் ஒத்திசைக்கும்.',
     footnote:
       'மாற்றங்கள் எப்போதும் உங்கள் ஃபோனில் சேமிக்கப்படும். எப்போது வெளியேறும் என்பதை மட்டுமே இது தீர்மானிக்கிறது.',
+    selected: 'தேர்ந்தெடுக்கப்பட்டது',
     waitingWifi: 'சேமிக்கப்பட்டது — ஒத்திசைக்க வைஃபைக்காகக் காத்திருக்கிறது.',
     waitingCellular: 'சேமிக்கப்பட்டது — ஒத்திசைக்க மொபைல் டேட்டாவுக்காகக் காத்திருக்கிறது.',
   },
@@ -2925,6 +3000,7 @@ const ta: UiStrings = {
       'தர வேண்டிய பணம் குறித்த மென்மையான நினைவூட்டல். ஒரு நாளைக்கு ஒருவருக்கு ஒன்று மட்டுமே, தரவுத்தளத்திலேயே வரையறுக்கப்பட்டது.',
     digest: 'நாள்தோறும் குழுச் சுருக்கம்',
     digestBody: 'மற்ற அனைத்தும், தொடர்ச்சியாக அல்லாமல் நாளுக்கு ஒரு அறிவிப்பாகத் தொகுத்து.',
+    emailSection: 'மின்னஞ்சல் வழியாக',
     weeklyEmail: 'வாராந்திர மின்னஞ்சல் சுருக்கம்',
     weeklyEmailBody:
       'உங்கள் நிகர பாக்கியும் நிலுவையிலுள்ள உறுதிப்படுத்தல்களும், வாரம் ஒருமுறை. இயல்பாக நிறுத்தத்தில்.',
@@ -3012,6 +3088,7 @@ const ta: UiStrings = {
       'நீங்கள் ஏற்கனவே சேர்த்த அனைத்தும் அப்படியே இருக்கும். இது மீண்டும் உள்நுழைய ஒரு வழியை மட்டுமே சேர்க்கிறது.',
     memberFootnote:
       'உள்நுழைய ஒரு வழியைச் சேர்க்கும் வரை விருந்தினர் கணக்கு அனைத்தையும் இந்தச் சாதனத்திலேயே வைத்திருக்கும். உங்கள் கணக்கு எப்போதும் பணயம் வைக்கப்படுவதில்லை.',
+    couldNotSignIn: 'உள்நுழைய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     restartToMirror: 'தளவமைப்பைப் பிரதிபலிக்க பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
     restartToUnmirror: 'தளவமைப்பை மீண்டும் மாற்ற பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
   },
@@ -3322,6 +3399,7 @@ const ta: UiStrings = {
     contactsAdded:
       '{count} சேர்க்கப்பட்டனர். வேறு ஒருவரைத் தேர்ந்தெடுக்கவும், அல்லது பின் செல்லவும்.',
     couldNotAdd: '{names} சேர்க்க முடியவில்லை.',
+    couldNotAddSome: 'எல்லாரையும் சேர்க்க முடியவில்லை. {reason}',
     unnamed: 'பெயரிடப்படாதவர்',
     joinAndClaim: 'சேர்ந்து என் வரலாற்றை உரிமை கொள்',
     joinGroup: 'இந்தக் குழுவில் சேர்',
@@ -3357,6 +3435,16 @@ const ta: UiStrings = {
     micPermission: 'ஒலிவாங்கியைப் பயன்படுத்த பாக்கிக்கு அனுமதி தேவை.',
     micBlocked: 'பாக்கிக்கு ஒலிவாங்கி அணுகல் நிறுத்தப்பட்டுள்ளது. அமைப்புகளில் இயக்கலாம்.',
     dictationFailed: 'சொல்வதைப் பதிவு செய்ய முடியவில்லை. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+    dictationErrors: {
+      notAllowed: 'மைக்ரோஃபோனைப் பயன்படுத்த பாக்கிக்கு அனுமதி தேவை. அமைப்புகளில் அதை இயக்கலாம்.',
+      noSpeech: 'எதுவும் கேட்கவில்லை. மைக்கைத் தட்டி மீண்டும் பேசுங்கள்.',
+      audioBusy:
+        'மைக்ரோஃபோன் பயன்பாட்டில் உள்ளது. பதிவு செய்யும் மற்றதை மூடிவிட்டு மீண்டும் முயற்சிக்கவும்.',
+      network: 'இந்தப் ஃபோனில் பேச்சு அறிதலுக்கு இணைப்பு தேவை. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+      languageNotSupported:
+        'இந்த ஃபோன் அந்த மொழியை இன்னும் அறிய முடியாது. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+      stopped: 'சொல்வது நின்றது. குறிப்பைத் தட்டச்சு செய்யுங்கள்.',
+    },
     stopDictating: 'சொல்வதை நிறுத்து',
     dictateNote: 'குறிப்பைச் சொல்',
     updateBaaki: 'பாக்கியைப் புதுப்பி',
@@ -3498,6 +3586,13 @@ const ta: UiStrings = {
       'செய்திகளைப் படிப்பது Android-இல் மட்டுமே இயங்கும். அதற்குப் பதிலாக கீழே ஒட்டவும்.',
     readUnavailable: 'இந்தப் பதிப்பால் செய்திகளைப் படிக்க முடியாது. கீழே ஒட்டவும்.',
     readFailed: 'உங்கள் செய்திகளைப் படிக்க முடியவில்லை. கீழே ஒட்டவும்.',
+    permissionRationale: {
+      title: 'வங்கிச் செய்திகளைப் படிக்க',
+      message:
+        'உங்கள் பயணத்திற்கான செலவுகளைப் பரிந்துரைக்க பாக்கி இந்த ஃபோனில் உள்ள வங்கிப் பணச் செய்திகளைப் படிக்கிறது. செய்திகள் உங்கள் ஃபோனிலேயே இருக்கும் — நீங்கள் ஒரு செலவை உறுதிப்படுத்தும் வரை எதுவும் எங்கும் அனுப்பப்படாது.',
+      allow: 'அனுமதி',
+      notNow: 'இப்போது வேண்டாம்',
+    },
     dateNotInMessage: 'செய்தியில் தேதி இல்லை',
   },
   itemize: {
@@ -3618,6 +3713,9 @@ const ta: UiStrings = {
       'இருப்புகள் அப்படியே வரும். யார் கொடுத்தார்கள் என்பது வராது: Splitwise ஏற்றுமதி ஒரு வரிசையில் ஒவ்வொருவரும் எவ்வளவு மேலே அல்லது கீழே போனார்கள் என்பதை மட்டுமே பதிவு செய்கிறது, பல வேறுபட்ட செலுத்துபவர்கள் ஒரே முடிவைத் தருவார்கள். இறக்குமதி செய்யப்பட்ட ஒவ்வொரு செலவும் குறிக்கப்படும், நீங்கள் எதையும் திருத்தலாம்.',
     otherCurrenciesNote:
       'கீழே உள்ள தொகைகள் {currency} இல் உள்ளவை. {others} உம் வரும், அவை ஒருபோதும் மாற்றப்படுவதில்லை.',
+    noGroupsInFile: 'அந்தக் கோப்பில் இறக்குமதி செய்ய குழுக்கள் இல்லை.',
+    couldNotFindYou:
+      'அந்தக் குழுவில் உங்களைக் கண்டறிய முடியவில்லை. அதைத் திறந்து மீண்டும் முயற்சிக்கவும்.',
   },
   pickers: {
     contactsDenied:
@@ -3742,9 +3840,18 @@ const ta: UiStrings = {
     analyticsBody:
       'எந்தத் திரையில் சிக்கல் வருகிறது என்பதைப் புரிந்துகொள்ள Microsoft Clarity மூலம் பயன்பாட்டைப் பதிவு செய்ய முடியும். இது இயல்பாக அணைக்கப்பட்டே வருகிறது; இயக்கப்படாத வரை எதுவும் பதிவாகாது. விளம்பரத்திற்கு ஒருபோதும் பயன்படுத்தப்படுவதில்லை, விளம்பர அடையாளம் இல்லை, எதுவும் விற்கப்படுவதில்லை.',
     sessionReplayRow: 'நான் செயலியைப் பயன்படுத்தும் விதத்தைப் பதிவு செய்',
-    previewGroups: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
-    previewExpenses: 'நீங்கள் சேர்த்த {n} செலவுகள் இருக்கும்.',
-    previewSettlements: '{n} தீர்வுகளில் உங்கள் பெயர் உள்ளது.',
+    previewGroups: {
+      one: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
+      other: 'நீங்கள் {n} குழுக்களில் உள்ளீர்கள்.',
+    },
+    previewExpenses: {
+      one: 'நீங்கள் சேர்த்த {n} செலவு இருக்கும்.',
+      other: 'நீங்கள் சேர்த்த {n} செலவுகள் இருக்கும்.',
+    },
+    previewSettlements: {
+      one: '{n} தீர்வில் உங்கள் பெயர் உள்ளது.',
+      other: '{n} தீர்வுகளில் உங்கள் பெயர் உள்ளது.',
+    },
     previewOutstanding: '{list} இல் இன்னும் தீராத நிலுவை உள்ளது.',
     feedbackRow: 'கருத்து அனுப்பு',
     feedbackRowHint: 'என்ன தவறு, அல்லது என்ன இல்லை என்று சொல்லுங்கள்',
@@ -3776,7 +3883,10 @@ const ta: UiStrings = {
     deleteButton: 'என் தரவை நீக்கு',
     deleteWorking: 'நீக்கப்படுகிறது…',
     deleteDone: 'உங்கள் தரவு நீக்கப்பட்டது.',
-    deleteSummary: 'நீங்கள் இப்போது {n} குழுவின் முன்னாள் உறுப்பினர்.',
+    deleteSummary: {
+      one: 'நீங்கள் இப்போது {n} குழுவின் முன்னாள் உறுப்பினர்.',
+      other: 'நீங்கள் இப்போது {n} குழுக்களின் முன்னாள் உறுப்பினர்.',
+    },
   },
   extras: {
     blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
@@ -3839,7 +3949,7 @@ const ta: UiStrings = {
 const hi: UiStrings = {
   greeting: 'नमस्ते',
   yourBaaki: 'आपकी बाकी',
-  acrossGroups: '{count} समूहों में',
+  acrossGroups: { one: '{n} समूह में', other: '{n} समूहों में' },
   youAreOwed: 'आपको मिलने हैं',
   youOwe: 'आपको देने हैं',
   allSettled: 'सब बराबर',
@@ -3929,6 +4039,7 @@ const hi: UiStrings = {
     other: 'अन्य',
   },
   plan: 'योजना',
+  dayNumber: 'दिन {n}',
   tripDay: 'दिन {day}/{total}',
   planned: 'तय किया',
   spent: 'खर्च हुआ',
@@ -4045,6 +4156,7 @@ const hi: UiStrings = {
     bothHint: 'जो भी कनेक्शन उपलब्ध हो, उस पर सिंक करें।',
     footnote:
       'बदलाव हमेशा आपके फ़ोन पर सहेजे जाते हैं। यह केवल तय करता है कि वे कब फ़ोन से बाहर जाएँ।',
+    selected: 'चुना गया',
     waitingWifi: 'सहेजा गया — सिंक के लिए वाई‑फ़ाई की प्रतीक्षा है।',
     waitingCellular: 'सहेजा गया — सिंक के लिए मोबाइल डेटा की प्रतीक्षा है।',
   },
@@ -4183,6 +4295,7 @@ const hi: UiStrings = {
     nudgesBody: 'बाकी पैसे की एक विनम्र याद। डेटाबेस में ही सीमित — एक व्यक्ति को दिन में एक बार।',
     digest: 'दैनिक समूह सारांश',
     digestBody: 'बाकी सब कुछ, लगातार की जगह दिन में एक सूचना में इकट्ठा।',
+    emailSection: 'ईमेल से',
     weeklyEmail: 'साप्ताहिक ईमेल सारांश',
     weeklyEmailBody: 'आपकी कुल बाकी और लंबित पुष्टियाँ, हफ़्ते में एक बार। डिफ़ॉल्ट रूप से बंद।',
     failDenied: 'चालू नहीं हुआ — आप बाद में फ़ोन सेटिंग्स में इसे चालू कर सकते हैं।',
@@ -4266,6 +4379,7 @@ const hi: UiStrings = {
       'आपने जो जोड़ा है वह जहाँ है वहीं रहेगा। इससे सिर्फ़ दोबारा साइन इन करने का रास्ता जुड़ता है।',
     memberFootnote:
       'जब तक आप साइन इन का कोई तरीका न जोड़ें, मेहमान खाता सब कुछ इसी डिवाइस पर रखता है। आपका हिसाब कभी बंधक नहीं बनाया जाता।',
+    couldNotSignIn: 'साइन इन नहीं हो सका। फिर से कोशिश करें।',
     restartToMirror: 'लेआउट की दिशा बदलने के लिए बाकी को एक बार बंद करके खोलें।',
     restartToUnmirror: 'लेआउट वापस पलटने के लिए बाकी को एक बार बंद करके खोलें।',
   },
@@ -4564,6 +4678,7 @@ const hi: UiStrings = {
     peopleCount: { one: '{n} व्यक्ति', other: '{n} लोग' },
     contactsAdded: '{count} जोड़े गए। किसी और को चुनें, या वापस जाएँ।',
     couldNotAdd: '{names} को नहीं जोड़ा जा सका।',
+    couldNotAddSome: 'सभी को नहीं जोड़ा जा सका। {reason}',
     unnamed: 'बिना नाम',
     joinAndClaim: 'जुड़ें और अपना इतिहास लें',
     joinGroup: 'इस समूह में जुड़ें',
@@ -4596,6 +4711,14 @@ const hi: UiStrings = {
     micPermission: 'माइक्रोफ़ोन इस्तेमाल करने के लिए बाकी को अनुमति चाहिए।',
     micBlocked: 'बाकी के लिए माइक्रोफ़ोन बंद है। आप इसे सेटिंग्स में चालू कर सकते हैं।',
     dictationFailed: 'बोलकर लिखना शुरू नहीं हो सका। नोट टाइप कर लें।',
+    dictationErrors: {
+      notAllowed: 'माइक्रोफ़ोन के लिए बाकी को अनुमति चाहिए। इसे सेटिंग्स में चालू कर सकते हैं।',
+      noSpeech: 'कुछ सुनाई नहीं दिया। माइक पर टैप करके फिर बोलें।',
+      audioBusy: 'माइक्रोफ़ोन व्यस्त है। रिकॉर्ड करने वाला कुछ और बंद करके फिर कोशिश करें।',
+      network: 'इस फ़ोन पर आवाज़ पहचान के लिए कनेक्शन चाहिए। नोट टाइप कर लें।',
+      languageNotSupported: 'यह फ़ोन अभी उस भाषा को नहीं पहचान सकता। नोट टाइप कर लें।',
+      stopped: 'बोलकर लिखना रुक गया। नोट टाइप कर लें।',
+    },
     stopDictating: 'बोलना बंद करें',
     dictateNote: 'नोट बोलें',
     updateBaaki: 'बाकी अपडेट करें',
@@ -4732,6 +4855,13 @@ const hi: UiStrings = {
     readUnsupported: 'संदेश पढ़ना केवल Android पर काम करता है। नीचे उन्हें पेस्ट करें।',
     readUnavailable: 'यह बिल्ड संदेश नहीं पढ़ सकता। नीचे उन्हें पेस्ट करें।',
     readFailed: 'आपके संदेश पढ़े नहीं जा सके। नीचे उन्हें पेस्ट करें।',
+    permissionRationale: {
+      title: 'बैंक संदेश पढ़ें',
+      message:
+        'आपकी यात्रा के ख़र्चे सुझाने के लिए बाकी इस फ़ोन पर बैंक भुगतान संदेश पढ़ता है। संदेश आपके फ़ोन पर ही रहते हैं — जब तक आप कोई ख़र्च पुष्टि न करें, कुछ भी कहीं नहीं भेजा जाता।',
+      allow: 'अनुमति दें',
+      notNow: 'अभी नहीं',
+    },
     dateNotInMessage: 'संदेश में तारीख नहीं थी',
   },
   itemize: {
@@ -4846,6 +4976,8 @@ const hi: UiStrings = {
       'हिसाब बिल्कुल सही आता है। किसने दिया, यह नहीं: Splitwise निर्यात सिर्फ़ यह दर्ज करता है कि एक पंक्ति पर हर व्यक्ति कितना ऊपर या नीचे रहा, और कई अलग-अलग भुगतानकर्ता एक ही नतीजा देते हैं। हर आयातित खर्च पर निशान लगा होता है, और आप किसी को भी ठीक कर सकते हैं।',
     otherCurrenciesNote:
       'नीचे की रकमें {currency} वाली हैं। {others} भी आती हैं, और कभी बदली नहीं जातीं।',
+    noGroupsInFile: 'उस फ़ाइल में आयात करने के लिए कोई समूह नहीं है।',
+    couldNotFindYou: 'उस समूह में आप नहीं मिले। उसे खोलकर फिर कोशिश करें।',
   },
   pickers: {
     contactsDenied:
@@ -4966,9 +5098,15 @@ const hi: UiStrings = {
     analyticsBody:
       'Microsoft Clarity के ज़रिए यह दर्ज किया जा सकता है कि कौन-सी स्क्रीन उलझाती है। यह बंद अवस्था में ही आता है और चालू किए बिना कुछ दर्ज नहीं करता। इसका उपयोग विज्ञापन के लिए कभी नहीं होता, कोई विज्ञापन पहचानकर्ता नहीं है, और कुछ भी बेचा या साझा नहीं जाता।',
     sessionReplayRow: 'ऐप के मेरे इस्तेमाल को दर्ज करने दें',
-    previewGroups: 'आप {n} समूह में हैं।',
-    previewExpenses: 'आपके डाले {n} ख़र्चे बने रहेंगे।',
-    previewSettlements: '{n} भुगतानों में आपका नाम है।',
+    previewGroups: { one: 'आप {n} समूह में हैं।', other: 'आप {n} समूहों में हैं।' },
+    previewExpenses: {
+      one: 'आपका डाला {n} ख़र्च बना रहेगा।',
+      other: 'आपके डाले {n} ख़र्चे बने रहेंगे।',
+    },
+    previewSettlements: {
+      one: '{n} भुगतान में आपका नाम है।',
+      other: '{n} भुगतानों में आपका नाम है।',
+    },
     previewOutstanding: '{list} में अब भी बकाया है।',
     feedbackRow: 'सुझाव भेजें',
     feedbackRowHint: 'बताइए क्या ग़लत है, या क्या नहीं है',
@@ -5000,7 +5138,10 @@ const hi: UiStrings = {
     deleteButton: 'मेरा डेटा मिटाएँ',
     deleteWorking: 'मिटाया जा रहा है…',
     deleteDone: 'आपका डेटा मिटा दिया गया।',
-    deleteSummary: 'अब आप {n} समूह के पूर्व-सदस्य हैं।',
+    deleteSummary: {
+      one: 'अब आप {n} समूह के पूर्व-सदस्य हैं।',
+      other: 'अब आप {n} समूहों के पूर्व-सदस्य हैं।',
+    },
   },
   extras: {
     blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
@@ -5065,7 +5206,14 @@ const hi: UiStrings = {
 const ar: UiStrings = {
   greeting: 'أهلاً',
   yourBaaki: 'باقيك',
-  acrossGroups: 'في {count} مجموعات',
+  acrossGroups: {
+    zero: 'في {n} مجموعة',
+    one: 'في مجموعة واحدة',
+    two: 'في مجموعتين',
+    few: 'في {n} مجموعات',
+    many: 'في {n} مجموعة',
+    other: 'في {n} مجموعة',
+  },
   youAreOwed: 'لك',
   youOwe: 'عليك',
   allSettled: 'تمت التسوية',
@@ -5162,6 +5310,7 @@ const ar: UiStrings = {
     other: 'أخرى',
   },
   plan: 'الخطة',
+  dayNumber: 'اليوم {n}',
   tripDay: 'اليوم {day} من {total}',
   planned: 'المخطط',
   spent: 'المصروف',
@@ -5276,6 +5425,7 @@ const ar: UiStrings = {
     both: 'واي‑فاي وبيانات الجوال',
     bothHint: 'المزامنة عبر أي اتصال متاح.',
     footnote: 'تُحفظ التغييرات دائمًا على هاتفك. هذا يحدد فقط متى تغادره.',
+    selected: 'محدَّد',
     waitingWifi: 'محفوظ — بانتظار واي‑فاي للمزامنة.',
     waitingCellular: 'محفوظ — بانتظار بيانات الجوال للمزامنة.',
   },
@@ -5435,6 +5585,7 @@ const ar: UiStrings = {
     nudgesBody: 'تذكير لطيف بالمال المستحق. مرة واحدة لكل شخص يوميًا، بحدٍّ في قاعدة البيانات.',
     digest: 'ملخص المجموعة اليومي',
     digestBody: 'كل ما تبقّى، مجمّعًا في إشعار واحد يوميًا بدل تدفق مستمر.',
+    emailSection: 'عبر البريد',
     weeklyEmail: 'ملخص أسبوعي بالبريد',
     weeklyEmailBody: 'صافي باقيك والتأكيدات المعلّقة، مرة كل أسبوع. متوقف افتراضيًا.',
     failDenied: 'لم يُفعَّل — يمكنك تفعيله لاحقًا من إعدادات هاتفك.',
@@ -5516,6 +5667,7 @@ const ar: UiStrings = {
     guestFootnote: 'كل ما أضفته يبقى كما هو تمامًا. هذا يضيف فقط طريقة للعودة وتسجيل الدخول.',
     memberFootnote:
       'يحتفظ حساب الضيف بكل شيء على هذا الجهاز حتى تضيف طريقة لتسجيل الدخول. دفترك ليس رهينة أبدًا.',
+    couldNotSignIn: 'تعذّر تسجيل الدخول. حاول مرة أخرى.',
     restartToMirror: 'أغلق باقي وافتحه مرة واحدة لعكس اتجاه الواجهة.',
     restartToUnmirror: 'أغلق باقي وافتحه مرة واحدة لإعادة اتجاه الواجهة.',
   },
@@ -5849,6 +6001,7 @@ const ar: UiStrings = {
     peopleCount: { one: 'شخص واحد', other: '{n} أشخاص' },
     contactsAdded: 'أُضيف {count}. اختر شخصاً آخر، أو ارجع.',
     couldNotAdd: 'تعذّرت إضافة {names}.',
+    couldNotAddSome: 'تعذّرت إضافة الجميع. {reason}',
     unnamed: 'بلا اسم',
     joinAndClaim: 'انضم وطالب بسجلي',
     joinGroup: 'انضم إلى هذه المجموعة',
@@ -5896,6 +6049,15 @@ const ar: UiStrings = {
     micPermission: 'يحتاج باقي إلى إذن لاستخدام الميكروفون.',
     micBlocked: 'الوصول إلى الميكروفون معطّل لباقي. يمكنك تفعيله من الإعدادات.',
     dictationFailed: 'تعذّر بدء الإملاء. اكتب الملاحظة بدلًا من ذلك.',
+    dictationErrors: {
+      notAllowed: 'يحتاج باقي إلى إذن لاستخدام الميكروفون. يمكنك تفعيله من الإعدادات.',
+      noSpeech: 'لم يُلتقط أي شيء. انقر الميكروفون وتحدّث مرة أخرى.',
+      audioBusy: 'الميكروفون مشغول. أغلق أي تطبيق آخر يسجّل وحاول مرة أخرى.',
+      network: 'يحتاج التعرّف على الكلام إلى اتصال على هذا الهاتف. اكتب الملاحظة بدلًا من ذلك.',
+      languageNotSupported:
+        'لا يستطيع هذا الهاتف التعرّف على تلك اللغة بعد. اكتب الملاحظة بدلًا من ذلك.',
+      stopped: 'توقّف الإملاء. اكتب الملاحظة بدلًا من ذلك.',
+    },
     stopDictating: 'إيقاف الإملاء',
     dictateNote: 'أملِ الملاحظة',
     updateBaaki: 'حدّث باقي',
@@ -6062,6 +6224,13 @@ const ar: UiStrings = {
     readUnsupported: 'قراءة الرسائل تعمل على أندرويد فقط. الصقها بالأسفل بدلًا من ذلك.',
     readUnavailable: 'هذا الإصدار لا يستطيع قراءة الرسائل. الصقها بالأسفل.',
     readFailed: 'تعذّرت قراءة رسائلك. الصقها بالأسفل.',
+    permissionRationale: {
+      title: 'قراءة رسائل البنك',
+      message:
+        'يقرأ باقي رسائل مدفوعات البنك على هذا الهاتف ليقترح مصروفات رحلتك. تبقى الرسائل على هاتفك — لا يُرسل أي شيء إلى أي مكان حتى تؤكّد مصروفًا.',
+      allow: 'السماح',
+      notNow: 'ليس الآن',
+    },
     dateNotInMessage: 'التاريخ غير مذكور في الرسالة',
   },
   itemize: {
@@ -6236,6 +6405,8 @@ const ar: UiStrings = {
       'تأتي الأرصدة بالضبط. أما من دفع فلا: ملف Splitwise يسجّل فقط كم ارتفع أو انخفض كل شخص في صفٍّ ما، وكثير من الدافعين المختلفين يعطون النتيجة نفسها. كل مصروف مستورد يُوسم، ويمكنك تصحيح أي منها.',
     otherCurrenciesNote:
       'المبالغ أدناه هي مبالغ {currency}. وتأتي {others} أيضًا، ولا تُحوَّل أبدًا.',
+    noGroupsInFile: 'لا توجد مجموعات في ذلك الملف لاستيرادها.',
+    couldNotFindYou: 'تعذّر العثور عليك في تلك المجموعة. افتحها وحاول مرة أخرى.',
   },
   pickers: {
     contactsDenied:
@@ -6368,9 +6539,30 @@ const ar: UiStrings = {
     analyticsBody:
       'يمكن لـ Microsoft Clarity تسجيل كيفية استخدام الشاشات لمعرفة أين يتعثر الناس. يأتي مُعطّلًا ولا يسجّل شيئًا ما لم يُفعّل. ولا يُستخدم للإعلانات أبدًا، ولا يوجد معرّف إعلاني، ولا يُباع شيء أو يُشارَك.',
     sessionReplayRow: 'سجّل كيف أستخدم التطبيق',
-    previewGroups: 'أنت في {n} مجموعة.',
-    previewExpenses: 'ستبقى {n} من المصروفات التي أدخلتها.',
-    previewSettlements: 'اسمك مذكور في {n} تسوية.',
+    previewGroups: {
+      zero: 'أنت في {n} مجموعة.',
+      one: 'أنت في مجموعة واحدة.',
+      two: 'أنت في مجموعتين.',
+      few: 'أنت في {n} مجموعات.',
+      many: 'أنت في {n} مجموعة.',
+      other: 'أنت في {n} مجموعة.',
+    },
+    previewExpenses: {
+      zero: 'ستبقى {n} من المصروفات التي أدخلتها.',
+      one: 'سيبقى مصروف واحد أدخلته.',
+      two: 'سيبقى مصروفان أدخلتهما.',
+      few: 'ستبقى {n} مصروفات أدخلتها.',
+      many: 'ستبقى {n} مصروفًا أدخلته.',
+      other: 'ستبقى {n} من المصروفات التي أدخلتها.',
+    },
+    previewSettlements: {
+      zero: 'اسمك مذكور في {n} تسوية.',
+      one: 'اسمك مذكور في تسوية واحدة.',
+      two: 'اسمك مذكور في تسويتين.',
+      few: 'اسمك مذكور في {n} تسويات.',
+      many: 'اسمك مذكور في {n} تسوية.',
+      other: 'اسمك مذكور في {n} تسوية.',
+    },
     previewOutstanding: 'لا يزال لديك رصيد غير مسوّى بـ {list}.',
     feedbackRow: 'أرسل ملاحظاتك',
     feedbackRowHint: 'أخبرنا بما لا يعمل أو بما ينقص',
@@ -6401,7 +6593,14 @@ const ar: UiStrings = {
     deleteButton: 'احذف بياناتي',
     deleteWorking: 'جارٍ الحذف…',
     deleteDone: 'تم حذف بياناتك.',
-    deleteSummary: 'أنت الآن عضو سابق في {n} مجموعة.',
+    deleteSummary: {
+      zero: 'أنت الآن عضو سابق في {n} مجموعة.',
+      one: 'أنت الآن عضو سابق في مجموعة واحدة.',
+      two: 'أنت الآن عضو سابق في مجموعتين.',
+      few: 'أنت الآن عضو سابق في {n} مجموعات.',
+      many: 'أنت الآن عضو سابق في {n} مجموعة.',
+      other: 'أنت الآن عضو سابق في {n} مجموعة.',
+    },
   },
   extras: {
     blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',

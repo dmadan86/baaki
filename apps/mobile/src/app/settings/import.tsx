@@ -195,8 +195,12 @@ export default function ImportScreen() {
           return;
         }
         const fallback = asset.name.replace(/\.json$/i, '');
+        if (result.groups.length === 0 || !result.groups[0]) {
+          setError(t.importLedger.noGroupsInFile);
+          return;
+        }
         setFileGroups(result.groups);
-        if (result.groups[0]) load(fromBaaki(result.groups[0], fallback));
+        load(fromBaaki(result.groups[0], fallback));
         return;
       }
 
@@ -286,6 +290,14 @@ export default function ImportScreen() {
       const mine = (await fetchMembers(groupId)).find(
         (member) => member.profile_id === profile?.id,
       );
+
+      // Somebody claimed a column as themselves, but their own membership is not
+      // in the target group — importing would file their history under a ghost.
+      // Refuse rather than quietly drop them into a stranger's row.
+      if (claimedByMe && !mine) {
+        setError(t.importLedger.couldNotFindYou);
+        return;
+      }
 
       const people: ImportPerson[] = parsed.people.map((person) => {
         const chosen = mapping[person] ?? { kind: 'ghost' };
