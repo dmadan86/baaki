@@ -79,7 +79,7 @@ export function MoneyText({
   const options = {
     locale,
     compactFraction,
-    signDisplay: (showSign ? 'always' : 'auto') as 'always' | 'auto',
+    signDisplay: (showSign && mode !== 'balance' ? 'always' : 'auto') as 'always' | 'auto',
   };
   const parts = formatParts(shown, options);
 

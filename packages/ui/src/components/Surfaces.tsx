@@ -50,8 +50,16 @@ export function Card({ children, padded = true, flat = false, style, ...rest }: 
   );
 }
 
-/** The pastel category card from the reference boards. */
-export function TintCard({ tint, children, style, ...rest }: CardProps & { tint: TintName }) {
+/**
+ * The pastel category card from the reference boards. It keeps its own flat,
+ * shadowless look, so it does not take `padded`/`flat` from `CardProps`.
+ */
+export function TintCard({
+  tint,
+  children,
+  style,
+  ...rest
+}: Omit<CardProps, 'padded' | 'flat'> & { tint: TintName }) {
   const theme = useTheme();
   return (
     <View

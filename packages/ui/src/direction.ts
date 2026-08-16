@@ -38,7 +38,7 @@ export function isRtlLayout(): boolean {
 }
 
 /** Icons whose meaning is a direction, and their mirror image. */
-const MIRRORED: Readonly<Record<string, string>> = {
+const MIRRORED = {
   'chevron-forward': 'chevron-back',
   'chevron-back': 'chevron-forward',
   'chevron-forward-outline': 'chevron-back-outline',
@@ -59,7 +59,17 @@ const MIRRORED: Readonly<Record<string, string>> = {
   'caret-back': 'caret-forward',
   'caret-forward-outline': 'caret-back-outline',
   'caret-back-outline': 'caret-forward-outline',
-};
+} as const;
+
+type MirrorMap = typeof MIRRORED;
+
+/** The mirror image of `T`, when `T` is one of the directional icons. */
+type Mirror<T extends string> = T extends keyof MirrorMap ? MirrorMap[T] : never;
+
+// Compile-time assertion: every mirror is itself a known icon, so the table is
+// closed under mirroring and `directionalIcon` never returns a name outside it.
+const _mirrorsAreKeys: MirrorMap[keyof MirrorMap] extends keyof MirrorMap ? true : false = true;
+void _mirrorsAreKeys;
 
 /**
  * The icon to draw, mirrored when the layout is.
@@ -67,8 +77,11 @@ const MIRRORED: Readonly<Record<string, string>> = {
  * Only left/right icons are in the table. An up arrow, a tick and a camera mean
  * the same thing in every direction, and a blanket "flip anything with a
  * direction in its name" would turn `arrow-up` into nonsense.
+ *
+ * The return type admits the mirror: `directionalIcon('chevron-forward')` may
+ * hand back `'chevron-back'` at runtime, so its static type is the pair.
  */
-export function directionalIcon<T extends string>(name: T): T {
+export function directionalIcon<T extends string>(name: T): T | Mirror<T> {
   if (!rtl) return name;
-  return (MIRRORED[name] ?? name) as T;
+  return (MIRRORED[name as keyof MirrorMap] ?? name) as T | Mirror<T>;
 }

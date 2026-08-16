@@ -69,7 +69,7 @@ export interface Settlement {
 export interface InvitePreview {
   group: {
     id: string;
-    name: string;
+    name: string | null;
     cover_emoji: string | null;
     default_currency: string;
   } | null;
@@ -86,7 +86,7 @@ export interface InvitePreview {
  * is not a member and there is no `memberId` to give them.
  */
 export interface AcceptedInvite {
-  group: { id: string; name: string };
+  group: { id: string; name: string | null };
   memberId?: MemberId;
   claimed?: boolean;
   /** Waiting on an admin. `memberId` is absent. */
