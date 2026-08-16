@@ -87,9 +87,7 @@ export default function AccountScreen() {
   // One normalised form is validated, sent and confirmed, so the code always
   // goes to the address the confirmation is checked against.
   const normalised =
-    channel === ContactChannel.Email
-      ? value.trim()
-      : value.trim().replace(/[\s-]/g, '');
+    channel === ContactChannel.Email ? value.trim() : value.trim().replace(/[\s-]/g, '');
 
   const looksValid =
     channel === ContactChannel.Email

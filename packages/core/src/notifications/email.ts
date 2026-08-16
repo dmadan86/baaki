@@ -143,7 +143,8 @@ export function webLinkFor(
 
   const base = webUrl.replace(/\/+$/, '');
   if (!safeDeepLink) return base;
-  if (safeDeepLink.startsWith('http://') || safeDeepLink.startsWith('https://')) return safeDeepLink;
+  if (safeDeepLink.startsWith('http://') || safeDeepLink.startsWith('https://'))
+    return safeDeepLink;
 
   const group = /^baaki:\/\/group\/([0-9a-fA-F-]{36})/.exec(safeDeepLink);
   return group ? `${base}/g/${group[1]}` : base;

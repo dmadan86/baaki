@@ -272,7 +272,9 @@ export default function ImportCsvScreen() {
             </View>
 
             <View style={{ gap: theme.spacing.sm }}>
-              <SectionHeader title={plural(locale, parsed.expenses.length, t.importLedger.expenseCount)} />
+              <SectionHeader
+                title={plural(locale, parsed.expenses.length, t.importLedger.expenseCount)}
+              />
               <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                 {parsed.expenses.slice(0, 20).map((expense, index) => (
                   <View key={`${expense.date}-${expense.description}-${index}`}>

@@ -239,11 +239,7 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
                       </span>
                     </span>
                     {entry.pending ? (
-                      <span
-                        className="unread-dot"
-                        role="img"
-                        aria-label={t.settle.pendingHead}
-                      />
+                      <span className="unread-dot" role="img" aria-label={t.settle.pendingHead} />
                     ) : null}
                     <NetAmount total={top} locale={locale} settledLabel={t.dash.settledUp} />
                   </button>

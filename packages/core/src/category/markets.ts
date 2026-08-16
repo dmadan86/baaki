@@ -170,13 +170,7 @@ export const MARKET_KEYWORDS: Readonly<Record<MarketId, Keywords>> = {
   [MarketId.CA]: {
     ...ANGLOSPHERE,
     food: [...(ANGLOSPHERE.food ?? []), 'tims', 'timhortons', 'skipthedishes', 'poutine'],
-    groceries: [
-      ...(ANGLOSPHERE.groceries ?? []),
-      'loblaws',
-      'sobeys',
-      'superstore',
-      'nofrills',
-    ],
+    groceries: [...(ANGLOSPHERE.groceries ?? []), 'loblaws', 'sobeys', 'superstore', 'nofrills'],
     travel: [...(ANGLOSPHERE.travel ?? []), 'presto', 'ttc', 'via', 'petrocanada', 'esso'],
     health: [...(ANGLOSPHERE.health ?? []), 'shoppers'],
     // Canadians call the power bill hydro, and it is the one word here that
