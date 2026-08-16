@@ -405,6 +405,12 @@ function SettleForm({
   const [rail, setRail] = useState<string>(() => defaultRailFor(group.country_code));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The idempotency key for this settlement attempt. Minted once when the form
+  // opens and held stable, so a Record the user taps twice — or retries after a
+  // dropped connection — is deduped server-side rather than recording the
+  // payment twice. Rolled forward only after a payment actually records, so the
+  // next settlement is a new one and not a replay of this one.
+  const [mutationId, setMutationId] = useState<string>(() => crypto.randomUUID());
 
   const handle = payee.vpa ?? payee.profile?.default_vpa ?? '';
   const railInfo = railById(rail);
@@ -436,9 +442,16 @@ function SettleForm({
         amount,
         rail,
         currency,
+        clientMutationId: mutationId,
       });
+      // Recorded: any further settlement to this person is a new payment, so
+      // roll the key forward. (This form unmounts on success, but a fresh key
+      // keeps a reused instance from replaying the payment just made.)
+      setMutationId(crypto.randomUUID());
       await onRecorded();
     } catch (caught) {
+      // A failed attempt keeps the same key, so the retry the user is about to
+      // make is deduped rather than recording a second payment.
       setError(caught instanceof Error ? caught.message : String(caught));
       setSaving(false);
     }
