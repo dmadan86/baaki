@@ -86,6 +86,7 @@ export function CampaignPopup() {
       setCopied(true);
     }
     seen.mutate({ id: campaign.id, acted: true });
+    close();
   };
 
   return (
@@ -124,7 +125,10 @@ export function CampaignPopup() {
           ) : null}
 
           {campaign.promo_code ? (
-            <View
+            <Pressable
+              onPress={() => void act()}
+              accessibilityRole="button"
+              accessibilityLabel={t.misc.tapToCopy}
               style={{
                 backgroundColor: theme.color.brandSoft,
                 borderRadius: theme.radius.md,
@@ -138,7 +142,7 @@ export function CampaignPopup() {
               <Text variant="micro" tone="muted">
                 {copied ? t.misc.copied : t.misc.tapToCopy}
               </Text>
-            </View>
+            </Pressable>
           ) : null}
 
           <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.sm }}>

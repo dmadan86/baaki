@@ -109,5 +109,9 @@ const EXPIRY_SKEW_MS = 60_000;
 
 /** True when the access token is missing or about to expire. */
 export function isExpired(tokens: CloudTokens): boolean {
-  return tokens.expiresAt !== null && tokens.expiresAt - EXPIRY_SKEW_MS <= Date.now();
+  if (!tokens.accessToken) return true;
+  // An unknown expiry is treated as expired so a refreshable token is renewed
+  // rather than used until the server rejects it.
+  if (tokens.expiresAt === null) return tokens.refreshToken !== null;
+  return tokens.expiresAt - EXPIRY_SKEW_MS <= Date.now();
 }

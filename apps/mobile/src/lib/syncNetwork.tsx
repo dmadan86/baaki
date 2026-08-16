@@ -79,13 +79,24 @@ export function SyncNetworkProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const setPreference = useCallback(async (value: SyncNetworkPreference) => {
-    setStored(value);
-    // Wi‑Fi is the default, so storing it is the same as storing nothing — and
-    // clearing the key keeps a fresh install and a reset-to-default identical.
-    if (value === DEFAULT) await AsyncStorage.removeItem(KEY).catch(() => undefined);
-    else await AsyncStorage.setItem(KEY, value).catch(() => undefined);
-  }, []);
+  const setPreference = useCallback(
+    async (value: SyncNetworkPreference) => {
+      const previous = preference;
+      setStored(value);
+      try {
+        // Wi‑Fi is the default, so storing it is the same as storing nothing —
+        // and clearing the key keeps a fresh install and a reset-to-default
+        // identical.
+        if (value === DEFAULT) await AsyncStorage.removeItem(KEY);
+        else await AsyncStorage.setItem(KEY, value);
+      } catch {
+        // The engine reads from disk, so a switch that did not persist must not
+        // keep claiming it did.
+        setStored(previous);
+      }
+    },
+    [preference],
+  );
 
   const value = useMemo<SyncNetworkValue>(
     () => ({ preference, loading, setPreference }),

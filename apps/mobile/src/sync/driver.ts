@@ -135,6 +135,9 @@ class SqliteStore implements LocalStore {
     return this.serial.run(async () => {
       const database = await this.db();
       await database.withTransactionAsync(async () => {
+        // The map is the whole truth, as it is on web; a group absent from it
+        // has no cursor.
+        await database.runAsync(`DELETE FROM sync_cursors WHERE 1 = 1`);
         for (const [groupId, seq] of Object.entries(cursors)) {
           await database.runAsync(
             `INSERT INTO sync_cursors (group_id, seq) VALUES (?, ?)

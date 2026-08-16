@@ -253,6 +253,9 @@ export interface UiStrings {
   spending: string;
   byCategory: string;
   byMonth: string;
+  /** Caption under the total: `{currency}` is the code. Two moods, one shape. */
+  totalIn: string;
+  nothingIn: string;
   /** Under the month chart — says the columns are a way in, not just a picture. */
   tapMonthForDays: string;
   nothingToChart: string;
@@ -321,6 +324,8 @@ export interface UiStrings {
     delete: string;
     share: string;
     done: string;
+    /** Accessibility prefix for a disclosure's info toggle — "About {title}". */
+    about: string;
     guest: string;
     name: string;
     yourName: string;
@@ -728,6 +733,8 @@ export interface UiStrings {
     mismatch: string;
     mismatchBody: string;
     confirmReceived: string;
+    /** Heading over an incoming settlement claim; `{name}` is the payer. */
+    saysTheyPaidYou: string;
     autoConfirms: string;
     hideDeleted: string;
     showDeleted: string;
@@ -959,6 +966,29 @@ export interface UiStrings {
     nameAloneBody: string;
     noUpiYet: string;
     csvCurrencyMismatch: string;
+    // CurrencyRate: the rate methods, labels and notes that were literals.
+    rateFetchFailedSuffix: string;
+    settlesInHint: string;
+    howDoYouKnowRate: string;
+    todaysRate: string;
+    statementAmountLabel: string;
+    amountChargedIn: string;
+    fxOneEquals: string;
+    fxRateFromTo: string;
+    convertedApprox: string;
+    rateStoredNote: string;
+    rateSourceEcb: string;
+    rateSourceImplied: string;
+    rateSourceYou: string;
+    noRateNote: string;
+    // DisputePanel.
+    thinkThisOff: PluralForms;
+    sending: string;
+    tellThem: string;
+    // The update wall's fallback body and the banner's title.
+    versionStoppedBody: string;
+    newBaakiOut: string;
+    baakiVersionOut: string;
   };
   /** Pasting bank messages in, and what can be made of them (TDR §10). */
   smsImport: {
@@ -1005,6 +1035,8 @@ export interface UiStrings {
     readUnsupported: string;
     readUnavailable: string;
     readFailed: string;
+    /** Note under a candidate whose date was inferred, not read from the text. */
+    dateNotInMessage: string;
   };
   /** Splitting one bill line by line, on one phone or several. */
   itemize: {
@@ -1124,6 +1156,13 @@ export interface UiStrings {
     breakfast: string;
     endOfDay: string;
     clearDates: string;
+    nobodyPickedYet: string;
+    personCount: PluralForms;
+    alreadyAddedName: string;
+    alreadyInGroup: string;
+    removeName: string;
+    remindZoneNote: string;
+    useMyTimezone: string;
   };
   /** Somebody saying an expense is wrong, and the answer to it. */
   dispute: {
@@ -1375,6 +1414,8 @@ const en: UiStrings = {
   spending: 'Spending',
   byCategory: 'Where it went',
   byMonth: 'Month by month',
+  totalIn: 'total in {currency}',
+  nothingIn: 'nothing in {currency}',
   tapMonthForDays: 'Tap a month to see its days.',
   nothingToChart: 'Add a few expenses and this fills in.',
   categories: {
@@ -1426,6 +1467,7 @@ const en: UiStrings = {
     delete: 'Delete',
     share: 'Share',
     done: 'Done',
+    about: 'About {title}',
     guest: 'Guest',
     name: 'Name',
     yourName: 'Your name',
@@ -1866,6 +1908,7 @@ const en: UiStrings = {
     mismatchBody:
       'This device and the server disagree about this group’s balances. Pull to refresh; if it persists, the ledger below is the source of truth.',
     confirmReceived: 'Confirm received',
+    saysTheyPaidYou: '{name} says they paid you',
     autoConfirms: 'Auto-confirms in 7 days if nobody responds.',
     hideDeleted: 'Hide deleted',
     showDeleted: 'Show deleted',
@@ -2106,6 +2149,29 @@ const en: UiStrings = {
     noUpiYet: 'no UPI ID yet',
     csvCurrencyMismatch:
       'This file is in {fileCur} and this group keeps its money in {groupCur}. Importing it would need a rate for every row, and the file does not carry one — start a {fileCur} group for it instead.',
+    rateFetchFailedSuffix: ' — you can type the rate instead',
+    settlesInHint: 'This group settles in {currency}',
+    howDoYouKnowRate: 'This group settles in {currency}. How do you know the rate?',
+    todaysRate: 'Today’s rate',
+    statementAmountLabel: 'Amount on your statement, in {currency}',
+    amountChargedIn: 'Amount charged in {currency}',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: 'Rate from {from} to {to}',
+    convertedApprox: '≈ {amount} in {currency}',
+    rateStoredNote:
+      'Rate {rate} from {source}. Stored with the expense, so this converts the same way later.',
+    rateSourceEcb: 'the ECB',
+    rateSourceImplied: 'your statement',
+    rateSourceYou: 'you',
+    noRateNote:
+      'Without a rate the expense still saves — it just stays in {currency}, and the group keeps a separate {currency} balance.',
+    thinkThisOff: { one: 'Someone thinks this is off', other: '{n} people think this is off' },
+    sending: 'Sending…',
+    tellThem: 'Tell them',
+    versionStoppedBody:
+      'This version can no longer talk to Baaki, so it has been stopped rather than left to show you numbers that might be wrong.',
+    newBaakiOut: 'A new Baaki is out',
+    baakiVersionOut: 'Baaki {latest} is out',
   },
   smsImport: {
     title: 'Import from messages',
@@ -2169,6 +2235,7 @@ const en: UiStrings = {
     readUnsupported: 'Reading messages only works on Android. Paste them below instead.',
     readUnavailable: 'This build cannot read messages. Paste them below instead.',
     readFailed: 'Could not read your messages. Paste them below instead.',
+    dateNotInMessage: 'date not in the message',
   },
   itemize: {
     title: 'Split by item',
@@ -2310,6 +2377,13 @@ const en: UiStrings = {
     breakfast: 'Breakfast',
     endOfDay: 'End of day',
     clearDates: 'Clear dates',
+    nobodyPickedYet: 'Nobody picked yet',
+    personCount: { one: '{n} person', other: '{n} people' },
+    alreadyAddedName: '{name}, already added',
+    alreadyInGroup: 'Already in this group',
+    removeName: 'Remove {name}',
+    remindZoneNote: 'Asked in {zone} — where the trip is, not where each person is.',
+    useMyTimezone: 'Use my timezone ({zone})',
   },
   dispute: {
     yourReply: 'Your reply',
@@ -2572,6 +2646,8 @@ const ta: UiStrings = {
   spending: 'செலவு',
   byCategory: 'எதற்குச் சென்றது',
   byMonth: 'மாதம் வாரியாக',
+  totalIn: '{currency} இல் மொத்தம்',
+  nothingIn: '{currency} இல் ஏதுமில்லை',
   tapMonthForDays: 'நாட்களைக் காண மாதத்தைத் தட்டவும்.',
   nothingToChart: 'சில செலவுகளைச் சேர்த்தால் இது நிரம்பும்.',
   categories: {
@@ -2624,6 +2700,7 @@ const ta: UiStrings = {
     delete: 'அழி',
     share: 'பகிர்',
     done: 'முடிந்தது',
+    about: '{title} பற்றி',
     guest: 'விருந்தினர்',
     name: 'பெயர்',
     yourName: 'உங்கள் பெயர்',
@@ -3077,6 +3154,7 @@ const ta: UiStrings = {
     mismatchBody:
       'இந்தக் குழுவின் இருப்புகள் குறித்து இந்தச் சாதனமும் சர்வரும் ஒத்துப்போகவில்லை. இழுத்துப் புதுப்பிக்கவும்; தொடர்ந்தால் கீழே உள்ள கணக்கே சரியானது.',
     confirmReceived: 'கிடைத்தது என்று உறுதிப்படுத்து',
+    saysTheyPaidYou: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்',
     autoConfirms: 'யாரும் பதிலளிக்காவிட்டால் 7 நாட்களில் தானாகவே உறுதியாகும்.',
     hideDeleted: 'நீக்கியவற்றை மறை',
     showDeleted: 'நீக்கியவற்றைக் காட்டு',
@@ -3329,6 +3407,32 @@ const ta: UiStrings = {
     noUpiYet: 'இன்னும் UPI ஐடி இல்லை',
     csvCurrencyMismatch:
       'இந்தக் கோப்பு {fileCur} இல் உள்ளது, இந்தக் குழு தன் பணத்தை {groupCur} இல் வைத்திருக்கிறது. இதை இறக்குமதி செய்ய ஒவ்வொரு வரிசைக்கும் ஒரு விகிதம் தேவை, கோப்பு அதைக் கொண்டிருக்கவில்லை — அதற்குப் பதிலாக ஒரு {fileCur} குழுவைத் தொடங்குங்கள்.',
+    rateFetchFailedSuffix: ' — நீங்கள் விகிதத்தை நேரடியாகத் தட்டச்சு செய்யலாம்',
+    settlesInHint: 'இந்தக் குழு {currency} இல் தீர்க்கிறது',
+    howDoYouKnowRate: 'இந்தக் குழு {currency} இல் தீர்க்கிறது. விகிதம் உங்களுக்கு எப்படித் தெரியும்?',
+    todaysRate: 'இன்றைய விகிதம்',
+    statementAmountLabel: 'உங்கள் அறிக்கையில் உள்ள தொகை, {currency} இல்',
+    amountChargedIn: '{currency} இல் வசூலிக்கப்பட்ட தொகை',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: '{from} இலிருந்து {to} க்கு விகிதம்',
+    convertedApprox: '≈ {amount} ({currency} இல்)',
+    rateStoredNote:
+      'விகிதம் {rate}, {source} இலிருந்து. செலவுடன் சேமிக்கப்படுகிறது, எனவே பின்னரும் இதே போல் மாற்றப்படும்.',
+    rateSourceEcb: 'ECB',
+    rateSourceImplied: 'உங்கள் அறிக்கை',
+    rateSourceYou: 'நீங்கள்',
+    noRateNote:
+      'விகிதம் இல்லாமலும் செலவு சேமிக்கப்படும் — அது {currency} இல் இருக்கும், மேலும் குழு ஒரு தனி {currency} இருப்பை வைத்திருக்கும்.',
+    thinkThisOff: {
+      one: 'இது சரியில்லை என ஒருவர் நினைக்கிறார்',
+      other: 'இது சரியில்லை என {n} பேர் நினைக்கிறார்கள்',
+    },
+    sending: 'அனுப்புகிறது…',
+    tellThem: 'அவர்களிடம் சொல்',
+    versionStoppedBody:
+      'இந்தப் பதிப்பால் இனி பாக்கியுடன் தொடர்பு கொள்ள முடியாது, எனவே தவறாக இருக்கக்கூடிய எண்களைக் காட்டுவதற்குப் பதிலாக அது நிறுத்தப்பட்டுள்ளது.',
+    newBaakiOut: 'புதிய பாக்கி வெளியாகிவிட்டது',
+    baakiVersionOut: 'பாக்கி {latest} வெளியாகிவிட்டது',
   },
   smsImport: {
     title: 'செய்திகளிலிருந்து இறக்குமதி',
@@ -3393,6 +3497,7 @@ const ta: UiStrings = {
       'செய்திகளைப் படிப்பது Android-இல் மட்டுமே இயங்கும். அதற்குப் பதிலாக கீழே ஒட்டவும்.',
     readUnavailable: 'இந்தப் பதிப்பால் செய்திகளைப் படிக்க முடியாது. கீழே ஒட்டவும்.',
     readFailed: 'உங்கள் செய்திகளைப் படிக்க முடியவில்லை. கீழே ஒட்டவும்.',
+    dateNotInMessage: 'செய்தியில் தேதி இல்லை',
   },
   itemize: {
     title: 'பொருள் வாரியாகப் பிரி',
@@ -3543,6 +3648,13 @@ const ta: UiStrings = {
     breakfast: 'காலை உணவு',
     endOfDay: 'நாள் முடிவு',
     clearDates: 'தேதிகளை அழி',
+    nobodyPickedYet: 'இன்னும் யாரையும் தேர்ந்தெடுக்கவில்லை',
+    personCount: { one: '{n} நபர்', other: '{n} நபர்கள்' },
+    alreadyAddedName: '{name}, ஏற்கனவே சேர்க்கப்பட்டது',
+    alreadyInGroup: 'ஏற்கனவே இந்தக் குழுவில் உள்ளார்',
+    removeName: '{name} ஐ நீக்கு',
+    remindZoneNote: '{zone} இல் கேட்கப்படுகிறது — பயணம் இருக்கும் இடம், ஒவ்வொருவரும் இருக்கும் இடம் அல்ல.',
+    useMyTimezone: 'என் நேர மண்டலத்தைப் பயன்படுத்து ({zone})',
   },
   dispute: {
     yourReply: 'உங்கள் பதில்',
@@ -3798,6 +3910,8 @@ const hi: UiStrings = {
   spending: 'खर्च',
   byCategory: 'कहाँ गया',
   byMonth: 'महीने के हिसाब से',
+  totalIn: '{currency} में कुल',
+  nothingIn: '{currency} में कुछ नहीं',
   tapMonthForDays: 'दिन देखने के लिए महीने पर टैप करें।',
   nothingToChart: 'कुछ खर्च जोड़ें, यह अपने आप भर जाएगा।',
   categories: {
@@ -3849,6 +3963,7 @@ const hi: UiStrings = {
     delete: 'मिटाएँ',
     share: 'साझा करें',
     done: 'हो गया',
+    about: '{title} के बारे में',
     guest: 'मेहमान',
     name: 'नाम',
     yourName: 'आपका नाम',
@@ -4287,6 +4402,7 @@ const hi: UiStrings = {
     mismatchBody:
       'इस समूह के हिसाब पर यह डिवाइस और सर्वर सहमत नहीं हैं। खींचकर ताज़ा करें; फिर भी बना रहे तो नीचे का हिसाब ही सही है।',
     confirmReceived: 'मिलने की पुष्टि करें',
+    saysTheyPaidYou: '{name} कहते हैं कि उन्होंने आपको भुगतान किया',
     autoConfirms: 'कोई जवाब न दे तो 7 दिन में अपने आप पुष्ट हो जाएगा।',
     hideDeleted: 'हटाए हुए छिपाएँ',
     showDeleted: 'हटाए हुए दिखाएँ',
@@ -4527,6 +4643,32 @@ const hi: UiStrings = {
     noUpiYet: 'अभी कोई UPI आईडी नहीं',
     csvCurrencyMismatch:
       'यह फ़ाइल {fileCur} में है और यह समूह अपना पैसा {groupCur} में रखता है। इसे आयात करने के लिए हर पंक्ति के लिए एक दर चाहिए, और फ़ाइल में वह नहीं है — इसके बजाय एक {fileCur} समूह शुरू करें।',
+    rateFetchFailedSuffix: ' — आप दर खुद टाइप कर सकते हैं',
+    settlesInHint: 'यह समूह {currency} में हिसाब करता है',
+    howDoYouKnowRate: 'यह समूह {currency} में हिसाब करता है। दर आपको कैसे पता है?',
+    todaysRate: 'आज की दर',
+    statementAmountLabel: 'आपके स्टेटमेंट पर रकम, {currency} में',
+    amountChargedIn: '{currency} में ली गई रकम',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: '{from} से {to} की दर',
+    convertedApprox: '≈ {amount} ({currency} में)',
+    rateStoredNote:
+      'दर {rate}, {source} से। खर्च के साथ सहेजी गई है, इसलिए बाद में भी यही रूपांतरण होगा।',
+    rateSourceEcb: 'ECB',
+    rateSourceImplied: 'आपके स्टेटमेंट',
+    rateSourceYou: 'आप',
+    noRateNote:
+      'दर के बिना भी खर्च सहेजा जाता है — यह {currency} में ही रहता है, और समूह एक अलग {currency} बैलेंस रखता है।',
+    thinkThisOff: {
+      one: 'किसी को लगता है कि यह ठीक नहीं है',
+      other: '{n} लोगों को लगता है कि यह ठीक नहीं है',
+    },
+    sending: 'भेज रहे हैं…',
+    tellThem: 'उन्हें बताएँ',
+    versionStoppedBody:
+      'यह संस्करण अब बाकी से बात नहीं कर सकता, इसलिए ग़लत आँकड़े दिखाने के बजाय इसे रोक दिया गया है।',
+    newBaakiOut: 'नया बाकी आ गया है',
+    baakiVersionOut: 'बाकी {latest} आ गया है',
   },
   smsImport: {
     title: 'संदेशों से आयात',
@@ -4588,6 +4730,7 @@ const hi: UiStrings = {
     readUnsupported: 'संदेश पढ़ना केवल Android पर काम करता है। नीचे उन्हें पेस्ट करें।',
     readUnavailable: 'यह बिल्ड संदेश नहीं पढ़ सकता। नीचे उन्हें पेस्ट करें।',
     readFailed: 'आपके संदेश पढ़े नहीं जा सके। नीचे उन्हें पेस्ट करें।',
+    dateNotInMessage: 'संदेश में तारीख नहीं थी',
   },
   itemize: {
     title: 'चीज़-वार बाँटें',
@@ -4732,6 +4875,13 @@ const hi: UiStrings = {
     breakfast: 'नाश्ता',
     endOfDay: 'दिन का अंत',
     clearDates: 'तारीखें हटाएँ',
+    nobodyPickedYet: 'अभी किसी को नहीं चुना',
+    personCount: { one: '{n} व्यक्ति', other: '{n} लोग' },
+    alreadyAddedName: '{name}, पहले से जुड़ा है',
+    alreadyInGroup: 'पहले से इस समूह में है',
+    removeName: '{name} को हटाएँ',
+    remindZoneNote: '{zone} में पूछा जाता है — जहाँ यात्रा है, न कि जहाँ हर कोई है।',
+    useMyTimezone: 'मेरा टाइमज़ोन इस्तेमाल करें ({zone})',
   },
   dispute: {
     yourReply: 'आपका जवाब',
@@ -4993,6 +5143,8 @@ const ar: UiStrings = {
   spending: 'الإنفاق',
   byCategory: 'أين ذهبت',
   byMonth: 'شهراً بشهر',
+  totalIn: 'الإجمالي بعملة {currency}',
+  nothingIn: 'لا شيء بعملة {currency}',
   tapMonthForDays: 'اضغط على شهر لرؤية أيامه.',
   nothingToChart: 'أضف بعض المصروفات وسيمتلئ هذا.',
   categories: {
@@ -5044,6 +5196,7 @@ const ar: UiStrings = {
     delete: 'حذف',
     share: 'مشاركة',
     done: 'تم',
+    about: 'حول {title}',
     guest: 'ضيف',
     name: 'الاسم',
     yourName: 'اسمك',
@@ -5511,6 +5664,7 @@ const ar: UiStrings = {
     mismatchBody:
       'هذا الجهاز والخادم لا يتفقان على أرصدة هذه المجموعة. اسحب للتحديث؛ وإن استمر الأمر فالدفتر بالأسفل هو المرجع.',
     confirmReceived: 'أكّد الاستلام',
+    saysTheyPaidYou: 'يقول {name} إنه دفع لك',
     autoConfirms: 'يتأكد تلقائيًا خلال 7 أيام إن لم يردّ أحد.',
     hideDeleted: 'إخفاء المحذوف',
     showDeleted: 'إظهار المحذوف',
@@ -5789,6 +5943,36 @@ const ar: UiStrings = {
     noUpiYet: 'لا يوجد معرّف UPI بعد',
     csvCurrencyMismatch:
       'هذا الملف بعملة {fileCur} وهذه المجموعة تحتفظ بأموالها بعملة {groupCur}. استيراده يحتاج إلى سعر لكل صف، والملف لا يحمل ذلك — ابدأ بدلًا من ذلك مجموعة بعملة {fileCur}.',
+    rateFetchFailedSuffix: ' — يمكنك إدخال السعر يدويًا بدلًا من ذلك',
+    settlesInHint: 'تُسوّى حسابات هذه المجموعة بعملة {currency}',
+    howDoYouKnowRate: 'تُسوّى حسابات هذه المجموعة بعملة {currency}. كيف عرفت سعر الصرف؟',
+    todaysRate: 'سعر اليوم',
+    statementAmountLabel: 'المبلغ في كشف حسابك، بعملة {currency}',
+    amountChargedIn: 'المبلغ المخصوم بعملة {currency}',
+    fxOneEquals: '1 {from} = ? {to}',
+    fxRateFromTo: 'السعر من {from} إلى {to}',
+    convertedApprox: '≈ {amount} بعملة {currency}',
+    rateStoredNote:
+      'السعر {rate} من {source}. يُحفظ مع المصروف، لذا يُحوَّل بالطريقة نفسها لاحقًا.',
+    rateSourceEcb: 'البنك المركزي الأوروبي',
+    rateSourceImplied: 'كشف حسابك',
+    rateSourceYou: 'أنت',
+    noRateNote:
+      'يُحفظ المصروف حتى بدون سعر — يبقى بعملة {currency}، وتحتفظ المجموعة برصيد {currency} منفصل.',
+    thinkThisOff: {
+      zero: 'لا أحد يظن أن هذا غير صحيح',
+      one: 'يظن أحدهم أن هذا غير صحيح',
+      two: 'يظن شخصان أن هذا غير صحيح',
+      few: 'يظن {n} أشخاص أن هذا غير صحيح',
+      many: 'يظن {n} شخصًا أن هذا غير صحيح',
+      other: 'يظن {n} شخص أن هذا غير صحيح',
+    },
+    sending: 'جارٍ الإرسال…',
+    tellThem: 'أخبرهم',
+    versionStoppedBody:
+      'لم يعد بإمكان هذه النسخة التواصل مع باقي، لذا أُوقفت بدلًا من أن تعرض عليك أرقامًا قد تكون خاطئة.',
+    newBaakiOut: 'صدر إصدار جديد من باقي',
+    baakiVersionOut: 'صدر باقي {latest}',
   },
   smsImport: {
     title: 'استيراد من الرسائل',
@@ -5876,6 +6060,7 @@ const ar: UiStrings = {
     readUnsupported: 'قراءة الرسائل تعمل على أندرويد فقط. الصقها بالأسفل بدلًا من ذلك.',
     readUnavailable: 'هذا الإصدار لا يستطيع قراءة الرسائل. الصقها بالأسفل.',
     readFailed: 'تعذّرت قراءة رسائلك. الصقها بالأسفل.',
+    dateNotInMessage: 'التاريخ غير مذكور في الرسالة',
   },
   itemize: {
     title: 'التقسيم حسب الصنف',
@@ -6086,6 +6271,20 @@ const ar: UiStrings = {
     breakfast: 'الإفطار',
     endOfDay: 'نهاية اليوم',
     clearDates: 'امسح التواريخ',
+    nobodyPickedYet: 'لم تختر أحدًا بعد',
+    personCount: {
+      zero: '{n} شخص',
+      one: 'شخص واحد',
+      two: 'شخصان',
+      few: '{n} أشخاص',
+      many: '{n} شخصًا',
+      other: '{n} شخص',
+    },
+    alreadyAddedName: '{name}، مضاف بالفعل',
+    alreadyInGroup: 'موجود بالفعل في هذه المجموعة',
+    removeName: 'إزالة {name}',
+    remindZoneNote: 'يُسأل بتوقيت {zone} — حيث الرحلة، لا حيث كل شخص.',
+    useMyTimezone: 'استخدم منطقتي الزمنية ({zone})',
   },
   dispute: {
     yourReply: 'ردّك',

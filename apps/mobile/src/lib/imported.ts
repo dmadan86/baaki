@@ -44,11 +44,16 @@ export function useImported(groupId: string): ImportedKeys {
 
   const remember = useCallback(
     async (added: readonly string[]): Promise<void> => {
-      const next = [...keys, ...added].slice(-KEEP);
-      setKeys(new Set(next));
+      // Dedupe before the cap and use the functional updater, so two calls
+      // before a re-render don't drop the first call's keys or persist repeats.
+      let next: string[] = [];
+      setKeys((current) => {
+        next = [...new Set([...current, ...added])].slice(-KEEP);
+        return new Set(next);
+      });
       await syncEngine.saveDraft(keyFor(groupId), next);
     },
-    [groupId, keys],
+    [groupId],
   );
 
   return { keys, remember };

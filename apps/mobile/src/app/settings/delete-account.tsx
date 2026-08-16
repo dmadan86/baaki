@@ -57,11 +57,14 @@ export default function DeleteAccountScreen() {
     setError(null);
     try {
       const result = await deleteMyAccount(reason.trim() || null);
-      setDone(fill(t.privacy.deleteSummary, { n: String(result.memberships_anonymised ?? 0) }));
       // Signing out is the last thing, and only after the data is gone: the
       // reverse order would leave somebody signed out of an account that still
       // holds everything, with no way back in to try again.
+      //
+      // A failure here is its own report: the data is already gone, so the
+      // screen must not claim success while the session is still live.
       await signOut();
+      setDone(fill(t.privacy.deleteSummary, { n: String(result.memberships_anonymised ?? 0) }));
     } catch (caught) {
       setError(friendlyError(caught, t.privacy.couldNotSave, 'account.delete'));
     } finally {

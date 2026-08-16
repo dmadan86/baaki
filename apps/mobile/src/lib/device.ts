@@ -50,22 +50,33 @@ async function writeStoredId(id: string): Promise<void> {
 }
 
 let cached: string | null = null;
+let pending: Promise<string> | null = null;
 
 /** The stable id for this install, minted and stored on first ask. */
 export async function deviceId(): Promise<string> {
   if (cached) return cached;
-  let id = await readStoredId();
-  if (!id) {
-    id = randomUUID();
-    await writeStoredId(id);
+  // Memoize the in-flight mint so two callers can't both read null and mint
+  // two different ids for one install.
+  pending ??= (async () => {
+    let id = await readStoredId();
+    if (!id) {
+      id = randomUUID();
+      await writeStoredId(id);
+    }
+    cached = id;
+    return id;
+  })();
+  try {
+    return await pending;
+  } finally {
+    pending = null;
   }
-  cached = id;
-  return id;
 }
 
 /** Signing out must not leave the next account inheriting this device row. */
 export async function clearDeviceId(): Promise<void> {
   cached = null;
+  pending = null;
   try {
     if (Platform.OS === 'web') await AsyncStorage.removeItem(KEY);
     else await SecureStore.deleteItemAsync(KEY);

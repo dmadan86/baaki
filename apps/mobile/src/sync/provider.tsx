@@ -164,6 +164,7 @@ export function useDraft<T>(key: string, value: T, options: { enabled?: boolean 
 
   useEffect(() => {
     if (!enabled) return;
+    if (serialised === undefined) return;
     const timer = setTimeout(() => {
       // A draft is a convenience. Losing one to a busy disk is a shame; showing
       // somebody a crash dialog in the middle of typing an expense is worse.

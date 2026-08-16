@@ -111,11 +111,14 @@ export default function SpendingMonthScreen() {
   const total = rows.reduce((sum, row) => sum + row.amount, 0n);
 
   const [year, monthNo] = month.split('-');
-  const monthTitle = new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(Number(year), Number(monthNo) - 1, 1)));
+  const monthStart = new Date(Date.UTC(Number(year), Number(monthNo) - 1, 1));
+  const monthTitle = Number.isNaN(monthStart.getTime())
+    ? ''
+    : new Intl.DateTimeFormat(locale, {
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(monthStart);
 
   // 'YYYY-MM-DD' read with the parts, in UTC, so a phone east of the line does
   // not label the 1st as the last of the month before.

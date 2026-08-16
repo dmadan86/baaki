@@ -33,9 +33,13 @@ export function useAvatarUrl(value: string | null | undefined): string | null {
   useEffect(() => {
     if (!stored) return;
     let active = true;
-    void avatarPhotoUrl(stored).then((url) => {
-      if (active) setResolved({ stored, url });
-    });
+    void avatarPhotoUrl(stored)
+      .then((url) => {
+        if (active) setResolved({ stored, url });
+      })
+      .catch(() => {
+        if (active) setResolved({ stored, url: null });
+      });
     return () => {
       active = false;
     };

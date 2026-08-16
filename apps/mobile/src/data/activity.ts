@@ -120,7 +120,9 @@ export function verbEmoji(verb: string): string {
  * `now` is injectable so the two branches are testable without a live clock.
  */
 export function relativeTime(locale: string, iso: string, now: number = Date.now()): string {
-  const seconds = Math.round((Date.parse(iso) - now) / 1000);
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+  const seconds = Math.round((parsed - now) / 1000);
   const abs = Math.abs(seconds);
 
   const RTF = Intl.RelativeTimeFormat as typeof Intl.RelativeTimeFormat | undefined;

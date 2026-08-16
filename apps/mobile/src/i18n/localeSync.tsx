@@ -21,7 +21,7 @@
  * The effect runs again on the next change and on every fresh session.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { useLanguage } from '@/i18n/language';
@@ -30,12 +30,24 @@ export function LocaleSync() {
   const { locale, loading } = useLanguage();
   const { session, profile, updateProfile } = useAuth();
 
+  // The locale already attempted for this session. Guards against an unbounded
+  // series of writes when the server normalises the value (so the equality
+  // check never holds) or the write fails (and swallows the rejection).
+  const attempted = useRef<string | null>(null);
+
+  // A fresh session retries once.
+  useEffect(() => {
+    attempted.current = null;
+  }, [session]);
+
   useEffect(() => {
     // `loading` matters: the stored choice arrives a tick after mount, and
     // writing the phone's locale in that tick would overwrite a real choice
     // with the default every single launch.
     if (loading || !session || !profile) return;
     if (profile.locale === locale) return;
+    if (attempted.current === locale) return;
+    attempted.current = locale;
     void updateProfile({ locale }).catch(() => undefined);
   }, [loading, session, profile, locale, updateProfile]);
 

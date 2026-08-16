@@ -103,7 +103,7 @@ export function ContactPicker({
   onConfirm,
   existing,
   initialSelected,
-  confirmVerb = 'Add',
+  confirmVerb,
   busy = false,
 }: ContactPickerProps): React.JSX.Element {
   const theme = useTheme();
@@ -396,8 +396,8 @@ export function ContactPicker({
       <Button
         label={
           chosen.length === 0
-            ? 'Nobody picked yet'
-            : `${confirmVerb} ${chosen.length} ${chosen.length === 1 ? 'person' : 'people'}`
+            ? t.pickers.nobodyPickedYet
+            : `${confirmVerb ?? t.add} ${plural(locale, chosen.length, t.pickers.personCount)}`
         }
         fullWidth
         disabled={chosen.length === 0 || busy}
@@ -454,6 +454,7 @@ function ContactRow({
   onPress: () => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
   const inset = theme.spacing.lg + 40 + theme.spacing.md;
 
   return (
@@ -462,7 +463,9 @@ function ContactRow({
       disabled={already}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected, disabled: already }}
-      accessibilityLabel={already ? `${contact.name}, already added` : contact.name}
+      accessibilityLabel={
+        already ? t.pickers.alreadyAddedName.replace('{name}', contact.name) : contact.name
+      }
       style={({ pressed }) => ({
         opacity: already ? 0.45 : 1,
         backgroundColor: pressed ? theme.color.surfaceMuted : theme.color.surface,
@@ -481,7 +484,7 @@ function ContactRow({
             {contact.name}
           </Text>
           <Text variant="micro" tone="muted" numberOfLines={1}>
-            {already ? 'Already in this group' : (contact.email ?? contact.phone ?? '')}
+            {already ? t.pickers.alreadyInGroup : (contact.email ?? contact.phone ?? '')}
           </Text>
         </View>
         <Ionicons
@@ -512,6 +515,7 @@ function PickedStrip({
   onRemove: (key: string, contact: PickedContact) => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useStrings();
   return (
     <ScrollView
       horizontal
@@ -528,7 +532,7 @@ function PickedStrip({
           key={keyOf(contact)}
           onPress={() => onRemove(keyOf(contact), contact)}
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${contact.name}`}
+          accessibilityLabel={t.pickers.removeName.replace('{name}', contact.name)}
           style={{ width: 56, alignItems: 'center', gap: 2 }}
         >
           <View>

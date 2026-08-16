@@ -151,6 +151,8 @@ export default function ImportSmsScreen() {
       } else {
         setError(readFailureMessage(result.reason, t));
       }
+    } catch {
+      setError(readFailureMessage(SmsReadFailure.Failed, t));
     } finally {
       setReading(false);
     }
@@ -366,7 +368,7 @@ export default function ImportSmsScreen() {
                       >
                         <ListRow
                           title={candidate.merchant ?? t.smsImport.cardPayment}
-                          subtitle={subtitleFor(candidate, locale)}
+                          subtitle={subtitleFor(candidate, locale, t)}
                           leading={
                             <Ionicons
                               name={picked ? 'checkbox' : 'square-outline'}
@@ -484,12 +486,16 @@ function DateField({
   );
 }
 
-function subtitleFor(candidate: ExpenseCandidate, locale: string): string {
+function subtitleFor(
+  candidate: ExpenseCandidate,
+  locale: string,
+  t: ReturnType<typeof useStrings>['t'],
+): string {
   const when = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(
     new Date(candidate.at),
   );
   const parts = [when];
-  if (candidate.dateInferred) parts.push('date not in the message');
+  if (candidate.dateInferred) parts.push(t.smsImport.dateNotInMessage);
   if (candidate.accountTail) parts.push(`⋯${candidate.accountTail}`);
   return parts.join(' · ');
 }

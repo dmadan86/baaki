@@ -81,6 +81,7 @@ describe('aggregatePeopleBalances', () => {
         net: 20n,
       }),
     ]);
+    expect(rows).toHaveLength(1);
     expect(rows[0]?.is_ghost).toBe(false);
   });
 

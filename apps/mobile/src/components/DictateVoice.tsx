@@ -60,6 +60,10 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   // field's current contents.
   const before = useRef(value);
 
+  // Leaving the screen while the system permission prompt is open must not let
+  // start() touch state or open the mic on an unmounted component.
+  const mounted = useRef(true);
+
   useSpeechRecognitionEvent('result', (event) => {
     const transcript = event.results[0]?.transcript ?? '';
     onChange(mergeTranscript(before.current, transcript));
@@ -81,6 +85,7 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
     setError(null);
 
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!mounted.current) return;
     if (!permission.granted) {
       setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
       return;
@@ -123,6 +128,7 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   // Leaving the screen mid-sentence must not leave the microphone open.
   useEffect(() => {
     return () => {
+      mounted.current = false;
       ExpoSpeechRecognitionModule.abort();
     };
   }, []);

@@ -87,8 +87,8 @@ function showTime(value: string, locale: string): string {
   return timeFrom(value).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
 }
 
-function showDate(iso: string | null, locale: string): string {
-  if (!iso) return 'Not set';
+function showDate(iso: string | null, locale: string, notSet: string): string {
+  if (!iso) return notSet;
   return dateFrom(iso).toLocaleDateString(locale, {
     weekday: 'short',
     day: 'numeric',
@@ -201,12 +201,12 @@ export function TripDates({
       <Row style={{ gap: theme.spacing.lg }}>
         <FieldRow
           label={t.pickers.starts}
-          value={showDate(group.start_date, locale)}
+          value={showDate(group.start_date, locale, t.pickers.notSet)}
           onPress={() => setEditing(Field.Start)}
         />
         <FieldRow
           label={t.pickers.ends}
-          value={showDate(group.end_date, locale)}
+          value={showDate(group.end_date, locale, t.pickers.notSet)}
           onPress={() => setEditing(Field.End)}
         />
       </Row>
@@ -219,7 +219,7 @@ export function TripDates({
             <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
               <Text variant="subheading">{t.pickers.dailyReminders}</Text>
               <Text variant="caption" tone="muted">
-                {`Asked in ${group.time_zone.replace(/_/g, ' ')} — where the trip is, not where each person is.`}
+                {t.pickers.remindZoneNote.replace('{zone}', group.time_zone.replace(/_/g, ' '))}
               </Text>
             </View>
             <Toggle
@@ -246,7 +246,10 @@ export function TripDates({
 
               {group.time_zone !== deviceZone() ? (
                 <Button
-                  label={`Use my timezone (${deviceZone().split('/').pop()?.replace(/_/g, ' ')})`}
+                  label={t.pickers.useMyTimezone.replace(
+                    '{zone}',
+                    deviceZone().split('/').pop()?.replace(/_/g, ' ') ?? '',
+                  )}
                   size="sm"
                   variant="ghost"
                   onPress={() => onChange({ time_zone: deviceZone() })}
@@ -280,7 +283,9 @@ export function TripDates({
           mode={editing === Field.Start || editing === Field.End ? 'date' : 'time'}
           // The end of a trip cannot be before its beginning, so the picker
           // does not offer it.
-          minimumDate={editing === Field.End ? dateFrom(group.start_date) : undefined}
+          minimumDate={
+            editing === Field.End && group.start_date ? dateFrom(group.start_date) : undefined
+          }
           onChange={(event, picked) => apply(editing, event, picked)}
         />
       ) : null}

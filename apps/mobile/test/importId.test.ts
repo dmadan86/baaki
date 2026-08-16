@@ -28,7 +28,7 @@ describe('shaping a digest as a UUID', () => {
   });
 
   it('sets the variant bits', () => {
-    expect('89ab').toContain(uuidFromDigest(A_DIGEST)[19]);
+    expect(uuidFromDigest(A_DIGEST)[19]).toMatch(/^[89ab]$/);
   });
 
   it('gives the same answer every time', () => {

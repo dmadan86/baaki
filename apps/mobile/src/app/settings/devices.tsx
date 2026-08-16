@@ -53,7 +53,12 @@ export default function DevicesScreen() {
   // The server already returns the last three months, newest first.
   const devices = useQuery({ queryKey: ['devices'], queryFn: fetchDevices });
   const rows = devices.data ?? [];
-  const otherLiveCount = rows.filter((row) => row.deviceId !== myDeviceId && !row.revokedAt).length;
+  // Counting before `deviceId()` resolves would count this phone as another
+  // session, and offer to sign it out.
+  const ready = !devices.isLoading && myDeviceId !== null;
+  const otherLiveCount = ready
+    ? rows.filter((row) => row.deviceId !== myDeviceId && !row.revokedAt).length
+    : 0;
 
   async function onSignOutOthers() {
     setBusy(true);
@@ -62,6 +67,8 @@ export default function DevicesScreen() {
       const revoked = await signOutOthers();
       setMessage(plural(locale, revoked, t.devices.signedOutOthers));
       await queryClient.invalidateQueries({ queryKey: ['devices'] });
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(false);
     }
@@ -95,7 +102,7 @@ export default function DevicesScreen() {
           {t.devices.intro}
         </Text>
 
-        {devices.isLoading ? (
+        {!ready ? (
           // Until the list loads, `rows` is empty — showing "only this device"
           // here would tell people they have no other sessions before we know.
           <View style={{ padding: theme.spacing.xl }}>
@@ -123,7 +130,7 @@ export default function DevicesScreen() {
           </>
         )}
 
-        {!devices.isLoading && otherLiveCount > 0 ? (
+        {ready && otherLiveCount > 0 ? (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="caption" tone="muted">
               {t.devices.signOutOthersHint}

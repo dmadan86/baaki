@@ -46,7 +46,8 @@ export interface ReceiptSidecar {
 
 export interface SavedReceipt {
   readonly imageUri: string;
-  readonly jsonUri: string;
+  /** The JSON sidecar's URI, or null when only the image exists on disk. */
+  readonly jsonUri: string | null;
 }
 
 /** Web has no document directory; the vault is a device-only feature. */
@@ -93,7 +94,9 @@ export function receiptFiles(captureId: string): SavedReceipt | null {
   const image = new File(folder(), `${captureId}.jpg`);
   const json = new File(folder(), `${captureId}.json`);
   if (!image.exists) return null;
-  return { imageUri: image.uri, jsonUri: json.exists ? json.uri : image.uri };
+  // Never hand back the image path as the sidecar: a consumer would upload the
+  // JPEG named as metadata, and any reader that parses it fails.
+  return { imageUri: image.uri, jsonUri: json.exists ? json.uri : null };
 }
 
 /** The parsed sidecar for a saved receipt, or null. */

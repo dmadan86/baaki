@@ -133,7 +133,6 @@ export default function MembersScreen() {
     setError(null);
     setAdding(true);
     const failed: string[] = [];
-    let last = '';
     for (const person of people) {
       try {
         await addGhost.mutateAsync({
@@ -141,9 +140,8 @@ export default function MembersScreen() {
           email: person.email,
           phone: person.phone,
         });
-      } catch (caught) {
+      } catch {
         failed.push(person.name);
-        last = caught instanceof Error ? caught.message : String(caught);
       }
     }
     setAdding(false);
@@ -151,7 +149,7 @@ export default function MembersScreen() {
       setBrowsing(false);
       return;
     }
-    setError(`Could not add ${failed.join(', ')}: ${last}`);
+    setError(fill(t.misc.couldNotAdd, { names: failed.join(', ') }));
   };
 
   // Contacts already used, so the picker can grey them out instead of letting

@@ -313,7 +313,7 @@ export default function GroupScreen() {
           {pendingForMe.map((settlement) => (
             <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
               <Text variant="subheading">
-                {`${nameOf(settlement.from_member_id)} says they paid you`}
+                {fill(t.group.saysTheyPaidYou, { name: nameOf(settlement.from_member_id) })}
               </Text>
               <Row style={{ gap: theme.spacing.sm }}>
                 <MoneyText
@@ -416,6 +416,7 @@ export default function GroupScreen() {
                                   ? new Intl.DateTimeFormat(locale, {
                                       day: 'numeric',
                                       month: 'short',
+                                      timeZone: 'UTC',
                                     }).format(new Date(version.expense_date))
                                   : null,
                                 expense.deleted_at ? t.expense.deleted : null,

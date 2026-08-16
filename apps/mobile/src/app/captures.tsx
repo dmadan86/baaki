@@ -58,9 +58,13 @@ function CaptureThumb({ path, size }: { path: string; size: number }) {
 
   useEffect(() => {
     let active = true;
-    void capturePhotoUrl(path).then((resolved) => {
-      if (active) setUrl(resolved);
-    });
+    void capturePhotoUrl(path)
+      .then((resolved) => {
+        if (active) setUrl(resolved);
+      })
+      .catch(() => {
+        if (active) setUrl(null);
+      });
     return () => {
       active = false;
     };

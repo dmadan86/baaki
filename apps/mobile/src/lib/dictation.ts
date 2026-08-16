@@ -21,7 +21,11 @@ import type { Language } from '@/i18n';
  * lottery on Android.
  */
 export function speechLocale(language: Language, deviceLocale: string): string {
-  const [tag, region] = deviceLocale.trim().split(/[-_]/);
+  const parts = deviceLocale.trim().split(/[-_]/);
+  const tag = parts[0];
+  // Skip a script subtag (e.g. `zh-Hans-CN`): only a two-letter region or a
+  // three-digit UN M.49 code is a real region the recogniser can match.
+  const region = parts.slice(1).find((part) => /^([A-Za-z]{2}|\d{3})$/.test(part));
   if (tag?.toLowerCase() === language && region) return `${language}-${region.toUpperCase()}`;
   return `${language}-IN`;
 }

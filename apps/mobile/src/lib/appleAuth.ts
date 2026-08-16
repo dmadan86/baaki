@@ -131,7 +131,9 @@ export function useAppleSignInAvailable(): boolean {
  */
 export async function signInWithApple(): Promise<AppleCredential | null> {
   const apple = load();
-  if (!apple) return null;
+  // A missing module is not a cancellation — null is reserved for the person
+  // closing the sheet, so throw here to keep the two states distinguishable.
+  if (!apple) throw new Error('Sign in with Apple is not available in this build');
 
   try {
     const credential = await apple.signInAsync({

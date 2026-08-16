@@ -154,6 +154,8 @@ export default function InsightsScreen() {
               labels={t.categories}
               byCategoryTitle={t.byCategory}
               byMonthTitle={t.byMonth}
+              totalCaption={t.totalIn}
+              nothingCaption={t.nothingIn}
               tapHint={t.tapMonthForDays}
             />
           ))
@@ -176,6 +178,8 @@ function CurrencySection({
   labels,
   byCategoryTitle,
   byMonthTitle,
+  totalCaption,
+  nothingCaption,
   tapHint,
 }: {
   groupId: string;
@@ -186,6 +190,8 @@ function CurrencySection({
   labels: Record<CategoryId, string>;
   byCategoryTitle: string;
   byMonthTitle: string;
+  totalCaption: string;
+  nothingCaption: string;
   tapHint: string;
 }) {
   const theme = useTheme();
@@ -236,7 +242,7 @@ function CurrencySection({
       <Card style={{ alignItems: 'center', gap: theme.spacing.xs }}>
         <MoneyText amount={total} currency={currency} locale={locale} variant="display" />
         <Text variant="caption" tone="muted">
-          {`${rows.length === 0 ? 'nothing' : 'total'} in ${currency}`}
+          {(rows.length === 0 ? nothingCaption : totalCaption).replace('{currency}', currency)}
         </Text>
       </Card>
 

@@ -125,6 +125,7 @@ export default function ImportScreen() {
    * time, chosen deliberately.
    */
   const [fileGroups, setFileGroups] = useState<readonly BaakiImportGroup[]>([]);
+  const [fileGroupIndex, setFileGroupIndex] = useState(0);
   const [target, setTarget] = useState<string>(NEW_GROUP);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [mapping, setMapping] = useState<Record<string, Mapping>>({});
@@ -179,6 +180,7 @@ export default function ImportScreen() {
 
     setBusy(true);
     setFileGroups([]);
+    setFileGroupIndex(0);
     setParsed(null);
     try {
       const text = new FileSystem.File(asset.uri).textSync();
@@ -390,15 +392,20 @@ export default function ImportScreen() {
           <View style={{ gap: theme.spacing.md }}>
             <SectionHeader title={t.importLedger.whichGroup} />
             <ChipRow<string>
-              value={parsed?.suggestedName ?? ''}
-              onChange={(name) => {
-                const chosen = fileGroups.find(
-                  (group, index) => (group.name ?? numberedGroup(t, index)) === name,
-                );
-                if (chosen) load(fromBaaki(chosen, name));
+              // Keyed by position, not by name: two groups in one export can
+              // share a name, and matching on the name loads the first of them
+              // whichever chip is tapped.
+              value={String(fileGroupIndex)}
+              onChange={(key) => {
+                const index = Number(key);
+                const chosen = fileGroups[index];
+                if (chosen) {
+                  setFileGroupIndex(index);
+                  load(fromBaaki(chosen, numberedGroup(t, index)));
+                }
               }}
               options={fileGroups.map((group, index) => ({
-                value: group.name ?? numberedGroup(t, index),
+                value: String(index),
                 label: `${group.name ?? numberedGroup(t, index)} · ${group.expenses.length}`,
               }))}
             />

@@ -52,6 +52,17 @@ export default function MemberScreen() {
   const [vpa, setVpa] = useState(member?.vpa ?? '');
   const [status, setStatus] = useState<string | null>(null);
 
+  // Seed the editors from the member the moment the query resolves, and again
+  // if the row identity changes — synced in render (the app's idiom for
+  // "follow a value until touched"), not in an effect, so it never triggers a
+  // cascading-render lint or a frame of empty fields.
+  const [seededId, setSeededId] = useState<string | null>(null);
+  if (member && seededId !== member.id) {
+    setSeededId(member.id);
+    setName(member.ghost_name ?? '');
+    setVpa(member.vpa ?? '');
+  }
+
   if (!member) {
     return (
       <Screen>

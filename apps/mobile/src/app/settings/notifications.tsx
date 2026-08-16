@@ -128,15 +128,22 @@ export default function NotificationSettingsScreen() {
   }, [profile?.id]);
 
   const toggle = (key: keyof NotificationPrefs, value: boolean): void => {
+    const previous = prefs;
     const next = { ...prefs, [key]: value };
+    if (!profile?.id) {
+      setStatus(t.notifications.failNotSignedIn);
+      return;
+    }
     setPrefs(next);
-    if (!profile?.id) return;
     setStatus(null);
     void saveNotificationPrefs(profile.id, next)
       .then(() => setStatus(t.account.saved))
-      .catch((caught: unknown) =>
-        setStatus(caught instanceof Error ? caught.message : String(caught)),
-      );
+      .catch((caught: unknown) => {
+        // The switch goes back to what the server still holds, so the screen
+        // never shows a preference that was not saved.
+        setPrefs(previous);
+        setStatus(caught instanceof Error ? caught.message : String(caught));
+      });
   };
 
   return (

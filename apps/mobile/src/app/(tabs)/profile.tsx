@@ -270,6 +270,14 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
 }
 
 export default function ProfileScreen() {
+  const { profile } = useAuth();
+  // The form seeds its state from `profile` exactly once, so it must not mount
+  // before there is a profile to seed it from — otherwise Save writes the
+  // empty seed back over the real row.
+  return <ProfileForm key={profile?.id ?? 'pending'} />;
+}
+
+function ProfileForm() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();

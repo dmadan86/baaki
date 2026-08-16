@@ -17,7 +17,7 @@
  * is most often the least accurate.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
 
 import {
@@ -104,6 +104,21 @@ export function CurrencyRate({
     }
   };
 
+  // The charged-amount method implies the rate from `amount`. If the expense
+  // amount is edited after the charged amount was typed, the stored rate would
+  // otherwise keep the value implied by the old amount. Recompute it here.
+  useEffect(() => {
+    if (method !== Method.Charged) return;
+    if (!chargedText.trim() || amount === 0n) return;
+    try {
+      const charged = money(parseMinor(chargedText, groupCurrency), groupCurrency);
+      onFxChange(toFxRecord(rateFromAmounts(money(amount, currency), charged)));
+    } catch {
+      onFxChange(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, method, chargedText, currency, groupCurrency]);
+
   const applyTyped = (text: string): void => {
     setRateText(text);
     setError(null);
@@ -129,7 +144,7 @@ export function CurrencyRate({
     } catch (caught) {
       // Not a blocker: typing a rate works offline and is often more accurate.
       setError(
-        `${caught instanceof Error ? caught.message : String(caught)} — you can type the rate instead`,
+        `${caught instanceof Error ? caught.message : String(caught)}${t.misc.rateFetchFailedSuffix}`,
       );
     } finally {
       setBusy(false);
@@ -144,7 +159,7 @@ export function CurrencyRate({
         label={t.misc.paidAnotherCurrency}
         variant="ghost"
         onPress={() => setOpen(true)}
-        accessibilityHint={`This group settles in ${groupCurrency}`}
+        accessibilityHint={t.misc.settlesInHint.replace('{currency}', groupCurrency)}
       />
     );
   }
@@ -163,7 +178,7 @@ export function CurrencyRate({
       {foreign ? (
         <>
           <Text variant="caption" tone="muted">
-            {`This group settles in ${groupCurrency}. How do you know the rate?`}
+            {t.misc.howDoYouKnowRate.replace('{currency}', groupCurrency)}
           </Text>
           <ChipRow<Method>
             value={method}
@@ -174,20 +189,20 @@ export function CurrencyRate({
             options={[
               { value: Method.Charged, label: t.misc.whatIWasCharged },
               { value: Method.Typed, label: t.extras.iKnowTheRate },
-              { value: Method.Fetched, label: "Today's rate" },
+              { value: Method.Fetched, label: t.misc.todaysRate },
             ]}
           />
 
           {method === Method.Charged ? (
             <View style={{ gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
-                {`Amount on your statement, in ${groupCurrency}`}
+                {t.misc.statementAmountLabel.replace('{currency}', groupCurrency)}
               </Text>
               <TextInput
                 value={chargedText}
                 onChangeText={applyCharged}
                 keyboardType="decimal-pad"
-                accessibilityLabel={`Amount charged in ${groupCurrency}`}
+                accessibilityLabel={t.misc.amountChargedIn.replace('{currency}', groupCurrency)}
                 placeholder="4562.50"
                 placeholderTextColor={theme.color.textFaint}
                 style={inputStyle(theme)}
@@ -201,13 +216,15 @@ export function CurrencyRate({
           {method === Method.Typed ? (
             <View style={{ gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
-                {`1 ${currency} = ? ${groupCurrency}`}
+                {t.misc.fxOneEquals.replace('{from}', currency).replace('{to}', groupCurrency)}
               </Text>
               <TextInput
                 value={rateText}
                 onChangeText={applyTyped}
                 keyboardType="decimal-pad"
-                accessibilityLabel={`Rate from ${currency} to ${groupCurrency}`}
+                accessibilityLabel={t.misc.fxRateFromTo
+                  .replace('{from}', currency)
+                  .replace('{to}', groupCurrency)}
                 placeholder="91.25"
                 placeholderTextColor={theme.color.textFaint}
                 style={inputStyle(theme)}
@@ -230,20 +247,28 @@ export function CurrencyRate({
 
           {converted ? (
             <Text variant="caption" tone="positive">
-              {`≈ ${format(converted)} in ${groupCurrency}`}
+              {t.misc.convertedApprox
+                .replace('{amount}', format(converted))
+                .replace('{currency}', groupCurrency)}
             </Text>
           ) : null}
 
           {fx ? (
             <Text variant="micro" tone="muted">
-              {`Rate ${rateToDecimal(fromFxRecord(fx), 4)} from ${
-                fx.source === 'ecb' ? 'the ECB' : fx.source === 'implied' ? 'your statement' : 'you'
-              }. Stored with the expense, so this converts the same way later.`}
+              {t.misc.rateStoredNote
+                .replace('{rate}', rateToDecimal(fromFxRecord(fx), 4))
+                .replace(
+                  '{source}',
+                  fx.source === 'ecb'
+                    ? t.misc.rateSourceEcb
+                    : fx.source === 'implied'
+                      ? t.misc.rateSourceImplied
+                      : t.misc.rateSourceYou,
+                )}
             </Text>
           ) : (
             <Text variant="micro" tone="muted">
-              Without a rate the expense still saves — it just stays in {currency}, and the group
-              keeps a separate {currency} balance.
+              {t.misc.noRateNote.replaceAll('{currency}', currency)}
             </Text>
           )}
 

@@ -77,6 +77,16 @@ function textEntries(
   );
 }
 
+// A route param is not a trusted integer string; a throw here is a white screen.
+function safeBigInt(value: string | undefined): bigint {
+  if (!value) return 0n;
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
+  }
+}
+
 export default function AddExpenseScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -180,7 +190,7 @@ export default function AddExpenseScreen() {
       // explicit choice to turn that capture into this expense. Payer and
       // participants take the ordinary new-expense defaults — the capture never
       // had either.
-      setAmount(BigInt(captureAmount ?? '0'));
+      setAmount(safeBigInt(captureAmount));
       setDescription(captureDescription ?? '');
       setCategory((captureCategory as CategoryId) || null);
       setCategoryChosen(Boolean(captureCategory));
@@ -189,7 +199,7 @@ export default function AddExpenseScreen() {
     } else if (draft) {
       // A draft outranks the saved version: it is what the user was in the
       // middle of writing when the app went away.
-      setAmount(BigInt(draft.amount));
+      setAmount(safeBigInt(draft.amount));
       setDescription(draft.description);
       setSplitKind(draft.splitKind);
       setPayer(draft.payer ?? myMemberId);
@@ -411,10 +421,15 @@ export default function AddExpenseScreen() {
    * saves itself, and the amount lands in the same field, editable.
    */
   const scan = async (): Promise<void> => {
-    const picked = await captureReceipt();
-    if (!picked) return;
     setError(null);
     setScanNote(null);
+    let picked: Awaited<ReturnType<typeof captureReceipt>> = null;
+    try {
+      picked = await captureReceipt();
+    } catch {
+      picked = null;
+    }
+    if (!picked) return;
     setScanning(true);
     try {
       // Read the text on the phone first: the photograph never leaves the

@@ -21,7 +21,7 @@ import { TextInput, View } from 'react-native';
 
 import { Badge, Button, Card, iconSize, Row, Text, useTheme } from '@baaki/ui';
 
-import { useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 
 import type { MemberId } from '@baaki/core';
 
@@ -56,7 +56,7 @@ export function DisputePanel({
   onEdit,
 }: DisputePanelProps) {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const [writing, setWriting] = useState(false);
   const [reason, setReason] = useState('');
   const [answering, setAnswering] = useState<string | null>(null);
@@ -80,9 +80,7 @@ export function DisputePanel({
         <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
           <Ionicons name="alert-circle" size={iconSize.md} color={theme.color.negative} />
           <Text variant="subheading" tone="negative">
-            {open.length === 1
-              ? 'Someone thinks this is off'
-              : `${open.length} people think this is off`}
+            {plural(locale, open.length, t.misc.thinkThisOff)}
           </Text>
         </Row>
       ) : null}
@@ -179,7 +177,7 @@ export function DisputePanel({
           />
           <Row style={{ gap: theme.spacing.sm }}>
             <Button
-              label={busy ? 'Sending…' : 'Tell them'}
+              label={busy ? t.misc.sending : t.misc.tellThem}
               size="sm"
               disabled={busy}
               onPress={() => {

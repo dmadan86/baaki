@@ -82,6 +82,9 @@ export interface SmsReaderDeps {
 const DEFAULT_MAX_COUNT = 500;
 const DAY_MS = 86_400_000;
 
+/** A native call that never answers is failed rather than left hanging forever. */
+const READ_TIMEOUT_MS = 15_000;
+
 /**
  * The native `list` filter for a date window.
  *
@@ -171,11 +174,16 @@ export async function readSmsInbox(window: SmsWindow, deps: SmsReaderDeps): Prom
 
   return new Promise<SmsReadResult>((resolve) => {
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const done = (result: SmsReadResult): void => {
       if (settled) return;
       settled = true;
+      if (timer) clearTimeout(timer);
       resolve(result);
     };
+    // A native module that answers with neither callback must not leave the
+    // screen loading forever.
+    timer = setTimeout(() => done({ ok: false, reason: SmsReadFailure.Failed }), READ_TIMEOUT_MS);
     try {
       native.list(
         filter,

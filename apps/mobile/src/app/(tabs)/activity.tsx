@@ -25,6 +25,19 @@ import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
+/** A payload amount only counts if it parses. Anything else renders as nothing. */
+function parseMoney(payload: Record<string, unknown>): { amount: bigint; currency: string } | null {
+  if (typeof payload.amount !== 'string') return null;
+  try {
+    return {
+      amount: BigInt(payload.amount),
+      currency: typeof payload.currency === 'string' ? payload.currency : 'INR',
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function ActivityScreen() {
   const theme = useTheme();
   const pull = usePullRefresh();
@@ -152,15 +165,21 @@ export default function ActivityScreen() {
                         <Text variant="body" numberOfLines={3} style={{ flex: 1 }}>
                           {describeActivity(entry, myProfileId)}
                         </Text>
-                        {typeof entry.payload.amount === 'string' ? (
-                          <MoneyText
-                            amount={BigInt(entry.payload.amount)}
-                            currency={(entry.payload.currency as string) ?? 'INR'}
-                            locale={locale}
-                            variant="subheading"
-                            tone="default"
-                          />
-                        ) : null}
+                        {/* `payload` is an untyped JSON blob, so a bad amount
+                            must render as no amount, not as a crashed tab. */}
+                        {(() => {
+                          const money = parseMoney(entry.payload);
+                          if (!money) return null;
+                          return (
+                            <MoneyText
+                              amount={money.amount}
+                              currency={money.currency}
+                              locale={locale}
+                              variant="subheading"
+                              tone="default"
+                            />
+                          );
+                        })()}
                       </Row>
                       <Text variant="micro" tone="muted" style={{ marginTop: 2 }}>
                         {relativeTime(locale, entry.created_at)}

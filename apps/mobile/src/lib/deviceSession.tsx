@@ -127,11 +127,18 @@ export function DeviceSessionProvider({ children }: { children: ReactNode }) {
     const identity = await deviceIdentity();
     // The real sessions first — this is the part that actually logs the other
     // phones out; the table update below is what makes the list say so.
-    await supabase.auth.signOut({ scope: 'others' });
-    const revoked = await signOutOtherDevices(identity.deviceId);
-    await register();
-    setDismissed(true);
-    return revoked;
+    try {
+      await supabase.auth.signOut({ scope: 'others' });
+      const revoked = await signOutOtherDevices(identity.deviceId);
+      await register();
+      setDismissed(true);
+      return revoked;
+    } catch {
+      // A network failure here must not become an unhandled rejection that
+      // leaves the gate open with no word to the person; refresh and report none.
+      await register();
+      return 0;
+    }
   }, [register]);
 
   const refresh = useCallback(async () => {

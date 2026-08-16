@@ -192,6 +192,7 @@ export default function ExpenseDetailScreen() {
               day: 'numeric',
               month: 'long',
               year: 'numeric',
+              timeZone: 'UTC',
             }).format(new Date(version.expense_date))}`}
           </Text>
           <Row style={{ gap: theme.spacing.sm }}>
@@ -258,7 +259,7 @@ export default function ExpenseDetailScreen() {
                 <View key={share.member_id}>
                   <ListRow
                     title={nameOf(share.member_id)}
-                    subtitle={member && isGhost(member) ? 'not joined yet' : undefined}
+                    subtitle={member && isGhost(member) ? t.notJoinedYet : undefined}
                     leading={
                       <Avatar
                         name={avatarNameOf(share.member_id)}

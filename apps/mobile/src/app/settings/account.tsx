@@ -84,16 +84,23 @@ export default function AccountScreen() {
     }
   };
 
+  // One normalised form is validated, sent and confirmed, so the code always
+  // goes to the address the confirmation is checked against.
+  const normalised =
+    channel === ContactChannel.Email
+      ? value.trim()
+      : value.trim().replace(/[\s-]/g, '');
+
   const looksValid =
     channel === ContactChannel.Email
-      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
-      : /^\+?[0-9]{8,15}$/.test(value.trim().replace(/[\s-]/g, ''));
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalised)
+      : /^\+?[0-9]{8,15}$/.test(normalised);
 
   const send = async (): Promise<void> => {
     setError(null);
     setBusy(true);
     try {
-      await startAddingContact(channel, value);
+      await startAddingContact(channel, normalised);
       setSent(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -106,7 +113,7 @@ export default function AccountScreen() {
     setError(null);
     setBusy(true);
     try {
-      await confirmContact(channel, value, code);
+      await confirmContact(channel, normalised, code);
       await refresh();
       setDone(true);
       setSent(false);

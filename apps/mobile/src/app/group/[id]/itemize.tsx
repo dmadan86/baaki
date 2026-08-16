@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -105,6 +105,22 @@ export default function ItemizeScreen() {
   /** A bill that has been scanned but not yet handed to the table. */
   const [scanId, setScanId] = useState<string | null>(null);
 
+  const currency = group.data?.default_currency ?? 'INR';
+  const scale = minorUnitScale(currency);
+  // Digits after the point for this currency: 2 for INR (scale 100), 0 for JPY
+  // (scale 1), 3 for KWD (scale 1000). Everything major↔minor rides `scale`;
+  // nothing may assume 100.
+  const digits = String(scale).length - 1;
+  const toMajor = (minor: bigint): string =>
+    digits === 0 ? minor.toString() : (Number(minor) / Number(scale)).toFixed(digits);
+
+  const toMinor = (text: string): bigint => {
+    const match = new RegExp(`^(\\d+)(?:\\.(\\d{1,${Math.max(digits, 1)}}))?$`).exec(text.trim());
+    if (!match) return 0n;
+    const [, whole = '0', fraction = ''] = match;
+    return BigInt(whole) * scale + BigInt(fraction.padEnd(digits, '0') || '0');
+  };
+
   /**
    * ADR-008: the model proposes, the person confirms. Everything it read lands
    * in the same editable list somebody would have typed by hand, so correcting
@@ -120,8 +136,8 @@ export default function ItemizeScreen() {
       })),
     );
     const taxes = parsed.taxes.reduce((sum, tax) => sum + tax.amount, 0);
-    if (taxes > 0) setTaxText((taxes / 100).toString());
-    if (parsed.tip) setTipText((parsed.tip / 100).toString());
+    if (taxes > 0) setTaxText(toMajor(BigInt(taxes)));
+    if (parsed.tip) setTipText(toMajor(BigInt(parsed.tip)));
     if (parsed.merchant) {
       setDescription((current) => (current.trim() ? current : (parsed.merchant ?? '')));
     }
@@ -131,16 +147,24 @@ export default function ItemizeScreen() {
   // cleared: nobody should be asked to photograph the same receipt twice, and
   // nobody who came here to type should find last week's dinner waiting.
   const handover = useRestoredDraft<ReceiptHandover>(handoverKey(groupId));
-  const [tookHandover, setTookHandover] = useState(false);
-  if (!handover.loading && handover.draft && !tookHandover) {
-    setTookHandover(true);
+  const tookHandover = useRef(false);
+  // A one-shot effect, not render work: it performs I/O (clearDraft) and then
+  // seeds the fields from the carried-over receipt. The ref fires it once; the
+  // setState calls are the intended payload of that one run, so the
+  // cascading-render heuristic is silenced deliberately, and only the
+  // draft/loading identity should re-arm it.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (handover.loading || !handover.draft || tookHandover.current) return;
+    tookHandover.current = true;
     void clearDraft(handoverKey(groupId));
-    if (handoverIsFresh(handover.draft)) {
-      fillFromReceipt(handover.draft.parsed);
-      if (handover.draft.receiptId) setScanId(handover.draft.receiptId);
-      setScanNote(t.itemize.carriedOver);
-    }
-  }
+    if (!handoverIsFresh(handover.draft)) return;
+    fillFromReceipt(handover.draft.parsed);
+    if (handover.draft.receiptId) setScanId(handover.draft.receiptId);
+    setScanNote(t.itemize.carriedOver);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handover.loading, handover.draft, groupId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const scan = async (): Promise<void> => {
     const picked = await captureReceipt();
@@ -185,16 +209,6 @@ export default function ItemizeScreen() {
     } finally {
       setScanning(false);
     }
-  };
-
-  const currency = group.data?.default_currency ?? 'INR';
-  const scale = minorUnitScale(currency);
-
-  const toMinor = (text: string): bigint => {
-    const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text.trim());
-    if (!match) return 0n;
-    const [, whole = '0', fraction = ''] = match;
-    return BigInt(whole) * scale + BigInt(fraction.padEnd(2, '0') || '0');
   };
 
   const myMemberId = useMemo(
