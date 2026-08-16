@@ -33,7 +33,7 @@ import {
   useGroupRealtime,
   useOpenReceipts,
 } from '@/data/hooks';
-import { describeActivity, verbEmoji } from '@/data/activity';
+import { describeActivity, parseMoney, verbEmoji } from '@/data/activity';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
 import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
@@ -526,16 +526,17 @@ export default function GroupScreen() {
                           size={38}
                         />
                       }
-                      trailing={
-                        typeof entry.payload.amount === 'string' ? (
+                      trailing={(() => {
+                        const money = parseMoney(entry.payload, currency);
+                        return money ? (
                           <MoneyText
-                            amount={BigInt(entry.payload.amount)}
-                            currency={(entry.payload.currency as string) ?? currency}
+                            amount={money.amount}
+                            currency={money.currency}
                             locale={locale}
                             variant="caption"
                           />
-                        ) : null
-                      }
+                        ) : null;
+                      })()}
                     />
                     {index < (activity.data?.length ?? 0) - 1 ? (
                       <View style={{ height: 1, backgroundColor: theme.color.border }} />

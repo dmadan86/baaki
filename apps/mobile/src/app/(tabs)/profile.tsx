@@ -24,6 +24,7 @@ import {
 
 import { CountryRow } from '@/components/CountryPicker';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { SkeletonList } from '@/components/Skeletons';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
 import {
@@ -273,8 +274,16 @@ export default function ProfileScreen() {
   const { profile } = useAuth();
   // The form seeds its state from `profile` exactly once, so it must not mount
   // before there is a profile to seed it from — otherwise Save writes the
-  // empty seed back over the real row.
-  return <ProfileForm key={profile?.id ?? 'pending'} />;
+  // empty seed back over the real row. Hold on a skeleton until it arrives,
+  // then mount keyed on the id so the seed is taken from real data.
+  if (!profile) {
+    return (
+      <Screen>
+        <SkeletonList rows={6} />
+      </Screen>
+    );
+  }
+  return <ProfileForm key={profile.id} />;
 }
 
 function ProfileForm() {

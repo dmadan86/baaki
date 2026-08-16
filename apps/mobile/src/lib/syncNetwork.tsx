@@ -18,6 +18,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -66,11 +67,20 @@ export function SyncNetworkProvider({ children }: { children: ReactNode }) {
   const [preference, setStored] = useState<SyncNetworkPreference>(DEFAULT);
   const [loading, setLoading] = useState(true);
 
+  // Writes are serialized on this chain so they persist in request order, a
+  // revision marks the newest request, and the last value known to be on disk is
+  // the safe rollback target — together these stop an older, slower write from
+  // overwriting a newer one on disk or on screen.
+  const chainRef = useRef<Promise<void>>(Promise.resolve());
+  const revisionRef = useRef(0);
+  const committedRef = useRef<SyncNetworkPreference>(DEFAULT);
+
   useEffect(() => {
     let active = true;
     void (async () => {
       const saved = await loadSyncNetworkPreference();
       if (!active) return;
+      committedRef.current = saved;
       setStored(saved);
       setLoading(false);
     })();
@@ -79,24 +89,27 @@ export function SyncNetworkProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const setPreference = useCallback(
-    async (value: SyncNetworkPreference) => {
-      const previous = preference;
-      setStored(value);
+  const setPreference = useCallback(async (value: SyncNetworkPreference) => {
+    const revision = ++revisionRef.current;
+    setStored(value);
+    const run = chainRef.current.then(async () => {
       try {
         // Wi‑Fi is the default, so storing it is the same as storing nothing —
         // and clearing the key keeps a fresh install and a reset-to-default
         // identical.
         if (value === DEFAULT) await AsyncStorage.removeItem(KEY);
         else await AsyncStorage.setItem(KEY, value);
+        committedRef.current = value;
       } catch {
         // The engine reads from disk, so a switch that did not persist must not
-        // keep claiming it did.
-        setStored(previous);
+        // keep claiming it did — but only roll back when nothing newer has been
+        // requested since, or a stale failure would clobber a newer choice.
+        if (revision === revisionRef.current) setStored(committedRef.current);
       }
-    },
-    [preference],
-  );
+    });
+    chainRef.current = run;
+    return run;
+  }, []);
 
   const value = useMemo<SyncNetworkValue>(
     () => ({ preference, loading, setPreference }),

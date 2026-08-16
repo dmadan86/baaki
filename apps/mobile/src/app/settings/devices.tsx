@@ -65,7 +65,11 @@ export default function DevicesScreen() {
     setMessage(null);
     try {
       const revoked = await signOutOthers();
-      setMessage(plural(locale, revoked, t.devices.signedOutOthers));
+      // null means the sessions were revoked but the count could not be
+      // confirmed; show a plain acknowledgement instead of a false "0 devices".
+      setMessage(
+        revoked === null ? t.devices.signedOut : plural(locale, revoked, t.devices.signedOutOthers),
+      );
       await queryClient.invalidateQueries({ queryKey: ['devices'] });
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : String(caught));

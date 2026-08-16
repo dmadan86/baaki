@@ -15,6 +15,31 @@
 
 import { actorName, type ActivityRow } from './types';
 
+/**
+ * An activity `payload` is an untyped JSON blob, so a bad amount must render as
+ * no amount, not as a crashed feed. Shared by both feed screens so they parse
+ * it the same way. `fallbackCurrency` is the caller's default — 'INR' on the
+ * cross-group tab, the group's own currency on a group.
+ */
+export function parseMoney(
+  payload: unknown,
+  fallbackCurrency = 'INR',
+): { amount: bigint; currency: string } | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const record = payload as Record<string, unknown>;
+  if (typeof record.amount !== 'string') return null;
+  const trimmed = record.amount.trim();
+  if (trimmed === '') return null;
+  try {
+    return {
+      amount: BigInt(trimmed),
+      currency: typeof record.currency === 'string' ? record.currency : fallbackCurrency,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function describeActivity(entry: ActivityRow, myProfileId: string | null): string {
   const { payload } = entry;
   const description = typeof payload.description === 'string' ? payload.description : null;

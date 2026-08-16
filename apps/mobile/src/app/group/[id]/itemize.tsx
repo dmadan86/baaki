@@ -115,7 +115,12 @@ export default function ItemizeScreen() {
     digits === 0 ? minor.toString() : (Number(minor) / Number(scale)).toFixed(digits);
 
   const toMinor = (text: string): bigint => {
-    const match = new RegExp(`^(\\d+)(?:\\.(\\d{1,${Math.max(digits, 1)}}))?$`).exec(text.trim());
+    // A zero-decimal currency (JPY, scale 1) has no fraction, so a decimal point
+    // is invalid input, not extra minor units — reject it rather than folding
+    // the digits in. Currencies with digits > 0 keep their fractional parse.
+    const pattern =
+      digits === 0 ? /^(\d+)$/ : new RegExp(`^(\\d+)(?:\\.(\\d{1,${digits}}))?$`);
+    const match = pattern.exec(text.trim());
     if (!match) return 0n;
     const [, whole = '0', fraction = ''] = match;
     return BigInt(whole) * scale + BigInt(fraction.padEnd(digits, '0') || '0');

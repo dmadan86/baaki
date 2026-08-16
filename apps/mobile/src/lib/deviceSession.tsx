@@ -44,8 +44,13 @@ const HEARTBEAT_MS = 60 * 60 * 1000;
 interface DeviceSessionValue {
   /** Null until the first registration answers, or for guests. */
   status: DeviceLimitStatus | null;
-  /** Sign out every other device — GoTrue sessions and the table both. */
-  signOutOthers: () => Promise<number>;
+  /**
+   * Sign out every other device — GoTrue sessions and the table both. Resolves
+   * to the number of registry rows retired, or null when the sessions were
+   * revoked but that count could not be confirmed. Rejects only when the session
+   * revocation itself failed (nothing was signed out).
+   */
+  signOutOthers: () => Promise<number | null>;
   /** Re-ask the server where the account stands. */
   refresh: () => Promise<void>;
 }
@@ -125,19 +130,28 @@ export function DeviceSessionProvider({ children }: { children: ReactNode }) {
 
   const signOutOthers = useCallback(async () => {
     const identity = await deviceIdentity();
-    // The real sessions first — this is the part that actually logs the other
-    // phones out; the table update below is what makes the list say so.
+    // The real session revocation first — this is the part that actually logs
+    // the other phones out; the table update below only makes the list say so.
+    // If this itself fails, nothing was revoked: surface the error, keep the gate.
     try {
       await supabase.auth.signOut({ scope: 'others' });
+    } catch (caught) {
+      await register();
+      throw caught;
+    }
+    // The sessions are gone, so the gate has served its purpose whether or not
+    // the registry table catches up. Dismiss before the reconciliation that can
+    // still fail on a flaky network.
+    setDismissed(true);
+    try {
       const revoked = await signOutOtherDevices(identity.deviceId);
       await register();
-      setDismissed(true);
       return revoked;
     } catch {
-      // A network failure here must not become an unhandled rejection that
-      // leaves the gate open with no word to the person; refresh and report none.
+      // Only the list update failed; the sessions are already revoked. Refresh
+      // what we can and report an unconfirmed count rather than a false zero.
       await register();
-      return 0;
+      return null;
     }
   }, [register]);
 
@@ -162,7 +176,7 @@ function DeviceLimitGate({
   onSignOutOthers,
 }: {
   onDismiss: () => void;
-  onSignOutOthers: () => Promise<number>;
+  onSignOutOthers: () => Promise<number | null>;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
@@ -201,6 +215,9 @@ function DeviceLimitGate({
                 setBusy(true);
                 try {
                   await onSignOutOthers();
+                } catch {
+                  // The failure is reported on the devices screen; here the gate
+                  // simply stays up so the person can try again.
                 } finally {
                   setBusy(false);
                 }

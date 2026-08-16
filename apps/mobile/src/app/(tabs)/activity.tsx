@@ -17,26 +17,13 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { describeActivity, relativeTime, verbEmoji } from '@/data/activity';
+import { describeActivity, parseMoney, relativeTime, verbEmoji } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
 import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
-
-/** A payload amount only counts if it parses. Anything else renders as nothing. */
-function parseMoney(payload: Record<string, unknown>): { amount: bigint; currency: string } | null {
-  if (typeof payload.amount !== 'string') return null;
-  try {
-    return {
-      amount: BigInt(payload.amount),
-      currency: typeof payload.currency === 'string' ? payload.currency : 'INR',
-    };
-  } catch {
-    return null;
-  }
-}
 
 export default function ActivityScreen() {
   const theme = useTheme();

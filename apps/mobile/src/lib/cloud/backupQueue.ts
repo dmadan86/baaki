@@ -85,9 +85,17 @@ export async function runBackup(ctx: BackupContext): Promise<BackupOutcome> {
 
     for (const entry of pending) {
       if (entry.attempts >= MAX_ATTEMPTS) continue;
-      // A receipt with no sidecar has nothing valid to upload as its metadata;
-      // skip rather than send the image named as JSON.
-      if (!entry.jsonUri) continue;
+      // A receipt with no sidecar has nothing valid to upload as its metadata.
+      // Mark it errored rather than skip silently: a silent `continue` leaves it
+      // pending forever with no reason the settings screen can show.
+      if (!entry.jsonUri) {
+        await markError(
+          entry.captureId,
+          'This receipt is missing its saved details and cannot be backed up.',
+          nowIso(),
+        );
+        continue;
+      }
       try {
         const result = await provider.upload(tokens, {
           captureId: entry.captureId,
