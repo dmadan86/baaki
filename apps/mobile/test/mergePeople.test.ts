@@ -105,6 +105,7 @@ describe('mergeErrorMessage', () => {
     errorTooFew: 'pick two',
     errorNotMergeable: 'guests only',
     errorNameRequired: 'name needed',
+    errorNotSignedIn: 'signed out',
     errorGeneric: 'something went wrong',
   };
 
@@ -121,11 +122,15 @@ describe('mergeErrorMessage', () => {
     expect(mergeErrorMessage(new Error('NAME_REQUIRED: the merged person needs a name'), t)).toBe(
       'name needed',
     );
+    expect(mergeErrorMessage(new Error('NOT_SIGNED_IN'), t)).toBe('signed out');
   });
 
-  it('falls back to generic for an unrecognised or infra error', () => {
-    expect(mergeErrorMessage(new Error('NOT_SIGNED_IN'), t)).toBe('something went wrong');
+  it('falls back to the generic line for an unrecognised error, leaking nothing', () => {
+    // Raw Postgres/network text is developer detail — never surfaced to a person.
     expect(mergeErrorMessage(new Error('Network request failed'), t)).toBe('something went wrong');
+    expect(
+      mergeErrorMessage(new Error('function public.baaki_merge_ghosts does not exist'), t),
+    ).toBe('something went wrong');
   });
 
   it('handles a non-Error thrown value', () => {

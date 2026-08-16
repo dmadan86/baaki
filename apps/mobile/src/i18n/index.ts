@@ -689,6 +689,7 @@ export interface UiStrings {
     errorTooFew: string;
     errorNotMergeable: string;
     errorNameRequired: string;
+    errorNotSignedIn: string;
     errorGeneric: string;
   };
   /** Group photos are a paid feature; the cover emoji stays free for everyone. */
@@ -1875,6 +1876,7 @@ const en: UiStrings = {
     errorTooFew: 'Pick at least two people to merge.',
     errorNotMergeable: 'You can only merge guests you share a group with.',
     errorNameRequired: 'Give the merged person a name.',
+    errorNotSignedIn: 'You’re signed out. Sign in and try the merge again.',
     errorGeneric: 'Could not merge. Please try again.',
   },
   groupPhoto: {
@@ -3151,6 +3153,7 @@ const ta: UiStrings = {
     errorTooFew: 'இணைக்க குறைந்தது இரண்டு நபர்களைத் தேர்ந்தெடுக்கவும்.',
     errorNotMergeable: 'நீங்கள் பகிரும் குழுவில் உள்ள விருந்தினர்களை மட்டுமே இணைக்க முடியும்.',
     errorNameRequired: 'இணைந்த நபருக்கு ஒரு பெயரைக் கொடுக்கவும்.',
+    errorNotSignedIn: 'நீங்கள் வெளியேறிவிட்டீர்கள். உள்நுழைந்து மீண்டும் இணைக்க முயற்சிக்கவும்.',
     errorGeneric: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   },
   groupPhoto: {
@@ -4441,6 +4444,7 @@ const hi: UiStrings = {
     errorNotMergeable:
       'आप केवल उन मेहमानों को मर्ज कर सकते हैं जिनके साथ आप कोई समूह साझा करते हैं.',
     errorNameRequired: 'मर्ज किए गए व्यक्ति को एक नाम दें.',
+    errorNotSignedIn: 'आप साइन आउट हैं. साइन इन करके फिर से मर्ज करें.',
     errorGeneric: 'मर्ज नहीं हो सका. कृपया फिर से प्रयास करें.',
   },
   groupPhoto: {
@@ -5732,6 +5736,7 @@ const ar: UiStrings = {
     errorTooFew: 'اختر شخصين على الأقل للدمج.',
     errorNotMergeable: 'يمكنك دمج الضيوف الذين تشاركهم مجموعة فقط.',
     errorNameRequired: 'أعطِ الشخص المدمج اسمًا.',
+    errorNotSignedIn: 'أنت مسجّل الخروج. سجّل الدخول وحاول الدمج مرة أخرى.',
     errorGeneric: 'تعذّر الدمج. يرجى المحاولة مرة أخرى.',
   },
   groupPhoto: {
