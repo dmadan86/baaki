@@ -238,3 +238,41 @@ async function canUpload(groupId: string | null): Promise<boolean> {
   const { rows } = await client.query(`SELECT baaki_can_upload_group_photo($1) AS ok`, [groupId]);
   return rows[0]?.ok === true;
 }
+
+describe('the creator membership id can be chosen by the client', () => {
+  it('uses the id the client passed, so an offline expense can name it', async () => {
+    // A group made offline needs its creator to be a member with the id the
+    // client already chose (20260816130000), so a queued IOU expense references
+    // a member that exists with exactly this id once it syncs.
+    const profileId = await createProfile('Asha');
+    const groupId = randomUUID();
+    const memberId = randomUUID();
+
+    await asUser(profileId, () =>
+      client.query(
+        `SELECT baaki_create_group($1, 'other', 'INR', NULL, true, $2, NULL, NULL, $3)`,
+        ['Ravi', groupId, memberId],
+      ),
+    );
+
+    const { rows } = await client.query(
+      `SELECT id, role FROM group_members WHERE group_id = $1 AND profile_id = $2`,
+      [groupId, profileId],
+    );
+    expect(rows[0]?.id).toBe(memberId);
+    expect(rows[0]?.role).toBe('admin');
+  });
+
+  it('still mints one when the client does not pass an id', async () => {
+    // The 7-arg call the rest of the suite uses omits it; the creator is still an
+    // admin member, just with a server id — backward compatible.
+    const profileId = await createProfile('Asha');
+    const groupId = await createGroup(profileId);
+    const { rows } = await client.query(
+      `SELECT id, role FROM group_members WHERE group_id = $1 AND profile_id = $2`,
+      [groupId, profileId],
+    );
+    expect(rows[0]?.id).toBeTruthy();
+    expect(rows[0]?.role).toBe('admin');
+  });
+});

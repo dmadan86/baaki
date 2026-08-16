@@ -405,7 +405,36 @@ export function materialiseMembers(
   }
 
   for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
-    if (mutation.groupId !== options.groupId || mutation.kind !== 'member.add_ghost') continue;
+    if (mutation.groupId !== options.groupId) continue;
+
+    // A group created offline must show its creator as a member at once, with
+    // the id the client chose — so an expense queued behind it in the same
+    // breath can already name who paid, and matches once the server (which now
+    // honours the same id) has applied it. Without this the creator would be
+    // invisible until the create synced back.
+    if (mutation.kind === 'group.create') {
+      const payload = mutation.payload as {
+        creatorMemberId?: string | null;
+        creatorProfileId?: string | null;
+      };
+      const id = payload.creatorMemberId ?? `pending:${mutation.clientMutationId}`;
+      if (!byId.has(id)) {
+        byId.set(id, {
+          id,
+          group_id: mutation.groupId,
+          profile_id: payload.creatorProfileId ?? null,
+          ghost_name: null,
+          left_at: null,
+          invite_email: null,
+          invite_phone: null,
+          role: 'admin',
+          pending: true,
+        });
+      }
+      continue;
+    }
+
+    if (mutation.kind !== 'member.add_ghost') continue;
     const payload = mutation.payload as {
       memberId?: string;
       name: string;

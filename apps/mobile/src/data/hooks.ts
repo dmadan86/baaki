@@ -674,9 +674,14 @@ function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<str
  */
 export function useCreateGroup() {
   const { mutate } = useSync();
+  const { profile } = useAuth();
   return useMutation({
     mutationFn: async (input: Parameters<typeof createGroup>[0]) => {
       const groupId = input.groupId ?? randomUUID();
+      // Always name the creator's membership id, even when the caller did not,
+      // so any expense made in this group offline references a member that will
+      // exist with this exact id once the create syncs (the server honours it).
+      const creatorMemberId = input.creatorMemberId ?? randomUUID();
       await mutate(MutationKind.GroupCreate, groupId, {
         name: input.name?.trim() || null,
         type: input.type,
@@ -685,6 +690,8 @@ export function useCreateGroup() {
         simplify: input.simplify ?? true,
         photoPath: input.photoPath ?? null,
         country: input.country ?? null,
+        creatorMemberId,
+        creatorProfileId: profile?.id ?? null,
       });
       return groupId;
     },

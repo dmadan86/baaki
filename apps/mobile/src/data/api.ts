@@ -278,6 +278,12 @@ export async function createGroup(input: {
    * which is a supported state, not a broken one.
    */
   country?: string | null;
+  /**
+   * The creator's own membership id, chosen by the client so an expense created
+   * in the same breath (an offline IOU) can name it before the server assigns
+   * one. Omitted, the server mints it as before.
+   */
+  creatorMemberId?: string;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('baaki_create_group', {
     p_name: input.name?.trim() || null,
@@ -288,6 +294,7 @@ export async function createGroup(input: {
     p_group_id: input.groupId ?? null,
     p_photo_path: input.photoPath ?? null,
     p_country: input.country ?? null,
+    p_creator_member_id: input.creatorMemberId ?? null,
   });
   if (error) throw new Error(error.message);
   return data as string;

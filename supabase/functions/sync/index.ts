@@ -352,6 +352,10 @@ class SyncSession {
           // The client already chose this id and its queued expenses reference it.
           p_group_id: mutation.groupId,
           p_photo_path: (mutation.payload.photoPath as string | undefined) ?? null,
+          // And the creator's membership id, so an IOU expense queued in the same
+          // breath names a member that will exist with this exact id (A34-style
+          // offline group creation). Absent, the RPC mints one as before.
+          p_creator_member_id: (mutation.payload.creatorMemberId as string | undefined) ?? null,
           // Which country the group is in decides which payment rails it is
           // offered (ADR-012). Dropped here, a group created offline came back
           // with no rails and no way to settle on one.
