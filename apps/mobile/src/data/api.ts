@@ -46,9 +46,12 @@ const GROUP_SELECT = `
   archived_at, created_at
 `;
 
+// profiles is embedded by its FK column (profile_id): ghost_merges references
+// both group_members and profiles, so PostgREST sees two group_members↔profiles
+// relationships and an unqualified embed fails ("more than one relationship").
 const MEMBER_SELECT = `
   id, group_id, profile_id, ghost_name, role, vpa, payment_rail, payment_handle, left_at,
-  profile:profiles ( id, display_name, avatar_url, default_vpa, payment_rail, payment_handle )
+  profile:profiles!profile_id ( id, display_name, avatar_url, default_vpa, payment_rail, payment_handle )
 `;
 
 const EXPENSE_SELECT = `
@@ -128,7 +131,7 @@ export async function fetchActivity(groupId: string, limit = 50): Promise<Activi
       .select(
         `id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
          actor:group_members!activity_log_actor_member_id_fkey (
-           id, profile_id, ghost_name, profile:profiles ( display_name )
+           id, profile_id, ghost_name, profile:profiles!profile_id ( display_name )
          )`,
       )
       .eq('group_id', groupId)
@@ -148,7 +151,7 @@ export async function fetchRecentActivity(
         `id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
          group:groups ( id, name, cover_emoji ),
          actor:group_members!activity_log_actor_member_id_fkey (
-           id, profile_id, ghost_name, profile:profiles ( display_name )
+           id, profile_id, ghost_name, profile:profiles!profile_id ( display_name )
          )`,
       )
       .order('created_at', { ascending: false })
@@ -246,7 +249,7 @@ export async function fetchMembersByGroup(): Promise<Map<string, MemberRow[]>> {
     await supabase
       .from('group_members')
       .select(
-        'id, group_id, profile_id, ghost_name, role, vpa, left_at, invite_email, invite_phone, profile:profiles ( id, display_name, avatar_url, default_vpa )',
+        'id, group_id, profile_id, ghost_name, role, vpa, left_at, invite_email, invite_phone, profile:profiles!profile_id ( id, display_name, avatar_url, default_vpa )',
       )
       .is('left_at', null)
       .order('created_at', { ascending: true }),

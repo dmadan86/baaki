@@ -39,21 +39,24 @@ const GROUP_ROW_COLUMNS = `
   start_date, end_date, archived_at, created_at
 `;
 
+// profiles is embedded by its FK column (profile_id): ghost_merges references
+// both group_members and profiles, so PostgREST sees two group_members↔profiles
+// relationships and an unqualified embed fails ("more than one relationship").
 const MEMBER_ROW_COLUMNS = `
   id, group_id, profile_id, ghost_name, role, vpa, left_at,
-  profile:profiles ( id, display_name, avatar_url, default_vpa )
+  profile:profiles!profile_id ( id, display_name, avatar_url, default_vpa )
 `;
 
 const ACTIVITY_COLUMNS = `
   id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
   actor:group_members!activity_log_actor_member_id_fkey (
-    id, profile_id, ghost_name, profile:profiles ( display_name )
+    id, profile_id, ghost_name, profile:profiles!profile_id ( display_name )
   )
 `;
 
 const MEMBER_COLUMNS = `
   id, group_id, profile_id, ghost_name, left_at, role,
-  profile:profiles ( display_name )
+  profile:profiles!profile_id ( display_name )
 `;
 
 const EXPENSE_COLUMNS = `

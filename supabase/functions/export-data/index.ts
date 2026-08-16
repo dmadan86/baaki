@@ -70,7 +70,9 @@ serveWithCors(async (request) => {
         service.from('groups').select('*').eq('id', groupId).single(),
         service
           .from('group_members')
-          .select('*, profile:profiles ( display_name )')
+          // Hint the FK column: ghost_merges bridges group_members and profiles,
+          // so an unqualified profiles embed is ambiguous.
+          .select('*, profile:profiles!profile_id ( display_name )')
           .eq('group_id', groupId),
         service
           .from('expenses')
