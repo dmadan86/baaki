@@ -121,12 +121,6 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
 function settingsRows(t: UiStrings): SettingsRow[] {
   return [
     {
-      icon: 'person-circle-outline',
-      label: t.account.yourAccount,
-      hint: t.account.yourAccountHint,
-      route: '/settings/account',
-    },
-    {
       icon: 'notifications-outline',
       label: t.account.notifications,
       hint: t.account.notificationsHint,
@@ -166,19 +160,23 @@ function settingsRows(t: UiStrings): SettingsRow[] {
 }
 
 /**
- * You and Paying used to be two faces of this screen, switched with a segmented
- * control that sat between the hero and the settings. They are the two things a
- * person edits about themselves rather than about the app, so they now lead the
- * settings list as their own rows — each a page of its own, reached the same way
- * every other setting is.
+ * Your account and Paying used to be two faces of this screen, switched with a
+ * segmented control that sat between the hero and the settings. They are the
+ * two things a person edits about themselves rather than about the app, so they
+ * now lead the settings list as their own rows — each a page of its own,
+ * reached the same way every other setting is.
+ *
+ * "You" (just the name) and "Your account" (email, phone, sign-in links) were
+ * one thing split across two screens, so they are folded into a single "Your
+ * account" page that carries the name too.
  */
 function profileRows(t: UiStrings): SettingsRow[] {
   return [
     {
-      icon: 'person-outline',
-      label: t.account.faceYou,
-      hint: t.account.youRowHint,
-      route: '/settings/you',
+      icon: 'person-circle-outline',
+      label: t.account.yourAccount,
+      hint: t.account.yourAccountHint,
+      route: '/settings/account',
     },
     {
       icon: 'card-outline',

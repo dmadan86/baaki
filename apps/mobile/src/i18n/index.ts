@@ -497,7 +497,6 @@ export interface UiStrings {
     sectionBaaki: string;
     sectionSettings: string;
     sectionSecurity: string;
-    youRowHint: string;
     upgradeHint: string;
     yourAccount: string;
     yourAccountHint: string;
@@ -1674,7 +1673,6 @@ const en: UiStrings = {
     sectionBaaki: 'Baaki',
     sectionSettings: 'Settings',
     sectionSecurity: 'Security',
-    youRowHint: 'Your name and how you appear',
     upgradeHint: 'Nothing to buy yet — the ledger stays free',
     yourAccount: 'Your account',
     yourAccountHint: 'Add an email or phone, or carry on as a guest',
@@ -2944,7 +2942,6 @@ const ta: UiStrings = {
     sectionBaaki: 'பாக்கி',
     sectionSettings: 'அமைப்புகள்',
     sectionSecurity: 'பாதுகாப்பு',
-    youRowHint: 'உங்கள் பெயரும் நீங்கள் எப்படித் தோன்றுகிறீர்கள் என்பதும்',
     upgradeHint: 'வாங்க இன்னும் ஒன்றுமில்லை — கணக்கு இலவசமாகவே இருக்கும்',
     yourAccount: 'உங்கள் கணக்கு',
     yourAccountHint: 'மின்னஞ்சல் அல்லது தொலைபேசியைச் சேர், அல்லது விருந்தினராகவே தொடர்',
@@ -4244,7 +4241,6 @@ const hi: UiStrings = {
     sectionBaaki: 'बाकी',
     sectionSettings: 'सेटिंग्स',
     sectionSecurity: 'सुरक्षा',
-    youRowHint: 'आपका नाम और आप कैसे दिखते हैं',
     upgradeHint: 'अभी खरीदने को कुछ नहीं — हिसाब मुफ़्त ही रहेगा',
     yourAccount: 'आपका खाता',
     yourAccountHint: 'ईमेल या फ़ोन जोड़ें, या मेहमान बने रहें',
@@ -5540,7 +5536,6 @@ const ar: UiStrings = {
     sectionBaaki: 'باقي',
     sectionSettings: 'الإعدادات',
     sectionSecurity: 'الأمان',
-    youRowHint: 'اسمك وكيف تظهر للآخرين',
     upgradeHint: 'لا شيء للشراء بعد — الدفتر يبقى مجانيًا',
     yourAccount: 'حسابك',
     yourAccountHint: 'أضف بريدًا أو هاتفًا، أو تابع كضيف',

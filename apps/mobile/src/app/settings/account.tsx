@@ -36,7 +36,7 @@ export default function AccountScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t } = useStrings();
-  const { session, isGuest, refresh, withGoogle, withApple } = useAuth();
+  const { session, profile, isGuest, refresh, updateProfile, withGoogle, withApple } = useAuth();
 
   // Set when a guest was sent here by a limit rather than arriving on their own
   // (ADR-006 addendum). It only changes the explainer at the top; the linking
@@ -48,6 +48,12 @@ export default function AccountScreen() {
       : reason === 'trial_expired'
         ? t.contact.gateExpiredBody
         : null;
+
+  // The display name lives here now — "You" folded into "Your account", since
+  // both were the same thing edited on two screens. Seeded once from the
+  // profile; the key on this screen's owner keeps it honest across a swap.
+  const [name, setName] = useState(profile?.display_name ?? '');
+  const [nameStatus, setNameStatus] = useState<string | null>(null);
 
   const [channel, setChannel] = useState<ContactChannel>(ContactChannel.Email);
   const [value, setValue] = useState('');
@@ -81,6 +87,19 @@ export default function AccountScreen() {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const nameDirty = name.trim() !== (profile?.display_name ?? '');
+
+  const saveName = async (): Promise<void> => {
+    setNameStatus(null);
+    try {
+      // Only the name. The empty name falls back to "You" so nobody is nameless.
+      await updateProfile({ display_name: name.trim() || t.account.you });
+      setNameStatus(t.account.saved);
+    } catch (caught) {
+      setNameStatus(caught instanceof Error ? caught.message : String(caught));
     }
   };
 
@@ -146,6 +165,43 @@ export default function AccountScreen() {
           </View>
           <View style={{ width: 44 }} />
         </Row>
+
+        {/* Your name, and how you appear to everyone else. Folded in from the
+            old "You" screen so the whole account lives on one page. */}
+        <Card style={{ gap: theme.spacing.lg }}>
+          <View style={{ gap: theme.spacing.xs }}>
+            <Text variant="caption" tone="muted">
+              {t.account.displayName}
+            </Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              accessibilityLabel={t.account.displayName}
+              placeholder={t.common.yourName}
+              placeholderTextColor={theme.color.textFaint}
+              style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: theme.color.text,
+                paddingVertical: theme.spacing.sm,
+              }}
+            />
+          </View>
+          <Button
+            label={t.common.save}
+            fullWidth
+            disabled={!nameDirty}
+            onPress={() => void saveName()}
+          />
+          {nameStatus ? (
+            <Text
+              variant="caption"
+              tone={nameStatus === t.account.saved ? 'positive' : 'negative'}
+            >
+              {nameStatus}
+            </Text>
+          ) : null}
+        </Card>
 
         <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
           <Row style={{ gap: theme.spacing.sm }}>
