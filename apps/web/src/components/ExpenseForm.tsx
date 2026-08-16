@@ -75,69 +75,81 @@ export function ExpenseForm({
   useEffect(() => {
     let active = true;
     void (async () => {
-      const [g, m, existing] = await Promise.all([
-        baaki.group(groupId),
-        baaki.members(groupId),
-        expenseId ? baaki.expense(expenseId) : Promise.resolve(null),
-      ]);
-      if (!active) return;
-      setGroup(g);
-      setMembers(m);
+      try {
+        const [g, m, existing] = await Promise.all([
+          baaki.group(groupId),
+          baaki.members(groupId),
+          expenseId ? baaki.expense(expenseId) : Promise.resolve(null),
+        ]);
+        if (!active) return;
+        setGroup(g);
+        setMembers(m);
 
-      const version = existing?.currentVersion ?? null;
-      if (version) {
-        const currency = version.currency as CurrencyCode;
-        setDescription(version.description);
-        setAmountText(toMajorString(coreMoney(BigInt(version.amount), currency)));
-        setExpenseDate(version.expense_date);
-        setPayer(version.payers[0]?.member_id ?? null);
-        setParticipants(version.shares.map((s) => s.member_id));
-        try {
-          // Deserialise the stored split back into the editor. Anything the web
-          // cannot express (adjustment, itemised) drops to a read-only note.
-          const parsed = parseSplitParams(version.split_params);
-          switch (parsed.kind) {
-            case 'equal':
-              setKind(SplitKind.Equal);
-              break;
-            case 'exact':
-              setKind(SplitKind.Exact);
-              setExact(
-                Object.fromEntries(
-                  Object.entries(parsed.amounts).map(([id, minor]) => [
-                    id,
-                    toMajorString(coreMoney(minor, currency)),
-                  ]),
-                ),
-              );
-              break;
-            case 'percent':
-              setKind(SplitKind.Percent);
-              setPercent(
-                Object.fromEntries(
-                  Object.entries(parsed.basisPoints).map(([id, bp]) => [id, String(bp / 100)]),
-                ),
-              );
-              break;
-            case 'shares':
-              setKind(SplitKind.Shares);
-              setWeights(
-                Object.fromEntries(
-                  Object.entries(parsed.weights).map(([id, w]) => [id, String(w)]),
-                ),
-              );
-              break;
-            default:
-              setUnsupported(true);
+        const version = existing?.currentVersion ?? null;
+        if (version) {
+          const currency = version.currency as CurrencyCode;
+          // Several payers is the app's own split; rewriting it here would
+          // collapse everyone's contribution onto the first payer. Bail out to
+          // the read-only note instead of silently changing the ledger.
+          if (version.payers.length > 1) {
+            setUnsupported(true);
+            return;
           }
-        } catch {
-          setUnsupported(true);
+          setDescription(version.description);
+          setAmountText(toMajorString(coreMoney(BigInt(version.amount), currency)));
+          setExpenseDate(version.expense_date);
+          setPayer(version.payers[0]?.member_id ?? null);
+          setParticipants(version.shares.map((s) => s.member_id));
+          try {
+            // Deserialise the stored split back into the editor. Anything the web
+            // cannot express (adjustment, itemised) drops to a read-only note.
+            const parsed = parseSplitParams(version.split_params);
+            switch (parsed.kind) {
+              case 'equal':
+                setKind(SplitKind.Equal);
+                break;
+              case 'exact':
+                setKind(SplitKind.Exact);
+                setExact(
+                  Object.fromEntries(
+                    Object.entries(parsed.amounts).map(([id, minor]) => [
+                      id,
+                      toMajorString(coreMoney(minor, currency)),
+                    ]),
+                  ),
+                );
+                break;
+              case 'percent':
+                setKind(SplitKind.Percent);
+                setPercent(
+                  Object.fromEntries(
+                    Object.entries(parsed.basisPoints).map(([id, bp]) => [id, String(bp / 100)]),
+                  ),
+                );
+                break;
+              case 'shares':
+                setKind(SplitKind.Shares);
+                setWeights(
+                  Object.fromEntries(
+                    Object.entries(parsed.weights).map(([id, w]) => [id, String(w)]),
+                  ),
+                );
+                break;
+              default:
+                setUnsupported(true);
+            }
+          } catch {
+            setUnsupported(true);
+          }
+        } else {
+          setParticipants(m.map((member) => member.id));
+          setPayer(m.find((member) => member.profile_id === myProfileId)?.id ?? null);
         }
-      } else {
-        setParticipants(m.map((member) => member.id));
-        setPayer(m.find((member) => member.profile_id === myProfileId)?.id ?? null);
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : String(caught));
+      } finally {
+        if (active) setReady(true);
       }
-      setReady(true);
     })();
     return () => {
       active = false;
@@ -172,8 +184,9 @@ export function ExpenseForm({
         case SplitKind.Percent: {
           const basisPoints: Record<string, number> = {};
           for (const id of participants) {
-            const value = Number.parseFloat(percent[id]?.trim() || '0');
-            if (!Number.isFinite(value)) return null;
+            const raw = percent[id]?.trim() || '0';
+            if (!/^\d+(\.\d+)?$/.test(raw)) return null;
+            const value = Number.parseFloat(raw);
             basisPoints[id] = Math.round(value * 100);
           }
           return { kind: 'percent', basisPoints };
@@ -181,8 +194,9 @@ export function ExpenseForm({
         case SplitKind.Shares: {
           const w: Record<string, number> = {};
           for (const id of participants) {
-            const value = Number.parseInt(weights[id]?.trim() || '0', 10);
-            if (!Number.isFinite(value)) return null;
+            const raw = weights[id]?.trim() || '0';
+            if (!/^\d+$/.test(raw)) return null;
+            const value = Number.parseInt(raw, 10);
             w[id] = value;
           }
           return { kind: 'shares', weights: w };
@@ -260,7 +274,7 @@ export function ExpenseForm({
     return (
       <div className="app-body">
         <div className="app-main">
-          <p className="muted">{t.group.loading}</p>
+          {error ? <p className="error">{error}</p> : <p className="muted">{t.group.loading}</p>}
         </div>
         <aside className="detail" />
       </div>

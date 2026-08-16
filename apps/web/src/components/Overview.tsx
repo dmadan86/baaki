@@ -213,7 +213,11 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
             <div className="list">
               {filtered.map((entry) => {
                 const label = groupLabel(entry.group, entry.members, profileId);
-                const top = entry.totals[0] ?? null;
+                // Show a currency the user is not square in first, so a group
+                // owing in one currency never reads as settled by the other.
+                const nonZero = entry.totals.filter((total) => total.net !== 0n);
+                const top = nonZero[0] ?? entry.totals[0] ?? null;
+                const moreCurrencies = Math.max(nonZero.length - 1, 0);
                 return (
                   <button
                     key={entry.group.id}
@@ -229,9 +233,18 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
                       <span className="title">{label}</span>
                       <span className="meta">
                         {plural(locale, entry.members.length, t.dash.membersCount)}
-                        {entry.pending ? ' · •' : ''}
+                        {moreCurrencies > 0
+                          ? ` · ${plural(locale, moreCurrencies, t.dash.moreCurrencies)}`
+                          : ''}
                       </span>
                     </span>
+                    {entry.pending ? (
+                      <span
+                        className="unread-dot"
+                        role="img"
+                        aria-label={t.settle.pendingHead}
+                      />
+                    ) : null}
                     <NetAmount total={top} locale={locale} settledLabel={t.dash.settledUp} />
                   </button>
                 );
@@ -275,6 +288,7 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
           locale={locale}
           selectHint={t.dash.selectGroupHint}
           membersForms={t.dash.membersCount}
+          moreCurrenciesForms={t.dash.moreCurrencies}
           yourNetLabel={t.dash.yourNet}
           openLabel={t.dash.openGroup}
           currencyLabel={t.dash.currencyLabel}
@@ -411,6 +425,7 @@ function DetailPanel({
   locale,
   selectHint,
   membersForms,
+  moreCurrenciesForms,
   yourNetLabel,
   openLabel,
   currencyLabel,
@@ -421,6 +436,7 @@ function DetailPanel({
   locale: string;
   selectHint: string;
   membersForms: PluralForms;
+  moreCurrenciesForms: PluralForms;
   yourNetLabel: string;
   openLabel: string;
   currencyLabel: string;
@@ -430,7 +446,11 @@ function DetailPanel({
     return <p className="detail-empty">{selectHint}</p>;
   }
   const label = groupLabel(entry.group, entry.members, profileId);
-  const top = entry.totals[0] ?? null;
+  // A currency the user still owes in leads, so the net line never claims the
+  // group is settled while another currency is outstanding.
+  const nonZero = entry.totals.filter((total) => total.net !== 0n);
+  const top = nonZero[0] ?? entry.totals[0] ?? null;
+  const moreCurrencies = Math.max(nonZero.length - 1, 0);
 
   return (
     <>
@@ -446,6 +466,11 @@ function DetailPanel({
         <span className="k">{yourNetLabel}</span>
         <span className="v">
           <NetAmount total={top} locale={locale} settledLabel={settledLabel} />
+          {moreCurrencies > 0 ? (
+            <span className="meta" style={{ marginInlineStart: 6 }}>
+              {plural(locale, moreCurrencies, moreCurrenciesForms)}
+            </span>
+          ) : null}
         </span>
       </div>
       <div className="detail-field">

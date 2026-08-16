@@ -282,6 +282,9 @@
   .search input:focus {
     @apply outline-none;
   }
+  .search:focus-within {
+    border-color: var(--color-accent);
+  }
 
   .avatar {
     @apply grid flex-none place-items-center overflow-hidden rounded-[9px] text-[13px] font-semibold text-white;
@@ -299,7 +302,7 @@
     @apply min-w-0 px-7 pb-10 pt-6;
   }
   .detail {
-    @apply border-l border-line px-5 pb-10 pt-6;
+    @apply border-s border-line px-5 pb-10 pt-6;
     background: transparent;
   }
 

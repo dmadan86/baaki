@@ -70,7 +70,7 @@ export default function JoinPage() {
         const accepted = await baaki.acceptInvite({
           token,
           claimMemberId: claim,
-          displayName: claim ? name.trim() || null : name.trim() || null,
+          displayName: name.trim() || null,
         });
 
         // Claiming somebody's place only asks now (ADR-006). Routing into the

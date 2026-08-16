@@ -63,6 +63,7 @@ function Settle({ profileId }: { profileId: string }) {
   const [membersByGroup, setMembersByGroup] = useState<Map<string, MemberRow[]>>(new Map());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -72,6 +73,8 @@ function Settle({ profileId }: { profileId: string }) {
         if (!active) return;
         setGroups(g);
         setMembersByGroup(m);
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         if (active) setLoading(false);
       }
@@ -108,6 +111,8 @@ function Settle({ profileId }: { profileId: string }) {
         <div className="page-head">
           <h1>{t.settle.title}</h1>
         </div>
+
+        {error ? <p className="error">{error}</p> : null}
 
         {groups.length > 1 ? (
           <div className="people" style={{ marginBottom: 14 }}>
@@ -157,15 +162,15 @@ function GroupSettle({
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [nudged, setNudged] = useState<Set<string>>(new Set());
   const [openSettle, setOpenSettle] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // The component is keyed by group id, so a group switch remounts with
-    // loading already true; a `reload` bump refetches in place without blanking
-    // what is on screen (the row's own button carries the busy state).
+    // loading already true; `refresh` refetches in place without blanking what
+    // is on screen (the row's own button carries the busy state).
     let active = true;
     void (async () => {
       try {
@@ -173,6 +178,8 @@ function GroupSettle({
         if (!active) return;
         setExpenses(e);
         setSettlements(s);
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         if (active) setLoading(false);
       }
@@ -180,7 +187,7 @@ function GroupSettle({
     return () => {
       active = false;
     };
-  }, [group.id, reload]);
+  }, [group.id]);
 
   const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
   const myMemberId = members.find((member) => member.profile_id === profileId)?.id ?? null;
@@ -210,15 +217,22 @@ function GroupSettle({
     );
   }
 
+  // Refetch in place and wait for it, so callers that `await refresh()` only
+  // clear their busy state once the new figures are on screen.
   async function refresh() {
-    setReload((n) => n + 1);
+    const [e, s] = await Promise.all([baaki.expenses(group.id), baaki.settlements(group.id)]);
+    setExpenses(e);
+    setSettlements(s);
   }
 
   async function confirm(settlementId: string) {
     setBusy(settlementId);
+    setError(null);
     try {
       await baaki.confirmSettlement(settlementId);
       await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(null);
     }
@@ -226,9 +240,12 @@ function GroupSettle({
 
   async function nudge(toMemberId: string, currency: string) {
     setBusy(toMemberId);
+    setError(null);
     try {
       await baaki.nudgeToSettle({ groupId: group.id, toMemberId, currency });
       setNudged((prev) => new Set(prev).add(toMemberId));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setBusy(null);
     }
@@ -236,6 +253,8 @@ function GroupSettle({
 
   return (
     <>
+      {error ? <p className="error">{error}</p> : null}
+
       {iOwe.length > 0 ? (
         <section className="panel">
           <div className="panel-head">
@@ -466,7 +485,7 @@ function SettleForm({
         </a>
       ) : null}
 
-      {error ? <p className="dispute-note">{error}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
         <button type="button" className="btn" onClick={() => void record()} disabled={saving}>

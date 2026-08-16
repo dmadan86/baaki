@@ -46,7 +46,7 @@ in the same PR that ships Phase 1, so the doc and the code agree.
 - **Next 16 App Router**, React 19, client components for data screens
   (RLS runs under the browser session). Read
   `node_modules/next/dist/docs/` before writing — this Next is patched.
-- **Design system:** a small web UI kit under `apps/web-lite/src/ui/`
+- **Design system:** a small web UI kit under `apps/web/src/ui/`
   (tokens + primitives) mirroring `@baaki/ui`'s vocabulary (Card, StatCard,
   Row, Avatar, Button, Gradient, SegmentedTabs, DetailPanel) — CSS, no RN.
   Tokens track the reference: warm paper background, gradient tint cards
@@ -143,15 +143,14 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
 - **Observability:** Sentry (`@sentry/nextjs`) already wired; keep.
   Clarity optional, behind the same consent toggle mobile uses.
 - **Testing:** vitest for ported client fns + i18n + money, as today.
-  `pnpm --filter @baaki/web-lite lint|typecheck|test` green per PR.
+  `pnpm --filter @baaki/web lint|typecheck|test` green per PR.
 
 ## Delivery
 
 - One PR per phase (never to `main` directly), each independently
   shippable and reviewable. Phase 1 PR also carries the ADR-006 addendum.
-- Rename note: keep the folder `web-lite` for now (no infra churn); the
-  ADR addendum records that "lite" is historical. Optional later rename to
-  `apps/web` in its own PR.
+- Rename note: the folder is now `apps/web` (package `@baaki/web`); the
+  ADR addendum records that "lite" is historical.
 
 ## Open questions before Phase 1
 

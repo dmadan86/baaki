@@ -27,6 +27,7 @@ function Inbox() {
   const { t } = useStrings();
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,6 +35,8 @@ function Inbox() {
       try {
         const inbox = await baaki.notifications(100);
         if (active) setRows(inbox);
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         if (active) setLoading(false);
       }
@@ -48,6 +51,11 @@ function Inbox() {
   async function markRead(ids: string[]) {
     if (ids.length === 0) return;
     const now = new Date().toISOString();
+    const before = new Map(
+      rows.filter((row) => ids.includes(row.id)).map((row) => [row.id, row.read_at]),
+    );
+    // Every targeted row is already read — nothing to do, and no RPC to fire.
+    if ([...before.values()].every((read) => read !== null)) return;
     // Optimistic: the RPC is the authority, but the inbox should not wait a
     // round-trip to stop shouting at somebody who has read the thing.
     setRows((prev) =>
@@ -56,9 +64,12 @@ function Inbox() {
     try {
       await baaki.markNotificationsRead(ids);
     } catch {
-      // Put the dots back if the server refused — better than a lie.
+      // Put the dots back if the server refused — better than a lie. Restore
+      // each row to exactly what it was, so an already-read row stays read.
       setRows((prev) =>
-        prev.map((row) => (ids.includes(row.id) ? { ...row, read_at: null } : row)),
+        prev.map((row) =>
+          before.has(row.id) ? { ...row, read_at: before.get(row.id) ?? null } : row,
+        ),
       );
     }
   }
@@ -82,6 +93,8 @@ function Inbox() {
         <section className="panel">
           {loading ? (
             <SkeletonRows rows={7} amount={false} />
+          ) : error ? (
+            <p className="error">{error}</p>
           ) : rows.length === 0 ? (
             <p className="muted">{t.inbox.empty}</p>
           ) : (

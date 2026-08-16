@@ -13,9 +13,19 @@ export function money(minor: bigint, currency: string, locale = 'en-IN'): string
   return format({ minor, currency: currency as CurrencyCode }, { locale });
 }
 
-/** "you are owed" / "you owe", said out loud for a screen reader (TDR §11). */
-export function balanceLabel(minor: bigint, currency: string, locale = 'en-IN'): string {
-  if (minor === 0n) return 'settled up';
+/**
+ * "you are owed" / "you owe", said out loud for a screen reader (TDR §11).
+ *
+ * The words come from the caller's `WebStrings.group` so the announcement is
+ * in the page's language, not English underneath a Hindi number.
+ */
+export function balanceLabel(
+  minor: bigint,
+  currency: string,
+  words: { isSettledUp: string; isOwed: string; owes: string },
+  locale = 'en-IN',
+): string {
+  if (minor === 0n) return words.isSettledUp;
   const amount = money(minor < 0n ? -minor : minor, currency, locale);
-  return minor > 0n ? `is owed ${amount}` : `owes ${amount}`;
+  return minor > 0n ? `${words.isOwed} ${amount}` : `${words.owes} ${amount}`;
 }
