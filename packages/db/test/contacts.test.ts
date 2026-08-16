@@ -14,7 +14,7 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
 import { connect } from './helpers.js';
@@ -46,6 +46,8 @@ async function reset(): Promise<void> {
   await client.query(`RESET ROLE`);
   await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
 }
+
+afterEach(reset);
 
 async function add(
   groupId: string,
@@ -82,7 +84,6 @@ describe('adding somebody by email', () => {
     expect(member.invite_email).toBe('ravi@example.com');
     expect(member.ghost_name).toBe('Ravi');
     expect(member.joined_via).toBe('ghost');
-    await reset();
   });
 
   it('falls back to the address when no name was given', async () => {
@@ -90,7 +91,6 @@ describe('adding somebody by email', () => {
     const groupId = await seedGroup();
     const { id } = await add(groupId, null, 'ravi@example.com');
     expect((await read(id as string)).ghost_name).toBe('ravi@example.com');
-    await reset();
   });
 
   it('refuses something that is not an address', async () => {
@@ -99,7 +99,6 @@ describe('adding somebody by email', () => {
       const { error } = await add(groupId, 'Ravi', bad);
       expect(error).toMatch(/invite_email_shape/);
     }
-    await reset();
   });
 });
 
@@ -108,14 +107,12 @@ describe('adding somebody from contacts', () => {
     const groupId = await seedGroup();
     const { id } = await add(groupId, 'Ravi', null, '+91 98765 43210');
     expect((await read(id as string)).invite_phone).toBe('+919876543210');
-    await reset();
   });
 
   it('strips the punctuation a contact card carries', async () => {
     const groupId = await seedGroup();
     const { id } = await add(groupId, 'Ravi', null, '+91-98765-43210');
     expect((await read(id as string)).invite_phone).toBe('+919876543210');
-    await reset();
   });
 
   it('refuses a number with no country code rather than assuming India', async () => {
@@ -124,14 +121,12 @@ describe('adding somebody from contacts', () => {
     const groupId = await seedGroup();
     const { error } = await add(groupId, 'Ravi', null, '09876543210');
     expect(error).toMatch(/PHONE_NEEDS_COUNTRY_CODE/);
-    await reset();
   });
 
   it('refuses a number that is not a number', async () => {
     const groupId = await seedGroup();
     const { error } = await add(groupId, 'Ravi', null, '+12');
     expect(error).toMatch(/invite_phone_e164/);
-    await reset();
   });
 });
 
@@ -147,7 +142,6 @@ describe('the same person must not become two members', () => {
       [groupId],
     );
     expect(rows[0].n).toBe(1);
-    await reset();
   });
 
   it('matches through a differently-typed address', async () => {
@@ -155,7 +149,6 @@ describe('the same person must not become two members', () => {
     const first = await add(groupId, 'Ravi', 'ravi@example.com');
     const again = await add(groupId, 'Ravi', ' RAVI@Example.com ');
     expect(again.id).toBe(first.id);
-    await reset();
   });
 
   it('matches through a differently-typed number', async () => {
@@ -163,7 +156,6 @@ describe('the same person must not become two members', () => {
     const first = await add(groupId, 'Ravi', null, '+919876543210');
     const again = await add(groupId, 'Ravi', null, '+91 98765-43210');
     expect(again.id).toBe(first.id);
-    await reset();
   });
 
   it('still allows two different people with the same name', async () => {
@@ -172,7 +164,6 @@ describe('the same person must not become two members', () => {
     const first = await add(groupId, 'Ravi', 'ravi.k@example.com');
     const second = await add(groupId, 'Ravi', 'ravi.s@example.com');
     expect(second.id).not.toBe(first.id);
-    await reset();
   });
 });
 
@@ -190,13 +181,11 @@ describe('who may add', () => {
 
     const { error } = await add(groupId, 'Ravi', 'ravi@example.com');
     expect(error).toMatch(/NOT_A_MEMBER/);
-    await reset();
   });
 
   it('refuses an entry with nothing in it at all', async () => {
     const groupId = await seedGroup();
     const { error } = await add(groupId, '   ', '', '');
     expect(error).toMatch(/NOTHING_TO_ADD/);
-    await reset();
   });
 });

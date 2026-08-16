@@ -102,9 +102,15 @@ async function notify(
 }
 
 /**
- * Claims for one person only. The suite shares a database with everything else
- * in it, so a claim with a plain limit would sweep up other tests' rows and
- * pass or fail depending on what ran first.
+ * Reports the rows claimed for one profile.
+ *
+ * The claim itself is NOT scoped to that profile: baaki_claim_email_notifications(500)
+ * claims up to 500 rows across the whole notifications table and marks them
+ * `queued`. The `JOIN … WHERE n.profile_id = $1` only filters which of those
+ * already-claimed rows are returned here — rows belonging to other profiles are
+ * still claimed and their email_status is still changed as a side effect. The
+ * suite gets away with this because each test seeds a fresh profile and no other
+ * test asserts on those other rows' email_status.
  */
 async function claimFor(profileId: string): Promise<Claimed[]> {
   const { rows } = await client.query<Claimed>(

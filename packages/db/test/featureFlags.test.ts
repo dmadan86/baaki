@@ -202,9 +202,19 @@ describe('the result', () => {
       variants: ['control', 'treatment'],
     });
 
+    // Enrolment is computed over public.profiles, so seed a population or the
+    // result is empty in a fresh database and the assertions pass vacuously.
+    const seeded = Array.from({ length: 40 }, () => randomUUID());
+    await client.query(
+      `INSERT INTO public.profiles (id, display_name)
+       SELECT p, 'Flag tester' FROM unnest($1::uuid[]) AS p`,
+      [seeded],
+    );
+
     const { rows } = await client.query(
       `SELECT * FROM public.baaki_admin_flag_results('results_flag')`,
     );
+    expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((row) => row.variant !== null)).toBe(true);
     expect(new Set(rows.map((row) => row.variant)).size).toBe(rows.length);
     for (const row of rows) {

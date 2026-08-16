@@ -31,6 +31,7 @@ async function as<T>(profileId: string, run: () => Promise<T>): Promise<T> {
     return await run();
   } finally {
     await client.query('RESET ROLE');
+    await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
   }
 }
 

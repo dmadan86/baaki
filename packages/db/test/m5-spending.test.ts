@@ -160,31 +160,36 @@ describe('baaki_group_spending', () => {
     // category — ADR-004 keeps the old one, and spending must not.
     const versionId = randomUUID();
     await client.query('BEGIN');
-    await client.query(
-      `INSERT INTO expense_versions
-         (id, expense_id, version_no, author_member_id, description, category, expense_date,
-          currency, amount, split_type, split_params)
-       VALUES ($1, $2, 2, $3, 'Dinner', 'entertainment', '2026-03-01', 'INR', 80000, 'equal',
-               '{"kind":"equal"}'::jsonb)`,
-      [versionId, kept.expenseId, memberIds[0]],
-    );
-    for (const memberId of memberIds) {
+    try {
       await client.query(
-        `INSERT INTO expense_payers (id, expense_version_id, member_id, amount)
-         VALUES ($1, $2, $3, $4)`,
-        [randomUUID(), versionId, memberId, memberId === memberIds[0] ? '80000' : '0'],
+        `INSERT INTO expense_versions
+           (id, expense_id, version_no, author_member_id, description, category, expense_date,
+            currency, amount, split_type, split_params)
+         VALUES ($1, $2, 2, $3, 'Dinner', 'entertainment', '2026-03-01', 'INR', 80000, 'equal',
+                 '{"kind":"equal"}'::jsonb)`,
+        [versionId, kept.expenseId, memberIds[0]],
       );
-      await client.query(
-        `INSERT INTO expense_shares (id, expense_version_id, member_id, amount)
-         VALUES ($1, $2, $3, 40000)`,
-        [randomUUID(), versionId, memberId],
-      );
+      for (const memberId of memberIds) {
+        await client.query(
+          `INSERT INTO expense_payers (id, expense_version_id, member_id, amount)
+           VALUES ($1, $2, $3, $4)`,
+          [randomUUID(), versionId, memberId, memberId === memberIds[0] ? '80000' : '0'],
+        );
+        await client.query(
+          `INSERT INTO expense_shares (id, expense_version_id, member_id, amount)
+           VALUES ($1, $2, $3, 40000)`,
+          [randomUUID(), versionId, memberId],
+        );
+      }
+      await client.query(`UPDATE expenses SET current_version_id = $1 WHERE id = $2`, [
+        versionId,
+        kept.expenseId,
+      ]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
     }
-    await client.query(`UPDATE expenses SET current_version_id = $1 WHERE id = $2`, [
-      versionId,
-      kept.expenseId,
-    ]);
-    await client.query('COMMIT');
 
     const rows = await spending(groupId);
     expect(total(rows)).toBe(80000n);

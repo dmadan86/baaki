@@ -203,26 +203,31 @@ async function addVersion(
 ): Promise<void> {
   const versionId = randomUUID();
   await db.query('BEGIN');
-  await db.query(
-    `INSERT INTO public.expense_versions
-       (id, expense_id, version_no, author_member_id, description, expense_date,
-        currency, amount, split_type, split_params)
-     VALUES ($1, $2, $3, $4, 'Dinner', current_date, $5, $6, 'equal', '{"kind":"equal"}'::jsonb)`,
-    [versionId, expenseId, versionNo, memberId, currency, amount.toString()],
-  );
-  await db.query(
-    `INSERT INTO public.expense_payers (id, expense_version_id, member_id, amount)
-     VALUES ($1, $2, $3, $4)`,
-    [randomUUID(), versionId, memberId, amount.toString()],
-  );
-  await db.query(
-    `INSERT INTO public.expense_shares (id, expense_version_id, member_id, amount)
-     VALUES ($1, $2, $3, $4)`,
-    [randomUUID(), versionId, memberId, amount.toString()],
-  );
-  await db.query('UPDATE public.expenses SET current_version_id = $1 WHERE id = $2', [
-    versionId,
-    expenseId,
-  ]);
-  await db.query('COMMIT');
+  try {
+    await db.query(
+      `INSERT INTO public.expense_versions
+         (id, expense_id, version_no, author_member_id, description, expense_date,
+          currency, amount, split_type, split_params)
+       VALUES ($1, $2, $3, $4, 'Dinner', current_date, $5, $6, 'equal', '{"kind":"equal"}'::jsonb)`,
+      [versionId, expenseId, versionNo, memberId, currency, amount.toString()],
+    );
+    await db.query(
+      `INSERT INTO public.expense_payers (id, expense_version_id, member_id, amount)
+       VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), versionId, memberId, amount.toString()],
+    );
+    await db.query(
+      `INSERT INTO public.expense_shares (id, expense_version_id, member_id, amount)
+       VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), versionId, memberId, amount.toString()],
+    );
+    await db.query('UPDATE public.expenses SET current_version_id = $1 WHERE id = $2', [
+      versionId,
+      expenseId,
+    ]);
+    await db.query('COMMIT');
+  } catch (error) {
+    await db.query('ROLLBACK');
+    throw error;
+  }
 }
