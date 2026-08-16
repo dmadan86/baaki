@@ -296,7 +296,15 @@ export default function AddPersonScreen() {
               </View>
               <View style={{ width: 44 }} />
             </Row>
-            <ContactPicker onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
+            {/* Mounted only while open. ContactPicker keeps the ticked set in
+                its own state, and a React Native Modal keeps its children mounted
+                across a close — so without this gate, reopening the picker shows
+                the last pick still ticked and confirming re-saves that stale
+                person (onPickContact takes the first of the set). Remounting on
+                each open starts it empty. */}
+            {pickerOpen ? (
+              <ContactPicker onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
+            ) : null}
           </View>
         </Screen>
       </Modal>
