@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Alert, ScrollView, TextInput, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 
-import { defaultRailFor, isValidHandle, railById, railsFor } from '@baaki/core';
 import {
   Badge,
-  Button,
   Card,
-  ChipRow,
   directionalIcon,
   iconSize,
   ListRow,
@@ -16,19 +13,16 @@ import {
   Row,
   Screen,
   SectionHeader,
-  SegmentedTabs,
   Text,
   useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
-import { CountryRow } from '@/components/CountryPicker';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonList } from '@/components/Skeletons';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
 import {
-  deviceCountry,
   isRtlLanguage,
   LANGUAGE_NAMES,
   plural,
@@ -171,42 +165,28 @@ function settingsRows(t: UiStrings): SettingsRow[] {
   ];
 }
 
-/** The three faces of this screen. */
-enum Face {
-  You = 'you',
-  Paying = 'paying',
-  Settings = 'settings',
-}
-
 /**
- * One Save, shown on whichever face you are looking at.
- *
- * It writes the whole profile, not the tab: a name typed on one face and a UPI
- * ID typed on another are one edit to one row, and asking somebody to go back
- * and save each face separately would invent a rule the data does not have.
+ * You and Paying used to be two faces of this screen, switched with a segmented
+ * control that sat between the hero and the settings. They are the two things a
+ * person edits about themselves rather than about the app, so they now lead the
+ * settings list as their own rows — each a page of its own, reached the same way
+ * every other setting is.
  */
-function SaveRow({
-  dirty,
-  valid,
-  status,
-  onSave,
-}: {
-  dirty: boolean;
-  valid: boolean;
-  status: string | null;
-  onSave: () => void;
-}) {
-  const { t } = useStrings();
-  return (
-    <>
-      <Button label={t.common.save} fullWidth disabled={!dirty || !valid} onPress={onSave} />
-      {status ? (
-        <Text variant="caption" tone={status === t.account.saved ? 'positive' : 'negative'}>
-          {status}
-        </Text>
-      ) : null}
-    </>
-  );
+function profileRows(t: UiStrings): SettingsRow[] {
+  return [
+    {
+      icon: 'person-outline',
+      label: t.account.faceYou,
+      hint: t.account.youRowHint,
+      route: '/settings/you',
+    },
+    {
+      icon: 'card-outline',
+      label: t.account.facePaying,
+      hint: t.account.howPeoplePayYou,
+      route: '/settings/paying',
+    },
+  ];
 }
 
 /**
@@ -272,10 +252,9 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
 
 export default function ProfileScreen() {
   const { profile } = useAuth();
-  // The form seeds its state from `profile` exactly once, so it must not mount
-  // before there is a profile to seed it from — otherwise Save writes the
-  // empty seed back over the real row. Hold on a skeleton until it arrives,
-  // then mount keyed on the id so the seed is taken from real data.
+  // The hero seeds nothing editable now, but the settings summaries below still
+  // read the profile — hold on a skeleton until it arrives so the first paint
+  // is the real thing, not a flash of defaults.
   if (!profile) {
     return (
       <Screen>
@@ -298,29 +277,8 @@ function ProfileForm() {
   const { preference: themePreference, overridden: themeOverridden } = useThemePreference();
   const { language, stored: languageChosen, restartNeeded } = useLanguage();
 
-  const [name, setName] = useState(profile?.display_name ?? '');
-  /**
-   * How this person is paid. Falls back through the rail pair, then the old
-   * `default_vpa` — anything written before rails existed can only have been a
-   * UPI ID, and nobody should have to type theirs again.
-   */
-  const [country, setCountry] = useState<string | null>(profile?.country_code ?? deviceCountry());
-  const [rail, setRail] = useState(
-    profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : defaultRailFor(country)),
-  );
-
-  // Changing country changes which rails exist, so the rail drops to that
-  // country's default and any handle typed for the old rail is cleared — a UPI
-  // ID means nothing once the rail is Aani.
-  const onCountry = (next: string | null): void => {
-    setCountry(next);
-    setRail(defaultRailFor(next));
-    setHandle('');
-  };
-  const [handle, setHandle] = useState(profile?.payment_handle ?? profile?.default_vpa ?? '');
   const [status, setStatus] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [face, setFace] = useState<Face>(Face.You);
 
   /**
    * Pick, shrink, upload, then tell the profile where it landed. The upload
@@ -432,33 +390,6 @@ function ProfileForm() {
     );
   };
 
-  const railInfo = railById(rail);
-  const handleValid = handle.trim() === '' || isValidHandle(rail, handle.trim());
-  const dirty =
-    name.trim() !== (profile?.display_name ?? '') ||
-    country !== (profile?.country_code ?? deviceCountry()) ||
-    handle.trim() !== (profile?.payment_handle ?? profile?.default_vpa ?? '') ||
-    rail !== (profile?.payment_rail ?? (profile?.default_vpa ? 'upi' : rail));
-
-  const save = async (): Promise<void> => {
-    setStatus(null);
-    const trimmed = handle.trim();
-    try {
-      await updateProfile({
-        display_name: name.trim() || t.account.you,
-        country_code: country,
-        payment_rail: trimmed === '' ? null : rail,
-        payment_handle: trimmed === '' ? null : trimmed,
-        // Kept in step while the older screens still read it. A handle on any
-        // other rail is not a UPI ID and must not masquerade as one.
-        default_vpa: rail === 'upi' && trimmed !== '' ? trimmed : null,
-      });
-      setStatus(t.account.saved);
-    } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : String(caught));
-    }
-  };
-
   return (
     <Screen>
       <ScrollView
@@ -491,230 +422,108 @@ function ProfileForm() {
               ) : null}
             </Row>
             <SettledPill profileId={profile?.id ?? null} locale={locale} />
+            {/* Photo errors have nowhere else to land now the form is gone. */}
+            {status ? (
+              <Text variant="caption" tone="negative">
+                {status}
+              </Text>
+            ) : null}
           </View>
         </View>
 
-        <SegmentedTabs<Face>
-          value={face}
-          onChange={setFace}
-          tabs={[
-            // Not `t.profile` — that reads "Account", which is the whole
-            // screen. A tab has to name the part, not the page.
-            { value: Face.You, label: t.account.faceYou },
-            { value: Face.Paying, label: t.account.facePaying },
-            { value: Face.Settings, label: t.account.faceSettings },
+        {/* You and Paying lead: the two things you edit about yourself, above
+            everything you set about the app. */}
+        <SettingsSection title={t.account.sectionProfile} rows={profileRows(t)} />
+
+        {/* Its own section, above the settings rather than among them. Paying
+            for something is not a preference, and a row that sells you something
+            sitting between Notifications and Export is a row dressed up as a
+            setting. */}
+        <SettingsSection
+          title={t.account.sectionBaaki}
+          rows={[
+            {
+              icon: 'rocket-outline',
+              label: t.upgrade,
+              hint: t.account.upgradeHint,
+              route: '/settings/upgrade',
+            },
           ]}
         />
 
-        {face === Face.You ? (
-          <>
-            <Card style={{ gap: theme.spacing.lg }}>
-              <View style={{ gap: theme.spacing.xs }}>
-                <Text variant="caption" tone="muted">
-                  {t.account.displayName}
-                </Text>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  accessibilityLabel={t.account.displayName}
-                  placeholder={t.common.yourName}
-                  placeholderTextColor={theme.color.textFaint}
-                  style={{
-                    fontSize: 18,
-                    fontWeight: '600',
-                    color: theme.color.text,
-                    paddingVertical: theme.spacing.sm,
-                  }}
-                />
-              </View>
-              <SaveRow
-                dirty={dirty}
-                valid={handleValid}
-                status={status}
-                onSave={() => void save()}
-              />
-            </Card>
+        {/* Language leads. It was fifth, under Import, and it is the one setting
+            somebody may have to reach *before* they can read the four above it —
+            a row you can only find by reading past rows you cannot read is a row
+            that is not there. */}
+        <SettingsSection
+          title={t.account.sectionSettings}
+          rows={[
+            {
+              icon: 'language-outline',
+              label: t.language,
+              hint: languageSummary,
+              route: '/settings/language',
+            },
+            ...settingsRows(t),
+            {
+              icon: 'contrast-outline',
+              label: t.account.themeRow,
+              hint: themeSummary,
+              route: '/settings/theme',
+            },
+            {
+              icon: 'sparkles-outline',
+              label: t.account.motionRow,
+              hint: motionSummary,
+              route: '/settings/motion',
+            },
+            {
+              icon: 'cloud-outline',
+              label: t.sync.title,
+              hint: syncNetworkSummary,
+              route: '/settings/sync',
+            },
+          ]}
+        />
 
-            {isGuest ? (
-              <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.md }}>
-                <Text variant="subheading" tone="brand">
-                  {t.account.guestAccount}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  {t.account.guestAccountBody}
-                </Text>
-                <Button
-                  label={t.account.addYourDetails}
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => router.push('/settings/account')}
-                />
-              </Card>
-            ) : null}
-
-            <Row style={{ gap: theme.spacing.sm, justifyContent: 'center' }}>
-              <Badge label={t.freeForever} tone="positive" />
-              <Badge label={locale} tone="brand" />
-            </Row>
-          </>
-        ) : null}
-
-        {face === Face.Paying ? (
-          <>
-            {/* The country decides which rails exist below, so it sits above
-                them and is changeable here — the device guess is only a start. */}
-            <CountryRow countryCode={country} onChange={onCountry} />
-            <Card style={{ gap: theme.spacing.lg }}>
-              <View style={{ gap: theme.spacing.sm }}>
-                <Text variant="caption" tone="muted">
-                  {t.account.howPeoplePayYou}
-                </Text>
-                {/* Whatever this person's country uses. In India that still starts
-                    on UPI; in the UAE it starts on Aani. */}
-                <ChipRow<string>
-                  value={rail}
-                  onChange={setRail}
-                  options={railsFor(country).map((entry) => ({
-                    value: entry.id,
-                    label: entry.label,
-                  }))}
-                />
-                {railInfo && railInfo.handle !== 'none' ? (
-                  <>
-                    <TextInput
-                      value={handle}
-                      onChangeText={setHandle}
-                      autoCapitalize="none"
-                      accessibilityLabel={t.account.yourRailDetails.replace(
-                        '{rail}',
-                        railInfo.label,
-                      )}
-                      placeholder={railInfo.handleHint}
-                      placeholderTextColor={theme.color.textFaint}
-                      style={{
-                        fontSize: 18,
-                        fontWeight: '600',
-                        color: handleValid ? theme.color.text : theme.color.negative,
-                        paddingVertical: theme.spacing.sm,
-                      }}
-                    />
-                    <Text variant="micro" tone={handleValid ? 'faint' : 'negative'}>
-                      {!handleValid
-                        ? t.account.handleWrong.replace('{hint}', railInfo.handleHint.toLowerCase())
-                        : railInfo.link
-                          ? t.account.railLinkNote
-                          : t.account.railManualNote}
-                    </Text>
-                  </>
-                ) : (
-                  <Text variant="micro" tone="muted">
-                    {t.account.nothingToAdd}
-                  </Text>
-                )}
-              </View>
-              <SaveRow
-                dirty={dirty}
-                valid={handleValid}
-                status={status}
-                onSave={() => void save()}
-              />
-            </Card>
-          </>
-        ) : null}
-
-        {face !== Face.Settings ? null : (
-          <>
-            {/* Its own section, above the settings rather than among them.
-                Paying for something is not a preference, and a row that sells
-                you something sitting between Notifications and Export is a row
-                dressed up as a setting. */}
-            <SettingsSection
-              title={t.account.sectionBaaki}
-              rows={[
-                {
-                  icon: 'rocket-outline',
-                  label: t.upgrade,
-                  hint: t.account.upgradeHint,
-                  route: '/settings/upgrade',
-                },
-              ]}
-            />
-
-            {/* Language leads. It was fifth, under Import, and it is the one
-                setting somebody may have to reach *before* they can read the
-                four above it — a row you can only find by reading past rows you
-                cannot read is a row that is not there. */}
-            <SettingsSection
-              title={t.account.sectionSettings}
-              rows={[
-                {
-                  icon: 'language-outline',
-                  label: t.language,
-                  hint: languageSummary,
-                  route: '/settings/language',
-                },
-                ...settingsRows(t),
-                {
-                  icon: 'contrast-outline',
-                  label: t.account.themeRow,
-                  hint: themeSummary,
-                  route: '/settings/theme',
-                },
-                {
-                  icon: 'sparkles-outline',
-                  label: t.account.motionRow,
-                  hint: motionSummary,
-                  route: '/settings/motion',
-                },
-                {
-                  icon: 'cloud-outline',
-                  label: t.sync.title,
-                  hint: syncNetworkSummary,
-                  route: '/settings/sync',
-                },
-              ]}
-            />
-
-            {/* Security is its own section rather than one row among many: it is
-            the only group of settings somebody comes looking for. */}
-            <SettingsSection
-              title={t.account.sectionSecurity}
-              rows={[
-                {
-                  icon: 'finger-print-outline',
-                  label: t.lock.appLock,
-                  hint: lockSummary,
-                  route: '/settings/lock',
-                },
-                {
-                  icon: 'phone-portrait-outline',
-                  label: t.devices.row,
-                  hint: t.devices.rowHint,
-                  route: '/settings/devices',
-                },
-                {
-                  icon: 'log-out-outline',
-                  label: t.lock.signOut,
-                  hint: signOutHint,
-                  onPress: confirmSignOut,
-                  destructive: true,
-                },
-                // Last row of the last section, under Sign out. It first sat in
-                // the middle of the settings list, because `settingsRows` is
-                // spread before Motion is appended — which put an irreversible
-                // action between "import a spreadsheet" and "animations on".
-                // Running it on a device is what showed that.
-                {
-                  icon: 'trash-outline',
-                  label: t.privacy.deleteRow,
-                  hint: t.privacy.deleteRowHint,
-                  route: '/settings/delete-account',
-                  destructive: true,
-                },
-              ]}
-            />
-          </>
-        )}
+        {/* Security is its own section rather than one row among many: it is the
+            only group of settings somebody comes looking for. */}
+        <SettingsSection
+          title={t.account.sectionSecurity}
+          rows={[
+            {
+              icon: 'finger-print-outline',
+              label: t.lock.appLock,
+              hint: lockSummary,
+              route: '/settings/lock',
+            },
+            {
+              icon: 'phone-portrait-outline',
+              label: t.devices.row,
+              hint: t.devices.rowHint,
+              route: '/settings/devices',
+            },
+            {
+              icon: 'log-out-outline',
+              label: t.lock.signOut,
+              hint: signOutHint,
+              onPress: confirmSignOut,
+              destructive: true,
+            },
+            // Last row of the last section, under Sign out. It first sat in the
+            // middle of the settings list, because `settingsRows` is spread
+            // before Motion is appended — which put an irreversible action
+            // between "import a spreadsheet" and "animations on". Running it on
+            // a device is what showed that.
+            {
+              icon: 'trash-outline',
+              label: t.privacy.deleteRow,
+              hint: t.privacy.deleteRowHint,
+              route: '/settings/delete-account',
+              destructive: true,
+            },
+          ]}
+        />
 
         <Text variant="micro" tone="muted" align="center">
           {t.account.footnote}
