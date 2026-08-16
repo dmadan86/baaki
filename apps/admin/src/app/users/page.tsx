@@ -46,7 +46,8 @@ export default async function Users({
   const sp = await searchParams;
   const name = (sp.name ?? '').trim();
   const country = (sp.country ?? '').trim();
-  const offset = Math.max(0, Number(sp.offset ?? 0) || 0);
+  const rawOffset = Number(sp.offset ?? 0);
+  const offset = Number.isSafeInteger(rawOffset) && rawOffset > 0 ? rawOffset : 0;
 
   const { total, rows } = await listUsers({ limit: PAGE, offset, namePrefix: name, country });
   const back = backTo(name, country, offset);

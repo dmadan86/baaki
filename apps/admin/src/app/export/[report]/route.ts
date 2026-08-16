@@ -20,7 +20,7 @@ type ReportName = keyof typeof REPORTS;
 
 export async function GET(_request: Request, context: { params: Promise<{ report: string }> }) {
   const { report } = await context.params;
-  if (!(report in REPORTS)) {
+  if (!Object.hasOwn(REPORTS, report)) {
     return new Response('No such report', { status: 404 });
   }
 

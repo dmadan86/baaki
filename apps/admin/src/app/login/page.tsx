@@ -38,7 +38,7 @@ export default async function Login({
   return (
     <main className="login">
       <h1>Baaki admin</h1>
-      <p className="faint">Private console. Aggregates only.</p>
+      <p className="faint">Private console. Contains personal data.</p>
       <form action={signIn}>
         <input
           type="password"
