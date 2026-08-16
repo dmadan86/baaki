@@ -163,8 +163,17 @@ export class SyncEngine {
    * membership, so a left group would sit on the dashboard forever. Leaving is
    * the one change the client applies itself: drop the group's rows, its cursor
    * and any of its still-unsent edits, in memory and on disk together.
+   *
+   * A flush already in flight was started before the leave and may carry this
+   * group's rows in its response; its `reconcile` runs against `this.state`
+   * *after* the network await, so purging first would let that late response
+   * re-add the group we just removed. Wait for it to land before removing, and
+   * because the leave has already committed server-side, any flush that starts
+   * afterwards can no longer see the group (RLS) and cannot bring it back.
    */
   async forgetGroup(groupId: string): Promise<void> {
+    await this.flushing;
+
     const tables = {} as Record<SyncTable, Record<string, MirrorRow>>;
     for (const table of Object.keys(this.state.mirror.tables) as SyncTable[]) {
       const kept: Record<string, MirrorRow> = {};
@@ -181,8 +190,10 @@ export class SyncEngine {
     const queue = this.state.queue.filter((mutation) => mutation.groupId !== groupId);
 
     this.set({ mirror: { tables, cursors }, queue });
-    await this.store.forgetGroup(groupId);
-    await this.store.writeQueue(queue);
+    // One durable step: the group's rows, its cursor and its unsent edits go
+    // together, so a crash cannot leave the queue replaying against a group the
+    // mirror has forgotten.
+    await this.store.forgetGroup(groupId, queue);
   }
 
   /**

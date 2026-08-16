@@ -37,11 +37,14 @@ export interface LocalStore {
   clearDraft(key: string): Promise<void>;
   listDrafts(): Promise<{ key: string; value: unknown; savedAt: string }[]>;
   /**
-   * Drop every mirror row and cursor for one group. Leaving a group hides it
-   * server-side (RLS), so a pull can never again report it — the client has to
-   * forget it locally or it lingers on the dashboard forever.
+   * Drop every mirror row and cursor for one group, and replace the queue with
+   * `queue` (the group's still-unsent edits removed), as one durable step.
+   * Leaving a group hides it server-side (RLS), so a pull can never again report
+   * it — the client has to forget it locally or it lingers on the dashboard
+   * forever, and a half-applied purge would leave the queue replaying against a
+   * group the mirror no longer has.
    */
-  forgetGroup(groupId: string): Promise<void>;
+  forgetGroup(groupId: string, queue: readonly QueuedMutation[]): Promise<void>;
   /** Signing out must leave nothing of the previous account behind. */
   reset(): Promise<void>;
 }

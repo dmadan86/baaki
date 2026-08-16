@@ -69,11 +69,12 @@ vi.mock('../src/sync/store', () => ({
     writeDraft: async () => {},
     clearDraft: async () => {},
     listDrafts: async () => [],
-    forgetGroup: async (groupId: string) => {
+    forgetGroup: async (groupId: string, queue: QueuedMutation[]) => {
       for (const [key, row] of [...h.disk.rows]) {
         if (row.groupId === groupId) h.disk.rows.delete(key);
       }
       delete h.disk.cursors[groupId];
+      h.disk.queue = [...queue];
     },
     reset: async () => {
       h.disk.rows.clear();
@@ -285,5 +286,55 @@ describe('leaving a group forgets it locally', () => {
 
     expect(groupIds(relaunched.getState().mirror)).toEqual(['g-two']);
     expect(relaunched.getState().queue.map((m) => m.clientMutationId)).toEqual(['x-two']);
+
+    // Persisted, not just in memory: a third launch hydrates only x-two, so the
+    // departed group's unsent edit is gone from disk and never replays.
+    const thirdLaunch = new SyncEngine();
+    await thirdLaunch.hydrate();
+    expect(thirdLaunch.getState().queue.map((m) => m.clientMutationId)).toEqual(['x-two']);
+  });
+
+  it('is not undone by a flush that was already in flight when it ran', async () => {
+    online();
+    // The group is on disk and known before the leave.
+    h.disk.rows.set('groups:g-goa', {
+      table: 'groups',
+      id: 'g-goa',
+      groupId: 'g-goa',
+      seq: 1,
+      row: {
+        id: 'g-goa',
+        name: 'Goa Trip',
+        default_currency: 'INR',
+        created_at: '2026-08-01T00:00:00.000Z',
+        archived_at: null,
+      },
+    });
+    h.disk.cursors = { 'g-goa': 2 };
+    const engine = new SyncEngine();
+    await engine.hydrate();
+    expect(groupIds(engine.getState().mirror)).toEqual(['g-goa']);
+
+    // A flush is in flight, its response held open — it still carries the
+    // group's rows, the way a pull that raced the leave would.
+    let land: (value: unknown) => void = () => {};
+    h.invoke.mockReturnValueOnce(
+      new Promise((resolve) => {
+        land = resolve;
+      }),
+    );
+    const flushing = engine.flush();
+
+    // Leaving now: forgetGroup must wait for that flush rather than purge into
+    // its teeth. Kick it off, then let the flush land carrying g-goa.
+    const forgetting = engine.forgetGroup('g-goa');
+    land({ data: discoveryResponse(), error: null });
+    await Promise.all([flushing, forgetting]);
+
+    // The late response did not resurrect it — in memory or on disk.
+    expect(groupIds(engine.getState().mirror)).toEqual([]);
+    const relaunched = new SyncEngine();
+    await relaunched.hydrate();
+    expect(groupIds(relaunched.getState().mirror)).toEqual([]);
   });
 });
