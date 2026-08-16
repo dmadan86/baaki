@@ -184,6 +184,19 @@ export enum SyncTable {
   ActivityLog = 'activity_log',
   /** Personal scope (TDR A34): captured expenses not yet assigned to a group. */
   Captures = 'captures',
+  /** Personal scope (A38): the viewer's ghost merges, pull-only, so Friends can
+   * fold merged guests offline. Never written through the queue. */
+  GhostMerges = 'ghost_merges',
+}
+
+/**
+ * The sync scope key for a viewer's ghost merges. Distinct from the plain
+ * profile id that captures uses, so the two personal-scope tables keep separate
+ * cursors instead of starving one another. The edge and the client must agree
+ * on this string, so it lives here.
+ */
+export function ghostMergesScope(profileId: string): string {
+  return `${profileId}:ghost_merges`;
 }
 
 /** bigint ↔ string at the wire boundary; JSON has no integers this size. */

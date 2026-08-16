@@ -16,7 +16,7 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
@@ -31,7 +31,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Badge,
-  Button,
   Card,
   EmptyState,
   iconSize,
@@ -44,7 +43,9 @@ import {
   useTheme,
 } from '@baaki/ui';
 
-import { fetchPeopleBalances, nudgeToSettle, type PersonBalanceRow } from '@/data/api';
+import { nudgeToSettle, type PersonBalanceRow } from '@/data/api';
+import { usePeopleBalances } from '@/data/hooks';
+import { useAuth } from '@/lib/auth';
 import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -94,11 +95,12 @@ export default function FriendsScreen() {
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
 
-  const people = useQuery({
-    queryKey: ['people', 'balances'],
-    queryFn: fetchPeopleBalances,
-  });
-  const rows = people.data ?? [];
+  const { profile } = useAuth();
+  // Local-first (ADR-005): who owes whom is computed from the mirror, so Friends
+  // works with no connection — the same rows the RPC returns, folded by the
+  // viewer's own ghost merges pulled into the mirror (A38).
+  const people = usePeopleBalances(profile?.id ?? null);
+  const rows = people.data;
 
   // The merge entry earns its place in the header only once there are two or
   // more guests to merge — for everyone else it would be a control that leads to
@@ -222,13 +224,6 @@ export default function FriendsScreen() {
 
         {people.isLoading ? (
           <PeopleSkeleton />
-        ) : people.isError ? (
-          // A failed fetch is not "all square" — say so, and give a way back.
-          <EmptyState
-            title={t.loadError}
-            body={t.loadErrorBody}
-            action={<Button label={t.retry} variant="secondary" onPress={() => people.refetch()} />}
-          />
         ) : rows.length === 0 ? (
           <EmptyState title={t.tabs.allSquare} body={t.tabs.allSquareBody} />
         ) : (

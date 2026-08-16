@@ -91,4 +91,30 @@ describe('merging guests unions overlapping groups', () => {
     expect(rows[0]?.people).toBe(1);
     expect(rows[0]?.rows).toBe(2);
   });
+
+  it('stamps updated_seq so the merge can be pulled into the mirror', async () => {
+    // The sync trigger (20260816120000) advances a per-owner counter on every
+    // merge, so an offline Friends read can fold it (A38). Both members written
+    // by one merge get a positive, distinct seq, and the profile counter moves.
+    const { profileIds, memberIds } = await seedGroup(client, { memberCount: 1, ghostCount: 2 });
+    const caller = profileIds[0]!;
+    const [, ghostA, ghostB] = memberIds;
+
+    await merge(caller, [ghostA!, ghostB!], 'Rahul');
+
+    const { rows } = await client.query(
+      `SELECT member_id, updated_seq FROM ghost_merges
+        WHERE owner = $1 ORDER BY updated_seq`,
+      [caller],
+    );
+    expect(rows).toHaveLength(2);
+    const seqs = rows.map((row) => Number(row.updated_seq));
+    expect(seqs.every((seq) => seq > 0)).toBe(true);
+    expect(new Set(seqs).size).toBe(2); // distinct — the pull orders by it
+
+    const counter = await client.query(`SELECT ghost_merges_seq FROM profiles WHERE id = $1`, [
+      caller,
+    ]);
+    expect(Number(counter.rows[0]?.ghost_merges_seq)).toBeGreaterThanOrEqual(2);
+  });
 });

@@ -52,6 +52,7 @@ import {
   mergeErrorMessage,
 } from '@/data/mergePeople';
 import { PeopleSkeleton } from '@/components/Skeletons';
+import { useSync } from '@/sync';
 import { plural, useStrings } from '@/i18n';
 
 export default function MergePeopleScreen() {
@@ -59,6 +60,7 @@ export default function MergePeopleScreen() {
   const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const queryClient = useQueryClient();
+  const { flush } = useSync();
 
   const people = useQuery({ queryKey: ['people', 'balances'], queryFn: fetchPeopleBalances });
 
@@ -101,7 +103,11 @@ export default function MergePeopleScreen() {
   const merge = useMutation({
     mutationFn: () => mergeGhosts(memberIdsForMerge(selectedRows), name.trim()),
     onSuccess: async () => {
+      // The merge is written server-side by the RPC; pull it into the mirror so
+      // the now-local Friends list (ADR-005) folds it without waiting for the
+      // next background sync. The invalidate keeps this screen's own list fresh.
       await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
+      void flush();
       router.back();
     },
     onError: (caught) => setError(mergeErrorMessage(caught, t.mergePeople)),

@@ -671,6 +671,12 @@ async function pull(
   // group loop does not waste a `groups` lookup on it.
   groupIds.delete(profileId);
 
+  // Ghost merges (A38) ride a second personal scope, keyed distinctly so it does
+  // not share a cursor with captures. Must equal `ghostMergesScope(profileId)`
+  // in @baaki/core; inlined to keep the edge bundle free of that import.
+  const gmScope = `${profileId}:ghost_merges`;
+  groupIds.delete(gmScope);
+
   for (const groupId of groupIds) {
     const since = cursors[groupId] ?? 0;
 
@@ -737,6 +743,35 @@ async function pull(
     if (seq > capturesHighWater) capturesHighWater = seq;
   }
   nextCursors[profileId] = capturesHighWater;
+
+  // Personal scope (A38): the caller's own ghost merges, pull-only. Read as the
+  // caller so owner-only RLS (`ghost_merges_select_own`) already guarantees they
+  // are theirs. The mirror keys every row by a string `id`, but ghost_merges has
+  // a composite PK and no id column — so synthesise one from member_id, which is
+  // unique within an owner.
+  const gmSince = cursors[gmScope] ?? 0;
+  const { data: merges, error: mergesError } = await caller
+    .from('ghost_merges')
+    .select('*')
+    .eq('owner', profileId)
+    .gt('updated_seq', gmSince)
+    .order('updated_seq', { ascending: true })
+    .limit(MAX_ROWS_PER_TABLE);
+  if (mergesError) throw new HttpError(500, 'PULL_FAILED', `ghost_merges: ${mergesError.message}`);
+
+  let gmHighWater = gmSince;
+  for (const row of merges ?? []) {
+    const record = row as Record<string, unknown>;
+    const seq = Number(record.updated_seq ?? 0);
+    changes.push({
+      table: 'ghost_merges',
+      groupId: gmScope,
+      seq,
+      row: { ...record, id: record.member_id },
+    });
+    if (seq > gmHighWater) gmHighWater = seq;
+  }
+  nextCursors[gmScope] = gmHighWater;
 
   return { changes, cursors: nextCursors };
 }

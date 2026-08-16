@@ -146,6 +146,7 @@ model Profile {
   /// captures equivalent of `groups.updated_seq`. Bumped under row lock by
   /// `baaki_next_capture_seq`.
   capturesSeq       BigInt   @default(0) @map("captures_seq")
+  ghostMergesSeq    BigInt   @default(0) @map("ghost_merges_seq")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -317,12 +318,14 @@ model GhostMerge {
   personId    String   @map("person_id") @db.Uuid
   displayName String   @map("display_name")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedSeq  BigInt   @default(0) @map("updated_seq")
 
   ownerProfile Profile     @relation(fields: [owner], references: [id], onDelete: Cascade)
   member       GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@id([owner, memberId])
   @@index([owner, personId])
+  @@index([owner, updatedSeq])
   @@map("ghost_merges")
   @@schema("public")
 }

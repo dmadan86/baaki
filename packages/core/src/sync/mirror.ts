@@ -52,6 +52,7 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.SettlementAllocations,
   SyncTable.ActivityLog,
   SyncTable.Captures,
+  SyncTable.GhostMerges,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -621,4 +622,23 @@ export function materialiseCaptures(
 /** The inbox: open, not deleted. What has been assigned or removed is gone from it. */
 export function openCaptures(captures: readonly MirrorCapture[]): MirrorCapture[] {
   return captures.filter((capture) => capture.status === 'open' && capture.deleted_at === null);
+}
+
+/**
+ * A viewer's ghost merge, as it lands in the mirror (A38). Pull-only — the
+ * client never writes these — so there is no pending overlay, unlike captures.
+ * `id` is the synthetic key the edge injects (the member_id), since the table's
+ * real key is the composite (owner, member_id).
+ */
+export interface MirrorGhostMerge extends MirrorRow {
+  readonly id: string;
+  readonly owner: string;
+  readonly member_id: string;
+  readonly person_id: string;
+  readonly display_name: string;
+}
+
+/** The viewer's ghost merges from the mirror; read-only, no overlay. */
+export function ghostMerges(state: MirrorState): MirrorGhostMerge[] {
+  return rowsFor(state, SyncTable.GhostMerges) as MirrorGhostMerge[];
 }
