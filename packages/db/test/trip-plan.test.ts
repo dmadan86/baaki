@@ -266,9 +266,16 @@ describe('changing the plan', () => {
 
   it('removes as a soft delete so the tombstone can sync, and twice is fine', async () => {
     const id = await as(group.profileIds[0] as string, seedItem);
-    await as(group.profileIds[0] as string, async () => {
+    const seqAfterFirst = await as(group.profileIds[0] as string, async () => {
       await client.query(`SELECT baaki_remove_plan_item($1)`, [id]);
+      const { rows } = await client.query(`SELECT updated_seq FROM trip_plan_items WHERE id = $1`, [
+        id,
+      ]);
+      const seq = Number(rows[0].updated_seq);
+      // Removing again must be a no-op — the RPC guards on `deleted_at IS NULL`,
+      // so a second call cannot re-stamp the seq and churn every device's pull.
       await client.query(`SELECT baaki_remove_plan_item($1)`, [id]);
+      return seq;
     });
     // The row stays, marked deleted, so a seq-based pull carries the removal to
     // other devices; a live read (deleted_at IS NULL) sees nothing.
@@ -278,7 +285,8 @@ describe('changing the plan', () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].deleted_at).not.toBeNull();
-    expect(Number(rows[0].updated_seq)).toBeGreaterThan(0);
+    expect(seqAfterFirst).toBeGreaterThan(0);
+    expect(Number(rows[0].updated_seq)).toBe(seqAfterFirst); // unchanged by the 2nd remove
   });
 });
 

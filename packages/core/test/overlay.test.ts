@@ -485,6 +485,50 @@ describe('trip plan (A23)', () => {
     expect(openPlanItems(all)).toHaveLength(0);
   });
 
+  it('drops a plan item the server pulled already tombstoned', () => {
+    const mirror = reconcile(emptyMirror(), [
+      {
+        table: SyncTable.TripPlanItems,
+        groupId: GROUP,
+        seq: 2,
+        row: {
+          id: 'server-gone',
+          group_id: GROUP,
+          day: '2026-03-14',
+          title: 'Cancelled',
+          position: 0,
+          currency: 'INR',
+          done_at: null,
+          deleted_at: AT,
+        },
+      },
+    ]).state;
+    const all = materialisePlanItems(mirror, queued(), { groupId: GROUP });
+    expect(all).toHaveLength(1); // kept for reconciliation
+    expect(openPlanItems(all)).toHaveLength(0); // but never rendered
+  });
+
+  it('keeps two offline items in the order they were added, not by id', () => {
+    // 'zzz' was queued before 'aaa'; a plain id tie-break would flip them, so
+    // this only passes if pending items sort by queue order (pending_rank).
+    const first = envelope('p-6', MutationKind.PlanItemCreate, {
+      itemId: 'zzz-item',
+      day: '2026-03-14',
+      title: 'First',
+      currency: 'INR',
+    });
+    const second = envelope('p-7', MutationKind.PlanItemCreate, {
+      itemId: 'aaa-item',
+      day: '2026-03-14',
+      title: 'Second',
+      currency: 'INR',
+    });
+    const rows = openPlanItems(
+      materialisePlanItems(emptyMirror(), queued(first, second), { groupId: GROUP }),
+    );
+    expect(rows.map((r) => r.id)).toEqual(['zzz-item', 'aaa-item']);
+  });
+
   it('sorts by day then position, with a fresh offline item after the known ones', () => {
     const mirror = reconcile(emptyMirror(), [
       {
@@ -603,6 +647,27 @@ describe('trip member budgets (A23)', () => {
       groupId: GROUP,
       myMemberId: null,
     });
+    expect(rows).toHaveLength(0);
+  });
+
+  it('omits a budget the server pulled already tombstoned', () => {
+    const mirror = reconcile(emptyMirror(), [
+      {
+        table: SyncTable.TripMemberBudgets,
+        groupId: GROUP,
+        seq: 2,
+        row: {
+          id: 'bud-gone',
+          group_id: GROUP,
+          member_id: ME,
+          amount_minor: '100000',
+          currency: 'INR',
+          visibility: 'private',
+          deleted_at: AT,
+        },
+      },
+    ]).state;
+    const rows = materialiseMemberBudgets(mirror, queued(), { groupId: GROUP, myMemberId: ME });
     expect(rows).toHaveLength(0);
   });
 });
