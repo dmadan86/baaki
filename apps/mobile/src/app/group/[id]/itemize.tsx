@@ -121,8 +121,7 @@ export default function ItemizeScreen() {
   const toMinor = (text: string): bigint | null => {
     const trimmed = text.trim();
     if (trimmed === '') return 0n;
-    const pattern =
-      digits === 0 ? /^(\d+)$/ : new RegExp(`^(\\d+)(?:\\.(\\d{1,${digits}}))?$`);
+    const pattern = digits === 0 ? /^(\d+)$/ : new RegExp(`^(\\d+)(?:\\.(\\d{1,${digits}}))?$`);
     const match = pattern.exec(trimmed);
     if (!match) return null;
     const [, whole = '0', fraction = ''] = match;
