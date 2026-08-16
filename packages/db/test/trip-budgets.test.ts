@@ -160,3 +160,46 @@ describe('the overall budget is the admin’s', () => {
     });
   });
 });
+
+describe('clearing a personal budget is a soft delete (so it syncs)', () => {
+  it('marks the row deleted and bumps the seq rather than dropping it', async () => {
+    const member = group.profileIds[1] as string;
+    const memberId = group.memberIds[1] as string;
+    await as(member, async () => {
+      await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'private')`, [
+        group.groupId,
+      ]);
+      await client.query(`SELECT baaki_clear_my_trip_budget($1)`, [group.groupId]);
+    });
+    const { rows } = await client.query(
+      `SELECT deleted_at, updated_seq FROM trip_member_budgets WHERE member_id = $1`,
+      [memberId],
+    );
+    // The tombstone stays so a second device learns the budget is gone.
+    expect(rows).toHaveLength(1);
+    expect(rows[0].deleted_at).not.toBeNull();
+    expect(Number(rows[0].updated_seq)).toBeGreaterThan(0);
+  });
+
+  it('revives the one row when the budget is set again, not a second row', async () => {
+    const member = group.profileIds[1] as string;
+    const memberId = group.memberIds[1] as string;
+    await as(member, async () => {
+      await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'private')`, [
+        group.groupId,
+      ]);
+      await client.query(`SELECT baaki_clear_my_trip_budget($1)`, [group.groupId]);
+      await client.query(`SELECT baaki_set_my_trip_budget($1, 700000, NULL, 'private')`, [
+        group.groupId,
+      ]);
+    });
+    const { rows } = await client.query(
+      `SELECT count(*)::int AS n, max(amount_minor)::text AS amount, bool_or(deleted_at IS NULL) AS live
+         FROM trip_member_budgets WHERE member_id = $1`,
+      [memberId],
+    );
+    expect(rows[0].n).toBe(1); // the UNIQUE(member_id) row, raised — not a collision
+    expect(rows[0].amount).toBe('700000');
+    expect(rows[0].live).toBe(true);
+  });
+});

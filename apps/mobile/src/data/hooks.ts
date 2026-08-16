@@ -20,10 +20,13 @@ import {
   materialiseCaptures,
   materialiseExpenses,
   materialiseGroups,
+  materialiseMemberBudgets,
   materialiseMembers,
+  materialisePlanItems,
   materialiseSettlements,
   MutationKind,
   openCaptures,
+  openPlanItems,
   overlayPending,
   rowsFor,
   simplify,
@@ -52,9 +55,9 @@ import {
   fetchNotifications,
   fetchMemberClaims,
   decideMemberClaim,
-  fetchPlanItems,
-  fetchMemberBudgets,
-  fetchGroupBudget,
+  type PlanItemRow,
+  type MemberBudgetRow,
+  type GroupBudget,
   markNotificationsRead,
   recordSettlement,
   resolveDispute,
@@ -1026,35 +1029,137 @@ export function useLeaveGroup(groupId: string) {
   });
 }
 
-/** The trip's plan. Read-only here; writes go through the RPCs in api.ts. */
-export function usePlanItems(groupId: string) {
-  return useQuery({
-    queryKey: ['plan', groupId],
-    queryFn: () => fetchPlanItems(groupId),
-    enabled: groupId !== '',
-  });
+/** The trip's plan, read from the mirror so it opens with no connection (A23). */
+export function usePlanItems(groupId: string): LocalRead<PlanItemRow[]> {
+  const { mirror, queue } = useSync();
+  const items = useMemo(
+    () =>
+      openPlanItems(materialisePlanItems(mirror, queue, { groupId })) as unknown as PlanItemRow[],
+    [mirror, queue, groupId],
+  );
+  return useLocalRead(items);
 }
 
 /**
- * Personal trip budgets for the group. RLS decides what comes back: the
- * caller's own row always, plus anybody who shared theirs with the group. A
- * private budget belonging to somebody else is never in this list — the screen
- * cannot render, and cannot leak, what it never received.
+ * Personal trip budgets for the group, from the mirror. RLS already decided
+ * what the pull returned — the caller's own always, plus anybody who shared
+ * theirs — so a private budget belonging to somebody else was never mirrored
+ * and cannot leak. The caller's own pending set/clear is overlaid by member id.
  */
-export function useMemberBudgets(groupId: string) {
-  return useQuery({
-    queryKey: keys.memberBudgets(groupId),
-    queryFn: () => fetchMemberBudgets(groupId),
-    enabled: groupId !== '',
+export function useMemberBudgets(groupId: string): LocalRead<MemberBudgetRow[]> {
+  const { mirror, queue } = useSync();
+  const { profile } = useAuth();
+  const budgets = useMemo(() => {
+    const myMemberId =
+      (materialiseMembers(mirror, queue, { groupId }) as unknown as MemberRow[]).find(
+        (member) => member.profile_id === profile?.id && member.left_at === null,
+      )?.id ?? null;
+    return materialiseMemberBudgets(mirror, queue, {
+      groupId,
+      myMemberId,
+    }) as unknown as MemberBudgetRow[];
+  }, [mirror, queue, groupId, profile?.id]);
+  return useLocalRead(budgets);
+}
+
+/** The overall trip budget, read off the mirrored group row (ADR-005). */
+export function useGroupBudget(groupId: string): LocalRead<GroupBudget> {
+  const { mirror, queue } = useSync();
+  const budget = useMemo(() => {
+    const group = (materialiseGroups(mirror, queue) as unknown as GroupRow[]).find(
+      (row) => row.id === groupId,
+    );
+    const minor = group?.budget_minor;
+    return {
+      amountMinor: minor === null || minor === undefined ? null : BigInt(minor),
+      currency: group?.budget_currency ?? null,
+    } as GroupBudget;
+  }, [mirror, queue, groupId]);
+  return useLocalRead(budget);
+}
+
+/** Add a plan item, queued (A23). The client chooses the id so the overlay and
+ *  the RPC's replay guard both key on it. */
+export function useAddPlanItem(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (input: {
+      day: string;
+      title: string;
+      startsAt?: string | null;
+      note?: string | null;
+      category?: string | null;
+      plannedMinor?: bigint | null;
+      currency?: string | null;
+    }) =>
+      mutate(MutationKind.PlanItemCreate, groupId, {
+        itemId: randomUUID(),
+        day: input.day,
+        title: input.title,
+        startsAt: input.startsAt ?? null,
+        note: input.note ?? null,
+        category: input.category ?? null,
+        plannedMinor:
+          input.plannedMinor === null || input.plannedMinor === undefined
+            ? null
+            : input.plannedMinor.toString(),
+        currency: input.currency ?? null,
+      }),
   });
 }
 
-/** The overall trip budget, read straight off the group row. */
-export function useGroupBudget(groupId: string) {
-  return useQuery({
-    queryKey: keys.groupBudget(groupId),
-    queryFn: () => fetchGroupBudget(groupId),
-    enabled: groupId !== '',
+/** Tick a plan item done or undone, queued. */
+export function useSetPlanItemDone(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (input: { itemId: string; done: boolean }) =>
+      mutate(MutationKind.PlanItemUpdate, groupId, { itemId: input.itemId, done: input.done }),
+  });
+}
+
+/** Remove a plan item, queued (a soft delete server-side so it propagates). */
+export function useRemovePlanItem(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (itemId: string) => mutate(MutationKind.PlanItemDelete, groupId, { itemId }),
+  });
+}
+
+/** Set the caller's own trip budget, queued. */
+export function useSetMyTripBudget(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (input: {
+      amountMinor: bigint;
+      currency?: string | null;
+      visibility: 'private' | 'group';
+    }) =>
+      mutate(MutationKind.MemberBudgetSet, groupId, {
+        amountMinor: input.amountMinor.toString(),
+        currency: input.currency ?? null,
+        visibility: input.visibility,
+      }),
+  });
+}
+
+/** Clear the caller's own trip budget, queued (soft delete server-side). */
+export function useClearMyTripBudget(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: () => mutate(MutationKind.MemberBudgetClear, groupId, {}),
+  });
+}
+
+/** Set (or clear, with a null amount) the overall trip budget, queued. Admin-only,
+ *  enforced by the RPC the edge dispatches to. */
+export function useSetGroupBudget(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (input: { amountMinor: bigint | null; currency?: string | null }) =>
+      mutate(MutationKind.GroupBudgetSet, groupId, {
+        amountMinor: input.amountMinor === null ? null : input.amountMinor.toString(),
+        currency: input.currency ?? null,
+      }),
   });
 }
 

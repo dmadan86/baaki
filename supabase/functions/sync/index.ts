@@ -60,7 +60,15 @@ type MutationKind =
   | 'capture.create'
   | 'capture.update'
   | 'capture.delete'
-  | 'capture.assign';
+  | 'capture.assign'
+  // Trip plan + budgets (A23) — group-scoped, authorised by membership, so NOT
+  // in isPersonalKind below.
+  | 'plan_item.create'
+  | 'plan_item.update'
+  | 'plan_item.delete'
+  | 'member_budget.set'
+  | 'member_budget.clear'
+  | 'group_budget.set';
 
 /** True for the kinds whose scope is a user, not a group. */
 function isPersonalKind(kind: MutationKind): boolean {
@@ -384,6 +392,56 @@ class SyncSession {
         return await this.deleteCapture(mutation);
       case 'capture.assign':
         return await this.assignCapture(mutation);
+      case 'plan_item.create':
+        return await this.rpcAsCaller('baaki_add_plan_item', {
+          p_group_id: mutation.groupId,
+          p_day: requireString(mutation.payload.day, 'day'),
+          p_title: requireString(mutation.payload.title, 'title'),
+          p_starts_at: (mutation.payload.startsAt as string | undefined) ?? null,
+          p_note: (mutation.payload.note as string | undefined) ?? null,
+          p_category: (mutation.payload.category as string | undefined) ?? null,
+          p_planned_minor: (mutation.payload.plannedMinor as string | undefined) ?? null,
+          p_currency: (mutation.payload.currency as string | undefined) ?? null,
+          // Client-chosen id: the RPC's replay guard dedupes on it.
+          p_item_id: requireString(mutation.payload.itemId, 'itemId'),
+        });
+      case 'plan_item.update':
+        return await this.rpcAsCaller('baaki_update_plan_item', {
+          p_item_id: requireString(mutation.payload.itemId, 'itemId'),
+          // NULL means "leave alone"; p_clear (below) is how a field is emptied.
+          p_day: (mutation.payload.day as string | undefined) ?? null,
+          p_starts_at: (mutation.payload.startsAt as string | undefined) ?? null,
+          p_title: (mutation.payload.title as string | undefined) ?? null,
+          p_note: (mutation.payload.note as string | undefined) ?? null,
+          p_category: (mutation.payload.category as string | undefined) ?? null,
+          p_planned_minor: (mutation.payload.plannedMinor as string | undefined) ?? null,
+          p_done: (mutation.payload.done as boolean | undefined) ?? null,
+          p_expense_id: (mutation.payload.expenseId as string | undefined) ?? null,
+          p_clear: (mutation.payload.clear as string[] | undefined) ?? [],
+        });
+      case 'plan_item.delete':
+        return await this.rpcAsCaller('baaki_remove_plan_item', {
+          p_item_id: requireString(mutation.payload.itemId, 'itemId'),
+        });
+      case 'member_budget.set':
+        return await this.rpcAsCaller('baaki_set_my_trip_budget', {
+          p_group_id: mutation.groupId,
+          p_amount_minor: requireString(mutation.payload.amountMinor, 'amountMinor'),
+          p_currency: (mutation.payload.currency as string | undefined) ?? null,
+          p_visibility: (mutation.payload.visibility as string | undefined) ?? 'private',
+        });
+      case 'member_budget.clear':
+        return await this.rpcAsCaller('baaki_clear_my_trip_budget', {
+          p_group_id: mutation.groupId,
+        });
+      case 'group_budget.set':
+        // Admin-gated inside the RPC — kept a distinct kind rather than widening
+        // group.update, so any member cannot move the overall ceiling.
+        return await this.rpcAsCaller('baaki_set_group_budget', {
+          p_group_id: mutation.groupId,
+          p_amount_minor: (mutation.payload.amountMinor as string | null) ?? null,
+          p_currency: (mutation.payload.currency as string | undefined) ?? null,
+        });
       default:
         throw new HttpError(
           400,
@@ -705,6 +763,10 @@ async function pull(
       ['expenses', EXPENSE_SELECT],
       ['settlements', SETTLEMENT_SELECT],
       ['activity_log', '*'],
+      // Trip plan + budgets (A23). Flat rows, no embeds. Read as the caller, so a
+      // co-member's private budget is filtered by RLS and simply not returned.
+      ['trip_plan_items', '*'],
+      ['trip_member_budgets', '*'],
     ] as const) {
       const { data, error } = await caller
         .from(table)

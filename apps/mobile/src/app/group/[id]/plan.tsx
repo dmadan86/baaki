@@ -46,14 +46,17 @@ import {
 } from '@baaki/ui';
 
 import {
-  addPlanItem,
-  clearMyTripBudget,
-  removePlanItem,
-  setGroupBudget,
-  setMyTripBudget,
-  setPlanItemDone,
-} from '@/data/api';
-import { useGroup, useGroupBudget, useMemberBudgets, usePlanItems } from '@/data/hooks';
+  useAddPlanItem,
+  useClearMyTripBudget,
+  useGroup,
+  useGroupBudget,
+  useMemberBudgets,
+  usePlanItems,
+  useRemovePlanItem,
+  useSetGroupBudget,
+  useSetMyTripBudget,
+  useSetPlanItemDone,
+} from '@/data/hooks';
 import { displayName } from '@/data/types';
 import { useAuth } from '@/lib/auth';
 import { ListScreenSkeleton } from '@/components/Skeletons';
@@ -92,6 +95,15 @@ export default function PlanScreen() {
   const plan = usePlanItems(groupId);
   const budgets = useMemberBudgets(groupId);
   const groupBudget = useGroupBudget(groupId);
+
+  // Every write goes through the offline queue (A23), so the plan works with no
+  // connection and the mirror updates the moment a mutation is enqueued.
+  const addItem = useAddPlanItem(groupId);
+  const toggleItem = useSetPlanItemDone(groupId);
+  const removeItem = useRemovePlanItem(groupId);
+  const setMine = useSetMyTripBudget(groupId);
+  const clearMineBudget = useClearMyTripBudget(groupId);
+  const setOverall = useSetGroupBudget(groupId);
 
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -225,14 +237,12 @@ export default function PlanScreen() {
   const saveMine = async (): Promise<void> => {
     setBusy(true);
     try {
-      await setMyTripBudget({
-        groupId,
+      await setMine.mutateAsync({
         amountMinor: myAmount,
         currency,
         visibility: myShare ? 'group' : 'private',
       });
       setEditingMine(false);
-      await budgets.refetch();
     } finally {
       setBusy(false);
     }
@@ -241,9 +251,8 @@ export default function PlanScreen() {
   const clearMine = async (): Promise<void> => {
     setBusy(true);
     try {
-      await clearMyTripBudget(groupId);
+      await clearMineBudget.mutateAsync();
       setEditingMine(false);
-      await budgets.refetch();
     } finally {
       setBusy(false);
     }
@@ -257,10 +266,8 @@ export default function PlanScreen() {
   const saveOverall = async (): Promise<void> => {
     setBusy(true);
     try {
-      await setGroupBudget({ groupId, amountMinor: overallAmount, currency });
+      await setOverall.mutateAsync({ amountMinor: overallAmount, currency });
       setEditingOverall(false);
-      await budgets.refetch();
-      await groupBudget.refetch();
     } finally {
       setBusy(false);
     }
@@ -269,9 +276,8 @@ export default function PlanScreen() {
   const clearOverall = async (): Promise<void> => {
     setBusy(true);
     try {
-      await setGroupBudget({ groupId, amountMinor: null });
+      await setOverall.mutateAsync({ amountMinor: null });
       setEditingOverall(false);
-      await groupBudget.refetch();
     } finally {
       setBusy(false);
     }
@@ -283,23 +289,20 @@ export default function PlanScreen() {
     if (!title.trim()) return;
     setBusy(true);
     try {
-      await addPlanItem({ groupId, day, title: title.trim(), currency });
+      await addItem.mutateAsync({ day, title: title.trim(), currency });
       setTitle('');
       setAddingTo(null);
-      await plan.refetch();
     } finally {
       setBusy(false);
     }
   };
 
   const toggle = async (item: PlanItem): Promise<void> => {
-    await setPlanItemDone(item.id, !item.done);
-    await plan.refetch();
+    await toggleItem.mutateAsync({ itemId: item.id, done: !item.done });
   };
 
   const remove = async (item: PlanItem): Promise<void> => {
-    await removePlanItem(item.id);
-    await plan.refetch();
+    await removeItem.mutateAsync(item.id);
   };
 
   if (group.isLoading || plan.isLoading) {

@@ -27,7 +27,11 @@ import type {
   CaptureDeletePayload,
   ExpenseCreatePayload,
   ExpenseDeletePayload,
+  MemberBudgetSetPayload,
   MutationEnvelope,
+  PlanItemCreatePayload,
+  PlanItemDeletePayload,
+  PlanItemUpdatePayload,
   SyncChange,
 } from './protocol';
 import type { QueuedMutation } from './queue';
@@ -53,6 +57,8 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.ActivityLog,
   SyncTable.Captures,
   SyncTable.GhostMerges,
+  SyncTable.TripPlanItems,
+  SyncTable.TripMemberBudgets,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -465,6 +471,8 @@ export interface MirrorGroup extends MirrorRow {
   readonly default_currency: string;
   readonly created_at: string;
   readonly archived_at: string | null;
+  readonly budget_minor?: string | null;
+  readonly budget_currency?: string | null;
   readonly pending?: boolean;
 }
 
@@ -506,6 +514,24 @@ function buildGroups(state: MirrorState, queue: readonly QueuedMutation[]): Mirr
           ...existing,
           ...(mutation.payload as Record<string, unknown>),
           id: existing.id,
+          pending: true,
+        });
+      }
+    }
+
+    // The overall trip budget is a column on the group row (A23), so an
+    // optimistic set shows on the group at once; a null amount clears it.
+    if (mutation.kind === 'group_budget.set') {
+      const existing = byId.get(mutation.groupId);
+      if (existing) {
+        const payload = mutation.payload as {
+          amountMinor: string | null;
+          currency?: string | null;
+        };
+        byId.set(mutation.groupId, {
+          ...existing,
+          budget_minor: payload.amountMinor,
+          budget_currency: payload.amountMinor === null ? null : (payload.currency ?? null),
           pending: true,
         });
       }
@@ -670,4 +696,179 @@ export interface MirrorGhostMerge extends MirrorRow {
 /** The viewer's ghost merges from the mirror; read-only, no overlay. */
 export function ghostMerges(state: MirrorState): MirrorGhostMerge[] {
   return rowsFor(state, SyncTable.GhostMerges) as MirrorGhostMerge[];
+}
+
+// ─────────────────────────────────────────────── trip plan + budgets (A23) ──
+//
+// The plan is a group's shared list, not money (no balance ever reads it), so
+// it gets the same server+pending overlay as everything else: an item added in
+// a dead zone is only in the queue until it syncs, and without the overlay it
+// would look lost. Delete is soft (a `deleted_at` the seq pull carries), so the
+// mirror filters it out rather than a hard removal a second device never sees.
+
+export interface MirrorPlanItem extends MirrorRow {
+  readonly id: string;
+  readonly group_id: string;
+  readonly day: string;
+  readonly starts_at: string | null;
+  readonly title: string;
+  readonly note: string | null;
+  readonly category: string | null;
+  readonly planned_minor: string | null;
+  readonly currency: string;
+  readonly done_at: string | null;
+  readonly expense_id: string | null;
+  readonly position: number;
+  readonly deleted_at: string | null;
+  readonly pending?: boolean;
+}
+
+/** The plan of one group: server rows with queued create/update/delete on top. */
+export function materialisePlanItems(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  options: { readonly groupId: string },
+): MirrorPlanItem[] {
+  const byId = new Map<string, MirrorPlanItem>();
+  for (const row of rowsFor(state, SyncTable.TripPlanItems, options.groupId) as MirrorPlanItem[]) {
+    byId.set(row.id, row);
+  }
+
+  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+    if (mutation.groupId !== options.groupId) continue;
+
+    switch (mutation.kind) {
+      case 'plan_item.create': {
+        const payload = mutation.payload as PlanItemCreatePayload;
+        if (byId.has(payload.itemId)) break;
+        byId.set(payload.itemId, {
+          id: payload.itemId,
+          group_id: mutation.groupId,
+          day: payload.day,
+          starts_at: payload.startsAt ?? null,
+          title: payload.title,
+          note: payload.note ?? null,
+          category: payload.category ?? null,
+          planned_minor: payload.plannedMinor ?? null,
+          currency: payload.currency ?? 'INR',
+          done_at: null,
+          expense_id: null,
+          // The server sets the real position (last within its day); until then
+          // sort a fresh item after the known ones, tie-broken by insertion.
+          position: Number.MAX_SAFE_INTEGER,
+          deleted_at: null,
+          pending: true,
+        });
+        break;
+      }
+      case 'plan_item.update': {
+        const payload = mutation.payload as PlanItemUpdatePayload;
+        const existing = byId.get(payload.itemId);
+        if (!existing) break;
+        const cleared = new Set(payload.clear ?? []);
+        byId.set(payload.itemId, {
+          ...existing,
+          day: payload.day ?? existing.day,
+          title: payload.title ?? existing.title,
+          starts_at: cleared.has('starts_at') ? null : (payload.startsAt ?? existing.starts_at),
+          note: cleared.has('note') ? null : (payload.note ?? existing.note),
+          category: cleared.has('category') ? null : (payload.category ?? existing.category),
+          planned_minor: cleared.has('planned_minor')
+            ? null
+            : (payload.plannedMinor ?? existing.planned_minor),
+          expense_id: cleared.has('expense_id') ? null : (payload.expenseId ?? existing.expense_id),
+          done_at:
+            payload.done === undefined
+              ? existing.done_at
+              : payload.done
+                ? (existing.done_at ?? mutation.clientCreatedAt)
+                : null,
+          pending: true,
+        });
+        break;
+      }
+      case 'plan_item.delete': {
+        const { itemId } = mutation.payload as PlanItemDeletePayload;
+        const existing = byId.get(itemId);
+        if (existing) {
+          byId.set(itemId, { ...existing, deleted_at: mutation.clientCreatedAt, pending: true });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return [...byId.values()].sort((a, b) => {
+    if (a.day !== b.day) return a.day.localeCompare(b.day);
+    if (a.position !== b.position) return a.position - b.position;
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+
+/** The plan to render: what has not been removed. */
+export function openPlanItems(items: readonly MirrorPlanItem[]): MirrorPlanItem[] {
+  return items.filter((item) => item.deleted_at === null);
+}
+
+export interface MirrorMemberBudget extends MirrorRow {
+  readonly id: string;
+  readonly group_id: string;
+  readonly member_id: string;
+  readonly amount_minor: string;
+  readonly currency: string;
+  readonly visibility: 'private' | 'group';
+  readonly deleted_at: string | null;
+  readonly pending?: boolean;
+}
+
+/**
+ * The personal budgets visible to the caller, server rows with the caller's own
+ * queued set/clear on top. The queue only ever writes the caller's own budget,
+ * so the pending row is keyed by their member id (`myMemberId`), which the
+ * payload does not carry — the RPC derives it server-side.
+ */
+export function materialiseMemberBudgets(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  options: { readonly groupId: string; readonly myMemberId: string | null },
+): MirrorMemberBudget[] {
+  const byMember = new Map<string, MirrorMemberBudget>();
+  for (const row of rowsFor(
+    state,
+    SyncTable.TripMemberBudgets,
+    options.groupId,
+  ) as MirrorMemberBudget[]) {
+    byMember.set(row.member_id, row);
+  }
+
+  const mine = options.myMemberId;
+  if (mine) {
+    for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+      if (mutation.groupId !== options.groupId) continue;
+
+      if (mutation.kind === 'member_budget.set') {
+        const payload = mutation.payload as MemberBudgetSetPayload;
+        const existing = byMember.get(mine);
+        byMember.set(mine, {
+          id: existing?.id ?? `pending:${mutation.clientMutationId}`,
+          group_id: mutation.groupId,
+          member_id: mine,
+          amount_minor: payload.amountMinor,
+          currency: payload.currency ?? existing?.currency ?? 'INR',
+          visibility: payload.visibility,
+          deleted_at: null,
+          pending: true,
+        });
+      } else if (mutation.kind === 'member_budget.clear') {
+        const existing = byMember.get(mine);
+        if (existing) {
+          byMember.set(mine, { ...existing, deleted_at: mutation.clientCreatedAt, pending: true });
+        }
+      }
+    }
+  }
+
+  return [...byMember.values()].filter((budget) => budget.deleted_at === null);
 }
