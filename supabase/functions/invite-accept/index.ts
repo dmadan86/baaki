@@ -81,7 +81,9 @@ serveWithCors(async (request) => {
 
     const { data: members } = await service
       .from('group_members')
-      .select('id, ghost_name, profile_id, profiles ( display_name )')
+      // FK-hinted: ghost_merges bridges group_members and profiles, so the embed
+      // is ambiguous without naming the column.
+      .select('id, ghost_name, profile_id, profiles!profile_id ( display_name )')
       .eq('group_id', invite.group_id)
       .is('left_at', null);
 

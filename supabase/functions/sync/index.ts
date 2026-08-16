@@ -759,7 +759,13 @@ async function pull(
     }
 
     for (const [table, select] of [
-      ['group_members', '*, profile:profiles ( id, display_name, avatar_url, default_vpa )'],
+      // profiles is embedded by the explicit FK column: ghost_merges references
+      // both group_members and profiles, so PostgREST otherwise sees two
+      // group_members↔profiles relationships and refuses to guess.
+      [
+        'group_members',
+        '*, profile:profiles!profile_id ( id, display_name, avatar_url, default_vpa )',
+      ],
       ['expenses', EXPENSE_SELECT],
       ['settlements', SETTLEMENT_SELECT],
       ['activity_log', '*'],
