@@ -17,10 +17,13 @@ import {
   enqueue,
   materialiseCaptures,
   materialiseGroups,
+  materialiseMemberBudgets,
   materialiseMembers,
+  materialisePlanItems,
   materialiseSettlements,
   MutationKind,
   openCaptures,
+  openPlanItems,
   reconcile,
   SyncTable,
   type MutationEnvelope,
@@ -438,5 +441,205 @@ describe('captures', () => {
     const rows = materialiseCaptures(state, queued(edit), { ownerId: OWNER });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ description: 'Petrol (edited)', pending: true });
+  });
+});
+
+describe('trip plan (A23)', () => {
+  const create = envelope('p-1', MutationKind.PlanItemCreate, {
+    itemId: 'item-1',
+    day: '2026-03-14',
+    title: 'Scuba dive',
+    currency: 'INR',
+  });
+
+  it('shows a plan item added with no network, marked pending', () => {
+    const rows = materialisePlanItems(emptyMirror(), queued(create), { groupId: GROUP });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: 'item-1',
+      title: 'Scuba dive',
+      day: '2026-03-14',
+      done_at: null,
+      deleted_at: null,
+      pending: true,
+    });
+  });
+
+  it('ticks an item done, and back undone', () => {
+    const done = envelope('p-2', MutationKind.PlanItemUpdate, { itemId: 'item-1', done: true });
+    const [row] = materialisePlanItems(emptyMirror(), queued(create, done), { groupId: GROUP });
+    expect(row?.done_at).not.toBeNull();
+
+    const undone = envelope('p-3', MutationKind.PlanItemUpdate, { itemId: 'item-1', done: false });
+    const [row2] = materialisePlanItems(emptyMirror(), queued(create, done, undone), {
+      groupId: GROUP,
+    });
+    expect(row2?.done_at).toBeNull();
+  });
+
+  it('removes an item — soft-deleted, so openPlanItems drops it', () => {
+    const remove = envelope('p-4', MutationKind.PlanItemDelete, { itemId: 'item-1' });
+    const all = materialisePlanItems(emptyMirror(), queued(create, remove), { groupId: GROUP });
+    expect(all[0]?.deleted_at).not.toBeNull();
+    // The screen reads openPlanItems, so a removed item is simply gone from it.
+    expect(openPlanItems(all)).toHaveLength(0);
+  });
+
+  it('sorts by day then position, with a fresh offline item after the known ones', () => {
+    const mirror = reconcile(emptyMirror(), [
+      {
+        table: SyncTable.TripPlanItems,
+        groupId: GROUP,
+        seq: 1,
+        row: {
+          id: 'server-1',
+          group_id: GROUP,
+          day: '2026-03-14',
+          title: 'Breakfast',
+          position: 0,
+          currency: 'INR',
+          done_at: null,
+          deleted_at: null,
+        },
+      },
+    ]).state;
+    const rows = openPlanItems(materialisePlanItems(mirror, queued(create), { groupId: GROUP }));
+    // Same day: the server item (position 0) before the pending one (last).
+    expect(rows.map((r) => r.id)).toEqual(['server-1', 'item-1']);
+  });
+
+  it('does not duplicate an item the server has since confirmed', () => {
+    const mirror = reconcile(emptyMirror(), [
+      {
+        table: SyncTable.TripPlanItems,
+        groupId: GROUP,
+        seq: 1,
+        row: {
+          id: 'item-1',
+          group_id: GROUP,
+          day: '2026-03-14',
+          title: 'Scuba dive',
+          position: 0,
+          currency: 'INR',
+          done_at: null,
+          deleted_at: null,
+        },
+      },
+    ]).state;
+    const rows = materialisePlanItems(mirror, queued(create), { groupId: GROUP });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.pending).toBeUndefined();
+  });
+
+  it('leaves another group’s plan alone', () => {
+    const elsewhere = envelope(
+      'p-9',
+      MutationKind.PlanItemCreate,
+      { itemId: 'item-2', day: '2026-03-14', title: 'X', currency: 'INR' },
+      'g-2',
+    );
+    expect(materialisePlanItems(emptyMirror(), queued(elsewhere), { groupId: GROUP })).toHaveLength(
+      0,
+    );
+  });
+});
+
+describe('trip member budgets (A23)', () => {
+  const ME = 'me-1';
+  const set = envelope('b-1', MutationKind.MemberBudgetSet, {
+    amountMinor: '500000',
+    currency: 'INR',
+    visibility: 'private',
+  });
+
+  it('shows my budget set offline, keyed to my member id', () => {
+    const rows = materialiseMemberBudgets(emptyMirror(), queued(set), {
+      groupId: GROUP,
+      myMemberId: ME,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      member_id: ME,
+      amount_minor: '500000',
+      visibility: 'private',
+      pending: true,
+    });
+  });
+
+  it('clears my budget — soft-deleted, so it drops out of the list', () => {
+    const clear = envelope('b-2', MutationKind.MemberBudgetClear, {});
+    const rows = materialiseMemberBudgets(emptyMirror(), queued(set, clear), {
+      groupId: GROUP,
+      myMemberId: ME,
+    });
+    expect(rows).toHaveLength(0);
+  });
+
+  it('overwrites my existing budget rather than adding a second', () => {
+    const mirror = reconcile(emptyMirror(), [
+      {
+        table: SyncTable.TripMemberBudgets,
+        groupId: GROUP,
+        seq: 1,
+        row: {
+          id: 'bud-1',
+          group_id: GROUP,
+          member_id: ME,
+          amount_minor: '100000',
+          currency: 'INR',
+          visibility: 'private',
+          deleted_at: null,
+        },
+      },
+    ]).state;
+    const rows = materialiseMemberBudgets(mirror, queued(set), { groupId: GROUP, myMemberId: ME });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.amount_minor).toBe('500000');
+    expect(rows[0]?.id).toBe('bud-1'); // same row, raised
+  });
+
+  it('does not overlay anything when the caller has no member id', () => {
+    const rows = materialiseMemberBudgets(emptyMirror(), queued(set), {
+      groupId: GROUP,
+      myMemberId: null,
+    });
+    expect(rows).toHaveLength(0);
+  });
+});
+
+describe('overall trip budget rides the group row', () => {
+  const base: SyncChange = {
+    table: SyncTable.Groups,
+    groupId: GROUP,
+    seq: 1,
+    row: {
+      id: GROUP,
+      name: 'Goa',
+      default_currency: 'INR',
+      created_at: AT,
+      archived_at: null,
+      budget_minor: null,
+      budget_currency: null,
+    },
+  };
+
+  it('sets the overall budget optimistically on the group', () => {
+    const mirror = reconcile(emptyMirror(), [base]).state;
+    const set = envelope('g-1', MutationKind.GroupBudgetSet, {
+      amountMinor: '2000000',
+      currency: 'INR',
+    });
+    const [row] = materialiseGroups(mirror, queued(set));
+    expect(row).toMatchObject({ budget_minor: '2000000', budget_currency: 'INR', pending: true });
+  });
+
+  it('clears the overall budget with a null amount', () => {
+    const withBudget = reconcile(emptyMirror(), [
+      { ...base, row: { ...base.row, budget_minor: '2000000', budget_currency: 'INR' } },
+    ]).state;
+    const clear = envelope('g-2', MutationKind.GroupBudgetSet, { amountMinor: null });
+    const [row] = materialiseGroups(withBudget, queued(clear));
+    expect(row?.budget_minor).toBeNull();
+    expect(row?.budget_currency).toBeNull();
   });
 });

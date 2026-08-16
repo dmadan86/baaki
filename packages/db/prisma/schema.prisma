@@ -1156,12 +1156,15 @@ model TripPlanItem {
   createdBy    String?   @map("created_by") @db.Uuid
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedSeq   BigInt    @default(0) @map("updated_seq")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
 
   group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   expense Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
   author  GroupMember? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([groupId, day, position], map: "trip_plan_items_group_day_idx")
+  @@index([groupId, updatedSeq])
   @@map("trip_plan_items")
   @@schema("public")
 }
@@ -1176,21 +1179,24 @@ model TripPlanItem {
 /// private; it is the sum of their `ExpenseShare` rows, which the shared ledger
 /// already shows everyone. Only the target this cap sets is hidden.
 model TripMemberBudget {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId     String   @map("group_id") @db.Uuid
-  memberId    String   @unique @map("member_id") @db.Uuid
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String    @map("group_id") @db.Uuid
+  memberId    String    @unique @map("member_id") @db.Uuid
   /// The ceiling, in minor units of `currency`. Zero is allowed; negative is not.
-  amountMinor BigInt   @map("amount_minor")
-  currency    String   @default("INR") @db.Char(3)
+  amountMinor BigInt    @map("amount_minor")
+  currency    String    @default("INR") @db.Char(3)
   /// 'private' (owner-only) | 'group' (whole group). CHECK in migration SQL.
-  visibility  String   @default("private")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  visibility  String    @default("private")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedSeq  BigInt    @default(0) @map("updated_seq")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
 
   group  Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
   member GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([groupId])
+  @@index([groupId, updatedSeq])
   @@map("trip_member_budgets")
   @@schema("public")
 }

@@ -34,6 +34,16 @@ export enum MutationKind {
   CaptureUpdate = 'capture.update',
   CaptureDelete = 'capture.delete',
   CaptureAssign = 'capture.assign',
+  // Trip plan + budgets (A23) — group-scoped, so unlike captures these carry a
+  // real group id in the envelope and are authorised by membership. Plan items
+  // get create/update/delete; a personal budget is a single upsert with an
+  // explicit clear; the overall budget stays admin-gated through its own kind.
+  PlanItemCreate = 'plan_item.create',
+  PlanItemUpdate = 'plan_item.update',
+  PlanItemDelete = 'plan_item.delete',
+  MemberBudgetSet = 'member_budget.set',
+  MemberBudgetClear = 'member_budget.clear',
+  GroupBudgetSet = 'group_budget.set',
 }
 
 export interface MutationEnvelope<K extends MutationKind = MutationKind, P = unknown> {
@@ -129,6 +139,55 @@ export interface CaptureAssignPayload {
   readonly expenseId: string;
 }
 
+/**
+ * Trip plan + budgets (A23). Amounts are minor-unit decimal strings, like every
+ * other money field on the wire. `itemId` is client-chosen and the idempotency
+ * key, so a replayed create returns the same row.
+ */
+export interface PlanItemCreatePayload {
+  readonly itemId: string;
+  readonly day: string;
+  readonly title: string;
+  readonly startsAt?: string | null;
+  readonly note?: string | null;
+  readonly category?: string | null;
+  readonly plannedMinor?: string | null;
+  readonly currency?: CurrencyCode | null;
+}
+
+export interface PlanItemUpdatePayload {
+  readonly itemId: string;
+  readonly day?: string;
+  readonly title?: string;
+  readonly startsAt?: string | null;
+  readonly note?: string | null;
+  readonly category?: string | null;
+  readonly plannedMinor?: string | null;
+  readonly done?: boolean;
+  readonly expenseId?: string | null;
+  /** Fields to clear to NULL — maps to the RPC's `p_clear text[]`. */
+  readonly clear?: readonly string[];
+}
+
+export interface PlanItemDeletePayload {
+  readonly itemId: string;
+}
+
+export interface MemberBudgetSetPayload {
+  readonly amountMinor: string;
+  readonly currency?: CurrencyCode | null;
+  readonly visibility: 'private' | 'group';
+}
+
+/** Clearing carries nothing — the scope (group) and the caller identify the row. */
+export type MemberBudgetClearPayload = Record<string, never>;
+
+/** The overall trip budget on the group row; null amount clears it. Admin-only. */
+export interface GroupBudgetSetPayload {
+  readonly amountMinor: string | null;
+  readonly currency?: CurrencyCode | null;
+}
+
 export interface SyncRequest {
   readonly deviceId: string;
   readonly mutations: readonly MutationEnvelope[];
@@ -187,6 +246,12 @@ export enum SyncTable {
   /** Personal scope (A38): the viewer's ghost merges, pull-only, so Friends can
    * fold merged guests offline. Never written through the queue. */
   GhostMerges = 'ghost_merges',
+  /** Group-scoped, read+write (A23). The trip plan is not money, so it never
+   * touches a balance — but it is a group's shared list and belongs offline. */
+  TripPlanItems = 'trip_plan_items',
+  /** Group-scoped, read+write. A member's personal spend ceiling for a trip;
+   * a `private` one is only ever pulled to its owner (RLS). */
+  TripMemberBudgets = 'trip_member_budgets',
 }
 
 /**

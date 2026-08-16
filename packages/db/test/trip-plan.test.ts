@@ -264,17 +264,21 @@ describe('changing the plan', () => {
     });
   });
 
-  it('removes, and removing twice is not an error', async () => {
+  it('removes as a soft delete so the tombstone can sync, and twice is fine', async () => {
     const id = await as(group.profileIds[0] as string, seedItem);
     await as(group.profileIds[0] as string, async () => {
       await client.query(`SELECT baaki_remove_plan_item($1)`, [id]);
       await client.query(`SELECT baaki_remove_plan_item($1)`, [id]);
     });
+    // The row stays, marked deleted, so a seq-based pull carries the removal to
+    // other devices; a live read (deleted_at IS NULL) sees nothing.
     const { rows } = await client.query(
-      `SELECT count(*)::int AS n FROM trip_plan_items WHERE id = $1`,
+      `SELECT deleted_at, updated_seq FROM trip_plan_items WHERE id = $1`,
       [id],
     );
-    expect(rows[0].n).toBe(0);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].deleted_at).not.toBeNull();
+    expect(Number(rows[0].updated_seq)).toBeGreaterThan(0);
   });
 });
 

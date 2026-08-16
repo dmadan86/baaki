@@ -48,6 +48,12 @@ export interface GroupRow {
   remind_evening_at: string;
   archived_at: string | null;
   created_at: string;
+  /** The overall trip budget, minor units, or null for "no cap". Set by an admin
+   *  and always group-visible; the private per-member caps live elsewhere.
+   *  Optional because the narrow contact/group REST selects omit it — the mirror
+   *  row (a full `*` pull) always carries it. */
+  budget_minor?: string | null;
+  budget_currency?: string | null;
   /** True while this row exists only in the local queue (ADR-005). */
   pending?: boolean;
 }
