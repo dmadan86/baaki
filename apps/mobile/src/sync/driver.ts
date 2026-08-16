@@ -217,6 +217,16 @@ class SqliteStore implements LocalStore {
     });
   }
 
+  forgetGroup(groupId: string): Promise<void> {
+    return this.serial.run(async () => {
+      const database = await this.db();
+      await database.withTransactionAsync(async () => {
+        await database.runAsync(`DELETE FROM mirror_rows WHERE group_id = ?`, [groupId]);
+        await database.runAsync(`DELETE FROM sync_cursors WHERE group_id = ?`, [groupId]);
+      });
+    });
+  }
+
   reset(): Promise<void> {
     return this.serial.run(async () => {
       const database = await this.db();

@@ -107,6 +107,19 @@ class AsyncStorageStore implements LocalStore {
     });
   }
 
+  forgetGroup(groupId: string): Promise<void> {
+    return this.serial.run(async () => {
+      const rows = await this.read<StoredRow[]>(WEB_KEYS.rows, []);
+      await AsyncStorage.setItem(
+        WEB_KEYS.rows,
+        JSON.stringify(rows.filter((row) => row.groupId !== groupId)),
+      );
+      const cursors = await this.read<Record<string, number>>(WEB_KEYS.cursors, {});
+      delete cursors[groupId];
+      await AsyncStorage.setItem(WEB_KEYS.cursors, JSON.stringify(cursors));
+    });
+  }
+
   reset(): Promise<void> {
     return this.serial.run(() => AsyncStorage.removeMany(Object.values(WEB_KEYS)));
   }

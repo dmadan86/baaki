@@ -36,6 +36,12 @@ export interface LocalStore {
   writeDraft(key: string, value: unknown): Promise<void>;
   clearDraft(key: string): Promise<void>;
   listDrafts(): Promise<{ key: string; value: unknown; savedAt: string }[]>;
+  /**
+   * Drop every mirror row and cursor for one group. Leaving a group hides it
+   * server-side (RLS), so a pull can never again report it — the client has to
+   * forget it locally or it lingers on the dashboard forever.
+   */
+  forgetGroup(groupId: string): Promise<void>;
   /** Signing out must leave nothing of the previous account behind. */
   reset(): Promise<void>;
 }

@@ -20,13 +20,13 @@ import {
   markFailed,
   nextBatch,
   reconcile,
+  SyncTable,
   type MirrorRow,
   type MirrorState,
   type MutationEnvelope,
   type QueuedMutation,
   type SyncChange,
   type SyncRejectionCode,
-  type SyncTable,
 } from '@baaki/core';
 
 import { reportHandled } from '@/lib/observability';
@@ -151,6 +151,38 @@ export class SyncEngine {
       lastError: null,
       lastSyncedAt: null,
     });
+  }
+
+  /**
+   * Leaving a group (ADR-006): forget it locally, at once.
+   *
+   * Leaving flips `left_at`, and `is_group_member` gates the group's RLS — so
+   * the moment you leave, a pull can no longer see the group and can never send
+   * the "it is gone" that a soft-delete would. Nothing else would ever drop it
+   * from the mirror, and `materialiseGroups` keys off `archived_at`, not your
+   * membership, so a left group would sit on the dashboard forever. Leaving is
+   * the one change the client applies itself: drop the group's rows, its cursor
+   * and any of its still-unsent edits, in memory and on disk together.
+   */
+  async forgetGroup(groupId: string): Promise<void> {
+    const tables = {} as Record<SyncTable, Record<string, MirrorRow>>;
+    for (const table of Object.keys(this.state.mirror.tables) as SyncTable[]) {
+      const kept: Record<string, MirrorRow> = {};
+      for (const [id, row] of Object.entries(this.state.mirror.tables[table])) {
+        // The groups row is the group itself (keyed by its id); every other
+        // table's rows carry the group they belong to.
+        const belongs = table === SyncTable.Groups ? id === groupId : row.group_id === groupId;
+        if (!belongs) kept[id] = row;
+      }
+      tables[table] = kept;
+    }
+    const cursors = { ...this.state.mirror.cursors };
+    delete cursors[groupId];
+    const queue = this.state.queue.filter((mutation) => mutation.groupId !== groupId);
+
+    this.set({ mirror: { tables, cursors }, queue });
+    await this.store.forgetGroup(groupId);
+    await this.store.writeQueue(queue);
   }
 
   /**

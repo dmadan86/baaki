@@ -38,6 +38,8 @@ interface SyncContextValue extends SyncState {
   flush: (groupIds?: string[]) => Promise<void>;
   retry: (clientMutationId: string) => Promise<void>;
   discard: (clientMutationId: string) => Promise<void>;
+  /** Forget a group locally after leaving it — see `SyncEngine.forgetGroup`. */
+  forgetGroup: (groupId: string) => Promise<void>;
   /** True when there is unsent work — the UI says "syncing" rather than lying. */
   pendingCount: number;
 }
@@ -133,6 +135,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       flush: (groupIds?: string[]) => syncEngine.flush({ groupIds }),
       retry: (id: string) => syncEngine.retry(id),
       discard: (id: string) => syncEngine.discard(id),
+      forgetGroup: (groupId: string) => syncEngine.forgetGroup(groupId),
       pendingCount: state.queue.length,
     }),
     [state, mutate],

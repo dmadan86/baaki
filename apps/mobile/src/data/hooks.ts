@@ -575,6 +575,20 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
 }
 
 /**
+ * A monotonic suffix so each realtime subscription gets its own channel topic.
+ *
+ * `supabase.channel(topic)` returns an *existing* channel when one with that
+ * topic is still registered, and `removeChannel()` is async and fire-and-forget.
+ * So a fast unmount → remount — which is exactly what React does when it freezes
+ * a navigated-away screen and reconnects its effects on return — can hand the
+ * new effect back the previous, still-subscribed channel; adding a
+ * `postgres_changes` callback to an already-subscribed channel throws. A fresh
+ * suffix on every mount sidesteps the reuse: the old channel is torn down by its
+ * own cleanup while the new one is built clean and unsubscribed.
+ */
+let realtimeChannelSeq = 0;
+
+/**
  * Live group channel (TDR §1). Any change to the group's rows pulls the group,
  * so a second device sees an expense without a manual refresh.
  *
@@ -590,7 +604,7 @@ export function useGroupRealtime(groupId: string): void {
     if (!groupId) return;
 
     const channel = supabase
-      .channel(`group:${groupId}`)
+      .channel(`group:${groupId}:${++realtimeChannelSeq}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
@@ -1024,9 +1038,16 @@ export function useSetMemberRole(groupId: string) {
 
 export function useLeaveGroup(groupId: string) {
   const queryClient = useQueryClient();
+  const { forgetGroup } = useSync();
   return useMutation({
     mutationFn: leaveGroup,
-    onSuccess: () => invalidateGroup(queryClient, groupId),
+    // Leaving hides the group server-side (RLS), so it can never be pulled again
+    // to signal its removal — the client must forget it locally, or it lingers
+    // on the dashboard forever. Purge the mirror first, then refresh what is left.
+    onSuccess: async () => {
+      await forgetGroup(groupId);
+      invalidateGroup(queryClient, groupId);
+    },
   });
 }
 
@@ -1220,7 +1241,7 @@ export function useItemClaims(receiptId: string | null) {
   useEffect(() => {
     if (!receiptId) return;
     const channel = supabase
-      .channel(`receipt:${receiptId}`)
+      .channel(`receipt:${receiptId}:${++realtimeChannelSeq}`)
       .on(
         'postgres_changes',
         {
