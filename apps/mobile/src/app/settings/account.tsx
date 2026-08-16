@@ -23,13 +23,17 @@ import {
   iconSize,
   Row,
   Screen,
+  SectionHeader,
   Text,
   useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
+import { dialingCodeForCountry } from '@baaki/core';
+
+import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { confirmContact, startAddingContact, ContactChannel } from '@/data/api';
-import { deviceDialingCode, useStrings } from '@/i18n';
+import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function AccountScreen() {
@@ -73,6 +77,12 @@ function AccountForm() {
 
   const [channel, setChannel] = useState<ContactChannel>(ContactChannel.Email);
   const [value, setValue] = useState('');
+  // The dial code is a control, not a prefix baked into the field: the phone's
+  // region is a guess, wrong for anyone whose language is English (US) while
+  // they sit in India. The field holds the local digits; this holds the country.
+  const [phoneCountry, setPhoneCountry] = useState<string>(
+    profile?.country_code ?? deviceCountry() ?? 'IN',
+  );
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -120,14 +130,29 @@ function AccountForm() {
   };
 
   // One normalised form is validated, sent and confirmed, so the code always
-  // goes to the address the confirmation is checked against.
+  // goes to the address the confirmation is checked against. For a phone that is
+  // the picked country's dial code plus the local digits typed in the field.
+  const dialCode = dialingCodeForCountry(phoneCountry) ?? '';
   const normalised =
-    channel === ContactChannel.Email ? value.trim() : value.trim().replace(/[\s-]/g, '');
+    channel === ContactChannel.Email ? value.trim() : `${dialCode}${value.replace(/[^\d]/g, '')}`;
 
   const looksValid =
     channel === ContactChannel.Email
       ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalised)
       : /^\+?[0-9]{8,15}$/.test(normalised);
+
+  // Every text field on this screen wears the same skin — a filled, rounded
+  // surface you can see and aim at — so a field never reads as static text and
+  // the phone number sits flush against the dial-code chip beside it.
+  const fieldStyle = {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: theme.color.text,
+    backgroundColor: theme.color.surfaceMuted,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  };
 
   const send = async (): Promise<void> => {
     setError(null);
@@ -183,194 +208,196 @@ function AccountForm() {
         </Row>
 
         {/* Your name, and how you appear to everyone else. Folded in from the
-            old "You" screen so the whole account lives on one page. */}
-        <Card style={{ gap: theme.spacing.lg }}>
-          <View style={{ gap: theme.spacing.xs }}>
-            <Text variant="caption" tone="muted">
-              {t.account.displayName}
-            </Text>
+            old "You" screen so the whole account lives on one page. Save appears
+            only once the name has changed, so the resting screen is calm. */}
+        <View style={{ gap: theme.spacing.md }}>
+          <SectionHeader title={t.account.displayName} />
+          <Card style={{ gap: theme.spacing.lg }}>
             <TextInput
               value={name}
               onChangeText={setName}
               accessibilityLabel={t.account.displayName}
               placeholder={t.common.yourName}
               placeholderTextColor={theme.color.textFaint}
-              style={{
-                fontSize: 18,
-                fontWeight: '600',
-                color: theme.color.text,
-                paddingVertical: theme.spacing.sm,
-              }}
+              style={fieldStyle}
             />
-          </View>
-          <Button
-            label={t.common.save}
-            fullWidth
-            disabled={!nameDirty}
-            onPress={() => void saveName()}
-          />
-          {nameStatus ? (
-            <Text variant="caption" tone={nameStatus === t.account.saved ? 'positive' : 'negative'}>
-              {nameStatus}
-            </Text>
-          ) : null}
-        </Card>
+            {nameDirty ? (
+              <Button label={t.common.save} fullWidth onPress={() => void saveName()} />
+            ) : null}
+            {nameStatus ? (
+              <Text
+                variant="caption"
+                tone={nameStatus === t.account.saved ? 'positive' : 'negative'}
+              >
+                {nameStatus}
+              </Text>
+            ) : null}
+          </Card>
+        </View>
 
-        <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
-          <Row style={{ gap: theme.spacing.sm }}>
-            {isGuest ? (
-              <Badge label={t.common.guest} />
-            ) : (
-              <Badge label={t.contact.signedIn} tone="positive" />
-            )}
-          </Row>
-          {gateBody ? (
-            <Text variant="subheading" tone="brand">
-              {t.contact.gateTitle}
-            </Text>
-          ) : null}
-          <Text variant="caption" tone="muted">
-            {gateBody ?? (isGuest ? t.contact.guestBody : t.contact.memberBody)}
-          </Text>
-        </Card>
+        {/* The signed-in reassurance is gone: for a member it said nothing they
+            did not already know. A guest, or somebody sent here by a limit, gets
+            the one message that is actually actionable — as a Callout, the app's
+            canonical shape for "read this". */}
+        {isGuest || gateBody ? (
+          <Callout tone="info" title={gateBody ? t.contact.gateTitle : undefined}>
+            {gateBody ?? t.contact.guestBody}
+          </Callout>
+        ) : null}
 
-        <Card style={{ gap: theme.spacing.lg }}>
-          <ChipRow<ContactChannel>
-            value={channel}
-            onChange={(next) => {
-              setChannel(next);
-              setSent(false);
-              setDone(false);
-              setError(null);
-              setValue('');
-            }}
-            options={[
-              { value: ContactChannel.Email, label: t.contact.email },
-              { value: ContactChannel.Phone, label: t.contact.phone },
-            ]}
-          />
-
-          {existing ? (
-            <Text variant="caption" tone="positive">
-              {t.contact.alreadyAdded.replace('{value}', existing)}
-            </Text>
-          ) : null}
-
-          <View style={{ gap: theme.spacing.xs }}>
-            <Text variant="caption" tone="muted">
-              {channel === ContactChannel.Email ? t.contact.emailAddress : t.contact.phoneNumber}
-            </Text>
-            <TextInput
-              value={value}
-              onChangeText={(next) => {
-                setValue(next);
+        <View style={{ gap: theme.spacing.md }}>
+          <SectionHeader title={t.contact.signInMethodsTitle} />
+          {/* An email or phone, or a linked account — any of them signs you back
+              in on another phone. */}
+          <Card style={{ gap: theme.spacing.lg }}>
+            <ChipRow<ContactChannel>
+              value={channel}
+              onChange={(next) => {
+                setChannel(next);
                 setSent(false);
                 setDone(false);
+                setError(null);
+                setValue('');
               }}
-              editable={!busy}
-              autoCapitalize="none"
-              autoComplete={channel === ContactChannel.Email ? 'email' : 'tel'}
-              keyboardType={channel === ContactChannel.Email ? 'email-address' : 'phone-pad'}
-              accessibilityLabel={
-                channel === ContactChannel.Email ? t.contact.emailAddress : t.contact.phoneNumber
-              }
-              placeholder={
-                channel === ContactChannel.Email
-                  ? t.contact.emailPlaceholder
-                  : t.contact.phonePlaceholder.replace('{code}', deviceDialingCode())
-              }
-              placeholderTextColor={theme.color.textFaint}
-              style={{
-                fontSize: 18,
-                fontWeight: '600',
-                color: theme.color.text,
-                paddingVertical: theme.spacing.sm,
-              }}
+              options={[
+                { value: ContactChannel.Email, label: t.contact.email },
+                { value: ContactChannel.Phone, label: t.contact.phone },
+              ]}
             />
-          </View>
 
-          {sent ? (
+            {existing ? (
+              <Text variant="caption" tone="positive">
+                {t.contact.alreadyAdded.replace('{value}', existing)}
+              </Text>
+            ) : null}
+
             <View style={{ gap: theme.spacing.xs }}>
               <Text variant="caption" tone="muted">
-                {channel === ContactChannel.Email ? t.contact.codeEmailed : t.contact.codeTexted}
+                {channel === ContactChannel.Email ? t.contact.emailAddress : t.contact.phoneNumber}
               </Text>
-              <TextInput
-                value={code}
-                onChangeText={setCode}
-                editable={!busy}
-                keyboardType="number-pad"
-                maxLength={6}
-                accessibilityLabel={t.contact.verificationCode}
-                placeholder="123456"
-                placeholderTextColor={theme.color.textFaint}
-                style={{
-                  fontSize: 24,
-                  fontWeight: '700',
-                  letterSpacing: 6,
-                  color: theme.color.text,
-                  paddingVertical: theme.spacing.sm,
-                }}
+              {channel === ContactChannel.Email ? (
+                <TextInput
+                  value={value}
+                  onChangeText={(next) => {
+                    setValue(next);
+                    setSent(false);
+                    setDone(false);
+                  }}
+                  editable={!busy}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  accessibilityLabel={t.contact.emailAddress}
+                  placeholder={t.contact.emailPlaceholder}
+                  placeholderTextColor={theme.color.textFaint}
+                  style={fieldStyle}
+                />
+              ) : (
+                // The dial code is its own control; the field beside it holds
+                // only local digits. This is the country-code picker the phone
+                // flow was missing.
+                <Row style={{ gap: theme.spacing.sm, alignItems: 'stretch' }}>
+                  <CountryCodePicker code={phoneCountry} onChange={setPhoneCountry} />
+                  <TextInput
+                    value={value}
+                    onChangeText={(next) => {
+                      setValue(next);
+                      setSent(false);
+                      setDone(false);
+                    }}
+                    editable={!busy}
+                    autoComplete="tel"
+                    keyboardType="phone-pad"
+                    accessibilityLabel={t.contact.phoneNumber}
+                    placeholder={t.contact.phonePlaceholder.replace('{code}', '').trim()}
+                    placeholderTextColor={theme.color.textFaint}
+                    style={[fieldStyle, { flex: 1 }]}
+                  />
+                </Row>
+              )}
+            </View>
+
+            {sent ? (
+              <View style={{ gap: theme.spacing.xs }}>
+                <Text variant="caption" tone="muted">
+                  {channel === ContactChannel.Email ? t.contact.codeEmailed : t.contact.codeTexted}
+                </Text>
+                <TextInput
+                  value={code}
+                  onChangeText={setCode}
+                  editable={!busy}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  accessibilityLabel={t.contact.verificationCode}
+                  placeholder="123456"
+                  placeholderTextColor={theme.color.textFaint}
+                  style={[fieldStyle, { fontSize: 24, fontWeight: '700', letterSpacing: 6 }]}
+                />
+              </View>
+            ) : null}
+
+            {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
+
+            <Button
+              label={
+                sent
+                  ? t.contact.confirm
+                  : channel === ContactChannel.Email
+                    ? t.contact.sendCodeEmail
+                    : t.contact.sendCodePhone
+              }
+              size="lg"
+              fullWidth
+              disabled={busy || (sent ? code.trim().length < 6 : !looksValid)}
+              onPress={() => void (sent ? confirm() : send())}
+            />
+
+            {sent ? (
+              <Button
+                label={t.contact.useDifferent}
+                variant="ghost"
+                onPress={() => setSent(false)}
+              />
+            ) : null}
+
+            {done ? (
+              <Text variant="caption" tone="positive">
+                {t.contact.added}
+              </Text>
+            ) : null}
+            {error ? <Callout tone="negative">{error}</Callout> : null}
+          </Card>
+
+          {/* Linking a social account, so it can sign this same account in later
+              on another phone — the OAuth complement to the email/phone above.
+              Only Google and Apple today; the row is built to take more. Under
+              the same heading, because it is another way into the same account. */}
+          <Card style={{ gap: theme.spacing.md }}>
+            <Text variant="caption" tone="muted">
+              {t.contact.signInMethodsBody}
+            </Text>
+            <View style={{ gap: theme.spacing.md }}>
+              <ProviderRow
+                name="Google"
+                icon="logo-google"
+                linked={linkedProviders.has('google')}
+                busy={busy}
+                linkLabel={t.contact.link}
+                linkedLabel={t.contact.linked}
+                onLink={() => void link(withGoogle)}
+              />
+              <ProviderRow
+                name="Apple"
+                icon="logo-apple"
+                linked={linkedProviders.has('apple')}
+                busy={busy}
+                linkLabel={t.contact.link}
+                linkedLabel={t.contact.linked}
+                onLink={() => void link(withApple)}
               />
             </View>
-          ) : null}
-
-          {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
-
-          <Button
-            label={
-              sent
-                ? t.contact.confirm
-                : channel === ContactChannel.Email
-                  ? t.contact.sendCodeEmail
-                  : t.contact.sendCodePhone
-            }
-            size="lg"
-            fullWidth
-            disabled={busy || (sent ? code.trim().length < 6 : !looksValid)}
-            onPress={() => void (sent ? confirm() : send())}
-          />
-
-          {sent ? (
-            <Button label={t.contact.useDifferent} variant="ghost" onPress={() => setSent(false)} />
-          ) : null}
-
-          {done ? (
-            <Text variant="caption" tone="positive">
-              {t.contact.added}
-            </Text>
-          ) : null}
-          {error ? <Callout tone="negative">{error}</Callout> : null}
-        </Card>
-
-        {/* Linking a social account, so it can sign this same account in later
-            on another phone — the OAuth complement to the email/phone above.
-            Only Google and Apple today; the row is built to take more. */}
-        <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="subheading">{t.contact.signInMethodsTitle}</Text>
-          <Text variant="caption" tone="muted">
-            {t.contact.signInMethodsBody}
-          </Text>
-          <View style={{ gap: theme.spacing.md }}>
-            <ProviderRow
-              name="Google"
-              icon="logo-google"
-              linked={linkedProviders.has('google')}
-              busy={busy}
-              linkLabel={t.contact.link}
-              linkedLabel={t.contact.linked}
-              onLink={() => void link(withGoogle)}
-            />
-            <ProviderRow
-              name="Apple"
-              icon="logo-apple"
-              linked={linkedProviders.has('apple')}
-              busy={busy}
-              linkLabel={t.contact.link}
-              linkedLabel={t.contact.linked}
-              onLink={() => void link(withApple)}
-            />
-          </View>
-        </Card>
+          </Card>
+        </View>
 
         <Text variant="micro" tone="muted" align="center">
           {t.contact.footnote}
