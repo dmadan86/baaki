@@ -22,6 +22,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from
 
 import {
   AmountField,
+  Avatar,
   Button,
   Callout,
   Card,
@@ -36,6 +37,7 @@ import {
 } from '@baaki/ui';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
+import { DictateButton } from '@/components/DictateButton';
 import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks';
 import { GroupType } from '@/data/types';
 import { deviceDefaultCurrency, useStrings } from '@/i18n';
@@ -168,42 +170,40 @@ export default function AddPersonScreen() {
           {t.addPerson.subtitle}
         </Text>
 
-        <Card style={{ gap: theme.spacing.xs }}>
-          <Text variant="caption" tone="muted">
-            {t.addPerson.nameLabel}
-          </Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            accessibilityLabel={t.addPerson.nameLabel}
-            placeholder={t.addPerson.namePlaceholder}
-            placeholderTextColor={theme.color.textFaint}
-            autoFocus
-            style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: theme.color.text,
-              paddingVertical: theme.spacing.sm,
-            }}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.tabs.fromContacts}
+        {/* The person is the subject of this screen, so the card leads with
+            them: an avatar that fills in with the name's own colour and initial
+            as it is typed, the name as the field beside it, and picking from
+            contacts as a real button rather than a footnote link. */}
+        <Card style={{ gap: theme.spacing.lg }}>
+          <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+            <Avatar name={name.trim() || '?'} size={56} ghost />
+            <View style={{ flex: 1, gap: theme.spacing.xs }}>
+              <Text variant="caption" tone="muted">
+                {t.addPerson.nameLabel}
+              </Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                accessibilityLabel={t.addPerson.nameLabel}
+                placeholder={t.addPerson.namePlaceholder}
+                placeholderTextColor={theme.color.textFaint}
+                autoFocus
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: theme.color.text,
+                  paddingVertical: theme.spacing.xs,
+                }}
+              />
+            </View>
+          </Row>
+          <Button
+            label={t.tabs.fromContacts}
+            variant="secondary"
+            size="sm"
+            fullWidth
             onPress={() => setPickerOpen(true)}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-              alignSelf: 'flex-start',
-              paddingVertical: theme.spacing.xs,
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Ionicons name="person-add-outline" size={iconSize.sm} color={theme.color.brand} />
-            <Text variant="caption" style={{ color: theme.color.brand }}>
-              {t.tabs.fromContacts}
-            </Text>
-          </Pressable>
+          />
         </Card>
 
         <View style={{ gap: theme.spacing.sm }}>
@@ -258,14 +258,29 @@ export default function AddPersonScreen() {
           <Text variant="caption" tone="muted">
             {t.addPerson.noteLabel}
           </Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            accessibilityLabel={t.addPerson.noteLabel}
-            placeholder={t.addPerson.notePlaceholder}
-            placeholderTextColor={theme.color.textFaint}
-            style={{ fontSize: 16, color: theme.color.text, paddingVertical: theme.spacing.sm }}
-          />
+          <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              accessibilityLabel={t.addPerson.noteLabel}
+              placeholder={t.addPerson.notePlaceholder}
+              placeholderTextColor={theme.color.textFaint}
+              style={{
+                flex: 1,
+                fontSize: 16,
+                color: theme.color.text,
+                paddingVertical: theme.spacing.sm,
+              }}
+            />
+            {/* Speak the note instead of typing it — the same mic the expense
+                description has. The person's name is handed to the recogniser as
+                a hint, since a name is exactly what a general model mishears. */}
+            <DictateButton
+              value={note}
+              onChange={setNote}
+              hints={name.trim() ? [name.trim()] : undefined}
+            />
+          </Row>
         </Card>
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
@@ -306,7 +321,9 @@ export default function AddPersonScreen() {
                 person (onPickContact takes the first of the set). Remounting on
                 each open starts it empty. */}
             {pickerOpen ? (
-              <ContactPicker onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
+              // Single-pick: a one-to-one IOU has room for exactly one name, so
+              // a tap chooses that person and closes the sheet.
+              <ContactPicker single onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
             ) : null}
           </View>
         </Screen>

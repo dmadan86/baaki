@@ -33,7 +33,17 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
-import { Avatar, Button, Card, EmptyState, iconSize, Row, Text, useTheme } from '@baaki/ui';
+import {
+  Avatar,
+  Button,
+  Card,
+  directionalIcon,
+  EmptyState,
+  iconSize,
+  Row,
+  Text,
+  useTheme,
+} from '@baaki/ui';
 
 import { plural, useStrings } from '@/i18n';
 import { SkeletonList } from '@/components/Skeletons';
@@ -56,6 +66,13 @@ interface ContactPickerProps {
   confirmVerb?: string;
   /** Disables confirming while the caller is still writing the last lot away. */
   busy?: boolean;
+  /**
+   * Pick exactly one. A tap confirms that person there and then — no ticking, no
+   * strip, no confirm button — because a one-to-one IOU has room for a single
+   * name and asking someone to tick one then press a button is a step invented
+   * for a list that only ever wanted one answer.
+   */
+  single?: boolean;
 }
 
 /**
@@ -105,6 +122,7 @@ export function ContactPicker({
   initialSelected,
   confirmVerb,
   busy = false,
+  single = false,
 }: ContactPickerProps): React.JSX.Element {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -320,7 +338,7 @@ export function ContactPicker({
         ) : null}
       </View>
 
-      {chosen.length > 0 ? <PickedStrip chosen={chosen} onRemove={toggle} /> : null}
+      {!single && chosen.length > 0 ? <PickedStrip chosen={chosen} onRemove={toggle} /> : null}
 
       {matches.length === 0 ? (
         <EmptyState
@@ -366,8 +384,9 @@ export function ContactPicker({
                   <ContactRow
                     contact={item}
                     already={already}
-                    selected={picked.has(key)}
-                    onPress={() => toggle(key, item)}
+                    single={single}
+                    selected={single ? false : picked.has(key)}
+                    onPress={() => (single ? onConfirm([item]) : toggle(key, item))}
                   />
                 );
               }}
@@ -393,16 +412,20 @@ export function ContactPicker({
         {t.pickers.onlyPickedAreSent}
       </Text>
 
-      <Button
-        label={
-          chosen.length === 0
-            ? t.pickers.nobodyPickedYet
-            : `${confirmVerb ?? t.add} ${plural(locale, chosen.length, t.pickers.personCount)}`
-        }
-        fullWidth
-        disabled={chosen.length === 0 || busy}
-        onPress={() => onConfirm(chosen)}
-      />
+      {/* Single-pick confirms on the tap itself, so there is no set to send and
+          no button to send it — the row is the action. */}
+      {single ? null : (
+        <Button
+          label={
+            chosen.length === 0
+              ? t.pickers.nobodyPickedYet
+              : `${confirmVerb ?? t.add} ${plural(locale, chosen.length, t.pickers.personCount)}`
+          }
+          fullWidth
+          disabled={chosen.length === 0 || busy}
+          onPress={() => onConfirm(chosen)}
+        />
+      )}
     </View>
   );
 }
@@ -446,11 +469,13 @@ function ContactRow({
   contact,
   already,
   selected,
+  single = false,
   onPress,
 }: {
   contact: PickedContact;
   already: boolean;
   selected: boolean;
+  single?: boolean;
   onPress: () => void;
 }): React.JSX.Element {
   const theme = useTheme();
@@ -461,8 +486,10 @@ function ContactRow({
     <Pressable
       onPress={already ? undefined : onPress}
       disabled={already}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: selected, disabled: already }}
+      // Single-pick is a choose-one list, so each row is a radio button that
+      // acts on the tap; multi keeps the checkbox it fills and unfills.
+      accessibilityRole={single ? 'button' : 'checkbox'}
+      accessibilityState={single ? { disabled: already } : { checked: selected, disabled: already }}
       accessibilityLabel={
         already ? t.pickers.alreadyAddedName.replace('{name}', contact.name) : contact.name
       }
@@ -487,11 +514,19 @@ function ContactRow({
             {already ? t.pickers.alreadyInGroup : (contact.email ?? contact.phone ?? '')}
           </Text>
         </View>
-        <Ionicons
-          name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-          size={iconSize.xxl}
-          color={selected ? theme.color.brand : theme.color.border}
-        />
+        {single ? (
+          <Ionicons
+            name={directionalIcon('chevron-forward')}
+            size={iconSize.lg}
+            color={theme.color.textFaint}
+          />
+        ) : (
+          <Ionicons
+            name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+            size={iconSize.xxl}
+            color={selected ? theme.color.brand : theme.color.border}
+          />
+        )}
       </Row>
       {/* Inset past the avatar, so the rule reads as separating names rather
           than boxing every row. */}
