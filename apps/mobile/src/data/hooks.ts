@@ -15,6 +15,7 @@ import { randomUUID } from 'expo-crypto';
 import {
   computeNetBalances,
   computePairwiseBalances,
+  ghostMerges,
   materialiseArchivedGroups,
   materialiseCaptures,
   materialiseExpenses,
@@ -62,8 +63,10 @@ import {
   updateMember,
   setMemberRole,
   withdrawDispute,
+  type PersonBalanceRow,
   type WriteExpenseInput,
 } from './api';
+import { aggregatePeopleBalances, type PersonContribution } from './peopleBalances';
 import { totalsByCurrency } from './totals';
 import { SettlementStatus } from './types';
 import type {
@@ -259,6 +262,116 @@ export function useHomeSummary(profileId: string | null) {
     isFetching: status === 'syncing',
     refetch: () => void flush(),
   };
+}
+
+/**
+ * Newest activity per member in one group, approximated from the mirror: the
+ * date of any expense they paid or shared, and the instant of any settlement
+ * either side of. The RPC uses expense-version `created_at`; offline the finest
+ * timestamp the mirror holds for an expense is its date, which is enough for the
+ * "recent activity" sort — it never feeds a balance.
+ */
+function lastActivityByMember(
+  snapshots: readonly ExpenseSnapshot[],
+  settlements: readonly SettlementSnapshot[],
+): Map<string, string> {
+  const latest = new Map<string, string>();
+  const bump = (memberId: string, ts: string): void => {
+    const current = latest.get(memberId);
+    if (current === undefined || ts > current) latest.set(memberId, ts);
+  };
+  for (const snapshot of snapshots) {
+    if (snapshot.deletedAt) continue;
+    for (const memberId of Object.keys(snapshot.payers)) bump(memberId, snapshot.date);
+    for (const memberId of Object.keys(snapshot.shares)) bump(memberId, snapshot.date);
+  }
+  for (const settlement of settlements) {
+    bump(settlement.from, settlement.at);
+    bump(settlement.to, settlement.at);
+  }
+  return latest;
+}
+
+/**
+ * Who owes you and who you owe, across every group — from the mirror (ADR-005).
+ *
+ * The local-first twin of `baaki_people_i_owe` (A11/A36/A38). For each group the
+ * viewer is in, the pairwise edge that touches them becomes one
+ * {@link PersonContribution}; a mirrored ghost merge (A38) supplies the
+ * `person_id` that folds a guest seen across groups; `aggregatePeopleBalances`
+ * sums it to the same rows the RPC returns. Reading the overlaid rows means a
+ * queued expense already counts. Gravatar is skipped offline (a hashed email the
+ * client does not hold) — a missing photo falls back to initials, as it already
+ * does.
+ */
+export function usePeopleBalances(profileId: string | null): LocalRead<PersonBalanceRow[]> {
+  const { mirror, queue } = useSync();
+
+  const rows = useMemo(() => {
+    if (!profileId) return [];
+
+    // member_id → the viewer's recorded merge for that ghost (A38).
+    const mergeByMember = new Map(ghostMerges(mirror).map((merge) => [merge.member_id, merge]));
+
+    const contributions: PersonContribution[] = [];
+    for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
+      const members = materialiseMembers(mirror, queue, {
+        groupId: group.id,
+      }) as unknown as MemberRow[];
+      const me = members.find(
+        (member) => member.profile_id === profileId && member.left_at === null,
+      );
+      if (!me) continue;
+      const byId = new Map(members.map((member) => [member.id, member] as const));
+
+      const snapshots = materialiseExpenses(mirror, queue, { groupId: group.id })
+        .map((expense) => toSnapshot(expense as unknown as ExpenseRow))
+        .filter((snapshot): snapshot is ExpenseSnapshot => snapshot !== null);
+      const settlementSnapshots = (
+        materialiseSettlements(mirror, queue, { groupId: group.id }) as unknown as SettlementRow[]
+      ).map(toSettlementSnapshot);
+
+      const activity = lastActivityByMember(snapshots, settlementSnapshots);
+      const edges = computePairwiseBalances(snapshots, settlementSnapshots);
+
+      for (const edge of edges) {
+        // Keep only the edges I am on, oriented from my side: they owe me is
+        // positive, I owe them is negative — the RPC's sign.
+        let otherId: string;
+        let net: bigint;
+        if (edge.from === me.id) {
+          otherId = edge.to;
+          net = -edge.amount;
+        } else if (edge.to === me.id) {
+          otherId = edge.from;
+          net = edge.amount;
+        } else {
+          continue;
+        }
+
+        const other = byId.get(otherId);
+        if (!other) continue;
+        const merge = mergeByMember.get(other.id);
+        contributions.push({
+          groupId: group.id,
+          memberId: other.id,
+          profileId: other.profile_id,
+          displayName:
+            other.profile?.display_name ?? merge?.display_name ?? other.ghost_name ?? 'Someone',
+          avatarUrl: other.profile?.avatar_url ?? null,
+          isGhost: other.profile_id === null,
+          currency: edge.currency,
+          net,
+          lastActivityAt: activity.get(other.id) ?? null,
+          mergePersonId: merge?.person_id ?? null,
+        });
+      }
+    }
+
+    return aggregatePeopleBalances(contributions);
+  }, [mirror, queue, profileId]);
+
+  return useLocalRead(rows);
 }
 
 /**
