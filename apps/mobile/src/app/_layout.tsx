@@ -333,12 +333,13 @@ function AuthGate() {
   const { animated } = useMotion();
 
   /**
-   * A push slides in from the right and a modal rises from the bottom, which is
-   * how the screen says whether you have gone somewhere or opened something on
-   * top. With motion off, both become `none` — not a faster slide, because a
-   * shortened animation is still animation to somebody who cannot watch one.
+   * Pushes cut straight to the destination — no slide. The slide-from-right was
+   * the most visible transition and the one that read as slow, so a push now
+   * lands instantly; "back" is still carried by the header and the swipe gesture.
+   * A modal still rises from the bottom, because that rise is what says "on top
+   * of" rather than "gone to", and it is cheap; with motion off it too is `none`.
    */
-  const push = animated ? ('slide_from_right' as const) : ('none' as const);
+  const push = 'none' as const;
   const sheet = animated ? ('slide_from_bottom' as const) : ('none' as const);
   const modal = { presentation: 'modal' as const, animation: sheet };
 
