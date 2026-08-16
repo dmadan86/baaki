@@ -194,10 +194,7 @@ export default function AccountScreen() {
             onPress={() => void saveName()}
           />
           {nameStatus ? (
-            <Text
-              variant="caption"
-              tone={nameStatus === t.account.saved ? 'positive' : 'negative'}
-            >
+            <Text variant="caption" tone={nameStatus === t.account.saved ? 'positive' : 'negative'}>
               {nameStatus}
             </Text>
           ) : null}

@@ -55,9 +55,7 @@ function PayingForm() {
   const { t } = useStrings();
   const { profile, updateProfile } = useAuth();
 
-  const [country, setCountry] = useState<string | null>(
-    profile?.country_code ?? deviceCountry(),
-  );
+  const [country, setCountry] = useState<string | null>(profile?.country_code ?? deviceCountry());
   /**
    * How this person is paid. Falls back through the rail pair, then the old
    * `default_vpa` — anything written before rails existed can only have been a
@@ -182,10 +180,7 @@ function PayingForm() {
             onPress={() => void save()}
           />
           {status ? (
-            <Text
-              variant="caption"
-              tone={status === t.account.saved ? 'positive' : 'negative'}
-            >
+            <Text variant="caption" tone={status === t.account.saved ? 'positive' : 'negative'}>
               {status}
             </Text>
           ) : null}

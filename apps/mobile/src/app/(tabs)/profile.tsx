@@ -22,13 +22,7 @@ import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonList } from '@/components/Skeletons';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
-import {
-  isRtlLanguage,
-  LANGUAGE_NAMES,
-  plural,
-  useStrings,
-  type UiStrings,
-} from '@/i18n';
+import { isRtlLanguage, LANGUAGE_NAMES, plural, useStrings, type UiStrings } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
