@@ -16,9 +16,13 @@ export default function TabsLayout() {
         headerShown: false,
         // The root bar draws the navigation; this one would be a second copy.
         tabBarStyle: { display: 'none' },
-        // Tabs hard-cut without this. Scenes shift-and-fade as you move between
-        // them, honouring the app's motion switch.
-        animation: animated ? 'shift' : 'none',
+        // Tabs hard-cut without this. A plain cross-fade rather than 'shift':
+        // shift slides each scene sideways as well as fading it, and that
+        // horizontal translate is the heaviest work in the tab path — on a busy
+        // tab (the dashboard) it drops frames and the switch reads as sluggish.
+        // Fade keeps a soft transition for the motion switch at a fraction of
+        // the cost; 'none' when motion is off.
+        animation: animated ? 'fade' : 'none',
       }}
     >
       <Tabs.Screen name="index" />
