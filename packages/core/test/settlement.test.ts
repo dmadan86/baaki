@@ -115,6 +115,8 @@ describe('UPI intent (ADR-007: Baaki never moves the money)', () => {
 describe('settlement state machine', () => {
   it('allows confirm, dispute, cancel and auto-confirm from initiated', () => {
     expect(canTransition(SettlementStatus.Initiated, SettlementTransition.Confirm)).toBe(true);
+    expect(canTransition(SettlementStatus.Initiated, SettlementTransition.Dispute)).toBe(true);
+    expect(canTransition(SettlementStatus.Initiated, SettlementTransition.Cancel)).toBe(true);
     expect(canTransition(SettlementStatus.Initiated, SettlementTransition.AutoConfirm)).toBe(true);
   });
 

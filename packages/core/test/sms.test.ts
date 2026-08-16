@@ -159,6 +159,12 @@ describe('only what happened during the trip', () => {
 
   it('returns them oldest first', () => {
     const proposed = proposeFromSms(inbox, { from: '2026-02-01', to: '2026-03-31' });
+    expect(proposed.map((c) => c.merchant)).toEqual([
+      'AIRPORT CAFE',
+      'GOA SHACK',
+      'BEACH BAR',
+      'HOME STORE',
+    ]);
     expect(proposed.map((c) => c.at)).toEqual([...proposed.map((c) => c.at)].sort());
   });
 });

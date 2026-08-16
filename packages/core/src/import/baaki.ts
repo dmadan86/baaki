@@ -234,11 +234,13 @@ function parseGroup(entry: unknown): BaakiImportGroup {
     const shares = amounts(current.shares, namesById);
     const row = index + 1;
 
-    if (amount === null || payers === null || shares === null) {
+    const date = /^\d{4}-\d{2}-\d{2}/.exec(String(current.expense_date ?? ''))?.[0] ?? null;
+
+    if (amount === null || payers === null || shares === null || date === null) {
       problems.push({
         kind: ImportProblemKind.UnparseableRow,
         row,
-        message: `"${String(current.description ?? 'An expense')}" holds an amount that could not be read.`,
+        message: `"${String(current.description ?? 'An expense')}" holds ${date === null ? 'a date' : 'an amount'} that could not be read.`,
       });
       continue;
     }
@@ -260,7 +262,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
     expenses.push({
       description: typeof current.description === 'string' ? current.description : 'Expense',
       category: typeof current.category === 'string' ? current.category : null,
-      date: String(current.expense_date ?? '').slice(0, 10),
+      date,
       currency: String(current.currency ?? currency).toUpperCase() as CurrencyCode,
       amount,
       payers,

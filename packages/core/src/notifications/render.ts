@@ -30,6 +30,8 @@ export interface NotificationFacts {
   readonly group?: string;
   readonly description?: string;
   readonly count?: string;
+  /** The ghost member being claimed — used by the ghost-claim kinds. */
+  readonly name?: string;
 }
 
 export interface RenderedNotification {
@@ -57,6 +59,7 @@ export function renderNotification(
   if (facts.group) values.group = facts.group;
   if (facts.description) values.description = facts.description;
   if (facts.count) values.count = facts.count;
+  if (facts.name) values.name = facts.name;
 
   const amount = formatAmount(facts, locale);
   if (amount) values.amount = amount;

@@ -61,12 +61,13 @@ export function verifyClientShares(
 
 function toBigInt(value: string | bigint, member: MemberId): bigint {
   if (typeof value === 'bigint') return value;
-  try {
-    return BigInt(value);
-  } catch {
+  // BigInt('') is 0n and BigInt('0x10') is 16n; only a plain decimal integer is
+  // a share, the same rule parseAmount and wire's integer() hold at their edges.
+  if (typeof value !== 'string' || !/^[+-]?\d+$/.test(value.trim())) {
     throw new SplitError(
       SplitErrorCode.ShareMismatch,
-      `Client sent "${value}" as ${member}'s share`,
+      `Client sent "${String(value)}" as ${member}'s share`,
     );
   }
+  return BigInt(value.trim());
 }

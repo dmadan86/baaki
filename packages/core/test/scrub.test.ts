@@ -237,10 +237,12 @@ describe('a long string does not freeze the phone it crashed on', () => {
     expect(redactText(line)).not.toContain('asha@example.co.in');
   });
 
-  it('refuses to treat a 64-character-plus run as a local part', () => {
+  it('accepts a local part at the RFC 5321 limit and refuses one past it', () => {
     // What the bound gives up, stated so it is a decision rather than a
     // surprise: nothing RFC 5321 allows, because 64 is its limit.
     const real = `${'a'.repeat(64)}@example.com`;
     expect(redactText(real)).toBe('[email]');
+    const overlong = `${'a'.repeat(65)}@example.com`;
+    expect(redactText(overlong)).toBe(overlong);
   });
 });

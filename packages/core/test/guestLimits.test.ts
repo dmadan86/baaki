@@ -81,10 +81,11 @@ describe('guestGate — failing open on bad input', () => {
     expect(gate.canWrite).toBe(true);
   });
 
-  it('never reads a negative group count as room to spare', () => {
-    expect(guestGate({ createdAt: now, groupCount: -3, now }).canAddGroup).toBe(true);
-    // (still under the limit) but the clamp holds at the boundary:
-    expect(guestGate({ createdAt: now, groupCount: 0, now }).atGroupLimit).toBe(false);
+  it('clamps a negative group count to zero', () => {
+    const negative = guestGate({ createdAt: now, groupCount: -3, now });
+    const zero = guestGate({ createdAt: now, groupCount: 0, now });
+    expect(negative).toEqual(zero);
+    expect(negative.atGroupLimit).toBe(false);
   });
 });
 

@@ -80,9 +80,12 @@ const SENSITIVE_KEYS = new Set([
  * one of them. `device` is deliberately *not* here — it carries `name`, and a
  * phone is usually named after its owner.
  *
- * `trace` and the id fields are passed through because Sentry's own
- * identifiers are 32 hex characters, which is exactly what an opaque token
- * looks like. Redacting them detaches an event from its trace, or from itself.
+ * The id fields are passed through because Sentry's own identifiers are 32 hex
+ * characters, which is exactly what an opaque token looks like. Redacting them
+ * detaches an event from its trace, or from itself. `trace` itself is *not*
+ * here: its subtree also carries `op`, `description` and a free-form `data`
+ * map, any of which can hold an expense description, so it is walked like any
+ * other object and only its identifier fields survive.
  */
 const PASS_THROUGH_KEYS = new Set([
   'stacktrace',
@@ -95,7 +98,6 @@ const PASS_THROUGH_KEYS = new Set([
   'browser',
   'app',
   'culture',
-  'trace',
   'eventid',
   'traceid',
   'spanid',
@@ -120,7 +122,12 @@ const canonicalKey = (key: string): string => key.replace(/[_\-\s]/g, '').toLowe
  * RFC 5321 puts on a local part, so nothing real is lost by refusing to look
  * past it; the bound is what stops the retry from every start position.
  */
-const EMAIL = /[\w.+-]{1,64}@[\w-]+(?:\.[\w-]+)+/g;
+// The `(?<![\w.+-])` anchor makes the 64-char bound a real ceiling rather than
+// a sliding window: without it, an over-length run like `a`×65`@x.com` would
+// still match on its trailing 64 characters and be half-redacted (`a[email]`).
+// Refusing to start mid-run means an over-length local part — which RFC 5321
+// forbids anyway — is left untouched, not partially scrubbed.
+const EMAIL = /(?<![\w.+-])[\w.+-]{1,64}@[\w-]+(?:\.[\w-]+)+/g;
 
 /**
  * `9876543210@ybl`, `ravi.k@okaxis` — a UPI handle, which is the same shape
@@ -130,7 +137,7 @@ const EMAIL = /[\w.+-]{1,64}@[\w-]+(?:\.[\w-]+)+/g;
  * NPCI caps a VPA at 50 characters end to end, so 64 for the part before the
  * `@` cannot exclude one.
  */
-const VPA = /[\w.-]{2,64}@[a-z]{2,}\b/gi;
+const VPA = /(?<![\w.-])[\w.-]{2,64}@[a-z]{2,}\b/gi;
 
 /**
  * `+91 98765 43210` in any of the spacings a keyboard produces. Always with a
@@ -218,7 +225,17 @@ function walk(value: unknown, depth: number, seen: WeakSet<object>): unknown {
   if (depth >= MAX_DEPTH) return REDACTED;
   if (seen.has(value)) return REDACTED;
   seen.add(value);
+  // Track the current path, not every object ever seen: a Sentry event often
+  // references one object from two places, and dropping it from the set once its
+  // children are walked keeps that a shared reference rather than a false cycle.
+  try {
+    return walkChildren(value, depth, seen);
+  } finally {
+    seen.delete(value);
+  }
+}
 
+function walkChildren(value: object, depth: number, seen: WeakSet<object>): unknown {
   if (Array.isArray(value)) return value.map((entry) => walk(entry, depth + 1, seen));
 
   // Not a plain object — a Date, a RegExp, an Error, something with a

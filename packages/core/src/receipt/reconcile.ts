@@ -113,6 +113,13 @@ export function checkReceipt(receipt: ParsedReceipt): ReceiptCheck {
  * table. `computeShares` then asserts that items plus charges equal it, so a
  * receipt that does not reconcile cannot become an expense at all.
  */
+function minorUnits(value: number, field: string): bigint {
+  if (!Number.isSafeInteger(value)) {
+    throw new TypeError(`${field} must be an integer in minor units, received ${value}`);
+  }
+  return BigInt(value);
+}
+
 export function toItemizedParams(
   receipt: ParsedReceipt,
   claims: Readonly<Record<number, readonly string[]>>,
@@ -129,15 +136,18 @@ export function toItemizedParams(
   };
 } {
   return {
-    amount: BigInt(receipt.grandTotal),
+    amount: minorUnits(receipt.grandTotal, 'grandTotal'),
     params: {
       kind: 'itemized',
-      items: receipt.items.map((item) => ({ label: item.label, total: BigInt(item.total) })),
+      items: receipt.items.map((item) => ({
+        label: item.label,
+        total: minorUnits(item.total, 'item total'),
+      })),
       claims: { ...claims },
-      taxes: BigInt(sumCharges(receipt.taxes)),
-      serviceCharge: BigInt(receipt.serviceCharge ?? 0),
-      tip: BigInt(receipt.tip ?? 0),
-      discounts: BigInt(sumCharges(receipt.discounts)),
+      taxes: minorUnits(sumCharges(receipt.taxes), 'taxes'),
+      serviceCharge: minorUnits(receipt.serviceCharge ?? 0, 'serviceCharge'),
+      tip: minorUnits(receipt.tip ?? 0, 'tip'),
+      discounts: minorUnits(sumCharges(receipt.discounts), 'discounts'),
     },
   };
 }

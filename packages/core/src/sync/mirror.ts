@@ -20,7 +20,7 @@ import type { MemberId, SplitParams, SplitType } from '../split/types';
 import type { CurrencyCode } from '../money/currency';
 import type { ExpenseSnapshot } from '../balances/types';
 
-import { SyncTable } from './protocol';
+import { parseAmount, SyncTable } from './protocol';
 import type {
   CaptureAssignPayload,
   CaptureCreatePayload,
@@ -264,7 +264,7 @@ function applyPending(
 
 function pendingShares(payload: ExpenseCreatePayload): { member_id: string; amount: string }[] {
   const shares = computeShares({
-    amount: BigInt(payload.amount),
+    amount: parseAmount(payload.amount),
     currency: payload.currency as CurrencyCode,
     params: payload.splitParams,
     participants: payload.participants as readonly MemberId[],
@@ -286,15 +286,25 @@ export function liveExpenses(expenses: readonly MirrorExpense[]): MirrorExpense[
 export function toExpenseSnapshot(expense: MirrorExpense): ExpenseSnapshot | null {
   const version = expense.currentVersion;
   if (!version) return null;
-  return {
-    id: expense.id,
-    currency: version.currency as CurrencyCode,
-    amount: BigInt(version.amount),
-    payers: Object.fromEntries(version.payers.map((row) => [row.member_id, BigInt(row.amount)])),
-    shares: Object.fromEntries(version.shares.map((row) => [row.member_id, BigInt(row.amount)])),
-    date: version.expense_date,
-    deletedAt: expense.deleted_at,
-  };
+  // A malformed amount on one row must hide that row, not crash the whole list
+  // as it materialises. parseAmount raises a typed MoneyError we swallow here.
+  try {
+    return {
+      id: expense.id,
+      currency: version.currency as CurrencyCode,
+      amount: parseAmount(version.amount),
+      payers: Object.fromEntries(
+        version.payers.map((row) => [row.member_id, parseAmount(row.amount)]),
+      ),
+      shares: Object.fromEntries(
+        version.shares.map((row) => [row.member_id, parseAmount(row.amount)]),
+      ),
+      date: version.expense_date,
+      deletedAt: expense.deleted_at,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ─────────────────────────────── settlements, members and groups ──
@@ -624,7 +634,13 @@ export function materialiseCaptures(
   options: { readonly ownerId: string },
 ): MirrorCapture[] {
   const byId = new Map<string, MirrorCapture>();
-  for (const row of rowsFor(state, SyncTable.Captures) as MirrorCapture[]) byId.set(row.id, row);
+  // Scope the server rows to this owner too: if the mirror ever holds another
+  // account's captures (a shared device, an account switch), the inbox must not
+  // show them just because the queue overlay below is the only thing filtered.
+  for (const row of rowsFor(state, SyncTable.Captures) as MirrorCapture[]) {
+    if (row.owner_user_id !== options.ownerId) continue;
+    byId.set(row.id, row);
+  }
 
   for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
     if (mutation.groupId !== options.ownerId) continue;

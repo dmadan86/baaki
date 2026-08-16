@@ -83,7 +83,7 @@ export function campaignCtaUrl(
   promoCode: string | null | undefined,
   webUrl?: string | null,
 ): string | null {
-  if (webUrl) return webUrl.replace(/\/+$/, '');
+  if (webUrl && /^https?:\/\//i.test(webUrl.trim())) return webUrl.trim().replace(/\/+$/, '');
   if (promoCode) return `baaki://redeem?code=${encodeURIComponent(promoCode)}`;
   return null;
 }
@@ -100,12 +100,18 @@ export function renderCampaignEmail(
   const link = input.ctaLabel.trim() ? campaignCtaUrl(input.promoCode, options.webUrl) : null;
   const code = input.promoCode?.trim() || null;
 
+  // An operator-edited title must not smuggle a line break into a mail header,
+  // and an empty subject raises the spam score. Normalise it here, where a test
+  // can read the value, rather than in the send path.
+  const subject = input.title.replace(/[\r\n]+/g, ' ').trim();
+
   return {
     sendId: input.sendId,
     to: input.to,
-    subject: input.title,
+    subject,
     html: renderHtml({
       direction,
+      language,
       title: input.title,
       body: input.body,
       action: input.ctaLabel.trim(),
@@ -139,6 +145,7 @@ export function renderCampaignEmail(
 
 interface HtmlParts {
   readonly direction: 'ltr' | 'rtl';
+  readonly language: string;
   readonly title: string;
   readonly body: string;
   readonly action: string;
@@ -165,7 +172,7 @@ function renderHtml(parts: HtmlParts): string {
       ? `<a href="${escapeHtml(parts.link)}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:#1c1917;color:#ffffff;text-decoration:none;font-size:15px;">${escapeHtml(parts.action)}</a>`
       : '';
   return `<!doctype html>
-<html dir="${parts.direction}">
+<html lang="${escapeHtml(parts.language)}" dir="${parts.direction}">
 <body style="margin:0;padding:24px;background:#f5f5f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px;text-align:${align};">
 <h1 style="margin:0 0 12px;font-size:20px;line-height:1.35;color:#1c1917;">${escapeHtml(parts.title)}</h1>

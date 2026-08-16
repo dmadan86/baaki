@@ -20,7 +20,7 @@
  * saving. "Other" is a real answer and stays.
  */
 
-import { keywordsForMarket } from './markets';
+import { excludesForMarket, keywordsForMarket } from './markets';
 
 export enum CategoryId {
   Food = 'food',
@@ -372,16 +372,29 @@ export function guessCategory(description: string, countryCode?: string | null):
   if (tokens.size === 0) return null;
 
   const market = keywordsForMarket(countryCode);
+  const excludes = excludesForMarket(countryCode);
 
   let best: CategoryId | null = null;
   let bestHits = 0;
   for (const category of CATEGORIES) {
+    const blocked = new Set(excludes[category.id] ?? []);
+    // A keyword listed in both the shared list and the market list must score
+    // once, not twice, or a close call tips on the duplication alone.
+    const counted = new Set<string>();
     let hits = 0;
     for (const keyword of category.keywords) {
-      if (tokens.has(keyword)) hits += 1;
+      if (blocked.has(keyword) || counted.has(keyword)) continue;
+      if (tokens.has(keyword)) {
+        counted.add(keyword);
+        hits += 1;
+      }
     }
     for (const keyword of market[category.id] ?? []) {
-      if (tokens.has(keyword)) hits += 1;
+      if (counted.has(keyword)) continue;
+      if (tokens.has(keyword)) {
+        counted.add(keyword);
+        hits += 1;
+      }
     }
     if (hits > bestHits) {
       best = category.id;

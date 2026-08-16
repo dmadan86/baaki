@@ -23,6 +23,7 @@ export enum SettlementErrorCode {
   AllocationExceedsReceivable = 'ALLOCATION_EXCEEDS_RECEIVABLE',
   UnknownReceivable = 'UNKNOWN_RECEIVABLE',
   NonPositiveAmount = 'NON_POSITIVE_AMOUNT',
+  InvalidHandle = 'INVALID_HANDLE',
 }
 
 export class SettlementError extends Error {
@@ -152,7 +153,7 @@ export function buildUpiIntentUri(
 ): string {
   if (!isValidVpa(input.vpa)) {
     throw new SettlementError(
-      SettlementErrorCode.UnknownReceivable,
+      SettlementErrorCode.InvalidHandle,
       `"${input.vpa}" is not a valid UPI ID`,
     );
   }

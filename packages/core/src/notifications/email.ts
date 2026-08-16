@@ -52,16 +52,22 @@ export enum EmailTemplate {
  * is the inbox's job and the push's job; mailing it is the mistake that trains
  * people to filter the sender.
  */
-export const TEMPLATE_FOR_KIND: Readonly<Record<string, EmailTemplate>> = {
-  settlement_initiated: EmailTemplate.SettlementConfirm,
-  settlement_confirm_request: EmailTemplate.SettlementConfirm,
-  digest_daily: EmailTemplate.Digest,
-  /**
-   * A nudge is mailed only when the person has no live device — TDR §7.4. That
-   * condition is not checked here; it is checked in SQL, where the tokens are.
-   */
-  nudge: EmailTemplate.Nudge,
-};
+export const TEMPLATE_FOR_KIND: Readonly<Record<string, EmailTemplate>> = Object.assign(
+  // Prototype-less: `kind` comes from a database row, and a value such as
+  // `constructor` or `toString` would otherwise return an inherited function
+  // instead of undefined.
+  Object.create(null) as Record<string, EmailTemplate>,
+  {
+    settlement_initiated: EmailTemplate.SettlementConfirm,
+    settlement_confirm_request: EmailTemplate.SettlementConfirm,
+    digest_daily: EmailTemplate.Digest,
+    /**
+     * A nudge is mailed only when the person has no live device — TDR §7.4. That
+     * condition is not checked here; it is checked in SQL, where the tokens are.
+     */
+    nudge: EmailTemplate.Nudge,
+  },
+);
 
 export function templateForKind(kind: string): EmailTemplate | null {
   return TEMPLATE_FOR_KIND[kind] ?? null;
@@ -124,17 +130,22 @@ export interface EmailOptions {
  * neither, there is no button — an email is still worth sending for what it
  * says.
  */
+const SAFE_LINK = /^(?:baaki:\/\/|https?:\/\/)/i;
+
 export function webLinkFor(
   deepLink: string | null | undefined,
   webUrl?: string | null,
 ): string | null {
-  if (!webUrl) return deepLink ?? null;
+  // deepLink comes from a stored row; a `javascript:` or `data:` scheme reaches
+  // an href in any web preview of this HTML. Only known schemes survive.
+  const safeDeepLink = deepLink && SAFE_LINK.test(deepLink) ? deepLink : null;
+  if (!webUrl) return safeDeepLink;
 
   const base = webUrl.replace(/\/+$/, '');
-  if (!deepLink) return base;
-  if (deepLink.startsWith('http://') || deepLink.startsWith('https://')) return deepLink;
+  if (!safeDeepLink) return base;
+  if (safeDeepLink.startsWith('http://') || safeDeepLink.startsWith('https://')) return safeDeepLink;
 
-  const group = /^baaki:\/\/group\/([0-9a-fA-F-]{36})/.exec(deepLink);
+  const group = /^baaki:\/\/group\/([0-9a-fA-F-]{36})/.exec(safeDeepLink);
   return group ? `${base}/g/${group[1]}` : base;
 }
 

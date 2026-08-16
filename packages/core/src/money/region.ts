@@ -182,6 +182,10 @@ export const COUNTRIES: readonly { code: string; name: string }[] = [
   { code: 'IE', name: 'Ireland' },
   { code: 'CH', name: 'Switzerland' },
   { code: 'JP', name: 'Japan' },
+  { code: 'AT', name: 'Austria' },
+  { code: 'BE', name: 'Belgium' },
+  { code: 'GR', name: 'Greece' },
+  { code: 'FI', name: 'Finland' },
 ];
 
 export function countryName(countryCode: string | null | undefined): string | null {

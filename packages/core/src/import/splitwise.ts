@@ -179,11 +179,14 @@ function reconstruct(
     // Integer division loses at most one unit per creditor; give them back in a
     // fixed order rather than letting the total drift.
     let remainder = amount - handed;
-    for (let index = 0; remainder > 0n && creditors.length > 0; index += 1) {
+    // A refund row makes amount negative, so the remainder can be negative too;
+    // hand it out in the direction its sign points rather than never at all.
+    const step = remainder < 0n ? -1n : 1n;
+    for (let index = 0; remainder !== 0n && creditors.length > 0; index += 1) {
       const person = creditors[index % creditors.length]?.[0];
       if (person === undefined) break;
-      payers[person] = (payers[person] ?? 0n) + 1n;
-      remainder -= 1n;
+      payers[person] = (payers[person] ?? 0n) + step;
+      remainder -= step;
     }
   }
 
@@ -209,7 +212,14 @@ export function importSplitwiseCsv(csv: string): SplitwiseImport {
   const fixedCount = FIXED_COLUMNS.filter((name) =>
     header.some((column) => column.toLowerCase() === name),
   ).length;
-  const people = header.slice(FIXED_COLUMNS.length).filter((name) => name !== '');
+  // Keep the field index beside each name: a blank person column in the header
+  // shifts the people list without shifting the field positions, so reading by
+  // list index would attribute every net after the gap to the wrong person.
+  const personColumns = header
+    .slice(FIXED_COLUMNS.length)
+    .map((name, offset) => ({ name, column: FIXED_COLUMNS.length + offset }))
+    .filter((entry) => entry.name !== '');
+  const people = personColumns.map((entry) => entry.name);
 
   if (fixedCount < FIXED_COLUMNS.length || people.length === 0) {
     problems.push({
@@ -257,10 +267,9 @@ export function importSplitwiseCsv(csv: string): SplitwiseImport {
 
     const nets = new Map<string, bigint>();
     let net = 0n;
-    for (let column = 0; column < people.length; column += 1) {
-      const person = people[column] as string;
-      const value = parseCsvAmount(fields[FIXED_COLUMNS.length + column] ?? '', rowCurrency) ?? 0n;
-      nets.set(person, value);
+    for (const entry of personColumns) {
+      const value = parseCsvAmount(fields[entry.column] ?? '', rowCurrency) ?? 0n;
+      nets.set(entry.name, value);
       net += value;
     }
 
