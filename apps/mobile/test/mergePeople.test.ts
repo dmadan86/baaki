@@ -105,6 +105,7 @@ describe('mergeErrorMessage', () => {
     errorTooFew: 'pick two',
     errorNotMergeable: 'guests only',
     errorNameRequired: 'name needed',
+    errorNotSignedIn: 'signed out',
     errorGeneric: 'something went wrong',
   };
 
@@ -121,15 +122,18 @@ describe('mergeErrorMessage', () => {
     expect(mergeErrorMessage(new Error('NAME_REQUIRED: the merged person needs a name'), t)).toBe(
       'name needed',
     );
+    expect(mergeErrorMessage(new Error('NOT_SIGNED_IN'), t)).toBe('signed out');
   });
 
-  it('falls back to generic for an unrecognised or infra error', () => {
-    expect(mergeErrorMessage(new Error('NOT_SIGNED_IN'), t)).toBe('something went wrong');
-    expect(mergeErrorMessage(new Error('Network request failed'), t)).toBe('something went wrong');
+  it('appends the raw message to the generic line for an unrecognised error', () => {
+    expect(mergeErrorMessage(new Error('Network request failed'), t)).toBe(
+      'something went wrong (Network request failed)',
+    );
   });
 
   it('handles a non-Error thrown value', () => {
-    expect(mergeErrorMessage('boom', t)).toBe('something went wrong');
+    expect(mergeErrorMessage('boom', t)).toBe('something went wrong (boom)');
+    // Nothing to append when there is no message — stays clean.
     expect(mergeErrorMessage(null, t)).toBe('something went wrong');
   });
 });

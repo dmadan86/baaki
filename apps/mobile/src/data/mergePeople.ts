@@ -67,6 +67,7 @@ export interface MergeErrorStrings {
   errorTooFew: string;
   errorNotMergeable: string;
   errorNameRequired: string;
+  errorNotSignedIn: string;
   errorGeneric: string;
 }
 
@@ -75,13 +76,20 @@ export interface MergeErrorStrings {
  *
  * The RPC raises with a stable prefix (`TOO_FEW`, `NOT_MERGEABLE`,
  * `NAME_REQUIRED`, `NOT_SIGNED_IN`) ahead of its developer text; match on that
- * so the raw schema message never reaches a person, and fall back to a generic
- * line for anything unrecognised (a dropped connection, an unforeseen state).
+ * so a named outcome reads as plain language.
+ *
+ * Anything unrecognised — a dropped connection, or a server that is missing or
+ * behind on the merge function — is not one of those outcomes, and a bare "try
+ * again" hides what actually went wrong. Those fall back to the generic line
+ * with the raw message appended, so a failure in the field can be read off the
+ * screen rather than guessed at.
  */
 export function mergeErrorMessage(error: unknown, t: MergeErrorStrings): string {
   const message = error instanceof Error ? error.message : String(error ?? '');
   if (message.includes('TOO_FEW')) return t.errorTooFew;
   if (message.includes('NOT_MERGEABLE')) return t.errorNotMergeable;
   if (message.includes('NAME_REQUIRED')) return t.errorNameRequired;
-  return t.errorGeneric;
+  if (message.includes('NOT_SIGNED_IN')) return t.errorNotSignedIn;
+  const detail = message.trim();
+  return detail ? `${t.errorGeneric} (${detail})` : t.errorGeneric;
 }
