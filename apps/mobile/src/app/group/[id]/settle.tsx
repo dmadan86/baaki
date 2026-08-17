@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 
 import {
   allocateSettlement,
+  BalanceDirection,
   buildPaymentUri,
   defaultRailFor,
   railById,
@@ -34,6 +36,7 @@ import {
 } from '@baaki/ui';
 
 import { toSnapshot, useGroup, useGroupLedger, useRecordSettlement } from '@/data/hooks';
+import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, isGhost, payableAt, type MemberRow } from '@/data/types';
 import { fill, useStrings } from '@/i18n';
@@ -265,33 +268,55 @@ export default function SettleScreen() {
         </Row>
 
         {counterparties.length === 0 || !counterparty ? (
-          <EmptyState title={t.allSettled} body={t.group.nobodyOwes} />
+          <EmptyState
+            title={t.allSettled}
+            body={t.group.nobodyOwes}
+            icon={
+              <Ionicons name="checkmark-circle" size={iconSize.xxl} color={theme.color.positive} />
+            }
+          />
         ) : (
           <>
             <Card style={{ gap: theme.spacing.md }}>
               <Text variant="caption" tone="muted">
                 {t.misc.withLabel}
               </Text>
+              {/* Each face carries what settling with them is worth. The picker
+                  used to be names alone, so choosing between three people meant
+                  tapping each one to read the number that decides it. */}
               <Row style={{ flexWrap: 'wrap', gap: theme.spacing.lg }}>
-                {counterparties.map((member) => (
-                  <Pressable
-                    key={member.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: counterparty.id === member.id }}
-                    accessibilityLabel={displayName(member)}
-                    onPress={() => setSelected(member.id)}
-                    style={{
-                      alignItems: 'center',
-                      gap: 4,
-                      opacity: counterparty.id === member.id ? 1 : 0.45,
-                    }}
-                  >
-                    <Avatar name={displayName(member)} ghost={isGhost(member)} size={52} />
-                    <Text variant="micro" tone={counterparty.id === member.id ? 'brand' : 'muted'}>
-                      {displayName(member)}
-                    </Text>
-                  </Pressable>
-                ))}
+                {counterparties.map((member) => {
+                  const theirs = ledger.balances.get(member.id) ?? 0n;
+                  const active = counterparty.id === member.id;
+                  return (
+                    <Pressable
+                      key={member.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={displayName(member)}
+                      onPress={() => setSelected(member.id)}
+                      style={{ alignItems: 'center', gap: 4, opacity: active ? 1 : 0.45 }}
+                    >
+                      <Avatar name={displayName(member)} ghost={isGhost(member)} size={52} />
+                      <Text variant="micro" tone={active ? 'brand' : 'muted'}>
+                        {displayName(member)}
+                      </Text>
+                      {/* Their balance told from my side: they are on the other
+                          side of my ledger by construction, so a negative of
+                          theirs is money owed to me. */}
+                      <MoneyText
+                        amount={theirs < 0n ? -theirs : theirs}
+                        currency={currency}
+                        locale={locale}
+                        variant="micro"
+                        mode="balance"
+                        direction={
+                          theirs < 0n ? BalanceDirection.OwedToYou : BalanceDirection.YouOwe
+                        }
+                      />
+                    </Pressable>
+                  );
+                })}
               </Row>
             </Card>
 
@@ -372,6 +397,14 @@ export default function SettleScreen() {
               }
             />
 
+            {/* When the money is coming the other way, recording it is not the
+                only thing somebody came here to do — the other half of "settle
+                up" is asking. One tap, the server's one-a-day rule (ADR-010),
+                and no follow-up that reads like a collections notice. */}
+            {!iPay ? (
+              <RemindRow groupId={groupId} memberId={counterparty.id} currency={currency} />
+            ) : null}
+
             {recordSettlement.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
 
             <Text variant="micro" tone="muted" align="center">
@@ -388,4 +421,52 @@ export default function SettleScreen() {
 
 function min(a: bigint, b: bigint): bigint {
   return a < b ? a : b;
+}
+
+/**
+ * The nudge under the settle button, for the case where somebody else is the one
+ * who owes. Same rule and same manner as the Friends tab: it goes once, and the
+ * daily limit reads as "already nudged today" rather than as a failure.
+ */
+function RemindRow({
+  groupId,
+  memberId,
+  currency,
+}: {
+  groupId: string;
+  memberId: MemberId;
+  currency: string;
+}) {
+  const { t } = useStrings();
+  const [note, setNote] = useState<string | null>(null);
+
+  const nudge = useMutation({
+    mutationFn: () => nudgeToSettle({ groupId, toMemberId: memberId, currency }),
+    onSuccess: () => setNote(t.people.reminded),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      setNote(message.includes('NUDGE_RATE_LIMIT') ? t.people.remindedToday : t.loadError);
+    },
+  });
+
+  if (note) {
+    return (
+      <Text variant="caption" tone="muted" align="center">
+        {note}
+      </Text>
+    );
+  }
+
+  return (
+    <Button
+      // The name is on the card above; gluing it to the verb here would be a
+      // sentence assembled in English word order and wrong in three locales.
+      label={t.people.remind}
+      variant="secondary"
+      size="lg"
+      fullWidth
+      disabled={nudge.isPending}
+      onPress={() => nudge.mutate()}
+    />
+  );
 }

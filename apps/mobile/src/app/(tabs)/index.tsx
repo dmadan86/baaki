@@ -278,12 +278,17 @@ export default function HomeScreen() {
         {summary.isLoading ? (
           <HeroSkeleton />
         ) : (
-          <HeroCarousel
-            trips={activeTrips}
-            totals={summary.totals.length > 0 ? summary.totals : [headline]}
-            locale={locale}
-            t={t}
-          />
+          <View style={{ gap: theme.spacing.lg }}>
+            {/* Where you stand, flat and always on screen. It used to be the
+                first slide of a swipeable deck, which meant the one number the
+                app exists to tell you could be a card-width away — and after a
+                swipe to the trip or the promo card, gone. No money app in the
+                category hides the balance behind a gesture. The deck survives
+                beneath it, smaller, for the things that genuinely are a shelf:
+                a running trip, a second currency, the two shortcuts. */}
+            <BalanceCard total={headline} locale={locale} t={t} />
+            <HeroDeck trips={activeTrips} totals={summary.totals.slice(1)} locale={locale} t={t} />
+          </View>
         )}
 
         {loading ? (
@@ -292,6 +297,7 @@ export default function HomeScreen() {
           <EmptyState
             title={t.tabs.noGroups}
             body={t.tabs.noGroupsBody}
+            icon={<Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.brand} />}
             action={<Button label={t.newGroup} onPress={openNewGroup} />}
           />
         ) : (
@@ -487,20 +493,25 @@ function todayIn(timeZone: string): string {
 export const HERO_CARD_HEIGHT = 196;
 
 /**
- * The dashboard hero: a swipeable deck of cards with a peek of the next one at
- * the right edge and a dot pager beneath (the live dot stretched into a pill),
- * modelled on the podcast-style featured carousel. Any trip running today rides
- * at the front — the most "now" thing on the dashboard — then one card per
- * currency (a total across currencies is a number that does not exist, ADR-004),
- * then the action slides (scan a receipt, add a person) that turn the empty
- * right of the deck into a shortcut instead of dead space.
- *
- * Unlike a bare card, the deck always shows its dots — the peek and the pager
- * are the two signals that say "swipe me", so they stay even when there is a
- * single slide (a fresh account with one currency and no trip). The peek is
- * dropped to zero in that lone case so a single card still fills the width.
+ * The height of a card in the deck beneath the balance. Shorter than the hero on
+ * purpose: the deck is the shelf of secondary things, and two cards of equal
+ * weight stacked would be two heroes and no hierarchy.
  */
-function HeroCarousel({
+const DECK_CARD_HEIGHT = 132;
+
+/**
+ * The shelf under the balance: a swipeable deck with a peek of the next card at
+ * the right edge and a dot pager beneath. Any trip running today rides at the
+ * front — the most "now" thing on the dashboard — then any further currency (a
+ * total across currencies is a number that does not exist, ADR-004), then the
+ * action slides (scan a receipt, add a person) that turn the empty right of the
+ * deck into a shortcut instead of dead space.
+ *
+ * The peek and the pager are the two signals that say "swipe me", so they stay
+ * even when there is a single slide. The peek is dropped to zero in that lone
+ * case so a single card still fills the width.
+ */
+function HeroDeck({
   trips,
   totals,
   locale,
@@ -522,7 +533,7 @@ function HeroCarousel({
     })),
     ...totals.map((total) => ({
       key: `cur:${total.currency}`,
-      node: <BalanceCard total={total} locale={locale} t={t} />,
+      node: <BalanceCard total={total} locale={locale} t={t} compact />,
     })),
     {
       key: 'act:scan',
@@ -608,10 +619,10 @@ function HeroCarousel({
 }
 
 /**
- * The hero while the balance is still loading — a card-shaped block at the exact
- * `HERO_CARD_HEIGHT` the real deck uses, with a sliver of the next card at the
- * right (the peek) and a three-dot pager beneath. Shaped so the swap to the real
- * carousel is a fill, not a jump: same height, same peek, same dots.
+ * The hero while the balance is still loading — the full-width balance block at
+ * its real height, then the deck beneath it with a sliver of the next card at
+ * the right (the peek) and a three-dot pager. Shaped so the swap to the real
+ * thing is a fill, not a jump: same heights, same peek, same dots.
  */
 function HeroSkeleton() {
   const theme = useTheme();
@@ -622,18 +633,24 @@ function HeroSkeleton() {
   const cardWidth = available - peek;
   return (
     <View style={{ gap: theme.spacing.md }}>
-      {/* The card and the peek sliver, clipped so the sliver never widens the
-          row past the gutter. */}
+      <Skeleton
+        width={available}
+        height={HERO_CARD_HEIGHT}
+        radius={theme.radius.lg}
+        animated={animated}
+      />
+      {/* The deck card and the peek sliver, clipped so the sliver never widens
+          the row past the gutter. */}
       <View style={{ flexDirection: 'row', gap: theme.spacing.md, overflow: 'hidden' }}>
         <Skeleton
           width={cardWidth}
-          height={HERO_CARD_HEIGHT}
+          height={DECK_CARD_HEIGHT}
           radius={theme.radius.lg}
           animated={animated}
         />
         <Skeleton
           width={peek}
-          height={HERO_CARD_HEIGHT}
+          height={DECK_CARD_HEIGHT}
           radius={theme.radius.lg}
           animated={animated}
         />
@@ -710,24 +727,24 @@ function ActionSlide({
         colors={colors}
         radius={theme.radius.lg}
         style={{
-          padding: theme.spacing.xl,
-          height: HERO_CARD_HEIGHT,
+          padding: theme.spacing.lg,
+          height: DECK_CARD_HEIGHT,
           justifyContent: 'space-between',
-          gap: theme.spacing.lg,
+          gap: theme.spacing.sm,
           overflow: 'hidden',
         }}
       >
         <HeroBackdropIcon name={icon} />
-        <View style={{ gap: theme.spacing.xs, paddingRight: 88 }}>
-          <Text variant="subheading" tone="onBrand">
+        <View style={{ gap: 2, paddingRight: 72 }}>
+          <Text variant="subheading" tone="onBrand" numberOfLines={1}>
             {title}
           </Text>
-          <Text variant="caption" tone="onBrand" style={{ opacity: 0.9 }}>
+          <Text variant="micro" tone="onBrand" numberOfLines={2} style={{ opacity: 0.9 }}>
             {body}
           </Text>
         </View>
         <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-          <Text variant="caption" tone="onBrand" style={{ fontWeight: '700' }}>
+          <Text variant="micro" tone="onBrand" style={{ fontWeight: '700' }}>
             {cta}
           </Text>
           <Ionicons name="arrow-forward" size={iconSize.base} color={theme.color.onBrand} />
@@ -743,7 +760,19 @@ function ActionSlide({
  * settled — so the card's colour, not just its number, tells you where you
  * stand at a glance. The net big, the owed/owe split beneath.
  */
-function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: string; t: UiStrings }) {
+function BalanceCard({
+  total,
+  locale,
+  t,
+  compact = false,
+}: {
+  total: CurrencyTotal;
+  locale: string;
+  t: UiStrings;
+  /** A second currency riding in the deck: deck height, and the owed/owe split
+   *  dropped — at that size it is three numbers where one will do. */
+  compact?: boolean;
+}) {
   const theme = useTheme();
   const wash =
     total.net > 0n
@@ -757,8 +786,8 @@ function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: strin
       radius={theme.radius.lg}
       style={{
         padding: theme.spacing.xl,
-        gap: theme.spacing.lg,
-        height: HERO_CARD_HEIGHT,
+        gap: compact ? theme.spacing.sm : theme.spacing.lg,
+        height: compact ? DECK_CARD_HEIGHT : HERO_CARD_HEIGHT,
         justifyContent: 'space-between',
         overflow: 'hidden',
       }}
@@ -779,37 +808,43 @@ function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: strin
           currency={total.currency as never}
           locale={locale}
           tone="onBrand"
-          style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
+          style={
+            compact
+              ? { fontSize: 28, lineHeight: 34, fontWeight: '700' }
+              : { fontSize: 40, lineHeight: 46, fontWeight: '700' }
+          }
         />
         <Text variant="caption" tone="onBrand">
           {total.net === 0n ? t.allSettled : total.net > 0n ? t.overallOwed : t.overallOwe}
         </Text>
       </View>
 
-      <Row style={{ gap: theme.spacing.xxl }}>
-        <View>
-          <Text variant="micro" tone="onBrand">
-            {t.youAreOwed}
-          </Text>
-          <CountUpMoney
-            amount={total.owed}
-            currency={total.currency as never}
-            locale={locale}
-            tone="onBrand"
-          />
-        </View>
-        <View>
-          <Text variant="micro" tone="onBrand">
-            {t.youOwe}
-          </Text>
-          <CountUpMoney
-            amount={total.owing}
-            currency={total.currency as never}
-            locale={locale}
-            tone="onBrand"
-          />
-        </View>
-      </Row>
+      {compact ? null : (
+        <Row style={{ gap: theme.spacing.xxl }}>
+          <View>
+            <Text variant="micro" tone="onBrand">
+              {t.youAreOwed}
+            </Text>
+            <CountUpMoney
+              amount={total.owed}
+              currency={total.currency as never}
+              locale={locale}
+              tone="onBrand"
+            />
+          </View>
+          <View>
+            <Text variant="micro" tone="onBrand">
+              {t.youOwe}
+            </Text>
+            <CountUpMoney
+              amount={total.owing}
+              currency={total.currency as never}
+              locale={locale}
+              tone="onBrand"
+            />
+          </View>
+        </Row>
+      )}
     </Gradient>
   );
 }
@@ -832,9 +867,9 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
         colors={theme.gradient.accent}
         radius={theme.radius.lg}
         style={{
-          padding: theme.spacing.xl,
-          gap: theme.spacing.lg,
-          height: HERO_CARD_HEIGHT,
+          padding: theme.spacing.lg,
+          gap: theme.spacing.sm,
+          height: DECK_CARD_HEIGHT,
           justifyContent: 'space-between',
           overflow: 'hidden',
         }}
@@ -842,8 +877,8 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
         <HeroBackdropIcon name="airplane-outline" />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row style={{ gap: theme.spacing.sm, alignItems: 'center', flex: 1 }}>
-            <Text variant="subheading">{trip.coverEmoji ?? '🧳'}</Text>
-            <Text variant="subheading" tone="onBrand" numberOfLines={1} style={{ flex: 1 }}>
+            <Text variant="caption">{trip.coverEmoji ?? '🧳'}</Text>
+            <Text variant="caption" tone="onBrand" numberOfLines={1} style={{ flex: 1 }}>
               {trip.title}
             </Text>
           </Row>
@@ -852,23 +887,24 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
           </Text>
         </Row>
 
-        <View>
-          <Text tone="onBrand" style={{ fontSize: 34, lineHeight: 40, fontWeight: '700' }}>
-            {t.tripDay.replace('{day}', String(trip.day)).replace('{total}', String(trip.total))}
-          </Text>
-          <Text variant="caption" tone="onBrand">
-            {net === 0n ? t.allSettled : net > 0n ? t.youAreOwed : t.youOwe}
-          </Text>
-        </View>
+        <Text tone="onBrand" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>
+          {t.tripDay.replace('{day}', String(trip.day)).replace('{total}', String(trip.total))}
+        </Text>
 
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <CountUpMoney
-            amount={net < 0n ? -net : net}
-            currency={trip.currency as never}
-            locale={locale}
-            tone="onBrand"
-          />
-          <Text variant="caption" tone="onBrand">
+          <View>
+            <Text variant="micro" tone="onBrand">
+              {net === 0n ? t.allSettled : net > 0n ? t.youAreOwed : t.youOwe}
+            </Text>
+            <CountUpMoney
+              amount={net < 0n ? -net : net}
+              currency={trip.currency as never}
+              locale={locale}
+              tone="onBrand"
+              variant="caption"
+            />
+          </View>
+          <Text variant="micro" tone="onBrand">
             {t.plan}
           </Text>
         </Row>

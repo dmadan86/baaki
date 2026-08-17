@@ -71,16 +71,41 @@ export function EmptyState({
   title,
   body,
   action,
+  icon,
 }: {
   title: string;
   body: string;
   action?: ReactNode;
+  /**
+   * A glyph above the words, in a soft brand-tinted square. An empty screen is
+   * mostly air, and a page of two grey sentences in the middle of it reads as a
+   * screen that failed rather than one with nothing in it yet. The mark is
+   * decoration in the exact sense that matters here: it says "this is a state,
+   * not an error" before the sentence is read. Optional, because a short-lived
+   * empty inside a list (a filtered tab) does not want the ceremony.
+   */
+  icon?: ReactNode;
 }) {
   const theme = useTheme();
   return (
     <View
       style={{ alignItems: 'center', paddingVertical: theme.spacing.xxxl, gap: theme.spacing.sm }}
     >
+      {icon ? (
+        <View
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: theme.radius.lg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.brandSoft,
+            marginBottom: theme.spacing.sm,
+          }}
+        >
+          {icon}
+        </View>
+      ) : null}
       <Text variant="heading" align="center">
         {title}
       </Text>

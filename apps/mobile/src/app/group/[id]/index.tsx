@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
@@ -34,9 +35,11 @@ import {
   useOpenReceipts,
 } from '@/data/hooks';
 import { describeActivity, parseMoney, verbEmoji } from '@/data/activity';
+import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
-import { actorName, displayName, groupLabel, isGhost } from '@/data/types';
+import { formatParts, type MemberId } from '@baaki/core';
+import { actorName, displayName, groupLabel, isGhost, type ExpenseVersionRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { DetailEnter } from '@/lib/anim';
@@ -51,6 +54,76 @@ enum Tab {
   Expenses = 'expenses',
   Balances = 'balances',
   Activity = 'activity',
+}
+
+/**
+ * The nudge on a balances row, for somebody who owes this group money.
+ *
+ * The same one-a-day server rule the Friends tab leans on (ADR-010), and the
+ * same manner: once tapped it stops offering, and a rate limit reads as "already
+ * nudged today" rather than as an error. Nobody should be told off for asking.
+ */
+function RemindChip({
+  groupId,
+  memberId,
+  currency,
+}: {
+  groupId: string;
+  memberId: MemberId;
+  currency: string;
+}) {
+  const { t } = useStrings();
+  const [note, setNote] = useState<string | null>(null);
+
+  const nudge = useMutation({
+    mutationFn: () => nudgeToSettle({ groupId, toMemberId: memberId, currency }),
+    onSuccess: () => setNote(t.people.reminded),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      setNote(message.includes('NUDGE_RATE_LIMIT') ? t.people.remindedToday : t.loadError);
+    },
+  });
+
+  if (note) {
+    return (
+      <Text variant="micro" tone="muted">
+        {note}
+      </Text>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={() => nudge.mutate()}
+      disabled={nudge.isPending}
+      accessibilityRole="button"
+      accessibilityLabel={t.people.remind}
+      hitSlop={10}
+      style={({ pressed }) => ({ opacity: pressed || nudge.isPending ? 0.6 : 1 })}
+    >
+      <Badge label={t.people.remind} tone="brand" />
+    </Pressable>
+  );
+}
+
+/**
+ * What one expense did to one person's balance — what they put in beyond their
+ * own share (positive: they lent), or their share of what somebody else put in
+ * (negative: they borrowed).
+ *
+ * `null` means they are in neither column: an expense between other people in
+ * the group. That is a blank on the row, not a zero — a zero would read as "you
+ * are square on this one", which is a different sentence.
+ */
+function myStake(
+  version: ExpenseVersionRow | null | undefined,
+  memberId: MemberId | null,
+): bigint | null {
+  if (!version || !memberId) return null;
+  const paid = version.payers.find((row) => row.member_id === memberId)?.amount;
+  const share = version.shares.find((row) => row.member_id === memberId)?.amount;
+  if (paid === undefined && share === undefined) return null;
+  return BigInt(paid ?? 0) - BigInt(share ?? 0);
 }
 
 export default function GroupScreen() {
@@ -268,8 +341,15 @@ export default function GroupScreen() {
             }}
           >
             <Row style={{ justifyContent: 'space-between' }}>
+              {/* A zero is not "you are owed ₹0" — it is the good outcome, and
+                  it gets said as one. The label carried the sign for every
+                  balance except the one worth celebrating. */}
               <Text variant="caption" style={{ color: inkMuted }}>
-                {ledger.myBalance >= 0n ? t.youAreOwed : t.youOwe}
+                {ledger.myBalance === 0n
+                  ? t.allSettled
+                  : ledger.myBalance > 0n
+                    ? t.youAreOwed
+                    : t.youOwe}
               </Text>
               {ledger.pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
             </Row>
@@ -364,12 +444,61 @@ export default function GroupScreen() {
 
           {tab === Tab.Expenses ? (
             visibleExpenses.length === 0 ? (
-              <EmptyState title={t.nothingYet} body={t.nothingYetBody} />
+              // An empty list that only describes itself leaves the one thing to
+              // do on the screen to a floating button in the corner. The way out
+              // of an empty state belongs inside it.
+              <EmptyState
+                title={t.nothingYet}
+                body={t.nothingYetBody}
+                icon={
+                  <Ionicons name="receipt-outline" size={iconSize.xxl} color={theme.color.brand} />
+                }
+                action={
+                  <Button
+                    label={t.addExpense}
+                    onPress={() => router.push(`/group/${groupId}/add-expense`)}
+                    icon={<Ionicons name="add" size={iconSize.md} color={theme.color.onBrand} />}
+                  />
+                }
+              />
             ) : (
               <View>
                 {visibleExpenses.map((expense, index) => {
                   const version = expense.currentVersion;
                   const payer = version?.payers[0]?.member_id ?? null;
+                  // An imported Splitwise expense can have several payers, so
+                  // "Asha paid ₹1,200" beside the expense total would put the
+                  // whole bill on whoever happens to sort first. One payer is
+                  // named and credited with what they actually put in; several
+                  // are counted, and the number beside them is the total they
+                  // put in between them.
+                  const payerCount = version?.payers.length ?? 0;
+                  const paidLine =
+                    version === null
+                      ? fill(t.expense.paidByName, { name: nameOf(payer) })
+                      : fill(t.expense.paidByNameAmount, {
+                          name:
+                            payerCount > 1
+                              ? plural(locale, payerCount, t.misc.peopleCount)
+                              : nameOf(payer),
+                          amount: formatParts(
+                            {
+                              minor:
+                                payerCount > 1
+                                  ? BigInt(version.amount)
+                                  : BigInt(version.payers[0]?.amount ?? version.amount),
+                              currency: version.currency,
+                            },
+                            { locale },
+                          ).text,
+                        });
+                  // What this one expense did to *your* balance: what you put in
+                  // beyond your share (you lent), or your share of what somebody
+                  // else put in (you borrowed). The row used to end in the
+                  // expense total, which is the group's number and never the
+                  // answer to the question somebody opens a ledger with. The
+                  // total keeps its place in the subtitle.
+                  const stake = myStake(version, ledger.myMemberId);
                   // Somebody disagreeing with an expense is worth seeing from the
                   // list. A disagreement you only find by opening the row is one
                   // that sits there unanswered.
@@ -411,7 +540,7 @@ export default function GroupScreen() {
                             </Row>
                             <Text variant="caption" tone="muted" numberOfLines={1}>
                               {[
-                                fill(t.expense.paidByName, { name: nameOf(payer) }),
+                                paidLine,
                                 version
                                   ? new Intl.DateTimeFormat(locale, {
                                       day: 'numeric',
@@ -430,13 +559,26 @@ export default function GroupScreen() {
                           </View>
                           {version ? (
                             <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                              <MoneyText
-                                amount={BigInt(version.amount)}
-                                currency={version.currency}
-                                locale={locale}
-                                tone="default"
-                                style={{ fontWeight: '700' }}
-                              />
+                              <View style={{ alignItems: 'flex-end' }}>
+                                <Text variant="micro" tone="muted">
+                                  {stake === null
+                                    ? t.expense.notInvolved
+                                    : stake > 0n
+                                      ? t.expense.youLent
+                                      : stake < 0n
+                                        ? t.expense.youBorrowed
+                                        : t.allSettled}
+                                </Text>
+                                {stake !== null && stake !== 0n ? (
+                                  <MoneyText
+                                    amount={stake}
+                                    currency={version.currency}
+                                    locale={locale}
+                                    mode="balance"
+                                    style={{ fontWeight: '700' }}
+                                  />
+                                ) : null}
+                              </View>
                               {expense.pending ? <PendingMark /> : null}
                             </Row>
                           ) : null}
@@ -484,6 +626,13 @@ export default function GroupScreen() {
                         </Text>
                       </View>
                       <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                        {/* Somebody who owes the group money can be nudged from
+                            the row that says so, the way Friends already does —
+                            reading a debt and acting on it were two screens
+                            apart for no reason. Ghosts have nowhere to send it. */}
+                        {balance < 0n && !isGhost(member) && member.id !== ledger.myMemberId ? (
+                          <RemindChip groupId={groupId} memberId={member.id} currency={currency} />
+                        ) : null}
                         <MoneyText
                           amount={balance}
                           currency={currency}
@@ -504,7 +653,11 @@ export default function GroupScreen() {
 
           {tab === Tab.Activity ? (
             (activity.data ?? []).length === 0 ? (
-              <EmptyState title={t.nothingYet} body={t.group.activityEmptyBody} />
+              <EmptyState
+                title={t.nothingYet}
+                body={t.group.activityEmptyBody}
+                icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
+              />
             ) : (
               // Flat like the Expenses and Balances tabs — bare rows and
               // hairlines, not a boxed Card, so all three tabs read alike.
@@ -548,11 +701,16 @@ export default function GroupScreen() {
           ) : null}
         </ScrollView>
 
-        <Fab
-          label={t.addExpense}
-          onPress={() => router.push(`/group/${groupId}/add-expense`)}
-          icon={<Ionicons name="add" size={iconSize.xl} color={theme.color.onBrand} />}
-        />
+        {/* The empty state carries its own Add expense button, and two of the
+            same button on one screen is a screen that cannot decide. The FAB
+            stands down for exactly that case. */}
+        {tab === Tab.Expenses && visibleExpenses.length === 0 ? null : (
+          <Fab
+            label={t.addExpense}
+            onPress={() => router.push(`/group/${groupId}/add-expense`)}
+            icon={<Ionicons name="add" size={iconSize.xl} color={theme.color.onBrand} />}
+          />
+        )}
       </DetailEnter>
     </Screen>
   );

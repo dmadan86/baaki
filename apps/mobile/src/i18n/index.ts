@@ -887,6 +887,15 @@ export interface UiStrings {
     untitled: string;
     /** "Asha paid" under a row. The name comes first in English and may not elsewhere. */
     paidByName: string;
+    /** "Asha paid ₹1,200" — the row's subtitle, so the total is not lost when
+     *  the amount column switches to what the expense did to *your* balance. */
+    paidByNameAmount: string;
+    /** The label over an expense row's own effect on your balance: money you put
+     *  in beyond your share, and your share of money somebody else put in. */
+    youLent: string;
+    youBorrowed: string;
+    /** An expense you neither paid for nor have a share of. */
+    notInvolved: string;
     /** "edited twice" — the count is edits, so it starts at one. */
     editedTimes: PluralForms;
     /** "In 4 expenses" over the list on a member. */
@@ -2085,6 +2094,10 @@ const en: UiStrings = {
     disputed: 'Disputed',
     untitled: 'Untitled',
     paidByName: '{name} paid',
+    paidByNameAmount: '{name} paid {amount}',
+    youLent: 'you lent',
+    youBorrowed: 'you borrowed',
+    notInvolved: 'not involved',
     editedTimes: { one: 'edited once', other: 'edited {n} times' },
     inCount: { one: 'In {n} expense', other: 'In {n} expenses' },
     whoOwesWhat: 'Who owes what',
@@ -3370,6 +3383,10 @@ const ta: UiStrings = {
     disputed: 'மறுப்பு',
     untitled: 'பெயரிடப்படாதது',
     paidByName: '{name} கொடுத்தார்',
+    paidByNameAmount: '{name} {amount} கொடுத்தார்',
+    youLent: 'நீங்கள் கொடுத்தது',
+    youBorrowed: 'நீங்கள் வாங்கியது',
+    notInvolved: 'உங்களுக்கு தொடர்பில்லை',
     editedTimes: { one: 'ஒருமுறை திருத்தப்பட்டது', other: '{n} முறை திருத்தப்பட்டது' },
     inCount: { one: '{n} செலவில்', other: '{n} செலவுகளில்' },
     whoOwesWhat: 'யார் என்ன தர வேண்டும்',
@@ -4651,6 +4668,10 @@ const hi: UiStrings = {
     disputed: 'विवादित',
     untitled: 'बिना नाम',
     paidByName: '{name} ने भुगतान किया',
+    paidByNameAmount: '{name} ने {amount} दिए',
+    youLent: 'आपने दिए',
+    youBorrowed: 'आपने लिए',
+    notInvolved: 'आप इसमें नहीं',
     editedTimes: { one: 'एक बार संपादित', other: '{n} बार संपादित' },
     inCount: { one: '{n} खर्च में', other: '{n} खर्चों में' },
     whoOwesWhat: 'किस पर क्या बाकी',
@@ -5962,6 +5983,10 @@ const ar: UiStrings = {
     disputed: 'متنازع عليه',
     untitled: 'بلا عنوان',
     paidByName: 'دفع {name}',
+    paidByNameAmount: 'دفع {name} {amount}',
+    youLent: 'أقرضت',
+    youBorrowed: 'اقترضت',
+    notInvolved: 'لست ضمنها',
     editedTimes: {
       zero: 'لم يُعدّل',
       one: 'عُدّل مرة واحدة',

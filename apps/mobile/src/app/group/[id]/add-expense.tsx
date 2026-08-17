@@ -36,7 +36,7 @@ import { DictateButton } from '@/components/DictateButton';
 import { scanReceipt, scanReceiptText } from '@/data/api';
 import { useAssignCapture, useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { plural, useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { handoverKey } from '@/lib/handover';
@@ -288,6 +288,29 @@ export default function AddExpenseScreen() {
     else setPercents(update);
   };
   const splitIssue = splitProblem(splitKind, entries, participants);
+
+  /**
+   * The split, folded into one sentence until somebody wants to argue with it.
+   *
+   * Almost every expense is "I paid, split it equally with everyone" — and that
+   * case was costing three open sections (how to split, who paid, who is in) and
+   * a screenful of scroll between the amount and the save button. Collapsed, the
+   * sentence still says exactly what will be saved, which is the part that must
+   * never be hidden; expanded, nothing about the controls has changed.
+   *
+   * It opens itself whenever the configuration is not that default, and stays
+   * open while the numbers do not add up — a validation message under a fold is
+   * a validation message nobody reads.
+   */
+  const isDefaultSplit =
+    splitKind === SplitKind.Equal &&
+    payer !== null &&
+    payer === myMemberId &&
+    participants.length > 0 &&
+    participants.length === (members.data ?? []).length;
+  const [splitOpen, setSplitOpen] = useState(false);
+  const showSplit = splitOpen || !isDefaultSplit || splitIssue !== null;
+  const payerMember = (members.data ?? []).find((member) => member.id === payer) ?? null;
 
   const groupCurrency = group.data?.default_currency ?? 'INR';
   // The expense keeps the currency it was paid in; the group's is only the
@@ -638,10 +661,56 @@ export default function AddExpenseScreen() {
           />
         </View>
 
-        <View style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.expense.howToSplit}
-          </Text>
+        {/* The one-line answer to "who pays what", tappable to open the three
+            controls that decide it. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showSplit }}
+          accessibilityLabel={t.expense.howToSplit}
+          onPress={() => setSplitOpen((open) => !open)}
+          // Never fold a broken split away behind its own summary.
+          disabled={splitIssue !== null}
+        >
+          <Card style={{ gap: theme.spacing.xs }}>
+            <Row style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="caption" tone="muted">
+                  {t.expense.howToSplit}
+                </Text>
+                <Text variant="subheading" numberOfLines={2}>
+                  {[
+                    payerMember
+                      ? fill(t.expense.paidByName, {
+                          name: displayName(payerMember, profile?.id),
+                        })
+                      : t.expense.chooseWhoPaid,
+                    splitKind === SplitKind.Equal
+                      ? t.expense.equally
+                      : splitKind === SplitKind.Shares
+                        ? t.expense.shares
+                        : t.expense.percent,
+                    plural(locale, participants.length, t.memberCount),
+                  ].join(' · ')}
+                </Text>
+              </View>
+              <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flexShrink: 0 }}>
+                <Text variant="caption" tone="brand">
+                  {showSplit ? t.common.done : t.common.edit}
+                </Text>
+                <Ionicons
+                  name={showSplit ? 'chevron-up' : 'chevron-down'}
+                  size={iconSize.md}
+                  color={theme.color.brand}
+                />
+              </Row>
+            </Row>
+          </Card>
+        </Pressable>
+
+        {/* Kept mounted and hidden rather than unmounted: the weighted split's
+            fields hold text somebody is mid-way through typing, and a fold that
+            threw it away would be a worse trade than a taller tree. */}
+        <View style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
           <ChipRow<SplitKind>
             value={splitKind}
             onChange={setSplitKind}
@@ -654,7 +723,7 @@ export default function AddExpenseScreen() {
         </View>
 
         {!expenseId ? (
-          <Card style={{ gap: theme.spacing.md }}>
+          <Card style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
             <Text variant="caption" tone="muted">
               {t.paidBy}
             </Text>
@@ -678,7 +747,7 @@ export default function AddExpenseScreen() {
           </Card>
         ) : null}
 
-        <Card style={{ gap: theme.spacing.md }}>
+        <Card style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="caption" tone="muted">
               {t.expense.splitBetween}
