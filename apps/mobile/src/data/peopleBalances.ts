@@ -50,10 +50,7 @@ export interface CountableMember {
  * debts", and Friends has to tell those apart to know what to say. Somebody who
  * has left is not somebody you are settling up with, and neither are you.
  */
-export function countOthersInGroup(
-  members: readonly CountableMember[],
-  profileId: string,
-): number {
+export function countOthersInGroup(members: readonly CountableMember[], profileId: string): number {
   const present = members.filter((member) => member.left_at === null);
   if (!present.some((member) => member.profile_id === profileId)) return 0;
   return present.filter((member) => member.profile_id !== profileId).length;
