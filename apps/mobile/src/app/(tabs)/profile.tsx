@@ -7,6 +7,7 @@ import {
   Badge,
   Card,
   directionalIcon,
+  IconButton,
   iconSize,
   ListRow,
   MoneyText,
@@ -393,9 +394,28 @@ function ProfileForm() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* A titled bar, like every other pushed screen and every settings
+            screen worth copying. Without it the avatar sat against the status
+            bar with no word for what the page was, and no way back but the
+            gesture. Back on the left, the title centred, an equal spacer on the
+            right so the title is centred on the screen, not on the gap. */}
+        <Row style={{ paddingTop: theme.spacing.md }}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
+          </IconButton>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text variant="heading">{t.account.faceSettings}</Text>
+          </View>
+          <View style={{ width: 44 }} />
+        </Row>
+
         {/* The hero. No card behind it: the avatar, the name and the one number
             are the page's title, and a title does not sit in a box. */}
-        <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingTop: theme.spacing.lg }}>
+        <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
           <ProfileAvatar
             name={profile?.display_name ?? t.account.you}
             avatarUrl={profile?.avatar_url}
