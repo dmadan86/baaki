@@ -58,6 +58,10 @@ interface ExpenseDraft {
   description: string;
   splitKind: SplitKind;
   payer: MemberId | null;
+  /** The currency this expense was paid in, when it differs from the group's. */
+  currency: string | null;
+  /** The stored conversion rate for a foreign-currency expense (ADR-003). */
+  fx: FxRecord | null;
   participants: MemberId[];
   /** Kept apart, because a weight of 1 is not one percent. */
   weights: SplitEntries;
@@ -208,6 +212,8 @@ export default function AddExpenseScreen() {
       setPayer(
         editing ? (version?.payers[0]?.member_id ?? myMemberId) : (draft.payer ?? myMemberId),
       );
+      setExpenseCurrency(draft.currency ?? null);
+      setFx(draft.fx ?? null);
       setParticipants(draft.participants);
       setWeights(draft.weights ?? {});
       setPercents(draft.percents ?? {});
@@ -220,6 +226,12 @@ export default function AddExpenseScreen() {
       // open would quietly rewrite their answer.
       setCategory((version.category as CategoryId | null) ?? null);
       setCategoryChosen(version.category !== null);
+      // The expense keeps the currency it was paid in — without this, editing a
+      // foreign-currency expense reopened on the group currency and quietly
+      // rewrote it. The stored rate is not in the read model, so a foreign
+      // expense asks for its rate again on save.
+      setExpenseCurrency(version.currency);
+      setFx(null);
       setPayer(version.payers[0]?.member_id ?? myMemberId);
       setParticipants(version.shares.map((share) => share.member_id));
       setSplitKind(
@@ -285,6 +297,8 @@ export default function AddExpenseScreen() {
       description,
       splitKind,
       payer,
+      currency: expenseCurrency,
+      fx,
       participants,
       weights,
       percents,
