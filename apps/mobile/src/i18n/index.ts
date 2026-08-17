@@ -1220,7 +1220,6 @@ export interface UiStrings {
     whatIsWrong: string;
     reasonPlaceholder: string;
     reasonOptional: string;
-    fixItMyself: string;
   };
   /** The door where a paid tier would be, and what stays free. */
   upgradeScreen: {
@@ -2465,7 +2464,6 @@ const en: UiStrings = {
     reasonPlaceholder: 'I left before dessert · the total was ₹1,800',
     reasonOptional:
       'A reason is optional, but it is the difference between a fix and a conversation.',
-    fixItMyself: 'Fix it myself',
   },
   upgradeScreen: {
     moreScans: 'More scanned bills',
@@ -3774,7 +3772,6 @@ const ta: UiStrings = {
     reasonPlaceholder: 'இனிப்புக்கு முன்பே கிளம்பிவிட்டேன் · மொத்தம் ₹1,800',
     reasonOptional:
       'காரணம் விருப்பம்தான், ஆனால் ஒரு திருத்தத்துக்கும் ஒரு உரையாடலுக்கும் இடையிலான வேறுபாடு அதுவே.',
-    fixItMyself: 'நானே திருத்துகிறேன்',
   },
   upgradeScreen: {
     moreScans: 'அதிக ரசீது ஸ்கேன்கள்',
@@ -5036,7 +5033,6 @@ const hi: UiStrings = {
     whatIsWrong: 'इस खर्च में क्या ग़लत है',
     reasonPlaceholder: 'मैं मिठाई से पहले निकल गया · कुल ₹1,800 था',
     reasonOptional: 'वजह देना ज़रूरी नहीं, पर सुधार और बहस के बीच का फ़र्क़ यही है।',
-    fixItMyself: 'मैं खुद ठीक कर दूँ',
   },
   upgradeScreen: {
     moreScans: 'ज़्यादा बिल स्कैन',
@@ -6480,7 +6476,6 @@ const ar: UiStrings = {
     whatIsWrong: 'ما الخطأ في هذا المصروف',
     reasonPlaceholder: 'غادرت قبل الحلوى · كان المجموع ١٨٠٠',
     reasonOptional: 'السبب اختياري، لكنه الفرق بين تصحيحٍ ونقاش.',
-    fixItMyself: 'سأصحّحه بنفسي',
   },
   upgradeScreen: {
     moreScans: 'مسح فواتير أكثر',

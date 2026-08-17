@@ -202,9 +202,6 @@ export function DisputePanel({
         </View>
       ) : (
         <Row style={{ gap: theme.spacing.sm }}>
-          {/* Correcting it is the better answer whenever you know what it should
-              say, so it is offered first and equally. */}
-          <Button label={t.dispute.fixItMyself} size="sm" variant="secondary" onPress={onEdit} />
           <Button
             label={t.misc.somethingsWrong}
             size="sm"
