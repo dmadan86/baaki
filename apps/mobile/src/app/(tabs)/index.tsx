@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
 
-import { dayNumber, daysBetween } from '@baaki/core';
+import { dayNumber, daysBetween, GUEST_TRIAL_DAYS, type GuestGate } from '@baaki/core';
 import {
   Avatar,
   Button,
@@ -250,24 +251,7 @@ export default function HomeScreen() {
         ) : null}
 
         {isGuest ? (
-          <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
-            <Text variant="subheading" tone="brand">
-              {t.tabs.guestBanner}
-            </Text>
-            <Text variant="caption" tone="muted">
-              {guard.gate?.expired
-                ? t.tabs.guestReadOnly
-                : guard.gate
-                  ? t.tabs.guestDaysLeft.replace('{days}', String(guard.gate.daysLeft))
-                  : t.tabs.guestBannerBody}
-            </Text>
-            <Button
-              label={t.tabs.addYourDetails}
-              variant="secondary"
-              size="sm"
-              onPress={() => router.push('/settings/account')}
-            />
-          </Card>
+          <GuestPrompt gate={guard.gate} t={t} onPress={() => router.push('/settings/account')} />
         ) : null}
 
         {/* The balance, one card per currency — there is no total across them
@@ -348,6 +332,150 @@ export default function HomeScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** The AsyncStorage key holding the day the guest last closed the prompt. */
+const GUEST_PROMPT_DISMISS_KEY = 'guestPrompt:dismissedOn';
+
+/** Today as `YYYY-MM-DD` in the device's own zone — the unit a daily nudge counts in. */
+function localToday(): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA').format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * A dismissal that only lasts the day. The prompt can be closed, but the close
+ * is good until midnight: we store the day it was closed on and show the card
+ * again on any later day. So a guest is nudged once a day — not nagged on every
+ * open, and not silenced for good. `ready` gates the first paint so the card
+ * never flashes in and then vanishes when a same-day dismissal loads a beat later.
+ */
+function useDailyDismiss(key: string): { hidden: boolean; ready: boolean; dismiss: () => void } {
+  const [dismissedOn, setDismissedOn] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(key)
+      .then((value) => {
+        if (alive) setDismissedOn(value);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  const dismiss = useCallback(() => {
+    const today = localToday();
+    setDismissedOn(today);
+    void AsyncStorage.setItem(key, today).catch(() => {});
+  }, [key]);
+  return { hidden: dismissedOn === localToday(), ready, dismiss };
+}
+
+/**
+ * The guest's standing prompt — a neutral welcome card, not a second brand block.
+ *
+ * The balance hero right below it wears the brand wash. The old banner sat in
+ * `brandSoft`, so the top of a guest's screen was two purple blocks with no
+ * hierarchy — the thing the user flagged. This sits quiet in `surface` behind a
+ * hairline with a brand icon chip, so the coloured balance reads as the hero and
+ * this reads as the aside: the colour-hero-then-neutral-prompt rhythm the finance
+ * references lean on (Starling's welcome card over its balance, Buddy's white
+ * setup card under its total).
+ *
+ * A progress bar draws the trial running down — filled for the time left, so a
+ * shrinking bar is the countdown you feel at a glance, not a number you have to
+ * read. It empties and turns to warning as the days run out, and once the trial
+ * is spent the whole card does (the chip, the bar), so "read-only" lands as a
+ * real state rather than decoration.
+ *
+ * The card carries a close: a guest can dismiss it, but only for the day — it
+ * returns tomorrow (see `useDailyDismiss`).
+ */
+function GuestPrompt({
+  gate,
+  t,
+  onPress,
+}: {
+  gate: GuestGate | null;
+  t: UiStrings;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const { hidden, ready, dismiss } = useDailyDismiss(GUEST_PROMPT_DISMISS_KEY);
+  if (!ready || hidden) return null;
+
+  const expired = gate?.expired ?? false;
+  const body = expired
+    ? t.tabs.guestReadOnly
+    : gate
+      ? t.tabs.guestDaysLeft.replace('{days}', String(gate.daysLeft))
+      : t.tabs.guestBannerBody;
+  const accent = expired ? theme.color.warning : theme.color.brand;
+  // The fraction of the trial still left — the bar empties from the right as the
+  // days burn down. Clamped so a stale clock can't over- or under-fill it.
+  const remaining = gate ? Math.max(0, Math.min(1, gate.daysLeft / GUEST_TRIAL_DAYS)) : 1;
+
+  // One compact band: the whole card is the way to sign up (the chevron says so),
+  // so there is no separate button, no icon chip, no title line — just the status,
+  // a hairline countdown under it, and a close. The earlier card stacked a chip,
+  // a heading, a full-width button and the bar; that read as bloated for what is
+  // an aside above the balance.
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t.tabs.addYourDetails}
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+    >
+      <Card style={{ gap: theme.spacing.sm }}>
+        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+          <Text variant="caption" tone="muted" numberOfLines={2} style={{ flex: 1, minWidth: 0 }}>
+            {body}
+          </Text>
+          <Ionicons name="chevron-forward" size={iconSize.base} color={accent} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.close}
+            onPress={dismiss}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+          >
+            <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+          </Pressable>
+        </Row>
+
+        {gate ? (
+          <View
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: GUEST_TRIAL_DAYS, now: gate.daysLeft }}
+            style={{
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: theme.color.border,
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                width: `${remaining * 100}%`,
+                height: '100%',
+                borderRadius: 2,
+                backgroundColor: accent,
+              }}
+            />
+          </View>
+        ) : null}
+      </Card>
+    </Pressable>
   );
 }
 
