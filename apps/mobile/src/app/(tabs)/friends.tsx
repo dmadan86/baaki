@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Badge,
+  Button,
   Card,
   EmptyState,
   iconSize,
@@ -267,10 +268,13 @@ export default function FriendsScreen() {
  * are empty. So the first state names that and the second keeps the
  * congratulation for the people who earned it.
  *
- * No button: the two ways in — add from contacts, add a person — live as icons
- * in the header, present on this screen and every other Friends state, so the
- * empty state states the situation and points at them rather than duplicating
- * them in the middle of the page.
+ * The "no friends" state carries a primary "Add a person" button — the one way
+ * forward, in the middle of the empty page where a first-time person is looking,
+ * matching the Activity screen's empty (and the finance apps in the category,
+ * which all put a call to action in the empty state). The header icons stay for
+ * the return visitor; the button is for the person who has never added anyone.
+ * The "all square" state keeps no button — it is a small congratulation, not a
+ * dead end to escape.
  */
 function EmptyFriends({ hasPeople, t }: { hasPeople: boolean; t: UiStrings }): React.JSX.Element {
   const theme = useTheme();
@@ -286,6 +290,14 @@ function EmptyFriends({ hasPeople, t }: { hasPeople: boolean; t: UiStrings }): R
             size={iconSize.xxl}
             color={theme.color.brand}
           />
+        }
+        action={
+          hasPeople ? undefined : (
+            <Button
+              label={t.addPerson.title}
+              onPress={() => router.push('/friends/add-person' as never)}
+            />
+          )
         }
       />
     </View>
