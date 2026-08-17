@@ -5984,8 +5984,8 @@ const ar: UiStrings = {
     untitled: 'بلا عنوان',
     paidByName: 'دفع {name}',
     paidByNameAmount: 'دفع {name} {amount}',
-    youLent: 'دفعت عنهم',
-    youBorrowed: 'حصتك',
+    youLent: 'أقرضت',
+    youBorrowed: 'اقترضت',
     notInvolved: 'لست ضمنها',
     editedTimes: {
       zero: 'لم يُعدّل',

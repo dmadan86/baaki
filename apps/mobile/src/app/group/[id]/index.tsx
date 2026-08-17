@@ -466,6 +466,32 @@ export default function GroupScreen() {
                 {visibleExpenses.map((expense, index) => {
                   const version = expense.currentVersion;
                   const payer = version?.payers[0]?.member_id ?? null;
+                  // An imported Splitwise expense can have several payers, so
+                  // "Asha paid ₹1,200" beside the expense total would put the
+                  // whole bill on whoever happens to sort first. One payer is
+                  // named and credited with what they actually put in; several
+                  // are counted, and the number beside them is the total they
+                  // put in between them.
+                  const payerCount = version?.payers.length ?? 0;
+                  const paidLine =
+                    version === null
+                      ? fill(t.expense.paidByName, { name: nameOf(payer) })
+                      : fill(t.expense.paidByNameAmount, {
+                          name:
+                            payerCount > 1
+                              ? plural(locale, payerCount, t.misc.peopleCount)
+                              : nameOf(payer),
+                          amount: formatParts(
+                            {
+                              minor:
+                                payerCount > 1
+                                  ? BigInt(version.amount)
+                                  : BigInt(version.payers[0]?.amount ?? version.amount),
+                              currency: version.currency,
+                            },
+                            { locale },
+                          ).text,
+                        });
                   // What this one expense did to *your* balance: what you put in
                   // beyond your share (you lent), or your share of what somebody
                   // else put in (you borrowed). The row used to end in the
@@ -514,18 +540,7 @@ export default function GroupScreen() {
                             </Row>
                             <Text variant="caption" tone="muted" numberOfLines={1}>
                               {[
-                                version
-                                  ? fill(t.expense.paidByNameAmount, {
-                                      name: nameOf(payer),
-                                      amount: formatParts(
-                                        {
-                                          minor: BigInt(version.amount),
-                                          currency: version.currency,
-                                        },
-                                        { locale },
-                                      ).text,
-                                    })
-                                  : fill(t.expense.paidByName, { name: nameOf(payer) }),
+                                paidLine,
                                 version
                                   ? new Intl.DateTimeFormat(locale, {
                                       day: 'numeric',
