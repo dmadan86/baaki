@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { dayNumber, daysBetween, GUEST_TRIAL_DAYS, type GuestGate } from '@baaki/core';
 import {
@@ -27,8 +34,8 @@ import { useMotion } from '@/lib/motion';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
-import { useDashboardTips, type Tip } from '@/lib/tips';
-import { SyncBanner } from '@/components/SyncBanner';
+import { useDashboardTips } from '@/lib/tips';
+import { SyncStatusIcon } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
@@ -52,7 +59,6 @@ export default function HomeScreen() {
   const summary = useHomeSummary(profile?.id ?? null);
   const captures = useCaptures();
   const guard = useGuestGuard();
-  const tips = useDashboardTips(t);
 
   // Captures waiting in the personal inbox (A34) — surfaced as a card and a
   // badged header entry so a caught expense is not forgotten before it lands in
@@ -185,6 +191,11 @@ export default function HomeScreen() {
               {profile?.display_name ?? t.account.you}
             </Text>
           </Pressable>
+          {/* The sync state as one glyph, to the left of the camera — a quiet
+              cloud when there are unsent changes or no connection, a turning
+              arrow mid-sync, a red mark for a refused change. Nothing when all is
+              well. It replaces the wide banner the dashboard used to carry. */}
+          <SyncStatusIcon />
           {/* Bare icons, no button chrome — the header reads as a title row, not
               a toolbar of pills. Straight to the camera: the icon is a scanner,
               so it opens one rather than a form to fill in first (the capture
@@ -212,8 +223,6 @@ export default function HomeScreen() {
         </Row>
 
         <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
-
-        <SyncBanner />
 
         {/* Expenses caught without a group yet (A34). Sits near the top so an
             inbox with something in it is the first thing after the balance, not
@@ -276,10 +285,6 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* One rotating, dismissible hint — a light way to teach the app's less
-            obvious moves without another shelf of cards. */}
-        {tips.tip ? <TipCard tip={tips.tip} t={t} onDismiss={tips.dismiss} /> : null}
-
         {loading ? (
           <SkeletonList rows={3} />
         ) : list.length === 0 ? (
@@ -336,6 +341,12 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* The daily tip, surfaced as a sheet on the first Home open of the day —
+          one useful, Baaki-specific move at a time, then out of the way until
+          tomorrow. Replaces the inline card so a hint asks for a beat of
+          attention rather than sitting as furniture nobody reads. */}
+      <TipSheet t={t} />
     </Screen>
   );
 }
@@ -484,67 +495,156 @@ function GuestPrompt({
   );
 }
 
+/** The day the tip sheet was last shown, so it surfaces once a day and no more. */
+const TIP_SHEET_KEY = 'dashboardTips:shownOn';
+
 /**
- * The dashboard tip card — a compact, dismissible hint in the lean house style:
- * an icon chip, a small "TIP" kicker over a one-line title, a line of body, and
- * a close. When the tip has a next step the whole card taps through to it (the
- * chevron says so); otherwise it is a plain aside. The close retires this tip for
- * good; the deck of tips rotates by the day (see `useDashboardTips`).
+ * The daily tip, as a bottom sheet.
+ *
+ * It shows itself once on the first Home open of each day — the deck rotates by
+ * the day (see `useDashboardTips`), so a new move surfaces each time rather than
+ * the same card sitting inline forever. A big icon over the "TIP" kicker, the
+ * title and body, then the way out: a primary that walks to the feature when the
+ * tip points somewhere (only the receipt scan does today), and a plain "Got it"
+ * otherwise. Tapping the backdrop dismisses it too — a hint never traps.
+ *
+ * The show is stamped for the day the moment it opens, not on close, so a person
+ * who reads it and backgrounds the app is not shown it again on the next open.
  */
-function TipCard({ tip, t, onDismiss }: { tip: Tip; t: UiStrings; onDismiss: () => void }) {
+function TipSheet({ t }: { t: UiStrings }) {
   const theme = useTheme();
-  const body = (
-    <Card style={{ gap: 0 }}>
-      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-        <View
+  const { tip } = useDashboardTips(t);
+
+  // The day the sheet was last shown, read once on mount — the same shape the
+  // guest prompt's daily dismissal uses, and for the same reason: reading it in a
+  // plain mount effect (not one gated on the tip loading) is what actually runs.
+  // `ready` gates the first paint so the sheet never flashes before we know.
+  const [shownOn, setShownOn] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [closed, setClosed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(TIP_SHEET_KEY)
+      .then((value) => {
+        if (alive) setShownOn(value);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const open = ready && shownOn !== localToday() && !closed && Boolean(tip);
+
+  // Stamp the day the moment the sheet is shown — not on close — so someone who
+  // reads it and backgrounds the app is not shown it again on the next open. The
+  // write goes straight to storage and deliberately does not touch `shownOn`, so
+  // the sheet stays up this session until the person closes it.
+  const stamped = useRef(false);
+  useEffect(() => {
+    if (!open || stamped.current) return;
+    stamped.current = true;
+    void AsyncStorage.setItem(TIP_SHEET_KEY, localToday()).catch(() => {});
+  }, [open]);
+
+  const close = () => setClosed(true);
+  const act = () => {
+    if (tip?.route) router.push(tip.route as never);
+    close();
+  };
+
+  // The Modal stays mounted and is driven by `visible` — toggling a freshly
+  // mounted Modal's `visible` to true a beat after first render did not present
+  // reliably on Android, which is why an earlier version stamped the day but
+  // never appeared. With `tip` still loading there is nothing to show yet.
+  return (
+    <Modal transparent animationType="fade" visible={open} onRequestClose={close}>
+      {tip ? (
+      /* Tap outside to close — the same escape the campaign popup gives. */
+      <Pressable
+        onPress={close}
+        accessibilityLabel={t.common.close}
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(10, 10, 26, 0.55)',
+          justifyContent: 'flex-end',
+        }}
+      >
+        {/* Swallows the tap so pressing the sheet itself does not dismiss it. A
+            bottom sheet, not a centred dialog: it slides up from the bar the tip
+            is about, and leaves the balance above it in view. */}
+        <Pressable
+          onPress={() => {}}
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: theme.color.brandSoft,
+            backgroundColor: theme.color.surface,
+            borderTopLeftRadius: theme.radius.xxl,
+            borderTopRightRadius: theme.radius.xxl,
+            paddingHorizontal: theme.spacing.xxl,
+            paddingTop: theme.spacing.xl,
+            paddingBottom: theme.spacing.xxl,
+            gap: theme.spacing.lg,
+            ...theme.shadow.lifted,
           }}
         >
-          <Ionicons name={tip.icon} size={iconSize.lg} color={theme.color.brand} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text variant="micro" tone="brand" style={{ letterSpacing: 0.6 }}>
-            {t.tips.label.toUpperCase()}
-          </Text>
-          <Text variant="subheading" numberOfLines={1}>
-            {tip.title}
-          </Text>
-          <Text variant="caption" tone="muted" numberOfLines={2}>
-            {tip.body}
-          </Text>
-        </View>
-        {tip.route ? (
-          <Ionicons name="chevron-forward" size={iconSize.base} color={theme.color.brand} />
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.common.close}
-          onPress={onDismiss}
-          hitSlop={10}
-          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-        >
-          <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+          {/* A grab handle — the visual grammar of a sheet you can pull down. */}
+          <View
+            style={{
+              alignSelf: 'center',
+              width: 40,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: theme.color.border,
+            }}
+          />
+
+          <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.color.brandSoft,
+              }}
+            >
+              <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.brand} />
+            </View>
+            <Text variant="micro" tone="brand" style={{ letterSpacing: 0.8 }}>
+              {t.tips.label.toUpperCase()}
+            </Text>
+            <Text variant="title" align="center">
+              {tip.title}
+            </Text>
+            <Text variant="body" tone="muted" align="center">
+              {tip.body}
+            </Text>
+          </View>
+
+          <View style={{ gap: theme.spacing.sm }}>
+            {tip.route ? (
+              <>
+                <Button label={t.tips.action} size="lg" fullWidth onPress={act} />
+                <Button
+                  label={t.misc.gotIt}
+                  variant="secondary"
+                  size="sm"
+                  fullWidth
+                  onPress={close}
+                />
+              </>
+            ) : (
+              <Button label={t.misc.gotIt} size="lg" fullWidth onPress={close} />
+            )}
+          </View>
         </Pressable>
-      </Row>
-    </Card>
-  );
-  return tip.route ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={tip.title}
-      onPress={() => router.push(tip.route as never)}
-      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-    >
-      {body}
-    </Pressable>
-  ) : (
-    body
+      </Pressable>
+      ) : null}
+    </Modal>
   );
 }
 

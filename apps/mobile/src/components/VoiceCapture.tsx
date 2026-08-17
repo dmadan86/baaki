@@ -16,12 +16,131 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
-import { Linking, Pressable, View } from 'react-native';
+import { Animated, Easing, Linking, Pressable, View } from 'react-native';
 
-import { iconSize, Text, useTheme } from '@baaki/ui';
+import { iconSize, Text, useTheme, type Theme } from '@baaki/ui';
 
 import { useStrings } from '@/i18n';
 import { dictationError, speechLocale } from '@/lib/dictation';
+import { useMotion } from '@/lib/motion';
+
+const MIC_SIZE = 104;
+
+/**
+ * The rings breathing out from the mic while it listens — the near-universal
+ * "I am hearing you" of a voice screen (Roku, Meta AI, Todoist). Three staggered
+ * pulses expand and fade on a loop, so the surface is visibly live rather than a
+ * still button that may or may not be recording. With motion off they do not
+ * render at all: the reduced-motion setting is an input, not a hint (TDR §11).
+ */
+function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
+  const { animated } = useMotion();
+  // Held in state (not a ref) so the render below may read them — the values are
+  // created once by the lazy initialiser and never replaced, so this never
+  // re-renders on its own.
+  const [rings] = useState(() => [0, 1, 2].map(() => new Animated.Value(0)));
+
+  useEffect(() => {
+    if (!active || !animated) return;
+    const loops = rings.map((value, index) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * 600),
+          Animated.timing(value, {
+            toValue: 1,
+            duration: 1800,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    );
+    loops.forEach((loop) => loop.start());
+    return () => {
+      loops.forEach((loop) => loop.stop());
+      rings.forEach((value) => value.setValue(0));
+    };
+  }, [active, animated, rings]);
+
+  if (!active || !animated) return null;
+  return (
+    <>
+      {rings.map((value, index) => (
+        <Animated.View
+          key={index}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            width: MIC_SIZE,
+            height: MIC_SIZE,
+            borderRadius: MIC_SIZE / 2,
+            backgroundColor: theme.color.brand,
+            opacity: value.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0] }),
+            transform: [
+              { scale: value.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] }) },
+            ],
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * A live sound bar under the status while listening — five bars rising and
+ * falling out of step, the shorthand for "audio is coming in" (Todoist, Shopee).
+ * With motion off it holds a still, uneven silhouette so the shape still reads as
+ * a waveform without anything moving.
+ */
+function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
+  const { animated } = useMotion();
+  const [bars] = useState(() => [0, 1, 2, 3, 4].map(() => new Animated.Value(0.3)));
+
+  useEffect(() => {
+    if (!active || !animated) return;
+    const loops = bars.map((value, index) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * 120),
+          Animated.timing(value, {
+            toValue: 1,
+            duration: 380,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(value, {
+            toValue: 0.3,
+            duration: 380,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ]),
+      ),
+    );
+    loops.forEach((loop) => loop.start());
+    return () => loops.forEach((loop) => loop.stop());
+  }, [active, animated, bars]);
+
+  // Still but uneven when motion is off — a silhouette, not a flat line.
+  const resting = [0.5, 0.9, 0.4, 1, 0.6];
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, height: 32 }}>
+      {bars.map((value, index) => (
+        <Animated.View
+          key={index}
+          style={{
+            width: 4,
+            borderRadius: 2,
+            backgroundColor: theme.color.brand,
+            height: animated
+              ? value.interpolate({ inputRange: [0, 1], outputRange: [6, 30] })
+              : 6 + resting[index]! * 24,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
 
 export interface VoiceCaptureProps {
   /** Called with the final sentence once the speaker stops. */
@@ -141,42 +260,62 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
 
   return (
     <View style={{ alignItems: 'center', gap: theme.spacing.xl }}>
+      {/* The live transcript as it forms, or the prompt before a word is heard —
+          the sentence the person is building is the headline of the screen. */}
       <Text variant="title" align="center">
         {live || t.voice.prompt}
       </Text>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={listening ? t.misc.stopDictating : t.voice.tapToSpeak}
-        accessibilityState={{ busy: listening }}
-        onPress={() => (listening ? stop() : void start())}
-        hitSlop={8}
-        style={({ pressed }) => ({
-          width: 96,
-          height: 96,
-          borderRadius: 48,
+      {/* The mic sits inside a fixed square so the pulse rings expanding behind it
+          never shove the layout around as they grow. */}
+      <View
+        style={{
+          width: MIC_SIZE * 2.4,
+          height: MIC_SIZE * 2.4,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: listening ? theme.color.brand : theme.color.brandSoft,
-          opacity: pressed ? 0.9 : 1,
-        })}
+        }}
       >
-        <Ionicons
-          name={listening ? 'stop' : 'mic'}
-          size={iconSize.xl}
-          color={listening ? theme.color.onBrand : theme.color.brand}
-        />
-      </Pressable>
+        <PulseRings active={listening} theme={theme} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={listening ? t.misc.stopDictating : t.voice.tapToSpeak}
+          accessibilityState={{ busy: listening }}
+          onPress={() => (listening ? stop() : void start())}
+          hitSlop={8}
+          style={({ pressed }) => ({
+            width: MIC_SIZE,
+            height: MIC_SIZE,
+            borderRadius: MIC_SIZE / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: listening ? theme.color.brand : theme.color.brandSoft,
+            opacity: pressed ? 0.9 : 1,
+          })}
+        >
+          <Ionicons
+            name={listening ? 'stop' : 'mic'}
+            size={iconSize.xxl}
+            color={listening ? theme.color.onBrand : theme.color.brand}
+          />
+        </Pressable>
+      </View>
 
-      <Text tone={listening ? 'brand' : 'muted'}>
-        {listening ? t.misc.listening : t.voice.tapToSpeak}
-      </Text>
-
-      {!live && !listening ? (
-        <Text variant="caption" tone="faint" align="center">
-          {t.voice.example}
+      {/* Listening: the status word over a live waveform. Idle: the same status
+          line, with a worked example under it so a first-timer knows the shape of
+          a sentence the parser understands. */}
+      <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+        <Text tone={listening ? 'brand' : 'muted'}>
+          {listening ? t.misc.listening : t.voice.tapToSpeak}
         </Text>
-      ) : null}
+        {listening ? (
+          <Waveform active={listening} theme={theme} />
+        ) : !live ? (
+          <Text variant="caption" tone="faint" align="center">
+            {t.voice.example}
+          </Text>
+        ) : null}
+      </View>
 
       {error ? (
         <Pressable onPress={() => void Linking.openSettings()} accessibilityRole="button">
