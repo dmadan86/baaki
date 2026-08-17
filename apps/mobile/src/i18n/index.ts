@@ -758,6 +758,7 @@ export interface UiStrings {
    *  app-specific hint at a time, dismissible for good. */
   tips: {
     label: string;
+    action: string;
     voiceTitle: string;
     voiceBody: string;
     splitTitle: string;
@@ -2027,6 +2028,7 @@ const en: UiStrings = {
   },
   tips: {
     label: 'Tip',
+    action: 'Show me',
     voiceTitle: 'Add by voice',
     voiceBody: 'Tap the mic and just say it — “dinner 800, split with Ravi”.',
     splitTitle: 'Split your way',
@@ -3382,6 +3384,7 @@ const ta: UiStrings = {
   },
   tips: {
     label: 'உதவிக்குறிப்பு',
+    action: 'காட்டு',
     voiceTitle: 'குரலால் சேர்',
     voiceBody: 'மைக்கைத் தட்டி சொல்லுங்கள் — “டின்னர் 800, ரவியுடன் பங்கிடு”.',
     splitTitle: 'உங்கள் விதத்தில் பங்கிடு',
@@ -4752,6 +4755,7 @@ const hi: UiStrings = {
   },
   tips: {
     label: 'सुझाव',
+    action: 'दिखाओ',
     voiceTitle: 'बोलकर जोड़ें',
     voiceBody: 'माइक दबाएँ और बस बोलें — “डिनर 800, रवि के साथ बाँटो”.',
     splitTitle: 'अपने तरीके से बाँटें',
@@ -6124,6 +6128,7 @@ const ar: UiStrings = {
   },
   tips: {
     label: 'نصيحة',
+    action: 'أرِني',
     voiceTitle: 'أضِف بصوتك',
     voiceBody: 'اضغط الميكروفون وقل ما تريد — «عشاء 800، اقسمها مع رافي».',
     splitTitle: 'اقسم بطريقتك',

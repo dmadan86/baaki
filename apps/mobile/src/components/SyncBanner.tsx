@@ -7,15 +7,110 @@
  * is true: the entry is saved, it just hasn't left the phone yet.
  */
 
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, View } from 'react-native';
+import { Animated, Easing, Pressable, View } from 'react-native';
 
 import { Card, iconSize, Row, Text, useTheme } from '@baaki/ui';
 
 import { plural, useStrings } from '@/i18n';
 
+import { useMotion } from '@/lib/motion';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
-import { useSync } from '@/sync';
+import { SyncStatus, useSync } from '@/sync';
+
+/**
+ * The sync state as a single header glyph, next to the camera on the dashboard.
+ *
+ * The full banner (below) is right on a screen that is about one group's ledger;
+ * on the dashboard it was a wide card carrying a sentence for a state that is
+ * normal and usually momentary. This says the same thing in the corner: a
+ * refused change is a red alert that needs a look, an unsent queue or a dropped
+ * connection is a quiet cloud, an in-flight sync is a turning arrow. When there
+ * is nothing to report — online, idle, nothing queued — it renders nothing, so
+ * the header is not carrying a permanent "all good" badge nobody asked for.
+ */
+export function SyncStatusIcon() {
+  const theme = useTheme();
+  const { t, locale } = useStrings();
+  const { animated } = useMotion();
+  const { status, queue, rejected } = useSync();
+
+  const spin = useState(() => new Animated.Value(0))[0];
+  const spinning = status === SyncStatus.Syncing && animated;
+  useEffect(() => {
+    if (!spinning) return;
+    const loop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      spin.setValue(0);
+    };
+  }, [spinning, spin]);
+
+  // One neutral colour for every ordinary sync state — offline, waiting, in
+  // flight — so the glyph reads as one header control, the same weight as the
+  // camera beside it, not a different-coloured badge each time the network
+  // shifts. Red is reserved for the one state that needs a decision: a change
+  // the server refused (ADR-005 treats plain offline as normal, not an error).
+  const neutral = theme.color.text;
+  const state =
+    rejected.length > 0
+      ? { icon: 'alert-circle' as const, color: theme.color.negative, label: t.extras.oneChangeFailed }
+      : status === SyncStatus.Offline
+        ? { icon: 'cloud-offline-outline' as const, color: neutral, label: t.misc.offlineSaved }
+        : status === SyncStatus.Error
+          ? {
+              icon: 'cloud-offline-outline' as const,
+              color: neutral,
+              label: t.misc.cantReachServerIdle,
+            }
+          : status === SyncStatus.Metered
+            ? { icon: 'cloud-offline-outline' as const, color: neutral, label: t.sync.waitingWifi }
+            : status === SyncStatus.Syncing || queue.length > 0
+              ? {
+                  icon: 'sync-outline' as const,
+                  color: neutral,
+                  label: plural(locale, queue.length, t.misc.syncingCount),
+                }
+              : null;
+
+  // Online, idle, nothing queued — say nothing.
+  if (!state) return null;
+
+  const glyph = (
+    <Ionicons name={state.icon} size={iconSize.xl} color={state.color} />
+  );
+
+  return (
+    <View
+      accessibilityRole="image"
+      accessibilityLabel={state.label}
+      style={{ padding: theme.spacing.xs }}
+    >
+      {status === SyncStatus.Syncing ? (
+        <Animated.View
+          style={{
+            transform: [
+              { rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+            ],
+          }}
+        >
+          {glyph}
+        </Animated.View>
+      ) : (
+        glyph
+      )}
+    </View>
+  );
+}
 
 export function SyncBanner({ groupId }: { groupId?: string }) {
   const theme = useTheme();

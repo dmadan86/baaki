@@ -26,18 +26,34 @@ import {
   iconSize,
   Row,
   Screen,
-  SectionHeader,
   Text,
   tintForKey,
   useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
 
+import { dayHeading, dayKey } from '@/data/activity';
 import { useMarkNotificationsRead, useNotifications } from '@/data/hooks';
 import { SkeletonList } from '@/components/Skeletons';
 import type { NotificationRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
+
+/**
+ * The inbox cut into calendar days, newest first — the same day-heading grouping
+ * the Activity feed uses, so the two screens that sit together read the same way.
+ * The query already returns rows sorted; this only draws the lines between days.
+ */
+function groupByDay(rows: readonly NotificationRow[]): { key: string; rows: NotificationRow[] }[] {
+  const sections: { key: string; rows: NotificationRow[] }[] = [];
+  for (const row of rows) {
+    const key = dayKey(row.created_at);
+    const last = sections[sections.length - 1];
+    if (last && last.key === key) last.rows.push(row);
+    else sections.push({ key, rows: [row] });
+  }
+  return sections;
+}
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   settlement_confirmed: 'checkmark-circle',
@@ -103,7 +119,10 @@ export default function InboxScreen() {
           />
         }
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
+        {/* A big left-aligned title over its own back row — the modern inbox
+            header (Superlist, Linear): the screen name carries the weight, not a
+            small centred label squeezed between two chevrons. */}
+        <View style={{ paddingTop: theme.spacing.md, gap: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons
               name={directionalIcon('chevron-back')}
@@ -111,20 +130,14 @@ export default function InboxScreen() {
               color={theme.color.text}
             />
           </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.inbox.title}</Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
+          <Text variant="title">{t.inbox.title}</Text>
+        </View>
 
         {notifications.isLoading ? (
           // Until the fetch answers, `rows` is empty — which is not the same as
           // "you have no notifications". Showing the empty state here told people
           // their inbox was empty while it was still loading.
-          <View style={{ gap: theme.spacing.md }}>
-            <SectionHeader title={t.inbox.recent} />
-            <SkeletonList rows={5} trailing={false} />
-          </View>
+          <SkeletonList rows={6} trailing={false} />
         ) : notifications.isError ? (
           <EmptyState
             title={t.loadError}
@@ -136,21 +149,34 @@ export default function InboxScreen() {
         ) : rows.length === 0 ? (
           <EmptyState title={t.nothingYet} body={t.inbox.nothingYetBody} />
         ) : (
-          <View style={{ gap: theme.spacing.md }}>
-            <SectionHeader title={t.inbox.recent} />
-            <View>
-              {rows.map((row, index) => {
-                const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
-                  title: row.title,
-                  body: row.body,
-                });
-                const unreadRow = row.read_at === null;
-                // Flat row: the kind's colour lives in the icon chip on the left,
-                // not the whole row. A read one is dimmed.
-                const tint = tintForKey(row.kind);
-                return (
-                  <View key={row.id}>
+          // Grouped by day, newest first. An unread row is a soft brand-tinted
+          // card, not a lone dot — the whole row carries the "new" signal, the
+          // way Luma and Superlist mark an unread update. A read one drops back
+          // to a flat transparent row, so the eye lands on what arrived since.
+          <View style={{ gap: theme.spacing.lg }}>
+            {groupByDay(rows).map((section) => (
+              <View key={section.key} style={{ gap: theme.spacing.xs }}>
+                <Text
+                  variant="micro"
+                  tone="muted"
+                  style={{
+                    textTransform: 'uppercase',
+                    marginBottom: theme.spacing.xs,
+                    paddingHorizontal: theme.spacing.sm,
+                  }}
+                >
+                  {dayHeading(locale, section.rows[0]!.created_at)}
+                </Text>
+                {section.rows.map((row) => {
+                  const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
+                    title: row.title,
+                    body: row.body,
+                  });
+                  const unreadRow = row.read_at === null;
+                  const tint = tintForKey(row.kind);
+                  return (
                     <Pressable
+                      key={row.id}
                       accessibilityRole={row.group_id ? 'button' : undefined}
                       accessibilityLabel={title}
                       onPress={
@@ -159,16 +185,14 @@ export default function InboxScreen() {
                           : undefined
                       }
                       style={({ pressed }) => ({
-                        opacity: pressed ? 0.6 : unreadRow ? 1 : 0.7,
+                        opacity: pressed ? 0.6 : 1,
+                        borderRadius: theme.radius.lg,
+                        backgroundColor: unreadRow ? theme.color.brandSoft : 'transparent',
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: theme.spacing.md,
                       })}
                     >
-                      <Row
-                        style={{
-                          gap: theme.spacing.md,
-                          alignItems: 'center',
-                          paddingVertical: theme.spacing.md,
-                        }}
-                      >
+                      <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
                         <View
                           style={{
                             width: 40,
@@ -185,7 +209,7 @@ export default function InboxScreen() {
                             color={theme.tint[tint].ink}
                           />
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={{ flex: 1, gap: 2 }}>
                           <Text variant="subheading" numberOfLines={2}>
                             {title}
                           </Text>
@@ -193,25 +217,32 @@ export default function InboxScreen() {
                             {body}
                           </Text>
                         </View>
-                        {unreadRow ? (
-                          <View
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 4,
-                              backgroundColor: theme.color.brand,
-                            }}
-                          />
-                        ) : null}
+                        {/* The clock lives on the right, the day is the heading's
+                            job — the row says when within the day, not which day. */}
+                        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                          <Text variant="micro" tone="muted">
+                            {new Intl.DateTimeFormat(locale, {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            }).format(new Date(row.created_at))}
+                          </Text>
+                          {unreadRow ? (
+                            <View
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 4,
+                                backgroundColor: theme.color.brand,
+                              }}
+                            />
+                          ) : null}
+                        </View>
                       </Row>
                     </Pressable>
-                    {index < rows.length - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
+                  );
+                })}
+              </View>
+            ))}
           </View>
         )}
 
