@@ -585,12 +585,15 @@ export default function AddExpenseScreen() {
               placeholder={t.expense.descriptionPlaceholder}
               placeholderTextColor={theme.color.textFaint}
               accessibilityLabel={t.description}
+              multiline
+              textAlignVertical="top"
               style={{
                 flex: 1,
                 fontSize: 17,
                 fontWeight: '600',
                 color: theme.color.text,
                 paddingVertical: theme.spacing.sm,
+                minHeight: 44,
               }}
             />
             {/* The member names are handed to the recogniser as hints. A
