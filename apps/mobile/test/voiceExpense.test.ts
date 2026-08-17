@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseVoiceExpense, type VoiceGroupRef } from '@/lib/voiceExpense';
+import { matchMemberNames, parseVoiceExpense, type VoiceGroupRef } from '@/lib/voiceExpense';
 
 const groups: VoiceGroupRef[] = [
   { id: 'g-goa', name: 'Goa Trip' },
@@ -59,5 +59,51 @@ describe('parseVoiceExpense', () => {
   it('reads a currency symbol', () => {
     expect(parseVoiceExpense('₹750 taxi', groups).currency).toBe('INR');
     expect(parseVoiceExpense('$40 lunch', groups).currency).toBe('USD');
+  });
+
+  it('reads a split count without mistaking it for the amount', () => {
+    const parsed = parseVoiceExpense('split 500 rupees among 3 people for dinner', groups);
+    expect(parsed.amountMajor).toBe(500);
+    expect(parsed.splitCount).toBe(3);
+    expect(parsed.note).toBe('dinner');
+  });
+
+  it('takes the amount from the currency, even when the count comes first', () => {
+    const parsed = parseVoiceExpense('split among 4 people, 800 rupees dinner', groups);
+    expect(parsed.amountMajor).toBe(800);
+    expect(parsed.splitCount).toBe(4);
+  });
+
+  it('reads "N ways" as the count', () => {
+    expect(parseVoiceExpense('300 split 3 ways', groups).splitCount).toBe(3);
+    expect(parseVoiceExpense('300 split 3 ways', groups).amountMajor).toBe(300);
+  });
+
+  it('leaves the count null when no split is said', () => {
+    expect(parseVoiceExpense('add 500 for dinner', groups).splitCount).toBeNull();
+  });
+});
+
+describe('matchMemberNames', () => {
+  const members = [
+    { id: 'm-me', name: 'You' },
+    { id: 'm-ravi', name: 'Ravi' },
+    { id: 'm-priya', name: 'Priya Nair' },
+    { id: 'm-sam', name: 'Sam' },
+  ];
+
+  it('picks the members the sentence names', () => {
+    expect(matchMemberNames('split dinner with Ravi and Priya', members)).toEqual([
+      'm-ravi',
+      'm-priya',
+    ]);
+  });
+
+  it('matches on any word of a full name', () => {
+    expect(matchMemberNames('300 for Nair', members)).toEqual(['m-priya']);
+  });
+
+  it('returns nothing when no one is named', () => {
+    expect(matchMemberNames('add 500 for dinner', members)).toEqual([]);
   });
 });

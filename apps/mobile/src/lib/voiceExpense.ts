@@ -27,10 +27,17 @@ export interface ParsedVoiceExpense {
   amountMajor: number | null;
   /** An ISO currency guessed from a currency word, or null. */
   currency: string | null;
-  /** What is left of the sentence once the amount, currency and group are removed. */
+  /** What is left of the sentence once the amount, currency, group and split words are removed. */
   note: string;
   /** The group the sentence names, or null when none or more than one fits. */
   groupId: string | null;
+  /**
+   * How many people to split among, when the sentence says so ("split among 3",
+   * "3 ways") — or null. A bare count names nobody, so it can't pick members on
+   * its own; matching spoken names does that ({@link matchMemberNames}). It is
+   * kept mainly so the count is never mistaken for the amount.
+   */
+  splitCount: number | null;
 }
 
 /** Currency words to ISO codes. Indian-first, then the common cross-border ones. */
@@ -62,7 +69,40 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'expense',
   'my',
   'our',
+  // Split phrasing — not part of a description or a group name.
+  'split',
+  'splits',
+  'divide',
+  'share',
+  'among',
+  'amongst',
+  'between',
+  'ways',
+  'way',
+  'each',
+  'equally',
+  'equal',
+  'people',
+  'person',
+  'ppl',
+  'folks',
+  'heads',
+  'us',
+  'with',
+  'by',
 ]);
+
+/** A number sitting next to a currency word or symbol — the amount, said plainly. */
+const CURRENCY_ADJACENT =
+  /(?:₹|\$|€|£)\s*(\d[\d,]*(?:\.\d+)?)|(\d[\d,]*(?:\.\d+)?)\s*(?:rupees?|rupaye|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)\b/i;
+
+/**
+ * A count of people to split among: "among 3", "between 4", "3 people", "3 ways".
+ * Anchored to a split word or a people/ways word so the amount right after
+ * "split" ("split 500 …") is never taken as the count.
+ */
+const SPLIT_COUNT =
+  /\b(?:among|amongst|between)\s+(\d+)\b|\b(\d+)\s*(?:people|persons?|ppl|ways?|folks?|heads?)\b/i;
 
 /** Lowercase word tokens, punctuation and symbols stripped. */
 function tokenize(text: string): string[] {
@@ -73,12 +113,36 @@ function tokenize(text: string): string[] {
     .filter(Boolean);
 }
 
-/** The first number in the sentence, commas removed — "1,200.50" -> 1200.5. */
-function firstNumber(text: string): number | null {
-  const match = text.match(/\d[\d,]*(?:\.\d+)?/);
-  if (!match) return null;
-  const value = Number.parseFloat(match[0].replace(/,/g, ''));
+/** A matched numeric string to a positive number, commas removed — or null. */
+function toAmount(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const value = Number.parseFloat(raw.replace(/,/g, ''));
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** How many people to split among, if the sentence says — else null. */
+function extractSplitCount(text: string): number | null {
+  const match = text.match(SPLIT_COUNT);
+  if (!match) return null;
+  const count = Number.parseInt(match[1] ?? match[2] ?? '', 10);
+  return Number.isFinite(count) && count > 0 ? count : null;
+}
+
+/**
+ * The amount, kept apart from a split count.
+ *
+ * "split 500 among 3 people" has two numbers; only one is money. A number next
+ * to a currency word or symbol wins outright. Failing that, the split-count
+ * phrase is removed and the first number left standing is the amount — so the
+ * "3" in "3 people" is never mistaken for it.
+ */
+function extractAmount(text: string): number | null {
+  const adjacent = text.match(CURRENCY_ADJACENT);
+  if (adjacent) return toAmount(adjacent[1] ?? adjacent[2]);
+
+  const withoutCount = text.replace(SPLIT_COUNT, ' ');
+  const first = withoutCount.match(/\d[\d,]*(?:\.\d+)?/);
+  return toAmount(first?.[0]);
 }
 
 /** Which currency, if any, the sentence names. */
@@ -155,7 +219,7 @@ export function parseVoiceExpense(
   groups: readonly VoiceGroupRef[],
 ): ParsedVoiceExpense {
   const tokens = tokenize(transcript);
-  const amountMajor = firstNumber(transcript);
+  const amountMajor = extractAmount(transcript);
   const amountMinor = amountMajor === null ? null : BigInt(Math.round(amountMajor * 100));
   const groupId = matchGroup(tokens, groups);
   const matchedName = groupId ? (groups.find((group) => group.id === groupId)?.name ?? null) : null;
@@ -166,5 +230,58 @@ export function parseVoiceExpense(
     currency: detectCurrency(transcript),
     note: buildNote(transcript, matchedName),
     groupId,
+    splitCount: extractSplitCount(transcript),
   };
+}
+
+/**
+ * The members a sentence names, by id.
+ *
+ * Each member's display name is matched word-for-word against the sentence, so
+ * "split with Ravi and Priya" picks Ravi and Priya out of the group. This is the
+ * precise half of splitting by voice — a bare "3 people" names nobody, but named
+ * people map straight to rows. Runs where the members are known (the add-expense
+ * form), not in the parser, which only sees group names.
+ *
+ * Two-letter-plus name words only, and the split/filler words are ignored, so a
+ * member called "A" or the word "with" never matches by accident.
+ */
+export function matchMemberNames(
+  text: string,
+  members: readonly { id: string; name: string }[],
+): string[] {
+  const heard = new Set(tokenize(text));
+  const ids: string[] = [];
+  for (const member of members) {
+    const nameTokens = tokenize(member.name).filter(
+      (token) => token.length >= 2 && !STOPWORDS.has(token),
+    );
+    if (nameTokens.some((token) => heard.has(token))) ids.push(member.id);
+  }
+  return ids;
+}
+
+/**
+ * The note with any member's name taken out.
+ *
+ * A spoken name is split information, not a description — "dinner with Ravi"
+ * describes dinner, and Ravi becomes a row, not a word in the note. Removes
+ * every member name word (two letters or more) so the description that reaches
+ * the form is just what was spent on.
+ */
+export function stripMemberNames(
+  note: string,
+  members: readonly { id: string; name: string }[],
+): string {
+  const nameTokens = new Set(
+    members.flatMap((member) => tokenize(member.name)).filter((token) => token.length >= 2),
+  );
+  return note
+    .split(/\s+/)
+    .filter((word) => {
+      const token = word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+      return token !== '' && !nameTokens.has(token);
+    })
+    .join(' ')
+    .trim();
 }

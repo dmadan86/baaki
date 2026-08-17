@@ -44,8 +44,11 @@ export default function VoiceScreen() {
   const { t } = useStrings();
   const groups = useGroups();
 
-  // Parsed result waiting on a group choice, or null while still listening.
-  const [pending, setPending] = useState<ParsedVoiceExpense | null>(null);
+  // Parsed result (with the raw sentence, for name matching) waiting on a group
+  // choice, or null while still listening.
+  const [pending, setPending] = useState<{ parsed: ParsedVoiceExpense; transcript: string } | null>(
+    null,
+  );
   const [noAmount, setNoAmount] = useState(false);
   // Remounts the mic to start a fresh utterance after a miss.
   const [attempt, setAttempt] = useState(0);
@@ -54,9 +57,10 @@ export default function VoiceScreen() {
   const groupRefs = groupRows.map((group) => ({ id: group.id, name: group.name }));
   const hints = groupRows.map((group) => group.name ?? '').filter(Boolean);
 
-  const goToExpense = (groupId: string, parsed: ParsedVoiceExpense): void => {
+  const goToExpense = (groupId: string, parsed: ParsedVoiceExpense, transcript: string): void => {
     // Swap this modal for the prefilled form, so Back from the form returns to
-    // where the reader was, not to the mic.
+    // where the reader was, not to the mic. The raw sentence rides along so the
+    // form can match spoken names ("split with Ravi and Priya") to its members.
     router.replace({
       pathname: '/group/[id]/add-expense',
       params: {
@@ -64,6 +68,7 @@ export default function VoiceScreen() {
         voice: '1',
         amount: parsed.amountMinor === null ? '0' : String(parsed.amountMinor),
         description: parsed.note,
+        people: transcript,
       },
     });
   };
@@ -76,11 +81,11 @@ export default function VoiceScreen() {
       return;
     }
     if (parsed.groupId) {
-      goToExpense(parsed.groupId, parsed);
+      goToExpense(parsed.groupId, parsed, transcript);
       return;
     }
     // Amount understood, group not — ask which.
-    setPending(parsed);
+    setPending({ parsed, transcript });
   };
 
   const retry = (): void => {
@@ -121,7 +126,7 @@ export default function VoiceScreen() {
           // Amount understood; pick the group it belongs to.
           <View style={{ gap: theme.spacing.lg }}>
             <Callout tone="info">
-              {t.voice.heard.replace('{note}', pending.note || t.voice.anExpense)}
+              {t.voice.heard.replace('{note}', pending.parsed.note || t.voice.anExpense)}
             </Callout>
             <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
               {t.voice.chooseGroup.toUpperCase()}
@@ -130,7 +135,7 @@ export default function VoiceScreen() {
               <ListRow
                 key={group.id}
                 title={groupLabel(group)}
-                onPress={() => goToExpense(group.id, pending)}
+                onPress={() => goToExpense(group.id, pending.parsed, pending.transcript)}
               />
             ))}
           </View>
