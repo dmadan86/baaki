@@ -20,7 +20,7 @@ import { useSync } from '@/sync';
 export function SyncBanner({ groupId }: { groupId?: string }) {
   const theme = useTheme();
   const { t, locale } = useStrings();
-  const { status, queue, rejected, retry, discard, lastError } = useSync();
+  const { status, queue, rejected, retry, discard } = useSync();
   const { preference: syncNetwork } = useSyncNetwork();
 
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
@@ -103,7 +103,13 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
       : status === 'error'
         ? {
             icon: 'cloud-offline-outline' as const,
-            message: plural(locale, pending.length, t.misc.cantReachServer),
+            // With nothing queued there is no count to quote — a bare "0 changes
+            // saved here, waiting to send" is both wrong (nothing is waiting) and
+            // alarming on a phone that is plainly online.
+            message:
+              pending.length > 0
+                ? plural(locale, pending.length, t.misc.cantReachServer)
+                : t.misc.cantReachServerIdle,
           }
         : {
             icon: 'sync-outline' as const,
@@ -120,11 +126,13 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
           </Text>
         </View>
       </Row>
-      {status === 'error' && lastError ? (
-        <Text variant="micro" tone="muted">
-          {lastError}
-        </Text>
-      ) : null}
+      {/* The raw exception used to print here under the friendly line — things
+          like "NativeStatement.finalizeAsync ... database is locked". It is an
+          internal message, never translated and never actionable, and it made a
+          normal offline state read as a broken app. It still travels to Sentry
+          via reportHandled; it just no longer lands on the screen. The friendly
+          line above already says the one thing the user needs: saved here,
+          waiting to send. */}
     </Card>
   );
 }
