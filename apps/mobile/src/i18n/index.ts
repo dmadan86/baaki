@@ -496,6 +496,9 @@ export interface UiStrings {
     sectionBaaki: string;
     sectionSettings: string;
     sectionSecurity: string;
+    sectionAi: string;
+    aiKeysRow: string;
+    aiKeysHint: string;
     upgradeHint: string;
     yourAccount: string;
     yourAccountHint: string;
@@ -526,6 +529,28 @@ export interface UiStrings {
     motionOff: string;
     motionFollowingOn: string;
     motionFollowingOff: string;
+    footnote: string;
+  };
+  /** Bring your own model key — held on the device, used on your own account. */
+  aiKeys: {
+    title: string;
+    intro: string;
+    onDevice: string;
+    keyLabel: string;
+    getKey: string;
+    test: string;
+    testing: string;
+    valid: string;
+    invalid: string;
+    unreachable: string;
+    saved: string;
+    configured: string;
+    removeConfirmTitle: string;
+    removeConfirmBody: string;
+    /** The access line: paid, on your own key, or off until one of those. */
+    accessPaid: string;
+    accessByok: string;
+    accessLocked: string;
     footnote: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
@@ -1693,6 +1718,9 @@ const en: UiStrings = {
     sectionBaaki: 'Baaki',
     sectionSettings: 'Settings',
     sectionSecurity: 'Security',
+    sectionAi: 'AI',
+    aiKeysRow: 'Your AI keys',
+    aiKeysHint: 'Bring your own OpenAI, Claude or Kimi key',
     upgradeHint: 'Nothing to buy yet — the ledger stays free',
     yourAccount: 'Your account',
     yourAccountHint: 'Add an email or phone, or carry on as a guest',
@@ -1727,6 +1755,28 @@ const en: UiStrings = {
     motionFollowingOn: 'Following your phone — animations on',
     motionFollowingOff: 'Following your phone — animations off',
     footnote: 'Baaki · the ledger is free forever. We only ever charge for convenience.',
+  },
+  aiKeys: {
+    title: 'Bring your own key',
+    intro:
+      'Add a model key and Baaki can read a receipt and turn what you say into an expense — the people, and the way it splits — on your account, not ours.',
+    onDevice:
+      'Keys stay on this phone, encrypted in its keystore. They are never sent to Baaki — only straight to the provider you choose.',
+    keyLabel: 'API key',
+    getKey: 'Get a key',
+    test: 'Test',
+    testing: 'Testing…',
+    valid: 'Key works',
+    invalid: 'That key was rejected',
+    unreachable: "Couldn't reach {provider} — try again",
+    saved: 'Saved',
+    configured: 'Saved',
+    removeConfirmTitle: 'Remove this key?',
+    removeConfirmBody: 'It is deleted from this phone. You can paste it again any time.',
+    accessPaid: "You're on a paid plan — the AI features are on, run on our key.",
+    accessByok: 'Your key is set — the AI features run on your own account.',
+    accessLocked: 'Add a key below, or upgrade, to turn on the AI features.',
+    footnote: 'Nothing here leaves your phone except a request to the provider you picked.',
   },
   notifications: {
     title: 'Notifications',
@@ -2972,6 +3022,9 @@ const ta: UiStrings = {
     sectionBaaki: 'பாக்கி',
     sectionSettings: 'அமைப்புகள்',
     sectionSecurity: 'பாதுகாப்பு',
+    sectionAi: 'AI',
+    aiKeysRow: 'உங்கள் AI விசைகள்',
+    aiKeysHint: 'உங்கள் சொந்த OpenAI, Claude அல்லது Kimi விசையைச் சேர்',
     upgradeHint: 'வாங்க இன்னும் ஒன்றுமில்லை — கணக்கு இலவசமாகவே இருக்கும்',
     yourAccount: 'உங்கள் கணக்கு',
     yourAccountHint: 'மின்னஞ்சல் அல்லது தொலைபேசியைச் சேர், அல்லது விருந்தினராகவே தொடர்',
@@ -3006,6 +3059,31 @@ const ta: UiStrings = {
     motionFollowingOn: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — அசைவுகள் இயக்கத்தில்',
     motionFollowingOff: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — அசைவுகள் நிறுத்தத்தில்',
     footnote: 'பாக்கி · கணக்கு எப்போதும் இலவசம். வசதிக்கு மட்டுமே நாங்கள் கட்டணம் வாங்குவோம்.',
+  },
+  aiKeys: {
+    title: 'உங்கள் சொந்த விசையைச் சேர்',
+    intro:
+      'ஒரு மாடல் விசையைச் சேர்த்தால், ரசீதைப் படிக்கவும், நீங்கள் சொல்வதை — யார், எப்படிப் பிரிப்பது என்பதுடன் — செலவாக மாற்றவும் பாக்கியால் முடியும். உங்கள் கணக்கில், எங்களுடையதில் அல்ல.',
+    onDevice:
+      'விசைகள் இந்த ஃபோனிலேயே, அதன் கீஸ்டோரில் மறையாக்கம் செய்யப்பட்டு இருக்கும். பாக்கிக்கு ஒருபோதும் அனுப்பப்படாது — நீங்கள் தேர்ந்தெடுத்த வழங்குநருக்கு நேரடியாக மட்டுமே.',
+    keyLabel: 'API விசை',
+    getKey: 'ஒரு விசையைப் பெறு',
+    test: 'சோதி',
+    testing: 'சோதிக்கிறது…',
+    valid: 'விசை வேலை செய்கிறது',
+    invalid: 'அந்த விசை நிராகரிக்கப்பட்டது',
+    unreachable: '{provider}-ஐ அடைய முடியவில்லை — மீண்டும் முயற்சி செய்',
+    saved: 'சேமிக்கப்பட்டது',
+    configured: 'சேமிக்கப்பட்டது',
+    removeConfirmTitle: 'இந்த விசையை நீக்கவா?',
+    removeConfirmBody:
+      'இது இந்த ஃபோனிலிருந்து நீக்கப்படும். எப்போது வேண்டுமானாலும் மீண்டும் ஒட்டலாம்.',
+    accessPaid:
+      'நீங்கள் கட்டண திட்டத்தில் இருக்கிறீர்கள் — AI அம்சங்கள் எங்கள் விசையில் இயங்குகின்றன.',
+    accessByok: 'உங்கள் விசை அமைக்கப்பட்டுள்ளது — AI அம்சங்கள் உங்கள் சொந்த கணக்கில் இயங்கும்.',
+    accessLocked: 'கீழே ஒரு விசையைச் சேர், அல்லது மேம்படுத்து, AI அம்சங்களை இயக்க.',
+    footnote:
+      'நீங்கள் தேர்ந்தெடுத்த வழங்குநருக்கான கோரிக்கையைத் தவிர இங்கிருந்து எதுவும் வெளியேறாது.',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -4282,6 +4360,9 @@ const hi: UiStrings = {
     sectionBaaki: 'बाकी',
     sectionSettings: 'सेटिंग्स',
     sectionSecurity: 'सुरक्षा',
+    sectionAi: 'AI',
+    aiKeysRow: 'आपकी AI कुंजियाँ',
+    aiKeysHint: 'अपनी OpenAI, Claude या Kimi कुंजी जोड़ें',
     upgradeHint: 'अभी खरीदने को कुछ नहीं — हिसाब मुफ़्त ही रहेगा',
     yourAccount: 'आपका खाता',
     yourAccountHint: 'ईमेल या फ़ोन जोड़ें, या मेहमान बने रहें',
@@ -4316,6 +4397,28 @@ const hi: UiStrings = {
     motionFollowingOn: 'आपके फ़ोन के अनुसार — एनिमेशन चालू',
     motionFollowingOff: 'आपके फ़ोन के अनुसार — एनिमेशन बंद',
     footnote: 'बाकी · हिसाब हमेशा मुफ़्त है। हम सिर्फ़ सुविधा के पैसे लेते हैं।',
+  },
+  aiKeys: {
+    title: 'अपनी कुंजी लाएँ',
+    intro:
+      'एक मॉडल कुंजी जोड़ें और बाकी रसीद पढ़ सकता है और आप जो कहें उसे खर्च में बदल सकता है — लोग, और बँटवारा भी — आपके खाते पर, हमारे नहीं।',
+    onDevice:
+      'कुंजियाँ इसी फ़ोन में, इसके कीस्टोर में एन्क्रिप्ट रहती हैं। ये बाकी को कभी नहीं भेजी जातीं — सिर्फ़ आपके चुने प्रदाता को सीधे।',
+    keyLabel: 'API कुंजी',
+    getKey: 'कुंजी पाएँ',
+    test: 'जाँचें',
+    testing: 'जाँच रहे हैं…',
+    valid: 'कुंजी काम करती है',
+    invalid: 'वह कुंजी अस्वीकार हुई',
+    unreachable: '{provider} तक नहीं पहुँच पाए — फिर कोशिश करें',
+    saved: 'सेव हो गया',
+    configured: 'सेव है',
+    removeConfirmTitle: 'यह कुंजी हटाएँ?',
+    removeConfirmBody: 'यह इस फ़ोन से मिट जाएगी। आप इसे कभी भी फिर से पेस्ट कर सकते हैं।',
+    accessPaid: 'आप पेड प्लान पर हैं — AI सुविधाएँ हमारी कुंजी पर चलती हैं।',
+    accessByok: 'आपकी कुंजी सेट है — AI सुविधाएँ आपके अपने खाते पर चलती हैं।',
+    accessLocked: 'नीचे एक कुंजी जोड़ें, या अपग्रेड करें, AI सुविधाएँ चालू करने के लिए।',
+    footnote: 'आपके चुने प्रदाता को भेजे अनुरोध के अलावा यहाँ से कुछ भी बाहर नहीं जाता।',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -5587,6 +5690,9 @@ const ar: UiStrings = {
     sectionBaaki: 'باقي',
     sectionSettings: 'الإعدادات',
     sectionSecurity: 'الأمان',
+    sectionAi: 'الذكاء الاصطناعي',
+    aiKeysRow: 'مفاتيح الذكاء الاصطناعي',
+    aiKeysHint: 'أضف مفتاح OpenAI أو Claude أو Kimi الخاص بك',
     upgradeHint: 'لا شيء للشراء بعد — الدفتر يبقى مجانيًا',
     yourAccount: 'حسابك',
     yourAccountHint: 'أضف بريدًا أو هاتفًا، أو تابع كضيف',
@@ -5621,6 +5727,28 @@ const ar: UiStrings = {
     motionFollowingOn: 'يتبع هاتفك — الحركات مفعّلة',
     motionFollowingOff: 'يتبع هاتفك — الحركات متوقفة',
     footnote: 'باقي · الدفتر مجاني إلى الأبد. لا نتقاضى إلا مقابل الراحة.',
+  },
+  aiKeys: {
+    title: 'أحضر مفتاحك الخاص',
+    intro:
+      'أضف مفتاح نموذج وسيتمكّن باقي من قراءة الإيصال وتحويل ما تقوله إلى مصروف — الأشخاص وطريقة التقسيم — على حسابك أنت، لا حسابنا.',
+    onDevice:
+      'تبقى المفاتيح على هذا الهاتف، مشفّرة في مخزن مفاتيحه. لا تُرسَل إلى باقي أبدًا — فقط مباشرةً إلى المزوّد الذي تختاره.',
+    keyLabel: 'مفتاح API',
+    getKey: 'احصل على مفتاح',
+    test: 'اختبر',
+    testing: 'جارٍ الاختبار…',
+    valid: 'المفتاح يعمل',
+    invalid: 'رُفض هذا المفتاح',
+    unreachable: 'تعذّر الوصول إلى {provider} — أعد المحاولة',
+    saved: 'تم الحفظ',
+    configured: 'محفوظ',
+    removeConfirmTitle: 'إزالة هذا المفتاح؟',
+    removeConfirmBody: 'يُحذف من هذا الهاتف. يمكنك لصقه مجددًا في أي وقت.',
+    accessPaid: 'أنت على خطة مدفوعة — ميزات الذكاء الاصطناعي تعمل على مفتاحنا.',
+    accessByok: 'مفتاحك مضبوط — ميزات الذكاء الاصطناعي تعمل على حسابك أنت.',
+    accessLocked: 'أضف مفتاحًا أدناه، أو قم بالترقية، لتشغيل ميزات الذكاء الاصطناعي.',
+    footnote: 'لا شيء يغادر هاتفك من هنا سوى طلب إلى المزوّد الذي اخترته.',
   },
   notifications: {
     title: 'الإشعارات',

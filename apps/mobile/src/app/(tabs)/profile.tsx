@@ -443,6 +443,22 @@ function ProfileForm() {
           ]}
         />
 
+        {/* Bring your own model key. Its own section because it is neither a
+            preference nor a Baaki purchase — it is a credential the reader
+            supplies, held on the device, to run the model-powered features on
+            their own account. */}
+        <SettingsSection
+          title={t.account.sectionAi}
+          rows={[
+            {
+              icon: 'key-outline',
+              label: t.account.aiKeysRow,
+              hint: t.account.aiKeysHint,
+              route: '/settings/ai-keys',
+            },
+          ]}
+        />
+
         {/* Language leads. It was fifth, under Import, and it is the one setting
             somebody may have to reach *before* they can read the four above it —
             a row you can only find by reading past rows you cannot read is a row
