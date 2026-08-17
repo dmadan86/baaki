@@ -66,6 +66,10 @@ export default function ActivityScreen() {
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
+          // So the empty and error states can take the room the feed is not using
+          // and sit centred, the same way the Friends screen does. With a feed
+          // present this changes nothing.
+          flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -105,19 +109,31 @@ export default function ActivityScreen() {
         {activity.isLoading ? (
           <FeedSkeleton />
         ) : activity.isError ? (
-          <EmptyState
-            title={t.loadError}
-            body={t.loadErrorBody}
-            action={
-              <Button label={t.retry} variant="secondary" onPress={() => activity.refetch()} />
-            }
-          />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              title={t.loadError}
+              body={t.loadErrorBody}
+              icon={
+                <Ionicons
+                  name="cloud-offline-outline"
+                  size={iconSize.xxl}
+                  color={theme.color.brand}
+                />
+              }
+              action={
+                <Button label={t.retry} variant="secondary" onPress={() => activity.refetch()} />
+              }
+            />
+          </View>
         ) : entries.length === 0 ? (
-          <EmptyState
-            title={t.nothingYet}
-            body={t.tabs.activityEmptyBody}
-            icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
-          />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              title={t.nothingYet}
+              body={t.tabs.activityEmptyBody}
+              icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
+              action={<Button label={t.newGroup} onPress={() => router.push('/new-group')} />}
+            />
+          </View>
         ) : (
           // A vertical timeline broken into days: each event is a node on a
           // connector line running down the left, its icon in a soft circle

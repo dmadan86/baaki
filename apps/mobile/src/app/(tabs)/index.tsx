@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
 
-import { dayNumber, daysBetween } from '@baaki/core';
+import { dayNumber, daysBetween, GUEST_TRIAL_DAYS, type GuestGate } from '@baaki/core';
 import {
   Avatar,
   Button,
@@ -26,6 +27,7 @@ import { useMotion } from '@/lib/motion';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
+import { useDashboardTips, type Tip } from '@/lib/tips';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
@@ -50,6 +52,7 @@ export default function HomeScreen() {
   const summary = useHomeSummary(profile?.id ?? null);
   const captures = useCaptures();
   const guard = useGuestGuard();
+  const tips = useDashboardTips(t);
 
   // Captures waiting in the personal inbox (A34) — surfaced as a card and a
   // badged header entry so a caught expense is not forgotten before it lands in
@@ -250,46 +253,32 @@ export default function HomeScreen() {
         ) : null}
 
         {isGuest ? (
-          <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
-            <Text variant="subheading" tone="brand">
-              {t.tabs.guestBanner}
-            </Text>
-            <Text variant="caption" tone="muted">
-              {guard.gate?.expired
-                ? t.tabs.guestReadOnly
-                : guard.gate
-                  ? t.tabs.guestDaysLeft.replace('{days}', String(guard.gate.daysLeft))
-                  : t.tabs.guestBannerBody}
-            </Text>
-            <Button
-              label={t.tabs.addYourDetails}
-              variant="secondary"
-              size="sm"
-              onPress={() => router.push('/settings/account')}
-            />
-          </Card>
+          <GuestPrompt gate={guard.gate} t={t} onPress={() => router.push('/settings/account')} />
         ) : null}
 
-        {/* The balance, one card per currency — there is no total across them
-            (ADR-004), so several currencies read as several cards you swipe
-            rather than one sum that would be a lie. While the balance is still
-            loading a hero-shaped skeleton stands in, rather than a card of
-            confident zeros the query has not actually returned yet. */}
+        {/* One deck, one row of dots. The balance rides at the front as the first
+            slide — the number you see on load — then any second currency (no
+            total across them, ADR-004), any running trip, and the two shortcuts.
+            This used to be a flat balance card with a *second* swipeable deck
+            beneath it, which read as two carousels stacked; the finance apps in
+            the category (Cleo, Monzo, Wise) all keep balances as slides of a
+            single deck. While the balance loads a hero-shaped skeleton stands in
+            rather than a card of confident zeros the query has not returned. */}
         {summary.isLoading ? (
           <HeroSkeleton />
         ) : (
-          <View style={{ gap: theme.spacing.lg }}>
-            {/* Where you stand, flat and always on screen. It used to be the
-                first slide of a swipeable deck, which meant the one number the
-                app exists to tell you could be a card-width away — and after a
-                swipe to the trip or the promo card, gone. No money app in the
-                category hides the balance behind a gesture. The deck survives
-                beneath it, smaller, for the things that genuinely are a shelf:
-                a running trip, a second currency, the two shortcuts. */}
-            <BalanceCard total={headline} locale={locale} t={t} />
-            <HeroDeck trips={activeTrips} totals={summary.totals.slice(1)} locale={locale} t={t} />
-          </View>
+          <HeroDeck
+            primary={headline}
+            trips={activeTrips}
+            totals={summary.totals.slice(1)}
+            locale={locale}
+            t={t}
+          />
         )}
+
+        {/* One rotating, dismissible hint — a light way to teach the app's less
+            obvious moves without another shelf of cards. */}
+        {tips.tip ? <TipCard tip={tips.tip} t={t} onDismiss={tips.dismiss} /> : null}
 
         {loading ? (
           <SkeletonList rows={3} />
@@ -348,6 +337,214 @@ export default function HomeScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** The AsyncStorage key holding the day the guest last closed the prompt. */
+const GUEST_PROMPT_DISMISS_KEY = 'guestPrompt:dismissedOn';
+
+/** Today as `YYYY-MM-DD` in the device's own zone — the unit a daily nudge counts in. */
+function localToday(): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA').format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * A dismissal that only lasts the day. The prompt can be closed, but the close
+ * is good until midnight: we store the day it was closed on and show the card
+ * again on any later day. So a guest is nudged once a day — not nagged on every
+ * open, and not silenced for good. `ready` gates the first paint so the card
+ * never flashes in and then vanishes when a same-day dismissal loads a beat later.
+ */
+function useDailyDismiss(key: string): { hidden: boolean; ready: boolean; dismiss: () => void } {
+  const [dismissedOn, setDismissedOn] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(key)
+      .then((value) => {
+        if (alive) setDismissedOn(value);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  const dismiss = useCallback(() => {
+    const today = localToday();
+    setDismissedOn(today);
+    void AsyncStorage.setItem(key, today).catch(() => {});
+  }, [key]);
+  return { hidden: dismissedOn === localToday(), ready, dismiss };
+}
+
+/**
+ * The guest's standing prompt — a neutral welcome card, not a second brand block.
+ *
+ * The balance hero right below it wears the brand wash. The old banner sat in
+ * `brandSoft`, so the top of a guest's screen was two purple blocks with no
+ * hierarchy — the thing the user flagged. This sits quiet in `surface` behind a
+ * hairline with a brand icon chip, so the coloured balance reads as the hero and
+ * this reads as the aside: the colour-hero-then-neutral-prompt rhythm the finance
+ * references lean on (Starling's welcome card over its balance, Buddy's white
+ * setup card under its total).
+ *
+ * A progress bar draws the trial running down — filled for the time left, so a
+ * shrinking bar is the countdown you feel at a glance, not a number you have to
+ * read. It empties and turns to warning as the days run out, and once the trial
+ * is spent the whole card does (the chip, the bar), so "read-only" lands as a
+ * real state rather than decoration.
+ *
+ * The card carries a close: a guest can dismiss it, but only for the day — it
+ * returns tomorrow (see `useDailyDismiss`).
+ */
+function GuestPrompt({
+  gate,
+  t,
+  onPress,
+}: {
+  gate: GuestGate | null;
+  t: UiStrings;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const { hidden, ready, dismiss } = useDailyDismiss(GUEST_PROMPT_DISMISS_KEY);
+  if (!ready || hidden) return null;
+
+  const expired = gate?.expired ?? false;
+  const body = expired
+    ? t.tabs.guestReadOnly
+    : gate
+      ? t.tabs.guestDaysLeft.replace('{days}', String(gate.daysLeft))
+      : t.tabs.guestBannerBody;
+  const accent = expired ? theme.color.warning : theme.color.brand;
+  // The fraction of the trial still left — the bar empties from the right as the
+  // days burn down. Clamped so a stale clock can't over- or under-fill it.
+  const remaining = gate ? Math.max(0, Math.min(1, gate.daysLeft / GUEST_TRIAL_DAYS)) : 1;
+
+  // One compact band: the whole card is the way to sign up (the chevron says so),
+  // so there is no separate button, no icon chip, no title line — just the status,
+  // a hairline countdown under it, and a close. The earlier card stacked a chip,
+  // a heading, a full-width button and the bar; that read as bloated for what is
+  // an aside above the balance.
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t.tabs.addYourDetails}
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+    >
+      <Card style={{ gap: theme.spacing.sm }}>
+        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+          <Text variant="caption" tone="muted" numberOfLines={2} style={{ flex: 1, minWidth: 0 }}>
+            {body}
+          </Text>
+          <Ionicons name="chevron-forward" size={iconSize.base} color={accent} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.close}
+            onPress={dismiss}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+          >
+            <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+          </Pressable>
+        </Row>
+
+        {gate ? (
+          <View
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: GUEST_TRIAL_DAYS, now: gate.daysLeft }}
+            style={{
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: theme.color.border,
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                width: `${remaining * 100}%`,
+                height: '100%',
+                borderRadius: 2,
+                backgroundColor: accent,
+              }}
+            />
+          </View>
+        ) : null}
+      </Card>
+    </Pressable>
+  );
+}
+
+/**
+ * The dashboard tip card — a compact, dismissible hint in the lean house style:
+ * an icon chip, a small "TIP" kicker over a one-line title, a line of body, and
+ * a close. When the tip has a next step the whole card taps through to it (the
+ * chevron says so); otherwise it is a plain aside. The close retires this tip for
+ * good; the deck of tips rotates by the day (see `useDashboardTips`).
+ */
+function TipCard({ tip, t, onDismiss }: { tip: Tip; t: UiStrings; onDismiss: () => void }) {
+  const theme = useTheme();
+  const body = (
+    <Card style={{ gap: 0 }}>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.brandSoft,
+          }}
+        >
+          <Ionicons name={tip.icon} size={iconSize.lg} color={theme.color.brand} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text variant="micro" tone="brand" style={{ letterSpacing: 0.6 }}>
+            {t.tips.label.toUpperCase()}
+          </Text>
+          <Text variant="subheading" numberOfLines={1}>
+            {tip.title}
+          </Text>
+          <Text variant="caption" tone="muted" numberOfLines={2}>
+            {tip.body}
+          </Text>
+        </View>
+        {tip.route ? (
+          <Ionicons name="chevron-forward" size={iconSize.base} color={theme.color.brand} />
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.common.close}
+          onPress={onDismiss}
+          hitSlop={10}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+        >
+          <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+        </Pressable>
+      </Row>
+    </Card>
+  );
+  return tip.route ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={tip.title}
+      onPress={() => router.push(tip.route as never)}
+      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+    >
+      {body}
+    </Pressable>
+  ) : (
+    body
   );
 }
 
@@ -493,30 +690,28 @@ function todayIn(timeZone: string): string {
 export const HERO_CARD_HEIGHT = 196;
 
 /**
- * The height of a card in the deck beneath the balance. Shorter than the hero on
- * purpose: the deck is the shelf of secondary things, and two cards of equal
- * weight stacked would be two heroes and no hierarchy.
- */
-const DECK_CARD_HEIGHT = 132;
-
-/**
- * The shelf under the balance: a swipeable deck with a peek of the next card at
- * the right edge and a dot pager beneath. Any trip running today rides at the
- * front — the most "now" thing on the dashboard — then any further currency (a
- * total across currencies is a number that does not exist, ADR-004), then the
- * action slides (scan a receipt, add a person) that turn the empty right of the
- * deck into a shortcut instead of dead space.
+ * The one swipeable deck on the dashboard: a peek of the next card at the right
+ * edge and a dot pager beneath. The balance rides at the front as the first
+ * slide — the number you see on load, never behind a gesture on arrival — then
+ * any running trip (the most "now" thing), any second currency (a total across
+ * them is a number that does not exist, ADR-004), and the two shortcut slides
+ * (scan a receipt, add a person) that turn the empty right of the deck into a
+ * shortcut instead of dead space.
  *
- * The peek and the pager are the two signals that say "swipe me", so they stay
- * even when there is a single slide. The peek is dropped to zero in that lone
- * case so a single card still fills the width.
+ * Every slide is the same height (`HERO_CARD_HEIGHT`) so the deck never jumps as
+ * you swipe — the pattern Cleo and Wise use for a balance-card carousel. The peek
+ * and the pager are the two signals that say "swipe me", so they stay even for a
+ * single slide; the peek drops to zero in that lone case so one card fills the
+ * width.
  */
 function HeroDeck({
+  primary,
   trips,
   totals,
   locale,
   t,
 }: {
+  primary: CurrencyTotal;
   trips: readonly TripSlide[];
   totals: readonly CurrencyTotal[];
   locale: string;
@@ -527,13 +722,17 @@ function HeroDeck({
   const [page, setPage] = useState(0);
 
   const slides = [
+    {
+      key: `cur:${primary.currency}:primary`,
+      node: <BalanceCard total={primary} locale={locale} t={t} />,
+    },
     ...trips.map((trip) => ({
       key: `trip:${trip.id}`,
       node: <TripCard trip={trip} locale={locale} t={t} />,
     })),
     ...totals.map((total) => ({
       key: `cur:${total.currency}`,
-      node: <BalanceCard total={total} locale={locale} t={t} compact />,
+      node: <BalanceCard total={total} locale={locale} t={t} />,
     })),
     {
       key: 'act:scan',
@@ -619,10 +818,10 @@ function HeroDeck({
 }
 
 /**
- * The hero while the balance is still loading — the full-width balance block at
- * its real height, then the deck beneath it with a sliver of the next card at
- * the right (the peek) and a three-dot pager. Shaped so the swap to the real
- * thing is a fill, not a jump: same heights, same peek, same dots.
+ * The deck while the balance is still loading — the front card at its real height
+ * with a sliver of the next one at the right (the peek), and a three-dot pager
+ * beneath. Shaped so the swap to the real deck is a fill, not a jump: same
+ * height, same peek, same dots.
  */
 function HeroSkeleton() {
   const theme = useTheme();
@@ -633,24 +832,18 @@ function HeroSkeleton() {
   const cardWidth = available - peek;
   return (
     <View style={{ gap: theme.spacing.md }}>
-      <Skeleton
-        width={available}
-        height={HERO_CARD_HEIGHT}
-        radius={theme.radius.lg}
-        animated={animated}
-      />
-      {/* The deck card and the peek sliver, clipped so the sliver never widens
+      {/* The front card and the peek sliver, clipped so the sliver never widens
           the row past the gutter. */}
       <View style={{ flexDirection: 'row', gap: theme.spacing.md, overflow: 'hidden' }}>
         <Skeleton
           width={cardWidth}
-          height={DECK_CARD_HEIGHT}
+          height={HERO_CARD_HEIGHT}
           radius={theme.radius.lg}
           animated={animated}
         />
         <Skeleton
           width={peek}
-          height={DECK_CARD_HEIGHT}
+          height={HERO_CARD_HEIGHT}
           radius={theme.radius.lg}
           animated={animated}
         />
@@ -727,8 +920,8 @@ function ActionSlide({
         colors={colors}
         radius={theme.radius.lg}
         style={{
-          padding: theme.spacing.lg,
-          height: DECK_CARD_HEIGHT,
+          padding: theme.spacing.xl,
+          height: HERO_CARD_HEIGHT,
           justifyContent: 'space-between',
           gap: theme.spacing.sm,
           overflow: 'hidden',
@@ -760,19 +953,7 @@ function ActionSlide({
  * settled — so the card's colour, not just its number, tells you where you
  * stand at a glance. The net big, the owed/owe split beneath.
  */
-function BalanceCard({
-  total,
-  locale,
-  t,
-  compact = false,
-}: {
-  total: CurrencyTotal;
-  locale: string;
-  t: UiStrings;
-  /** A second currency riding in the deck: deck height, and the owed/owe split
-   *  dropped — at that size it is three numbers where one will do. */
-  compact?: boolean;
-}) {
+function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: string; t: UiStrings }) {
   const theme = useTheme();
   const wash =
     total.net > 0n
@@ -786,8 +967,8 @@ function BalanceCard({
       radius={theme.radius.lg}
       style={{
         padding: theme.spacing.xl,
-        gap: compact ? theme.spacing.sm : theme.spacing.lg,
-        height: compact ? DECK_CARD_HEIGHT : HERO_CARD_HEIGHT,
+        gap: theme.spacing.lg,
+        height: HERO_CARD_HEIGHT,
         justifyContent: 'space-between',
         overflow: 'hidden',
       }}
@@ -808,43 +989,37 @@ function BalanceCard({
           currency={total.currency as never}
           locale={locale}
           tone="onBrand"
-          style={
-            compact
-              ? { fontSize: 28, lineHeight: 34, fontWeight: '700' }
-              : { fontSize: 40, lineHeight: 46, fontWeight: '700' }
-          }
+          style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
         />
         <Text variant="caption" tone="onBrand">
           {total.net === 0n ? t.allSettled : total.net > 0n ? t.overallOwed : t.overallOwe}
         </Text>
       </View>
 
-      {compact ? null : (
-        <Row style={{ gap: theme.spacing.xxl }}>
-          <View>
-            <Text variant="micro" tone="onBrand">
-              {t.youAreOwed}
-            </Text>
-            <CountUpMoney
-              amount={total.owed}
-              currency={total.currency as never}
-              locale={locale}
-              tone="onBrand"
-            />
-          </View>
-          <View>
-            <Text variant="micro" tone="onBrand">
-              {t.youOwe}
-            </Text>
-            <CountUpMoney
-              amount={total.owing}
-              currency={total.currency as never}
-              locale={locale}
-              tone="onBrand"
-            />
-          </View>
-        </Row>
-      )}
+      <Row style={{ gap: theme.spacing.xxl }}>
+        <View>
+          <Text variant="micro" tone="onBrand">
+            {t.youAreOwed}
+          </Text>
+          <CountUpMoney
+            amount={total.owed}
+            currency={total.currency as never}
+            locale={locale}
+            tone="onBrand"
+          />
+        </View>
+        <View>
+          <Text variant="micro" tone="onBrand">
+            {t.youOwe}
+          </Text>
+          <CountUpMoney
+            amount={total.owing}
+            currency={total.currency as never}
+            locale={locale}
+            tone="onBrand"
+          />
+        </View>
+      </Row>
     </Gradient>
   );
 }
@@ -867,9 +1042,9 @@ function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiS
         colors={theme.gradient.accent}
         radius={theme.radius.lg}
         style={{
-          padding: theme.spacing.lg,
+          padding: theme.spacing.xl,
           gap: theme.spacing.sm,
-          height: DECK_CARD_HEIGHT,
+          height: HERO_CARD_HEIGHT,
           justifyContent: 'space-between',
           overflow: 'hidden',
         }}

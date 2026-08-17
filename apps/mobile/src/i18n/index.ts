@@ -754,6 +754,21 @@ export interface UiStrings {
     inviteBody: string;
     inviteCta: string;
   };
+  /** The rotating "did you know" tips card on the dashboard — one useful,
+   *  app-specific hint at a time, dismissible for good. */
+  tips: {
+    label: string;
+    voiceTitle: string;
+    voiceBody: string;
+    splitTitle: string;
+    splitBody: string;
+    remindTitle: string;
+    remindBody: string;
+    offlineTitle: string;
+    offlineBody: string;
+    scanTitle: string;
+    scanBody: string;
+  };
   /** Merging same-person guests into one on the Friends screen (irreversible). */
   mergePeople: {
     entry: string;
@@ -2009,6 +2024,19 @@ const en: UiStrings = {
     inviteTitle: 'Settle up together',
     inviteBody: 'Add the people you share costs with and keep everyone square.',
     inviteCta: 'Add a person',
+  },
+  tips: {
+    label: 'Tip',
+    voiceTitle: 'Add by voice',
+    voiceBody: 'Tap the mic and just say it — “dinner 800, split with Ravi”.',
+    splitTitle: 'Split your way',
+    splitBody: 'Tap the split on any expense to change shares — it doesn’t have to be equal.',
+    remindTitle: 'A gentle nudge',
+    remindBody: 'Send a reminder to whoever owes you, straight from the balance.',
+    offlineTitle: 'Works offline',
+    offlineBody: 'Add expenses with no signal — they sync the moment you’re back.',
+    scanTitle: 'Scan a receipt',
+    scanBody: 'Snap a bill and Baaki fills in the items for you.',
   },
   mergePeople: {
     entry: 'Merge people',
@@ -3351,6 +3379,19 @@ const ta: UiStrings = {
     inviteTitle: 'சேர்ந்து கணக்கு தீர்க்கலாம்',
     inviteBody: 'செலவுகளைப் பகிர்பவர்களைச் சேர்த்து அனைவரையும் சரிசெய்யுங்கள்.',
     inviteCta: 'ஒருவரைச் சேர்',
+  },
+  tips: {
+    label: 'உதவிக்குறிப்பு',
+    voiceTitle: 'குரலால் சேர்',
+    voiceBody: 'மைக்கைத் தட்டி சொல்லுங்கள் — “டின்னர் 800, ரவியுடன் பங்கிடு”.',
+    splitTitle: 'உங்கள் விதத்தில் பங்கிடு',
+    splitBody: 'எந்தச் செலவின் பங்கையும் தட்டி மாற்றுங்கள் — எல்லாம் சமமாக இருக்க வேண்டியதில்லை.',
+    remindTitle: 'மெதுவான நினைவூட்டல்',
+    remindBody: 'உங்களுக்குக் கடன்பட்டவருக்கு பேலன்ஸிலிருந்தே நினைவூட்டல் அனுப்புங்கள்.',
+    offlineTitle: 'இணையம் இல்லாமலும் வேலை செய்யும்',
+    offlineBody: 'சிக்னல் இல்லாமலும் செலவுகளைச் சேருங்கள் — திரும்பியதும் ஒத்திசைந்து விடும்.',
+    scanTitle: 'ரசீதை ஸ்கேன் செய்',
+    scanBody: 'பில்லைப் படம் எடுங்கள், பாக்கி பொருட்களை நிரப்பும்.',
   },
   mergePeople: {
     entry: 'நபர்களை இணை',
@@ -4708,6 +4749,19 @@ const hi: UiStrings = {
     inviteTitle: 'मिलकर हिसाब बराबर करें',
     inviteBody: 'जिनके साथ खर्च बाँटते हैं उन्हें जोड़ें और सबका हिसाब बराबर रखें.',
     inviteCta: 'व्यक्ति जोड़ें',
+  },
+  tips: {
+    label: 'सुझाव',
+    voiceTitle: 'बोलकर जोड़ें',
+    voiceBody: 'माइक दबाएँ और बस बोलें — “डिनर 800, रवि के साथ बाँटो”.',
+    splitTitle: 'अपने तरीके से बाँटें',
+    splitBody: 'किसी भी खर्च के स्प्लिट पर टैप करके हिस्से बदलें — ज़रूरी नहीं कि बराबर हो.',
+    remindTitle: 'हल्की याद दिलाएँ',
+    remindBody: 'जो आपके पैसे देना है उसे बैलेंस से ही रिमाइंडर भेजें.',
+    offlineTitle: 'बिना इंटरनेट भी चलता है',
+    offlineBody: 'सिग्नल न हो तब भी खर्च जोड़ें — वापस आते ही सिंक हो जाते हैं.',
+    scanTitle: 'रसीद स्कैन करें',
+    scanBody: 'बिल की फ़ोटो लें और बाकी आइटम खुद भर देता है.',
   },
   mergePeople: {
     entry: 'लोगों को मर्ज करें',
@@ -6067,6 +6121,19 @@ const ar: UiStrings = {
     inviteTitle: 'سوّوا الحساب معًا',
     inviteBody: 'أضف من تتشارك معهم النفقات وابقوا جميعًا على حساب متوازن.',
     inviteCta: 'إضافة شخص',
+  },
+  tips: {
+    label: 'نصيحة',
+    voiceTitle: 'أضِف بصوتك',
+    voiceBody: 'اضغط الميكروفون وقل ما تريد — «عشاء 800، اقسمها مع رافي».',
+    splitTitle: 'اقسم بطريقتك',
+    splitBody: 'اضغط على القسمة في أي مصروف لتغيير الحصص — ليس بالضرورة أن تكون بالتساوي.',
+    remindTitle: 'تذكير لطيف',
+    remindBody: 'أرسل تذكيرًا لمن عليه دفعٌ لك، مباشرةً من الرصيد.',
+    offlineTitle: 'يعمل دون إنترنت',
+    offlineBody: 'أضِف المصاريف دون شبكة — تتزامن فور عودتك.',
+    scanTitle: 'امسح الإيصال',
+    scanBody: 'صوّر الفاتورة وباقي يملأ البنود نيابةً عنك.',
   },
   mergePeople: {
     entry: 'دمج الأشخاص',
