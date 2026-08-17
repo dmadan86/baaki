@@ -559,8 +559,22 @@ export interface UiStrings {
     /** The access line: paid, on your own key, or off until one of those. */
     accessPaid: string;
     accessByok: string;
+    /** Key present but switched off. */
+    accessPaused: string;
+    /** Key on but the token ceiling is reached. */
+    accessOverlimit: string;
     accessLocked: string;
     footnote: string;
+    /** The connected key's controls. */
+    useKey: string;
+    modelLabel: string;
+    limitLabel: string;
+    noLimit: string;
+    /** '{used}' tokens spent, no ceiling. */
+    usedTokens: string;
+    /** '{used}' of '{limit}' tokens spent. */
+    usedOfLimit: string;
+    resetUsage: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -1787,8 +1801,17 @@ const en: UiStrings = {
     removeConfirmBody: 'It is deleted from this phone. You can paste it again any time.',
     accessPaid: 'Paid plan — the AI features will be covered.',
     accessByok: 'Key set — the AI features will use your account.',
+    accessPaused: 'Key off — turn it on to use the AI features.',
+    accessOverlimit: 'Token limit reached — raise it to keep using the AI features.',
     accessLocked: 'Add a key, or upgrade, for the AI features.',
     footnote: 'Nothing here leaves your phone except a request to the provider you picked.',
+    useKey: 'Use this key',
+    modelLabel: 'Model',
+    limitLabel: 'Token limit',
+    noLimit: 'No limit',
+    usedTokens: '{used} tokens used',
+    usedOfLimit: '{used} / {limit} tokens used',
+    resetUsage: 'Reset',
   },
   notifications: {
     title: 'Notifications',
@@ -3096,9 +3119,18 @@ const ta: UiStrings = {
       'இது இந்த ஃபோனிலிருந்து நீக்கப்படும். எப்போது வேண்டுமானாலும் மீண்டும் ஒட்டலாம்.',
     accessPaid: 'கட்டண திட்டம் — AI அம்சங்கள் உள்ளடக்கப்படும்.',
     accessByok: 'விசை அமைக்கப்பட்டது — AI அம்சங்கள் உங்கள் கணக்கைப் பயன்படுத்தும்.',
+    accessPaused: 'விசை அணைக்கப்பட்டது — AI அம்சங்களைப் பயன்படுத்த அதை இயக்கு.',
+    accessOverlimit: 'டோக்கன் வரம்பு எட்டப்பட்டது — தொடர பயன்படுத்த அதை உயர்த்து.',
     accessLocked: 'ஒரு விசையைச் சேர், அல்லது மேம்படுத்து, AI அம்சங்களுக்கு.',
     footnote:
       'நீங்கள் தேர்ந்தெடுத்த வழங்குநருக்கான கோரிக்கையைத் தவிர இங்கிருந்து எதுவும் வெளியேறாது.',
+    useKey: 'இந்த விசையைப் பயன்படுத்து',
+    modelLabel: 'மாடல்',
+    limitLabel: 'டோக்கன் வரம்பு',
+    noLimit: 'வரம்பு இல்லை',
+    usedTokens: '{used} டோக்கன்கள் பயன்படுத்தப்பட்டன',
+    usedOfLimit: '{used} / {limit} டோக்கன்கள் பயன்படுத்தப்பட்டன',
+    resetUsage: 'மீட்டமை',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -4436,8 +4468,17 @@ const hi: UiStrings = {
     removeConfirmBody: 'यह इस फ़ोन से मिट जाएगी। आप इसे कभी भी फिर से पेस्ट कर सकते हैं।',
     accessPaid: 'पेड प्लान — AI सुविधाएँ कवर रहेंगी।',
     accessByok: 'कुंजी सेट — AI सुविधाएँ आपके खाते का उपयोग करेंगी।',
+    accessPaused: 'कुंजी बंद — AI सुविधाएँ इस्तेमाल करने के लिए इसे चालू करें।',
+    accessOverlimit: 'टोकन सीमा पूरी — इस्तेमाल जारी रखने के लिए इसे बढ़ाएँ।',
     accessLocked: 'एक कुंजी जोड़ें, या अपग्रेड करें, AI सुविधाओं के लिए।',
     footnote: 'आपके चुने प्रदाता को भेजे अनुरोध के अलावा यहाँ से कुछ भी बाहर नहीं जाता।',
+    useKey: 'यह कुंजी इस्तेमाल करें',
+    modelLabel: 'मॉडल',
+    limitLabel: 'टोकन सीमा',
+    noLimit: 'कोई सीमा नहीं',
+    usedTokens: '{used} टोकन इस्तेमाल हुए',
+    usedOfLimit: '{used} / {limit} टोकन इस्तेमाल हुए',
+    resetUsage: 'रीसेट',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -5769,8 +5810,17 @@ const ar: UiStrings = {
     removeConfirmBody: 'يُحذف من هذا الهاتف. يمكنك لصقه مجددًا في أي وقت.',
     accessPaid: 'خطة مدفوعة — ميزات الذكاء الاصطناعي مشمولة.',
     accessByok: 'المفتاح مضبوط — ستستخدم ميزات الذكاء الاصطناعي حسابك.',
+    accessPaused: 'المفتاح متوقف — شغّله لاستخدام ميزات الذكاء الاصطناعي.',
+    accessOverlimit: 'تم بلوغ حد الرموز — ارفعه لمواصلة استخدام ميزات الذكاء الاصطناعي.',
     accessLocked: 'أضف مفتاحًا، أو قم بالترقية، لميزات الذكاء الاصطناعي.',
     footnote: 'لا شيء يغادر هاتفك من هنا سوى طلب إلى المزوّد الذي اخترته.',
+    useKey: 'استخدم هذا المفتاح',
+    modelLabel: 'النموذج',
+    limitLabel: 'حد الرموز',
+    noLimit: 'بلا حد',
+    usedTokens: 'استُخدم {used} رمزًا',
+    usedOfLimit: 'استُخدم {used} / {limit} رمز',
+    resetUsage: 'إعادة تعيين',
   },
   notifications: {
     title: 'الإشعارات',

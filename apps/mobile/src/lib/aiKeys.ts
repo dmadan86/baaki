@@ -23,6 +23,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+import { emitAiConfigChanged } from '@/lib/aiEvents';
+
 export type AiProviderId = 'openai' | 'anthropic' | 'moonshot';
 
 export interface AiProvider {
@@ -43,6 +45,18 @@ export interface AiProvider {
   validateUrl: string;
   /** How this provider carries the key on a request. */
   authHeaders: (key: string) => Record<string, string>;
+  /**
+   * The models the reader may pick for this provider, cheapest/lightest first.
+   * The first is the default. These are the ids a feature will pass to the
+   * provider; the reader chooses one so the AI work runs on the model they want
+   * to pay for.
+   */
+  models: readonly string[];
+}
+
+/** The default model for a provider — the first it lists. */
+export function defaultAiModel(id: AiProviderId): string {
+  return aiProvider(id).models[0];
 }
 
 /**
@@ -59,6 +73,7 @@ export const AI_PROVIDERS: readonly AiProvider[] = [
     keysUrl: 'https://platform.openai.com/api-keys',
     validateUrl: 'https://api.openai.com/v1/models',
     authHeaders: (key) => ({ Authorization: `Bearer ${key}` }),
+    models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
   },
   {
     id: 'anthropic',
@@ -68,6 +83,7 @@ export const AI_PROVIDERS: readonly AiProvider[] = [
     keysUrl: 'https://console.anthropic.com/settings/keys',
     validateUrl: 'https://api.anthropic.com/v1/models',
     authHeaders: (key) => ({ 'x-api-key': key, 'anthropic-version': '2023-06-01' }),
+    models: ['claude-3-5-haiku-latest', 'claude-3-5-sonnet-latest', 'claude-3-opus-latest'],
   },
   {
     id: 'moonshot',
@@ -77,6 +93,7 @@ export const AI_PROVIDERS: readonly AiProvider[] = [
     keysUrl: 'https://platform.moonshot.ai/console/api-keys',
     validateUrl: 'https://api.moonshot.ai/v1/models',
     authHeaders: (key) => ({ Authorization: `Bearer ${key}` }),
+    models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k', 'kimi-k2-0711-preview'],
   },
 ];
 
@@ -90,26 +107,6 @@ export function aiProvider(id: AiProviderId): AiProvider {
 
 const isWeb = Platform.OS === 'web';
 const storeKey = (id: AiProviderId): string => `baaki.aikey.${id}`;
-
-/**
- * A change to the stored key set — a save or a remove. Whoever is showing the AI
- * access state (see aiAccess) subscribes so it re-reads after any mutation,
- * wherever the mutation was triggered, without the mutating screen having to know
- * who is listening. This is the one shared signal for "the key set changed".
- */
-type AiKeysListener = () => void;
-const aiKeysListeners = new Set<AiKeysListener>();
-
-export function subscribeAiKeys(listener: AiKeysListener): () => void {
-  aiKeysListeners.add(listener);
-  return () => {
-    aiKeysListeners.delete(listener);
-  };
-}
-
-function emitAiKeysChanged(): void {
-  for (const listener of aiKeysListeners) listener();
-}
 
 /** Delete one provider's key without announcing it — the caller emits once. */
 async function deleteAiKey(id: AiProviderId): Promise<void> {
@@ -137,7 +134,7 @@ export async function setAiKey(id: AiProviderId, key: string): Promise<void> {
 /** Forget a provider's key entirely, and announce the change. */
 export async function removeAiKey(id: AiProviderId): Promise<void> {
   await deleteAiKey(id);
-  emitAiKeysChanged();
+  emitAiConfigChanged();
 }
 
 /**
@@ -174,7 +171,7 @@ export async function setActiveAiKey(id: AiProviderId, key: string): Promise<voi
     ),
   );
   // One announcement for the whole swap, after the set and the sweep both land.
-  emitAiKeysChanged();
+  emitAiConfigChanged();
 }
 
 /**

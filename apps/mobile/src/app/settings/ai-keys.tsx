@@ -29,6 +29,7 @@ import {
   Row,
   Screen,
   Text,
+  Toggle,
   useTabBarClearance,
   useTheme,
 } from '@baaki/ui';
@@ -38,14 +39,23 @@ import { useAiAccess } from '@/lib/aiAccess';
 import {
   AI_PROVIDERS,
   aiProvider,
+  defaultAiModel,
   getActiveAiKey,
   getAiKey,
   maskAiKey,
   removeAiKey,
   setActiveAiKey,
   validateAiKey,
+  type AiProvider,
   type AiProviderId,
 } from '@/lib/aiKeys';
+import {
+  getAiSettings,
+  resetAiTokensUsed,
+  setAiEnabled,
+  setAiModel,
+  setAiTokenLimit,
+} from '@/lib/aiSettings';
 
 export default function AiKeysScreen() {
   const theme = useTheme();
@@ -61,9 +71,13 @@ export default function AiKeysScreen() {
       ? { text: t.aiKeys.accessPaid, tone: 'positive' as const }
       : access === 'byok'
         ? { text: t.aiKeys.accessByok, tone: 'positive' as const }
-        : access === 'locked'
-          ? { text: t.aiKeys.accessLocked, tone: 'info' as const }
-          : null;
+        : access === 'paused'
+          ? { text: t.aiKeys.accessPaused, tone: 'warning' as const }
+          : access === 'overlimit'
+            ? { text: t.aiKeys.accessOverlimit, tone: 'warning' as const }
+            : access === 'locked'
+              ? { text: t.aiKeys.accessLocked, tone: 'info' as const }
+              : null;
 
   return (
     <Screen>
@@ -349,6 +363,10 @@ function KeyManager({ t }: { t: UiStrings }) {
         </Text>
       ) : null}
 
+      {/* Settings for the connected key — only meaningful once one is saved for
+          the provider on screen. */}
+      {isActiveSelected && active ? <KeySettings provider={provider} t={t} /> : null}
+
       <Row>
         <Text
           variant="caption"
@@ -360,5 +378,139 @@ function KeyManager({ t }: { t: UiStrings }) {
         </Text>
       </Row>
     </Card>
+  );
+}
+
+/**
+ * The connected key's controls, none of which touch the secret: switch it on or
+ * off, choose the model it runs, cap the tokens it may spend, and see how many
+ * it has spent. Each change writes straight through to {@link getAiSettings} and
+ * announces, so the access line above re-reads without this holding the verdict
+ * itself.
+ */
+function KeySettings({ provider, t }: { provider: AiProvider; t: UiStrings }) {
+  const theme = useTheme();
+
+  const [enabled, setEnabled] = useState(true);
+  // The chosen model id, always one this provider offers — a stale id from a
+  // previous provider is shown as that provider's default instead.
+  const [model, setModel] = useState<string>(defaultAiModel(provider.id));
+  // The limit is edited as text so the field can be emptied to mean "no limit".
+  const [limitText, setLimitText] = useState('');
+  const [used, setUsed] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    void getAiSettings().then((settings) => {
+      if (!alive) return;
+      setEnabled(settings.enabled);
+      setModel(
+        settings.model && provider.models.includes(settings.model)
+          ? settings.model
+          : defaultAiModel(provider.id),
+      );
+      setLimitText(settings.tokenLimit ? String(settings.tokenLimit) : '');
+      setUsed(settings.tokensUsed);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [provider.id, provider.models]);
+
+  const toggleEnabled = (next: boolean): void => {
+    setEnabled(next);
+    void setAiEnabled(next);
+  };
+
+  const chooseModel = (next: string): void => {
+    setModel(next);
+    void setAiModel(next);
+  };
+
+  const commitLimit = (): void => {
+    const parsed = Number.parseInt(limitText.replace(/[^0-9]/g, ''), 10);
+    const next = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    setLimitText(next ? String(next) : '');
+    void setAiTokenLimit(next);
+  };
+
+  const reset = (): void => {
+    setUsed(0);
+    void resetAiTokensUsed();
+  };
+
+  const limit = Number.parseInt(limitText, 10);
+  const usedLine =
+    Number.isFinite(limit) && limit > 0
+      ? t.aiKeys.usedOfLimit
+          .replace('{used}', used.toLocaleString())
+          .replace('{limit}', limit.toLocaleString())
+      : t.aiKeys.usedTokens.replace('{used}', used.toLocaleString());
+
+  return (
+    <View
+      style={{
+        gap: theme.spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: theme.color.border,
+        paddingTop: theme.spacing.md,
+      }}
+    >
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text variant="caption">{t.aiKeys.useKey}</Text>
+        <Toggle
+          value={enabled}
+          onValueChange={toggleEnabled}
+          accessibilityLabel={t.aiKeys.useKey}
+        />
+      </Row>
+
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+          {t.aiKeys.modelLabel.toUpperCase()}
+        </Text>
+        <ChipRow
+          value={model}
+          onChange={chooseModel}
+          options={provider.models.map((id) => ({ value: id, label: id }))}
+        />
+      </View>
+
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+          {t.aiKeys.limitLabel.toUpperCase()}
+        </Text>
+        <TextInput
+          value={limitText}
+          onChangeText={(next) => setLimitText(next.replace(/[^0-9]/g, ''))}
+          onEndEditing={commitLimit}
+          onBlur={commitLimit}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          accessibilityLabel={t.aiKeys.limitLabel}
+          placeholder={t.aiKeys.noLimit}
+          placeholderTextColor={theme.color.textFaint}
+          style={{
+            fontSize: 16,
+            fontWeight: '600',
+            color: theme.color.text,
+            backgroundColor: theme.color.surfaceMuted,
+            borderRadius: theme.radius.md,
+            paddingHorizontal: theme.spacing.lg,
+            paddingVertical: theme.spacing.md,
+          }}
+        />
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text variant="caption" tone="muted">
+            {usedLine}
+          </Text>
+          {used > 0 ? (
+            <Text variant="caption" tone="brand" onPress={reset} accessibilityRole="button">
+              {t.aiKeys.resetUsage}
+            </Text>
+          ) : null}
+        </Row>
+      </View>
+    </View>
   );
 }
