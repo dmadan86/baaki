@@ -35,7 +35,8 @@ import {
 } from '@baaki/ui';
 
 import { useStrings, type UiStrings } from '@/i18n';
-import { useAiAccess } from '@/lib/aiAccess';
+import { useAiAccess, type AiAccess } from '@/lib/aiAccess';
+import { subscribeAiConfig } from '@/lib/aiEvents';
 import {
   AI_PROVIDERS,
   aiProvider,
@@ -109,7 +110,7 @@ export default function AiKeysScreen() {
             there is no separate intro paragraph above it. */}
         {accessLine ? <Callout tone={accessLine.tone}>{accessLine.text}</Callout> : null}
 
-        <KeyManager t={t} />
+        <KeyManager t={t} access={access} />
 
         {/* The one promise that matters: the key does not go to Baaki. */}
         <Callout tone="info">{t.aiKeys.onDevice}</Callout>
@@ -126,7 +127,7 @@ type TestState = null | 'testing' | 'valid' | 'invalid' | 'unreachable';
  * provider — the picker chooses which account to connect, and saving a different
  * one replaces whatever was connected before.
  */
-function KeyManager({ t }: { t: UiStrings }) {
+function KeyManager({ t, access }: { t: UiStrings; access: AiAccess }) {
   const theme = useTheme();
 
   // The one connected provider and its key, held only as a mask for display —
@@ -285,7 +286,12 @@ function KeyManager({ t }: { t: UiStrings }) {
             {provider.family}
           </Text>
         </View>
-        {isActiveSelected ? <Badge label={t.aiKeys.configured} tone="positive" /> : null}
+        {isActiveSelected ? (
+          <Badge
+            label={access === 'paused' ? t.aiKeys.pausedBadge : t.aiKeys.configured}
+            tone={access === 'paused' ? 'neutral' : 'positive'}
+          />
+        ) : null}
       </Row>
 
       {/* The connected key, when the picker is on it: recognisable, never usable.
@@ -401,19 +407,26 @@ function KeySettings({ provider, t }: { provider: AiProvider; t: UiStrings }) {
 
   useEffect(() => {
     let alive = true;
-    void getAiSettings().then((settings) => {
-      if (!alive) return;
-      setEnabled(settings.enabled);
-      setModel(
-        settings.model && provider.models.includes(settings.model)
-          ? settings.model
-          : defaultAiModel(provider.id),
-      );
-      setLimitText(settings.tokenLimit ? String(settings.tokenLimit) : '');
-      setUsed(settings.tokensUsed);
-    });
+    const read = (): void => {
+      void getAiSettings().then((settings) => {
+        if (!alive) return;
+        setEnabled(settings.enabled);
+        setModel(
+          settings.model && provider.models.includes(settings.model)
+            ? settings.model
+            : defaultAiModel(provider.id),
+        );
+        setLimitText(settings.tokenLimit ? String(settings.tokenLimit) : '');
+        setUsed(settings.tokensUsed);
+      });
+    };
+    read();
+    // Re-read when the config changes elsewhere — e.g. replacing the key resets
+    // these settings, and this block stays mounted for the same provider.
+    const unsubscribe = subscribeAiConfig(read);
     return () => {
       alive = false;
+      unsubscribe();
     };
   }, [provider.id, provider.models]);
 

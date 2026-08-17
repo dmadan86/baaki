@@ -24,6 +24,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import { emitAiConfigChanged } from '@/lib/aiEvents';
+import { resetAiSettings } from '@/lib/aiSettings';
 
 export type AiProviderId = 'openai' | 'anthropic' | 'moonshot';
 
@@ -131,9 +132,11 @@ export async function setAiKey(id: AiProviderId, key: string): Promise<void> {
   await SecureStore.setItemAsync(storeKey(id), key.trim());
 }
 
-/** Forget a provider's key entirely, and announce the change. */
+/** Forget a provider's key entirely, and reset its settings and announce. */
 export async function removeAiKey(id: AiProviderId): Promise<void> {
   await deleteAiKey(id);
+  // The settings belonged to that key — clear them so nothing carries to the next.
+  await resetAiSettings();
   emitAiConfigChanged();
 }
 
@@ -170,7 +173,10 @@ export async function setActiveAiKey(id: AiProviderId, key: string): Promise<voi
       deleteAiKey(provider.id),
     ),
   );
-  // One announcement for the whole swap, after the set and the sweep both land.
+  // A newly connected key is a fresh slate — on, no model override, no ceiling,
+  // zero usage — so nothing from a previous key or account carries over.
+  await resetAiSettings();
+  // One announcement for the whole swap, after the set, the sweep and the reset.
   emitAiConfigChanged();
 }
 

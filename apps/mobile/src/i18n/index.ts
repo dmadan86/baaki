@@ -548,6 +548,8 @@ export interface UiStrings {
     storeError: string;
     /** Badge on the one connected provider. */
     configured: string;
+    /** Badge when the connected key is switched off. */
+    pausedBadge: string;
     /** Small-caps label above the provider picker. */
     chooseProvider: string;
     /** The single-key rule, said once near the picker. */
@@ -1794,6 +1796,7 @@ const en: UiStrings = {
     saved: 'Saved',
     storeError: 'Something went wrong on this phone. Try again.',
     configured: 'In use',
+    pausedBadge: 'Paused',
     chooseProvider: 'Provider',
     oneKey: 'One key at a time — saving a new one replaces the last.',
     replaceNote: 'Saving replaces your {provider} key.',
@@ -3111,6 +3114,7 @@ const ta: UiStrings = {
     saved: 'சேமிக்கப்பட்டது',
     storeError: 'இந்த ஃபோனில் ஏதோ தவறு நடந்தது. மீண்டும் முயற்சி செய்.',
     configured: 'பயன்பாட்டில்',
+    pausedBadge: 'இடைநிறுத்தம்',
     chooseProvider: 'வழங்குநர்',
     oneKey: 'ஒரு நேரத்தில் ஒரே விசை — புதியதைச் சேமித்தால் பழையது நீங்கும்.',
     replaceNote: 'சேமித்தால் உங்கள் {provider} விசை மாற்றப்படும்.',
@@ -4461,6 +4465,7 @@ const hi: UiStrings = {
     saved: 'सेव हो गया',
     storeError: 'इस फ़ोन पर कुछ गड़बड़ हो गई। फिर कोशिश करें।',
     configured: 'इस्तेमाल में',
+    pausedBadge: 'रुका हुआ',
     chooseProvider: 'प्रोवाइडर',
     oneKey: 'एक बार में एक ही कुंजी — नई सेव करने पर पिछली हट जाती है।',
     replaceNote: 'सेव करने पर आपकी {provider} कुंजी बदल जाएगी।',
@@ -5803,6 +5808,7 @@ const ar: UiStrings = {
     saved: 'تم الحفظ',
     storeError: 'حدث خطأ ما على هذا الهاتف. أعد المحاولة.',
     configured: 'قيد الاستخدام',
+    pausedBadge: 'متوقّف',
     chooseProvider: 'المزود',
     oneKey: 'مفتاح واحد في كل مرة — حفظ مفتاح جديد يستبدل السابق.',
     replaceNote: 'الحفظ سيستبدل مفتاح {provider} الخاص بك.',

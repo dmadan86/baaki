@@ -105,6 +105,20 @@ export async function resetAiTokensUsed(): Promise<void> {
   await patchAiSettings({ tokensUsed: 0 });
 }
 
+/**
+ * Wipe every setting back to the defaults.
+ *
+ * The settings belong to whatever key is connected, so connecting a different
+ * key — or removing the one there — is a clean slate: a switched-on key, no
+ * model override, no ceiling, and a zeroed counter. Without this a new key on a
+ * different account would inherit the previous account's usage, budget and even
+ * a paused switch. Called from the vault's mutations (see aiKeys).
+ */
+export async function resetAiSettings(): Promise<void> {
+  await AsyncStorage.setItem(STORE_KEY, JSON.stringify(DEFAULTS));
+  emitAiConfigChanged();
+}
+
 /** Whether a ceiling exists and the count has reached it. */
 export function isOverAiLimit(settings: AiSettings): boolean {
   return settings.tokenLimit !== null && settings.tokensUsed >= settings.tokenLimit;
