@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { describeActivity, relativeTime, verbEmoji } from '@/data/activity';
+import { dayHeading, dayKey, describeActivity, relativeTime, verbEmoji } from '@/data/activity';
 import type { ActivityActor, ActivityRow } from '@/data/types';
 
 const RAVI: ActivityActor = {
@@ -233,5 +233,52 @@ describe('how long ago', () => {
     } finally {
       mutable.RelativeTimeFormat = original;
     }
+  });
+});
+
+/**
+ * The day headings over the feed.
+ *
+ * The heading is what makes a long feed skimmable, so the two cases that must
+ * not drift are the boundary ones: something logged just before midnight is
+ * "Yesterday" ten minutes later, not "an hour ago" filed under today, and a
+ * missing `Intl.RelativeTimeFormat` on Hermes degrades the wording rather than
+ * taking the screen down.
+ */
+describe('dayHeading', () => {
+  const now = Date.parse('2026-08-15T12:00:00');
+
+  it('names today and yesterday, capitalized', () => {
+    expect(dayHeading('en', new Date(now - 2 * 3600 * 1000).toISOString(), now)).toBe('Today');
+    expect(dayHeading('en', '2026-08-14T23:50:00', now)).toBe('Yesterday');
+  });
+
+  it('counts calendar days, not elapsed hours', () => {
+    // Ten minutes old, but on the other side of midnight.
+    const justAfterMidnight = Date.parse('2026-08-15T00:10:00');
+    expect(dayHeading('en', '2026-08-14T23:50:00', justAfterMidnight)).toBe('Yesterday');
+  });
+
+  it('uses the weekday inside the week and a date beyond it', () => {
+    expect(dayHeading('en', '2026-08-11T09:00:00', now)).toBe('Tuesday');
+    expect(dayHeading('en', '2026-07-04T09:00:00', now)).toContain('July');
+  });
+
+  it('does not throw when Intl.RelativeTimeFormat is missing (Android Hermes)', () => {
+    const mutable = Intl as unknown as { RelativeTimeFormat?: typeof Intl.RelativeTimeFormat };
+    const original = mutable.RelativeTimeFormat;
+    try {
+      delete mutable.RelativeTimeFormat;
+      const heading = dayHeading('en', new Date(now - 3600 * 1000).toISOString(), now);
+      expect(typeof heading).toBe('string');
+      expect(heading).not.toContain('undefined');
+    } finally {
+      mutable.RelativeTimeFormat = original;
+    }
+  });
+
+  it('keys entries by local calendar day', () => {
+    expect(dayKey('2026-08-15T00:10:00')).toBe(dayKey('2026-08-15T23:50:00'));
+    expect(dayKey('2026-08-14T23:50:00')).not.toBe(dayKey('2026-08-15T00:10:00'));
   });
 });

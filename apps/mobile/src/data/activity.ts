@@ -147,6 +147,57 @@ export function verbEmoji(verb: string): string {
  *
  * `now` is injectable so the two branches are testable without a live clock.
  */
+/**
+ * The heading over a day's worth of entries — "Today", "Yesterday", "Saturday",
+ * then a plain date once the week is out.
+ *
+ * A feed of forty rows each stamped "3 days ago" is a list you have to read to
+ * navigate; the same rows under day headings are a list you can skim. The
+ * wording is `Intl`'s in every locale, and `RelativeTimeFormat` is
+ * feature-detected for the same reason `relativeTime` detects it — Hermes does
+ * not always ship it, and a missing constructor took this screen down once.
+ *
+ * The comparison is in calendar days in the phone's own timezone, not in
+ * elapsed hours: something logged at 23:50 last night is "yesterday" at 00:10,
+ * not "an hour ago" under today's heading.
+ */
+export function dayHeading(locale: string, iso: string, now: number = Date.now()): string {
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+  const when = new Date(parsed);
+  const midnight = (date: Date): number =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const days = Math.round((midnight(new Date(now)) - midnight(when)) / 86_400_000);
+
+  const RTF = Intl.RelativeTimeFormat as typeof Intl.RelativeTimeFormat | undefined;
+  if ((days === 0 || days === 1) && typeof RTF === 'function') {
+    return capitalize(locale, new RTF(locale, { numeric: 'auto' }).format(-days, 'day'));
+  }
+  if (days > 1 && days < 7) {
+    return capitalize(locale, new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(when));
+  }
+  const sameYear = when.getFullYear() === new Date(now).getFullYear();
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  }).format(when);
+}
+
+/** "yesterday" → "Yesterday", in the locale's own casing rules. */
+function capitalize(locale: string, value: string): string {
+  const [first] = Array.from(value);
+  return first ? first.toLocaleUpperCase(locale) + value.slice(first.length) : value;
+}
+
+/** The calendar day an entry belongs to, as a grouping key in local time. */
+export function dayKey(iso: string): string {
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+  const when = new Date(parsed);
+  return `${when.getFullYear()}-${when.getMonth() + 1}-${when.getDate()}`;
+}
+
 export function relativeTime(locale: string, iso: string, now: number = Date.now()): string {
   const parsed = Date.parse(iso);
   if (!Number.isFinite(parsed)) return iso;
