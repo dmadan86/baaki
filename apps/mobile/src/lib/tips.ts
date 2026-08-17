@@ -100,9 +100,7 @@ export function useDashboardTips(t: UiStrings): { tip: Tip | null; dismiss: () =
   );
 
   const tip =
-    !ready || day === null || available.length === 0
-      ? null
-      : available[day % available.length];
+    !ready || day === null || available.length === 0 ? null : available[day % available.length];
 
   const dismiss = useCallback(() => {
     if (!tip) return;

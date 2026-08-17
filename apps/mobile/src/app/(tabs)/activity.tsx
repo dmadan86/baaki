@@ -114,7 +114,11 @@ export default function ActivityScreen() {
               title={t.loadError}
               body={t.loadErrorBody}
               icon={
-                <Ionicons name="cloud-offline-outline" size={iconSize.xxl} color={theme.color.brand} />
+                <Ionicons
+                  name="cloud-offline-outline"
+                  size={iconSize.xxl}
+                  color={theme.color.brand}
+                />
               }
               action={
                 <Button label={t.retry} variant="secondary" onPress={() => activity.refetch()} />
