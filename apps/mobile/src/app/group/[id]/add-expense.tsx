@@ -202,7 +202,12 @@ export default function AddExpenseScreen() {
       setAmount(safeBigInt(draft.amount));
       setDescription(draft.description);
       setSplitKind(draft.splitKind);
-      setPayer(draft.payer ?? myMemberId);
+      // When editing, the payer is fixed on the saved expense and its picker is
+      // hidden — so a stale draft.payer from an earlier edit session must never
+      // override it. New expenses still take the draft's chosen payer.
+      setPayer(
+        editing ? (version?.payers[0]?.member_id ?? myMemberId) : (draft.payer ?? myMemberId),
+      );
       setParticipants(draft.participants);
       setWeights(draft.weights ?? {});
       setPercents(draft.percents ?? {});
@@ -626,7 +631,7 @@ export default function AddExpenseScreen() {
           />
         </View>
 
-        {!editing ? (
+        {!expenseId ? (
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="caption" tone="muted">
               {t.paidBy}
