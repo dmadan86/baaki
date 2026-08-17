@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { aggregatePeopleBalances, type PersonContribution } from '@/data/peopleBalances';
+import {
+  aggregatePeopleBalances,
+  countOthersInGroup,
+  type PersonContribution,
+} from '@/data/peopleBalances';
 
 function contribution(over: Partial<PersonContribution> = {}): PersonContribution {
   return {
@@ -137,5 +141,44 @@ describe('aggregatePeopleBalances', () => {
 
   it('is empty for no contributions', () => {
     expect(aggregatePeopleBalances([])).toEqual([]);
+  });
+});
+
+describe('countOthersInGroup', () => {
+  const me = { profile_id: 'me', left_at: null };
+
+  it('counts everybody in the group but you', () => {
+    expect(countOthersInGroup([me, { profile_id: 'p1', left_at: null }], 'me')).toBe(1);
+  });
+
+  it('counts a ghost, who has no profile of their own', () => {
+    expect(countOthersInGroup([me, { profile_id: null, left_at: null }], 'me')).toBe(1);
+  });
+
+  it('does not count somebody who has left', () => {
+    expect(
+      countOthersInGroup([me, { profile_id: 'p1', left_at: '2026-01-01T00:00:00Z' }], 'me'),
+    ).toBe(0);
+  });
+
+  it('counts nobody in a group you are not in', () => {
+    expect(countOthersInGroup([{ profile_id: 'p1', left_at: null }], 'me')).toBe(0);
+  });
+
+  it('counts nobody in a group you have left, however full it is', () => {
+    expect(
+      countOthersInGroup(
+        [
+          { profile_id: 'me', left_at: '2026-01-01T00:00:00Z' },
+          { profile_id: 'p1', left_at: null },
+          { profile_id: 'p2', left_at: null },
+        ],
+        'me',
+      ),
+    ).toBe(0);
+  });
+
+  it('counts nobody when you are the only member', () => {
+    expect(countOthersInGroup([me], 'me')).toBe(0);
   });
 });

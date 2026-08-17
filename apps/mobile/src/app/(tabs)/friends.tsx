@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Badge,
+  Button,
   Card,
   EmptyState,
   iconSize,
@@ -44,7 +45,7 @@ import {
 } from '@baaki/ui';
 
 import { nudgeToSettle, type PersonBalanceRow } from '@/data/api';
-import { usePeopleBalances } from '@/data/hooks';
+import { useKnownPeopleCount, usePeopleBalances } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
 import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings, type UiStrings } from '@/i18n';
@@ -101,6 +102,9 @@ export default function FriendsScreen() {
   // viewer's own ghost merges pulled into the mirror (A38).
   const people = usePeopleBalances(profile?.id ?? null);
   const rows = people.data;
+  // Nobody yet, or everybody square? Both arrive here as an empty `rows`, and
+  // they want opposite screens — see `EmptyFriends`.
+  const known = useKnownPeopleCount(profile?.id ?? null);
 
   // The merge entry earns its place in the header only once there are two or
   // more guests to merge — for everyone else it would be a control that leads to
@@ -144,6 +148,9 @@ export default function FriendsScreen() {
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
+          // So the empty state can take the room the list is not using and sit
+          // in the middle of it. With a list present this changes nothing.
+          flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -225,7 +232,7 @@ export default function FriendsScreen() {
         {people.isLoading ? (
           <PeopleSkeleton />
         ) : rows.length === 0 ? (
-          <EmptyState title={t.tabs.allSquare} body={t.tabs.allSquareBody} />
+          <EmptyFriends hasPeople={known.data > 0} t={t} />
         ) : (
           <>
             <FriendsSection
@@ -248,6 +255,68 @@ export default function FriendsScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+/**
+ * The screen with nothing on it — which is two screens, not one.
+ *
+ * Somebody who has never added anyone and somebody who has ten friends and is
+ * square with all of them both arrive here with no rows, and they need opposite
+ * things said to them. "All square" is a small congratulation, and showing it to
+ * a person with no friends at all is a category error: they are not square, they
+ * are empty. So the first state names that and offers the two ways out of it,
+ * and the second keeps the congratulation for the people who earned it.
+ *
+ * Both get a mark and a button, because this screen had neither. The Friends
+ * page's only actions were four bare icons in the header, and the old body ended
+ * by telling the reader to "add somebody from your contacts" — an instruction
+ * pointing at an unlabelled glyph in the corner. Every reference we looked at
+ * ends its empty state with a button that does the thing.
+ */
+function EmptyFriends({ hasPeople, t }: { hasPeople: boolean; t: UiStrings }): React.JSX.Element {
+  const theme = useTheme();
+
+  return (
+    <View style={{ flex: 1, justifyContent: 'center' }}>
+      <EmptyState
+        title={hasPeople ? t.tabs.allSquare : t.tabs.noFriends}
+        body={hasPeople ? t.tabs.allSquareBody : t.tabs.noFriendsBody}
+        icon={
+          <Ionicons
+            name={hasPeople ? 'checkmark-done-outline' : 'person-add-outline'}
+            size={iconSize.xxl}
+            color={theme.color.brand}
+          />
+        }
+        action={
+          // Square with everyone is a resting state, not a job half done, so it
+          // gets one quiet way to add the next person rather than a filled
+          // button pushing the reader somewhere they did not ask to go.
+          hasPeople ? (
+            <Button
+              label={t.addPerson.title}
+              variant="secondary"
+              onPress={() => router.push('/friends/add-person' as never)}
+            />
+          ) : (
+            <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+              <Button
+                label={t.tabs.addFromContacts}
+                onPress={() => router.push('/friends/contacts')}
+              />
+              {/* The second way in, for somebody who is not in the address book
+                  — quieter, because contacts is the faster path when it works. */}
+              <Button
+                label={t.addPerson.title}
+                variant="ghost"
+                onPress={() => router.push('/friends/add-person' as never)}
+              />
+            </View>
+          )
+        }
+      />
+    </View>
   );
 }
 
