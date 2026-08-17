@@ -241,6 +241,7 @@ export default function SignInScreen() {
             <View style={{ gap: theme.spacing.md }}>
               <SocialRow
                 busy={busy}
+                wording="continue"
                 onApple={() => void run(withApple)}
                 onGoogle={() => void run(withGoogle)}
                 t={t}
@@ -367,7 +368,7 @@ export default function SignInScreen() {
             <View style={{ gap: theme.spacing.md }}>
               <SocialRow
                 busy={busy}
-                guest={isGuest}
+                wording={isGuest ? 'continue' : 'signIn'}
                 onApple={() => void run(withApple)}
                 onGoogle={() => void run(withGoogle)}
                 t={t}
@@ -530,7 +531,12 @@ export default function SignInScreen() {
                   {/* The eye is not a nicety on this field: the app asks for
                       eight characters, the keyboard is a phone keyboard, and a
                       password typed blind is the most common reason a correct
-                      one is reported wrong. Every reference login has it. */}
+                      one is reported wrong. Every reference login has it.
+
+                      The dots are the placeholder for the same reason: these
+                      fields carry no border, so an empty one with no
+                      placeholder reads as a gap rather than as somewhere to
+                      type. Dots need no translating. */}
                   <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
                     <TextInput
                       value={password}
@@ -539,6 +545,7 @@ export default function SignInScreen() {
                       autoCapitalize="none"
                       autoComplete={intent === 'sign_up' ? 'new-password' : 'current-password'}
                       accessibilityLabel={t.signIn.password}
+                      placeholder="••••••••"
                       placeholderTextColor={theme.color.textFaint}
                       style={{
                         flex: 1,
@@ -620,28 +627,32 @@ export default function SignInScreen() {
  * every well-made sign-in on either store does, and it is the difference
  * between one tap and one tap plus a web view.
  *
- * A guest sees "Continue with", not "Sign in with": they are adding a way back
- * into an account they already have, and "sign in" would suggest they are about
- * to arrive somewhere else — which, if it happened, would strand their groups.
+ * "Sign in with" is reserved for the one screen where it is true: somebody who
+ * tapped "I already have an account". Everywhere else the same button both makes
+ * an account and returns to one, and both Apple's and Google's own guidelines
+ * say to write "Continue with" when it does. It matters here beyond wording — a
+ * guest tapping it is attaching a way back into the groups already on this
+ * phone, and "sign in" would suggest they are about to land somewhere else.
  */
 function SocialRow({
   busy,
-  guest = false,
+  wording,
   onApple,
   onGoogle,
   t,
 }: {
   busy: boolean;
-  guest?: boolean;
+  wording: 'continue' | 'signIn';
   onApple: () => void;
   onGoogle: () => void;
   t: UiStrings;
 }) {
+  const carryOn = wording === 'continue';
   const apple = (
     <SocialButton
       key="apple"
       provider="apple"
-      label={guest ? t.signIn.continueApple : t.signIn.signInApple}
+      label={carryOn ? t.signIn.continueApple : t.signIn.signInApple}
       disabled={busy}
       onPress={onApple}
     />
@@ -650,7 +661,7 @@ function SocialRow({
     <SocialButton
       key="google"
       provider="google"
-      label={guest ? t.signIn.continueGoogle : t.signIn.signInGoogle}
+      label={carryOn ? t.signIn.continueGoogle : t.signIn.signInGoogle}
       disabled={busy}
       onPress={onGoogle}
     />
