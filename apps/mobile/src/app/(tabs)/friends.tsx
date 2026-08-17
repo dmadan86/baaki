@@ -31,7 +31,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Badge,
-  Button,
   Card,
   EmptyState,
   iconSize,
@@ -265,14 +264,13 @@ export default function FriendsScreen() {
  * square with all of them both arrive here with no rows, and they need opposite
  * things said to them. "All square" is a small congratulation, and showing it to
  * a person with no friends at all is a category error: they are not square, they
- * are empty. So the first state names that and offers the two ways out of it,
- * and the second keeps the congratulation for the people who earned it.
+ * are empty. So the first state names that and the second keeps the
+ * congratulation for the people who earned it.
  *
- * Both get a mark and a button, because this screen had neither. The Friends
- * page's only actions were four bare icons in the header, and the old body ended
- * by telling the reader to "add somebody from your contacts" — an instruction
- * pointing at an unlabelled glyph in the corner. Every reference we looked at
- * ends its empty state with a button that does the thing.
+ * No button: the two ways in — add from contacts, add a person — live as icons
+ * in the header, present on this screen and every other Friends state, so the
+ * empty state states the situation and points at them rather than duplicating
+ * them in the middle of the page.
  */
 function EmptyFriends({ hasPeople, t }: { hasPeople: boolean; t: UiStrings }): React.JSX.Element {
   const theme = useTheme();
@@ -288,32 +286,6 @@ function EmptyFriends({ hasPeople, t }: { hasPeople: boolean; t: UiStrings }): R
             size={iconSize.xxl}
             color={theme.color.brand}
           />
-        }
-        action={
-          // Square with everyone is a resting state, not a job half done, so it
-          // gets one quiet way to add the next person rather than a filled
-          // button pushing the reader somewhere they did not ask to go.
-          hasPeople ? (
-            <Button
-              label={t.addPerson.title}
-              variant="secondary"
-              onPress={() => router.push('/friends/add-person' as never)}
-            />
-          ) : (
-            <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-              <Button
-                label={t.tabs.addFromContacts}
-                onPress={() => router.push('/friends/contacts')}
-              />
-              {/* The second way in, for somebody who is not in the address book
-                  — quieter, because contacts is the faster path when it works. */}
-              <Button
-                label={t.addPerson.title}
-                variant="ghost"
-                onPress={() => router.push('/friends/add-person' as never)}
-              />
-            </View>
-          )
         }
       />
     </View>
