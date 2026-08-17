@@ -320,51 +320,6 @@ export default function GroupSettingsScreen() {
           </Card>
         </View>
 
-        <View>
-          <SectionHeader title={t.group.bringThingsIn} />
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            <ListRow
-              title={t.group.importMessages}
-              subtitle={t.group.importMessagesHint}
-              leading={
-                <Ionicons
-                  name="chatbox-ellipses-outline"
-                  size={iconSize.xl}
-                  color={theme.color.textMuted}
-                />
-              }
-              onPress={() => router.push(`/group/${groupId}/import/sms`)}
-              trailing={
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
-                />
-              }
-            />
-            <View style={{ height: 1, backgroundColor: theme.color.border }} />
-            <ListRow
-              title={t.group.importSplitwise}
-              subtitle={t.group.importSplitwiseHint}
-              leading={
-                <Ionicons
-                  name="document-text-outline"
-                  size={iconSize.xl}
-                  color={theme.color.textMuted}
-                />
-              }
-              onPress={() => router.push(`/group/${groupId}/import/csv`)}
-              trailing={
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
-                />
-              }
-            />
-          </Card>
-        </View>
-
         {status ? (
           <Text variant="caption" tone="positive">
             {status}
