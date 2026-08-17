@@ -1,14 +1,15 @@
 /**
  * Bring your own key.
  *
- * A place to paste a model API key — OpenAI, Claude, Kimi — that stays on this
- * phone, encrypted in its keystore, and is used straight from here to the
- * provider you chose. Baaki never receives it. See {@link aiKeys} for how it is
- * held and why.
+ * One place to connect a single model account — OpenAI, Claude, or Kimi. The key
+ * is pasted here, held encrypted in this phone's keystore, and used straight from
+ * here to the provider it belongs to. Baaki never receives it. See {@link aiKeys}
+ * for how it is held and why.
  *
- * Today the screen only stores and proves a key. The features that spend it —
- * reading a receipt, turning a spoken sentence into a split — are built on top
- * of this, next.
+ * Only one key is ever connected: a reader picks the account the AI features run
+ * on, and choosing another replaces it. Today the screen only stores and proves a
+ * key. The features that spend it — reading a receipt, turning a spoken sentence
+ * into a split — are built on top of this, next.
  */
 
 import { useEffect, useState } from 'react';
@@ -21,6 +22,7 @@ import {
   Button,
   Callout,
   Card,
+  ChipRow,
   directionalIcon,
   IconButton,
   iconSize,
@@ -35,12 +37,14 @@ import { useStrings, type UiStrings } from '@/i18n';
 import { useAiAccess } from '@/lib/aiAccess';
 import {
   AI_PROVIDERS,
+  aiProvider,
+  getActiveAiKey,
   getAiKey,
   maskAiKey,
   removeAiKey,
-  setAiKey,
+  setActiveAiKey,
   validateAiKey,
-  type AiProvider,
+  type AiProviderId,
 } from '@/lib/aiKeys';
 
 export default function AiKeysScreen() {
@@ -94,15 +98,11 @@ export default function AiKeysScreen() {
             own key, or off until one of those. */}
         {accessLine ? <Callout tone={accessLine.tone}>{accessLine.text}</Callout> : null}
 
+        <KeyManager t={t} />
+
         {/* The one promise that matters, in the app's canonical "read this"
             shape: the key does not go to Baaki. */}
         <Callout tone="info">{t.aiKeys.onDevice}</Callout>
-
-        <View style={{ gap: theme.spacing.md }}>
-          {AI_PROVIDERS.map((provider) => (
-            <ProviderCard key={provider.id} provider={provider} t={t} />
-          ))}
-        </View>
 
         <Text variant="micro" tone="muted" align="center">
           {t.aiKeys.footnote}
@@ -115,32 +115,51 @@ export default function AiKeysScreen() {
 type TestState = null | 'testing' | 'valid' | 'invalid' | 'unreachable';
 
 /**
- * One provider: its saved key (masked), a field to paste a new one, and the two
- * things worth doing to a credential — prove it, or forget it.
+ * The single connected key: pick a provider, paste its key, prove it or forget
+ * it. Because only one key is ever held, this is one card rather than one per
+ * provider — the picker chooses which account to connect, and saving a different
+ * one replaces whatever was connected before.
  */
-function ProviderCard({ provider, t }: { provider: AiProvider; t: UiStrings }) {
+function KeyManager({ t }: { t: UiStrings }) {
   const theme = useTheme();
 
-  // The stored key, held only as a mask for display — the plaintext is read
-  // from the keystore at the moment it is needed and never parked in state.
-  const [masked, setMasked] = useState<string | null>(null);
+  // The one connected provider and its key, held only as a mask for display —
+  // the plaintext is read from the keystore at the moment it is needed and never
+  // parked in state.
+  const [active, setActive] = useState<{ id: AiProviderId; masked: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Which provider the picker points at. Defaults to the connected one so the
+  // screen opens on the account already in use.
+  const [selectedId, setSelectedId] = useState<AiProviderId>(AI_PROVIDERS[0].id);
   const [draft, setDraft] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [test, setTest] = useState<TestState>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    void getAiKey(provider.id).then((key) => {
-      if (!active) return;
-      setMasked(key ? maskAiKey(key) : null);
+    let alive = true;
+    void getActiveAiKey().then((found) => {
+      if (!alive) return;
+      if (found) {
+        setActive({ id: found.id, masked: maskAiKey(found.key) });
+        setSelectedId(found.id);
+      }
       setLoaded(true);
     });
     return () => {
-      active = false;
+      alive = false;
     };
-  }, [provider.id]);
+  }, []);
+
+  const provider = aiProvider(selectedId);
+  const isActiveSelected = active?.id === selectedId;
+
+  const selectProvider = (id: AiProviderId): void => {
+    setSelectedId(id);
+    setDraft('');
+    setStatus(null);
+    setTest(null);
+  };
 
   const save = async (): Promise<void> => {
     const key = draft.trim();
@@ -149,8 +168,8 @@ function ProviderCard({ provider, t }: { provider: AiProvider; t: UiStrings }) {
     setStatus(null);
     setTest(null);
     try {
-      await setAiKey(provider.id, key);
-      setMasked(maskAiKey(key));
+      await setActiveAiKey(selectedId, key);
+      setActive({ id: selectedId, masked: maskAiKey(key) });
       setDraft('');
       setStatus(t.aiKeys.saved);
     } catch (caught) {
@@ -162,24 +181,27 @@ function ProviderCard({ provider, t }: { provider: AiProvider; t: UiStrings }) {
 
   const runTest = async (): Promise<void> => {
     // Test what is in the field if the reader has typed something; otherwise the
-    // key already saved. So "Test" works both before saving a new key and after.
-    const candidate = draft.trim() || (await getAiKey(provider.id));
+    // connected key, when the picker is on the connected provider. So "Test"
+    // works both before saving a new key and after.
+    const candidate = draft.trim() || (isActiveSelected ? await getAiKey(selectedId) : null);
     if (!candidate) return;
     setTest('testing');
     setStatus(null);
-    const result = await validateAiKey(provider.id, candidate);
+    const result = await validateAiKey(selectedId, candidate);
     setTest(result.ok ? 'valid' : result.reason === 'invalid' ? 'invalid' : 'unreachable');
   };
 
   const confirmRemove = (): void => {
+    if (!active) return;
+    const removeId = active.id;
     Alert.alert(t.aiKeys.removeConfirmTitle, t.aiKeys.removeConfirmBody, [
       { text: t.common.cancel, style: 'cancel' },
       {
         text: t.common.remove,
         style: 'destructive',
         onPress: () => {
-          void removeAiKey(provider.id).then(() => {
-            setMasked(null);
+          void removeAiKey(removeId).then(() => {
+            setActive(null);
             setDraft('');
             setStatus(null);
             setTest(null);
@@ -204,7 +226,21 @@ function ProviderCard({ provider, t }: { provider: AiProvider; t: UiStrings }) {
             : null;
 
   return (
-    <Card style={{ gap: theme.spacing.md }}>
+    <Card style={{ gap: theme.spacing.lg }}>
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+          {t.aiKeys.chooseProvider.toUpperCase()}
+        </Text>
+        <ChipRow
+          value={selectedId}
+          onChange={selectProvider}
+          options={AI_PROVIDERS.map((entry) => ({ value: entry.id, label: entry.label }))}
+        />
+        <Text variant="micro" tone="muted">
+          {t.aiKeys.oneKey}
+        </Text>
+      </View>
+
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text variant="subheading">{provider.label}</Text>
@@ -212,12 +248,19 @@ function ProviderCard({ provider, t }: { provider: AiProvider; t: UiStrings }) {
             {provider.family}
           </Text>
         </View>
-        {masked ? <Badge label={t.aiKeys.configured} tone="positive" /> : null}
+        {isActiveSelected ? <Badge label={t.aiKeys.configured} tone="positive" /> : null}
       </Row>
 
-      {masked ? (
+      {/* The connected key, when the picker is on it: recognisable, never usable.
+          When the picker is on a different provider, a plain note that saving
+          here trades the connected one away — the single-key rule made concrete. */}
+      {isActiveSelected && active ? (
         <Text variant="caption" tone="muted" style={{ fontVariant: ['tabular-nums'] }}>
-          {masked}
+          {active.masked}
+        </Text>
+      ) : active ? (
+        <Text variant="caption" tone="muted">
+          {t.aiKeys.replaceNote.replace('{provider}', aiProvider(active.id).label)}
         </Text>
       ) : null}
 
@@ -257,10 +300,10 @@ function ProviderCard({ provider, t }: { provider: AiProvider; t: UiStrings }) {
           label={test === 'testing' ? t.aiKeys.testing : t.aiKeys.test}
           size="sm"
           variant="secondary"
-          disabled={busy || test === 'testing' || (!masked && draft.trim().length === 0)}
+          disabled={busy || test === 'testing' || (!isActiveSelected && draft.trim().length === 0)}
           onPress={() => void runTest()}
         />
-        {masked ? (
+        {isActiveSelected ? (
           <Button
             label={t.common.remove}
             size="sm"

@@ -544,7 +544,14 @@ export interface UiStrings {
     invalid: string;
     unreachable: string;
     saved: string;
+    /** Badge on the one connected provider. */
     configured: string;
+    /** Small-caps label above the provider picker. */
+    chooseProvider: string;
+    /** The single-key rule, said once near the picker. */
+    oneKey: string;
+    /** Shown when the picked provider is not the connected one; {provider} is the connected one. */
+    replaceNote: string;
     removeConfirmTitle: string;
     removeConfirmBody: string;
     /** The access line: paid, on your own key, or off until one of those. */
@@ -1770,7 +1777,10 @@ const en: UiStrings = {
     invalid: 'That key was rejected',
     unreachable: "Couldn't reach {provider} — try again",
     saved: 'Saved',
-    configured: 'Saved',
+    configured: 'In use',
+    chooseProvider: 'Provider',
+    oneKey: 'One key at a time — saving a new one replaces the last.',
+    replaceNote: 'Saving replaces your {provider} key.',
     removeConfirmTitle: 'Remove this key?',
     removeConfirmBody: 'It is deleted from this phone. You can paste it again any time.',
     accessPaid: "You're on a paid plan — the AI features are on, run on our key.",
@@ -3074,7 +3084,10 @@ const ta: UiStrings = {
     invalid: 'அந்த விசை நிராகரிக்கப்பட்டது',
     unreachable: '{provider}-ஐ அடைய முடியவில்லை — மீண்டும் முயற்சி செய்',
     saved: 'சேமிக்கப்பட்டது',
-    configured: 'சேமிக்கப்பட்டது',
+    configured: 'பயன்பாட்டில்',
+    chooseProvider: 'வழங்குநர்',
+    oneKey: 'ஒரு நேரத்தில் ஒரே விசை — புதியதைச் சேமித்தால் பழையது நீங்கும்.',
+    replaceNote: 'சேமித்தால் உங்கள் {provider} விசை மாற்றப்படும்.',
     removeConfirmTitle: 'இந்த விசையை நீக்கவா?',
     removeConfirmBody:
       'இது இந்த ஃபோனிலிருந்து நீக்கப்படும். எப்போது வேண்டுமானாலும் மீண்டும் ஒட்டலாம்.',
@@ -4412,7 +4425,10 @@ const hi: UiStrings = {
     invalid: 'वह कुंजी अस्वीकार हुई',
     unreachable: '{provider} तक नहीं पहुँच पाए — फिर कोशिश करें',
     saved: 'सेव हो गया',
-    configured: 'सेव है',
+    configured: 'इस्तेमाल में',
+    chooseProvider: 'प्रोवाइडर',
+    oneKey: 'एक बार में एक ही कुंजी — नई सेव करने पर पिछली हट जाती है।',
+    replaceNote: 'सेव करने पर आपकी {provider} कुंजी बदल जाएगी।',
     removeConfirmTitle: 'यह कुंजी हटाएँ?',
     removeConfirmBody: 'यह इस फ़ोन से मिट जाएगी। आप इसे कभी भी फिर से पेस्ट कर सकते हैं।',
     accessPaid: 'आप पेड प्लान पर हैं — AI सुविधाएँ हमारी कुंजी पर चलती हैं।',
@@ -5742,7 +5758,10 @@ const ar: UiStrings = {
     invalid: 'رُفض هذا المفتاح',
     unreachable: 'تعذّر الوصول إلى {provider} — أعد المحاولة',
     saved: 'تم الحفظ',
-    configured: 'محفوظ',
+    configured: 'قيد الاستخدام',
+    chooseProvider: 'المزود',
+    oneKey: 'مفتاح واحد في كل مرة — حفظ مفتاح جديد يستبدل السابق.',
+    replaceNote: 'الحفظ سيستبدل مفتاح {provider} الخاص بك.',
     removeConfirmTitle: 'إزالة هذا المفتاح؟',
     removeConfirmBody: 'يُحذف من هذا الهاتف. يمكنك لصقه مجددًا في أي وقت.',
     accessPaid: 'أنت على خطة مدفوعة — ميزات الذكاء الاصطناعي تعمل على مفتاحنا.',

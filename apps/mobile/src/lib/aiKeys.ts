@@ -115,6 +115,41 @@ export async function removeAiKey(id: AiProviderId): Promise<void> {
 }
 
 /**
+ * The one provider connected right now, with its key — or null.
+ *
+ * Only a single key is ever held (see {@link setActiveAiKey}), so "which
+ * provider is active" is just "which one has a key". This is the read the
+ * feature work does before a model request: it gets both the credential and the
+ * provider whose endpoint and headers to use, in one place.
+ */
+export async function getActiveAiKey(): Promise<{ id: AiProviderId; key: string } | null> {
+  for (const provider of AI_PROVIDERS) {
+    const key = await getAiKey(provider.id);
+    if (key) return { id: provider.id, key };
+  }
+  return null;
+}
+
+/**
+ * Connect one provider, disconnecting any other.
+ *
+ * Baaki keeps a single model key at a time: a reader picks the account they want
+ * the AI features to run on, not a pile of them. Saving a new key therefore
+ * clears every other provider's, so there is exactly one credential on the
+ * device and no ambiguity about which one a feature will spend. The new key is
+ * written first — if that throws nothing else is touched — and only then are the
+ * others removed.
+ */
+export async function setActiveAiKey(id: AiProviderId, key: string): Promise<void> {
+  await setAiKey(id, key);
+  await Promise.all(
+    AI_PROVIDERS.filter((provider) => provider.id !== id).map((provider) =>
+      removeAiKey(provider.id),
+    ),
+  );
+}
+
+/**
  * The providers that currently hold a key on this device. The AI access rule
  * (see aiAccess) asks only "is there any key" — one configured provider is
  * enough to run the model features on the reader's own account.
