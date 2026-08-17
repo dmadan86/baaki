@@ -90,23 +90,15 @@ export default function AiKeysScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        <Text variant="caption" tone="muted">
-          {t.aiKeys.intro}
-        </Text>
-
-        {/* Where the reader stands under the rule: on via a plan, on via their
-            own key, or off until one of those. */}
+        {/* Where the reader stands: on via a plan, on via their own key, or off
+            until one of those. This one line carries the screen's purpose, so
+            there is no separate intro paragraph above it. */}
         {accessLine ? <Callout tone={accessLine.tone}>{accessLine.text}</Callout> : null}
 
         <KeyManager t={t} />
 
-        {/* The one promise that matters, in the app's canonical "read this"
-            shape: the key does not go to Baaki. */}
+        {/* The one promise that matters: the key does not go to Baaki. */}
         <Callout tone="info">{t.aiKeys.onDevice}</Callout>
-
-        <Text variant="micro" tone="muted" align="center">
-          {t.aiKeys.footnote}
-        </Text>
       </ScrollView>
     </Screen>
   );
@@ -270,9 +262,6 @@ function KeyManager({ t }: { t: UiStrings }) {
           onChange={selectProvider}
           options={AI_PROVIDERS.map((entry) => ({ value: entry.id, label: entry.label }))}
         />
-        <Text variant="micro" tone="muted">
-          {t.aiKeys.oneKey}
-        </Text>
       </View>
 
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>

@@ -1769,8 +1769,7 @@ const en: UiStrings = {
     title: 'Bring your own key',
     intro:
       'Add a model key now, ready for the AI features on the way — reading a receipt, turning what you say into an expense with the people and the split — so they run on your account, not ours.',
-    onDevice:
-      'Keys stay on this phone, encrypted in its keystore. They are never sent to Baaki — only straight to the provider you choose.',
+    onDevice: 'Encrypted on this phone. Never sent to Baaki — only to the provider you pick.',
     keyLabel: 'API key',
     getKey: 'Get a key',
     test: 'Test',
@@ -1786,9 +1785,9 @@ const en: UiStrings = {
     replaceNote: 'Saving replaces your {provider} key.',
     removeConfirmTitle: 'Remove this key?',
     removeConfirmBody: 'It is deleted from this phone. You can paste it again any time.',
-    accessPaid: "You're on a paid plan — the AI features will run on our key when they land.",
-    accessByok: 'Your key is set — the AI features will run on your own account.',
-    accessLocked: 'Add a key below, or upgrade, to be ready for the AI features.',
+    accessPaid: 'Paid plan — the AI features will be covered.',
+    accessByok: 'Key set — the AI features will use your account.',
+    accessLocked: 'Add a key, or upgrade, for the AI features.',
     footnote: 'Nothing here leaves your phone except a request to the provider you picked.',
   },
   notifications: {
@@ -3078,7 +3077,7 @@ const ta: UiStrings = {
     intro:
       'இப்போதே ஒரு மாடல் விசையைச் சேர் — வரவிருக்கும் AI அம்சங்களுக்குத் தயாராக: ரசீதைப் படித்தல், நீங்கள் சொல்வதை யார், எப்படிப் பிரிப்பது என்பதுடன் செலவாக மாற்றுதல் — அவை உங்கள் கணக்கில் இயங்கும், எங்களுடையதில் அல்ல.',
     onDevice:
-      'விசைகள் இந்த ஃபோனிலேயே, அதன் கீஸ்டோரில் மறையாக்கம் செய்யப்பட்டு இருக்கும். பாக்கிக்கு ஒருபோதும் அனுப்பப்படாது — நீங்கள் தேர்ந்தெடுத்த வழங்குநருக்கு நேரடியாக மட்டுமே.',
+      'இந்த ஃபோனில் மறையாக்கம். பாக்கிக்கு அனுப்பப்படாது — நீங்கள் தேர்ந்த வழங்குநருக்கு மட்டுமே.',
     keyLabel: 'API விசை',
     getKey: 'ஒரு விசையைப் பெறு',
     test: 'சோதி',
@@ -3095,10 +3094,9 @@ const ta: UiStrings = {
     removeConfirmTitle: 'இந்த விசையை நீக்கவா?',
     removeConfirmBody:
       'இது இந்த ஃபோனிலிருந்து நீக்கப்படும். எப்போது வேண்டுமானாலும் மீண்டும் ஒட்டலாம்.',
-    accessPaid:
-      'நீங்கள் கட்டண திட்டத்தில் இருக்கிறீர்கள் — AI அம்சங்கள் வரும்போது எங்கள் விசையில் இயங்கும்.',
-    accessByok: 'உங்கள் விசை அமைக்கப்பட்டுள்ளது — AI அம்சங்கள் உங்கள் சொந்த கணக்கில் இயங்கும்.',
-    accessLocked: 'கீழே ஒரு விசையைச் சேர், அல்லது மேம்படுத்து, AI அம்சங்களுக்குத் தயாராக இரு.',
+    accessPaid: 'கட்டண திட்டம் — AI அம்சங்கள் உள்ளடக்கப்படும்.',
+    accessByok: 'விசை அமைக்கப்பட்டது — AI அம்சங்கள் உங்கள் கணக்கைப் பயன்படுத்தும்.',
+    accessLocked: 'ஒரு விசையைச் சேர், அல்லது மேம்படுத்து, AI அம்சங்களுக்கு.',
     footnote:
       'நீங்கள் தேர்ந்தெடுத்த வழங்குநருக்கான கோரிக்கையைத் தவிர இங்கிருந்து எதுவும் வெளியேறாது.',
   },
@@ -4420,7 +4418,7 @@ const hi: UiStrings = {
     intro:
       'अभी एक मॉडल कुंजी जोड़ें — आने वाली AI सुविधाओं के लिए तैयार: रसीद पढ़ना, आप जो कहें उसे लोगों और बँटवारे के साथ खर्च में बदलना — ताकि वे आपके खाते पर चलें, हमारे नहीं।',
     onDevice:
-      'कुंजियाँ इसी फ़ोन में, इसके कीस्टोर में एन्क्रिप्ट रहती हैं। ये बाकी को कभी नहीं भेजी जातीं — सिर्फ़ आपके चुने प्रदाता को सीधे।',
+      'इसी फ़ोन में एन्क्रिप्टेड। बाकी को कभी नहीं भेजी जाती — सिर्फ़ आपके चुने प्रदाता को।',
     keyLabel: 'API कुंजी',
     getKey: 'कुंजी पाएँ',
     test: 'जाँचें',
@@ -4436,9 +4434,9 @@ const hi: UiStrings = {
     replaceNote: 'सेव करने पर आपकी {provider} कुंजी बदल जाएगी।',
     removeConfirmTitle: 'यह कुंजी हटाएँ?',
     removeConfirmBody: 'यह इस फ़ोन से मिट जाएगी। आप इसे कभी भी फिर से पेस्ट कर सकते हैं।',
-    accessPaid: 'आप पेड प्लान पर हैं — AI सुविधाएँ आने पर हमारी कुंजी पर चलेंगी।',
-    accessByok: 'आपकी कुंजी सेट है — AI सुविधाएँ आपके अपने खाते पर चलेंगी।',
-    accessLocked: 'नीचे एक कुंजी जोड़ें, या अपग्रेड करें, AI सुविधाओं के लिए तैयार रहने को।',
+    accessPaid: 'पेड प्लान — AI सुविधाएँ कवर रहेंगी।',
+    accessByok: 'कुंजी सेट — AI सुविधाएँ आपके खाते का उपयोग करेंगी।',
+    accessLocked: 'एक कुंजी जोड़ें, या अपग्रेड करें, AI सुविधाओं के लिए।',
     footnote: 'आपके चुने प्रदाता को भेजे अनुरोध के अलावा यहाँ से कुछ भी बाहर नहीं जाता।',
   },
   notifications: {
@@ -5753,8 +5751,7 @@ const ar: UiStrings = {
     title: 'أحضر مفتاحك الخاص',
     intro:
       'أضف مفتاح نموذج الآن، جاهزًا لميزات الذكاء الاصطناعي القادمة — قراءة الإيصال وتحويل ما تقوله إلى مصروف مع الأشخاص وطريقة التقسيم — لتعمل على حسابك أنت، لا حسابنا.',
-    onDevice:
-      'تبقى المفاتيح على هذا الهاتف، مشفّرة في مخزن مفاتيحه. لا تُرسَل إلى باقي أبدًا — فقط مباشرةً إلى المزوّد الذي تختاره.',
+    onDevice: 'مشفّر على هذا الهاتف. لا يُرسَل إلى باقي أبدًا — فقط إلى المزوّد الذي تختاره.',
     keyLabel: 'مفتاح API',
     getKey: 'احصل على مفتاح',
     test: 'اختبر',
@@ -5770,9 +5767,9 @@ const ar: UiStrings = {
     replaceNote: 'الحفظ سيستبدل مفتاح {provider} الخاص بك.',
     removeConfirmTitle: 'إزالة هذا المفتاح؟',
     removeConfirmBody: 'يُحذف من هذا الهاتف. يمكنك لصقه مجددًا في أي وقت.',
-    accessPaid: 'أنت على خطة مدفوعة — ستعمل ميزات الذكاء الاصطناعي على مفتاحنا عند وصولها.',
-    accessByok: 'مفتاحك مضبوط — ستعمل ميزات الذكاء الاصطناعي على حسابك أنت.',
-    accessLocked: 'أضف مفتاحًا أدناه، أو قم بالترقية، لتكون جاهزًا لميزات الذكاء الاصطناعي.',
+    accessPaid: 'خطة مدفوعة — ميزات الذكاء الاصطناعي مشمولة.',
+    accessByok: 'المفتاح مضبوط — ستستخدم ميزات الذكاء الاصطناعي حسابك.',
+    accessLocked: 'أضف مفتاحًا، أو قم بالترقية، لميزات الذكاء الاصطناعي.',
     footnote: 'لا شيء يغادر هاتفك من هنا سوى طلب إلى المزوّد الذي اخترته.',
   },
   notifications: {
