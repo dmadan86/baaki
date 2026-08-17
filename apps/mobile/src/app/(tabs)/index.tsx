@@ -27,6 +27,7 @@ import { useMotion } from '@/lib/motion';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
+import { useDashboardTips, type Tip } from '@/lib/tips';
 import { SyncBanner } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
@@ -51,6 +52,7 @@ export default function HomeScreen() {
   const summary = useHomeSummary(profile?.id ?? null);
   const captures = useCaptures();
   const guard = useGuestGuard();
+  const tips = useDashboardTips(t);
 
   // Captures waiting in the personal inbox (A34) — surfaced as a card and a
   // badged header entry so a caught expense is not forgotten before it lands in
@@ -274,6 +276,10 @@ export default function HomeScreen() {
           />
         )}
 
+        {/* One rotating, dismissible hint — a light way to teach the app's less
+            obvious moves without another shelf of cards. */}
+        {tips.tip ? <TipCard tip={tips.tip} t={t} onDismiss={tips.dismiss} /> : null}
+
         {loading ? (
           <SkeletonList rows={3} />
         ) : list.length === 0 ? (
@@ -475,6 +481,70 @@ function GuestPrompt({
         ) : null}
       </Card>
     </Pressable>
+  );
+}
+
+/**
+ * The dashboard tip card — a compact, dismissible hint in the lean house style:
+ * an icon chip, a small "TIP" kicker over a one-line title, a line of body, and
+ * a close. When the tip has a next step the whole card taps through to it (the
+ * chevron says so); otherwise it is a plain aside. The close retires this tip for
+ * good; the deck of tips rotates by the day (see `useDashboardTips`).
+ */
+function TipCard({ tip, t, onDismiss }: { tip: Tip; t: UiStrings; onDismiss: () => void }) {
+  const theme = useTheme();
+  const body = (
+    <Card style={{ gap: 0 }}>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.brandSoft,
+          }}
+        >
+          <Ionicons name={tip.icon} size={iconSize.lg} color={theme.color.brand} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text variant="micro" tone="brand" style={{ letterSpacing: 0.6 }}>
+            {t.tips.label.toUpperCase()}
+          </Text>
+          <Text variant="subheading" numberOfLines={1}>
+            {tip.title}
+          </Text>
+          <Text variant="caption" tone="muted" numberOfLines={2}>
+            {tip.body}
+          </Text>
+        </View>
+        {tip.route ? (
+          <Ionicons name="chevron-forward" size={iconSize.base} color={theme.color.brand} />
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.common.close}
+          onPress={onDismiss}
+          hitSlop={10}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+        >
+          <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+        </Pressable>
+      </Row>
+    </Card>
+  );
+  return tip.route ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={tip.title}
+      onPress={() => router.push(tip.route as never)}
+      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+    >
+      {body}
+    </Pressable>
+  ) : (
+    body
   );
 }
 
