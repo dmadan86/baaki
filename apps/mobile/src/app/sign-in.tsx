@@ -1,10 +1,11 @@
 /**
  * Getting in.
  *
- * Four ways, ordered by how little they ask for: carry on as a guest, a code
- * to a phone, a password, Google. ADR-006 is that nobody is made to register
- * before they can split a bill, so the guest button is not tucked away at the
- * bottom in small type.
+ * Five ways: Apple, Google, a code to a phone, an email and a password, or
+ * nothing at all. They are ordered by how quickly they end — the two providers
+ * first, because they are one tap and no typing, then email, then the guest
+ * way. ADR-006 is that nobody is made to register before they can split a bill,
+ * so the guest button is not tucked away at the bottom in small type.
  *
  * Which Supabase call each of these makes is decided in @baaki/core, not here.
  * A guest who taps "Google" must have Google *added* to the account they
@@ -21,7 +22,7 @@
  * settings row they cannot read, is a door that only opens from the inside.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
@@ -54,7 +55,8 @@ import { dialingCodeForCountry } from '@baaki/core';
 import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
-import { deviceCountry, useStrings } from '@/i18n';
+import { SocialButton } from '@/components/SocialButton';
+import { deviceCountry, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
 
@@ -127,6 +129,7 @@ export default function SignInScreen() {
   const [stage, setStage] = useState<'phone' | 'code'>('phone');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordShown, setPasswordShown] = useState(false);
   const [intent, setIntent] = useState<'sign_in' | 'sign_up'>('sign_in');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,10 +165,15 @@ export default function SignInScreen() {
 
   /**
    * The welcome: the wordmark on a coloured sweep, the language in the corner,
-   * and the three ways in — sign in, sign up, or carry on as a guest — with the
-   * social marks under them. ADR-006 says nobody registers before they can split
-   * a bill, so the guest way stays on this first screen rather than behind a
-   * form; it is only quieter than the two account buttons, not hidden.
+   * and the ways in beneath — the two providers first as full-width branded
+   * rows, then a hairline, then email, guest, and a line for somebody who
+   * already has an account.
+   *
+   * The providers moved above the fold and grew labels because a mark alone
+   * does not say which account it would use, and the order they arrive in is
+   * the platform's, not ours (see `SocialRow`). ADR-006 says nobody registers
+   * before they can split a bill, so the guest way stays on this first screen
+   * rather than behind a form; it is quieter than the email button, not hidden.
    */
   if (!showOptions) {
     return (
@@ -225,24 +233,39 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ gap: theme.spacing.xl }}>
+            {/* The fastest way in goes first. Somebody who has a Google or an
+                Apple account is one tap from being signed in, and every app
+                that does this well puts that tap above the form rather than
+                under it — the account buttons below are for the people those
+                two do not cover, not the other way round. */}
+            <View style={{ gap: theme.spacing.md }}>
+              <SocialRow
+                busy={busy}
+                onApple={() => void run(withApple)}
+                onGoogle={() => void run(withGoogle)}
+                t={t}
+              />
+            </View>
+
+            {/* A hairline either side of the label, not bare text — the seam
+                between "one tap" above and "an email and a password" below. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+              <Text variant="caption" tone="muted">
+                {t.signIn.or}
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+            </View>
+
             <View style={{ gap: theme.spacing.sm }}>
               <Button
-                label={t.signIn.signInAction}
+                label={t.signIn.continueEmail}
                 size="lg"
                 fullWidth
                 disabled={busy}
-                onPress={() => {
-                  setIntent('sign_in');
-                  setMode(Mode.Password);
-                  setShowOptions(true);
-                }}
-              />
-              <Button
-                label={t.signIn.createAccount}
-                variant="secondary"
-                size="lg"
-                fullWidth
-                disabled={busy}
+                icon={
+                  <Ionicons name="mail-outline" size={iconSize.md} color={theme.color.onBrand} />
+                }
                 onPress={() => {
                   setIntent('sign_up');
                   setMode(Mode.Password);
@@ -251,49 +274,28 @@ export default function SignInScreen() {
               />
               {/* ADR-006: nobody is made to register before splitting a bill, so
                   the guest way in stays on the first screen — quieter than the
-                  two account buttons, never hidden. */}
+                  account buttons, never hidden. */}
               <Button
                 label={t.signIn.continueGuest}
-                variant="ghost"
+                variant="secondary"
+                size="lg"
                 fullWidth
                 disabled={busy}
                 onPress={() => void run(continueAsGuest)}
               />
-            </View>
-
-            {/* A hairline either side of the label, not bare text — the seam
-                between "have an account" above and "one tap" below. */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-              <Text variant="caption" tone="muted">
-                {t.signIn.orSignInWith}
-              </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-            </View>
-
-            {/* The social marks up front, one tap in without a form — the same
-                providers the options screen offers. */}
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: theme.spacing.xl,
-              }}
-            >
-              <ProviderTile
-                label={t.signIn.signInApple}
+              {/* Coming back is a different errand from starting, and it is the
+                  rarer one on this screen: a line, not a third block. */}
+              <Button
+                label={t.signIn.haveAccount}
+                variant="ghost"
+                fullWidth
                 disabled={busy}
-                onPress={() => void run(withApple)}
-              >
-                <Ionicons name="logo-apple" size={iconSize.xxxl} color={theme.color.text} />
-              </ProviderTile>
-              <ProviderTile
-                label={t.signIn.signInGoogle}
-                disabled={busy}
-                onPress={() => void run(withGoogle)}
-              >
-                <Ionicons name="logo-google" size={iconSize.xxxl} color={theme.color.text} />
-              </ProviderTile>
+                onPress={() => {
+                  setIntent('sign_in');
+                  setMode(Mode.Password);
+                  setShowOptions(true);
+                }}
+              />
             </View>
 
             {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
@@ -358,6 +360,27 @@ export default function SignInScreen() {
                 here without passing the welcome, so this is their only sight of
                 the chips before they are asked to read a form. */}
             <LanguagePicker />
+
+            {/* The providers sit above the form here too. They were a row of
+                small squares under it, which put the one-tap way in below a
+                keyboard on every phone. */}
+            <View style={{ gap: theme.spacing.md }}>
+              <SocialRow
+                busy={busy}
+                guest={isGuest}
+                onApple={() => void run(withApple)}
+                onGoogle={() => void run(withGoogle)}
+                t={t}
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+              <Text variant="caption" tone="muted">
+                {t.signIn.or}
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+            </View>
 
             <Card style={{ gap: theme.spacing.lg }}>
               {/* Two ways in, named for what they ask for. The password face
@@ -504,21 +527,43 @@ export default function SignInScreen() {
                   <Text variant="caption" tone="muted">
                     {t.signIn.password}
                   </Text>
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoComplete={intent === 'sign_up' ? 'new-password' : 'current-password'}
-                    accessibilityLabel={t.signIn.password}
-                    placeholderTextColor={theme.color.textFaint}
-                    style={{
-                      fontSize: 18,
-                      fontWeight: '500',
-                      color: theme.color.text,
-                      paddingVertical: theme.spacing.sm,
-                    }}
-                  />
+                  {/* The eye is not a nicety on this field: the app asks for
+                      eight characters, the keyboard is a phone keyboard, and a
+                      password typed blind is the most common reason a correct
+                      one is reported wrong. Every reference login has it. */}
+                  <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                    <TextInput
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!passwordShown}
+                      autoCapitalize="none"
+                      autoComplete={intent === 'sign_up' ? 'new-password' : 'current-password'}
+                      accessibilityLabel={t.signIn.password}
+                      placeholderTextColor={theme.color.textFaint}
+                      style={{
+                        flex: 1,
+                        fontSize: 18,
+                        fontWeight: '500',
+                        color: theme.color.text,
+                        paddingVertical: theme.spacing.sm,
+                      }}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        passwordShown ? t.signIn.hidePassword : t.signIn.showPassword
+                      }
+                      onPress={() => setPasswordShown((shown) => !shown)}
+                      hitSlop={12}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                    >
+                      <Ionicons
+                        name={passwordShown ? 'eye-off-outline' : 'eye-outline'}
+                        size={iconSize.lg}
+                        color={theme.color.textMuted}
+                      />
+                    </Pressable>
+                  </Row>
                   <Text variant="micro" tone="muted">
                     {t.signIn.passwordHint}
                   </Text>
@@ -541,43 +586,6 @@ export default function SignInScreen() {
               {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
               {error ? <Callout tone="negative">{error}</Callout> : null}
             </Card>
-
-            {/* Icon-only tiles rather than two stacked full-width buttons: the
-                provider is a small choice next to the account above, and a row
-                of marks reads as "one of these" in a glance where a stack of
-                labelled bars reads as two more things to do.
-
-                Apple's mark is a custom tile here, not its native button. The
-                native sheet is still what opens — `withApple` calls it directly
-                (see auth.tsx), the widget was only ever the surface — so on an
-                iPhone this tile brings up the same system sign-in. */}
-            <View style={{ gap: theme.spacing.md }}>
-              <Text variant="caption" tone="muted" align="center">
-                {t.signIn.orSignInWith}
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  gap: theme.spacing.lg,
-                }}
-              >
-                <ProviderTile
-                  label={isGuest ? t.signIn.continueApple : t.signIn.signInApple}
-                  disabled={busy}
-                  onPress={() => void run(withApple)}
-                >
-                  <Ionicons name="logo-apple" size={iconSize.xxxl} color={theme.color.text} />
-                </ProviderTile>
-                <ProviderTile
-                  label={isGuest ? t.signIn.continueGoogle : t.signIn.signInGoogle}
-                  disabled={busy}
-                  onPress={() => void run(withGoogle)}
-                >
-                  <Ionicons name="logo-google" size={iconSize.xxxl} color={theme.color.text} />
-                </ProviderTile>
-              </View>
-            </View>
 
             {/* ADR-006: nobody is forced to register before they can use Baaki.
               Still here, one step back from the welcome, for somebody who came
@@ -604,44 +612,48 @@ export default function SignInScreen() {
 }
 
 /**
- * A square, icon-only social button — one mark in the row under "or sign in
- * with". Icon-only, so it carries the provider's name as its accessibility
- * label; a screen reader hears "Sign in with Google", not "button".
+ * The two providers, stacked, in the order this platform expects.
+ *
+ * Apple leads on iOS and Google on Android — not a style choice: on an iPhone
+ * the Apple sheet is the one that needs no browser and no typing, and on
+ * Android it is Google's. Putting the home platform's own account first is what
+ * every well-made sign-in on either store does, and it is the difference
+ * between one tap and one tap plus a web view.
+ *
+ * A guest sees "Continue with", not "Sign in with": they are adding a way back
+ * into an account they already have, and "sign in" would suggest they are about
+ * to arrive somewhere else — which, if it happened, would strand their groups.
  */
-function ProviderTile({
-  label,
-  disabled,
-  onPress,
-  children,
+function SocialRow({
+  busy,
+  guest = false,
+  onApple,
+  onGoogle,
+  t,
 }: {
-  label: string;
-  disabled?: boolean;
-  onPress: () => void;
-  children: ReactNode;
+  busy: boolean;
+  guest?: boolean;
+  onApple: () => void;
+  onGoogle: () => void;
+  t: UiStrings;
 }) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: Boolean(disabled) }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        width: 96,
-        height: 60,
-        borderRadius: theme.radius.lg,
-        borderWidth: 1,
-        borderColor: theme.color.border,
-        backgroundColor: theme.color.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: disabled ? 0.5 : 1,
-        transform: [{ scale: pressed ? 0.97 : 1 }],
-        ...theme.shadow.soft,
-      })}
-    >
-      {children}
-    </Pressable>
+  const apple = (
+    <SocialButton
+      key="apple"
+      provider="apple"
+      label={guest ? t.signIn.continueApple : t.signIn.signInApple}
+      disabled={busy}
+      onPress={onApple}
+    />
   );
+  const google = (
+    <SocialButton
+      key="google"
+      provider="google"
+      label={guest ? t.signIn.continueGoogle : t.signIn.signInGoogle}
+      disabled={busy}
+      onPress={onGoogle}
+    />
+  );
+  return <>{Platform.OS === 'ios' ? [apple, google] : [google, apple]}</>;
 }

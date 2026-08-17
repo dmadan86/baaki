@@ -630,6 +630,14 @@ export interface UiStrings {
     continueApple: string;
     signInApple: string;
     orSignInWith: string;
+    /** The word on the hairline between the provider buttons and the form. */
+    or: string;
+    /** The email path, named beside "Continue with Apple/Google" so the three
+     *  ways in read as one list rather than a list and an exception. */
+    continueEmail: string;
+    /** Spoken labels for the reveal toggle on the password field. */
+    showPassword: string;
+    hidePassword: string;
     continueGuest: string;
     guestFootnote: string;
     memberFootnote: string;
@@ -1822,6 +1830,10 @@ const en: UiStrings = {
     continueApple: 'Continue with Apple',
     signInApple: 'Sign in with Apple',
     orSignInWith: 'or sign in with',
+    or: 'or',
+    continueEmail: 'Continue with email',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     continueGuest: 'Continue as guest',
     guestFootnote:
       'Everything you have already added stays exactly where it is. This only adds a way to sign back in.',
@@ -3098,6 +3110,10 @@ const ta: UiStrings = {
     continueApple: 'Apple மூலம் தொடர்',
     signInApple: 'Apple மூலம் உள்நுழை',
     orSignInWith: 'அல்லது இதன் மூலம் உள்நுழை',
+    or: 'அல்லது',
+    continueEmail: 'மின்னஞ்சலில் தொடர்க',
+    showPassword: 'கடவுச்சொல்லைக் காட்டு',
+    hidePassword: 'கடவுச்சொல்லை மறை',
     continueGuest: 'விருந்தினராகத் தொடர்',
     guestFootnote:
       'நீங்கள் ஏற்கனவே சேர்த்த அனைத்தும் அப்படியே இருக்கும். இது மீண்டும் உள்நுழைய ஒரு வழியை மட்டுமே சேர்க்கிறது.',
@@ -4394,6 +4410,10 @@ const hi: UiStrings = {
     continueApple: 'Apple से जारी रखें',
     signInApple: 'Apple से साइन इन करें',
     orSignInWith: 'या इसके ज़रिए साइन इन करें',
+    or: 'या',
+    continueEmail: 'ईमेल से जारी रखें',
+    showPassword: 'पासवर्ड दिखाएँ',
+    hidePassword: 'पासवर्ड छिपाएँ',
     continueGuest: 'मेहमान के तौर पर जारी रखें',
     guestFootnote:
       'आपने जो जोड़ा है वह जहाँ है वहीं रहेगा। इससे सिर्फ़ दोबारा साइन इन करने का रास्ता जुड़ता है।',
@@ -5688,6 +5708,10 @@ const ar: UiStrings = {
     continueApple: 'المتابعة عبر Apple',
     signInApple: 'تسجيل الدخول عبر Apple',
     orSignInWith: 'أو سجّل الدخول عبر',
+    or: 'أو',
+    continueEmail: 'المتابعة بالبريد الإلكتروني',
+    showPassword: 'إظهار كلمة المرور',
+    hidePassword: 'إخفاء كلمة المرور',
     continueGuest: 'المتابعة كضيف',
     guestFootnote: 'كل ما أضفته يبقى كما هو تمامًا. هذا يضيف فقط طريقة للعودة وتسجيل الدخول.',
     memberFootnote:
