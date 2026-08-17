@@ -687,6 +687,7 @@ export async function updateGroup(
   groupId: string,
   patch: Partial<{
     name: string | null;
+    type: GroupType;
     cover_emoji: string | null;
     photo_path: string | null;
     simplify_debts: boolean;

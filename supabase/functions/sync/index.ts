@@ -91,6 +91,7 @@ interface MutationEnvelope {
 /** Columns a member is allowed to set via `group.update` (mirrors client `updateGroup`). */
 const GROUP_UPDATABLE_FIELDS = [
   'name',
+  'type',
   'cover_emoji',
   'photo_path',
   'simplify_debts',

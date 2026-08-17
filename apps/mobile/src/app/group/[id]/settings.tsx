@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -7,6 +7,7 @@ import { Alert, ScrollView, TextInput, View } from 'react-native';
 import {
   Button,
   Card,
+  ChipRow,
   directionalIcon,
   EmptyState,
   IconButton,
@@ -32,7 +33,14 @@ import { canUploadGroupPhoto, removeGroupPhoto, uploadGroupPhoto } from '@/data/
 import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { groupLabel } from '@/data/types';
+import { groupLabel, GroupType } from '@/data/types';
+
+// Same chip icons the create screen wears, so changing a group's kind looks
+// like the same control that first set it.
+const iconFor =
+  (name: keyof typeof Ionicons.glyphMap) =>
+  // eslint-disable-next-line react/display-name
+  (color: string): ReactNode => <Ionicons name={name} size={iconSize.base} color={color} />;
 
 export default function GroupSettingsScreen() {
   const theme = useTheme();
@@ -249,6 +257,27 @@ export default function GroupSettingsScreen() {
             </Text>
           ) : null}
         </Card>
+
+        {/* The kind of group. Only changes the label, cover default and trip
+            affordances — nothing already recorded moves. */}
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="caption" tone="muted">
+            {t.extras.whatKindOfGroup}
+          </Text>
+          <ChipRow<GroupType>
+            value={group.data.type}
+            onChange={(type) =>
+              updateGroup.mutate({ type }, { onSuccess: () => setStatus(t.account.saved) })
+            }
+            options={[
+              { value: GroupType.Trip, label: t.extras.typeTrip, icon: iconFor('airplane') },
+              { value: GroupType.Home, label: t.extras.typeHome, icon: iconFor('home') },
+              { value: GroupType.Couple, label: t.extras.typeCouple, icon: iconFor('heart') },
+              { value: GroupType.Event, label: t.extras.typeEvent, icon: iconFor('sparkles') },
+              { value: GroupType.Other, label: t.extras.typeOther, icon: iconFor('people') },
+            ]}
+          />
+        </View>
 
         {/* Decides which payment rails the settle screen offers, and what a new
             expense starts in. Nothing already recorded changes. */}
