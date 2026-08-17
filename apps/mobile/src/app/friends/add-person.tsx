@@ -334,18 +334,21 @@ export default function AddPersonScreen() {
           <Text variant="caption" tone="muted">
             {t.addPerson.noteLabel}
           </Text>
-          <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+          <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
             <TextInput
               value={note}
               onChangeText={setNote}
               accessibilityLabel={t.addPerson.noteLabel}
               placeholder={t.addPerson.notePlaceholder}
               placeholderTextColor={theme.color.textFaint}
+              multiline
+              textAlignVertical="top"
               style={{
                 flex: 1,
                 fontSize: 16,
                 color: theme.color.text,
                 paddingVertical: theme.spacing.sm,
+                minHeight: 44,
               }}
             />
             {/* Speak the note instead of typing it — the same mic the expense
