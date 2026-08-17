@@ -40,6 +40,7 @@ import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { handoverKey } from '@/lib/handover';
+import { resolveDraftCurrency, resolveDraftFx } from '@/lib/expenseDraft';
 import { captureReceipt } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
 import {
@@ -58,10 +59,14 @@ interface ExpenseDraft {
   description: string;
   splitKind: SplitKind;
   payer: MemberId | null;
-  /** The currency this expense was paid in, when it differs from the group's. */
-  currency: string | null;
+  /**
+   * The currency this expense was paid in, when it differs from the group's.
+   * Optional: drafts written before this field existed omit it, which is not
+   * the same as an explicit null — see resolveDraftCurrency.
+   */
+  currency?: string | null;
   /** The stored conversion rate for a foreign-currency expense (ADR-003). */
-  fx: FxRecord | null;
+  fx?: FxRecord | null;
   participants: MemberId[];
   /** Kept apart, because a weight of 1 is not one percent. */
   weights: SplitEntries;
@@ -212,8 +217,8 @@ export default function AddExpenseScreen() {
       setPayer(
         editing ? (version?.payers[0]?.member_id ?? myMemberId) : (draft.payer ?? myMemberId),
       );
-      setExpenseCurrency(draft.currency ?? null);
-      setFx(draft.fx ?? null);
+      setExpenseCurrency(resolveDraftCurrency(draft.currency, version?.currency ?? null));
+      setFx(resolveDraftFx(draft.fx));
       setParticipants(draft.participants);
       setWeights(draft.weights ?? {});
       setPercents(draft.percents ?? {});
