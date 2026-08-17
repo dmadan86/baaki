@@ -429,6 +429,7 @@ function AuthGate() {
         <Stack.Screen name="settings/delete-account" />
         <Stack.Screen name="join" />
         <Stack.Screen name="inbox" />
+        <Stack.Screen name="voice" options={modal} />
       </Stack>
       {/* One bar over the whole stack, so every screen keeps it — it hides
           itself on the modals and the camera. */}

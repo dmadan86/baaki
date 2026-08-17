@@ -75,5 +75,20 @@ export function AppTabBar() {
     }
   };
 
-  return <PillTabBar items={items} activeKey={activeKey} onSelect={go} animated={animated} />;
+  // The raised mic: speak an expense from anywhere the bar is showing.
+  const voice = {
+    accessibilityLabel: t.voice.speakExpense,
+    onPress: () => router.push('/voice'),
+    icon: (color: string) => <Ionicons name="mic" size={iconSize.lg} color={color} />,
+  };
+
+  return (
+    <PillTabBar
+      items={items}
+      activeKey={activeKey}
+      onSelect={go}
+      animated={animated}
+      centerAction={voice}
+    />
+  );
 }

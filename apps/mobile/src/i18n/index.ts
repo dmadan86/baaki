@@ -496,6 +496,9 @@ export interface UiStrings {
     sectionBaaki: string;
     sectionSettings: string;
     sectionSecurity: string;
+    sectionAi: string;
+    aiKeysRow: string;
+    aiKeysHint: string;
     upgradeHint: string;
     yourAccount: string;
     yourAccountHint: string;
@@ -527,6 +530,71 @@ export interface UiStrings {
     motionFollowingOn: string;
     motionFollowingOff: string;
     footnote: string;
+  };
+  /** Bring your own model key — held on the device, used on your own account. */
+  aiKeys: {
+    title: string;
+    intro: string;
+    onDevice: string;
+    keyLabel: string;
+    getKey: string;
+    test: string;
+    testing: string;
+    valid: string;
+    invalid: string;
+    unreachable: string;
+    saved: string;
+    /** Shown when a keystore read or write fails — never the raw error. */
+    storeError: string;
+    /** Badge on the one connected provider. */
+    configured: string;
+    /** Badge when the connected key is switched off. */
+    pausedBadge: string;
+    /** Small-caps label above the provider picker. */
+    chooseProvider: string;
+    /** The single-key rule, said once near the picker. */
+    oneKey: string;
+    /** Shown when the picked provider is not the connected one; {provider} is the connected one. */
+    replaceNote: string;
+    removeConfirmTitle: string;
+    removeConfirmBody: string;
+    /** The access line: paid, on your own key, or off until one of those. */
+    accessPaid: string;
+    accessByok: string;
+    /** Key present but switched off. */
+    accessPaused: string;
+    /** Key on but the token ceiling is reached. */
+    accessOverlimit: string;
+    accessLocked: string;
+    footnote: string;
+    /** The connected key's controls. */
+    useKey: string;
+    modelLabel: string;
+    limitLabel: string;
+    noLimit: string;
+    /** '{used}' tokens spent, no ceiling. */
+    usedTokens: string;
+    /** '{used}' of '{limit}' tokens spent. */
+    usedOfLimit: string;
+    resetUsage: string;
+  };
+  /** Speak-an-expense quick add, reached from the bar's mic. */
+  voice: {
+    /** Mic label + screen title. */
+    speakExpense: string;
+    title: string;
+    prompt: string;
+    example: string;
+    tapToSpeak: string;
+    noAmount: string;
+    tryAgain: string;
+    chooseGroup: string;
+    /** '{note}' is the spoken description. */
+    heard: string;
+    anExpense: string;
+    noGroups: string;
+    makeGroup: string;
+    unavailable: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -1695,6 +1763,9 @@ const en: UiStrings = {
     sectionBaaki: 'Baaki',
     sectionSettings: 'Settings',
     sectionSecurity: 'Security',
+    sectionAi: 'AI',
+    aiKeysRow: 'Your AI keys',
+    aiKeysHint: 'Bring your own OpenAI, Claude or Kimi key',
     upgradeHint: 'Nothing to buy yet — the ledger stays free',
     yourAccount: 'Your account',
     yourAccountHint: 'Email, phone, or a linked account',
@@ -1729,6 +1800,56 @@ const en: UiStrings = {
     motionFollowingOn: 'Following your phone — animations on',
     motionFollowingOff: 'Following your phone — animations off',
     footnote: 'Baaki · the ledger is free forever. We only ever charge for convenience.',
+  },
+  aiKeys: {
+    title: 'Bring your own key',
+    intro:
+      'Add a model key now, ready for the AI features on the way — reading a receipt, turning what you say into an expense with the people and the split — so they run on your account, not ours.',
+    onDevice: 'Encrypted on this phone. Never sent to Baaki — only to the provider you pick.',
+    keyLabel: 'API key',
+    getKey: 'Get a key',
+    test: 'Test',
+    testing: 'Testing…',
+    valid: 'Key works',
+    invalid: 'That key was rejected',
+    unreachable: "Couldn't reach {provider} — try again",
+    saved: 'Saved',
+    storeError: 'Something went wrong on this phone. Try again.',
+    configured: 'In use',
+    pausedBadge: 'Paused',
+    chooseProvider: 'Provider',
+    oneKey: 'One key at a time — saving a new one replaces the last.',
+    replaceNote: 'Saving replaces your {provider} key.',
+    removeConfirmTitle: 'Remove this key?',
+    removeConfirmBody: 'It is deleted from this phone. You can paste it again any time.',
+    accessPaid: 'Paid plan — the AI features will be covered.',
+    accessByok: 'Key set — the AI features will use your account.',
+    accessPaused: 'Key off — turn it on to use the AI features.',
+    accessOverlimit: 'Token limit reached — raise it to keep using the AI features.',
+    accessLocked: 'Add a key, or upgrade, for the AI features.',
+    footnote: 'Nothing here leaves your phone except a request to the provider you picked.',
+    useKey: 'Use this key',
+    modelLabel: 'Model',
+    limitLabel: 'Token limit',
+    noLimit: 'No limit',
+    usedTokens: '{used} tokens used',
+    usedOfLimit: '{used} / {limit} tokens used',
+    resetUsage: 'Reset',
+  },
+  voice: {
+    speakExpense: 'Speak an expense',
+    title: 'Speak an expense',
+    prompt: 'Say what you spent',
+    example: 'e.g. “add 500 to Goa trip”',
+    tapToSpeak: 'Tap to speak',
+    noAmount: 'Didn’t catch an amount. Try again.',
+    tryAgain: 'Try again',
+    chooseGroup: 'Which group?',
+    heard: 'Heard: {note}',
+    anExpense: 'an expense',
+    noGroups: 'Make a group first, then speak an expense into it.',
+    makeGroup: 'New group',
+    unavailable: 'Speech isn’t available on this phone.',
   },
   notifications: {
     title: 'Notifications',
@@ -2975,6 +3096,9 @@ const ta: UiStrings = {
     sectionBaaki: 'பாக்கி',
     sectionSettings: 'அமைப்புகள்',
     sectionSecurity: 'பாதுகாப்பு',
+    sectionAi: 'AI',
+    aiKeysRow: 'உங்கள் AI விசைகள்',
+    aiKeysHint: 'உங்கள் சொந்த OpenAI, Claude அல்லது Kimi விசையைச் சேர்',
     upgradeHint: 'வாங்க இன்னும் ஒன்றுமில்லை — கணக்கு இலவசமாகவே இருக்கும்',
     yourAccount: 'உங்கள் கணக்கு',
     yourAccountHint: 'மின்னஞ்சல், தொலைபேசி, அல்லது இணைத்த கணக்கு',
@@ -3009,6 +3133,59 @@ const ta: UiStrings = {
     motionFollowingOn: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — அசைவுகள் இயக்கத்தில்',
     motionFollowingOff: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — அசைவுகள் நிறுத்தத்தில்',
     footnote: 'பாக்கி · கணக்கு எப்போதும் இலவசம். வசதிக்கு மட்டுமே நாங்கள் கட்டணம் வாங்குவோம்.',
+  },
+  aiKeys: {
+    title: 'உங்கள் சொந்த விசையைச் சேர்',
+    intro:
+      'இப்போதே ஒரு மாடல் விசையைச் சேர் — வரவிருக்கும் AI அம்சங்களுக்குத் தயாராக: ரசீதைப் படித்தல், நீங்கள் சொல்வதை யார், எப்படிப் பிரிப்பது என்பதுடன் செலவாக மாற்றுதல் — அவை உங்கள் கணக்கில் இயங்கும், எங்களுடையதில் அல்ல.',
+    onDevice:
+      'இந்த ஃபோனில் மறையாக்கம். பாக்கிக்கு அனுப்பப்படாது — நீங்கள் தேர்ந்த வழங்குநருக்கு மட்டுமே.',
+    keyLabel: 'API விசை',
+    getKey: 'ஒரு விசையைப் பெறு',
+    test: 'சோதி',
+    testing: 'சோதிக்கிறது…',
+    valid: 'விசை வேலை செய்கிறது',
+    invalid: 'அந்த விசை நிராகரிக்கப்பட்டது',
+    unreachable: '{provider}-ஐ அடைய முடியவில்லை — மீண்டும் முயற்சி செய்',
+    saved: 'சேமிக்கப்பட்டது',
+    storeError: 'இந்த ஃபோனில் ஏதோ தவறு நடந்தது. மீண்டும் முயற்சி செய்.',
+    configured: 'பயன்பாட்டில்',
+    pausedBadge: 'இடைநிறுத்தம்',
+    chooseProvider: 'வழங்குநர்',
+    oneKey: 'ஒரு நேரத்தில் ஒரே விசை — புதியதைச் சேமித்தால் பழையது நீங்கும்.',
+    replaceNote: 'சேமித்தால் உங்கள் {provider} விசை மாற்றப்படும்.',
+    removeConfirmTitle: 'இந்த விசையை நீக்கவா?',
+    removeConfirmBody:
+      'இது இந்த ஃபோனிலிருந்து நீக்கப்படும். எப்போது வேண்டுமானாலும் மீண்டும் ஒட்டலாம்.',
+    accessPaid: 'கட்டண திட்டம் — AI அம்சங்கள் உள்ளடக்கப்படும்.',
+    accessByok: 'விசை அமைக்கப்பட்டது — AI அம்சங்கள் உங்கள் கணக்கைப் பயன்படுத்தும்.',
+    accessPaused: 'விசை அணைக்கப்பட்டது — AI அம்சங்களைப் பயன்படுத்த அதை இயக்கு.',
+    accessOverlimit: 'டோக்கன் வரம்பு எட்டப்பட்டது — தொடர பயன்படுத்த அதை உயர்த்து.',
+    accessLocked: 'ஒரு விசையைச் சேர், அல்லது மேம்படுத்து, AI அம்சங்களுக்கு.',
+    footnote:
+      'நீங்கள் தேர்ந்தெடுத்த வழங்குநருக்கான கோரிக்கையைத் தவிர இங்கிருந்து எதுவும் வெளியேறாது.',
+    useKey: 'இந்த விசையைப் பயன்படுத்து',
+    modelLabel: 'மாடல்',
+    limitLabel: 'டோக்கன் வரம்பு',
+    noLimit: 'வரம்பு இல்லை',
+    usedTokens: '{used} டோக்கன்கள் பயன்படுத்தப்பட்டன',
+    usedOfLimit: '{used} / {limit} டோக்கன்கள் பயன்படுத்தப்பட்டன',
+    resetUsage: 'மீட்டமை',
+  },
+  voice: {
+    speakExpense: 'செலவைப் பேசு',
+    title: 'செலவைப் பேசு',
+    prompt: 'நீங்கள் என்ன செலவழித்தீர்கள் என்று சொல்',
+    example: 'உ.தா. “கோவா டிரிப்பில் 500 சேர்”',
+    tapToSpeak: 'பேச தட்டு',
+    noAmount: 'தொகை புரியவில்லை. மீண்டும் முயற்சி செய்.',
+    tryAgain: 'மீண்டும் முயற்சி செய்',
+    chooseGroup: 'எந்த குழு?',
+    heard: 'கேட்டது: {note}',
+    anExpense: 'ஒரு செலவு',
+    noGroups: 'முதலில் ஒரு குழுவை உருவாக்கு, பிறகு செலவைப் பேசு.',
+    makeGroup: 'புதிய குழு',
+    unavailable: 'இந்த ஃபோனில் பேச்சு அங்கீகாரம் இல்லை.',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -4286,6 +4463,9 @@ const hi: UiStrings = {
     sectionBaaki: 'बाकी',
     sectionSettings: 'सेटिंग्स',
     sectionSecurity: 'सुरक्षा',
+    sectionAi: 'AI',
+    aiKeysRow: 'आपकी AI कुंजियाँ',
+    aiKeysHint: 'अपनी OpenAI, Claude या Kimi कुंजी जोड़ें',
     upgradeHint: 'अभी खरीदने को कुछ नहीं — हिसाब मुफ़्त ही रहेगा',
     yourAccount: 'आपका खाता',
     yourAccountHint: 'ईमेल, फ़ोन, या कोई लिंक किया खाता',
@@ -4320,6 +4500,57 @@ const hi: UiStrings = {
     motionFollowingOn: 'आपके फ़ोन के अनुसार — एनिमेशन चालू',
     motionFollowingOff: 'आपके फ़ोन के अनुसार — एनिमेशन बंद',
     footnote: 'बाकी · हिसाब हमेशा मुफ़्त है। हम सिर्फ़ सुविधा के पैसे लेते हैं।',
+  },
+  aiKeys: {
+    title: 'अपनी कुंजी लाएँ',
+    intro:
+      'अभी एक मॉडल कुंजी जोड़ें — आने वाली AI सुविधाओं के लिए तैयार: रसीद पढ़ना, आप जो कहें उसे लोगों और बँटवारे के साथ खर्च में बदलना — ताकि वे आपके खाते पर चलें, हमारे नहीं।',
+    onDevice:
+      'इसी फ़ोन में एन्क्रिप्टेड। बाकी को कभी नहीं भेजी जाती — सिर्फ़ आपके चुने प्रदाता को।',
+    keyLabel: 'API कुंजी',
+    getKey: 'कुंजी पाएँ',
+    test: 'जाँचें',
+    testing: 'जाँच रहे हैं…',
+    valid: 'कुंजी काम करती है',
+    invalid: 'वह कुंजी अस्वीकार हुई',
+    unreachable: '{provider} तक नहीं पहुँच पाए — फिर कोशिश करें',
+    saved: 'सेव हो गया',
+    storeError: 'इस फ़ोन पर कुछ गड़बड़ हो गई। फिर कोशिश करें।',
+    configured: 'इस्तेमाल में',
+    pausedBadge: 'रुका हुआ',
+    chooseProvider: 'प्रोवाइडर',
+    oneKey: 'एक बार में एक ही कुंजी — नई सेव करने पर पिछली हट जाती है।',
+    replaceNote: 'सेव करने पर आपकी {provider} कुंजी बदल जाएगी।',
+    removeConfirmTitle: 'यह कुंजी हटाएँ?',
+    removeConfirmBody: 'यह इस फ़ोन से मिट जाएगी। आप इसे कभी भी फिर से पेस्ट कर सकते हैं।',
+    accessPaid: 'पेड प्लान — AI सुविधाएँ कवर रहेंगी।',
+    accessByok: 'कुंजी सेट — AI सुविधाएँ आपके खाते का उपयोग करेंगी।',
+    accessPaused: 'कुंजी बंद — AI सुविधाएँ इस्तेमाल करने के लिए इसे चालू करें।',
+    accessOverlimit: 'टोकन सीमा पूरी — इस्तेमाल जारी रखने के लिए इसे बढ़ाएँ।',
+    accessLocked: 'एक कुंजी जोड़ें, या अपग्रेड करें, AI सुविधाओं के लिए।',
+    footnote: 'आपके चुने प्रदाता को भेजे अनुरोध के अलावा यहाँ से कुछ भी बाहर नहीं जाता।',
+    useKey: 'यह कुंजी इस्तेमाल करें',
+    modelLabel: 'मॉडल',
+    limitLabel: 'टोकन सीमा',
+    noLimit: 'कोई सीमा नहीं',
+    usedTokens: '{used} टोकन इस्तेमाल हुए',
+    usedOfLimit: '{used} / {limit} टोकन इस्तेमाल हुए',
+    resetUsage: 'रीसेट',
+  },
+  voice: {
+    speakExpense: 'खर्च बोलें',
+    title: 'खर्च बोलें',
+    prompt: 'बताएँ आपने क्या खर्च किया',
+    example: 'जैसे “गोवा ट्रिप में 500 जोड़ें”',
+    tapToSpeak: 'बोलने के लिए टैप करें',
+    noAmount: 'रकम समझ नहीं आई। फिर कोशिश करें।',
+    tryAgain: 'फिर कोशिश करें',
+    chooseGroup: 'कौन सा ग्रुप?',
+    heard: 'सुना: {note}',
+    anExpense: 'एक खर्च',
+    noGroups: 'पहले एक ग्रुप बनाएँ, फिर उसमें खर्च बोलें।',
+    makeGroup: 'नया ग्रुप',
+    unavailable: 'इस फ़ोन पर वॉइस पहचान उपलब्ध नहीं है।',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -5592,6 +5823,9 @@ const ar: UiStrings = {
     sectionBaaki: 'باقي',
     sectionSettings: 'الإعدادات',
     sectionSecurity: 'الأمان',
+    sectionAi: 'الذكاء الاصطناعي',
+    aiKeysRow: 'مفاتيح الذكاء الاصطناعي',
+    aiKeysHint: 'أضف مفتاح OpenAI أو Claude أو Kimi الخاص بك',
     upgradeHint: 'لا شيء للشراء بعد — الدفتر يبقى مجانيًا',
     yourAccount: 'حسابك',
     yourAccountHint: 'بريد، هاتف، أو حساب مرتبط',
@@ -5626,6 +5860,56 @@ const ar: UiStrings = {
     motionFollowingOn: 'يتبع هاتفك — الحركات مفعّلة',
     motionFollowingOff: 'يتبع هاتفك — الحركات متوقفة',
     footnote: 'باقي · الدفتر مجاني إلى الأبد. لا نتقاضى إلا مقابل الراحة.',
+  },
+  aiKeys: {
+    title: 'أحضر مفتاحك الخاص',
+    intro:
+      'أضف مفتاح نموذج الآن، جاهزًا لميزات الذكاء الاصطناعي القادمة — قراءة الإيصال وتحويل ما تقوله إلى مصروف مع الأشخاص وطريقة التقسيم — لتعمل على حسابك أنت، لا حسابنا.',
+    onDevice: 'مشفّر على هذا الهاتف. لا يُرسَل إلى باقي أبدًا — فقط إلى المزوّد الذي تختاره.',
+    keyLabel: 'مفتاح API',
+    getKey: 'احصل على مفتاح',
+    test: 'اختبر',
+    testing: 'جارٍ الاختبار…',
+    valid: 'المفتاح يعمل',
+    invalid: 'رُفض هذا المفتاح',
+    unreachable: 'تعذّر الوصول إلى {provider} — أعد المحاولة',
+    saved: 'تم الحفظ',
+    storeError: 'حدث خطأ ما على هذا الهاتف. أعد المحاولة.',
+    configured: 'قيد الاستخدام',
+    pausedBadge: 'متوقّف',
+    chooseProvider: 'المزود',
+    oneKey: 'مفتاح واحد في كل مرة — حفظ مفتاح جديد يستبدل السابق.',
+    replaceNote: 'الحفظ سيستبدل مفتاح {provider} الخاص بك.',
+    removeConfirmTitle: 'إزالة هذا المفتاح؟',
+    removeConfirmBody: 'يُحذف من هذا الهاتف. يمكنك لصقه مجددًا في أي وقت.',
+    accessPaid: 'خطة مدفوعة — ميزات الذكاء الاصطناعي مشمولة.',
+    accessByok: 'المفتاح مضبوط — ستستخدم ميزات الذكاء الاصطناعي حسابك.',
+    accessPaused: 'المفتاح متوقف — شغّله لاستخدام ميزات الذكاء الاصطناعي.',
+    accessOverlimit: 'تم بلوغ حد الرموز — ارفعه لمواصلة استخدام ميزات الذكاء الاصطناعي.',
+    accessLocked: 'أضف مفتاحًا، أو قم بالترقية، لميزات الذكاء الاصطناعي.',
+    footnote: 'لا شيء يغادر هاتفك من هنا سوى طلب إلى المزوّد الذي اخترته.',
+    useKey: 'استخدم هذا المفتاح',
+    modelLabel: 'النموذج',
+    limitLabel: 'حد الرموز',
+    noLimit: 'بلا حد',
+    usedTokens: 'استُخدم {used} رمزًا',
+    usedOfLimit: 'استُخدم {used} / {limit} رمز',
+    resetUsage: 'إعادة تعيين',
+  },
+  voice: {
+    speakExpense: 'انطق مصروفًا',
+    title: 'انطق مصروفًا',
+    prompt: 'قل ماذا أنفقت',
+    example: 'مثل: «أضف 500 إلى رحلة جوا»',
+    tapToSpeak: 'انقر للتحدث',
+    noAmount: 'لم أفهم المبلغ. أعد المحاولة.',
+    tryAgain: 'أعد المحاولة',
+    chooseGroup: 'أي مجموعة؟',
+    heard: 'سُمع: {note}',
+    anExpense: 'مصروف',
+    noGroups: 'أنشئ مجموعة أولًا، ثم انطق مصروفًا فيها.',
+    makeGroup: 'مجموعة جديدة',
+    unavailable: 'التعرّف على الكلام غير متاح على هذا الهاتف.',
   },
   notifications: {
     title: 'الإشعارات',
