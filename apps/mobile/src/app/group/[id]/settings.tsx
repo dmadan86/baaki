@@ -301,7 +301,10 @@ export default function GroupSettingsScreen() {
             {t.extras.whatKindOfGroup}
           </Text>
           <ChipRow<GroupType>
-            value={group.data.type}
+            // The column is NOT NULL DEFAULT 'other' on the server, so a missing
+            // value here only means a mirror row that predates this field syncing
+            // — fall back to that same default so the assigned chip always lights.
+            value={group.data.type ?? GroupType.Other}
             onChange={(type) =>
               updateGroup.mutate({ type }, { onSuccess: () => setStatus(t.account.saved) })
             }
