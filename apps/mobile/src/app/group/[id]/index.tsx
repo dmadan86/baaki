@@ -686,11 +686,16 @@ export default function GroupScreen() {
           ) : null}
         </ScrollView>
 
-        <Fab
-          label={t.addExpense}
-          onPress={() => router.push(`/group/${groupId}/add-expense`)}
-          icon={<Ionicons name="add" size={iconSize.xl} color={theme.color.onBrand} />}
-        />
+        {/* The empty state carries its own Add expense button, and two of the
+            same button on one screen is a screen that cannot decide. The FAB
+            stands down for exactly that case. */}
+        {tab === Tab.Expenses && visibleExpenses.length === 0 ? null : (
+          <Fab
+            label={t.addExpense}
+            onPress={() => router.push(`/group/${groupId}/add-expense`)}
+            icon={<Ionicons name="add" size={iconSize.xl} color={theme.color.onBrand} />}
+          />
+        )}
       </DetailEnter>
     </Screen>
   );
