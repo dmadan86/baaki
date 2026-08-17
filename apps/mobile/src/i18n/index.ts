@@ -962,6 +962,8 @@ export interface UiStrings {
     notSentYet: string;
     offlineWithCount: PluralForms;
     cantReachServer: PluralForms;
+    /** Server unreachable but nothing is queued — no count to quote. */
+    cantReachServerIdle: string;
     syncingCount: PluralForms;
     notAnAmount: string;
     notARate: string;
@@ -2171,6 +2173,7 @@ const en: UiStrings = {
       one: "Can't reach the server — {n} change saved here, waiting to send",
       other: "Can't reach the server — {n} changes saved here, waiting to send",
     },
+    cantReachServerIdle: "Can't reach the server — everything here is saved",
     syncingCount: { one: 'Sending {n} change…', other: 'Sending {n} changes…' },
     offlineSaved: 'Offline — everything here is saved on this phone',
     notAnAmount: 'That does not look like an amount',
@@ -3469,6 +3472,7 @@ const ta: UiStrings = {
       one: 'சர்வரை அடைய முடியவில்லை — {n} மாற்றம் இங்கே சேமிக்கப்பட்டு காத்திருக்கிறது',
       other: 'சர்வரை அடைய முடியவில்லை — {n} மாற்றங்கள் இங்கே சேமிக்கப்பட்டு காத்திருக்கின்றன',
     },
+    cantReachServerIdle: 'சர்வரை அடைய முடியவில்லை — எல்லாம் இங்கே சேமிக்கப்பட்டுள்ளது',
     syncingCount: {
       one: '{n} மாற்றம் அனுப்பப்படுகிறது…',
       other: '{n} மாற்றங்கள் அனுப்பப்படுகின்றன…',
@@ -4760,6 +4764,7 @@ const hi: UiStrings = {
       one: 'सर्वर तक नहीं पहुँच पा रहे — {n} बदलाव यहीं सेव है, भेजने का इंतज़ार',
       other: 'सर्वर तक नहीं पहुँच पा रहे — {n} बदलाव यहीं सेव हैं, भेजने का इंतज़ार',
     },
+    cantReachServerIdle: 'सर्वर तक नहीं पहुँच पा रहे — सब कुछ यहीं सेव है',
     syncingCount: { one: '{n} बदलाव भेजा जा रहा है…', other: '{n} बदलाव भेजे जा रहे हैं…' },
     offlineSaved: 'ऑफ़लाइन — यहाँ का सब कुछ इसी फ़ोन पर सेव है',
     notAnAmount: 'यह रकम जैसा नहीं लगता',
@@ -6102,6 +6107,7 @@ const ar: UiStrings = {
       many: 'تعذّر الوصول إلى الخادم — {n} تغييرًا محفوظًا هنا في انتظار الإرسال',
       other: 'تعذّر الوصول إلى الخادم — {n} تغيير محفوظ هنا في انتظار الإرسال',
     },
+    cantReachServerIdle: 'تعذّر الوصول إلى الخادم — كل شيء هنا محفوظ',
     syncingCount: {
       zero: 'جارٍ الإرسال…',
       one: 'جارٍ إرسال تغيير واحد…',
