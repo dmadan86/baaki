@@ -51,7 +51,7 @@ export default function AiKeysScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t } = useStrings();
-  const access = useAiAccess();
+  const { access, refresh } = useAiAccess();
 
   // The rule made visible: on via a plan, on via your own key, or off until one
   // of those. A locked state reads as a prompt, not a wall, so it is tinted
@@ -98,7 +98,7 @@ export default function AiKeysScreen() {
             own key, or off until one of those. */}
         {accessLine ? <Callout tone={accessLine.tone}>{accessLine.text}</Callout> : null}
 
-        <KeyManager t={t} />
+        <KeyManager t={t} onKeyChange={refresh} />
 
         {/* The one promise that matters, in the app's canonical "read this"
             shape: the key does not go to Baaki. */}
@@ -120,7 +120,7 @@ type TestState = null | 'testing' | 'valid' | 'invalid' | 'unreachable';
  * provider — the picker chooses which account to connect, and saving a different
  * one replaces whatever was connected before.
  */
-function KeyManager({ t }: { t: UiStrings }) {
+function KeyManager({ t, onKeyChange }: { t: UiStrings; onKeyChange: () => void }) {
   const theme = useTheme();
 
   // The one connected provider and its key, held only as a mask for display —
@@ -172,6 +172,9 @@ function KeyManager({ t }: { t: UiStrings }) {
       setActive({ id: selectedId, masked: maskAiKey(key) });
       setDraft('');
       setStatus(t.aiKeys.saved);
+      // The access line above lives in the parent — tell it a key changed so it
+      // re-reads and moves off "locked" without waiting for a remount.
+      onKeyChange();
     } catch (caught) {
       setStatus(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -205,6 +208,7 @@ function KeyManager({ t }: { t: UiStrings }) {
             setDraft('');
             setStatus(null);
             setTest(null);
+            onKeyChange();
           });
         },
       },

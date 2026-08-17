@@ -7,7 +7,7 @@
  * and share this one definition of "may I" rather than each re-deriving it.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { canUploadGroupPhoto } from '@/data/api';
 import { configuredAiProviders } from '@/lib/aiKeys';
@@ -23,10 +23,16 @@ export type { AiAccess, AiAccessInputs } from '@/lib/aiAccessRule';
  * client can ask today without a new endpoint, and it is exactly this one. When
  * a subscription till exists this is where a dedicated entitlement read would
  * slot in; nothing above it changes.
+ *
+ * `refresh` re-reads the inputs so a screen that just changed a key — saved one,
+ * removed one — sees the verdict move without a remount. It keeps the current
+ * values while the re-read is in flight rather than dropping back to `loading`,
+ * so the line does not flicker on every save.
  */
-export function useAiAccess(): AiAccess {
+export function useAiAccess(): { access: AiAccess; refresh: () => void } {
   const [isPaid, setIsPaid] = useState<boolean | undefined>(undefined);
   const [keyCount, setKeyCount] = useState<number | undefined>(undefined);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -43,7 +49,9 @@ export function useAiAccess(): AiAccess {
     return () => {
       active = false;
     };
-  }, []);
+  }, [nonce]);
 
-  return resolveAiAccess({ isPaid, keyCount });
+  const refresh = useCallback(() => setNonce((current) => current + 1), []);
+
+  return { access: resolveAiAccess({ isPaid, keyCount }), refresh };
 }
