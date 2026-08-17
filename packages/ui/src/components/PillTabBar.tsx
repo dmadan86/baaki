@@ -14,9 +14,9 @@ export interface PillTabItem {
 }
 
 /**
- * Kept for source compatibility with callers that used the old raised centre
- * button. The WhatsApp-style bar has no floating action, so this is inert — a
- * primary action lives in a screen header now, not in the nav.
+ * A raised round button in the middle of the bar — a primary quick action that
+ * sits above the destinations rather than beside them, the way many apps lift
+ * their "+" or record button. Optional: without it the bar is a flat row.
  */
 export interface PillTabAction {
   icon: (color: string) => ReactNode;
@@ -72,23 +72,40 @@ export function useScreenClearance(base: number = spacing.xxxl): number {
  * off so the bar is still unless a caller opts in — the tabs layout passes the
  * app's motion preference, so reduce-motion keeps the plain switch.
  *
- * `centerAction` is accepted but ignored: this bar has no raised button.
+ * `centerAction`, when given, is a raised round button dropped into the middle
+ * of the row: the destinations split evenly around it.
  */
 export function PillTabBar({
   items,
   activeKey,
   onSelect,
   animated = false,
+  centerAction,
 }: {
   items: readonly PillTabItem[];
   activeKey: string;
   onSelect: (key: string) => void;
   animated?: boolean;
-  /** Ignored — kept so existing callers still type-check. */
   centerAction?: PillTabAction;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+
+  // With a centre action the destinations split into two halves around it; the
+  // extra one, when the count is odd, sits on the left.
+  const middle = centerAction ? Math.ceil(items.length / 2) : items.length;
+  const left = items.slice(0, middle);
+  const right = items.slice(middle);
+
+  const renderItem = (item: PillTabItem): ReactNode => (
+    <TabItem
+      key={item.key}
+      item={item}
+      focused={item.key === activeKey}
+      animated={animated}
+      onSelect={onSelect}
+    />
+  );
 
   return (
     <View
@@ -109,15 +126,42 @@ export function PillTabBar({
         borderTopColor: theme.color.border,
       }}
     >
-      {items.map((item) => (
-        <TabItem
-          key={item.key}
-          item={item}
-          focused={item.key === activeKey}
-          animated={animated}
-          onSelect={onSelect}
-        />
-      ))}
+      {left.map(renderItem)}
+      {centerAction ? <CenterButton action={centerAction} /> : null}
+      {right.map(renderItem)}
+    </View>
+  );
+}
+
+/** The raised round action in the middle of the bar. */
+function CenterButton({ action }: { action: PillTabAction }) {
+  const theme = useTheme();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={action.accessibilityLabel}
+        onPress={action.onPress}
+        hitSlop={8}
+        style={({ pressed }) => ({
+          width: 58,
+          height: 58,
+          borderRadius: 29,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.color.brand,
+          // Lifted so it reads as sitting above the bar, not in the row.
+          transform: [{ translateY: -16 }],
+          opacity: pressed ? 0.9 : 1,
+          shadowColor: '#000',
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 6,
+        })}
+      >
+        {action.icon(theme.color.onBrand)}
+      </Pressable>
     </View>
   );
 }

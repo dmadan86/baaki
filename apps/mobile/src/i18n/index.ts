@@ -578,6 +578,24 @@ export interface UiStrings {
     usedOfLimit: string;
     resetUsage: string;
   };
+  /** Speak-an-expense quick add, reached from the bar's mic. */
+  voice: {
+    /** Mic label + screen title. */
+    speakExpense: string;
+    title: string;
+    prompt: string;
+    example: string;
+    tapToSpeak: string;
+    noAmount: string;
+    tryAgain: string;
+    chooseGroup: string;
+    /** '{note}' is the spoken description. */
+    heard: string;
+    anExpense: string;
+    noGroups: string;
+    makeGroup: string;
+    unavailable: string;
+  };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
     title: string;
@@ -1815,6 +1833,21 @@ const en: UiStrings = {
     usedTokens: '{used} tokens used',
     usedOfLimit: '{used} / {limit} tokens used',
     resetUsage: 'Reset',
+  },
+  voice: {
+    speakExpense: 'Speak an expense',
+    title: 'Speak an expense',
+    prompt: 'Say what you spent',
+    example: 'e.g. “add 500 to Goa trip”',
+    tapToSpeak: 'Tap to speak',
+    noAmount: 'Didn’t catch an amount. Try again.',
+    tryAgain: 'Try again',
+    chooseGroup: 'Which group?',
+    heard: 'Heard: {note}',
+    anExpense: 'an expense',
+    noGroups: 'Make a group first, then speak an expense into it.',
+    makeGroup: 'New group',
+    unavailable: 'Speech isn’t available on this phone.',
   },
   notifications: {
     title: 'Notifications',
@@ -3135,6 +3168,21 @@ const ta: UiStrings = {
     usedTokens: '{used} டோக்கன்கள் பயன்படுத்தப்பட்டன',
     usedOfLimit: '{used} / {limit} டோக்கன்கள் பயன்படுத்தப்பட்டன',
     resetUsage: 'மீட்டமை',
+  },
+  voice: {
+    speakExpense: 'செலவைப் பேசு',
+    title: 'செலவைப் பேசு',
+    prompt: 'நீங்கள் என்ன செலவழித்தீர்கள் என்று சொல்',
+    example: 'உ.தா. “கோவா டிரிப்பில் 500 சேர்”',
+    tapToSpeak: 'பேச தட்டு',
+    noAmount: 'தொகை புரியவில்லை. மீண்டும் முயற்சி செய்.',
+    tryAgain: 'மீண்டும் முயற்சி செய்',
+    chooseGroup: 'எந்த குழு?',
+    heard: 'கேட்டது: {note}',
+    anExpense: 'ஒரு செலவு',
+    noGroups: 'முதலில் ஒரு குழுவை உருவாக்கு, பிறகு செலவைப் பேசு.',
+    makeGroup: 'புதிய குழு',
+    unavailable: 'இந்த ஃபோனில் பேச்சு அங்கீகாரம் இல்லை.',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -4485,6 +4533,21 @@ const hi: UiStrings = {
     usedOfLimit: '{used} / {limit} टोकन इस्तेमाल हुए',
     resetUsage: 'रीसेट',
   },
+  voice: {
+    speakExpense: 'खर्च बोलें',
+    title: 'खर्च बोलें',
+    prompt: 'बताएँ आपने क्या खर्च किया',
+    example: 'जैसे “गोवा ट्रिप में 500 जोड़ें”',
+    tapToSpeak: 'बोलने के लिए टैप करें',
+    noAmount: 'रकम समझ नहीं आई। फिर कोशिश करें।',
+    tryAgain: 'फिर कोशिश करें',
+    chooseGroup: 'कौन सा ग्रुप?',
+    heard: 'सुना: {note}',
+    anExpense: 'एक खर्च',
+    noGroups: 'पहले एक ग्रुप बनाएँ, फिर उसमें खर्च बोलें।',
+    makeGroup: 'नया ग्रुप',
+    unavailable: 'इस फ़ोन पर वॉइस पहचान उपलब्ध नहीं है।',
+  },
   notifications: {
     title: 'सूचनाएँ',
     neverSpam:
@@ -5827,6 +5890,21 @@ const ar: UiStrings = {
     usedTokens: 'استُخدم {used} رمزًا',
     usedOfLimit: 'استُخدم {used} / {limit} رمز',
     resetUsage: 'إعادة تعيين',
+  },
+  voice: {
+    speakExpense: 'انطق مصروفًا',
+    title: 'انطق مصروفًا',
+    prompt: 'قل ماذا أنفقت',
+    example: 'مثل: «أضف 500 إلى رحلة جوا»',
+    tapToSpeak: 'انقر للتحدث',
+    noAmount: 'لم أفهم المبلغ. أعد المحاولة.',
+    tryAgain: 'أعد المحاولة',
+    chooseGroup: 'أي مجموعة؟',
+    heard: 'سُمع: {note}',
+    anExpense: 'مصروف',
+    noGroups: 'أنشئ مجموعة أولًا، ثم انطق مصروفًا فيها.',
+    makeGroup: 'مجموعة جديدة',
+    unavailable: 'التعرّف على الكلام غير متاح على هذا الهاتف.',
   },
   notifications: {
     title: 'الإشعارات',

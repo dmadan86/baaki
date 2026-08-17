@@ -21,6 +21,7 @@ export const TAB_BAR_HIDDEN_ROUTES: ReadonlySet<string> = new Set([
   'settle',
   'invite',
   'itemize',
+  'voice',
 ]);
 
 export interface TabBarState {

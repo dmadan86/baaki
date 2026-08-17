@@ -106,6 +106,7 @@ export default function AddExpenseScreen() {
     id,
     expenseId,
     captureId,
+    voice,
     amount: captureAmount,
     description: captureDescription,
     category: captureCategory,
@@ -114,6 +115,8 @@ export default function AddExpenseScreen() {
     id: string;
     expenseId?: string;
     captureId?: string;
+    /** '1' when opened from the voice quick-add — seeds amount/description like a capture. */
+    voice?: string;
     amount?: string;
     description?: string;
     category?: string;
@@ -193,12 +196,12 @@ export default function AddExpenseScreen() {
     setSeededFor(seedKey);
     const version = editing?.currentVersion;
     const draft = restored.draft;
-    if (captureId && !editing) {
-      // Assigned from the inbox (A34): the capture's own values seed the form,
-      // ahead of any stale draft, since arriving here from a capture is an
-      // explicit choice to turn that capture into this expense. Payer and
-      // participants take the ordinary new-expense defaults — the capture never
-      // had either.
+    if ((captureId || voice) && !editing) {
+      // Seeded from a capture (A34) or the voice quick-add: the passed amount and
+      // description fill the form ahead of any stale draft, since arriving here
+      // that way is an explicit choice to turn what was captured or spoken into
+      // this expense. Payer and participants take the ordinary new-expense
+      // defaults — I paid, everyone splits.
       setAmount(safeBigInt(captureAmount));
       setDescription(captureDescription ?? '');
       setCategory((captureCategory as CategoryId) || null);
