@@ -107,89 +107,96 @@ export function aiProvider(id: AiProviderId): AiProvider {
 }
 
 const isWeb = Platform.OS === 'web';
-const storeKey = (id: AiProviderId): string => `baaki.aikey.${id}`;
-
-/** Delete one provider's key without announcing it — the caller emits once. */
-async function deleteAiKey(id: AiProviderId): Promise<void> {
-  if (isWeb) return;
-  await SecureStore.deleteItemAsync(storeKey(id));
-}
 
 /**
- * The stored key for a provider, or null. Reads straight from the keystore, so
- * this is the one function the feature work will call before a model request —
- * there is deliberately no in-memory cache of the plaintext to leak.
+ * The one keystore entry the whole vault is: a single JSON record naming the
+ * connected provider and holding its key. There is one key at a time, so it is
+ * one entry — the active provider is written down, not inferred from which of
+ * several records happens to exist. That makes connecting a key a single atomic
+ * write (no set-then-sweep that could half-fail and leave two), and reading it
+ * an unambiguous answer.
  */
-export async function getAiKey(id: AiProviderId): Promise<string | null> {
-  if (isWeb) return null;
-  const value = await SecureStore.getItemAsync(storeKey(id));
-  return value && value.length > 0 ? value : null;
+const STORE_KEY = 'baaki.aikey';
+
+interface StoredAiKey {
+  id: AiProviderId;
+  key: string;
 }
 
-/** Save (or replace) a provider's key. Trimmed, because a pasted key often is not. */
-export async function setAiKey(id: AiProviderId, key: string): Promise<void> {
-  if (isWeb) throw new Error('secure storage is unavailable on web');
-  await SecureStore.setItemAsync(storeKey(id), key.trim());
-}
-
-/** Forget a provider's key entirely, and reset its settings and announce. */
-export async function removeAiKey(id: AiProviderId): Promise<void> {
-  await deleteAiKey(id);
-  // The settings belonged to that key — clear them so nothing carries to the next.
-  await resetAiSettings();
-  emitAiConfigChanged();
+/** Parse the stored record, trusting only a known provider id and a non-empty key. */
+function parseStored(raw: string | null): StoredAiKey | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredAiKey>;
+    if (
+      typeof parsed.key === 'string' &&
+      parsed.key.length > 0 &&
+      typeof parsed.id === 'string' &&
+      AI_PROVIDERS.some((provider) => provider.id === parsed.id)
+    ) {
+      return { id: parsed.id as AiProviderId, key: parsed.key };
+    }
+  } catch {
+    // A corrupt record reads as "no key" rather than throwing into the caller.
+  }
+  return null;
 }
 
 /**
  * The one provider connected right now, with its key — or null.
  *
- * Only a single key is ever held (see {@link setActiveAiKey}), so "which
- * provider is active" is just "which one has a key". This is the read the
- * feature work does before a model request: it gets both the credential and the
- * provider whose endpoint and headers to use, in one place.
+ * This is the read the feature work does before a model request: it gets both
+ * the credential and the provider whose endpoint and headers to use, from the
+ * single stored record, with no in-memory cache of the plaintext to leak.
  */
 export async function getActiveAiKey(): Promise<{ id: AiProviderId; key: string } | null> {
-  for (const provider of AI_PROVIDERS) {
-    const key = await getAiKey(provider.id);
-    if (key) return { id: provider.id, key };
-  }
-  return null;
+  if (isWeb) return null;
+  return parseStored(await SecureStore.getItemAsync(STORE_KEY));
+}
+
+/**
+ * The stored key for a provider, or null — non-null only for the connected
+ * provider, since only one is ever held. Derived from the single record.
+ */
+export async function getAiKey(id: AiProviderId): Promise<string | null> {
+  const active = await getActiveAiKey();
+  return active && active.id === id ? active.key : null;
 }
 
 /**
  * Connect one provider, disconnecting any other.
  *
  * Baaki keeps a single model key at a time: a reader picks the account they want
- * the AI features to run on, not a pile of them. Saving a new key therefore
- * clears every other provider's, so there is exactly one credential on the
- * device and no ambiguity about which one a feature will spend. The new key is
- * written first — if that throws nothing else is touched — and only then are the
- * others removed.
+ * the AI features to run on, not a pile of them. This is one write — the record
+ * is replaced whole with the new provider and key — so there is never a moment
+ * with two keys, and the trimmed key (a pasted one often is not) is what lands.
  */
 export async function setActiveAiKey(id: AiProviderId, key: string): Promise<void> {
-  await setAiKey(id, key);
-  await Promise.all(
-    AI_PROVIDERS.filter((provider) => provider.id !== id).map((provider) =>
-      deleteAiKey(provider.id),
-    ),
-  );
+  if (isWeb) throw new Error('secure storage is unavailable on web');
+  await SecureStore.setItemAsync(STORE_KEY, JSON.stringify({ id, key: key.trim() }));
   // A newly connected key is a fresh slate — on, no model override, no ceiling,
   // zero usage — so nothing from a previous key or account carries over.
   await resetAiSettings();
-  // One announcement for the whole swap, after the set, the sweep and the reset.
+  emitAiConfigChanged();
+}
+
+/** Forget the connected key entirely, reset its settings, and announce. */
+export async function removeAiKey(): Promise<void> {
+  if (isWeb) return;
+  await SecureStore.deleteItemAsync(STORE_KEY);
+  // The settings belonged to that key — clear them so nothing carries to the next.
+  await resetAiSettings();
   emitAiConfigChanged();
 }
 
 /**
- * The providers that currently hold a key on this device. The AI access rule
- * (see aiAccess) asks only "is there any key" — one configured provider is
- * enough to run the model features on the reader's own account.
+ * The providers that currently hold a key on this device — zero or one, since
+ * only one is ever connected. The AI access rule (see aiAccess) asks only "is
+ * there any key", which this answers by length.
  */
 export async function configuredAiProviders(): Promise<AiProviderId[]> {
-  const found = await Promise.all(
-    AI_PROVIDERS.map(async (provider) => ((await getAiKey(provider.id)) ? provider.id : null)),
-  );
-  return found.filter((id): id is AiProviderId => id !== null);
+  const active = await getActiveAiKey();
+  return active ? [active.id] : [];
 }
 
 /**

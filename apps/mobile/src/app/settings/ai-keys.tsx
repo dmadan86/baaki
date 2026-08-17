@@ -192,7 +192,7 @@ function KeyManager({ t, access }: { t: UiStrings; access: AiAccess }) {
       setDraft('');
       setStatus(t.aiKeys.saved);
       // The access line re-reads on its own — setActiveAiKey announces the change
-      // to every subscriber (see useAiAccess / subscribeAiKeys).
+      // to every subscriber (see useAiAccess / subscribeAiConfig).
     } catch {
       // Never surface the raw keystore error — a plain, safe line instead.
       setStatus(t.aiKeys.storeError);
@@ -230,16 +230,15 @@ function KeyManager({ t, access }: { t: UiStrings; access: AiAccess }) {
 
   const confirmRemove = (): void => {
     if (!active) return;
-    const removeId = active.id;
     Alert.alert(t.aiKeys.removeConfirmTitle, t.aiKeys.removeConfirmBody, [
       { text: t.common.cancel, style: 'cancel' },
       {
         text: t.common.remove,
         style: 'destructive',
         onPress: () => {
-          // removeAiKey announces the change itself (subscribeAiKeys), so the
+          // removeAiKey announces the change itself (subscribeAiConfig), so the
           // access line re-reads without a callback here.
-          void removeAiKey(removeId)
+          void removeAiKey()
             .then(() => {
               setActive(null);
               setDraft('');
