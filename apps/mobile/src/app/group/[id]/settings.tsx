@@ -5,7 +5,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, ScrollView, TextInput, View } from 'react-native';
 
 import {
+  Avatar,
+  Badge,
   Button,
+  Callout,
   Card,
   ChipRow,
   directionalIcon,
@@ -13,6 +16,7 @@ import {
   IconButton,
   iconSize,
   ListRow,
+  MoneyText,
   Row,
   Screen,
   SectionHeader,
@@ -30,10 +34,16 @@ import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates } from '@/components/TripDates';
 import { photoGateParam, photoGateStatus, photoTapAction } from '@/lib/groupPhotoGate';
 import { canUploadGroupPhoto, removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
-import { useGroup, useGroupLedger, useLeaveGroup, useUpdateGroup } from '@/data/hooks';
+import {
+  useAddGhostMember,
+  useGroup,
+  useGroupLedger,
+  useLeaveGroup,
+  useUpdateGroup,
+} from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { groupLabel, GroupType } from '@/data/types';
+import { displayName, groupLabel, GroupType, isGhost, vpaOf } from '@/data/types';
 
 // Same chip icons the create screen wears, so changing a group's kind looks
 // like the same control that first set it.
@@ -57,6 +67,31 @@ export default function GroupSettingsScreen() {
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const updateGroup = useUpdateGroup(groupId);
   const leaveGroup = useLeaveGroup(groupId);
+  const addGhost = useAddGhostMember(groupId);
+
+  // A name is enough to start splitting with someone (ADR-006). The heavier
+  // add flow — contact picker, email/phone — lives on the members screen; this
+  // is the quick add so the common case never leaves settings.
+  const [newName, setNewName] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+  const addMember = (): void => {
+    // The button disables while pending, but the keyboard's "done"
+    // (onSubmitEditing) can still fire — guard so a second tap can't queue the
+    // same person twice.
+    if (addGhost.isPending) return;
+    const person = newName.trim();
+    if (!person) return;
+    setAddError(null);
+    addGhost.mutate(
+      { name: person },
+      {
+        // Only clear the field if it still holds what we submitted, so a name
+        // typed for the next person isn't wiped when this add lands.
+        onSuccess: () => setNewName((current) => (current.trim() === person ? '' : current)),
+        onError: (caught) => setAddError(caught instanceof Error ? caught.message : String(caught)),
+      },
+    );
+  };
 
   const [name, setName] = useState(group.data?.name ?? '');
   // Seed the name field once the group query resolves (and re-seed if the
@@ -124,6 +159,7 @@ export default function GroupSettingsScreen() {
   }
 
   const settled = ledger.myBalance === 0n;
+  const currency = group.data.default_currency;
 
   const leave = (): void => {
     if (!settled) {
@@ -265,7 +301,10 @@ export default function GroupSettingsScreen() {
             {t.extras.whatKindOfGroup}
           </Text>
           <ChipRow<GroupType>
-            value={group.data.type}
+            // The column is NOT NULL DEFAULT 'other' on the server, so a missing
+            // value here only means a mirror row that predates this field syncing
+            // — fall back to that same default so the assigned chip always lights.
+            value={group.data.type ?? GroupType.Other}
             onChange={(type) =>
               updateGroup.mutate({ type }, { onSuccess: () => setStatus(t.account.saved) })
             }
@@ -312,25 +351,79 @@ export default function GroupSettingsScreen() {
           />
         </Card>
 
-        <View>
-          <SectionHeader title={t.members} />
+        <View style={{ gap: theme.spacing.sm }}>
+          <SectionHeader title={plural(locale, members.data?.length ?? 0, t.memberCount)} />
+
+          {/* The roster in the settings screen itself, so seeing who is in the
+              group no longer costs a tap through to the members screen. Each row
+              still opens the person; the members screen keeps the fuller add
+              flow (contacts, email/phone). */}
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            <ListRow
-              title={plural(locale, members.data?.length ?? 0, t.memberCount)}
-              subtitle={t.group.membersHint}
-              leading={
-                <Ionicons name="people-outline" size={iconSize.xl} color={theme.color.textMuted} />
-              }
-              onPress={() => router.push(`/group/${groupId}/members`)}
-              trailing={
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
+            {(members.data ?? []).map((member, index) => (
+              <View key={member.id}>
+                <ListRow
+                  title={displayName(member, profile?.id)}
+                  subtitle={isGhost(member) ? t.notJoinedYet : (vpaOf(member) ?? t.misc.noUpiYet)}
+                  leading={<Avatar name={displayName(member)} ghost={isGhost(member)} />}
+                  onPress={() => router.push(`/group/${groupId}/member/${member.id}`)}
+                  trailing={
+                    <Row style={{ gap: theme.spacing.sm }}>
+                      {member.role === 'admin' && !isGhost(member) ? (
+                        <Badge label={t.people.admin} tone="brand" />
+                      ) : null}
+                      <MoneyText
+                        amount={ledger.balances.get(member.id) ?? 0n}
+                        currency={currency}
+                        locale={locale}
+                        mode="balance"
+                      />
+                    </Row>
+                  }
                 />
-              }
-            />
-            <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                {index < (members.data?.length ?? 0) - 1 ? (
+                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                ) : null}
+              </View>
+            ))}
+          </Card>
+
+          {/* Add a member before the share row — the common case (someone with a
+              name, not a link) shouldn't require the invite flow. */}
+          <Card style={{ gap: theme.spacing.sm }}>
+            <Text variant="caption" tone="muted">
+              {t.people.addSomeone}
+            </Text>
+            <Row style={{ gap: theme.spacing.sm }}>
+              <TextInput
+                value={newName}
+                onChangeText={setNewName}
+                placeholder={t.people.namePlaceholder}
+                placeholderTextColor={theme.color.textFaint}
+                accessibilityLabel={t.common.name}
+                onSubmitEditing={addMember}
+                editable={!addGhost.isPending}
+                returnKeyType="done"
+                style={{
+                  flex: 1,
+                  fontSize: 17,
+                  fontWeight: '600',
+                  color: theme.color.text,
+                  paddingVertical: theme.spacing.sm,
+                }}
+              />
+              <Button
+                label={t.add}
+                size="sm"
+                variant="secondary"
+                disabled={!newName.trim() || addGhost.isPending}
+                onPress={addMember}
+              />
+            </Row>
+            {addError ? <Callout tone="negative">{addError}</Callout> : null}
+          </Card>
+
+          {/* Share a link for anyone who should join themselves. */}
+          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             <ListRow
               title={t.group.invitePeople}
               subtitle={t.group.invitePeopleHint}
