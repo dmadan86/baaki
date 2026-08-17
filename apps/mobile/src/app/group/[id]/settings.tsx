@@ -75,13 +75,19 @@ export default function GroupSettingsScreen() {
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const addMember = (): void => {
+    // The button disables while pending, but the keyboard's "done"
+    // (onSubmitEditing) can still fire — guard so a second tap can't queue the
+    // same person twice.
+    if (addGhost.isPending) return;
     const person = newName.trim();
     if (!person) return;
     setAddError(null);
     addGhost.mutate(
       { name: person },
       {
-        onSuccess: () => setNewName(''),
+        // Only clear the field if it still holds what we submitted, so a name
+        // typed for the next person isn't wiped when this add lands.
+        onSuccess: () => setNewName((current) => (current.trim() === person ? '' : current)),
         onError: (caught) => setAddError(caught instanceof Error ? caught.message : String(caught)),
       },
     );
@@ -392,6 +398,7 @@ export default function GroupSettingsScreen() {
                 placeholderTextColor={theme.color.textFaint}
                 accessibilityLabel={t.common.name}
                 onSubmitEditing={addMember}
+                editable={!addGhost.isPending}
                 returnKeyType="done"
                 style={{
                   flex: 1,
