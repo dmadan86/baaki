@@ -626,28 +626,30 @@ export default function AddExpenseScreen() {
           />
         </View>
 
-        <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.paidBy}
-          </Text>
-          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.md }}>
-            {(members.data ?? []).map((member) => (
-              <Pressable
-                key={member.id}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: payer === member.id }}
-                accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
-                onPress={() => setPayer(member.id)}
-                style={{ alignItems: 'center', gap: 4, opacity: payer === member.id ? 1 : 0.45 }}
-              >
-                <Avatar name={displayName(member)} ghost={isGhost(member)} />
-                <Text variant="micro" tone={payer === member.id ? 'brand' : 'muted'}>
-                  {displayName(member, profile?.id)}
-                </Text>
-              </Pressable>
-            ))}
-          </Row>
-        </Card>
+        {!editing ? (
+          <Card style={{ gap: theme.spacing.md }}>
+            <Text variant="caption" tone="muted">
+              {t.paidBy}
+            </Text>
+            <Row style={{ flexWrap: 'wrap', gap: theme.spacing.md }}>
+              {(members.data ?? []).map((member) => (
+                <Pressable
+                  key={member.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: payer === member.id }}
+                  accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
+                  onPress={() => setPayer(member.id)}
+                  style={{ alignItems: 'center', gap: 4, opacity: payer === member.id ? 1 : 0.45 }}
+                >
+                  <Avatar name={displayName(member)} ghost={isGhost(member)} />
+                  <Text variant="micro" tone={payer === member.id ? 'brand' : 'muted'}>
+                    {displayName(member, profile?.id)}
+                  </Text>
+                </Pressable>
+              ))}
+            </Row>
+          </Card>
+        ) : null}
 
         <Card style={{ gap: theme.spacing.md }}>
           <Row style={{ justifyContent: 'space-between' }}>
