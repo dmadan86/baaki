@@ -92,6 +92,32 @@ const isWeb = Platform.OS === 'web';
 const storeKey = (id: AiProviderId): string => `baaki.aikey.${id}`;
 
 /**
+ * A change to the stored key set — a save or a remove. Whoever is showing the AI
+ * access state (see aiAccess) subscribes so it re-reads after any mutation,
+ * wherever the mutation was triggered, without the mutating screen having to know
+ * who is listening. This is the one shared signal for "the key set changed".
+ */
+type AiKeysListener = () => void;
+const aiKeysListeners = new Set<AiKeysListener>();
+
+export function subscribeAiKeys(listener: AiKeysListener): () => void {
+  aiKeysListeners.add(listener);
+  return () => {
+    aiKeysListeners.delete(listener);
+  };
+}
+
+function emitAiKeysChanged(): void {
+  for (const listener of aiKeysListeners) listener();
+}
+
+/** Delete one provider's key without announcing it — the caller emits once. */
+async function deleteAiKey(id: AiProviderId): Promise<void> {
+  if (isWeb) return;
+  await SecureStore.deleteItemAsync(storeKey(id));
+}
+
+/**
  * The stored key for a provider, or null. Reads straight from the keystore, so
  * this is the one function the feature work will call before a model request —
  * there is deliberately no in-memory cache of the plaintext to leak.
@@ -108,10 +134,10 @@ export async function setAiKey(id: AiProviderId, key: string): Promise<void> {
   await SecureStore.setItemAsync(storeKey(id), key.trim());
 }
 
-/** Forget a provider's key entirely. */
+/** Forget a provider's key entirely, and announce the change. */
 export async function removeAiKey(id: AiProviderId): Promise<void> {
-  if (isWeb) return;
-  await SecureStore.deleteItemAsync(storeKey(id));
+  await deleteAiKey(id);
+  emitAiKeysChanged();
 }
 
 /**
@@ -144,9 +170,11 @@ export async function setActiveAiKey(id: AiProviderId, key: string): Promise<voi
   await setAiKey(id, key);
   await Promise.all(
     AI_PROVIDERS.filter((provider) => provider.id !== id).map((provider) =>
-      removeAiKey(provider.id),
+      deleteAiKey(provider.id),
     ),
   );
+  // One announcement for the whole swap, after the set and the sweep both land.
+  emitAiKeysChanged();
 }
 
 /**

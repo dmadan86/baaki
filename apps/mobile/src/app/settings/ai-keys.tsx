@@ -51,7 +51,7 @@ export default function AiKeysScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t } = useStrings();
-  const { access, refresh } = useAiAccess();
+  const access = useAiAccess();
 
   // The rule made visible: on via a plan, on via your own key, or off until one
   // of those. A locked state reads as a prompt, not a wall, so it is tinted
@@ -98,7 +98,7 @@ export default function AiKeysScreen() {
             own key, or off until one of those. */}
         {accessLine ? <Callout tone={accessLine.tone}>{accessLine.text}</Callout> : null}
 
-        <KeyManager t={t} onKeyChange={refresh} />
+        <KeyManager t={t} />
 
         {/* The one promise that matters, in the app's canonical "read this"
             shape: the key does not go to Baaki. */}
@@ -120,7 +120,7 @@ type TestState = null | 'testing' | 'valid' | 'invalid' | 'unreachable';
  * provider — the picker chooses which account to connect, and saving a different
  * one replaces whatever was connected before.
  */
-function KeyManager({ t, onKeyChange }: { t: UiStrings; onKeyChange: () => void }) {
+function KeyManager({ t }: { t: UiStrings }) {
   const theme = useTheme();
 
   // The one connected provider and its key, held only as a mask for display —
@@ -138,23 +138,35 @@ function KeyManager({ t, onKeyChange }: { t: UiStrings; onKeyChange: () => void 
 
   useEffect(() => {
     let alive = true;
-    void getActiveAiKey().then((found) => {
-      if (!alive) return;
-      if (found) {
-        setActive({ id: found.id, masked: maskAiKey(found.key) });
-        setSelectedId(found.id);
-      }
-      setLoaded(true);
-    });
+    void getActiveAiKey()
+      .then((found) => {
+        if (!alive) return;
+        if (found) {
+          setActive({ id: found.id, masked: maskAiKey(found.key) });
+          setSelectedId(found.id);
+        }
+      })
+      .catch(() => {
+        // A keystore read can fail. Say so plainly and still let the reader use
+        // the field — never leave it disabled with no explanation, and never
+        // surface the raw error.
+        if (alive) setStatus(t.aiKeys.storeError);
+      })
+      .finally(() => {
+        if (alive) setLoaded(true);
+      });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [t]);
 
   const provider = aiProvider(selectedId);
   const isActiveSelected = active?.id === selectedId;
 
   const selectProvider = (id: AiProviderId): void => {
+    // While a save or a test is in flight the provider is fixed — switching it
+    // mid-validation would let a result land against the wrong provider.
+    if (busy) return;
     setSelectedId(id);
     setDraft('');
     setStatus(null);
@@ -172,26 +184,41 @@ function KeyManager({ t, onKeyChange }: { t: UiStrings; onKeyChange: () => void 
       setActive({ id: selectedId, masked: maskAiKey(key) });
       setDraft('');
       setStatus(t.aiKeys.saved);
-      // The access line above lives in the parent — tell it a key changed so it
-      // re-reads and moves off "locked" without waiting for a remount.
-      onKeyChange();
-    } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : String(caught));
+      // The access line re-reads on its own — setActiveAiKey announces the change
+      // to every subscriber (see useAiAccess / subscribeAiKeys).
+    } catch {
+      // Never surface the raw keystore error — a plain, safe line instead.
+      setStatus(t.aiKeys.storeError);
     } finally {
       setBusy(false);
     }
   };
 
   const runTest = async (): Promise<void> => {
-    // Test what is in the field if the reader has typed something; otherwise the
-    // connected key, when the picker is on the connected provider. So "Test"
-    // works both before saving a new key and after.
-    const candidate = draft.trim() || (isActiveSelected ? await getAiKey(selectedId) : null);
-    if (!candidate) return;
-    setTest('testing');
+    // Hold busy for the whole validation — field, save and the provider picker
+    // are all disabled while it runs, so a late result cannot land against an
+    // edited draft or a switched provider. Every exit clears busy and leaves a
+    // settled test state.
+    setBusy(true);
     setStatus(null);
-    const result = await validateAiKey(selectedId, candidate);
-    setTest(result.ok ? 'valid' : result.reason === 'invalid' ? 'invalid' : 'unreachable');
+    setTest('testing');
+    try {
+      // Test what is in the field if the reader has typed something; otherwise
+      // the connected key, when the picker is on the connected provider.
+      const candidate = draft.trim() || (isActiveSelected ? await getAiKey(selectedId) : null);
+      if (!candidate) {
+        setTest(null);
+        return;
+      }
+      const result = await validateAiKey(selectedId, candidate);
+      setTest(result.ok ? 'valid' : result.reason === 'invalid' ? 'invalid' : 'unreachable');
+    } catch {
+      // Only a keystore read of the saved key can throw here — validateAiKey
+      // never rejects. Treat it as "couldn't check", not "key is bad".
+      setTest('unreachable');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const confirmRemove = (): void => {
@@ -203,13 +230,16 @@ function KeyManager({ t, onKeyChange }: { t: UiStrings; onKeyChange: () => void 
         text: t.common.remove,
         style: 'destructive',
         onPress: () => {
-          void removeAiKey(removeId).then(() => {
-            setActive(null);
-            setDraft('');
-            setStatus(null);
-            setTest(null);
-            onKeyChange();
-          });
+          // removeAiKey announces the change itself (subscribeAiKeys), so the
+          // access line re-reads without a callback here.
+          void removeAiKey(removeId)
+            .then(() => {
+              setActive(null);
+              setDraft('');
+              setStatus(null);
+              setTest(null);
+            })
+            .catch(() => setStatus(t.aiKeys.storeError));
         },
       },
     ]);

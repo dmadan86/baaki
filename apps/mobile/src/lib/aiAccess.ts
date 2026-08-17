@@ -7,10 +7,10 @@
  * and share this one definition of "may I" rather than each re-deriving it.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { canUploadGroupPhoto } from '@/data/api';
-import { configuredAiProviders } from '@/lib/aiKeys';
+import { configuredAiProviders, subscribeAiKeys } from '@/lib/aiKeys';
 import { resolveAiAccess, type AiAccess } from '@/lib/aiAccessRule';
 
 export { aiEnabled, resolveAiAccess } from '@/lib/aiAccessRule';
@@ -24,15 +24,19 @@ export type { AiAccess, AiAccessInputs } from '@/lib/aiAccessRule';
  * a subscription till exists this is where a dedicated entitlement read would
  * slot in; nothing above it changes.
  *
- * `refresh` re-reads the inputs so a screen that just changed a key — saved one,
- * removed one — sees the verdict move without a remount. It keeps the current
- * values while the re-read is in flight rather than dropping back to `loading`,
- * so the line does not flicker on every save.
+ * Every mounted consumer subscribes to the shared key-change signal
+ * ({@link subscribeAiKeys}), so a save or a remove — wherever it happens —
+ * re-reads the inputs and moves the verdict without a remount. The re-read keeps
+ * the current values while in flight rather than dropping back to `loading`, so
+ * the line does not flicker.
  */
-export function useAiAccess(): { access: AiAccess; refresh: () => void } {
+export function useAiAccess(): AiAccess {
   const [isPaid, setIsPaid] = useState<boolean | undefined>(undefined);
   const [keyCount, setKeyCount] = useState<number | undefined>(undefined);
   const [nonce, setNonce] = useState(0);
+
+  // A key mutation anywhere bumps the nonce, re-running the read below.
+  useEffect(() => subscribeAiKeys(() => setNonce((current) => current + 1)), []);
 
   useEffect(() => {
     let active = true;
@@ -51,7 +55,5 @@ export function useAiAccess(): { access: AiAccess; refresh: () => void } {
     };
   }, [nonce]);
 
-  const refresh = useCallback(() => setNonce((current) => current + 1), []);
-
-  return { access: resolveAiAccess({ isPaid, keyCount }), refresh };
+  return resolveAiAccess({ isPaid, keyCount });
 }
