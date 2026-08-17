@@ -70,7 +70,11 @@ import {
   type PersonBalanceRow,
   type WriteExpenseInput,
 } from './api';
-import { aggregatePeopleBalances, type PersonContribution } from './peopleBalances';
+import {
+  aggregatePeopleBalances,
+  countOthersInGroup,
+  type PersonContribution,
+} from './peopleBalances';
 import { totalsByCurrency } from './totals';
 import { SettlementStatus } from './types';
 import type {
@@ -294,6 +298,37 @@ function lastActivityByMember(
     bump(settlement.to, settlement.at);
   }
   return latest;
+}
+
+/**
+ * How many people you share a group with, whatever the balance.
+ *
+ * `usePeopleBalances` drops anybody square with you, because a settled person is
+ * not a debt. That makes an empty result ambiguous: it is returned both to
+ * somebody who has nobody yet and to somebody who has ten friends and owes them
+ * all nothing. Those are opposite situations and the Friends screen has to say
+ * different things about them, so this counts the people rather than the debts.
+ *
+ * Counted by member row, not by person: a guest in two groups is two here. That
+ * is fine for the only question asked of it — is this number zero — and avoids
+ * pulling ghost-merge folding (A38) into a check that does not need it.
+ */
+export function useKnownPeopleCount(profileId: string | null): LocalRead<number> {
+  const { mirror, queue } = useSync();
+
+  const count = useMemo(() => {
+    if (!profileId) return 0;
+    let total = 0;
+    for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
+      const members = materialiseMembers(mirror, queue, {
+        groupId: group.id,
+      }) as unknown as MemberRow[];
+      total += countOthersInGroup(members, profileId);
+    }
+    return total;
+  }, [mirror, queue, profileId]);
+
+  return useLocalRead(count);
 }
 
 /**

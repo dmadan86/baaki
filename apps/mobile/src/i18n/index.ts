@@ -660,6 +660,11 @@ export interface UiStrings {
     quickActions: string;
     inbox: string;
     fromContacts: string;
+    addFromContacts: string;
+    /** The Friends screen with nobody in it yet — not the same state as being
+        square with people you do have, which is `allSquare` below. */
+    noFriends: string;
+    noFriendsBody: string;
     allSquare: string;
     allSquareBody: string;
     owesYou: string;
@@ -1859,9 +1864,12 @@ const en: UiStrings = {
     quickActions: 'Quick actions',
     inbox: 'Inbox',
     fromContacts: 'From contacts',
+    addFromContacts: 'Add from contacts',
+    noFriends: 'No friends yet',
+    noFriendsBody:
+      'Add the people you share costs with. They do not need the app — a name is enough to start.',
     allSquare: 'All square',
-    allSquareBody:
-      'Nobody owes you anything and you owe nobody. Friends you are settling up with will appear here — add somebody from your contacts to get started.',
+    allSquareBody: 'Nobody owes you and you owe nobody. New balances show up here.',
     owesYou: 'Owes you',
     youOweThem: 'You owe',
     nobodyOwesYou: 'Nobody owes you anything right now.',
@@ -3140,9 +3148,13 @@ const ta: UiStrings = {
     quickActions: 'விரைவுச் செயல்கள்',
     inbox: 'அஞ்சல் பெட்டி',
     fromContacts: 'தொடர்புகளிலிருந்து',
+    addFromContacts: 'தொடர்புகளிலிருந்து சேர்',
+    noFriends: 'இன்னும் நண்பர்கள் இல்லை',
+    noFriendsBody:
+      'நீங்கள் செலவுகளைப் பகிர்பவர்களைச் சேருங்கள். அவர்களுக்கு ஆப் தேவையில்லை — ஒரு பெயர் போதும்.',
     allSquare: 'எல்லாம் சரி',
     allSquareBody:
-      'உங்களுக்கு யாரும் தர வேண்டியதில்லை, நீங்களும் யாருக்கும் தர வேண்டியதில்லை. நீங்கள் தீர்த்துக்கொள்ளும் நண்பர்கள் இங்கே தோன்றுவார்கள் — தொடங்க உங்கள் தொடர்புகளிலிருந்து யாரையாவது சேருங்கள்.',
+      'உங்களுக்கு யாரும் தர வேண்டியதில்லை, நீங்களும் யாருக்கும் தர வேண்டியதில்லை. புதிய பாக்கிகள் இங்கே தோன்றும்.',
     owesYou: 'உங்களுக்குத் தர வேண்டியவர்கள்',
     youOweThem: 'நீங்கள் தர வேண்டியவர்கள்',
     nobodyOwesYou: 'இப்போது உங்களுக்கு யாரும் தர வேண்டியதில்லை.',
@@ -4439,9 +4451,12 @@ const hi: UiStrings = {
     quickActions: 'त्वरित क्रियाएँ',
     inbox: 'इनबॉक्स',
     fromContacts: 'संपर्कों से',
+    addFromContacts: 'संपर्कों से जोड़ें',
+    noFriends: 'अभी कोई दोस्त नहीं',
+    noFriendsBody:
+      'जिनके साथ आप खर्च बाँटते हैं उन्हें जोड़ें। उन्हें ऐप की ज़रूरत नहीं — बस एक नाम काफ़ी है।',
     allSquare: 'सब बराबर',
-    allSquareBody:
-      'न किसी पर आपका बाकी है, न आप पर किसी का। जिनसे आप हिसाब करेंगे वे यहाँ दिखेंगे — शुरू करने के लिए संपर्कों से किसी को जोड़ें।',
+    allSquareBody: 'न किसी पर आपका बाकी है, न आप पर किसी का। नए हिसाब यहाँ दिखेंगे।',
     owesYou: 'आपको देने हैं',
     youOweThem: 'आपको देने हैं जिन्हें',
     nobodyOwesYou: 'अभी किसी पर आपका कुछ बाकी नहीं है।',
@@ -5735,9 +5750,11 @@ const ar: UiStrings = {
     quickActions: 'إجراءات سريعة',
     inbox: 'صندوق الوارد',
     fromContacts: 'من جهات الاتصال',
+    addFromContacts: 'أضف من جهات الاتصال',
+    noFriends: 'لا أصدقاء بعد',
+    noFriendsBody: 'أضف من تتشارك معهم المصاريف. لا يحتاجون إلى التطبيق — يكفي اسم للبدء.',
     allSquare: 'كل شيء متساوٍ',
-    allSquareBody:
-      'لا أحد يدين لك ولا أنت تدين لأحد. سيظهر هنا من تسوّي معهم — أضف شخصًا من جهات اتصالك للبدء.',
+    allSquareBody: 'لا أحد يدين لك ولا أنت تدين لأحد. ستظهر هنا أي مبالغ جديدة.',
     owesYou: 'لك عندهم',
     youOweThem: 'عليك لهم',
     nobodyOwesYou: 'لا أحد يدين لك بشيء الآن.',

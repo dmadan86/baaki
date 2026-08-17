@@ -35,6 +35,27 @@ export interface PersonContribution {
   mergePersonId: string | null;
 }
 
+/** The little of a member row this file needs to count people. */
+export interface CountableMember {
+  profile_id: string | null;
+  left_at: string | null;
+}
+
+/**
+ * How many other people are in this group with you — nought if you are not in
+ * it yourself.
+ *
+ * This is the question `aggregatePeopleBalances` cannot answer, because it drops
+ * anybody square with you: an empty result means either "no friends" or "no
+ * debts", and Friends has to tell those apart to know what to say. Somebody who
+ * has left is not somebody you are settling up with, and neither are you.
+ */
+export function countOthersInGroup(members: readonly CountableMember[], profileId: string): number {
+  const present = members.filter((member) => member.left_at === null);
+  if (!present.some((member) => member.profile_id === profileId)) return 0;
+  return present.filter((member) => member.profile_id !== profileId).length;
+}
+
 /** COALESCE(profile_id, merge person_id, member_id) — the SQL's person_key. */
 function personKey(contribution: PersonContribution): string {
   return contribution.profileId ?? contribution.mergePersonId ?? contribution.memberId;
