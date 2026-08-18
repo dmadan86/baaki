@@ -7,7 +7,7 @@
 # prove the screen renders and the "cannot be undone" warning is shown before any
 # button. Seed a data set with two guests (e.g. two groups each with a ghost
 # "person1") to make the confirm path run.
-appId: app.baaki.mobile
+appId: app.waves.mobile
 ---
 - launchApp:
     clearState: true

@@ -130,7 +130,11 @@ export interface EmailOptions {
  * neither, there is no button — an email is still worth sending for what it
  * says.
  */
-const SAFE_LINK = /^(?:baaki:\/\/|https?:\/\/)/i;
+// Both app schemes are accepted: the store of notifications still holds
+// `baaki://` deep links written before the rebrand (and the DB functions still
+// emit them), while new links use `waves://`. The app registers both, so both
+// resolve; this rewriter has to recognise both too.
+const SAFE_LINK = /^(?:baaki:\/\/|waves:\/\/|https?:\/\/)/i;
 
 export function webLinkFor(
   deepLink: string | null | undefined,
@@ -157,7 +161,7 @@ export function webLinkFor(
   if (safeDeepLink.startsWith('http://') || safeDeepLink.startsWith('https://'))
     return safeDeepLink;
 
-  const group = /^baaki:\/\/group\/([0-9a-fA-F-]{36})/.exec(safeDeepLink);
+  const group = /^(?:baaki|waves):\/\/group\/([0-9a-fA-F-]{36})/.exec(safeDeepLink);
   return group ? `${base}/g/${group[1]}` : base;
 }
 

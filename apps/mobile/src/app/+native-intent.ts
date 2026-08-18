@@ -21,10 +21,11 @@
  */
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
-    // A base is required for the custom-scheme URL to parse. `baaki://auth`
-    // lands `auth` in the hostname; a `baaki:///auth` triple-slash form lands it
-    // in the pathname instead — cover both.
-    const url = new URL(path, 'baaki://app');
+    // A base is required for the custom-scheme URL to parse. `waves://auth`
+    // lands `auth` in the hostname; a `waves:///auth` triple-slash form lands it
+    // in the pathname instead — cover both. The base only matters when `path`
+    // arrives schemeless; a full `waves://` or `baaki://` URL parses on its own.
+    const url = new URL(path, 'waves://app');
     const firstSegment = url.pathname.replace(/^\/+/, '').split('/')[0];
     if (url.hostname === 'auth' || firstSegment === 'auth') {
       return '/';

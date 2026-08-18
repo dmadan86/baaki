@@ -143,7 +143,7 @@ export async function refreshPushToken(): Promise<PushResult> {
   } catch (caught) {
     // The usual one, on an Android build with no `google-services.json`:
     // "Default FirebaseApp is not initialized". Also a Firebase project whose
-    // package name is not `app.baaki.mobile`, and a device with no network.
+    // package name is not `app.waves.mobile`, and a device with no network.
     // None of them are anything the person can act on, and none of them are
     // worth taking the app down for.
     console.warn('push token unavailable:', (caught as Error).message);
@@ -193,7 +193,9 @@ export function routeForNotification(response: Notifications.NotificationRespons
   const data = response.notification.request.content.data as { url?: unknown } | undefined;
   const url = typeof data?.url === 'string' ? data.url : null;
   if (!url) return null;
-  // `baaki://group/<id>` → `/group/<id>`. The scheme is only there because a
-  // push has to survive being handed to the operating system.
-  return url.replace(/^baaki:\/\//, '/');
+  // `waves://group/<id>` (or a pre-rebrand `baaki://…` still in the queue) →
+  // `/group/<id>`. The scheme is only there because a push has to survive being
+  // handed to the operating system; either of the app's registered schemes maps
+  // to the same in-app path.
+  return url.replace(/^(?:baaki|waves):\/\//, '/');
 }

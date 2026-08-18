@@ -84,7 +84,7 @@ describe('campaignCtaUrl', () => {
   });
 
   it('falls back to a redeem deep link when only a code is known', () => {
-    expect(campaignCtaUrl('DIWALI 26', null)).toBe('baaki://redeem?code=DIWALI%2026');
+    expect(campaignCtaUrl('DIWALI 26', null)).toBe('waves://redeem?code=DIWALI%2026');
   });
 
   it('has nothing to link to with neither', () => {

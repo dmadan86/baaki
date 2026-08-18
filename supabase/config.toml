@@ -47,7 +47,12 @@ site_url = "baaki://"
 # produces, and Supabase matches these exactly — `baaki://` on its own does not
 # cover it, so leaving it out sends every OAuth round trip to site_url instead
 # and the app never sees the tokens.
-additional_redirect_urls = ["baaki://", "baaki://auth", "http://localhost:3000"]
+#
+# The auth redirect deliberately stays on the `baaki` scheme through the rebrand:
+# the app now registers both `waves://` and `baaki://`, and the `waves://` entries
+# below are pre-allowed so the OAuth redirect can move to `waves://auth` in one
+# step once the prod Supabase + Google/Apple consoles also list it.
+additional_redirect_urls = ["baaki://", "baaki://auth", "waves://", "waves://auth", "http://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
 # ADR-006. A guest opens a link and starts splitting; there is no account until
