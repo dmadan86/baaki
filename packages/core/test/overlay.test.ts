@@ -442,6 +442,67 @@ describe('captures', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ description: 'Petrol (edited)', pending: true });
   });
+
+  it('keeps payment_method on an edit that omits it, but honours an explicit null', () => {
+    const serverRow: SyncChange = {
+      table: SyncTable.Captures,
+      groupId: OWNER,
+      seq: 1,
+      row: {
+        id: 'cap-1',
+        owner_user_id: OWNER,
+        description: 'Petrol',
+        category: 'transport',
+        expense_date: '2026-03-01',
+        currency: 'INR',
+        amount: '250000',
+        notes: null,
+        photo_path: null,
+        raw_text: null,
+        parsed: null,
+        payment_method: 'credit',
+        target_group_id: 'g-7',
+        status: 'open',
+        assigned_expense_id: null,
+        assigned_group_id: null,
+        created_at: AT,
+        deleted_at: null,
+      },
+    };
+    const { state } = reconcile(emptyMirror(), [serverRow]);
+
+    // An edit with neither field present leaves both as the server had them.
+    const omit = envelope(
+      'c-6',
+      MutationKind.CaptureUpdate,
+      { captureId: 'cap-1', description: 'Petrol (renamed)', expenseDate: '2026-03-01', currency: 'INR', amount: '250000' },
+      OWNER,
+    );
+    expect(materialiseCaptures(state, queued(omit), { ownerId: OWNER })[0]).toMatchObject({
+      payment_method: 'credit',
+      target_group_id: 'g-7',
+    });
+
+    // An edit that sends null is a deliberate clear, not a no-op.
+    const clear = envelope(
+      'c-7',
+      MutationKind.CaptureUpdate,
+      {
+        captureId: 'cap-1',
+        description: 'Petrol',
+        expenseDate: '2026-03-01',
+        currency: 'INR',
+        amount: '250000',
+        paymentMethod: null,
+        targetGroupId: null,
+      },
+      OWNER,
+    );
+    expect(materialiseCaptures(state, queued(clear), { ownerId: OWNER })[0]).toMatchObject({
+      payment_method: null,
+      target_group_id: null,
+    });
+  });
 });
 
 describe('trip plan (A23)', () => {

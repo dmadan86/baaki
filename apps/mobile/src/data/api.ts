@@ -1689,11 +1689,14 @@ export async function redeemPromoCode(code: string): Promise<PromoOutcome> {
 
 // ────────────────────────────────────── feedback, and leaving ──
 
+/** A star rating is one of five whole values, or null when none was given. */
+export type FeedbackRating = 1 | 2 | 3 | 4 | 5;
+
 export async function submitFeedback(input: {
   message: string;
   kind: 'general' | 'bug' | 'idea';
   /** 1–5 where the person offered one; null when they wrote without rating. */
-  rating: number | null;
+  rating: FeedbackRating | null;
   appVersion: string | null;
   platform: string;
 }): Promise<void> {

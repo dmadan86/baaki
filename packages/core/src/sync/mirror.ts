@@ -664,8 +664,17 @@ export function materialiseCaptures(
           photo_path: payload.photoPath ?? null,
           raw_text: payload.rawText ?? null,
           parsed: payload.parsed ?? null,
-          payment_method: payload.paymentMethod ?? existing?.payment_method ?? null,
-          target_group_id: payload.targetGroupId ?? existing?.target_group_id ?? null,
+          // An edit that omits these keeps what the server had; an edit that
+          // sends them — null included — is a deliberate clear, so `in` decides
+          // rather than `??`, which would swallow an explicit null.
+          payment_method:
+            'paymentMethod' in payload
+              ? payload.paymentMethod ?? null
+              : existing?.payment_method ?? null,
+          target_group_id:
+            'targetGroupId' in payload
+              ? payload.targetGroupId ?? null
+              : existing?.target_group_id ?? null,
           // An edit never un-assigns; only assignment sets it, below.
           status: existing?.status ?? 'open',
           assigned_expense_id: existing?.assigned_expense_id ?? null,

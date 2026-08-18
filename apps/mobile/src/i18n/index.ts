@@ -1463,6 +1463,10 @@ export interface UiStrings {
     feedbackThanks: string;
     feedbackRating: string;
     feedbackRatingHint: string;
+    /** A star's accessibility label, e.g. "3 stars". `{n}` is the star. */
+    feedbackStarLabel: PluralForms;
+    /** Read out on the chosen star: a second tap removes the rating. */
+    feedbackStarClearHint: string;
     feedbackAttachNote: string;
     kindGeneral: string;
     kindBug: string;
@@ -2828,6 +2832,8 @@ const en: UiStrings = {
     feedbackThanks: 'Thank you — that has been received.',
     feedbackRating: 'How is Baaki so far?',
     feedbackRatingHint: 'Optional',
+    feedbackStarLabel: { one: '{n} star', other: '{n} stars' },
+    feedbackStarClearHint: 'Tap again to clear the rating',
     feedbackAttachNote:
       'Your app version and device type come along, so we can reproduce what you saw. Nothing else.',
     kindGeneral: 'General',
@@ -4271,6 +4277,8 @@ const ta: UiStrings = {
     feedbackThanks: 'நன்றி — கிடைத்துவிட்டது.',
     feedbackRating: 'பாக்கி இதுவரை எப்படி இருக்கிறது?',
     feedbackRatingHint: 'விருப்பம்',
+    feedbackStarLabel: { one: '{n} நட்சத்திரம்', other: '{n} நட்சத்திரங்கள்' },
+    feedbackStarClearHint: 'மதிப்பீட்டை அழிக்க மீண்டும் தட்டவும்',
     feedbackAttachNote:
       'நீங்கள் பார்த்ததை மீண்டும் உருவாக்க, உங்கள் ஆப் பதிப்பும் சாதன வகையும் உடன் வரும். வேறு எதுவும் இல்லை.',
     kindGeneral: 'பொது',
@@ -5654,6 +5662,8 @@ const hi: UiStrings = {
     feedbackThanks: 'धन्यवाद — मिल गया।',
     feedbackRating: 'बाकी अब तक कैसा लगा?',
     feedbackRatingHint: 'वैकल्पिक',
+    feedbackStarLabel: { one: '{n} तारा', other: '{n} तारे' },
+    feedbackStarClearHint: 'रेटिंग हटाने के लिए फिर से टैप करें',
     feedbackAttachNote:
       'आपने जो देखा उसे दोहरा सकें, इसलिए आपका ऐप वर्शन और डिवाइस टाइप साथ आते हैं। और कुछ नहीं।',
     kindGeneral: 'सामान्य',
@@ -7233,6 +7243,8 @@ const ar: UiStrings = {
     feedbackThanks: 'شكرًا — وصلتنا.',
     feedbackRating: 'كيف تجد بـاقي حتى الآن؟',
     feedbackRatingHint: 'اختياري',
+    feedbackStarLabel: { one: '{n} نجمة', other: '{n} نجوم' },
+    feedbackStarClearHint: 'انقر مرة أخرى لمسح التقييم',
     feedbackAttachNote:
       'يُرفق إصدار التطبيق ونوع الجهاز حتى نتمكّن من إعادة إنتاج ما رأيته. لا شيء غير ذلك.',
     kindGeneral: 'عام',

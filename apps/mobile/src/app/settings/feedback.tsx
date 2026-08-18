@@ -19,8 +19,8 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { submitFeedback } from '@/data/api';
-import { useStrings } from '@/i18n';
+import { submitFeedback, type FeedbackRating } from '@/data/api';
+import { plural, useStrings } from '@/i18n';
 import { friendlyError } from '@/lib/errors';
 
 enum Kind {
@@ -32,14 +32,14 @@ enum Kind {
 export default function FeedbackScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
 
   const [kind, setKind] = useState<Kind>(Kind.General);
   // 1–5, or null when they write without rating. The table and RPC have always
   // had the column (baaki_submit_feedback's p_rating); this is the screen that
   // finally offers it. Tapping a chosen star again clears it — a rating is a
   // gift, not a required field.
-  const [rating, setRating] = useState<number | null>(null);
+  const [rating, setRating] = useState<FeedbackRating | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,14 +120,21 @@ export default function FeedbackScreen() {
                 </Text>
               </Row>
               <Row style={{ gap: theme.spacing.sm, justifyContent: 'center' }}>
-                {[1, 2, 3, 4, 5].map((n) => {
+                {([1, 2, 3, 4, 5] as const).map((n) => {
                   const filled = rating !== null && n <= rating;
+                  // `filled` drives the drawing (every star up to the choice is
+                  // solid); `selected` names the one exact star this control
+                  // stands for, so a screen reader announces the rating, not the
+                  // fill. The clear-on-second-tap hint rides only that star.
+                  const isChoice = n === rating;
                   return (
                     <Pressable
                       key={n}
                       accessibilityRole="button"
-                      accessibilityLabel={String(n)}
-                      accessibilityState={{ selected: filled }}
+                      accessibilityLabel={plural(locale, n, t.privacy.feedbackStarLabel)}
+                      accessibilityState={{ selected: isChoice }}
+                      accessibilityHint={isChoice ? t.privacy.feedbackStarClearHint : undefined}
+                      disabled={busy}
                       hitSlop={6}
                       onPress={() => setRating((current) => (current === n ? null : n))}
                       style={({ pressed }) => ({
@@ -148,7 +155,9 @@ export default function FeedbackScreen() {
 
             <ChipRow<Kind>
               value={kind}
-              onChange={setKind}
+              onChange={(next) => {
+                if (!busy) setKind(next);
+              }}
               options={[
                 { value: Kind.General, label: t.privacy.kindGeneral },
                 { value: Kind.Bug, label: t.privacy.kindBug },
@@ -163,6 +172,7 @@ export default function FeedbackScreen() {
                 placeholder={t.privacy.feedbackPlaceholder}
                 placeholderTextColor={theme.color.textFaint}
                 accessibilityLabel={t.privacy.feedbackTitle}
+                editable={!busy}
                 multiline
                 autoFocus
                 maxLength={4000}
