@@ -23,7 +23,8 @@ import { useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { computeShares, type SplitParams } from '@waves/core';
 import {
@@ -33,6 +34,7 @@ import {
   Divider,
   IconButton,
   iconSize,
+  MoneyText,
   Row,
   Screen,
   Text,
@@ -87,6 +89,7 @@ function toMinor(amount: string): bigint | null {
 export default function VoiceScreen() {
   const theme = useTheme();
   const clearance = useScreenClearance();
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const { profile } = useAuth();
   const access = useAiAccess();
@@ -100,6 +103,9 @@ export default function VoiceScreen() {
   const [phase, setPhase] = useState<'listening' | 'thinking' | 'review'>('listening');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [dest, setDest] = useState<Dest>({ kind: 'unassigned' });
+  // The destination folds into a single row that opens this sheet, so the
+  // expenses — not a wall of group rows — are the first thing on the review.
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [noAmount, setNoAmount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -297,12 +303,36 @@ export default function VoiceScreen() {
   const canSave =
     drafts.length > 0 && !saving && drafts.every((draft) => toMinor(draft.amount) !== null);
 
+  // The footer total must read in the same currency the Save will persist, or
+  // it lies about what lands. A group save writes every expense in the group's
+  // own currency (see `save`), so the footer totals in that one currency too;
+  // the unassigned inbox keeps each capture's spoken currency, so there the
+  // total is per-currency and a mixed batch shows its count instead — there is
+  // no total across currencies (ADR-004).
+  const destCurrency =
+    dest.kind === 'unassigned'
+      ? null
+      : dest.kind === 'create'
+        ? deviceDefaultCurrency()
+        : (target.group.data?.default_currency ?? deviceDefaultCurrency());
+  const draftTotals = new Map<string, bigint>();
+  for (const draft of drafts) {
+    const minor = toMinor(draft.amount);
+    if (minor === null) continue;
+    const currency = destCurrency ?? draft.currency ?? deviceDefaultCurrency();
+    draftTotals.set(currency, (draftTotals.get(currency) ?? 0n) + minor);
+  }
+  const singleTotal = draftTotals.size === 1 ? [...draftTotals.entries()][0] : null;
+
+  const current = describeDest(dest, groupRows, t);
+
   return (
     <Screen>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance,
+          paddingBottom: phase === 'review' ? theme.spacing.xl : clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
@@ -338,15 +368,9 @@ export default function VoiceScreen() {
           </View>
         ) : phase === 'review' ? (
           <View style={{ gap: theme.spacing.xl }}>
-            <DestinationPicker
-              dest={dest}
-              requested={requested}
-              onChoose={setDest}
-              groups={groupRows}
-              t={t}
-              theme={theme}
-            />
-
+            {/* The expenses are the hero: the receipt cards sit at the top, so
+                the first thing on the review is what you actually said, not a
+                column of destinations. */}
             <View style={{ gap: theme.spacing.md }}>
               {drafts.map((draft) => (
                 <DraftRow
@@ -363,12 +387,50 @@ export default function VoiceScreen() {
               ))}
             </View>
 
-            <Button
-              label={plural(locale, drafts.length, t.voice.save)}
-              onPress={() => void save()}
-              disabled={!canSave}
-              style={{ alignSelf: 'center' }}
-            />
+            {/* Destination folded to one selector row — the whole group list
+                would otherwise dwarf the expenses. Tapping opens the picker as
+                a sheet. */}
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                {t.voice.saveTo.toUpperCase()}
+              </Text>
+              <Card padded={false} style={{ overflow: 'hidden' }}>
+                <Pressable
+                  onPress={() => setPickerOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.voice.saveTo}: ${current.label}`}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing.md,
+                    paddingVertical: theme.spacing.md,
+                    paddingHorizontal: theme.spacing.lg,
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.brandSoft,
+                    }}
+                  >
+                    {current.emoji ? (
+                      <Text style={{ fontSize: 18 }}>{current.emoji}</Text>
+                    ) : (
+                      <Ionicons name={current.icon} size={iconSize.md} color={theme.color.brand} />
+                    )}
+                  </View>
+                  <Text numberOfLines={1} style={{ flex: 1, color: theme.color.text }}>
+                    {current.label}
+                  </Text>
+                  <Ionicons name="chevron-down" size={iconSize.md} color={theme.color.textMuted} />
+                </Pressable>
+              </Card>
+            </View>
           </View>
         ) : (
           // Listening.
@@ -386,8 +448,133 @@ export default function VoiceScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Sticky action bar: the running total on the left, Save on the right —
+          anchored to the foot so it is reachable no matter how the list grows,
+          the pattern every checkout and expense-review screen settles on. */}
+      {phase === 'review' ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: theme.spacing.lg,
+            paddingHorizontal: theme.spacing.xl,
+            paddingTop: theme.spacing.md,
+            paddingBottom: insets.bottom + theme.spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: theme.color.border,
+            backgroundColor: theme.color.surface,
+          }}
+        >
+          <View style={{ gap: 2 }}>
+            <Text variant="micro" tone="muted">
+              {t.itemize.total}
+            </Text>
+            {singleTotal ? (
+              <MoneyText
+                amount={singleTotal[1]}
+                currency={singleTotal[0]}
+                locale={locale}
+                mode="plain"
+                variant="subheading"
+              />
+            ) : (
+              <Text variant="subheading">{plural(locale, drafts.length, t.voice.save)}</Text>
+            )}
+          </View>
+          <Button
+            label={plural(locale, drafts.length, t.voice.save)}
+            onPress={() => void save()}
+            disabled={!canSave}
+          />
+        </View>
+      ) : null}
+
+      {/* The destination picker, as a dismissible bottom sheet. */}
+      <Modal
+        transparent
+        visible={pickerOpen}
+        animationType="fade"
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <Pressable
+          onPress={() => setPickerOpen(false)}
+          accessibilityLabel={t.common.close}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(10, 10, 26, 0.55)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: theme.color.bg,
+              borderTopLeftRadius: theme.radius.xxl,
+              borderTopRightRadius: theme.radius.xxl,
+              paddingHorizontal: theme.spacing.xl,
+              paddingTop: theme.spacing.lg,
+              paddingBottom: insets.bottom + theme.spacing.xl,
+              gap: theme.spacing.lg,
+              // Never taller than most of the screen: a long group list scrolls
+              // inside the sheet rather than pushing the rows off the top.
+              maxHeight: '80%',
+              ...theme.shadow.lifted,
+            }}
+          >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: theme.color.border,
+              }}
+            />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <DestinationPicker
+                dest={dest}
+                requested={requested}
+                onChoose={(next) => {
+                  setDest(next);
+                  setPickerOpen(false);
+                }}
+                groups={groupRows}
+                t={t}
+                theme={theme}
+              />
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
+}
+
+/** The current destination as a label plus a leading emoji or icon — what the
+ * folded "Save to" selector shows before the picker sheet is opened. */
+function describeDest(
+  dest: Dest,
+  groups: GroupRow[],
+  t: ReturnType<typeof useStrings>['t'],
+): { label: string; emoji?: string | null; icon: React.ComponentProps<typeof Ionicons>['name'] } {
+  if (dest.kind === 'unassigned') {
+    return { label: t.captures.unassigned, icon: 'file-tray-full-outline' };
+  }
+  if (dest.kind === 'create') {
+    return {
+      label: t.voice.newGroupNamed.replace('{name}', dest.name),
+      icon: 'add-circle-outline',
+    };
+  }
+  const group = groups.find((candidate) => candidate.id === dest.groupId);
+  if (!group) return { label: t.captures.unassigned, icon: 'people-outline' };
+  return {
+    label: groupLabel(group),
+    emoji: group.cover_emoji,
+    icon: GROUP_TYPE_ICON[group.type] ?? 'people-outline',
+  };
 }
 
 /** One Ionicon per group type, the fallback when a group has no cover emoji —
@@ -457,7 +644,13 @@ function DestinationPicker({
   // order. Every row carries its own cover emoji (or a type glyph as a fallback)
   // so a trip, a home and an event are told apart at a glance instead of a
   // column of identical people icons.
-  const sorted = [...groups].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  const sorted = [...groups].sort((a, b) => {
+    // Newest first by creation time; when two groups share a timestamp (made in
+    // the same request), fall back to id so the order is stable across renders
+    // rather than flipping on every re-sort.
+    if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
   for (const group of sorted) {
     rows.push({
       key: group.id,

@@ -78,6 +78,35 @@ interface SyncResponseBody {
 /** While the app is open and online, catch anything Realtime missed. */
 const POLL_INTERVAL_MS = 30_000;
 
+/** A sync request that has connected but is never answered would otherwise hang
+ * the flush in `Syncing` forever — and because `this.flushing` dedupes, every
+ * later flush (including the 30s poll) would queue behind that dead one. Cap the
+ * round trip so a silent server surfaces as an ordinary Error the UI can move
+ * past, rather than an endless spinner. */
+const SYNC_TIMEOUT_MS = 20_000;
+
+/**
+ * Reject if `promise` has not settled within `ms`. The timer is cleared the
+ * moment it settles, so a healthy request pays nothing; a hung one rejects and
+ * lands in the flush's existing catch. The underlying request is left to error
+ * out on its own — its result is ignored either way.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
 export class SyncEngine {
   private store: LocalStore = createLocalStore();
   private state: SyncState = {
@@ -292,19 +321,23 @@ export class SyncEngine {
     if (batch.length > 0) this.set({ status: SyncStatus.Syncing });
 
     try {
-      const { data, error } = await supabase.functions.invoke('sync', {
-        body: {
-          deviceId: 'mobile',
-          mutations: batch.map((item) => ({
-            clientMutationId: item.clientMutationId,
-            kind: item.kind,
-            groupId: item.groupId,
-            clientCreatedAt: item.clientCreatedAt,
-            payload: item.payload,
-          })),
-          cursors,
-        },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('sync', {
+          body: {
+            deviceId: 'mobile',
+            mutations: batch.map((item) => ({
+              clientMutationId: item.clientMutationId,
+              kind: item.kind,
+              groupId: item.groupId,
+              clientCreatedAt: item.clientCreatedAt,
+              payload: item.payload,
+            })),
+            cursors,
+          },
+        }),
+        SYNC_TIMEOUT_MS,
+        'sync',
+      );
       if (error) throw new Error(await describeFunctionError(error));
 
       const response = data as SyncResponseBody;
