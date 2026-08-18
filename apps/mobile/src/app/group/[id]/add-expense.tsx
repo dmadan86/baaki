@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -34,7 +35,8 @@ import { CategoryPicker } from '@/components/Category';
 import { friendlyError } from '@/lib/errors';
 import { CurrencyRate } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
-import { scanReceipt, scanReceiptText } from '@/data/api';
+import { canAddReceipt, scanReceipt, scanReceiptText } from '@/data/api';
+import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
 import { useAssignCapture, useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
@@ -184,6 +186,22 @@ export default function AddExpenseScreen() {
   const [scanNote, setScanNote] = useState<string | null>(null);
   /** Set once a scan has read line items, so the offer to itemize is real. */
   const [scannedItems, setScannedItems] = useState(0);
+
+  // The per-group receipt ceiling. A group holds a few receipts for free (the
+  // number is an admin knob); past it, scanning is a paid feature. A paid group
+  // has no cap. This only draws the affordance — the server enforces the same
+  // rule when it records the receipt.
+  const receiptCap = useQuery({
+    queryKey: ['receiptCap', groupId],
+    queryFn: () => canAddReceipt(groupId),
+  });
+  // A failed fetch must not lock a scan the server would allow: an undefined
+  // answer that is no longer loading is treated as allowed, and the server is
+  // the real boundary if it turns out the group was capped after all.
+  const capStatus = receiptCap.isError
+    ? 'allowed'
+    : receiptCapStatus(receiptCap.data, receiptCap.isLoading);
+  const capLocked = capStatus === 'locked';
 
   const myMemberId = useMemo(
     () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
@@ -506,6 +524,10 @@ export default function AddExpenseScreen() {
    * saves itself, and the amount lands in the same field, editable.
    */
   const scan = async (): Promise<void> => {
+    // The cap decides the button below, but guard here too: a scan is not free
+    // to start (the camera, the OCR, the metered call), and the server would
+    // refuse to record it anyway.
+    if (receiptTapAction(capStatus) !== 'scan') return;
     setError(null);
     setScanNote(null);
     let picked: Awaited<ReturnType<typeof captureReceipt>> = null;
@@ -614,19 +636,41 @@ export default function AddExpenseScreen() {
         <Card style={{ gap: theme.spacing.md }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">{t.expense.scanBillTitle}</Text>
+              <Text variant="subheading">
+                {capLocked ? t.expense.capReachedTitle : t.expense.scanBillTitle}
+              </Text>
               <Text variant="caption" tone="muted">
-                {t.expense.scanBillBody}
+                {capLocked ? t.expense.capReachedBody : t.expense.scanBillBody}
               </Text>
             </View>
-            <Button
-              label={scanning ? t.expense.reading : t.expense.scan}
-              variant="secondary"
-              disabled={scanning || saving}
-              onPress={() => void scan()}
-              icon={<Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />}
-            />
+            {/* Once the group is capped the scan button has nothing to do — a
+                scan the server would refuse — so it gives way to the two ways
+                out: pay, or bring your own storage. */}
+            {!capLocked ? (
+              <Button
+                label={scanning ? t.expense.reading : t.expense.scan}
+                variant="secondary"
+                disabled={scanning || saving || capStatus === 'loading'}
+                onPress={() => void scan()}
+                icon={
+                  <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
+                }
+              />
+            ) : null}
           </Row>
+          {capLocked ? (
+            <Row style={{ gap: theme.spacing.sm }}>
+              <Button
+                label={t.expense.capUpgrade}
+                onPress={() => router.push('/settings/upgrade')}
+              />
+              <Button
+                label={t.expense.capAddStorage}
+                variant="secondary"
+                onPress={() => router.push('/settings/backup')}
+              />
+            </Row>
+          ) : null}
           {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
           {scanNote ? (
             <Text variant="caption" tone="brand">

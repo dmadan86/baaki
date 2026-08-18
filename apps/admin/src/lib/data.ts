@@ -206,6 +206,53 @@ export async function saveFlag(input: {
   if (error) throw new Error(`saving ${input.key} failed: ${error.message}`);
 }
 
+export interface AppConfigRow {
+  key: string;
+  value: number;
+  description: string;
+  updated_at: string;
+}
+
+/**
+ * The numeric knobs — the receipt cap and any limit that joins it. Like
+ * `feature_flags`, this is configuration the console owns, not an aggregate
+ * over somebody's data, so it is read straight from the table.
+ */
+export async function appConfig(): Promise<AppConfigRow[]> {
+  await requireSession();
+  const { data, error } = await client()
+    .from('app_config')
+    .select('key, value, description, updated_at')
+    .order('key');
+  if (error) {
+    if (error.code === TABLE_MISSING) return [];
+    throw new Error(`reading app_config failed: ${error.message}`);
+  }
+  return (data ?? []) as AppConfigRow[];
+}
+
+/**
+ * Change a knob's value. An UPDATE, not an upsert: the keys are defined by the
+ * migrations that read them, so the console turns existing knobs and cannot
+ * invent one the code never looks at.
+ */
+export async function saveAppConfig(input: { key: string; value: number }): Promise<void> {
+  await requireSession();
+
+  if (!/^[a-z][a-z0-9_]{1,60}$/.test(input.key)) {
+    throw new Error('A key is lowercase letters, digits and underscores, starting with a letter.');
+  }
+  if (!Number.isInteger(input.value) || input.value < 0) {
+    throw new Error('A limit is a whole number, zero or more.');
+  }
+
+  const { error } = await client()
+    .from('app_config')
+    .update({ value: input.value, updated_at: new Date().toISOString() })
+    .eq('key', input.key);
+  if (error) throw new Error(`saving ${input.key} failed: ${error.message}`);
+}
+
 export interface PromoCodeRow {
   code: string;
   tier: string;

@@ -181,6 +181,23 @@ serveWithCors(async (request) => {
       );
     }
 
+    // The per-group receipt ceiling (ADR-011). Checked before the model call
+    // for the same reason as the quota: refuse a spend that would be capped at
+    // record time anyway. Paid groups are exempt inside the RPC; a `false` here
+    // means an unpaid group that has filled its free receipts. `record_receipt`
+    // enforces the same rule as the real boundary, so this is only to save the
+    // model call and give a clean 429 instead of a raised `RECEIPT_CAP`.
+    const { data: canAdd } = await caller.rpc('baaki_can_add_receipt', {
+      p_group_id: body.groupId,
+    });
+    if (canAdd === false) {
+      throw new HttpError(
+        429,
+        'RECEIPT_CAP_REACHED',
+        'This group has reached its receipt limit. Upgrade or add storage to add more.',
+      );
+    }
+
     const content: unknown[] = [];
     if (body.storagePath) {
       // IDOR guard: the download runs with the service role, which bypasses

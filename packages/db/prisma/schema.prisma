@@ -1260,3 +1260,17 @@ model RateLimitSetting {
   @@map("rate_limit_settings")
   @@schema("public")
 }
+
+/// A numeric knob the admin console turns without a deploy — the receipt cap
+/// lives here (see 20260818160000_receipt_cap). One row per limit. Readable by
+/// clients (it is configuration, not data about a person); written by the
+/// service role alone, so a limit a client could raise is not a limit.
+model AppConfig {
+  key         String   @id
+  value       Int
+  description String   @default("")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("app_config")
+  @@schema("public")
+}

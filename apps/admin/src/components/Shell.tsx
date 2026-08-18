@@ -21,6 +21,7 @@ const TITLES: Record<string, string> = {
   '/promotions': 'Promotions',
   '/campaigns': 'Campaigns',
   '/flags': 'Experiments',
+  '/config': 'Limits',
   '/rate-limits': 'Rate limits',
   '/feedback': 'Feedback',
 };

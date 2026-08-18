@@ -79,6 +79,7 @@ const SECTIONS: Section[] = [
     heading: 'Config',
     items: [
       { href: '/flags', label: 'Experiments', icon: I.flags },
+      { href: '/config', label: 'Limits', icon: I.gauge },
       { href: '/rate-limits', label: 'Rate limits', icon: I.gauge },
     ],
   },
