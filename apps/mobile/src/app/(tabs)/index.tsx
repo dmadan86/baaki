@@ -1125,14 +1125,13 @@ function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: strin
       }}
     >
       <HeroBackdropIcon name="wallet-outline" />
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text variant="caption" tone="onBrand">
-          {t.yourBaaki}
-        </Text>
-        <Text variant="micro" tone="onBrand">
-          {total.currency}
-        </Text>
-      </Row>
+      {/* Currencies are never summed (ADR-004), so the deck can carry a card per
+          currency. The code rides in the heading — not just a corner chip — so
+          two balance cards read as "your USD" and "your INR", never as two
+          identical "Your balance". */}
+      <Text variant="caption" tone="onBrand">
+        {`${t.yourBaaki} · ${total.currency}`}
+      </Text>
 
       <View>
         <CountUpMoney

@@ -1003,6 +1003,11 @@ export interface UiStrings {
     reading: string;
     scanReconciles: string;
     scanCheckTotal: string;
+    /** Scan card, when the group has filled its free receipt cap (admin knob). */
+    capReachedTitle: string;
+    capReachedBody: string;
+    capUpgrade: string;
+    capAddStorage: string;
     /** The scanned-bill card and the receipt hand-off on the group screen. */
     aBill: string;
     splitBillA11y: string;
@@ -2349,6 +2354,11 @@ const en: UiStrings = {
     reading: 'Reading…',
     scanReconciles: 'Read the total off the bill. Check it, then split it however you like.',
     scanCheckTotal: 'Check the total against the bill before saving.',
+    capReachedTitle: 'Receipt limit reached',
+    capReachedBody:
+      'This group has used its free receipts. Upgrade or add your own storage to keep scanning.',
+    capUpgrade: 'Upgrade',
+    capAddStorage: 'Add storage',
     aBill: 'A bill',
     splitBillA11y: 'Split {merchant} by item',
     receiptClaimedNone: {
@@ -3787,6 +3797,11 @@ const ta: UiStrings = {
     scanReconciles:
       'ரசீதிலிருந்து மொத்தம் படிக்கப்பட்டது. சரிபார்த்து, உங்களுக்கு ஏற்றபடி பிரியுங்கள்.',
     scanCheckTotal: 'சேமிப்பதற்கு முன் ரசீதுடன் மொத்தத்தைச் சரிபாருங்கள்.',
+    capReachedTitle: 'ரசீது வரம்பை எட்டிவிட்டது',
+    capReachedBody:
+      'இந்தக் குழு அதன் இலவச ரசீதுகளைப் பயன்படுத்திவிட்டது. தொடர்ந்து ஸ்கேன் செய்ய மேம்படுத்துங்கள் அல்லது உங்கள் சொந்த சேமிப்பகத்தைச் சேர்க்கவும்.',
+    capUpgrade: 'மேம்படுத்து',
+    capAddStorage: 'சேமிப்பகம் சேர்',
     aBill: 'ஒரு பில்',
     splitBillA11y: '{merchant} பொருள் வாரியாகப் பிரி',
     receiptClaimedNone: {
@@ -5216,6 +5231,11 @@ const hi: UiStrings = {
     reading: 'पढ़ रहे हैं…',
     scanReconciles: 'बिल से कुल रकम पढ़ ली। जाँच लें, फिर जैसे चाहें बाँटें।',
     scanCheckTotal: 'सेव करने से पहले कुल रकम बिल से मिला लें।',
+    capReachedTitle: 'रसीद की सीमा पूरी हो गई',
+    capReachedBody:
+      'इस ग्रुप की मुफ़्त रसीदें ख़त्म हो गई हैं। स्कैन करते रहने के लिए अपग्रेड करें या अपना स्टोरेज जोड़ें।',
+    capUpgrade: 'अपग्रेड करें',
+    capAddStorage: 'स्टोरेज जोड़ें',
     aBill: 'एक बिल',
     splitBillA11y: '{merchant} को चीज़-वार बाँटें',
     receiptClaimedNone: {
@@ -6665,6 +6685,11 @@ const ar: UiStrings = {
     reading: 'جارٍ القراءة…',
     scanReconciles: 'قرأنا المجموع من الفاتورة. تحقّق منه ثم قسّمه كما تشاء.',
     scanCheckTotal: 'قارن المجموع بالفاتورة قبل الحفظ.',
+    capReachedTitle: 'تم بلوغ حدّ الإيصالات',
+    capReachedBody:
+      'استهلكت هذه المجموعة إيصالاتها المجانية. رقِّ الخطة أو أضِف مساحتك الخاصة لمواصلة المسح.',
+    capUpgrade: 'ترقية',
+    capAddStorage: 'إضافة مساحة',
     aBill: 'فاتورة',
     splitBillA11y: 'قسّم {merchant} حسب الصنف',
     receiptClaimedNone: {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -32,7 +33,14 @@ import {
 
 import { captureReceipt } from '@/lib/image';
 import { friendlyError } from '@/lib/errors';
-import { publishReceiptItems, scanReceipt, scanReceiptText, setItemClaim } from '@/data/api';
+import {
+  canAddReceipt,
+  publishReceiptItems,
+  scanReceipt,
+  scanReceiptText,
+  setItemClaim,
+} from '@/data/api';
+import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
 import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useItemClaims, useReceipt, useWriteExpense } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
@@ -103,6 +111,18 @@ export default function ItemizeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState<string | null>(null);
+
+  // The per-group receipt ceiling — same gate as the add-expense scan card.
+  // Only the affordance; the server enforces the cap when it records.
+  const receiptCap = useQuery({
+    queryKey: ['receiptCap', groupId],
+    queryFn: () => canAddReceipt(groupId),
+  });
+  const capStatus = receiptCap.isError
+    ? 'allowed'
+    : receiptCapStatus(receiptCap.data, receiptCap.isLoading);
+  const capLocked = capStatus === 'locked';
+  const queryClient = useQueryClient();
   /** A bill that has been scanned but not yet handed to the table. */
   const [scanId, setScanId] = useState<string | null>(null);
 
@@ -175,6 +195,8 @@ export default function ItemizeScreen() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const scan = async (): Promise<void> => {
+    // Capped groups don't scan — the server would refuse the record anyway.
+    if (receiptTapAction(capStatus) !== 'scan') return;
     const picked = await captureReceipt();
     if (!picked) return;
     setError(null);
@@ -203,6 +225,10 @@ export default function ItemizeScreen() {
 
       fillFromReceipt(result.parsed);
       setScanId(result.receiptId);
+
+      // The receipt just landed, so the cached cap count is now stale. Refresh
+      // the gate before another scan can start from a wrong number.
+      await queryClient.invalidateQueries({ queryKey: ['receiptCap', groupId] });
 
       // The arithmetic decides what the person is asked to look at. Saying
       // "scanned!" and leaving them to notice a wrong total is the failure
@@ -472,21 +498,38 @@ export default function ItemizeScreen() {
           <Card style={{ gap: theme.spacing.md }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-                <Text variant="subheading">{t.itemize.scanTitle}</Text>
+                <Text variant="subheading">
+                  {capLocked ? t.expense.capReachedTitle : t.itemize.scanTitle}
+                </Text>
                 <Text variant="caption" tone="muted">
-                  {t.itemize.scanBody}
+                  {capLocked ? t.expense.capReachedBody : t.itemize.scanBody}
                 </Text>
               </View>
-              <Button
-                label={scanning ? t.expense.reading : t.expense.scan}
-                variant="secondary"
-                disabled={scanning}
-                onPress={() => void scan()}
-                icon={
-                  <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
-                }
-              />
+              {!capLocked ? (
+                <Button
+                  label={scanning ? t.expense.reading : t.expense.scan}
+                  variant="secondary"
+                  disabled={scanning || capStatus === 'loading'}
+                  onPress={() => void scan()}
+                  icon={
+                    <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
+                  }
+                />
+              ) : null}
             </Row>
+            {capLocked ? (
+              <Row style={{ gap: theme.spacing.sm }}>
+                <Button
+                  label={t.expense.capUpgrade}
+                  onPress={() => router.push('/settings/upgrade')}
+                />
+                <Button
+                  label={t.expense.capAddStorage}
+                  variant="secondary"
+                  onPress={() => router.push('/settings/backup')}
+                />
+              </Row>
+            ) : null}
             {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
             {scanNote ? (
               <Text variant="caption" tone="brand">

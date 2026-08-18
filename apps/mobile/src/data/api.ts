@@ -370,6 +370,24 @@ export async function canUploadGroupPhoto(groupId: string | null): Promise<boole
   return data === true;
 }
 
+/**
+ * Whether this group may take one more receipt.
+ *
+ * A group holds a set number of receipts for free (the number is an admin knob,
+ * `app_config.receipt_cap_per_group`); past it, somebody has to pay or add
+ * storage. A paid group has no cap. Answered by a SECURITY DEFINER RPC — a
+ * member cannot count another's entitlement under RLS — which returns only the
+ * boolean. The server enforces the same rule when it records the receipt, so
+ * this is the affordance, not the boundary.
+ */
+export async function canAddReceipt(groupId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('baaki_can_add_receipt', {
+    p_group_id: groupId,
+  });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
 /** The bucket accepts three types; anything else is stored as JPEG. */
 function normaliseImageMime(mimeType: string | null | undefined): string {
   if (mimeType === 'image/png' || mimeType === 'image/webp') return mimeType;
