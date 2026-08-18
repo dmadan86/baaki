@@ -100,7 +100,7 @@ export const gradients = {
   // legible on every corner — the same rule the brand wash follows above. The
   // neutral, all-settled state keeps the brand wash, so colour only ever
   // appears when there is a debt to point at.
-  positiveLight: ['#0A5A5F', '#0A6E70', '#0E9F8E'],
+  positiveLight: ['#0A5A5F', '#0A6E70', '#0A7E76'],
   positiveDark: ['#04403E', '#065F5C', '#0A7E76'],
   negativeLight: ['#8C1D3F', '#B01D50', '#D22C63'],
   negativeDark: ['#611228', '#8C1D3F', '#A81F4C'],

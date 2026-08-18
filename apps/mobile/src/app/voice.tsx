@@ -47,7 +47,7 @@ import {
   useGroups,
   useWriteExpense,
 } from '@/data/hooks';
-import { groupLabel, GroupType } from '@/data/types';
+import { groupLabel, GroupType, type GroupRow } from '@/data/types';
 import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
@@ -308,8 +308,20 @@ export default function VoiceScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md, justifyContent: 'space-between' }}>
-          <Text variant="heading">{phase === 'review' ? t.voice.review : t.voice.title}</Text>
+        <Row
+          style={{
+            paddingTop: theme.spacing.md,
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          {/* The heading wears the voice glyph so the screen reads as "the thing
+              you spoke", not a generic form — the same mic that started the
+              flow, carried through to the review. */}
+          <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+            <Ionicons name="mic" size={iconSize.lg} color={theme.color.brand} />
+            <Text variant="heading">{phase === 'review' ? t.voice.review : t.voice.title}</Text>
+          </Row>
           <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
@@ -355,6 +367,7 @@ export default function VoiceScreen() {
               label={plural(locale, drafts.length, t.voice.save)}
               onPress={() => void save()}
               disabled={!canSave}
+              style={{ alignSelf: 'center' }}
             />
           </View>
         ) : (
@@ -377,6 +390,16 @@ export default function VoiceScreen() {
   );
 }
 
+/** One Ionicon per group type, the fallback when a group has no cover emoji —
+ * echoing the new-group picker and the dashboard's category glyphs. */
+const GROUP_TYPE_ICON: Record<GroupType, React.ComponentProps<typeof Ionicons>['name']> = {
+  [GroupType.Trip]: 'airplane',
+  [GroupType.Home]: 'home',
+  [GroupType.Couple]: 'heart',
+  [GroupType.Event]: 'sparkles',
+  [GroupType.Other]: 'people-outline',
+};
+
 /**
  * The one choice a Save needs: where the expenses land. The capture inbox is
  * always offered and is the default; a "new group" row appears when the sentence
@@ -393,14 +416,17 @@ function DestinationPicker({
   dest: Dest;
   requested: { groupId: string; memberId: string; name: string } | null;
   onChoose: (dest: Dest) => void;
-  groups: { id: string; name: string | null }[];
+  groups: GroupRow[];
   t: ReturnType<typeof useStrings>['t'];
   theme: ReturnType<typeof useTheme>;
 }) {
   type Row = {
     key: string;
     label: string;
+    // A row wears either the group's own cover emoji or, lacking one, an Ionicon
+    // — the inbox and "new group" rows only ever use an icon.
     icon: React.ComponentProps<typeof Ionicons>['name'];
+    emoji?: string | null;
     selected: boolean;
     onPress: () => void;
   };
@@ -426,11 +452,18 @@ function DestinationPicker({
       onPress: () => onChoose({ kind: 'create', ...requested }),
     });
   }
-  for (const group of groups) {
+  // Newest group first: the one you just made is the one you are most likely
+  // saving into, so it sits at the top of the list rather than lost in creation
+  // order. Every row carries its own cover emoji (or a type glyph as a fallback)
+  // so a trip, a home and an event are told apart at a glance instead of a
+  // column of identical people icons.
+  const sorted = [...groups].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  for (const group of sorted) {
     rows.push({
       key: group.id,
       label: groupLabel(group),
-      icon: 'people-outline',
+      icon: GROUP_TYPE_ICON[group.type] ?? 'people-outline',
+      emoji: group.cover_emoji,
       selected: dest.kind === 'existing' && dest.groupId === group.id,
       onPress: () => onChoose({ kind: 'existing', groupId: group.id }),
     });
@@ -471,11 +504,15 @@ function DestinationPicker({
                   backgroundColor: row.selected ? theme.color.brandSoft : theme.color.surfaceMuted,
                 }}
               >
-                <Ionicons
-                  name={row.icon}
-                  size={iconSize.md}
-                  color={row.selected ? theme.color.brand : theme.color.textMuted}
-                />
+                {row.emoji ? (
+                  <Text style={{ fontSize: 18 }}>{row.emoji}</Text>
+                ) : (
+                  <Ionicons
+                    name={row.icon}
+                    size={iconSize.md}
+                    color={row.selected ? theme.color.brand : theme.color.textMuted}
+                  />
+                )}
               </View>
               <Text
                 numberOfLines={1}

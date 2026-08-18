@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   Modal,
@@ -304,7 +305,7 @@ export default function HomeScreen() {
             the category (Cleo, Monzo, Wise) all keep balances as slides of a
             single deck. While the balance loads a hero-shaped skeleton stands in
             rather than a card of confident zeros the query has not returned. */}
-        {summary.isLoading ? (
+        {summary.isLoading || summary.pendingFirstSync ? (
           <HeroSkeleton />
         ) : (
           <HeroDeck
@@ -586,6 +587,10 @@ const TIP_SHEET_KEY = 'dashboardTips:shownOn';
  */
 function TipSheet({ t }: { t: UiStrings }) {
   const theme = useTheme();
+  // A Modal renders above the tab navigator, so the tab-bar clearance does not
+  // apply here — the sheet has to clear the device's own bottom inset (the
+  // Android nav bar / gesture pill) itself, or the button sits under it.
+  const insets = useSafeAreaInsets();
   const { tip } = useDashboardTips(t);
 
   // The day the sheet was last shown, read once on mount — the same shape the
@@ -658,7 +663,7 @@ function TipSheet({ t }: { t: UiStrings }) {
               borderTopRightRadius: theme.radius.xxl,
               paddingHorizontal: theme.spacing.xxl,
               paddingTop: theme.spacing.xl,
-              paddingBottom: theme.spacing.xxl,
+              paddingBottom: theme.spacing.xxl + insets.bottom,
               gap: theme.spacing.lg,
               ...theme.shadow.lifted,
             }}
