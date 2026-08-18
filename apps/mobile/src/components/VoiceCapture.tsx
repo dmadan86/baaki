@@ -20,7 +20,7 @@ import { Animated, Easing, Linking, Pressable, View } from 'react-native';
 
 import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
-import { useStrings } from '@/i18n';
+import { LANGUAGES, LANGUAGE_NAMES, useStrings, type Language } from '@/i18n';
 import { dictationError, speechLocale } from '@/lib/dictation';
 import { useMotion } from '@/lib/motion';
 
@@ -248,6 +248,11 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
   const { t, language, locale } = useStrings();
 
   const [available] = useState(recognitionAvailable);
+  // Which language the recogniser listens in this session. Defaults to the app
+  // language, but a speaker whose phone is in one language and mouth in another
+  // can switch it here without changing the whole app — on-device recognition
+  // targets one locale per session, so this is a per-utterance choice.
+  const [spokenLang, setSpokenLang] = useState<Language | null>(null);
   const [listening, setListening] = useState(false);
   const [live, setLive] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -277,43 +282,62 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
     if (said) onDone(said);
   });
 
-  const start = useCallback(async (): Promise<void> => {
-    setError(null);
-    latest.current = '';
-    setLive('');
+  const start = useCallback(
+    async (langOverride?: Language): Promise<void> => {
+      setError(null);
+      latest.current = '';
+      setLive('');
 
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!mounted.current) return;
-    if (!permission.granted) {
-      setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
-      return;
-    }
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!mounted.current) return;
+      if (!permission.granted) {
+        setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
+        return;
+      }
 
-    let onDevice = false;
-    try {
-      onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
-    } catch {
-      onDevice = false;
-    }
+      let onDevice = false;
+      try {
+        onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+      } catch {
+        onDevice = false;
+      }
 
-    setListening(true);
-    try {
-      ExpoSpeechRecognitionModule.start({
-        lang: speechLocale(language, locale),
-        interimResults: true,
-        maxAlternatives: 1,
-        // One sentence, then it settles — the same shape a note dictation uses.
-        continuous: false,
-        requiresOnDeviceRecognition: onDevice,
-        addsPunctuation: onDevice,
-        contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
-        iosTaskHint: 'dictation',
-      });
-    } catch {
-      setListening(false);
-      setError(t.misc.dictationFailed);
-    }
-  }, [hints, language, locale, t]);
+      setListening(true);
+      try {
+        ExpoSpeechRecognitionModule.start({
+          // The explicit override (a language just tapped) wins over the session
+          // choice, which wins over the app language — the tap must take effect
+          // now, before its `setState` has landed.
+          lang: speechLocale(langOverride ?? spokenLang ?? language, locale),
+          interimResults: true,
+          maxAlternatives: 1,
+          // One sentence, then it settles — the same shape a note dictation uses.
+          continuous: false,
+          requiresOnDeviceRecognition: onDevice,
+          addsPunctuation: onDevice,
+          contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
+          iosTaskHint: 'dictation',
+        });
+      } catch {
+        setListening(false);
+        setError(t.misc.dictationFailed);
+      }
+    },
+    [hints, spokenLang, language, locale, t],
+  );
+
+  // Pick the language to listen in. If the mic is already open, restart it at
+  // once in the new language; otherwise the choice applies on the next tap.
+  const chooseLang = useCallback(
+    (lang: Language): void => {
+      setSpokenLang(lang);
+      if (listening) {
+        ExpoSpeechRecognitionModule.abort();
+        void start(lang);
+      }
+    },
+    [listening, start],
+  );
 
   const stop = useCallback((): void => {
     ExpoSpeechRecognitionModule.stop();
@@ -412,6 +436,51 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
             {t.voice.example}
           </Text>
         ) : null}
+      </View>
+
+      {/* Which language to listen in — the recogniser targets one locale per
+          session, so a speaker whose phone is in one language and mouth in
+          another picks it here. The chip shows each language in its own script,
+          so it is found by the name its speaker knows. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+        }}
+      >
+        <Ionicons name="globe-outline" size={iconSize.sm} color={theme.color.textMuted} />
+        {LANGUAGES.map((lang) => {
+          const selected = (spokenLang ?? language) === lang;
+          return (
+            <Pressable
+              key={lang}
+              onPress={() => chooseLang(lang)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={LANGUAGE_NAMES[lang].english}
+              style={({ pressed }) => ({
+                paddingVertical: theme.spacing.xs,
+                paddingHorizontal: theme.spacing.md,
+                borderRadius: theme.radius.pill,
+                backgroundColor: selected ? theme.color.brandSoft : theme.color.surfaceMuted,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text
+                variant="caption"
+                style={{
+                  color: selected ? theme.color.brand : theme.color.textMuted,
+                  fontWeight: selected ? '600' : '400',
+                }}
+              >
+                {LANGUAGE_NAMES[lang].own}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {error ? (
