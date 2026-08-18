@@ -169,11 +169,7 @@ export default function BackupSettingsScreen() {
                       selected={isPrimary}
                       disabled={!connected}
                       status={
-                        connected
-                          ? t.backup.connected
-                          : isWaves
-                            ? t.backup.wavesHint
-                            : undefined
+                        connected ? t.backup.connected : isWaves ? t.backup.wavesHint : undefined
                       }
                       onPress={() => (connected ? void backup.setPrimary(provider.id) : undefined)}
                     />
@@ -240,7 +236,11 @@ export default function BackupSettingsScreen() {
         {backup.errored > 0 ? (
           <Card style={{ gap: theme.spacing.sm }}>
             <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-              <Ionicons name="alert-circle-outline" size={iconSize.md} color={theme.color.warning} />
+              <Ionicons
+                name="alert-circle-outline"
+                size={iconSize.md}
+                color={theme.color.warning}
+              />
               <Text variant="subheading">{t.backup.troubleTitle}</Text>
             </Row>
             <Text variant="caption" tone="muted">
