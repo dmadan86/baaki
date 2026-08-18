@@ -85,6 +85,7 @@ export default function HomeScreen() {
       { icon: 'cloud-done-outline', label: t.backup.title, route: '/settings/backup' },
       { icon: 'language-outline', label: t.language, route: '/settings/language' },
       { icon: 'contrast-outline', label: t.account.themeRow, route: '/settings/theme' },
+      { icon: 'key-outline', label: t.account.aiKeysRow, route: '/settings/ai-keys' },
       { icon: 'settings-outline', label: t.account.faceSettings, route: '/profile' },
     ],
     [t],
@@ -198,9 +199,38 @@ export default function HomeScreen() {
               well. It replaces the wide banner the dashboard used to carry. */}
           <SyncStatusIcon />
           {/* Bare icons, no button chrome — the header reads as a title row, not
-              a toolbar of pills. Straight to the camera: the icon is a scanner,
-              so it opens one rather than a form to fill in first (the capture
-              screen reads the `scan` flag and launches the camera on mount). */}
+              a toolbar of pills. Create a group: the plainest way to start one,
+              sitting with the other top actions rather than inside the group
+              list where its button crowded the title row. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.newGroup}
+            onPress={openNewGroup}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+          >
+            {/* People glyph with a small "+" badge, so the action reads as
+                "create a group" rather than "go to groups". The badge sits in a
+                page-coloured disc at the corner so the plus separates cleanly
+                from the people strokes underneath it. */}
+            <View>
+              <Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.text} />
+              <View
+                style={{
+                  position: 'absolute',
+                  right: -5,
+                  bottom: -5,
+                  borderRadius: 999,
+                  backgroundColor: theme.color.bg,
+                }}
+              >
+                <Ionicons name="add-circle" size={iconSize.base} color={theme.color.brand} />
+              </View>
+            </View>
+          </Pressable>
+          {/* Straight to the camera: the icon is a scanner, so it opens one
+              rather than a form to fill in first (the capture screen reads the
+              `scan` flag and launches the camera on mount). */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t.captures.captureCta}
@@ -297,18 +327,9 @@ export default function HomeScreen() {
           />
         ) : (
           <View>
-            <SectionHeader
-              title={t.yourGroups}
-              action={
-                <Button
-                  label={t.newGroup}
-                  size="sm"
-                  icon={<Ionicons name="add" size={iconSize.base} color={theme.color.onBrand} />}
-                  onPress={openNewGroup}
-                  style={{ height: 32, paddingHorizontal: theme.spacing.md, gap: theme.spacing.xs }}
-                />
-              }
-            />
+            {/* No action here anymore — "new group" lives in the top toolbar
+                next to the camera, so the title row never crowds or clips. */}
+            <SectionHeader title={t.yourGroups} />
             {presentTypes.length > 1 ? (
               <CategoryStrip types={presentTypes} active={active} onSelect={setCategory} t={t} />
             ) : null}
@@ -1070,7 +1091,7 @@ function ActionSlide({
 }
 
 /**
- * One balance card, coloured by its verdict: a green wash when the net is owed
+ * One balance card, coloured by its verdict: a teal wash when the net is owed
  * to you, red when you owe, and the neutral brand wash once everything is
  * settled — so the card's colour, not just its number, tells you where you
  * stand at a glance. The net big, the owed/owe split beneath.
