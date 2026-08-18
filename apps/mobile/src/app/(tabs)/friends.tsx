@@ -309,17 +309,13 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
   const D = 68; // one face
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.sm }}>
+    <View
+      style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.sm }}
+    >
       {/* Face pair + plus badge. Fixed box so the overlap and badge can be
           placed absolutely without the layout guessing at their size. */}
       <View style={{ width: D * 1.7, height: D, marginBottom: theme.spacing.lg }}>
-        <Face
-          x={0}
-          d={D}
-          bg={sky.bg}
-          ink={sky.ink}
-          borderColor={theme.color.surface}
-        />
+        <Face x={0} d={D} bg={sky.bg} ink={sky.ink} borderColor={theme.color.surface} />
         <Face
           x={D * 0.7}
           d={D}
@@ -354,7 +350,10 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
       </Text>
 
       <View style={{ alignItems: 'center', gap: theme.spacing.md, marginTop: theme.spacing.lg }}>
-        <Button label={t.addPerson.title} onPress={() => router.push('/friends/add-person' as never)} />
+        <Button
+          label={t.addPerson.title}
+          onPress={() => router.push('/friends/add-person' as never)}
+        />
         {/* The second path the category always offers in this state. A quiet
             text button under the primary — a way in, not a competing verb. */}
         <Pressable

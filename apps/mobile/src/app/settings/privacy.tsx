@@ -156,11 +156,7 @@ export default function PrivacyScreen() {
               subtitle={t.privacy.exportRowHint}
               onPress={() => router.push('/settings/export')}
               leading={
-                <Ionicons
-                  name="download-outline"
-                  size={iconSize.md}
-                  color={theme.color.brand}
-                />
+                <Ionicons name="download-outline" size={iconSize.md} color={theme.color.brand} />
               }
               trailing={
                 <Ionicons
@@ -177,11 +173,7 @@ export default function PrivacyScreen() {
               destructive
               onPress={() => router.push('/settings/delete-account')}
               leading={
-                <Ionicons
-                  name="trash-outline"
-                  size={iconSize.md}
-                  color={theme.color.negative}
-                />
+                <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
               }
               trailing={
                 <Ionicons
@@ -202,11 +194,7 @@ export default function PrivacyScreen() {
               subtitle={t.privacy.licensesRowHint}
               onPress={() => router.push('/settings/licenses')}
               leading={
-                <Ionicons
-                  name="code-slash-outline"
-                  size={iconSize.md}
-                  color={theme.color.brand}
-                />
+                <Ionicons name="code-slash-outline" size={iconSize.md} color={theme.color.brand} />
               }
               trailing={
                 <Ionicons

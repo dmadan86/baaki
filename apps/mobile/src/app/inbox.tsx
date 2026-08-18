@@ -152,7 +152,11 @@ export default function InboxScreen() {
               title={t.loadError}
               body={t.loadErrorBody}
               icon={
-                <Ionicons name="cloud-offline-outline" size={iconSize.xxl} color={theme.color.brand} />
+                <Ionicons
+                  name="cloud-offline-outline"
+                  size={iconSize.xxl}
+                  color={theme.color.brand}
+                />
               }
               action={
                 <Button
@@ -185,96 +189,96 @@ export default function InboxScreen() {
           // way Luma and Superlist mark an unread update. A read one drops back
           // to a flat transparent row, so the eye lands on what arrived since.
           <View style={{ gap: theme.spacing.xl }}>
-          <View style={{ gap: theme.spacing.lg }}>
-            {groupByDay(rows).map((section) => (
-              <View key={section.key} style={{ gap: theme.spacing.xs }}>
-                <Text
-                  variant="micro"
-                  tone="muted"
-                  style={{
-                    textTransform: 'uppercase',
-                    marginBottom: theme.spacing.xs,
-                    paddingHorizontal: theme.spacing.sm,
-                  }}
-                >
-                  {dayHeading(locale, section.rows[0]!.created_at)}
-                </Text>
-                {section.rows.map((row) => {
-                  const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
-                    title: row.title,
-                    body: row.body,
-                  });
-                  const unreadRow = row.read_at === null;
-                  const tint = tintForKey(row.kind);
-                  return (
-                    <Pressable
-                      key={row.id}
-                      accessibilityRole={row.group_id ? 'button' : undefined}
-                      accessibilityLabel={title}
-                      onPress={
-                        row.group_id
-                          ? () => router.push(`/group/${row.group_id}` as never)
-                          : undefined
-                      }
-                      style={({ pressed }) => ({
-                        opacity: pressed ? 0.6 : 1,
-                        borderRadius: theme.radius.lg,
-                        backgroundColor: unreadRow ? theme.color.brandSoft : 'transparent',
-                        paddingHorizontal: theme.spacing.sm,
-                        paddingVertical: theme.spacing.md,
-                      })}
-                    >
-                      <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
-                        <View
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: theme.radius.pill,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: theme.tint[tint].bg,
-                          }}
-                        >
-                          <Ionicons
-                            name={ICONS[row.kind] ?? 'notifications'}
-                            size={iconSize.md}
-                            color={theme.tint[tint].ink}
-                          />
-                        </View>
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <Text variant="subheading" numberOfLines={2}>
-                            {title}
-                          </Text>
-                          <Text variant="caption" tone="muted" numberOfLines={2}>
-                            {body}
-                          </Text>
-                        </View>
-                        {/* The clock lives on the right, the day is the heading's
-                            job — the row says when within the day, not which day. */}
-                        <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                          <Text variant="micro" tone="muted">
-                            {new Intl.DateTimeFormat(locale, {
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            }).format(new Date(row.created_at))}
-                          </Text>
-                          {unreadRow ? (
-                            <View
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
-                                backgroundColor: theme.color.brand,
-                              }}
+            <View style={{ gap: theme.spacing.lg }}>
+              {groupByDay(rows).map((section) => (
+                <View key={section.key} style={{ gap: theme.spacing.xs }}>
+                  <Text
+                    variant="micro"
+                    tone="muted"
+                    style={{
+                      textTransform: 'uppercase',
+                      marginBottom: theme.spacing.xs,
+                      paddingHorizontal: theme.spacing.sm,
+                    }}
+                  >
+                    {dayHeading(locale, section.rows[0]!.created_at)}
+                  </Text>
+                  {section.rows.map((row) => {
+                    const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
+                      title: row.title,
+                      body: row.body,
+                    });
+                    const unreadRow = row.read_at === null;
+                    const tint = tintForKey(row.kind);
+                    return (
+                      <Pressable
+                        key={row.id}
+                        accessibilityRole={row.group_id ? 'button' : undefined}
+                        accessibilityLabel={title}
+                        onPress={
+                          row.group_id
+                            ? () => router.push(`/group/${row.group_id}` as never)
+                            : undefined
+                        }
+                        style={({ pressed }) => ({
+                          opacity: pressed ? 0.6 : 1,
+                          borderRadius: theme.radius.lg,
+                          backgroundColor: unreadRow ? theme.color.brandSoft : 'transparent',
+                          paddingHorizontal: theme.spacing.sm,
+                          paddingVertical: theme.spacing.md,
+                        })}
+                      >
+                        <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
+                          <View
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: theme.radius.pill,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: theme.tint[tint].bg,
+                            }}
+                          >
+                            <Ionicons
+                              name={ICONS[row.kind] ?? 'notifications'}
+                              size={iconSize.md}
+                              color={theme.tint[tint].ink}
                             />
-                          ) : null}
-                        </View>
-                      </Row>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))}
+                          </View>
+                          <View style={{ flex: 1, gap: 2 }}>
+                            <Text variant="subheading" numberOfLines={2}>
+                              {title}
+                            </Text>
+                            <Text variant="caption" tone="muted" numberOfLines={2}>
+                              {body}
+                            </Text>
+                          </View>
+                          {/* The clock lives on the right, the day is the heading's
+                            job — the row says when within the day, not which day. */}
+                          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                            <Text variant="micro" tone="muted">
+                              {new Intl.DateTimeFormat(locale, {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              }).format(new Date(row.created_at))}
+                            </Text>
+                            {unreadRow ? (
+                              <View
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: 4,
+                                  backgroundColor: theme.color.brand,
+                                }}
+                              />
+                            ) : null}
+                          </View>
+                        </Row>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
 
             {/* The delivery footnote belongs with the list, not under an empty

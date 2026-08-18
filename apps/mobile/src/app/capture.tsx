@@ -412,7 +412,9 @@ export default function CaptureScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={paymentLabel(method.id)}
                   accessibilityState={{ selected: active }}
-                  onPress={() => setPaymentMethod((current) => (current === method.id ? null : method.id))}
+                  onPress={() =>
+                    setPaymentMethod((current) => (current === method.id ? null : method.id))
+                  }
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -661,9 +663,7 @@ function GroupChoiceRow({
       >
         {label}
       </Text>
-      {selected ? (
-        <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} />
-      ) : null}
+      {selected ? <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} /> : null}
     </Pressable>
   );
 }

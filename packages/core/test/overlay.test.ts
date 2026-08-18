@@ -475,7 +475,13 @@ describe('captures', () => {
     const omit = envelope(
       'c-6',
       MutationKind.CaptureUpdate,
-      { captureId: 'cap-1', description: 'Petrol (renamed)', expenseDate: '2026-03-01', currency: 'INR', amount: '250000' },
+      {
+        captureId: 'cap-1',
+        description: 'Petrol (renamed)',
+        expenseDate: '2026-03-01',
+        currency: 'INR',
+        amount: '250000',
+      },
       OWNER,
     );
     expect(materialiseCaptures(state, queued(omit), { ownerId: OWNER })[0]).toMatchObject({

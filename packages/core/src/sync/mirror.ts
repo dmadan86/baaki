@@ -669,12 +669,12 @@ export function materialiseCaptures(
           // rather than `??`, which would swallow an explicit null.
           payment_method:
             'paymentMethod' in payload
-              ? payload.paymentMethod ?? null
-              : existing?.payment_method ?? null,
+              ? (payload.paymentMethod ?? null)
+              : (existing?.payment_method ?? null),
           target_group_id:
             'targetGroupId' in payload
-              ? payload.targetGroupId ?? null
-              : existing?.target_group_id ?? null,
+              ? (payload.targetGroupId ?? null)
+              : (existing?.target_group_id ?? null),
           // An edit never un-assigns; only assignment sets it, below.
           status: existing?.status ?? 'open',
           assigned_expense_id: existing?.assigned_expense_id ?? null,
