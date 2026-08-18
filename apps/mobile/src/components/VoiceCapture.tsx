@@ -27,11 +27,69 @@ import { useMotion } from '@/lib/motion';
 const MIC_SIZE = 104;
 
 /**
+ * A soft halo that breathes behind the mic while it listens — a slow, low-opacity
+ * swell that makes the button read as a live orb rather than a flat disc. It is
+ * the calm base layer under the sharper expanding rings; the two together are the
+ * modern voice-assistant look (Siri, Google Assistant). With motion off it holds
+ * a single gentle glow so the depth is still there without anything moving.
+ */
+function Halo({ active, theme }: { active: boolean; theme: Theme }) {
+  const { animated } = useMotion();
+  const [pulse] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (!active || !animated) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      pulse.setValue(0);
+    };
+  }, [active, animated, pulse]);
+
+  if (!active) return null;
+  const size = MIC_SIZE * 1.7;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: theme.color.brand,
+        opacity: animated ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.22] }) : 0.14,
+        transform: [
+          { scale: animated ? pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) : 1.05 },
+        ],
+      }}
+    />
+  );
+}
+
+/**
  * The rings breathing out from the mic while it listens — the near-universal
- * "I am hearing you" of a voice screen (Roku, Meta AI, Todoist). Three staggered
- * pulses expand and fade on a loop, so the surface is visibly live rather than a
- * still button that may or may not be recording. With motion off they do not
- * render at all: the reduced-motion setting is an input, not a hint (TDR §11).
+ * "I am hearing you" of a voice screen (Siri, Google Assistant, Meta AI). Three
+ * staggered *outline* rings expand and fade on a loop: a thin stroke reads as
+ * cleaner and more modern than a filling disc, and layered over the halo it
+ * gives the surface real depth rather than a single blunt pulse. With motion off
+ * they do not render at all — the reduced-motion setting is an input, not a hint
+ * (TDR §11); the still halo alone carries the idle state.
  */
 function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
   const { animated } = useMotion();
@@ -45,10 +103,10 @@ function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
     const loops = rings.map((value, index) =>
       Animated.loop(
         Animated.sequence([
-          Animated.delay(index * 600),
+          Animated.delay(index * 700),
           Animated.timing(value, {
             toValue: 1,
-            duration: 1800,
+            duration: 2100,
             easing: Easing.out(Easing.ease),
             useNativeDriver: true,
           }),
@@ -74,10 +132,11 @@ function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
             width: MIC_SIZE,
             height: MIC_SIZE,
             borderRadius: MIC_SIZE / 2,
-            backgroundColor: theme.color.brand,
-            opacity: value.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0] }),
+            borderWidth: 2,
+            borderColor: theme.color.brand,
+            opacity: value.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
             transform: [
-              { scale: value.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] }) },
+              { scale: value.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) },
             ],
           }}
         />
@@ -86,31 +145,49 @@ function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
   );
 }
 
+/** How many bars in the waveform, and the tallest each may reach. */
+const WAVE_BARS = 9;
+const WAVE_MIN = 6;
+
 /**
- * A live sound bar under the status while listening — five bars rising and
- * falling out of step, the shorthand for "audio is coming in" (Todoist, Shopee).
- * With motion off it holds a still, uneven silhouette so the shape still reads as
- * a waveform without anything moving.
+ * The peak height a bar may reach, weighted toward the centre so the row reads as
+ * a rounded wave crest rather than a flat block — the centre bars tower, the
+ * edges stay short (the equaliser shape every voice UI settled on).
+ */
+function barPeak(index: number): number {
+  const middle = (WAVE_BARS - 1) / 2;
+  const distance = Math.abs(index - middle) / middle;
+  return 34 - distance * 18;
+}
+
+/**
+ * A live sound wave under the status while listening — nine bars rising and
+ * falling out of step, centre-weighted into a crest, the shorthand for "audio is
+ * coming in". Rounded and tinted a touch lighter at the edges for depth. With
+ * motion off it holds a still crest silhouette so the shape still reads as a
+ * waveform without anything moving.
  */
 function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
   const { animated } = useMotion();
-  const [bars] = useState(() => [0, 1, 2, 3, 4].map(() => new Animated.Value(0.3)));
+  const [bars] = useState(() =>
+    Array.from({ length: WAVE_BARS }, () => new Animated.Value(0.3)),
+  );
 
   useEffect(() => {
     if (!active || !animated) return;
     const loops = bars.map((value, index) =>
       Animated.loop(
         Animated.sequence([
-          Animated.delay(index * 120),
+          Animated.delay(index * 70),
           Animated.timing(value, {
             toValue: 1,
-            duration: 380,
+            duration: 300 + (index % 3) * 60,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: false,
           }),
           Animated.timing(value, {
-            toValue: 0.3,
-            duration: 380,
+            toValue: 0.28,
+            duration: 300 + (index % 3) * 60,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: false,
           }),
@@ -121,23 +198,28 @@ function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
     return () => loops.forEach((loop) => loop.stop());
   }, [active, animated, bars]);
 
-  // Still but uneven when motion is off — a silhouette, not a flat line.
-  const resting = [0.5, 0.9, 0.4, 1, 0.6];
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, height: 32 }}>
-      {bars.map((value, index) => (
-        <Animated.View
-          key={index}
-          style={{
-            width: 4,
-            borderRadius: 2,
-            backgroundColor: theme.color.brand,
-            height: animated
-              ? value.interpolate({ inputRange: [0, 1], outputRange: [6, 30] })
-              : 6 + resting[index]! * 24,
-          }}
-        />
-      ))}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 36 }}>
+      {bars.map((value, index) => {
+        const peak = barPeak(index);
+        // Edge bars a touch translucent so the crest has depth, not a flat wall.
+        const middle = (WAVE_BARS - 1) / 2;
+        const opacity = 1 - (Math.abs(index - middle) / middle) * 0.35;
+        return (
+          <Animated.View
+            key={index}
+            style={{
+              width: 4,
+              borderRadius: 2,
+              backgroundColor: theme.color.brand,
+              opacity,
+              height: animated
+                ? value.interpolate({ inputRange: [0, 1], outputRange: [WAVE_MIN, peak] })
+                : (WAVE_MIN + peak) / 2,
+            }}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -276,6 +358,7 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
           justifyContent: 'center',
         }}
       >
+        <Halo active={listening} theme={theme} />
         <PulseRings active={listening} theme={theme} />
         <Pressable
           accessibilityRole="button"
@@ -291,6 +374,16 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
             justifyContent: 'center',
             backgroundColor: listening ? theme.color.brand : theme.color.brandSoft,
             opacity: pressed ? 0.9 : 1,
+            // A brand-tinted glow lifts the mic off the surface while it is live.
+            ...(listening
+              ? {
+                  shadowColor: theme.color.brand,
+                  shadowOpacity: 0.45,
+                  shadowRadius: 20,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 10,
+                }
+              : null),
           })}
         >
           <Ionicons
