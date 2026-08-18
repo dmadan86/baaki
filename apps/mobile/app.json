@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Baaki",
+    "name": "Waves",
     "slug": "baaki",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -51,21 +51,21 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Baaki uses your contacts so you can pick who was there instead of typing their name. Your contacts stay on this phone — only the person you tap is sent."
+          "contactsPermission": "Waves uses your contacts so you can pick who was there instead of typing their name. Your contacts stay on this phone — only the person you tap is sent."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Baaki uses the microphone only while you hold the mic button, to write down what you say.",
-          "speechRecognitionPermission": "Baaki turns what you say into the note on an expense, so you can add one without typing at the table.",
+          "microphonePermission": "Waves uses the microphone only while you hold the mic button, to write down what you say.",
+          "speechRecognitionPermission": "Waves turns what you say into the note on an expense, so you can add one without typing at the table.",
           "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
         }
       ],
       [
         "react-native-document-scanner-plugin",
         {
-          "cameraPermission": "Baaki uses the camera to scan a bill, so the total and the items come out filled in instead of typed. The photograph stays on this phone whenever it can be read here."
+          "cameraPermission": "Waves uses the camera to scan a bill, so the total and the items come out filled in instead of typed. The photograph stays on this phone whenever it can be read here."
         }
       ],
       "./plugins/withShortNativeBuildPath",
