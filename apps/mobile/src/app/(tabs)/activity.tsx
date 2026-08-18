@@ -12,12 +12,11 @@ import {
   Row,
   Screen,
   Text,
-  tintForKey,
   useTabBarClearance,
   useTheme,
 } from '@waves/ui';
 
-import { dayHeading, dayKey, describeActivity, parseMoney, verbEmoji } from '@/data/activity';
+import { dayHeading, dayKey, describeActivity, parseMoney, verbIcon } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
 import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
@@ -152,48 +151,44 @@ export default function ActivityScreen() {
                 </Text>
                 {section.entries.map((entry, index) => {
                   const isLast = index === section.entries.length - 1;
-                  const tint = tintForKey(entry.group_id);
                   return (
                     <Pressable
                       key={entry.id}
                       accessibilityRole="button"
                       accessibilityLabel={describeActivity(entry, myProfileId)}
                       onPress={() => router.push(`/group/${entry.group_id}`)}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                      style={({ pressed }) => ({
+                        opacity: pressed ? 0.6 : 1,
+                        marginBottom: isLast ? 0 : theme.spacing.lg,
+                      })}
                     >
-                      <Row style={{ alignItems: 'stretch' }}>
-                        {/* The rail: the node, then the line running down to the next
-                        node — dropped for the last row so it stops, not dangles. */}
-                        <View style={{ width: 38, alignItems: 'center' }}>
-                          <View
-                            style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: 19,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: theme.tint[tint].bg,
-                            }}
-                          >
-                            <Text style={{ fontSize: 16 }}>{verbEmoji(entry.verb)}</Text>
-                          </View>
-                          {!isLast ? (
-                            <View
-                              style={{
-                                flex: 1,
-                                width: 2,
-                                marginVertical: 2,
-                                backgroundColor: theme.color.border,
-                              }}
-                            />
-                          ) : null}
+                      <Row style={{ alignItems: 'center' }}>
+                        {/* The same node the dashboard draws: a line glyph in a
+                        soft-brand circle, one accent. The vertical connector is
+                        gone — it read as a stray border running past the text and
+                        the finance feeds this follows (Cash App, Zopa) skip it,
+                        letting the circles and the day headings carry the rhythm. */}
+                        <View
+                          style={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: 21,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: theme.color.brandSoft,
+                          }}
+                        >
+                          <Ionicons
+                            name={verbIcon(entry.verb)}
+                            size={iconSize.xl}
+                            color={theme.color.brand}
+                          />
                         </View>
 
                         <View
                           style={{
                             flex: 1,
                             paddingStart: theme.spacing.md,
-                            paddingBottom: isLast ? 0 : theme.spacing.xl,
                           }}
                         >
                           <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
