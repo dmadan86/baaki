@@ -837,6 +837,13 @@ model Capture {
   /// On-device OCR text (A5), kept so assignment can prefill the expense form.
   rawText           String?   @map("raw_text")
   parsed            Json?
+  /// How the spend was paid: 'cash' | 'credit' | 'debit' | 'forex'. A hint the
+  /// UI constrains; null until the owner picks one.
+  paymentMethod     String?   @map("payment_method")
+  /// The group the owner intends this for, chosen up front. Advisory like
+  /// `assignedGroupId` (no FK — the target is in a different scope); the split
+  /// is still decided at assignment. Null means "decide later".
+  targetGroupId     String?   @map("target_group_id") @db.Uuid
   /// 'open' while in the inbox, 'assigned' once it became a real expense.
   status            String    @default("open")
   /// Advisory pointers to what it became — not FKs, since the target lives in a

@@ -815,6 +815,16 @@ export interface UiStrings {
   captures: {
     title: string;
     captureCta: string;
+    paidWith: string;
+    payCash: string;
+    payCredit: string;
+    payDebit: string;
+    payForex: string;
+    group: string;
+    decideLater: string;
+    groupPickerTitle: string;
+    groupPickerBody: string;
+    splitLaterHint: string;
     newTitle: string;
     emptyTitle: string;
     emptyBody: string;
@@ -1445,6 +1455,19 @@ export interface UiStrings {
     analyticsTitle: string;
     analyticsBody: string;
     sessionReplayRow: string;
+    servicesTitle: string;
+    servicesBody: string;
+    retentionTitle: string;
+    retentionBody: string;
+    dataControlsSection: string;
+    legalSection: string;
+    exportRow: string;
+    exportRowHint: string;
+    licensesRow: string;
+    licensesRowHint: string;
+    licensesTitle: string;
+    licensesIntro: string;
+    licenseNote: string;
     previewGroups: PluralForms;
     previewExpenses: PluralForms;
     previewSettlements: PluralForms;
@@ -1456,6 +1479,13 @@ export interface UiStrings {
     feedbackPlaceholder: string;
     feedbackSend: string;
     feedbackThanks: string;
+    feedbackRating: string;
+    feedbackRatingHint: string;
+    /** A star's accessibility label, e.g. "3 stars". `{n}` is the star. */
+    feedbackStarLabel: PluralForms;
+    /** Read out on the chosen star: a second tap removes the rating. */
+    feedbackStarClearHint: string;
+    feedbackAttachNote: string;
     kindGeneral: string;
     kindBug: string;
     kindIdea: string;
@@ -2118,6 +2148,17 @@ const en: UiStrings = {
   captures: {
     title: 'Captures',
     captureCta: 'Capture an expense',
+    paidWith: 'Paid with',
+    payCash: 'Cash',
+    payCredit: 'Credit card',
+    payDebit: 'Debit card',
+    payForex: 'Forex',
+    group: 'Group',
+    decideLater: 'Decide later',
+    groupPickerTitle: 'Add to a group',
+    groupPickerBody:
+      'Tag the group this belongs to. You can still change it — and choose the split — when you assign it.',
+    splitLaterHint: "You'll choose who splits this, and how, when you add it to a group.",
     newTitle: 'Capture an expense',
     emptyTitle: 'Nothing captured yet',
     emptyBody:
@@ -2786,6 +2827,22 @@ const en: UiStrings = {
     analyticsBody:
       'Waves can record how screens are used — which ones people get stuck on, where a tap lands — through Microsoft Clarity. It ships switched off and records nothing unless it is turned on. It is never used for advertising, there is no advertising identifier, and nothing here is sold or shared.',
     sessionReplayRow: 'Record how I use the app',
+    servicesTitle: 'Who else touches your data',
+    servicesBody:
+      'Baaki runs on Supabase — the database and sign-in, on servers we control. Crash reports go to Sentry, scrubbed of your details before they leave the phone. Anonymous usage goes to Microsoft Clarity, and only if you turn it on above. Your data is never sold, and there are no ad networks.',
+    retentionTitle: 'How long we keep it',
+    retentionBody:
+      'Your data stays while your account is open. If the account goes untouched for 3 years, we delete it and the personal data with it. You never have to wait for that — export or delete everything yourself, any time, below.',
+    dataControlsSection: 'Your data',
+    legalSection: 'Legal',
+    exportRow: 'Export your data',
+    exportRowHint: 'A full, lossless copy — yours to keep',
+    licensesRow: 'Open source licenses',
+    licensesRowHint: 'The libraries Baaki is built on',
+    licensesTitle: 'Open source',
+    licensesIntro:
+      'Baaki is built on open-source software. Thank you to the people who made and maintain these.',
+    licenseNote: 'Each is used under its own license, kept unchanged.',
     previewGroups: { one: 'You are in {n} group.', other: 'You are in {n} groups.' },
     previewExpenses: {
       one: 'You entered {n} expense that will stay.',
@@ -2804,6 +2861,12 @@ const en: UiStrings = {
     feedbackPlaceholder: 'What happened, or what you wish it did',
     feedbackSend: 'Send',
     feedbackThanks: 'Thank you — that has been received.',
+    feedbackRating: 'How is Baaki so far?',
+    feedbackRatingHint: 'Optional',
+    feedbackStarLabel: { one: '{n} star', other: '{n} stars' },
+    feedbackStarClearHint: 'Tap again to clear the rating',
+    feedbackAttachNote:
+      'Your app version and device type come along, so we can reproduce what you saw. Nothing else.',
     kindGeneral: 'General',
     kindBug: 'Something is broken',
     kindIdea: 'An idea',
@@ -3507,6 +3570,18 @@ const ta: UiStrings = {
   captures: {
     title: 'விரைவுப் பதிவுகள்',
     captureCta: 'ஒரு செலவைப் பதிவு செய்யுங்கள்',
+    paidWith: 'எப்படிச் செலுத்தினீர்கள்',
+    payCash: 'பணம்',
+    payCredit: 'கிரெடிட் கார்டு',
+    payDebit: 'டெபிட் கார்டு',
+    payForex: 'அன்னியச் செலாவணி',
+    group: 'குழு',
+    decideLater: 'பிறகு முடிவு செய்யலாம்',
+    groupPickerTitle: 'ஒரு குழுவில் சேர்க்கவும்',
+    groupPickerBody:
+      'இது சேர வேண்டிய குழுவைக் குறியிடுங்கள். ஒதுக்கும்போது அதை மாற்றலாம் — பங்கீட்டையும் தேர்வு செய்யலாம்.',
+    splitLaterHint:
+      'இதை ஒரு குழுவில் சேர்க்கும்போது யார், எப்படிப் பங்கிடுவது என்பதைத் தேர்வு செய்யலாம்.',
     newTitle: 'ஒரு செலவைப் பதிவு செய்யுங்கள்',
     emptyTitle: 'இன்னும் எதுவும் பதிவாகவில்லை',
     emptyBody:
@@ -4211,6 +4286,22 @@ const ta: UiStrings = {
     analyticsBody:
       'எந்தத் திரையில் சிக்கல் வருகிறது என்பதைப் புரிந்துகொள்ள Microsoft Clarity மூலம் பயன்பாட்டைப் பதிவு செய்ய முடியும். இது இயல்பாக அணைக்கப்பட்டே வருகிறது; இயக்கப்படாத வரை எதுவும் பதிவாகாது. விளம்பரத்திற்கு ஒருபோதும் பயன்படுத்தப்படுவதில்லை, விளம்பர அடையாளம் இல்லை, எதுவும் விற்கப்படுவதில்லை.',
     sessionReplayRow: 'நான் செயலியைப் பயன்படுத்தும் விதத்தைப் பதிவு செய்',
+    servicesTitle: 'உங்கள் தரவை வேறு யார் தொடுகிறார்கள்',
+    servicesBody:
+      'பாக்கி Supabase-இல் இயங்குகிறது — தரவுத்தளமும் உள்நுழைவும், நாங்கள் நிர்வகிக்கும் சேவையகங்களில். செயலிழப்பு அறிக்கைகள் உங்கள் விவரங்கள் நீக்கப்பட்ட பிறகே Sentry-க்குச் செல்கின்றன. அநாமதேய பயன்பாட்டு தரவு Microsoft Clarity-க்குச் செல்கிறது, மேலே நீங்கள் இயக்கினால் மட்டுமே. உங்கள் தரவு விற்கப்படுவதில்லை, விளம்பர வலையமைப்புகளும் இல்லை.',
+    retentionTitle: 'எவ்வளவு காலம் வைத்திருக்கிறோம்',
+    retentionBody:
+      'உங்கள் கணக்கு திறந்திருக்கும் வரை தரவு இருக்கும். கணக்கு 3 ஆண்டுகள் தொடப்படாமல் இருந்தால், அதை அதிலுள்ள தனிப்பட்ட தரவுடன் நீக்குகிறோம். அதற்காகக் காத்திருக்க வேண்டாம் — கீழே எப்போது வேண்டுமானாலும் எல்லாவற்றையும் ஏற்றுமதி செய்யலாம் அல்லது நீக்கலாம்.',
+    dataControlsSection: 'உங்கள் தரவு',
+    legalSection: 'சட்டம்',
+    exportRow: 'உங்கள் தரவை ஏற்றுமதி செய்',
+    exportRowHint: 'முழுமையான, இழப்பில்லா நகல் — உங்களுக்கே',
+    licensesRow: 'திறந்த மூல உரிமங்கள்',
+    licensesRowHint: 'பாக்கி கட்டப்பட்ட நூலகங்கள்',
+    licensesTitle: 'திறந்த மூலம்',
+    licensesIntro:
+      'பாக்கி திறந்த மூல மென்பொருளால் கட்டப்பட்டது. இவற்றை உருவாக்கிப் பராமரிப்பவர்களுக்கு நன்றி.',
+    licenseNote: 'ஒவ்வொன்றும் அதன் சொந்த உரிமத்தின் கீழ், மாற்றமின்றிப் பயன்படுத்தப்படுகிறது.',
     previewGroups: {
       one: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
       other: 'நீங்கள் {n} குழுக்களில் உள்ளீர்கள்.',
@@ -4232,6 +4323,12 @@ const ta: UiStrings = {
     feedbackPlaceholder: 'என்ன நடந்தது, அல்லது என்ன இருக்க வேண்டும் என நினைக்கிறீர்கள்',
     feedbackSend: 'அனுப்பு',
     feedbackThanks: 'நன்றி — கிடைத்துவிட்டது.',
+    feedbackRating: 'பாக்கி இதுவரை எப்படி இருக்கிறது?',
+    feedbackRatingHint: 'விருப்பம்',
+    feedbackStarLabel: { one: '{n} நட்சத்திரம்', other: '{n} நட்சத்திரங்கள்' },
+    feedbackStarClearHint: 'மதிப்பீட்டை அழிக்க மீண்டும் தட்டவும்',
+    feedbackAttachNote:
+      'நீங்கள் பார்த்ததை மீண்டும் உருவாக்க, உங்கள் ஆப் பதிப்பும் சாதன வகையும் உடன் வரும். வேறு எதுவும் இல்லை.',
     kindGeneral: 'பொது',
     kindBug: 'ஏதோ வேலை செய்யவில்லை',
     kindIdea: 'ஒரு யோசனை',
@@ -4908,6 +5005,17 @@ const hi: UiStrings = {
   captures: {
     title: 'त्वरित प्रविष्टियाँ',
     captureCta: 'एक खर्च दर्ज करें',
+    paidWith: 'कैसे चुकाया',
+    payCash: 'नकद',
+    payCredit: 'क्रेडिट कार्ड',
+    payDebit: 'डेबिट कार्ड',
+    payForex: 'विदेशी मुद्रा',
+    group: 'समूह',
+    decideLater: 'बाद में तय करें',
+    groupPickerTitle: 'किसी समूह में जोड़ें',
+    groupPickerBody:
+      'यह जिस समूह का है उसे चुनें। असाइन करते समय इसे बदल सकते हैं — और बँटवारा भी चुन सकते हैं।',
+    splitLaterHint: 'इसे किसी समूह में जोड़ते समय आप तय करेंगे कि इसे कौन और कैसे बाँटेगा।',
     newTitle: 'एक खर्च दर्ज करें',
     emptyTitle: 'अभी तक कुछ दर्ज नहीं हुआ',
     emptyBody:
@@ -5580,6 +5688,21 @@ const hi: UiStrings = {
     analyticsBody:
       'Microsoft Clarity के ज़रिए यह दर्ज किया जा सकता है कि कौन-सी स्क्रीन उलझाती है। यह बंद अवस्था में ही आता है और चालू किए बिना कुछ दर्ज नहीं करता। इसका उपयोग विज्ञापन के लिए कभी नहीं होता, कोई विज्ञापन पहचानकर्ता नहीं है, और कुछ भी बेचा या साझा नहीं जाता।',
     sessionReplayRow: 'ऐप के मेरे इस्तेमाल को दर्ज करने दें',
+    servicesTitle: 'आपका डेटा और कौन छूता है',
+    servicesBody:
+      'बाकी Supabase पर चलता है — डेटाबेस और साइन-इन, हमारे नियंत्रण वाले सर्वर पर। क्रैश रिपोर्ट फ़ोन छोड़ने से पहले आपके विवरण हटाकर Sentry को जाती हैं। गुमनाम उपयोग डेटा Microsoft Clarity को जाता है, और सिर्फ़ तभी जब आप इसे ऊपर चालू करें। आपका डेटा कभी बेचा नहीं जाता, और कोई विज्ञापन नेटवर्क नहीं है।',
+    retentionTitle: 'हम इसे कब तक रखते हैं',
+    retentionBody:
+      'जब तक आपका खाता खुला है, आपका डेटा रहता है। अगर खाता 3 साल तक अछूता रहे, तो हम उसे और उसके निजी डेटा को हटा देते हैं। इसके लिए इंतज़ार करने की ज़रूरत नहीं — नीचे कभी भी सब कुछ ख़ुद निर्यात या हटा सकते हैं।',
+    dataControlsSection: 'आपका डेटा',
+    legalSection: 'क़ानूनी',
+    exportRow: 'अपना डेटा निर्यात करें',
+    exportRowHint: 'पूरी, बिना नुक़सान की कॉपी — आपकी अपनी',
+    licensesRow: 'ओपन सोर्स लाइसेंस',
+    licensesRowHint: 'वे लाइब्रेरियाँ जिन पर बाकी बना है',
+    licensesTitle: 'ओपन सोर्स',
+    licensesIntro: 'बाकी ओपन-सोर्स सॉफ़्टवेयर पर बना है। इन्हें बनाने और सँभालने वालों का धन्यवाद।',
+    licenseNote: 'हर एक अपने लाइसेंस के तहत, बिना बदलाव के इस्तेमाल होती है।',
     previewGroups: { one: 'आप {n} समूह में हैं।', other: 'आप {n} समूहों में हैं।' },
     previewExpenses: {
       one: 'आपका डाला {n} ख़र्च बना रहेगा।',
@@ -5598,6 +5721,12 @@ const hi: UiStrings = {
     feedbackPlaceholder: 'क्या हुआ, या आप क्या चाहते थे कि यह करे',
     feedbackSend: 'भेजें',
     feedbackThanks: 'धन्यवाद — मिल गया।',
+    feedbackRating: 'बाकी अब तक कैसा लगा?',
+    feedbackRatingHint: 'वैकल्पिक',
+    feedbackStarLabel: { one: '{n} तारा', other: '{n} तारे' },
+    feedbackStarClearHint: 'रेटिंग हटाने के लिए फिर से टैप करें',
+    feedbackAttachNote:
+      'आपने जो देखा उसे दोहरा सकें, इसलिए आपका ऐप वर्शन और डिवाइस टाइप साथ आते हैं। और कुछ नहीं।',
     kindGeneral: 'सामान्य',
     kindBug: 'कुछ ख़राब है',
     kindIdea: 'एक सुझाव',
@@ -6307,6 +6436,17 @@ const ar: UiStrings = {
   captures: {
     title: 'الالتقاطات',
     captureCta: 'التقط مصروفًا',
+    paidWith: 'طريقة الدفع',
+    payCash: 'نقدًا',
+    payCredit: 'بطاقة ائتمان',
+    payDebit: 'بطاقة خصم',
+    payForex: 'عملة أجنبية',
+    group: 'المجموعة',
+    decideLater: 'قرّر لاحقًا',
+    groupPickerTitle: 'أضِف إلى مجموعة',
+    groupPickerBody:
+      'حدِّد المجموعة التي ينتمي إليها. يمكنك تغييرها — واختيار طريقة التقسيم — عند الإسناد.',
+    splitLaterHint: 'ستختار من يقتسم هذا وكيف عند إضافته إلى مجموعة.',
     newTitle: 'التقط مصروفًا',
     emptyTitle: 'لا شيء ملتقط بعد',
     emptyBody:
@@ -7130,6 +7270,21 @@ const ar: UiStrings = {
     analyticsBody:
       'يمكن لـ Microsoft Clarity تسجيل كيفية استخدام الشاشات لمعرفة أين يتعثر الناس. يأتي مُعطّلًا ولا يسجّل شيئًا ما لم يُفعّل. ولا يُستخدم للإعلانات أبدًا، ولا يوجد معرّف إعلاني، ولا يُباع شيء أو يُشارَك.',
     sessionReplayRow: 'سجّل كيف أستخدم التطبيق',
+    servicesTitle: 'من غيرنا يلمس بياناتك',
+    servicesBody:
+      'يعمل بـاقي على Supabase — قاعدة البيانات وتسجيل الدخول، على خوادم نتحكّم بها. تقارير الأعطال تذهب إلى Sentry بعد إزالة تفاصيلك قبل أن تغادر الهاتف. بيانات الاستخدام المجهولة تذهب إلى Microsoft Clarity، وفقط إذا فعّلتها أعلاه. بياناتك لا تُباع أبدًا، ولا توجد شبكات إعلانات.',
+    retentionTitle: 'كم نحتفظ بها',
+    retentionBody:
+      'تبقى بياناتك ما دام حسابك مفتوحًا. إذا بقي الحساب دون استخدام لمدة 3 سنوات، نحذفه ونحذف معه البيانات الشخصية. لا داعي للانتظار — يمكنك تصدير كل شيء أو حذفه بنفسك في أي وقت أدناه.',
+    dataControlsSection: 'بياناتك',
+    legalSection: 'قانوني',
+    exportRow: 'صدِّر بياناتك',
+    exportRowHint: 'نسخة كاملة بلا فقدان — مِلكك',
+    licensesRow: 'تراخيص المصدر المفتوح',
+    licensesRowHint: 'المكتبات التي بُني عليها بـاقي',
+    licensesTitle: 'المصدر المفتوح',
+    licensesIntro: 'بُني بـاقي على برمجيات مفتوحة المصدر. شكرًا لمن صنعها ويصونها.',
+    licenseNote: 'كلٌّ منها يُستخدم بموجب ترخيصه الخاص، دون تغيير.',
     previewGroups: {
       zero: 'أنت في {n} مجموعة.',
       one: 'أنت في مجموعة واحدة.',
@@ -7162,6 +7317,12 @@ const ar: UiStrings = {
     feedbackPlaceholder: 'ماذا حدث، أو ما الذي كنت تتمناه',
     feedbackSend: 'إرسال',
     feedbackThanks: 'شكرًا — وصلتنا.',
+    feedbackRating: 'كيف تجد بـاقي حتى الآن؟',
+    feedbackRatingHint: 'اختياري',
+    feedbackStarLabel: { one: '{n} نجمة', other: '{n} نجوم' },
+    feedbackStarClearHint: 'انقر مرة أخرى لمسح التقييم',
+    feedbackAttachNote:
+      'يُرفق إصدار التطبيق ونوع الجهاز حتى نتمكّن من إعادة إنتاج ما رأيته. لا شيء غير ذلك.',
     kindGeneral: 'عام',
     kindBug: 'شيء لا يعمل',
     kindIdea: 'فكرة',

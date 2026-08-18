@@ -144,6 +144,10 @@ export interface CaptureRow {
   /** On-device OCR text (A5), kept so assignment can prefill the expense form. */
   raw_text: string | null;
   parsed: Record<string, unknown> | null;
+  /** How it was paid: 'cash' | 'credit' | 'debit' | 'forex', or null. */
+  payment_method: string | null;
+  /** Intended destination group, chosen up front; null means decide later. */
+  target_group_id: string | null;
   status: CaptureStatus;
   assigned_expense_id: string | null;
   assigned_group_id: string | null;

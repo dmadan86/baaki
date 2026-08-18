@@ -857,6 +857,10 @@ export interface CaptureInput {
   photoPath?: string | null;
   rawText?: string | null;
   parsed?: Record<string, unknown> | null;
+  /** 'cash' | 'credit' | 'debit' | 'forex' — how it was paid. Null until chosen. */
+  paymentMethod?: string | null;
+  /** Intended destination group; null means decide later. */
+  targetGroupId?: string | null;
 }
 
 /** bigint → decimal string at the queue boundary, like `serialiseExpense`. */
@@ -872,6 +876,8 @@ function serialiseCapture(input: CaptureInput, captureId: string): Record<string
     photoPath: input.photoPath ?? null,
     rawText: input.rawText ?? null,
     parsed: input.parsed ?? null,
+    paymentMethod: input.paymentMethod ?? null,
+    targetGroupId: input.targetGroupId ?? null,
   };
 }
 

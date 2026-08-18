@@ -117,6 +117,10 @@ export interface CaptureCreatePayload {
   readonly rawText?: string | null;
   /** Parsed receipt fields, if the scan produced any. */
   readonly parsed?: Readonly<Record<string, unknown>> | null;
+  /** How it was paid: 'cash' | 'credit' | 'debit' | 'forex'. Null until chosen. */
+  readonly paymentMethod?: string | null;
+  /** Intended destination group, chosen up front; null means decide later. */
+  readonly targetGroupId?: string | null;
 }
 
 /** Editing a capture before it is assigned. Last write wins — a capture has one owner and no versions. */

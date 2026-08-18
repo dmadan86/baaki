@@ -614,6 +614,8 @@ export interface MirrorCapture extends MirrorRow {
   readonly photo_path: string | null;
   readonly raw_text: string | null;
   readonly parsed: Record<string, unknown> | null;
+  readonly payment_method: string | null;
+  readonly target_group_id: string | null;
   readonly status: 'open' | 'assigned';
   readonly assigned_expense_id: string | null;
   readonly assigned_group_id: string | null;
@@ -662,6 +664,17 @@ export function materialiseCaptures(
           photo_path: payload.photoPath ?? null,
           raw_text: payload.rawText ?? null,
           parsed: payload.parsed ?? null,
+          // An edit that omits these keeps what the server had; an edit that
+          // sends them — null included — is a deliberate clear, so `in` decides
+          // rather than `??`, which would swallow an explicit null.
+          payment_method:
+            'paymentMethod' in payload
+              ? (payload.paymentMethod ?? null)
+              : (existing?.payment_method ?? null),
+          target_group_id:
+            'targetGroupId' in payload
+              ? (payload.targetGroupId ?? null)
+              : (existing?.target_group_id ?? null),
           // An edit never un-assigns; only assignment sets it, below.
           status: existing?.status ?? 'open',
           assigned_expense_id: existing?.assigned_expense_id ?? null,
