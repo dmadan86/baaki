@@ -19,6 +19,7 @@ import {
 } from '@waves/ui';
 
 import { mintInvite, type MintedInvite } from '@/data/api';
+import { friendlyError } from '@/lib/errors';
 import { useGroup } from '@/data/hooks';
 import { groupLabel } from '@/data/types';
 import { useAuth } from '@/lib/auth';
@@ -52,7 +53,7 @@ export default function InviteScreen() {
     try {
       setInvite(await mintInvite(groupId));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'invite.create'));
     } finally {
       setBusy(false);
     }

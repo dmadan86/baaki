@@ -112,7 +112,7 @@ export default function MembersScreen() {
           setGhostName('');
           setGhostContact('');
         },
-        onError: (caught) => setError(caught instanceof Error ? caught.message : String(caught)),
+        onError: (caught) => setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'members.addGhost')),
       },
     );
   };
@@ -145,7 +145,7 @@ export default function MembersScreen() {
         failed.push(person.name);
         // The first refusal's own words, kept so the message can say why rather
         // than only which names did not make it.
-        if (!reason) reason = caught instanceof Error ? caught.message : String(caught);
+        if (!reason) reason = friendlyError(caught, t.misc.tryAgainMoment, 'members.addPicked');
       }
     }
     setAdding(false);

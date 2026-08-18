@@ -35,6 +35,7 @@ import {
 import { Button, Callout, Card, ChipRow, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 
 import { fetchFxRate } from '@/data/api';
 
@@ -144,7 +145,7 @@ export function CurrencyRate({
     } catch (caught) {
       // Not a blocker: typing a rate works offline and is often more accurate.
       setError(
-        `${caught instanceof Error ? caught.message : String(caught)}${t.misc.rateFetchFailedSuffix}`,
+        `${friendlyError(caught, t.misc.rateFetchFailed, 'currencyRate.fetch')}${t.misc.rateFetchFailedSuffix}`,
       );
     } finally {
       setBusy(false);

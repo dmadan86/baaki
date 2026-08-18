@@ -27,6 +27,7 @@ import {
 } from '@waves/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
+import { friendlyError } from '@/lib/errors';
 import { pickGroupPhoto } from '@/lib/image';
 import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
@@ -88,7 +89,7 @@ export default function GroupSettingsScreen() {
         // Only clear the field if it still holds what we submitted, so a name
         // typed for the next person isn't wiped when this add lands.
         onSuccess: () => setNewName((current) => (current.trim() === person ? '' : current)),
-        onError: (caught) => setAddError(caught instanceof Error ? caught.message : String(caught)),
+        onError: (caught) => setAddError(friendlyError(caught, t.misc.couldNotAddGeneric, 'groupSettings.addGhost')),
       },
     );
   };
@@ -125,7 +126,7 @@ export default function GroupSettingsScreen() {
       await group.refetch();
       setStatus(t.group.photoUpdated);
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : String(caught));
+      setStatus(friendlyError(caught, t.couldNotSave, 'groupSettings.changePhoto'));
     } finally {
       setUploading(false);
     }
@@ -146,7 +147,7 @@ export default function GroupSettingsScreen() {
       await removeGroupPhoto(groupId, group.data?.photo_path ?? null);
       await group.refetch();
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : String(caught));
+      setStatus(friendlyError(caught, t.couldNotSave, 'groupSettings.dropPhoto'));
     }
   };
 

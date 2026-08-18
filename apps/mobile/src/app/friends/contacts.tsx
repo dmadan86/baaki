@@ -41,6 +41,7 @@ import {
 } from '@waves/ui';
 
 import { fill, plural, useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { addGhostMember, fetchGroups } from '@/data/api';
@@ -102,7 +103,7 @@ export default function ContactsScreen(): React.JSX.Element {
       await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'contacts.add'));
     },
   });
 

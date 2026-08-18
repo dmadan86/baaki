@@ -36,6 +36,7 @@ import {
 } from '@waves/ui';
 
 import { toSnapshot, useGroup, useGroupLedger, useRecordSettlement } from '@/data/hooks';
+import { friendlyError } from '@/lib/errors';
 import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, isGhost, payableAt, type MemberRow } from '@/data/types';
@@ -166,7 +167,7 @@ export default function SettleScreen() {
       });
       router.back();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'settle.record'));
     }
   };
 

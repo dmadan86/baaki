@@ -34,6 +34,7 @@ import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
 import { saveReceipt } from '@/lib/receiptStore';
 import { markPending } from '@/lib/receiptIndex';
+import { friendlyError } from '@/lib/errors';
 import { useBackup } from '@/lib/cloud/BackupProvider';
 
 /**
@@ -239,7 +240,7 @@ export default function CaptureScreen() {
       });
       router.back();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.captures.couldNotSave, 'capture.save'));
     } finally {
       setSaving(false);
     }

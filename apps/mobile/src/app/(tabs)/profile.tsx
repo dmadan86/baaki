@@ -20,6 +20,7 @@ import {
 } from '@waves/ui';
 
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { friendlyError } from '@/lib/errors';
 import { SkeletonList } from '@/components/Skeletons';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
@@ -293,7 +294,7 @@ function ProfileForm() {
       });
       await updateProfile({ avatar_url: path });
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : String(caught));
+      setStatus(friendlyError(caught, t.couldNotSave, 'profile.uploadPhoto'));
     } finally {
       setPhotoBusy(false);
     }
@@ -306,7 +307,7 @@ function ProfileForm() {
       await removeAvatar(profile.id, profile.avatar_url);
       await updateProfile({ avatar_url: null });
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : String(caught));
+      setStatus(friendlyError(caught, t.couldNotSave, 'profile.removePhoto'));
     } finally {
       setPhotoBusy(false);
     }

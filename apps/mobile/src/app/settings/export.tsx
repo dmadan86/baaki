@@ -22,6 +22,7 @@ import {
 } from '@waves/ui';
 
 import { exportData } from '@/data/api';
+import { friendlyError } from '@/lib/errors';
 import { useGroups } from '@/data/hooks';
 import { groupLabel } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -73,7 +74,7 @@ export default function ExportScreen() {
       }
       setDone(`${result.filename} · ${Math.ceil(result.content.length / 1024)} KB`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.exportData.exportFailed, 'export.run'));
     } finally {
       setBusy(false);
     }

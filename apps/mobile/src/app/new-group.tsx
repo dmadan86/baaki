@@ -21,6 +21,7 @@ import {
 } from '@waves/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
+import { friendlyError } from '@/lib/errors';
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
@@ -210,7 +211,7 @@ export default function NewGroupScreen() {
       }
       router.replace(`/group/${groupId}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'newGroup.create'));
     }
   };
 

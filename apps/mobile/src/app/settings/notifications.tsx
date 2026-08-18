@@ -26,6 +26,7 @@ import {
   type NotificationPrefs,
 } from '@/data/api';
 import { useStrings, type UiStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 import { enablePush, PushFailure, PushPermission, pushPermission } from '@/lib/push';
 
@@ -151,7 +152,7 @@ export default function NotificationSettingsScreen() {
         // The switch goes back to what the server still holds, so the screen
         // never shows a preference that was not saved.
         setPrefs(previous);
-        setStatus(caught instanceof Error ? caught.message : String(caught));
+        setStatus(friendlyError(caught, t.notifications.failSaveFailed, 'notifications.savePrefs'));
       });
   };
 
