@@ -73,7 +73,14 @@ export default async function Config({
               {row.description ? <p className="note">{row.description}</p> : null}
               <label>
                 <span>Value</span>
-                <input type="number" name="value" min={0} step={1} defaultValue={row.value} required />
+                <input
+                  type="number"
+                  name="value"
+                  min={0}
+                  step={1}
+                  defaultValue={row.value}
+                  required
+                />
               </label>
               <button type="submit">Save</button>
             </form>
