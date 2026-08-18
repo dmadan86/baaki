@@ -55,7 +55,7 @@ jobs:
       - run:
           name: No files from a mis-quoted shell command
           command: bash scripts/check-filenames.sh
-      # The edge functions import a bundled copy of @baaki/core; build it first
+      # The edge functions import a bundled copy of @waves/core; build it first
       # so a broken bundle fails here rather than at deploy time.
       - run: pnpm edge:build
       - run: pnpm typecheck
@@ -126,12 +126,12 @@ jobs:
       # libraries a headless Chromium needs on a bare runner.
       - run:
           name: Install Chromium
-          command: pnpm --filter @baaki/web exec playwright install --with-deps chromium
+          command: pnpm --filter @waves/web exec playwright install --with-deps chromium
       # The suite boots its own dev server (playwright.config.ts) with
       # placeholder Supabase env — the surface it drives makes no network call.
       - run:
           name: Playwright
-          command: pnpm --filter @baaki/web e2e
+          command: pnpm --filter @waves/web e2e
       - store_artifacts:
           path: apps/web/playwright-report
           destination: playwright-report

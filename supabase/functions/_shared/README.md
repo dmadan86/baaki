@@ -10,13 +10,13 @@ Rules for every function in this directory:
    checks membership itself before touching a row — `is_group_member()` is the
    same predicate the policies use.
 2. **Never trust client-computed money.** Shares are recomputed with
-   `@baaki/core` and a mismatch is rejected with `SHARE_MISMATCH` (TDR §4).
+   `@waves/core` and a mismatch is rejected with `SHARE_MISMATCH` (TDR §4).
 3. **Secrets only from the function environment** — `ANTHROPIC_API_KEY`,
    `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
    Nothing here may ever be referenced from `apps/*`.
 4. **Idempotency.** Mutations carry `client_mutation_id`; retries must be safe.
 5. **Attach ids, never rows.** Anything falling through to a 500 is sent to
-   Sentry (`observability.ts`), scrubbed by `@baaki/core`. The scrubber catches
+   Sentry (`observability.ts`), scrubbed by `@waves/core`. The scrubber catches
    shapes and known fields — it cannot tell a name from a word — so an error
    message must carry a code and an id, not a description. `HttpError` is never
    reported: a refusal the caller can act on is the function working.
@@ -89,7 +89,7 @@ nobody can get off the list.
 
 ## What gets emailed, and what never does
 
-The list is in `@baaki/core` (`notifications/email.ts`) and again in SQL
+The list is in `@waves/core` (`notifications/email.ts`) and again in SQL
 (`baaki_claim_email_notifications`), and it is four kinds long: settlement
 confirmations, the daily digest, and a nudge to somebody with no device. Routine
 ledger activity is deliberately absent. Mailing a person every time a flatmate
@@ -109,6 +109,6 @@ they are simply the balances of a smaller group that never existed.
 
 So the import ships as `baaki_import_splitwise`, a single `SECURITY DEFINER`
 function in the database. A function body is one transaction, which is the
-property §10 was asking for. Parsing stays in `@baaki/core` and runs on the
+property §10 was asking for. Parsing stays in `@waves/core` and runs on the
 client, so a file that turns out not to be a Splitwise export costs a round trip
 to nowhere. TDR §10 wants amending to match.

@@ -7,7 +7,7 @@
  * gets Aani and dirhams; the same group set to India gets UPI and rupees.
  *
  * The list is deliberately short and ordered by market rather than
- * alphabetically (see `COUNTRIES` in `@baaki/core`), because somebody in the
+ * alphabetically (see `COUNTRIES` in `@waves/core`), because somebody in the
  * Gulf should not scroll past forty countries to find theirs. "Not set" is a
  * real, supported answer and stays first: a group with no country falls back to
  * bank, cash and the cross-border wallets, which is the right behaviour for a
@@ -17,8 +17,8 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 
-import { COUNTRIES, countryFlag, countryName, railsFor } from '@baaki/core';
-import { Button, Card, ListRow, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { COUNTRIES, countryFlag, countryName, railsFor } from '@waves/core';
+import { Button, Card, ListRow, Row, Screen, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

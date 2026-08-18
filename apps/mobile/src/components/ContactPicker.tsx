@@ -43,7 +43,7 @@ import {
   Row,
   Text,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
 import { SkeletonList } from '@/components/Skeletons';

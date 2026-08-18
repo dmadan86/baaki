@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, TextInput, View } from 'react-native';
 
-import { isValidVpa } from '@baaki/core';
+import { isValidVpa } from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -22,7 +22,7 @@ import {
   TintCard,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useGroup, useGroupLedger, useSetMemberRole, useUpdateMember } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';

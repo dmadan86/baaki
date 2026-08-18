@@ -18,7 +18,7 @@ import {
   Text,
   ThemeProvider,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { AppTabBar } from '@/components/AppTabBar';

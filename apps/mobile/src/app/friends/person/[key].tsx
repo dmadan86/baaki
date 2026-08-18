@@ -31,7 +31,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { fetchPersonGroupBalances, type PersonGroupBalanceRow } from '@/data/api';
 import { PeopleSkeleton } from '@/components/Skeletons';

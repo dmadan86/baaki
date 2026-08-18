@@ -10,7 +10,7 @@ import {
   planAuth,
   readIdentifier,
   type Viewer,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { appleSignInAvailable, signInWithApple, type AppleCredential } from './appleAuth';
 import { identifyForReporting, reportHandled } from './observability';
@@ -18,7 +18,7 @@ import { refreshPushToken, revokePushToken } from './push';
 import { supabase } from './supabase';
 
 /**
- * What @baaki/core needs to know to pick the right call. The distinction that
+ * What @waves/core needs to know to pick the right call. The distinction that
  * matters is anonymous-with-data versus nobody: they look the same to a screen
  * and could not be more different to the person holding the phone.
  */
@@ -124,7 +124,7 @@ export interface Profile {
   avatar_url: string | null;
   /** The UPI-shaped field. Superseded by the rail pair; still read as a fallback. */
   default_vpa: string | null;
-  /** How this person is paid: a `RailId` from `@baaki/core`, and a handle on it. */
+  /** How this person is paid: a `RailId` from `@waves/core`, and a handle on it. */
   payment_rail: string | null;
   payment_handle: string | null;
   /** ISO-3166 alpha-2 — seeds a new group's country when they make one. */
@@ -144,7 +144,7 @@ interface AuthValue {
   continueAsGuest: () => Promise<void>;
   /**
    * Email or phone plus a password. Which Supabase call this makes is decided
-   * by `planAuth` in @baaki/core, not here — a guest must be upgraded in place
+   * by `planAuth` in @waves/core, not here — a guest must be upgraded in place
    * (ADR-006), and getting that wrong strands their groups on an account they
    * can no longer reach.
    */

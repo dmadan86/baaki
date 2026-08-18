@@ -2,7 +2,7 @@
  * The half of the bucketer that lives in SQL.
  *
  * The first test here is the one that matters. The app decides what to show
- * from `bucketOf` in `@baaki/core`; the console counts what happened using
+ * from `bucketOf` in `@waves/core`; the console counts what happened using
  * `baaki_bucket` in plpgsql. They are the same algorithm written twice, and if
  * they ever disagree the experiment results are not missing but **wrong** —
  * every number plausible, every conclusion backwards. `BUCKET_FIXTURES` is the
@@ -15,7 +15,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { BUCKET_FIXTURES, variantFor, type FeatureFlag } from '@baaki/core';
+import { BUCKET_FIXTURES, variantFor, type FeatureFlag } from '@waves/core';
 
 import { connect, expectDenied } from './helpers';
 
@@ -62,7 +62,7 @@ describe('the two implementations of one hash', () => {
       'SELECT i AS input, public.baaki_bucket(i) AS b FROM unnest($1::text[]) AS i',
       [inputs],
     );
-    const { bucketOf } = await import('@baaki/core');
+    const { bucketOf } = await import('@waves/core');
     for (const row of rows) {
       expect(Number(row.b), row.input).toBe(bucketOf(row.input));
     }

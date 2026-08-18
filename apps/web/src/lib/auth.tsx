@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const withPassword = useCallback(
     async (email: string, password: string, intent: 'sign_in' | 'sign_up') => {
       // The one correct call (sign up, sign in, or upgrade-in-place) is chosen
-      // by @baaki/core inside the client — never guessed here.
+      // by @waves/core inside the client — never guessed here.
       await baaki.withPassword(email, password, intent);
     },
     [],

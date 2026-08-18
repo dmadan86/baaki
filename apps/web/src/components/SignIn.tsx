@@ -7,7 +7,7 @@
  * session is minted for them.
  *
  * Which Supabase call the password form makes — sign up, sign in, or upgrade a
- * guest in place — is decided by @baaki/core inside the client, never guessed
+ * guest in place — is decided by @waves/core inside the client, never guessed
  * here (see `withPassword`).
  */
 

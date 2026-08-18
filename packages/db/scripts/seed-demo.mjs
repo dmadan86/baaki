@@ -10,8 +10,8 @@
  * screens all have something true to render.
  *
  * Run (from the repo root or packages/db):
- *   pnpm --filter @baaki/db seed              # append demo data
- *   pnpm --filter @baaki/db seed:purge        # remove it again
+ *   pnpm --filter @waves/db seed              # append demo data
+ *   pnpm --filter @waves/db seed:purge        # remove it again
  * or directly:
  *   node packages/db/scripts/seed-demo.mjs [--purge]
  *

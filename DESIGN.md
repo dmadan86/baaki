@@ -43,7 +43,7 @@ a user should be able to answer "am I up or down?" without reading a digit.
 It also renders the minor units fainter than the major ones (`₹1,517`**`.53`**),
 in the amount's own colour rather than grey, so the fade works on the brand
 panel, on green and on red alike. Where the split falls is the locale's
-business, not ours: `formatParts` in `@baaki/core` cuts the string at the
+business, not ours: `formatParts` in `@waves/core` cuts the string at the
 separator `Intl` actually used, because `de-DE` writes `1.517,53 €` and
 searching for a `.` would take the wrong one.
 
@@ -265,5 +265,5 @@ Home · Activity · Account · Group (expenses / balances / activity) ·
 Add expense · Settle up · Who pays whom.
 
 All of them run on fixture data, but every number they show is computed by
-`@baaki/core` — shares, balances, pairwise edges and simplification — so the
+`@waves/core` — shares, balances, pairwise edges and simplification — so the
 wiring is real and M1 only swaps the data source.

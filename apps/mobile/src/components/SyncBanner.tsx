@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Animated, Easing, Pressable, View } from 'react-native';
 
-import { Card, iconSize, Row, Text, useTheme } from '@baaki/ui';
+import { Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
 

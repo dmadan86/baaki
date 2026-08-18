@@ -11,7 +11,7 @@ import {
   parseReceiptText,
   type CategoryId,
   type HeuristicReceipt,
-} from '@baaki/core';
+} from '@waves/core';
 import {
   AmountField,
   Button,
@@ -25,7 +25,7 @@ import {
   Screen,
   Text,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
 import { useCreateCapture } from '@/data/hooks';

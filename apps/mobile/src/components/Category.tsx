@@ -15,8 +15,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { CATEGORIES, categoryOf, type CategoryId } from '@baaki/core';
-import { iconSize, Text, useTheme } from '@baaki/ui';
+import { CATEGORIES, categoryOf, type CategoryId } from '@waves/core';
+import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

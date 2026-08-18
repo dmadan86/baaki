@@ -31,7 +31,7 @@ import {
   tintForKey,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
 import { memberLookup, useGroup } from '@/data/hooks';

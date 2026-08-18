@@ -215,7 +215,7 @@ $$;
 
 -- The bucket and the variant are pure functions over public configuration, so
 -- a client calling them learns nothing it could not compute itself — and the
--- app does compute them itself, from `@baaki/core`. They are exposed anyway so
+-- app does compute them itself, from `@waves/core`. They are exposed anyway so
 -- the edge functions can gate on the same answer without reimplementing it.
 GRANT EXECUTE ON FUNCTION public.baaki_bucket(text) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.baaki_variant(text, uuid) TO anon, authenticated, service_role;

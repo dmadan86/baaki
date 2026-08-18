@@ -1,9 +1,9 @@
 'use client';
 
-import { format, type CurrencyCode } from '@baaki/core';
+import { format, type CurrencyCode } from '@waves/core';
 
 /**
- * Money is formatted by @baaki/core, not by this app.
+ * Money is formatted by @waves/core, not by this app.
  *
  * A second formatter is a second set of rounding rules, and the first time
  * they disagree is a person seeing ₹416.67 on their phone and ₹416.66 in a

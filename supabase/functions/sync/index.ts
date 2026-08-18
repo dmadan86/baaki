@@ -14,7 +14,7 @@
  *   after a crash gets the original answers back, not a second expense.
  *
  *   **The client never computes money.** Shares are recomputed here from
- *   `split_params` with the same @baaki/core the app uses, and a client whose
+ *   `split_params` with the same @waves/core the app uses, and a client whose
  *   arithmetic disagrees is rejected with SHARE_MISMATCH rather than believed.
  *
  *   **One bad mutation is not a broken app.** A rejection is reported per
@@ -180,7 +180,7 @@ serveWithCors(async (request) => {
 
     // A guest's writes stop after the trial (ADR-006 addendum); the pull below
     // still runs, so everything they made stays visible — read-only, not gone.
-    // Mirrors GUEST_TRIAL_DAYS in @baaki/core, the number the app gates on too.
+    // Mirrors GUEST_TRIAL_DAYS in @waves/core, the number the app gates on too.
     const guestExpired =
       user.user.is_anonymous === true &&
       Date.now() >=
@@ -736,7 +736,7 @@ async function pull(
 
   // Ghost merges (A38) ride a second personal scope, keyed distinctly so it does
   // not share a cursor with captures. Must equal `ghostMergesScope(profileId)`
-  // in @baaki/core; inlined to keep the edge bundle free of that import.
+  // in @waves/core; inlined to keep the edge bundle free of that import.
   const gmScope = `${profileId}:ghost_merges`;
   groupIds.delete(gmScope);
 

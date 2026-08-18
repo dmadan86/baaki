@@ -2,7 +2,7 @@
  * receipt-parse — a photograph becomes line items (ADR-008 / TDR §6).
  *
  * The model reads the receipt; it does not decide anything. What it returns is
- * checked against the receipt's own arithmetic by @baaki/core before anybody
+ * checked against the receipt's own arithmetic by @waves/core before anybody
  * sees a number, and a bill that does not add up comes back flagged for
  * correction rather than quietly becoming an expense. "AI proposes, human
  * confirms" only means something if the human is told what to look at.

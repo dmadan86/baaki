@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
-import { Avatar, useTheme } from '@baaki/ui';
+import { Avatar, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

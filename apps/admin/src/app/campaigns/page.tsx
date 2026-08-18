@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-import { format, money, type CurrencyCode } from '@baaki/core';
+import { format, money, type CurrencyCode } from '@waves/core';
 
 import {
   broadcastCampaign,

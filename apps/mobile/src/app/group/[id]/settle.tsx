@@ -14,7 +14,7 @@ import {
   toMajorString,
   type MemberId,
   type Receivable,
-} from '@baaki/core';
+} from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -33,7 +33,7 @@ import {
   tintForKey,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { toSnapshot, useGroup, useGroupLedger, useRecordSettlement } from '@/data/hooks';
 import { nudgeToSettle } from '@/data/api';

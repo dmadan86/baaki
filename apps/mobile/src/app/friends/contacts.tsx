@@ -38,7 +38,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { fill, plural, useStrings } from '@/i18n';
 

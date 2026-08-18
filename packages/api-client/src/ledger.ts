@@ -1,7 +1,7 @@
 /**
  * Rows into balances.
  *
- * Not a second implementation. Every number here comes out of @baaki/core,
+ * Not a second implementation. Every number here comes out of @waves/core,
  * which is the same code the app and the edge functions run — the whole reason
  * `packages/core` is forbidden to depend on React or Supabase (TDR §1). If a
  * guest's browser and the payer's phone ever disagreed about who owes what,
@@ -21,7 +21,7 @@ import {
   type MemberId,
   type SettlementSnapshot,
   type Transfer,
-} from '@baaki/core';
+} from '@waves/core';
 
 import type { Expense, Settlement } from './types';
 

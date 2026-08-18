@@ -15,7 +15,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 
-import { useTheme } from '@baaki/ui';
+import { useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

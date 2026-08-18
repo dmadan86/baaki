@@ -1,7 +1,7 @@
 /**
  * i18n from day one (TDR §11): en, ta, hi and now ar, with locale-aware money
  * and date formatting everywhere. Notification copy lives in
- * @baaki/core/notifications so the server sends the same words.
+ * @waves/core/notifications so the server sends the same words.
  *
  * The phone's own language is the default and always will be. What sits on top
  * of it now is a choice — `LanguageProvider` in `./language` — because the
@@ -25,7 +25,7 @@
  *
  * What it cannot mirror is an **icon**, because an icon is content rather than
  * layout. `chevron-forward` keeps pointing right in a screen that now runs the
- * other way, so "next" points backwards. `directionalIcon` in @baaki/ui is the
+ * other way, so "next" points backwards. `directionalIcon` in @waves/ui is the
  * fix, and every arrow in the app goes through it.
  */
 
@@ -37,7 +37,7 @@ import {
   dialingCodeForCountry,
   type CategoryId,
   type CurrencyCode,
-} from '@baaki/core';
+} from '@waves/core';
 
 export enum Language {
   En = 'en',

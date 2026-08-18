@@ -3,7 +3,7 @@
  * offline (ADR-005 / TDR §4).
  *
  * The client-side rules — queue ordering, backoff, reconciliation — are
- * property-tested in @baaki/core. These are the server-side halves that only
+ * property-tested in @waves/core. These are the server-side halves that only
  * real Postgres can prove: that the cursor never skips a change, that a
  * replayed mutation is free, and that two people editing the same expense from
  * two dead zones both keep their work.

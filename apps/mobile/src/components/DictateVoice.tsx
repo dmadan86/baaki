@@ -19,7 +19,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { Linking, Pressable, View } from 'react-native';
 
-import { iconSize, Text, useTheme } from '@baaki/ui';
+import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { dictationError, mergeTranscript, speechLocale } from '@/lib/dictation';

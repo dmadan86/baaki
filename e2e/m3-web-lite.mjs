@@ -7,7 +7,7 @@
  * browser path is a *different client* from the app — its own Supabase session,
  * its own reads, no offline mirror — and the thing that must hold across both
  * is that RLS decides what is visible, not the code that happens to be asking.
- * So this exercises `@baaki/api-client` exactly as `apps/web-lite` does, and
+ * So this exercises `@waves/api-client` exactly as `apps/web-lite` does, and
  * then checks the two things a screen cannot check for itself: that a stranger
  * with the same anon key sees nothing, and that the guest's account is the
  * same account after they add credentials to it.
@@ -187,7 +187,7 @@ check(
 );
 
 // 6. The browser and the app agree about the money. Both compute from the same
-//    rows with the same @baaki/core code; if they could differ, there would be
+//    rows with the same @waves/core code; if they could differ, there would be
 //    no way to say which was lying.
 const { data: expenses } = await guest
   .from('expenses')

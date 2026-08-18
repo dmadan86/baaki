@@ -1,4 +1,4 @@
-import type { MemberId, SplitParams } from '@baaki/core';
+import type { MemberId, SplitParams } from '@waves/core';
 
 export enum GroupType {
   Trip = 'trip',
@@ -70,7 +70,7 @@ export interface MemberRow {
   role: 'admin' | 'member';
   /** The UPI-shaped fields. Superseded by the rail pair; still read as a fallback. */
   vpa: string | null;
-  /** Which rail this person is paid on here — a `RailId` from `@baaki/core`. */
+  /** Which rail this person is paid on here — a `RailId` from `@waves/core`. */
   payment_rail?: string | null;
   payment_handle?: string | null;
   left_at: string | null;
@@ -223,7 +223,7 @@ export interface ActivityRow {
  *
  * `title` and `body` are English and are a fallback: the server wrote them
  * without knowing who would read them or in which language. The real wording
- * comes from `kind` + `payload` through `renderNotification` in @baaki/core.
+ * comes from `kind` + `payload` through `renderNotification` in @waves/core.
  */
 export interface NotificationRow {
   id: string;

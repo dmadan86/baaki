@@ -1,8 +1,8 @@
 /**
- * @baaki/ui — the Baaki design system.
+ * @waves/ui — the Baaki design system.
  *
  * Tokens first, components second. No business logic: the only thing this
- * package imports from @baaki/core is money formatting, so a component can
+ * package imports from @waves/core is money formatting, so a component can
  * never disagree with the ledger about what a number means.
  */
 

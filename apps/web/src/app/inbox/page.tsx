@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 
-import type { NotificationRow } from '@baaki/api-client';
+import type { NotificationRow } from '@waves/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';

@@ -16,7 +16,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, TextInput, View } from 'react-native';
 
-import { defaultRailFor, isValidHandle, railById, railsFor } from '@baaki/core';
+import { defaultRailFor, isValidHandle, railById, railsFor } from '@waves/core';
 import {
   Button,
   Card,
@@ -29,7 +29,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { CountryRow } from '@/components/CountryPicker';
 import { deviceCountry, useStrings } from '@/i18n';

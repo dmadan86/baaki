@@ -19,7 +19,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Text, useTheme } from '@baaki/ui';
+import { Text, useTheme } from '@waves/ui';
 
 export type SocialProvider = 'apple' | 'google';
 

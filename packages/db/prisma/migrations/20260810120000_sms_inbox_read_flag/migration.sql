@@ -8,7 +8,7 @@
 --
 -- Seeded disabled with a zero rollout. `enabled` plus `rollout_percent` are the
 -- two dials the console turns; the app reads the same answer through
--- `baaki_variant` / @baaki/core so an offline phone gates identically. Off is
+-- `baaki_variant` / @waves/core so an offline phone gates identically. Off is
 -- the fallback everywhere, so a phone that cannot read this row shows paste,
 -- which is exactly the safe default (see the feature_flags migration).
 --

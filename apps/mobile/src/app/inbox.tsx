@@ -8,7 +8,7 @@
  *
  * The wording is built here rather than read off the row. The server wrote
  * `kind` and a payload without knowing who would read it or in which language;
- * `renderNotification` in @baaki/core turns that into a sentence, with the
+ * `renderNotification` in @waves/core turns that into a sentence, with the
  * stored English as the fallback for a kind this build has never heard of.
  */
 
@@ -17,7 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
-import { renderNotification } from '@baaki/core';
+import { renderNotification } from '@waves/core';
 import {
   Button,
   directionalIcon,
@@ -30,7 +30,7 @@ import {
   tintForKey,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { dayHeading, dayKey } from '@/data/activity';
 import { useMarkNotificationsRead, useNotifications } from '@/data/hooks';

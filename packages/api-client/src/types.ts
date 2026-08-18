@@ -6,7 +6,7 @@
  * columns nobody renders is asking RLS to prove more than it has to.
  */
 
-import type { SplitParams } from '@baaki/core';
+import type { SplitParams } from '@waves/core';
 
 export type MemberId = string;
 

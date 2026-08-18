@@ -15,7 +15,7 @@ import {
   tintForKey,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { dayHeading, dayKey, describeActivity, parseMoney, verbEmoji } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';

@@ -59,7 +59,7 @@ enable_anonymous_sign_ins = true
 # trip they have been adding expenses to all week. Off, the app falls back to
 # nothing — there is no second way to reach that account.
 enable_manual_linking = true
-# The client refuses anything shorter (MIN_PASSWORD_LENGTH in @baaki/core), and
+# The client refuses anything shorter (MIN_PASSWORD_LENGTH in @waves/core), and
 # a server that would have accepted it is a rule enforced in one place only.
 minimum_password_length = 8
 

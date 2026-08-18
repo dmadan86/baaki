@@ -7,7 +7,7 @@
  * not money in any currency, and whatever symbol gets printed in front of it is
  * a lie about an amount somebody is deciding whether to pay.
  *
- * Lives in @baaki/core because both the phone's home screen and the web
+ * Lives in @waves/core because both the phone's home screen and the web
  * dashboard total the same way, and a total that disagreed between them would
  * be the one bug a shared package exists to prevent (TDR §1).
  */

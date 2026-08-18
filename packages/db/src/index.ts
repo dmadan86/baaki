@@ -1,5 +1,5 @@
 /**
- * @baaki/db — Prisma schema, migrations and the generated client.
+ * @waves/db — Prisma schema, migrations and the generated client.
  *
  * The mobile app never imports this: it talks to Supabase through supabase-js
  * (RLS-enforced) and the `/sync` edge function (TDR §2.0). Server-side code
@@ -8,7 +8,7 @@
 
 export type { PrismaClient } from '../generated/client/index.js';
 
-/** Statuses that move the ledger — mirrors @baaki/core `isSettled`. */
+/** Statuses that move the ledger — mirrors @waves/core `isSettled`. */
 export const SETTLED_STATUSES = ['confirmed', 'auto_confirmed'] as const;
 
 /** Ground-truth SQL helpers, callable from edge functions. */

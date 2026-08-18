@@ -21,7 +21,7 @@
 import type { ReactNode } from 'react';
 import { View, type ViewStyle } from 'react-native';
 
-import { Card, Row, Screen, Skeleton, useTheme } from '@baaki/ui';
+import { Card, Row, Screen, Skeleton, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';

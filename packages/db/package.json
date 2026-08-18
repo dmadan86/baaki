@@ -1,5 +1,5 @@
 {
-  "name": "@baaki/db",
+  "name": "@waves/db",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@prisma/client": "7.9.1",
-    "@baaki/core": "workspace:*"
+    "@waves/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

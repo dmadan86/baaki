@@ -6,7 +6,7 @@
  * you share (`pairwise_balances`), folds the rows that are really one person,
  * and sums per currency. This does the same from the mirror: the caller feeds
  * one {@link PersonContribution} per (group, other member, currency) — the
- * pairwise edge that touches you — computed with the same `@baaki/core`
+ * pairwise edge that touches you — computed with the same `@waves/core`
  * function the group ledger uses, and this aggregates them.
  *
  * The identity rule matches the SQL exactly: a profile id is proof of one

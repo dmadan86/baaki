@@ -21,7 +21,7 @@ import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { parseReceiptText, type HeuristicReceipt } from '@baaki/core';
+import { parseReceiptText, type HeuristicReceipt } from '@waves/core';
 
 import {
   AmountField,
@@ -37,7 +37,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { DictateButton } from '@/components/DictateButton';

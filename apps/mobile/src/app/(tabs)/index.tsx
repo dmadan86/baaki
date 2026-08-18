@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { dayNumber, daysBetween, GUEST_TRIAL_DAYS, type GuestGate } from '@baaki/core';
+import { dayNumber, daysBetween, GUEST_TRIAL_DAYS, type GuestGate } from '@waves/core';
 import {
   Avatar,
   Button,
@@ -26,7 +26,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale, Stagger } from '@/lib/anim';

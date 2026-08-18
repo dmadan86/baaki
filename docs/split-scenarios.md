@@ -111,7 +111,7 @@ Three separate defences, each of which would catch a wrong number on its own:
 1. **The edge functions recompute.** `expense-write` and `sync` both call
    `computeShares` on `split_params` and use _their_ result. A client's
    `expectedShares` is only ever compared, never stored. The comparison is
-   `verifyClientShares` in `@baaki/core` — one definition shared by both
+   `verifyClientShares` in `@waves/core` — one definition shared by both
    functions, including the case a hand-written loop tends to miss, where the
    client invents a share for somebody who is not in the split.
 2. **The database enforces the money invariant.** A constraint trigger checks
@@ -215,7 +215,7 @@ that is how a refund to one person is recorded.
 
 ```bash
 pnpm test:core                                  # every split suite
-pnpm --filter @baaki/core exec vitest run test/split.combinations.test.ts
+pnpm --filter @waves/core exec vitest run test/split.combinations.test.ts
 ```
 
 CI runs these on every push, and a merge is blocked if any of them fail

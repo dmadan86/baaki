@@ -1,7 +1,7 @@
 /**
  * The guest ceilings, wired to this phone's guest (ADR-006 addendum).
  *
- * `@baaki/core`'s `guestGate` decides; this hook feeds it who is asking (a
+ * `@waves/core`'s `guestGate` decides; this hook feeds it who is asking (a
  * guest, and when their account was made) and how many groups they are in, then
  * hands screens two guards to call before a write. A full user gets a null gate
  * and both guards wave everything through, so a screen can call them
@@ -21,7 +21,7 @@ import {
   guestWriteBlock,
   type GuestBlock,
   type GuestGate,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { useGroups } from '@/data/hooks';
 import { useAuth } from './auth';

@@ -22,7 +22,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, View } from 'react-native';
 
-import { iconSize, Text, useTheme } from '@baaki/ui';
+import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES, useStrings } from '@/i18n';
 import { useLanguage } from '@/i18n/language';

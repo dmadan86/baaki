@@ -3,7 +3,7 @@
  *
  * Balances are computed twice on purpose: the server keeps trigger-maintained
  * `group_balances`, and the client recomputes the same thing from the expense
- * rows with @baaki/core. They must agree. If they ever don't, `useGroupLedger`
+ * rows with @waves/core. They must agree. If they ever don't, `useGroupLedger`
  * reports it instead of quietly showing a number that might be wrong — trust in
  * the number is the product (ADR-004).
  */
@@ -37,7 +37,7 @@ import {
   type MirrorExpense,
   type SettlementSnapshot,
   type Transfer,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';

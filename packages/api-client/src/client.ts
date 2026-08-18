@@ -4,7 +4,7 @@
  * Framework-free on purpose: no React, no React Native, no Next. The app has
  * its own data layer built around an offline mirror and a mutation queue; a
  * browser opening a link has neither and does not want them. What the two
- * genuinely share is @baaki/core — the split maths, the balances, the money
+ * genuinely share is @waves/core — the split maths, the balances, the money
  * types — and that is where sharing stops being a convenience and starts being
  * a correctness requirement (TDR §1).
  *
@@ -18,7 +18,7 @@
 
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
-import { AuthMethod, checkPassword, planAuth, readIdentifier, type Viewer } from '@baaki/core';
+import { AuthMethod, checkPassword, planAuth, readIdentifier, type Viewer } from '@waves/core';
 
 import type { AcceptedInvite, Expense, Group, InvitePreview, Member, Settlement } from './types';
 import {
@@ -161,7 +161,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
 
     /**
      * Email (or phone) and a password. The one call this makes is decided by
-     * `planAuth` in @baaki/core, not here: a guest is upgraded **in place**
+     * `planAuth` in @waves/core, not here: a guest is upgraded **in place**
      * (ADR-006) with `updateUser` so the groups and money made as a guest come
      * with them, and only somebody with no account signs up or signs in fresh.
      * Getting that wrong strands a week of expenses on an account nobody can
@@ -479,7 +479,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       fromMemberId: string;
       toMemberId: string;
       amount: bigint;
-      /** A `RailId` from @baaki/core — `upi`, `pix`, `cash`, … */
+      /** A `RailId` from @waves/core — `upi`, `pix`, `cash`, … */
       rail: string;
       currency?: string | null;
       note?: string | null;
@@ -587,7 +587,7 @@ export interface WriteExpenseInput {
   expenseDate: string;
   currency: string;
   amount: bigint;
-  /** Already in wire form — use `serialiseSplitParams` from @baaki/core. */
+  /** Already in wire form — use `serialiseSplitParams` from @waves/core. */
   splitParams: unknown;
   participants: string[];
   payers: Record<string, bigint>;

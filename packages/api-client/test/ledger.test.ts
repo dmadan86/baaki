@@ -1,7 +1,7 @@
 /**
  * Rows into balances, in a browser.
  *
- * The risk this covers is not arithmetic — that is @baaki/core's, and it is
+ * The risk this covers is not arithmetic — that is @waves/core's, and it is
  * property-tested there. It is the conversion on the way in. PostgREST hands
  * minor units back as decimal strings, and every one of them has to become a
  * bigint before anything touches it. A single `Number()` slipping in would

@@ -23,7 +23,7 @@ import {
   tintForKey,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import {
   memberLookup,
@@ -38,7 +38,7 @@ import { describeActivity, parseMoney, verbEmoji } from '@/data/activity';
 import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
-import { formatParts, type MemberId } from '@baaki/core';
+import { formatParts, type MemberId } from '@waves/core';
 import { actorName, displayName, groupLabel, isGhost, type ExpenseVersionRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';

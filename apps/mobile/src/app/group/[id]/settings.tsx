@@ -24,7 +24,7 @@ import {
   Toggle,
   useTheme,
   useTabBarClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { pickGroupPhoto } from '@/lib/image';

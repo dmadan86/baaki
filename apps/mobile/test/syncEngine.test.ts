@@ -20,7 +20,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { materialiseGroups, type MirrorState, type QueuedMutation } from '@baaki/core';
+import { materialiseGroups, type MirrorState, type QueuedMutation } from '@waves/core';
 
 // Hoisted so the module mocks below can close over the same handles the tests
 // poke at: the network verdict, the `sync` invocation, and the one shared

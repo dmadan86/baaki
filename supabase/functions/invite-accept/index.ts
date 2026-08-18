@@ -117,7 +117,7 @@ serveWithCors(async (request) => {
     // a link to a group they are already in is never blocked. A brand-new
     // person joining their first group is under the limit and inside the window,
     // so this only ever stops an existing guest joining a *second* group, or one
-    // whose trial has run out. Mirrors the numbers in @baaki/core.
+    // whose trial has run out. Mirrors the numbers in @waves/core.
     if (user.user.is_anonymous === true) {
       if (
         Date.now() >=

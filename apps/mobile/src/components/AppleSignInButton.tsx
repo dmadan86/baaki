@@ -20,7 +20,7 @@
  */
 
 import { useAppleSignInAvailable, appleModule } from '@/lib/appleAuth';
-import { Button, useTheme } from '@baaki/ui';
+import { Button, useTheme } from '@waves/ui';
 
 interface Props {
   /** Matches the wording of the Google button beside it. */

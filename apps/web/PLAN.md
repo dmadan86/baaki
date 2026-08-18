@@ -19,7 +19,7 @@ view"** — one invited group, upsell the app. This plan turns it into a
 correctness change:
 
 - Guest ceilings (ADR-006 addendum) are **unchanged** — `guestGate` in
-  `@baaki/core` still gates one-group / ten-day writes; the web UI must
+  `@waves/core` still gates one-group / ten-day writes; the web UI must
   honour it exactly as mobile does (disable writes, prompt sign-up).
 - All writes still go through the same Edge Functions (server recomputes;
   client numbers are a claim — TDR §4). No new trust granted to the browser.
@@ -32,14 +32,14 @@ in the same PR that ships Phase 1, so the doc and the code agree.
 
 ## Architecture
 
-- **Reuse, don't fork.** Keep `@baaki/api-client` (framework-free) as the
+- **Reuse, don't fork.** Keep `@waves/api-client` (framework-free) as the
   single browser data layer. It currently exposes only
   `group/members/expenses/settlements + writeExpense + invite`. The mobile
   app's `src/data/api.ts` holds ~70 functions against the same Postgres +
   Edge Functions. Port the read/write surface web needs **into
-  `@baaki/api-client`** (not into the Next app), so both stay honest about
+  `@waves/api-client`** (not into the Next app), so both stay honest about
   who owes what. Split maths/balances/categories already live in
-  `@baaki/core` and are used as-is.
+  `@waves/core` and are used as-is.
 - **No offline mirror / mutation queue on web** (by design — client.ts
   says so). Web reads live via PostgREST, writes live via Edge Functions.
   `@tanstack/react-query` for cache/refetch (already a mobile dep).
@@ -47,7 +47,7 @@ in the same PR that ships Phase 1, so the doc and the code agree.
   (RLS runs under the browser session). Read
   `node_modules/next/dist/docs/` before writing — this Next is patched.
 - **Design system:** a small web UI kit under `apps/web/src/ui/`
-  (tokens + primitives) mirroring `@baaki/ui`'s vocabulary (Card, StatCard,
+  (tokens + primitives) mirroring `@waves/ui`'s vocabulary (Card, StatCard,
   Row, Avatar, Button, Gradient, SegmentedTabs, DetailPanel) — CSS, no RN.
   Tokens track the reference: warm paper background, gradient tint cards
   (peach/blue/lilac/rose), ink/inkMuted text, raspberry money-red, green
@@ -57,7 +57,7 @@ in the same PR that ships Phase 1, so the doc and the code agree.
 
 ## API-client gaps to fill (grouped)
 
-Ported from `apps/mobile/src/data/api.ts`, added to `@baaki/api-client`:
+Ported from `apps/mobile/src/data/api.ts`, added to `@waves/api-client`:
 
 - **Home/dashboard:** `fetchGroups`, `fetchMyBalances`, `fetchAllBalances`,
   `fetchPeopleBalances`, `fetchRecentActivity`, `fetchPendingSettlements`,
@@ -115,7 +115,7 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
 - ↺ Group page: balances, who-pays-whom, expense list — reskinned to
   cards + detail panel; add member/ghost.
 - ✳ Expense detail (versions, dispute) · ✳ Add/Edit expense (all split
-  types via `@baaki/core`) — reskin of the current `/add` page.
+  types via `@waves/core`) — reskin of the current `/add` page.
 
 ### Phase 3 — Settle, friends, activity
 
@@ -138,18 +138,18 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
   screen-by-screen (mobile has full coverage to mirror). RTL: web can flip
   with `dir` on `<html>` at request time — simpler than the native restart
   constraint; still drive icon direction from `dir`.
-- **Guest ceilings:** call `guestGate` from `@baaki/core` in every write
+- **Guest ceilings:** call `guestGate` from `@waves/core` in every write
   path's UI (disable + upsell), matching mobile. Server still enforces.
 - **Observability:** Sentry (`@sentry/nextjs`) already wired; keep.
   Clarity optional, behind the same consent toggle mobile uses.
 - **Testing:** vitest for ported client fns + i18n + money, as today.
-  `pnpm --filter @baaki/web lint|typecheck|test` green per PR.
+  `pnpm --filter @waves/web lint|typecheck|test` green per PR.
 
 ## Delivery
 
 - One PR per phase (never to `main` directly), each independently
   shippable and reviewable. Phase 1 PR also carries the ADR-006 addendum.
-- Rename note: the folder is now `apps/web` (package `@baaki/web`); the
+- Rename note: the folder is now `apps/web` (package `@waves/web`); the
   ADR addendum records that "lite" is historical.
 
 ## Open questions before Phase 1

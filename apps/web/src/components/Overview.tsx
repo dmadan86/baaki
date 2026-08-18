@@ -21,8 +21,8 @@ import {
   type BalanceRow,
   type GroupRow,
   type MemberRow,
-} from '@baaki/api-client';
-import { totalsByCurrency, type CurrencyTotals } from '@baaki/core';
+} from '@waves/api-client';
+import { totalsByCurrency, type CurrencyTotals } from '@waves/core';
 
 import { baaki } from '@/lib/baaki';
 import { SkeletonRows } from '@/components/Skeleton';

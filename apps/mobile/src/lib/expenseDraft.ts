@@ -9,7 +9,7 @@
  * to the currency the saved expense was actually in, not silently become the
  * group currency and rewrite a foreign expense on the next save.
  */
-import type { FxRecord } from '@baaki/core';
+import type { FxRecord } from '@waves/core';
 
 /**
  * The currency to seed from a draft. `undefined` (legacy draft) defers to the

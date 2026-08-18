@@ -25,7 +25,7 @@ import {
   Toggle,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';

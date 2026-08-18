@@ -17,8 +17,8 @@ import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { COUNTRIES, countryFlag, dialingCodeForCountry } from '@baaki/core';
-import { Button, iconSize, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { COUNTRIES, countryFlag, dialingCodeForCountry } from '@waves/core';
+import { Button, iconSize, Row, Screen, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 
-import { scrub } from '@baaki/core';
+import { scrub } from '@waves/core';
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,

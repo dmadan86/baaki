@@ -7,7 +7,7 @@
  * those here would flatten it, so the form says so and stays out of the way.
  *
  * Numbers never become floats on their way to the ledger: amounts are parsed
- * to minor units with @baaki/core (ADR-003), and every share is previewed by
+ * to minor units with @waves/core (ADR-003), and every share is previewed by
  * the same `computeShares` the server runs, so what is shown is what will be
  * written (TDR §4). The server still recomputes and owns the answer.
  */
@@ -24,8 +24,8 @@ import {
   toMajorString,
   type CurrencyCode,
   type SplitParams,
-} from '@baaki/core';
-import { nameOf, type Group, type Member } from '@baaki/api-client';
+} from '@waves/core';
+import { nameOf, type Group, type Member } from '@waves/api-client';
 
 import { baaki } from '@/lib/baaki';
 import { money as fmtMoney } from '@/lib/money';

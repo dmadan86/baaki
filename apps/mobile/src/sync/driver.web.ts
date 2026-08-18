@@ -10,7 +10,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { QueuedMutation } from '@baaki/core';
+import type { QueuedMutation } from '@waves/core';
 
 import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';

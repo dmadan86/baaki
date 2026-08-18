@@ -19,7 +19,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Pressable, View } from 'react-native';
 
-import { Button, Card, iconSize, Row, Text, Toggle, useTheme } from '@baaki/ui';
+import { Button, Card, iconSize, Row, Text, Toggle, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

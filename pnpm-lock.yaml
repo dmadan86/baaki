@@ -25,7 +25,7 @@ importers:
 
   apps/admin:
     dependencies:
-      '@baaki/core':
+      '@waves/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@supabase/supabase-js':
@@ -68,10 +68,10 @@ importers:
 
   apps/mobile:
     dependencies:
-      '@baaki/core':
+      '@waves/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@baaki/ui':
+      '@waves/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@expo/ui':
@@ -264,10 +264,10 @@ importers:
 
   apps/web:
     dependencies:
-      '@baaki/api-client':
+      '@waves/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
-      '@baaki/core':
+      '@waves/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@sentry/nextjs':
@@ -325,7 +325,7 @@ importers:
 
   packages/api-client:
     dependencies:
-      '@baaki/core':
+      '@waves/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -359,7 +359,7 @@ importers:
 
   packages/db:
     dependencies:
-      '@baaki/core':
+      '@waves/core':
         specifier: workspace:*
         version: link:../core
       '@prisma/client':
@@ -390,7 +390,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@baaki/core':
+      '@waves/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

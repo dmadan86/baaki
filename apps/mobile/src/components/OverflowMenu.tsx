@@ -12,7 +12,7 @@ import { router, type Href } from 'expo-router';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { iconSize, Text, useTheme } from '@baaki/ui';
+import { iconSize, Text, useTheme } from '@waves/ui';
 
 export interface OverflowMenuItem {
   icon: keyof typeof Ionicons.glyphMap;

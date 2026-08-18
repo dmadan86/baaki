@@ -16,7 +16,7 @@ import {
   Text,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { mintInvite, type MintedInvite } from '@/data/api';
 import { useGroup } from '@/data/hooks';

@@ -7,7 +7,7 @@
  * verbs are the same on both.
  */
 
-import { actorName, type ActivityRow } from '@baaki/api-client';
+import { actorName, type ActivityRow } from '@waves/api-client';
 
 export function describeActivity(entry: ActivityRow, myProfileId: string | null): string {
   const { payload } = entry;

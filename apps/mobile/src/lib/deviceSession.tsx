@@ -29,8 +29,8 @@ import {
 } from 'react';
 import { AppState, Modal, Pressable, View } from 'react-native';
 
-import { type DeviceLimitStatus } from '@baaki/core';
-import { Button, Text, useTheme } from '@baaki/ui';
+import { type DeviceLimitStatus } from '@waves/core';
+import { Button, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { registerDevice, signOutOtherDevices } from '@/data/api';

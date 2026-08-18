@@ -16,7 +16,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useSegments } from 'expo-router';
 
-import { iconSize, PillTabBar, type PillTabItem } from '@baaki/ui';
+import { iconSize, PillTabBar, type PillTabItem } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';

@@ -5,7 +5,7 @@
  * survives a forced kill, and drafts that autosave on every keystroke. That is
  * exactly what this file provides — and nothing else: no decisions about what
  * to sync or when, which live in `engine.ts` and, for the rules worth
- * property-testing, in @baaki/core.
+ * property-testing, in @waves/core.
  *
  * There are two implementations behind one interface. Native gets real SQLite.
  * Web gets an AsyncStorage-backed store, because expo-sqlite's web build needs
@@ -14,7 +14,7 @@
  * blank screen because of it. Both are exercised by the same engine.
  */
 
-import type { MirrorRow, QueuedMutation, SyncTable } from '@baaki/core';
+import type { MirrorRow, QueuedMutation, SyncTable } from '@waves/core';
 
 export interface StoredRow {
   table: SyncTable;

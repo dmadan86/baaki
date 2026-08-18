@@ -16,7 +16,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { QueuedMutation } from '@baaki/core';
+import type { QueuedMutation } from '@waves/core';
 
 /** A pause long enough for another caller to interleave, if it can. */
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));

@@ -10,14 +10,14 @@
  * Every page is a client component (see next.config.ts), so this file is where
  * essentially all of the app's errors are. Events go through the same `scrub`
  * as the mobile app and the edge functions — one policy, tested in
- * @baaki/core, not three that drift.
+ * @waves/core, not three that drift.
  *
  * Inert without a DSN, so a clone with no Sentry account builds and runs.
  */
 
 import * as Sentry from '@sentry/nextjs';
 
-import { scrub } from '@baaki/core';
+import { scrub } from '@waves/core';
 
 const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 

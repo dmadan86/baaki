@@ -7,7 +7,7 @@
  * is open.
  *
  * The rules about *what* to send and *how* to fold the answer back in live in
- * @baaki/core, where they are property-tested without a device. What lives here
+ * @waves/core, where they are property-tested without a device. What lives here
  * is the part that genuinely needs a phone: persistence, connectivity, timers
  * and the network call itself.
  */
@@ -27,7 +27,7 @@ import {
   type QueuedMutation,
   type SyncChange,
   type SyncRejectionCode,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { reportHandled } from '@/lib/observability';
 import { supabase } from '@/lib/supabase';

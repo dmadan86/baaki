@@ -28,7 +28,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
 import { capturePhotoUrl } from '@/data/api';

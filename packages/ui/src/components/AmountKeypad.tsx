@@ -7,7 +7,7 @@ import {
   minorUnitExponent,
   minorUnitScale,
   type CurrencyCode,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { useTheme } from '../theme';
 import { Text } from './Text';

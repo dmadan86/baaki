@@ -1,5 +1,5 @@
 {
-  "name": "@baaki/web",
+  "name": "@waves/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,8 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@baaki/api-client": "workspace:*",
-    "@baaki/core": "workspace:*",
+    "@waves/api-client": "workspace:*",
+    "@waves/core": "workspace:*",
     "@sentry/nextjs": "^10.70.0",
     "@supabase/supabase-js": "^2.112.3",
     "next": "^16.3.0",

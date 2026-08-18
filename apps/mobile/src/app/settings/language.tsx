@@ -28,7 +28,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES, useStrings, type Language } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
