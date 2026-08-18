@@ -342,12 +342,63 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
+      {/* The one always-there way to add a spend by hand — a floating action in
+          the bottom-right, the place finance apps put it (Buddy, Airwallex). The
+          bar's centre is the mic (speak it) and the header camera scans a bill;
+          this is the third, plainest route: type it. It sits above the bar via
+          the same clearance the scroll uses, so it never covers the last row. */}
+      <AddExpenseFab label={t.addExpense} bottom={clearance} />
+
       {/* The daily tip, surfaced as a sheet on the first Home open of the day —
           one useful, Baaki-specific move at a time, then out of the way until
           tomorrow. Replaces the inline card so a hint asks for a beat of
           attention rather than sitting as furniture nobody reads. */}
       <TipSheet t={t} />
     </Screen>
+  );
+}
+
+/**
+ * The dashboard's add-expense action, floating over the bottom-right.
+ *
+ * Routes to the capture screen — the group-optional "capture an expense" form —
+ * so it works the same whether or not the person has a group yet: they type the
+ * amount now and decide where it belongs later. The header camera opens that
+ * same screen straight into scan mode; this opens it blank, to type.
+ *
+ * Wrapped in a `box-none` overlay so only the button itself takes touches — the
+ * transparent area around it lets the list underneath scroll and tap through.
+ */
+function AddExpenseFab({ label, bottom }: { label: string; bottom: number }) {
+  const theme = useTheme();
+  const size = 60;
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{ position: 'absolute', right: theme.spacing.xl, bottom, left: 0, top: 0 }}
+    >
+      <View
+        pointerEvents="box-none"
+        style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'flex-end' }}
+      >
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          onPress={() => router.push('/capture')}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: theme.color.brand,
+            alignItems: 'center',
+            justifyContent: 'center',
+            ...theme.shadow.lifted,
+          }}
+        >
+          <Ionicons name="add" size={32} color={theme.color.onBrand} />
+        </PressableScale>
+      </View>
+    </View>
   );
 }
 

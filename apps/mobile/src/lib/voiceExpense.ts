@@ -285,3 +285,203 @@ export function stripMemberNames(
     .join(' ')
     .trim();
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Several expenses in one breath, an optional "make a group", and a nudge
+ * toward other languages.
+ *
+ * The single-expense parser above is the certain core. This layer sits on top
+ * for the fuller request: "five rupees for snacks, ten for tea, shopping 1000"
+ * is four expenses, not one; "make a group called Goa and add 500" both creates
+ * a group and files an expense into it. None of it needs a model — but a model
+ * does all of it better across languages, so when a key is present the caller
+ * prefers {@link interpretVoiceExpenses} and falls back to this only when there
+ * is no key or the call fails.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/** One expense lifted out of a possibly-multi sentence. Always has an amount. */
+export interface VoiceExpenseItem {
+  amountMinor: bigint;
+  amountMajor: number;
+  currency: string | null;
+  note: string;
+}
+
+/**
+ * What the sentence says to do about a group: name an existing one, ask for a
+ * new one by name, or neither (the screen defaults such expenses to the capture
+ * inbox, unassigned).
+ */
+export type VoiceGroupTarget =
+  { kind: 'existing'; groupId: string } | { kind: 'create'; name: string } | null;
+
+/** The whole of what a spoken sentence asked for. */
+export interface VoiceParseResult {
+  items: VoiceExpenseItem[];
+  group: VoiceGroupTarget;
+  /** A split count, when one was heard — carried through for the group case. */
+  splitCount: number | null;
+}
+
+/**
+ * Native numerals to ASCII, so "५०० रुपये" and "௫" and "٥" all read as numbers.
+ * Devanagari, Tamil, Arabic-Indic and Eastern-Arabic (Persian/Urdu) digits are
+ * the ones this app's four locales and their neighbours actually type or speak.
+ */
+const NATIVE_DIGIT_BLOCKS: readonly number[] = [0x0966, 0x0be6, 0x0660, 0x06f0];
+
+export function normalizeDigits(text: string): string {
+  return text.replace(/[०-९௦-௯٠-٩۰-۹]/g, (ch) => {
+    const code = ch.codePointAt(0) ?? 0;
+    for (const base of NATIVE_DIGIT_BLOCKS) {
+      if (code >= base && code <= base + 9) return String(code - base);
+    }
+    return ch;
+  });
+}
+
+/**
+ * A spoken "make a group" and the name it gives.
+ *
+ * Matches "create/make/start/new/open [a] [new] group [called/named/for] X",
+ * where X runs to the first joining word ("and", "then", ",", "with") or the
+ * end. Returns the trimmed name and the sentence with that whole clause cut out,
+ * so what remains can still be parsed for expenses ("make a group Goa and add
+ * 500 for lunch" leaves "add 500 for lunch"). Null when no such intent is heard.
+ */
+export function detectCreateGroup(transcript: string): { name: string; rest: string } | null {
+  const pattern =
+    /\b(?:create|make|start|open|add|new)\s+(?:a\s+)?(?:new\s+)?group\s+(?:called|named|for|titled|as|:)?\s*/i;
+  const head = transcript.match(pattern);
+  if (!head || head.index === undefined) return null;
+
+  const after = transcript.slice(head.index + head[0].length);
+  // The name is everything up to a joining word that starts the next clause, or
+  // the end. "and/then/with/plus" and a comma each end the name.
+  const nameMatch = after.match(/^(.*?)(?:\s+(?:and|then|with|plus|also)\b|\s*[,;]|$)/i);
+  const name = (nameMatch?.[1] ?? after).trim().replace(/[.\s]+$/, '');
+  if (!name) return null;
+  // A name that opens with a joining word is not a name: "create a group and add
+  // 100" names nothing. Treat the clause as missing so the rest parses normally.
+  if (/^(?:and|then|with|plus|also)\b/i.test(name)) return null;
+
+  // Consume the whole name match — name *and* the joining word that ended it
+  // ("and", a comma) — so the joiner does not lead the leftover sentence.
+  const consumed = head[0].length + (nameMatch?.[0]?.length ?? after.length);
+  const rest = (
+    transcript.slice(0, head.index) +
+    ' ' +
+    transcript.slice(head.index + consumed)
+  ).trim();
+  return { name, rest };
+}
+
+/**
+ * The sentence broken into one piece per expense.
+ *
+ * People list expenses with commas and "and" ("5 for snacks, 10 for tea and 20
+ * for the cab"), and also just by starting the next amount ("snacks 5 tea 10").
+ * We split on the explicit separators first; any piece that still holds more
+ * than one currency-adjacent amount is split again just before each amount, so
+ * a run with no commas still comes apart. Pieces with no amount are dropped by
+ * the caller.
+ */
+function segmentExpenses(text: string): string[] {
+  // Take out "split among 4" / "4 people" first, so the count is never scanned
+  // as an amount and turned into a phantom expense. The caller keeps the count
+  // separately (extractSplitCount reads the untouched body), so nothing is lost.
+  const withoutCount = text.replace(new RegExp(SPLIT_COUNT.source, 'gi'), ' ');
+  const bySeparator = withoutCount
+    .split(/\s*,\s*|\s+and\s+|\s*;\s*|\s+then\s+|\n+/i)
+    .map((piece) => piece.trim())
+    .filter(Boolean);
+
+  const pieces: string[] = [];
+  const amountRe = /\d[\d,]*(?:\.\d+)?/g;
+  for (const piece of bySeparator) {
+    // Where each amount starts. One or none leaves the piece whole; several
+    // means a run with no separators ("5 snacks 10 tea"), cut just before every
+    // amount after the first so each amount keeps the words that follow it. The
+    // text before the first amount stays with it (a label may lead: "snacks 5").
+    const starts: number[] = [];
+    amountRe.lastIndex = 0;
+    for (let m = amountRe.exec(piece); m !== null; m = amountRe.exec(piece)) starts.push(m.index);
+    if (starts.length <= 1) {
+      pieces.push(piece);
+      continue;
+    }
+    for (let i = 0; i < starts.length; i += 1) {
+      const from = i === 0 ? 0 : starts[i];
+      const to = i + 1 < starts.length ? starts[i + 1] : piece.length;
+      const chunk = piece.slice(from, to).trim();
+      if (chunk) pieces.push(chunk);
+    }
+  }
+  return pieces.filter(Boolean);
+}
+
+/**
+ * Parse a transcript into one or more expenses, plus any group instruction.
+ *
+ * Pure and model-free: the heuristic fallback for {@link interpretVoiceExpenses}.
+ * A create-group clause is lifted out first; the rest is segmented, each segment
+ * parsed for an amount/currency/note, and segments with no amount dropped. A
+ * currency named in one segment carries to later segments that name none, so
+ * "5 rupees snacks, 10 tea" makes both INR. When exactly one expense and no new
+ * group are found, the named existing group (if any) is attached.
+ */
+export function parseVoiceExpenses(
+  transcript: string,
+  groups: readonly VoiceGroupRef[],
+): VoiceParseResult {
+  const normalized = normalizeDigits(transcript);
+  const created = detectCreateGroup(normalized);
+  const body = created ? created.rest : normalized;
+
+  // The group is settled before the notes are built, so each note can have the
+  // named group's words taken out ("dinner on the Goa trip" → note "dinner").
+  let group: VoiceGroupTarget = null;
+  let matchedName: string | null = null;
+  if (created) {
+    group = { kind: 'create', name: created.name };
+  } else {
+    const groupId = matchGroup(tokenize(body), groups);
+    if (groupId) {
+      group = { kind: 'existing', groupId };
+      matchedName = groups.find((candidate) => candidate.id === groupId)?.name ?? null;
+    }
+  }
+
+  const segments = segmentExpenses(body);
+  const items: VoiceExpenseItem[] = [];
+  let carriedCurrency: string | null = null;
+
+  for (const segment of segments) {
+    const amountMajor = extractAmount(segment);
+    if (amountMajor === null) continue;
+    const currency: string | null = detectCurrency(segment) ?? carriedCurrency;
+    if (currency) carriedCurrency = currency;
+    items.push({
+      amountMajor,
+      amountMinor: BigInt(Math.round(amountMajor * 100)),
+      currency,
+      note: buildNote(segment, matchedName),
+    });
+  }
+
+  // Nothing segmented out but there is still a single amount — treat the whole
+  // sentence as one expense, matching the single-expense parser's reach.
+  if (items.length === 0) {
+    const one = parseVoiceExpense(body, groups);
+    if (one.amountMinor !== null && one.amountMajor !== null) {
+      items.push({
+        amountMinor: one.amountMinor,
+        amountMajor: one.amountMajor,
+        currency: one.currency,
+        note: one.note,
+      });
+    }
+  }
+
+  return { items, group, splitCount: extractSplitCount(body) };
+}

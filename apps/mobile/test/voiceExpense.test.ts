@@ -107,3 +107,84 @@ describe('matchMemberNames', () => {
     expect(matchMemberNames('add 500 for dinner', members)).toEqual([]);
   });
 });
+
+import { detectCreateGroup, normalizeDigits, parseVoiceExpenses } from '@/lib/voiceExpense';
+
+describe('parseVoiceExpenses (several in one breath)', () => {
+  it('splits a comma-and-and list into one expense each', () => {
+    const result = parseVoiceExpenses(
+      '5 rupees for snacks, 10 rupee for tea, shopping 1000, others 100',
+      groups,
+    );
+    expect(result.items.map((item) => item.amountMajor)).toEqual([5, 10, 1000, 100]);
+    expect(result.items.map((item) => item.note)).toEqual(['snacks', 'tea', 'shopping', 'others']);
+  });
+
+  it('carries a currency named once to the later items that name none', () => {
+    const result = parseVoiceExpenses('5 rupees snacks, 10 tea, 20 cab', groups);
+    expect(result.items.every((item) => item.currency === 'INR')).toBe(true);
+  });
+
+  it('keeps a lone expense working, with its named group', () => {
+    const result = parseVoiceExpenses('add 500 rupees for dinner on the Goa trip', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(500);
+    expect(result.items[0].note).toBe('dinner');
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+  });
+
+  it('reads a create-group instruction and still files the expenses', () => {
+    const result = parseVoiceExpenses('make a group called Weekend and add 200 for lunch', groups);
+    expect(result.group).toEqual({ kind: 'create', name: 'Weekend' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(200);
+    expect(result.items[0].note).toBe('lunch');
+  });
+
+  it('drops segments that carry no amount', () => {
+    const result = parseVoiceExpenses('hello, 50 for coffee, um', groups);
+    expect(result.items.map((item) => item.amountMajor)).toEqual([50]);
+  });
+});
+
+describe('detectCreateGroup', () => {
+  it('lifts the name and returns the rest', () => {
+    expect(detectCreateGroup('create a group named Goa Trip and add 100')).toEqual({
+      name: 'Goa Trip',
+      rest: 'add 100',
+    });
+  });
+
+  it('is null when no group is asked for', () => {
+    expect(detectCreateGroup('add 100 for lunch')).toBeNull();
+  });
+});
+
+describe('normalizeDigits', () => {
+  it('turns Devanagari, Tamil and Arabic-Indic numerals into ASCII', () => {
+    expect(normalizeDigits('५००')).toBe('500');
+    expect(normalizeDigits('௫')).toBe('5');
+    expect(normalizeDigits('٢٠')).toBe('20');
+  });
+
+  it('reads an amount written in native numerals', () => {
+    const result = parseVoiceExpenses('५०० rupees for dinner', groups);
+    expect(result.items[0]?.amountMajor).toBe(500);
+  });
+});
+
+describe('parseVoiceExpenses — split count and unnamed create-group', () => {
+  it('reads a split count without turning it into an extra expense', () => {
+    const result = parseVoiceExpenses('split 1000 among 4 people', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(1000);
+    expect(result.splitCount).toBe(4);
+  });
+
+  it('drops an unnamed create-group instruction but keeps the expense', () => {
+    const result = parseVoiceExpenses('create a group and add 500 for dinner', groups);
+    expect(result.group).toBeNull();
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(500);
+  });
+});

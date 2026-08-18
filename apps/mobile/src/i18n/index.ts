@@ -599,6 +599,14 @@ export interface UiStrings {
     noGroups: string;
     makeGroup: string;
     unavailable: string;
+    /** The review step for one or more heard expenses. */
+    review: string;
+    saveTo: string;
+    /** '{name}' is the spoken group name. */
+    newGroupNamed: string;
+    thinking: string;
+    /** '{n}' is how many expenses will be saved. */
+    save: PluralForms;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -1881,6 +1889,11 @@ const en: UiStrings = {
     noGroups: 'Make a group first, then speak an expense into it.',
     makeGroup: 'New group',
     unavailable: 'Speech isn’t available on this phone.',
+    review: 'Review',
+    saveTo: 'Save to',
+    newGroupNamed: 'New group “{name}”',
+    thinking: 'Making sense of that…',
+    save: { one: 'Save {n} expense', other: 'Save {n} expenses' },
   },
   notifications: {
     title: 'Notifications',
@@ -3242,6 +3255,11 @@ const ta: UiStrings = {
     noGroups: 'முதலில் ஒரு குழுவை உருவாக்கு, பிறகு செலவைப் பேசு.',
     makeGroup: 'புதிய குழு',
     unavailable: 'இந்த ஃபோனில் பேச்சு அங்கீகாரம் இல்லை.',
+    review: 'மறுபார்வை',
+    saveTo: 'இதில் சேமி',
+    newGroupNamed: 'புதிய குழு “{name}”',
+    thinking: 'புரிந்துகொள்கிறது…',
+    save: { one: '{n} செலவைச் சேமி', other: '{n} செலவுகளைச் சேமி' },
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -4632,6 +4650,11 @@ const hi: UiStrings = {
     noGroups: 'पहले एक ग्रुप बनाएँ, फिर उसमें खर्च बोलें।',
     makeGroup: 'नया ग्रुप',
     unavailable: 'इस फ़ोन पर वॉइस पहचान उपलब्ध नहीं है।',
+    review: 'समीक्षा',
+    saveTo: 'यहाँ सहेजें',
+    newGroupNamed: 'नया समूह “{name}”',
+    thinking: 'समझा जा रहा है…',
+    save: { one: '{n} खर्च सहेजें', other: '{n} खर्च सहेजें' },
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -6016,6 +6039,11 @@ const ar: UiStrings = {
     noGroups: 'أنشئ مجموعة أولًا، ثم انطق مصروفًا فيها.',
     makeGroup: 'مجموعة جديدة',
     unavailable: 'التعرّف على الكلام غير متاح على هذا الهاتف.',
+    review: 'مراجعة',
+    saveTo: 'الحفظ في',
+    newGroupNamed: 'مجموعة جديدة «{name}»',
+    thinking: 'جارٍ الفهم…',
+    save: { one: 'حفظ مصروف', other: 'حفظ {n} مصاريف' },
   },
   notifications: {
     title: 'الإشعارات',
