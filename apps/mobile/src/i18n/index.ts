@@ -854,11 +854,27 @@ export interface UiStrings {
     disconnect: string;
     connected: string;
     notConfigured: string;
+    /** The status line under the Waves destination when it is available. */
+    wavesHint: string;
+    /** Badge on the Waves row for a free account: it is a paid destination. */
+    plus: string;
+    /** Button on the Waves row for a free account, routing to the upgrade screen. */
+    upgrade: string;
     networkTitle: string;
     wifiOnly: string;
     wifiAndData: string;
     pending: PluralForms;
     allBackedUp: string;
+    /** Heading of the card shown when receipts failed to upload. */
+    troubleTitle: string;
+    troubleOffline: string;
+    troublePolicy: string;
+    troubleReconnect: string;
+    troubleGeneric: string;
+    /** Reassurance under the trouble card: nothing is lost while stuck. */
+    troubleSafe: string;
+    /** Button on the trouble card: reset the backoff and try the upload again. */
+    retry: string;
     privacyNote: string;
   };
   /** A group: its screen, its settings, and the ways out of it. */
@@ -2136,16 +2152,19 @@ const en: UiStrings = {
   },
   backup: {
     connectFailed: 'Could not connect. Please try again.',
-    title: 'Receipt backup',
-    subtitle: 'Keep scanned receipts on your own cloud',
+    title: 'Storage',
+    subtitle: 'Where scanned receipts are kept',
     primaryTitle: 'Back up receipts to',
     primaryBody:
-      'Scanned receipts are saved on this device and copied to the drive you choose. They never touch Baaki’s servers.',
+      'Scanned receipts always stay on this device. Copy them to a cloud you own, or — on Plus — to Waves’ own encrypted storage.',
     off: 'Off',
     connect: 'Connect',
     disconnect: 'Disconnect',
     connected: 'Connected',
     notConfigured: 'Not set up in this build',
+    wavesHint: 'Encrypted on Waves — a Plus feature',
+    plus: 'Plus',
+    upgrade: 'Upgrade',
     networkTitle: 'Upload over',
     wifiOnly: 'Wi‑Fi only',
     wifiAndData: 'Wi‑Fi & mobile data',
@@ -2154,8 +2173,16 @@ const en: UiStrings = {
       other: '{n} receipts waiting to back up',
     },
     allBackedUp: 'All receipts backed up',
+    troubleTitle: 'Some receipts didn’t upload',
+    troubleOffline: 'You’re offline. They’ll upload on their own once you’re back on a network.',
+    troublePolicy: 'Uploads are set to Wi‑Fi only. Connect to Wi‑Fi, or allow mobile data above.',
+    troubleReconnect:
+      'The destination stopped accepting the upload — its sign-in may have expired, or a Plus plan ended. Reconnect it above, or pick another.',
+    troubleGeneric: 'The last attempt failed. Fix the cause, then try again.',
+    troubleSafe: 'Your receipts are safe on this device the whole time — nothing is lost.',
+    retry: 'Try again',
     privacyNote:
-      'The photo stays on your phone and your chosen cloud. Waves only ever sees the amount you save.',
+      'A personal cloud keeps the photo off Waves entirely. Waves storage is a Plus feature, encrypted at rest.',
   },
   group: {
     notFound: 'Group not found',
@@ -3513,16 +3540,19 @@ const ta: UiStrings = {
   },
   backup: {
     connectFailed: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
-    title: 'ரசீது காப்புப்படி',
-    subtitle: 'ஸ்கேன் செய்த ரசீதுகளை உங்கள் சொந்த கிளவுடில் வைத்திருங்கள்',
+    title: 'சேமிப்பு',
+    subtitle: 'ஸ்கேன் செய்த ரசீதுகள் எங்கே வைக்கப்படும்',
     primaryTitle: 'ரசீதுகளை காப்புப்பிடி',
     primaryBody:
-      'ஸ்கேன் செய்த ரசீதுகள் இந்தச் சாதனத்தில் சேமிக்கப்பட்டு நீங்கள் தேர்ந்தெடுத்த கிளவுடுக்கு நகலெடுக்கப்படும். அவை Waves சேவையகங்களைத் தொடாது.',
+      'ஸ்கேன் செய்த ரசீதுகள் எப்போதும் இந்தச் சாதனத்தில் இருக்கும். உங்கள் சொந்த கிளவுடுக்கு நகலெடுங்கள் — அல்லது Plus-இல் Waves-இன் சொந்த குறியாக்க சேமிப்புக்கு.',
     off: 'அணை',
     connect: 'இணை',
     disconnect: 'துண்டி',
     connected: 'இணைக்கப்பட்டது',
     notConfigured: 'இந்த பதிப்பில் அமைக்கப்படவில்லை',
+    wavesHint: 'Waves-இல் குறியாக்கம் — Plus வசதி',
+    plus: 'Plus',
+    upgrade: 'மேம்படுத்து',
     networkTitle: 'இதன் மூலம் பதிவேற்று',
     wifiOnly: 'வைஃபை மட்டும்',
     wifiAndData: 'வைஃபை & மொபைல் டேட்டா',
@@ -3531,8 +3561,16 @@ const ta: UiStrings = {
       other: '{n} ரசீதுகள் காப்புப்படிக்கக் காத்திருக்கின்றன',
     },
     allBackedUp: 'அனைத்து ரசீதுகளும் காப்புப்படி எடுக்கப்பட்டன',
+    troubleTitle: 'சில ரசீதுகள் பதிவேற்றப்படவில்லை',
+    troubleOffline: 'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். மீண்டும் நெட்வொர்க்கில் வந்ததும் தானாகப் பதிவேறும்.',
+    troublePolicy: 'பதிவேற்றம் வைஃபை மட்டும் என அமைக்கப்பட்டுள்ளது. வைஃபையில் இணையுங்கள், அல்லது மேலே மொபைல் டேட்டாவை அனுமதியுங்கள்.',
+    troubleReconnect:
+      'இலக்கு பதிவேற்றத்தை ஏற்க நிறுத்தியது — அதன் உள்நுழைவு காலாவதியாகியிருக்கலாம், அல்லது Plus திட்டம் முடிந்திருக்கலாம். மேலே மீண்டும் இணையுங்கள், அல்லது வேறொன்றைத் தேர்ந்தெடுங்கள்.',
+    troubleGeneric: 'கடைசி முயற்சி தோல்வியடைந்தது. காரணத்தைச் சரிசெய்து மீண்டும் முயற்சிக்கவும்.',
+    troubleSafe: 'உங்கள் ரசீதுகள் இந்தச் சாதனத்தில் எப்போதும் பாதுகாப்பாக உள்ளன — எதுவும் இழக்கப்படவில்லை.',
+    retry: 'மீண்டும் முயற்சி',
     privacyNote:
-      'புகைப்படம் உங்கள் ஃபோனிலும் நீங்கள் தேர்ந்தெடுத்த கிளவுடிலும் இருக்கும். Waves நீங்கள் சேமிக்கும் தொகையை மட்டுமே பார்க்கும்.',
+      'சொந்த கிளவுட் புகைப்படத்தை Waves-இலிருந்து முழுவதுமாக விலக்கி வைக்கும். Waves சேமிப்பு ஒரு Plus வசதி, ஓய்வில் குறியாக்கம் செய்யப்படும்.',
   },
   group: {
     notFound: 'குழு கிடைக்கவில்லை',
@@ -4897,16 +4935,19 @@ const hi: UiStrings = {
   },
   backup: {
     connectFailed: 'कनेक्ट नहीं हो सका। कृपया फिर कोशिश करें।',
-    title: 'रसीद बैकअप',
-    subtitle: 'स्कैन की गई रसीदें अपने क्लाउड पर रखें',
+    title: 'स्टोरेज',
+    subtitle: 'स्कैन की गई रसीदें कहाँ रखी जाती हैं',
     primaryTitle: 'रसीदें यहाँ बैकअप करें',
     primaryBody:
-      'स्कैन की गई रसीदें इस डिवाइस पर सहेजी जाती हैं और आपके चुने हुए क्लाउड पर कॉपी होती हैं। वे Waves के सर्वर पर कभी नहीं जातीं।',
+      'स्कैन की गई रसीदें हमेशा इसी डिवाइस पर रहती हैं। इन्हें अपने किसी क्लाउड पर कॉपी करें — या Plus पर Waves के अपने एन्क्रिप्टेड स्टोरेज पर।',
     off: 'बंद',
     connect: 'कनेक्ट करें',
     disconnect: 'डिसकनेक्ट करें',
     connected: 'कनेक्टेड',
     notConfigured: 'इस बिल्ड में सेट नहीं है',
+    wavesHint: 'Waves पर एन्क्रिप्टेड — एक Plus सुविधा',
+    plus: 'Plus',
+    upgrade: 'अपग्रेड',
     networkTitle: 'इसके ज़रिए अपलोड करें',
     wifiOnly: 'केवल वाई‑फाई',
     wifiAndData: 'वाई‑फाई और मोबाइल डेटा',
@@ -4915,8 +4956,16 @@ const hi: UiStrings = {
       other: '{n} रसीदें बैकअप के लिए प्रतीक्षारत',
     },
     allBackedUp: 'सभी रसीदें बैकअप हो गईं',
+    troubleTitle: 'कुछ रसीदें अपलोड नहीं हुईं',
+    troubleOffline: 'आप ऑफ़लाइन हैं। नेटवर्क वापस आते ही ये अपने आप अपलोड हो जाएँगी।',
+    troublePolicy: 'अपलोड केवल वाई‑फाई पर सेट है। वाई‑फाई से कनेक्ट करें, या ऊपर मोबाइल डेटा की अनुमति दें।',
+    troubleReconnect:
+      'गंतव्य ने अपलोड लेना बंद कर दिया — उसका साइन-इन समाप्त हो गया होगा, या Plus प्लान खत्म हो गया होगा। ऊपर दोबारा कनेक्ट करें, या कोई और चुनें।',
+    troubleGeneric: 'पिछली कोशिश विफल रही। कारण ठीक करें, फिर दोबारा कोशिश करें।',
+    troubleSafe: 'आपकी रसीदें इस दौरान इसी डिवाइस पर सुरक्षित रहती हैं — कुछ भी नहीं खोता।',
+    retry: 'दोबारा कोशिश करें',
     privacyNote:
-      'फ़ोटो आपके फ़ोन और आपके चुने हुए क्लाउड पर रहती है। Waves केवल वह राशि देखता है जो आप सहेजते हैं।',
+      'निजी क्लाउड रखने पर फ़ोटो Waves तक पहुँचती ही नहीं। Waves स्टोरेज एक Plus सुविधा है, जो स्थिर अवस्था में एन्क्रिप्टेड रहती है।',
   },
   group: {
     notFound: 'समूह नहीं मिला',
@@ -6289,16 +6338,19 @@ const ar: UiStrings = {
   },
   backup: {
     connectFailed: 'تعذّر الاتصال. حاول مرة أخرى.',
-    title: 'نسخ الإيصالات احتياطيًا',
-    subtitle: 'احتفظ بالإيصالات الممسوحة على سحابتك الخاصة',
+    title: 'التخزين',
+    subtitle: 'أين تُحفظ الإيصالات الممسوحة',
     primaryTitle: 'انسخ الإيصالات احتياطيًا إلى',
     primaryBody:
-      'تُحفظ الإيصالات الممسوحة على هذا الجهاز وتُنسخ إلى السحابة التي تختارها. لا تصل أبدًا إلى خوادم Waves.',
+      'تبقى الإيصالات الممسوحة دائمًا على هذا الجهاز. انسخها إلى سحابة تملكها — أو، مع Plus، إلى تخزين Waves المشفّر الخاص.',
     off: 'إيقاف',
     connect: 'اتصال',
     disconnect: 'قطع الاتصال',
     connected: 'متصل',
     notConfigured: 'غير مُهيّأ في هذه النسخة',
+    wavesHint: 'مشفّر على Waves — ميزة Plus',
+    plus: 'Plus',
+    upgrade: 'ترقية',
     networkTitle: 'الرفع عبر',
     wifiOnly: 'واي‑فاي فقط',
     wifiAndData: 'واي‑فاي وبيانات الجوال',
@@ -6311,7 +6363,16 @@ const ar: UiStrings = {
       other: '{n} إيصال بانتظار النسخ',
     },
     allBackedUp: 'تم نسخ جميع الإيصالات احتياطيًا',
-    privacyNote: 'تبقى الصورة على هاتفك وسحابتك المختارة. لا يرى Waves سوى المبلغ الذي تحفظه.',
+    troubleTitle: 'لم تُرفع بعض الإيصالات',
+    troubleOffline: 'أنت غير متصل. ستُرفع تلقائيًا بمجرد عودتك إلى الشبكة.',
+    troublePolicy: 'الرفع مضبوط على واي‑فاي فقط. اتصل بواي‑فاي، أو اسمح ببيانات الجوال أعلاه.',
+    troubleReconnect:
+      'توقّفت الوجهة عن قبول الرفع — قد تكون صلاحية تسجيل دخولها انتهت، أو انتهت خطة Plus. أعد الاتصال أعلاه، أو اختر وجهة أخرى.',
+    troubleGeneric: 'فشلت المحاولة الأخيرة. عالج السبب ثم أعد المحاولة.',
+    troubleSafe: 'تبقى إيصالاتك آمنة على هذا الجهاز طوال الوقت — لا شيء يُفقد.',
+    retry: 'أعد المحاولة',
+    privacyNote:
+      'السحابة الخاصة تُبقي الصورة بعيدة عن Waves تمامًا. تخزين Waves ميزة Plus، مشفّر أثناء التخزين.',
   },
   group: {
     notFound: 'المجموعة غير موجودة',

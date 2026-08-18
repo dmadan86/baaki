@@ -25,7 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import * as Network from 'expo-network';
 
-import { pendingCount as readPendingCount } from '../receiptIndex';
+import { allEntries, resetErrored } from '../receiptIndex';
 import { runBackup, type BackupContext, type BackupSkip } from './backupQueue';
 import { providerFor } from './providers';
 import { clearTokens, isConnected, saveTokens } from './tokens';
@@ -36,7 +36,13 @@ const POLICY_KEY = 'baaki.cloud.policy';
 
 type ConnectedMap = Record<CloudProviderId, boolean>;
 
-const NONE_CONNECTED: ConnectedMap = { gdrive: false, dropbox: false, onedrive: false };
+const NONE_CONNECTED: ConnectedMap = {
+  waves: false,
+  gdrive: false,
+  dropbox: false,
+  onedrive: false,
+  box: false,
+};
 
 interface BackupValue {
   readonly loading: boolean;
@@ -44,6 +50,10 @@ interface BackupValue {
   readonly policy: BackupNetworkPolicy;
   readonly connected: ConnectedMap;
   readonly pending: number;
+  /** How many receipts are stuck after a failed upload — for the trouble card. */
+  readonly errored: number;
+  /** The most recent upload failure's message, or null when none failed. */
+  readonly lastError: string | null;
   readonly lastSkip: BackupSkip | null;
   setPrimary: (id: CloudProviderId | null) => Promise<void>;
   setPolicy: (policy: BackupNetworkPolicy) => Promise<void>;
@@ -52,6 +62,13 @@ interface BackupValue {
   disconnect: (id: CloudProviderId) => Promise<void>;
   /** Try to upload anything pending now. Safe to call freely. */
   kick: () => Promise<void>;
+  /**
+   * Clear the failure state on stuck receipts and try again now — the "Try
+   * again" the trouble card offers once the person has fixed the cause. Nothing
+   * is deleted: the photos are in the device vault throughout, so a retry only
+   * resets the backoff and re-attempts the upload.
+   */
+  retryFailed: () => Promise<void>;
 }
 
 const BackupCtx = createContext<BackupValue | null>(null);
@@ -62,6 +79,8 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   const [policy, setPolicyState] = useState<BackupNetworkPolicy>('wifi');
   const [connected, setConnected] = useState<ConnectedMap>(NONE_CONNECTED);
   const [pending, setPending] = useState(0);
+  const [errored, setErrored] = useState(0);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [lastSkip, setLastSkip] = useState<BackupSkip | null>(null);
 
   // A ref so the AppState/network listeners always kick with current settings
@@ -81,7 +100,14 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshPending = useCallback(async (): Promise<void> => {
-    setPending(await readPendingCount());
+    const entries = await allEntries();
+    setPending(entries.filter((entry) => entry.state !== 'synced').length);
+    const failed = entries.filter((entry) => entry.state === 'error');
+    setErrored(failed.length);
+    // The newest failure's message: whatever the drive said last is the most
+    // useful thing to show the person trying to fix it.
+    const newest = failed.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)).at(-1);
+    setLastError(newest?.error ?? null);
   }, []);
 
   const kick = useCallback(async (): Promise<void> => {
@@ -169,6 +195,14 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     [refreshConnected, setPrimary],
   );
 
+  const retryFailed = useCallback(async (): Promise<void> => {
+    // Reset the failed receipts back to pending (attempts to zero) so ones that
+    // hit the attempt ceiling try again, then run a pass immediately.
+    await resetErrored(new Date().toISOString());
+    await refreshPending();
+    await kick();
+  }, [refreshPending, kick]);
+
   const value = useMemo<BackupValue>(
     () => ({
       loading,
@@ -176,12 +210,15 @@ export function BackupProvider({ children }: { children: ReactNode }) {
       policy,
       connected,
       pending,
+      errored,
+      lastError,
       lastSkip,
       setPrimary,
       setPolicy,
       connect,
       disconnect,
       kick,
+      retryFailed,
     }),
     [
       loading,
@@ -189,12 +226,15 @@ export function BackupProvider({ children }: { children: ReactNode }) {
       policy,
       connected,
       pending,
+      errored,
+      lastError,
       lastSkip,
       setPrimary,
       setPolicy,
       connect,
       disconnect,
       kick,
+      retryFailed,
     ],
   );
 

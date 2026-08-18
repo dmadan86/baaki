@@ -16,9 +16,13 @@
 import type { CloudProviderId } from './types';
 
 export const CLOUD_CLIENT_IDS: Record<CloudProviderId, string> = {
+  // Waves uses the app's own Supabase session, not OAuth, so it has no client id
+  // to configure — its availability is a paid check, made in the provider.
+  waves: '',
   gdrive: process.env.EXPO_PUBLIC_CLOUD_GDRIVE_CLIENT_ID ?? '',
   dropbox: process.env.EXPO_PUBLIC_CLOUD_DROPBOX_CLIENT_ID ?? '',
   onedrive: process.env.EXPO_PUBLIC_CLOUD_ONEDRIVE_CLIENT_ID ?? '',
+  box: process.env.EXPO_PUBLIC_CLOUD_BOX_CLIENT_ID ?? '',
 };
 
 export function clientId(id: CloudProviderId): string {

@@ -146,6 +146,24 @@ export async function markError(captureId: string, message: string, now: string)
   });
 }
 
+/**
+ * Turn every errored receipt back into a pending one, clearing its attempt
+ * count and last message. The photos themselves are untouched in the vault —
+ * this only forgives the backoff so a receipt that gave up (or hit the attempt
+ * ceiling) is tried again after the person has fixed whatever blocked it.
+ */
+export async function resetErrored(now: string): Promise<void> {
+  await serial(async () => {
+    const map = await readMap();
+    for (const id of Object.keys(map)) {
+      const entry = map[id];
+      if (entry.state !== 'error') continue;
+      map[id] = { ...entry, state: 'pending', attempts: 0, error: null, updatedAt: now };
+    }
+    await writeMap(map);
+  });
+}
+
 export async function removeEntry(captureId: string): Promise<void> {
   await serial(async () => {
     const map = await readMap();
