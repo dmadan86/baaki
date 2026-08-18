@@ -89,24 +89,25 @@ export default function ContactsScreen(): React.JSX.Element {
           friendlyError(caught, t.misc.couldNotAddGeneric, 'contacts.add');
         }
       }
-      if (failed.length > 0) {
-        throw new Error(fill(t.misc.couldNotAdd, { names: failed.join(', ') }));
-      }
-      return contacts.length;
+      // A partial failure is a normal outcome, not an exception: the names that
+      // did not make it ride back in the result, so nothing raw is thrown and
+      // onError is left for a genuine transport failure of the whole call.
+      return { added: contacts.length - failed.length, failed };
     },
-    onSuccess: async (count, { groupId }) => {
-      setAdded(count);
+    onSuccess: async ({ added, failed }, { groupId }) => {
+      // Only announce a count when at least one landed; on a total failure the
+      // error below carries the whole story.
+      setAdded(added > 0 ? added : null);
       setPicked([]);
-      setError(null);
+      setError(failed.length > 0 ? fill(t.misc.couldNotAdd, { names: failed.join(', ') }) : null);
       await queryClient.invalidateQueries({ queryKey: ['members', groupId] });
       await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
     },
     onError: (caught: unknown) => {
-      // The thrown message is the localized "could not add {names}" summary the
-      // mutation built, not a raw error — show it as-is so the reader sees who
-      // failed; the individual transport errors were already reported above. A
-      // fallback covers any non-Error that reaches here.
-      setError(caught instanceof Error ? caught.message : t.misc.couldNotAddGeneric);
+      // Reached only when the whole operation fails unexpectedly — a raw
+      // transport or server error — so friendlyError with the generic fallback
+      // is exactly right here (per-contact failures are handled in the loop).
+      setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'contacts.add'));
     },
   });
 

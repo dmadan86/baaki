@@ -89,7 +89,8 @@ export default function GroupSettingsScreen() {
         // Only clear the field if it still holds what we submitted, so a name
         // typed for the next person isn't wiped when this add lands.
         onSuccess: () => setNewName((current) => (current.trim() === person ? '' : current)),
-        onError: (caught) => setAddError(friendlyError(caught, t.misc.couldNotAddGeneric, 'groupSettings.addGhost')),
+        onError: (caught) =>
+          setAddError(friendlyError(caught, t.misc.couldNotAddGeneric, 'groupSettings.addGhost')),
       },
     );
   };

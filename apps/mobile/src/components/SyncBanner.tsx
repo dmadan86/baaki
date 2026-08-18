@@ -63,7 +63,11 @@ export function SyncStatusIcon() {
   const neutral = theme.color.text;
   const state =
     rejected.length > 0
-      ? { icon: 'alert-circle' as const, color: theme.color.negative, label: t.extras.oneChangeFailed }
+      ? {
+          icon: 'alert-circle' as const,
+          color: theme.color.negative,
+          label: t.extras.oneChangeFailed,
+        }
       : status === SyncStatus.Offline
         ? { icon: 'cloud-offline-outline' as const, color: neutral, label: t.misc.offlineSaved }
         : status === SyncStatus.Error
@@ -85,9 +89,7 @@ export function SyncStatusIcon() {
   // Online, idle, nothing queued — say nothing.
   if (!state) return null;
 
-  const glyph = (
-    <Ionicons name={state.icon} size={iconSize.xl} color={state.color} />
-  );
+  const glyph = <Ionicons name={state.icon} size={iconSize.xl} color={state.color} />;
 
   return (
     <View

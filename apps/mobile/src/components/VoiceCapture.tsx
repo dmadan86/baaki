@@ -73,9 +73,15 @@ function Halo({ active, theme }: { active: boolean; theme: Theme }) {
         height: size,
         borderRadius: size / 2,
         backgroundColor: theme.color.brand,
-        opacity: animated ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.22] }) : 0.14,
+        opacity: animated
+          ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.22] })
+          : 0.14,
         transform: [
-          { scale: animated ? pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) : 1.05 },
+          {
+            scale: animated
+              ? pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] })
+              : 1.05,
+          },
         ],
       }}
     />
@@ -169,9 +175,7 @@ function barPeak(index: number): number {
  */
 function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
   const { animated } = useMotion();
-  const [bars] = useState(() =>
-    Array.from({ length: WAVE_BARS }, () => new Animated.Value(0.3)),
-  );
+  const [bars] = useState(() => Array.from({ length: WAVE_BARS }, () => new Animated.Value(0.3)));
 
   useEffect(() => {
     if (!active || !animated) return;

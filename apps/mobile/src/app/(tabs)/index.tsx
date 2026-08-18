@@ -377,7 +377,10 @@ function AddExpenseFab({ label, bottom }: { label: string; bottom: number }) {
       pointerEvents="box-none"
       style={{ position: 'absolute', right: theme.spacing.xl, bottom, left: 0, top: 0 }}
     >
-      <View pointerEvents="box-none" style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'flex-end' }}>
+      <View
+        pointerEvents="box-none"
+        style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'flex-end' }}
+      >
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={label}
@@ -612,85 +615,85 @@ function TipSheet({ t }: { t: UiStrings }) {
   return (
     <Modal transparent animationType="fade" visible={open} onRequestClose={close}>
       {tip ? (
-      /* Tap outside to close — the same escape the campaign popup gives. */
-      <Pressable
-        onPress={close}
-        accessibilityLabel={t.common.close}
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(10, 10, 26, 0.55)',
-          justifyContent: 'flex-end',
-        }}
-      >
-        {/* Swallows the tap so pressing the sheet itself does not dismiss it. A
-            bottom sheet, not a centred dialog: it slides up from the bar the tip
-            is about, and leaves the balance above it in view. */}
+        /* Tap outside to close — the same escape the campaign popup gives. */
         <Pressable
-          onPress={() => {}}
+          onPress={close}
+          accessibilityLabel={t.common.close}
           style={{
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.xxl,
-            borderTopRightRadius: theme.radius.xxl,
-            paddingHorizontal: theme.spacing.xxl,
-            paddingTop: theme.spacing.xl,
-            paddingBottom: theme.spacing.xxl,
-            gap: theme.spacing.lg,
-            ...theme.shadow.lifted,
+            flex: 1,
+            backgroundColor: 'rgba(10, 10, 26, 0.55)',
+            justifyContent: 'flex-end',
           }}
         >
-          {/* A grab handle — the visual grammar of a sheet you can pull down. */}
-          <View
+          {/* Swallows the tap so pressing the sheet itself does not dismiss it. A
+            bottom sheet, not a centred dialog: it slides up from the bar the tip
+            is about, and leaves the balance above it in view. */}
+          <Pressable
+            onPress={() => {}}
             style={{
-              alignSelf: 'center',
-              width: 40,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: theme.color.border,
+              backgroundColor: theme.color.surface,
+              borderTopLeftRadius: theme.radius.xxl,
+              borderTopRightRadius: theme.radius.xxl,
+              paddingHorizontal: theme.spacing.xxl,
+              paddingTop: theme.spacing.xl,
+              paddingBottom: theme.spacing.xxl,
+              gap: theme.spacing.lg,
+              ...theme.shadow.lifted,
             }}
-          />
-
-          <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+          >
+            {/* A grab handle — the visual grammar of a sheet you can pull down. */}
             <View
               style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: theme.color.brandSoft,
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: theme.color.border,
               }}
-            >
-              <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.brand} />
-            </View>
-            <Text variant="micro" tone="brand" style={{ letterSpacing: 0.8 }}>
-              {t.tips.label.toUpperCase()}
-            </Text>
-            <Text variant="title" align="center">
-              {tip.title}
-            </Text>
-            <Text variant="body" tone="muted" align="center">
-              {tip.body}
-            </Text>
-          </View>
+            />
 
-          <View style={{ gap: theme.spacing.sm }}>
-            {tip.route ? (
-              <>
-                <Button label={t.tips.action} size="lg" fullWidth onPress={act} />
-                <Button
-                  label={t.misc.gotIt}
-                  variant="secondary"
-                  size="sm"
-                  fullWidth
-                  onPress={close}
-                />
-              </>
-            ) : (
-              <Button label={t.misc.gotIt} size="lg" fullWidth onPress={close} />
-            )}
-          </View>
+            <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: theme.color.brandSoft,
+                }}
+              >
+                <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.brand} />
+              </View>
+              <Text variant="micro" tone="brand" style={{ letterSpacing: 0.8 }}>
+                {t.tips.label.toUpperCase()}
+              </Text>
+              <Text variant="title" align="center">
+                {tip.title}
+              </Text>
+              <Text variant="body" tone="muted" align="center">
+                {tip.body}
+              </Text>
+            </View>
+
+            <View style={{ gap: theme.spacing.sm }}>
+              {tip.route ? (
+                <>
+                  <Button label={t.tips.action} size="lg" fullWidth onPress={act} />
+                  <Button
+                    label={t.misc.gotIt}
+                    variant="secondary"
+                    size="sm"
+                    fullWidth
+                    onPress={close}
+                  />
+                </>
+              ) : (
+                <Button label={t.misc.gotIt} size="lg" fullWidth onPress={close} />
+              )}
+            </View>
+          </Pressable>
         </Pressable>
-      </Pressable>
       ) : null}
     </Modal>
   );
