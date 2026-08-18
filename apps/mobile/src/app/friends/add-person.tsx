@@ -40,6 +40,7 @@ import {
 } from '@waves/ui';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
+import { friendlyError } from '@/lib/errors';
 import { DictateButton } from '@/components/DictateButton';
 import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks';
 import { GroupType } from '@/data/types';
@@ -211,7 +212,7 @@ export default function AddPersonScreen() {
       // and the whole IOU syncs when there is a connection. Nothing to refetch.
       router.back();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.addPerson.couldNotRecord, 'addPerson.save'));
     } finally {
       setSaving(false);
     }

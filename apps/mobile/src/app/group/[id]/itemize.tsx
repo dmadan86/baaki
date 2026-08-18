@@ -31,6 +31,7 @@ import {
 } from '@waves/ui';
 
 import { captureReceipt } from '@/lib/image';
+import { friendlyError } from '@/lib/errors';
 import { publishReceiptItems, scanReceipt, scanReceiptText, setItemClaim } from '@/data/api';
 import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useItemClaims, useReceipt, useWriteExpense } from '@/data/hooks';
@@ -212,7 +213,7 @@ export default function ItemizeScreen() {
           : (result.check.problems[0]?.message ?? t.itemize.scanCheckLines),
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotScan, 'itemize.scan'));
     } finally {
       setScanning(false);
     }
@@ -372,7 +373,7 @@ export default function ItemizeScreen() {
       });
       await claims.refetch();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'itemize.claim'));
     }
   };
 
@@ -395,7 +396,7 @@ export default function ItemizeScreen() {
       setSharedId(scanId);
       setScanNote(t.itemize.sharedNow);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'itemize.publish'));
     } finally {
       setPublishing(false);
     }
@@ -424,7 +425,7 @@ export default function ItemizeScreen() {
       });
       router.back();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'itemize.save'));
     }
   };
 

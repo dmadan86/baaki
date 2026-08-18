@@ -31,6 +31,7 @@ import {
 } from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 import { fetchDevices } from '@/data/api';
 import { deviceId } from '@/lib/device';
 import { useDeviceSession } from '@/lib/deviceSession';
@@ -72,7 +73,7 @@ export default function DevicesScreen() {
       );
       await queryClient.invalidateQueries({ queryKey: ['devices'] });
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : String(caught));
+      setMessage(friendlyError(caught, t.devices.couldNotSignOut, 'devices.signOutOthers'));
     } finally {
       setBusy(false);
     }

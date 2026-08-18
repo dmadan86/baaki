@@ -32,6 +32,7 @@ import {
 import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
+import { friendlyError } from '@/lib/errors';
 import { confirmContact, startAddingContact, ContactChannel } from '@/data/api';
 import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -110,7 +111,7 @@ function AccountForm() {
       await start();
       await refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'account.link'));
     } finally {
       setBusy(false);
     }
@@ -125,7 +126,7 @@ function AccountForm() {
       await updateProfile({ display_name: name.trim() || t.account.you });
       setNameStatus(t.account.saved);
     } catch (caught) {
-      setNameStatus(caught instanceof Error ? caught.message : String(caught));
+      setNameStatus(friendlyError(caught, t.couldNotSave, 'account.saveName'));
     }
   };
 
@@ -161,7 +162,7 @@ function AccountForm() {
       await startAddingContact(channel, normalised);
       setSent(true);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'account.sendContact'));
     } finally {
       setBusy(false);
     }
@@ -177,7 +178,7 @@ function AccountForm() {
       setSent(false);
       setCode('');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'account.confirmContact'));
     } finally {
       setBusy(false);
     }

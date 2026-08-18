@@ -54,6 +54,7 @@ import {
 } from '@waves/ui';
 
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
+import { friendlyError } from '@/lib/errors';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useGroups } from '@/data/hooks';
 import { displayName, groupLabel, GroupType, type MemberRow } from '@/data/types';
@@ -159,30 +160,30 @@ export default function ImportScreen() {
   const choose = async (): Promise<void> => {
     setError(null);
     setDone(null);
-
-    const picked = await DocumentPicker.getDocumentAsync({
-      // Some Android file providers hand back `application/octet-stream` for a
-      // .csv, so text/* is allowed too rather than hiding the file the person
-      // came here to select.
-      type: [
-        'text/csv',
-        'text/comma-separated-values',
-        'text/plain',
-        'application/json',
-        'application/octet-stream',
-      ],
-      copyToCacheDirectory: true,
-    });
-    if (picked.canceled) return;
-
-    const asset = picked.assets[0];
-    if (!asset) return;
-
     setBusy(true);
-    setFileGroups([]);
-    setFileGroupIndex(0);
-    setParsed(null);
     try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        // Some Android file providers hand back `application/octet-stream` for a
+        // .csv, so text/* is allowed too rather than hiding the file the person
+        // came here to select.
+        type: [
+          'text/csv',
+          'text/comma-separated-values',
+          'text/plain',
+          'application/json',
+          'application/octet-stream',
+        ],
+        copyToCacheDirectory: true,
+      });
+      if (picked.canceled) return;
+
+      const asset = picked.assets[0];
+      if (!asset) return;
+
+      setFileGroups([]);
+      setFileGroupIndex(0);
+      setParsed(null);
+
       const text = new FileSystem.File(asset.uri).textSync();
       setFile(asset.name);
 
@@ -217,7 +218,7 @@ export default function ImportScreen() {
         problems: result.problems,
       });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.importLedger.importFailed, 'import.readFile'));
     } finally {
       setBusy(false);
     }
@@ -341,7 +342,7 @@ export default function ImportScreen() {
       });
       void groups.refetch();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.importLedger.importFailed, 'import.commit'));
     } finally {
       setBusy(false);
     }

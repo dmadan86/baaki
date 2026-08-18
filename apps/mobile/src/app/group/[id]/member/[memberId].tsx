@@ -25,6 +25,7 @@ import {
 } from '@waves/ui';
 
 import { useGroup, useGroupLedger, useSetMemberRole, useUpdateMember } from '@/data/hooks';
+import { friendlyError } from '@/lib/errors';
 import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
@@ -92,7 +93,7 @@ export default function MemberScreen() {
       { memberId: member.id, patch },
       {
         onSuccess: () => setStatus(t.account.saved),
-        onError: (caught) => setStatus(caught instanceof Error ? caught.message : String(caught)),
+        onError: (caught) => setStatus(friendlyError(caught, t.couldNotSave, 'member.save')),
       },
     );
   };
@@ -247,7 +248,7 @@ export default function MemberScreen() {
                   {
                     onSuccess: () => setStatus(t.account.saved),
                     onError: (caught) =>
-                      setStatus(caught instanceof Error ? caught.message : String(caught)),
+                      setStatus(friendlyError(caught, t.couldNotSave, 'member.setRole')),
                   },
                 )
               }

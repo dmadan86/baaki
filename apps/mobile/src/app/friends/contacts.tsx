@@ -41,6 +41,7 @@ import {
 } from '@waves/ui';
 
 import { fill, plural, useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { addGhostMember, fetchGroups } from '@/data/api';
@@ -74,7 +75,6 @@ export default function ContactsScreen(): React.JSX.Element {
       contacts: readonly PickedContact[];
     }) => {
       const failed: string[] = [];
-      let last = '';
       for (const contact of contacts) {
         try {
           await addGhostMember(groupId, contact.name, {
@@ -83,26 +83,31 @@ export default function ContactsScreen(): React.JSX.Element {
           });
         } catch (caught) {
           failed.push(contact.name);
-          last = caught instanceof Error ? caught.message : String(caught);
+          // Report each real failure for its side effect (the raw server message
+          // goes to Sentry); its return is discarded — the user is not shown a
+          // transport error, but whose names did not make it, below.
+          friendlyError(caught, t.misc.couldNotAddGeneric, 'contacts.add');
         }
       }
-      if (failed.length > 0) {
-        // `last` holds the raw (unlocalised) server message — kept for logs, not
-        // shown; the user sees whose names did not make it, in their language.
-        void last;
-        throw new Error(fill(t.misc.couldNotAdd, { names: failed.join(', ') }));
-      }
-      return contacts.length;
+      // A partial failure is a normal outcome, not an exception: the names that
+      // did not make it ride back in the result, so nothing raw is thrown and
+      // onError is left for a genuine transport failure of the whole call.
+      return { added: contacts.length - failed.length, failed };
     },
-    onSuccess: async (count, { groupId }) => {
-      setAdded(count);
+    onSuccess: async ({ added, failed }, { groupId }) => {
+      // Only announce a count when at least one landed; on a total failure the
+      // error below carries the whole story.
+      setAdded(added > 0 ? added : null);
       setPicked([]);
-      setError(null);
+      setError(failed.length > 0 ? fill(t.misc.couldNotAdd, { names: failed.join(', ') }) : null);
       await queryClient.invalidateQueries({ queryKey: ['members', groupId] });
       await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      // Reached only when the whole operation fails unexpectedly — a raw
+      // transport or server error — so friendlyError with the generic fallback
+      // is exactly right here (per-contact failures are handled in the loop).
+      setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'contacts.add'));
     },
   });
 

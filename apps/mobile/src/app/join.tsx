@@ -19,6 +19,7 @@ import {
 } from '@waves/ui';
 
 import { fill, plural, useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 
 import { acceptInvite, previewInvite, type InvitePreview } from '@/data/api';
 import { keys } from '@/data/hooks';
@@ -75,7 +76,7 @@ export default function JoinScreen() {
         const result = await previewInvite(token);
         if (active) setPreview(result);
       } catch (caught) {
-        if (active) setError(caught instanceof Error ? caught.message : String(caught));
+        if (active) setError(friendlyError(caught, t.misc.couldNotJoin, 'join.preview'));
       } finally {
         if (active) setBusy(false);
       }
@@ -83,7 +84,7 @@ export default function JoinScreen() {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [token, t.misc.couldNotJoin]);
 
   /**
    * `claim` is passed rather than read from state because "join as someone new
@@ -114,7 +115,7 @@ export default function JoinScreen() {
       await queryClient.invalidateQueries({ queryKey: keys.groups });
       router.replace(`/group/${result.group.id}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.misc.couldNotJoin, 'join.accept'));
     } finally {
       setJoining(false);
     }

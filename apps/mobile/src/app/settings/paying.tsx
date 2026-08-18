@@ -32,6 +32,7 @@ import {
 } from '@waves/ui';
 
 import { CountryRow } from '@/components/CountryPicker';
+import { friendlyError } from '@/lib/errors';
 import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
@@ -104,7 +105,7 @@ function PayingForm() {
       });
       setStatus(t.account.saved);
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : String(caught));
+      setStatus(friendlyError(caught, t.couldNotSave, 'paying.save'));
     }
   };
 

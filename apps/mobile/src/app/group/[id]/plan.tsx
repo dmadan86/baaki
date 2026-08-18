@@ -59,6 +59,7 @@ import {
   useSetPlanItemDone,
 } from '@/data/hooks';
 import { displayName } from '@/data/types';
+import { friendlyError } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 import { ListScreenSkeleton } from '@/components/Skeletons';
 import { fill, useStrings, type UiStrings } from '@/i18n';
@@ -247,7 +248,7 @@ export default function PlanScreen() {
       });
       setEditingMine(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'plan.saveMine'));
     } finally {
       setBusy(false);
     }
@@ -260,7 +261,7 @@ export default function PlanScreen() {
       await clearMineBudget.mutateAsync();
       setEditingMine(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'plan.clearMine'));
     } finally {
       setBusy(false);
     }
@@ -278,7 +279,7 @@ export default function PlanScreen() {
       await setOverall.mutateAsync({ amountMinor: overallAmount, currency });
       setEditingOverall(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'plan.saveOverall'));
     } finally {
       setBusy(false);
     }
@@ -291,7 +292,7 @@ export default function PlanScreen() {
       await setOverall.mutateAsync({ amountMinor: null });
       setEditingOverall(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'plan.clearOverall'));
     } finally {
       setBusy(false);
     }
@@ -313,7 +314,7 @@ export default function PlanScreen() {
       setTitle('');
       setAddingTo(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'plan.addItem'));
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -325,7 +326,7 @@ export default function PlanScreen() {
     try {
       await toggleItem.mutateAsync({ itemId: item.id, done: !item.done });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'plan.toggleItem'));
     }
   };
 
@@ -334,7 +335,7 @@ export default function PlanScreen() {
     try {
       await removeItem.mutateAsync(item.id);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'plan.removeItem'));
     }
   };
 

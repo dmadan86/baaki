@@ -267,6 +267,8 @@ export interface UiStrings {
    *  error never reads as "you have nothing". */
   loadError: string;
   loadErrorBody: string;
+  couldNotSave: string;
+  couldNotScan: string;
   retry: string;
   whatFor: string;
   spending: string;
@@ -369,6 +371,7 @@ export interface UiStrings {
   };
   /** Getting the whole ledger out, in full and for free (ADR-012). */
   exportData: {
+    exportFailed: string;
     title: string;
     everythingFree: string;
     noPaywall: string;
@@ -454,6 +457,7 @@ export interface UiStrings {
   };
   /** The devices screen and the free-tier two-device cap. */
   devices: {
+    couldNotSignOut: string;
     title: string;
     intro: string;
     thisDevice: string;
@@ -827,10 +831,12 @@ export interface UiStrings {
     itemCount: PluralForms;
     couldNotRead: string;
     savedOnDevice: string;
+    couldNotSave: string;
     save: string;
   };
   /** Backing up scanned receipts to the user's own cloud drive (Drive/Dropbox/OneDrive). */
   backup: {
+    connectFailed: string;
     title: string;
     subtitle: string;
     primaryTitle: string;
@@ -1010,6 +1016,10 @@ export interface UiStrings {
   };
   /** Starting a group, joining one by link, and the odds and ends around both. */
   misc: {
+    couldNotAddGeneric: string;
+    tryAgainMoment: string;
+    couldNotJoin: string;
+    rateFetchFailed: string;
     newGroupPlaceholder: string;
     personName: string;
     createGroup: string;
@@ -1232,6 +1242,7 @@ export interface UiStrings {
   };
   /** Bringing a ledger in from Splitwise or from Waves's own export. */
   importLedger: {
+    importFailed: string;
     splitwiseTitle: string;
     ledgerTitle: string;
     splitwiseHowTo: string;
@@ -1560,6 +1571,8 @@ const en: UiStrings = {
   nothingYetBody: 'Add your first expense and the maths takes care of itself.',
   loadError: "Couldn't load this",
   loadErrorBody: 'Check your connection and pull to refresh, or try again.',
+  couldNotSave: 'Could not save this. Please try again.',
+  couldNotScan: 'Could not scan this bill. Enter the details yourself.',
   retry: 'Try again',
   whatFor: 'What kind of expense',
   spending: 'Spending',
@@ -1649,6 +1662,7 @@ const en: UiStrings = {
     },
   ],
   exportData: {
+    exportFailed: 'Could not export your data. Please try again.',
     title: 'Export your data',
     everythingFree: 'Everything, always free',
     noPaywall: 'no paywall',
@@ -1731,6 +1745,7 @@ const en: UiStrings = {
       'This guards the screen, not the data — your ledger is protected by row-level security on the server whether the lock is on or not.',
   },
   devices: {
+    couldNotSignOut: 'Could not sign out the other devices. Please try again.',
     title: 'Devices',
     intro:
       'The free plan covers two devices at a time. A device you have not opened in a while stops counting on its own.',
@@ -2103,9 +2118,11 @@ const en: UiStrings = {
     },
     couldNotRead: "Couldn't read this bill — enter the amount yourself.",
     savedOnDevice: 'Saved on this device',
+    couldNotSave: "Couldn't save this — please try again in a moment.",
     save: 'Save capture',
   },
   backup: {
+    connectFailed: 'Could not connect. Please try again.',
     title: 'Receipt backup',
     subtitle: 'Keep scanned receipts on your own cloud',
     primaryTitle: 'Back up receipts to',
@@ -2285,6 +2302,10 @@ const en: UiStrings = {
     itemized: 'Itemized',
   },
   misc: {
+    couldNotAddGeneric: 'Could not add everyone. Please try again.',
+    tryAgainMoment: 'Please try again in a moment.',
+    couldNotJoin: 'Could not open this invite. Please try again.',
+    rateFetchFailed: 'Could not fetch the rate',
     newGroupPlaceholder: 'Goa trip',
     personName: "Person's name",
     createGroup: 'Create group',
@@ -2541,6 +2562,7 @@ const en: UiStrings = {
     hadItem: '{name} had {label}',
   },
   importLedger: {
+    importFailed: 'Could not bring in that file. Please try again.',
     splitwiseTitle: 'Import a Splitwise export',
     ledgerTitle: 'Import a ledger',
     splitwiseHowTo:
@@ -2903,6 +2925,8 @@ const ta: UiStrings = {
   nothingYetBody: 'முதல் செலவைச் சேருங்கள் — கணக்கு தானே பார்த்துக்கொள்ளும்.',
   loadError: 'இதை ஏற்ற முடியவில்லை',
   loadErrorBody: 'இணைப்பைச் சரிபார்த்து இழுத்துப் புதுப்பிக்கவும், அல்லது மீண்டும் முயலவும்.',
+  couldNotSave: 'இதைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  couldNotScan: 'இந்த ரசீதை ஸ்கேன் செய்ய முடியவில்லை. விவரங்களை நீங்களே உள்ளிடவும்.',
   retry: 'மீண்டும் முயற்சி',
   whatFor: 'எந்த வகைச் செலவு',
   spending: 'செலவு',
@@ -2989,6 +3013,7 @@ const ta: UiStrings = {
     },
   ],
   exportData: {
+    exportFailed: 'உங்கள் தரவை ஏற்றுமதி செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     title: 'உங்கள் தரவை ஏற்றுமதி செய்',
     everythingFree: 'எல்லாமே, எப்போதும் இலவசம்',
     noPaywall: 'கட்டணச் சுவர் இல்லை',
@@ -3076,6 +3101,7 @@ const ta: UiStrings = {
       'இது திரையைக் காக்கிறது, தரவை அல்ல — பூட்டு இருந்தாலும் இல்லாவிட்டாலும் உங்கள் கணக்கு சர்வரில் வரிசை அளவிலான பாதுகாப்பால் காக்கப்படுகிறது.',
   },
   devices: {
+    couldNotSignOut: 'மற்ற சாதனங்களை வெளியேற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     title: 'சாதனங்கள்',
     intro:
       'இலவசத் திட்டத்தில் ஒரே நேரத்தில் இரண்டு சாதனங்கள். சிறிது காலம் திறக்காத சாதனம் தானாகவே கணக்கில் இருந்து விலகும்.',
@@ -3464,9 +3490,11 @@ const ta: UiStrings = {
     },
     couldNotRead: 'இந்த ரசீதைப் படிக்க முடியவில்லை — தொகையை நீங்களே உள்ளிடவும்.',
     savedOnDevice: 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது',
+    couldNotSave: 'இதைச் சேமிக்க முடியவில்லை — சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
     save: 'சேமி',
   },
   backup: {
+    connectFailed: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     title: 'ரசீது காப்புப்படி',
     subtitle: 'ஸ்கேன் செய்த ரசீதுகளை உங்கள் சொந்த கிளவுடில் வைத்திருங்கள்',
     primaryTitle: 'ரசீதுகளை காப்புப்பிடி',
@@ -3653,6 +3681,10 @@ const ta: UiStrings = {
     itemized: 'பொருள் வாரியாக',
   },
   misc: {
+    couldNotAddGeneric: 'எல்லாரையும் சேர்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    tryAgainMoment: 'சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
+    couldNotJoin: 'இந்த அழைப்பைத் திறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    rateFetchFailed: 'மாற்று விகிதத்தைப் பெற முடியவில்லை',
     newGroupPlaceholder: 'கோவா பயணம்',
     personName: 'நபரின் பெயர்',
     createGroup: 'குழுவை உருவாக்கு',
@@ -3926,6 +3958,7 @@ const ta: UiStrings = {
     hadItem: '{name} {label} சாப்பிட்டார்',
   },
   importLedger: {
+    importFailed: 'அந்தக் கோப்பை இறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     splitwiseTitle: 'Splitwise ஏற்றுமதியை இறக்குமதி செய்',
     ledgerTitle: 'ஒரு கணக்கை இறக்குமதி செய்',
     splitwiseHowTo:
@@ -4290,6 +4323,8 @@ const hi: UiStrings = {
   nothingYetBody: 'पहला खर्च जोड़िए, हिसाब अपने आप संभल जाएगा।',
   loadError: 'यह लोड नहीं हो सका',
   loadErrorBody: 'कनेक्शन जाँचें और खींचकर रिफ़्रेश करें, या फिर कोशिश करें।',
+  couldNotSave: 'इसे सहेजा नहीं जा सका। कृपया फिर कोशिश करें।',
+  couldNotScan: 'यह रसीद स्कैन नहीं हो सकी। विवरण स्वयं दर्ज करें।',
   retry: 'फिर कोशिश करें',
   whatFor: 'किस तरह का खर्च',
   spending: 'खर्च',
@@ -4375,6 +4410,7 @@ const hi: UiStrings = {
     },
   ],
   exportData: {
+    exportFailed: 'आपका डेटा निर्यात नहीं हो सका। कृपया फिर कोशिश करें।',
     title: 'अपना डेटा निर्यात करें',
     everythingFree: 'सब कुछ, हमेशा मुफ़्त',
     noPaywall: 'कोई पेवॉल नहीं',
@@ -4458,6 +4494,7 @@ const hi: UiStrings = {
       'यह स्क्रीन की रक्षा करता है, डेटा की नहीं — लॉक चालू हो या बंद, आपका हिसाब सर्वर पर रो-लेवल सुरक्षा से सुरक्षित है।',
   },
   devices: {
+    couldNotSignOut: 'अन्य डिवाइस साइन आउट नहीं हो सके। कृपया फिर कोशिश करें।',
     title: 'डिवाइस',
     intro:
       'मुफ़्त प्लान में एक साथ दो डिवाइस चलते हैं। जो डिवाइस कुछ समय से नहीं खुला, वह अपने आप गिनती से हट जाता है।',
@@ -4832,9 +4869,11 @@ const hi: UiStrings = {
     },
     couldNotRead: 'यह रसीद पढ़ी नहीं जा सकी — राशि स्वयं दर्ज करें।',
     savedOnDevice: 'इस डिवाइस पर सहेजा गया',
+    couldNotSave: 'इसे सहेजा नहीं जा सका — कृपया थोड़ी देर में फिर से कोशिश करें।',
     save: 'सहेजें',
   },
   backup: {
+    connectFailed: 'कनेक्ट नहीं हो सका। कृपया फिर कोशिश करें।',
     title: 'रसीद बैकअप',
     subtitle: 'स्कैन की गई रसीदें अपने क्लाउड पर रखें',
     primaryTitle: 'रसीदें यहाँ बैकअप करें',
@@ -5014,6 +5053,10 @@ const hi: UiStrings = {
     itemized: 'चीज़-वार',
   },
   misc: {
+    couldNotAddGeneric: 'सभी को नहीं जोड़ा जा सका। कृपया फिर कोशिश करें।',
+    tryAgainMoment: 'कृपया थोड़ी देर में फिर कोशिश करें।',
+    couldNotJoin: 'यह निमंत्रण नहीं खुल सका। कृपया फिर कोशिश करें।',
+    rateFetchFailed: 'दर प्राप्त नहीं हो सकी',
     newGroupPlaceholder: 'गोवा ट्रिप',
     personName: 'व्यक्ति का नाम',
     createGroup: 'समूह बनाएँ',
@@ -5272,6 +5315,7 @@ const hi: UiStrings = {
     hadItem: '{name} ने {label} लिया',
   },
   importLedger: {
+    importFailed: 'वह फ़ाइल नहीं लाई जा सकी। कृपया फिर कोशिश करें।',
     splitwiseTitle: 'Splitwise निर्यात आयात करें',
     ledgerTitle: 'हिसाब आयात करें',
     splitwiseHowTo:
@@ -5642,6 +5686,8 @@ const ar: UiStrings = {
   nothingYetBody: 'أضف أول مصروف والحساب يتكفل بنفسه.',
   loadError: 'تعذّر تحميل هذا',
   loadErrorBody: 'تحقّق من اتصالك واسحب للتحديث، أو أعد المحاولة.',
+  couldNotSave: 'تعذّر حفظ هذا. حاول مرة أخرى.',
+  couldNotScan: 'تعذّر مسح هذا الإيصال. أدخل التفاصيل بنفسك.',
   retry: 'حاول مرة أخرى',
   whatFor: 'نوع المصروف',
   spending: 'الإنفاق',
@@ -5727,6 +5773,7 @@ const ar: UiStrings = {
     },
   ],
   exportData: {
+    exportFailed: 'تعذّر تصدير بياناتك. حاول مرة أخرى.',
     title: 'تصدير بياناتك',
     everythingFree: 'كل شيء، مجانًا دائمًا',
     noPaywall: 'بلا جدار دفع',
@@ -5822,6 +5869,7 @@ const ar: UiStrings = {
       'هذا يحمي الشاشة لا البيانات — دفترك محمي على الخادم بأمان على مستوى الصفوف سواء كان القفل مفعّلًا أم لا.',
   },
   devices: {
+    couldNotSignOut: 'تعذّر تسجيل خروج الأجهزة الأخرى. حاول مرة أخرى.',
     title: 'الأجهزة',
     intro:
       'الخطة المجانية تشمل جهازين في وقت واحد. الجهاز الذي لم تفتحه منذ فترة يتوقف عن العدّ من تلقاء نفسه.',
@@ -6208,9 +6256,11 @@ const ar: UiStrings = {
     },
     couldNotRead: 'تعذّر قراءة هذا الإيصال — أدخل المبلغ بنفسك.',
     savedOnDevice: 'محفوظ على هذا الجهاز',
+    couldNotSave: 'تعذّر حفظ هذا — يُرجى المحاولة مرة أخرى بعد قليل.',
     save: 'حفظ',
   },
   backup: {
+    connectFailed: 'تعذّر الاتصال. حاول مرة أخرى.',
     title: 'نسخ الإيصالات احتياطيًا',
     subtitle: 'احتفظ بالإيصالات الممسوحة على سحابتك الخاصة',
     primaryTitle: 'انسخ الإيصالات احتياطيًا إلى',
@@ -6417,6 +6467,10 @@ const ar: UiStrings = {
     itemized: 'حسب الأصناف',
   },
   misc: {
+    couldNotAddGeneric: 'تعذّرت إضافة الجميع. حاول مرة أخرى.',
+    tryAgainMoment: 'يُرجى المحاولة مرة أخرى بعد قليل.',
+    couldNotJoin: 'تعذّر فتح هذه الدعوة. حاول مرة أخرى.',
+    rateFetchFailed: 'تعذّر جلب سعر الصرف',
     newGroupPlaceholder: 'رحلة دبي',
     personName: 'اسم الشخص',
     createGroup: 'إنشاء مجموعة',
@@ -6734,6 +6788,7 @@ const ar: UiStrings = {
     hadItem: '{name} تناول {label}',
   },
   importLedger: {
+    importFailed: 'تعذّر إحضار ذلك الملف. حاول مرة أخرى.',
     splitwiseTitle: 'استيراد ملف Splitwise',
     ledgerTitle: 'استيراد دفتر',
     splitwiseHowTo: 'في Splitwise، افتح المجموعة واختر Export as spreadsheet، ثم اختر الملف هنا.',

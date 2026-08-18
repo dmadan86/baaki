@@ -17,6 +17,18 @@ import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';
 
 const SCHEMA = `
+-- Wait for a held lock instead of throwing SQLITE_BUSY the instant the file is
+-- busy. In a production build there is one JS instance, one connection to this
+-- file, and every write goes through Serial, so nothing in-process can contend.
+-- The contention this guards against is a second connection left open by the
+-- dev runtime: Fast Refresh / Reload builds a fresh SyncEngine and opens the
+-- file again without closing the previous instance's handle, and a write racing
+-- that orphan surfaced as "NativeStatement.finalizeAsync ... database is locked"
+-- on screen. Five seconds is far longer than any real write here takes and lets
+-- the loser wait out the lock rather than reject; it also hardens prod against a
+-- rare WAL checkpoint overlap. Set FIRST, before the journal-mode change below,
+-- so the busy handler is already active if that statement itself meets a lock.
+PRAGMA busy_timeout = 5000;
 PRAGMA journal_mode = WAL;
 
 CREATE TABLE IF NOT EXISTS mirror_rows (

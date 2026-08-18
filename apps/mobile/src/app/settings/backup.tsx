@@ -38,6 +38,7 @@ import {
 } from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
+import { friendlyError } from '@/lib/errors';
 import { useBackup } from '@/lib/cloud/BackupProvider';
 import { allProviders } from '@/lib/cloud/providers';
 import type { BackupNetworkPolicy, CloudProviderId } from '@/lib/cloud/types';
@@ -58,7 +59,7 @@ export default function BackupSettingsScreen() {
     try {
       await backup.connect(id);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.backup.connectFailed, 'backup.connect'));
     } finally {
       setBusy(null);
     }

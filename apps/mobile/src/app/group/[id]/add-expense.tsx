@@ -31,6 +31,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { friendlyError } from '@/lib/errors';
 import { CurrencyRate } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
 import { scanReceipt, scanReceiptText } from '@/data/api';
@@ -465,7 +466,7 @@ export default function AddExpenseScreen() {
       }
       router.back();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotSave, 'expense.save'));
     } finally {
       setSaving(false);
     }
@@ -547,7 +548,7 @@ export default function AddExpenseScreen() {
           : (result.check.problems[0]?.message ?? t.expense.scanCheckTotal),
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(friendlyError(caught, t.couldNotScan, 'expense.scan'));
     } finally {
       setScanning(false);
     }
