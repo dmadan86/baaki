@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -202,6 +202,7 @@ export default function AddExpenseScreen() {
     ? 'allowed'
     : receiptCapStatus(receiptCap.data, receiptCap.isLoading);
   const capLocked = capStatus === 'locked';
+  const queryClient = useQueryClient();
 
   const myMemberId = useMemo(
     () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
@@ -569,6 +570,10 @@ export default function AddExpenseScreen() {
           ? t.expense.scanReconciles
           : (result.check.problems[0]?.message ?? t.expense.scanCheckTotal),
       );
+
+      // The receipt just landed, so the cached cap count is now stale. Refresh
+      // the gate before another scan can start from a wrong number.
+      await queryClient.invalidateQueries({ queryKey: ['receiptCap', groupId] });
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotScan, 'expense.scan'));
     } finally {

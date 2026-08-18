@@ -63,6 +63,9 @@ const FUNCTION_MISSING = 'PGRST202';
 /** The same first-run state, for a table rather than a function. */
 const TABLE_MISSING = 'PGRST205';
 
+/** PostgREST returns this when `.single()` matches no rows. */
+const NO_ROWS = 'PGRST116';
+
 async function call<T>(fn: string, args: Record<string, unknown> = {}): Promise<T[]> {
   await requireSession();
   const { data, error } = await client().rpc(fn, args);
@@ -249,8 +252,13 @@ export async function saveAppConfig(input: { key: string; value: number }): Prom
   const { error } = await client()
     .from('app_config')
     .update({ value: input.value, updated_at: new Date().toISOString() })
-    .eq('key', input.key);
-  if (error) throw new Error(`saving ${input.key} failed: ${error.message}`);
+    .eq('key', input.key)
+    .select()
+    .single();
+  if (error) {
+    if (error.code === NO_ROWS) throw new Error(`no such config key "${input.key}"`);
+    throw new Error(`saving ${input.key} failed: ${error.message}`);
+  }
 }
 
 export interface PromoCodeRow {

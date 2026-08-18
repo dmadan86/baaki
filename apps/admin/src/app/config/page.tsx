@@ -23,9 +23,13 @@ export default async function Config({
 
     let failure: string | null = null;
     try {
+      const rawValue = String(formData.get('value') ?? '').trim();
+      if (rawValue === '') {
+        throw new Error('A limit is a whole number, zero or more.');
+      }
       await saveAppConfig({
         key: String(formData.get('key') ?? '').trim(),
-        value: Number(formData.get('value') ?? 0),
+        value: Number(rawValue),
       });
     } catch (caught) {
       failure = caught instanceof Error ? caught.message : String(caught);
@@ -69,7 +73,7 @@ export default async function Config({
               {row.description ? <p className="note">{row.description}</p> : null}
               <label>
                 <span>Value</span>
-                <input type="number" name="value" min={0} step={1} defaultValue={row.value} />
+                <input type="number" name="value" min={0} step={1} defaultValue={row.value} required />
               </label>
               <button type="submit">Save</button>
             </form>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -122,6 +122,7 @@ export default function ItemizeScreen() {
     ? 'allowed'
     : receiptCapStatus(receiptCap.data, receiptCap.isLoading);
   const capLocked = capStatus === 'locked';
+  const queryClient = useQueryClient();
   /** A bill that has been scanned but not yet handed to the table. */
   const [scanId, setScanId] = useState<string | null>(null);
 
@@ -224,6 +225,10 @@ export default function ItemizeScreen() {
 
       fillFromReceipt(result.parsed);
       setScanId(result.receiptId);
+
+      // The receipt just landed, so the cached cap count is now stale. Refresh
+      // the gate before another scan can start from a wrong number.
+      await queryClient.invalidateQueries({ queryKey: ['receiptCap', groupId] });
 
       // The arithmetic decides what the person is asked to look at. Saying
       // "scanned!" and leaving them to notice a wrong total is the failure
