@@ -240,17 +240,15 @@ export default function FriendsScreen() {
               rows={owedToYou}
               locale={locale}
               emptyBody={t.tabs.nobodyOwesYou}
+              emptyIcon="people-outline"
             />
             <FriendsSection
               title={t.tabs.youOweThem}
               rows={youOwe}
               locale={locale}
               emptyBody={t.tabs.youAreNotBehind}
+              emptyIcon="checkmark-circle-outline"
             />
-
-            <Text variant="micro" tone="muted" align="center">
-              {t.extras.perCurrencyNote}
-            </Text>
           </>
         )}
       </ScrollView>
@@ -414,11 +412,14 @@ function FriendsSection({
   rows,
   locale,
   emptyBody,
+  emptyIcon,
 }: {
   title: string;
   rows: PersonBalanceRow[];
   locale: string;
   emptyBody: string;
+  /** Glyph for the empty card — says "state, not error" before the line is read. */
+  emptyIcon: React.ComponentProps<typeof Ionicons>['name'];
 }): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
@@ -428,9 +429,32 @@ function FriendsSection({
       <SectionHeader title={title} />
       {rows.length === 0 ? (
         <Card>
-          <Text variant="caption" tone="muted">
-            {emptyBody}
-          </Text>
+          {/* Mobbin pass: an empty section is mostly air; a lone grey sentence
+              reads as a screen that failed. A tinted glyph over the line names
+              it as a resting state (cf. Zip "all paid up", Splitwise settled). */}
+          <View
+            style={{
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              paddingVertical: theme.spacing.sm,
+            }}
+          >
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.color.brandSoft,
+              }}
+            >
+              <Ionicons name={emptyIcon} size={22} color={theme.color.brand} />
+            </View>
+            <Text variant="caption" tone="muted" align="center">
+              {emptyBody}
+            </Text>
+          </View>
         </Card>
       ) : (
         <View>

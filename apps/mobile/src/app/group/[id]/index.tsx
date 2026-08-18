@@ -34,12 +34,12 @@ import {
   useGroupRealtime,
   useOpenReceipts,
 } from '@/data/hooks';
-import { describeActivity, parseMoney, verbEmoji } from '@/data/activity';
+import { describeActivity, parseMoney, verbIcon } from '@/data/activity';
 import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
 import { formatParts, type MemberId } from '@waves/core';
-import { actorName, displayName, groupLabel, isGhost, type ExpenseVersionRow } from '@/data/types';
+import { displayName, groupLabel, isGhost, type ExpenseVersionRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { DetailEnter } from '@/lib/anim';
@@ -673,11 +673,24 @@ export default function GroupScreen() {
                         minute: '2-digit',
                       }).format(new Date(entry.created_at))}
                       leading={
-                        <Avatar
-                          name={actorName(entry.actor, profile?.id ?? null)}
-                          emoji={verbEmoji(entry.verb)}
-                          size={38}
-                        />
+                        // Same node as the Activity tab and the dashboard: the
+                        // verb as a line glyph in a soft-brand circle, one accent.
+                        <View
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 19,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: theme.color.brandSoft,
+                          }}
+                        >
+                          <Ionicons
+                            name={verbIcon(entry.verb)}
+                            size={iconSize.lg}
+                            color={theme.color.brand}
+                          />
+                        </View>
                       }
                       trailing={(() => {
                         const money = parseMoney(entry.payload, currency);

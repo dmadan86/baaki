@@ -27,7 +27,6 @@ import {
   Row,
   Screen,
   Text,
-  tintForKey,
   useTabBarClearance,
   useTheme,
 } from '@waves/ui';
@@ -55,16 +54,18 @@ function groupByDay(rows: readonly NotificationRow[]): { key: string; rows: Noti
   return sections;
 }
 
+// Outline glyphs, to speak the same icon language as the Activity feed and the
+// dashboard — the two screens sit together, so they carry one set of marks.
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  settlement_confirmed: 'checkmark-circle',
-  settlement_initiated: 'arrow-forward-circle',
-  settlement_confirm_request: 'help-circle',
-  trip_nudge_morning: 'sunny',
-  trip_nudge_evening: 'moon',
-  nudge: 'hand-left',
-  expense_added: 'receipt',
-  ghost_claimed: 'person-add',
-  group_invite_accepted: 'person-add',
+  settlement_confirmed: 'checkmark-circle-outline',
+  settlement_initiated: 'arrow-forward-circle-outline',
+  settlement_confirm_request: 'help-circle-outline',
+  trip_nudge_morning: 'sunny-outline',
+  trip_nudge_evening: 'moon-outline',
+  nudge: 'hand-left-outline',
+  expense_added: 'receipt-outline',
+  ghost_claimed: 'person-add-outline',
+  group_invite_accepted: 'person-add-outline',
 };
 
 function factsOf(row: NotificationRow): Record<string, string | undefined> {
@@ -209,7 +210,6 @@ export default function InboxScreen() {
                       body: row.body,
                     });
                     const unreadRow = row.read_at === null;
-                    const tint = tintForKey(row.kind);
                     return (
                       <Pressable
                         key={row.id}
@@ -236,13 +236,13 @@ export default function InboxScreen() {
                               borderRadius: theme.radius.pill,
                               alignItems: 'center',
                               justifyContent: 'center',
-                              backgroundColor: theme.tint[tint].bg,
+                              backgroundColor: theme.color.brandSoft,
                             }}
                           >
                             <Ionicons
-                              name={ICONS[row.kind] ?? 'notifications'}
-                              size={iconSize.md}
-                              color={theme.tint[tint].ink}
+                              name={ICONS[row.kind] ?? 'notifications-outline'}
+                              size={iconSize.lg}
+                              color={theme.color.brand}
                             />
                           </View>
                           <View style={{ flex: 1, gap: 2 }}>

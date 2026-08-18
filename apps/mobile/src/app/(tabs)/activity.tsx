@@ -12,12 +12,11 @@ import {
   Row,
   Screen,
   Text,
-  tintForKey,
   useTabBarClearance,
   useTheme,
 } from '@waves/ui';
 
-import { dayHeading, dayKey, describeActivity, parseMoney, verbEmoji } from '@/data/activity';
+import { dayHeading, dayKey, describeActivity, parseMoney, verbIcon } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
 import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
@@ -152,7 +151,6 @@ export default function ActivityScreen() {
                 </Text>
                 {section.entries.map((entry, index) => {
                   const isLast = index === section.entries.length - 1;
-                  const tint = tintForKey(entry.group_id);
                   return (
                     <Pressable
                       key={entry.id}
@@ -162,28 +160,38 @@ export default function ActivityScreen() {
                       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                     >
                       <Row style={{ alignItems: 'stretch' }}>
-                        {/* The rail: the node, then the line running down to the next
-                        node — dropped for the last row so it stops, not dangles. */}
-                        <View style={{ width: 38, alignItems: 'center' }}>
+                        {/* The rail: the node — the dashboard's line glyph in a
+                        soft-brand circle — and a thin connector running from it
+                        down to the next node, so the day reads as one continuous
+                        timeline (Oura, Airwallex) rather than loose rows. The
+                        connector is a hairline in brandSoft, centred on the
+                        circle, and it stops at the last node so it ends, not
+                        dangles. */}
+                        <View style={{ width: 42, alignItems: 'center' }}>
                           <View
                             style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: 19,
+                              width: 42,
+                              height: 42,
+                              borderRadius: 21,
                               alignItems: 'center',
                               justifyContent: 'center',
-                              backgroundColor: theme.tint[tint].bg,
+                              backgroundColor: theme.color.brandSoft,
                             }}
                           >
-                            <Text style={{ fontSize: 16 }}>{verbEmoji(entry.verb)}</Text>
+                            <Ionicons
+                              name={verbIcon(entry.verb)}
+                              size={iconSize.xl}
+                              color={theme.color.brand}
+                            />
                           </View>
                           {!isLast ? (
                             <View
                               style={{
                                 flex: 1,
                                 width: 2,
-                                marginVertical: 2,
-                                backgroundColor: theme.color.border,
+                                marginTop: theme.spacing.xs,
+                                borderRadius: 1,
+                                backgroundColor: theme.color.brandSoft,
                               }}
                             />
                           ) : null}

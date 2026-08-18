@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { dayHeading, dayKey, describeActivity, relativeTime, verbEmoji } from '@/data/activity';
+import { dayHeading, dayKey, describeActivity, relativeTime, verbIcon } from '@/data/activity';
 import type { ActivityActor, ActivityRow } from '@/data/types';
 
 const RAVI: ActivityActor = {
@@ -151,11 +151,11 @@ describe('what happened', () => {
 describe('the icon', () => {
   it('gives an edit and its conflict the same mark', () => {
     // A superseded row IS an edit; two icons for one thing reads as two events.
-    expect(verbEmoji('superseded')).toBe(verbEmoji('edited'));
+    expect(verbIcon('superseded')).toBe(verbIcon('edited'));
   });
 
   it('has something for a verb it has never seen', () => {
-    expect(verbEmoji('archived')).toBe('•');
+    expect(verbIcon('archived')).toBe('ellipse-outline');
   });
 });
 

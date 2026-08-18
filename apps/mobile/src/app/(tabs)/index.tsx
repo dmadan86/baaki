@@ -16,6 +16,7 @@ import {
   Avatar,
   Button,
   Card,
+  ChipRow,
   EmptyState,
   Gradient,
   iconSize,
@@ -29,7 +30,7 @@ import {
 } from '@waves/ui';
 
 import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
-import { CountUpMoney, PressableScale, Stagger } from '@/lib/anim';
+import { CountUpMoney, PressableScale } from '@/lib/anim';
 import { useMotion } from '@/lib/motion';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -316,7 +317,7 @@ export default function HomeScreen() {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
                 return (
-                  <Stagger key={group.id} index={index}>
+                  <View key={group.id}>
                     <GroupCard
                       id={group.id}
                       title={groupLabel(group, members, profile?.id)}
@@ -334,7 +335,7 @@ export default function HomeScreen() {
                     {index < visible.length - 1 ? (
                       <View style={{ height: 1, backgroundColor: theme.color.border }} />
                     ) : null}
-                  </Stagger>
+                  </View>
                 );
               })}
             </View>
@@ -734,10 +735,15 @@ function categoryLabel(type: GroupType, t: UiStrings): string {
 }
 
 /**
- * The group filter as a strip of icon-over-label tiles — a leading "All" chip,
- * then one per group type the person actually has. The active tile wears the
- * brand fill with a soft shadow; the rest sit quiet in white behind a hairline
- * border. The strip scrolls sideways, so more types never crowd the row.
+ * The group filter as a row of compact pills — a leading "All", then one per
+ * group type the person actually has, each an inline icon + label. The active
+ * pill wears the brand fill; the rest sit quiet on the surface. It scrolls
+ * sideways, so more types never crowd the row.
+ *
+ * This was a strip of chunky 74px icon-over-label tiles; the finance apps in the
+ * category (Splitwise, PayPal, Monzo) filter with small pills, not tiles, so it
+ * now reuses the shared {@link ChipRow} — lighter to read and one fewer bespoke
+ * control to keep in step with the rest of the app.
  */
 function CategoryStrip({
   types,
@@ -750,61 +756,26 @@ function CategoryStrip({
   onSelect: (value: GroupType | 'all') => void;
   t: UiStrings;
 }) {
-  const theme = useTheme();
-
-  const chips: { key: GroupType | 'all'; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-    { key: 'all', icon: 'apps', label: t.filterAll },
+  const options: {
+    value: GroupType | 'all';
+    label: string;
+    icon: (color: string) => React.ReactNode;
+  }[] = [
+    {
+      value: 'all',
+      label: t.filterAll,
+      icon: (color) => <Ionicons name="apps" size={iconSize.sm} color={color} />,
+    },
     ...types.map((type) => ({
-      key: type,
-      icon: CATEGORY_ICON[type],
+      value: type,
       label: categoryLabel(type, t),
+      icon: (color: string) => (
+        <Ionicons name={CATEGORY_ICON[type]} size={iconSize.sm} color={color} />
+      ),
     })),
   ];
 
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ gap: theme.spacing.sm, paddingVertical: theme.spacing.xs }}
-    >
-      {chips.map((chip) => {
-        const selected = chip.key === active;
-        const ink = selected ? theme.color.onBrand : theme.color.text;
-        return (
-          <PressableScale
-            key={chip.key}
-            onPress={() => onSelect(chip.key)}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            accessibilityLabel={chip.label}
-          >
-            <View
-              style={{
-                width: 74,
-                paddingVertical: theme.spacing.md,
-                borderRadius: theme.radius.lg,
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                backgroundColor: selected ? theme.color.brand : theme.color.surface,
-                borderWidth: 1,
-                borderColor: selected ? theme.color.brand : theme.color.border,
-                ...(selected ? theme.shadow.soft : null),
-              }}
-            >
-              <Ionicons
-                name={chip.icon}
-                size={iconSize.xl}
-                color={selected ? theme.color.onBrand : theme.color.textMuted}
-              />
-              <Text variant="micro" numberOfLines={1} style={{ color: ink }}>
-                {chip.label}
-              </Text>
-            </View>
-          </PressableScale>
-        );
-      })}
-    </ScrollView>
-  );
+  return <ChipRow options={options} value={active} onChange={onSelect} />;
 }
 
 /** One currency's standing: the net, and the two sides that make it up. */

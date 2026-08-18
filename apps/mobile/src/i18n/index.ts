@@ -2103,7 +2103,7 @@ const en: UiStrings = {
     owesYou: 'Owes you',
     youOweThem: 'You owe',
     nobodyOwesYou: 'Nobody owes you anything right now.',
-    youAreNotBehind: 'You are not behind with anyone.',
+    youAreNotBehind: 'All settled up — you owe nobody right now.',
     inOneGroup: 'in one group',
     acrossGroups: { one: 'across {n} group', other: 'across {n} groups' },
     notJoined: 'Not joined',

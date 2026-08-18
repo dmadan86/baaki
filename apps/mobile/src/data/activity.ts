@@ -13,6 +13,8 @@
  * reader's point of view, so their own actions read as "You".
  */
 
+import type Ionicons from '@expo/vector-icons/Ionicons';
+
 import { isCurrencyCode } from '@waves/core';
 
 import { actorName, type ActivityRow } from './types';
@@ -100,34 +102,41 @@ export function describeActivity(entry: ActivityRow, myProfileId: string | null)
   }
 }
 
-export function verbEmoji(verb: string): string {
+/**
+ * The verb as one monochrome Ionicons line glyph — the node both feeds hang off.
+ * It lives here for the same reason the wording does: two feeds drawing the same
+ * event two different ways is a feed people stop trusting. Rendered in a
+ * soft-brand circle, one accent, matching the dashboard's icon language exactly.
+ * (Replaced an emoji-per-verb map, whose stickers clashed with the line icons
+ * the rest of the app uses.)
+ */
+export function verbIcon(verb: string): React.ComponentProps<typeof Ionicons>['name'] {
   switch (verb) {
     case 'added':
-      return '🧾';
+      return 'receipt-outline';
     case 'edited':
     case 'superseded':
-      return '✏️';
+      return 'create-outline';
     case 'deleted':
-      return '🗑️';
+      return 'trash-outline';
     case 'restored':
-      return '↩️';
+      return 'arrow-undo-outline';
     case 'settled':
-      return '💸';
+      return 'card-outline';
     case 'confirmed':
     case 'auto_confirmed':
     case 'accepted_dispute':
-      return '✅';
-    case 'disputed':
-      return '🚩';
     case 'withdrew_dispute':
     case 'rejected_dispute':
-      return '🤝';
+      return 'checkmark-circle-outline';
+    case 'disputed':
+      return 'flag-outline';
     case 'joined':
-      return '👋';
+      return 'person-add-outline';
     case 'created':
-      return '✨';
+      return 'sparkles-outline';
     default:
-      return '•';
+      return 'ellipse-outline';
   }
 }
 
