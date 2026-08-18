@@ -25,7 +25,6 @@ import {
   useTheme,
 } from '@waves/ui';
 
-
 export function GroupCard({
   id,
   title,
