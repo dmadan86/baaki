@@ -160,30 +160,30 @@ export default function ImportScreen() {
   const choose = async (): Promise<void> => {
     setError(null);
     setDone(null);
-
-    const picked = await DocumentPicker.getDocumentAsync({
-      // Some Android file providers hand back `application/octet-stream` for a
-      // .csv, so text/* is allowed too rather than hiding the file the person
-      // came here to select.
-      type: [
-        'text/csv',
-        'text/comma-separated-values',
-        'text/plain',
-        'application/json',
-        'application/octet-stream',
-      ],
-      copyToCacheDirectory: true,
-    });
-    if (picked.canceled) return;
-
-    const asset = picked.assets[0];
-    if (!asset) return;
-
     setBusy(true);
-    setFileGroups([]);
-    setFileGroupIndex(0);
-    setParsed(null);
     try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        // Some Android file providers hand back `application/octet-stream` for a
+        // .csv, so text/* is allowed too rather than hiding the file the person
+        // came here to select.
+        type: [
+          'text/csv',
+          'text/comma-separated-values',
+          'text/plain',
+          'application/json',
+          'application/octet-stream',
+        ],
+        copyToCacheDirectory: true,
+      });
+      if (picked.canceled) return;
+
+      const asset = picked.assets[0];
+      if (!asset) return;
+
+      setFileGroups([]);
+      setFileGroupIndex(0);
+      setParsed(null);
+
       const text = new FileSystem.File(asset.uri).textSync();
       setFile(asset.name);
 

@@ -112,7 +112,8 @@ export default function MembersScreen() {
           setGhostName('');
           setGhostContact('');
         },
-        onError: (caught) => setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'members.addGhost')),
+        onError: (caught) =>
+          setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'members.addGhost')),
       },
     );
   };
@@ -143,9 +144,11 @@ export default function MembersScreen() {
         });
       } catch (caught) {
         failed.push(person.name);
-        // The first refusal's own words, kept so the message can say why rather
-        // than only which names did not make it.
-        if (!reason) reason = friendlyError(caught, t.misc.tryAgainMoment, 'members.addPicked');
+        // Report every refusal (friendlyError's side effect sends each to
+        // Sentry); keep only the first one's words for the UI, so the message
+        // can say why rather than only which names did not make it.
+        const message = friendlyError(caught, t.misc.tryAgainMoment, 'members.addPicked');
+        if (!reason) reason = message;
       }
     }
     setAdding(false);

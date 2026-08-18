@@ -17,7 +17,6 @@ import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';
 
 const SCHEMA = `
-PRAGMA journal_mode = WAL;
 -- Wait for a held lock instead of throwing SQLITE_BUSY the instant the file is
 -- busy. In a production build there is one JS instance, one connection to this
 -- file, and every write goes through Serial, so nothing in-process can contend.
@@ -27,8 +26,10 @@ PRAGMA journal_mode = WAL;
 -- that orphan surfaced as "NativeStatement.finalizeAsync ... database is locked"
 -- on screen. Five seconds is far longer than any real write here takes and lets
 -- the loser wait out the lock rather than reject; it also hardens prod against a
--- rare WAL checkpoint overlap. Set per connection, so it runs on every open.
+-- rare WAL checkpoint overlap. Set FIRST, before the journal-mode change below,
+-- so the busy handler is already active if that statement itself meets a lock.
 PRAGMA busy_timeout = 5000;
+PRAGMA journal_mode = WAL;
 
 CREATE TABLE IF NOT EXISTS mirror_rows (
   table_name TEXT NOT NULL,
