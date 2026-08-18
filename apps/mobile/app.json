@@ -72,15 +72,7 @@
       "expo-secure-store",
       "expo-sharing",
       "@react-native-community/datetimepicker",
-      "expo-notifications",
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "react-native",
-          "organization": "paypal-2k"
-        }
-      ]
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
