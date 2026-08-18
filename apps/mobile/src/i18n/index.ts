@@ -113,7 +113,7 @@ export interface DictationErrorStrings {
 }
 
 /**
- * The plural rules for the four languages Baaki speaks, written out.
+ * The plural rules for the four languages Waves speaks, written out.
  *
  * `Intl.PluralRules` is not in the Hermes build this app ships on. It is not
  * merely inaccurate there — the constructor throws, so every plural in the app
@@ -122,7 +122,7 @@ export interface DictationErrorStrings {
  * no plural support at all, because nothing about it looks broken in a test.
  *
  * These are CLDR's rules for the cardinal case, which is all this is used for.
- * A language Baaki does not speak still gets the one/other rule, which is right
+ * A language Waves does not speak still gets the one/other rule, which is right
  * for most European languages and no worse than the old behaviour anywhere.
  */
 function selectRule(locale: string, count: number): Intl.LDMLPluralRule | null {
@@ -143,7 +143,7 @@ function selectRule(locale: string, count: number): Intl.LDMLPluralRule | null {
   if (language === 'hi') return count === 0 || count === 1 ? 'one' : 'other';
   if (language === 'en' || language === 'ta') return count === 1 ? 'one' : 'other';
 
-  // A language Baaki does not speak. Let Intl answer if it can.
+  // A language Waves does not speak. Let Intl answer if it can.
   return null;
 }
 
@@ -793,7 +793,7 @@ export interface UiStrings {
   groupPhoto: {
     paidHint: string;
   };
-  /** The inbox — the record of what Baaki said, whether or not push arrived. */
+  /** The inbox — the record of what Waves said, whether or not push arrived. */
   inbox: {
     title: string;
     nothingYetBody: string;
@@ -1230,7 +1230,7 @@ export interface UiStrings {
     removeItem: string;
     hadItem: string;
   };
-  /** Bringing a ledger in from Splitwise or from Baaki's own export. */
+  /** Bringing a ledger in from Splitwise or from Waves's own export. */
   importLedger: {
     splitwiseTitle: string;
     ledgerTitle: string;
@@ -1274,7 +1274,7 @@ export interface UiStrings {
     fromBaakiNote: string;
     fromSplitwiseNote: string;
     otherCurrenciesNote: string;
-    /** A Baaki export that parsed but held no groups to bring in. */
+    /** A Waves export that parsed but held no groups to bring in. */
     noGroupsInFile: string;
     /** Rejects the import when the person marked "me" is not in the target group. */
     couldNotFindYou: string;
@@ -1491,7 +1491,7 @@ export interface UiStrings {
 
 const en: UiStrings = {
   greeting: 'Hello',
-  yourBaaki: 'Your baaki',
+  yourBaaki: 'Your balance',
   acrossGroups: { one: 'across {n} group', other: 'across {n} groups' },
   youAreOwed: 'You are owed',
   youOwe: 'You owe',
@@ -1532,7 +1532,7 @@ const en: UiStrings = {
   pendingConfirmation: 'pending confirmation',
   toConfirm: 'To confirm',
   overallOwed: 'you are owed overall',
-  overallOwe: 'your baaki to pay',
+  overallOwe: 'your balance to pay',
   payViaUpi: 'Pay via UPI',
   paidInCash: 'Paid in cash',
   bankOther: 'Bank / other',
@@ -1540,7 +1540,7 @@ const en: UiStrings = {
   payViaRail: 'Pay via {rail}',
   youPayName: 'You pay {name}',
   namePaysYou: '{name} pays you',
-  settleConfirmYouPay: '{name} gets asked to confirm. Nothing changes hands through Baaki.',
+  settleConfirmYouPay: '{name} gets asked to confirm. Nothing changes hands through Waves.',
   settleConfirmTheyPay: 'You will be asked to confirm once they mark it paid.',
   members: 'Members',
   memberCount: { one: '{n} member', other: '{n} members' },
@@ -1549,7 +1549,7 @@ const en: UiStrings = {
   simplifyOn: 'Simplify on',
   simplifyOff: 'Simplify off',
   simplifySuggestBody:
-    'Baaki suggests the fewest payments that settle the group. The real who-owes-whom ledger underneath is never rewritten.',
+    'Waves suggests the fewest payments that settle the group. The real who-owes-whom ledger underneath is never rewritten.',
   simplifyPairwiseBody: 'Showing the actual pairwise ledger, exactly as the expenses created it.',
   simplifyPaymentsCount: { one: '{n} payment', other: '{n} payments' },
   simplifyPaysWhom: '{from} pays {to}',
@@ -1635,7 +1635,7 @@ const en: UiStrings = {
       // Not "split anything with anyone" — that is the welcome's line, and the
       // welcome is the very next screen.
       title: 'Dinner, rent,\na whole trip',
-      body: 'Baaki keeps who paid and who owes, down to the last decimal — free, and with no account to make first.',
+      body: 'Waves keeps who paid and who owes, down to the last decimal — free, and with no account to make first.',
     },
     {
       title: 'Send a link,\nthey are in',
@@ -1645,7 +1645,7 @@ const en: UiStrings = {
       // "your payment app", not "your UPI app": this is the first screen
       // somebody in Dubai or São Paulo sees, and UPI means nothing there.
       title: 'Settle it\nin one tap',
-      body: 'Baaki hands the exact amount to your payment app, so nobody does the arithmetic twice and nobody is owed a rounding error.',
+      body: 'Waves hands the exact amount to your payment app, so nobody does the arithmetic twice and nobody is owed a rounding error.',
     },
   ],
   exportData: {
@@ -1663,7 +1663,7 @@ const en: UiStrings = {
     action: 'Export',
     ready: 'Export ready',
     webNote: 'On web the file is written to the app cache; use a device to share it onward.',
-    shareTitle: 'Your Baaki export',
+    shareTitle: 'Your Waves export',
     importInstead: 'Import from Splitwise',
   },
   motion: {
@@ -1714,11 +1714,11 @@ const en: UiStrings = {
     unsupported: 'This device has no biometrics or passcode set up',
     askAgainAfter: 'Ask again after',
     askAgainExplain:
-      'Time in the background before Baaki locks. Settling by UPI sends you to another app and back, so locking the instant you leave means unlocking every time you pay somebody.',
+      'Time in the background before Waves locks. Settling by UPI sends you to another app and back, so locking the instant you leave means unlocking every time you pay somebody.',
     graceImmediate: 'Straight away',
     graceSeconds: { one: 'After {n} second', other: 'After {n} seconds' },
     graceMinutes: { one: 'After a minute', other: 'After {n} minutes' },
-    reopenAlwaysAsks: 'Reopening Baaki after it has been closed always asks, whatever this says.',
+    reopenAlwaysAsks: 'Reopening Waves after it has been closed always asks, whatever this says.',
     signOut: 'Sign out',
     signOutGuest: 'This account lives on this device only. Signing out ends it.',
     signOutMember: 'Your groups and history stay exactly where they are.',
@@ -1749,7 +1749,7 @@ const en: UiStrings = {
     rowHint: 'See where you are signed in',
     gateTitle: 'Signed in on too many devices',
     gateBody:
-      'The free plan covers two devices at a time, and this account is over that. Log out the others to keep using Baaki on this one.',
+      'The free plan covers two devices at a time, and this account is over that. Log out the others to keep using Waves on this one.',
     gateAction: 'Log out other devices',
     gateDismiss: 'Not now',
   },
@@ -1771,12 +1771,12 @@ const en: UiStrings = {
     howPeoplePayYou: 'How people pay you',
     yourRailDetails: 'Your {rail} details',
     handleWrong: 'That does not look like {hint}.',
-    railLinkNote: 'People settling with you get a one-tap payment. Baaki never handles the money.',
+    railLinkNote: 'People settling with you get a one-tap payment. Waves never handles the money.',
     railManualNote:
-      'People settling with you see this to pay you from their own bank app. Baaki never handles the money.',
+      'People settling with you see this to pay you from their own bank app. Waves never handles the money.',
     nothingToAdd: 'Nothing to add — people will record what they paid you by hand.',
     sectionProfile: 'Profile',
-    sectionBaaki: 'Baaki',
+    sectionBaaki: 'Waves',
     sectionSettings: 'Settings',
     sectionSecurity: 'Security',
     sectionAi: 'AI',
@@ -1794,18 +1794,18 @@ const en: UiStrings = {
     motionRow: 'Motion',
     themeRow: 'Appearance',
     languageFollowingPhone: 'Following your phone — {language}',
-    languageRestartHint: '{language} · reopen Baaki to mirror it',
-    languageRestartHintBack: '{language} · reopen Baaki to turn the layout back',
-    restartTitle: 'Close and open Baaki again',
-    restartNow: 'Restart Baaki',
-    restartNowMirror: 'Restart Baaki now to mirror the layout?',
-    restartNowUnmirror: 'Restart Baaki now to turn the layout back?',
+    languageRestartHint: '{language} · reopen Waves to mirror it',
+    languageRestartHintBack: '{language} · reopen Waves to turn the layout back',
+    restartTitle: 'Close and open Waves again',
+    restartNow: 'Restart Waves',
+    restartNowMirror: 'Restart Waves now to mirror the layout?',
+    restartNowUnmirror: 'Restart Waves now to turn the layout back?',
     restartBannerMirror:
       'The words have changed already. Mirroring the layout — the arrows, the sides everything sits on — is something the phone decides when the app starts, so it takes effect next time you open it.',
     restartBannerUnmirror:
       'The words have changed already. Turning the mirrored layout back the other way is something the phone decides when the app starts, so it takes effect next time you open it.',
     languageFooterNote:
-      "Your phone's language is the default, and choosing one here only changes Baaki. Amounts and dates still follow where you are — reading the app in Hindi in Dubai does not move you to India.",
+      "Your phone's language is the default, and choosing one here only changes Waves. Amounts and dates still follow where you are — reading the app in Hindi in Dubai does not move you to India.",
     lockNoBiometrics: 'This device has no biometrics set up',
     lockOn: 'On · asks {when}',
     lockOff: 'Off — anyone holding your phone can read the ledger',
@@ -1815,13 +1815,13 @@ const en: UiStrings = {
     motionOff: 'Screen animations off',
     motionFollowingOn: 'Following your phone — animations on',
     motionFollowingOff: 'Following your phone — animations off',
-    footnote: 'Baaki · the ledger is free forever. We only ever charge for convenience.',
+    footnote: 'Waves · the ledger is free forever. We only ever charge for convenience.',
   },
   aiKeys: {
     title: 'Bring your own key',
     intro:
       'Add a model key now, ready for the AI features on the way — reading a receipt, turning what you say into an expense with the people and the split — so they run on your account, not ours.',
-    onDevice: 'Encrypted on this phone. Never sent to Baaki — only to the provider you pick.',
+    onDevice: 'Encrypted on this phone. Never sent to Waves — only to the provider you pick.',
     keyLabel: 'API key',
     getKey: 'Get a key',
     test: 'Test',
@@ -1870,13 +1870,13 @@ const en: UiStrings = {
   notifications: {
     title: 'Notifications',
     neverSpam:
-      'Baaki never emails you about routine expense activity. Only the six things you would actually want in your inbox, each unsubscribable on its own.',
+      'Waves never emails you about routine expense activity. Only the six things you would actually want in your inbox, each unsubscribable on its own.',
     onThisPhone: 'Notifications on this phone',
     permissionOn:
       'This device is registered. Everything below still lands in your inbox whether or not a push gets through.',
     permissionOff:
-      'Your phone is blocking them. Turn them back on in system settings for Baaki — the inbox still has everything either way.',
-    permissionUnset: 'Baaki will only ask once, and only for the things you switch on below.',
+      'Your phone is blocking them. Turn them back on in system settings for Waves — the inbox still has everything either way.',
+    permissionUnset: 'Waves will only ask once, and only for the things you switch on below.',
     granted: 'On',
     denied: 'Off',
     undetermined: 'Not set',
@@ -1887,7 +1887,7 @@ const en: UiStrings = {
     involvesMeBody:
       'Push when you owe, are owed, or are mentioned — not for every expense in every group.',
     settlementRequests: 'Settlement confirmations',
-    settlementRequestsBody: 'When someone says they paid you, so your baaki stays right.',
+    settlementRequestsBody: 'When someone says they paid you, so your balance stays right.',
     nudges: 'Reminders',
     nudgesBody:
       'A friendly nudge about money owed. Limited to one per person per day, in the database.',
@@ -1895,16 +1895,16 @@ const en: UiStrings = {
     digestBody: 'Everything else, batched into one notification a day instead of a stream.',
     emailSection: 'By email',
     weeklyEmail: 'Weekly email digest',
-    weeklyEmailBody: 'Your net baaki and pending confirmations, once a week. Off by default.',
+    weeklyEmailBody: 'Your net balance and pending confirmations, once a week. Off by default.',
     failDenied: 'Not enabled — you can turn it on in your phone settings later.',
     failUnsupported:
       'This device cannot receive push notifications. Everything still lands in Activity.',
     failNotSignedIn: 'Sign in first, so we know which phone is yours.',
     failNotConfigured:
-      'Push is not set up in this build of Baaki. Nothing you did — everything still lands in Activity.',
+      'Push is not set up in this build of Waves. Nothing you did — everything still lands in Activity.',
     failSaveFailed: 'Could not save this phone. Check your connection and try again.',
     footnote:
-      'Email delivery is still to come. Everything here is also in your inbox, which is the record of what Baaki has told you whether or not a notification arrived.',
+      'Email delivery is still to come. Everything here is also in your inbox, which is the record of what Waves has told you whether or not a notification arrived.',
   },
   contact: {
     title: 'Your account',
@@ -1932,7 +1932,7 @@ const en: UiStrings = {
     link: 'Link',
     linked: 'Linked',
     footnote:
-      'Baaki never asks for this to let you in, and never shares it with anyone in your groups. People see the name you choose, nothing else.',
+      'Waves never asks for this to let you in, and never shares it with anyone in your groups. People see the name you choose, nothing else.',
     gateTitle: 'Keep your account to carry on',
     gateGroupBody:
       "You're in a group as a guest. Add an email, phone or provider to start or join more — everything you've entered stays with you.",
@@ -1940,7 +1940,7 @@ const en: UiStrings = {
       'Your guest trial has ended, so the app is read-only for now. Add a way to sign in to keep adding — your groups and expenses are all still here.',
   },
   signIn: {
-    tagline: 'baaki · what is left over',
+    tagline: 'Waves · what is left over',
     splitAnything: 'Split anything\nwith anyone',
     welcomeBody:
       'No account needed to start — add one later and everything you have entered comes with you.',
@@ -1954,7 +1954,7 @@ const en: UiStrings = {
     useAPassword: 'Email or password',
     phoneNumber: 'Phone number',
     countryCodeHint:
-      'Start with your country code. Baaki never assumes +91 — a trip is exactly when foreign numbers turn up.',
+      'Start with your country code. Waves never assumes +91 — a trip is exactly when foreign numbers turn up.',
     sendCode: 'Send code',
     codeSentTo: 'Code sent to {value}',
     verify: 'Verify',
@@ -1984,11 +1984,11 @@ const en: UiStrings = {
     memberFootnote:
       'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.',
     couldNotSignIn: 'Could not sign in. Please try again.',
-    restartToMirror: 'Close and open Baaki once to mirror the layout.',
-    restartToUnmirror: 'Close and open Baaki once to turn the layout back.',
+    restartToMirror: 'Close and open Waves once to mirror the layout.',
+    restartToUnmirror: 'Close and open Waves once to turn the layout back.',
   },
   tabs: {
-    guestBanner: 'You are using Baaki as a guest',
+    guestBanner: 'You are using Waves as a guest',
     guestBannerBody:
       'Nothing is missing — everything you enter is saved and yours. Add an email or phone number whenever you want to reach it from another phone.',
     guestDaysLeft: '{days} days left as a guest — sign up to keep going after that.',
@@ -2038,14 +2038,14 @@ const en: UiStrings = {
     offlineTitle: 'Works offline',
     offlineBody: 'Add expenses with no signal — they sync the moment you’re back.',
     scanTitle: 'Scan a receipt',
-    scanBody: 'Snap a bill and Baaki fills in the items for you.',
+    scanBody: 'Snap a bill and Waves fills in the items for you.',
   },
   mergePeople: {
     entry: 'Merge people',
     title: 'Merge people',
     subtitle:
       'Pick the guests who are the same person. Their balances are combined under one name.',
-    empty: 'No guests to merge — only people without a Baaki account can be merged.',
+    empty: 'No guests to merge — only people without a Waves account can be merged.',
     nameLabel: 'Name for the merged person',
     namePlaceholder: 'e.g. Ravi',
     warningTitle: 'This can’t be undone',
@@ -2066,7 +2066,7 @@ const en: UiStrings = {
   inbox: {
     title: 'Inbox',
     nothingYetBody:
-      'Reminders, settlement confirmations and anything else Baaki tells you collect here — even when the notification never reached your phone.',
+      'Reminders, settlement confirmations and anything else Waves tells you collect here — even when the notification never reached your phone.',
     recent: 'Recent',
   },
   captures: {
@@ -2125,7 +2125,7 @@ const en: UiStrings = {
     },
     allBackedUp: 'All receipts backed up',
     privacyNote:
-      'The photo stays on your phone and your chosen cloud. Baaki only ever sees the amount you save.',
+      'The photo stays on your phone and your chosen cloud. Waves only ever sees the amount you save.',
   },
   group: {
     notFound: 'Group not found',
@@ -2179,7 +2179,7 @@ const en: UiStrings = {
     unarchive: 'Unarchive',
     archivedOn: 'Archived {date}',
     nobodyOwes: 'Nobody owes anybody in this group.',
-    recordedNotMoved: 'Recorded, not moved by Baaki',
+    recordedNotMoved: 'Recorded, not moved by Waves',
   },
   people: {
     invite: 'Invite',
@@ -2215,8 +2215,8 @@ const en: UiStrings = {
     expires: 'expires {when}',
     usesBadge: '{count} uses',
     shareMessage:
-      'Join {group} on Baaki to split expenses — no app or account needed to start: {link}',
-    emailSubject: 'Join {group} on Baaki',
+      'Join {group} on Waves to split expenses — no app or account needed to start: {link}',
+    emailSubject: 'Join {group} on Waves',
     mintMistakeNote:
       'Made a link by mistake? Mint a new one — the old link keeps working until it expires, so only share links you mean to.',
     hideContacts: 'Hide contacts',
@@ -2292,7 +2292,7 @@ const en: UiStrings = {
     linkExpiredBody:
       'Ask whoever sent it for a fresh one — links expire so they cannot be passed around forever.',
     linkMissingCode: 'This link is missing its invite code',
-    goToBaaki: 'Go to Baaki',
+    goToBaaki: 'Go to Waves',
     freeNoAccount: 'Free forever, no account needed',
     isOneOfTheseYou: 'Is one of these you?',
     peopleSplitting: {
@@ -2333,11 +2333,11 @@ const en: UiStrings = {
     whatIWasCharged: 'What I was charged',
     askingRate: 'Asking…',
     getTodaysRate: 'Get today’s {from}→{to} rate',
-    micPermission: 'Baaki needs permission to use the microphone.',
-    micBlocked: 'Microphone access is off for Baaki. You can turn it on in Settings.',
+    micPermission: 'Waves needs permission to use the microphone.',
+    micBlocked: 'Microphone access is off for Waves. You can turn it on in Settings.',
     dictationFailed: 'Dictation could not start. Type the note instead.',
     dictationErrors: {
-      notAllowed: 'Baaki needs permission to use the microphone. You can turn it on in Settings.',
+      notAllowed: 'Waves needs permission to use the microphone. You can turn it on in Settings.',
       noSpeech: 'Did not catch anything. Tap the mic and speak again.',
       audioBusy: 'The microphone is busy. Close anything else that is recording and try again.',
       network: 'Speech recognition needs a connection on this phone. Type the note instead.',
@@ -2346,7 +2346,7 @@ const en: UiStrings = {
     },
     stopDictating: 'Stop dictating',
     dictateNote: 'Dictate the note',
-    updateBaaki: 'Update Baaki',
+    updateBaaki: 'Update Waves',
     alreadyUpdated: 'I have already updated',
     update: 'Update',
     notNow: 'Not now',
@@ -2413,16 +2413,16 @@ const en: UiStrings = {
     sending: 'Sending…',
     tellThem: 'Tell them',
     versionStoppedBody:
-      'This version can no longer talk to Baaki, so it has been stopped rather than left to show you numbers that might be wrong.',
-    newBaakiOut: 'A new Baaki is out',
-    baakiVersionOut: 'Baaki {latest} is out',
+      'This version can no longer talk to Waves, so it has been stopped rather than left to show you numbers that might be wrong.',
+    newBaakiOut: 'A new Waves is out',
+    baakiVersionOut: 'Waves {latest} is out',
   },
   smsImport: {
     title: 'Import from messages',
     howTo:
-      'Open your messages app, select the bank messages from this trip, copy them, and paste them here. Baaki reads them on this phone — nothing is sent anywhere until you confirm an expense.',
+      'Open your messages app, select the bank messages from this trip, copy them, and paste them here. Waves reads them on this phone — nothing is sent anywhere until you confirm an expense.',
     whyNotAutomatic:
-      'Baaki cannot read your inbox by itself. iPhones give no app that access, and on Android it is reserved for whichever app you use as your messages app.',
+      'Waves cannot read your inbox by itself. iPhones give no app that access, and on Android it is reserved for whichever app you use as your messages app.',
     messagesSection: 'The messages',
     pasteLabel: 'Paste bank messages',
     pastePlaceholder: 'Paste here.\n\nLeave a blank line between messages.',
@@ -2466,23 +2466,23 @@ const en: UiStrings = {
     readMessages: 'Read my messages',
     reading: 'Reading…',
     readOnAndroid:
-      'On Android, Baaki can read the bank messages in these dates for you. It asks permission first, reads them on this phone, and sends nothing anywhere until you confirm.',
+      'On Android, Waves can read the bank messages in these dates for you. It asks permission first, reads them on this phone, and sends nothing anywhere until you confirm.',
     readCount: {
       one: 'Read {n} message from your inbox.',
       other: 'Read {n} messages from your inbox.',
     },
     readNothing: 'No bank messages found in these dates.',
     permissionDenied:
-      'Baaki needs your permission to read messages. You can still paste them below instead.',
+      'Waves needs your permission to read messages. You can still paste them below instead.',
     permissionBlocked:
-      'Message access is turned off for Baaki. Turn it on in Settings › Apps › Baaki › Permissions, or paste the messages below.',
+      'Message access is turned off for Waves. Turn it on in Settings › Apps › Waves › Permissions, or paste the messages below.',
     readUnsupported: 'Reading messages only works on Android. Paste them below instead.',
     readUnavailable: 'This build cannot read messages. Paste them below instead.',
     readFailed: 'Could not read your messages. Paste them below instead.',
     permissionRationale: {
       title: 'Read bank messages',
       message:
-        'Baaki reads bank payment messages on this phone to suggest expenses for your trip. The messages stay on your phone — nothing is sent anywhere until you confirm an expense.',
+        'Waves reads bank payment messages on this phone to suggest expenses for your trip. The messages stay on your phone — nothing is sent anywhere until you confirm an expense.',
       allow: 'Allow',
       notNow: 'Not now',
     },
@@ -2535,7 +2535,7 @@ const en: UiStrings = {
     },
     scanCheckLines: 'Some lines need checking before this can be saved.',
     carriedOver: 'Carried over from the scan. Check the lines, then tap who had what.',
-    notYours: 'They are on Baaki — they tap their own lines.',
+    notYours: 'They are on Waves — they tap their own lines.',
     itemFallback: 'Item {n}',
     removeItem: 'Remove {label}',
     hadItem: '{name} had {label}',
@@ -2548,7 +2548,7 @@ const en: UiStrings = {
     bringHistory: 'Bring your history across',
     free: 'free',
     ledgerHowTo:
-      'From Splitwise: open a group → the ⚙ menu → Export as spreadsheet, and choose that CSV here. From Baaki: choose a JSON file you exported from Settings. Everyone named in it becomes a member of the group — they do not need the app, and they can claim their history whenever they join.',
+      'From Splitwise: open a group → the ⚙ menu → Export as spreadsheet, and choose that CSV here. From Waves: choose a JSON file you exported from Settings. Everyone named in it becomes a member of the group — they do not need the app, and they can claim their history whenever they join.',
     chooseFile: 'Choose a file',
     chosenFile: 'Chosen: {name}',
     chooseDifferentFile: 'Choose a different file',
@@ -2603,10 +2603,10 @@ const en: UiStrings = {
   },
   pickers: {
     contactsDenied:
-      'Baaki cannot see your contacts. You can still add people by typing a name, an email or a number — nothing about a group needs your address book.',
+      'Waves cannot see your contacts. You can still add people by typing a name, an email or a number — nothing about a group needs your address book.',
     openSettings: 'Open settings',
     contactsUnavailable:
-      'Baaki could not read the address book on this phone. Nothing is wrong with your permissions — add people by typing a name, an email or a number instead.',
+      'Waves could not read the address book on this phone. Nothing is wrong with your permissions — add people by typing a name, an email or a number instead.',
     tryAgain: 'Try again',
     searchContacts: 'Search contacts',
     contactCount: { one: '{n} contact', other: '{n} contacts' },
@@ -2615,7 +2615,7 @@ const en: UiStrings = {
     noContactMatches: 'No contact matches that.',
     noneHasEmailOrNumber: 'None of your contacts has an email or number.',
     onlyPickedAreSent:
-      'Only the people you pick are sent to Baaki. Your contacts stay on this phone.',
+      'Only the people you pick are sent to Waves. Your contacts stay on this phone.',
     jumpToLetter: 'Jump to a letter',
     country: 'Country',
     dialCodeTitle: 'Country code',
@@ -2703,7 +2703,7 @@ const en: UiStrings = {
     rowHint: 'What is stored, and how it is kept',
     title: 'Privacy & security',
     intro:
-      'Baaki holds as little about you as it can and still work. This describes what that is, in plain terms.',
+      'Waves holds as little about you as it can and still work. This describes what that is, in plain terms.',
     storeTitle: 'What is stored',
     storeBody:
       'Your display name, and whichever of a phone number, email or sign-in identity you used. Optionally a payment handle, so somebody can pay you back, and a country, which decides which payment rails you are offered. The groups you are in, the expenses in them, and who owes whom. Nothing else: no contacts are uploaded, and there is no advertising identifier.',
@@ -2718,7 +2718,7 @@ const en: UiStrings = {
     couldNotSave: 'That did not save. Please try again in a moment.',
     analyticsTitle: 'How the app is used',
     analyticsBody:
-      'Baaki can record how screens are used — which ones people get stuck on, where a tap lands — through Microsoft Clarity. It ships switched off and records nothing unless it is turned on. It is never used for advertising, there is no advertising identifier, and nothing here is sold or shared.',
+      'Waves can record how screens are used — which ones people get stuck on, where a tap lands — through Microsoft Clarity. It ships switched off and records nothing unless it is turned on. It is never used for advertising, there is no advertising identifier, and nothing here is sold or shared.',
     sessionReplayRow: 'Record how I use the app',
     previewGroups: { one: 'You are in {n} group.', other: 'You are in {n} groups.' },
     previewExpenses: {
@@ -2779,7 +2779,7 @@ const en: UiStrings = {
     theirPastBecomesYours: 'Their past expenses and balances become yours.',
     guestKeepsItHere:
       'Joining as a guest keeps everything on this device. Add a phone number later and it all comes with you.',
-    lockedTitle: 'Baaki is locked',
+    lockedTitle: 'Waves is locked',
     lockedBody: 'Unlock with the same face or fingerprint that opens this phone.',
     unlock: 'Unlock',
     paidIn: 'Paid in',
@@ -2788,13 +2788,13 @@ const en: UiStrings = {
     oneChangeFailed: 'One change could not be saved',
     tryAgain: 'Try again',
     discardIt: 'Discard it',
-    needsUpdating: 'Baaki needs updating',
+    needsUpdating: 'Waves needs updating',
     nothingIsLost:
       'Nothing is lost. Every group, expense and settlement is on the server and will be exactly where you left it.',
     worthAMinute: 'Worth a minute when you have one.',
     theGroup: 'The group',
     noGroupsYet:
-      'You have no groups yet. A person belongs to a group in Baaki, because a debt is always about something — a trip, a flat, a dinner.',
+      'You have no groups yet. A person belongs to a group in Waves, because a debt is always about something — a trip, a flat, a dinner.',
     ghostShareNote:
       'They do not need the app. Their share is recorded under their name, and if they join later with this email or number they claim everything already sitting there.',
     justMe: 'Just me',
@@ -2882,7 +2882,7 @@ const ta: UiStrings = {
   payViaRail: '{rail} மூலம் செலுத்து',
   youPayName: 'நீங்கள் {name}க்குச் செலுத்துகிறீர்கள்',
   namePaysYou: '{name} உங்களுக்குச் செலுத்துகிறார்',
-  settleConfirmYouPay: '{name} உறுதிப்படுத்தக் கேட்கப்படுவார். Baaki வழியாக பணம் மாறுவதில்லை.',
+  settleConfirmYouPay: '{name} உறுதிப்படுத்தக் கேட்கப்படுவார். Waves வழியாக பணம் மாறுவதில்லை.',
   settleConfirmTheyPay:
     'அவர் செலுத்தியதாகக் குறித்ததும் நீங்கள் உறுதிப்படுத்தக் கேட்கப்படுவீர்கள்.',
   members: 'உறுப்பினர்கள்',
@@ -2892,7 +2892,7 @@ const ta: UiStrings = {
   simplifyOn: 'எளிமையாக்கல் இயக்கத்தில்',
   simplifyOff: 'எளிமையாக்கல் நிறுத்தத்தில்',
   simplifySuggestBody:
-    'குழுவைத் தீர்க்கும் குறைந்தபட்சப் பரிமாற்றங்களை Baaki பரிந்துரைக்கிறது. அடிப்படையிலுள்ள யார் யாருக்குத் தர வேண்டும் என்ற கணக்கு மாற்றப்படுவதில்லை.',
+    'குழுவைத் தீர்க்கும் குறைந்தபட்சப் பரிமாற்றங்களை Waves பரிந்துரைக்கிறது. அடிப்படையிலுள்ள யார் யாருக்குத் தர வேண்டும் என்ற கணக்கு மாற்றப்படுவதில்லை.',
   simplifyPairwiseBody: 'செலவுகள் உருவாக்கியபடி, உண்மையான இணை-கணக்கைக் காட்டுகிறது.',
   simplifyPaymentsCount: { one: '{n} பரிமாற்றம்', other: '{n} பரிமாற்றங்கள்' },
   simplifyPaysWhom: '{from} {to}க்குச் செலுத்துகிறார்',
@@ -3401,7 +3401,7 @@ const ta: UiStrings = {
     title: 'நபர்களை இணை',
     subtitle:
       'ஒரே நபராக இருக்கும் விருந்தினர்களைத் தேர்ந்தெடுக்கவும். அவர்களின் இருப்புகள் ஒரே பெயரின் கீழ் இணைக்கப்படும்.',
-    empty: 'இணைக்க விருந்தினர்கள் இல்லை — Baaki கணக்கு இல்லாதவர்களை மட்டுமே இணைக்க முடியும்.',
+    empty: 'இணைக்க விருந்தினர்கள் இல்லை — Waves கணக்கு இல்லாதவர்களை மட்டுமே இணைக்க முடியும்.',
     nameLabel: 'இணைந்த நபருக்கான பெயர்',
     namePlaceholder: 'எ.கா. ரவி',
     warningTitle: 'இதை மீட்டெடுக்க முடியாது',
@@ -3471,7 +3471,7 @@ const ta: UiStrings = {
     subtitle: 'ஸ்கேன் செய்த ரசீதுகளை உங்கள் சொந்த கிளவுடில் வைத்திருங்கள்',
     primaryTitle: 'ரசீதுகளை காப்புப்பிடி',
     primaryBody:
-      'ஸ்கேன் செய்த ரசீதுகள் இந்தச் சாதனத்தில் சேமிக்கப்பட்டு நீங்கள் தேர்ந்தெடுத்த கிளவுடுக்கு நகலெடுக்கப்படும். அவை Baaki சேவையகங்களைத் தொடாது.',
+      'ஸ்கேன் செய்த ரசீதுகள் இந்தச் சாதனத்தில் சேமிக்கப்பட்டு நீங்கள் தேர்ந்தெடுத்த கிளவுடுக்கு நகலெடுக்கப்படும். அவை Waves சேவையகங்களைத் தொடாது.',
     off: 'அணை',
     connect: 'இணை',
     disconnect: 'துண்டி',
@@ -3486,7 +3486,7 @@ const ta: UiStrings = {
     },
     allBackedUp: 'அனைத்து ரசீதுகளும் காப்புப்படி எடுக்கப்பட்டன',
     privacyNote:
-      'புகைப்படம் உங்கள் ஃபோனிலும் நீங்கள் தேர்ந்தெடுத்த கிளவுடிலும் இருக்கும். Baaki நீங்கள் சேமிக்கும் தொகையை மட்டுமே பார்க்கும்.',
+      'புகைப்படம் உங்கள் ஃபோனிலும் நீங்கள் தேர்ந்தெடுத்த கிளவுடிலும் இருக்கும். Waves நீங்கள் சேமிக்கும் தொகையை மட்டுமே பார்க்கும்.',
   },
   group: {
     notFound: 'குழு கிடைக்கவில்லை',
@@ -3581,8 +3581,8 @@ const ta: UiStrings = {
     expires: '{when} க்கு காலாவதி',
     usesBadge: '{count} பயன்பாடுகள்',
     shareMessage:
-      'செலவுகளைப் பிரிக்க Baaki-ல் {group} குழுவில் சேரவும் — தொடங்க ஆப் அல்லது கணக்கு தேவையில்லை: {link}',
-    emailSubject: 'Baaki-ல் {group} குழுவில் சேரவும்',
+      'செலவுகளைப் பிரிக்க Waves-ல் {group} குழுவில் சேரவும் — தொடங்க ஆப் அல்லது கணக்கு தேவையில்லை: {link}',
+    emailSubject: 'Waves-ல் {group} குழுவில் சேரவும்',
     mintMistakeNote:
       'தவறுதலாக இணைப்பு உருவாக்கினீர்களா? புதிதாக ஒன்றை உருவாக்கவும் — பழைய இணைப்பு காலாவதியாகும் வரை வேலை செய்யும், எனவே நீங்கள் நினைத்த இணைப்புகளை மட்டும் பகிரவும்.',
     hideContacts: 'தொடர்புகளை மறை',
@@ -3854,7 +3854,7 @@ const ta: UiStrings = {
     permissionDenied:
       'செய்திகளைப் படிக்க பாக்கிக்கு உங்கள் அனுமதி தேவை. அதற்குப் பதிலாக கீழே ஒட்டலாம்.',
     permissionBlocked:
-      'பாக்கிக்கு செய்தி அணுகல் அணைக்கப்பட்டுள்ளது. அமைப்புகள் › ஆப்ஸ் › Baaki › அனுமதிகள் இல் இயக்கவும், அல்லது கீழே செய்திகளை ஒட்டவும்.',
+      'பாக்கிக்கு செய்தி அணுகல் அணைக்கப்பட்டுள்ளது. அமைப்புகள் › ஆப்ஸ் › Waves › அனுமதிகள் இல் இயக்கவும், அல்லது கீழே செய்திகளை ஒட்டவும்.',
     readUnsupported:
       'செய்திகளைப் படிப்பது Android-இல் மட்டுமே இயங்கும். அதற்குப் பதிலாக கீழே ஒட்டவும்.',
     readUnavailable: 'இந்தப் பதிப்பால் செய்திகளைப் படிக்க முடியாது. கீழே ஒட்டவும்.',
@@ -3920,7 +3920,7 @@ const ta: UiStrings = {
     scanCheckLines: 'சேமிப்பதற்கு முன் சில வரிகளைச் சரிபார்க்க வேண்டும்.',
     carriedOver:
       'ஸ்கேனிலிருந்து கொண்டுவரப்பட்டது. வரிகளைச் சரிபார்த்து, யார் என்ன சாப்பிட்டார் எனத் தட்டவும்.',
-    notYours: 'அவர்கள் Baaki-யில் உள்ளனர் — அவர்கள் தங்கள் வரிகளைத் தாங்களே தட்டுவார்கள்.',
+    notYours: 'அவர்கள் Waves-யில் உள்ளனர் — அவர்கள் தங்கள் வரிகளைத் தாங்களே தட்டுவார்கள்.',
     itemFallback: 'பொருள் {n}',
     removeItem: '{label} அகற்று',
     hadItem: '{name} {label} சாப்பிட்டார்',
@@ -4270,7 +4270,7 @@ const hi: UiStrings = {
   payViaRail: '{rail} से भुगतान करें',
   youPayName: 'आप {name} को भुगतान करते हैं',
   namePaysYou: '{name} आपको भुगतान करते हैं',
-  settleConfirmYouPay: '{name} से पुष्टि माँगी जाएगी। Baaki के ज़रिए पैसा हाथ नहीं बदलता।',
+  settleConfirmYouPay: '{name} से पुष्टि माँगी जाएगी। Waves के ज़रिए पैसा हाथ नहीं बदलता।',
   settleConfirmTheyPay: 'जब वे इसे चुकाया हुआ चिह्नित करेंगे, तब आपसे पुष्टि माँगी जाएगी।',
   members: 'सदस्य',
   memberCount: { one: '{n} सदस्य', other: '{n} सदस्य' },
@@ -4279,7 +4279,7 @@ const hi: UiStrings = {
   simplifyOn: 'आसान करना चालू',
   simplifyOff: 'आसान करना बंद',
   simplifySuggestBody:
-    'Baaki सबसे कम भुगतानों का सुझाव देता है जो समूह का हिसाब चुका दें। नीचे का असली कौन-किसका-देनदार हिसाब कभी नहीं बदला जाता।',
+    'Waves सबसे कम भुगतानों का सुझाव देता है जो समूह का हिसाब चुका दें। नीचे का असली कौन-किसका-देनदार हिसाब कभी नहीं बदला जाता।',
   simplifyPairwiseBody: 'खर्चों ने जैसा बनाया, ठीक वैसा असली जोड़ीवार हिसाब दिखाया जा रहा है।',
   simplifyPaymentsCount: { one: '{n} भुगतान', other: '{n} भुगतान' },
   simplifyPaysWhom: '{from} {to} को भुगतान करते हैं',
@@ -4773,7 +4773,7 @@ const hi: UiStrings = {
     subtitle:
       'उन मेहमानों को चुनें जो एक ही व्यक्ति हैं। उनके बैलेंस एक नाम के तहत जोड़ दिए जाएँगे.',
     empty:
-      'मर्ज करने के लिए कोई मेहमान नहीं — केवल बिना Baaki खाते वाले लोग ही मर्ज किए जा सकते हैं.',
+      'मर्ज करने के लिए कोई मेहमान नहीं — केवल बिना Waves खाते वाले लोग ही मर्ज किए जा सकते हैं.',
     nameLabel: 'मर्ज किए गए व्यक्ति का नाम',
     namePlaceholder: 'जैसे रवि',
     warningTitle: 'इसे पहले जैसा नहीं किया जा सकता',
@@ -4839,7 +4839,7 @@ const hi: UiStrings = {
     subtitle: 'स्कैन की गई रसीदें अपने क्लाउड पर रखें',
     primaryTitle: 'रसीदें यहाँ बैकअप करें',
     primaryBody:
-      'स्कैन की गई रसीदें इस डिवाइस पर सहेजी जाती हैं और आपके चुने हुए क्लाउड पर कॉपी होती हैं। वे Baaki के सर्वर पर कभी नहीं जातीं।',
+      'स्कैन की गई रसीदें इस डिवाइस पर सहेजी जाती हैं और आपके चुने हुए क्लाउड पर कॉपी होती हैं। वे Waves के सर्वर पर कभी नहीं जातीं।',
     off: 'बंद',
     connect: 'कनेक्ट करें',
     disconnect: 'डिसकनेक्ट करें',
@@ -4854,7 +4854,7 @@ const hi: UiStrings = {
     },
     allBackedUp: 'सभी रसीदें बैकअप हो गईं',
     privacyNote:
-      'फ़ोटो आपके फ़ोन और आपके चुने हुए क्लाउड पर रहती है। Baaki केवल वह राशि देखता है जो आप सहेजते हैं।',
+      'फ़ोटो आपके फ़ोन और आपके चुने हुए क्लाउड पर रहती है। Waves केवल वह राशि देखता है जो आप सहेजते हैं।',
   },
   group: {
     notFound: 'समूह नहीं मिला',
@@ -4943,8 +4943,8 @@ const hi: UiStrings = {
     expires: '{when} को खत्म',
     usesBadge: '{count} उपयोग',
     shareMessage:
-      'खर्च बाँटने के लिए Baaki पर {group} में शामिल हों — शुरू करने के लिए कोई ऐप या खाता ज़रूरी नहीं: {link}',
-    emailSubject: 'Baaki पर {group} में शामिल हों',
+      'खर्च बाँटने के लिए Waves पर {group} में शामिल हों — शुरू करने के लिए कोई ऐप या खाता ज़रूरी नहीं: {link}',
+    emailSubject: 'Waves पर {group} में शामिल हों',
     mintMistakeNote:
       'गलती से लिंक बना लिया? नया बनाएँ — पुराना लिंक खत्म होने तक चलता रहेगा, इसलिए वही लिंक साझा करें जो आप चाहते हैं।',
     hideContacts: 'संपर्क छिपाएँ',
@@ -5196,16 +5196,16 @@ const hi: UiStrings = {
     readMessages: 'मेरे संदेश पढ़ें',
     reading: 'पढ़ रहे हैं…',
     readOnAndroid:
-      'Android पर, Baaki इन तारीखों के बैंक संदेश आपके लिए पढ़ सकता है। यह पहले अनुमति माँगता है, इसी फ़ोन पर पढ़ता है, और जब तक आप किसी खर्च की पुष्टि नहीं करते तब तक कुछ भी कहीं नहीं भेजा जाता।',
+      'Android पर, Waves इन तारीखों के बैंक संदेश आपके लिए पढ़ सकता है। यह पहले अनुमति माँगता है, इसी फ़ोन पर पढ़ता है, और जब तक आप किसी खर्च की पुष्टि नहीं करते तब तक कुछ भी कहीं नहीं भेजा जाता।',
     readCount: {
       one: 'आपके इनबॉक्स से {n} संदेश पढ़ा गया।',
       other: 'आपके इनबॉक्स से {n} संदेश पढ़े गए।',
     },
     readNothing: 'इन तारीखों में कोई बैंक संदेश नहीं मिला।',
     permissionDenied:
-      'संदेश पढ़ने के लिए Baaki को आपकी अनुमति चाहिए। आप नीचे उन्हें पेस्ट भी कर सकते हैं।',
+      'संदेश पढ़ने के लिए Waves को आपकी अनुमति चाहिए। आप नीचे उन्हें पेस्ट भी कर सकते हैं।',
     permissionBlocked:
-      'Baaki के लिए संदेश एक्सेस बंद है। इसे Settings › Apps › Baaki › Permissions में चालू करें, या नीचे संदेश पेस्ट करें।',
+      'Waves के लिए संदेश एक्सेस बंद है। इसे Settings › Apps › Waves › Permissions में चालू करें, या नीचे संदेश पेस्ट करें।',
     readUnsupported: 'संदेश पढ़ना केवल Android पर काम करता है। नीचे उन्हें पेस्ट करें।',
     readUnavailable: 'यह बिल्ड संदेश नहीं पढ़ सकता। नीचे उन्हें पेस्ट करें।',
     readFailed: 'आपके संदेश पढ़े नहीं जा सके। नीचे उन्हें पेस्ट करें।',
@@ -5266,7 +5266,7 @@ const hi: UiStrings = {
     },
     scanCheckLines: 'सेव करने से पहले कुछ पंक्तियों की जाँच ज़रूरी है।',
     carriedOver: 'स्कैन से लाया गया। पंक्तियाँ जाँचें, फिर टैप करें कि किसने क्या लिया।',
-    notYours: 'वे Baaki पर हैं — वे अपनी पंक्तियाँ ख़ुद टैप करते हैं।',
+    notYours: 'वे Waves पर हैं — वे अपनी पंक्तियाँ ख़ुद टैप करते हैं।',
     itemFallback: 'आइटम {n}',
     removeItem: '{label} हटाएँ',
     hadItem: '{name} ने {label} लिया',
@@ -5615,7 +5615,7 @@ const ar: UiStrings = {
   payViaRail: 'ادفع عبر {rail}',
   youPayName: 'تدفع لـ {name}',
   namePaysYou: 'يدفع لك {name}',
-  settleConfirmYouPay: 'سيُطلب من {name} التأكيد. لا تنتقل الأموال عبر Baaki.',
+  settleConfirmYouPay: 'سيُطلب من {name} التأكيد. لا تنتقل الأموال عبر Waves.',
   settleConfirmTheyPay: 'سيُطلب منك التأكيد بمجرد أن يضع علامة الدفع.',
   members: 'الأعضاء',
   memberCount: {
@@ -5631,7 +5631,7 @@ const ar: UiStrings = {
   simplifyOn: 'التبسيط مفعّل',
   simplifyOff: 'التبسيط متوقف',
   simplifySuggestBody:
-    'يقترح Baaki أقل عدد من الدفعات لتسوية المجموعة. أمّا سجل مَن يدين لِمَن الحقيقي في الأسفل فلا يُعاد كتابته أبداً.',
+    'يقترح Waves أقل عدد من الدفعات لتسوية المجموعة. أمّا سجل مَن يدين لِمَن الحقيقي في الأسفل فلا يُعاد كتابته أبداً.',
   simplifyPairwiseBody: 'يعرض السجل الثنائي الفعلي تماماً كما أنشأته المصروفات.',
   simplifyPaymentsCount: { one: 'دفعة واحدة', other: '{n} دفعات' },
   simplifyPaysWhom: 'يدفع {from} لـ {to}',
@@ -6144,7 +6144,7 @@ const ar: UiStrings = {
     entry: 'دمج الأشخاص',
     title: 'دمج الأشخاص',
     subtitle: 'اختر الضيوف الذين هم الشخص نفسه. تُجمع أرصدتهم تحت اسم واحد.',
-    empty: 'لا يوجد ضيوف للدمج — يمكن دمج من ليس لديهم حساب Baaki فقط.',
+    empty: 'لا يوجد ضيوف للدمج — يمكن دمج من ليس لديهم حساب Waves فقط.',
     nameLabel: 'اسم الشخص المدمج',
     namePlaceholder: 'مثال: رافي',
     warningTitle: 'لا يمكن التراجع عن هذا',
@@ -6215,7 +6215,7 @@ const ar: UiStrings = {
     subtitle: 'احتفظ بالإيصالات الممسوحة على سحابتك الخاصة',
     primaryTitle: 'انسخ الإيصالات احتياطيًا إلى',
     primaryBody:
-      'تُحفظ الإيصالات الممسوحة على هذا الجهاز وتُنسخ إلى السحابة التي تختارها. لا تصل أبدًا إلى خوادم Baaki.',
+      'تُحفظ الإيصالات الممسوحة على هذا الجهاز وتُنسخ إلى السحابة التي تختارها. لا تصل أبدًا إلى خوادم Waves.',
     off: 'إيقاف',
     connect: 'اتصال',
     disconnect: 'قطع الاتصال',
@@ -6233,7 +6233,7 @@ const ar: UiStrings = {
       other: '{n} إيصال بانتظار النسخ',
     },
     allBackedUp: 'تم نسخ جميع الإيصالات احتياطيًا',
-    privacyNote: 'تبقى الصورة على هاتفك وسحابتك المختارة. لا يرى Baaki سوى المبلغ الذي تحفظه.',
+    privacyNote: 'تبقى الصورة على هاتفك وسحابتك المختارة. لا يرى Waves سوى المبلغ الذي تحفظه.',
   },
   group: {
     notFound: 'المجموعة غير موجودة',
@@ -6327,8 +6327,8 @@ const ar: UiStrings = {
     expires: 'ينتهي {when}',
     usesBadge: '{count} استخدامات',
     shareMessage:
-      'انضم إلى {group} على Baaki لتقسيم المصروفات — لا حاجة إلى تطبيق أو حساب للبدء: {link}',
-    emailSubject: 'انضم إلى {group} على Baaki',
+      'انضم إلى {group} على Waves لتقسيم المصروفات — لا حاجة إلى تطبيق أو حساب للبدء: {link}',
+    emailSubject: 'انضم إلى {group} على Waves',
     mintMistakeNote:
       'أنشأت رابطًا بالخطأ؟ أنشئ رابطًا جديدًا — يظل الرابط القديم صالحًا حتى ينتهي، لذا شارك فقط الروابط التي تقصدها.',
     hideContacts: 'إخفاء جهات الاتصال',
@@ -6641,7 +6641,7 @@ const ar: UiStrings = {
     readMessages: 'اقرأ رسائلي',
     reading: 'جارٍ القراءة…',
     readOnAndroid:
-      'على أندرويد، يمكن لـ Baaki قراءة رسائل البنك ضمن هذه التواريخ نيابةً عنك. يطلب الإذن أولًا، ويقرأها على هذا الهاتف، ولا يُرسل أي شيء إلى أي مكان حتى تؤكّد المصروف.',
+      'على أندرويد، يمكن لـ Waves قراءة رسائل البنك ضمن هذه التواريخ نيابةً عنك. يطلب الإذن أولًا، ويقرأها على هذا الهاتف، ولا يُرسل أي شيء إلى أي مكان حتى تؤكّد المصروف.',
     readCount: {
       zero: 'لم تُقرأ أي رسالة من صندوق الوارد.',
       one: 'قُرئت رسالة واحدة من صندوق الوارد.',
@@ -6651,9 +6651,9 @@ const ar: UiStrings = {
       other: 'قُرئت {n} رسالة من صندوق الوارد.',
     },
     readNothing: 'لا توجد رسائل بنكية في هذه التواريخ.',
-    permissionDenied: 'يحتاج Baaki إلى إذنك لقراءة الرسائل. يمكنك بدلًا من ذلك لصقها بالأسفل.',
+    permissionDenied: 'يحتاج Waves إلى إذنك لقراءة الرسائل. يمكنك بدلًا من ذلك لصقها بالأسفل.',
     permissionBlocked:
-      'الوصول إلى الرسائل مُعطَّل لـ Baaki. فعِّله من الإعدادات › التطبيقات › Baaki › الأذونات، أو الصق الرسائل بالأسفل.',
+      'الوصول إلى الرسائل مُعطَّل لـ Waves. فعِّله من الإعدادات › التطبيقات › Waves › الأذونات، أو الصق الرسائل بالأسفل.',
     readUnsupported: 'قراءة الرسائل تعمل على أندرويد فقط. الصقها بالأسفل بدلًا من ذلك.',
     readUnavailable: 'هذا الإصدار لا يستطيع قراءة الرسائل. الصقها بالأسفل.',
     readFailed: 'تعذّرت قراءة رسائلك. الصقها بالأسفل.',
@@ -6728,7 +6728,7 @@ const ar: UiStrings = {
     },
     scanCheckLines: 'بعض البنود تحتاج مراجعة قبل الحفظ.',
     carriedOver: 'منقول من المسح. تحقّق من البنود ثم اضغط لمن كان ماذا.',
-    notYours: 'هم على Baaki — يضغطون بنودهم بأنفسهم.',
+    notYours: 'هم على Waves — يضغطون بنودهم بأنفسهم.',
     itemFallback: 'بند {n}',
     removeItem: 'إزالة {label}',
     hadItem: '{name} تناول {label}',
@@ -7205,7 +7205,7 @@ export function deviceDefaultCurrency(): CurrencyCode {
  * or a bare `+` when the region is unknown or unlisted.
  *
  * Follows the phone rather than assuming +91: a handset set to the UAE opens on
- * +971, one set to the UK on +44, and one whose region Baaki does not stock
+ * +971, one set to the UK on +44, and one whose region Waves does not stock
  * gets a lone `+` to type over — never a confident wrong country code.
  */
 export function deviceDialingCode(): string {
