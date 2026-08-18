@@ -47,6 +47,8 @@ interface ExpenseWriteRequest {
   /** Client's own share computation, checked against ours when present. */
   expectedShares?: Record<string, string>;
   notes?: string | null;
+  /** How the money moved: cash | credit | debit | forex. Stored verbatim. */
+  paymentMethod?: string | null;
   receiptId?: string | null;
   /**
    * The rate used, when the expense is not in the group's currency (ADR-003).
@@ -160,6 +162,7 @@ serveWithCors(async (request) => {
       p_notes: body.notes ?? null,
       p_receipt_id: body.receiptId ?? null,
       p_fx: body.fx ?? null,
+      p_payment_method: body.paymentMethod ?? null,
     });
 
     if (applyError) {

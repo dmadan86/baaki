@@ -145,6 +145,7 @@ export interface MirrorExpense extends MirrorRow {
     readonly split_params: SplitParams;
     readonly author_member_id: string | null;
     readonly notes: string | null;
+    readonly payment_method: string | null;
     readonly created_at: string;
     readonly payers: readonly { member_id: string; amount: string }[];
     readonly shares: readonly { member_id: string; amount: string }[];
@@ -231,6 +232,7 @@ function applyPending(
           split_params: payload.splitParams,
           author_member_id: options.authorMemberId ?? null,
           notes: payload.notes ?? null,
+          payment_method: payload.paymentMethod ?? null,
           created_at: mutation.clientCreatedAt,
           payers: Object.entries(payload.payers).map(([member_id, amount]) => ({
             member_id,

@@ -70,7 +70,12 @@ export interface ExpenseCreatePayload {
   readonly payers: Readonly<Record<MemberId, string>>;
   readonly receiptId?: string | null;
   readonly notes?: string | null;
+  /** How the money moved: cash | credit | debit | forex. Optional. */
+  readonly paymentMethod?: PaymentMethod | null;
 }
+
+/** The four ways an expense is paid for; optional everywhere it appears. */
+export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'forex';
 
 export interface ExpenseUpdatePayload extends ExpenseCreatePayload {
   /** Version the client edited, so the server can detect a concurrent edit. */

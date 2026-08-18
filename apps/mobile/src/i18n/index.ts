@@ -211,6 +211,11 @@ export interface UiStrings {
     iOweThem: string;
     noteLabel: string;
     notePlaceholder: string;
+    paidWith: string;
+    payCash: string;
+    payCredit: string;
+    payDebit: string;
+    payForex: string;
     save: string;
     couldNotRecord: string;
   };
@@ -1532,6 +1537,11 @@ const en: UiStrings = {
     iOweThem: 'I owe them',
     noteLabel: 'Note (optional)',
     notePlaceholder: 'What is it for?',
+    paidWith: 'Paid with',
+    payCash: 'Cash',
+    payCredit: 'Credit',
+    payDebit: 'Debit',
+    payForex: 'Forex',
     save: 'Record it',
     couldNotRecord: 'Could not record this. Please try again.',
   },
@@ -2890,6 +2900,11 @@ const ta: UiStrings = {
     iOweThem: 'நான் அவருக்குத் தர வேண்டும்',
     noteLabel: 'குறிப்பு (விருப்பம்)',
     notePlaceholder: 'எதற்காக?',
+    paidWith: 'எதில் செலுத்தினீர்கள்',
+    payCash: 'பணம்',
+    payCredit: 'கிரெடிட்',
+    payDebit: 'டெபிட்',
+    payForex: 'அயல்நாணயம்',
     save: 'பதிவு செய்',
     couldNotRecord: 'இதைப் பதிவு செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   },
@@ -4294,6 +4309,11 @@ const hi: UiStrings = {
     iOweThem: 'मैं उन्हें दूँगा',
     noteLabel: 'नोट (वैकल्पिक)',
     notePlaceholder: 'किस लिए?',
+    paidWith: 'किससे चुकाया',
+    payCash: 'नकद',
+    payCredit: 'क्रेडिट',
+    payDebit: 'डेबिट',
+    payForex: 'विदेशी मुद्रा',
     save: 'दर्ज करें',
     couldNotRecord: 'यह दर्ज नहीं हो सका। कृपया फिर कोशिश करें।',
   },
@@ -5655,6 +5675,11 @@ const ar: UiStrings = {
     iOweThem: 'أدين له',
     noteLabel: 'ملاحظة (اختياري)',
     notePlaceholder: 'لأجل ماذا؟',
+    paidWith: 'دُفِع بـ',
+    payCash: 'نقدًا',
+    payCredit: 'بطاقة ائتمان',
+    payDebit: 'بطاقة خصم',
+    payForex: 'عملة أجنبية',
     save: 'سجّل',
     couldNotRecord: 'تعذّر تسجيل هذا. حاول مرة أخرى.',
   },
