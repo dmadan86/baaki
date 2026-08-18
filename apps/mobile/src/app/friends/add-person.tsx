@@ -382,7 +382,9 @@ export default function AddPersonScreen() {
                   accessibilityLabel={label}
                   disabled={saving}
                   // Tap the selected one again to clear it — the field is optional.
-                  onPress={() => setPaymentMethod((current) => (current === method.id ? null : method.id))}
+                  onPress={() =>
+                    setPaymentMethod((current) => (current === method.id ? null : method.id))
+                  }
                   style={{
                     flex: 1,
                     alignItems: 'center',
