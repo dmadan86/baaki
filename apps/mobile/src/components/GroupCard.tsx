@@ -10,7 +10,7 @@
  */
 
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import type { CurrencyCode } from '@waves/core';
 import {
@@ -25,7 +25,6 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { PressableScale } from '@/lib/anim';
 
 export function GroupCard({
   id,
@@ -56,10 +55,14 @@ export function GroupCard({
   const theme = useTheme();
 
   return (
-    <PressableScale
+    // Flat opacity feedback, no scale. The list scrolls a lot and every row a
+    // Reanimated AnimatedPressable made the scroll heavy; a plain Pressable
+    // still says "I heard you" without the zoom.
+    <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title}, ${statusLabel}${pendingLabel ? `, ${pendingLabel}` : ''}`}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Row
         style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
@@ -107,6 +110,6 @@ export function GroupCard({
           color={theme.color.textFaint}
         />
       </Row>
-    </PressableScale>
+    </Pressable>
   );
 }

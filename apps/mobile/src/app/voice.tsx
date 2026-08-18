@@ -29,6 +29,8 @@ import { computeShares, type SplitParams } from '@waves/core';
 import {
   Button,
   Callout,
+  Card,
+  Divider,
   IconButton,
   iconSize,
   Row,
@@ -395,10 +397,20 @@ function DestinationPicker({
   t: ReturnType<typeof useStrings>['t'];
   theme: ReturnType<typeof useTheme>;
 }) {
-  const rows: { key: string; label: string; selected: boolean; onPress: () => void }[] = [
+  type Row = {
+    key: string;
+    label: string;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    selected: boolean;
+    onPress: () => void;
+  };
+  const rows: Row[] = [
     {
       key: 'unassigned',
       label: t.captures.unassigned,
+      // The inbox row wears the dashboard's captures glyph, so "Unassigned" here
+      // and the captures card on Home read as the same place.
+      icon: 'file-tray-full-outline',
       selected: dest.kind === 'unassigned',
       onPress: () => onChoose({ kind: 'unassigned' }),
     },
@@ -409,6 +421,7 @@ function DestinationPicker({
     rows.push({
       key: 'create',
       label: t.voice.newGroupNamed.replace('{name}', requested.name),
+      icon: 'add-circle-outline',
       selected: dest.kind === 'create',
       onPress: () => onChoose({ kind: 'create', ...requested }),
     });
@@ -417,6 +430,7 @@ function DestinationPicker({
     rows.push({
       key: group.id,
       label: groupLabel(group),
+      icon: 'people-outline',
       selected: dest.kind === 'existing' && dest.groupId === group.id,
       onPress: () => onChoose({ kind: 'existing', groupId: group.id }),
     });
@@ -427,30 +441,62 @@ function DestinationPicker({
       <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
         {t.voice.saveTo.toUpperCase()}
       </Text>
-      {rows.map((row) => (
-        <Pressable
-          key={row.key}
-          onPress={row.onPress}
-          accessibilityRole="button"
-          accessibilityState={{ selected: row.selected }}
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingVertical: theme.spacing.md,
-            paddingHorizontal: theme.spacing.lg,
-            borderRadius: theme.radius.lg,
-            backgroundColor: row.selected ? theme.color.brandSoft : theme.color.surface,
-          }}
-        >
-          <Text style={{ color: row.selected ? theme.color.brand : theme.color.text }}>
-            {row.label}
-          </Text>
-          {row.selected ? (
-            <Ionicons name="checkmark-circle" size={iconSize.md} color={theme.color.brand} />
-          ) : null}
-        </Pressable>
-      ))}
+      {/* One grouped card, hairlines between rows — the destination is a single
+          choice, so it reads as a single control (Expensify "To", Monzo lists)
+          rather than a stack of floating pills. Selection is a leading glyph
+          that lights to brand plus a filled radio, not a full-width purple fill. */}
+      <Card padded={false} style={{ overflow: 'hidden' }}>
+        {rows.map((row, index) => (
+          <View key={row.key}>
+            <Pressable
+              onPress={row.onPress}
+              accessibilityRole="button"
+              accessibilityState={{ selected: row.selected }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.md,
+                paddingVertical: theme.spacing.md,
+                paddingHorizontal: theme.spacing.lg,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: row.selected ? theme.color.brandSoft : theme.color.surfaceMuted,
+                }}
+              >
+                <Ionicons
+                  name={row.icon}
+                  size={iconSize.md}
+                  color={row.selected ? theme.color.brand : theme.color.textMuted}
+                />
+              </View>
+              <Text
+                numberOfLines={1}
+                style={{
+                  flex: 1,
+                  color: row.selected ? theme.color.brand : theme.color.text,
+                  fontWeight: row.selected ? '600' : '400',
+                }}
+              >
+                {row.label}
+              </Text>
+              <Ionicons
+                name={row.selected ? 'checkmark-circle' : 'ellipse-outline'}
+                size={iconSize.md}
+                color={row.selected ? theme.color.brand : theme.color.border}
+              />
+            </Pressable>
+            {index < rows.length - 1 ? <Divider /> : null}
+          </View>
+        ))}
+      </Card>
     </View>
   );
 }
@@ -476,49 +522,60 @@ function DraftRow({
   theme: ReturnType<typeof useTheme>;
 }) {
   return (
-    <Row
-      style={{
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        paddingHorizontal: theme.spacing.lg,
-        borderRadius: theme.radius.lg,
-        backgroundColor: theme.color.surface,
-      }}
-    >
-      <View style={{ minWidth: 88 }}>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-          {draft.currency ? (
-            <Text variant="micro" tone="muted">
-              {draft.currency}
-            </Text>
-          ) : null}
+    // A receipt-glyph node (the same one the feeds use), the amount as the hero
+    // with its currency, and the note on the line beneath — a card that reads as
+    // one expense at a glance (Copilot / Expensify review rows), editable in
+    // place. Remove is a quiet trailing control, not a heavy grey disc.
+    <Card>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.brandSoft,
+          }}
+        >
+          <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.brand} />
+        </View>
+
+        <View style={{ flex: 1, gap: theme.spacing.xs }}>
+          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            {draft.currency ? (
+              <Text variant="caption" tone="muted" style={{ fontWeight: '600' }}>
+                {draft.currency}
+              </Text>
+            ) : null}
+            <TextInput
+              value={draft.amount}
+              onChangeText={(value) => onEdit(draft.key, { amount: value })}
+              keyboardType="decimal-pad"
+              accessibilityLabel={amountLabel}
+              style={{
+                flex: 1,
+                fontSize: 24,
+                fontWeight: '700',
+                color: theme.color.text,
+                paddingVertical: 0,
+              }}
+            />
+          </Row>
           <TextInput
-            value={draft.amount}
-            onChangeText={(value) => onEdit(draft.key, { amount: value })}
-            keyboardType="decimal-pad"
-            accessibilityLabel={amountLabel}
-            style={{
-              flex: 1,
-              fontSize: 20,
-              fontWeight: '700',
-              color: theme.color.text,
-              paddingVertical: 0,
-            }}
+            value={draft.note}
+            onChangeText={(value) => onEdit(draft.key, { note: value })}
+            placeholder={notePlaceholder}
+            placeholderTextColor={theme.color.textFaint}
+            accessibilityLabel={noteLabel}
+            style={{ fontSize: 15, color: theme.color.textMuted, paddingVertical: 0 }}
           />
-        </Row>
-      </View>
-      <TextInput
-        value={draft.note}
-        onChangeText={(value) => onEdit(draft.key, { note: value })}
-        placeholder={notePlaceholder}
-        placeholderTextColor={theme.color.textFaint}
-        accessibilityLabel={noteLabel}
-        style={{ flex: 1, fontSize: 16, color: theme.color.text, paddingVertical: 0 }}
-      />
-      <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>
-        <Ionicons name="close-circle" size={iconSize.md} color={theme.color.textFaint} />
-      </IconButton>
-    </Row>
+        </View>
+
+        <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>
+          <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+        </IconButton>
+      </Row>
+    </Card>
   );
 }
