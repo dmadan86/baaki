@@ -157,38 +157,51 @@ export default function ActivityScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={describeActivity(entry, myProfileId)}
                       onPress={() => router.push(`/group/${entry.group_id}`)}
-                      style={({ pressed }) => ({
-                        opacity: pressed ? 0.6 : 1,
-                        marginBottom: isLast ? 0 : theme.spacing.lg,
-                      })}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                     >
-                      <Row style={{ alignItems: 'center' }}>
-                        {/* The same node the dashboard draws: a line glyph in a
-                        soft-brand circle, one accent. The vertical connector is
-                        gone — it read as a stray border running past the text and
-                        the finance feeds this follows (Cash App, Zopa) skip it,
-                        letting the circles and the day headings carry the rhythm. */}
-                        <View
-                          style={{
-                            width: 42,
-                            height: 42,
-                            borderRadius: 21,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: theme.color.brandSoft,
-                          }}
-                        >
-                          <Ionicons
-                            name={verbIcon(entry.verb)}
-                            size={iconSize.xl}
-                            color={theme.color.brand}
-                          />
+                      <Row style={{ alignItems: 'stretch' }}>
+                        {/* The rail: the node — the dashboard's line glyph in a
+                        soft-brand circle — and a thin connector running from it
+                        down to the next node, so the day reads as one continuous
+                        timeline (Oura, Airwallex) rather than loose rows. The
+                        connector is a hairline in brandSoft, centred on the
+                        circle, and it stops at the last node so it ends, not
+                        dangles. */}
+                        <View style={{ width: 42, alignItems: 'center' }}>
+                          <View
+                            style={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: 21,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: theme.color.brandSoft,
+                            }}
+                          >
+                            <Ionicons
+                              name={verbIcon(entry.verb)}
+                              size={iconSize.xl}
+                              color={theme.color.brand}
+                            />
+                          </View>
+                          {!isLast ? (
+                            <View
+                              style={{
+                                flex: 1,
+                                width: 2,
+                                marginTop: theme.spacing.xs,
+                                borderRadius: 1,
+                                backgroundColor: theme.color.brandSoft,
+                              }}
+                            />
+                          ) : null}
                         </View>
 
                         <View
                           style={{
                             flex: 1,
                             paddingStart: theme.spacing.md,
+                            paddingBottom: isLast ? 0 : theme.spacing.xl,
                           }}
                         >
                           <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
