@@ -66,7 +66,10 @@ export function initClarity(): void {
   if (!sdk) return;
 
   try {
-    sdk.initialize(PROJECT_ID);
+    // `LogLevel.None` keeps the SDK's own console output quiet in every build;
+    // raise it to `Verbose` locally only when debugging why capture will not
+    // initialise. Capture itself is still held by the `pause()` below.
+    sdk.initialize(PROJECT_ID, { logLevel: sdk.LogLevel.None });
     void sdk.pause();
     started = true;
   } catch {
