@@ -120,7 +120,10 @@ describe('interpretVoiceExpenses', () => {
       items: [{ amount: 100, currency: 'INR', note: 'lunch' }],
       group: { type: 'create', name: '  Weekend  ' },
     });
-    vi.stubGlobal('fetch', vi.fn(async () => openAiReply(content)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiReply(content)),
+    );
 
     const result = await interpretVoiceExpenses('make a group weekend, 100 lunch', ctx);
     expect(result?.group).toEqual({ kind: 'create', name: 'Weekend' });
@@ -136,7 +139,10 @@ describe('interpretVoiceExpenses', () => {
       ],
       group: null,
     });
-    vi.stubGlobal('fetch', vi.fn(async () => openAiReply(content)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiReply(content)),
+    );
 
     const result = await interpretVoiceExpenses('snack 12.5 dollars', ctx);
     expect(result?.items).toEqual([
@@ -146,8 +152,12 @@ describe('interpretVoiceExpenses', () => {
 
   it('strips a code fence around the JSON before parsing', async () => {
     getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
-    const fenced = '```json\n' + JSON.stringify({ items: [{ amount: 5, note: 'chai' }], group: null }) + '\n```';
-    vi.stubGlobal('fetch', vi.fn(async () => openAiReply(fenced)));
+    const fenced =
+      '```json\n' + JSON.stringify({ items: [{ amount: 5, note: 'chai' }], group: null }) + '\n```';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiReply(fenced)),
+    );
 
     const result = await interpretVoiceExpenses('chai 5', ctx);
     expect(result?.items).toEqual([
@@ -158,7 +168,10 @@ describe('interpretVoiceExpenses', () => {
   it('returns null when nothing usable comes back (no items, no group)', async () => {
     getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
     const content = JSON.stringify({ items: [], group: null });
-    vi.stubGlobal('fetch', vi.fn(async () => openAiReply(content)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiReply(content)),
+    );
 
     expect(await interpretVoiceExpenses('hello there', ctx)).toBeNull();
   });
@@ -167,7 +180,9 @@ describe('interpretVoiceExpenses', () => {
     getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response),
+      vi.fn(
+        async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response,
+      ),
     );
 
     expect(await interpretVoiceExpenses('add 500 for dinner', ctx)).toBeNull();
@@ -193,7 +208,12 @@ describe('interpretVoiceExpenses', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            content: [{ type: 'text', text: JSON.stringify({ items: [{ amount: 9, note: 'bus' }], group: null }) }],
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ items: [{ amount: 9, note: 'bus' }], group: null }),
+              },
+            ],
             usage: { input_tokens: 30, output_tokens: 12 },
           }),
         }) as unknown as Response,
@@ -207,9 +227,9 @@ describe('interpretVoiceExpenses', () => {
     // The Messages endpoint, with the browser-access header the RN runtime needs.
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://api.anthropic.com/v1/messages');
-    expect((init.headers as Record<string, string>)['anthropic-dangerous-direct-browser-access']).toBe(
-      'true',
-    );
+    expect(
+      (init.headers as Record<string, string>)['anthropic-dangerous-direct-browser-access'],
+    ).toBe('true');
     // input + output tokens summed for the usage counter.
     expect(addAiTokensUsedMock).toHaveBeenCalledWith(42);
   });

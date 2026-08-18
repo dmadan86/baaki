@@ -606,7 +606,7 @@ export interface UiStrings {
     newGroupNamed: string;
     thinking: string;
     /** '{n}' is how many expenses will be saved. */
-    save: { one: string; other: string };
+    save: PluralForms;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -3508,7 +3508,7 @@ const ta: UiStrings = {
     },
     couldNotRead: 'இந்த ரசீதைப் படிக்க முடியவில்லை — தொகையை நீங்களே உள்ளிடவும்.',
     savedOnDevice: 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது',
-    couldNotSave: "இதைச் சேமிக்க முடியவில்லை — சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.",
+    couldNotSave: 'இதைச் சேமிக்க முடியவில்லை — சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
     save: 'சேமி',
   },
   backup: {
@@ -4892,7 +4892,7 @@ const hi: UiStrings = {
     },
     couldNotRead: 'यह रसीद पढ़ी नहीं जा सकी — राशि स्वयं दर्ज करें।',
     savedOnDevice: 'इस डिवाइस पर सहेजा गया',
-    couldNotSave: "इसे सहेजा नहीं जा सका — कृपया थोड़ी देर में फिर से कोशिश करें।",
+    couldNotSave: 'इसे सहेजा नहीं जा सका — कृपया थोड़ी देर में फिर से कोशिश करें।',
     save: 'सहेजें',
   },
   backup: {
@@ -6043,7 +6043,7 @@ const ar: UiStrings = {
     saveTo: 'الحفظ في',
     newGroupNamed: 'مجموعة جديدة «{name}»',
     thinking: 'جارٍ الفهم…',
-    save: { one: 'حفظ مصروف {n}', other: 'حفظ {n} مصاريف' },
+    save: { one: 'حفظ مصروف', other: 'حفظ {n} مصاريف' },
   },
   notifications: {
     title: 'الإشعارات',
@@ -6284,7 +6284,7 @@ const ar: UiStrings = {
     },
     couldNotRead: 'تعذّر قراءة هذا الإيصال — أدخل المبلغ بنفسك.',
     savedOnDevice: 'محفوظ على هذا الجهاز',
-    couldNotSave: "تعذّر حفظ هذا — يُرجى المحاولة مرة أخرى بعد قليل.",
+    couldNotSave: 'تعذّر حفظ هذا — يُرجى المحاولة مرة أخرى بعد قليل.',
     save: 'حفظ',
   },
   backup: {

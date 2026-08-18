@@ -172,3 +172,19 @@ describe('normalizeDigits', () => {
     expect(result.items[0]?.amountMajor).toBe(500);
   });
 });
+
+describe('parseVoiceExpenses — split count and unnamed create-group', () => {
+  it('reads a split count without turning it into an extra expense', () => {
+    const result = parseVoiceExpenses('split 1000 among 4 people', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(1000);
+    expect(result.splitCount).toBe(4);
+  });
+
+  it('drops an unnamed create-group instruction but keeps the expense', () => {
+    const result = parseVoiceExpenses('create a group and add 500 for dinner', groups);
+    expect(result.group).toBeNull();
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(500);
+  });
+});

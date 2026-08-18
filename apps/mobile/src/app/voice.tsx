@@ -19,7 +19,7 @@
  * shows a message instead of crashing.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
@@ -38,18 +38,20 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { useCreateCapture, useCreateGroup, useGroup, useGroups, useWriteExpense } from '@/data/hooks';
+import {
+  useCreateCapture,
+  useCreateGroup,
+  useGroup,
+  useGroups,
+  useWriteExpense,
+} from '@/data/hooks';
 import { groupLabel, GroupType } from '@/data/types';
 import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
-import {
-  parseVoiceExpenses,
-  type VoiceGroupRef,
-  type VoiceParseResult,
-} from '@/lib/voiceExpense';
+import { parseVoiceExpenses, type VoiceGroupRef, type VoiceParseResult } from '@/lib/voiceExpense';
 import { interpretVoiceExpenses } from '@/lib/voiceLlm';
 
 /** One editable line on the review screen. */
@@ -101,6 +103,17 @@ export default function VoiceScreen() {
   const [saving, setSaving] = useState(false);
   // Remounts the mic to start a fresh utterance after a miss.
   const [attempt, setAttempt] = useState(0);
+  // The "make a new group" the sentence asked for, kept apart from the current
+  // destination so its row stays selectable after the reader picks the inbox or
+  // an existing group instead.
+  const [requested, setRequested] = useState<{
+    groupId: string;
+    memberId: string;
+    name: string;
+  } | null>(null);
+  // A new group is created once, not again on a save retry after a partial
+  // failure. Flipped true after the create lands; reset when a fresh parse comes.
+  const groupCreated = useRef(false);
 
   const groupRows = groups.data ?? [];
   const groupRefs: VoiceGroupRef[] = groupRows.map((group) => ({ id: group.id, name: group.name }));
@@ -127,13 +140,19 @@ export default function VoiceScreen() {
         currency: item.currency,
       })),
     );
+    // A fresh parse is a fresh group to create.
+    groupCreated.current = false;
     // Default the destination to what was heard: a new group to make, an
     // existing group named, else the capture inbox.
     if (result.group?.kind === 'create') {
-      setDest({ kind: 'create', groupId: randomUUID(), memberId: randomUUID(), name: result.group.name });
+      const created = { groupId: randomUUID(), memberId: randomUUID(), name: result.group.name };
+      setRequested(created);
+      setDest({ kind: 'create', ...created });
     } else if (result.group?.kind === 'existing') {
+      setRequested(null);
       setDest({ kind: 'existing', groupId: result.group.groupId });
     } else {
+      setRequested(null);
       setDest({ kind: 'unassigned' });
     }
     setNoAmount(false);
@@ -161,12 +180,16 @@ export default function VoiceScreen() {
   const retry = (): void => {
     setNoAmount(false);
     setError(null);
+    setRequested(null);
+    groupCreated.current = false;
     setPhase('listening');
     setAttempt((current) => current + 1);
   };
 
   const editDraft = (key: string, patch: Partial<Draft>): void => {
-    setDrafts((current) => current.map((draft) => (draft.key === key ? { ...draft, ...patch } : draft)));
+    setDrafts((current) =>
+      current.map((draft) => (draft.key === key ? { ...draft, ...patch } : draft)),
+    );
   };
   const removeDraft = (key: string): void => {
     setDrafts((current) => current.filter((draft) => draft.key !== key));
@@ -183,7 +206,10 @@ export default function VoiceScreen() {
         for (const draft of drafts) {
           const amount = toMinor(draft.amount);
           if (amount === null) continue;
+          // The draft's own id is the capture id, so a save retried after a
+          // partial failure re-uses it rather than minting a second capture.
           await createCapture.mutateAsync({
+            captureId: draft.key,
             description: draft.note.trim() || fallback,
             expenseDate: date,
             currency: draft.currency ?? deviceDefaultCurrency(),
@@ -196,8 +222,9 @@ export default function VoiceScreen() {
 
       // A group destination. Make the group first if it is a new one — its id
       // and the reader's member id were chosen up front, so an expense can name
-      // them in the same breath (the offline-first pattern used elsewhere).
-      if (dest.kind === 'create') {
+      // them in the same breath (the offline-first pattern used elsewhere). The
+      // ref guards a second create on a retry: the group exists after the first.
+      if (dest.kind === 'create' && !groupCreated.current) {
         await createGroup.mutateAsync({
           groupId: dest.groupId,
           creatorMemberId: dest.memberId,
@@ -205,6 +232,7 @@ export default function VoiceScreen() {
           type: GroupType.Other,
           currency: deviceDefaultCurrency(),
         });
+        groupCreated.current = true;
       }
 
       const groupCurrency =
@@ -229,7 +257,9 @@ export default function VoiceScreen() {
         // Every spoken expense is "I paid, split it equally" — the group's own
         // currency, everyone in, me as payer. The reader can refine any of it on
         // the expense afterwards; this is the sane default, not a guess to hide.
-        const expenseId = randomUUID();
+        // The draft's stable id is the expense id (and the split seed), so a
+        // retry appends no duplicate.
+        const expenseId = draft.key;
         const shares = computeShares({
           amount,
           currency: groupCurrency,
@@ -259,7 +289,11 @@ export default function VoiceScreen() {
     }
   };
 
-  const canSave = drafts.length > 0 && !saving;
+  // Every draft must carry a real amount — an empty or non-numeric field would
+  // otherwise be silently skipped, and a screenful of them would "save" nothing
+  // while still navigating away.
+  const canSave =
+    drafts.length > 0 && !saving && drafts.every((draft) => toMinor(draft.amount) !== null);
 
   return (
     <Screen>
@@ -282,7 +316,9 @@ export default function VoiceScreen() {
         {error ? <Callout tone="negative">{error}</Callout> : null}
 
         {phase === 'thinking' ? (
-          <View style={{ alignItems: 'center', gap: theme.spacing.lg, paddingTop: theme.spacing.xxl }}>
+          <View
+            style={{ alignItems: 'center', gap: theme.spacing.lg, paddingTop: theme.spacing.xxl }}
+          >
             <ActivityIndicator color={theme.color.brand} />
             <Text tone="muted">{t.voice.thinking}</Text>
           </View>
@@ -290,6 +326,7 @@ export default function VoiceScreen() {
           <View style={{ gap: theme.spacing.xl }}>
             <DestinationPicker
               dest={dest}
+              requested={requested}
               onChoose={setDest}
               groups={groupRows}
               t={t}
@@ -304,6 +341,8 @@ export default function VoiceScreen() {
                   onEdit={editDraft}
                   onRemove={removeDraft}
                   removeLabel={t.captures.delete}
+                  amountLabel={t.captures.amount}
+                  noteLabel={t.captures.description}
                   notePlaceholder={t.captures.descriptionPlaceholder}
                   theme={theme}
                 />
@@ -311,10 +350,7 @@ export default function VoiceScreen() {
             </View>
 
             <Button
-              label={plural(locale, drafts.length, t.voice.save).replace(
-                '{n}',
-                String(drafts.length),
-              )}
+              label={plural(locale, drafts.length, t.voice.save)}
               onPress={() => void save()}
               disabled={!canSave}
             />
@@ -346,18 +382,19 @@ export default function VoiceScreen() {
  */
 function DestinationPicker({
   dest,
+  requested,
   onChoose,
   groups,
   t,
   theme,
 }: {
   dest: Dest;
+  requested: { groupId: string; memberId: string; name: string } | null;
   onChoose: (dest: Dest) => void;
   groups: { id: string; name: string | null }[];
   t: ReturnType<typeof useStrings>['t'];
   theme: ReturnType<typeof useTheme>;
 }) {
-  const create = dest.kind === 'create' ? dest : null;
   const rows: { key: string; label: string; selected: boolean; onPress: () => void }[] = [
     {
       key: 'unassigned',
@@ -366,12 +403,14 @@ function DestinationPicker({
       onPress: () => onChoose({ kind: 'unassigned' }),
     },
   ];
-  if (create) {
+  // Driven by the persisted request, not the current destination, so the "new
+  // group" row stays offered after the reader switches to the inbox or a group.
+  if (requested) {
     rows.push({
       key: 'create',
-      label: t.voice.newGroupNamed.replace('{name}', create.name),
-      selected: true,
-      onPress: () => onChoose(create),
+      label: t.voice.newGroupNamed.replace('{name}', requested.name),
+      selected: dest.kind === 'create',
+      onPress: () => onChoose({ kind: 'create', ...requested }),
     });
   }
   for (const group of groups) {
@@ -422,6 +461,8 @@ function DraftRow({
   onEdit,
   onRemove,
   removeLabel,
+  amountLabel,
+  noteLabel,
   notePlaceholder,
   theme,
 }: {
@@ -429,6 +470,8 @@ function DraftRow({
   onEdit: (key: string, patch: Partial<Draft>) => void;
   onRemove: (key: string) => void;
   removeLabel: string;
+  amountLabel: string;
+  noteLabel: string;
   notePlaceholder: string;
   theme: ReturnType<typeof useTheme>;
 }) {
@@ -454,6 +497,7 @@ function DraftRow({
             value={draft.amount}
             onChangeText={(value) => onEdit(draft.key, { amount: value })}
             keyboardType="decimal-pad"
+            accessibilityLabel={amountLabel}
             style={{
               flex: 1,
               fontSize: 20,
@@ -469,6 +513,7 @@ function DraftRow({
         onChangeText={(value) => onEdit(draft.key, { note: value })}
         placeholder={notePlaceholder}
         placeholderTextColor={theme.color.textFaint}
+        accessibilityLabel={noteLabel}
         style={{ flex: 1, fontSize: 16, color: theme.color.text, paddingVertical: 0 }}
       />
       <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>

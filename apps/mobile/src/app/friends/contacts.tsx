@@ -75,7 +75,6 @@ export default function ContactsScreen(): React.JSX.Element {
       contacts: readonly PickedContact[];
     }) => {
       const failed: string[] = [];
-      let last = '';
       for (const contact of contacts) {
         try {
           await addGhostMember(groupId, contact.name, {
@@ -84,13 +83,13 @@ export default function ContactsScreen(): React.JSX.Element {
           });
         } catch (caught) {
           failed.push(contact.name);
-          last = caught instanceof Error ? caught.message : String(caught);
+          // Report each real failure for its side effect (the raw server message
+          // goes to Sentry); its return is discarded — the user is not shown a
+          // transport error, but whose names did not make it, below.
+          friendlyError(caught, t.misc.couldNotAddGeneric, 'contacts.add');
         }
       }
       if (failed.length > 0) {
-        // `last` holds the raw (unlocalised) server message — kept for logs, not
-        // shown; the user sees whose names did not make it, in their language.
-        void last;
         throw new Error(fill(t.misc.couldNotAdd, { names: failed.join(', ') }));
       }
       return contacts.length;
@@ -103,7 +102,11 @@ export default function ContactsScreen(): React.JSX.Element {
       await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
     },
     onError: (caught: unknown) => {
-      setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'contacts.add'));
+      // The thrown message is the localized "could not add {names}" summary the
+      // mutation built, not a raw error — show it as-is so the reader sees who
+      // failed; the individual transport errors were already reported above. A
+      // fallback covers any non-Error that reaches here.
+      setError(caught instanceof Error ? caught.message : t.misc.couldNotAddGeneric);
     },
   });
 

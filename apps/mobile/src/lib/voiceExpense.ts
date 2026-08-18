@@ -313,9 +313,7 @@ export interface VoiceExpenseItem {
  * inbox, unassigned).
  */
 export type VoiceGroupTarget =
-  | { kind: 'existing'; groupId: string }
-  | { kind: 'create'; name: string }
-  | null;
+  { kind: 'existing'; groupId: string } | { kind: 'create'; name: string } | null;
 
 /** The whole of what a spoken sentence asked for. */
 export interface VoiceParseResult {
@@ -363,11 +361,18 @@ export function detectCreateGroup(transcript: string): { name: string; rest: str
   const nameMatch = after.match(/^(.*?)(?:\s+(?:and|then|with|plus|also)\b|\s*[,;]|$)/i);
   const name = (nameMatch?.[1] ?? after).trim().replace(/[.\s]+$/, '');
   if (!name) return null;
+  // A name that opens with a joining word is not a name: "create a group and add
+  // 100" names nothing. Treat the clause as missing so the rest parses normally.
+  if (/^(?:and|then|with|plus|also)\b/i.test(name)) return null;
 
   // Consume the whole name match — name *and* the joining word that ended it
   // ("and", a comma) — so the joiner does not lead the leftover sentence.
   const consumed = head[0].length + (nameMatch?.[0]?.length ?? after.length);
-  const rest = (transcript.slice(0, head.index) + ' ' + transcript.slice(head.index + consumed)).trim();
+  const rest = (
+    transcript.slice(0, head.index) +
+    ' ' +
+    transcript.slice(head.index + consumed)
+  ).trim();
   return { name, rest };
 }
 
@@ -382,7 +387,11 @@ export function detectCreateGroup(transcript: string): { name: string; rest: str
  * the caller.
  */
 function segmentExpenses(text: string): string[] {
-  const bySeparator = text
+  // Take out "split among 4" / "4 people" first, so the count is never scanned
+  // as an amount and turned into a phantom expense. The caller keeps the count
+  // separately (extractSplitCount reads the untouched body), so nothing is lost.
+  const withoutCount = text.replace(new RegExp(SPLIT_COUNT.source, 'gi'), ' ');
+  const bySeparator = withoutCount
     .split(/\s*,\s*|\s+and\s+|\s*;\s*|\s+then\s+|\n+/i)
     .map((piece) => piece.trim())
     .filter(Boolean);

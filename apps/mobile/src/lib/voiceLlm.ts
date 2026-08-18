@@ -127,7 +127,10 @@ const CHAT_URLS: Record<AiProviderId, string> = {
  */
 async function resolveModel(id: AiProviderId): Promise<string> {
   const settings = await getAiSettings();
-  return settings.model ?? defaultAiModel(id);
+  // An empty stored override is no override — fall back to the provider default
+  // rather than sending "" as the model and forcing the request to fail.
+  const override = settings.model?.trim();
+  return override ? override : defaultAiModel(id);
 }
 
 /**
@@ -263,10 +266,11 @@ function mapItems(rawItems: unknown): VoiceExpenseItem[] {
   for (const entry of rawItems as RawLlmItem[]) {
     const amountMajor = Number(entry?.amount);
     if (!Number.isFinite(amountMajor) || amountMajor <= 0) continue;
-    const currency =
-      typeof entry?.currency === 'string' && entry.currency.trim().length > 0
-        ? entry.currency.trim().toUpperCase()
-        : null;
+    // Only a three-letter code is a currency: the model sometimes answers with a
+    // word ("rupees", "Rs"), which is not one — take it as "no currency named"
+    // and let the screen fill the default rather than store a bad code.
+    const rawCurrency = typeof entry?.currency === 'string' ? entry.currency.trim() : '';
+    const currency = /^[a-z]{3}$/i.test(rawCurrency) ? rawCurrency.toUpperCase() : null;
     items.push({
       amountMajor,
       amountMinor: BigInt(Math.round(amountMajor * 100)),
