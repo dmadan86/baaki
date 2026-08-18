@@ -304,7 +304,7 @@ export default function HomeScreen() {
             the category (Cleo, Monzo, Wise) all keep balances as slides of a
             single deck. While the balance loads a hero-shaped skeleton stands in
             rather than a card of confident zeros the query has not returned. */}
-        {summary.isLoading ? (
+        {summary.isLoading || summary.pendingFirstSync ? (
           <HeroSkeleton />
         ) : (
           <HeroDeck
