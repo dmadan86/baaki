@@ -283,7 +283,13 @@ export class SyncEngine {
     // happened to name one. The `!online` case already returned above, so the
     // one round trip this costs a brand-new guest is against their own empty
     // ledger, once, and tells them the truth either way.
-    this.set({ status: SyncStatus.Syncing });
+    //
+    // Only announce "syncing" when there is something the user actually queued
+    // to push. The 30s poll also runs this round trip to pull the mirror when
+    // nothing is queued, and flipping to Syncing for that made the header glyph
+    // blink and spin every interval for a routine background fetch nobody asked
+    // to watch. A silent pull leaves the status where it was (Idle).
+    if (batch.length > 0) this.set({ status: SyncStatus.Syncing });
 
     try {
       const { data, error } = await supabase.functions.invoke('sync', {

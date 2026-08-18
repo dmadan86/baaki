@@ -230,12 +230,18 @@ export default function CaptureScreen() {
 
   // "Straight to the camera": when opened from the dashboard scanner icon, fire
   // the capture once on mount rather than waiting for a tap on "Add receipt".
-  // The ref guards against the effect running twice (React 18 strict mode, or a
-  // re-render mid-scan).
+  //
+  // The ref guards a double-run within one mount (React 18 strict mode, or a
+  // re-render mid-scan). It does NOT survive a remount, and Android recreates
+  // the JS activity when it returns from the separate native camera activity —
+  // so after the user closes the camera the screen could remount, still see
+  // `scan=1`, and pop the camera open again, on a loop. Clearing the param the
+  // moment we fire means a remount sees no `scan` and leaves the form alone.
   const autoScanned = useRef(false);
   useEffect(() => {
     if (scan && !autoScanned.current) {
       autoScanned.current = true;
+      router.setParams({ scan: undefined });
       void addReceipt();
     }
     // addReceipt is stable enough for a one-shot; deps intentionally minimal.
