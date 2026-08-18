@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { directionalIcon, iconSize, isRtlLayout, Text, type TintName, useTheme } from '@baaki/ui';
+import { directionalIcon, iconSize, isRtlLayout, Text, type TintName, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { pageForSlide, pageOrder, slideForPage } from '@/lib/carousel';

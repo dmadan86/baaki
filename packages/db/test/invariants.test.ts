@@ -1,6 +1,6 @@
 /**
  * ADR-004 / ADR-014: the database's derived balances must equal the
- * ground-truth aggregate, must sum to zero, and must agree with @baaki/core.
+ * ground-truth aggregate, must sum to zero, and must agree with @waves/core.
  * If any of these fail, the product promise ("your baaki is always right")
  * is broken, so CI blocks the merge.
  */
@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { computeNetBalances, computePairwiseBalances } from '@baaki/core';
+import { computeNetBalances, computePairwiseBalances } from '@waves/core';
 
 import {
   addEqualSplitExpense,
@@ -62,7 +62,7 @@ describe('derived balances', () => {
     expect(total).toBe(0n);
   });
 
-  it('agree exactly with @baaki/core for the same ledger', async () => {
+  it('agree exactly with @waves/core for the same ledger', async () => {
     const { groupId, memberIds } = await seedGroup(client, { memberCount: 4 });
     const [a, b, c, d] = memberIds as [string, string, string, string];
 
@@ -109,7 +109,7 @@ describe('derived balances', () => {
     }
   });
 
-  it('produce the same pairwise edges as @baaki/core', async () => {
+  it('produce the same pairwise edges as @waves/core', async () => {
     const { groupId, memberIds } = await seedGroup(client, { memberCount: 3 });
     const [a, b, c] = memberIds as [string, string, string];
 

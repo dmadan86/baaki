@@ -20,7 +20,7 @@ import { AppState } from 'react-native';
 import * as Network from 'expo-network';
 import { randomUUID } from 'expo-crypto';
 
-import type { MutationEnvelope, MutationKind } from '@baaki/core';
+import type { MutationEnvelope, MutationKind } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
 import { reportHandled } from '@/lib/observability';

@@ -17,7 +17,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { submitFeedback } from '@/data/api';
 import { useStrings } from '@/i18n';

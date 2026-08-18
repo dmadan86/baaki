@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { resolveDraftCurrency, resolveDraftFx } from '@/lib/expenseDraft';
-import type { FxRecord } from '@baaki/core';
+import type { FxRecord } from '@waves/core';
 
 describe('resolveDraftCurrency', () => {
   it('falls back to the saved expense currency for a legacy draft (undefined)', () => {

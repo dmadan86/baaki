@@ -5,7 +5,7 @@ import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { currencyForCountry, guessGroupEmoji, MutationKind } from '@baaki/core';
+import { currencyForCountry, guessGroupEmoji, MutationKind } from '@waves/core';
 import {
   Button,
   Callout,
@@ -18,7 +18,7 @@ import {
   Text,
   Toggle,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';

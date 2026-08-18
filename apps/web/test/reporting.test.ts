@@ -1,7 +1,7 @@
 /**
  * That nothing private actually leaves.
  *
- * The scrubber itself is tested in @baaki/core, and passing those tests proves
+ * The scrubber itself is tested in @waves/core, and passing those tests proves
  * only that a pure function works. The question this file asks is the one that
  * matters in production: when the SDK is initialised the way the app
  * initialises it, and a real error is captured, what goes out on the wire?
@@ -17,7 +17,7 @@
 import * as Sentry from '@sentry/nextjs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { scrub } from '@baaki/core';
+import { scrub } from '@waves/core';
 
 import { DIAGNOSIS, SECRETS } from './fixtures';
 

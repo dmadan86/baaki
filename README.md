@@ -99,7 +99,7 @@ is what makes a retried run a no-op rather than a second buzz.
 | Function            | What it owns                                                                   |
 | ------------------- | ------------------------------------------------------------------------------ |
 | `sync`              | Batch mutation replay and the change feed (TDR §4)                             |
-| `expense-write`     | Recomputes every share with `@baaki/core` and writes the expense atomically    |
+| `expense-write`     | Recomputes every share with `@waves/core` and writes the expense atomically    |
 | `invite-mint`       | Signed, expiring, revocable invite links (only a hash is stored)               |
 | `invite-accept`     | Preview without an account, join, and asking to claim a ghost                  |
 | `receipt-parse`     | Vision-model itemization, metered against the monthly quota                    |
@@ -132,7 +132,7 @@ Postgres container above:
 ```bash
 pnpm supabase:start                  # Postgres + Auth + PostgREST + Realtime + Edge runtime
 pnpm db:migrate                      # point DIRECT_URL at the stack's db port first (54322)
-pnpm edge:build                      # bundles @baaki/core for the Deno runtime
+pnpm edge:build                      # bundles @waves/core for the Deno runtime
 pnpm edge:serve                      # serves supabase/functions locally
 
 # apps/mobile/.env — take the values printed by `supabase start`
@@ -174,7 +174,7 @@ of them break:
 | Replaying a mutation id never double-posts             | `packages/db/test/m1-rpcs.test.ts`             |
 | A crash report carries no ledger                       | `apps/web-lite/test/reporting.test.ts`         |
 
-The client also recomputes each group's balances with `@baaki/core` and compares
+The client also recomputes each group's balances with `@waves/core` and compares
 them against the server's `group_balances`. If they ever disagree, the group
 screen says so rather than showing a number that might be wrong.
 

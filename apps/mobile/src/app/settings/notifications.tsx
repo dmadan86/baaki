@@ -17,7 +17,7 @@ import {
   Toggle,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import {
   DEFAULT_NOTIFICATION_PREFS,

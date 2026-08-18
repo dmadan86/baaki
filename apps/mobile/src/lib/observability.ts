@@ -8,7 +8,7 @@
  * handed it as context. In an expense splitter that is a list of who ate with
  * whom, the number they were invited on, and the handle they pay from.
  *
- * So nothing leaves without going through `scrub` from @baaki/core — the same
+ * So nothing leaves without going through `scrub` from @waves/core — the same
  * policy the web view and the edge functions use, tested there rather than
  * here. This file is the wiring; `packages/core/src/observability/scrub.ts` is
  * the rule.
@@ -21,7 +21,7 @@
 
 import * as Sentry from '@sentry/react-native';
 
-import { scrub } from '@baaki/core';
+import { scrub } from '@waves/core';
 
 /**
  * A DSN is public by design — it only permits *writing* events, which is why it

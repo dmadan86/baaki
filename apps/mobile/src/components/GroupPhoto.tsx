@@ -16,7 +16,7 @@ import { Image } from 'expo-image';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { Text, useTheme } from '@baaki/ui';
+import { Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

@@ -16,7 +16,7 @@ import {
   Text,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { memberLookup, useGroup, useGroupLedger } from '@/data/hooks';
 import { displayName } from '@/data/types';

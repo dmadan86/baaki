@@ -1,7 +1,7 @@
 /**
  * The numbers somebody types into a shares or percent split.
  *
- * `@baaki/core` takes integers — whole weights, and basis points that sum to
+ * `@waves/core` takes integers — whole weights, and basis points that sum to
  * exactly 10000. A person types text, and text is where the gap is: "33.33" is
  * 3333 basis points, "" is a field they have not reached yet, and "1.5" is a
  * share count that does not exist. Keeping the parsing here means the screen

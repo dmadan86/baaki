@@ -12,7 +12,7 @@ import {
   type ItemizedParams,
   type MemberId,
   type ParsedReceipt,
-} from '@baaki/core';
+} from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -28,7 +28,7 @@ import {
   Text,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { captureReceipt } from '@/lib/image';
 import { publishReceiptItems, scanReceipt, scanReceiptText, setItemClaim } from '@/data/api';

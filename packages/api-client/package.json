@@ -1,5 +1,5 @@
 {
-  "name": "@baaki/api-client",
+  "name": "@waves/api-client",
   "version": "0.1.0",
   "private": true,
   "main": "./src/index.ts",
@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@baaki/core": "workspace:*"
+    "@waves/core": "workspace:*"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "*"

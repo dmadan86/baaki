@@ -6,7 +6,7 @@
  * Who paid and who owes what are read straight off the current version — the
  * server already computed and wrote them, so this screen never re-derives a
  * share (TDR §4). Delete, restore and every dispute action go through an RPC in
- * @baaki/api-client; the tables are read-only to clients (ADR-004). A dispute
+ * @waves/api-client; the tables are read-only to clients (ADR-004). A dispute
  * moves no number — it is a claim everyone sees until somebody edits.
  */
 
@@ -20,7 +20,7 @@ import {
   type Expense,
   type ExpenseVersionSummary,
   type Member,
-} from '@baaki/api-client';
+} from '@waves/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';

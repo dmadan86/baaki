@@ -146,7 +146,7 @@ const expected = computeShares({
 });
 const serverShares = Object.fromEntries(Object.entries(written?.shares ?? {}).map(([k, v]) => [k, BigInt(v)]));
 const sharesMatch = [...expected].every(([member, share]) => serverShares[member] === share);
-check('server shares match @baaki/core exactly', sharesMatch, JSON.stringify(written?.shares));
+check('server shares match @waves/core exactly', sharesMatch, JSON.stringify(written?.shares));
 
 // Realtime timing. The TDR criterion is about how fast the *other device*
 // learns of a committed expense, so measure from the write completing. The

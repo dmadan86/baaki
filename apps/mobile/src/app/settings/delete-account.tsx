@@ -16,7 +16,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { deleteMyAccount, erasurePreview } from '@/data/api';
 import { fill, plural, useStrings } from '@/i18n';

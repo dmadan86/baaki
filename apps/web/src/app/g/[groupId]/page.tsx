@@ -3,7 +3,7 @@
 /**
  * One group, in the full web client.
  *
- * The same balances the phone shows, computed by @baaki/core from the same
+ * The same balances the phone shows, computed by @waves/core from the same
  * rows (TDR §1): a guest's browser and the payer's phone cannot disagree about
  * who owes what. Reskinned into the dashboard frame — panels for where everyone
  * stands, who pays whom, and the recent expenses, with the group summary and
@@ -21,7 +21,7 @@ import {
   type Group,
   type Member,
   type Settlement,
-} from '@baaki/api-client';
+} from '@waves/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';

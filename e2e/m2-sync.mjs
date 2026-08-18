@@ -4,7 +4,7 @@
  *   "Airplane-mode: add 10 expenses on 2 devices, reconnect → identical
  *    balances, no dupes (idempotency), conflicting edit surfaces in feed."
  *
- * The same scenario is a property test in @baaki/core against a model server.
+ * The same scenario is a property test in @waves/core against a model server.
  * This one runs it against the deployed `/sync` function and real Postgres,
  * because the two bugs M1 shipped with were both things only a real Supabase
  * could show: an extension that rejects a bare DELETE, and PostgREST's

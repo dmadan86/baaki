@@ -1,5 +1,5 @@
 {
-  "name": "@baaki/admin",
+  "name": "@waves/admin",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@baaki/core": "workspace:*",
+    "@waves/core": "workspace:*",
     "@supabase/supabase-js": "^2.112.3",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",

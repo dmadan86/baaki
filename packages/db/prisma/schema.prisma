@@ -132,7 +132,7 @@ model Profile {
   /// `paymentRail` + `paymentHandle`, which say the same thing for a country
   /// that does not have UPI. Kept until the screens reading it move over.
   defaultVpa        String?  @map("default_vpa")
-  /// Which rail they are paid on — see `RailId` in `@baaki/core`. A handle
+  /// Which rail they are paid on — see `RailId` in `@waves/core`. A handle
   /// without it is unusable abroad: a phone number is an Aani number, a PayNow
   /// number or a Zelle number, and only the rail says which.
   paymentRail       String?  @map("payment_rail")
@@ -574,7 +574,7 @@ model Settlement {
   /// The coarse, historical shape. `rail` is the truth going forward — an enum
   /// is a poor place to add fifteen values, and every existing row has this.
   method           SettlementMethod
-  /// Which rail the money actually moved on — see `RailId` in `@baaki/core`.
+  /// Which rail the money actually moved on — see `RailId` in `@waves/core`.
   rail             String?
   status           SettlementStatus @default(initiated)
   note             String?
@@ -880,7 +880,7 @@ model AppRelease {
 ///
 /// Who sees which arm is not stored anywhere. It is hashed from the flag key
 /// and the profile id, identically in `baaki_variant` and in `bucketOf` from
-/// `@baaki/core`, so the answer needs no round trip and the analysis is a join
+/// `@waves/core`, so the answer needs no round trip and the analysis is a join
 /// rather than a pipeline of exposure events.
 model FeatureFlag {
   key            String   @id

@@ -19,7 +19,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal, Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
-import { Button, Text, useTheme } from '@baaki/ui';
+import { Button, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';

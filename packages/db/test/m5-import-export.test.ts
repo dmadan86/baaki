@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { parseBaakiExport } from '@baaki/core';
+import { parseBaakiExport } from '@waves/core';
 
 import { addEqualSplitExpense, big, connect, seedGroup } from './helpers.js';
 

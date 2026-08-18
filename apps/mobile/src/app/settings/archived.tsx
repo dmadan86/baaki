@@ -14,7 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { MutationKind, rowsFor, SyncTable } from '@baaki/core';
+import { MutationKind, rowsFor, SyncTable } from '@waves/core';
 import {
   Button,
   Card,
@@ -27,7 +27,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useArchivedGroups } from '@/data/hooks';
 import { GroupPhoto } from '@/components/GroupPhoto';

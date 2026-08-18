@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TextInput, View } from 'react-native';
 
-import { currencySymbol, minorUnitExponent, minorUnitScale, type CurrencyCode } from '@baaki/core';
+import { currencySymbol, minorUnitExponent, minorUnitScale, type CurrencyCode } from '@waves/core';
 
 import { useTheme } from '../theme';
 import { Text } from './Text';

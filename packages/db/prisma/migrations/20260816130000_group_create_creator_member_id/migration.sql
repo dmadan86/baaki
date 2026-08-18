@@ -70,7 +70,7 @@ BEGIN
   END IF;
 
   -- Guest ceilings (ADR-006 addendum). Mirrors GUEST_GROUP_LIMIT and
-  -- GUEST_TRIAL_DAYS in @baaki/core.
+  -- GUEST_TRIAL_DAYS in @waves/core.
   --
   -- Guarded on the real auth.users *with* its `is_anonymous` column: CI runs
   -- these migrations against a stub auth schema whose users table has no such

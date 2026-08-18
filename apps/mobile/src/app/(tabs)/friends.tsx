@@ -42,7 +42,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { nudgeToSettle, type PersonBalanceRow } from '@/data/api';
 import { useKnownPeopleCount, usePeopleBalances } from '@/data/hooks';

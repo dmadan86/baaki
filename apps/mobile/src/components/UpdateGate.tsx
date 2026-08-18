@@ -14,7 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Card, iconSize, Row, Text, useTheme } from '@baaki/ui';
+import { Button, Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

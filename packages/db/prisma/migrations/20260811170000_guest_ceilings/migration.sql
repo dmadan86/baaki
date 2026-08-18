@@ -6,7 +6,7 @@
 -- exactly one group, and may keep writing for ten days from when it was made,
 -- after which it is read-only until a real identity is attached.
 --
--- The app enforces both in the UI (guestGate() in @baaki/core), but the app is
+-- The app enforces both in the UI (guestGate() in @waves/core), but the app is
 -- not the only way in: a client that skips the guard and calls this function
 -- directly must still be refused. So group creation — the tap, and the offline
 -- `group.create` the sync function routes back through here — checks the same
@@ -73,7 +73,7 @@ BEGIN
   END IF;
 
   -- Guest ceilings (ADR-006 addendum). Mirrors GUEST_GROUP_LIMIT and
-  -- GUEST_TRIAL_DAYS in @baaki/core.
+  -- GUEST_TRIAL_DAYS in @waves/core.
   --
   -- Guarded on the real auth.users *with* its `is_anonymous` column: CI runs
   -- these migrations against a stub auth schema whose users table has no such

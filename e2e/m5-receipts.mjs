@@ -6,7 +6,7 @@
  *    losslessly."
  *
  * This file owns the parser and the arithmetic on top of it. The parts that can
- * be proved without a model are already property tests in @baaki/core. What
+ * be proved without a model are already property tests in @waves/core. What
  * only a real run can show is whether Claude actually reads a Tamil bill,
  * whether it returns paise rather than rupees, and — the one that matters most
  * — whether it leaves a receipt's own arithmetic alone instead of helpfully

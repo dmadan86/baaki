@@ -27,9 +27,9 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
-import { dialingCodeForCountry } from '@baaki/core';
+import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { confirmContact, startAddingContact, ContactChannel } from '@/data/api';

@@ -54,7 +54,7 @@ test.describe('sign-in (the unauthenticated front door)', () => {
   test('rejects a too-short password before any round trip', async ({ page }) => {
     await page.goto('/');
 
-    // Valid email, but the password fails @baaki/core's length rule, which
+    // Valid email, but the password fails @waves/core's length rule, which
     // throws before the client reaches Supabase — the guard is local.
     await page.getByPlaceholder('you@email.com').fill('you@email.com');
     await page.getByPlaceholder('Password').fill('short');

@@ -22,7 +22,7 @@ import {
   type MirrorExpense,
   type SettlementSnapshot,
   type Transfer,
-} from '@baaki/core';
+} from '@waves/core';
 
 import type { GroupRow, MemberRow, SettlementRow } from '@/data/types';
 
@@ -87,7 +87,7 @@ export interface OfflineLedger {
 
 /**
  * The same numbers `useGroupLedger` computes online, from local data instead.
- * Both call the identical @baaki/core functions, so going offline changes what
+ * Both call the identical @waves/core functions, so going offline changes what
  * the app knows — never what it calculates.
  */
 export function useOfflineLedger(groupId: string, myProfileId: string | null): OfflineLedger {

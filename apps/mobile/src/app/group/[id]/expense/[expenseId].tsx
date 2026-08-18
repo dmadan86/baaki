@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 
-import { categoryOf } from '@baaki/core';
+import { categoryOf } from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -21,7 +21,7 @@ import {
   TintCard,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
 import {

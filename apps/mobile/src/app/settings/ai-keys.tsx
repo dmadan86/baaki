@@ -32,7 +32,7 @@ import {
   Toggle,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useStrings, type UiStrings } from '@/i18n';
 import { useAiAccess, type AiAccess } from '@/lib/aiAccess';

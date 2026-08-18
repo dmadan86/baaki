@@ -14,7 +14,7 @@ import { useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, View } from 'react-native';
 
-import { iconSize, Row, Text, useTheme } from '@baaki/ui';
+import { iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

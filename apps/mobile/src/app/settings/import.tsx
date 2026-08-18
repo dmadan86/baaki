@@ -33,7 +33,7 @@ import {
   type BaakiImportGroup,
   type BaakiImportSettlement,
   type ImportProblem,
-} from '@baaki/core';
+} from '@waves/core';
 import {
   Badge,
   Button,
@@ -51,7 +51,7 @@ import {
   Text,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
 import { plural, useStrings, type UiStrings } from '@/i18n';

@@ -1,7 +1,7 @@
 /**
  * The broadcast half of A21, checked as SQL.
  *
- * The renderer is tested in `@baaki/core`; nothing here is about what a mail
+ * The renderer is tested in `@waves/core`; nothing here is about what a mail
  * says. What matters here is who a mail is claimed for, and the tests that carry
  * the weight are the refusals: a holdout is never claimed, an unconfirmed or
  * suppressed address is skipped, the same person is never claimed twice, and no

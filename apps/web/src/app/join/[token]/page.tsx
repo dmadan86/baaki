@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
-import type { InvitePreview } from '@baaki/api-client';
+import type { InvitePreview } from '@waves/api-client';
 
 import { baaki } from '@/lib/baaki';
 import { fill, plural } from '@/i18n';

@@ -31,8 +31,8 @@ import {
   rateToDecimal,
   toFxRecord,
   type FxRecord,
-} from '@baaki/core';
-import { Button, Callout, Card, ChipRow, Text, useTheme } from '@baaki/ui';
+} from '@waves/core';
+import { Button, Callout, Card, ChipRow, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

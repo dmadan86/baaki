@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-import type { ActivityGroup, ActivityRow } from '@baaki/api-client';
+import type { ActivityGroup, ActivityRow } from '@waves/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';

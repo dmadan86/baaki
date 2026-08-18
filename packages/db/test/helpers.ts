@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import 'dotenv/config';
 
-import { computeShares } from '@baaki/core';
+import { computeShares } from '@waves/core';
 
 /**
  * Deliberately NOT DATABASE_URL / DIRECT_URL: those point at whichever project
@@ -96,7 +96,7 @@ export interface AddExpenseOptions {
 
 /**
  * Writes an expense the way the server will: shares are computed by
- * @baaki/core, never taken from the caller.
+ * @waves/core, never taken from the caller.
  */
 export async function addEqualSplitExpense(
   client: Client,

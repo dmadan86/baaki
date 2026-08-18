@@ -23,7 +23,7 @@ import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
-import { appleFullName } from '@baaki/core';
+import { appleFullName } from '@waves/core';
 
 type AppleModule = typeof import('expo-apple-authentication');
 

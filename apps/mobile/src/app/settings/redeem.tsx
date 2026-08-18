@@ -29,7 +29,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { redeemPromoCode, type PromoOutcome } from '@/data/api';
 import { fill, useStrings, type UiStrings } from '@/i18n';

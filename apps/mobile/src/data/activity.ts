@@ -13,7 +13,7 @@
  * reader's point of view, so their own actions read as "You".
  */
 
-import { isCurrencyCode } from '@baaki/core';
+import { isCurrencyCode } from '@waves/core';
 
 import { actorName, type ActivityRow } from './types';
 

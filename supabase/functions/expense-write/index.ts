@@ -2,7 +2,7 @@
  * expense-write — the only way an expense enters the ledger (M1).
  *
  * TDR §4: **never trust client-computed shares.** The client sends the split
- * parameters; this function recomputes the shares with @baaki/core and writes
+ * parameters; this function recomputes the shares with @waves/core and writes
  * those. If the client disagreed, it is told so (`SHARE_MISMATCH`) and repairs
  * itself — the ledger is never the thing that bends.
  *
@@ -130,7 +130,7 @@ serveWithCors(async (request) => {
     }
 
     // One definition of "the client agrees with us", shared with /sync and
-    // property-tested in @baaki/core rather than written out twice here.
+    // property-tested in @waves/core rather than written out twice here.
     try {
       verifyClientShares(shares, body.expectedShares);
     } catch (mismatch) {

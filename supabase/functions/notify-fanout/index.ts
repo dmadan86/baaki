@@ -10,7 +10,7 @@
  *   * claiming and closing out: `baaki_claim_push_notifications`, which is an
  *     UPDATE rather than a SELECT so two overlapping runs cannot both send the
  *     same reminder;
- *   * building the messages and reading the tickets: `@baaki/core`, including
+ *   * building the messages and reading the tickets: `@waves/core`, including
  *     the mapping from a flat reply back to which device said what.
  *
  * Nobody signed in can call this. It reads other people's inboxes, which is the
@@ -229,7 +229,7 @@ async function dispatchEmail(service: SupabaseClient): Promise<EmailSummary> {
     for (const [index, row] of rows.entries()) {
       const built = await buildFor(row);
       if (!built) {
-        // A kind SQL claimed and `@baaki/core` will not mail. The two lists
+        // A kind SQL claimed and `@waves/core` will not mail. The two lists
         // disagreeing is a bug, but stranding the row is not the way to find
         // out about it.
         console.error(`no email template for kind ${row.kind}`);

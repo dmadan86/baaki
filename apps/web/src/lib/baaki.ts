@@ -2,7 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-import { createBaakiClient, type BaakiClient } from '@baaki/api-client';
+import { createBaakiClient, type BaakiClient } from '@waves/api-client';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

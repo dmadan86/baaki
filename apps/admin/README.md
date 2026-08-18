@@ -6,7 +6,7 @@ used, not what anybody spent money on.
 English only, and deliberately: the product ships in four languages because its
 users read four languages (TDR §11), and this has one reader. Numbers are
 grouped `en-IN` because that is the market the business is in. Amounts still go
-through `@baaki/core`'s formatter rather than a local one, so the console can
+through `@waves/core`'s formatter rather than a local one, so the console can
 never disagree with the ledger about what a number means.
 
 Minimum responsive. It is read at a desk; the phone case is checking a figure
@@ -59,7 +59,7 @@ because most of it is not obvious from the app's own config.
    dashboard, or a `PATCH` to `/v9/projects/:id`. It is a project setting and
    cannot be expressed in `vercel.json`. Deploying from inside `apps/admin`
    instead fails at install: only that folder is uploaded, so
-   `@baaki/core: workspace:*` has nothing to resolve against.
+   `@waves/core: workspace:*` has nothing to resolve against.
 2. **Link the CLI at the repository root**, not at `apps/admin`. The whole
    workspace has to be uploaded for pnpm to resolve it; Root Directory then
    tells Vercel which part of it to build. With the root linked but no Root

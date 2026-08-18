@@ -16,7 +16,7 @@
  * in by hand, which is worse than making them scan again.
  */
 
-import type { ParsedReceipt } from '@baaki/core';
+import type { ParsedReceipt } from '@waves/core';
 
 export interface ReceiptHandover {
   readonly parsed: ParsedReceipt;

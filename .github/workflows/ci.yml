@@ -36,7 +36,7 @@ jobs:
       # swept them in. Nothing type-checks a filename, so nothing complained.
       - name: No files from a mis-quoted shell command
         run: bash scripts/check-filenames.sh
-      # The edge functions import a bundled copy of @baaki/core; build it first
+      # The edge functions import a bundled copy of @waves/core; build it first
       # so a broken bundle fails here rather than at deploy time.
       - run: pnpm edge:build
       - run: pnpm typecheck
@@ -145,11 +145,11 @@ jobs:
       # The one browser these smoke tests drive. --with-deps pulls the system
       # libraries a headless Chromium needs on a bare runner.
       - name: Install Chromium
-        run: pnpm --filter @baaki/web exec playwright install --with-deps chromium
+        run: pnpm --filter @waves/web exec playwright install --with-deps chromium
       # The suite boots its own dev server (playwright.config.ts) with placeholder
       # Supabase env — the unauthenticated surface it drives makes no network call.
       - name: Playwright
-        run: pnpm --filter @baaki/web e2e
+        run: pnpm --filter @waves/web e2e
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:

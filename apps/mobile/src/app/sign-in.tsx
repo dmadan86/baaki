@@ -7,7 +7,7 @@
  * way. ADR-006 is that nobody is made to register before they can split a bill,
  * so the guest button is not tucked away at the bottom in small type.
  *
- * Which Supabase call each of these makes is decided in @baaki/core, not here.
+ * Which Supabase call each of these makes is decided in @waves/core, not here.
  * A guest who taps "Google" must have Google *added* to the account they
  * already have — signing them in would create a different account and leave a
  * week of expenses on one they can no longer reach. That is easy to get wrong
@@ -48,9 +48,9 @@ import {
   SegmentedTabs,
   Text,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
-import { dialingCodeForCountry } from '@baaki/core';
+import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { LanguagePicker } from '@/components/LanguagePicker';

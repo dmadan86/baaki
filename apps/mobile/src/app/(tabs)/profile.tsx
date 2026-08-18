@@ -17,7 +17,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { SkeletonList } from '@/components/Skeletons';

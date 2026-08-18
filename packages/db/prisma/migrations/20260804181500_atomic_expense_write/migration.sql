@@ -7,7 +7,7 @@
 -- crash between calls would have left a version with no shares in the ledger.
 --
 -- `baaki_apply_expense` does the whole write in one transaction. The edge
--- function still owns share computation (@baaki/core) and authorization; this
+-- function still owns share computation (@waves/core) and authorization; this
 -- function owns atomicity and structural validation.
 
 CREATE OR REPLACE FUNCTION public.baaki_apply_expense(

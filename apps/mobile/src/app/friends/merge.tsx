@@ -41,7 +41,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { fetchPeopleBalances, mergeGhosts, type PersonBalanceRow } from '@/data/api';
 import {

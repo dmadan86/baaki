@@ -57,7 +57,7 @@ serveWithCors(async (request) => {
     // The raw text, not a reparse. Signing covers the exact bytes, and
     // `JSON.stringify(JSON.parse(body))` is not the same string.
     //
-    // The check itself is in `@baaki/core`, where CI runs it against Svix's
+    // The check itself is in `@waves/core`, where CI runs it against Svix's
     // published test vector. It also enforces the timestamp tolerance, so a
     // body captured once cannot be posted back tomorrow.
     const body = await request.text();

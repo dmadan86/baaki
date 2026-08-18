@@ -15,7 +15,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 
-import { Button, Card, Row, Screen, Text, useTheme } from '@baaki/ui';
+import { Button, Card, Row, Screen, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 

@@ -8,7 +8,7 @@ import {
   moneyAccessibilityLabel,
   type CurrencyCode,
   type Money,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { useTheme } from '../theme';
 import { Text, toneColor, type TextProps, type TextTone, type TextVariant } from './Text';

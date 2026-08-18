@@ -11,7 +11,7 @@
 
 import * as SQLite from 'expo-sqlite';
 
-import type { MirrorRow, QueuedMutation, SyncTable } from '@baaki/core';
+import type { MirrorRow, QueuedMutation, SyncTable } from '@waves/core';
 
 import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';

@@ -7,7 +7,7 @@
  * ships a full dark palette (tokens.ts) precisely so following that setting
  * costs nothing.
  *
- * The chosen scheme is fed to `@baaki/ui`'s `ThemeProvider` as `forceScheme`;
+ * The chosen scheme is fed to `@waves/ui`'s `ThemeProvider` as `forceScheme`;
  * a null preference leaves `forceScheme` undefined, so the design system falls
  * back to the OS scheme on its own.
  */

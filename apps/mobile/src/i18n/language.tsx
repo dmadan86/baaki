@@ -53,7 +53,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, I18nManager, Platform } from 'react-native';
 
-import { setLayoutDirection } from '@baaki/ui';
+import { setLayoutDirection } from '@waves/ui';
 
 import { canRestart, restartApp } from '@/lib/restart';
 

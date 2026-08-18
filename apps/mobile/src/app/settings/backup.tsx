@@ -35,7 +35,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
 import { useBackup } from '@/lib/cloud/BackupProvider';

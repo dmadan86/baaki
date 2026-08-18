@@ -31,12 +31,12 @@ IMMUTABLE
 STRICT
 AS $$
   -- Padded to four segments so `1.2` and `1.2.0.0` compare equal, matching
-  -- `compareVersions` in @baaki/core. Postgres compares int[] element-wise.
+  -- `compareVersions` in @waves/core. Postgres compares int[] element-wise.
   SELECT (string_to_array(p_version, '.') || ARRAY['0', '0', '0', '0'])[1:4]::int[]
 $$;
 
 COMMENT ON FUNCTION public.baaki_version_key(text) IS
-  'Dotted version as a comparable int[]. Mirrors compareVersions in @baaki/core.';
+  'Dotted version as a comparable int[]. Mirrors compareVersions in @waves/core.';
 
 CREATE TABLE public.app_releases (
   platform         text        PRIMARY KEY CHECK (platform IN ('ios', 'android')),

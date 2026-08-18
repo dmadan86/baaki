@@ -4,7 +4,7 @@
  * The one thing worth proving in the database rather than the app: a private
  * personal budget is never returned to anybody but its owner, and the overall
  * budget only an admin can move. Everything else about budgets is arithmetic,
- * and lives in @baaki/core's unit tests.
+ * and lives in @waves/core's unit tests.
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';

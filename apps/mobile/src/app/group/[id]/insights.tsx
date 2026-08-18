@@ -23,7 +23,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { categoryOf, format, type CategoryId } from '@baaki/core';
+import { categoryOf, format, type CategoryId } from '@waves/core';
 import {
   BarList,
   Card,
@@ -42,7 +42,7 @@ import {
   type ColumnDatum,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
 import { InsightsSkeleton } from '@/components/Skeletons';

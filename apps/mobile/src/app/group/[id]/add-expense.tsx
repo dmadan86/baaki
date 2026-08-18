@@ -12,7 +12,7 @@ import {
   type FxRecord,
   type MemberId,
   type SplitParams,
-} from '@baaki/core';
+} from '@waves/core';
 import {
   AmountField,
   Avatar,
@@ -28,7 +28,7 @@ import {
   Screen,
   Text,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
 import { CurrencyRate } from '@/components/CurrencyRate';

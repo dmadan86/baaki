@@ -38,7 +38,7 @@ COMMENT ON COLUMN public.notifications.dedupe_key IS
 -- ────────────────────────────────────────────────── 2. writing to the inbox ──
 -- `title` and `body` are stored in English and are a fallback, not the product.
 -- The client renders the real thing from `kind` + `payload` through the copy
--- table in @baaki/core, which is the only place that knows the reader's
+-- table in @waves/core, which is the only place that knows the reader's
 -- language (TDR §11: en + ta + hi from day one). Postgres has no business
 -- holding three translations of every sentence.
 

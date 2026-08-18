@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
-import type { PersonBalanceRow } from '@baaki/api-client';
+import type { PersonBalanceRow } from '@waves/api-client';
 
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';

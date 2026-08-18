@@ -65,7 +65,7 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.activity_log FROM anon, authen
 -- version rows are append-only, so the attribution is permanent.
 --
 -- Every expense write in this app goes through `baaki_apply_expense`, which
--- recomputes the shares with @baaki/core and stamps the author itself. Nothing
+-- recomputes the shares with @waves/core and stamps the author itself. Nothing
 -- in `apps/` writes these four tables.
 
 DROP POLICY IF EXISTS expenses_insert ON public.expenses;

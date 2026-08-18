@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeShares } from '@baaki/core';
+import { computeShares } from '@waves/core';
 
 import {
   entryValues,

@@ -30,7 +30,7 @@ import {
   Text,
   useScreenClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useGroups } from '@/data/hooks';
 import { groupLabel } from '@/data/types';

@@ -23,7 +23,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { SchemePreference, useThemePreference } from '@/lib/theme';

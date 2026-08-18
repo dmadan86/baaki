@@ -19,7 +19,7 @@ import {
   Text,
   useTheme,
   useScreenClearance,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import {

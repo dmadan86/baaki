@@ -19,7 +19,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { exportData } from '@/data/api';
 import { useGroups } from '@/data/hooks';

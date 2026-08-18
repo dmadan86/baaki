@@ -1,4 +1,4 @@
-import { format, money, type CurrencyCode } from '@baaki/core';
+import { format, money, type CurrencyCode } from '@waves/core';
 import type { ReactNode } from 'react';
 
 import { Bars } from '@/components/Bars';

@@ -139,7 +139,7 @@ export enum SettlementStatus {
  * `RailId` the group actually settled on. A rail the enum has never heard of —
  * Pix, PayNow, Wise — records as `other` while the exact rail rides alongside
  * in its own column, so a new country is data, not a new enum value (see
- * `@baaki/core`'s rails). Kept pure and exported so the mapping is tested once
+ * `@waves/core`'s rails). Kept pure and exported so the mapping is tested once
  * and cannot drift between the phone and the browser.
  */
 export function coarseMethod(rail: string): SettlementMethod {

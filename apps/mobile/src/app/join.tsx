@@ -16,7 +16,7 @@ import {
   Screen,
   Text,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { fill, plural, useStrings } from '@/i18n';
 

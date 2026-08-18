@@ -22,7 +22,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';

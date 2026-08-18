@@ -12,7 +12,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 
-import type { CurrencyCode } from '@baaki/core';
+import type { CurrencyCode } from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -23,7 +23,7 @@ import {
   Text,
   tintForKey,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { PressableScale } from '@/lib/anim';
 

@@ -1,7 +1,7 @@
 /**
  * Handing a built email to Resend (TDR §7.3).
  *
- * Everything worth testing is in `@baaki/core` — what may be mailed, what it
+ * Everything worth testing is in `@waves/core` — what may be mailed, what it
  * says, what the unsubscribe link is. This file is the part that cannot be
  * tested without a network: an API key, a `From`, and the handful of decisions
  * that only matter when the send goes wrong.

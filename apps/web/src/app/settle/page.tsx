@@ -3,14 +3,14 @@
 /**
  * Settling up, in the browser (ADR-007).
  *
- * The debts shown are @baaki/core's, simplified to the fewest payments that
+ * The debts shown are @waves/core's, simplified to the fewest payments that
  * square everybody (the same `who pays whom` the group page draws). Recording a
  * payment is not performing it: the ledger tracks what people say they paid,
  * made real only when whoever was paid confirms. Every write is a SECURITY
  * DEFINER RPC — nothing here writes a balance, and the server recomputes what it
  * is handed rather than trusting it (TDR §4).
  *
- * The pay link, when a rail publishes one, is built by @baaki/core so the phone
+ * The pay link, when a rail publishes one, is built by @waves/core so the phone
  * and the browser hand off to UPI the same way. A rail with no published link is
  * the ordinary case, not a failure — you record that you paid in cash instead.
  */
@@ -25,7 +25,7 @@ import {
   type GroupRow,
   type MemberRow,
   type Settlement,
-} from '@baaki/api-client';
+} from '@waves/api-client';
 import {
   buildPaymentUri,
   defaultRailFor,
@@ -33,7 +33,7 @@ import {
   railsFor,
   toMajorString,
   type CurrencyCode,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';

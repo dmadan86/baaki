@@ -21,7 +21,7 @@ import {
   type ParsedReceipt,
   type ReceiptCheck,
   type SplitParams,
-} from '@baaki/core';
+} from '@waves/core';
 
 import { activeStrings } from '@/i18n';
 import type { DeviceIdentity } from '@/lib/device';
@@ -161,7 +161,7 @@ export async function fetchRecentActivity(
 
 /**
  * The server's own balances. The client recomputes the same numbers from the
- * expense rows with @baaki/core and compares — a mismatch means something is
+ * expense rows with @waves/core and compares — a mismatch means something is
  * wrong and the user is told, rather than shown a plausible wrong number.
  */
 export async function fetchBalances(groupId: string): Promise<BalanceRow[]> {
@@ -643,7 +643,7 @@ export async function recordSettlement(input: {
   toMemberId: string;
   amount: bigint;
   /**
-   * Which rail the money moved on — a `RailId` from `@baaki/core`. The coarse
+   * Which rail the money moved on — a `RailId` from `@waves/core`. The coarse
    * `method` enum is derived from it server-side, so a rail the enum has never
    * heard of (Pix, Aani) still records rather than being rejected.
    */

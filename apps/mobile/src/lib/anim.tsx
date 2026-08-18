@@ -23,7 +23,7 @@ import Animated, {
   type EntryExitAnimationFunction,
 } from 'react-native-reanimated';
 
-import { MoneyText, type MoneyTextProps } from '@baaki/ui';
+import { MoneyText, type MoneyTextProps } from '@waves/ui';
 
 import { useMotion } from './motion';
 import { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';

@@ -27,7 +27,7 @@ import {
   type BudgetProgress,
   type PlanItem,
   type TimelineExpense,
-} from '@baaki/core';
+} from '@waves/core';
 import {
   AmountField,
   Button,
@@ -44,7 +44,7 @@ import {
   type Theme,
   useScreenClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import {
   useAddPlanItem,

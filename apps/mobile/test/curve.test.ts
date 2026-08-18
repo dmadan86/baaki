@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { curveGeometry } from '@baaki/ui/curve';
+import { curveGeometry } from '@waves/ui/curve';
 
 // A narrow phone, a normal one, and a tablet-ish width.
 const WIDTHS = [320, 390, 768];

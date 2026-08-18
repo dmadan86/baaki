@@ -15,7 +15,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { type DeviceSession } from '@baaki/core';
+import { type DeviceSession } from '@waves/core';
 import {
   Badge,
   Button,
@@ -28,7 +28,7 @@ import {
   Text,
   useTabBarClearance,
   useTheme,
-} from '@baaki/ui';
+} from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
 import { fetchDevices } from '@/data/api';
