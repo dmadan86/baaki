@@ -51,7 +51,7 @@ export interface CampaignEmailOptions {
   /**
    * Where the button lands. Web-lite has no redeem page, so with a web URL the
    * button opens web-lite and the code is typed in the app; with none it falls
-   * back to a `baaki://redeem` deep link, which works on the phone and does
+   * back to a `waves://redeem` deep link, which works on the phone and does
    * nothing in desktop webmail — where the visible code chip is the way in.
    */
   readonly webUrl?: string | null;
@@ -75,7 +75,7 @@ const RIGHT_TO_LEFT = new Set(['ar', 'he', 'fa', 'ur']);
 /**
  * The button's target.
  *
- * A configured web URL wins. Failing that, a promo code becomes a `baaki://`
+ * A configured web URL wins. Failing that, a promo code becomes a `waves://`
  * deep link so a phone can open straight into redeeming it. With neither there
  * is nothing to link to, and the mail is still worth sending for what it says.
  */
@@ -84,7 +84,7 @@ export function campaignCtaUrl(
   webUrl?: string | null,
 ): string | null {
   if (webUrl && /^https?:\/\//i.test(webUrl.trim())) return webUrl.trim().replace(/\/+$/, '');
-  if (promoCode) return `baaki://redeem?code=${encodeURIComponent(promoCode)}`;
+  if (promoCode) return `waves://redeem?code=${encodeURIComponent(promoCode)}`;
   return null;
 }
 

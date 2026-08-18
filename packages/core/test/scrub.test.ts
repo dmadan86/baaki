@@ -95,7 +95,7 @@ describe('things that are the whole reason to send a report', () => {
               frames: [
                 {
                   filename: 'app:///index.android.bundle',
-                  abs_path: '/data/user/0/app.baaki.mobile/files/8f3aa91c4d5e6b7a8c9d0e1f2a3b4c5d',
+                  abs_path: '/data/user/0/app.waves.mobile/files/8f3aa91c4d5e6b7a8c9d0e1f2a3b4c5d',
                   function: 'computeShares',
                 },
               ],

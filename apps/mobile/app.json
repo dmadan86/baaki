@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Waves",
-    "slug": "baaki",
+    "slug": "waves",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "baaki",
+    "scheme": ["waves", "baaki"],
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F3F1FB",
     "runtimeVersion": {
@@ -17,11 +17,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.baaki.mobile",
+      "bundleIdentifier": "app.waves.mobile",
       "usesAppleSignIn": true
     },
     "android": {
-      "package": "app.baaki.mobile",
+      "package": "app.waves.mobile",
       "permissions": ["android.permission.READ_SMS"],
       "adaptiveIcon": {
         "backgroundColor": "#7A5AF8",

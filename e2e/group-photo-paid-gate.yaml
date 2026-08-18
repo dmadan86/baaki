@@ -6,7 +6,7 @@
 # passes if the paid-gate RPC answers differently under a seed with a paying
 # member (in which case the picker is allowed and there is no hint). Seed a free
 # account to exercise the locked path fully.
-appId: app.baaki.mobile
+appId: app.waves.mobile
 ---
 - launchApp:
     clearState: true

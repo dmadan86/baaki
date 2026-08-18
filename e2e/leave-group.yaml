@@ -10,7 +10,7 @@
 # Precondition: the seeded "Goa trip" is settled for the acting member (leaving
 # is refused while a balance is open — that guard has its own copy). If the seed
 # carries an open balance, settle it first with the settle flow.
-appId: app.baaki.mobile
+appId: app.waves.mobile
 ---
 - launchApp:
     clearState: true
