@@ -155,11 +155,14 @@ export default function ContactsScreen(): React.JSX.Element {
           <>
             {added !== null ? (
               <Card style={{ backgroundColor: theme.color.brandSoft }}>
-                <Text variant="caption" tone="brand">
-                  {fill(t.misc.contactsAdded, {
-                    count: plural(locale, added, t.misc.peopleCount),
-                  })}
-                </Text>
+                <Row style={{ gap: theme.spacing.sm }}>
+                  <Ionicons name="checkmark-circle" size={iconSize.lg} color={theme.color.brand} />
+                  <Text variant="caption" tone="brand" style={{ flex: 1 }}>
+                    {fill(t.misc.contactsAdded, {
+                      count: plural(locale, added, t.misc.peopleCount),
+                    })}
+                  </Text>
+                </Row>
               </Card>
             ) : null}
             <ContactPicker onConfirm={setPicked} confirmVerb={t.misc.continueWith} />

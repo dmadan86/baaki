@@ -1300,8 +1300,10 @@ export interface UiStrings {
   };
   /** Picking people, a country, and the dates a trip runs between. */
   pickers: {
+    contactsDeniedTitle: string;
     contactsDenied: string;
     openSettings: string;
+    contactsUnavailableTitle: string;
     contactsUnavailable: string;
     tryAgain: string;
     searchContacts: string;
@@ -2637,9 +2639,11 @@ const en: UiStrings = {
     couldNotFindYou: 'Could not find you in that group. Open it and try again.',
   },
   pickers: {
+    contactsDeniedTitle: 'Contacts are switched off',
     contactsDenied:
       'Waves cannot see your contacts. You can still add people by typing a name, an email or a number — nothing about a group needs your address book.',
     openSettings: 'Open settings',
+    contactsUnavailableTitle: 'Couldn’t open your contacts',
     contactsUnavailable:
       'Waves could not read the address book on this phone. Nothing is wrong with your permissions — add people by typing a name, an email or a number instead.',
     tryAgain: 'Try again',
@@ -4043,9 +4047,11 @@ const ta: UiStrings = {
       'அந்தக் குழுவில் உங்களைக் கண்டறிய முடியவில்லை. அதைத் திறந்து மீண்டும் முயற்சிக்கவும்.',
   },
   pickers: {
+    contactsDeniedTitle: 'தொடர்புகள் அணைக்கப்பட்டுள்ளன',
     contactsDenied:
       'பாக்கியால் உங்கள் தொடர்புகளைப் பார்க்க முடியாது. பெயர், மின்னஞ்சல் அல்லது எண்ணைத் தட்டச்சு செய்து இன்னும் நபர்களைச் சேர்க்கலாம் — ஒரு குழுவுக்கு உங்கள் முகவரிப் புத்தகம் தேவையில்லை.',
     openSettings: 'அமைப்புகளைத் திற',
+    contactsUnavailableTitle: 'தொடர்புகளைத் திறக்க முடியவில்லை',
     contactsUnavailable:
       'இந்த ஃபோனில் உள்ள முகவரிப் புத்தகத்தைப் பாக்கியால் படிக்க முடியவில்லை. உங்கள் அனுமதிகளில் எந்தத் தவறும் இல்லை — பெயர், மின்னஞ்சல் அல்லது எண்ணைத் தட்டச்சு செய்து நபர்களைச் சேருங்கள்.',
     tryAgain: 'மீண்டும் முயற்சி',
@@ -5402,9 +5408,11 @@ const hi: UiStrings = {
     couldNotFindYou: 'उस समूह में आप नहीं मिले। उसे खोलकर फिर कोशिश करें।',
   },
   pickers: {
+    contactsDeniedTitle: 'संपर्क बंद हैं',
     contactsDenied:
       'बाकी आपके संपर्क नहीं देख सकता। आप फिर भी नाम, ईमेल या नंबर टाइप करके लोग जोड़ सकते हैं — समूह के लिए आपकी संपर्क सूची ज़रूरी नहीं।',
     openSettings: 'सेटिंग्स खोलें',
+    contactsUnavailableTitle: 'आपके संपर्क नहीं खुल सके',
     contactsUnavailable:
       'बाकी इस फ़ोन की संपर्क सूची नहीं पढ़ सका। आपकी अनुमतियों में कोई गड़बड़ नहीं है — इसके बजाय नाम, ईमेल या नंबर टाइप करके लोग जोड़ें।',
     tryAgain: 'फिर कोशिश करें',
@@ -6926,9 +6934,11 @@ const ar: UiStrings = {
     couldNotFindYou: 'تعذّر العثور عليك في تلك المجموعة. افتحها وحاول مرة أخرى.',
   },
   pickers: {
+    contactsDeniedTitle: 'جهات الاتصال مُوقَفة',
     contactsDenied:
       'لا يستطيع باقي رؤية جهات اتصالك. ما زال بإمكانك إضافة أشخاص بكتابة اسم أو بريد أو رقم — لا شيء في المجموعة يحتاج دفتر عناوينك.',
     openSettings: 'افتح الإعدادات',
+    contactsUnavailableTitle: 'تعذّر فتح جهات اتصالك',
     contactsUnavailable:
       'تعذّر على باقي قراءة دفتر العناوين على هذا الهاتف. لا خلل في أذوناتك — أضف الأشخاص بكتابة اسم أو بريد أو رقم بدلًا من ذلك.',
     tryAgain: 'حاول مرة أخرى',

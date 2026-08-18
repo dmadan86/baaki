@@ -36,7 +36,6 @@ import {
 import {
   Avatar,
   Button,
-  Card,
   directionalIcon,
   EmptyState,
   iconSize,
@@ -270,31 +269,41 @@ export function ContactPicker({
   }
 
   if (access === Access.Denied) {
+    // A refusal is a state, not a dead end: a friendly medallion, what it means,
+    // and the one button that fixes it. `Linking.openSettings` opens the app's
+    // own settings page where the contacts switch lives — a prominent primary
+    // action, not a buried ghost link — and the AppState listener reloads on the
+    // way back. (`Contacts.presentFormAsync` used to sit here, which opens a
+    // *new-contact* form, not the permission screen the label promises.)
     return (
-      <Card style={{ gap: theme.spacing.sm }}>
-        <Text variant="caption" tone="muted">
-          {t.pickers.contactsDenied}
-        </Text>
-        {/* `Contacts.presentFormAsync` used to be here, which opens a form for
-            creating a *new* contact — not the permission screen the label
-            promises. This is the one that goes where it says. */}
-        <Button
-          label={t.pickers.openSettings}
-          variant="ghost"
-          onPress={() => void Linking.openSettings().catch(() => undefined)}
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <EmptyState
+          icon={<Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.brand} />}
+          title={t.pickers.contactsDeniedTitle}
+          body={t.pickers.contactsDenied}
+          action={
+            <Button
+              label={t.pickers.openSettings}
+              onPress={() => void Linking.openSettings().catch(() => undefined)}
+            />
+          }
         />
-      </Card>
+      </View>
     );
   }
 
-  if (access === 'unavailable') {
+  if (access === Access.Unavailable) {
     return (
-      <Card style={{ gap: theme.spacing.sm }}>
-        <Text variant="caption" tone="muted">
-          {t.pickers.contactsUnavailable}
-        </Text>
-        <Button label={t.pickers.tryAgain} variant="ghost" onPress={() => void load()} />
-      </Card>
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <EmptyState
+          icon={<Ionicons name="book-outline" size={iconSize.xxl} color={theme.color.brand} />}
+          title={t.pickers.contactsUnavailableTitle}
+          body={t.pickers.contactsUnavailable}
+          action={
+            <Button label={t.pickers.tryAgain} variant="secondary" onPress={() => void load()} />
+          }
+        />
+      </View>
     );
   }
 
@@ -342,6 +351,13 @@ export function ContactPicker({
 
       {matches.length === 0 ? (
         <EmptyState
+          icon={
+            <Ionicons
+              name={query ? 'search-outline' : 'people-outline'}
+              size={iconSize.xxl}
+              color={theme.color.brand}
+            />
+          }
           title={t.pickers.nobodyHere}
           body={query ? t.pickers.noContactMatches : t.pickers.noneHasEmailOrNumber}
         />
