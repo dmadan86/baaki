@@ -268,38 +268,144 @@ export default function FriendsScreen() {
  * are empty. So the first state names that and the second keeps the
  * congratulation for the people who earned it.
  *
- * The "no friends" state carries a primary "Add a person" button — the one way
- * forward, in the middle of the empty page where a first-time person is looking,
- * matching the Activity screen's empty (and the finance apps in the category,
- * which all put a call to action in the empty state). The header icons stay for
- * the return visitor; the button is for the person who has never added anyone.
- * The "all square" state keeps no button — it is a small congratulation, not a
- * dead end to escape.
+ * The two states are drawn differently on purpose. "All square" stays a small
+ * congratulation — the shared `EmptyState` glyph, no button, nothing to escape.
+ * "No friends" is a first run, the emptiest the app ever looks, and the finance
+ * apps in the category (Splitwise, Venmo, Wise) all meet that moment with a
+ * warm hero and a way in rather than a lone stroke icon — so it gets its own
+ * `NoFriendsHero`: two faces to say "people", and both ways to add one (type a
+ * name, or pull from contacts) where a first-timer is actually looking, since
+ * the header icons are easy to miss on an otherwise blank page.
  */
 function EmptyFriends({ hasPeople, t }: { hasPeople: boolean; t: UiStrings }): React.JSX.Element {
   const theme = useTheme();
 
+  if (!hasPeople) return <NoFriendsHero t={t} />;
+
   return (
     <View style={{ flex: 1, justifyContent: 'center' }}>
       <EmptyState
-        title={hasPeople ? t.tabs.allSquare : t.tabs.noFriends}
-        body={hasPeople ? t.tabs.allSquareBody : t.tabs.noFriendsBody}
+        title={t.tabs.allSquare}
+        body={t.tabs.allSquareBody}
         icon={
-          <Ionicons
-            name={hasPeople ? 'checkmark-done-outline' : 'person-add-outline'}
-            size={iconSize.xxl}
-            color={theme.color.brand}
-          />
-        }
-        action={
-          hasPeople ? undefined : (
-            <Button
-              label={t.addPerson.title}
-              onPress={() => router.push('/friends/add-person' as never)}
-            />
-          )
+          <Ionicons name="checkmark-done-outline" size={iconSize.xxl} color={theme.color.brand} />
         }
       />
+    </View>
+  );
+}
+
+/**
+ * The first-run hero: two overlapping faces with a small plus, then the two
+ * ways to add someone. The back face wears a pastel sky tint and the front the
+ * brand, so the pair reads as two different people at a glance rather than one
+ * icon doubled; the plus badge sits on the seam where a new person would join.
+ * The whole mark is Views and Ionicons — the app has no illustration pipeline,
+ * and a built medallion themes itself in dark mode for free.
+ */
+function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
+  const theme = useTheme();
+  const sky = theme.tint.sky;
+  const D = 68; // one face
+
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.sm }}>
+      {/* Face pair + plus badge. Fixed box so the overlap and badge can be
+          placed absolutely without the layout guessing at their size. */}
+      <View style={{ width: D * 1.7, height: D, marginBottom: theme.spacing.lg }}>
+        <Face
+          x={0}
+          d={D}
+          bg={sky.bg}
+          ink={sky.ink}
+          borderColor={theme.color.surface}
+        />
+        <Face
+          x={D * 0.7}
+          d={D}
+          bg={theme.color.brandSoft}
+          ink={theme.color.brand}
+          borderColor={theme.color.surface}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            right: -2,
+            bottom: -2,
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            backgroundColor: theme.color.brand,
+            borderWidth: 3,
+            borderColor: theme.color.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="add" size={iconSize.lg} color={theme.color.onBrand} />
+        </View>
+      </View>
+
+      <Text variant="heading" align="center">
+        {t.tabs.noFriends}
+      </Text>
+      <Text variant="caption" tone="muted" align="center">
+        {t.tabs.noFriendsBody}
+      </Text>
+
+      <View style={{ alignItems: 'center', gap: theme.spacing.md, marginTop: theme.spacing.lg }}>
+        <Button label={t.addPerson.title} onPress={() => router.push('/friends/add-person' as never)} />
+        {/* The second path the category always offers in this state. A quiet
+            text button under the primary — a way in, not a competing verb. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.tabs.fromContacts}
+          onPress={() => router.push('/friends/contacts')}
+          hitSlop={10}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            <Ionicons name="people-outline" size={iconSize.md} color={theme.color.brand} />
+            <Text variant="body" style={{ color: theme.color.brand }}>
+              {t.tabs.fromContacts}
+            </Text>
+          </Row>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/** One circular face in the hero pair. */
+function Face({
+  x,
+  d,
+  bg,
+  ink,
+  borderColor,
+}: {
+  x: number;
+  d: number;
+  bg: string;
+  ink: string;
+  borderColor: string;
+}): React.JSX.Element {
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: x,
+        width: d,
+        height: d,
+        borderRadius: d / 2,
+        backgroundColor: bg,
+        borderWidth: 3,
+        borderColor,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name="person" size={d * 0.5} color={ink} />
     </View>
   );
 }

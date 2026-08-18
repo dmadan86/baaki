@@ -109,6 +109,10 @@ export default function InboxScreen() {
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
+          // So the empty and error states take the room the list is not using
+          // and sit in the middle of it, the way Friends does. No effect once a
+          // list is present.
+          flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -119,10 +123,11 @@ export default function InboxScreen() {
           />
         }
       >
-        {/* A big left-aligned title over its own back row — the modern inbox
-            header (Superlist, Linear): the screen name carries the weight, not a
-            small centred label squeezed between two chevrons. */}
-        <View style={{ paddingTop: theme.spacing.md, gap: theme.spacing.md }}>
+        {/* The app's standard pushed-screen header — back chevron, centred
+            title, a matching spacer — the same one Settings, Privacy and
+            Feedback wear, so this screen reads as one of them rather than a
+            bespoke page. */}
+        <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons
               name={directionalIcon('chevron-back')}
@@ -130,8 +135,11 @@ export default function InboxScreen() {
               color={theme.color.text}
             />
           </IconButton>
-          <Text variant="title">{t.inbox.title}</Text>
-        </View>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text variant="heading">{t.inbox.title}</Text>
+          </View>
+          <View style={{ width: 44 }} />
+        </Row>
 
         {notifications.isLoading ? (
           // Until the fetch answers, `rows` is empty — which is not the same as
@@ -139,20 +147,44 @@ export default function InboxScreen() {
           // their inbox was empty while it was still loading.
           <SkeletonList rows={6} trailing={false} />
         ) : notifications.isError ? (
-          <EmptyState
-            title={t.loadError}
-            body={t.loadErrorBody}
-            action={
-              <Button label={t.retry} variant="secondary" onPress={() => notifications.refetch()} />
-            }
-          />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              title={t.loadError}
+              body={t.loadErrorBody}
+              icon={
+                <Ionicons name="cloud-offline-outline" size={iconSize.xxl} color={theme.color.brand} />
+              }
+              action={
+                <Button
+                  label={t.retry}
+                  variant="secondary"
+                  onPress={() => notifications.refetch()}
+                />
+              }
+            />
+          </View>
         ) : rows.length === 0 ? (
-          <EmptyState title={t.nothingYet} body={t.inbox.nothingYetBody} />
+          // Centred, with a glyph — the "all square" treatment Friends uses, so an
+          // empty inbox reads as a state and not a screen that failed to load.
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              title={t.nothingYet}
+              body={t.inbox.nothingYetBody}
+              icon={
+                <Ionicons
+                  name="notifications-outline"
+                  size={iconSize.xxl}
+                  color={theme.color.brand}
+                />
+              }
+            />
+          </View>
         ) : (
           // Grouped by day, newest first. An unread row is a soft brand-tinted
           // card, not a lone dot — the whole row carries the "new" signal, the
           // way Luma and Superlist mark an unread update. A read one drops back
           // to a flat transparent row, so the eye lands on what arrived since.
+          <View style={{ gap: theme.spacing.xl }}>
           <View style={{ gap: theme.spacing.lg }}>
             {groupByDay(rows).map((section) => (
               <View key={section.key} style={{ gap: theme.spacing.xs }}>
@@ -243,12 +275,15 @@ export default function InboxScreen() {
                 })}
               </View>
             ))}
+            </View>
+
+            {/* The delivery footnote belongs with the list, not under an empty
+                or loading screen where it read as the only thing on the page. */}
+            <Text variant="micro" tone="muted" align="center">
+              {t.extras.deliveryComesLater}
+            </Text>
           </View>
         )}
-
-        <Text variant="micro" tone="muted" align="center">
-          {t.extras.deliveryComesLater}
-        </Text>
       </ScrollView>
     </Screen>
   );

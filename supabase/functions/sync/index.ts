@@ -606,6 +606,8 @@ class SyncSession {
       photoPath?: string | null;
       rawText?: string | null;
       parsed?: Record<string, unknown> | null;
+      paymentMethod?: string | null;
+      targetGroupId?: string | null;
     };
 
     const captureId = requireString(payload.captureId, 'captureId');
@@ -626,6 +628,10 @@ class SyncSession {
       photo_path: payload.photoPath ?? null,
       raw_text: payload.rawText ?? null,
       parsed: payload.parsed ?? null,
+      // A tag, not a commitment: the split and the real expense are still chosen
+      // at assignment. Constrained to the known set on the client.
+      payment_method: normalisePaymentMethod(payload.paymentMethod),
+      target_group_id: payload.targetGroupId ?? null,
       status: 'open',
     });
     if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
@@ -649,10 +655,15 @@ class SyncSession {
       photoPath: 'photo_path',
       rawText: 'raw_text',
       parsed: 'parsed',
+      paymentMethod: 'payment_method',
+      targetGroupId: 'target_group_id',
     };
     const patch: Record<string, unknown> = {};
     for (const [key, column] of Object.entries(CAPTURE_FIELD_COLUMNS)) {
       if (Object.prototype.hasOwnProperty.call(payload, key)) patch[column] = payload[key];
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'payment_method')) {
+      patch.payment_method = normalisePaymentMethod(patch.payment_method);
     }
     if (typeof patch.amount === 'string') {
       const amount = parseMinor(patch.amount, 'amount');
@@ -854,6 +865,17 @@ function requireString(value: unknown, field: string): string {
     throw new HttpError(400, 'VALIDATION_FAILED', `${field} is required`);
   }
   return value;
+}
+
+/**
+ * The payment method is a tag the client picks from a fixed set. Anything the
+ * server does not recognise — a future value, a typo, a client bug — becomes
+ * null rather than a rejected sync: it is a hint, and a wrong hint must never
+ * block the capture it rides on. Null passes through untouched.
+ */
+const PAYMENT_METHODS = new Set(['cash', 'credit', 'debit', 'forex']);
+function normalisePaymentMethod(value: unknown): string | null {
+  return typeof value === 'string' && PAYMENT_METHODS.has(value) ? value : null;
 }
 
 /** Turn a thrown error into the vocabulary the client's queue understands. */

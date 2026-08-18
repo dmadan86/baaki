@@ -1692,12 +1692,15 @@ export async function redeemPromoCode(code: string): Promise<PromoOutcome> {
 export async function submitFeedback(input: {
   message: string;
   kind: 'general' | 'bug' | 'idea';
+  /** 1–5 where the person offered one; null when they wrote without rating. */
+  rating: number | null;
   appVersion: string | null;
   platform: string;
 }): Promise<void> {
   const { error } = await supabase.rpc('baaki_submit_feedback', {
     p_message: input.message,
     p_kind: input.kind,
+    p_rating: input.rating,
     p_app_version: input.appVersion,
     p_platform: input.platform,
   });

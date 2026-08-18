@@ -28,7 +28,10 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
-import { useCreateCapture } from '@/data/hooks';
+import { DictateButton } from '@/components/DictateButton';
+import { useCreateCapture, useGroups, useHomeSummary } from '@/data/hooks';
+import { groupLabel } from '@/data/types';
+import { useAuth } from '@/lib/auth';
 import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
@@ -83,14 +86,32 @@ function showDate(iso: string, locale: string): string {
 }
 
 /**
+ * How the spend was paid — a tag, not a commitment. The id is what persists
+ * (constrained to this set on the server too); the icon and label are UI. Debit
+ * wears the filled card so it reads apart from credit's outline at chip size.
+ */
+const PAYMENT_METHODS: readonly {
+  id: 'cash' | 'credit' | 'debit' | 'forex';
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { id: 'cash', icon: 'cash-outline' },
+  { id: 'credit', icon: 'card-outline' },
+  { id: 'debit', icon: 'card' },
+  { id: 'forex', icon: 'swap-horizontal-outline' },
+];
+
+type PaymentMethodId = (typeof PAYMENT_METHODS)[number]['id'];
+
+/**
  * Catch an expense before it has a group.
  *
- * Deliberately the short version of add-expense: an amount, a note, a category
- * and a date, and optionally a photo of the bill — no payer, no participants,
- * no split, because none of those exist until the capture is assigned to a
- * group. The photo is read on the phone (A5) so its text can ride along as
- * `rawText` for the group form to reuse later; nothing group-scoped is called
- * here, because a capture has no group to scope to.
+ * Deliberately the short version of add-expense: an amount, a note, a category,
+ * a date, how it was paid, and optionally a photo of the bill — but no payer,
+ * no participants, no split, because none of those exist until the capture is
+ * assigned to a group. A group can be *tagged* here as the intended destination
+ * (`targetGroupId`), but that only pre-aims it; who splits it, and how, is still
+ * decided at assignment. The photo is read on the phone (A5) so its text can
+ * ride along as `rawText` for the group form to reuse later.
  */
 export default function CaptureScreen() {
   const theme = useTheme();
@@ -121,6 +142,32 @@ export default function CaptureScreen() {
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // How it was paid and which group it is bound for — both optional tags that
+  // ride the capture and survive until it is assigned. Null is a real answer
+  // for each: "not said" and "decide later".
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId | null>(null);
+  const [targetGroupId, setTargetGroupId] = useState<string | null>(null);
+  const [pickingGroup, setPickingGroup] = useState(false);
+
+  const { profile } = useAuth();
+  const groups = useGroups();
+  const summary = useHomeSummary(profile?.id ?? null);
+  const groupRows = groups.data ?? [];
+  const groupNameHints = groupRows.map((group) => group.name ?? '').filter(Boolean);
+  const targetGroup = groupRows.find((group) => group.id === targetGroupId) ?? null;
+  const targetGroupName = targetGroup
+    ? groupLabel(targetGroup, summary.membersFor(targetGroup.id), profile?.id)
+    : t.captures.decideLater;
+
+  const paymentLabel = (id: PaymentMethodId): string =>
+    id === 'cash'
+      ? t.captures.payCash
+      : id === 'credit'
+        ? t.captures.payCredit
+        : id === 'debit'
+          ? t.captures.payDebit
+          : t.captures.payForex;
 
   // The guess follows the description until a chip is tapped, then stops moving
   // under the user's finger — the same rule the add-expense category uses.
@@ -237,6 +284,8 @@ export default function CaptureScreen() {
         photoPath: null,
         rawText,
         parsed: parsed ? (parsed as unknown as Record<string, unknown>) : null,
+        paymentMethod,
+        targetGroupId,
       });
       router.back();
     } catch (caught) {
@@ -276,19 +325,26 @@ export default function CaptureScreen() {
           <Text variant="caption" tone="muted">
             {t.captures.description}
           </Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder={t.captures.descriptionPlaceholder}
-            placeholderTextColor={theme.color.textFaint}
-            accessibilityLabel={t.captures.description}
-            style={{
-              fontSize: 17,
-              fontWeight: '600',
-              color: theme.color.text,
-              paddingVertical: theme.spacing.sm,
-            }}
-          />
+          <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder={t.captures.descriptionPlaceholder}
+              placeholderTextColor={theme.color.textFaint}
+              accessibilityLabel={t.captures.description}
+              style={{
+                flex: 1,
+                fontSize: 17,
+                fontWeight: '600',
+                color: theme.color.text,
+                paddingVertical: theme.spacing.sm,
+              }}
+            />
+            {/* Speak it instead of typing (A5). Group names are handed to the
+                recogniser as hints — a general model mangles Indian names, and
+                a note like "dinner with Ravi" is exactly where they turn up. */}
+            <DictateButton value={description} onChange={setDescription} hints={groupNameHints} />
+          </Row>
         </Card>
 
         <View style={{ gap: theme.spacing.md }}>
@@ -302,6 +358,89 @@ export default function CaptureScreen() {
               setCategoryChosen(true);
             }}
           />
+        </View>
+
+        {/* Which group this is bound for — a tag, not the split. Default "Decide
+            later": it stays in the inbox, and who-owes-what is chosen when it is
+            assigned (the line under it says so). */}
+        <Card style={{ gap: theme.spacing.sm }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t.captures.group}: ${targetGroupName}`}
+            onPress={() => setPickingGroup(true)}
+            style={{ gap: 2 }}
+          >
+            <Text variant="caption" tone="muted">
+              {t.captures.group}
+            </Text>
+            <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <Row style={{ alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
+                <Ionicons
+                  name={targetGroup ? 'people' : 'people-outline'}
+                  size={iconSize.md}
+                  color={targetGroup ? theme.color.brand : theme.color.textMuted}
+                />
+                <Text
+                  variant="subheading"
+                  numberOfLines={1}
+                  tone={targetGroup ? undefined : 'muted'}
+                  style={{ flex: 1 }}
+                >
+                  {targetGroupName}
+                </Text>
+              </Row>
+              <Ionicons name="chevron-down" size={iconSize.md} color={theme.color.textFaint} />
+            </Row>
+          </Pressable>
+          <Text variant="micro" tone="muted">
+            {t.captures.splitLaterHint}
+          </Text>
+        </Card>
+
+        {/* How it was paid. Four tags, icon + word, single-select; tapping the
+            chosen one again clears it, because "not said" is a valid answer. */}
+        <View style={{ gap: theme.spacing.md }}>
+          <Text variant="caption" tone="muted">
+            {t.captures.paidWith}
+          </Text>
+          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
+            {PAYMENT_METHODS.map((method) => {
+              const active = paymentMethod === method.id;
+              return (
+                <Pressable
+                  key={method.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={paymentLabel(method.id)}
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setPaymentMethod((current) => (current === method.id ? null : method.id))}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing.xs,
+                    paddingVertical: theme.spacing.sm,
+                    paddingHorizontal: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor: active ? theme.color.brand : theme.color.border,
+                    backgroundColor: active ? theme.color.brandSoft : theme.color.surface,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Ionicons
+                    name={method.icon}
+                    size={iconSize.md}
+                    color={active ? theme.color.brand : theme.color.textMuted}
+                  />
+                  <Text
+                    variant="body"
+                    style={{ color: active ? theme.color.brand : theme.color.text }}
+                  >
+                    {paymentLabel(method.id)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Row>
         </View>
 
         <Card style={{ gap: theme.spacing.md }}>
@@ -421,6 +560,110 @@ export default function CaptureScreen() {
           onPress={() => void submit()}
         />
       </View>
+
+      {/* Destination picker, as a sheet over the form rather than a route away:
+          one tap, one choice, "Decide later" pinned at the top so the default
+          is always reachable. */}
+      {pickingGroup ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.common.close}
+          onPress={() => setPickingGroup(false)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(10, 10, 26, 0.55)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: theme.color.surface,
+              borderTopLeftRadius: theme.radius.lg,
+              borderTopRightRadius: theme.radius.lg,
+              padding: theme.spacing.xl,
+              gap: theme.spacing.md,
+              maxHeight: '70%',
+            }}
+          >
+            <Text variant="heading">{t.captures.groupPickerTitle}</Text>
+            <Text variant="caption" tone="muted">
+              {t.captures.groupPickerBody}
+            </Text>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={{ gap: theme.spacing.xs }}>
+                <GroupChoiceRow
+                  emoji="🕓"
+                  label={t.captures.decideLater}
+                  selected={targetGroupId === null}
+                  onPress={() => {
+                    setTargetGroupId(null);
+                    setPickingGroup(false);
+                  }}
+                />
+                {groupRows.map((group) => (
+                  <GroupChoiceRow
+                    key={group.id}
+                    emoji={group.cover_emoji ?? '👥'}
+                    label={groupLabel(group, summary.membersFor(group.id), profile?.id)}
+                    selected={targetGroupId === group.id}
+                    onPress={() => {
+                      setTargetGroupId(group.id);
+                      setPickingGroup(false);
+                    }}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      ) : null}
     </Screen>
+  );
+}
+
+/** One row in the destination sheet — an emoji, a name, a check when chosen. */
+function GroupChoiceRow({
+  emoji,
+  label,
+  selected,
+  onPress,
+}: {
+  emoji: string;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Text variant="subheading">{emoji}</Text>
+      <Text
+        variant="body"
+        numberOfLines={1}
+        style={{ flex: 1, color: selected ? theme.color.brand : theme.color.text }}
+      >
+        {label}
+      </Text>
+      {selected ? (
+        <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} />
+      ) : null}
+    </Pressable>
   );
 }

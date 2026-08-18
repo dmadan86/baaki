@@ -8,8 +8,10 @@ import {
   directionalIcon,
   IconButton,
   iconSize,
+  ListRow,
   Row,
   Screen,
+  SectionHeader,
   Text,
   Toggle,
   useTabBarClearance,
@@ -62,10 +64,22 @@ export default function PrivacyScreen() {
       icon: 'lock-closed-outline',
     },
     {
+      id: 'services',
+      title: t.privacy.servicesTitle,
+      body: t.privacy.servicesBody,
+      icon: 'cloud-outline',
+    },
+    {
       id: 'analytics',
       title: t.privacy.analyticsTitle,
       body: t.privacy.analyticsBody,
       icon: 'stats-chart-outline',
+    },
+    {
+      id: 'retention',
+      title: t.privacy.retentionTitle,
+      body: t.privacy.retentionBody,
+      icon: 'hourglass-outline',
     },
     {
       id: 'choices',
@@ -130,6 +144,80 @@ export default function PrivacyScreen() {
             ) : null}
           </Card>
         ))}
+
+        {/* The controls the "choices" card promises, made tappable rather than
+            described — export a copy, or close the account, both routes that
+            already exist. Delete wears the negative tone: it ends something. */}
+        <View style={{ gap: theme.spacing.sm }}>
+          <SectionHeader title={t.privacy.dataControlsSection} />
+          <Card style={{ paddingVertical: theme.spacing.xs }}>
+            <ListRow
+              title={t.privacy.exportRow}
+              subtitle={t.privacy.exportRowHint}
+              onPress={() => router.push('/settings/export')}
+              leading={
+                <Ionicons
+                  name="download-outline"
+                  size={iconSize.md}
+                  color={theme.color.brand}
+                />
+              }
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={iconSize.md}
+                  color={theme.color.textFaint}
+                />
+              }
+            />
+            <View style={{ height: 1, backgroundColor: theme.color.border }} />
+            <ListRow
+              title={t.privacy.deleteRow}
+              subtitle={t.privacy.deleteRowHint}
+              destructive
+              onPress={() => router.push('/settings/delete-account')}
+              leading={
+                <Ionicons
+                  name="trash-outline"
+                  size={iconSize.md}
+                  color={theme.color.negative}
+                />
+              }
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={iconSize.md}
+                  color={theme.color.textFaint}
+                />
+              }
+            />
+          </Card>
+        </View>
+
+        <View style={{ gap: theme.spacing.sm }}>
+          <SectionHeader title={t.privacy.legalSection} />
+          <Card style={{ paddingVertical: theme.spacing.xs }}>
+            <ListRow
+              title={t.privacy.licensesRow}
+              subtitle={t.privacy.licensesRowHint}
+              onPress={() => router.push('/settings/licenses')}
+              leading={
+                <Ionicons
+                  name="code-slash-outline"
+                  size={iconSize.md}
+                  color={theme.color.brand}
+                />
+              }
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={iconSize.md}
+                  color={theme.color.textFaint}
+                />
+              }
+            />
+          </Card>
+        </View>
 
         <Text variant="micro" tone="muted">
           {t.privacy.englishGoverns}
