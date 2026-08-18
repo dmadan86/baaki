@@ -709,6 +709,7 @@ function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<str
         )
       : undefined,
     notes: input.notes ?? null,
+    paymentMethod: input.paymentMethod ?? null,
   };
 }
 

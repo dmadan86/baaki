@@ -99,6 +99,7 @@ export interface ExpenseVersionRow {
   split_params: SplitParams;
   author_member_id: MemberId | null;
   notes: string | null;
+  payment_method: string | null;
   created_at: string;
   payers: { member_id: MemberId; amount: string }[];
   shares: { member_id: MemberId; amount: string }[];

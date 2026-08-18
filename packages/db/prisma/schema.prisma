@@ -465,6 +465,9 @@ model ExpenseVersion {
   fx               Json?
   receiptId        String?       @map("receipt_id") @db.Uuid
   notes            String?
+  /// How the money moved: cash | credit | debit | forex. Optional, and never
+  /// part of the split or a balance — a plain label on the version.
+  paymentMethod    String?       @map("payment_method")
   /// Idempotency key from the offline mutation queue (ADR-005).
   clientMutationId String?       @unique @map("client_mutation_id") @db.Uuid
   source           ExpenseSource @default(manual)

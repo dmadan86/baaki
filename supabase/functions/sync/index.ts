@@ -141,7 +141,7 @@ const EXPENSE_SELECT = `
   id, group_id, deleted_at, created_at, updated_seq,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
     id, version_no, description, category, expense_date, currency, amount,
-    split_type, split_params, author_member_id, notes, created_at,
+    split_type, split_params, author_member_id, notes, payment_method, created_at,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
   )
@@ -473,6 +473,7 @@ class SyncSession {
       expectedShares?: Record<string, string>;
       fx?: FxRecord | null;
       notes?: string | null;
+      paymentMethod?: string | null;
       receiptId?: string | null;
       baseVersionNo?: number;
     };
@@ -547,6 +548,7 @@ class SyncSession {
       // instead of a silent overwrite (TDR §4.4).
       p_base_version_no: payload.baseVersionNo ?? null,
       p_fx: payload.fx ?? null,
+      p_payment_method: payload.paymentMethod ?? null,
     });
     if (error) throw error;
     return data;

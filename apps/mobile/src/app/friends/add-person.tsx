@@ -21,7 +21,7 @@ import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { parseReceiptText, type HeuristicReceipt } from '@waves/core';
+import { parseReceiptText, type HeuristicReceipt, type PaymentMethod } from '@waves/core';
 
 import {
   AmountField,
@@ -55,6 +55,36 @@ import { saveReceipt } from '@/lib/receiptStore';
 
 type Direction = 'theyOwe' | 'iOwe';
 
+/**
+ * How the money moved. A single-select row that mirrors the rest of the app:
+ * the same four ids and icons everywhere, so "credit" is one glyph the user
+ * learns once. It is optional — tapping the chosen chip again clears it.
+ */
+const PAYMENT_METHODS: readonly {
+  readonly id: PaymentMethod;
+  readonly icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { id: 'cash', icon: 'cash-outline' },
+  { id: 'credit', icon: 'card-outline' },
+  { id: 'debit', icon: 'card' },
+  { id: 'forex', icon: 'swap-horizontal-outline' },
+];
+
+/** The i18n label for one method — kept beside the ids so a new method is a
+ * type error until it is translated in every locale. */
+function paymentMethodLabel(t: ReturnType<typeof useStrings>['t'], id: PaymentMethod): string {
+  switch (id) {
+    case 'cash':
+      return t.addPerson.payCash;
+    case 'credit':
+      return t.addPerson.payCredit;
+    case 'debit':
+      return t.addPerson.payDebit;
+    case 'forex':
+      return t.addPerson.payForex;
+  }
+}
+
 /** Today as `YYYY-MM-DD`, the format an expense date is stored in. */
 function today(): string {
   const now = new Date();
@@ -87,6 +117,7 @@ export default function AddPersonScreen() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState(0n);
   const [direction, setDirection] = useState<Direction | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -180,6 +211,7 @@ export default function AddPersonScreen() {
         participants: [myMemberId, ghostId],
         payers: { [payerId]: amount },
         splitParams: { kind: 'exact', amounts: { [debtorId]: amount, [payerId]: 0n } },
+        paymentMethod,
       });
 
       // Keep the receipt image on the device and, if a personal cloud is
@@ -324,6 +356,57 @@ export default function AddPersonScreen() {
                     style={{ color: active ? theme.color.brand : theme.color.text }}
                   >
                     {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Row>
+        </View>
+
+        {/* How the money moved — the same four methods, ids and icons the rest of
+            the app uses, so it reads as one app. Optional and single-select:
+            tapping the chosen chip again clears it. */}
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="caption" tone="muted">
+            {t.addPerson.paidWith}
+          </Text>
+          <Row style={{ gap: theme.spacing.sm }}>
+            {PAYMENT_METHODS.map((method) => {
+              const active = paymentMethod === method.id;
+              const label = paymentMethodLabel(t, method.id);
+              return (
+                <Pressable
+                  key={method.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active, disabled: saving }}
+                  accessibilityLabel={label}
+                  disabled={saving}
+                  // Tap the selected one again to clear it — the field is optional.
+                  onPress={() =>
+                    setPaymentMethod((current) => (current === method.id ? null : method.id))
+                  }
+                  style={{
+                    flex: 1,
+                    alignItems: 'center',
+                    gap: theme.spacing.xs,
+                    paddingVertical: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor: active ? theme.color.brand : theme.color.border,
+                    backgroundColor: active ? theme.color.brandSoft : theme.color.surface,
+                    opacity: saving ? 0.5 : 1,
+                  }}
+                >
+                  <Ionicons
+                    name={method.icon}
+                    size={iconSize.md}
+                    color={active ? theme.color.brand : theme.color.text}
+                  />
+                  <Text
+                    variant="caption"
+                    style={{ color: active ? theme.color.brand : theme.color.text }}
+                  >
+                    {label}
                   </Text>
                 </Pressable>
               );
