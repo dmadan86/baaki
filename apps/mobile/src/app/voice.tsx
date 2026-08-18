@@ -303,14 +303,23 @@ export default function VoiceScreen() {
   const canSave =
     drafts.length > 0 && !saving && drafts.every((draft) => toMinor(draft.amount) !== null);
 
-  // The footer shows a running total, but only when every draft is in one
-  // currency — there is no total across currencies (ADR-004), so a mixed batch
-  // shows its count instead of a number that would not mean anything.
+  // The footer total must read in the same currency the Save will persist, or
+  // it lies about what lands. A group save writes every expense in the group's
+  // own currency (see `save`), so the footer totals in that one currency too;
+  // the unassigned inbox keeps each capture's spoken currency, so there the
+  // total is per-currency and a mixed batch shows its count instead — there is
+  // no total across currencies (ADR-004).
+  const destCurrency =
+    dest.kind === 'unassigned'
+      ? null
+      : dest.kind === 'create'
+        ? deviceDefaultCurrency()
+        : (target.group.data?.default_currency ?? deviceDefaultCurrency());
   const draftTotals = new Map<string, bigint>();
   for (const draft of drafts) {
     const minor = toMinor(draft.amount);
     if (minor === null) continue;
-    const currency = draft.currency ?? deviceDefaultCurrency();
+    const currency = destCurrency ?? draft.currency ?? deviceDefaultCurrency();
     draftTotals.set(currency, (draftTotals.get(currency) ?? 0n) + minor);
   }
   const singleTotal = draftTotals.size === 1 ? [...draftTotals.entries()][0] : null;
@@ -508,6 +517,9 @@ export default function VoiceScreen() {
               paddingTop: theme.spacing.lg,
               paddingBottom: insets.bottom + theme.spacing.xl,
               gap: theme.spacing.lg,
+              // Never taller than most of the screen: a long group list scrolls
+              // inside the sheet rather than pushing the rows off the top.
+              maxHeight: '80%',
               ...theme.shadow.lifted,
             }}
           >
@@ -520,17 +532,19 @@ export default function VoiceScreen() {
                 backgroundColor: theme.color.border,
               }}
             />
-            <DestinationPicker
-              dest={dest}
-              requested={requested}
-              onChoose={(next) => {
-                setDest(next);
-                setPickerOpen(false);
-              }}
-              groups={groupRows}
-              t={t}
-              theme={theme}
-            />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <DestinationPicker
+                dest={dest}
+                requested={requested}
+                onChoose={(next) => {
+                  setDest(next);
+                  setPickerOpen(false);
+                }}
+                groups={groupRows}
+                t={t}
+                theme={theme}
+              />
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
