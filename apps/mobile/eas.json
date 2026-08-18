@@ -9,6 +9,7 @@
       "node": "24.18.0",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://xvjzbpgcmotoahtqcxve.supabase.co",
+        "EXPO_PUBLIC_CLARITY_PROJECT_ID": "y0l49bcxl4",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2anpicGdjbW90b2FodHFjeHZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5OTgxODAsImV4cCI6MjA4MDU3NDE4MH0.mVAdmMk8gO_GoQS9TvVJNOwmVWNK-cSiO6InHKwoQoo"
       }
     },
