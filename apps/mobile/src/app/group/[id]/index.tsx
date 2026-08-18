@@ -47,7 +47,8 @@ import { CategoryBadge } from '@/components/Category';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { PendingMark } from '@/components/PendingMark';
-import { SyncBanner } from '@/components/SyncBanner';
+import { SyncBanner, SyncStatusIcon } from '@/components/SyncBanner';
+import { useSync } from '@/sync';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
 enum Tab {
@@ -126,6 +127,68 @@ function myStake(
   return BigInt(paid ?? 0) - BigInt(share ?? 0);
 }
 
+/**
+ * One section of the expense feed: the expenses that fall in a single calendar
+ * month, kept in the order they already arrive in. `date` is a specimen date
+ * from the section, `null` for the bucket of rows with no version yet (nothing
+ * to date). A month heading is what turns a long ledger from a wall of rows into
+ * something you can skim — the pattern every bill-splitting app in the category
+ * (Splitwise, Settle Up, Tricount) leans on.
+ */
+interface ExpenseSection<T> {
+  readonly key: string;
+  readonly date: string | null;
+  readonly rows: readonly T[];
+}
+
+/**
+ * Cluster the feed into month sections without reordering within a month. The
+ * list arrives newest-added first; we bucket by the month of each expense's
+ * date so all of November sits together under one heading, in first-seen order,
+ * rather than repeating the heading every time the created-order interleaves two
+ * months. Undated rows (no current version) fall into their own leading bucket.
+ */
+function groupExpensesByMonth<T extends { currentVersion: ExpenseVersionRow | null }>(
+  items: readonly T[],
+): ExpenseSection<T>[] {
+  const order: string[] = [];
+  const buckets = new Map<string, T[]>();
+  for (const item of items) {
+    const date = item.currentVersion?.expense_date ?? null;
+    // "YYYY-MM" groups a calendar month; "~" is the sortless bucket for the rare
+    // undated row, kept out of the way at its natural position.
+    const key = date ? date.slice(0, 7) : '~';
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(key, bucket);
+      order.push(key);
+    }
+    bucket.push(item);
+  }
+  return order.map((key) => {
+    const rows = buckets.get(key)!;
+    return { key, date: rows[0]?.currentVersion?.expense_date ?? null, rows };
+  });
+}
+
+/**
+ * A month heading — "November", or "November 2024" once the year is not this
+ * one. The date is a plain calendar date (no zone), so it is read in UTC to
+ * match the day the rest of the feed prints beside each expense.
+ */
+function monthLabel(locale: string, isoDate: string, now: number = Date.now()): string {
+  const parsed = Date.parse(isoDate);
+  if (!Number.isFinite(parsed)) return isoDate;
+  const when = new Date(parsed);
+  const sameYear = when.getUTCFullYear() === new Date(now).getUTCFullYear();
+  return new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+    timeZone: 'UTC',
+  }).format(when);
+}
+
 export default function GroupScreen() {
   const theme = useTheme();
   const clearance = useScreenClearance(112);
@@ -140,6 +203,10 @@ export default function GroupScreen() {
 
   // Live updates from the other devices in this group (TDR §1).
   useGroupRealtime(groupId);
+  // The refused-change state still needs somewhere to act (retry / discard), so
+  // the header glyph is paired with the one banner that carries buttons; the
+  // ambient offline / syncing states are the header glyph's job now (below).
+  const { rejected } = useSync();
 
   const { group, members, expenses, settlements, activity } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
@@ -182,6 +249,11 @@ export default function GroupScreen() {
   // deleted. On a group whose ledger has never lost a row it is an answer to a
   // question nobody asked.
   const hasDeleted = expenses.rows.some((expense) => Boolean(expense.deleted_at));
+  // The feed, cut into month sections for skimming (Splitwise/Settle Up).
+  const expenseSections = groupExpensesByMonth(visibleExpenses);
+  // A refused change waiting on this group — the one sync state that still earns
+  // an inline card, because it needs a decision the header glyph cannot offer.
+  const refusedHere = rejected.some((item) => item.groupId === groupId);
   const pendingForMe = (settlements.data ?? []).filter(
     (settlement) =>
       settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,
@@ -266,6 +338,12 @@ export default function GroupScreen() {
                 </Text>
               </View>
             </Pressable>
+            {/* The sync state as one glyph, the same control the dashboard header
+              carries: a quiet cloud for unsent changes or no connection, a
+              turning arrow mid-sync, a red mark for a refused change — nothing
+              when all is well. It replaces the wide banner this screen used to
+              stack under the header. */}
+            <SyncStatusIcon />
             {/* Planner, spending and settings live behind this one menu; planner
               only shows for a trip. Bare icon, no chip, to match the back
               arrow. */}
@@ -281,7 +359,11 @@ export default function GroupScreen() {
 
           <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
 
-          <SyncBanner groupId={groupId} />
+          {/* Only the refused-change banner survives inline — it carries the
+              retry / discard buttons the header glyph cannot. Offline, queued and
+              in-flight now read from the glyph in the header, matching the
+              dashboard. */}
+          {refusedHere ? <SyncBanner groupId={groupId} /> : null}
 
           {/* If the two independent balance computations ever disagree, say so
             rather than showing a number that might be wrong (ADR-004). */}
@@ -462,134 +544,161 @@ export default function GroupScreen() {
                 }
               />
             ) : (
-              <View>
-                {visibleExpenses.map((expense, index) => {
-                  const version = expense.currentVersion;
-                  const payer = version?.payers[0]?.member_id ?? null;
-                  // An imported Splitwise expense can have several payers, so
-                  // "Asha paid ₹1,200" beside the expense total would put the
-                  // whole bill on whoever happens to sort first. One payer is
-                  // named and credited with what they actually put in; several
-                  // are counted, and the number beside them is the total they
-                  // put in between them.
-                  const payerCount = version?.payers.length ?? 0;
-                  const paidLine =
-                    version === null
-                      ? fill(t.expense.paidByName, { name: nameOf(payer) })
-                      : fill(t.expense.paidByNameAmount, {
-                          name:
-                            payerCount > 1
-                              ? plural(locale, payerCount, t.misc.peopleCount)
-                              : nameOf(payer),
-                          amount: formatParts(
-                            {
-                              minor:
-                                payerCount > 1
-                                  ? BigInt(version.amount)
-                                  : BigInt(version.payers[0]?.amount ?? version.amount),
-                              currency: version.currency,
-                            },
-                            { locale },
-                          ).text,
-                        });
-                  // What this one expense did to *your* balance: what you put in
-                  // beyond your share (you lent), or your share of what somebody
-                  // else put in (you borrowed). The row used to end in the
-                  // expense total, which is the group's number and never the
-                  // answer to the question somebody opens a ledger with. The
-                  // total keeps its place in the subtitle.
-                  const stake = myStake(version, ledger.myMemberId);
-                  // Somebody disagreeing with an expense is worth seeing from the
-                  // list. A disagreement you only find by opening the row is one
-                  // that sits there unanswered.
-                  const contested = openDisputes.has(expense.id);
-                  // Flat row: the category is the badge on the left, not the row's
-                  // colour. A deleted row is dimmed rather than hidden, so the
-                  // ledger stays visibly append-only.
-                  const title = expenseTitle(version?.description, version?.category, t);
-                  return (
-                    <View key={expense.id}>
-                      <Pressable
-                        onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-                        accessibilityRole="button"
-                        accessibilityLabel={contested ? `${title}, ${t.expense.disputed}` : title}
-                        style={({ pressed }) => ({
-                          opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
-                        })}
+              // The feed reads as a dated ledger, not one long undifferentiated
+              // list: a quiet month heading sits over each run of expenses, the
+              // way the category's bill-splitters (Splitwise, Settle Up) break a
+              // long history into skimmable months.
+              <View style={{ gap: theme.spacing.xl }}>
+                {expenseSections.map((section) => (
+                  <View key={section.key}>
+                    {section.date ? (
+                      <Text
+                        variant="micro"
+                        tone="muted"
+                        style={{
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.6,
+                          marginBottom: theme.spacing.xs,
+                        }}
                       >
-                        <Row
-                          style={{
-                            gap: theme.spacing.md,
-                            alignItems: 'center',
-                            paddingVertical: theme.spacing.md,
-                          }}
-                        >
-                          <CategoryBadge category={version?.category} size={40} />
-                          <View style={{ flex: 1 }}>
-                            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                              <Text
-                                variant="subheading"
-                                numberOfLines={1}
-                                style={{ flexShrink: 1 }}
-                              >
-                                {title}
-                              </Text>
-                              {contested ? (
-                                <Badge label={t.expense.disputed} tone="negative" />
+                        {monthLabel(locale, section.date)}
+                      </Text>
+                    ) : null}
+                    {section.rows.map((expense, index) => {
+                      const version = expense.currentVersion;
+                      const payer = version?.payers[0]?.member_id ?? null;
+                      // An imported Splitwise expense can have several payers, so
+                      // "Asha paid ₹1,200" beside the expense total would put the
+                      // whole bill on whoever happens to sort first. One payer is
+                      // named and credited with what they actually put in; several
+                      // are counted, and the number beside them is the total they
+                      // put in between them.
+                      const payerCount = version?.payers.length ?? 0;
+                      const paidLine =
+                        version === null
+                          ? fill(t.expense.paidByName, { name: nameOf(payer) })
+                          : fill(t.expense.paidByNameAmount, {
+                              name:
+                                payerCount > 1
+                                  ? plural(locale, payerCount, t.misc.peopleCount)
+                                  : nameOf(payer),
+                              amount: formatParts(
+                                {
+                                  minor:
+                                    payerCount > 1
+                                      ? BigInt(version.amount)
+                                      : BigInt(version.payers[0]?.amount ?? version.amount),
+                                  currency: version.currency,
+                                },
+                                { locale },
+                              ).text,
+                            });
+                      // What this one expense did to *your* balance: what you put in
+                      // beyond your share (you lent), or your share of what somebody
+                      // else put in (you borrowed). The row used to end in the
+                      // expense total, which is the group's number and never the
+                      // answer to the question somebody opens a ledger with. The
+                      // total keeps its place in the subtitle.
+                      const stake = myStake(version, ledger.myMemberId);
+                      // Somebody disagreeing with an expense is worth seeing from the
+                      // list. A disagreement you only find by opening the row is one
+                      // that sits there unanswered.
+                      const contested = openDisputes.has(expense.id);
+                      // Flat row: the category is the badge on the left, not the row's
+                      // colour. A deleted row is dimmed rather than hidden, so the
+                      // ledger stays visibly append-only.
+                      const title = expenseTitle(version?.description, version?.category, t);
+                      return (
+                        <View key={expense.id}>
+                          <Pressable
+                            onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              contested ? `${title}, ${t.expense.disputed}` : title
+                            }
+                            style={({ pressed }) => ({
+                              opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
+                            })}
+                          >
+                            <Row
+                              style={{
+                                gap: theme.spacing.md,
+                                alignItems: 'center',
+                                paddingVertical: theme.spacing.md,
+                              }}
+                            >
+                              <CategoryBadge category={version?.category} size={40} />
+                              <View style={{ flex: 1 }}>
+                                <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                                  <Text
+                                    variant="subheading"
+                                    numberOfLines={1}
+                                    style={{ flexShrink: 1 }}
+                                  >
+                                    {title}
+                                  </Text>
+                                  {contested ? (
+                                    <Badge label={t.expense.disputed} tone="negative" />
+                                  ) : null}
+                                </Row>
+                                <Text variant="caption" tone="muted" numberOfLines={1}>
+                                  {[
+                                    paidLine,
+                                    version
+                                      ? new Intl.DateTimeFormat(locale, {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          timeZone: 'UTC',
+                                        }).format(new Date(version.expense_date))
+                                      : null,
+                                    expense.deleted_at ? t.expense.deleted : null,
+                                    (version?.version_no ?? 1) > 1
+                                      ? plural(
+                                          locale,
+                                          version!.version_no - 1,
+                                          t.expense.editedTimes,
+                                        )
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </Text>
+                              </View>
+                              {version ? (
+                                <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                                  <View style={{ alignItems: 'flex-end' }}>
+                                    <Text variant="micro" tone="muted">
+                                      {stake === null
+                                        ? t.expense.notInvolved
+                                        : stake > 0n
+                                          ? t.expense.youLent
+                                          : stake < 0n
+                                            ? t.expense.youBorrowed
+                                            : t.allSettled}
+                                    </Text>
+                                    {stake !== null && stake !== 0n ? (
+                                      <MoneyText
+                                        amount={stake}
+                                        currency={version.currency}
+                                        locale={locale}
+                                        mode="balance"
+                                        style={{ fontWeight: '700' }}
+                                      />
+                                    ) : null}
+                                  </View>
+                                  {expense.pending ? <PendingMark /> : null}
+                                </Row>
                               ) : null}
                             </Row>
-                            <Text variant="caption" tone="muted" numberOfLines={1}>
-                              {[
-                                paidLine,
-                                version
-                                  ? new Intl.DateTimeFormat(locale, {
-                                      day: 'numeric',
-                                      month: 'short',
-                                      timeZone: 'UTC',
-                                    }).format(new Date(version.expense_date))
-                                  : null,
-                                expense.deleted_at ? t.expense.deleted : null,
-                                (version?.version_no ?? 1) > 1
-                                  ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
-                                  : null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </Text>
-                          </View>
-                          {version ? (
-                            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                              <View style={{ alignItems: 'flex-end' }}>
-                                <Text variant="micro" tone="muted">
-                                  {stake === null
-                                    ? t.expense.notInvolved
-                                    : stake > 0n
-                                      ? t.expense.youLent
-                                      : stake < 0n
-                                        ? t.expense.youBorrowed
-                                        : t.allSettled}
-                                </Text>
-                                {stake !== null && stake !== 0n ? (
-                                  <MoneyText
-                                    amount={stake}
-                                    currency={version.currency}
-                                    locale={locale}
-                                    mode="balance"
-                                    style={{ fontWeight: '700' }}
-                                  />
-                                ) : null}
-                              </View>
-                              {expense.pending ? <PendingMark /> : null}
-                            </Row>
+                          </Pressable>
+                          {index < section.rows.length - 1 ? (
+                            <View style={{ height: 1, backgroundColor: theme.color.border }} />
                           ) : null}
-                        </Row>
-                      </Pressable>
-                      {index < visibleExpenses.length - 1 ? (
-                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                      ) : null}
-                    </View>
-                  );
-                })}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
               </View>
             )
           ) : null}
