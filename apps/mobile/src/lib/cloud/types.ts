@@ -8,9 +8,17 @@
  * upload an image and its sidecar, get back an id it can remember.
  */
 
-export type CloudProviderId = 'gdrive' | 'dropbox' | 'onedrive';
+export type CloudProviderId = 'waves' | 'gdrive' | 'dropbox' | 'onedrive' | 'box';
 
-export const CLOUD_PROVIDER_IDS: readonly CloudProviderId[] = ['gdrive', 'dropbox', 'onedrive'];
+// Waves first: our own encrypted storage is the primary paid option, shown at
+// the top of the destination list above the personal-cloud choices.
+export const CLOUD_PROVIDER_IDS: readonly CloudProviderId[] = [
+  'waves',
+  'gdrive',
+  'dropbox',
+  'onedrive',
+  'box',
+];
 
 /** OAuth tokens for one provider, as stored in the keystore. */
 export interface CloudTokens {

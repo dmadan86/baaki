@@ -41,6 +41,38 @@ export async function uploadFile(
   return parse(result.body);
 }
 
+/**
+ * Upload a local file as one part of a `multipart/form-data` body, alongside
+ * any extra text fields. Box needs this shape — the bytes under a `file` part
+ * and a JSON `attributes` part naming the file and its folder — where Drive,
+ * Dropbox and OneDrive each take the raw body.
+ */
+export async function uploadMultipart(
+  localUri: string,
+  url: string,
+  options: {
+    method?: 'POST' | 'PUT';
+    headers: Record<string, string>;
+    mimeType: string;
+    fieldName: string;
+    parameters?: Record<string, string>;
+  },
+): Promise<Record<string, unknown>> {
+  const result = await new File(localUri).upload(url, {
+    httpMethod: options.method ?? 'POST',
+    uploadType: UploadType.MULTIPART,
+    fieldName: options.fieldName,
+    parameters: options.parameters,
+    headers: options.headers,
+    mimeType: options.mimeType,
+  });
+
+  if (result.status < 200 || result.status >= 300) {
+    throw new CloudHttpError(result.status, result.body);
+  }
+  return parse(result.body);
+}
+
 /** A JSON request (metadata create, folder lookup); returns the parsed body. */
 export async function requestJson(
   url: string,
