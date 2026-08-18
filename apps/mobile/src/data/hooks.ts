@@ -213,7 +213,7 @@ export function useSettledTotals(profileId: string | null): LocalRead<Map<string
  * already in them, because `materialiseExpenses` replays the queue on top.
  */
 export function useHomeSummary(profileId: string | null) {
-  const { mirror, queue, hydrated, status, flush } = useSync();
+  const { mirror, queue, hydrated, status, lastSyncedAt, flush } = useSync();
 
   const summary = useMemo(() => {
     const membersByGroup = new Map<string, MemberRow[]>();
@@ -268,6 +268,22 @@ export function useHomeSummary(profileId: string | null) {
     totals: summary.totals,
     isLoading: !hydrated,
     isFetching: status === 'syncing',
+    // The mirror hydrates from disk instantly (ADR-005), but that snapshot can
+    // be behind the server — a settlement that cleared your debt may only exist
+    // server-side until the session's first pull lands. Painting a confident,
+    // colour-coded balance from stale local data means the card can read "you
+    // owe" (red) and then flip once the sync reconciles — the exact jump the
+    // hero skeleton exists to hide. So the balance is only trustworthy once the
+    // first sync of the session has settled. `lastSyncedAt` is in-memory and
+    // starts null each launch, so it marks *this session's* first success.
+    //
+    // Bounded, never a hang: the provider kicks one `flush` on mount, which
+    // resolves to either `lastSyncedAt` set (success) or a can't-sync status
+    // (offline/metered/error). In those states there is nothing better than the
+    // local snapshot, so fall through and show it at once rather than shimmer
+    // forever — local-first still wins whenever the network can't answer.
+    pendingFirstSync:
+      hydrated && lastSyncedAt === null && (status === 'idle' || status === 'syncing'),
     refetch: () => void flush(),
   };
 }
