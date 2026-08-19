@@ -722,6 +722,8 @@ export interface UiStrings {
     /** The email path, named beside "Continue with Apple/Google" so the three
      *  ways in read as one list rather than a list and an exception. */
     continueEmail: string;
+    /** Phone as its own top-level way in on the auth screens. */
+    continuePhone: string;
     /** Spoken labels for the reveal toggle on the password field. */
     showPassword: string;
     hidePassword: string;
@@ -2101,6 +2103,7 @@ const en: UiStrings = {
     orSignInWith: 'or sign in with',
     or: 'or',
     continueEmail: 'Continue with email',
+    continuePhone: 'Continue with phone',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     continueGuest: 'Continue as guest',
@@ -3552,6 +3555,7 @@ const ta: UiStrings = {
     orSignInWith: 'அல்லது இதன் மூலம் உள்நுழை',
     or: 'அல்லது',
     continueEmail: 'மின்னஞ்சலில் தொடர்க',
+    continuePhone: 'தொலைபேசியில் தொடர்க',
     showPassword: 'கடவுச்சொல்லைக் காட்டு',
     hidePassword: 'கடவுச்சொல்லை மறை',
     continueGuest: 'விருந்தினராகத் தொடர்',
@@ -5027,6 +5031,7 @@ const hi: UiStrings = {
     orSignInWith: 'या इसके ज़रिए साइन इन करें',
     or: 'या',
     continueEmail: 'ईमेल से जारी रखें',
+    continuePhone: 'फ़ोन से जारी रखें',
     showPassword: 'पासवर्ड दिखाएँ',
     hidePassword: 'पासवर्ड छिपाएँ',
     continueGuest: 'मेहमान के तौर पर जारी रखें',
@@ -6493,6 +6498,7 @@ const ar: UiStrings = {
     orSignInWith: 'أو سجّل الدخول عبر',
     or: 'أو',
     continueEmail: 'المتابعة بالبريد الإلكتروني',
+    continuePhone: 'المتابعة عبر الهاتف',
     showPassword: 'إظهار كلمة المرور',
     hidePassword: 'إخفاء كلمة المرور',
     continueGuest: 'المتابعة كضيف',

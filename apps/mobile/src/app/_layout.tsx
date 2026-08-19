@@ -345,8 +345,12 @@ function AuthGate() {
   const sheet = animated ? ('slide_from_bottom' as const) : ('none' as const);
   const modal = { presentation: 'modal' as const, animation: sheet };
 
+  // The two auth doors and the invite-accept screen are the only routes a
+  // signed-out person is allowed to sit on. `onAuth` covers both doors so a
+  // session that appears bounces off either one back into the app.
   const onSignIn = segments[0] === 'sign-in';
-  const onPublicRoute = onSignIn || segments[0] === 'join';
+  const onAuth = onSignIn || segments[0] === 'sign-up';
+  const onPublicRoute = onAuth || segments[0] === 'join';
 
   /**
    * The route we are on disagrees with the session we have, and the effect
@@ -356,14 +360,13 @@ function AuthGate() {
    * sees on a cold start. Hold the spinner until the route and the session
    * agree, and the app tree never mounts the wrong screen at all.
    */
-  const needsRedirect =
-    !loading && ((!session && !onPublicRoute) || (Boolean(session) && onSignIn));
+  const needsRedirect = !loading && ((!session && !onPublicRoute) || (Boolean(session) && onAuth));
 
   useEffect(() => {
     if (loading) return;
     if (!session && !onPublicRoute) router.replace('/sign-in');
-    else if (session && onSignIn) router.replace('/');
-  }, [session, loading, onSignIn, onPublicRoute, router]);
+    else if (session && onAuth) router.replace('/');
+  }, [session, loading, onAuth, onPublicRoute, router]);
 
   if (loading || needsRedirect) {
     return (
@@ -396,6 +399,9 @@ function AuthGate() {
         {/* Signing in and out replaces the whole tree; sliding it would suggest a
           place to go back to, and there is not one. */}
         <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
+        {/* The sign-up page slides in from the login screen and back out, so it
+            keeps a normal push — unlike sign-in, which replaces the whole tree. */}
+        <Stack.Screen name="sign-up" />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
         <Stack.Screen name="new-group" options={modal} />
         <Stack.Screen name="capture" options={modal} />
