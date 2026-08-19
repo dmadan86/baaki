@@ -6,6 +6,13 @@ import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import {
   currencySymbol,
@@ -782,6 +789,28 @@ function SheetOverlay({
   const theme = useTheme();
   const { t } = useStrings();
   const insets = useSafeAreaInsets();
+
+  // Drag the handle down to dismiss. translateY only ever goes positive (down);
+  // past a short threshold or on a quick flick the sheet closes, otherwise it
+  // springs back. The gesture lives on the header, not the whole card, so it
+  // never fights the list's own vertical scroll.
+  const translateY = useSharedValue(0);
+  const dragToClose = Gesture.Pan()
+    .onUpdate((event) => {
+      translateY.set(Math.max(0, event.translationY));
+    })
+    .onEnd((event) => {
+      if (translateY.get() > 120 || event.velocityY > 800) {
+        translateY.set(withTiming(600));
+        runOnJS(onClose)();
+      } else {
+        translateY.set(withTiming(0));
+      }
+    });
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.get() }],
+  }));
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -797,42 +826,59 @@ function SheetOverlay({
         justifyContent: 'flex-end',
       }}
     >
-      <Pressable
-        onPress={() => {}}
-        style={{
-          backgroundColor: theme.color.surface,
-          borderTopLeftRadius: theme.radius.lg,
-          borderTopRightRadius: theme.radius.lg,
-          padding: theme.spacing.xl,
-          // Clear the Android gesture/nav bar so the last list row is not
-          // hidden behind it.
-          paddingBottom: theme.spacing.xl + insets.bottom,
-          gap: theme.spacing.md,
-          maxHeight: '75%',
-        }}
+      <Animated.View
+        style={[
+          {
+            backgroundColor: theme.color.surface,
+            borderTopLeftRadius: theme.radius.lg,
+            borderTopRightRadius: theme.radius.lg,
+            padding: theme.spacing.xl,
+            // Clear the Android gesture/nav bar so the last list row is not
+            // hidden behind it.
+            paddingBottom: theme.spacing.xl + insets.bottom,
+            gap: theme.spacing.md,
+            maxHeight: '75%',
+          },
+          cardStyle,
+        ]}
       >
-        <View
-          style={{
-            alignSelf: 'center',
-            width: 40,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: theme.color.border,
-          }}
-        />
-        <Text variant="heading">{title}</Text>
-        {/* flexShrink lets this scroll: without it the list keeps its full
-            content height and the sheet's maxHeight clips the overflow instead
-            of scrolling it, so a long group or currency list loses its bottom
-            rows. */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          style={{ flexShrink: 1 }}
-        >
-          {children}
-        </ScrollView>
-      </Pressable>
+        {/* Swallow taps on the card so they never reach the backdrop, which
+            would close the sheet. */}
+        <Pressable onPress={() => {}} style={{ gap: theme.spacing.md, flexShrink: 1 }}>
+          {/* The header is the drag surface AND a tap-to-close target: the grab
+              handle reads as draggable, so make it do something when pushed. */}
+          <GestureDetector gesture={dragToClose}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
+              onPress={onClose}
+              style={{ gap: theme.spacing.md }}
+            >
+              <View
+                style={{
+                  alignSelf: 'center',
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.color.border,
+                }}
+              />
+              <Text variant="heading">{title}</Text>
+            </Pressable>
+          </GestureDetector>
+          {/* flexShrink lets this scroll: without it the list keeps its full
+              content height and the sheet's maxHeight clips the overflow instead
+              of scrolling it, so a long group or currency list loses its bottom
+              rows. */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={{ flexShrink: 1 }}
+          >
+            {children}
+          </ScrollView>
+        </Pressable>
+      </Animated.View>
     </Pressable>
   );
 }
