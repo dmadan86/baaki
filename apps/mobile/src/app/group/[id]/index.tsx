@@ -344,6 +344,18 @@ export default function GroupScreen() {
               when all is well. It replaces the wide banner this screen used to
               stack under the header. */}
             <SyncStatusIcon />
+            {/* A code to hand the group across the table. The whole invite
+              surface — link, share sheet and the QR to point a camera at — lives
+              one tap behind this, so it is the fast way to get somebody in
+              without typing a thing. */}
+            <Pressable
+              onPress={() => router.push(`/group/${groupId}/invite`)}
+              accessibilityRole="button"
+              accessibilityLabel={t.people.inviteTitle}
+              hitSlop={10}
+            >
+              <Ionicons name="qr-code-outline" size={iconSize.xl} color={theme.color.text} />
+            </Pressable>
             {/* Planner, spending and settings live behind this one menu; planner
               only shows for a trip. Bare icon, no chip, to match the back
               arrow. */}
