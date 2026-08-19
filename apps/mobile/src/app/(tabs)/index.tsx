@@ -30,7 +30,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { useGroups, useHomeSummary } from '@/data/hooks';
+import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale } from '@/lib/anim';
 import { useMotion } from '@/lib/motion';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
@@ -40,7 +40,6 @@ import { useDashboardTips } from '@/lib/tips';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
-import { UnassignedCapturesCard } from '@/components/UnassignedCapturesCard';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { groupLabel, GroupType } from '@/data/types';
@@ -60,6 +59,10 @@ export default function HomeScreen() {
 
   const groups = useGroups();
   const summary = useHomeSummary(profile?.id ?? null);
+  // Unassigned captures now live as a badged inbox glyph in the toolbar rather
+  // than a section in the feed.
+  const captures = useCaptures();
+  const captureCount = captures.data?.length ?? 0;
   const guard = useGuestGuard();
 
   const list = groups.data ?? [];
@@ -223,6 +226,39 @@ export default function HomeScreen() {
               {profile?.display_name ?? t.account.you}
             </Text>
           </Pressable>
+          {/* Unassigned captures: a receipt glyph with the count, only while
+              there is something waiting. Straight to the inbox to assign them. */}
+          {captureCount > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${t.captures.unassigned}. ${plural(locale, captureCount, t.captures.unassignedBody)}`}
+              onPress={() => router.push('/captures')}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+            >
+              <View>
+                <Ionicons name="receipt-outline" size={iconSize.xxl} color={theme.color.text} />
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    paddingHorizontal: 3,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.color.brand,
+                  }}
+                >
+                  <Text variant="micro" style={{ color: theme.color.onBrand, fontSize: 10 }}>
+                    {captureCount > 99 ? '99+' : String(captureCount)}
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
           {/* The sync state as one glyph, to the left of the camera — a quiet
               cloud when there are unsent changes or no connection, a turning
               arrow mid-sync, a red mark for a refused change. Nothing when all is
@@ -292,7 +328,6 @@ export default function HomeScreen() {
         {/* Expenses caught without a group yet (A34). Sits near the top so an
             inbox with something in it is the first thing after the balance, not
             a screen nobody remembers to open. The same card is in the Inbox. */}
-        <UnassignedCapturesCard />
 
         {isGuest ? (
           <GuestPrompt gate={guard.gate} t={t} onPress={() => router.push('/settings/account')} />
