@@ -410,6 +410,7 @@ function AuthGate() {
         <Stack.Screen name="group/[id]/expense/[expenseId]" />
         <Stack.Screen name="group/[id]/invite" options={modal} />
         <Stack.Screen name="group/[id]/itemize" options={modal} />
+        <Stack.Screen name="receipt/[id]" options={modal} />
         <Stack.Screen name="friends/contacts" />
         <Stack.Screen name="settings/backup" />
         <Stack.Screen name="settings/notifications" />

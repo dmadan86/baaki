@@ -1025,6 +1025,21 @@ export interface UiStrings {
     capReachedBody: string;
     capUpgrade: string;
     capAddStorage: string;
+    /** Attaching a bill from the gallery, and viewing a kept one (E1/E2). */
+    attach: string;
+    attachReceiptA11y: string;
+    viewReceipt: string;
+    receiptAttached: string;
+    receiptTitle: string;
+    /** Viewer states when the local file is gone but a backup may exist. */
+    receiptMissingTitle: string;
+    receiptMissingOtherDevice: string;
+    /** Has a {provider} placeholder — the personal cloud it was backed up to. */
+    receiptMissingCloud: string;
+    /** Sharing a Drive-stored bill with the group, explicit opt-in (E3). */
+    shareReceiptTitle: string;
+    shareReceiptBody: string;
+    shareReceiptNeedsStorage: string;
     /** The scanned-bill card and the receipt hand-off on the group screen. */
     aBill: string;
     splitBillA11y: string;
@@ -2386,6 +2401,20 @@ const en: UiStrings = {
       'This group has used its free receipts. Upgrade or add your own storage to keep scanning.',
     capUpgrade: 'Upgrade',
     capAddStorage: 'Add storage',
+    attach: 'Attach',
+    attachReceiptA11y: 'Attach a photo of the bill from your gallery',
+    viewReceipt: 'View receipt',
+    receiptAttached: 'Bill kept — tap to view',
+    receiptTitle: 'Receipt',
+    receiptMissingTitle: 'Receipt not on this device',
+    receiptMissingOtherDevice:
+      'This bill is saved on the device it was added from. Open the app there to see it.',
+    receiptMissingCloud: 'This bill is backed up to your {provider}, not on this device.',
+    shareReceiptTitle: 'Share receipt with group',
+    shareReceiptBody:
+      'Let everyone in the group open the bill from your own Drive. The image never touches Waves. Off by default.',
+    shareReceiptNeedsStorage:
+      'Back this receipt up to Google Drive first to share it with the group.',
     aBill: 'A bill',
     splitBillA11y: 'Split {merchant} by item',
     receiptClaimedNone: {
@@ -3839,6 +3868,21 @@ const ta: UiStrings = {
       'இந்தக் குழு அதன் இலவச ரசீதுகளைப் பயன்படுத்திவிட்டது. தொடர்ந்து ஸ்கேன் செய்ய மேம்படுத்துங்கள் அல்லது உங்கள் சொந்த சேமிப்பகத்தைச் சேர்க்கவும்.',
     capUpgrade: 'மேம்படுத்து',
     capAddStorage: 'சேமிப்பகம் சேர்',
+    attach: 'இணை',
+    attachReceiptA11y: 'கேலரியில் இருந்து பில் புகைப்படத்தை இணை',
+    viewReceipt: 'ரசீதைப் பார்',
+    receiptAttached: 'பில் சேமிக்கப்பட்டது — பார்க்க தட்டவும்',
+    receiptTitle: 'ரசீது',
+    receiptMissingTitle: 'இந்தச் சாதனத்தில் ரசீது இல்லை',
+    receiptMissingOtherDevice:
+      'இந்த பில் அது சேர்க்கப்பட்ட சாதனத்தில் சேமிக்கப்பட்டுள்ளது. அதைப் பார்க்க அங்கே ஆப்பைத் திறக்கவும்.',
+    receiptMissingCloud:
+      'இந்த பில் உங்கள் {provider}-இல் காப்பு எடுக்கப்பட்டுள்ளது, இந்தச் சாதனத்தில் இல்லை.',
+    shareReceiptTitle: 'ரசீதைக் குழுவுடன் பகிர்',
+    shareReceiptBody:
+      'குழுவில் உள்ள அனைவரும் உங்கள் Drive-இல் இருந்து பில்லைத் திறக்கலாம். படம் Waves-ஐ ஒருபோதும் தொடாது. இயல்பாக அணைக்கப்பட்டுள்ளது.',
+    shareReceiptNeedsStorage:
+      'குழுவுடன் பகிர இந்த ரசீதை முதலில் Google Drive-இல் காப்பு எடுக்கவும்.',
     aBill: 'ஒரு பில்',
     splitBillA11y: '{merchant} பொருள் வாரியாகப் பிரி',
     receiptClaimedNone: {
@@ -5283,6 +5327,20 @@ const hi: UiStrings = {
       'इस ग्रुप की मुफ़्त रसीदें ख़त्म हो गई हैं। स्कैन करते रहने के लिए अपग्रेड करें या अपना स्टोरेज जोड़ें।',
     capUpgrade: 'अपग्रेड करें',
     capAddStorage: 'स्टोरेज जोड़ें',
+    attach: 'जोड़ें',
+    attachReceiptA11y: 'गैलरी से बिल की फ़ोटो जोड़ें',
+    viewReceipt: 'रसीद देखें',
+    receiptAttached: 'बिल सहेजा गया — देखने के लिए टैप करें',
+    receiptTitle: 'रसीद',
+    receiptMissingTitle: 'इस डिवाइस पर रसीद नहीं है',
+    receiptMissingOtherDevice:
+      'यह बिल उसी डिवाइस पर सहेजा गया है जहाँ से इसे जोड़ा गया था। इसे देखने के लिए वहाँ ऐप खोलें।',
+    receiptMissingCloud: 'यह बिल आपके {provider} पर बैकअप है, इस डिवाइस पर नहीं।',
+    shareReceiptTitle: 'रसीद ग्रुप के साथ साझा करें',
+    shareReceiptBody:
+      'ग्रुप के सभी लोग आपके Drive से बिल खोल सकते हैं। छवि कभी Waves तक नहीं पहुँचती। डिफ़ॉल्ट रूप से बंद।',
+    shareReceiptNeedsStorage:
+      'ग्रुप के साथ साझा करने के लिए पहले इस रसीद का Google Drive पर बैकअप लें।',
     aBill: 'एक बिल',
     splitBillA11y: '{merchant} को चीज़-वार बाँटें',
     receiptClaimedNone: {
@@ -6746,6 +6804,20 @@ const ar: UiStrings = {
       'استهلكت هذه المجموعة إيصالاتها المجانية. رقِّ الخطة أو أضِف مساحتك الخاصة لمواصلة المسح.',
     capUpgrade: 'ترقية',
     capAddStorage: 'إضافة مساحة',
+    attach: 'إرفاق',
+    attachReceiptA11y: 'أرفق صورة الفاتورة من معرض الصور',
+    viewReceipt: 'عرض الإيصال',
+    receiptAttached: 'تم حفظ الفاتورة — اضغط للعرض',
+    receiptTitle: 'الإيصال',
+    receiptMissingTitle: 'الإيصال غير موجود على هذا الجهاز',
+    receiptMissingOtherDevice:
+      'هذه الفاتورة محفوظة على الجهاز الذي أُضيفت منه. افتح التطبيق هناك لعرضها.',
+    receiptMissingCloud: 'تم نسخ هذه الفاتورة احتياطيًا إلى {provider}، وليست على هذا الجهاز.',
+    shareReceiptTitle: 'مشاركة الإيصال مع المجموعة',
+    shareReceiptBody:
+      'اسمح لكل أفراد المجموعة بفتح الفاتورة من Drive الخاص بك. الصورة لا تصل إلى Waves أبدًا. مُعطَّل افتراضيًا.',
+    shareReceiptNeedsStorage:
+      'انسخ هذا الإيصال احتياطيًا إلى Google Drive أولًا لمشاركته مع المجموعة.',
     aBill: 'فاتورة',
     splitBillA11y: 'قسّم {merchant} حسب الصنف',
     receiptClaimedNone: {

@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 
 import { categoryOf } from '@waves/core';
 import {
@@ -35,6 +36,7 @@ import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { fill, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { receiptFiles } from '@/lib/receiptStore';
 
 function splitLabels(t: UiStrings): Record<string, string> {
   return {
@@ -100,6 +102,25 @@ export default function ExpenseDetailScreen() {
 
   const currency = version.currency;
   const deleted = Boolean(expense.deleted_at);
+
+  // The bill (E2/E3). The owner has it in the device vault; a member who is not
+  // the owner has no local copy, but may have the owner's Drive link if they
+  // opened it to the group. Either is a way to see the receipt — the local one
+  // opens the in-app zoom viewer, the link opens the owner's own Drive.
+  const localReceipt = receiptFiles(expense.id);
+  const receiptShareUrl = version.receipt_share_url;
+  const hasReceipt = Boolean(localReceipt) || Boolean(receiptShareUrl);
+  const openReceipt = (): void => {
+    if (localReceipt) {
+      router.push(
+        `/receipt/${expense.id}${
+          receiptShareUrl ? `?shareUrl=${encodeURIComponent(receiptShareUrl)}` : ''
+        }`,
+      );
+    } else if (receiptShareUrl) {
+      void Linking.openURL(receiptShareUrl).catch(() => undefined);
+    }
+  };
   // The hero wears the expense's category colour, not a money colour: this
   // amount is a total that belongs to nobody, shown neutral. Ink from the same
   // pair keeps it legible on the tint.
@@ -189,6 +210,56 @@ export default function ExpenseDetailScreen() {
             {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
           </Row>
         </TintCard>
+
+        {/* The bill, when there is one to see (E2/E3). A local thumbnail opens
+            the pinch-zoom viewer; a member with only the owner's share link gets
+            a row that opens it. Absent entirely when neither exists. */}
+        {hasReceipt ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.expense.viewReceipt}
+            onPress={openReceipt}
+          >
+            <Card style={{ paddingVertical: theme.spacing.md }}>
+              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                {localReceipt ? (
+                  <Image
+                    source={{ uri: localReceipt.imageUri }}
+                    style={{ width: 52, height: 52, borderRadius: theme.radius.md }}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: theme.radius.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.bg,
+                    }}
+                  >
+                    <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.brand} />
+                  </View>
+                )}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="subheading" numberOfLines={1}>
+                    {t.expense.viewReceipt}
+                  </Text>
+                  <Text variant="micro" tone="muted" numberOfLines={1}>
+                    {t.expense.receiptTitle}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={iconSize.md}
+                  color={theme.color.textFaint}
+                />
+              </Row>
+            </Card>
+          </Pressable>
+        ) : null}
 
         {version.payers.length > 1 ? (
           <View>

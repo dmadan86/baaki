@@ -218,6 +218,46 @@ export async function pickReceiptPhoto(): Promise<PickedImage | null> {
 }
 
 /**
+ * A receipt the person already has — pick it from the photo library.
+ *
+ * The counterpart to {@link captureReceipt} for the times there is nothing to
+ * point a camera at: the bill is a screenshot of a food-delivery order, a PDF
+ * someone photographed earlier, or a scan that failed and the person would
+ * rather attach the picture they already took. It goes straight to the library
+ * rather than the camera, and it is deliberately not gated behind OCR — an
+ * attached image is worth keeping whether or not a model can read a total off
+ * it (E1/E2).
+ *
+ * Sized and compressed exactly like a camera receipt so the vault and any
+ * personal-cloud backup carry the same bytes either way. Returns null when the
+ * person cancels or declines access — both ordinary answers, not errors.
+ */
+export async function pickReceiptImage(): Promise<PickedImage | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) return null;
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    base64: false,
+  });
+  if (result.canceled) return null;
+
+  const asset = result.assets[0];
+  if (!asset) return null;
+
+  const shrunk =
+    (await shrink({
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      maxEdge: RECEIPT_MAX_EDGE,
+      compress: 0.9,
+    })) ?? (await readUnshrunk(asset.uri));
+  return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
+}
+
+/**
  * A receipt, however this phone can best get one.
  *
  * The document scanner is tried first: it finds the page edges and flattens the

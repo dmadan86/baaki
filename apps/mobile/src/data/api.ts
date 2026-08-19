@@ -59,7 +59,7 @@ const EXPENSE_SELECT = `
   id, group_id, deleted_at, created_at,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
     id, version_no, description, category, expense_date, currency, amount,
-    split_type, split_params, author_member_id, notes, payment_method, created_at,
+    split_type, split_params, author_member_id, notes, payment_method, receipt_share_url, created_at,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
   )
@@ -557,6 +557,8 @@ export interface WriteExpenseInput {
   notes?: string | null;
   /** How the money moved: cash | credit | debit | forex. Optional. */
   paymentMethod?: PaymentMethod | null;
+  /** A view-only link to the owner's own cloud copy of the receipt (E3). */
+  receiptShareUrl?: string | null;
   /** The rate used, when this expense is not in the group's currency. */
   fx?: FxRecord | null;
   clientMutationId?: string;
@@ -596,6 +598,9 @@ export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpen
       // Full snapshot, not a patch: an append-only version always carries the
       // field, so an omitted method and an explicit null both mean "none".
       paymentMethod: input.paymentMethod ?? null,
+      // A view-only link to the owner's own cloud copy of the receipt (E3); the
+      // image itself never reaches the server, only this optional URL.
+      receiptShareUrl: input.receiptShareUrl ?? null,
       fx: input.fx ?? null,
       // Idempotency key: a retry after a flaky network must not double-post.
       clientMutationId: input.clientMutationId ?? randomUUID(),

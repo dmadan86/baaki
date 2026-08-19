@@ -14,7 +14,14 @@
 import { authorize, isExpired, refresh, type OAuthConfig } from './oauth';
 import { requestJson, uploadFile } from './http';
 import { BACKUP_FOLDER, clientId, isConfigured as clientConfigured } from './config';
-import type { CloudProvider, CloudTokens, CloudUploadInput, CloudUploadResult } from './types';
+import type {
+  CloudProvider,
+  CloudShareRef,
+  CloudShareResult,
+  CloudTokens,
+  CloudUploadInput,
+  CloudUploadResult,
+} from './types';
 
 const DISCOVERY = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -101,5 +108,28 @@ export const googleDrive: CloudProvider = {
     );
     await putFile(tokens, folderId, input.jsonUri, `${input.captureId}.json`, 'application/json');
     return { remoteId };
+  },
+  /**
+   * Open the receipt to anyone with the link, view-only, and hand back that link
+   * (E3). Two calls: grant a `reader`/`anyone` permission on the file, then read
+   * its `webViewLink`.
+   *
+   * The `drive.file` scope this provider already holds is enough — it grants
+   * full control of files the app itself created, permission changes included,
+   * without widening access to the rest of the user's Drive. The image never
+   * passes through Waves; the link points straight at the owner's own Drive.
+   */
+  async share(tokens: CloudTokens, ref: CloudShareRef): Promise<CloudShareResult> {
+    await requestJson(`https://www.googleapis.com/drive/v3/files/${ref.remoteId}/permissions`, {
+      method: 'POST',
+      headers: authHeader(tokens),
+      body: { role: 'reader', type: 'anyone' },
+    });
+    const meta = await requestJson(
+      `https://www.googleapis.com/drive/v3/files/${ref.remoteId}?fields=webViewLink`,
+      { headers: authHeader(tokens) },
+    );
+    const url = meta.webViewLink as string | undefined;
+    return url ? { url } : { unsupported: true };
   },
 };

@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
@@ -21,6 +22,7 @@ import {
   Callout,
   Card,
   ChipRow,
+  directionalIcon,
   EmptyState,
   IconButton,
   iconSize,
@@ -28,6 +30,7 @@ import {
   Row,
   Screen,
   Text,
+  Toggle,
   useTheme,
 } from '@waves/ui';
 
@@ -44,8 +47,13 @@ import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { handoverKey } from '@/lib/handover';
 import { resolveDraftCurrency, resolveDraftFx } from '@/lib/expenseDraft';
-import { captureReceipt } from '@/lib/image';
+import { captureReceipt, pickReceiptImage, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
+import { receiptFiles, saveReceipt } from '@/lib/receiptStore';
+import { entryFor, markPending } from '@/lib/receiptIndex';
+import { useBackup } from '@/lib/cloud/BackupProvider';
+import { providerFor } from '@/lib/cloud/providers';
+import { loadTokens, saveTokens } from '@/lib/cloud/tokens';
 import { matchMemberNames, stripMemberNames } from '@/lib/voiceExpense';
 import {
   entryValues,
@@ -136,6 +144,7 @@ export default function AddExpenseScreen() {
   const { mutate } = useSync();
   const assignCapture = useAssignCapture();
   const guard = useGuestGuard();
+  const backup = useBackup();
 
   const editing = expenses.rows.find((expense) => expense.id === expenseId);
 
@@ -186,6 +195,23 @@ export default function AddExpenseScreen() {
   const [scanNote, setScanNote] = useState<string | null>(null);
   /** Set once a scan has read line items, so the offer to itemize is real. */
   const [scannedItems, setScannedItems] = useState(0);
+  // The kept bill for this expense (E2): its local image URI once a scan or an
+  // attach has written it to the device vault, keyed by the expense id. Null
+  // means no receipt on this device — the thumbnail and the "view" affordance
+  // hide themselves. Seeded straight from disk (a synchronous file check) so a
+  // receipt kept on an earlier edit shows the moment the screen reopens, without
+  // an effect that would flash it in a frame late.
+  const [receiptUri, setReceiptUri] = useState<string | null>(
+    () => receiptFiles(targetExpenseId)?.imageUri ?? null,
+  );
+  // E3: share the kept bill with the group, off by default. Only meaningful
+  // once the receipt is backed up to a share-capable personal cloud (Drive) —
+  // `shareEligible` says whether that is true yet, so the toggle is never a
+  // promise the plumbing can't keep. `shareUrl` is the link, either loaded from
+  // an existing expense or minted on save.
+  const [shareWithGroup, setShareWithGroup] = useState(false);
+  const [shareEligible, setShareEligible] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   // The per-group receipt ceiling. A group holds a few receipts for free (the
   // number is an admin knob); past it, scanning is a paid feature. A paid group
@@ -208,6 +234,21 @@ export default function AddExpenseScreen() {
     () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
     [members.data, profile?.id],
   );
+
+  // Whether the kept bill has reached a share-capable cloud yet (E3). Read from
+  // the backup index, which is async — so it lives in an effect, re-run when a
+  // fresh save changes `receiptUri`. This is what keeps the group-share toggle
+  // honest: it can only be turned on once there is actually something to serve.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const entry = await entryFor(targetExpenseId);
+      if (active) setShareEligible(entry?.state === 'synced' && entry.provider === 'gdrive');
+    })();
+    return () => {
+      active = false;
+    };
+  }, [targetExpenseId, receiptUri]);
 
   // Seed the form once the group has loaded: I paid, everyone splits — or the
   // current version's values when editing. Done during render (React's
@@ -294,6 +335,10 @@ export default function AddExpenseScreen() {
       // expense asks for its rate again on save.
       setExpenseCurrency(version.currency);
       setFx(null);
+      // A bill already opened to the group carries its link on the version (E3);
+      // reopen the toggle on so an edit does not silently un-share it.
+      setShareUrl(version.receipt_share_url ?? null);
+      setShareWithGroup(Boolean(version.receipt_share_url));
       setPayer(version.payers[0]?.member_id ?? myMemberId);
       setParticipants(version.shares.map((share) => share.member_id));
       setSplitKind(
@@ -438,6 +483,33 @@ export default function AddExpenseScreen() {
     );
   }
 
+  /**
+   * The group-share link to store on the expense (E3), or null.
+   *
+   * Off, or an already-known link, are settled without a network call. Turning
+   * it on mints the link from the owner's OWN Drive — but only when the bill has
+   * actually reached Drive (a synced backup with a file id). If it has not, this
+   * returns null rather than a broken promise: the toggle's own gate means the
+   * user was told to back it up first, and a save must never claim a share it
+   * cannot serve. The image never passes through Waves at any step.
+   */
+  const resolveShareUrl = async (): Promise<string | null> => {
+    if (!shareWithGroup) return null;
+    if (shareUrl) return shareUrl;
+    const entry = await entryFor(targetExpenseId);
+    if (!entry || entry.state !== 'synced' || entry.provider !== 'gdrive' || !entry.remoteId) {
+      return null;
+    }
+    const stored = await loadTokens('gdrive');
+    if (!stored) return null;
+    const provider = providerFor('gdrive');
+    if (!provider.share) return null;
+    const tokens = await provider.ensureValid(stored);
+    await saveTokens('gdrive', tokens);
+    const result = await provider.share(tokens, { remoteId: entry.remoteId });
+    return 'url' in result ? result.url : null;
+  };
+
   const submit = async (): Promise<void> => {
     // Read-only once the guest trial is up (ADR-006 addendum): the group and its
     // history stay visible, but a new or edited expense sends them to sign up.
@@ -449,10 +521,23 @@ export default function AddExpenseScreen() {
     }
     setSaving(true);
     try {
+      // Mint the group-share link before the write, so it rides the same
+      // mutation and reaches other members with the expense. A Drive hiccup here
+      // must not block saving the expense itself — on any trouble it stays null,
+      // never a half-shared receipt.
+      let receiptShareUrl: string | null = null;
+      try {
+        receiptShareUrl = await resolveShareUrl();
+      } catch {
+        receiptShareUrl = null;
+      }
+      if (receiptShareUrl) setShareUrl(receiptShareUrl);
+
       // Straight into the durable queue: this returns as soon as the mutation
       // is on disk, so the expense is saved whether or not there is a network.
       await mutate(expenseId ? MutationKind.ExpenseUpdate : MutationKind.ExpenseCreate, groupId, {
         expenseId: targetExpenseId,
+        receiptShareUrl,
         // Blank stays blank. Writing the English word "Expense" here made every
         // undescribed row identical in the list, and put a word nobody typed
         // into an append-only ledger, the CSV export and the notification text —
@@ -512,6 +597,74 @@ export default function AddExpenseScreen() {
   };
 
   /**
+   * Keep the bill (E2): write it to the on-device vault under the expense id,
+   * and queue a personal-cloud backup if one is connected — exactly what the
+   * capture screen does, and for the same privacy reason. The image is never
+   * uploaded to Waves; only the parsed fields ride the expense sync.
+   *
+   * Best-effort by design: the vault returns null on web or a build without a
+   * document dir, and a failed keep must never cost the scan or the attach that
+   * produced it. So it swallows its own trouble and leaves the amount typed.
+   */
+  const persistReceipt = (
+    picked: PickedImage,
+    extra?: {
+      amountMinor?: number;
+      items?: { label: string; total: number }[];
+      rawText?: string | null;
+      date?: string | null;
+    },
+  ): void => {
+    try {
+      const saved = saveReceipt(targetExpenseId, {
+        base64: picked.base64,
+        sidecar: {
+          captureId: targetExpenseId,
+          currency,
+          amountMinor: extra?.amountMinor ?? Number(amount),
+          itemCount: extra?.items?.length ?? 0,
+          items: extra?.items ?? [],
+          date: extra?.date ?? new Date().toISOString().slice(0, 10),
+          category,
+          rawText: extra?.rawText ?? null,
+          createdAt: new Date().toISOString(),
+        },
+      });
+      if (!saved) return;
+      setReceiptUri(saved.imageUri);
+      // Remember it needs backup before any network is involved, then nudge the
+      // queue; both no-op cleanly when there is no provider or no signal.
+      void markPending(targetExpenseId, saved, new Date().toISOString()).then(() => backup.kick());
+    } catch {
+      // A vault that would not write is not a reason to lose the expense.
+    }
+  };
+
+  /**
+   * Attach a bill the person already has (E1).
+   *
+   * The escape hatch for when scanning is the wrong tool: the bill is a
+   * screenshot of a delivery order, a PDF photographed earlier, or a scan that
+   * failed and they would rather attach the picture in their gallery. Unlike a
+   * scan it never hits the metered `receipt-parse` path — nothing is recorded
+   * server-side, so it does not count against the group's receipt cap and is
+   * offered even when the cap is reached. The image is kept and the amount stays
+   * theirs to type.
+   */
+  const attach = async (): Promise<void> => {
+    setError(null);
+    setScanNote(null);
+    let picked: PickedImage | null = null;
+    try {
+      picked = await pickReceiptImage();
+    } catch {
+      picked = null;
+    }
+    if (!picked) return;
+    persistReceipt(picked);
+  };
+
+  /**
    * Photograph the bill, fill in the two fields somebody was about to type.
    *
    * This screen deliberately does not become an itemizing screen. Most bills
@@ -556,6 +709,17 @@ export default function AddExpenseScreen() {
       if (result.parsed.grandTotal > 0) setAmount(BigInt(result.parsed.grandTotal));
       if (result.parsed.merchant && !description.trim()) setDescription(result.parsed.merchant);
       setScannedItems(result.parsed.items.length);
+
+      // Keep the photographed bill too (E2), with what the parser recovered as
+      // its sidecar so the on-device archive reads as a record, not a folder of
+      // JPEGs. The scan's own server receipt is a separate thing (the metered
+      // parse); this is the copy the owner keeps and can view later.
+      persistReceipt(picked, {
+        amountMinor: result.parsed.grandTotal > 0 ? result.parsed.grandTotal : undefined,
+        items: result.parsed.items.map((item) => ({ label: item.label, total: item.total })),
+        rawText: recognised?.text ?? null,
+        date: result.parsed.date,
+      });
 
       // Kept for the itemize screen in case they want it. Nobody should have to
       // photograph the same bill twice, and a scan is metered (ADR-011).
@@ -637,20 +801,22 @@ export default function AddExpenseScreen() {
 
         {/* Below the amount, not above it. Typing a number is the fast path and
             stays the first thing on the screen; the camera is for the bill that
-            is easier to point at than to read. */}
+            is easier to point at than to read. Attach sits beside Scan for the
+            bill that is already a picture, or the scan that would not read. */}
         <Card style={{ gap: theme.spacing.md }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-              <Text variant="subheading">
-                {capLocked ? t.expense.capReachedTitle : t.expense.scanBillTitle}
-              </Text>
-              <Text variant="caption" tone="muted">
-                {capLocked ? t.expense.capReachedBody : t.expense.scanBillBody}
-              </Text>
-            </View>
-            {/* Once the group is capped the scan button has nothing to do — a
-                scan the server would refuse — so it gives way to the two ways
-                out: pay, or bring your own storage. */}
+          <View>
+            <Text variant="subheading">
+              {capLocked ? t.expense.capReachedTitle : t.expense.scanBillTitle}
+            </Text>
+            <Text variant="caption" tone="muted">
+              {capLocked ? t.expense.capReachedBody : t.expense.scanBillBody}
+            </Text>
+          </View>
+
+          {/* Scan is metered and gives way when the group is capped; Attach is
+              not — it keeps a photo on the device and never records a receipt
+              server-side, so it is offered even at the cap. */}
+          <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
             {!capLocked ? (
               <Button
                 label={scanning ? t.expense.reading : t.expense.scan}
@@ -662,6 +828,13 @@ export default function AddExpenseScreen() {
                 }
               />
             ) : null}
+            <Button
+              label={t.expense.attach}
+              variant="secondary"
+              disabled={scanning || saving}
+              onPress={() => void attach()}
+              icon={<Ionicons name="image-outline" size={iconSize.md} color={theme.color.brand} />}
+            />
           </Row>
           {capLocked ? (
             <Row style={{ gap: theme.spacing.sm }}>
@@ -682,6 +855,69 @@ export default function AddExpenseScreen() {
               {scanNote}
             </Text>
           ) : null}
+
+          {/* The kept bill (E2): a thumbnail that opens the full-screen viewer,
+              and below it the explicit, off-by-default choice to open it to the
+              group from your own Drive (E3). Both hide themselves until there is
+              a bill on the device. */}
+          {receiptUri ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.expense.viewReceipt}
+                onPress={() =>
+                  router.push(
+                    `/receipt/${targetExpenseId}${
+                      shareUrl ? `?shareUrl=${encodeURIComponent(shareUrl)}` : ''
+                    }`,
+                  )
+                }
+              >
+                <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                  <Image
+                    source={{ uri: receiptUri }}
+                    style={{ width: 52, height: 52, borderRadius: theme.radius.md }}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text variant="subheading" numberOfLines={1}>
+                      {t.expense.viewReceipt}
+                    </Text>
+                    <Text variant="micro" tone="muted" numberOfLines={1}>
+                      {t.expense.receiptAttached}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={directionalIcon('chevron-forward')}
+                    size={iconSize.md}
+                    color={theme.color.textFaint}
+                  />
+                </Row>
+              </Pressable>
+
+              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="caption">{t.expense.shareReceiptTitle}</Text>
+                  <Text variant="micro" tone="muted">
+                    {shareEligible
+                      ? t.expense.shareReceiptBody
+                      : t.expense.shareReceiptNeedsStorage}
+                  </Text>
+                </View>
+                <Toggle
+                  value={shareWithGroup}
+                  onValueChange={setShareWithGroup}
+                  // Off means off; on can always be turned back off. On can only
+                  // be turned on once the bill is on a share-capable cloud, so a
+                  // toggle can never claim to share what nothing can serve.
+                  disabled={!shareEligible && !shareWithGroup}
+                  accessibilityLabel={t.expense.shareReceiptTitle}
+                />
+              </Row>
+            </>
+          ) : null}
+
           {scannedItems > 0 && !editing ? (
             <Pressable
               accessibilityRole="button"
