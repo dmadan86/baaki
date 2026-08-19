@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
@@ -7,6 +7,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
+  currencySymbol,
+  dayNumber,
   guessCategory,
   parseReceiptText,
   type CategoryId,
@@ -28,11 +30,18 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { COMMON_CURRENCIES } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
 import { useCreateCapture, useGroups, useHomeSummary } from '@/data/hooks';
-import { groupLabel } from '@/data/types';
+import { groupLabel, GroupType, type GroupRow, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
-import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
+import {
+  deviceDefaultCurrency,
+  deviceSupportsUpi,
+  plural,
+  useStrings,
+  type UiStrings,
+} from '@/i18n';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
 import { saveReceipt } from '@/lib/receiptStore';
@@ -61,6 +70,24 @@ function todayIso(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
+/** Today as `YYYY-MM-DD` in a given timezone, never the reader's — so a trip's
+    "running today" is judged in the trip's own zone (the same rule the dashboard
+    and planner use). */
+function todayIn(timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
+  } catch {
+    return todayIso();
+  }
+}
+
+/** A trip whose date range spans today in its own timezone — the one destination
+    worth pulling to the front of the picker. */
+function isCurrentTrip(group: GroupRow): boolean {
+  if (group.type !== GroupType.Trip) return false;
+  return dayNumber(todayIn(group.time_zone), group.start_date, group.end_date) !== null;
+}
+
 /**
  * Parsed as local noon rather than midnight: a date-only string turned into
  * midnight UTC lands on the previous day west of Greenwich (the same trap
@@ -86,21 +113,41 @@ function showDate(iso: string, locale: string): string {
 }
 
 /**
- * How the spend was paid — a tag, not a commitment. The id is what persists
- * (constrained to this set on the server too); the icon and label are UI. Debit
- * wears the filled card so it reads apart from credit's outline at chip size.
+ * How the spend was paid — a tag, not a commitment. The id is what persists (a
+ * free-text `payment_method` column, so any of these ids is safe to store); the
+ * icon and label are UI. Debit wears the filled card so it reads apart from
+ * credit's outline at chip size. `upi` is offered only where the rail exists
+ * (see `deviceSupportsUpi`); everywhere else the row is region rails a person
+ * would recognise.
  */
 const PAYMENT_METHODS: readonly {
-  id: 'cash' | 'credit' | 'debit' | 'forex';
+  id: 'cash' | 'upi' | 'credit' | 'debit' | 'forex';
   icon: keyof typeof Ionicons.glyphMap;
+  /** True for a rail that only some regions have — filtered by device support. */
+  regional?: boolean;
 }[] = [
   { id: 'cash', icon: 'cash-outline' },
+  { id: 'upi', icon: 'phone-portrait-outline', regional: true },
   { id: 'credit', icon: 'card-outline' },
   { id: 'debit', icon: 'card' },
   { id: 'forex', icon: 'swap-horizontal-outline' },
 ];
 
 type PaymentMethodId = (typeof PAYMENT_METHODS)[number]['id'];
+
+/**
+ * The scan nonces already consumed, at module scope so the set survives a
+ * remount.
+ *
+ * The dashboard camera opens this screen with `?scan=<nonce>` to mean "go
+ * straight to the camera". Android recreates the JS activity when it returns
+ * from the separate native camera activity, which remounts this screen with the
+ * same URL still carrying that nonce — a `useRef` guard would reset and fire the
+ * camera a second time on a loop. A module-level Set is the fix: a nonce is
+ * recorded the first time it is seen and never acted on again, yet a genuinely
+ * new tap carries a fresh `Date.now()` nonce and so still opens the camera.
+ */
+const consumedScans = new Set<string>();
 
 /**
  * Catch an expense before it has a group.
@@ -118,15 +165,19 @@ export default function CaptureScreen() {
   const { t, locale } = useStrings();
   const createCapture = useCreateCapture();
   const backup = useBackup();
-  // The dashboard camera opens this screen with `?scan=1` to mean "go straight
-  // to the camera", rather than showing an empty form to fill in first.
   const { scan } = useLocalSearchParams<{ scan?: string }>();
 
   // Chosen here so the photo can be uploaded under it before the row exists —
   // the storage path keys off the capture id, exactly as add-expense seeds its
   // own expense id up front.
   const [captureId] = useState(() => randomUUID());
-  const currency = deviceDefaultCurrency();
+
+  // The currency starts device-derived (INR when the region is unknown, never a
+  // US default) but is the person's to change here — the currency pill under the
+  // amount opens the picker. A traveller paying in a currency their phone's
+  // region does not use should not have to leave and reopen the group form.
+  const [currency, setCurrency] = useState<string>(() => deviceDefaultCurrency());
+  const [pickingCurrency, setPickingCurrency] = useState(false);
 
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
@@ -143,10 +194,11 @@ export default function CaptureScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // How it was paid and which group it is bound for — both optional tags that
-  // ride the capture and survive until it is assigned. Null is a real answer
-  // for each: "not said" and "decide later".
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId | null>(null);
+  // How it was paid and which group it is bound for — both tags that ride the
+  // capture and survive until it is assigned. Payment defaults to cash (the most
+  // common answer, and one fewer tap for it); the group defaults to "decide
+  // later" (null), which keeps the capture in the inbox.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId | null>('cash');
   const [targetGroupId, setTargetGroupId] = useState<string | null>(null);
   const [pickingGroup, setPickingGroup] = useState(false);
 
@@ -160,14 +212,26 @@ export default function CaptureScreen() {
     ? groupLabel(targetGroup, summary.membersFor(targetGroup.id), profile?.id)
     : t.captures.decideLater;
 
-  const paymentLabel = (id: PaymentMethodId): string =>
-    id === 'cash'
-      ? t.captures.payCash
-      : id === 'credit'
-        ? t.captures.payCredit
-        : id === 'debit'
-          ? t.captures.payDebit
-          : t.captures.payForex;
+  // Only the rails this region actually offers. UPI is dropped everywhere the
+  // device does not settle over it, so nobody outside its reach sees a tag that
+  // means nothing to them.
+  const upiSupported = deviceSupportsUpi();
+  const paymentMethods = PAYMENT_METHODS.filter((method) => !method.regional || upiSupported);
+
+  const paymentLabel = (id: PaymentMethodId): string => {
+    switch (id) {
+      case 'cash':
+        return t.captures.payCash;
+      case 'upi':
+        return t.captures.payUpi;
+      case 'credit':
+        return t.captures.payCredit;
+      case 'debit':
+        return t.captures.payDebit;
+      case 'forex':
+        return t.captures.payForex;
+    }
+  };
 
   // The guess follows the description until a chip is tapped, then stops moving
   // under the user's finger — the same rule the add-expense category uses.
@@ -229,20 +293,16 @@ export default function CaptureScreen() {
   };
 
   // "Straight to the camera": when opened from the dashboard scanner icon, fire
-  // the capture once on mount rather than waiting for a tap on "Add receipt".
-  //
-  // The ref guards a double-run within one mount (React 18 strict mode, or a
-  // re-render mid-scan). It does NOT survive a remount, and Android recreates
-  // the JS activity when it returns from the separate native camera activity —
-  // so after the user closes the camera the screen could remount, still see
-  // `scan=1`, and pop the camera open again, on a loop. Clearing the param the
-  // moment we fire means a remount sees no `scan` and leaves the form alone.
-  const autoScanned = useRef(false);
+  // the capture once for this nonce. The module-level `consumedScans` set is
+  // what makes it exactly once even across the remount Android forces when it
+  // returns from the native camera (see the set's own note).
   useEffect(() => {
-    if (scan && !autoScanned.current) {
-      autoScanned.current = true;
-      router.setParams({ scan: undefined });
-      void addReceipt();
+    if (scan && !consumedScans.has(scan)) {
+      consumedScans.add(scan);
+      // Deferred a microtask so the state addReceipt sets on entry does not run
+      // synchronously inside the effect body — the same async-callback shape the
+      // other effects here use. The camera still opens effectively at once.
+      void Promise.resolve().then(() => addReceipt());
     }
     // addReceipt is stable enough for a one-shot; deps intentionally minimal.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -308,7 +368,7 @@ export default function CaptureScreen() {
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: theme.spacing.xl,
-          gap: theme.spacing.lg,
+          gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -323,15 +383,51 @@ export default function CaptureScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        <Card style={{ paddingVertical: theme.spacing.lg }}>
+        {/* Amount-forward hero: the number is the point of this screen, so it
+            leads — big and centred, with the currency it is counted in a tap
+            below it (the Splitwise/PayPal amount-first pattern). No card around
+            it; the whitespace is the frame. */}
+        <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingTop: theme.spacing.md }}>
           <AmountField currency={currency} value={amount} onChange={setAmount} />
-        </Card>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t.captures.currencyLabel}: ${currency}`}
+            onPress={() => setPickingCurrency(true)}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              paddingVertical: theme.spacing.xs,
+              paddingHorizontal: theme.spacing.md,
+              borderRadius: theme.radius.pill,
+              backgroundColor: theme.color.surfaceMuted,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text variant="caption" tone="muted">
+              {currencySymbol(currency)}
+            </Text>
+            <Text variant="caption" style={{ fontWeight: '700', color: theme.color.text }}>
+              {currency}
+            </Text>
+            <Ionicons name="chevron-down" size={iconSize.sm} color={theme.color.textMuted} />
+          </Pressable>
+        </View>
 
-        <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.captures.description}
-          </Text>
-          <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+        {/* Description, as a single underlined field rather than a boxed card —
+            it sits right under the amount so the two things a person always fills
+            in are together, with the mic to speak it instead of type (A5). */}
+        <View style={{ gap: theme.spacing.xs }}>
+          <Row
+            style={{
+              alignItems: 'center',
+              gap: theme.spacing.sm,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.color.border,
+              paddingBottom: theme.spacing.xs,
+            }}
+          >
+            <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.textMuted} />
             <TextInput
               value={description}
               onChangeText={setDescription}
@@ -346,14 +442,16 @@ export default function CaptureScreen() {
                 paddingVertical: theme.spacing.sm,
               }}
             />
-            {/* Speak it instead of typing (A5). Group names are handed to the
-                recogniser as hints — a general model mangles Indian names, and
-                a note like "dinner with Ravi" is exactly where they turn up. */}
+            {/* Group names are handed to the recogniser as hints — a general
+                model mangles Indian names, and a note like "dinner with Ravi" is
+                exactly where they turn up. */}
             <DictateButton value={description} onChange={setDescription} hints={groupNameHints} />
           </Row>
-        </Card>
+        </View>
 
-        <View style={{ gap: theme.spacing.md }}>
+        {/* What it was for. The guess follows the description until a chip is
+            tapped; the chips are the picker, unchanged. */}
+        <View style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
             {t.captures.category}
           </Text>
@@ -366,51 +464,15 @@ export default function CaptureScreen() {
           />
         </View>
 
-        {/* Which group this is bound for — a tag, not the split. Default "Decide
-            later": it stays in the inbox, and who-owes-what is chosen when it is
-            assigned (the line under it says so). */}
-        <Card style={{ gap: theme.spacing.sm }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${t.captures.group}: ${targetGroupName}`}
-            onPress={() => setPickingGroup(true)}
-            style={{ gap: 2 }}
-          >
-            <Text variant="caption" tone="muted">
-              {t.captures.group}
-            </Text>
-            <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Row style={{ alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
-                <Ionicons
-                  name={targetGroup ? 'people' : 'people-outline'}
-                  size={iconSize.md}
-                  color={targetGroup ? theme.color.brand : theme.color.textMuted}
-                />
-                <Text
-                  variant="subheading"
-                  numberOfLines={1}
-                  tone={targetGroup ? undefined : 'muted'}
-                  style={{ flex: 1 }}
-                >
-                  {targetGroupName}
-                </Text>
-              </Row>
-              <Ionicons name="chevron-down" size={iconSize.md} color={theme.color.textFaint} />
-            </Row>
-          </Pressable>
-          <Text variant="micro" tone="muted">
-            {t.captures.splitLaterHint}
-          </Text>
-        </Card>
-
-        {/* How it was paid. Four tags, icon + word, single-select; tapping the
-            chosen one again clears it, because "not said" is a valid answer. */}
-        <View style={{ gap: theme.spacing.md }}>
+        {/* How it was paid. Single-select tags, icon + word; cash is chosen by
+            default, tapping the chosen one again clears it ("not said" stays a
+            valid answer). UPI only appears where the region settles over it. */}
+        <View style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
             {t.captures.paidWith}
           </Text>
           <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            {PAYMENT_METHODS.map((method) => {
+            {paymentMethods.map((method) => {
               const active = paymentMethod === method.id;
               return (
                 <Pressable
@@ -451,18 +513,35 @@ export default function CaptureScreen() {
           </Row>
         </View>
 
-        <Card style={{ gap: theme.spacing.md }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${t.captures.date}: ${showDate(date, locale)}`}
-            onPress={() => setEditingDate(true)}
-            style={{ gap: 2 }}
+        {/* Destination and date, folded into one card of divided rows rather than
+            two stacked cards — the meta a capture carries, grouped so it reads as
+            one block. "Decide later" is the default group: the split, and who is
+            in it, is chosen when the capture is assigned (the line under it). */}
+        <Card style={{ paddingVertical: theme.spacing.xs, gap: 0 }}>
+          <FieldRow
+            icon={targetGroup ? 'people' : 'people-outline'}
+            iconColor={targetGroup ? theme.color.brand : theme.color.textMuted}
+            label={t.captures.group}
+            value={targetGroupName}
+            valueMuted={!targetGroup}
+            onPress={() => setPickingGroup(true)}
+            accessibilityLabel={`${t.captures.group}: ${targetGroupName}`}
+          />
+          <Text
+            variant="micro"
+            tone="muted"
+            style={{ marginLeft: iconSize.md + theme.spacing.md, marginBottom: theme.spacing.sm }}
           >
-            <Text variant="caption" tone="muted">
-              {t.captures.date}
-            </Text>
-            <Text variant="subheading">{showDate(date, locale)}</Text>
-          </Pressable>
+            {t.captures.splitLaterHint}
+          </Text>
+          <Divider />
+          <FieldRow
+            icon="calendar-outline"
+            label={t.captures.date}
+            value={showDate(date, locale)}
+            onPress={() => setEditingDate(true)}
+            accessibilityLabel={`${t.captures.date}: ${showDate(date, locale)}`}
+          />
           {editingDate ? (
             <DateTimePicker
               value={dateFrom(date)}
@@ -569,79 +648,273 @@ export default function CaptureScreen() {
         />
       </View>
 
-      {/* Destination picker, as a sheet over the form rather than a route away:
-          one tap, one choice, "Decide later" pinned at the top so the default
-          is always reachable. */}
-      {pickingGroup ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.common.close}
-          onPress={() => setPickingGroup(false)}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(10, 10, 26, 0.55)',
-            justifyContent: 'flex-end',
-          }}
+      {/* Currency picker, as a sheet over the form. The shortlist is the same one
+          the group expense form offers (COMMON_CURRENCIES), so a person meets the
+          same currencies in both places. */}
+      {pickingCurrency ? (
+        <SheetOverlay
+          title={t.captures.currencyPickerTitle}
+          onClose={() => setPickingCurrency(false)}
         >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              backgroundColor: theme.color.surface,
-              borderTopLeftRadius: theme.radius.lg,
-              borderTopRightRadius: theme.radius.lg,
-              padding: theme.spacing.xl,
-              gap: theme.spacing.md,
-              maxHeight: '70%',
+          <View style={{ gap: theme.spacing.xs }}>
+            {COMMON_CURRENCIES.map((code) => (
+              <ChoiceRow
+                key={code}
+                leading={
+                  <Text
+                    variant="subheading"
+                    tone="muted"
+                    style={{ width: 28, textAlign: 'center' }}
+                  >
+                    {currencySymbol(code)}
+                  </Text>
+                }
+                label={code}
+                selected={currency === code}
+                onPress={() => {
+                  setCurrency(code);
+                  setPickingCurrency(false);
+                }}
+              />
+            ))}
+          </View>
+        </SheetOverlay>
+      ) : null}
+
+      {/* Destination picker, as a sheet over the form rather than a route away:
+          "Decide later" pinned at the top so the default is always reachable,
+          then a running trip if one is on today, the groups used most recently,
+          and the rest — so the group you mean is usually one of the first taps. */}
+      {pickingGroup ? (
+        <SheetOverlay title={t.captures.groupPickerTitle} onClose={() => setPickingGroup(false)}>
+          <Text variant="caption" tone="muted" style={{ marginBottom: theme.spacing.sm }}>
+            {t.captures.groupPickerBody}
+          </Text>
+          <GroupPicker
+            groups={groupRows}
+            selectedId={targetGroupId}
+            profileId={profile?.id ?? null}
+            membersFor={summary.membersFor}
+            t={t}
+            onPick={(id) => {
+              setTargetGroupId(id);
+              setPickingGroup(false);
             }}
-          >
-            <Text variant="heading">{t.captures.groupPickerTitle}</Text>
-            <Text variant="caption" tone="muted">
-              {t.captures.groupPickerBody}
-            </Text>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <View style={{ gap: theme.spacing.xs }}>
-                <GroupChoiceRow
-                  emoji="🕓"
-                  label={t.captures.decideLater}
-                  selected={targetGroupId === null}
-                  onPress={() => {
-                    setTargetGroupId(null);
-                    setPickingGroup(false);
-                  }}
-                />
-                {groupRows.map((group) => (
-                  <GroupChoiceRow
-                    key={group.id}
-                    emoji={group.cover_emoji ?? '👥'}
-                    label={groupLabel(group, summary.membersFor(group.id), profile?.id)}
-                    selected={targetGroupId === group.id}
-                    onPress={() => {
-                      setTargetGroupId(group.id);
-                      setPickingGroup(false);
-                    }}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
+          />
+        </SheetOverlay>
       ) : null}
     </Screen>
   );
 }
 
-/** One row in the destination sheet — an emoji, a name, a check when chosen. */
-function GroupChoiceRow({
-  emoji,
+/**
+ * A labelled tap-row: a leading icon, the field name over its value, a chevron.
+ * The rows a capture's meta (group, date) share, so they read as one block
+ * inside a single card rather than a stack of near-identical cards.
+ */
+function FieldRow({
+  icon,
+  iconColor,
+  label,
+  value,
+  valueMuted = false,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor?: string;
+  label: string;
+  value: string;
+  valueMuted?: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.md} color={iconColor ?? theme.color.textMuted} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="caption" tone="muted">
+          {label}
+        </Text>
+        <Text variant="subheading" numberOfLines={1} tone={valueMuted ? 'muted' : undefined}>
+          {value}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={iconSize.md} color={theme.color.textFaint} />
+    </Pressable>
+  );
+}
+
+/**
+ * A bottom sheet over the form: a dimmed backdrop that closes on tap, a rounded
+ * card that swallows its own taps, a grab handle and a title. The two pickers on
+ * this screen (currency, group) share it so they present and dismiss the same
+ * way.
+ */
+function SheetOverlay({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const { t } = useStrings();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t.common.close}
+      onPress={onClose}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(10, 10, 26, 0.55)',
+        justifyContent: 'flex-end',
+      }}
+    >
+      <Pressable
+        onPress={() => {}}
+        style={{
+          backgroundColor: theme.color.surface,
+          borderTopLeftRadius: theme.radius.lg,
+          borderTopRightRadius: theme.radius.lg,
+          padding: theme.spacing.xl,
+          gap: theme.spacing.md,
+          maxHeight: '75%',
+        }}
+      >
+        <View
+          style={{
+            alignSelf: 'center',
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: theme.color.border,
+          }}
+        />
+        <Text variant="heading">{title}</Text>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
+      </Pressable>
+    </Pressable>
+  );
+}
+
+/**
+ * The group destinations, grouped so the one you mean is near the top:
+ *
+ *   1. "Decide later" — pinned, the default that keeps the capture in the inbox.
+ *   2. Current trip — any trip whose dates span today (its own timezone).
+ *   3. Recently used — the most recently created groups, a proxy for recency
+ *      since the group model has no last-touched field to sort by.
+ *   4. All groups — everything not already shown above.
+ *
+ * Section headers appear only once there is more than one section to separate;
+ * with a single short list the picker stays flat, exactly as it was before.
+ */
+function GroupPicker({
+  groups,
+  selectedId,
+  profileId,
+  membersFor,
+  t,
+  onPick,
+}: {
+  groups: readonly GroupRow[];
+  selectedId: string | null;
+  profileId: string | null;
+  membersFor: (groupId: string) => readonly MemberRow[];
+  t: UiStrings;
+  onPick: (id: string | null) => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+
+  const currentTrips = groups.filter(isCurrentTrip);
+  const currentTripIds = new Set(currentTrips.map((group) => group.id));
+  const rest = groups.filter((group) => !currentTripIds.has(group.id));
+
+  // Newest-created first, standing in for "recently used": the group model
+  // carries no updated_at / last-activity field, so creation order is the only
+  // honest recency signal available without a heavier query.
+  const byRecent = [...rest].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+
+  // Only split "recently used" out from "all" once there are enough groups that
+  // a shortcut to the top few actually saves scrolling.
+  const RECENT_MAX = 3;
+  const splitRecent = groups.length > 5;
+  const recent = splitRecent ? byRecent.slice(0, RECENT_MAX) : [];
+  const recentIds = new Set(recent.map((group) => group.id));
+  const all = splitRecent ? byRecent.filter((group) => !recentIds.has(group.id)) : byRecent;
+
+  const sections = [
+    { key: 'trip', title: t.captures.groupSectionCurrentTrip, groups: currentTrips },
+    { key: 'recent', title: t.captures.groupSectionRecent, groups: recent },
+    { key: 'all', title: t.captures.groupSectionAll, groups: all },
+  ].filter((section) => section.groups.length > 0);
+  const showHeaders = sections.length > 1;
+
+  const renderGroup = (group: GroupRow): React.JSX.Element => (
+    <ChoiceRow
+      key={group.id}
+      leading={<Text variant="subheading">{group.cover_emoji ?? '👥'}</Text>}
+      label={groupLabel(group, membersFor(group.id), profileId)}
+      selected={selectedId === group.id}
+      onPress={() => onPick(group.id)}
+    />
+  );
+
+  return (
+    <View style={{ gap: theme.spacing.xs }}>
+      <ChoiceRow
+        leading={<Text variant="subheading">🕓</Text>}
+        label={t.captures.decideLater}
+        selected={selectedId === null}
+        onPress={() => onPick(null)}
+      />
+      {sections.map((section) => (
+        <View key={section.key} style={{ gap: theme.spacing.xs }}>
+          {showHeaders ? (
+            <Text
+              variant="micro"
+              tone="muted"
+              style={{ marginTop: theme.spacing.sm, letterSpacing: 0.6 }}
+            >
+              {section.title.toUpperCase()}
+            </Text>
+          ) : null}
+          {section.groups.map(renderGroup)}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** One row in a picker sheet — a leading glyph, a label, a check when chosen. */
+function ChoiceRow({
+  leading,
   label,
   selected,
   onPress,
 }: {
-  emoji: string;
+  leading: ReactNode;
   label: string;
   selected: boolean;
   onPress: () => void;
@@ -661,7 +934,7 @@ function GroupChoiceRow({
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <Text variant="subheading">{emoji}</Text>
+      {leading}
       <Text
         variant="body"
         numberOfLines={1}
