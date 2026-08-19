@@ -14,7 +14,7 @@ import {
   Share,
   View,
 } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import QRCodeStyled from 'react-native-qrcode-styled';
 
 import {
   Badge,
@@ -228,25 +228,45 @@ export default function InviteScreen() {
                   borderRadius: theme.radius.md,
                 }}
               >
-                <QRCode
-                  getRef={(c) => (qrRef.current = c)}
-                  value={link}
+                <QRCodeStyled
+                  // The ref forwards to the underlying react-native-svg <Svg>,
+                  // whose toDataURL(cb) captureQr calls to share the code as a
+                  // PNG — same contract the old library's getRef gave us, so no
+                  // native screenshot module is needed.
+                  ref={(c) => {
+                    qrRef.current = c;
+                  }}
+                  data={link}
+                  // 200pt of modules plus a white quiet border, so it stays
+                  // crisp inside the card and scans without crowding the edge.
                   size={200}
-                  backgroundColor="#ffffff"
-                  // The brand wash instead of flat black — the same purple ramp
-                  // the balance card wears, swept corner to corner. Both stops
-                  // are dark enough on white to stay well within scanning
-                  // contrast, and level-H error correction plus the padded
-                  // centre logo keep it readable with the app mark punched out.
-                  enableLinearGradient
-                  linearGradient={[theme.gradient.brand[0]!, theme.gradient.brand[2]!]}
-                  gradientDirection={['0', '0', '1', '1']}
-                  ecl="H"
-                  logo={require('../../../../assets/images/icon.png')}
-                  logoSize={44}
-                  logoBackgroundColor="#ffffff"
-                  logoBorderRadius={10}
-                  logoMargin={4}
+                  padding={16}
+                  style={{ backgroundColor: '#ffffff' }}
+                  // A fixed near-black rather than a theme token: the code lives
+                  // on a permanently white tile in both light and dark, so the
+                  // ink must not follow the theme or it would vanish in dark mode.
+                  color="#0A0A1A"
+                  // Level-H error correction leaves ~30% redundancy, enough that
+                  // the punched-out centre logo and the rounded dots never cost a
+                  // scan.
+                  errorCorrectionLevel="H"
+                  // Each module a rounded dot with a hair of a gap between them —
+                  // the "scan with phone" wallet look — instead of a solid grid.
+                  pieceBorderRadius="50%"
+                  pieceScale={0.92}
+                  // The three corner finders as rounded squares with a rounded
+                  // pupil, matching the dot treatment.
+                  outerEyesOptions={{ borderRadius: '28%', color: '#0A0A1A' }}
+                  innerEyesOptions={{ borderRadius: '35%', color: '#0A0A1A' }}
+                  // The Waves glyph on its rounded tile, centred with a quiet
+                  // margin; hidePieces clears the modules behind it so it sits in
+                  // a clean gap rather than on top of the code.
+                  logo={{
+                    href: require('../../../../assets/images/icon.png'),
+                    scale: 0.85,
+                    padding: 6,
+                    hidePieces: true,
+                  }}
                 />
               </View>
             </Card>
