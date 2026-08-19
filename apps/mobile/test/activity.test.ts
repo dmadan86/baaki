@@ -133,6 +133,12 @@ describe('what happened', () => {
     expect(describeActivity(row({ verb }), 'me')).toBe(expected);
   });
 
+  it('names the group when the create payload carries one', () => {
+    expect(describeActivity(row({ verb: 'created', payload: { name: 'Goa Trip' } }), 'me')).toBe(
+      'Ravi created Goa Trip',
+    );
+  });
+
   it('shows a verb it does not know rather than nothing', () => {
     // Written by a newer build than this one — an offline queue can replay
     // months late (ADR-005), so this is reachable in a released app.

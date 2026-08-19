@@ -92,8 +92,13 @@ export function describeActivity(entry: ActivityRow, myProfileId: string | null)
       return `${who} confirmed a settlement`;
     case 'joined':
       return `${who} joined`;
-    case 'created':
-      return `${who} created the group`;
+    case 'created': {
+      // The group's name at creation, carried on the payload. Nameless groups
+      // (ADR: nameless_groups) leave it null, so those still read "the group".
+      const name =
+        typeof payload.name === 'string' && payload.name.trim() ? payload.name.trim() : null;
+      return name ? `${who} created ${name}` : `${who} created the group`;
+    }
     default:
       // An unknown verb is a row written by a newer build than this one. Say
       // what is known rather than dropping it — a feed with holes in it is

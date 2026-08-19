@@ -57,7 +57,7 @@ export function CountryRow({
       </Card>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Screen edges={['top', 'bottom']}>
+        <Screen edges={['top', 'bottom']} inModal>
           <View
             style={{
               paddingHorizontal: theme.spacing.xl,

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { View, type ViewProps, type ViewStyle } from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
 import type { TintName } from '../tokens';
@@ -10,17 +10,27 @@ export function Screen({
   children,
   edges = ['top'],
   style,
+  inModal = false,
 }: {
   children: ReactNode;
   edges?: readonly Edge[];
   style?: ViewStyle;
+  /**
+   * Set when this Screen is the root of a React Native `Modal`. A Modal renders
+   * in its own native window that the app's SafeAreaProvider can't reach, so on
+   * edge-to-edge Android the insets read as zero and the content slides under
+   * the status bar. Wrapping the modal's Screen in its own provider makes the
+   * safe-area inside it re-measure against the modal window.
+   */
+  inModal?: boolean;
 }) {
   const theme = useTheme();
-  return (
+  const screen = (
     <SafeAreaView edges={edges} style={[{ flex: 1, backgroundColor: theme.color.bg }, style]}>
       {children}
     </SafeAreaView>
   );
+  return inModal ? <SafeAreaProvider>{screen}</SafeAreaProvider> : screen;
 }
 
 export interface CardProps extends ViewProps {

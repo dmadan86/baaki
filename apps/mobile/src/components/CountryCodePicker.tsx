@@ -81,7 +81,7 @@ export function CountryCodePicker({
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={close}>
-        <Screen edges={['top', 'bottom']}>
+        <Screen edges={['top', 'bottom']} inModal>
           <View
             style={{
               paddingHorizontal: theme.spacing.xl,

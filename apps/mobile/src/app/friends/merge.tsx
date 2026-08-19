@@ -484,7 +484,7 @@ export default function MergePeopleScreen() {
         animationType="slide"
         onRequestClose={closeContactFlow}
       >
-        <Screen edges={['top', 'bottom']}>
+        <Screen edges={['top', 'bottom']} inModal>
           <View
             style={{
               flex: 1,
