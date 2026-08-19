@@ -1486,6 +1486,19 @@ export interface UiStrings {
    * is worse than an untranslated one, and saying which version is
    * authoritative is the ordinary way to carry that.
    */
+  blocked: {
+    row: string;
+    rowHint: string;
+    title: string;
+    emptyTitle: string;
+    emptyBody: string;
+    note: string;
+    action: string;
+    unblock: string;
+    confirmTitle: string;
+    confirmBody: string;
+    badge: string;
+  };
   privacy: {
     row: string;
     rowHint: string;
@@ -2888,6 +2901,20 @@ const en: UiStrings = {
     alreadyDecided: 'Somebody has already answered this one.',
     placeTaken: 'That place belongs to somebody now.',
     theyAreAlreadyIn: 'They are already in this group.',
+  },
+  blocked: {
+    row: 'Blocked people',
+    rowHint: 'Names and faces you have hidden',
+    title: 'Blocked people',
+    emptyTitle: 'Nobody is blocked',
+    emptyBody: 'Block someone and they show up here as a ghost — you can unblock them any time.',
+    note: 'Blocking only hides how a person looks to you. It never changes what you owe or are owed.',
+    action: 'Block',
+    unblock: 'Unblock',
+    confirmTitle: 'Block {name}?',
+    confirmBody:
+      'They will appear as an anonymous ghost everywhere in the app. Your balances with them do not change, and they are not told.',
+    badge: 'Blocked',
   },
   privacy: {
     row: 'Privacy & security',
@@ -4386,6 +4413,21 @@ const ta: UiStrings = {
     placeTaken: 'அந்த இடம் இப்போது வேறு ஒருவருக்கு உரியது.',
     theyAreAlreadyIn: 'அவர் ஏற்கனவே இந்தக் குழுவில் இருக்கிறார்.',
   },
+  blocked: {
+    row: 'தடுக்கப்பட்டவர்கள்',
+    rowHint: 'நீங்கள் மறைத்த பெயர்களும் முகங்களும்',
+    title: 'தடுக்கப்பட்டவர்கள்',
+    emptyTitle: 'யாரும் தடுக்கப்படவில்லை',
+    emptyBody:
+      'ஒருவரைத் தடுத்தால் அவர் இங்கே பேயாகத் தோன்றுவார் — எப்போது வேண்டுமானாலும் தடையை நீக்கலாம்.',
+    note: 'தடுப்பது ஒருவர் உங்களுக்குத் தோன்றும் விதத்தை மட்டுமே மறைக்கிறது. நீங்கள் தர வேண்டியதோ பெற வேண்டியதோ மாறாது.',
+    action: 'தடு',
+    unblock: 'தடையை நீக்கு',
+    confirmTitle: '{name} ஐத் தடுக்கவா?',
+    confirmBody:
+      'செயலி முழுவதும் அவர் அடையாளம் தெரியாத பேயாகத் தோன்றுவார். அவருடனான உங்கள் இருப்புகள் மாறாது, அவருக்கு அறிவிக்கப்படாது.',
+    badge: 'தடுக்கப்பட்டது',
+  },
   privacy: {
     row: 'தனியுரிமை & பாதுகாப்பு',
     rowHint: 'என்ன சேமிக்கப்படுகிறது, எப்படி பாதுகாக்கப்படுகிறது',
@@ -5824,6 +5866,21 @@ const hi: UiStrings = {
     alreadyDecided: 'इसका जवाब कोई पहले ही दे चुका है।',
     placeTaken: 'वह जगह अब किसी और की है।',
     theyAreAlreadyIn: 'वे पहले से इस समूह में हैं।',
+  },
+  blocked: {
+    row: 'अवरोधित लोग',
+    rowHint: 'जिन नाम और चेहरों को आपने छिपाया है',
+    title: 'अवरोधित लोग',
+    emptyTitle: 'कोई अवरोधित नहीं है',
+    emptyBody:
+      'किसी को अवरोधित करें और वे यहाँ भूत के रूप में दिखेंगे — आप कभी भी अवरोध हटा सकते हैं।',
+    note: 'अवरोधित करना केवल यह छिपाता है कि कोई व्यक्ति आपको कैसा दिखता है। इससे आपका लेन-देन कभी नहीं बदलता।',
+    action: 'अवरोधित करें',
+    unblock: 'अवरोध हटाएँ',
+    confirmTitle: '{name} को अवरोधित करें?',
+    confirmBody:
+      'वे पूरे ऐप में एक गुमनाम भूत के रूप में दिखेंगे। उनके साथ आपका हिसाब नहीं बदलता, और उन्हें बताया नहीं जाता।',
+    badge: 'अवरोधित',
   },
   privacy: {
     row: 'निजता और सुरक्षा',
@@ -7443,6 +7500,19 @@ const ar: UiStrings = {
     alreadyDecided: 'ردّ أحدهم على هذا من قبل.',
     placeTaken: 'صار ذلك المكان لشخص آخر.',
     theyAreAlreadyIn: 'هو بالفعل في هذه المجموعة.',
+  },
+  blocked: {
+    row: 'الأشخاص المحظورون',
+    rowHint: 'الأسماء والوجوه التي أخفيتها',
+    title: 'الأشخاص المحظورون',
+    emptyTitle: 'لا أحد محظور',
+    emptyBody: 'احظر شخصًا وسيظهر هنا كشبح — يمكنك رفع الحظر عنه في أي وقت.',
+    note: 'الحظر يخفي فقط كيف يظهر لك الشخص. ولا يغيّر أبدًا ما لك أو ما عليك.',
+    action: 'حظر',
+    unblock: 'رفع الحظر',
+    confirmTitle: 'حظر {name}؟',
+    confirmBody: 'سيظهر كشبح مجهول في كل مكان في التطبيق. أرصدتك معه لا تتغيّر، ولا يتم إخباره.',
+    badge: 'محظور',
   },
   privacy: {
     row: 'الخصوصية والأمان',

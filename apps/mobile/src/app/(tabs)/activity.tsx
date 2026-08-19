@@ -18,6 +18,7 @@ import {
 
 import { dayHeading, describeActivity, groupByDay, parseMoney, verbIcon } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
+import { useBlockedUsers } from '@/data/blocked';
 import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
 import { useStrings } from '@/i18n';
@@ -31,6 +32,7 @@ export default function ActivityScreen() {
   const { t, locale } = useStrings();
   const { session } = useAuth();
   const myProfileId = session?.user.id ?? null;
+  const { blockedIds } = useBlockedUsers();
 
   const activity = useQuery({
     queryKey: ['activity', 'recent'],
@@ -138,7 +140,7 @@ export default function ActivityScreen() {
                     <Pressable
                       key={entry.id}
                       accessibilityRole="button"
-                      accessibilityLabel={describeActivity(entry, myProfileId)}
+                      accessibilityLabel={describeActivity(entry, myProfileId, blockedIds)}
                       onPress={() => router.push(`/group/${entry.group_id}`)}
                       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                     >
@@ -189,7 +191,7 @@ export default function ActivityScreen() {
                         >
                           <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
                             <Text variant="body" numberOfLines={3} style={{ flex: 1 }}>
-                              {describeActivity(entry, myProfileId)}
+                              {describeActivity(entry, myProfileId, blockedIds)}
                             </Text>
                             {/* `payload` is an untyped JSON blob, so a bad amount
                             must render as no amount, not as a crashed tab. */}

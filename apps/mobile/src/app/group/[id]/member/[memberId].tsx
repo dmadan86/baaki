@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, TextInput, View } from 'react-native';
+import { Alert, ScrollView, TextInput, View } from 'react-native';
 
 import { isValidVpa } from '@waves/core';
 import {
@@ -27,8 +27,9 @@ import {
 import { useGroup, useGroupLedger, useSetMemberRole, useUpdateMember } from '@/data/hooks';
 import { friendlyError } from '@/lib/errors';
 import { expenseTitle } from '@/data/expenseTitle';
-import { displayName, groupLabel, isGhost } from '@/data/types';
-import { plural, useStrings } from '@/i18n';
+import { useBlockedUsers } from '@/data/blocked';
+import { displayName, groupLabel, isBlockedMember, isGhost } from '@/data/types';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function MemberScreen() {
@@ -43,6 +44,7 @@ export default function MemberScreen() {
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const updateMember = useUpdateMember(groupId);
   const setRole = useSetMemberRole(groupId);
+  const { blockedIds, block, unblock } = useBlockedUsers();
 
   const member = members.data?.find((row) => row.id === memberId);
   const isMe = member?.profile_id === profile?.id;
@@ -73,7 +75,27 @@ export default function MemberScreen() {
   }
 
   const ghost = isGhost(member);
+  const blocked = isBlockedMember(member, blockedIds);
+  // A blocked person wears the ghost look and the ghost name here too — the one
+  // exception is the block card below, which needs their real name to name the
+  // action. Blocking is display-only; it never touches the balance shown here.
+  const shownName = displayName(member, profile?.id, blockedIds, t.misc.someone);
+  const realName = member.profile?.display_name ?? member.ghost_name ?? t.misc.someone;
   const vpaValid = vpa.trim() === '' || isValidVpa(vpa.trim());
+
+  const confirmBlock = (): void => {
+    if (!member.profile_id) return;
+    const profileId = member.profile_id;
+    Alert.alert(fill(t.blocked.confirmTitle, { name: realName }), t.blocked.confirmBody, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.blocked.action,
+        style: 'destructive',
+        onPress: () =>
+          block({ id: profileId, name: realName, avatarUrl: member.profile?.avatar_url ?? null }),
+      },
+    ]);
+  };
   const balance = ledger.balances.get(member.id) ?? 0n;
   // The hero wears the money colour for its meaning — mint when this person is
   // owed, pink when they owe — and a neutral lilac when they are square, so a
@@ -118,7 +140,7 @@ export default function MemberScreen() {
             />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{displayName(member, profile?.id)}</Text>
+            <Text variant="heading">{shownName}</Text>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [])}
             </Text>
@@ -135,7 +157,7 @@ export default function MemberScreen() {
             padding: theme.spacing.xl,
           }}
         >
-          <Avatar name={displayName(member)} ghost={ghost} size={78} />
+          <Avatar name={shownName} ghost={ghost || blocked} size={78} />
           <MoneyText
             amount={balance}
             currency={currency}
@@ -147,6 +169,7 @@ export default function MemberScreen() {
           />
           <Row style={{ gap: theme.spacing.sm }}>
             {ghost ? <Badge label={t.notJoinedYet} /> : null}
+            {blocked ? <Badge label={t.blocked.badge} /> : null}
             {member.role === 'admin' ? <Badge label={t.people.admin} tone="brand" /> : null}
             {isMe ? <Badge label={t.people.you} tone="positive" /> : null}
           </Row>
@@ -255,6 +278,27 @@ export default function MemberScreen() {
             />
             <Text variant="micro" tone="muted">
               {ghost ? t.people.adminNeedsAccount : t.people.adminNote}
+            </Text>
+          </Card>
+        ) : null}
+
+        {/* Block or unblock this person. Only offered for a real account that is
+            not you: a ghost has no cross-group identity to block, and blocking
+            yourself is meaningless. It only changes how they are shown — the
+            balance above is untouched — so it lives here as a quiet control
+            rather than a destructive headline. */}
+        {!isMe && !ghost && member.profile_id ? (
+          <Card style={{ gap: theme.spacing.sm }}>
+            <Text variant="caption" tone="muted">
+              {t.blocked.title}
+            </Text>
+            <Button
+              label={blocked ? t.blocked.unblock : t.blocked.action}
+              variant={blocked ? 'secondary' : 'ghostDanger'}
+              onPress={blocked ? () => unblock(member.profile_id!) : confirmBlock}
+            />
+            <Text variant="micro" tone="muted">
+              {t.blocked.note}
             </Text>
           </Card>
         ) : null}

@@ -29,7 +29,8 @@ import {
   useGroupLedger,
   useMemberClaims,
 } from '@/data/hooks';
-import { displayName, groupLabel, isGhost, vpaOf } from '@/data/types';
+import { useBlockedUsers } from '@/data/blocked';
+import { displayName, groupLabel, isBlockedMember, isGhost, vpaOf } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
@@ -44,6 +45,7 @@ export default function MembersScreen() {
 
   const { group, members } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const { blockedIds } = useBlockedUsers();
   const addGhost = useAddGhostMember(groupId);
   const claims = useMemberClaims(groupId);
   const decide = useDecideMemberClaim(groupId);
@@ -243,9 +245,14 @@ export default function MembersScreen() {
           {(members.data ?? []).map((member, index) => (
             <View key={member.id}>
               <ListRow
-                title={displayName(member, profile?.id)}
+                title={displayName(member, profile?.id, blockedIds, t.misc.someone)}
                 subtitle={isGhost(member) ? t.notJoinedYet : (vpaOf(member) ?? t.misc.noUpiYet)}
-                leading={<Avatar name={displayName(member)} ghost={isGhost(member)} />}
+                leading={
+                  <Avatar
+                    name={displayName(member, null, blockedIds, t.misc.someone)}
+                    ghost={isGhost(member) || isBlockedMember(member, blockedIds)}
+                  />
+                }
                 onPress={() => router.push(`/group/${groupId}/member/${member.id}`)}
                 trailing={
                   <Row style={{ gap: theme.spacing.sm }}>
