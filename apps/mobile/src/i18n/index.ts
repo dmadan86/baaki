@@ -805,6 +805,15 @@ export interface UiStrings {
     errorNameRequired: string;
     errorNotSignedIn: string;
     errorGeneric: string;
+    /** Caption on a merge-list row added from a device contact rather than picked
+     *  off the balances list. */
+    fromContactsTag: string;
+    /** Shown while choosing a group for a contact that is new to the app.
+     *  `{name}` is the contact's name. */
+    newContactBody: string;
+    /** Fallback when adding a contact as a new guest fails. `{name}` is the
+     *  contact's name. */
+    errorContactAdd: string;
   };
   /** Group photos are a paid feature; the cover emoji stays free for everyone. */
   groupPhoto: {
@@ -2150,6 +2159,10 @@ const en: UiStrings = {
     errorNameRequired: 'Give the merged person a name.',
     errorNotSignedIn: 'You’re signed out. Sign in and try the merge again.',
     errorGeneric: 'Could not merge. Please try again.',
+    fromContactsTag: 'Added from contacts',
+    newContactBody:
+      '{name} isn’t on Waves yet. Add them to a group first, then merge them in below.',
+    errorContactAdd: 'Could not add {name}. Please try again.',
   },
   groupPhoto: {
     paidHint: 'Group photos are a Plus feature. Pick an icon, or upgrade to add a photo.',
@@ -3581,6 +3594,10 @@ const ta: UiStrings = {
     errorNameRequired: 'இணைந்த நபருக்கு ஒரு பெயரைக் கொடுக்கவும்.',
     errorNotSignedIn: 'நீங்கள் வெளியேறிவிட்டீர்கள். உள்நுழைந்து மீண்டும் இணைக்க முயற்சிக்கவும்.',
     errorGeneric: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    fromContactsTag: 'தொடர்புகளிலிருந்து சேர்க்கப்பட்டது',
+    newContactBody:
+      '{name} இன்னும் Waves-இல் இல்லை. முதலில் அவர்களை ஒரு குழுவில் சேர்க்கவும், பிறகு கீழே இணைக்கவும்.',
+    errorContactAdd: '{name} ஐச் சேர்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   },
   groupPhoto: {
     paidHint:
@@ -5027,6 +5044,10 @@ const hi: UiStrings = {
     errorNameRequired: 'मर्ज किए गए व्यक्ति को एक नाम दें.',
     errorNotSignedIn: 'आप साइन आउट हैं. साइन इन करके फिर से मर्ज करें.',
     errorGeneric: 'मर्ज नहीं हो सका. कृपया फिर से प्रयास करें.',
+    fromContactsTag: 'संपर्कों से जोड़ा गया',
+    newContactBody:
+      '{name} अभी Waves पर नहीं है. पहले उन्हें किसी समूह में जोड़ें, फिर नीचे मर्ज करें.',
+    errorContactAdd: '{name} को नहीं जोड़ा जा सका. कृपया फिर कोशिश करें.',
   },
   groupPhoto: {
     paidHint: 'ग्रुप फ़ोटो एक Plus सुविधा है। कोई आइकन चुनें, या फ़ोटो जोड़ने के लिए अपग्रेड करें।',
@@ -6468,6 +6489,9 @@ const ar: UiStrings = {
     errorNameRequired: 'أعطِ الشخص المدمج اسمًا.',
     errorNotSignedIn: 'أنت مسجّل الخروج. سجّل الدخول وحاول الدمج مرة أخرى.',
     errorGeneric: 'تعذّر الدمج. يرجى المحاولة مرة أخرى.',
+    fromContactsTag: 'أُضيف من جهات الاتصال',
+    newContactBody: '{name} ليس على Waves بعد. أضفه إلى مجموعة أولاً، ثم ادمجه أدناه.',
+    errorContactAdd: 'تعذّرت إضافة {name}. يرجى المحاولة مرة أخرى.',
   },
   groupPhoto: {
     paidHint: 'صور المجموعة ميزة Plus. اختر أيقونة، أو قم بالترقية لإضافة صورة.',
