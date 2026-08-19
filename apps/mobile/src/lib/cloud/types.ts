@@ -43,6 +43,23 @@ export interface CloudUploadResult {
   readonly remoteId: string;
 }
 
+/** Which already-uploaded file to open a link to. */
+export interface CloudShareRef {
+  /** The provider's id for the uploaded image (the `remoteId` from upload). */
+  readonly remoteId: string;
+}
+
+/**
+ * An "anyone with the link, view-only" URL, or an honest refusal.
+ *
+ * Sharing bends the privacy model on purpose (E3): a receipt normally lives only
+ * on the owner's device and their own cloud, never on Waves. This opens the
+ * owner's OWN cloud copy to a link so group members can see it — the image still
+ * never touches Waves. Not every provider can do it, and a provider that can't
+ * says so rather than returning a broken URL.
+ */
+export type CloudShareResult = { readonly url: string } | { readonly unsupported: true };
+
 export interface CloudProvider {
   readonly id: CloudProviderId;
   readonly label: string;
@@ -54,6 +71,13 @@ export interface CloudProvider {
   ensureValid(tokens: CloudTokens): Promise<CloudTokens>;
   /** Upload the image and its sidecar; resolve with the image's remote id. */
   upload(tokens: CloudTokens, input: CloudUploadInput): Promise<CloudUploadResult>;
+  /**
+   * Open an anyone-with-link view of an already-uploaded file (E3). Optional:
+   * a provider that omits it, or returns `{ unsupported }`, cannot share, and
+   * the caller must never present a share as done. Only Google Drive implements
+   * it today.
+   */
+  share?(tokens: CloudTokens, ref: CloudShareRef): Promise<CloudShareResult>;
 }
 
 /** Wi‑Fi only, or Wi‑Fi and mobile data. Defaults to Wi‑Fi to protect data plans. */

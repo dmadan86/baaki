@@ -72,6 +72,12 @@ export interface ExpenseCreatePayload {
   readonly notes?: string | null;
   /** How the money moved: cash | credit | debit | forex. Optional. */
   readonly paymentMethod?: PaymentMethod | null;
+  /**
+   * An anyone-with-link view of the owner's OWN cloud copy of the receipt, so
+   * group members can see the bill (E3). Optional and null unless the owner
+   * explicitly opted in; the image itself never touches Waves.
+   */
+  readonly receiptShareUrl?: string | null;
 }
 
 /** The four ways an expense is paid for; optional everywhere it appears. */

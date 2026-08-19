@@ -78,6 +78,16 @@ export async function pendingEntries(): Promise<ReceiptIndexEntry[]> {
 }
 
 /**
+ * The backup record for one receipt, or null when it was never indexed. Lets a
+ * viewer whose local file is gone (a reinstall, a cleared vault) tell the person
+ * *where* the receipt went — "backed up to your Drive" reads very differently
+ * from "on your other device" — rather than a bare "not found".
+ */
+export async function entryFor(captureId: string): Promise<ReceiptIndexEntry | null> {
+  return (await readMap())[captureId] ?? null;
+}
+
+/**
  * Record a freshly saved receipt as needing backup. Called the moment the
  * capture screen writes the files, before any network is involved, so a receipt
  * caught offline is remembered and uploaded later rather than lost.

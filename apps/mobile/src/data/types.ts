@@ -100,6 +100,8 @@ export interface ExpenseVersionRow {
   author_member_id: MemberId | null;
   notes: string | null;
   payment_method: string | null;
+  /** A view-only link to the owner's own cloud copy of the receipt (E3), or null. */
+  receipt_share_url: string | null;
   created_at: string;
   payers: { member_id: MemberId; amount: string }[];
   shares: { member_id: MemberId; amount: string }[];
