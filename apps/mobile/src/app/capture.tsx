@@ -668,7 +668,9 @@ export default function CaptureScreen() {
                   <Text
                     variant="subheading"
                     tone="muted"
-                    style={{ width: 28, textAlign: 'center' }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={{ width: 36, textAlign: 'center' }}
                   >
                     {currencySymbol(code)}
                   </Text>
@@ -814,7 +816,15 @@ function SheetOverlay({
           }}
         />
         <Text variant="heading">{title}</Text>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* flexShrink lets this scroll: without it the list keeps its full
+            content height and the sheet's maxHeight clips the overflow instead
+            of scrolling it, so a long group or currency list loses its bottom
+            rows. */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          style={{ flexShrink: 1 }}
+        >
           {children}
         </ScrollView>
       </Pressable>

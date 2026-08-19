@@ -7719,7 +7719,11 @@ export function deviceDefaultCurrency(): CurrencyCode {
  * include UPI, so the tag stays hidden rather than guessing India.
  */
 export function deviceSupportsUpi(): boolean {
-  return railsFor(deviceCountry()).some((rail) => rail.id === RailId.Upi);
+  // An unknown region assumes India, exactly as deviceDefaultCurrency falls back
+  // to INR — otherwise a phone with no Region set shows ₹ everywhere yet hides
+  // UPI, the one rail that ₹ implies. A device set to a real country without the
+  // rail (the UAE, the US) still hides it correctly.
+  return railsFor(deviceCountry() ?? 'IN').some((rail) => rail.id === RailId.Upi);
 }
 
 /**
