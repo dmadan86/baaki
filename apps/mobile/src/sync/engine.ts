@@ -290,8 +290,9 @@ export class SyncEngine {
     }
 
     // Online, but maybe not over a connection the user has agreed to spend.
-    // Wi‑Fi is the default, so a phone on mobile data holds its queue rather
-    // than syncing until Wi‑Fi returns — the change is already safe on disk.
+    // The default is to sync on any connection; only if someone has chosen
+    // Wi‑Fi-only does a phone on mobile data hold its queue until Wi‑Fi returns
+    // — and the change is already safe on disk either way.
     if (!(await networkAllowed())) {
       this.set({ status: SyncStatus.Metered });
       return;
