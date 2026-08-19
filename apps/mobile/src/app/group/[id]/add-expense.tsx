@@ -7,12 +7,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
+  CategoryId,
   computeShares,
   guessCategory,
   MutationKind,
-  type CategoryId,
   type FxRecord,
   type MemberId,
+  type PaymentMethod,
   type SplitParams,
 } from '@waves/core';
 import {
@@ -35,6 +36,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
 import { friendlyError } from '@/lib/errors';
 import { CurrencyRate } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
@@ -42,7 +44,7 @@ import { canAddReceipt, scanReceipt, scanReceiptText } from '@/data/api';
 import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
 import { useAssignCapture, useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { fill, plural, useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { handoverKey } from '@/lib/handover';
@@ -164,6 +166,9 @@ export default function AddExpenseScreen() {
   const [description, setDescription] = useState('');
   const [splitKind, setSplitKind] = useState<SplitKind>(SplitKind.Equal);
   const [payer, setPayer] = useState<MemberId | null>(null);
+  // How it was paid — a free-text tag on the expense. Defaults to cash; the
+  // picker offers UPI only where the region settles over it.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [participants, setParticipants] = useState<MemberId[]>([]);
   // What was typed into each member's field, as text. Two maps, not one: the
   // same person is "2 shares" and "40%", and switching between the two must not
@@ -172,7 +177,7 @@ export default function AddExpenseScreen() {
   const [percents, setPercents] = useState<SplitEntries>({});
   // Guessed from the description until somebody picks one themselves, at which
   // point the guess must stop moving it — see `categoryChosen`.
-  const [category, setCategory] = useState<CategoryId | null>(null);
+  const [category, setCategory] = useState<CategoryId | null>(CategoryId.Food);
   const [categoryChosen, setCategoryChosen] = useState(false);
   /**
    * Names to bias the recogniser towards. "You" and "Someone" are placeholders
@@ -340,6 +345,7 @@ export default function AddExpenseScreen() {
       setShareUrl(version.receipt_share_url ?? null);
       setShareWithGroup(Boolean(version.receipt_share_url));
       setPayer(version.payers[0]?.member_id ?? myMemberId);
+      setPaymentMethod((version.payment_method as PaymentMethod | null) ?? 'cash');
       setParticipants(version.shares.map((share) => share.member_id));
       setSplitKind(
         version.split_type === 'percent'
@@ -369,7 +375,11 @@ export default function AddExpenseScreen() {
   const [guessedFrom, setGuessedFrom] = useState<string | null>(null);
   if (seededFor !== null && !categoryChosen && description !== guessedFrom) {
     setGuessedFrom(description);
-    setCategory(guessCategory(description));
+    // Keep the current category when the text matches no bucket: guessCategory
+    // returns null for unrecognised descriptions, and clearing on null would
+    // wipe the Food & drink default (or an earlier guess).
+    const guess = guessCategory(description);
+    if (guess) setCategory(guess);
   }
 
   // Everybody in a weighted split needs a number to start from, and the set
@@ -412,7 +422,6 @@ export default function AddExpenseScreen() {
     participants.length === (members.data ?? []).length;
   const [splitOpen, setSplitOpen] = useState(false);
   const showSplit = splitOpen || !isDefaultSplit || splitIssue !== null;
-  const payerMember = (members.data ?? []).find((member) => member.id === payer) ?? null;
 
   const groupCurrency = group.data?.default_currency ?? 'INR';
   // The expense keeps the currency it was paid in; the group's is only the
@@ -477,7 +486,10 @@ export default function AddExpenseScreen() {
               <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
             </IconButton>
             <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
+              <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+                <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
+                <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
+              </Row>
             </View>
             <View style={{ width: 44 }} />
           </Row>
@@ -569,6 +581,7 @@ export default function AddExpenseScreen() {
         splitParams,
         participants,
         payers: { [payer]: amount.toString() },
+        paymentMethod,
         expectedShares: preview
           ? Object.fromEntries([...preview].map(([id, share]) => [id, share.toString()]))
           : undefined,
@@ -784,7 +797,10 @@ export default function AddExpenseScreen() {
             <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
+            <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+              <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
+              <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
+            </Row>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [], profile?.id)}
             </Text>
@@ -998,6 +1014,14 @@ export default function AddExpenseScreen() {
           />
         </View>
 
+        {/* How it was paid — a tag on the expense, defaulting to cash. */}
+        <View style={{ gap: theme.spacing.md }}>
+          <Text variant="caption" tone="muted">
+            {t.captures.paidWith}
+          </Text>
+          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+        </View>
+
         {/* The one-line answer to "who pays what", tappable to open the three
             controls that decide it. */}
         <Pressable
@@ -1016,11 +1040,6 @@ export default function AddExpenseScreen() {
                 </Text>
                 <Text variant="subheading" numberOfLines={2}>
                   {[
-                    payerMember
-                      ? fill(t.expense.paidByName, {
-                          name: displayName(payerMember, profile?.id),
-                        })
-                      : t.expense.chooseWhoPaid,
                     splitKind === SplitKind.Equal
                       ? t.expense.equally
                       : splitKind === SplitKind.Shares
@@ -1191,6 +1210,18 @@ export default function AddExpenseScreen() {
               {splitIssue}
             </Text>
           ) : null}
+
+          {/* Someone missing from the roster is added on the group's own members
+              screen, then they appear here to be split with. */}
+          <Button
+            label={t.people.addSomeone}
+            variant="secondary"
+            size="sm"
+            onPress={() => router.push(`/group/${groupId}/members`)}
+            icon={
+              <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.brand} />
+            }
+          />
         </Card>
       </ScrollView>
 
