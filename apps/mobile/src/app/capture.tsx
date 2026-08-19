@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   currencySymbol,
@@ -780,6 +781,7 @@ function SheetOverlay({
 }): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
+  const insets = useSafeAreaInsets();
   return (
     <Pressable
       accessibilityRole="button"
@@ -802,6 +804,9 @@ function SheetOverlay({
           borderTopLeftRadius: theme.radius.lg,
           borderTopRightRadius: theme.radius.lg,
           padding: theme.spacing.xl,
+          // Clear the Android gesture/nav bar so the last list row is not
+          // hidden behind it.
+          paddingBottom: theme.spacing.xl + insets.bottom,
           gap: theme.spacing.md,
           maxHeight: '75%',
         }}
