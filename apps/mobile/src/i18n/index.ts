@@ -989,6 +989,8 @@ export interface UiStrings {
     anyoneWithLink: string;
     anyoneWithLinkBody: string;
     inviteLink: string;
+    /** Caption over the invite QR code. */
+    scanToJoin: string;
     whatsapp: string;
     shareAnotherWay: string;
     copyLink: string;
@@ -2364,6 +2366,7 @@ const en: UiStrings = {
     anyoneWithLinkBody:
       'They do not need to install anything or make an account to see the group and add expenses.',
     inviteLink: 'Invite link',
+    scanToJoin: 'Scan to join',
     whatsapp: 'WhatsApp',
     shareAnotherWay: 'Share another way',
     copyLink: 'Copy link',
@@ -3830,6 +3833,7 @@ const ta: UiStrings = {
     anyoneWithLinkBody:
       'குழுவைப் பார்க்கவும் செலவுகளைச் சேர்க்கவும் அவர்கள் எதையும் நிறுவவோ கணக்கு உருவாக்கவோ தேவையில்லை.',
     inviteLink: 'அழைப்பு இணைப்பு',
+    scanToJoin: 'ஸ்கேன் செய்து சேரவும்',
     whatsapp: 'WhatsApp',
     shareAnotherWay: 'வேறு வழியில் பகிர்',
     copyLink: 'இணைப்பை நகலெடு',
@@ -5290,6 +5294,7 @@ const hi: UiStrings = {
     anyoneWithLinkBody:
       'समूह देखने और खर्च जोड़ने के लिए उन्हें कुछ इंस्टॉल करने या खाता बनाने की ज़रूरत नहीं।',
     inviteLink: 'निमंत्रण लिंक',
+    scanToJoin: 'स्कैन करके जुड़ें',
     whatsapp: 'WhatsApp',
     shareAnotherWay: 'किसी और तरीके से साझा करें',
     copyLink: 'लिंक कॉपी करें',
@@ -6769,6 +6774,7 @@ const ar: UiStrings = {
     anyoneWithLink: 'يستطيع أي شخص لديه الرابط الانضمام',
     anyoneWithLinkBody: 'لا يحتاجون إلى تثبيت شيء أو إنشاء حساب لرؤية المجموعة وإضافة المصروفات.',
     inviteLink: 'رابط الدعوة',
+    scanToJoin: 'امسح للانضمام',
     whatsapp: 'واتساب',
     shareAnotherWay: 'شارك بطريقة أخرى',
     copyLink: 'نسخ الرابط',
