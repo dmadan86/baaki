@@ -28,6 +28,8 @@ interface Scene {
   groupA: string;
   groupB: string;
   attackerProfile: string;
+  victimProfile: string;
+  outsiderProfile: string;
   attackerMemberA: string; // attacker's member id in group A
   victimMemberA: string; // another member of group A
   outsiderMemberB: string; // a member of group B — not in A
@@ -104,7 +106,16 @@ beforeAll(async () => {
     [outsiderMemberB, groupB, outsiderProfile],
   );
 
-  scene = { groupA, groupB, attackerProfile, attackerMemberA, victimMemberA, outsiderMemberB };
+  scene = {
+    groupA,
+    groupB,
+    attackerProfile,
+    victimProfile,
+    outsiderProfile,
+    attackerMemberA,
+    victimMemberA,
+    outsiderMemberB,
+  };
 });
 
 afterAll(async () => {
@@ -113,7 +124,9 @@ afterAll(async () => {
     [scene.groupA, scene.groupB],
   ]);
   await client.query(`DELETE FROM groups WHERE id = ANY($1)`, [[scene.groupA, scene.groupB]]);
-  await client.query(`DELETE FROM profiles WHERE id = ANY($1)`, [[scene.attackerProfile]]);
+  await client.query(`DELETE FROM profiles WHERE id = ANY($1)`, [
+    [scene.attackerProfile, scene.victimProfile, scene.outsiderProfile],
+  ]);
   await client.end();
 });
 
