@@ -11,7 +11,7 @@ import {
   dayNumber,
   guessCategory,
   parseReceiptText,
-  type CategoryId,
+  CategoryId,
   type HeuristicReceipt,
 } from '@waves/core';
 import {
@@ -181,7 +181,7 @@ export default function CaptureScreen() {
 
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<CategoryId | null>(null);
+  const [category, setCategory] = useState<CategoryId | null>(CategoryId.Food);
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [date, setDate] = useState<string>(() => todayIso());
   const [editingDate, setEditingDate] = useState(false);
@@ -233,9 +233,12 @@ export default function CaptureScreen() {
     }
   };
 
-  // The guess follows the description until a chip is tapped, then stops moving
-  // under the user's finger — the same rule the add-expense category uses.
-  const [guessedFrom, setGuessedFrom] = useState<string | null>(null);
+  // Category starts on Food & drink — the most common capture, one fewer tap for
+  // it. The guess then follows the description until a chip is tapped, at which
+  // point it stops moving under the user's finger (the same rule add-expense
+  // uses). Seeding guessedFrom to the initial empty description means the guess
+  // does not fire on mount, so that default survives until the person types.
+  const [guessedFrom, setGuessedFrom] = useState<string | null>('');
   if (!categoryChosen && description !== guessedFrom) {
     setGuessedFrom(description);
     setCategory(guessCategory(description));
@@ -377,9 +380,10 @@ export default function CaptureScreen() {
           <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
+          <Row style={{ flex: 1, justifyContent: 'center', gap: theme.spacing.xs }}>
+            <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
             <Text variant="heading">{t.captures.newTitle}</Text>
-          </View>
+          </Row>
           <View style={{ width: 44 }} />
         </Row>
 
@@ -466,12 +470,19 @@ export default function CaptureScreen() {
 
         {/* How it was paid. Single-select tags, icon + word; cash is chosen by
             default, tapping the chosen one again clears it ("not said" stays a
-            valid answer). UPI only appears where the region settles over it. */}
+            valid answer). UPI only appears where the region settles over it. One
+            row that scrolls sideways rather than wrapping to a second line, so the
+            block keeps a fixed height however many rails the region offers. */}
         <View style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
             {t.captures.paidWith}
           </Text>
-          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
+          >
             {paymentMethods.map((method) => {
               const active = paymentMethod === method.id;
               return (
@@ -510,13 +521,13 @@ export default function CaptureScreen() {
                 </Pressable>
               );
             })}
-          </Row>
+          </ScrollView>
         </View>
 
         {/* Destination and date, folded into one card of divided rows rather than
             two stacked cards — the meta a capture carries, grouped so it reads as
             one block. "Decide later" is the default group: the split, and who is
-            in it, is chosen when the capture is assigned (the line under it). */}
+            in it, is chosen when the capture is assigned. */}
         <Card style={{ paddingVertical: theme.spacing.xs, gap: 0 }}>
           <FieldRow
             icon={targetGroup ? 'people' : 'people-outline'}
@@ -527,13 +538,6 @@ export default function CaptureScreen() {
             onPress={() => setPickingGroup(true)}
             accessibilityLabel={`${t.captures.group}: ${targetGroupName}`}
           />
-          <Text
-            variant="micro"
-            tone="muted"
-            style={{ marginLeft: iconSize.md + theme.spacing.md, marginBottom: theme.spacing.sm }}
-          >
-            {t.captures.splitLaterHint}
-          </Text>
           <Divider />
           <FieldRow
             icon="calendar-outline"
