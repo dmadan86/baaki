@@ -16,30 +16,13 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { dayHeading, dayKey, describeActivity, parseMoney, verbIcon } from '@/data/activity';
+import { dayHeading, describeActivity, groupByDay, parseMoney, verbIcon } from '@/data/activity';
 import { fetchRecentActivity } from '@/data/api';
 import { FeedSkeleton } from '@/components/Skeletons';
 import { useNotifications } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
-
-/**
- * The feed cut into calendar days, newest first, order otherwise untouched — the
- * query already returns it sorted, so this only draws the lines between days.
- */
-function groupByDay<T extends { created_at: string }>(
-  entries: readonly T[],
-): { key: string; entries: T[] }[] {
-  const sections: { key: string; entries: T[] }[] = [];
-  for (const entry of entries) {
-    const key = dayKey(entry.created_at);
-    const last = sections[sections.length - 1];
-    if (last && last.key === key) last.entries.push(entry);
-    else sections.push({ key, entries: [entry] });
-  }
-  return sections;
-}
 
 export default function ActivityScreen() {
   const theme = useTheme();

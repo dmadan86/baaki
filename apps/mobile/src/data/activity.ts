@@ -207,6 +207,26 @@ export function dayKey(iso: string): string {
   return `${when.getFullYear()}-${when.getMonth() + 1}-${when.getDate()}`;
 }
 
+/**
+ * Any feed cut into calendar days, newest first, order otherwise untouched —
+ * the caller's own query already sorts it, so this only draws the lines
+ * between days. Shared by the activity feed and the captures inbox, which
+ * both read as "a list of things that happened" and both want the same day
+ * headings rather than each inventing its own.
+ */
+export function groupByDay<T extends { created_at: string }>(
+  entries: readonly T[],
+): { key: string; entries: T[] }[] {
+  const sections: { key: string; entries: T[] }[] = [];
+  for (const entry of entries) {
+    const key = dayKey(entry.created_at);
+    const last = sections[sections.length - 1];
+    if (last && last.key === key) last.entries.push(entry);
+    else sections.push({ key, entries: [entry] });
+  }
+  return sections;
+}
+
 export function relativeTime(locale: string, iso: string, now: number = Date.now()): string {
   const parsed = Date.parse(iso);
   if (!Number.isFinite(parsed)) return iso;

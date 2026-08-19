@@ -296,6 +296,67 @@ export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
   );
 }
 
+/**
+ * The captures inbox: day headings over a stack of capture cards, each a
+ * thumbnail beside an amount, a description line and a date, then an
+ * assign/delete action row underneath. Shaped to `CapturesScreen`'s real
+ * `Card` down to the pixel — same `xl` card padding and `md` internal gap,
+ * the same 46px thumbnail corner (`radius.sm`, not a pill: a receipt photo is
+ * a small rectangle, not an avatar), the same three text lines at their real
+ * variants (`subheading` for the amount, `caption` for the description,
+ * `micro` for the date) — so the swap to real cards is a fill, not a jump.
+ * The action row stands in for the `sm` Assign button (38px, pill radius) and
+ * the 44px delete `IconButton`, whose icon is the only thing skeletoned since
+ * the button chrome itself is invisible until pressed. Two day sections of
+ * two cards each is enough to read as "a short list", the same restraint
+ * `PeopleSkeleton` uses. Shown in place of the "nothing yet" empty state,
+ * which is a verdict the local mirror has not hydrated yet (ADR-005).
+ */
+export function InboxSkeleton() {
+  const theme = useTheme();
+  const { animated } = useMotion();
+  return (
+    <LoadingRegion style={{ gap: theme.spacing.lg }}>
+      {[0, 1].map((section) => (
+        <View key={section} style={{ gap: theme.spacing.md }}>
+          <Skeleton
+            width="28%"
+            height={11}
+            animated={animated}
+            style={{ marginBottom: theme.spacing.xs }}
+          />
+          {[0, 1].map((card) => (
+            <Card key={card} style={{ gap: theme.spacing.md }}>
+              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                <Skeleton width={46} height={46} radius={theme.radius.sm} animated={animated} />
+                <View style={{ flex: 1, gap: theme.spacing.sm }}>
+                  <Skeleton width="45%" height={16} animated={animated} />
+                  <Skeleton width="65%" height={13} animated={animated} />
+                  <Skeleton width="30%" height={11} animated={animated} />
+                </View>
+              </Row>
+              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                <Skeleton
+                  width="100%"
+                  height={38}
+                  radius={theme.radius.pill}
+                  animated={animated}
+                  style={{ flex: 1 }}
+                />
+                <View
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Skeleton width={22} height={22} radius={theme.radius.sm} animated={animated} />
+                </View>
+              </Row>
+            </Card>
+          ))}
+        </View>
+      ))}
+    </LoadingRegion>
+  );
+}
+
 /** Insights: a heading and a couple of chart-sized blocks. */
 export function InsightsSkeleton() {
   const theme = useTheme();
