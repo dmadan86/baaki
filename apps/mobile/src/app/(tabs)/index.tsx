@@ -231,11 +231,15 @@ export default function HomeScreen() {
           </Pressable>
           {/* Straight to the camera: the icon is a scanner, so it opens one
               rather than a form to fill in first (the capture screen reads the
-              `scan` flag and launches the camera on mount). */}
+              `scan` flag and launches the camera on mount). A fresh `Date.now()`
+              nonce each tap — not a constant `1` — so the capture screen's
+              consumed-once guard survives Android recreating it on the camera's
+              return, yet a genuine second tap still counts as new (the fix for
+              the camera reopening a second time on its own). */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t.captures.captureCta}
-            onPress={() => router.push('/capture?scan=1')}
+            onPress={() => router.push(`/capture?scan=${Date.now()}`)}
             hitSlop={10}
             style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
           >
@@ -631,7 +635,13 @@ function TipSheet({ t }: { t: UiStrings }) {
 
   const close = () => setClosed(true);
   const act = () => {
-    if (tip?.route) router.push(tip.route as never);
+    if (tip?.route) {
+      // The scan tip's route carries a constant `scan=` sentinel; swap it for a
+      // fresh nonce so the capture screen fires the camera exactly once and does
+      // not reopen it when Android recreates the screen on the camera's return.
+      const href = tip.route.includes('scan=') ? `/capture?scan=${Date.now()}` : tip.route;
+      router.push(href as never);
+    }
     close();
   };
 
@@ -891,7 +901,7 @@ function HeroDeck({
           body={t.dashHero.scanBody}
           cta={t.dashHero.scanCta}
           colors={theme.gradient.brand}
-          onPress={() => router.push('/capture?scan=1')}
+          onPress={() => router.push(`/capture?scan=${Date.now()}`)}
         />
       ),
     },
