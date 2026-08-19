@@ -29,17 +29,34 @@
 -- the owner-role paths that seed expenses in migrations and tests.
 
 -- ── SEC-1 + INT-1: the expense write RPC is service-role only again ───────────
-REVOKE EXECUTE ON FUNCTION public.baaki_apply_expense(
-  uuid, uuid, uuid, text, text, date, char(3), bigint, text, jsonb, jsonb, jsonb, uuid, text, uuid,
-  int, jsonb, text, text
-) FROM anon, authenticated;
-
--- Re-grant the door the edge functions use. The last DROP..CREATE dropped this
--- grant and never restored it; make the intent explicit and current.
-GRANT EXECUTE ON FUNCTION public.baaki_apply_expense(
-  uuid, uuid, uuid, text, text, date, char(3), bigint, text, jsonb, jsonb, jsonb, uuid, text, uuid,
-  int, jsonb, text, text
-) TO service_role;
+-- `baaki_apply_expense` accreted several signatures as parameters were appended
+-- (15 → 19 args). Each migration `DROP`ped the previous by an explicit type list
+-- and `CREATE`d the next — but a `DROP FUNCTION IF EXISTS` whose type list does
+-- not match exactly is a silent no-op, so at least one stale overload survived
+-- still carrying `GRANT ... TO authenticated, anon`. That is the overload a short
+-- positional call resolves to, which is how the anon/forged-share path stayed
+-- open. Revoking a single hand-written signature cannot catch what you cannot
+-- see, so loop over every overload by its real identity from the catalog.
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'baaki_apply_expense'
+  LOOP
+    -- FROM PUBLIC too: a function created under Supabase's default privileges
+    -- carries an EXECUTE grant the client roles inherit, so revoking only anon
+    -- and authenticated by name leaves that inherited grant in place. This is
+    -- exactly what the original atomic-write migration did (REVOKE ALL FROM
+    -- PUBLIC, anon, authenticated) and what the later re-grants undid.
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, authenticated', r.sig);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
+  END LOOP;
+END
+$$;
 
 -- ── INT-2: settlement parties must belong to the settlement's group ──────────
 CREATE OR REPLACE FUNCTION public.baaki_record_settlement(
@@ -146,10 +163,26 @@ $$;
 -- anon is already blocked by is_group_member (a null profile matches no row),
 -- but revoke it so the grant matches the intent; authenticated keeps it because
 -- the mobile client records settlements through this RPC directly (and /sync
--- calls it as the caller, not the service role).
-REVOKE EXECUTE ON FUNCTION public.baaki_record_settlement(
-  uuid, uuid, uuid, bigint, text, character, text, jsonb, uuid, text
-) FROM anon;
+-- calls it as the caller, not the service role). Loop over every overload for
+-- the same reason as above — this RPC also grew a parameter over its history.
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'baaki_record_settlement'
+  LOOP
+    -- Revoke from PUBLIC and anon (see the note above about inherited grants),
+    -- then re-grant the roles that legitimately call it so removing the PUBLIC
+    -- grant does not lock them out.
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon', r.sig);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', r.sig);
+  END LOOP;
+END
+$$;
 
 -- PostgREST caches the schema; tell it the permissions/signatures changed.
 NOTIFY pgrst, 'reload schema';
