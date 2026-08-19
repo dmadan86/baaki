@@ -39,8 +39,22 @@ import { friendlyError } from '@/lib/errors';
 
 import { fetchFxRate } from '@/data/api';
 
-/** Enough for the currencies an India-first app actually sees. */
-const COMMON = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'THB', 'JPY', 'LKR', 'NPR'];
+/** Enough for the currencies an India-first app actually sees. Exported so the
+ *  capture screen's currency picker draws from the very same shortlist rather
+ *  than a second copy that could drift out of step with this one. */
+export const COMMON_CURRENCIES = [
+  'INR',
+  'USD',
+  'EUR',
+  'GBP',
+  'AED',
+  'SGD',
+  'AUD',
+  'THB',
+  'JPY',
+  'LKR',
+  'NPR',
+];
 
 enum Method {
   Charged = 'charged',
@@ -173,7 +187,7 @@ export function CurrencyRate({
       <ChipRow<string>
         value={currency}
         onChange={choose}
-        options={COMMON.map((code) => ({ value: code, label: code }))}
+        options={COMMON_CURRENCIES.map((code) => ({ value: code, label: code }))}
       />
 
       {foreign ? (

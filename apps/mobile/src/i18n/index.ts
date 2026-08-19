@@ -35,6 +35,8 @@ import { getLocales } from 'expo-localization';
 import {
   currencyForCountry,
   dialingCodeForCountry,
+  railsFor,
+  RailId,
   type CategoryId,
   type CurrencyCode,
 } from '@waves/core';
@@ -834,11 +836,17 @@ export interface UiStrings {
     payCredit: string;
     payDebit: string;
     payForex: string;
+    payUpi: string;
     group: string;
     decideLater: string;
     groupPickerTitle: string;
     groupPickerBody: string;
+    groupSectionCurrentTrip: string;
+    groupSectionRecent: string;
+    groupSectionAll: string;
     splitLaterHint: string;
+    currencyLabel: string;
+    currencyPickerTitle: string;
     newTitle: string;
     emptyTitle: string;
     emptyBody: string;
@@ -2181,12 +2189,18 @@ const en: UiStrings = {
     payCredit: 'Credit card',
     payDebit: 'Debit card',
     payForex: 'Forex',
+    payUpi: 'UPI',
     group: 'Group',
     decideLater: 'Decide later',
     groupPickerTitle: 'Add to a group',
     groupPickerBody:
       'Tag the group this belongs to. You can still change it — and choose the split — when you assign it.',
+    groupSectionCurrentTrip: 'Current trip',
+    groupSectionRecent: 'Recently used',
+    groupSectionAll: 'All groups',
     splitLaterHint: "You'll choose who splits this, and how, when you add it to a group.",
+    currencyLabel: 'Currency',
+    currencyPickerTitle: 'Choose currency',
     newTitle: 'Capture an expense',
     emptyTitle: 'Nothing captured yet',
     emptyBody:
@@ -3617,13 +3631,19 @@ const ta: UiStrings = {
     payCredit: 'கிரெடிட் கார்டு',
     payDebit: 'டெபிட் கார்டு',
     payForex: 'அன்னியச் செலாவணி',
+    payUpi: 'UPI',
     group: 'குழு',
     decideLater: 'பிறகு முடிவு செய்யலாம்',
     groupPickerTitle: 'ஒரு குழுவில் சேர்க்கவும்',
     groupPickerBody:
       'இது சேர வேண்டிய குழுவைக் குறியிடுங்கள். ஒதுக்கும்போது அதை மாற்றலாம் — பங்கீட்டையும் தேர்வு செய்யலாம்.',
+    groupSectionCurrentTrip: 'நடப்புப் பயணம்',
+    groupSectionRecent: 'சமீபத்தில் பயன்படுத்தியவை',
+    groupSectionAll: 'அனைத்துக் குழுக்களும்',
     splitLaterHint:
       'இதை ஒரு குழுவில் சேர்க்கும்போது யார், எப்படிப் பங்கிடுவது என்பதைத் தேர்வு செய்யலாம்.',
+    currencyLabel: 'நாணயம்',
+    currencyPickerTitle: 'நாணயத்தைத் தேர்ந்தெடுங்கள்',
     newTitle: 'ஒரு செலவைப் பதிவு செய்யுங்கள்',
     emptyTitle: 'இன்னும் எதுவும் பதிவாகவில்லை',
     emptyBody:
@@ -5066,12 +5086,18 @@ const hi: UiStrings = {
     payCredit: 'क्रेडिट कार्ड',
     payDebit: 'डेबिट कार्ड',
     payForex: 'विदेशी मुद्रा',
+    payUpi: 'UPI',
     group: 'समूह',
     decideLater: 'बाद में तय करें',
     groupPickerTitle: 'किसी समूह में जोड़ें',
     groupPickerBody:
       'यह जिस समूह का है उसे चुनें। असाइन करते समय इसे बदल सकते हैं — और बँटवारा भी चुन सकते हैं।',
+    groupSectionCurrentTrip: 'चल रही यात्रा',
+    groupSectionRecent: 'हाल में इस्तेमाल किए',
+    groupSectionAll: 'सभी समूह',
     splitLaterHint: 'इसे किसी समूह में जोड़ते समय आप तय करेंगे कि इसे कौन और कैसे बाँटेगा।',
+    currencyLabel: 'मुद्रा',
+    currencyPickerTitle: 'मुद्रा चुनें',
     newTitle: 'एक खर्च दर्ज करें',
     emptyTitle: 'अभी तक कुछ दर्ज नहीं हुआ',
     emptyBody:
@@ -6510,12 +6536,18 @@ const ar: UiStrings = {
     payCredit: 'بطاقة ائتمان',
     payDebit: 'بطاقة خصم',
     payForex: 'عملة أجنبية',
+    payUpi: 'UPI',
     group: 'المجموعة',
     decideLater: 'قرّر لاحقًا',
     groupPickerTitle: 'أضِف إلى مجموعة',
     groupPickerBody:
       'حدِّد المجموعة التي ينتمي إليها. يمكنك تغييرها — واختيار طريقة التقسيم — عند الإسناد.',
+    groupSectionCurrentTrip: 'الرحلة الحالية',
+    groupSectionRecent: 'المستخدمة مؤخرًا',
+    groupSectionAll: 'كل المجموعات',
     splitLaterHint: 'ستختار من يقتسم هذا وكيف عند إضافته إلى مجموعة.',
+    currencyLabel: 'العملة',
+    currencyPickerTitle: 'اختر العملة',
     newTitle: 'التقط مصروفًا',
     emptyTitle: 'لا شيء ملتقط بعد',
     emptyBody:
@@ -7591,6 +7623,19 @@ export function deviceCountry(): string | null {
  */
 export function deviceDefaultCurrency(): CurrencyCode {
   return currencyForCountry(deviceCountry()) ?? 'INR';
+}
+
+/**
+ * Whether the phone's region can pay over UPI — India today.
+ *
+ * Read off the very same `railsFor` table the settle screen uses, so "supported"
+ * here means exactly what it means there rather than a second country list to
+ * keep in step: UPI is offered as a payment tag only where the rail actually
+ * exists. An unknown region falls through to the universal rails, which do not
+ * include UPI, so the tag stays hidden rather than guessing India.
+ */
+export function deviceSupportsUpi(): boolean {
+  return railsFor(deviceCountry()).some((rail) => rail.id === RailId.Upi);
 }
 
 /**
