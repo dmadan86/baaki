@@ -94,25 +94,26 @@ async function expense(
 ): Promise<void> {
   const half = amount / 2n;
   const author = await myMember(groupId, owner);
-  await asUser(owner, () =>
-    client.query(
-      `SELECT baaki_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
-                                  '2026-08-06'::date, 'INR'::char(3), $4::bigint,
-                                  'equal'::text, '{"kind":"equal"}'::jsonb,
-                                  $5::jsonb, $6::jsonb, $7::uuid)`,
-      [
-        groupId,
-        randomUUID(),
-        author,
-        amount.toString(),
-        JSON.stringify([{ memberId: payer, amount: amount.toString() }]),
-        JSON.stringify([
-          { memberId: payer, amount: half.toString() },
-          { memberId: other, amount: (amount - half).toString() },
-        ]),
-        randomUUID(),
-      ],
-    ),
+  // Seeded on the owner connection: `baaki_apply_expense` is service-role only,
+  // so seeding it as `authenticated` would now be denied. The owner bypasses the
+  // grant and the null-profile branch treats it as a trusted (service) caller.
+  await client.query(
+    `SELECT baaki_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
+                                '2026-08-06'::date, 'INR'::char(3), $4::bigint,
+                                'equal'::text, '{"kind":"equal"}'::jsonb,
+                                $5::jsonb, $6::jsonb, $7::uuid)`,
+    [
+      groupId,
+      randomUUID(),
+      author,
+      amount.toString(),
+      JSON.stringify([{ memberId: payer, amount: amount.toString() }]),
+      JSON.stringify([
+        { memberId: payer, amount: half.toString() },
+        { memberId: other, amount: (amount - half).toString() },
+      ]),
+      randomUUID(),
+    ],
   );
 }
 

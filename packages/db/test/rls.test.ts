@@ -109,7 +109,11 @@ describe('expenses and their money rows', () => {
     }
   });
 
-  it('a member adds an expense through the RPC, and an outsider cannot', async () => {
+  it('no client role calls the expense write RPC directly — not even a member', async () => {
+    // Hardened after the audit: `baaki_apply_expense` is service-role only, so
+    // the Deno edge functions (which recompute the shares) are the one door.
+    // Both a member and an outsider are refused at the grant — this closes the
+    // anon fail-open and the forged-share hole together.
     const payers = JSON.stringify([{ memberId: group.memberIds[0], amount: '9000' }]);
     const shares = JSON.stringify(
       (group.memberIds as string[]).slice(0, 3).map((memberId) => ({ memberId, amount: '3000' })),
@@ -117,46 +121,14 @@ describe('expenses and their money rows', () => {
     const call = `SELECT baaki_apply_expense($1, NULL, $2, 'Chai', NULL, current_date, 'INR',
       9000, 'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`;
 
-    await asRole(client, 'authenticated', memberClaims(group.profileIds[0] as string), async () => {
-      const result = await client.query(call, [
-        group.groupId,
-        group.memberIds[0],
-        payers,
-        shares,
-        randomUUID(),
-      ]);
-      expect(result.rowCount).toBe(1);
-    });
-
-    await asRole(client, 'authenticated', memberClaims(outsiderProfileId), async () => {
-      const message = await expectDenied(
-        client.query(call, [group.groupId, group.memberIds[0], payers, shares, randomUUID()]),
-      );
-      expect(message).toMatch(/NOT_A_MEMBER/);
-    });
-  });
-
-  it('a member cannot record an expense as written by somebody else', async () => {
-    // The version rows are append-only, so a wrong author is permanent.
-    await asRole(client, 'authenticated', memberClaims(group.profileIds[0] as string), async () => {
-      const message = await expectDenied(
-        client.query(
-          `SELECT baaki_apply_expense($1, NULL, $2, 'Not mine', NULL, current_date, 'INR',
-             6000, 'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`,
-          [
-            group.groupId,
-            group.memberIds[1], // somebody else
-            JSON.stringify([{ memberId: group.memberIds[1], amount: '6000' }]),
-            JSON.stringify([
-              { memberId: group.memberIds[0], amount: '3000' },
-              { memberId: group.memberIds[1], amount: '3000' },
-            ]),
-            randomUUID(),
-          ],
-        ),
-      );
-      expect(message).toMatch(/NOT_THE_AUTHOR/);
-    });
+    for (const profileId of [group.profileIds[0] as string, outsiderProfileId]) {
+      await asRole(client, 'authenticated', memberClaims(profileId), async () => {
+        const message = await expectDenied(
+          client.query(call, [group.groupId, group.memberIds[0], payers, shares, randomUUID()]),
+        );
+        expect(message).toMatch(/permission denied/i);
+      });
+    }
   });
 });
 

@@ -178,7 +178,14 @@ describe('a member cannot pay a debt by saying they did', () => {
   });
 });
 
-describe('a stranger cannot write into a group', () => {
+describe('the expense write RPC is not client-callable', () => {
+  // Hardened after the audit: `baaki_apply_expense` is revoked from anon and
+  // authenticated, so no client role reaches the function body at all — the
+  // Deno edge functions (sync / expense-write) recompute the shares and call it
+  // as the service role, and they are the only door. This closes the anon
+  // fail-open in `baaki_assert_expense_caller` and the forged-share hole (which
+  // only the SUM was ever checked against) in one move. Every client below is
+  // refused at the grant, before a row is touched.
   const write = (groupId: string, authorMemberId: string, payerMemberId: string) =>
     client.query(
       `SELECT baaki_apply_expense($1, NULL, $2, 'Injected', NULL, current_date, 'INR', 60000,
@@ -193,36 +200,32 @@ describe('a stranger cannot write into a group', () => {
     );
 
   it('refuses somebody who has never been a member', async () => {
-    // `baaki_apply_expense` is SECURITY DEFINER and checked that the member ids
-    // it was handed belonged to the group — never that the caller did. This
-    // committed a ₹600 expense into a stranger's group and moved every balance.
     await asClient(scene.outsider, async () => {
       const message = await expectDenied(
         write(scene.groupId, scene.members[0] as string, scene.members[0] as string),
       );
-      expect(message).toMatch(/NOT_A_MEMBER/);
+      expect(message).toMatch(/permission denied/i);
     });
   });
 
   it('refuses a member who has left', async () => {
-    // The easy case: no leaked id needed, only their own. `left_at` stops
-    // `is_group_member`, and this function never asked it.
     await asClient(scene.exProfile, async () => {
       const message = await expectDenied(
         write(scene.groupId, scene.exMember, scene.members[0] as string),
       );
-      expect(message).toMatch(/NOT_A_MEMBER/);
+      expect(message).toMatch(/permission denied/i);
     });
   });
 
-  it('lets a member write, as themselves', async () => {
+  it('refuses even a current member calling directly, not just strangers', async () => {
+    // The forged-share hole was reachable by any member, not only outsiders, so
+    // the fix has to shut the door on members too — they write through the edge
+    // functions, never straight into this RPC.
     await asClient(scene.profiles[0] as string, async () => {
-      const result = await write(
-        scene.groupId,
-        scene.members[0] as string,
-        scene.members[0] as string,
+      const message = await expectDenied(
+        write(scene.groupId, scene.members[0] as string, scene.members[0] as string),
       );
-      expect(result.rowCount).toBe(1);
+      expect(message).toMatch(/permission denied/i);
     });
   });
 });
@@ -258,6 +261,9 @@ describe('nobody writes history in somebody else’s name', () => {
   });
 
   it('refuses an expense recorded as written by somebody else', async () => {
+    // Forging authorship through the RPC is now refused at the grant (the RPC is
+    // service-role only); the direct-INSERT forgery above is still caught by the
+    // append-only column guard.
     await asClient(scene.profiles[1] as string, async () => {
       const message = await expectDenied(
         client.query(
@@ -272,7 +278,7 @@ describe('nobody writes history in somebody else’s name', () => {
           ],
         ),
       );
-      expect(message).toMatch(/NOT_THE_AUTHOR/);
+      expect(message).toMatch(/permission denied/i);
     });
   });
 });
