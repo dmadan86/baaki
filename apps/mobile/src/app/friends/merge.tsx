@@ -331,10 +331,6 @@ export default function MergePeopleScreen() {
             />
           ) : (
             <>
-              <Text variant="caption" tone="muted" align="center">
-                {t.mergePeople.subtitle}
-              </Text>
-
               <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                 {guests.map((row, index) => {
                   const isSelected = selected.has(row.person_key);
