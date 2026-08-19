@@ -10,8 +10,9 @@
  * of record; it is the ordinary primitives (create a group, add a ghost, write
  * one expense) wired to one screen so the common case takes one save.
  *
- * The direction is asked, never assumed: "they owe me" and "I owe them" are
- * opposite ledger entries, and defaulting one would quietly book the wrong one.
+ * The direction defaults to "they owe me" — the case people open this screen
+ * for — but it stays a visible, selected choice, not a hidden one: both options
+ * are on screen and picking "I owe them" is a single tap before saving.
  */
 
 import { useState } from 'react';
@@ -125,7 +126,9 @@ export default function AddPersonScreen() {
   );
   const [name, setName] = useState('');
   const [amount, setAmount] = useState(0n);
-  const [direction, setDirection] = useState<Direction | null>(null);
+  // Defaults to the common case — they owe you — but stays a visible, selected
+  // choice with "I owe them" one tap away, not a hidden assumption.
+  const [direction, setDirection] = useState<Direction | null>('theyOwe');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>('cash');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -279,14 +282,13 @@ export default function AddPersonScreen() {
             />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.addPerson.title}</Text>
+            <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+              <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.brand} />
+              <Text variant="heading">{t.addPerson.title}</Text>
+            </Row>
           </View>
           <View style={{ width: 44 }} />
         </Row>
-
-        <Text variant="caption" tone="muted" align="center">
-          {t.addPerson.subtitle}
-        </Text>
 
         {/* The person is the subject of this screen, so the card leads with
             them: an avatar that fills in with the name's own colour and initial
