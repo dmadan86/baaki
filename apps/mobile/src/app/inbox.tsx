@@ -32,8 +32,9 @@ import {
 } from '@waves/ui';
 
 import { dayHeading, dayKey } from '@/data/activity';
-import { useMarkNotificationsRead, useNotifications } from '@/data/hooks';
+import { useCaptures, useMarkNotificationsRead, useNotifications } from '@/data/hooks';
 import { SkeletonList } from '@/components/Skeletons';
+import { UnassignedCapturesCard } from '@/components/UnassignedCapturesCard';
 import type { NotificationRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -89,6 +90,10 @@ export default function InboxScreen() {
   const { t, locale } = useStrings();
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
+  // Unassigned captures show as their own card above the list; the count also
+  // decides whether an empty notification list is really "nothing yet" or just
+  // "nothing but the capture waiting above".
+  const captureCount = useCaptures().data?.length ?? 0;
 
   const rows = notifications.data ?? [];
   const unread = rows.filter((row) => row.read_at === null);
@@ -142,6 +147,11 @@ export default function InboxScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
+        {/* A capture with no group yet is something waiting for you, so it
+            belongs here as much as on the dashboard — the two "anything for me?"
+            screens. It renders nothing when there is none. */}
+        <UnassignedCapturesCard />
+
         {notifications.isLoading ? (
           // Until the fetch answers, `rows` is empty — which is not the same as
           // "you have no notifications". Showing the empty state here told people
@@ -168,9 +178,11 @@ export default function InboxScreen() {
               }
             />
           </View>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && captureCount === 0 ? (
           // Centred, with a glyph — the "all square" treatment Friends uses, so an
           // empty inbox reads as a state and not a screen that failed to load.
+          // A waiting capture counts as content, so the empty state stands down
+          // when the card above is showing.
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               title={t.nothingYet}
