@@ -81,7 +81,7 @@ export interface ExpenseCreatePayload {
 }
 
 /** The four ways an expense is paid for; optional everywhere it appears. */
-export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'forex';
+export type PaymentMethod = 'cash' | 'upi' | 'credit' | 'debit' | 'forex';
 
 export interface ExpenseUpdatePayload extends ExpenseCreatePayload {
   /** Version the client edited, so the server can detect a concurrent edit. */
