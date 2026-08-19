@@ -329,13 +329,19 @@ export default function GroupSettingsScreen() {
           }
         />
 
-        <TripDates
-          group={group.data}
-          locale={locale}
-          onChange={(patch) =>
-            updateGroup.mutate(patch, { onSuccess: () => setStatus(t.account.saved) })
-          }
-        />
+        {/* Trip dates and their nudges only mean anything on a trip, so the
+            section appears only for that type and disappears the moment the
+            group is changed to another kind. Nothing recorded is touched — the
+            stored dates simply stop being shown until it is a trip again. */}
+        {(group.data.type ?? GroupType.Other) === GroupType.Trip ? (
+          <TripDates
+            group={group.data}
+            locale={locale}
+            onChange={(patch) =>
+              updateGroup.mutate(patch, { onSuccess: () => setStatus(t.account.saved) })
+            }
+          />
+        ) : null}
 
         {/* ADR-009: simplification is presentation only — the pairwise ledger
             underneath is untouched, so this is safe to toggle at any time. */}
