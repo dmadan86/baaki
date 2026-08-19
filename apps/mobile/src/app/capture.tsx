@@ -249,7 +249,11 @@ export default function CaptureScreen() {
   const [guessedFrom, setGuessedFrom] = useState<string | null>('');
   if (!categoryChosen && description !== guessedFrom) {
     setGuessedFrom(description);
-    setCategory(guessCategory(description));
+    // Keep the current category when the description matches no bucket:
+    // guessCategory returns null for unrecognised text, and clearing on null
+    // would wipe the Food default (or a prior guess) leaving no chip selected.
+    const guess = guessCategory(description);
+    if (guess) setCategory(guess);
   }
 
   const applyDate = (event: DateTimePickerEvent, picked?: Date): void => {
