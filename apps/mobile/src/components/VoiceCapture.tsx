@@ -243,6 +243,41 @@ function recognitionAvailable(): boolean {
   }
 }
 
+/**
+ * The subset of the app's languages this phone's recogniser can actually listen
+ * in. A chip for a language the device cannot recognise only leads to a red "not
+ * supported" after the tap, so a language that is not supported is not shown.
+ *
+ * `getSupportedLocales` returns an empty list on Android 12 and below (and can
+ * throw when the service package is missing): there we cannot tell what is
+ * supported, so we return `null` and every chip is shown rather than hiding them
+ * all. A non-empty device list that matched none of ours is treated the same
+ * way — more likely a normalisation miss than a phone that speaks nothing we
+ * offer.
+ */
+async function loadSupportedLanguages(): Promise<Language[] | null> {
+  try {
+    let androidRecognitionServicePackage: string | undefined;
+    try {
+      const pkg = ExpoSpeechRecognitionModule.getDefaultRecognitionService?.().packageName;
+      if (pkg) androidRecognitionServicePackage = pkg;
+    } catch {
+      // iOS / older builds have no Android service concept — query without one.
+    }
+    const { locales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
+      androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {},
+    );
+    if (!locales || locales.length === 0) return null;
+    const base = new Set(
+      locales.map((tag) => tag.trim().split(/[-_]/)[0]?.toLowerCase()).filter(Boolean),
+    );
+    const supported = LANGUAGES.filter((lang) => base.has(lang));
+    return supported.length > 0 ? supported : null;
+  } catch {
+    return null;
+  }
+}
+
 export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
   const theme = useTheme();
   const { t, language, locale } = useStrings();
@@ -253,6 +288,8 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
   // can switch it here without changing the whole app — on-device recognition
   // targets one locale per session, so this is a per-utterance choice.
   const [spokenLang, setSpokenLang] = useState<Language | null>(null);
+  // Which languages this phone can recognise (null until asked / when unknown).
+  const [supportedLangs, setSupportedLangs] = useState<Language[] | null>(null);
   const [listening, setListening] = useState(false);
   const [live, setLive] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -342,6 +379,19 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
   const stop = useCallback((): void => {
     ExpoSpeechRecognitionModule.stop();
   }, []);
+
+  // Ask the recogniser which languages it can hear, once, so the chips only
+  // offer the ones that will actually work on this phone.
+  useEffect(() => {
+    if (!available) return;
+    let alive = true;
+    void loadSupportedLanguages().then((langs) => {
+      if (alive) setSupportedLangs(langs);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [available]);
 
   // Open the mic as the screen appears — the reader tapped a mic to get here, so
   // making them tap a second one to start would be a step too many.
@@ -441,47 +491,51 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
       {/* Which language to listen in — the recogniser targets one locale per
           session, so a speaker whose phone is in one language and mouth in
           another picks it here. The chip shows each language in its own script,
-          so it is found by the name its speaker knows. */}
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <Ionicons name="globe-outline" size={iconSize.sm} color={theme.color.textMuted} />
-        {LANGUAGES.map((lang) => {
-          const selected = (spokenLang ?? language) === lang;
-          return (
-            <Pressable
-              key={lang}
-              onPress={() => chooseLang(lang)}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={LANGUAGE_NAMES[lang].english}
-              style={({ pressed }) => ({
-                paddingVertical: theme.spacing.xs,
-                paddingHorizontal: theme.spacing.md,
-                borderRadius: theme.radius.pill,
-                backgroundColor: selected ? theme.color.brandSoft : theme.color.surfaceMuted,
-                opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <Text
-                variant="caption"
-                style={{
-                  color: selected ? theme.color.brand : theme.color.textMuted,
-                  fontWeight: selected ? '600' : '400',
-                }}
+          so it is found by the name its speaker knows. Only languages this phone
+          can actually recognise are offered; with just one, there is nothing to
+          choose and the row is hidden. */}
+      {(supportedLangs ?? LANGUAGES).length > 1 ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+          }}
+        >
+          <Ionicons name="globe-outline" size={iconSize.sm} color={theme.color.textMuted} />
+          {(supportedLangs ?? LANGUAGES).map((lang) => {
+            const selected = (spokenLang ?? language) === lang;
+            return (
+              <Pressable
+                key={lang}
+                onPress={() => chooseLang(lang)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={LANGUAGE_NAMES[lang].english}
+                style={({ pressed }) => ({
+                  paddingVertical: theme.spacing.xs,
+                  paddingHorizontal: theme.spacing.md,
+                  borderRadius: theme.radius.pill,
+                  backgroundColor: selected ? theme.color.brandSoft : theme.color.surfaceMuted,
+                  opacity: pressed ? 0.6 : 1,
+                })}
               >
-                {LANGUAGE_NAMES[lang].own}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+                <Text
+                  variant="caption"
+                  style={{
+                    color: selected ? theme.color.brand : theme.color.textMuted,
+                    fontWeight: selected ? '600' : '400',
+                  }}
+                >
+                  {LANGUAGE_NAMES[lang].own}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
 
       {error ? (
         <Pressable onPress={() => void Linking.openSettings()} accessibilityRole="button">

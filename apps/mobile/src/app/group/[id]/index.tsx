@@ -448,12 +448,13 @@ export default function GroupScreen() {
               style={{ color: ink }}
             />
 
-            {/* Two equal-width pills on the tinted hero. Settle up stays the
-                filled brand CTA; the simplify toggle uses the on-panel white
-                treatment (white pill, brand label) so it reads on any tint
-                instead of the muddy soft-purple secondary. A soft shadow lifts
-                the white pill off the pastel. Reduced side padding keeps longer
-                labels ("Who pays whom?") on one line at half width. */}
+            {/* Two equal-width pills on the tinted hero. Settle up is the one
+                filled brand CTA; Simplify is a secondary, so it reads as an
+                outline — transparent with a brand border and brand label. On a
+                pale tint a solid-white pill turned out brighter than the CTA and
+                stole the eye; the outline recedes behind the primary the way a
+                secondary should. Reduced side padding keeps the longer toggle
+                label ("Who pays whom?") on one line at half width. */}
             <Row style={{ gap: theme.spacing.md }}>
               <Button
                 label={t.settleUp}
@@ -465,9 +466,14 @@ export default function GroupScreen() {
               />
               <Button
                 label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                variant="onBrand"
+                variant="ghost"
                 onPress={() => router.push(`/group/${groupId}/simplify`)}
-                style={{ flex: 1, paddingHorizontal: theme.spacing.md, ...theme.shadow.soft }}
+                style={{
+                  flex: 1,
+                  paddingHorizontal: theme.spacing.md,
+                  borderWidth: 1,
+                  borderColor: theme.color.brand,
+                }}
               />
             </Row>
           </TintCard>
