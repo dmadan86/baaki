@@ -145,6 +145,11 @@ describe('the rate on the expense itself', () => {
     fx: unknown,
   ): Promise<string | null> {
     try {
+      // `baaki_apply_expense` is service-role only; seed on the owner connection
+      // (the trusted path the edge functions use). The JWT claim set by
+      // `seedGroup` stays, so the in-function member checks still resolve to the
+      // real member — this test is about the fx validation, not authorization.
+      await client.query(`RESET ROLE`);
       await client.query(
         `SELECT baaki_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
                                     '2026-08-05'::date, $4::char(3), 1000::bigint,
