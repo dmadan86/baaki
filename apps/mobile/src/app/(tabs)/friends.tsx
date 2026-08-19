@@ -14,7 +14,7 @@
  * account are followed across groups, because a profile id is proof.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -130,15 +130,27 @@ export default function FriendsScreen() {
     }
   };
 
-  const owedToYou = sortPeople(
-    rows.filter((row) => BigInt(row.net) > 0n),
-    sortKey,
-    sortDir,
+  // The two lists are a filter plus an O(n log n) sort each, and every render —
+  // opening or closing the sort menu, a pull-to-refresh tick — used to run both
+  // again and hand back freshly allocated arrays. They only actually change when
+  // the rows or the chosen sort change, so memoise on exactly those.
+  const owedToYou = useMemo(
+    () =>
+      sortPeople(
+        rows.filter((row) => BigInt(row.net) > 0n),
+        sortKey,
+        sortDir,
+      ),
+    [rows, sortKey, sortDir],
   );
-  const youOwe = sortPeople(
-    rows.filter((row) => BigInt(row.net) < 0n),
-    sortKey,
-    sortDir,
+  const youOwe = useMemo(
+    () =>
+      sortPeople(
+        rows.filter((row) => BigInt(row.net) < 0n),
+        sortKey,
+        sortDir,
+      ),
+    [rows, sortKey, sortDir],
   );
 
   return (
