@@ -1,0 +1,58 @@
+/**
+ * The "expenses caught without a group yet" card (A34).
+ *
+ * A capture with no home is easy to forget, so the one place it must never be
+ * is out of sight. It shows on the dashboard, near the top, and in the inbox —
+ * the two screens a person opens to answer "is there anything for me?" — so a
+ * waiting capture is found from either. Self-contained: it reads the count
+ * itself and renders nothing when there is none, so a caller drops it in without
+ * a guard of its own.
+ */
+
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
+import { Pressable, View } from 'react-native';
+
+import { Card, iconSize, Text, useTheme } from '@waves/ui';
+
+import { useCaptures } from '@/data/hooks';
+import { plural, useStrings } from '@/i18n';
+
+export function UnassignedCapturesCard() {
+  const theme = useTheme();
+  const { t, locale } = useStrings();
+  const captures = useCaptures();
+  const count = captures.data?.length ?? 0;
+
+  if (count === 0) return null;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t.captures.unassigned}
+      onPress={() => router.push('/captures')}
+    >
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+        <View
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 21,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.brandSoft,
+          }}
+        >
+          <Ionicons name="file-tray-full-outline" size={iconSize.xl} color={theme.color.brand} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="subheading">{t.captures.unassigned}</Text>
+          <Text variant="caption" tone="muted">
+            {plural(locale, count, t.captures.unassignedBody)}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={iconSize.lg} color={theme.color.textFaint} />
+      </Card>
+    </Pressable>
+  );
+}

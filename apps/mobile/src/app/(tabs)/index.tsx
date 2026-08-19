@@ -30,7 +30,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
+import { useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale } from '@/lib/anim';
 import { useMotion } from '@/lib/motion';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
@@ -40,6 +40,7 @@ import { useDashboardTips } from '@/lib/tips';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
+import { UnassignedCapturesCard } from '@/components/UnassignedCapturesCard';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { groupLabel, GroupType } from '@/data/types';
@@ -59,13 +60,7 @@ export default function HomeScreen() {
 
   const groups = useGroups();
   const summary = useHomeSummary(profile?.id ?? null);
-  const captures = useCaptures();
   const guard = useGuestGuard();
-
-  // Captures waiting in the personal inbox (A34) — surfaced as a card and a
-  // badged header entry so a caught expense is not forgotten before it lands in
-  // a group.
-  const captureCount = captures.data?.length ?? 0;
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
@@ -262,40 +257,8 @@ export default function HomeScreen() {
 
         {/* Expenses caught without a group yet (A34). Sits near the top so an
             inbox with something in it is the first thing after the balance, not
-            a screen nobody remembers to open. */}
-        {captureCount > 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.captures.unassigned}
-            onPress={() => router.push('/captures')}
-          >
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: theme.color.brandSoft,
-                }}
-              >
-                <Ionicons
-                  name="file-tray-full-outline"
-                  size={iconSize.xl}
-                  color={theme.color.brand}
-                />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text variant="subheading">{t.captures.unassigned}</Text>
-                <Text variant="caption" tone="muted">
-                  {plural(locale, captureCount, t.captures.unassignedBody)}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={iconSize.lg} color={theme.color.textFaint} />
-            </Card>
-          </Pressable>
-        ) : null}
+            a screen nobody remembers to open. The same card is in the Inbox. */}
+        <UnassignedCapturesCard />
 
         {isGuest ? (
           <GuestPrompt gate={guard.gate} t={t} onPress={() => router.push('/settings/account')} />
