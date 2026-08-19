@@ -9,7 +9,7 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, type Href } from 'expo-router';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { iconSize, Text, useTheme } from '@waves/ui';
@@ -18,6 +18,10 @@ export interface OverflowMenuItem {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   route: Href;
+  // Optional grouping key. A divider is drawn between two consecutive items
+  // whose `section` differs; items with no `section` never draw one, so a menu
+  // that omits it (the group header) stays a flat, undivided list.
+  section?: string;
 }
 
 export function OverflowMenu({
@@ -72,25 +76,47 @@ export function OverflowMenu({
               overflow: 'hidden',
             }}
           >
-            {items.map((item) => (
-              <Pressable
-                key={item.label}
-                onPress={() => go(item.route)}
-                accessibilityRole="button"
-                accessibilityLabel={item.label}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.md,
-                  paddingHorizontal: theme.spacing.lg,
-                  paddingVertical: theme.spacing.md,
-                  backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
-                })}
-              >
-                <Ionicons name={item.icon} size={iconSize.lg} color={theme.color.textMuted} />
-                <Text variant="body">{item.label}</Text>
-              </Pressable>
-            ))}
+            {items.map((item, index) => {
+              // A divider sits at a section boundary only: both this row and the
+              // one above it name a section, and the two differ. That rules out
+              // a divider before the first row (no row above) and any menu that
+              // leaves `section` unset (the group header), which stays flat.
+              const previous = items[index - 1];
+              const dividerAbove =
+                previous !== undefined &&
+                previous.section !== undefined &&
+                item.section !== undefined &&
+                previous.section !== item.section;
+              return (
+                <View key={item.label}>
+                  {dividerAbove && (
+                    <View
+                      style={{
+                        height: StyleSheet.hairlineWidth,
+                        backgroundColor: theme.color.border,
+                        marginVertical: theme.spacing.xs,
+                      }}
+                    />
+                  )}
+                  <Pressable
+                    onPress={() => go(item.route)}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.label}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: theme.spacing.md,
+                      paddingHorizontal: theme.spacing.lg,
+                      paddingVertical: theme.spacing.md,
+                      backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
+                    })}
+                  >
+                    <Ionicons name={item.icon} size={iconSize.lg} color={theme.color.textMuted} />
+                    <Text variant="body">{item.label}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
           </View>
         </View>
       </Pressable>

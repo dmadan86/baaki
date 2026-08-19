@@ -71,18 +71,52 @@ export default function HomeScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuItems: OverflowMenuItem[] = useMemo(
     () => [
-      { icon: 'person-circle-outline', label: t.account.yourAccount, route: '/settings/account' },
+      // The `section` keys are internal grouping only (not user-visible): they
+      // cluster the rows into account / data / app / settings, and OverflowMenu
+      // draws a divider wherever two adjacent rows fall in different sections.
+      {
+        icon: 'person-circle-outline',
+        label: t.account.yourAccount,
+        route: '/settings/account',
+        section: 'account',
+      },
       {
         icon: 'notifications-outline',
         label: t.account.notifications,
         route: '/settings/notifications',
+        section: 'account',
       },
-      { icon: 'archive-outline', label: t.group.archivedTitle, route: '/settings/archived' },
-      { icon: 'cloud-done-outline', label: t.backup.title, route: '/settings/backup' },
-      { icon: 'language-outline', label: t.language, route: '/settings/language' },
-      { icon: 'contrast-outline', label: t.account.themeRow, route: '/settings/theme' },
-      { icon: 'key-outline', label: t.account.aiKeysRow, route: '/settings/ai-keys' },
-      { icon: 'settings-outline', label: t.account.faceSettings, route: '/profile' },
+      {
+        icon: 'archive-outline',
+        label: t.group.archivedTitle,
+        route: '/settings/archived',
+        section: 'data',
+      },
+      {
+        icon: 'cloud-done-outline',
+        label: t.backup.title,
+        route: '/settings/backup',
+        section: 'data',
+      },
+      { icon: 'language-outline', label: t.language, route: '/settings/language', section: 'app' },
+      {
+        icon: 'contrast-outline',
+        label: t.account.themeRow,
+        route: '/settings/theme',
+        section: 'app',
+      },
+      {
+        icon: 'key-outline',
+        label: t.account.aiKeysRow,
+        route: '/settings/ai-keys',
+        section: 'app',
+      },
+      {
+        icon: 'settings-outline',
+        label: t.account.faceSettings,
+        route: '/profile',
+        section: 'settings',
+      },
     ],
     [t],
   );
