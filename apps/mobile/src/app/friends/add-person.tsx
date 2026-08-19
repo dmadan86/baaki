@@ -497,7 +497,7 @@ export default function AddPersonScreen() {
       </ScrollView>
 
       <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
-        <Screen edges={['top', 'bottom']}>
+        <Screen edges={['top', 'bottom']} inModal>
           <View
             style={{
               flex: 1,

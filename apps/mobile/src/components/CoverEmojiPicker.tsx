@@ -75,7 +75,7 @@ export function CoverEmojiPicker({
       )}
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Screen edges={['top', 'bottom']}>
+        <Screen edges={['top', 'bottom']} inModal>
           <View style={{ paddingHorizontal: theme.spacing.xl, paddingBottom: theme.spacing.md }}>
             <Text variant="heading">{t.group.chooseIcon}</Text>
           </View>
