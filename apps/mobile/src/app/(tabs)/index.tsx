@@ -254,7 +254,7 @@ export default function HomeScreen() {
                   backgroundColor: theme.color.bg,
                 }}
               >
-                <Ionicons name="add-circle" size={iconSize.base} color={theme.color.brand} />
+                <Ionicons name="add-circle" size={iconSize.base} color={theme.color.text} />
               </View>
             </View>
           </Pressable>
