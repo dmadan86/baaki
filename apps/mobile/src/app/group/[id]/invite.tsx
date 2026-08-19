@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
@@ -53,6 +56,8 @@ export default function InviteScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // The rendered QR, so a share can send the image itself and not just the link.
+  const qrRef = useRef<{ toDataURL?: (cb: (base64: string) => void) => void } | null>(null);
 
   const link = invite ? `${INVITE_BASE}#${invite.token}` : null;
 
@@ -74,6 +79,50 @@ export default function InviteScreen() {
   const share = async (): Promise<void> => {
     if (!link) return;
     await Share.share({ message });
+  };
+
+  /** The rendered QR as base64 PNG, or null if the code is not mounted yet. */
+  const captureQr = (): Promise<string | null> =>
+    new Promise((resolve) => {
+      const ref = qrRef.current;
+      if (!ref?.toDataURL) return resolve(null);
+      try {
+        ref.toDataURL((base64) => resolve(base64 ?? null));
+      } catch {
+        resolve(null);
+      }
+    });
+
+  /**
+   * Send the QR code itself, so the person on the other end of a chat can scan
+   * it rather than only tap a link. The image is the one thing a plain URL
+   * scheme cannot carry, so this goes through the OS share sheet (the only way
+   * to hand an app a file in managed Expo). `fallback` is the link-only path for
+   * when the code cannot be captured or nothing on the phone can accept a
+   * share — better a working link than a dead button.
+   */
+  const shareQr = async (fallback: () => Promise<void>): Promise<void> => {
+    if (!link) return;
+    try {
+      const base64 = await captureQr();
+      if (!base64 || !(await Sharing.isAvailableAsync())) {
+        await fallback();
+        return;
+      }
+      // expo-file-system 57 API: File/Paths, not the old string paths. The PNG
+      // is base64, so decode to bytes before writing.
+      const file = new FileSystem.File(FileSystem.Paths.cache, 'waves-invite-qr.png');
+      if (file.exists) file.delete();
+      file.create();
+      file.write(new Uint8Array(decodeBase64(base64)));
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'image/png',
+        dialogTitle: message,
+        UTI: 'public.png',
+      });
+    } catch {
+      await fallback();
+    }
   };
 
   /**
@@ -180,6 +229,7 @@ export default function InviteScreen() {
                 }}
               >
                 <QRCode
+                  getRef={(c) => (qrRef.current = c)}
                   value={link}
                   size={200}
                   backgroundColor="#ffffff"
@@ -218,7 +268,9 @@ export default function InviteScreen() {
                   key={option.channel}
                   accessibilityRole="button"
                   accessibilityLabel={option.label}
-                  onPress={() => void shareVia(option.channel)}
+                  // Send the QR image itself; drop to the plain link if the code
+                  // cannot be captured (see shareQr).
+                  onPress={() => void shareQr(() => shareVia(option.channel))}
                   style={({ pressed }) => ({
                     flex: 1,
                     alignItems: 'center',
@@ -249,7 +301,7 @@ export default function InviteScreen() {
               <Button
                 label={t.people.shareAnotherWay}
                 size="lg"
-                onPress={() => void share()}
+                onPress={() => void shareQr(share)}
                 icon={
                   <Ionicons name="share-outline" size={iconSize.md} color={theme.color.onBrand} />
                 }
