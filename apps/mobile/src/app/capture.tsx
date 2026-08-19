@@ -1,27 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  ActivityIndicator,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
 
 import {
   currencySymbol,
@@ -30,14 +14,13 @@ import {
   parseReceiptText,
   CategoryId,
   type HeuristicReceipt,
+  type PaymentMethod,
 } from '@waves/core';
 import {
-  AmountField,
   Button,
   Callout,
   Card,
   Divider,
-  IconButton,
   iconSize,
   MoneyText,
   Row,
@@ -47,19 +30,17 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
 import { ZoomableImage } from '@/components/ZoomableImage';
 import { COMMON_CURRENCIES } from '@/components/CurrencyRate';
-import { DictateButton } from '@/components/DictateButton';
+import { AmountHeader } from '@/components/expense/AmountHeader';
+import { DescriptionField } from '@/components/expense/DescriptionField';
+import { ExpenseHeader } from '@/components/expense/ExpenseHeader';
+import { ChoiceRow, FieldRow, SheetOverlay } from '@/components/expense/SheetOverlay';
 import { useCreateCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, GroupType, type GroupRow, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
-import {
-  deviceDefaultCurrency,
-  deviceSupportsUpi,
-  plural,
-  useStrings,
-  type UiStrings,
-} from '@/i18n';
+import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
 import { saveReceipt } from '@/lib/receiptStore';
@@ -131,29 +112,6 @@ function showDate(iso: string, locale: string): string {
 }
 
 /**
- * How the spend was paid — a tag, not a commitment. The id is what persists (a
- * free-text `payment_method` column, so any of these ids is safe to store); the
- * icon and label are UI. Debit wears the filled card so it reads apart from
- * credit's outline at chip size. `upi` is offered only where the rail exists
- * (see `deviceSupportsUpi`); everywhere else the row is region rails a person
- * would recognise.
- */
-const PAYMENT_METHODS: readonly {
-  id: 'cash' | 'upi' | 'credit' | 'debit' | 'forex';
-  icon: keyof typeof Ionicons.glyphMap;
-  /** True for a rail that only some regions have — filtered by device support. */
-  regional?: boolean;
-}[] = [
-  { id: 'cash', icon: 'cash-outline' },
-  { id: 'upi', icon: 'phone-portrait-outline', regional: true },
-  { id: 'credit', icon: 'card-outline' },
-  { id: 'debit', icon: 'card' },
-  { id: 'forex', icon: 'swap-horizontal-outline' },
-];
-
-type PaymentMethodId = (typeof PAYMENT_METHODS)[number]['id'];
-
-/**
  * The scan nonces already consumed, at module scope so the set survives a
  * remount.
  *
@@ -219,7 +177,7 @@ export default function CaptureScreen() {
   // capture and survive until it is assigned. Payment defaults to cash (the most
   // common answer, and one fewer tap for it); the group defaults to "decide
   // later" (null), which keeps the capture in the inbox.
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId | null>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>('cash');
   const [targetGroupId, setTargetGroupId] = useState<string | null>(null);
   const [pickingGroup, setPickingGroup] = useState(false);
 
@@ -232,27 +190,6 @@ export default function CaptureScreen() {
   const targetGroupName = targetGroup
     ? groupLabel(targetGroup, summary.membersFor(targetGroup.id), profile?.id)
     : t.captures.decideLater;
-
-  // Only the rails this region actually offers. UPI is dropped everywhere the
-  // device does not settle over it, so nobody outside its reach sees a tag that
-  // means nothing to them.
-  const upiSupported = deviceSupportsUpi();
-  const paymentMethods = PAYMENT_METHODS.filter((method) => !method.regional || upiSupported);
-
-  const paymentLabel = (id: PaymentMethodId): string => {
-    switch (id) {
-      case 'cash':
-        return t.captures.payCash;
-      case 'upi':
-        return t.captures.payUpi;
-      case 'credit':
-        return t.captures.payCredit;
-      case 'debit':
-        return t.captures.payDebit;
-      case 'forex':
-        return t.captures.payForex;
-    }
-  };
 
   // Category starts on Food & drink — the most common capture, one fewer tap for
   // it. The guess then follows the description until a chip is tapped, at which
@@ -401,82 +338,32 @@ export default function CaptureScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-          </IconButton>
-          <Row style={{ flex: 1, justifyContent: 'center', gap: theme.spacing.xs }}>
-            <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
-            <Text variant="heading">{t.captures.newTitle}</Text>
-          </Row>
-          <View style={{ width: 44 }} />
-        </Row>
+        <ExpenseHeader title={t.captures.newTitle} />
 
         {/* Amount-forward hero: the number is the point of this screen, so it
             leads — big and centred, with the currency it is counted in a tap
-            below it (the Splitwise/PayPal amount-first pattern). No card around
-            it; the whitespace is the frame. */}
-        <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingTop: theme.spacing.md }}>
-          <AmountField currency={currency} value={amount} onChange={setAmount} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${t.captures.currencyLabel}: ${currency}`}
-            onPress={() => setPickingCurrency(true)}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-              paddingVertical: theme.spacing.xs,
-              paddingHorizontal: theme.spacing.md,
-              borderRadius: theme.radius.pill,
-              backgroundColor: theme.color.surfaceMuted,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text variant="caption" tone="muted">
-              {currencySymbol(currency)}
-            </Text>
-            <Text variant="caption" style={{ fontWeight: '700', color: theme.color.text }}>
-              {currency}
-            </Text>
-            <Ionicons name="chevron-down" size={iconSize.sm} color={theme.color.textMuted} />
-          </Pressable>
-        </View>
+            below it (the Splitwise/PayPal amount-first pattern). Shared with
+            add-expense. */}
+        <AmountHeader
+          currency={currency}
+          amount={amount}
+          onAmountChange={setAmount}
+          onPressCurrency={() => setPickingCurrency(true)}
+        />
 
         {/* Description, as a single underlined field rather than a boxed card —
             it sits right under the amount so the two things a person always fills
-            in are together, with the mic to speak it instead of type (A5). */}
-        <View style={{ gap: theme.spacing.xs }}>
-          <Row
-            style={{
-              alignItems: 'center',
-              gap: theme.spacing.sm,
-              borderBottomWidth: 1,
-              borderBottomColor: theme.color.border,
-              paddingBottom: theme.spacing.xs,
-            }}
-          >
-            <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.textMuted} />
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder={t.captures.descriptionPlaceholder}
-              placeholderTextColor={theme.color.textFaint}
-              accessibilityLabel={t.captures.description}
-              style={{
-                flex: 1,
-                fontSize: 17,
-                fontWeight: '600',
-                color: theme.color.text,
-                paddingVertical: theme.spacing.sm,
-              }}
-            />
-            {/* Group names are handed to the recogniser as hints — a general
-                model mangles Indian names, and a note like "dinner with Ravi" is
-                exactly where they turn up. */}
-            <DictateButton value={description} onChange={setDescription} hints={groupNameHints} />
-          </Row>
-        </View>
+            in are together, with the mic to speak it instead of type (A5). Group
+            names are handed to the recogniser as hints — a general model mangles
+            Indian names, and a note like "dinner with Ravi" is exactly where they
+            turn up. */}
+        <DescriptionField
+          value={description}
+          onChange={setDescription}
+          placeholder={t.captures.descriptionPlaceholder}
+          accessibilityLabel={t.captures.description}
+          hints={groupNameHints}
+        />
 
         {/* What it was for. The guess follows the description until a chip is
             tapped; the chips are the picker, unchanged. */}
@@ -502,51 +389,9 @@ export default function CaptureScreen() {
           <Text variant="caption" tone="muted">
             {t.captures.paidWith}
           </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
-          >
-            {paymentMethods.map((method) => {
-              const active = paymentMethod === method.id;
-              return (
-                <Pressable
-                  key={method.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={paymentLabel(method.id)}
-                  accessibilityState={{ selected: active }}
-                  onPress={() =>
-                    setPaymentMethod((current) => (current === method.id ? null : method.id))
-                  }
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: theme.spacing.xs,
-                    paddingVertical: theme.spacing.sm,
-                    paddingHorizontal: theme.spacing.md,
-                    borderRadius: theme.radius.md,
-                    borderWidth: 1,
-                    borderColor: active ? theme.color.brand : theme.color.border,
-                    backgroundColor: active ? theme.color.brandSoft : theme.color.surface,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Ionicons
-                    name={method.icon}
-                    size={iconSize.md}
-                    color={active ? theme.color.brand : theme.color.textMuted}
-                  />
-                  <Text
-                    variant="body"
-                    style={{ color: active ? theme.color.brand : theme.color.text }}
-                  >
-                    {paymentLabel(method.id)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          {/* Shared with add-expense; capture lets "not said" stand, so a tap on
+              the chosen chip clears it (allowDeselect). */}
+          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} allowDeselect />
         </View>
 
         {/* Destination and date, folded into one card of divided rows rather than
@@ -791,173 +636,6 @@ export default function CaptureScreen() {
 }
 
 /**
- * A labelled tap-row: a leading icon, the field name over its value, a chevron.
- * The rows a capture's meta (group, date) share, so they read as one block
- * inside a single card rather than a stack of near-identical cards.
- */
-function FieldRow({
-  icon,
-  iconColor,
-  label,
-  value,
-  valueMuted = false,
-  onPress,
-  accessibilityLabel,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor?: string;
-  label: string;
-  value: string;
-  valueMuted?: boolean;
-  onPress: () => void;
-  accessibilityLabel: string;
-}): React.JSX.Element {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      <Ionicons name={icon} size={iconSize.md} color={iconColor ?? theme.color.textMuted} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="caption" tone="muted">
-          {label}
-        </Text>
-        <Text variant="subheading" numberOfLines={1} tone={valueMuted ? 'muted' : undefined}>
-          {value}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={iconSize.md} color={theme.color.textFaint} />
-    </Pressable>
-  );
-}
-
-/**
- * A bottom sheet over the form: a dimmed backdrop that closes on tap, a rounded
- * card that swallows its own taps, a grab handle and a title. The two pickers on
- * this screen (currency, group) share it so they present and dismiss the same
- * way.
- */
-function SheetOverlay({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}): React.JSX.Element {
-  const theme = useTheme();
-  const { t } = useStrings();
-  const insets = useSafeAreaInsets();
-
-  // Drag the handle down to dismiss. translateY only ever goes positive (down);
-  // past a short threshold or on a quick flick the sheet closes, otherwise it
-  // springs back. The gesture lives on the header, not the whole card, so it
-  // never fights the list's own vertical scroll.
-  const translateY = useSharedValue(0);
-  const dragToClose = Gesture.Pan()
-    // Only engage once the finger has clearly moved vertically, so a plain tap
-    // on the handle still falls through to the Pressable that closes the sheet.
-    .activeOffsetY([-12, 12])
-    .onUpdate((event) => {
-      // Down follows the finger 1:1; an upward pull rubber-bands so the sheet
-      // feels anchored rather than free.
-      translateY.set(event.translationY > 0 ? event.translationY : event.translationY / 4);
-    })
-    .onEnd((event) => {
-      if (translateY.get() > 120 || event.velocityY > 800) {
-        // Carry the flick through: animate the rest of the way out, then close.
-        translateY.set(withTiming(700, { duration: 180 }, () => runOnJS(onClose)()));
-      } else {
-        translateY.set(withSpring(0, { damping: 20, stiffness: 220 }));
-      }
-    });
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.get() }],
-  }));
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t.common.close}
-      onPress={onClose}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(10, 10, 26, 0.55)',
-        justifyContent: 'flex-end',
-      }}
-    >
-      <Animated.View
-        style={[
-          {
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.lg,
-            borderTopRightRadius: theme.radius.lg,
-            padding: theme.spacing.xl,
-            // Clear the Android gesture/nav bar so the last list row is not
-            // hidden behind it.
-            paddingBottom: theme.spacing.xl + insets.bottom,
-            gap: theme.spacing.md,
-            maxHeight: '75%',
-          },
-          cardStyle,
-        ]}
-      >
-        {/* Swallow taps on the card so they never reach the backdrop, which
-            would close the sheet. */}
-        <Pressable onPress={() => {}} style={{ gap: theme.spacing.md, flexShrink: 1 }}>
-          {/* The header is the drag surface AND a tap-to-close target: the grab
-              handle reads as draggable, so make it do something when pushed. */}
-          <GestureDetector gesture={dragToClose}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t.common.close}
-              onPress={onClose}
-              style={{ gap: theme.spacing.md }}
-            >
-              <View
-                style={{
-                  alignSelf: 'center',
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: theme.color.border,
-                }}
-              />
-              <Text variant="heading">{title}</Text>
-            </Pressable>
-          </GestureDetector>
-          {/* flexShrink lets this scroll: without it the list keeps its full
-              content height and the sheet's maxHeight clips the overflow instead
-              of scrolling it, so a long group or currency list loses its bottom
-              rows. */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            style={{ flexShrink: 1 }}
-          >
-            {children}
-          </ScrollView>
-        </Pressable>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-/**
  * The group destinations, grouped so the one you mean is near the top:
  *
  *   1. "Decide later" — pinned, the default that keeps the capture in the inbox.
@@ -1043,45 +721,5 @@ function GroupPicker({
         </View>
       ))}
     </View>
-  );
-}
-
-/** One row in a picker sheet — a leading glyph, a label, a check when chosen. */
-function ChoiceRow({
-  leading,
-  label,
-  selected,
-  onPress,
-}: {
-  leading: ReactNode;
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}): React.JSX.Element {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      {leading}
-      <Text
-        variant="body"
-        numberOfLines={1}
-        style={{ flex: 1, color: selected ? theme.color.brand : theme.color.text }}
-      >
-        {label}
-      </Text>
-      {selected ? <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} /> : null}
-    </Pressable>
   );
 }

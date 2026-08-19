@@ -34,13 +34,24 @@ const PAYMENT_METHODS: readonly {
   { id: 'forex', icon: 'swap-horizontal-outline' },
 ];
 
-export function PaymentMethodPicker({
-  value,
-  onChange,
-}: {
-  value: PaymentMethod | null;
-  onChange: (value: PaymentMethod) => void;
-}) {
+/**
+ * Two shapes, one picker. The group add-expense screen always has a method
+ * chosen (cash by default) and only ever swaps it, so its `onChange` never sees
+ * null. The capture screen lets "not said" be a valid answer — tapping the
+ * chosen chip again clears it — so under `allowDeselect` the same tap can hand
+ * back null. The discriminated union keeps each caller's `onChange` honest about
+ * which it will receive.
+ */
+type PaymentMethodPickerProps =
+  | { value: PaymentMethod | null; onChange: (value: PaymentMethod) => void; allowDeselect?: false }
+  | {
+      value: PaymentMethod | null;
+      onChange: (value: PaymentMethod | null) => void;
+      allowDeselect: true;
+    };
+
+export function PaymentMethodPicker(props: PaymentMethodPickerProps) {
+  const { value } = props;
   const theme = useTheme();
   const { t } = useStrings();
 
@@ -77,7 +88,13 @@ export function PaymentMethodPicker({
             accessibilityRole="radio"
             accessibilityState={{ selected: active }}
             accessibilityLabel={label(method.id)}
-            onPress={() => onChange(method.id)}
+            onPress={() => {
+              if (props.allowDeselect) {
+                props.onChange(active ? null : method.id);
+              } else {
+                props.onChange(method.id);
+              }
+            }}
             style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
