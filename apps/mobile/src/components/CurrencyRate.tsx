@@ -17,7 +17,7 @@
  * is most often the least accurate.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TextInput, View } from 'react-native';
 
 import {
@@ -102,6 +102,15 @@ export function CurrencyRate({
   const [rateText, setRateText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The pair the component is showing right now. `fetchToday` captures the pair
+  // it launched for and, on return, applies its result only if this still
+  // matches — otherwise a rate fetched for a currency the user has since changed
+  // away from would land on the new pair. Kept in a ref so the async closure
+  // reads the latest value, not the one it closed over.
+  const latestPair = useRef(`${currency}|${groupCurrency}`);
+  useEffect(() => {
+    latestPair.current = `${currency}|${groupCurrency}`;
+  }, [currency, groupCurrency]);
 
   const foreign = currency !== groupCurrency;
 
@@ -176,19 +185,24 @@ export function CurrencyRate({
   };
 
   const fetchToday = async (): Promise<void> => {
+    // The pair this request is for; a change away from it before the response
+    // lands makes the response stale, and stale rates must not be applied.
+    const pair = `${currency}|${groupCurrency}`;
     setError(null);
     setBusy(true);
     try {
       const record = await fetchFxRate(currency, groupCurrency);
+      if (latestPair.current !== pair) return;
       onFxChange(record);
       setRateText(rateToDecimal(fromFxRecord(record), 4));
     } catch (caught) {
+      if (latestPair.current !== pair) return;
       // Not a blocker: typing a rate works offline and is often more accurate.
       setError(
         `${friendlyError(caught, t.misc.rateFetchFailed, 'currencyRate.fetch')}${t.misc.rateFetchFailedSuffix}`,
       );
     } finally {
-      setBusy(false);
+      if (latestPair.current === pair) setBusy(false);
     }
   };
 
