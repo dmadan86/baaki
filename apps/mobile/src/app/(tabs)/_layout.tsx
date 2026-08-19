@@ -17,6 +17,11 @@ export default function TabsLayout() {
         // scene, and on a busy tab that dropped frames and read as slow — an
         // instant switch is the fastest a tab can feel.
         animation: 'none',
+        // Suspend an off-screen tab's rendering while it is blurred, so its
+        // queries and realtime subscriptions stop competing for the JS thread
+        // with the foreground tab's paint. It re-renders from cache on return,
+        // which is instant.
+        freezeOnBlur: true,
       }}
     >
       <Tabs.Screen name="index" />

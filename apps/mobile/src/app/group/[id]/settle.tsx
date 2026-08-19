@@ -236,10 +236,23 @@ export default function SettleScreen() {
   };
 
   if (group.isLoading || members.isLoading) {
+    // Shell first: the header paints instantly on navigation; only the payee
+    // list waits on the mirror read.
     return (
       <Screen>
-        <View style={{ padding: theme.spacing.xl }}>
-          <ActivityIndicator color={theme.color.brand} />
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>
+          <Row style={{ paddingTop: theme.spacing.md }}>
+            <IconButton label={t.common.close} onPress={() => router.back()}>
+              <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+            </IconButton>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text variant="heading">{t.settleUp}</Text>
+            </View>
+            <View style={{ width: 44 }} />
+          </Row>
+          <View style={{ paddingTop: theme.spacing.xxxl, alignItems: 'center' }}>
+            <ActivityIndicator color={theme.color.brand} />
+          </View>
         </View>
       </Screen>
     );

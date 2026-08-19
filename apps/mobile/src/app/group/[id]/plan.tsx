@@ -61,7 +61,7 @@ import {
 import { displayName } from '@/data/types';
 import { friendlyError } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
-import { ListScreenSkeleton } from '@/components/Skeletons';
+import { SkeletonList } from '@/components/Skeletons';
 import { fill, useStrings, type UiStrings } from '@/i18n';
 
 /** Today where the trip is, not where the server is. */
@@ -340,7 +340,28 @@ export default function PlanScreen() {
   };
 
   if (group.isLoading || plan.isLoading) {
-    return <ListScreenSkeleton rows={5} trailing={false} />;
+    // Shell first: the real header (back + title) paints instantly on
+    // navigation; only the list below stands in as a skeleton while the mirror
+    // read lands.
+    return (
+      <Screen>
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>
+          <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.sm }}>
+            <IconButton label={t.common.back} onPress={() => router.back()}>
+              <Ionicons
+                name={directionalIcon('chevron-back')}
+                size={iconSize.lg}
+                color={theme.color.text}
+              />
+            </IconButton>
+            <Text variant="heading">{t.plan}</Text>
+          </Row>
+        </View>
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>
+          <SkeletonList rows={5} trailing={false} />
+        </View>
+      </Screen>
+    );
   }
 
   return (
