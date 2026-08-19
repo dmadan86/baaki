@@ -158,7 +158,18 @@ export default function MergePeopleScreen() {
 
   const removeContactTarget = (memberId: string): void => {
     setError(null);
-    setContactTargets((prev) => prev.filter((row) => row.member_id !== memberId));
+    setContactTargets((prev) => {
+      const next = prev.filter((row) => row.member_id !== memberId);
+      // Keep the auto-name in step with the selection the same way toggle and
+      // onPickContact do — the removed contact is no longer in it — until the
+      // person types their own. The ghost addGhostMember created is left alone;
+      // this only drops it from this merge's selection.
+      if (!nameTouched) {
+        const rows = guests.filter((row) => selected.has(row.person_key));
+        setName(defaultMergeName([...rows, ...next]));
+      }
+      return next;
+    });
   };
 
   const closeContactFlow = (): void => {
@@ -190,6 +201,16 @@ export default function MergePeopleScreen() {
         }
         return next;
       });
+      closeContactFlow();
+      return;
+    }
+    // Already added as a contact target on this list — it is in the selection
+    // and the name already reflects it, so re-picking it must not run through
+    // chooseGroup again and create a second ghost. Just close.
+    const alreadyAdded = contactTargets.some(
+      (row) => row.display_name.trim().toLowerCase() === needle,
+    );
+    if (alreadyAdded) {
       closeContactFlow();
       return;
     }
@@ -371,7 +392,7 @@ export default function MergePeopleScreen() {
                           </View>
                         </Row>
                         <IconButton
-                          label={t.pickers.removeName.replace('{name}', row.display_name)}
+                          label={fill(t.pickers.removeName, { name: row.display_name })}
                           onPress={() => removeContactTarget(row.member_id)}
                         >
                           <Ionicons
@@ -570,7 +591,12 @@ function ChooseGroupForContact({
           <Button
             label={t.misc.startAGroup}
             variant="secondary"
-            onPress={() => router.push('/new-group')}
+            onPress={() => {
+              // Dismiss the contact modal before leaving, so it is not left
+              // stacked under the new-group screen.
+              onCancel();
+              router.push('/new-group');
+            }}
           />
         </Card>
       ) : (
