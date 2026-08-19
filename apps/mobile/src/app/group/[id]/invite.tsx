@@ -2,7 +2,15 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Linking, Platform, ScrollView, Share, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  View,
+} from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import {
@@ -175,23 +183,47 @@ export default function InviteScreen() {
               </View>
             </Card>
 
-            <Row style={{ gap: theme.spacing.md, flexWrap: 'wrap' }}>
+            {/* The quick channels as an even three-across of round icon
+                buttons with the name beneath — the share-row every reference app
+                uses (Strava, Instacart, Urban Company). Equal columns, so it
+                reads as one control instead of the ragged, wrapping pills it was.
+                Full share sheet still lives under the button below. */}
+            <Row style={{ gap: theme.spacing.sm }}>
               {(
                 [
                   { channel: 'whatsapp', label: t.people.whatsapp, icon: 'logo-whatsapp' },
-                  { channel: 'sms', label: t.extras.sms, icon: 'chatbubble-outline' },
-                  { channel: 'email', label: t.extras.email, icon: 'mail-outline' },
+                  { channel: 'sms', label: t.extras.sms, icon: 'chatbubble' },
+                  { channel: 'email', label: t.extras.email, icon: 'mail' },
                 ] as const
               ).map((option) => (
-                <Button
+                <Pressable
                   key={option.channel}
-                  label={option.label}
-                  variant="secondary"
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
                   onPress={() => void shareVia(option.channel)}
-                  icon={
-                    <Ionicons name={option.icon} size={iconSize.md} color={theme.color.brand} />
-                  }
-                />
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    alignItems: 'center',
+                    gap: theme.spacing.xs,
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.brandSoft,
+                    }}
+                  >
+                    <Ionicons name={option.icon} size={iconSize.lg} color={theme.color.brand} />
+                  </View>
+                  <Text variant="caption" tone="muted">
+                    {option.label}
+                  </Text>
+                </Pressable>
               ))}
             </Row>
 
