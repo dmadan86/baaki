@@ -179,7 +179,25 @@ export default function InviteScreen() {
                   borderRadius: theme.radius.md,
                 }}
               >
-                <QRCode value={link} size={200} backgroundColor="#ffffff" color="#000000" />
+                <QRCode
+                  value={link}
+                  size={200}
+                  backgroundColor="#ffffff"
+                  // The brand wash instead of flat black — the same purple ramp
+                  // the balance card wears, swept corner to corner. Both stops
+                  // are dark enough on white to stay well within scanning
+                  // contrast, and level-H error correction plus the padded
+                  // centre logo keep it readable with the app mark punched out.
+                  enableLinearGradient
+                  linearGradient={[theme.gradient.brand[0]!, theme.gradient.brand[2]!]}
+                  gradientDirection={['0', '0', '1', '1']}
+                  ecl="H"
+                  logo={require('../../../../assets/images/icon.png')}
+                  logoSize={44}
+                  logoBackgroundColor="#ffffff"
+                  logoBorderRadius={10}
+                  logoMargin={4}
+                />
               </View>
             </Card>
 
