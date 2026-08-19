@@ -33,6 +33,7 @@ import {
 import { useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale } from '@/lib/anim';
 import { useMotion } from '@/lib/motion';
+import { useFlagEnabled } from '@/lib/flags';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
@@ -69,6 +70,9 @@ export default function HomeScreen() {
   // less-used destinations, surfaced from the dashboard rather than only from
   // the profile tab.
   const [menuOpen, setMenuOpen] = useState(false);
+  // The bring-your-own AI-key vault is gated behind a flag until it ships: off
+  // for everyone with no flag row, on only where the console turns it on.
+  const aiKeysEnabled = useFlagEnabled('ai_keys');
   const menuItems: OverflowMenuItem[] = useMemo(
     () => [
       // The `section` keys are internal grouping only (not user-visible): they
@@ -105,12 +109,16 @@ export default function HomeScreen() {
         route: '/settings/theme',
         section: 'app',
       },
-      {
-        icon: 'key-outline',
-        label: t.account.aiKeysRow,
-        route: '/settings/ai-keys',
-        section: 'app',
-      },
+      ...(aiKeysEnabled
+        ? [
+            {
+              icon: 'key-outline' as const,
+              label: t.account.aiKeysRow,
+              route: '/settings/ai-keys' as const,
+              section: 'app',
+            },
+          ]
+        : []),
       {
         icon: 'settings-outline',
         label: t.account.faceSettings,
@@ -118,7 +126,7 @@ export default function HomeScreen() {
         section: 'settings',
       },
     ],
-    [t],
+    [t, aiKeysEnabled],
   );
 
   // The group list gets a category filter strip — but only worth showing once

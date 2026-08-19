@@ -30,6 +30,7 @@ import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { describeGrace, useLock } from '@/lib/lock';
 import { useMotion } from '@/lib/motion';
+import { useFlagEnabled } from '@/lib/flags';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { useThemePreference } from '@/lib/theme';
 
@@ -263,6 +264,8 @@ function ProfileForm() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
+  // Gate the bring-your-own AI-key vault behind a flag until it ships.
+  const aiKeysEnabled = useFlagEnabled('ai_keys');
   const { profile, isGuest, updateProfile, signOut } = useAuth();
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
@@ -468,17 +471,19 @@ function ProfileForm() {
             preference nor a Baaki purchase — it is a credential the reader
             supplies, held on the device, to run the model-powered features on
             their own account. */}
-        <SettingsSection
-          title={t.account.sectionAi}
-          rows={[
-            {
-              icon: 'key-outline',
-              label: t.account.aiKeysRow,
-              hint: t.account.aiKeysHint,
-              route: '/settings/ai-keys',
-            },
-          ]}
-        />
+        {aiKeysEnabled ? (
+          <SettingsSection
+            title={t.account.sectionAi}
+            rows={[
+              {
+                icon: 'key-outline',
+                label: t.account.aiKeysRow,
+                hint: t.account.aiKeysHint,
+                route: '/settings/ai-keys',
+              },
+            ]}
+          />
+        ) : null}
 
         {/* Language leads. It was fifth, under Import, and it is the one setting
             somebody may have to reach *before* they can read the four above it —
