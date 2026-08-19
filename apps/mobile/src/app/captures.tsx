@@ -31,7 +31,9 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { InboxSkeleton } from '@/components/Skeletons';
 import { capturePhotoUrl } from '@/data/api';
+import { dayHeading, groupByDay } from '@/data/activity';
 import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -144,86 +146,108 @@ export default function CapturesScreen() {
         </IconButton>
       </Row>
 
-      {rows.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: theme.spacing.xl }}>
-          <EmptyState
-            title={t.captures.emptyTitle}
-            body={t.captures.emptyBody}
-            action={
-              <Button label={t.captures.captureCta} onPress={() => router.push('/capture')} />
-            }
+      {/* One scroll region for every state, the way `ActivityScreen` does it —
+          so pull-to-refresh still works while the mirror is loading or the
+          inbox is genuinely empty, not only once cards are on screen. */}
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingBottom: clearance,
+          gap: theme.spacing.xl,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
+            tintColor={theme.color.brand}
           />
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: clearance,
-            gap: theme.spacing.md,
-          }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={pull.refreshing}
-              onRefresh={pull.onRefresh}
-              tintColor={theme.color.brand}
+        }
+      >
+        {captures.isLoading ? (
+          <InboxSkeleton />
+        ) : rows.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              title={t.captures.emptyTitle}
+              body={t.captures.emptyBody}
+              action={
+                <Button label={t.captures.captureCta} onPress={() => router.push('/capture')} />
+              }
             />
-          }
-        >
-          {rows.map((capture) => (
-            <Card key={capture.id} style={{ gap: theme.spacing.md }}>
-              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                {capture.photo_path ? (
-                  <CaptureThumb path={capture.photo_path} size={46} />
-                ) : (
-                  <CategoryBadge category={capture.category} size={46} />
-                )}
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <MoneyText
-                    amount={BigInt(capture.amount)}
-                    currency={capture.currency}
-                    locale={locale}
-                    variant="subheading"
-                  />
-                  {capture.description ? (
-                    <Text variant="caption" tone="muted" numberOfLines={1}>
-                      {capture.description}
-                    </Text>
-                  ) : null}
-                  <Text variant="micro" tone="muted">
-                    {shortDate(capture.expense_date, locale)}
-                    {capture.pending ? ` · ${t.captures.notSynced}` : ''}
-                  </Text>
-                </View>
-              </Row>
+          </View>
+        ) : (
+          // Day-grouped, same as the activity feed: a heading per calendar day
+          // then that day's cards, so the inbox reads as one system with the
+          // activity tab rather than a flat pile of receipts.
+          <View style={{ gap: theme.spacing.lg }}>
+            {groupByDay(rows).map((section) => (
+              <View key={section.key} style={{ gap: theme.spacing.md }}>
+                <Text variant="micro" tone="muted" style={{ textTransform: 'uppercase' }}>
+                  {dayHeading(locale, section.entries[0]!.created_at)}
+                </Text>
+                {section.entries.map((capture) => (
+                  <Card key={capture.id} style={{ gap: theme.spacing.md }}>
+                    <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                      {capture.photo_path ? (
+                        <CaptureThumb path={capture.photo_path} size={46} />
+                      ) : (
+                        <CategoryBadge category={capture.category} size={46} />
+                      )}
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <MoneyText
+                          amount={BigInt(capture.amount)}
+                          currency={capture.currency}
+                          locale={locale}
+                          variant="subheading"
+                        />
+                        {capture.description ? (
+                          <Text variant="caption" tone="muted" numberOfLines={1}>
+                            {capture.description}
+                          </Text>
+                        ) : null}
+                        <Text variant="micro" tone="muted">
+                          {shortDate(capture.expense_date, locale)}
+                          {capture.pending ? ` · ${t.captures.notSynced}` : ''}
+                        </Text>
+                      </View>
+                    </Row>
 
-              <Row style={{ gap: theme.spacing.md }}>
-                <Button
-                  label={t.captures.assign}
-                  size="sm"
-                  onPress={() => setAssigning(capture)}
-                  style={{ flex: 1 }}
-                />
-                <IconButton
-                  label={t.captures.delete}
-                  onPress={() =>
-                    Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
-                      { text: t.common.cancel, style: 'cancel' },
-                      {
-                        text: t.captures.delete,
-                        style: 'destructive',
-                        onPress: () => void deleteCapture.mutateAsync(capture.id),
-                      },
-                    ])
-                  }
-                >
-                  <Ionicons name="trash-outline" size={iconSize.lg} color={theme.color.textMuted} />
-                </IconButton>
-              </Row>
-            </Card>
-          ))}
-        </ScrollView>
-      )}
+                    <Row style={{ gap: theme.spacing.md }}>
+                      <Button
+                        label={t.captures.assign}
+                        size="sm"
+                        onPress={() => setAssigning(capture)}
+                        style={{ flex: 1 }}
+                      />
+                      <IconButton
+                        label={t.captures.delete}
+                        onPress={() =>
+                          Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
+                            { text: t.common.cancel, style: 'cancel' },
+                            {
+                              text: t.captures.delete,
+                              style: 'destructive',
+                              onPress: () => void deleteCapture.mutateAsync(capture.id),
+                            },
+                          ])
+                        }
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={iconSize.lg}
+                          color={theme.color.textMuted}
+                        />
+                      </IconButton>
+                    </Row>
+                  </Card>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       {/* The group picker, as a sheet over the list rather than a screen away —
           assigning is one tap and one choice, and a whole route for it would be
