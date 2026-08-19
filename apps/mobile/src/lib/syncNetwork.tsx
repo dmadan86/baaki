@@ -27,15 +27,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'baaki.sync_network';
 
 export enum SyncNetworkPreference {
-  /** Sync only on Wi‑Fi. The default: never spend mobile data unasked. */
+  /** Sync only on Wi‑Fi — never spend mobile data unasked. */
   Wifi = 'wifi',
   /** Sync only on mobile data, never Wi‑Fi. The deliberate, unusual choice. */
   Cellular = 'cellular',
-  /** Sync on whatever connection is up. */
+  /** Sync on whatever connection is up. The default. */
   Both = 'both',
 }
 
-const DEFAULT = SyncNetworkPreference.Wifi;
+// Sync on any connection by default. A ledger people share is expected to be
+// live wherever the phone is, and the payloads are tiny; Wi‑Fi-only used to be
+// the default and made every cellular-only phone sit permanently on the
+// "waiting for Wi‑Fi" glyph, which read as the app being offline or broken.
+// Anyone who wants to hold data for Wi‑Fi can still choose it in settings.
+const DEFAULT = SyncNetworkPreference.Both;
 
 function parse(raw: string | null): SyncNetworkPreference {
   return raw === 'wifi' || raw === 'cellular' || raw === 'both'
