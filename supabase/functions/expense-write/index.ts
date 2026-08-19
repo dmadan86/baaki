@@ -49,6 +49,12 @@ interface ExpenseWriteRequest {
   notes?: string | null;
   /** How the money moved: cash | credit | debit | forex. Stored verbatim. */
   paymentMethod?: string | null;
+  /**
+   * A view-only link to the owner's own cloud copy of the receipt (E3). The
+   * image never reaches the server — only this optional URL, stored verbatim so
+   * group members can open the bill from the owner's own Drive.
+   */
+  receiptShareUrl?: string | null;
   receiptId?: string | null;
   /**
    * The rate used, when the expense is not in the group's currency (ADR-003).
@@ -163,6 +169,7 @@ serveWithCors(async (request) => {
       p_receipt_id: body.receiptId ?? null,
       p_fx: body.fx ?? null,
       p_payment_method: body.paymentMethod ?? null,
+      p_receipt_share_url: body.receiptShareUrl ?? null,
     });
 
     if (applyError) {

@@ -468,6 +468,10 @@ model ExpenseVersion {
   /// How the money moved: cash | credit | debit | forex. Optional, and never
   /// part of the split or a balance — a plain label on the version.
   paymentMethod    String?       @map("payment_method")
+  /// A view-only link to the owner's OWN cloud copy of the receipt (E3), set
+  /// only on explicit opt-in. The image never touches Waves; only this link
+  /// does, so group members can open the bill from the owner's Drive.
+  receiptShareUrl  String?       @map("receipt_share_url")
   /// Idempotency key from the offline mutation queue (ADR-005).
   clientMutationId String?       @unique @map("client_mutation_id") @db.Uuid
   source           ExpenseSource @default(manual)

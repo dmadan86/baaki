@@ -474,6 +474,7 @@ class SyncSession {
       fx?: FxRecord | null;
       notes?: string | null;
       paymentMethod?: string | null;
+      receiptShareUrl?: string | null;
       receiptId?: string | null;
       baseVersionNo?: number;
     };
@@ -549,6 +550,7 @@ class SyncSession {
       p_base_version_no: payload.baseVersionNo ?? null,
       p_fx: payload.fx ?? null,
       p_payment_method: payload.paymentMethod ?? null,
+      p_receipt_share_url: payload.receiptShareUrl ?? null,
     });
     if (error) throw error;
     return data;
