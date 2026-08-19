@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Linking, Platform, ScrollView, Share, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import {
   Badge,
@@ -150,6 +151,28 @@ export default function InviteScreen() {
                 />
                 <Badge label={t.people.usesBadge.replace('{count}', String(invite.maxUses))} />
               </Row>
+            </Card>
+
+            {/* The same link as a code to point a camera at — for handing the
+                group to someone sitting across the table, where typing a URL or
+                waiting on a message is the slow way. Any phone's camera reads
+                it: it encodes the identical invite URL, so scanning it deep-links
+                into the same join flow the link does. Drawn on a white quiet zone
+                regardless of theme, because a QR on a dark background does not
+                scan. */}
+            <Card style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+              <Text variant="caption" tone="muted">
+                {t.people.scanToJoin}
+              </Text>
+              <View
+                style={{
+                  padding: theme.spacing.md,
+                  backgroundColor: '#ffffff',
+                  borderRadius: theme.radius.md,
+                }}
+              >
+                <QRCode value={link} size={200} backgroundColor="#ffffff" color="#000000" />
+              </View>
             </Card>
 
             <Row style={{ gap: theme.spacing.md, flexWrap: 'wrap' }}>
