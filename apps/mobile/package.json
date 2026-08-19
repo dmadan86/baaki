@@ -55,6 +55,7 @@
     "react-native-document-scanner-plugin": "^2.0.4",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-get-sms-android": "^2.1.0",
+    "react-native-qrcode-styled": "^0.4.0",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "4.5.3",
     "react-native-safe-area-context": "~5.8.1",
@@ -65,6 +66,7 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.6",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.1",
