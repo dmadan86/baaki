@@ -1,8 +1,19 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Linking, Platform, ScrollView, Share, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  View,
+} from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import {
@@ -45,6 +56,8 @@ export default function InviteScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // The rendered QR, so a share can send the image itself and not just the link.
+  const qrRef = useRef<{ toDataURL?: (cb: (base64: string) => void) => void } | null>(null);
 
   const link = invite ? `${INVITE_BASE}#${invite.token}` : null;
 
@@ -66,6 +79,50 @@ export default function InviteScreen() {
   const share = async (): Promise<void> => {
     if (!link) return;
     await Share.share({ message });
+  };
+
+  /** The rendered QR as base64 PNG, or null if the code is not mounted yet. */
+  const captureQr = (): Promise<string | null> =>
+    new Promise((resolve) => {
+      const ref = qrRef.current;
+      if (!ref?.toDataURL) return resolve(null);
+      try {
+        ref.toDataURL((base64) => resolve(base64 ?? null));
+      } catch {
+        resolve(null);
+      }
+    });
+
+  /**
+   * Send the QR code itself, so the person on the other end of a chat can scan
+   * it rather than only tap a link. The image is the one thing a plain URL
+   * scheme cannot carry, so this goes through the OS share sheet (the only way
+   * to hand an app a file in managed Expo). `fallback` is the link-only path for
+   * when the code cannot be captured or nothing on the phone can accept a
+   * share — better a working link than a dead button.
+   */
+  const shareQr = async (fallback: () => Promise<void>): Promise<void> => {
+    if (!link) return;
+    try {
+      const base64 = await captureQr();
+      if (!base64 || !(await Sharing.isAvailableAsync())) {
+        await fallback();
+        return;
+      }
+      // expo-file-system 57 API: File/Paths, not the old string paths. The PNG
+      // is base64, so decode to bytes before writing.
+      const file = new FileSystem.File(FileSystem.Paths.cache, 'waves-invite-qr.png');
+      if (file.exists) file.delete();
+      file.create();
+      file.write(new Uint8Array(decodeBase64(base64)));
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'image/png',
+        dialogTitle: message,
+        UTI: 'public.png',
+      });
+    } catch {
+      await fallback();
+    }
   };
 
   /**
@@ -171,27 +228,72 @@ export default function InviteScreen() {
                   borderRadius: theme.radius.md,
                 }}
               >
-                <QRCode value={link} size={200} backgroundColor="#ffffff" color="#000000" />
+                <QRCode
+                  getRef={(c) => (qrRef.current = c)}
+                  value={link}
+                  size={200}
+                  backgroundColor="#ffffff"
+                  // The brand wash instead of flat black — the same purple ramp
+                  // the balance card wears, swept corner to corner. Both stops
+                  // are dark enough on white to stay well within scanning
+                  // contrast, and level-H error correction plus the padded
+                  // centre logo keep it readable with the app mark punched out.
+                  enableLinearGradient
+                  linearGradient={[theme.gradient.brand[0]!, theme.gradient.brand[2]!]}
+                  gradientDirection={['0', '0', '1', '1']}
+                  ecl="H"
+                  logo={require('../../../../assets/images/icon.png')}
+                  logoSize={44}
+                  logoBackgroundColor="#ffffff"
+                  logoBorderRadius={10}
+                  logoMargin={4}
+                />
               </View>
             </Card>
 
-            <Row style={{ gap: theme.spacing.md, flexWrap: 'wrap' }}>
+            {/* The quick channels as an even three-across of round icon
+                buttons with the name beneath — the share-row every reference app
+                uses (Strava, Instacart, Urban Company). Equal columns, so it
+                reads as one control instead of the ragged, wrapping pills it was.
+                Full share sheet still lives under the button below. */}
+            <Row style={{ gap: theme.spacing.sm }}>
               {(
                 [
                   { channel: 'whatsapp', label: t.people.whatsapp, icon: 'logo-whatsapp' },
-                  { channel: 'sms', label: t.extras.sms, icon: 'chatbubble-outline' },
-                  { channel: 'email', label: t.extras.email, icon: 'mail-outline' },
+                  { channel: 'sms', label: t.extras.sms, icon: 'chatbubble' },
+                  { channel: 'email', label: t.extras.email, icon: 'mail' },
                 ] as const
               ).map((option) => (
-                <Button
+                <Pressable
                   key={option.channel}
-                  label={option.label}
-                  variant="secondary"
-                  onPress={() => void shareVia(option.channel)}
-                  icon={
-                    <Ionicons name={option.icon} size={iconSize.md} color={theme.color.brand} />
-                  }
-                />
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  // Send the QR image itself; drop to the plain link if the code
+                  // cannot be captured (see shareQr).
+                  onPress={() => void shareQr(() => shareVia(option.channel))}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    alignItems: 'center',
+                    gap: theme.spacing.xs,
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.brandSoft,
+                    }}
+                  >
+                    <Ionicons name={option.icon} size={iconSize.lg} color={theme.color.brand} />
+                  </View>
+                  <Text variant="caption" tone="muted">
+                    {option.label}
+                  </Text>
+                </Pressable>
               ))}
             </Row>
 
@@ -199,7 +301,7 @@ export default function InviteScreen() {
               <Button
                 label={t.people.shareAnotherWay}
                 size="lg"
-                onPress={() => void share()}
+                onPress={() => void shareQr(share)}
                 icon={
                   <Ionicons name="share-outline" size={iconSize.md} color={theme.color.onBrand} />
                 }
