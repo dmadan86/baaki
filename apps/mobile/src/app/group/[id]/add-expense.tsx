@@ -466,10 +466,24 @@ export default function AddExpenseScreen() {
   }, [amount, currency, splitParams, participants, targetExpenseId]);
 
   if (group.isLoading || members.isLoading || restored.loading) {
+    // Shell first: the back button and title paint instantly on navigation, and
+    // only the form body waits on the mirror read (a few ms at launch). A bare
+    // full-screen spinner used to leave a headerless blank while it loaded.
     return (
-      <Screen>
-        <View style={{ padding: theme.spacing.xl }}>
-          <ActivityIndicator color={theme.color.brand} />
+      <Screen edges={['top', 'bottom']}>
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>
+          <Row style={{ paddingTop: theme.spacing.md }}>
+            <IconButton label={t.common.close} onPress={() => router.back()}>
+              <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+            </IconButton>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
+            </View>
+            <View style={{ width: 44 }} />
+          </Row>
+          <View style={{ paddingTop: theme.spacing.xxxl, alignItems: 'center' }}>
+            <ActivityIndicator color={theme.color.brand} />
+          </View>
         </View>
       </Screen>
     );

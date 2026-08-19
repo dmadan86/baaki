@@ -79,10 +79,25 @@ export default function ExpenseDetailScreen() {
   };
 
   if (expenses.isLoading) {
+    // Shell first: the back button paints instantly on navigation; the title
+    // and body fill in once the mirror read lands (a few ms at launch).
     return (
       <Screen>
-        <View style={{ padding: theme.spacing.xl }}>
-          <ActivityIndicator color={theme.color.brand} />
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>
+          <Row style={{ paddingTop: theme.spacing.md }}>
+            <IconButton label={t.common.back} onPress={() => router.back()}>
+              <Ionicons
+                name={directionalIcon('chevron-back')}
+                size={iconSize.lg}
+                color={theme.color.text}
+              />
+            </IconButton>
+            <View style={{ flex: 1 }} />
+            <View style={{ width: 44 }} />
+          </Row>
+          <View style={{ paddingTop: theme.spacing.xxxl, alignItems: 'center' }}>
+            <ActivityIndicator color={theme.color.brand} />
+          </View>
         </View>
       </Screen>
     );
