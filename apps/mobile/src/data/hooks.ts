@@ -456,9 +456,12 @@ export function useGroup(groupId: string) {
   const { mirror, queue } = useSync();
 
   const rows = useMemo(() => {
-    const group =
-      (materialiseGroups(mirror, queue).find((row) => row.id === groupId) as unknown as
-        GroupRow | undefined) ?? null;
+    // Build the one group we want instead of materialising, archived-filtering
+    // and sorting every group only to `.find` a single row. `materialiseGroups`
+    // hides archived trips, so preserve that: an archived group resolves to null
+    // here exactly as the old `.find` over the active list did.
+    const built = materialiseGroup(mirror, queue, groupId) as unknown as GroupRow | undefined;
+    const group = built && !built.archived_at ? built : null;
     const members = materialiseMembers(mirror, queue, { groupId }) as unknown as MemberRow[];
     const settlements = materialiseSettlements(mirror, queue, {
       groupId,

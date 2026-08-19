@@ -107,6 +107,23 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+/** Shallow-equal two cursor maps: same keys, same values. */
+function sameCursors(a: Record<string, number>, b: Record<string, number>): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  for (const key of keys) if (a[key] !== b[key]) return false;
+  return true;
+}
+
+/** Same queue contents in the same order — by item identity, which
+ * `applyOutcomes` preserves when it drops nothing. */
+function sameQueue(a: readonly QueuedMutation[], b: readonly QueuedMutation[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export class SyncEngine {
   private store: LocalStore = createLocalStore();
   private state: SyncState = {
@@ -366,20 +383,42 @@ export class SyncEngine {
         message: entry.message,
       }));
 
-      const merged = reconcile(this.state.mirror, response.changes ?? []);
-      const mirror: MirrorState = {
-        // The server's cursors are authoritative: they also advance past rows
-        // this client is not allowed to see, which stops the cursor stalling.
-        cursors: { ...merged.state.cursors, ...(response.cursors ?? {}) },
-        tables: merged.state.tables,
-      };
+      const changes = response.changes ?? [];
+      const merged = reconcile(this.state.mirror, changes);
+      // The server's cursors are authoritative: they also advance past rows
+      // this client is not allowed to see, which stops the cursor stalling.
+      const nextCursors = { ...merged.state.cursors, ...(response.cursors ?? {}) };
 
-      await this.persist(response.changes ?? [], mirror, folded.queue);
+      // Hold the old references when this flush folded in nothing.
+      //
+      // The 30s poll (POLL_INTERVAL_MS) runs this round trip on a loop, and the
+      // common answer is "nothing new": no rows to apply and the cursors already
+      // where they are. reconcile still allocates a fresh tables/cursors object
+      // and applyOutcomes a fresh queue array, so assigning them would hand the
+      // mounted screens a new `mirror`/`queue` identity every interval — and
+      // every useMemo keyed on [mirror, queue, …] (the home summary, people
+      // balances, the group ledger) would recompute for a background fetch that
+      // changed nothing: periodic jank nobody asked to watch. When nothing was
+      // applied, keep the existing references so referential equality holds and
+      // those memos stay put. When changes did land — or the cursors or queue
+      // actually moved — this is exactly the old path: a new mirror, the folded
+      // queue.
+      const nothingApplied = changes.length === 0;
+      const mirror: MirrorState =
+        nothingApplied && sameCursors(this.state.mirror.cursors, nextCursors)
+          ? this.state.mirror
+          : { cursors: nextCursors, tables: merged.state.tables };
+      const queue =
+        folded.rejected.length === 0 && sameQueue(this.state.queue, folded.queue)
+          ? this.state.queue
+          : folded.queue;
+
+      await this.persist(changes, mirror, queue);
 
       this.set({
         status: SyncStatus.Idle,
         mirror,
-        queue: folded.queue,
+        queue,
         rejected: [...this.state.rejected, ...rejected],
         lastSyncedAt: response.serverTime ?? new Date().toISOString(),
         lastError: null,
