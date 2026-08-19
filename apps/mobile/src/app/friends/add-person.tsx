@@ -44,7 +44,7 @@ import { friendlyError } from '@/lib/errors';
 import { DictateButton } from '@/components/DictateButton';
 import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks';
 import { GroupType } from '@/data/types';
-import { deviceDefaultCurrency, useStrings } from '@/i18n';
+import { deviceDefaultCurrency, deviceSupportsUpi, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useBackup } from '@/lib/cloud/BackupProvider';
 import { captureReceipt, type PickedImage } from '@/lib/image';
@@ -63,8 +63,11 @@ type Direction = 'theyOwe' | 'iOwe';
 const PAYMENT_METHODS: readonly {
   readonly id: PaymentMethod;
   readonly icon: keyof typeof Ionicons.glyphMap;
+  /** Offered only where the rail exists (deviceSupportsUpi); filtered below. */
+  readonly regional?: boolean;
 }[] = [
   { id: 'cash', icon: 'cash-outline' },
+  { id: 'upi', icon: 'phone-portrait-outline', regional: true },
   { id: 'credit', icon: 'card-outline' },
   { id: 'debit', icon: 'card' },
   { id: 'forex', icon: 'swap-horizontal-outline' },
@@ -76,6 +79,8 @@ function paymentMethodLabel(t: ReturnType<typeof useStrings>['t'], id: PaymentMe
   switch (id) {
     case 'cash':
       return t.addPerson.payCash;
+    case 'upi':
+      return t.captures.payUpi;
     case 'credit':
       return t.addPerson.payCredit;
     case 'debit':
@@ -114,10 +119,14 @@ export default function AddPersonScreen() {
   const backup = useBackup();
 
   const currency = deviceDefaultCurrency();
+  // UPI only where the region has the rail; every other method is universal.
+  const paymentMethods = PAYMENT_METHODS.filter(
+    (method) => !method.regional || deviceSupportsUpi(),
+  );
   const [name, setName] = useState('');
   const [amount, setAmount] = useState(0n);
   const [direction, setDirection] = useState<Direction | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>('cash');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -371,7 +380,7 @@ export default function AddPersonScreen() {
             {t.addPerson.paidWith}
           </Text>
           <Row style={{ gap: theme.spacing.sm }}>
-            {PAYMENT_METHODS.map((method) => {
+            {paymentMethods.map((method) => {
               const active = paymentMethod === method.id;
               const label = paymentMethodLabel(t, method.id);
               return (
