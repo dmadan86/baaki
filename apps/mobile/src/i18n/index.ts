@@ -859,6 +859,7 @@ export interface UiStrings {
     date: string;
     receipt: string;
     addReceipt: string;
+    previewReceipt: string;
     reading: string;
     notSynced: string;
     assign: string;
@@ -2232,6 +2233,7 @@ const en: UiStrings = {
     date: 'Date',
     receipt: 'Receipt',
     addReceipt: 'Add receipt',
+    previewReceipt: 'Preview the attached bill',
     reading: 'Reading…',
     notSynced: 'Not synced yet',
     assign: 'Assign to group',
@@ -3691,6 +3693,7 @@ const ta: UiStrings = {
     date: 'தேதி',
     receipt: 'ரசீது',
     addReceipt: 'ரசீதைச் சேர்',
+    previewReceipt: 'இணைத்த ரசீதை முன்னோட்டமிடு',
     reading: 'படிக்கிறது…',
     notSynced: 'இன்னும் ஒத்திசைக்கவில்லை',
     assign: 'குழுவுக்கு ஒதுக்கு',
@@ -5162,6 +5165,7 @@ const hi: UiStrings = {
     date: 'तारीख़',
     receipt: 'रसीद',
     addReceipt: 'रसीद जोड़ें',
+    previewReceipt: 'संलग्न रसीद का पूर्वावलोकन करें',
     reading: 'पढ़ रहे हैं…',
     notSynced: 'अभी सिंक नहीं हुआ',
     assign: 'समूह को सौंपें',
@@ -6628,6 +6632,7 @@ const ar: UiStrings = {
     date: 'التاريخ',
     receipt: 'الإيصال',
     addReceipt: 'أضف إيصالًا',
+    previewReceipt: 'معاينة الإيصال المرفق',
     reading: 'جارٍ القراءة…',
     notSynced: 'لم تتم المزامنة بعد',
     assign: 'أسنِد إلى مجموعة',

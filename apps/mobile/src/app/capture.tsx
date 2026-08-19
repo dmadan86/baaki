@@ -4,13 +4,22 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -38,6 +47,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { ZoomableImage } from '@/components/ZoomableImage';
 import { COMMON_CURRENCIES } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
 import { useCreateCapture, useGroups, useHomeSummary } from '@/data/hooks';
@@ -170,6 +180,7 @@ const consumedScans = new Set<string>();
  */
 export default function CaptureScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const createCapture = useCreateCapture();
   const backup = useBackup();
@@ -194,6 +205,8 @@ export default function CaptureScreen() {
   const [date, setDate] = useState<string>(() => todayIso());
   const [editingDate, setEditingDate] = useState(false);
   const [photo, setPhoto] = useState<PickedImage | null>(null);
+  // Full-screen preview of the attached bill, opened by tapping the thumbnail.
+  const [previewing, setPreviewing] = useState(false);
   const [rawText, setRawText] = useState<string | null>(null);
   // What the on-device parser recovered from the bill: total, item count, lines.
   // Null until a receipt is read; low `confidence` means show it as a draft.
@@ -588,12 +601,34 @@ export default function CaptureScreen() {
           </Row>
           {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
           {photo ? (
-            <Image
-              source={{ uri: photo.uri }}
-              style={{ width: '100%', height: 180, borderRadius: theme.radius.md }}
-              contentFit="cover"
-              transition={150}
-            />
+            // Tap the thumbnail to see the whole bill: the cropped cover view is
+            // enough to confirm the right photo attached, but reading the lines
+            // needs the full frame.
+            <Pressable
+              accessibilityRole="imagebutton"
+              accessibilityLabel={t.captures.previewReceipt}
+              onPress={() => setPreviewing(true)}
+              style={{ borderRadius: theme.radius.md, overflow: 'hidden' }}
+            >
+              <Image
+                source={{ uri: photo.uri }}
+                style={{ width: '100%', height: 180 }}
+                contentFit="cover"
+                transition={150}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  right: theme.spacing.sm,
+                  bottom: theme.spacing.sm,
+                  padding: theme.spacing.xs,
+                  borderRadius: theme.radius.sm,
+                  backgroundColor: 'rgba(10, 10, 26, 0.55)',
+                }}
+              >
+                <Ionicons name="expand-outline" size={iconSize.sm} color="#ffffff" />
+              </View>
+            </Pressable>
           ) : null}
 
           {/* What the phone read off the bill. A confident parse shows the lines
@@ -721,6 +756,36 @@ export default function CaptureScreen() {
           />
         </SheetOverlay>
       ) : null}
+
+      {/* The bill at full size — pinch to zoom, drag to pan, tap the corner to
+          close. Same viewer as the saved receipt, so it reads the same before
+          the row exists. */}
+      <Modal
+        visible={previewing && photo !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewing(false)}
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, backgroundColor: '#000000' }}>
+          {photo ? <ZoomableImage uri={photo.uri} /> : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.close}
+            onPress={() => setPreviewing(false)}
+            style={{
+              position: 'absolute',
+              top: insets.top + theme.spacing.md,
+              right: theme.spacing.xl,
+              padding: theme.spacing.sm,
+              borderRadius: theme.radius.pill,
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            }}
+          >
+            <Ionicons name="close" size={iconSize.md} color="#ffffff" />
+          </Pressable>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -800,15 +865,20 @@ function SheetOverlay({
   // never fights the list's own vertical scroll.
   const translateY = useSharedValue(0);
   const dragToClose = Gesture.Pan()
+    // Only engage once the finger has clearly moved vertically, so a plain tap
+    // on the handle still falls through to the Pressable that closes the sheet.
+    .activeOffsetY([-12, 12])
     .onUpdate((event) => {
-      translateY.set(Math.max(0, event.translationY));
+      // Down follows the finger 1:1; an upward pull rubber-bands so the sheet
+      // feels anchored rather than free.
+      translateY.set(event.translationY > 0 ? event.translationY : event.translationY / 4);
     })
     .onEnd((event) => {
       if (translateY.get() > 120 || event.velocityY > 800) {
-        translateY.set(withTiming(600));
-        runOnJS(onClose)();
+        // Carry the flick through: animate the rest of the way out, then close.
+        translateY.set(withTiming(700, { duration: 180 }, () => runOnJS(onClose)()));
       } else {
-        translateY.set(withTiming(0));
+        translateY.set(withSpring(0, { damping: 20, stiffness: 220 }));
       }
     });
   const cardStyle = useAnimatedStyle(() => ({
