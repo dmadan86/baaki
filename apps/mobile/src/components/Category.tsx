@@ -69,7 +69,6 @@ export function CategoryPicker({
     >
       {CATEGORIES.map((category) => {
         const selected = category.id === value;
-        const tint = theme.tint[category.tint];
         const label = t.categories[category.id];
         return (
           <Pressable
@@ -78,25 +77,28 @@ export function CategoryPicker({
             accessibilityState={{ selected }}
             accessibilityLabel={label}
             onPress={() => onChange(category.id)}
+            // Same chip shape and brand tint as the "Paid with" row on the same
+            // screen, so the two selectors read as one language rather than the
+            // louder per-category fill this used to wear.
             style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
-              gap: theme.spacing.sm,
-              height: 36,
+              gap: theme.spacing.xs,
+              paddingVertical: theme.spacing.sm,
               paddingHorizontal: theme.spacing.md,
-              borderRadius: theme.radius.pill,
-              backgroundColor: selected ? tint.bg : theme.color.surface,
+              borderRadius: theme.radius.md,
               borderWidth: 1,
-              borderColor: selected ? tint.ink : 'transparent',
-              opacity: pressed ? 0.85 : 1,
+              borderColor: selected ? theme.color.brand : theme.color.border,
+              backgroundColor: selected ? theme.color.brandSoft : theme.color.surface,
+              opacity: pressed ? 0.7 : 1,
             })}
           >
             <Ionicons
               name={category.icon as keyof typeof Ionicons.glyphMap}
-              size={iconSize.base}
-              color={selected ? tint.ink : theme.color.textMuted}
+              size={iconSize.md}
+              color={selected ? theme.color.brand : theme.color.textMuted}
             />
-            <Text variant="caption" style={{ color: selected ? tint.ink : theme.color.textMuted }}>
+            <Text variant="body" style={{ color: selected ? theme.color.brand : theme.color.text }}>
               {label}
             </Text>
           </Pressable>

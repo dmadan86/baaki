@@ -4,14 +4,31 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import {
   currencySymbol,
   dayNumber,
   guessCategory,
   parseReceiptText,
-  type CategoryId,
+  CategoryId,
   type HeuristicReceipt,
 } from '@waves/core';
 import {
@@ -30,6 +47,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { ZoomableImage } from '@/components/ZoomableImage';
 import { COMMON_CURRENCIES } from '@/components/CurrencyRate';
 import { DictateButton } from '@/components/DictateButton';
 import { useCreateCapture, useGroups, useHomeSummary } from '@/data/hooks';
@@ -162,6 +180,7 @@ const consumedScans = new Set<string>();
  */
 export default function CaptureScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const createCapture = useCreateCapture();
   const backup = useBackup();
@@ -181,11 +200,13 @@ export default function CaptureScreen() {
 
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<CategoryId | null>(null);
+  const [category, setCategory] = useState<CategoryId | null>(CategoryId.Food);
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [date, setDate] = useState<string>(() => todayIso());
   const [editingDate, setEditingDate] = useState(false);
   const [photo, setPhoto] = useState<PickedImage | null>(null);
+  // Full-screen preview of the attached bill, opened by tapping the thumbnail.
+  const [previewing, setPreviewing] = useState(false);
   const [rawText, setRawText] = useState<string | null>(null);
   // What the on-device parser recovered from the bill: total, item count, lines.
   // Null until a receipt is read; low `confidence` means show it as a draft.
@@ -233,12 +254,19 @@ export default function CaptureScreen() {
     }
   };
 
-  // The guess follows the description until a chip is tapped, then stops moving
-  // under the user's finger — the same rule the add-expense category uses.
-  const [guessedFrom, setGuessedFrom] = useState<string | null>(null);
+  // Category starts on Food & drink — the most common capture, one fewer tap for
+  // it. The guess then follows the description until a chip is tapped, at which
+  // point it stops moving under the user's finger (the same rule add-expense
+  // uses). Seeding guessedFrom to the initial empty description means the guess
+  // does not fire on mount, so that default survives until the person types.
+  const [guessedFrom, setGuessedFrom] = useState<string | null>('');
   if (!categoryChosen && description !== guessedFrom) {
     setGuessedFrom(description);
-    setCategory(guessCategory(description));
+    // Keep the current category when the description matches no bucket:
+    // guessCategory returns null for unrecognised text, and clearing on null
+    // would wipe the Food default (or a prior guess) leaving no chip selected.
+    const guess = guessCategory(description);
+    if (guess) setCategory(guess);
   }
 
   const applyDate = (event: DateTimePickerEvent, picked?: Date): void => {
@@ -377,9 +405,10 @@ export default function CaptureScreen() {
           <IconButton label={t.common.close} onPress={() => router.back()}>
             <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
+          <Row style={{ flex: 1, justifyContent: 'center', gap: theme.spacing.xs }}>
+            <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
             <Text variant="heading">{t.captures.newTitle}</Text>
-          </View>
+          </Row>
           <View style={{ width: 44 }} />
         </Row>
 
@@ -466,12 +495,19 @@ export default function CaptureScreen() {
 
         {/* How it was paid. Single-select tags, icon + word; cash is chosen by
             default, tapping the chosen one again clears it ("not said" stays a
-            valid answer). UPI only appears where the region settles over it. */}
+            valid answer). UPI only appears where the region settles over it. One
+            row that scrolls sideways rather than wrapping to a second line, so the
+            block keeps a fixed height however many rails the region offers. */}
         <View style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
             {t.captures.paidWith}
           </Text>
-          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
+          >
             {paymentMethods.map((method) => {
               const active = paymentMethod === method.id;
               return (
@@ -510,13 +546,13 @@ export default function CaptureScreen() {
                 </Pressable>
               );
             })}
-          </Row>
+          </ScrollView>
         </View>
 
         {/* Destination and date, folded into one card of divided rows rather than
             two stacked cards — the meta a capture carries, grouped so it reads as
             one block. "Decide later" is the default group: the split, and who is
-            in it, is chosen when the capture is assigned (the line under it). */}
+            in it, is chosen when the capture is assigned. */}
         <Card style={{ paddingVertical: theme.spacing.xs, gap: 0 }}>
           <FieldRow
             icon={targetGroup ? 'people' : 'people-outline'}
@@ -527,13 +563,6 @@ export default function CaptureScreen() {
             onPress={() => setPickingGroup(true)}
             accessibilityLabel={`${t.captures.group}: ${targetGroupName}`}
           />
-          <Text
-            variant="micro"
-            tone="muted"
-            style={{ marginLeft: iconSize.md + theme.spacing.md, marginBottom: theme.spacing.sm }}
-          >
-            {t.captures.splitLaterHint}
-          </Text>
           <Divider />
           <FieldRow
             icon="calendar-outline"
@@ -572,12 +601,34 @@ export default function CaptureScreen() {
           </Row>
           {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
           {photo ? (
-            <Image
-              source={{ uri: photo.uri }}
-              style={{ width: '100%', height: 180, borderRadius: theme.radius.md }}
-              contentFit="cover"
-              transition={150}
-            />
+            // Tap the thumbnail to see the whole bill: the cropped cover view is
+            // enough to confirm the right photo attached, but reading the lines
+            // needs the full frame.
+            <Pressable
+              accessibilityRole="imagebutton"
+              accessibilityLabel={t.captures.previewReceipt}
+              onPress={() => setPreviewing(true)}
+              style={{ borderRadius: theme.radius.md, overflow: 'hidden' }}
+            >
+              <Image
+                source={{ uri: photo.uri }}
+                style={{ width: '100%', height: 180 }}
+                contentFit="cover"
+                transition={150}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  right: theme.spacing.sm,
+                  bottom: theme.spacing.sm,
+                  padding: theme.spacing.xs,
+                  borderRadius: theme.radius.sm,
+                  backgroundColor: 'rgba(10, 10, 26, 0.55)',
+                }}
+              >
+                <Ionicons name="expand-outline" size={iconSize.sm} color="#ffffff" />
+              </View>
+            </Pressable>
           ) : null}
 
           {/* What the phone read off the bill. A confident parse shows the lines
@@ -664,7 +715,9 @@ export default function CaptureScreen() {
                   <Text
                     variant="subheading"
                     tone="muted"
-                    style={{ width: 28, textAlign: 'center' }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={{ width: 36, textAlign: 'center' }}
                   >
                     {currencySymbol(code)}
                   </Text>
@@ -703,6 +756,36 @@ export default function CaptureScreen() {
           />
         </SheetOverlay>
       ) : null}
+
+      {/* The bill at full size — pinch to zoom, drag to pan, tap the corner to
+          close. Same viewer as the saved receipt, so it reads the same before
+          the row exists. */}
+      <Modal
+        visible={previewing && photo !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewing(false)}
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, backgroundColor: '#000000' }}>
+          {photo ? <ZoomableImage uri={photo.uri} /> : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.close}
+            onPress={() => setPreviewing(false)}
+            style={{
+              position: 'absolute',
+              top: insets.top + theme.spacing.md,
+              right: theme.spacing.xl,
+              padding: theme.spacing.sm,
+              borderRadius: theme.radius.pill,
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            }}
+          >
+            <Ionicons name="close" size={iconSize.md} color="#ffffff" />
+          </Pressable>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -774,6 +857,34 @@ function SheetOverlay({
 }): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
+  const insets = useSafeAreaInsets();
+
+  // Drag the handle down to dismiss. translateY only ever goes positive (down);
+  // past a short threshold or on a quick flick the sheet closes, otherwise it
+  // springs back. The gesture lives on the header, not the whole card, so it
+  // never fights the list's own vertical scroll.
+  const translateY = useSharedValue(0);
+  const dragToClose = Gesture.Pan()
+    // Only engage once the finger has clearly moved vertically, so a plain tap
+    // on the handle still falls through to the Pressable that closes the sheet.
+    .activeOffsetY([-12, 12])
+    .onUpdate((event) => {
+      // Down follows the finger 1:1; an upward pull rubber-bands so the sheet
+      // feels anchored rather than free.
+      translateY.set(event.translationY > 0 ? event.translationY : event.translationY / 4);
+    })
+    .onEnd((event) => {
+      if (translateY.get() > 120 || event.velocityY > 800) {
+        // Carry the flick through: animate the rest of the way out, then close.
+        translateY.set(withTiming(700, { duration: 180 }, () => runOnJS(onClose)()));
+      } else {
+        translateY.set(withSpring(0, { damping: 20, stiffness: 220 }));
+      }
+    });
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.get() }],
+  }));
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -789,31 +900,59 @@ function SheetOverlay({
         justifyContent: 'flex-end',
       }}
     >
-      <Pressable
-        onPress={() => {}}
-        style={{
-          backgroundColor: theme.color.surface,
-          borderTopLeftRadius: theme.radius.lg,
-          borderTopRightRadius: theme.radius.lg,
-          padding: theme.spacing.xl,
-          gap: theme.spacing.md,
-          maxHeight: '75%',
-        }}
+      <Animated.View
+        style={[
+          {
+            backgroundColor: theme.color.surface,
+            borderTopLeftRadius: theme.radius.lg,
+            borderTopRightRadius: theme.radius.lg,
+            padding: theme.spacing.xl,
+            // Clear the Android gesture/nav bar so the last list row is not
+            // hidden behind it.
+            paddingBottom: theme.spacing.xl + insets.bottom,
+            gap: theme.spacing.md,
+            maxHeight: '75%',
+          },
+          cardStyle,
+        ]}
       >
-        <View
-          style={{
-            alignSelf: 'center',
-            width: 40,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: theme.color.border,
-          }}
-        />
-        <Text variant="heading">{title}</Text>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {children}
-        </ScrollView>
-      </Pressable>
+        {/* Swallow taps on the card so they never reach the backdrop, which
+            would close the sheet. */}
+        <Pressable onPress={() => {}} style={{ gap: theme.spacing.md, flexShrink: 1 }}>
+          {/* The header is the drag surface AND a tap-to-close target: the grab
+              handle reads as draggable, so make it do something when pushed. */}
+          <GestureDetector gesture={dragToClose}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
+              onPress={onClose}
+              style={{ gap: theme.spacing.md }}
+            >
+              <View
+                style={{
+                  alignSelf: 'center',
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.color.border,
+                }}
+              />
+              <Text variant="heading">{title}</Text>
+            </Pressable>
+          </GestureDetector>
+          {/* flexShrink lets this scroll: without it the list keeps its full
+              content height and the sheet's maxHeight clips the overflow instead
+              of scrolling it, so a long group or currency list loses its bottom
+              rows. */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={{ flexShrink: 1 }}
+          >
+            {children}
+          </ScrollView>
+        </Pressable>
+      </Animated.View>
     </Pressable>
   );
 }
