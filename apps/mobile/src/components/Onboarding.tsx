@@ -25,14 +25,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { directionalIcon, iconSize, isRtlLayout, Text, type TintName, useTheme } from '@waves/ui';
+import { directionalIcon, iconSize, isRtlLayout, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { pageForSlide, pageOrder, slideForPage } from '@/lib/carousel';
 import { useMotion } from '@/lib/motion';
 
 interface Slide {
-  readonly tint: TintName;
+  /** Full-bleed card colour. */
+  readonly bg: string;
+  /** Near-black ink for the wordmark, title and arrow. */
+  readonly ink: string;
+  /** Quieter ink for the subtitle and Skip — still clears WCAG AA on `bg`. */
+  readonly inkMuted: string;
   readonly emoji: string;
 }
 
@@ -42,11 +47,16 @@ interface Slide {
  * the app has proved anything about itself. The group covers are emoji for the
  * same reason, so the tour looks like the product rather than like a brochure
  * bolted to the front of it.
+ *
+ * The three cards are saturated full-bleed colours — marigold, turquoise, rose
+ * — rather than the app's pastel tints, so the tour reads as a bold splash
+ * before the ledger's calmer palette takes over. Each carries a near-black ink
+ * and a quieter muted ink; both clear AA on their card.
  */
 const SLIDES: readonly Slide[] = [
-  { tint: 'lilac', emoji: '🧾' },
-  { tint: 'mint', emoji: '🔗' },
-  { tint: 'peach', emoji: '⚡' },
+  { bg: '#F6C21C', ink: '#1C1B17', inkMuted: '#5A5238', emoji: '🧾' },
+  { bg: '#5AD1D6', ink: '#0E3438', inkMuted: '#2E5D61', emoji: '🔗' },
+  { bg: '#F4B4C4', ink: '#2A1A1F', inkMuted: '#7A5560', emoji: '⚡' },
 ];
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
@@ -108,12 +118,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       {pageOrder(SLIDES, rtl).map(({ slide, index: slideIndex }) => {
         // The words live in the string table; this file only knows the look.
         const copy = t.onboarding[slideIndex] ?? t.onboarding[0]!;
-        const { bg, ink, inkMuted } = theme.tint[slide.tint];
+        const { bg, ink, inkMuted } = slide;
         const last = slideIndex === SLIDES.length - 1;
 
         return (
           <View
-            key={slide.tint}
+            key={slide.emoji}
             style={{
               width,
               // Stated rather than stretched: a horizontal ScrollView sizes
@@ -177,7 +187,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
                 {SLIDES.map((dot, dotIndex) => (
                   <View
-                    key={dot.tint}
+                    key={dot.emoji}
                     style={{
                       height: 8,
                       width: dotIndex === index ? 24 : 8,
