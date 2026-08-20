@@ -514,7 +514,14 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 accessibilityLabel={LANGUAGE_NAMES[lang].english}
+                hitSlop={8}
                 style={({ pressed }) => ({
+                  // A 44pt floor plus hitSlop: on `xs` padding alone the chip was
+                  // ~26pt, the smallest target on the screen and the one that
+                  // switches the recognition language. Centre the label so the
+                  // taller box does not push it off-centre.
+                  minHeight: 44,
+                  justifyContent: 'center',
                   paddingVertical: theme.spacing.xs,
                   paddingHorizontal: theme.spacing.md,
                   borderRadius: theme.radius.pill,
