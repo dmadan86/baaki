@@ -17,18 +17,18 @@
  */
 
 export const palette = {
-  // Warm gold ramp — throwaway experiment palette. brand500 is a deep
-  // goldenrod: the darkest warm gold that still holds white text at WCAG AA,
-  // since white `onBrand` sits on both solid brand buttons and the brand wash.
-  // Lighter stops are brighter gold; the darkest go rust-brown.
-  brand50: '#FBF4DF',
-  brand100: '#F5E6B8',
-  brand200: '#ECD07E',
-  brand300: '#DEB43F',
-  brand400: '#C0901A',
-  brand500: '#93690D',
-  brand600: '#7A560B',
-  brand700: '#5E3F0E',
+  // Lagoon mist ramp — throwaway experiment palette. brand500 is a deep lagoon
+  // teal: the darkest that still holds white text at WCAG AA, since white
+  // `onBrand` sits on both solid brand buttons and the brand wash. Lighter
+  // stops carry the misty cyan; the darkest go deep-lagoon.
+  brand50: '#E6F5F4',
+  brand100: '#C7EAE7',
+  brand200: '#9BD8D5',
+  brand300: '#63BFBD',
+  brand400: '#2E9E9E',
+  brand500: '#0E7C80',
+  brand600: '#0A6668',
+  brand700: '#084E52',
 
   // Carbon black.
   ink900: '#191A22',
@@ -93,19 +93,19 @@ export const palette = {
  * to hold white text, because the balance and its labels sit on all of them.
  */
 export const gradients = {
-  light: [palette.brand700, palette.brand500, '#C79418'],
-  dark: ['#3A2A08', '#5E3F0E', '#7A560B'],
+  light: [palette.brand700, palette.brand500, '#17A0A0'],
+  dark: ['#083E42', '#0A6668', '#0E7C80'],
   // A second, unmistakably-blue wash for the paired action tile — vibrant like
   // the reference's yellow second tile, but kept off the money hues (mint/red)
   // and off warning amber so it never reads as a status. Every stop holds white.
   accentLight: ['#3A4310', '#4C5A16', '#61731F'],
   accentDark: ['#2A310B', '#3A4310', '#4C5A16'],
-  // The app canvas: a soft, cool wallpaper wash — pale lavender-white in the
-  // top-left sliding to a light sky-cyan in the bottom-right. Painted full-bleed
-  // behind every Screen; white cards sit on top of it. The first stop is the
-  // flat fallback if the native gradient view is missing, so it stays near-white.
-  canvasLight: ['#F3F1F7', '#DCE8F1', '#C4E2EE'],
-  canvasDark: ['#101018', '#121A26', '#0E1E2A'],
+  // The app canvas: a soft linen-cream wash — a warm off-white sliding to a
+  // slightly deeper cream in the bottom-right. Painted full-bleed behind every
+  // Screen; white cards sit on top of it. The first stop is the flat fallback
+  // if the native gradient view is missing, so it stays near-white.
+  canvasLight: ['#FBF6EC', '#F3EBD9', '#EAE0CB'],
+  canvasDark: ['#14120E', '#1A1712', '#201B14'],
   // The balance card wears its verdict: a teal wash when the net is in your
   // favour, a red one when you owe. Both are the money hues (positive/negative)
   // deepened across three stops so the white balance and its small labels stay
