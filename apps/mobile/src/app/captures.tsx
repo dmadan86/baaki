@@ -9,7 +9,7 @@
  * than hiding until the server has seen it (ADR-005).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -107,6 +107,20 @@ export default function CapturesScreen() {
 
   // Which capture is being assigned, if any — drives the group-picker sheet.
   const [assigning, setAssigning] = useState<CaptureRow | null>(null);
+
+  // Only groups the viewer still belongs to belong in the picker. Leaving a
+  // group sets `left_at`; it does not remove the group row, so a left (or
+  // owner-removed) group lingers in the local mirror and `useGroups` still
+  // returns it. `membersFor` lists active members only, so a group where the
+  // viewer is no longer among them is one they left — never an assignment
+  // target for a new expense.
+  const assignableGroups = useMemo(
+    () =>
+      (groups.data ?? []).filter((group) =>
+        summary.membersFor(group.id).some((member) => member.profile_id === profile?.id),
+      ),
+    [groups.data, summary, profile?.id],
+  );
 
   const rows = captures.data ?? [];
 
@@ -284,14 +298,14 @@ export default function CapturesScreen() {
               {t.captures.assignBody}
             </Text>
 
-            {(groups.data ?? []).length === 0 ? (
+            {assignableGroups.length === 0 ? (
               <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.md }}>
                 {t.captures.noGroups}
               </Text>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <View style={{ gap: theme.spacing.xs }}>
-                  {(groups.data ?? []).map((group) => (
+                  {assignableGroups.map((group) => (
                     <Pressable
                       key={group.id}
                       accessibilityRole="button"
