@@ -17,16 +17,18 @@
  */
 
 export const palette = {
-  brand50: '#F5F2FF',
-  brand100: '#E9E4FF',
-  brand200: '#D4CBFF',
-  brand300: '#B4A5FB',
-  brand400: '#9880F9',
-  brand500: '#7A5AF8',
-  brand600: '#6C4EE3',
-  brand700: '#5638C4',
+  // Deep-sea teal ramp — throwaway experiment palette.
+  brand50: '#E7F3F4',
+  brand100: '#C6E5E8',
+  brand200: '#97D0D6',
+  brand300: '#5CB2BB',
+  brand400: '#2C8E99',
+  brand500: '#0E6E78',
+  brand600: '#0B5A63',
+  brand700: '#083F47',
 
-  ink900: '#14142B',
+  // Carbon black.
+  ink900: '#191A22',
   ink700: '#2E2F45',
   ink500: '#54566B',
   ink400: '#7B7B8F',
@@ -34,7 +36,8 @@ export const palette = {
   ink200: '#D9DAE6',
   ink100: '#EDEDF5',
 
-  lavender: '#F3F1FB',
+  // Lemon chiffon canvas.
+  lavender: '#FBF4D1',
   white: '#FFFFFF',
 
   // Two inks per pastel. `Ink` is the strong one (~7:1 on its own bg, for
@@ -87,13 +90,13 @@ export const palette = {
  * to hold white text, because the balance and its labels sit on all of them.
  */
 export const gradients = {
-  light: [palette.brand700, palette.brand500, '#8148D8'],
-  dark: ['#3A2585', '#5B41C9', '#7E52C9'],
+  light: [palette.brand700, palette.brand500, '#12909C'],
+  dark: ['#083F47', '#0B5A63', '#0E6E78'],
   // A second, unmistakably-blue wash for the paired action tile — vibrant like
   // the reference's yellow second tile, but kept off the money hues (mint/red)
   // and off warning amber so it never reads as a status. Every stop holds white.
-  accentLight: ['#0369A1', '#2563EB', '#4F46E5'],
-  accentDark: ['#0C4A6E', '#1E40AF', '#3730A3'],
+  accentLight: ['#173B4D', '#1F5A73', '#276E8C'],
+  accentDark: ['#122E3C', '#173B4D', '#1F5A73'],
   // The balance card wears its verdict: a teal wash when the net is in your
   // favour, a red one when you owe. Both are the money hues (positive/negative)
   // deepened across three stops so the white balance and its small labels stay
