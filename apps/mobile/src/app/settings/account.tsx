@@ -347,6 +347,11 @@ function AccountForm() {
                   editable={!busy}
                   keyboardType="number-pad"
                   maxLength={6}
+                  // The code has just arrived by SMS or email — let the OS offer
+                  // the one-tap fill rather than making it be retyped by hand.
+                  // `sms-otp` is Android's autofill hint; `oneTimeCode` is iOS's.
+                  autoComplete="sms-otp"
+                  textContentType="oneTimeCode"
                   accessibilityLabel={t.contact.verificationCode}
                   placeholder="123456"
                   placeholderTextColor={theme.color.textFaint}
@@ -458,7 +463,16 @@ function ProviderRow({
       {linked ? (
         <Badge label={linkedLabel} tone="positive" />
       ) : (
-        <Button label={linkLabel} size="sm" variant="secondary" disabled={busy} onPress={onLink} />
+        <Button
+          label={linkLabel}
+          size="sm"
+          variant="secondary"
+          disabled={busy}
+          // 38pt on its own — hitSlop lifts the target over the 44 floor
+          // without enlarging the small trailing pill.
+          hitSlop={8}
+          onPress={onLink}
+        />
       )}
     </Row>
   );
