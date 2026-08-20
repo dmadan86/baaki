@@ -343,6 +343,8 @@ export interface UiStrings {
    * labels, and sharing it is how translations go subtly wrong.
    */
   common: {
+    /** The app's name — a wordmark, the same in every locale (not translated). */
+    appName: string;
     back: string;
     /** Generic 'Loading…' — the spoken label a skeleton screen carries. */
     loading: string;
@@ -1747,6 +1749,7 @@ const en: UiStrings = {
   language: 'Language',
   upgrade: 'Upgrade',
   common: {
+    appName: 'Waves',
     back: 'Back',
     loading: 'Loading…',
     close: 'Close',
@@ -3206,6 +3209,7 @@ const ta: UiStrings = {
   language: 'மொழி',
   upgrade: 'மேம்படுத்தல்',
   common: {
+    appName: 'Waves',
     back: 'பின்',
     loading: 'ஏற்றுகிறது…',
     close: 'மூடு',
@@ -4713,6 +4717,7 @@ const hi: UiStrings = {
   language: 'भाषा',
   upgrade: 'अपग्रेड',
   common: {
+    appName: 'Waves',
     back: 'वापस',
     loading: 'लोड हो रहा है…',
     close: 'बंद करें',
@@ -6181,6 +6186,7 @@ const ar: UiStrings = {
   language: 'اللغة',
   upgrade: 'الترقية',
   common: {
+    appName: 'Waves',
     back: 'رجوع',
     loading: 'جارٍ التحميل…',
     close: 'إغلاق',

@@ -289,7 +289,7 @@ function LockGate({ children }: { children: React.ReactNode }) {
           <Text
             style={{ fontSize: 56, lineHeight: 72, fontWeight: '700', color: theme.color.onBrand }}
           >
-            Waves
+            {t.common.appName}
           </Text>
           <Ionicons name="lock-closed" size={iconSize.xl} color={theme.color.onBrand} />
         </View>
@@ -320,7 +320,7 @@ function LockGate({ children }: { children: React.ReactNode }) {
         align="center"
         style={{ paddingBottom: theme.spacing.xxxl }}
       >
-        Baaki {Constants.expoConfig?.version ?? ''}
+        {t.common.appName} {Constants.expoConfig?.version ?? ''}
       </Text>
     </View>
   );
