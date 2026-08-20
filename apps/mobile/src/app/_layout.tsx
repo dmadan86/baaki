@@ -349,7 +349,9 @@ function AuthGate() {
   // signed-out person is allowed to sit on. `onAuth` covers both doors so a
   // session that appears bounces off either one back into the app.
   const onSignIn = segments[0] === 'sign-in';
-  const onAuth = onSignIn || segments[0] === 'sign-up';
+  // The welcome gateway is where a signed-out person lands; a session appearing
+  // on it (or on either door) bounces back into the app, so it counts as auth.
+  const onAuth = onSignIn || segments[0] === 'sign-up' || segments[0] === 'welcome';
   const onPublicRoute = onAuth || segments[0] === 'join';
 
   /**
@@ -364,7 +366,7 @@ function AuthGate() {
 
   useEffect(() => {
     if (loading) return;
-    if (!session && !onPublicRoute) router.replace('/sign-in');
+    if (!session && !onPublicRoute) router.replace('/welcome');
     else if (session && onAuth) router.replace('/');
   }, [session, loading, onAuth, onPublicRoute, router]);
 
@@ -398,12 +400,14 @@ function AuthGate() {
       >
         {/* Signing in and out replaces the whole tree; sliding it would suggest a
           place to go back to, and there is not one. */}
+        <Stack.Screen name="welcome" options={{ animation: 'none' }} />
         <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
         {/* The sign-up page slides in from the login screen and back out, so it
             keeps a normal push — unlike sign-in, which replaces the whole tree. */}
         <Stack.Screen name="sign-up" />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
         <Stack.Screen name="new-group" options={modal} />
+        <Stack.Screen name="paywall" options={modal} />
         <Stack.Screen name="capture" options={modal} />
         <Stack.Screen name="captures" />
         <Stack.Screen name="group/[id]/index" />

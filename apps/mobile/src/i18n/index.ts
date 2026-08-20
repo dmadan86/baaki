@@ -688,6 +688,10 @@ export interface UiStrings {
     welcomeBody: string;
     startNow: string;
     haveAccount: string;
+    /** The muted question before the "Log in" link on the sign-up welcome. */
+    haveAccountPrompt: string;
+    /** The muted question before the "Create account" link on the login welcome. */
+    newHerePrompt: string;
     welcomeBack: string;
     keepOnNextPhone: string;
     guestAddWay: string;
@@ -2094,6 +2098,8 @@ const en: UiStrings = {
       'No account needed to start — add one later and everything you have entered comes with you.',
     startNow: 'Start now',
     haveAccount: 'I already have an account',
+    haveAccountPrompt: 'Have an account?',
+    newHerePrompt: 'New to Waves?',
     welcomeBack: 'Welcome back',
     keepOnNextPhone: 'Keep this account on your next phone',
     guestAddWay: 'Add a way to sign in, so this account is still yours on your next phone.',
@@ -3563,6 +3569,8 @@ const ta: UiStrings = {
       'தொடங்க கணக்கு தேவையில்லை — பின்னர் ஒன்றைச் சேர்த்தால் நீங்கள் சேர்த்த அனைத்தும் உங்களுடன் வரும்.',
     startNow: 'இப்போதே தொடங்கு',
     haveAccount: 'என்னிடம் ஏற்கனவே கணக்கு உள்ளது',
+    haveAccountPrompt: 'கணக்கு உள்ளதா?',
+    newHerePrompt: 'Waves-க்கு புதியவரா?',
     welcomeBack: 'மீண்டும் வரவேற்கிறோம்',
     keepOnNextPhone: 'அடுத்த ஃபோனிலும் இந்தக் கணக்கை வைத்திருங்கள்',
     guestAddWay:
@@ -5060,6 +5068,8 @@ const hi: UiStrings = {
       'शुरू करने के लिए खाता ज़रूरी नहीं — बाद में जोड़ लें, आपका जोड़ा हुआ सब कुछ साथ आ जाएगा।',
     startNow: 'अभी शुरू करें',
     haveAccount: 'मेरा खाता पहले से है',
+    haveAccountPrompt: 'खाता पहले से है?',
+    newHerePrompt: 'Waves पर नए हैं?',
     welcomeBack: 'वापस स्वागत है',
     keepOnNextPhone: 'इस खाते को अगले फ़ोन पर भी रखें',
     guestAddWay: 'साइन इन का कोई तरीका जोड़ें, ताकि अगले फ़ोन पर भी यह खाता आपका ही रहे।',
@@ -6546,6 +6556,8 @@ const ar: UiStrings = {
     welcomeBody: 'لا حاجة لحساب للبدء — أضف واحدًا لاحقًا وسيأتي معك كل ما أدخلته.',
     startNow: 'ابدأ الآن',
     haveAccount: 'لديّ حساب بالفعل',
+    haveAccountPrompt: 'هل لديك حساب؟',
+    newHerePrompt: 'جديد على Waves؟',
     welcomeBack: 'أهلًا بعودتك',
     keepOnNextPhone: 'احتفظ بهذا الحساب على هاتفك التالي',
     guestAddWay: 'أضف طريقة لتسجيل الدخول، ليبقى هذا الحساب لك على هاتفك التالي.',

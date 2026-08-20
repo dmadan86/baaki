@@ -32,7 +32,9 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -40,7 +42,6 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -79,9 +80,7 @@ const TOUR_KEY = 'baaki.onboarding_seen';
 export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const theme = useTheme();
   const { t } = useStrings();
-  const { sendOtp, verifyOtp, continueAsGuest, withPassword, withGoogle, withApple, isGuest } =
-    useAuth();
-  const { height: screenHeight } = useWindowDimensions();
+  const { sendOtp, verifyOtp, continueAsGuest, withPassword, withGoogle, isGuest } = useAuth();
 
   const isSignup = flow === 'signup';
 
@@ -179,41 +178,15 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   }
 
   /**
-   * The welcome: the wordmark on a coloured sweep, the language in the corner,
-   * and the ways in beneath — the two providers first as full-width branded
-   * rows, then "continue with phone", then a hairline and the email path, and
-   * last the line to the other door. On the sign-up page the guest way sits
-   * among them; on the login screen it does not.
+   * The welcome: a round photo hero with a scribble, the value line in heavy
+   * ink, the language in the corner, and the ways in beneath — Google first,
+   * then "continue with phone", then a hairline and the email path, and last the
+   * line to the other door. On the sign-up page the guest way sits among them; on
+   * the login screen it does not.
    */
   if (!showOptions) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.color.bg }}>
-        <CurvedPanel height={Math.min(screenHeight * 0.46, 420)}>
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: theme.spacing.xxxl,
-              gap: theme.spacing.sm,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 56,
-                lineHeight: 72,
-                fontWeight: '700',
-                color: theme.color.onBrand,
-              }}
-            >
-              {t.common.appName}
-            </Text>
-            <Text variant="caption" tone="onBrand" align="center">
-              {isSignup ? t.signIn.splitAnything.replace('\n', ' ') : t.signIn.tagline}
-            </Text>
-          </View>
-        </CurvedPanel>
-
+      <View style={{ flex: 1, backgroundColor: theme.color.surface }}>
         {/* The language sits in the corner of the hero — reachable from the
             first frame for somebody who opened the app in a script they cannot
             read, without taking a line in the action column. */}
@@ -259,13 +232,32 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             flexGrow: 1,
             justifyContent: 'center',
             paddingHorizontal: theme.spacing.xxxl,
-            paddingTop: theme.spacing.xxl,
+            paddingTop: Constants.statusBarHeight + theme.spacing.xxxl,
             paddingBottom: theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ gap: theme.spacing.xl }}>
+            {/* The hero: a round photo with a hand-drawn scribble tucked behind
+                its shoulder, then the value line in heavy ink. This replaces the
+                brand-wash panel — the way in is the screen now, not a banner over
+                it. Placeholder photo (assets/images/auth-hero.jpg) and no Terms
+                line yet; both are follow-ups. */}
+            <AuthHero />
+            <Text
+              align="center"
+              style={{
+                fontSize: 30,
+                lineHeight: 38,
+                fontWeight: '800',
+                letterSpacing: -0.5,
+                color: theme.color.text,
+              }}
+            >
+              {t.signIn.splitAnything}
+            </Text>
+
             {/* The fastest way in goes first. Somebody who has a Google or an
                 Apple account is one tap from being in, and every app that does
                 this well puts that tap above the form rather than under it. */}
@@ -273,7 +265,6 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               <SocialRow
                 busy={busy}
                 wording={isSignup ? 'continue' : 'signIn'}
-                onApple={() => void run(withApple)}
                 onGoogle={() => void run(withGoogle)}
                 t={t}
               />
@@ -337,12 +328,13 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
             {error ? <Callout tone="negative">{error}</Callout> : null}
 
-            {/* The line to the other door. Coming back to sign in and starting
-                fresh are different errands; each screen names the one it is not. */}
-            <Button
-              label={isSignup ? t.signIn.haveAccount : t.signIn.createAccount}
-              variant="ghost"
-              fullWidth
+            {/* The line to the other door — a muted question and a bold link,
+                the way every reference sign-in draws it. Coming back to sign in
+                and starting fresh are different errands; each screen names the
+                one it is not. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={isSignup ? t.signIn.signInAction : t.signIn.createAccount}
               disabled={busy}
               onPress={() =>
                 isSignup
@@ -351,16 +343,23 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                     : router.replace('/sign-in')
                   : router.push('/sign-up')
               }
-            />
-
-            <Text
-              variant="micro"
-              tone="faint"
-              align="center"
-              style={{ paddingTop: theme.spacing.xs }}
+              hitSlop={8}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                paddingVertical: theme.spacing.sm,
+                opacity: pressed ? 0.6 : 1,
+              })}
             >
-              {t.common.appName} {Constants.expoConfig?.version ?? ''}
-            </Text>
+              <Text tone="muted">
+                {isSignup ? t.signIn.haveAccountPrompt : t.signIn.newHerePrompt}
+              </Text>
+              <Text style={{ fontWeight: '700', color: theme.color.brand }}>
+                {isSignup ? t.signIn.signInAction : t.signIn.createAccount}
+              </Text>
+            </Pressable>
           </View>
         </ScrollView>
       </View>
@@ -424,7 +423,6 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               <SocialRow
                 busy={busy}
                 wording={isGuest || isSignup ? 'continue' : 'signIn'}
-                onApple={() => void run(withApple)}
                 onGoogle={() => void run(withGoogle)}
                 t={t}
               />
@@ -657,51 +655,85 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
 }
 
 /**
- * The two providers, stacked, in the order this platform expects.
+ * The welcome hero: a round photo with a scribble tucked behind its shoulder.
  *
- * Apple leads on iOS and Google on Android — not a style choice: on an iPhone
- * the Apple sheet is the one that needs no browser and no typing, and on
- * Android it is Google's. Putting the home platform's own account first is what
- * every well-made sign-in on either store does, and it is the difference
- * between one tap and one tap plus a web view.
+ * The photo is a placeholder stock shot (`assets/images/auth-hero.jpg`) — the
+ * shape and the scribble are the design; the picture inside gets swapped for the
+ * brand's own. The scribble is a single hand-drawn stroke in the brand's light
+ * lilac, positioned to peek out from the top-right the way the reference does.
+ */
+const AUTH_HERO = require('../../assets/images/auth-hero.jpg');
+
+function AuthHero() {
+  const theme = useTheme();
+  const size = 200;
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ width: size, height: size }}>
+        {/* Scribble first so the circle sits over its lower end, letting the
+            stroke read as tucked *behind* the shoulder. */}
+        <Svg
+          width={size * 0.62}
+          height={size * 0.5}
+          viewBox="0 0 120 90"
+          style={{ position: 'absolute', top: -10, right: -14 }}
+        >
+          <Path
+            d="M8 70 C40 20 50 80 70 30 M20 78 C55 30 60 84 82 40 M34 82 C68 42 72 88 96 48"
+            stroke="#B4A5FB"
+            strokeWidth={7}
+            strokeLinecap="round"
+            fill="none"
+          />
+        </Svg>
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: 'hidden',
+            backgroundColor: theme.color.surfaceMuted,
+          }}
+        >
+          <Image source={AUTH_HERO} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The provider way in — Google.
+ *
+ * Apple sign-in used to lead this row on iOS; it has been taken out. If Google
+ * stays the only provider, note that App Store guideline 4.8 requires an
+ * equivalent (Apple sign-in) alongside it on iOS, so this may need revisiting
+ * before an iOS release.
  *
  * "Sign in with" is reserved for the login screen, where it is true. On the
  * sign-up page — and for a guest attaching a way back into the groups already
- * on this phone — both Apple's and Google's own guidelines say to write
- * "Continue with", because the same button both makes an account and returns to
- * one, and "sign in" would suggest landing somewhere else.
+ * on this phone — Google's own guidelines say to write "Continue with", because
+ * the same button both makes an account and returns to one, and "sign in" would
+ * suggest landing somewhere else.
  */
 function SocialRow({
   busy,
   wording,
-  onApple,
   onGoogle,
   t,
 }: {
   busy: boolean;
   wording: 'continue' | 'signIn';
-  onApple: () => void;
   onGoogle: () => void;
   t: UiStrings;
 }) {
   const carryOn = wording === 'continue';
-  const apple = (
+  return (
     <SocialButton
-      key="apple"
-      provider="apple"
-      label={carryOn ? t.signIn.continueApple : t.signIn.signInApple}
-      disabled={busy}
-      onPress={onApple}
-    />
-  );
-  const google = (
-    <SocialButton
-      key="google"
       provider="google"
       label={carryOn ? t.signIn.continueGoogle : t.signIn.signInGoogle}
       disabled={busy}
       onPress={onGoogle}
     />
   );
-  return <>{Platform.OS === 'ios' ? [apple, google] : [google, apple]}</>;
 }
