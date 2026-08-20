@@ -9,6 +9,7 @@ import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react
 import {
   CategoryId,
   computeShares,
+  currencySymbol,
   guessCategory,
   MutationKind,
   type FxRecord,
@@ -17,7 +18,6 @@ import {
   type SplitParams,
 } from '@waves/core';
 import {
-  AmountField,
   Avatar,
   Button,
   Callout,
@@ -38,8 +38,11 @@ import {
 import { CategoryPicker } from '@/components/Category';
 import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
 import { friendlyError } from '@/lib/errors';
-import { CurrencyRate } from '@/components/CurrencyRate';
-import { DictateButton } from '@/components/DictateButton';
+import { COMMON_CURRENCIES, CurrencyRate } from '@/components/CurrencyRate';
+import { AmountHeader } from '@/components/expense/AmountHeader';
+import { DescriptionField } from '@/components/expense/DescriptionField';
+import { ExpenseHeader } from '@/components/expense/ExpenseHeader';
+import { ChoiceRow, SheetOverlay } from '@/components/expense/SheetOverlay';
 import { canAddReceipt, scanReceipt, scanReceiptText } from '@/data/api';
 import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
 import { useAssignCapture, useGroup } from '@/data/hooks';
@@ -194,6 +197,10 @@ export default function AddExpenseScreen() {
 
   const [expenseCurrency, setExpenseCurrency] = useState<string | null>(null);
   const [fx, setFx] = useState<FxRecord | null>(null);
+  // The currency is chosen from the header pill's sheet, the same shortlist the
+  // capture screen offers. Picking one clears any rate typed for the old
+  // currency, exactly as the old in-card chips did (see CurrencyRate.choose).
+  const [pickingCurrency, setPickingCurrency] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -428,6 +435,15 @@ export default function AddExpenseScreen() {
   // default and what a converted total would be shown in (ADR-003).
   const currency = expenseCurrency ?? groupCurrency;
 
+  // Picking from the header pill: a rate typed for the previous currency would
+  // convert the wrong thing (and the server rejects it), so clear it — the same
+  // reset the old in-card currency chips did.
+  const chooseCurrency = (code: string): void => {
+    setExpenseCurrency(code);
+    setFx(null);
+    setPickingCurrency(false);
+  };
+
   // Every keystroke, debounced just enough to avoid one write per character.
   useDraft<ExpenseDraft>(
     draftKey,
@@ -481,18 +497,7 @@ export default function AddExpenseScreen() {
     return (
       <Screen edges={['top', 'bottom']}>
         <View style={{ paddingHorizontal: theme.spacing.xl }}>
-          <Row style={{ paddingTop: theme.spacing.md }}>
-            <IconButton label={t.common.close} onPress={() => router.back()}>
-              <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-            </IconButton>
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-                <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
-                <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
-              </Row>
-            </View>
-            <View style={{ width: 44 }} />
-          </Row>
+          <ExpenseHeader title={editing ? t.expense.edit : t.addExpense} />
           <View style={{ paddingTop: theme.spacing.xxxl, alignItems: 'center' }}>
             <ActivityIndicator color={theme.color.brand} />
           </View>
@@ -792,30 +797,20 @@ export default function AddExpenseScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-              <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
-              <Text variant="heading">{editing ? t.expense.edit : t.addExpense}</Text>
-            </Row>
-            <Text variant="micro" tone="muted">
-              {groupLabel(group.data, members.data ?? [], profile?.id)}
-            </Text>
-          </View>
-          {editing ? (
-            <View style={{ width: 44 }} />
-          ) : (
-            <IconButton
-              label={t.expense.splitByItem}
-              onPress={() => router.replace(`/group/${groupId}/itemize`)}
-            >
-              <Ionicons name="list-outline" size={iconSize.lg} color={theme.color.brand} />
-            </IconButton>
-          )}
-        </Row>
+        <ExpenseHeader
+          title={editing ? t.expense.edit : t.addExpense}
+          subtitle={groupLabel(group.data, members.data ?? [], profile?.id)}
+          right={
+            editing ? undefined : (
+              <IconButton
+                label={t.expense.splitByItem}
+                onPress={() => router.replace(`/group/${groupId}/itemize`)}
+              >
+                <Ionicons name="list-outline" size={iconSize.lg} color={theme.color.brand} />
+              </IconButton>
+            )
+          }
+        />
 
         {editing ? (
           <Card style={{ backgroundColor: theme.color.brandSoft }}>
@@ -825,9 +820,14 @@ export default function AddExpenseScreen() {
           </Card>
         ) : null}
 
-        <Card>
-          <AmountField currency={currency} value={amount} onChange={setAmount} />
-        </Card>
+        {/* Amount-forward hero shared with the capture screen: big centred
+            number, the currency it is counted in a tap below it. */}
+        <AmountHeader
+          currency={currency}
+          amount={amount}
+          onAmountChange={setAmount}
+          onPressCurrency={() => setPickingCurrency(true)}
+        />
 
         {/* Below the amount, not above it. Typing a number is the fast path and
             stays the first thing on the screen; the camera is for the bill that
@@ -960,6 +960,9 @@ export default function AddExpenseScreen() {
           ) : null}
         </Card>
 
+        {/* Currency is chosen from the header pill; this now collapses to the FX
+            rate alone — nothing while the expense is in the group's currency,
+            the rate methods once it is foreign (ADR-003). */}
         <CurrencyRate
           groupCurrency={groupCurrency}
           currency={currency}
@@ -967,36 +970,21 @@ export default function AddExpenseScreen() {
           amount={amount}
           fx={fx}
           onFxChange={setFx}
+          showCurrencyPicker={false}
         />
 
-        <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.description}
-          </Text>
-          <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder={t.expense.descriptionPlaceholder}
-              placeholderTextColor={theme.color.textFaint}
-              accessibilityLabel={t.description}
-              multiline
-              textAlignVertical="top"
-              style={{
-                flex: 1,
-                fontSize: 17,
-                fontWeight: '600',
-                color: theme.color.text,
-                paddingVertical: theme.spacing.sm,
-                minHeight: 44,
-              }}
-            />
-            {/* The member names are handed to the recogniser as hints. A
-                general model guesses at Indian names and gets them wrong, and
-                the note is exactly where they turn up. */}
-            <DictateButton value={description} onChange={setDescription} hints={nameHints} />
-          </Row>
-        </Card>
+        {/* Description field shared with capture. Kept multiline here for the
+            longer notes a group expense sometimes carries. The member names are
+            handed to the recogniser as hints — a general model guesses at Indian
+            names and gets them wrong, and the note is where they turn up. */}
+        <DescriptionField
+          value={description}
+          onChange={setDescription}
+          placeholder={t.expense.descriptionPlaceholder}
+          accessibilityLabel={t.description}
+          hints={nameHints}
+          multiline
+        />
 
         {/* Pre-picked from the description, because a menu between somebody and
             saving a dinner is how a column ends up empty — and an empty column
@@ -1264,6 +1252,39 @@ export default function AddExpenseScreen() {
           </Row>
         </Row>
       </View>
+
+      {/* Currency picker, as a sheet over the form — the same shortlist and the
+          same sheet the capture screen uses, so a person meets the same
+          currencies in both places. Picking a foreign one reveals the rate card
+          below the amount (CurrencyRate). */}
+      {pickingCurrency ? (
+        <SheetOverlay
+          title={t.captures.currencyPickerTitle}
+          onClose={() => setPickingCurrency(false)}
+        >
+          <View style={{ gap: theme.spacing.xs }}>
+            {COMMON_CURRENCIES.map((code) => (
+              <ChoiceRow
+                key={code}
+                leading={
+                  <Text
+                    variant="subheading"
+                    tone="muted"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={{ width: 36, textAlign: 'center' }}
+                  >
+                    {currencySymbol(code)}
+                  </Text>
+                }
+                label={code}
+                selected={currency === code}
+                onPress={() => chooseCurrency(code)}
+              />
+            ))}
+          </View>
+        </SheetOverlay>
+      ) : null}
     </Screen>
   );
 }
