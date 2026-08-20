@@ -36,9 +36,8 @@ export const palette = {
   ink200: '#D9DAE6',
   ink100: '#EDEDF5',
 
-  // Soft warm cream canvas — lemon chiffon dialled right down so it reads as a
-  // warm off-white rather than a saturated yellow.
-  lavender: '#F7F4E9',
+  // White canvas.
+  lavender: '#FFFFFF',
   white: '#FFFFFF',
 
   // Two inks per pastel. `Ink` is the strong one (~7:1 on its own bg, for
