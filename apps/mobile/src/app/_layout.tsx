@@ -320,7 +320,7 @@ function LockGate({ children }: { children: React.ReactNode }) {
         align="center"
         style={{ paddingBottom: theme.spacing.xxxl }}
       >
-        Baaki {Constants.expoConfig?.version ?? ''}
+        Waves {Constants.expoConfig?.version ?? ''}
       </Text>
     </View>
   );
