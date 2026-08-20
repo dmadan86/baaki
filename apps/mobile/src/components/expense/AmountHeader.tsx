@@ -35,10 +35,17 @@ export function AmountHeader({
         accessibilityRole="button"
         accessibilityLabel={`${t.captures.currencyLabel}: ${currency}`}
         onPress={onPressCurrency}
+        hitSlop={8}
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: theme.spacing.xs,
+          // The currency pill was ~26pt tall on `xs` padding alone — the
+          // smallest tap target on the form, and the one that opens the picker.
+          // A 44pt floor (plus hitSlop) brings it to size without inflating the
+          // pill's visual weight against the amount above it.
+          minHeight: 44,
           paddingVertical: theme.spacing.xs,
           paddingHorizontal: theme.spacing.md,
           borderRadius: theme.radius.pill,

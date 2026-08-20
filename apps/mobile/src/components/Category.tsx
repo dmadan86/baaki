@@ -84,6 +84,10 @@ export function CategoryPicker({
               flexDirection: 'row',
               alignItems: 'center',
               gap: theme.spacing.xs,
+              // A 44pt floor keeps the chip a comfortable tap target — the body
+              // text plus `sm` padding alone left it ~37pt, under the iOS 44 /
+              // Android 48 minimum.
+              minHeight: 44,
               paddingVertical: theme.spacing.sm,
               paddingHorizontal: theme.spacing.md,
               borderRadius: theme.radius.md,
