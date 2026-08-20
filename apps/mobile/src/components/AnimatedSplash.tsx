@@ -44,12 +44,12 @@ import { useMotion } from '@/lib/motion';
     `backgroundColor` in `app.json` so the native splash (a solid field) and the
     middle of this gradient are the same colour — the handoff shifts as little as
     possible. Change both together. Placeholder blue for now. */
-const SPLASH_BG = '#2B4FE0';
+const SPLASH_BG = '#65B63E';
 
 /** The field is a diagonal wash, light top-left to deep bottom-right — the Digit
     concept. Placeholder blue; the app's own brand is purple, so this is meant to
     be reset to the brand once the splash art is settled. */
-const GRADIENT = ['#4F8EF0', SPLASH_BG, '#2140D6'] as const;
+const GRADIENT = ['#7BC94E', SPLASH_BG, '#4F9A2E'] as const;
 
 /** The wordmark drawn on the field. Placeholder text until the brand mark
     lands. Lowercase to match the reference. */

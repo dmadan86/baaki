@@ -201,28 +201,34 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
           <LanguagePicker />
         </View>
 
-        {/* A way back to the login screen from the sign-up page, in the opposite
-            corner, so leaving is as reachable as the language. */}
-        {isSignup ? (
-          <View
-            style={{
-              position: 'absolute',
-              top: Constants.statusBarHeight + theme.spacing.sm,
-              left: theme.spacing.md,
-              zIndex: 10,
-            }}
+        {/* A way back to the welcome gateway, in the opposite corner from the
+            language so leaving is as reachable. A chevron in the primary ink,
+            shown on both doors — login and sign-up are both reached from the
+            gateway, so both return to it. */}
+        <View
+          style={{
+            position: 'absolute',
+            top: Constants.statusBarHeight + theme.spacing.sm,
+            left: theme.spacing.sm,
+            zIndex: 10,
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.back}
+            hitSlop={12}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
-            <Button
-              label={t.common.back}
-              variant="ghost"
-              size="sm"
-              // A small corner ghost by design, but 38pt is under the 44 floor —
-              // hitSlop grows the target without inflating the visible pill.
-              hitSlop={8}
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/sign-in'))}
-            />
-          </View>
-        ) : null}
+            <Ionicons name="chevron-back" size={iconSize.lg} color={theme.color.buttonPrimary} />
+          </Pressable>
+        </View>
 
         {/* Below the curve, the ways in — centred in the space the hero leaves.
             A ScrollView so a short screen scrolls rather than clipping. */}

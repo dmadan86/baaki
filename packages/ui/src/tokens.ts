@@ -87,8 +87,12 @@ export const palette = {
  * to hold white text, because the balance and its labels sit on all of them.
  */
 export const gradients = {
-  light: [palette.brand700, palette.brand500, '#8148D8'],
-  dark: ['#3A2585', '#5B41C9', '#7E52C9'],
+  // The brand green (#75C946), deepened across three stops so white text and
+  // the small balance labels stay legible on every corner — the lightest stop
+  // matches the luminance of the outgoing purple ramp, so nothing that held
+  // white on purple loses it on green.
+  light: ['#2C6A14', '#3E8F22', '#4CA82C'],
+  dark: ['#1F4D10', '#2F7A1C', '#3E9426'],
   // A second, unmistakably-blue wash for the paired action tile — vibrant like
   // the reference's yellow second tile, but kept off the money hues (mint/red)
   // and off warning amber so it never reads as a status. Every stop holds white.

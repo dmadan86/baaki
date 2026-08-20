@@ -13,9 +13,11 @@
  * signed-out screens, which are not part of the app proper.
  */
 export const TAB_BAR_HIDDEN_ROUTES: ReadonlySet<string> = new Set([
+  'welcome',
   'sign-in',
   'sign-up',
   'join',
+  'language',
   'capture',
   'new-group',
   'add-expense',
@@ -23,6 +25,7 @@ export const TAB_BAR_HIDDEN_ROUTES: ReadonlySet<string> = new Set([
   'invite',
   'itemize',
   'voice',
+  'paywall',
 ]);
 
 export interface TabBarState {

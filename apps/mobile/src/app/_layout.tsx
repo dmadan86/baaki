@@ -352,7 +352,7 @@ function AuthGate() {
   // The welcome gateway is where a signed-out person lands; a session appearing
   // on it (or on either door) bounces back into the app, so it counts as auth.
   const onAuth = onSignIn || segments[0] === 'sign-up' || segments[0] === 'welcome';
-  const onPublicRoute = onAuth || segments[0] === 'join';
+  const onPublicRoute = onAuth || segments[0] === 'join' || segments[0] === 'language';
 
   /**
    * The route we are on disagrees with the session we have, and the effect
@@ -401,6 +401,7 @@ function AuthGate() {
         {/* Signing in and out replaces the whole tree; sliding it would suggest a
           place to go back to, and there is not one. */}
         <Stack.Screen name="welcome" options={{ animation: 'none' }} />
+        <Stack.Screen name="language" />
         <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
         {/* The sign-up page slides in from the login screen and back out, so it
             keeps a normal push — unlike sign-in, which replaces the whole tree. */}

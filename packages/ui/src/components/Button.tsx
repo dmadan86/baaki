@@ -66,8 +66,8 @@ export function Button({
           backgroundColor:
             variant === 'primary'
               ? pressed
-                ? theme.color.brandPressed
-                : theme.color.brand
+                ? theme.color.buttonPrimaryPressed
+                : theme.color.buttonPrimary
               : variant === 'danger'
                 ? theme.color.negative
                 : variant === 'secondary'
@@ -79,8 +79,18 @@ export function Button({
                         ? '#FFFFFF29'
                         : '#FFFFFF1F'
                       : 'transparent',
-          borderWidth: variant === 'onBrandOutline' ? 1 : 0,
-          borderColor: variant === 'onBrandOutline' ? '#FFFFFF5C' : undefined,
+          // A near-black primary button can vanish against a dark page, so in
+          // dark mode it wears a hairline to separate from the surface behind.
+          borderWidth:
+            variant === 'onBrandOutline' || (variant === 'primary' && theme.scheme === 'dark')
+              ? 1
+              : 0,
+          borderColor:
+            variant === 'onBrandOutline'
+              ? '#FFFFFF5C'
+              : variant === 'primary' && theme.scheme === 'dark'
+                ? theme.color.border
+                : undefined,
           opacity: disabled
             ? 0.45
             : (variant === 'onBrand' || variant === 'danger') && pressed

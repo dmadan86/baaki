@@ -99,6 +99,9 @@ export default function PrivacyScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Back on the left, the title lifted out of the bar into the hero
+            below — the policy leads with a symbol and a heading centred on the
+            page, the way Apple's own privacy sheets open. */}
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons
@@ -107,43 +110,76 @@ export default function PrivacyScreen() {
               color={theme.color.text}
             />
           </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.privacy.title}</Text>
-          </View>
+          <View style={{ flex: 1 }} />
           <View style={{ width: 44 }} />
         </Row>
 
-        <Text variant="body" tone="muted">
-          {t.privacy.intro}
-        </Text>
+        <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+          <Ionicons name="people" size={64} color={theme.color.text} />
+          <Text
+            align="center"
+            style={{
+              fontSize: 30,
+              lineHeight: 38,
+              fontWeight: '800',
+              letterSpacing: -0.5,
+              color: theme.color.text,
+            }}
+          >
+            {t.privacy.title}
+          </Text>
+          <Text variant="body" tone="muted" align="center">
+            {t.privacy.intro}
+          </Text>
+        </View>
 
-        {sections.map((section) => (
-          <Card key={section.id} style={{ gap: theme.spacing.sm }}>
-            <Row style={{ gap: theme.spacing.sm }}>
-              <Ionicons name={section.icon} size={iconSize.md} color={theme.color.brand} />
-              <Text variant="subheading">{section.title}</Text>
-            </Row>
-            <Text variant="caption" tone="muted">
-              {section.body}
-            </Text>
-
-            {/* The control the analytics text describes, sat under it so the
-                explanation and the switch are one thing. Hidden entirely on a
-                build with no Clarity project, where it would toggle nothing. */}
-            {section.id === 'analytics' && clarityConfigured ? (
-              <Row style={{ gap: theme.spacing.md, justifyContent: 'space-between' }}>
-                <Text variant="body" style={{ flex: 1 }}>
-                  {t.privacy.sessionReplayRow}
+        {/* The policy points as a bulleted list rather than a stack of cards:
+            a dot in the margin, the point's heading, then the body — the plain
+            "here is what we do" reading the reference uses. */}
+        <View style={{ gap: theme.spacing.xl }}>
+          {sections.map((section) => (
+            <View key={section.id} style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+              <View
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: 3.5,
+                  backgroundColor: theme.color.brand,
+                  marginTop: 8,
+                }}
+              />
+              <View style={{ flex: 1, gap: theme.spacing.xs }}>
+                <Text variant="subheading">{section.title}</Text>
+                <Text variant="body" tone="muted">
+                  {section.body}
                 </Text>
-                <Toggle
-                  value={replay}
-                  onValueChange={onReplayChange}
-                  accessibilityLabel={t.privacy.sessionReplayRow}
-                />
-              </Row>
-            ) : null}
-          </Card>
-        ))}
+
+                {/* The control the analytics text describes, sat under it so the
+                    explanation and the switch are one thing. Hidden entirely on
+                    a build with no Clarity project, where it would toggle
+                    nothing. */}
+                {section.id === 'analytics' && clarityConfigured ? (
+                  <Row
+                    style={{
+                      gap: theme.spacing.md,
+                      justifyContent: 'space-between',
+                      marginTop: theme.spacing.xs,
+                    }}
+                  >
+                    <Text variant="body" style={{ flex: 1 }}>
+                      {t.privacy.sessionReplayRow}
+                    </Text>
+                    <Toggle
+                      value={replay}
+                      onValueChange={onReplayChange}
+                      accessibilityLabel={t.privacy.sessionReplayRow}
+                    />
+                  </Row>
+                ) : null}
+              </View>
+            </View>
+          ))}
+        </View>
 
         {/* The controls the "choices" card promises, made tappable rather than
             described — export a copy, or close the account, both routes that
