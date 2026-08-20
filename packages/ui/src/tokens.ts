@@ -17,15 +17,17 @@
  */
 
 export const palette = {
-  // Deep-sea teal ramp — throwaway experiment palette.
-  brand50: '#E7F3F4',
-  brand100: '#C6E5E8',
-  brand200: '#97D0D6',
-  brand300: '#5CB2BB',
-  brand400: '#2C8E99',
-  brand500: '#0E6E78',
-  brand600: '#0B5A63',
-  brand700: '#083F47',
+  // Warm gold / burnt orange / deep rust ramp — throwaway experiment palette.
+  // brand500 is a burnt orange dark enough to hold white text (WCAG AA); the
+  // lighter stops carry the warm gold, the darkest the deep rust.
+  brand50: '#FAF0DD',
+  brand100: '#F4E0BC',
+  brand200: '#EBC888',
+  brand300: '#DFA84E',
+  brand400: '#C67E1C',
+  brand500: '#A85A12',
+  brand600: '#8A4711',
+  brand700: '#6E3512',
 
   // Carbon black.
   ink900: '#191A22',
@@ -90,13 +92,13 @@ export const palette = {
  * to hold white text, because the balance and its labels sit on all of them.
  */
 export const gradients = {
-  light: [palette.brand700, palette.brand500, '#12909C'],
-  dark: ['#083F47', '#0B5A63', '#0E6E78'],
+  light: [palette.brand700, palette.brand500, '#D08A1E'],
+  dark: ['#4A2410', '#6E3512', '#8A4711'],
   // A second, unmistakably-blue wash for the paired action tile — vibrant like
   // the reference's yellow second tile, but kept off the money hues (mint/red)
   // and off warning amber so it never reads as a status. Every stop holds white.
-  accentLight: ['#173B4D', '#1F5A73', '#276E8C'],
-  accentDark: ['#122E3C', '#173B4D', '#1F5A73'],
+  accentLight: ['#3A4310', '#4C5A16', '#61731F'],
+  accentDark: ['#2A310B', '#3A4310', '#4C5A16'],
   // The balance card wears its verdict: a teal wash when the net is in your
   // favour, a red one when you owe. Both are the money hues (positive/negative)
   // deepened across three stops so the white balance and its small labels stay

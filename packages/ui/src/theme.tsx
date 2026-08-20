@@ -122,7 +122,7 @@ const darkTheme: Theme = {
     textFaint: '#6B6B85',
     brand: palette.brand400,
     brandPressed: palette.brand500,
-    brandSoft: '#0E3B40',
+    brandSoft: '#3A2410',
     onBrand: palette.white,
     skeleton: palette.night600,
     positive: '#34D399',
