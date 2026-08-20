@@ -2916,7 +2916,7 @@ const en: UiStrings = {
       'Baaki runs on Supabase — the database and sign-in, on servers we control. Crash reports go to Sentry, scrubbed of your details before they leave the phone. Anonymous usage goes to Microsoft Clarity, and only if you turn it on above. Your data is never sold, and there are no ad networks.',
     retentionTitle: 'How long we keep it',
     retentionBody:
-      'Your data stays while your account is open. If the account goes untouched for 3 years, we delete it and the personal data with it. You never have to wait for that — export or delete everything yourself, any time, below.',
+      'Your data stays while your account is open. If the account goes untouched for 3 years, we delete it and the personal data with it. You never have to wait for that — export or delete everything yourself, any time, below. A group you close and leave untouched for a year and a half is moved to your archive automatically — nothing is deleted, and you can reopen it whenever you like.',
     dataControlsSection: 'Your data',
     legalSection: 'Legal',
     exportRow: 'Export your data',
@@ -4413,7 +4413,7 @@ const ta: UiStrings = {
       'பாக்கி Supabase-இல் இயங்குகிறது — தரவுத்தளமும் உள்நுழைவும், நாங்கள் நிர்வகிக்கும் சேவையகங்களில். செயலிழப்பு அறிக்கைகள் உங்கள் விவரங்கள் நீக்கப்பட்ட பிறகே Sentry-க்குச் செல்கின்றன. அநாமதேய பயன்பாட்டு தரவு Microsoft Clarity-க்குச் செல்கிறது, மேலே நீங்கள் இயக்கினால் மட்டுமே. உங்கள் தரவு விற்கப்படுவதில்லை, விளம்பர வலையமைப்புகளும் இல்லை.',
     retentionTitle: 'எவ்வளவு காலம் வைத்திருக்கிறோம்',
     retentionBody:
-      'உங்கள் கணக்கு திறந்திருக்கும் வரை தரவு இருக்கும். கணக்கு 3 ஆண்டுகள் தொடப்படாமல் இருந்தால், அதை அதிலுள்ள தனிப்பட்ட தரவுடன் நீக்குகிறோம். அதற்காகக் காத்திருக்க வேண்டாம் — கீழே எப்போது வேண்டுமானாலும் எல்லாவற்றையும் ஏற்றுமதி செய்யலாம் அல்லது நீக்கலாம்.',
+      'உங்கள் கணக்கு திறந்திருக்கும் வரை தரவு இருக்கும். கணக்கு 3 ஆண்டுகள் தொடப்படாமல் இருந்தால், அதை அதிலுள்ள தனிப்பட்ட தரவுடன் நீக்குகிறோம். அதற்காகக் காத்திருக்க வேண்டாம் — கீழே எப்போது வேண்டுமானாலும் எல்லாவற்றையும் ஏற்றுமதி செய்யலாம் அல்லது நீக்கலாம். நீங்கள் மூடி, ஒன்றரை ஆண்டுகளாகத் தொடாமல் விட்ட குழு தானாகவே உங்கள் காப்பகத்திற்கு நகர்த்தப்படுகிறது — எதுவும் நீக்கப்படாது, எப்போது வேண்டுமானாலும் மீண்டும் திறக்கலாம்.',
     dataControlsSection: 'உங்கள் தரவு',
     legalSection: 'சட்டம்',
     exportRow: 'உங்கள் தரவை ஏற்றுமதி செய்',
@@ -5852,7 +5852,7 @@ const hi: UiStrings = {
       'बाकी Supabase पर चलता है — डेटाबेस और साइन-इन, हमारे नियंत्रण वाले सर्वर पर। क्रैश रिपोर्ट फ़ोन छोड़ने से पहले आपके विवरण हटाकर Sentry को जाती हैं। गुमनाम उपयोग डेटा Microsoft Clarity को जाता है, और सिर्फ़ तभी जब आप इसे ऊपर चालू करें। आपका डेटा कभी बेचा नहीं जाता, और कोई विज्ञापन नेटवर्क नहीं है।',
     retentionTitle: 'हम इसे कब तक रखते हैं',
     retentionBody:
-      'जब तक आपका खाता खुला है, आपका डेटा रहता है। अगर खाता 3 साल तक अछूता रहे, तो हम उसे और उसके निजी डेटा को हटा देते हैं। इसके लिए इंतज़ार करने की ज़रूरत नहीं — नीचे कभी भी सब कुछ ख़ुद निर्यात या हटा सकते हैं।',
+      'जब तक आपका खाता खुला है, आपका डेटा रहता है। अगर खाता 3 साल तक अछूता रहे, तो हम उसे और उसके निजी डेटा को हटा देते हैं। इसके लिए इंतज़ार करने की ज़रूरत नहीं — नीचे कभी भी सब कुछ ख़ुद निर्यात या हटा सकते हैं। जिस समूह को आप बंद कर दें और डेढ़ साल तक न छूएं, वह अपने-आप आपके संग्रह में चला जाता है — कुछ भी नहीं हटता, और आप उसे कभी भी दोबारा खोल सकते हैं।',
     dataControlsSection: 'आपका डेटा',
     legalSection: 'क़ानूनी',
     exportRow: 'अपना डेटा निर्यात करें',
@@ -7470,7 +7470,7 @@ const ar: UiStrings = {
       'يعمل بـاقي على Supabase — قاعدة البيانات وتسجيل الدخول، على خوادم نتحكّم بها. تقارير الأعطال تذهب إلى Sentry بعد إزالة تفاصيلك قبل أن تغادر الهاتف. بيانات الاستخدام المجهولة تذهب إلى Microsoft Clarity، وفقط إذا فعّلتها أعلاه. بياناتك لا تُباع أبدًا، ولا توجد شبكات إعلانات.',
     retentionTitle: 'كم نحتفظ بها',
     retentionBody:
-      'تبقى بياناتك ما دام حسابك مفتوحًا. إذا بقي الحساب دون استخدام لمدة 3 سنوات، نحذفه ونحذف معه البيانات الشخصية. لا داعي للانتظار — يمكنك تصدير كل شيء أو حذفه بنفسك في أي وقت أدناه.',
+      'تبقى بياناتك ما دام حسابك مفتوحًا. إذا بقي الحساب دون استخدام لمدة 3 سنوات، نحذفه ونحذف معه البيانات الشخصية. لا داعي للانتظار — يمكنك تصدير كل شيء أو حذفه بنفسك في أي وقت أدناه. المجموعة التي تغلقها وتتركها دون استخدام لمدة عام ونصف تُنقل تلقائيًا إلى أرشيفك — لا يُحذف شيء، ويمكنك إعادة فتحها في أي وقت.',
     dataControlsSection: 'بياناتك',
     legalSection: 'قانوني',
     exportRow: 'صدِّر بياناتك',
