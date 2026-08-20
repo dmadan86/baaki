@@ -26,7 +26,6 @@ import {
   iconSize,
   Row,
   Screen,
-  SectionHeader,
   Skeleton,
   Text,
   useTabBarClearance,
@@ -375,9 +374,6 @@ export default function HomeScreen() {
           />
         ) : (
           <View>
-            {/* No action here anymore — "new group" lives in the top toolbar
-                next to the camera, so the title row never crowds or clips. */}
-            <SectionHeader title={t.yourGroups} />
             {presentTypes.length > 1 ? (
               <CategoryStrip types={presentTypes} active={active} onSelect={setCategory} t={t} />
             ) : null}
