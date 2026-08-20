@@ -206,7 +206,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 color: theme.color.onBrand,
               }}
             >
-              பாக்கி
+              Waves
             </Text>
             <Text variant="caption" tone="onBrand" align="center">
               {isSignup ? t.signIn.splitAnything.replace('\n', ' ') : t.signIn.tagline}
@@ -392,7 +392,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                   color: theme.color.onBrand,
                 }}
               >
-                பாக்கி
+                Waves
               </Text>
               <Text variant="caption" tone="onBrand" align="center">
                 {isGuest
