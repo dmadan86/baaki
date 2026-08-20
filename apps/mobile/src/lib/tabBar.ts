@@ -14,6 +14,7 @@
  */
 export const TAB_BAR_HIDDEN_ROUTES: ReadonlySet<string> = new Set([
   'sign-in',
+  'sign-up',
   'join',
   'capture',
   'new-group',

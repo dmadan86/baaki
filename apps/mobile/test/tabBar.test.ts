@@ -34,6 +34,7 @@ describe('resolveTabBar', () => {
   it('hides on the full-screen camera and the signed-out screens', () => {
     expect(resolveTabBar(['capture']).hidden).toBe(true);
     expect(resolveTabBar(['sign-in']).hidden).toBe(true);
+    expect(resolveTabBar(['sign-up']).hidden).toBe(true);
     expect(resolveTabBar(['join']).hidden).toBe(true);
     expect(resolveTabBar(['new-group']).hidden).toBe(true);
   });
