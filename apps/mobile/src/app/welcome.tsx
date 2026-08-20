@@ -29,7 +29,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { iconSize, Text, useTheme } from '@waves/ui';
+import { directionalIcon, iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';
@@ -84,7 +84,11 @@ export default function WelcomeScreen() {
                   opacity: pressed ? 0.6 : 1,
                 })}
               >
-                <Ionicons name="chevron-back" size={iconSize.lg} color={theme.color.onBrand} />
+                <Ionicons
+                  name={directionalIcon('chevron-back')}
+                  size={iconSize.lg}
+                  color={theme.color.onBrand}
+                />
               </Pressable>
             ) : (
               <View style={{ width: 44 }} />

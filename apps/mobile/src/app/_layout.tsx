@@ -356,7 +356,14 @@ function AuthGate() {
   const onSignIn = segments[0] === 'sign-in';
   // The welcome gateway is where a signed-out person lands; a session appearing
   // on it (or on either door) bounces back into the app, so it counts as auth.
-  const onAuth = onSignIn || segments[0] === 'sign-up' || segments[0] === 'welcome';
+  // The guest doorway counts as auth too: a signed-out person is allowed to sit
+  // on it, and the moment its Continue mints a guest session the gate bounces it
+  // into the app, exactly like the doors.
+  const onAuth =
+    onSignIn ||
+    segments[0] === 'sign-up' ||
+    segments[0] === 'welcome' ||
+    segments[0] === 'guest-welcome';
   const onPublicRoute =
     onAuth ||
     segments[0] === 'join' ||
@@ -418,6 +425,7 @@ function AuthGate() {
         <Stack.Screen name="sign-up" />
         <Stack.Screen name="phone" />
         <Stack.Screen name="verify-email" />
+        <Stack.Screen name="guest-welcome" />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
         <Stack.Screen name="new-group" options={modal} />
         <Stack.Screen name="paywall" options={modal} />

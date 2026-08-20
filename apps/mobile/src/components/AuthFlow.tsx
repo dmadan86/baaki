@@ -79,7 +79,7 @@ const TOUR_KEY = 'baaki.onboarding_seen';
 export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const theme = useTheme();
   const { t } = useStrings();
-  const { sendOtp, verifyOtp, continueAsGuest, withPassword, withGoogle, isGuest } = useAuth();
+  const { sendOtp, verifyOtp, withPassword, withGoogle, isGuest } = useAuth();
 
   const isSignup = flow === 'signup';
 
@@ -340,7 +340,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                   size="lg"
                   fullWidth
                   disabled={busy}
-                  onPress={() => void run(continueAsGuest)}
+                  onPress={() => router.push('/guest-welcome')}
                 />
               ) : null}
             </View>
@@ -655,7 +655,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 size="lg"
                 fullWidth
                 disabled={busy}
-                onPress={() => void run(continueAsGuest)}
+                onPress={() => router.push('/guest-welcome')}
               />
             ) : null}
 
