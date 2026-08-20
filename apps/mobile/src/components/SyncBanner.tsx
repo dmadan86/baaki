@@ -136,10 +136,22 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
         <Text variant="caption" tone="muted">
           {first?.message ?? t.misc.serverRefused}
         </Text>
+        {/* The two recovery actions for a refused change — the buttons a person
+            most needs to hit. A caption Text alone left the tap area ~18pt tall;
+            a 44pt floor plus hitSlop makes each a real target, and an explicit
+            label names the action for a screen reader rather than leaning on the
+            child text. */}
         <Row style={{ gap: theme.spacing.lg }}>
           <Pressable
             onPress={() => first && void retry(first.clientMutationId)}
             accessibilityRole="button"
+            accessibilityLabel={t.extras.tryAgain}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              minHeight: 44,
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
             <Text variant="caption" tone="brand">
               {t.extras.tryAgain}
@@ -148,6 +160,13 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
           <Pressable
             onPress={() => first && void discard(first.clientMutationId)}
             accessibilityRole="button"
+            accessibilityLabel={t.extras.discardIt}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              minHeight: 44,
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
             <Text variant="caption" tone="muted">
               {t.extras.discardIt}
