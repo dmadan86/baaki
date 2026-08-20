@@ -64,11 +64,17 @@ export default function PersonDetailScreen() {
   // in the route *is* their profile id (the list keys them on it), so `key` is
   // the block key. A ghost or a merged-ghost person_key is not a profile id and
   // nothing elsewhere keys off it, so those are left un-blockable.
-  const { isBlocked, block, unblock } = useBlockedUsers();
+  const { isBlocked, block, unblock, ready } = useBlockedUsers();
   const isRealPerson = rows.some((row) => !row.is_ghost);
-  const blocked = isRealPerson && isBlocked(key);
+  // Independent of `isRealPerson`: a ghost's key is never in the block set, so
+  // this stays false for one regardless — and asking directly means a block is
+  // honoured before the group rows have loaded, not only after.
+  const blocked = isBlocked(key);
   const realName = rows.find((row) => !row.is_ghost)?.display_name ?? name ?? t.misc.someone;
-  const title = blocked ? t.misc.someone : (name ?? rows[0]?.display_name ?? '');
+  // Until the block store has hydrated we cannot know whether this person is
+  // blocked, so show the generic label rather than risk flashing a real name
+  // that a block would have masked.
+  const title = !ready || blocked ? t.misc.someone : (name ?? rows[0]?.display_name ?? '');
 
   const confirmBlock = (): void => {
     Alert.alert(fill(t.blocked.confirmTitle, { name: realName }), t.blocked.confirmBody, [

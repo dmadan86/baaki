@@ -140,7 +140,12 @@ export default function ActivityScreen() {
                     <Pressable
                       key={entry.id}
                       accessibilityRole="button"
-                      accessibilityLabel={describeActivity(entry, myProfileId, blockedIds)}
+                      accessibilityLabel={describeActivity(
+                        entry,
+                        myProfileId,
+                        blockedIds,
+                        t.misc.someone,
+                      )}
                       onPress={() => router.push(`/group/${entry.group_id}`)}
                       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                     >
@@ -191,7 +196,7 @@ export default function ActivityScreen() {
                         >
                           <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
                             <Text variant="body" numberOfLines={3} style={{ flex: 1 }}>
-                              {describeActivity(entry, myProfileId, blockedIds)}
+                              {describeActivity(entry, myProfileId, blockedIds, t.misc.someone)}
                             </Text>
                             {/* `payload` is an untyped JSON blob, so a bad amount
                             must render as no amount, not as a crashed tab. */}

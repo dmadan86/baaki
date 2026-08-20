@@ -115,6 +115,12 @@ export function CurrencyRate({
   const foreign = currency !== groupCurrency;
 
   const choose = (next: string): void => {
+    // Invalidate any in-flight fetch synchronously: point `latestPair` at the
+    // pair we are switching to so a response for the old pair is dropped the
+    // moment it returns, and clear the spinner now — the stale fetch's `finally`
+    // is guarded on the pair and would otherwise never release `busy`.
+    latestPair.current = `${next}|${groupCurrency}`;
+    setBusy(false);
     onCurrencyChange(next);
     // A rate for the old currency would convert the wrong thing, and the server
     // rejects it anyway — clearing it here just makes that visible sooner.

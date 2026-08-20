@@ -49,10 +49,11 @@ export function describeActivity(
   entry: ActivityRow,
   myProfileId: string | null,
   blocked?: ReadonlySet<string> | null,
+  someoneLabel = 'Someone',
 ): string {
   const { payload } = entry;
   const description = typeof payload.description === 'string' ? payload.description : null;
-  const who = actorName(entry.actor, myProfileId, blocked);
+  const who = actorName(entry.actor, myProfileId, blocked, someoneLabel);
 
   switch (entry.verb) {
     case 'added':

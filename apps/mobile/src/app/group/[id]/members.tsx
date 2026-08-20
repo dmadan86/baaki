@@ -246,7 +246,14 @@ export default function MembersScreen() {
             <View key={member.id}>
               <ListRow
                 title={displayName(member, profile?.id, blockedIds, t.misc.someone)}
-                subtitle={isGhost(member) ? t.notJoinedYet : (vpaOf(member) ?? t.misc.noUpiYet)}
+                subtitle={
+                  isGhost(member)
+                    ? t.notJoinedYet
+                    : isBlockedMember(member, blockedIds)
+                      ? // A VPA carries a name or phone — masked for a blocked person.
+                        t.misc.noUpiYet
+                      : (vpaOf(member) ?? t.misc.noUpiYet)
+                }
                 leading={
                   <Avatar
                     name={displayName(member, null, blockedIds, t.misc.someone)}

@@ -81,15 +81,19 @@ function emit(): void {
   for (const listener of listeners) listener();
 }
 
+// Set once a block/unblock has run. If one lands while the initial read is
+// still pending, the read's older snapshot must not overwrite the live list.
+let mutated = false;
+
 /** Load once, lazily, on first subscribe. Failures leave an empty list, ready. */
 function hydrate(): Promise<void> {
   if (hydration) return hydration;
   hydration = AsyncStorage.getItem(STORAGE_KEY)
     .then((raw) => {
-      blocked = parseBlocked(raw);
+      if (!mutated) blocked = parseBlocked(raw);
     })
     .catch(() => {
-      blocked = [];
+      if (!mutated) blocked = [];
     })
     .finally(() => {
       ready = true;
@@ -99,6 +103,7 @@ function hydrate(): Promise<void> {
 }
 
 function persist(next: readonly BlockedUser[]): void {
+  mutated = true;
   blocked = next;
   emit();
   void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
