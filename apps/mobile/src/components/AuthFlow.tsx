@@ -206,7 +206,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 color: theme.color.onBrand,
               }}
             >
-              Waves
+              {t.common.appName}
             </Text>
             <Text variant="caption" tone="onBrand" align="center">
               {isSignup ? t.signIn.splitAnything.replace('\n', ' ') : t.signIn.tagline}
@@ -359,7 +359,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               align="center"
               style={{ paddingTop: theme.spacing.xs }}
             >
-              Waves {Constants.expoConfig?.version ?? ''}
+              {t.common.appName} {Constants.expoConfig?.version ?? ''}
             </Text>
           </View>
         </ScrollView>
@@ -395,7 +395,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                   color: theme.color.onBrand,
                 }}
               >
-                Waves
+                {t.common.appName}
               </Text>
               <Text variant="caption" tone="onBrand" align="center">
                 {isGuest
