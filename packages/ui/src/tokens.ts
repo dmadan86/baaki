@@ -17,17 +17,18 @@
  */
 
 export const palette = {
-  // Warm gold / burnt orange / deep rust ramp — throwaway experiment palette.
-  // brand500 is a burnt orange dark enough to hold white text (WCAG AA); the
-  // lighter stops carry the warm gold, the darkest the deep rust.
-  brand50: '#FAF0DD',
-  brand100: '#F4E0BC',
-  brand200: '#EBC888',
-  brand300: '#DFA84E',
-  brand400: '#C67E1C',
-  brand500: '#A85A12',
-  brand600: '#8A4711',
-  brand700: '#6E3512',
+  // Warm gold ramp — throwaway experiment palette. brand500 is a deep
+  // goldenrod: the darkest warm gold that still holds white text at WCAG AA,
+  // since white `onBrand` sits on both solid brand buttons and the brand wash.
+  // Lighter stops are brighter gold; the darkest go rust-brown.
+  brand50: '#FBF4DF',
+  brand100: '#F5E6B8',
+  brand200: '#ECD07E',
+  brand300: '#DEB43F',
+  brand400: '#C0901A',
+  brand500: '#93690D',
+  brand600: '#7A560B',
+  brand700: '#5E3F0E',
 
   // Carbon black.
   ink900: '#191A22',
@@ -92,8 +93,8 @@ export const palette = {
  * to hold white text, because the balance and its labels sit on all of them.
  */
 export const gradients = {
-  light: [palette.brand700, palette.brand500, '#D08A1E'],
-  dark: ['#4A2410', '#6E3512', '#8A4711'],
+  light: [palette.brand700, palette.brand500, '#C79418'],
+  dark: ['#3A2A08', '#5E3F0E', '#7A560B'],
   // A second, unmistakably-blue wash for the paired action tile — vibrant like
   // the reference's yellow second tile, but kept off the money hues (mint/red)
   // and off warning amber so it never reads as a status. Every stop holds white.
