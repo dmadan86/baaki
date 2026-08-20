@@ -54,7 +54,7 @@ export default function PhoneScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useStrings();
-  const { sendOtp, verifyOtp } = useAuth();
+  const { sendOtp, verifyOtp, continueAsGuest } = useAuth();
 
   // Same guess as the auth card: the handset's own country, India only when the
   // region is unknown or unstocked. The picker beside the field makes any wrong
@@ -73,6 +73,13 @@ export default function PhoneScreen() {
 
   // The wire form: dial code and local digits, no spaces or punctuation.
   const fullPhone = `${dialCode}${phone.replace(/\D/g, '')}`;
+
+  // DEV-ONLY: real SMS is not wired yet, so a dev build skips the send and
+  // accepts one fixed code, standing in a guest session so the app is walkable.
+  // `__DEV__` is false in every release build, so none of this ships — a client
+  // that accepted a magic code in production would be an auth bypass.
+  const DEV_OTP = '000000';
+  const devStub = __DEV__;
 
   const run = async (action: () => Promise<void>): Promise<void> => {
     setBusy(true);
@@ -202,7 +209,9 @@ export default function PhoneScreen() {
                 disabled={busy || phone.replace(/\D/g, '').length < 6}
                 onPress={() =>
                   void run(async () => {
-                    await sendOtp(fullPhone);
+                    // Dev build: no SMS to send — go straight to the code field,
+                    // where 000000 stands in.
+                    if (!devStub) await sendOtp(fullPhone);
                     setStage('code');
                   })
                 }
@@ -225,7 +234,7 @@ export default function PhoneScreen() {
                 </Text>
                 <Pressable
                   accessibilityRole="button"
-                  disabled={busy}
+                  disabled={busy || devStub}
                   hitSlop={8}
                   onPress={() => void run(() => sendOtp(fullPhone))}
                   style={({ pressed }) => ({
@@ -233,12 +242,17 @@ export default function PhoneScreen() {
                     alignItems: 'center',
                     gap: theme.spacing.xs,
                     alignSelf: 'flex-start',
-                    opacity: pressed ? 0.6 : 1,
+                    opacity: pressed || devStub ? 0.6 : 1,
                   })}
                 >
                   <Ionicons name="refresh" size={iconSize.md} color={theme.color.brand} />
                   <Text style={{ fontWeight: '700', color: theme.color.brand }}>Resend code</Text>
                 </Pressable>
+                {devStub ? (
+                  <Text variant="micro" tone="muted">
+                    Dev build — enter {DEV_OTP} to continue.
+                  </Text>
+                ) : null}
               </View>
 
               <Card>
@@ -270,7 +284,17 @@ export default function PhoneScreen() {
                 size="lg"
                 fullWidth
                 disabled={busy || code.trim().length < 4}
-                onPress={() => void run(() => verifyOtp(fullPhone, code.trim()))}
+                onPress={() =>
+                  void run(async () => {
+                    // Dev build: the fixed code takes a guest session so the app
+                    // is walkable until real phone OTP is wired. Never in release.
+                    if (devStub && code.trim() === DEV_OTP) {
+                      await continueAsGuest();
+                      return;
+                    }
+                    await verifyOtp(fullPhone, code.trim());
+                  })
+                }
               />
               {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
             </>
