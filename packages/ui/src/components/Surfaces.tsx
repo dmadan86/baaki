@@ -99,7 +99,13 @@ export function SectionHeader({ title, action }: { title: string; action?: React
         marginBottom: theme.spacing.md,
       }}
     >
-      <Text variant="heading">{title}</Text>
+      {/* Marked as a header so a screen reader's heading navigation (the iOS
+          rotor, TalkBack's heading swipe) can jump between sections — a long
+          settings or group screen is a wall of rows otherwise. Purely semantic;
+          nothing about the look changes. */}
+      <Text variant="heading" accessibilityRole="header">
+        {title}
+      </Text>
       {action}
     </View>
   );
