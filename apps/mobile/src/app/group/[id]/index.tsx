@@ -246,8 +246,11 @@ export default function GroupScreen() {
       <Screen edges={['top', 'bottom']}>
         <View style={{ flex: 1, paddingHorizontal: theme.spacing.xl }}>
           <Row style={{ paddingTop: theme.spacing.md }}>
+            {/* Never a dead control: a cold open from a notification or a stale
+                invite link has no history to pop, so the chevron falls back to
+                home rather than silently doing nothing. */}
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
               accessibilityRole="button"
               accessibilityLabel={t.common.back}
               hitSlop={10}
@@ -294,9 +297,12 @@ export default function GroupScreen() {
             </Text>
           </View>
 
+          {/* The reliable way out. This state is most often reached by following
+              a link to a group that has gone, where there is no back stack — so
+              the primary action goes home for certain, the way join.tsx does. */}
           <Button
-            label={t.common.back}
-            onPress={() => router.back()}
+            label={t.misc.goToBaaki}
+            onPress={() => router.replace('/')}
             fullWidth
             style={{ marginBottom: theme.spacing.xl }}
           />
