@@ -99,6 +99,9 @@ export function PaymentMethodPicker(props: PaymentMethodPickerProps) {
               flexDirection: 'row',
               alignItems: 'center',
               gap: theme.spacing.xs,
+              // Match the category chips: a 44pt floor so the tap target clears
+              // the iOS 44 / Android 48 minimum (padding alone left it ~37pt).
+              minHeight: 44,
               paddingVertical: theme.spacing.sm,
               paddingHorizontal: theme.spacing.md,
               borderRadius: theme.radius.md,

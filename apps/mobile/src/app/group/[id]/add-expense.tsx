@@ -4,7 +4,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from 'react-native';
 
 import {
   CategoryId,
@@ -785,473 +793,518 @@ export default function AddExpenseScreen() {
     );
   };
 
+  // Why Save is disabled, in one line, so a greyed-out button is never a dead
+  // end the person has to guess their way out of. A broken split already prints
+  // its own reason in the split card, so it is not repeated here; `saving` is a
+  // transient state, not something to instruct around.
+  const saveHint =
+    amount === 0n
+      ? t.expense.saveNeedsAmount
+      : participants.length === 0
+        ? t.expense.saveNeedsWho
+        : null;
+  const canSave = amount > 0n && participants.length > 0 && splitIssue === null;
+
   return (
     <Screen edges={['top', 'bottom']}>
-      <ScrollView
+      {/* The action bar is pinned to the bottom edge, outside the scroll, and a
+          split-share field can be the focused input — on iOS the soft keyboard
+          would slide up over both. Lifting the scroll + bar together keeps the
+          running total, Save, and the field you are typing in above the
+          keyboard. Android resizes the window itself (adjustResize), so it needs
+          no behaviour. The currency sheet sits outside this wrapper so it stays
+          anchored to the screen, not shoved by the keyboard-avoid. */}
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: theme.spacing.xl,
-          gap: theme.spacing.xl,
-        }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ExpenseHeader
-          title={editing ? t.expense.edit : t.addExpense}
-          subtitle={groupLabel(group.data, members.data ?? [], profile?.id)}
-          right={
-            editing ? undefined : (
-              <IconButton
-                label={t.expense.splitByItem}
-                onPress={() => router.replace(`/group/${groupId}/itemize`)}
-              >
-                <Ionicons name="list-outline" size={iconSize.lg} color={theme.color.brand} />
-              </IconButton>
-            )
-          }
-        />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: theme.spacing.xl,
+            gap: theme.spacing.xl,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <ExpenseHeader
+            title={editing ? t.expense.edit : t.addExpense}
+            subtitle={groupLabel(group.data, members.data ?? [], profile?.id)}
+            right={
+              editing ? undefined : (
+                <IconButton
+                  label={t.expense.splitByItem}
+                  onPress={() => router.replace(`/group/${groupId}/itemize`)}
+                >
+                  <Ionicons name="list-outline" size={iconSize.lg} color={theme.color.brand} />
+                </IconButton>
+              )
+            }
+          />
 
-        {editing ? (
-          <Card style={{ backgroundColor: theme.color.brandSoft }}>
-            <Text variant="caption" tone="brand">
-              {t.expense.editingKeepsVersion}
-            </Text>
-          </Card>
-        ) : null}
+          {editing ? (
+            <Card style={{ backgroundColor: theme.color.brandSoft }}>
+              <Text variant="caption" tone="brand">
+                {t.expense.editingKeepsVersion}
+              </Text>
+            </Card>
+          ) : null}
 
-        {/* Amount-forward hero shared with the capture screen: big centred
+          {/* Amount-forward hero shared with the capture screen: big centred
             number, the currency it is counted in a tap below it. */}
-        <AmountHeader
-          currency={currency}
-          amount={amount}
-          onAmountChange={setAmount}
-          onPressCurrency={() => setPickingCurrency(true)}
-        />
+          <AmountHeader
+            currency={currency}
+            amount={amount}
+            onAmountChange={setAmount}
+            onPressCurrency={() => setPickingCurrency(true)}
+          />
 
-        {/* Below the amount, not above it. Typing a number is the fast path and
+          {/* Below the amount, not above it. Typing a number is the fast path and
             stays the first thing on the screen; the camera is for the bill that
             is easier to point at than to read. Attach sits beside Scan for the
             bill that is already a picture, or the scan that would not read. */}
-        <Card style={{ gap: theme.spacing.md }}>
-          <View>
-            <Text variant="subheading">
-              {capLocked ? t.expense.capReachedTitle : t.expense.scanBillTitle}
-            </Text>
-            <Text variant="caption" tone="muted">
-              {capLocked ? t.expense.capReachedBody : t.expense.scanBillBody}
-            </Text>
-          </View>
+          <Card style={{ gap: theme.spacing.md }}>
+            <View>
+              <Text variant="subheading">
+                {capLocked ? t.expense.capReachedTitle : t.expense.scanBillTitle}
+              </Text>
+              <Text variant="caption" tone="muted">
+                {capLocked ? t.expense.capReachedBody : t.expense.scanBillBody}
+              </Text>
+            </View>
 
-          {/* Scan is metered and gives way when the group is capped; Attach is
+            {/* Scan is metered and gives way when the group is capped; Attach is
               not — it keeps a photo on the device and never records a receipt
               server-side, so it is offered even at the cap. */}
-          <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-            {!capLocked ? (
+            <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+              {!capLocked ? (
+                <Button
+                  label={scanning ? t.expense.reading : t.expense.scan}
+                  variant="secondary"
+                  disabled={scanning || saving || capStatus === 'loading'}
+                  onPress={() => void scan()}
+                  icon={
+                    <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
+                  }
+                />
+              ) : null}
               <Button
-                label={scanning ? t.expense.reading : t.expense.scan}
+                label={t.expense.attach}
                 variant="secondary"
-                disabled={scanning || saving || capStatus === 'loading'}
-                onPress={() => void scan()}
+                disabled={scanning || saving}
+                onPress={() => void attach()}
                 icon={
-                  <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
+                  <Ionicons name="image-outline" size={iconSize.md} color={theme.color.brand} />
                 }
               />
-            ) : null}
-            <Button
-              label={t.expense.attach}
-              variant="secondary"
-              disabled={scanning || saving}
-              onPress={() => void attach()}
-              icon={<Ionicons name="image-outline" size={iconSize.md} color={theme.color.brand} />}
-            />
-          </Row>
-          {capLocked ? (
-            <Row style={{ gap: theme.spacing.sm }}>
-              <Button
-                label={t.expense.capUpgrade}
-                onPress={() => router.push('/settings/upgrade')}
-              />
-              <Button
-                label={t.expense.capAddStorage}
-                variant="secondary"
-                onPress={() => router.push('/settings/backup')}
-              />
             </Row>
-          ) : null}
-          {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
-          {scanNote ? (
-            <Text variant="caption" tone="brand">
-              {scanNote}
-            </Text>
-          ) : null}
+            {capLocked ? (
+              <Row style={{ gap: theme.spacing.sm }}>
+                <Button
+                  label={t.expense.capUpgrade}
+                  onPress={() => router.push('/settings/upgrade')}
+                />
+                <Button
+                  label={t.expense.capAddStorage}
+                  variant="secondary"
+                  onPress={() => router.push('/settings/backup')}
+                />
+              </Row>
+            ) : null}
+            {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
+            {scanNote ? (
+              <Text variant="caption" tone="brand">
+                {scanNote}
+              </Text>
+            ) : null}
 
-          {/* The kept bill (E2): a thumbnail that opens the full-screen viewer,
+            {/* The kept bill (E2): a thumbnail that opens the full-screen viewer,
               and below it the explicit, off-by-default choice to open it to the
               group from your own Drive (E3). Both hide themselves until there is
               a bill on the device. */}
-          {receiptUri ? (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.expense.viewReceipt}
-                onPress={() =>
-                  router.push(
-                    `/receipt/${targetExpenseId}${
-                      shareUrl ? `?shareUrl=${encodeURIComponent(shareUrl)}` : ''
-                    }`,
-                  )
-                }
-              >
+            {receiptUri ? (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.expense.viewReceipt}
+                  onPress={() =>
+                    router.push(
+                      `/receipt/${targetExpenseId}${
+                        shareUrl ? `?shareUrl=${encodeURIComponent(shareUrl)}` : ''
+                      }`,
+                    )
+                  }
+                >
+                  <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                    <Image
+                      source={{ uri: receiptUri }}
+                      style={{ width: 52, height: 52, borderRadius: theme.radius.md }}
+                      contentFit="cover"
+                      transition={150}
+                    />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text variant="subheading" numberOfLines={1}>
+                        {t.expense.viewReceipt}
+                      </Text>
+                      <Text variant="micro" tone="muted" numberOfLines={1}>
+                        {t.expense.receiptAttached}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={directionalIcon('chevron-forward')}
+                      size={iconSize.md}
+                      color={theme.color.textFaint}
+                    />
+                  </Row>
+                </Pressable>
+
                 <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                  <Image
-                    source={{ uri: receiptUri }}
-                    style={{ width: 52, height: 52, borderRadius: theme.radius.md }}
-                    contentFit="cover"
-                    transition={150}
-                  />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text variant="subheading" numberOfLines={1}>
-                      {t.expense.viewReceipt}
-                    </Text>
-                    <Text variant="micro" tone="muted" numberOfLines={1}>
-                      {t.expense.receiptAttached}
+                    <Text variant="caption">{t.expense.shareReceiptTitle}</Text>
+                    <Text variant="micro" tone="muted">
+                      {shareEligible
+                        ? t.expense.shareReceiptBody
+                        : t.expense.shareReceiptNeedsStorage}
                     </Text>
                   </View>
-                  <Ionicons
-                    name={directionalIcon('chevron-forward')}
-                    size={iconSize.md}
-                    color={theme.color.textFaint}
+                  <Toggle
+                    value={shareWithGroup}
+                    onValueChange={setShareWithGroup}
+                    // Off means off; on can always be turned back off. On can only
+                    // be turned on once the bill is on a share-capable cloud, so a
+                    // toggle can never claim to share what nothing can serve.
+                    disabled={!shareEligible && !shareWithGroup}
+                    accessibilityLabel={t.expense.shareReceiptTitle}
                   />
                 </Row>
+              </>
+            ) : null}
+
+            {scannedItems > 0 && !editing ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.replace(`/group/${groupId}/itemize`)}
+              >
+                <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
+                  {`${plural(locale, scannedItems, t.expense.scanReadItemsCta)} →`}
+                </Text>
               </Pressable>
+            ) : null}
+          </Card>
 
-              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text variant="caption">{t.expense.shareReceiptTitle}</Text>
-                  <Text variant="micro" tone="muted">
-                    {shareEligible
-                      ? t.expense.shareReceiptBody
-                      : t.expense.shareReceiptNeedsStorage}
-                  </Text>
-                </View>
-                <Toggle
-                  value={shareWithGroup}
-                  onValueChange={setShareWithGroup}
-                  // Off means off; on can always be turned back off. On can only
-                  // be turned on once the bill is on a share-capable cloud, so a
-                  // toggle can never claim to share what nothing can serve.
-                  disabled={!shareEligible && !shareWithGroup}
-                  accessibilityLabel={t.expense.shareReceiptTitle}
-                />
-              </Row>
-            </>
-          ) : null}
-
-          {scannedItems > 0 && !editing ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.replace(`/group/${groupId}/itemize`)}
-            >
-              <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
-                {`${plural(locale, scannedItems, t.expense.scanReadItemsCta)} →`}
-              </Text>
-            </Pressable>
-          ) : null}
-        </Card>
-
-        {/* Currency is chosen from the header pill; this now collapses to the FX
+          {/* Currency is chosen from the header pill; this now collapses to the FX
             rate alone — nothing while the expense is in the group's currency,
             the rate methods once it is foreign (ADR-003). */}
-        <CurrencyRate
-          groupCurrency={groupCurrency}
-          currency={currency}
-          onCurrencyChange={setExpenseCurrency}
-          amount={amount}
-          fx={fx}
-          onFxChange={setFx}
-          showCurrencyPicker={false}
-        />
+          <CurrencyRate
+            groupCurrency={groupCurrency}
+            currency={currency}
+            onCurrencyChange={setExpenseCurrency}
+            amount={amount}
+            fx={fx}
+            onFxChange={setFx}
+            showCurrencyPicker={false}
+          />
 
-        {/* Description field shared with capture. Kept multiline here for the
+          {/* Description field shared with capture. Kept multiline here for the
             longer notes a group expense sometimes carries. The member names are
             handed to the recogniser as hints — a general model guesses at Indian
             names and gets them wrong, and the note is where they turn up. */}
-        <DescriptionField
-          value={description}
-          onChange={setDescription}
-          placeholder={t.expense.descriptionPlaceholder}
-          accessibilityLabel={t.description}
-          hints={nameHints}
-          multiline
-        />
+          <DescriptionField
+            value={description}
+            onChange={setDescription}
+            placeholder={t.expense.descriptionPlaceholder}
+            accessibilityLabel={t.description}
+            hints={nameHints}
+            multiline
+          />
 
-        {/* Pre-picked from the description, because a menu between somebody and
+          {/* Pre-picked from the description, because a menu between somebody and
             saving a dinner is how a column ends up empty — and an empty column
             is a spending chart nobody can draw (TDR §8). */}
-        <View style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.whatFor}
-          </Text>
-          <CategoryPicker
-            value={category}
-            onChange={(picked) => {
-              setCategory(picked);
-              setCategoryChosen(true);
-            }}
-          />
-        </View>
+          <View style={{ gap: theme.spacing.md }}>
+            <Text variant="caption" tone="muted">
+              {t.whatFor}
+            </Text>
+            <CategoryPicker
+              value={category}
+              onChange={(picked) => {
+                setCategory(picked);
+                setCategoryChosen(true);
+              }}
+            />
+          </View>
 
-        {/* How it was paid — a tag on the expense, defaulting to cash. */}
-        <View style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.captures.paidWith}
-          </Text>
-          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
-        </View>
+          {/* How it was paid — a tag on the expense, defaulting to cash. */}
+          <View style={{ gap: theme.spacing.md }}>
+            <Text variant="caption" tone="muted">
+              {t.captures.paidWith}
+            </Text>
+            <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+          </View>
 
-        {/* The one-line answer to "who pays what", tappable to open the three
+          {/* The one-line answer to "who pays what", tappable to open the three
             controls that decide it. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: showSplit }}
-          accessibilityLabel={t.expense.howToSplit}
-          onPress={() => setSplitOpen((open) => !open)}
-          // Never fold a broken split away behind its own summary.
-          disabled={splitIssue !== null}
-        >
-          <Card style={{ gap: theme.spacing.xs }}>
-            <Row style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text variant="caption" tone="muted">
-                  {t.expense.howToSplit}
-                </Text>
-                <Text variant="subheading" numberOfLines={2}>
-                  {[
-                    splitKind === SplitKind.Equal
-                      ? t.expense.equally
-                      : splitKind === SplitKind.Shares
-                        ? t.expense.shares
-                        : t.expense.percent,
-                    plural(locale, participants.length, t.memberCount),
-                  ].join(' · ')}
-                </Text>
-              </View>
-              <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flexShrink: 0 }}>
-                <Text variant="caption" tone="brand">
-                  {showSplit ? t.common.done : t.common.edit}
-                </Text>
-                <Ionicons
-                  name={showSplit ? 'chevron-up' : 'chevron-down'}
-                  size={iconSize.md}
-                  color={theme.color.brand}
-                />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showSplit }}
+            accessibilityLabel={t.expense.howToSplit}
+            onPress={() => setSplitOpen((open) => !open)}
+            // Never fold a broken split away behind its own summary.
+            disabled={splitIssue !== null}
+          >
+            <Card style={{ gap: theme.spacing.xs }}>
+              <Row style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="caption" tone="muted">
+                    {t.expense.howToSplit}
+                  </Text>
+                  <Text variant="subheading" numberOfLines={2}>
+                    {[
+                      splitKind === SplitKind.Equal
+                        ? t.expense.equally
+                        : splitKind === SplitKind.Shares
+                          ? t.expense.shares
+                          : t.expense.percent,
+                      plural(locale, participants.length, t.memberCount),
+                    ].join(' · ')}
+                  </Text>
+                </View>
+                <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flexShrink: 0 }}>
+                  <Text variant="caption" tone="brand">
+                    {showSplit ? t.common.done : t.common.edit}
+                  </Text>
+                  <Ionicons
+                    name={showSplit ? 'chevron-up' : 'chevron-down'}
+                    size={iconSize.md}
+                    color={theme.color.brand}
+                  />
+                </Row>
               </Row>
-            </Row>
-          </Card>
-        </Pressable>
+            </Card>
+          </Pressable>
 
-        {/* Kept mounted and hidden rather than unmounted: the weighted split's
+          {/* Kept mounted and hidden rather than unmounted: the weighted split's
             fields hold text somebody is mid-way through typing, and a fold that
             threw it away would be a worse trade than a taller tree. */}
-        <View style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
-          <ChipRow<SplitKind>
-            value={splitKind}
-            onChange={setSplitKind}
-            options={[
-              { value: SplitKind.Equal, label: t.expense.equally },
-              { value: SplitKind.Shares, label: t.expense.shares },
-              { value: SplitKind.Percent, label: t.expense.percent },
-            ]}
-          />
-        </View>
+          <View style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
+            <ChipRow<SplitKind>
+              value={splitKind}
+              onChange={setSplitKind}
+              options={[
+                { value: SplitKind.Equal, label: t.expense.equally },
+                { value: SplitKind.Shares, label: t.expense.shares },
+                { value: SplitKind.Percent, label: t.expense.percent },
+              ]}
+            />
+          </View>
 
-        {!expenseId ? (
+          {!expenseId ? (
+            <Card style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
+              <Text variant="caption" tone="muted">
+                {t.paidBy}
+              </Text>
+              <Row style={{ flexWrap: 'wrap', gap: theme.spacing.md }}>
+                {(members.data ?? []).map((member) => (
+                  <Pressable
+                    key={member.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: payer === member.id }}
+                    accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
+                    onPress={() => setPayer(member.id)}
+                    style={{
+                      alignItems: 'center',
+                      gap: 4,
+                      opacity: payer === member.id ? 1 : 0.45,
+                    }}
+                  >
+                    <Avatar name={displayName(member)} ghost={isGhost(member)} />
+                    <Text variant="micro" tone={payer === member.id ? 'brand' : 'muted'}>
+                      {displayName(member, profile?.id)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </Row>
+            </Card>
+          ) : null}
+
           <Card style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
-            <Text variant="caption" tone="muted">
-              {t.paidBy}
-            </Text>
-            <Row style={{ flexWrap: 'wrap', gap: theme.spacing.md }}>
-              {(members.data ?? []).map((member) => (
-                <Pressable
-                  key={member.id}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: payer === member.id }}
-                  accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
-                  onPress={() => setPayer(member.id)}
-                  style={{ alignItems: 'center', gap: 4, opacity: payer === member.id ? 1 : 0.45 }}
-                >
-                  <Avatar name={displayName(member)} ghost={isGhost(member)} />
-                  <Text variant="micro" tone={payer === member.id ? 'brand' : 'muted'}>
-                    {displayName(member, profile?.id)}
-                  </Text>
-                </Pressable>
-              ))}
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text variant="caption" tone="muted">
+                {t.expense.splitBetween}
+              </Text>
+              <Text variant="micro" tone="muted">
+                {t.expense.ofCount
+                  .replace('{chosen}', String(participants.length))
+                  .replace('{total}', String(members.data?.length ?? 0))}
+              </Text>
             </Row>
-          </Card>
-        ) : null}
 
-        <Card style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="caption" tone="muted">
-              {t.expense.splitBetween}
-            </Text>
-            <Text variant="micro" tone="muted">
-              {t.expense.ofCount
-                .replace('{chosen}', String(participants.length))
-                .replace('{total}', String(members.data?.length ?? 0))}
-            </Text>
-          </Row>
-
-          {(members.data ?? []).map((member) => {
-            const selected = participants.includes(member.id);
-            const name = displayName(member, profile?.id);
-            return (
-              <View
-                key={member.id}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.md,
-                  paddingVertical: theme.spacing.sm,
-                }}
-              >
-                {/* The name toggles; the field beside it must not, or nobody
-                    could tap into it without dropping the person. */}
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: selected }}
-                  accessibilityLabel={name}
-                  onPress={() => toggleParticipant(member.id)}
+            {(members.data ?? []).map((member) => {
+              const selected = participants.includes(member.id);
+              const name = displayName(member, profile?.id);
+              return (
+                <View
+                  key={member.id}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: theme.spacing.md,
-                    flex: 1,
+                    paddingVertical: theme.spacing.sm,
                   }}
                 >
-                  <Avatar name={displayName(member)} ghost={isGhost(member)} size={38} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text variant="subheading" numberOfLines={1}>
-                      {name}
-                    </Text>
-                    {selected && amount > 0n ? (
-                      <MoneyText
-                        amount={lineAmount(member.id)}
-                        currency={currency}
-                        locale={locale}
-                        variant="caption"
+                  {/* The name toggles; the field beside it must not, or nobody
+                    could tap into it without dropping the person. */}
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={name}
+                    onPress={() => toggleParticipant(member.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: theme.spacing.md,
+                      flex: 1,
+                    }}
+                  >
+                    <Avatar name={displayName(member)} ghost={isGhost(member)} size={38} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text variant="subheading" numberOfLines={1}>
+                        {name}
+                      </Text>
+                      {selected && amount > 0n ? (
+                        <MoneyText
+                          amount={lineAmount(member.id)}
+                          currency={currency}
+                          locale={locale}
+                          variant="caption"
+                        />
+                      ) : null}
+                    </View>
+                  </Pressable>
+
+                  {splitKind !== SplitKind.Equal && selected ? (
+                    <Row style={{ gap: 2, alignItems: 'center', flexGrow: 0, flexShrink: 0 }}>
+                      <TextInput
+                        value={entries[member.id] ?? ''}
+                        onChangeText={(text) => setEntry(member.id, text)}
+                        keyboardType={
+                          splitKind === SplitKind.Percent ? 'decimal-pad' : 'number-pad'
+                        }
+                        selectTextOnFocus
+                        placeholder={splitKind === SplitKind.Percent ? '0' : '1'}
+                        placeholderTextColor={theme.color.textFaint}
+                        accessibilityLabel={
+                          splitKind === SplitKind.Percent
+                            ? `${name}'s percentage`
+                            : `${name}'s shares`
+                        }
+                        style={{
+                          width: 72,
+                          // A 44pt floor makes the share/percent field a real tap
+                          // target; `textAlignVertical` keeps the digit centred in
+                          // the taller box on Android.
+                          minHeight: 44,
+                          fontSize: 16,
+                          fontWeight: '700',
+                          textAlign: 'right',
+                          textAlignVertical: 'center',
+                          color: theme.color.text,
+                          backgroundColor: theme.color.bg,
+                          borderRadius: theme.radius.sm,
+                          paddingVertical: theme.spacing.sm,
+                          paddingHorizontal: theme.spacing.sm,
+                        }}
                       />
-                    ) : null}
-                  </View>
-                </Pressable>
+                      <Text variant="micro" tone="muted">
+                        {splitKind === SplitKind.Percent ? '%' : '×'}
+                      </Text>
+                    </Row>
+                  ) : null}
 
-                {splitKind !== SplitKind.Equal && selected ? (
-                  <Row style={{ gap: 2, alignItems: 'center', flexGrow: 0, flexShrink: 0 }}>
-                    <TextInput
-                      value={entries[member.id] ?? ''}
-                      onChangeText={(text) => setEntry(member.id, text)}
-                      keyboardType={splitKind === SplitKind.Percent ? 'decimal-pad' : 'number-pad'}
-                      selectTextOnFocus
-                      placeholder={splitKind === SplitKind.Percent ? '0' : '1'}
-                      placeholderTextColor={theme.color.textFaint}
-                      accessibilityLabel={
-                        splitKind === SplitKind.Percent
-                          ? `${name}'s percentage`
-                          : `${name}'s shares`
-                      }
-                      style={{
-                        width: 72,
-                        fontSize: 16,
-                        fontWeight: '700',
-                        textAlign: 'right',
-                        color: theme.color.text,
-                        backgroundColor: theme.color.bg,
-                        borderRadius: theme.radius.sm,
-                        paddingVertical: theme.spacing.sm,
-                        paddingHorizontal: theme.spacing.sm,
-                      }}
+                  <Pressable
+                    accessible={false}
+                    onPress={() => toggleParticipant(member.id)}
+                    hitSlop={8}
+                  >
+                    <Ionicons
+                      name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={iconSize.xl}
+                      color={selected ? theme.color.brand : theme.color.textFaint}
                     />
-                    <Text variant="micro" tone="muted">
-                      {splitKind === SplitKind.Percent ? '%' : '×'}
-                    </Text>
-                  </Row>
-                ) : null}
+                  </Pressable>
+                </View>
+              );
+            })}
 
-                <Pressable
-                  accessible={false}
-                  onPress={() => toggleParticipant(member.id)}
-                  hitSlop={8}
-                >
-                  <Ionicons
-                    name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={iconSize.xl}
-                    color={selected ? theme.color.brand : theme.color.textFaint}
-                  />
-                </Pressable>
-              </View>
-            );
-          })}
+            {splitIssue ? (
+              <Text variant="micro" tone="negative">
+                {splitIssue}
+              </Text>
+            ) : null}
 
-          {splitIssue ? (
-            <Text variant="micro" tone="negative">
-              {splitIssue}
-            </Text>
-          ) : null}
-
-          {/* Someone missing from the roster is added on the group's own members
+            {/* Someone missing from the roster is added on the group's own members
               screen, then they appear here to be split with. */}
-          <Button
-            label={t.people.addSomeone}
-            variant="secondary"
-            size="sm"
-            onPress={() => router.push(`/group/${groupId}/members`)}
-            icon={
-              <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.brand} />
-            }
-          />
-        </Card>
-      </ScrollView>
+            <Button
+              label={t.people.addSomeone}
+              variant="secondary"
+              size="sm"
+              onPress={() => router.push(`/group/${groupId}/members`)}
+              icon={
+                <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.brand} />
+              }
+            />
+          </Card>
+        </ScrollView>
 
-      {/* The one action, pinned. The screen is tall — keypad, scan, currency,
+        {/* The one action, pinned. The screen is tall — keypad, scan, currency,
           description, category, split, two rosters — and Save used to sit at the
           bottom of all of it, a scroll away from wherever you were. Here it
           rides the bottom edge with the running total and headcount beside it,
           so what you are about to save is always in view, and so is the button
           that saves it. A submit error surfaces here too, next to the button
           that raised it, rather than lost up the scroll. */}
-      <View
-        style={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingTop: theme.spacing.md,
-          paddingBottom: theme.spacing.md,
-          gap: theme.spacing.sm,
-          borderTopWidth: 1,
-          borderTopColor: theme.color.border,
-          backgroundColor: theme.color.surface,
-        }}
-      >
-        {error ? <Callout tone="negative">{error}</Callout> : null}
-        <Row style={{ justifyContent: 'space-between', gap: theme.spacing.lg }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <MoneyText amount={amount} currency={currency} locale={locale} variant="heading" />
-            <Text variant="micro" tone="muted">
-              {participants.length > 0
-                ? plural(locale, participants.length, t.memberCount)
-                : t.extras.savedStraightAway}
-            </Text>
-          </View>
-          <Row style={{ gap: theme.spacing.md, flexGrow: 0, flexShrink: 0 }}>
-            {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
-            <Button
-              label={editing ? t.expense.saveChanges : t.save}
-              size="lg"
-              disabled={amount === 0n || participants.length === 0 || splitIssue !== null || saving}
-              onPress={() => void submit()}
-            />
+        <View
+          style={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingTop: theme.spacing.md,
+            paddingBottom: theme.spacing.md,
+            gap: theme.spacing.sm,
+            borderTopWidth: 1,
+            borderTopColor: theme.color.border,
+            backgroundColor: theme.color.surface,
+          }}
+        >
+          {error ? <Callout tone="negative">{error}</Callout> : null}
+          <Row style={{ justifyContent: 'space-between', gap: theme.spacing.lg }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <MoneyText amount={amount} currency={currency} locale={locale} variant="heading" />
+              <Text variant="micro" tone="muted">
+                {participants.length > 0
+                  ? plural(locale, participants.length, t.memberCount)
+                  : t.extras.savedStraightAway}
+              </Text>
+            </View>
+            <Row style={{ gap: theme.spacing.md, flexGrow: 0, flexShrink: 0 }}>
+              {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
+              <Button
+                label={editing ? t.expense.saveChanges : t.save}
+                size="lg"
+                disabled={!canSave || saving}
+                onPress={() => void submit()}
+              />
+            </Row>
           </Row>
-        </Row>
-      </View>
+          {/* The one reason Save cannot be tapped yet, spelled out under it —
+            shown only while the button is actually blocked and no save is in
+            flight. */}
+          {saveHint && !saving ? (
+            <Text variant="micro" tone="muted">
+              {saveHint}
+            </Text>
+          ) : null}
+        </View>
+      </KeyboardAvoidingView>
 
       {/* Currency picker, as a sheet over the form — the same shortlist and the
           same sheet the capture screen uses, so a person meets the same

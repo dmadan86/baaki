@@ -1017,6 +1017,10 @@ export interface UiStrings {
   expense: {
     edit: string;
     chooseWhoPaid: string;
+    /** Hint under a disabled Save when the amount is still zero. */
+    saveNeedsAmount: string;
+    /** Hint under a disabled Save when nobody is selected to split. */
+    saveNeedsWho: string;
     editingKeepsVersion: string;
     splitByItem: string;
     scanBillTitle: string;
@@ -2407,6 +2411,8 @@ const en: UiStrings = {
   expense: {
     edit: 'Edit expense',
     chooseWhoPaid: 'Choose who paid',
+    saveNeedsAmount: 'Enter an amount to save',
+    saveNeedsWho: 'Pick who’s splitting',
     editingKeepsVersion:
       'Editing keeps the old version. Everyone can see what changed, and it can be restored.',
     splitByItem: 'Split by item',
@@ -3890,6 +3896,8 @@ const ta: UiStrings = {
   expense: {
     edit: 'செலவைத் திருத்து',
     chooseWhoPaid: 'யார் கொடுத்தார்கள் என்று தேர்ந்தெடுக்கவும்',
+    saveNeedsAmount: 'சேமிக்க ஒரு தொகையை உள்ளிடவும்',
+    saveNeedsWho: 'யார் பங்கிடுகிறார்கள் என்பதைத் தேர்ந்தெடுக்கவும்',
     editingKeepsVersion:
       'திருத்தினாலும் பழைய பதிப்பு இருக்கும். என்ன மாறியது என்பதை அனைவரும் பார்க்கலாம், மீட்கவும் முடியும்.',
     splitByItem: 'பொருள் வாரியாகப் பிரி',
@@ -5368,6 +5376,8 @@ const hi: UiStrings = {
   expense: {
     edit: 'खर्च बदलें',
     chooseWhoPaid: 'चुनें किसने दिया',
+    saveNeedsAmount: 'सहेजने के लिए राशि दर्ज करें',
+    saveNeedsWho: 'चुनें कौन बाँट रहे हैं',
     editingKeepsVersion:
       'बदलने पर पुराना संस्करण बना रहता है। सब देख सकते हैं क्या बदला, और उसे वापस भी लाया जा सकता है।',
     splitByItem: 'चीज़-वार बाँटें',
@@ -6865,6 +6875,8 @@ const ar: UiStrings = {
   expense: {
     edit: 'تعديل المصروف',
     chooseWhoPaid: 'اختر من دفع',
+    saveNeedsAmount: 'أدخل مبلغًا للحفظ',
+    saveNeedsWho: 'اختر من يتقاسم',
     editingKeepsVersion: 'التعديل يحتفظ بالنسخة القديمة. يرى الجميع ما تغيّر، ويمكن استرجاعها.',
     splitByItem: 'التقسيم حسب الصنف',
     scanBillTitle: 'امسح الفاتورة',
