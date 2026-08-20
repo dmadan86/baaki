@@ -163,6 +163,12 @@ export function IconButton({
   );
 }
 
+/**
+ * A round icon-only floating action button. `label` is not drawn — it is the
+ * accessibility name, so the control still announces what it does. The circle
+ * matches the dashboard's add button (52pt) so the two primary "+" controls
+ * read as the same affordance across screens.
+ */
 export function Fab({
   onPress,
   label,
@@ -173,6 +179,7 @@ export function Fab({
   icon: ReactNode;
 }) {
   const theme = useTheme();
+  const size = 52;
   return (
     <Pressable
       accessibilityRole="button"
@@ -183,21 +190,17 @@ export function Fab({
           position: 'absolute',
           right: theme.spacing.xl,
           bottom: 108,
-          height: 56,
-          paddingHorizontal: theme.spacing.xl,
-          borderRadius: theme.radius.pill,
-          flexDirection: 'row',
+          width: size,
+          height: size,
+          borderRadius: size / 2,
           alignItems: 'center',
-          gap: theme.spacing.sm,
+          justifyContent: 'center',
           backgroundColor: pressed ? theme.color.brandPressed : theme.color.brand,
         },
         theme.shadow.lifted,
       ]}
     >
       {icon}
-      <Text variant="subheading" tone="onBrand">
-        {label}
-      </Text>
     </Pressable>
   );
 }
