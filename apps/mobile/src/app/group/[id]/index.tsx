@@ -540,13 +540,25 @@ export default function GroupScreen() {
 
           {tab === Tab.Expenses && hasDeleted ? (
             <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
-              <Text
-                variant="caption"
-                tone="muted"
+              {/* A real button, not a text with an onPress: a screen reader now
+                  hears a control, and the 44pt floor plus hitSlop makes the
+                  caption a tap target rather than a hairline of text. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showDeleted }}
+                accessibilityLabel={showDeleted ? t.group.hideDeleted : t.group.showDeleted}
                 onPress={() => setShowDeleted((current) => !current)}
+                hitSlop={8}
+                style={({ pressed }) => ({
+                  minHeight: 44,
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.6 : 1,
+                })}
               >
-                {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-              </Text>
+                <Text variant="caption" tone="muted">
+                  {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
+                </Text>
+              </Pressable>
             </Row>
           ) : null}
 

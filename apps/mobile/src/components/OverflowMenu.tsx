@@ -14,6 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { iconSize, Text, useTheme } from '@waves/ui';
 
+import { useStrings } from '@/i18n';
+import { useMotion } from '@/lib/motion';
+
 export interface OverflowMenuItem {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -35,6 +38,10 @@ export function OverflowMenu({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useStrings();
+  // The fade is decoration, not meaning — reduced motion drops it to an instant
+  // present/dismiss (TDR §11 treats the setting as an input, not a hint).
+  const { animated } = useMotion();
 
   const go = (route: Href): void => {
     onClose();
@@ -42,15 +49,27 @@ export function OverflowMenu({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={animated ? 'fade' : 'none'}
+      onRequestClose={onClose}
+    >
       {/* The scrim: a full-screen catcher so a tap anywhere off the card closes
-          the menu. Kept barely tinted — the point is to dismiss, not to dim. */}
+          the menu. Kept barely tinted — the point is to dismiss, not to dim. It
+          carries a label so a screen reader announces "Close" rather than a bare
+          unnamed button covering the whole screen. */}
       <Pressable
         onPress={onClose}
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' }}
         accessibilityRole="button"
+        accessibilityLabel={t.common.close}
       >
         <View
+          // Marks the dropdown as the modal layer so a screen reader confines
+          // itself to the menu while it is open, instead of reading the screen
+          // behind the scrim.
+          accessibilityViewIsModal
           // Dropped from the top-right, clear of the status bar and roughly
           // where the header's three-dot sits. The shadow and the radius live on
           // this outer layer; the inner one clips the rows so a pressed row's
@@ -106,6 +125,9 @@ export function OverflowMenu({
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: theme.spacing.md,
+                      // A 44pt floor rather than trusting the padding+text sum to
+                      // clear it — a menu row is a primary tap target.
+                      minHeight: 44,
                       paddingHorizontal: theme.spacing.lg,
                       paddingVertical: theme.spacing.md,
                       backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
