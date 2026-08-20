@@ -57,7 +57,7 @@ function AccountForm() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t } = useStrings();
-  const { session, profile, isGuest, refresh, updateProfile, withGoogle, withApple } = useAuth();
+  const { session, profile, isGuest, refresh, updateProfile, withGoogle } = useAuth();
 
   // Set when a guest was sent here by a limit rather than arriving on their own
   // (ADR-006 addendum). It only changes the explainer at the top; the linking
@@ -97,7 +97,7 @@ function AccountForm() {
 
   // Which providers already sign this account in, so a linked one shows as done
   // rather than offering to link what is already linked. Adding one goes through
-  // the same `withGoogle`/`withApple` the sign-in screen uses: for somebody
+  // the same `withGoogle` the sign-in screen uses: for somebody
   // already signed in, `planAuth` turns that into a link, never a fresh sign-in
   // that would strand this account (ADR-006).
   const linkedProviders = new Set(
@@ -394,8 +394,8 @@ function AccountForm() {
 
           {/* Linking a social account, so it can sign this same account in later
               on another phone — the OAuth complement to the email/phone above.
-              Only Google and Apple today; the row is built to take more. Under
-              the same heading, because it is another way into the same account. */}
+              Only Google today; the row is built to take more. Under the same
+              heading, because it is another way into the same account. */}
           <Card style={{ gap: theme.spacing.md }}>
             <Text variant="caption" tone="muted">
               {t.contact.signInMethodsBody}
@@ -409,15 +409,6 @@ function AccountForm() {
                 linkLabel={t.contact.link}
                 linkedLabel={t.contact.linked}
                 onLink={() => void link(withGoogle)}
-              />
-              <ProviderRow
-                name="Apple"
-                icon="logo-apple"
-                linked={linkedProviders.has('apple')}
-                busy={busy}
-                linkLabel={t.contact.link}
-                linkedLabel={t.contact.linked}
-                onLink={() => void link(withApple)}
               />
             </View>
           </Card>
@@ -446,7 +437,7 @@ function ProviderRow({
   onLink,
 }: {
   name: string;
-  icon: 'logo-google' | 'logo-apple';
+  icon: 'logo-google';
   linked: boolean;
   busy: boolean;
   linkLabel: string;

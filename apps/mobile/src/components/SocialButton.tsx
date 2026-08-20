@@ -1,27 +1,24 @@
 /**
- * The provider buttons on the way in.
+ * The provider button on the way in — Google.
  *
- * These were icon-only tiles — two 96×60 squares under a hairline that said
- * "or sign in with". That reads as a decoration until you have already decided
- * to look for it, and it hides the one fact that makes somebody tap: *which*
+ * This was an icon-only tile — a 96×60 square under a hairline that said "or
+ * sign in with". That reads as a decoration until you have already decided to
+ * look for it, and it hides the one fact that makes somebody tap: *which*
  * account they would be using. Every app that does this well (Duolingo, eBay,
  * Canva, Speak, Recime, MyFitnessPal, Finimize) draws the same thing instead —
  * a full-width row, the provider's own mark on the left, its own words on it.
  *
- * The marks are the real ones. Apple's is white on black (inverted in dark, as
- * Apple's own guidance says), Google's is the four-colour G on white behind a
- * hairline — a purple-tinted G or a monochrome one is off-brand for both, and
- * on a screen whose whole job is trust, an approximated logo is the wrong place
- * to save a dependency.
+ * The mark is the real one: the four-colour G on white behind a hairline — a
+ * purple-tinted G or a monochrome one is off-brand, and on a screen whose whole
+ * job is trust, an approximated logo is the wrong place to save a dependency.
  */
 
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Text, useTheme } from '@waves/ui';
 
-export type SocialProvider = 'apple' | 'google';
+export type SocialProvider = 'google';
 
 /**
  * Google's G, drawn from its four brand colours at the official proportions.
@@ -52,33 +49,24 @@ function GoogleMark({ size = 20 }: { size?: number }) {
 }
 
 /**
- * One provider row: the mark pinned left, the label centred in the whole width.
+ * The Google row: the mark pinned left, the label centred in the whole width.
  *
- * Centring the label in the button rather than beside the mark is what keeps a
- * stack of these looking like a stack — "Continue with Apple" and "Continue
- * with Google" are different lengths, and a row-centred pair puts their marks
- * at two different x positions, which reads as two buttons that do not belong
- * to each other. The mark is absolutely positioned so the label can own the
- * centre without either one moving the other.
+ * The mark is absolutely positioned so the label can own the centre without
+ * either one moving the other. Google's button is always the light one, the
+ * only variant Google's guidelines allow beside the four-colour G.
  */
 export function SocialButton({
-  provider,
   label,
   onPress,
   disabled = false,
 }: {
-  provider: SocialProvider;
   label: string;
   onPress: () => void;
   disabled?: boolean;
 }) {
   const theme = useTheme();
-  const apple = provider === 'apple';
-  // Apple's mark inverts with the surface; Google's button is always the light
-  // one, which is the only variant Google's guidelines allow beside the
-  // four-colour G.
-  const background = apple ? theme.color.text : '#FFFFFF';
-  const ink = apple ? theme.color.bg : '#1F1F1F';
+  const background = '#FFFFFF';
+  const ink = '#1F1F1F';
 
   return (
     <Pressable
@@ -94,13 +82,13 @@ export function SocialButton({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: background,
-        borderWidth: apple ? 0 : 1,
+        borderWidth: 1,
         borderColor: '#DADCE0',
         opacity: disabled ? 0.45 : pressed ? 0.9 : 1,
       })}
     >
       <View style={{ position: 'absolute', start: theme.spacing.xl }}>
-        {apple ? <Ionicons name="logo-apple" size={22} color={ink} /> : <GoogleMark />}
+        <GoogleMark />
       </View>
       <Text variant="subheading" style={{ color: ink }}>
         {label}

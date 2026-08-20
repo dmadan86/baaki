@@ -12,7 +12,6 @@ import {
   type Viewer,
 } from '@waves/core';
 
-import { appleSignInAvailable, signInWithApple, type AppleCredential } from './appleAuth';
 import { identifyForReporting, reportHandled } from './observability';
 import { refreshPushToken, revokePushToken } from './push';
 import { supabase } from './supabase';
@@ -30,13 +29,12 @@ function viewerFrom(session: Session | null): Viewer {
 }
 
 /**
- * A provider sign-in that goes through the browser, for both providers.
+ * A provider sign-in that goes through the browser.
  *
- * Apple on an iPhone gets the native sheet instead (see `withApple`), but every
- * other case — Apple on Android, and *any* upgrade of an account that already
+ * Every case — a fresh sign-in and *any* upgrade of an account that already
  * exists — comes through here. That last one is not an edge case in this app:
  * ADR-006 puts everybody through the guest door first, so linking is the common
- * path and the native sheet is the exception.
+ * path.
  *
  * Returns the session to store, or `undefined` when there is nothing to change
  * because somebody closed the browser.
@@ -82,40 +80,6 @@ async function oauthThroughBrowser(
   });
   if (sessionError) throw sessionError;
   return signedIn.session;
-}
-
-/**
- * The name Apple gave us, written down before it is gone.
- *
- * Apple returns a name on the **first authorization only** — never on a
- * reinstall, never on a second device — and the id token carries none, so the
- * `handle_new_user` trigger has nothing to seed `display_name` from and falls
- * back to 'Guest'. Left alone, somebody who signed in with Apple appears to
- * everybody they split a bill with as "Guest".
- *
- * Only ever fills the placeholder in. Somebody who signed in with Apple two
- * years ago and has since named themselves must not be renamed by a fresh
- * authorization on a new phone.
- */
-async function adoptAppleName(userId: string, fullName: string): Promise<void> {
-  // The profile row is made by a trigger on auth.users, so it can land a beat
-  // after the session does. Same wait as the profile loader below.
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('display_name')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (data) {
-      const placeholder = !data.display_name || data.display_name === 'Guest';
-      if (placeholder) {
-        await supabase.from('profiles').update({ display_name: fullName }).eq('id', userId);
-      }
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-  }
 }
 
 export interface Profile {
@@ -166,13 +130,6 @@ interface AuthValue {
   ) => Promise<PasswordOutcome>;
   /** Google. Links to the current account when there is one, for the same reason. */
   withGoogle: () => Promise<void>;
-  /**
-   * Apple. The native sheet for somebody with no account to lose, the same
-   * browser flow as Google for everybody else — because `signInWithIdToken`
-   * has no way to add a provider to a session that already exists, and using
-   * it on a guest would strand their groups on a new account.
-   */
-  withApple: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
   /** Re-read the session after it changes underneath us (e.g. a linked email). */
   refresh: () => Promise<void>;
@@ -329,41 +286,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async withGoogle() {
         const action = planAuth(viewerFrom(session), AuthMethod.Google);
         const next = await oauthThroughBrowser(OAuthMethod.Google, action.call === 'linkIdentity');
-        if (next !== undefined) setSession(next);
-      },
-
-      async withApple() {
-        const action = planAuth(viewerFrom(session), AuthMethod.Apple);
-
-        // The native sheet is bound to this one branch, and the branch is the
-        // one `planAuth` only ever returns for a viewer of kind 'nobody'
-        // (`identity.test.ts` holds that). `signInWithIdToken` resolves a token
-        // to whichever account owns that Apple ID and cannot be told to add it
-        // to the session already held, so reaching it as a guest would do
-        // exactly what ADR-006 forbids: swap the session and leave a week of
-        // expenses on an account nobody can sign in to.
-        if (action.call === 'signInWithOAuth' && (await appleSignInAvailable())) {
-          const credential: AppleCredential | null = await signInWithApple();
-          // Closed the sheet. Not an error, and emphatically not a reason to
-          // open a browser at somebody who has just declined to sign in.
-          if (!credential) return;
-
-          const { data, error } = await supabase.auth.signInWithIdToken({
-            provider: 'apple',
-            token: credential.identityToken,
-            // Raw nonce; Supabase hashes it and matches it against the SHA-256
-            // Apple embedded in the token, binding the token to this request.
-            nonce: credential.rawNonce,
-          });
-          if (error) throw error;
-          setSession(data.session);
-          if (credential.fullName && data.user) {
-            await adoptAppleName(data.user.id, credential.fullName);
-          }
-          return;
-        }
-
-        const next = await oauthThroughBrowser(OAuthMethod.Apple, action.call === 'linkIdentity');
         if (next !== undefined) setSession(next);
       },
 

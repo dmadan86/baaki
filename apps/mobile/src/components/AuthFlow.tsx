@@ -278,9 +278,9 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               {t.signIn.splitAnything}
             </Text>
 
-            {/* The fastest way in goes first. Somebody who has a Google or an
-                Apple account is one tap from being in, and every app that does
-                this well puts that tap above the form rather than under it. */}
+            {/* The fastest way in goes first. Somebody who has a Google account
+                is one tap from being in, and every app that does this well puts
+                that tap above the form rather than under it. */}
             <View style={{ gap: theme.spacing.md }}>
               <SocialRow
                 busy={busy}
@@ -745,7 +745,6 @@ function SocialRow({
   const carryOn = wording === 'continue';
   return (
     <SocialButton
-      provider="google"
       label={carryOn ? t.signIn.continueGoogle : t.signIn.signInGoogle}
       disabled={busy}
       onPress={onGoogle}

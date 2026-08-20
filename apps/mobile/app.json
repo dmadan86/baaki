@@ -17,8 +17,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.waves.mobile",
-      "usesAppleSignIn": true
+      "bundleIdentifier": "app.waves.mobile"
     },
     "android": {
       "package": "app.waves.mobile",
@@ -39,7 +38,6 @@
       "expo-router",
       "expo-localization",
       "expo-sqlite",
-      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
