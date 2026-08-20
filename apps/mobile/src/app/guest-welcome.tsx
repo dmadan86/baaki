@@ -14,7 +14,8 @@
  * A deliberately dark field with its own palette, not the app's theme: this is a
  * front-of-house screen, like the splash and the gateway, and it reads as one.
  *
- * NOTE — the copy is hardcoded English, matching the other entry screens.
+ * The copy is translated (see `t.entry`); the title's app name is tinted
+ * wherever the translation places it.
  */
 
 import { useState } from 'react';
@@ -38,12 +39,19 @@ const HILL_NEAR = '#2E5A1E';
 const HILL_FAR = '#24451A';
 const RAY = '#EAF7DF';
 
+/** The placeholder in `entry.guestIntroTitle` where the app name is tinted. */
+const APP_TOKEN = '{app}';
+
 export default function GuestWelcomeScreen() {
   const theme = useTheme();
   const { t } = useStrings();
   const { continueAsGuest } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The title with the app name split out, so it can be tinted wherever the
+  // translation places it. `split` with a captured group keeps the token.
+  const titleParts = t.entry.guestIntroTitle.split(/(\{app\})/);
 
   const onContinue = async (): Promise<void> => {
     setBusy(true);
@@ -90,24 +98,35 @@ export default function GuestWelcomeScreen() {
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 36 }}>
             <SunriseArt />
             <View style={{ gap: theme.spacing.md }}>
+              {/* The app name is highlighted in brand wherever it falls in the
+                  translated title — split on the {app} placeholder so the accent
+                  survives word-order differences across languages. */}
               <Text align="center" style={{ fontSize: 30, lineHeight: 38, fontWeight: '800' }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 30, lineHeight: 38, fontWeight: '800' }}>
-                  Start splitting with{' '}
-                </Text>
-                <Text
-                  style={{
-                    color: theme.color.brand,
-                    fontSize: 30,
-                    lineHeight: 38,
-                    fontWeight: '800',
-                  }}
-                >
-                  Waves
-                </Text>
+                {titleParts.map((part, index) =>
+                  part === APP_TOKEN ? (
+                    <Text
+                      key={index}
+                      style={{
+                        color: theme.color.brand,
+                        fontSize: 30,
+                        lineHeight: 38,
+                        fontWeight: '800',
+                      }}
+                    >
+                      {t.common.appName}
+                    </Text>
+                  ) : (
+                    <Text
+                      key={index}
+                      style={{ color: '#FFFFFF', fontSize: 30, lineHeight: 38, fontWeight: '800' }}
+                    >
+                      {part}
+                    </Text>
+                  ),
+                )}
               </Text>
               <Text align="center" style={{ color: '#FFFFFFCC', fontSize: 16, lineHeight: 24 }}>
-                No account needed to begin. Split bills, track who owes what, and settle up — set up
-                your account later and nothing you added is lost.
+                {t.entry.guestIntroBody}
               </Text>
             </View>
           </View>
@@ -116,15 +135,10 @@ export default function GuestWelcomeScreen() {
 
           <View style={{ paddingBottom: theme.spacing.xl, gap: theme.spacing.md }}>
             <Text align="center" style={{ color: '#FFFFFF80', fontSize: 12, lineHeight: 18 }}>
-              By tapping Continue you agree to our{' '}
-              <Text style={{ color: '#FFFFFFCC', fontWeight: '700', fontSize: 12 }}>Terms</Text> and{' '}
-              <Text style={{ color: '#FFFFFFCC', fontWeight: '700', fontSize: 12 }}>
-                Privacy Policy
-              </Text>
-              .
+              {t.entry.agreeTerms}
             </Text>
             <Button
-              label="Continue"
+              label={t.entry.continueLabel}
               variant="brand"
               size="lg"
               fullWidth

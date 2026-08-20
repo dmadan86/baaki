@@ -13,8 +13,8 @@
  * there is nothing here to branch on the errand. A guest attaching a number
  * lands here too; the OTP path adds the number to the account they already have.
  *
- * NOTE — the two headings and "Resend code" are hardcoded English, matching the
- * gateway; the i18n pass comes with the rest of the entry copy.
+ * The copy is translated (see `t.entry`); only the `__DEV__` OTP hint stays
+ * hardcoded, since it never reaches a release build.
  */
 
 import { useState } from 'react';
@@ -158,10 +158,10 @@ export default function PhoneScreen() {
                     color: theme.color.text,
                   }}
                 >
-                  Verify your phone
+                  {t.entry.verifyPhoneTitle}
                 </Text>
                 <Text variant="body" tone="muted">
-                  We send a one-time code to this number to sign you in. No password to remember.
+                  {t.entry.verifyPhoneBody}
                 </Text>
               </View>
 
@@ -246,7 +246,9 @@ export default function PhoneScreen() {
                   })}
                 >
                   <Ionicons name="refresh" size={iconSize.md} color={theme.color.brand} />
-                  <Text style={{ fontWeight: '700', color: theme.color.brand }}>Resend code</Text>
+                  <Text style={{ fontWeight: '700', color: theme.color.brand }}>
+                    {t.entry.resendCode}
+                  </Text>
                 </Pressable>
                 {devStub ? (
                   <Text variant="micro" tone="muted">

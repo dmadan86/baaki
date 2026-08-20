@@ -681,6 +681,30 @@ export interface UiStrings {
     gateGroupBody: string;
     gateExpiredBody: string;
   };
+  /** Entry copy — the signed-out screens (phone, verify-email, guest intro,
+      gateway legal) and the push soft-ask. Kept translatable and RTL-safe. */
+  entry: {
+    verifyPhoneTitle: string;
+    verifyPhoneBody: string;
+    resendCode: string;
+    checkInboxTitle: string;
+    checkInboxBody: string;
+    checkInboxBodyNoEmail: string;
+    linkResent: string;
+    notConfirmedYet: string;
+    confirmedContinue: string;
+    resendLink: string;
+    guestIntroTitle: string;
+    guestIntroBody: string;
+    agreeTerms: string;
+    troubleSigningIn: string;
+    notifyTitle: string;
+    notifyBody: string;
+    notifyEnable: string;
+    notifyNotNow: string;
+    clear: string;
+    continueLabel: string;
+  };
   /** The welcome and the ways in (ADR-006: nobody registers to split a bill). */
   signIn: {
     tagline: string;
@@ -2090,6 +2114,33 @@ const en: UiStrings = {
       "You're in a group as a guest. Add an email, phone or provider to start or join more — everything you've entered stays with you.",
     gateExpiredBody:
       'Your guest trial has ended, so the app is read-only for now. Add a way to sign in to keep adding — your groups and expenses are all still here.',
+  },
+  entry: {
+    verifyPhoneTitle: 'Verify your phone',
+    verifyPhoneBody:
+      'We send a one-time code to this number to sign you in. No password to remember.',
+    resendCode: 'Resend code',
+    checkInboxTitle: 'Check your inbox',
+    checkInboxBody:
+      'We sent a confirmation link to {email}. Open it to finish setting up your account, then come back.',
+    checkInboxBodyNoEmail:
+      'We sent you a confirmation link. Open it to finish setting up your account, then come back.',
+    linkResent: 'A new link is on its way.',
+    notConfirmedYet: 'Not confirmed yet. Open the link in the email, then tap continue.',
+    confirmedContinue: "I've confirmed — continue",
+    resendLink: 'Resend the link',
+    guestIntroTitle: 'Start splitting with {app}',
+    guestIntroBody:
+      'No account needed to begin. Split bills, track who owes what, and settle up — set up your account later and nothing you added is lost.',
+    agreeTerms: 'By continuing you agree to our Terms and Privacy Policy.',
+    troubleSigningIn: 'Trouble signing in?',
+    notifyTitle: 'Turn on notifications',
+    notifyBody:
+      "We'll let you know when someone adds an expense, settles up, or invites you to a group. No spam.",
+    notifyEnable: 'Enable',
+    notifyNotNow: 'Not now',
+    clear: 'Clear',
+    continueLabel: 'Continue',
   },
   signIn: {
     tagline: 'Waves · what is left over',
@@ -3561,6 +3612,34 @@ const ta: UiStrings = {
       'விருந்தினராக ஒரு குழுவில் உள்ளீர்கள். மேலும் குழுக்களைத் தொடங்கவோ சேரவோ ஒரு மின்னஞ்சல், ஃபோன் அல்லது வழங்குநரைச் சேர்க்கவும் — நீங்கள் சேர்த்த அனைத்தும் உங்களுடன் இருக்கும்.',
     gateExpiredBody:
       'உங்கள் விருந்தினர் காலம் முடிந்துவிட்டது, எனவே இப்போது ஆப் படிக்க மட்டுமே. தொடர்ந்து சேர்க்க உள்நுழையும் வழியைச் சேர்க்கவும் — உங்கள் குழுக்களும் செலவுகளும் இங்கேயே உள்ளன.',
+  },
+  entry: {
+    verifyPhoneTitle: 'உங்கள் தொலைபேசியைச் சரிபார்க்கவும்',
+    verifyPhoneBody:
+      'உங்களை உள்நுழைய இந்த எண்ணுக்கு ஒரு முறை குறியீட்டை அனுப்புகிறோம். கடவுச்சொல் நினைவில் வைக்க வேண்டாம்.',
+    resendCode: 'குறியீட்டை மீண்டும் அனுப்பு',
+    checkInboxTitle: 'உங்கள் இன்பாக்ஸைப் பார்க்கவும்',
+    checkInboxBody:
+      '{email} க்கு உறுதிப்படுத்தல் இணைப்பை அனுப்பியுள்ளோம். உங்கள் கணக்கை அமைக்க அதைத் திறந்து, பிறகு திரும்பி வாருங்கள்.',
+    checkInboxBodyNoEmail:
+      'உறுதிப்படுத்தல் இணைப்பை அனுப்பியுள்ளோம். உங்கள் கணக்கை அமைக்க அதைத் திறந்து, பிறகு திரும்பி வாருங்கள்.',
+    linkResent: 'புதிய இணைப்பு வந்து கொண்டிருக்கிறது.',
+    notConfirmedYet:
+      'இன்னும் உறுதிப்படுத்தப்படவில்லை. மின்னஞ்சலில் உள்ள இணைப்பைத் திறந்து, பிறகு தொடரவும்.',
+    confirmedContinue: 'உறுதிப்படுத்திவிட்டேன் — தொடரவும்',
+    resendLink: 'இணைப்பை மீண்டும் அனுப்பு',
+    guestIntroTitle: '{app} உடன் பங்கிடத் தொடங்குங்கள்',
+    guestIntroBody:
+      'தொடங்க கணக்கு தேவையில்லை. பில்களைப் பகிருங்கள், யார் என்ன கடன்பட்டுள்ளனர் எனக் கண்காணியுங்கள், தீர்த்துக் கொள்ளுங்கள் — பிறகு உங்கள் கணக்கை அமையுங்கள், நீங்கள் சேர்த்தது எதுவும் இழக்கப்படாது.',
+    agreeTerms: 'தொடர்வதன் மூலம் எங்கள் விதிமுறைகள் மற்றும் தனியுரிமைக் கொள்கையை ஏற்கிறீர்கள்.',
+    troubleSigningIn: 'உள்நுழைவதில் சிக்கலா?',
+    notifyTitle: 'அறிவிப்புகளை இயக்கவும்',
+    notifyBody:
+      'யாராவது செலவைச் சேர்க்கும்போது, தீர்த்துக்கொள்ளும்போது, அல்லது ஒரு குழுவிற்கு உங்களை அழைக்கும்போது தெரிவிப்போம். ஸ்பேம் இல்லை.',
+    notifyEnable: 'இயக்கு',
+    notifyNotNow: 'இப்போது வேண்டாம்',
+    clear: 'அழி',
+    continueLabel: 'தொடரவும்',
   },
   signIn: {
     tagline: 'பாக்கி · மீதம் இருப்பது',
@@ -5061,6 +5140,33 @@ const hi: UiStrings = {
     gateExpiredBody:
       'आपकी मेहमान अवधि खत्म हो गई है, इसलिए अभी ऐप सिर्फ़ पढ़ने के लिए है। जोड़ते रहने के लिए साइन इन का कोई तरीका जोड़ें — आपके समूह और खर्च सब यहीं मौजूद हैं।',
   },
+  entry: {
+    verifyPhoneTitle: 'अपना फ़ोन सत्यापित करें',
+    verifyPhoneBody:
+      'आपको साइन इन करने के लिए हम इस नंबर पर एक बार का कोड भेजते हैं। कोई पासवर्ड याद रखने की ज़रूरत नहीं।',
+    resendCode: 'कोड फिर भेजें',
+    checkInboxTitle: 'अपना इनबॉक्स देखें',
+    checkInboxBody:
+      'हमने {email} पर एक पुष्टिकरण लिंक भेजा है। अपना खाता सेट करने के लिए उसे खोलें, फिर वापस आएँ।',
+    checkInboxBodyNoEmail:
+      'हमने आपको एक पुष्टिकरण लिंक भेजा है। अपना खाता सेट करने के लिए उसे खोलें, फिर वापस आएँ।',
+    linkResent: 'नया लिंक भेजा जा रहा है।',
+    notConfirmedYet: 'अभी पुष्टि नहीं हुई। ईमेल में दिए लिंक को खोलें, फिर जारी रखें दबाएँ।',
+    confirmedContinue: 'मैंने पुष्टि कर दी — जारी रखें',
+    resendLink: 'लिंक फिर भेजें',
+    guestIntroTitle: '{app} के साथ बाँटना शुरू करें',
+    guestIntroBody:
+      'शुरू करने के लिए खाते की ज़रूरत नहीं। बिल बाँटें, कौन कितना देना है यह देखें, और हिसाब चुकाएँ — अपना खाता बाद में सेट करें और जो कुछ आपने जोड़ा वह नहीं खोएगा।',
+    agreeTerms: 'जारी रखकर आप हमारी शर्तें और गोपनीयता नीति से सहमत होते हैं।',
+    troubleSigningIn: 'साइन इन में परेशानी?',
+    notifyTitle: 'सूचनाएँ चालू करें',
+    notifyBody:
+      'जब कोई खर्च जोड़े, हिसाब चुकाए, या आपको समूह में आमंत्रित करे तो हम आपको बताएँगे। कोई स्पैम नहीं।',
+    notifyEnable: 'चालू करें',
+    notifyNotNow: 'अभी नहीं',
+    clear: 'साफ़ करें',
+    continueLabel: 'जारी रखें',
+  },
   signIn: {
     tagline: 'बाकी · जो बच रहता है',
     splitAnything: 'कुछ भी बाँटें\nकिसी के साथ भी',
@@ -6549,6 +6655,30 @@ const ar: UiStrings = {
       'أنت في مجموعة كضيف. أضف بريدًا إلكترونيًا أو هاتفًا أو مزوّدًا لبدء مجموعات أخرى أو الانضمام إليها — كل ما أدخلته يبقى معك.',
     gateExpiredBody:
       'انتهت فترتك كضيف، لذا التطبيق للقراءة فقط الآن. أضف طريقة لتسجيل الدخول لمواصلة الإضافة — مجموعاتك ومصروفاتك كلها لا تزال هنا.',
+  },
+  entry: {
+    verifyPhoneTitle: 'تحقق من هاتفك',
+    verifyPhoneBody: 'نرسل رمزًا لمرة واحدة إلى هذا الرقم لتسجيل دخولك. لا حاجة لتذكر كلمة مرور.',
+    resendCode: 'إعادة إرسال الرمز',
+    checkInboxTitle: 'تحقق من بريدك الوارد',
+    checkInboxBody: 'أرسلنا رابط تأكيد إلى {email}. افتحه لإكمال إعداد حسابك ثم عُد.',
+    checkInboxBodyNoEmail: 'أرسلنا لك رابط تأكيد. افتحه لإكمال إعداد حسابك ثم عُد.',
+    linkResent: 'رابط جديد في الطريق.',
+    notConfirmedYet: 'لم يتم التأكيد بعد. افتح الرابط في البريد ثم اضغط متابعة.',
+    confirmedContinue: 'لقد أكدت — متابعة',
+    resendLink: 'إعادة إرسال الرابط',
+    guestIntroTitle: 'ابدأ التقسيم مع {app}',
+    guestIntroBody:
+      'لا حاجة لحساب للبدء. قسّم الفواتير، وتابع من يدين بماذا، وسوِّ الحسابات — أعدّ حسابك لاحقًا ولن يضيع أي شيء أضفته.',
+    agreeTerms: 'بالمتابعة فإنك توافق على الشروط وسياسة الخصوصية.',
+    troubleSigningIn: 'تواجه مشكلة في تسجيل الدخول؟',
+    notifyTitle: 'تفعيل الإشعارات',
+    notifyBody:
+      'سنُعلمك عندما يضيف أحدهم مصروفًا، أو يسوّي حسابًا، أو يدعوك إلى مجموعة. بلا إزعاج.',
+    notifyEnable: 'تفعيل',
+    notifyNotNow: 'ليس الآن',
+    clear: 'مسح',
+    continueLabel: 'متابعة',
   },
   signIn: {
     tagline: 'باقي · ما يتبقّى',

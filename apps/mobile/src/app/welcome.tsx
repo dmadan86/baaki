@@ -8,9 +8,9 @@
  * screen only asks which errand you are on, the way Tinder, Bumble and Hinge
  * all open — brand first, one decision, nothing to read past the terms.
  *
- * NOTE — the legal line and "Trouble signing in?" are hardcoded English; the
- * i18n pass comes with the wiring. "Trouble signing in?" points at the sign-in
- * door for now, not a dedicated recovery flow. Both are follow-ups.
+ * NOTE — "Trouble signing in?" points at the sign-in door for now, not a
+ * dedicated recovery flow; that is a follow-up. The copy is translated (see
+ * `t.entry`).
  */
 
 import { useEffect } from 'react';
@@ -146,12 +146,7 @@ export default function WelcomeScreen() {
                 lineHeight: 20,
               }}
             >
-              By tapping &lsquo;Create account&rsquo; or &lsquo;Sign in&rsquo; you agree to our{' '}
-              <Text style={{ color: theme.color.onBrand, fontWeight: '800' }}>Terms</Text>. Learn
-              how we process your data in our{' '}
-              <Text style={{ color: theme.color.onBrand, fontWeight: '800' }}>Privacy Policy</Text>{' '}
-              and{' '}
-              <Text style={{ color: theme.color.onBrand, fontWeight: '800' }}>Cookies Policy</Text>.
+              {t.entry.agreeTerms}
             </Text>
 
             <GatewayButton
@@ -177,7 +172,7 @@ export default function WelcomeScreen() {
               })}
             >
               <Text style={{ color: theme.color.onBrand, fontWeight: '800' }}>
-                Trouble signing in?
+                {t.entry.troubleSigningIn}
               </Text>
             </Pressable>
           </View>

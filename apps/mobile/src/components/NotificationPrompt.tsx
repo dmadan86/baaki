@@ -20,6 +20,7 @@ import { Modal, View } from 'react-native';
 
 import { Button, Text, useTheme } from '@waves/ui';
 
+import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { enablePush, PushPermission, pushPermission, pushSupported } from '@/lib/push';
 
@@ -27,6 +28,7 @@ const SEEN_KEY = 'waves.push_prompt_seen';
 
 export function NotificationPrompt() {
   const theme = useTheme();
+  const { t } = useStrings();
   const { session } = useAuth();
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -130,23 +132,28 @@ export function NotificationPrompt() {
 
           <View style={{ gap: theme.spacing.sm }}>
             <Text variant="heading" align="center">
-              Turn on notifications
+              {t.entry.notifyTitle}
             </Text>
             <Text variant="body" tone="muted" align="center">
-              We&rsquo;ll let you know when someone adds an expense, settles up, or invites you to a
-              group. No spam.
+              {t.entry.notifyBody}
             </Text>
           </View>
 
           <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
             <Button
-              label="Enable"
+              label={t.entry.notifyEnable}
               size="lg"
               fullWidth
               disabled={busy}
               onPress={() => void onEnable()}
             />
-            <Button label="Not now" variant="ghost" size="lg" fullWidth onPress={dismiss} />
+            <Button
+              label={t.entry.notifyNotNow}
+              variant="ghost"
+              size="lg"
+              fullWidth
+              onPress={dismiss}
+            />
           </View>
         </View>
       </View>

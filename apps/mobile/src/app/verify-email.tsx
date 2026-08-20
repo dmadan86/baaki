@@ -11,8 +11,7 @@
  * Public (see `_layout`): there is no session yet, by definition. Hidden from
  * the tab bar like the other signed-out screens.
  *
- * NOTE — the copy here is hardcoded English, matching the rest of the entry
- * screens; the i18n pass comes with the wiring.
+ * The copy is translated (see `t.entry`).
  */
 
 import { useState } from 'react';
@@ -131,35 +130,31 @@ export default function VerifyEmailScreen() {
               color: theme.color.text,
             }}
           >
-            Check your inbox
+            {t.entry.checkInboxTitle}
           </Text>
           <Text variant="body" tone="muted" align="center">
             {email
-              ? `We sent a confirmation link to ${email}. Open it to finish setting up your account, then come back.`
-              : 'We sent you a confirmation link. Open it to finish setting up your account, then come back.'}
+              ? t.entry.checkInboxBody.replace('{email}', email)
+              : t.entry.checkInboxBodyNoEmail}
           </Text>
         </View>
 
-        {resent ? <Callout tone="positive">A new link is on its way.</Callout> : null}
-        {notYet ? (
-          <Callout tone="warning">
-            Not confirmed yet. Open the link in the email, then tap continue.
-          </Callout>
-        ) : null}
+        {resent ? <Callout tone="positive">{t.entry.linkResent}</Callout> : null}
+        {notYet ? <Callout tone="warning">{t.entry.notConfirmedYet}</Callout> : null}
         {error ? <Callout tone="negative">{error}</Callout> : null}
 
         <View style={{ flex: 1 }} />
 
         <View style={{ gap: theme.spacing.sm }}>
           <Button
-            label="I've confirmed — continue"
+            label={t.entry.confirmedContinue}
             size="lg"
             fullWidth
             disabled={busy}
             onPress={() => void onContinue()}
           />
           <Button
-            label="Resend the link"
+            label={t.entry.resendLink}
             variant="ghost"
             size="lg"
             fullWidth

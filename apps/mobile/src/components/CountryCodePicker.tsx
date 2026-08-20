@@ -183,7 +183,7 @@ export function CountryCodePicker({
               {query.length > 0 ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Clear"
+                  accessibilityLabel={t.entry.clear}
                   hitSlop={12}
                   onPress={() => setQuery('')}
                   style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
