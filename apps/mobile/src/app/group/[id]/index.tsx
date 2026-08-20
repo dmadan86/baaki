@@ -2,7 +2,8 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 
 import {
   Avatar,
@@ -45,6 +46,7 @@ import {
   groupLabel,
   isBlockedMember,
   isGhost,
+  type ExpenseRow,
   type ExpenseVersionRow,
 } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
@@ -196,6 +198,22 @@ function monthLabel(locale: string, isoDate: string, now: number = Date.now()): 
   }).format(when);
 }
 
+/**
+ * One row of the virtualized expense feed. The feed used to render every expense
+ * a group ever had at once inside a ScrollView; on a long-lived group that mounts
+ * hundreds of rows on open. Flattening the month sections into a single typed list
+ * lets FlashList recycle rows so only what is on screen is mounted — a `month`
+ * item is the section heading, an `expense` item is one bill.
+ */
+type FeedItem =
+  | { readonly kind: 'month'; readonly key: string; readonly date: string }
+  | {
+      readonly kind: 'expense';
+      readonly key: string;
+      readonly expense: ExpenseRow;
+      readonly isLast: boolean;
+    };
+
 export default function GroupScreen() {
   const theme = useTheme();
   const clearance = useScreenClearance(112);
@@ -284,14 +302,174 @@ export default function GroupScreen() {
     { icon: 'settings-outline', label: t.group.settings, route: `/group/${groupId}/settings` },
   ];
 
+  // The month sections flattened into one recyclable list: a heading item per
+  // month, then its expense rows. FlashList mounts only what is on screen, so a
+  // group with a thousand bills opens as fast as one with ten.
+  const feedItems: FeedItem[] = [];
+  for (const section of expenseSections) {
+    if (section.date) {
+      feedItems.push({ kind: 'month', key: `month-${section.key}`, date: section.date });
+    }
+    section.rows.forEach((expense, index) =>
+      feedItems.push({
+        kind: 'expense',
+        key: expense.id,
+        expense,
+        isLast: index === section.rows.length - 1,
+      }),
+    );
+  }
+
+  const renderExpenseRow = (expense: ExpenseRow, isLast: boolean) => {
+    const version = expense.currentVersion;
+    const payer = version?.payers[0]?.member_id ?? null;
+    // An imported Splitwise expense can have several payers, so
+    // "Asha paid ₹1,200" beside the expense total would put the
+    // whole bill on whoever happens to sort first. One payer is
+    // named and credited with what they actually put in; several
+    // are counted, and the number beside them is the total they
+    // put in between them.
+    const payerCount = version?.payers.length ?? 0;
+    const paidLine =
+      version === null
+        ? fill(t.expense.paidByName, { name: nameOf(payer) })
+        : fill(t.expense.paidByNameAmount, {
+            name: payerCount > 1 ? plural(locale, payerCount, t.misc.peopleCount) : nameOf(payer),
+            amount: formatParts(
+              {
+                minor:
+                  payerCount > 1
+                    ? BigInt(version.amount)
+                    : BigInt(version.payers[0]?.amount ?? version.amount),
+                currency: version.currency,
+              },
+              { locale },
+            ).text,
+          });
+    // What this one expense did to *your* balance: what you put in
+    // beyond your share (you lent), or your share of what somebody
+    // else put in (you borrowed). The row used to end in the
+    // expense total, which is the group's number and never the
+    // answer to the question somebody opens a ledger with. The
+    // total keeps its place in the subtitle.
+    const stake = myStake(version, ledger.myMemberId);
+    // Somebody disagreeing with an expense is worth seeing from the
+    // list. A disagreement you only find by opening the row is one
+    // that sits there unanswered.
+    const contested = openDisputes.has(expense.id);
+    // Flat row: the category is the badge on the left, not the row's
+    // colour. A deleted row is dimmed rather than hidden, so the
+    // ledger stays visibly append-only.
+    const title = expenseTitle(version?.description, version?.category, t);
+    return (
+      <View>
+        <Pressable
+          onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
+          accessibilityRole="button"
+          accessibilityLabel={contested ? `${title}, ${t.expense.disputed}` : title}
+          style={({ pressed }) => ({
+            opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
+          })}
+        >
+          <Row
+            style={{
+              gap: theme.spacing.md,
+              alignItems: 'center',
+              paddingVertical: theme.spacing.md,
+            }}
+          >
+            <CategoryBadge category={version?.category} size={40} />
+            <View style={{ flex: 1 }}>
+              <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {title}
+                </Text>
+                {contested ? <Badge label={t.expense.disputed} tone="negative" /> : null}
+              </Row>
+              <Text variant="caption" tone="muted" numberOfLines={1}>
+                {[
+                  paidLine,
+                  version
+                    ? new Intl.DateTimeFormat(locale, {
+                        day: 'numeric',
+                        month: 'short',
+                        timeZone: 'UTC',
+                      }).format(new Date(version.expense_date))
+                    : null,
+                  expense.deleted_at ? t.expense.deleted : null,
+                  (version?.version_no ?? 1) > 1
+                    ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Text>
+            </View>
+            {version ? (
+              <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text variant="micro" tone="muted">
+                    {stake === null
+                      ? t.expense.notInvolved
+                      : stake > 0n
+                        ? t.expense.youLent
+                        : stake < 0n
+                          ? t.expense.youBorrowed
+                          : t.allSettled}
+                  </Text>
+                  {stake !== null && stake !== 0n ? (
+                    <MoneyText
+                      amount={stake}
+                      currency={version.currency}
+                      locale={locale}
+                      mode="balance"
+                      style={{ fontWeight: '700' }}
+                    />
+                  ) : null}
+                </View>
+                {expense.pending ? <PendingMark /> : null}
+              </Row>
+            ) : null}
+          </Row>
+        </Pressable>
+        {!isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
+      </View>
+    );
+  };
+
+  // A month heading or an expense row. Headings carry the between-section gap the
+  // ScrollView used to give for free; the first item needs none, its space comes
+  // from the header block above it.
+  const renderFeedItem = ({ item, index }: { item: FeedItem; index: number }) =>
+    item.kind === 'month' ? (
+      <Text
+        variant="micro"
+        tone="muted"
+        style={{
+          marginTop: index === 0 ? 0 : theme.spacing.xl,
+          marginBottom: theme.spacing.xs,
+          textTransform: 'uppercase',
+          letterSpacing: 0.6,
+        }}
+      >
+        {monthLabel(locale, item.date)}
+      </Text>
+    ) : (
+      renderExpenseRow(item.expense, item.isLast)
+    );
+
   return (
     <Screen>
       <DetailEnter>
-        <ScrollView
+        <FlashList
+          data={tab === Tab.Expenses ? feedItems : []}
+          extraData={`${tab}|${showDeleted}|${locale}`}
+          keyExtractor={(item) => item.key}
+          getItemType={(item) => item.kind}
+          renderItem={renderFeedItem}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: clearance,
-            gap: theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -301,512 +479,375 @@ export default function GroupScreen() {
               tintColor={theme.color.brand}
             />
           }
-        >
-          <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.sm }}>
-            {/* Just the arrow and its tap target — no chip behind it. */}
-            <Pressable
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel={t.common.back}
-              hitSlop={10}
-            >
-              <Ionicons
-                name={directionalIcon('chevron-back')}
-                size={iconSize.xxl}
-                color={theme.color.text}
-              />
-            </Pressable>
-            {/* The photo-and-name cluster is itself the way into settings, the
+          ListHeaderComponent={
+            <View style={{ gap: theme.spacing.xl, marginBottom: theme.spacing.xl }}>
+              <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.sm }}>
+                {/* Just the arrow and its tap target — no chip behind it. */}
+                <Pressable
+                  onPress={() => router.back()}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.common.back}
+                  hitSlop={10}
+                >
+                  <Ionicons
+                    name={directionalIcon('chevron-back')}
+                    size={iconSize.xxl}
+                    color={theme.color.text}
+                  />
+                </Pressable>
+                {/* The photo-and-name cluster is itself the way into settings, the
               way tapping a chat's title bar opens its info in WhatsApp — so the
               name is a tap target, not just a label above a menu. */}
-            <Pressable
-              onPress={() => router.push(`/group/${groupId}/settings`)}
-              accessibilityRole="button"
-              accessibilityLabel={t.group.settings}
-              style={({ pressed }) => ({
-                flex: 1,
-                flexDirection: 'row',
-                gap: theme.spacing.md,
-                justifyContent: 'flex-start',
-                alignItems: 'center',
-                opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <GroupPhoto
-                photoPath={group.data.photo_path}
-                emoji={group.data.cover_emoji}
-                size={38}
-              />
-              <View style={{ flexShrink: 1 }}>
-                <Text variant="heading" numberOfLines={1}>
-                  {groupLabel(group.data, members.data ?? [], profile?.id)}
-                </Text>
-                <Text variant="micro" tone="muted">
-                  {plural(locale, members.data?.length ?? 0, t.memberCount)}
-                </Text>
-              </View>
-            </Pressable>
-            {/* The sync state as one glyph, the same control the dashboard header
+                <Pressable
+                  onPress={() => router.push(`/group/${groupId}/settings`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.group.settings}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    flexDirection: 'row',
+                    gap: theme.spacing.md,
+                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <GroupPhoto
+                    photoPath={group.data.photo_path}
+                    emoji={group.data.cover_emoji}
+                    size={38}
+                  />
+                  <View style={{ flexShrink: 1 }}>
+                    <Text variant="heading" numberOfLines={1}>
+                      {groupLabel(group.data, members.data ?? [], profile?.id)}
+                    </Text>
+                    <Text variant="micro" tone="muted">
+                      {plural(locale, members.data?.length ?? 0, t.memberCount)}
+                    </Text>
+                  </View>
+                </Pressable>
+                {/* The sync state as one glyph, the same control the dashboard header
               carries: a quiet cloud for unsent changes or no connection, a
               turning arrow mid-sync, a red mark for a refused change — nothing
               when all is well. It replaces the wide banner this screen used to
               stack under the header. */}
-            <SyncStatusIcon />
-            {/* A code to hand the group across the table. The whole invite
+                <SyncStatusIcon />
+                {/* A code to hand the group across the table. The whole invite
               surface — link, share sheet and the QR to point a camera at — lives
               one tap behind this, so it is the fast way to get somebody in
               without typing a thing. */}
-            <Pressable
-              onPress={() => router.push(`/group/${groupId}/invite`)}
-              accessibilityRole="button"
-              accessibilityLabel={t.people.inviteTitle}
-              hitSlop={10}
-            >
-              <Ionicons name="qr-code-outline" size={iconSize.xl} color={theme.color.text} />
-            </Pressable>
-            {/* Planner, spending and settings live behind this one menu; planner
+                <Pressable
+                  onPress={() => router.push(`/group/${groupId}/invite`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.people.inviteTitle}
+                  hitSlop={10}
+                >
+                  <Ionicons name="qr-code-outline" size={iconSize.xl} color={theme.color.text} />
+                </Pressable>
+                {/* Planner, spending and settings live behind this one menu; planner
               only shows for a trip. Bare icon, no chip, to match the back
               arrow. */}
-            <Pressable
-              onPress={() => setMenuOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t.group.more}
-              hitSlop={10}
-            >
-              <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
-            </Pressable>
-          </Row>
+                <Pressable
+                  onPress={() => setMenuOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.group.more}
+                  hitSlop={10}
+                >
+                  <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
+                </Pressable>
+              </Row>
 
-          <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
+              <OverflowMenu
+                visible={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                items={menuItems}
+              />
 
-          {/* Only the refused-change banner survives inline — it carries the
+              {/* Only the refused-change banner survives inline — it carries the
               retry / discard buttons the header glyph cannot. Offline, queued and
               in-flight now read from the glyph in the header, matching the
               dashboard. */}
-          {refusedHere ? <SyncBanner groupId={groupId} /> : null}
+              {refusedHere ? <SyncBanner groupId={groupId} /> : null}
 
-          {/* If the two independent balance computations ever disagree, say so
+              {/* If the two independent balance computations ever disagree, say so
             rather than showing a number that might be wrong (ADR-004). */}
-          {ledger.mismatch ? (
-            <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}>
-              <Text variant="subheading" tone="negative">
-                {t.group.mismatch}
-              </Text>
-              <Text variant="caption" tone="muted">
-                {t.group.mismatchBody}
-              </Text>
-            </Card>
-          ) : null}
+              {ledger.mismatch ? (
+                <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}>
+                  <Text variant="subheading" tone="negative">
+                    {t.group.mismatch}
+                  </Text>
+                  <Text variant="caption" tone="muted">
+                    {t.group.mismatchBody}
+                  </Text>
+                </Card>
+              ) : null}
 
-          {/* A bill somebody at this table scanned and shared. Without this the
+              {/* A bill somebody at this table scanned and shared. Without this the
             second person has no way to reach it, and the claims CRDT is
             plumbing with no tap. */}
-          {(openReceipts.data ?? []).map((receipt) => (
-            <Pressable
-              key={receipt.id}
-              accessibilityRole="button"
-              accessibilityLabel={fill(t.expense.splitBillA11y, {
-                merchant: receipt.parsed?.merchant ?? t.expense.aBill,
-              })}
-              onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
-            >
-              <Card style={{ gap: theme.spacing.sm }}>
-                <Row style={{ gap: theme.spacing.sm }}>
-                  <Ionicons name="receipt-outline" size={iconSize.md} color={theme.color.brand} />
-                  <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
-                    {receipt.parsed?.merchant ?? t.expense.aBill}
-                  </Text>
-                  <Ionicons
-                    name={directionalIcon('chevron-forward')}
-                    size={iconSize.md}
-                    color={theme.color.textFaint}
-                  />
-                </Row>
-                <Text variant="caption" tone="muted">
-                  {receipt.claimed === 0
-                    ? plural(locale, receipt.items, t.expense.receiptClaimedNone)
-                    : fill(t.expense.receiptClaimedSome, {
-                        claimed: receipt.claimed,
-                        items: receipt.items,
-                      })}
-                </Text>
-              </Card>
-            </Pressable>
-          ))}
+              {(openReceipts.data ?? []).map((receipt) => (
+                <Pressable
+                  key={receipt.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={fill(t.expense.splitBillA11y, {
+                    merchant: receipt.parsed?.merchant ?? t.expense.aBill,
+                  })}
+                  onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
+                >
+                  <Card style={{ gap: theme.spacing.sm }}>
+                    <Row style={{ gap: theme.spacing.sm }}>
+                      <Ionicons
+                        name="receipt-outline"
+                        size={iconSize.md}
+                        color={theme.color.brand}
+                      />
+                      <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
+                        {receipt.parsed?.merchant ?? t.expense.aBill}
+                      </Text>
+                      <Ionicons
+                        name={directionalIcon('chevron-forward')}
+                        size={iconSize.md}
+                        color={theme.color.textFaint}
+                      />
+                    </Row>
+                    <Text variant="caption" tone="muted">
+                      {receipt.claimed === 0
+                        ? plural(locale, receipt.items, t.expense.receiptClaimedNone)
+                        : fill(t.expense.receiptClaimedSome, {
+                            claimed: receipt.claimed,
+                            items: receipt.items,
+                          })}
+                    </Text>
+                  </Card>
+                </Pressable>
+              ))}
 
-          <TintCard
-            tint={tintForKey(groupId)}
-            style={{
-              borderRadius: theme.radius.xl,
-              padding: theme.spacing.xl,
-              gap: theme.spacing.lg,
-            }}
-          >
-            <Row style={{ justifyContent: 'space-between' }}>
-              {/* A zero is not "you are owed ₹0" — it is the good outcome, and
+              <TintCard
+                tint={tintForKey(groupId)}
+                style={{
+                  borderRadius: theme.radius.xl,
+                  padding: theme.spacing.xl,
+                  gap: theme.spacing.lg,
+                }}
+              >
+                <Row style={{ justifyContent: 'space-between' }}>
+                  {/* A zero is not "you are owed ₹0" — it is the good outcome, and
                   it gets said as one. The label carried the sign for every
                   balance except the one worth celebrating. */}
-              <Text variant="caption" style={{ color: inkMuted }}>
-                {ledger.myBalance === 0n
-                  ? t.allSettled
-                  : ledger.myBalance > 0n
-                    ? t.youAreOwed
-                    : t.youOwe}
-              </Text>
-              {ledger.pending !== 0n ? <Badge label={t.pendingConfirmation} tone="brand" /> : null}
-            </Row>
+                  <Text variant="caption" style={{ color: inkMuted }}>
+                    {ledger.myBalance === 0n
+                      ? t.allSettled
+                      : ledger.myBalance > 0n
+                        ? t.youAreOwed
+                        : t.youOwe}
+                  </Text>
+                  {ledger.pending !== 0n ? (
+                    <Badge label={t.pendingConfirmation} tone="brand" />
+                  ) : null}
+                </Row>
 
-            {/* mode="balance" keeps the spoken "You are owed ₹X" label and the
+                {/* mode="balance" keeps the spoken "You are owed ₹X" label and the
               absolute value; the colour is overridden to ink for the surface. */}
-            <MoneyText
-              amount={ledger.myBalance}
-              currency={currency}
-              locale={locale}
-              mode="balance"
-              variant="display"
-              tone="default"
-              style={{ color: ink }}
-            />
+                <MoneyText
+                  amount={ledger.myBalance}
+                  currency={currency}
+                  locale={locale}
+                  mode="balance"
+                  variant="display"
+                  tone="default"
+                  style={{ color: ink }}
+                />
 
-            {/* Two equal-width pills on the tinted hero. Settle up is the one
+                {/* Two equal-width pills on the tinted hero. Settle up is the one
                 filled brand CTA; Simplify is a secondary, so it reads as an
                 outline — transparent with a brand border and brand label. On a
                 pale tint a solid-white pill turned out brighter than the CTA and
                 stole the eye; the outline recedes behind the primary the way a
                 secondary should. Reduced side padding keeps the longer toggle
                 label ("Who pays whom?") on one line at half width. */}
-            <Row style={{ gap: theme.spacing.md }}>
-              <Button
-                label={t.settleUp}
-                onPress={() => router.push(`/group/${groupId}/settle`)}
-                icon={
-                  <Ionicons name="swap-horizontal" size={iconSize.md} color={theme.color.onBrand} />
-                }
-                style={{ flex: 1, paddingHorizontal: theme.spacing.md }}
-              />
-              <Button
-                label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                variant="ghost"
-                onPress={() => router.push(`/group/${groupId}/simplify`)}
-                style={{
-                  flex: 1,
-                  paddingHorizontal: theme.spacing.md,
-                  borderWidth: 1,
-                  borderColor: theme.color.brand,
-                }}
-              />
-            </Row>
-          </TintCard>
+                <Row style={{ gap: theme.spacing.md }}>
+                  <Button
+                    label={t.settleUp}
+                    onPress={() => router.push(`/group/${groupId}/settle`)}
+                    icon={
+                      <Ionicons
+                        name="swap-horizontal"
+                        size={iconSize.md}
+                        color={theme.color.onBrand}
+                      />
+                    }
+                    style={{ flex: 1, paddingHorizontal: theme.spacing.md }}
+                  />
+                  <Button
+                    label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
+                    variant="ghost"
+                    onPress={() => router.push(`/group/${groupId}/simplify`)}
+                    style={{
+                      flex: 1,
+                      paddingHorizontal: theme.spacing.md,
+                      borderWidth: 1,
+                      borderColor: theme.color.brand,
+                    }}
+                  />
+                </Row>
+              </TintCard>
 
-          {pendingForMe.map((settlement) => (
-            <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
-              <Text variant="subheading">
-                {fill(t.group.saysTheyPaidYou, { name: nameOf(settlement.from_member_id) })}
-              </Text>
-              <Row style={{ gap: theme.spacing.sm }}>
-                <MoneyText
-                  amount={BigInt(settlement.amount)}
-                  currency={settlement.currency}
-                  locale={locale}
-                  variant="title"
-                />
-                {settlement.pending ? <PendingMark size={16} /> : null}
-              </Row>
-              <Row style={{ gap: theme.spacing.md }}>
-                <Button
-                  label={t.group.confirmReceived}
-                  onPress={() => confirmSettlement.mutate(settlement.id)}
-                  disabled={confirmSettlement.isPending}
-                />
-                <Text variant="micro" tone="muted" style={{ flex: 1 }}>
-                  {t.group.autoConfirms}
-                </Text>
-              </Row>
-            </Card>
-          ))}
+              {pendingForMe.map((settlement) => (
+                <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
+                  <Text variant="subheading">
+                    {fill(t.group.saysTheyPaidYou, { name: nameOf(settlement.from_member_id) })}
+                  </Text>
+                  <Row style={{ gap: theme.spacing.sm }}>
+                    <MoneyText
+                      amount={BigInt(settlement.amount)}
+                      currency={settlement.currency}
+                      locale={locale}
+                      variant="title"
+                    />
+                    {settlement.pending ? <PendingMark size={16} /> : null}
+                  </Row>
+                  <Row style={{ gap: theme.spacing.md }}>
+                    <Button
+                      label={t.group.confirmReceived}
+                      onPress={() => confirmSettlement.mutate(settlement.id)}
+                      disabled={confirmSettlement.isPending}
+                    />
+                    <Text variant="micro" tone="muted" style={{ flex: 1 }}>
+                      {t.group.autoConfirms}
+                    </Text>
+                  </Row>
+                </Card>
+              ))}
 
-          {/* The page has three faces — expenses, balances, activity. This is a
+              {/* The page has three faces — expenses, balances, activity. This is a
               tab, not a choice on a form, so it wears the underlined tab look
               rather than the selection pills the rest of the app fills in. */}
-          <SegmentedTabs<Tab>
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              { value: Tab.Expenses, label: t.expenses },
-              { value: Tab.Balances, label: t.balances },
-              { value: Tab.Activity, label: t.activity },
-            ]}
-          />
+              <SegmentedTabs<Tab>
+                value={tab}
+                onChange={setTab}
+                tabs={[
+                  { value: Tab.Expenses, label: t.expenses },
+                  { value: Tab.Balances, label: t.balances },
+                  { value: Tab.Activity, label: t.activity },
+                ]}
+              />
 
-          {tab === Tab.Expenses && hasDeleted ? (
-            <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
-              {/* A real button, not a text with an onPress: a screen reader now
+              {tab === Tab.Expenses && hasDeleted ? (
+                <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
+                  {/* A real button, not a text with an onPress: a screen reader now
                   hears a control, and the 44pt floor plus hitSlop makes the
                   caption a tap target rather than a hairline of text. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ expanded: showDeleted }}
-                accessibilityLabel={showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-                onPress={() => setShowDeleted((current) => !current)}
-                hitSlop={8}
-                style={({ pressed }) => ({
-                  minHeight: 44,
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <Text variant="caption" tone="muted">
-                  {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-                </Text>
-              </Pressable>
-            </Row>
-          ) : null}
-
-          {tab === Tab.Expenses ? (
-            visibleExpenses.length === 0 ? (
-              // An empty list that only describes itself leaves the one thing to
-              // do on the screen to a floating button in the corner. The way out
-              // of an empty state belongs inside it.
-              <EmptyState
-                title={t.nothingYet}
-                body={t.nothingYetBody}
-                icon={
-                  <Ionicons name="receipt-outline" size={iconSize.xxl} color={theme.color.brand} />
-                }
-                action={
-                  <Button
-                    label={t.addExpense}
-                    onPress={() => router.push(`/group/${groupId}/add-expense`)}
-                    icon={<Ionicons name="add" size={iconSize.md} color={theme.color.onBrand} />}
-                  />
-                }
-              />
-            ) : (
-              // The feed reads as a dated ledger, not one long undifferentiated
-              // list: a quiet month heading sits over each run of expenses, the
-              // way the category's bill-splitters (Splitwise, Settle Up) break a
-              // long history into skimmable months.
-              <View style={{ gap: theme.spacing.xl }}>
-                {expenseSections.map((section) => (
-                  <View key={section.key}>
-                    {section.date ? (
-                      <Text
-                        variant="micro"
-                        tone="muted"
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showDeleted }}
+                    accessibilityLabel={showDeleted ? t.group.hideDeleted : t.group.showDeleted}
+                    onPress={() => setShowDeleted((current) => !current)}
+                    hitSlop={8}
+                    style={({ pressed }) => ({
+                      minHeight: 44,
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.6 : 1,
+                    })}
+                  >
+                    <Text variant="caption" tone="muted">
+                      {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
+                    </Text>
+                  </Pressable>
+                </Row>
+              ) : null}
+            </View>
+          }
+          ListFooterComponent={
+            tab === Tab.Expenses ? (
+              visibleExpenses.length === 0 ? (
+                // An empty list that only describes itself leaves the one thing to
+                // do on the screen to a floating button in the corner. The way out
+                // of an empty state belongs inside it.
+                <EmptyState
+                  title={t.nothingYet}
+                  body={t.nothingYetBody}
+                  icon={
+                    <Ionicons
+                      name="receipt-outline"
+                      size={iconSize.xxl}
+                      color={theme.color.brand}
+                    />
+                  }
+                  action={
+                    <Button
+                      label={t.addExpense}
+                      onPress={() => router.push(`/group/${groupId}/add-expense`)}
+                      icon={<Ionicons name="add" size={iconSize.md} color={theme.color.onBrand} />}
+                    />
+                  }
+                />
+              ) : null
+            ) : tab === Tab.Balances ? (
+              <View>
+                {(members.data ?? []).map((member, index, arr) => {
+                  // Flat row: the money meaning is the sign on the amount and its
+                  // "you are owed / you owe" label, not the row's colour.
+                  const balance = ledger.balances.get(member.id) ?? 0n;
+                  return (
+                    <View key={member.id}>
+                      <Row
                         style={{
-                          textTransform: 'uppercase',
-                          letterSpacing: 0.6,
-                          marginBottom: theme.spacing.xs,
+                          gap: theme.spacing.md,
+                          alignItems: 'center',
+                          paddingVertical: theme.spacing.md,
                         }}
                       >
-                        {monthLabel(locale, section.date)}
-                      </Text>
-                    ) : null}
-                    {section.rows.map((expense, index) => {
-                      const version = expense.currentVersion;
-                      const payer = version?.payers[0]?.member_id ?? null;
-                      // An imported Splitwise expense can have several payers, so
-                      // "Asha paid ₹1,200" beside the expense total would put the
-                      // whole bill on whoever happens to sort first. One payer is
-                      // named and credited with what they actually put in; several
-                      // are counted, and the number beside them is the total they
-                      // put in between them.
-                      const payerCount = version?.payers.length ?? 0;
-                      const paidLine =
-                        version === null
-                          ? fill(t.expense.paidByName, { name: nameOf(payer) })
-                          : fill(t.expense.paidByNameAmount, {
-                              name:
-                                payerCount > 1
-                                  ? plural(locale, payerCount, t.misc.peopleCount)
-                                  : nameOf(payer),
-                              amount: formatParts(
-                                {
-                                  minor:
-                                    payerCount > 1
-                                      ? BigInt(version.amount)
-                                      : BigInt(version.payers[0]?.amount ?? version.amount),
-                                  currency: version.currency,
-                                },
-                                { locale },
-                              ).text,
-                            });
-                      // What this one expense did to *your* balance: what you put in
-                      // beyond your share (you lent), or your share of what somebody
-                      // else put in (you borrowed). The row used to end in the
-                      // expense total, which is the group's number and never the
-                      // answer to the question somebody opens a ledger with. The
-                      // total keeps its place in the subtitle.
-                      const stake = myStake(version, ledger.myMemberId);
-                      // Somebody disagreeing with an expense is worth seeing from the
-                      // list. A disagreement you only find by opening the row is one
-                      // that sits there unanswered.
-                      const contested = openDisputes.has(expense.id);
-                      // Flat row: the category is the badge on the left, not the row's
-                      // colour. A deleted row is dimmed rather than hidden, so the
-                      // ledger stays visibly append-only.
-                      const title = expenseTitle(version?.description, version?.category, t);
-                      return (
-                        <View key={expense.id}>
-                          <Pressable
-                            onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-                            accessibilityRole="button"
-                            accessibilityLabel={
-                              contested ? `${title}, ${t.expense.disputed}` : title
-                            }
-                            style={({ pressed }) => ({
-                              opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
-                            })}
-                          >
-                            <Row
-                              style={{
-                                gap: theme.spacing.md,
-                                alignItems: 'center',
-                                paddingVertical: theme.spacing.md,
-                              }}
-                            >
-                              <CategoryBadge category={version?.category} size={40} />
-                              <View style={{ flex: 1 }}>
-                                <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                                  <Text
-                                    variant="subheading"
-                                    numberOfLines={1}
-                                    style={{ flexShrink: 1 }}
-                                  >
-                                    {title}
-                                  </Text>
-                                  {contested ? (
-                                    <Badge label={t.expense.disputed} tone="negative" />
-                                  ) : null}
-                                </Row>
-                                <Text variant="caption" tone="muted" numberOfLines={1}>
-                                  {[
-                                    paidLine,
-                                    version
-                                      ? new Intl.DateTimeFormat(locale, {
-                                          day: 'numeric',
-                                          month: 'short',
-                                          timeZone: 'UTC',
-                                        }).format(new Date(version.expense_date))
-                                      : null,
-                                    expense.deleted_at ? t.expense.deleted : null,
-                                    (version?.version_no ?? 1) > 1
-                                      ? plural(
-                                          locale,
-                                          version!.version_no - 1,
-                                          t.expense.editedTimes,
-                                        )
-                                      : null,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' · ')}
-                                </Text>
-                              </View>
-                              {version ? (
-                                <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                                  <View style={{ alignItems: 'flex-end' }}>
-                                    <Text variant="micro" tone="muted">
-                                      {stake === null
-                                        ? t.expense.notInvolved
-                                        : stake > 0n
-                                          ? t.expense.youLent
-                                          : stake < 0n
-                                            ? t.expense.youBorrowed
-                                            : t.allSettled}
-                                    </Text>
-                                    {stake !== null && stake !== 0n ? (
-                                      <MoneyText
-                                        amount={stake}
-                                        currency={version.currency}
-                                        locale={locale}
-                                        mode="balance"
-                                        style={{ fontWeight: '700' }}
-                                      />
-                                    ) : null}
-                                  </View>
-                                  {expense.pending ? <PendingMark /> : null}
-                                </Row>
-                              ) : null}
-                            </Row>
-                          </Pressable>
-                          {index < section.rows.length - 1 ? (
-                            <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                          ) : null}
-                        </View>
-                      );
-                    })}
-                  </View>
-                ))}
-              </View>
-            )
-          ) : null}
-
-          {tab === Tab.Balances ? (
-            <View>
-              {(members.data ?? []).map((member, index, arr) => {
-                // Flat row: the money meaning is the sign on the amount and its
-                // "you are owed / you owe" label, not the row's colour.
-                const balance = ledger.balances.get(member.id) ?? 0n;
-                return (
-                  <View key={member.id}>
-                    <Row
-                      style={{
-                        gap: theme.spacing.md,
-                        alignItems: 'center',
-                        paddingVertical: theme.spacing.md,
-                      }}
-                    >
-                      <Avatar
-                        name={displayName(member, null, blockedIds, t.misc.someone)}
-                        ghost={isGhost(member) || isBlockedMember(member, blockedIds)}
-                        size={40}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Row style={{ gap: theme.spacing.sm }}>
-                          <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
-                            {displayName(member, profile?.id, blockedIds, t.misc.someone)}
-                          </Text>
-                          {member.role === 'admin' && !isGhost(member) ? (
-                            <Badge label={t.people.admin} tone="brand" />
-                          ) : null}
-                        </Row>
-                        <Text variant="caption" tone="muted" numberOfLines={1}>
-                          {isGhost(member)
-                            ? t.notJoinedYet
-                            : isBlockedMember(member, blockedIds)
-                              ? // A VPA carries a name or phone — masked for a blocked person.
-                                '—'
-                              : (member.vpa ?? member.profile?.default_vpa ?? '—')}
-                        </Text>
-                      </View>
-                      <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                        {/* Somebody who owes the group money can be nudged from
-                            the row that says so, the way Friends already does —
-                            reading a debt and acting on it were two screens
-                            apart for no reason. Ghosts have nowhere to send it. */}
-                        {balance < 0n && !isGhost(member) && member.id !== ledger.myMemberId ? (
-                          <RemindChip groupId={groupId} memberId={member.id} currency={currency} />
-                        ) : null}
-                        <MoneyText
-                          amount={balance}
-                          currency={currency}
-                          locale={locale}
-                          mode="balance"
+                        <Avatar
+                          name={displayName(member, null, blockedIds, t.misc.someone)}
+                          ghost={isGhost(member) || isBlockedMember(member, blockedIds)}
+                          size={40}
                         />
-                        {member.pending ? <PendingMark /> : null}
+                        <View style={{ flex: 1 }}>
+                          <Row style={{ gap: theme.spacing.sm }}>
+                            <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
+                              {displayName(member, profile?.id, blockedIds, t.misc.someone)}
+                            </Text>
+                            {member.role === 'admin' && !isGhost(member) ? (
+                              <Badge label={t.people.admin} tone="brand" />
+                            ) : null}
+                          </Row>
+                          <Text variant="caption" tone="muted" numberOfLines={1}>
+                            {isGhost(member)
+                              ? t.notJoinedYet
+                              : isBlockedMember(member, blockedIds)
+                                ? // A VPA carries a name or phone — masked for a blocked person.
+                                  '—'
+                                : (member.vpa ?? member.profile?.default_vpa ?? '—')}
+                          </Text>
+                        </View>
+                        <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                          {/* Somebody who owes the group money can be nudged from
+                              the row that says so, the way Friends already does —
+                              reading a debt and acting on it were two screens
+                              apart for no reason. Ghosts have nowhere to send it. */}
+                          {balance < 0n && !isGhost(member) && member.id !== ledger.myMemberId ? (
+                            <RemindChip
+                              groupId={groupId}
+                              memberId={member.id}
+                              currency={currency}
+                            />
+                          ) : null}
+                          <MoneyText
+                            amount={balance}
+                            currency={currency}
+                            locale={locale}
+                            mode="balance"
+                          />
+                          {member.pending ? <PendingMark /> : null}
+                        </Row>
                       </Row>
-                    </Row>
-                    {index < arr.length - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {tab === Tab.Activity ? (
-            (activity.data ?? []).length === 0 ? (
+                      {index < arr.length - 1 ? (
+                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (activity.data ?? []).length === 0 ? (
               <EmptyState
                 title={t.nothingYet}
                 body={t.group.activityEmptyBody}
@@ -870,8 +911,8 @@ export default function GroupScreen() {
                 ))}
               </View>
             )
-          ) : null}
-        </ScrollView>
+          }
+        />
 
         {/* The empty state carries its own Add expense button, and two of the
             same button on one screen is a screen that cannot decide. The FAB
