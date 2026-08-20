@@ -461,7 +461,7 @@ function AddExpenseFab({ label, bottom }: { label: string; bottom: number }) {
             ...theme.shadow.lifted,
           }}
         >
-          <Ionicons name="add" size={32} color={theme.color.onBrand} />
+          <Ionicons name="add" size={iconSize.xxl} color={theme.color.onBrand} />
         </PressableScale>
       </View>
     </View>
