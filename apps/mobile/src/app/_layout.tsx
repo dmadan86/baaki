@@ -289,7 +289,7 @@ function LockGate({ children }: { children: React.ReactNode }) {
           <Text
             style={{ fontSize: 56, lineHeight: 72, fontWeight: '700', color: theme.color.onBrand }}
           >
-            பாக்கி
+            Waves
           </Text>
           <Ionicons name="lock-closed" size={iconSize.xl} color={theme.color.onBrand} />
         </View>

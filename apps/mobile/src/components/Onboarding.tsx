@@ -132,7 +132,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: ink }}>பாக்கி</Text>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: ink }}>Waves</Text>
               <Pressable
                 onPress={onDone}
                 accessibilityRole="button"
