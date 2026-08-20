@@ -13,15 +13,26 @@
  * door for now, not a dedicated recovery flow. Both are follow-ups.
  */
 
+import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
+import { useMotion } from '@/lib/motion';
 
 /** The gateway's green wash — a light stop into the base green (#65B63E) into a
     darker one, top to bottom, matching the splash. A local screen colour, not a
@@ -42,6 +53,9 @@ export default function WelcomeScreen() {
         end={{ x: 0, y: 1 }}
         style={{ flex: 1 }}
       >
+        {/* Slow, soft orbs drifting on the field behind everything — depth, not
+            decoration you look at. Under the content and untouchable. */}
+        <GatewayBackdrop />
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           {/* The header: a back chevron top-left (only when there is somewhere
               to go back to) and the language picker top-right, so a person who
@@ -166,6 +180,115 @@ export default function WelcomeScreen() {
         </SafeAreaView>
       </LinearGradient>
     </View>
+  );
+}
+
+/**
+ * The moving field behind the gateway: sine waves flowing across the lower
+ * half of the green, stacked so they overlap into a gentle current. It is
+ * depth rather than a thing to watch — low-contrast and slow.
+ *
+ * The trick that keeps it cheap: each wave's path is one full period drawn
+ * twice across double the screen width, so sliding it left by exactly one
+ * screen width lands on an identical crest. Only that one `translateX` animates
+ * — never the SVG path, which would cost a redraw every frame — and it loops
+ * seamlessly. Motion-gated: with animation off the waves are still drawn (the
+ * flat wash gets its shape) but hold still.
+ */
+const WAVES = [
+  { amplitude: 0.05, baseline: 0.62, color: '#FFFFFF14', seconds: 9 },
+  { amplitude: 0.07, baseline: 0.72, color: '#4F9A2E4D', seconds: 13 },
+  { amplitude: 0.06, baseline: 0.82, color: '#FFFFFF12', seconds: 17 },
+] as const;
+
+/**
+ * One full sine period across `width`, drawn twice to span `2 * width`, then
+ * closed down to `bottom` so it fills as a solid band. Sampled, not curved —
+ * enough points that the straight segments read as a smooth wave.
+ */
+function wavePath(width: number, amplitude: number, midY: number, bottom: number): string {
+  const total = width * 2;
+  const steps = 48;
+  let d = `M 0 ${midY.toFixed(1)}`;
+  for (let i = 1; i <= steps; i++) {
+    const x = (total / steps) * i;
+    // Wavelength = width, so the crest at x = width matches the one at x = 0.
+    const y = midY + amplitude * Math.sin((x / width) * 2 * Math.PI);
+    d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }
+  return `${d} L ${total.toFixed(1)} ${bottom.toFixed(1)} L 0 ${bottom.toFixed(1)} Z`;
+}
+
+function GatewayBackdrop() {
+  const { width, height } = useWindowDimensions();
+  const { animated } = useMotion();
+
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+      {WAVES.map((wave, index) => (
+        <Wave
+          key={index}
+          width={width}
+          height={height}
+          amplitude={wave.amplitude * height}
+          baseline={wave.baseline * height}
+          color={wave.color}
+          durationMs={wave.seconds * 1000}
+          animate={animated}
+        />
+      ))}
+    </View>
+  );
+}
+
+function Wave({
+  width,
+  height,
+  amplitude,
+  baseline,
+  color,
+  durationMs,
+  animate,
+}: {
+  width: number;
+  height: number;
+  amplitude: number;
+  baseline: number;
+  color: string;
+  durationMs: number;
+  animate: boolean;
+}) {
+  // 0 → 1 mapped to a slide of one screen width. Linear and repeated, so the
+  // seam where the path repeats passes without a pause.
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (!animate) {
+      progress.value = 0;
+      return;
+    }
+    progress.value = withRepeat(
+      withTiming(1, { duration: durationMs, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(progress);
+  }, [animate, durationMs, progress]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: -width * progress.value }],
+  }));
+
+  const d = wavePath(width, amplitude, baseline, height);
+
+  return (
+    <Animated.View
+      style={[{ position: 'absolute', left: 0, top: 0, width: width * 2, height }, style]}
+    >
+      <Svg width={width * 2} height={height}>
+        <Path d={d} fill={color} />
+      </Svg>
+    </Animated.View>
   );
 }
 

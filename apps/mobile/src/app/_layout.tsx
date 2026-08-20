@@ -353,7 +353,11 @@ function AuthGate() {
   // on it (or on either door) bounces back into the app, so it counts as auth.
   const onAuth = onSignIn || segments[0] === 'sign-up' || segments[0] === 'welcome';
   const onPublicRoute =
-    onAuth || segments[0] === 'join' || segments[0] === 'language' || segments[0] === 'phone';
+    onAuth ||
+    segments[0] === 'join' ||
+    segments[0] === 'language' ||
+    segments[0] === 'phone' ||
+    segments[0] === 'verify-email';
 
   /**
    * The route we are on disagrees with the session we have, and the effect
@@ -408,6 +412,7 @@ function AuthGate() {
             keeps a normal push — unlike sign-in, which replaces the whole tree. */}
         <Stack.Screen name="sign-up" />
         <Stack.Screen name="phone" />
+        <Stack.Screen name="verify-email" />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
         <Stack.Screen name="new-group" options={modal} />
         <Stack.Screen name="paywall" options={modal} />

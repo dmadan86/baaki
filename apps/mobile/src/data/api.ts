@@ -1812,3 +1812,21 @@ export async function signOutOtherDevices(currentDeviceId: string): Promise<numb
   if (error) throw new Error(error.message);
   return (data ?? 0) as number;
 }
+
+/**
+ * The country codes an operator has switched off (`country_settings`, a
+ * denylist set from the admin console). Anon-readable on purpose, so the
+ * phone-entry picker can filter its list before there is ever a session.
+ *
+ * A missing table or any failure yields an empty list — the picker then offers
+ * every market the app stocks, which is exactly the denylist's own default, so
+ * a first-run project or an offline phone is never locked out of phone sign-in.
+ */
+export async function disabledCountries(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('country_settings')
+    .select('code')
+    .eq('enabled', false);
+  if (error) return [];
+  return (data ?? []).map((row) => (row as { code: string }).code);
+}

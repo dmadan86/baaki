@@ -63,6 +63,13 @@ const I = {
       <path d="M4 5h16v11H9l-5 4V5z" />
     </svg>
   ),
+  globe: (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" />
+    </svg>
+  ),
 };
 
 const SECTIONS: Section[] = [
@@ -80,6 +87,7 @@ const SECTIONS: Section[] = [
     items: [
       { href: '/flags', label: 'Experiments', icon: I.flags },
       { href: '/config', label: 'Limits', icon: I.gauge },
+      { href: '/countries', label: 'Countries', icon: I.globe },
       { href: '/rate-limits', label: 'Rate limits', icon: I.gauge },
     ],
   },

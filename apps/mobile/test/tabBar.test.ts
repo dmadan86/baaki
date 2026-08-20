@@ -37,6 +37,7 @@ describe('resolveTabBar', () => {
     expect(resolveTabBar(['sign-in']).hidden).toBe(true);
     expect(resolveTabBar(['sign-up']).hidden).toBe(true);
     expect(resolveTabBar(['phone']).hidden).toBe(true);
+    expect(resolveTabBar(['verify-email']).hidden).toBe(true);
     expect(resolveTabBar(['join']).hidden).toBe(true);
     expect(resolveTabBar(['language']).hidden).toBe(true);
     expect(resolveTabBar(['new-group']).hidden).toBe(true);

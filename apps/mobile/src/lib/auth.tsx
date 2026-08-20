@@ -133,6 +133,17 @@ export interface Profile {
   locale: string;
 }
 
+/**
+ * What a password attempt led to, for the one case the caller must react to:
+ * an email sign-up with confirmations on returns no session until the link is
+ * followed, so `verifyEmail` carries the address to send them to a
+ * check-your-inbox screen. Empty for every path that lands a session (sign-in,
+ * a guest upgraded in place, or a project with confirmations off).
+ */
+export interface PasswordOutcome {
+  verifyEmail?: string;
+}
+
 interface AuthValue {
   session: Session | null;
   profile: Profile | null;
@@ -152,7 +163,7 @@ interface AuthValue {
     identifier: string,
     password: string,
     intent: 'sign_in' | 'sign_up',
-  ) => Promise<void>;
+  ) => Promise<PasswordOutcome>;
   /** Google. Links to the current account when there is one, for the same reason. */
   withGoogle: () => Promise<void>;
   /**
@@ -296,14 +307,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (error) throw error;
           const { data } = await supabase.auth.getSession();
           setSession(data.session);
-          return;
+          return {};
         }
 
-        const { error } =
+        const result =
           action.call === 'signUp'
             ? await supabase.auth.signUp({ ...credential, password })
             : await supabase.auth.signInWithPassword({ ...credential, password });
-        if (error) throw error;
+        if (result.error) throw result.error;
+
+        // A fresh email account, with confirmations turned on, comes back with
+        // a user but no session — the link in the inbox is what mints it. Say
+        // so, so the screen can send them to check their mail rather than sit on
+        // a form that looks like it did nothing.
+        if (action.call === 'signUp' && who.kind === 'email' && !result.data.session) {
+          return { verifyEmail: who.value };
+        }
+        return {};
       },
 
       async withGoogle() {

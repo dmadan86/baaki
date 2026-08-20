@@ -261,6 +261,51 @@ export async function saveAppConfig(input: { key: string; value: number }): Prom
   }
 }
 
+export interface CountrySettingRow {
+  code: string;
+  enabled: boolean;
+}
+
+/**
+ * The per-country enable rows. Denylist: only countries an operator has touched
+ * appear here, and a country with no row is offered. Like `app_config`, read
+ * straight from the table — configuration the console owns, not data about a
+ * person — and empty on a project the migration never reached.
+ */
+export async function countrySettings(): Promise<CountrySettingRow[]> {
+  await requireSession();
+  const { data, error } = await client().from('country_settings').select('code, enabled');
+  if (error) {
+    if (error.code === TABLE_MISSING) return [];
+    throw new Error(`reading country_settings failed: ${error.message}`);
+  }
+  return (data ?? []) as CountrySettingRow[];
+}
+
+/**
+ * Set which countries are offered, in one write. Upserts a row per country so
+ * the table reflects the console's last full decision; every code is checked
+ * against the same ISO-3166 shape the table constrains, so a bad one fails here
+ * with a clear message rather than as a raw database error.
+ */
+export async function saveCountrySettings(
+  entries: { code: string; enabled: boolean }[],
+): Promise<void> {
+  await requireSession();
+
+  const rows = entries.map((entry) => {
+    const code = entry.code.trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) {
+      throw new Error(`"${entry.code}" is not an ISO-3166 alpha-2 country code.`);
+    }
+    return { code, enabled: entry.enabled, updated_at: new Date().toISOString() };
+  });
+  if (rows.length === 0) return;
+
+  const { error } = await client().from('country_settings').upsert(rows, { onConflict: 'code' });
+  if (error) throw new Error(`saving country_settings failed: ${error.message}`);
+}
+
 export interface PromoCodeRow {
   code: string;
   tier: string;

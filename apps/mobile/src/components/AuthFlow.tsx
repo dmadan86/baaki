@@ -147,13 +147,14 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const run = async (action: () => Promise<void>): Promise<void> => {
+  const run = async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true);
     setError(null);
     try {
-      await action();
+      return await action();
     } catch (caught) {
       setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.signIn'));
+      return undefined;
     } finally {
       setBusy(false);
     }
@@ -313,13 +314,17 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             </View>
 
             <View style={{ gap: theme.spacing.sm }}>
+              {/* Same ink as the phone button above — the two email/phone ways
+                  in read as one pair. */}
               <Button
                 label={t.signIn.continueEmail}
-                variant="secondary"
+                variant="primary"
                 size="lg"
                 fullWidth
                 disabled={busy}
-                icon={<Ionicons name="mail-outline" size={iconSize.md} color={theme.color.brand} />}
+                icon={
+                  <Ionicons name="mail-outline" size={iconSize.md} color={theme.color.onBrand} />
+                }
                 onPress={() => {
                   setMode(Mode.Password);
                   setShowOptions(true);
@@ -342,39 +347,6 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
 
             {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
             {error ? <Callout tone="negative">{error}</Callout> : null}
-
-            {/* The line to the other door — a muted question and a bold link,
-                the way every reference sign-in draws it. Coming back to sign in
-                and starting fresh are different errands; each screen names the
-                one it is not. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={isSignup ? t.signIn.signInAction : t.signIn.createAccount}
-              disabled={busy}
-              onPress={() =>
-                isSignup
-                  ? router.canGoBack()
-                    ? router.back()
-                    : router.replace('/sign-in')
-                  : router.push('/sign-up')
-              }
-              hitSlop={8}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                paddingVertical: theme.spacing.sm,
-                opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <Text tone="muted">
-                {isSignup ? t.signIn.haveAccountPrompt : t.signIn.newHerePrompt}
-              </Text>
-              <Text style={{ fontWeight: '700', color: theme.color.brand }}>
-                {isSignup ? t.signIn.signInAction : t.signIn.createAccount}
-              </Text>
-            </Pressable>
           </View>
         </ScrollView>
       </View>
@@ -651,7 +623,19 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                     size="lg"
                     fullWidth
                     disabled={busy || !identifier.trim() || password.length < 8}
-                    onPress={() => void run(() => withPassword(identifier, password, intent))}
+                    onPress={() =>
+                      void (async () => {
+                        const outcome = await run(() => withPassword(identifier, password, intent));
+                        // A confirmation mail went out — send them to check it
+                        // rather than leave them on a form that looks inert.
+                        if (outcome?.verifyEmail) {
+                          router.push({
+                            pathname: '/verify-email',
+                            params: { email: outcome.verifyEmail },
+                          });
+                        }
+                      })()
+                    }
                   />
                 </>
               ) : null}

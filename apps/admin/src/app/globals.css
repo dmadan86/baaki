@@ -63,13 +63,7 @@ body {
   /* Same system-font stack as apps/web (globals.css --font-sans), so admin and
      the web client resolve to the same UI font on every platform. */
   font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
 }
@@ -661,6 +655,32 @@ form.flag input[type='number'] {
 
 form.flag button {
   padding: 9px 16px;
+}
+
+/* ── country list ── */
+
+/* A checkbox per market, reflowing into as many columns as fit — read at a
+   desk, so a dense grid rather than a long single column. */
+.country-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 18px;
+}
+
+.country-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text);
+  padding: 5px 0;
+}
+
+.country-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent, #4ca82c);
 }
 
 /**
