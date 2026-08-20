@@ -243,6 +243,9 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               label={t.common.back}
               variant="ghost"
               size="sm"
+              // A small corner ghost by design, but 38pt is under the 44 floor —
+              // hitSlop grows the target without inflating the visible pill.
+              hitSlop={8}
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/sign-in'))}
             />
           </View>
