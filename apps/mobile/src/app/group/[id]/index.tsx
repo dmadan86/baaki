@@ -39,7 +39,14 @@ import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
 import { formatParts, type MemberId } from '@waves/core';
-import { displayName, groupLabel, isGhost, type ExpenseVersionRow } from '@/data/types';
+import { useBlockedUsers } from '@/data/blocked';
+import {
+  displayName,
+  groupLabel,
+  isBlockedMember,
+  isGhost,
+  type ExpenseVersionRow,
+} from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { DetailEnter } from '@/lib/anim';
@@ -217,10 +224,11 @@ export default function GroupScreen() {
   );
   const confirmSettlement = useConfirmSettlement(groupId);
 
+  const { blockedIds } = useBlockedUsers();
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id) : t.misc.someone;
+    return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
   };
 
   if (group.isLoading) {
@@ -736,11 +744,15 @@ export default function GroupScreen() {
                         paddingVertical: theme.spacing.md,
                       }}
                     >
-                      <Avatar name={displayName(member)} ghost={isGhost(member)} size={40} />
+                      <Avatar
+                        name={displayName(member, null, blockedIds, t.misc.someone)}
+                        ghost={isGhost(member) || isBlockedMember(member, blockedIds)}
+                        size={40}
+                      />
                       <View style={{ flex: 1 }}>
                         <Row style={{ gap: theme.spacing.sm }}>
                           <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
-                            {displayName(member, profile?.id)}
+                            {displayName(member, profile?.id, blockedIds, t.misc.someone)}
                           </Text>
                           {member.role === 'admin' && !isGhost(member) ? (
                             <Badge label={t.people.admin} tone="brand" />
@@ -792,7 +804,7 @@ export default function GroupScreen() {
                 {(activity.data ?? []).map((entry, index) => (
                   <View key={entry.id}>
                     <ListRow
-                      title={describeActivity(entry, profile?.id ?? null)}
+                      title={describeActivity(entry, profile?.id ?? null, blockedIds)}
                       subtitle={new Intl.DateTimeFormat(locale, {
                         day: 'numeric',
                         month: 'short',

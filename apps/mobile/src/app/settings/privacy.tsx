@@ -152,6 +152,26 @@ export default function PrivacyScreen() {
           <SectionHeader title={t.privacy.dataControlsSection} />
           <Card style={{ paddingVertical: theme.spacing.xs }}>
             <ListRow
+              title={t.blocked.row}
+              subtitle={t.blocked.rowHint}
+              onPress={() => router.push('/settings/blocked')}
+              leading={
+                <Ionicons
+                  name="person-remove-outline"
+                  size={iconSize.md}
+                  color={theme.color.brand}
+                />
+              }
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={iconSize.md}
+                  color={theme.color.textFaint}
+                />
+              }
+            />
+            <View style={{ height: 1, backgroundColor: theme.color.border }} />
+            <ListRow
               title={t.privacy.exportRow}
               subtitle={t.privacy.exportRowHint}
               onPress={() => router.push('/settings/export')}

@@ -254,9 +254,13 @@ export interface NotificationRow {
 export function actorName(
   actor: ActivityActor | null | undefined,
   myProfileId: string | null,
+  blocked?: ReadonlySet<string> | null,
 ): string {
   if (!actor) return 'Someone';
   if (myProfileId && actor.profile_id === myProfileId) return 'You';
+  // A blocked person is shown as the anonymous ghost everywhere they surface —
+  // the feed included — never their real name. Never applied to yourself.
+  if (actor.profile_id && blocked?.has(actor.profile_id)) return 'Someone';
   return actor.profile?.display_name ?? actor.ghost_name ?? 'Someone';
 }
 
@@ -267,10 +271,38 @@ export interface BalanceRow {
   balance: string;
 }
 
-/** Display name for a member, real or ghost. */
-export function displayName(member: MemberRow, myProfileId?: string | null): string {
+/**
+ * Display name for a member, real or ghost.
+ *
+ * `blocked` is the set of profile ids the viewer has blocked (device-local, see
+ * `data/blocked`). A blocked person is never shown by their real name — they
+ * read as the anonymous ghost (`someoneLabel`, the localized `t.misc.someone`)
+ * so the block is a genuine change in how they appear, not a cosmetic tag. The
+ * viewer is never blocked against themselves, so "You" always wins first. This
+ * only touches the label; nothing here reads or moves a balance.
+ */
+export function displayName(
+  member: MemberRow,
+  myProfileId?: string | null,
+  blocked?: ReadonlySet<string> | null,
+  someoneLabel = 'Someone',
+): string {
   if (member.profile_id && member.profile_id === myProfileId) return 'You';
+  if (member.profile_id && blocked?.has(member.profile_id)) return someoneLabel;
   return member.profile?.display_name ?? member.ghost_name ?? 'Someone';
+}
+
+/**
+ * Whether this member is a person the viewer has blocked — used to give them the
+ * ghost look (dashed avatar) alongside the ghost name. Only real people (with a
+ * profile id) can be blocked; a plain ghost has no cross-group identity to key
+ * a block on.
+ */
+export function isBlockedMember(
+  member: Pick<MemberRow, 'profile_id'>,
+  blocked?: ReadonlySet<string> | null,
+): boolean {
+  return Boolean(member.profile_id && blocked?.has(member.profile_id));
 }
 
 /**

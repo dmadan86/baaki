@@ -15,7 +15,7 @@ import { useMemo } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import {
   Button,
@@ -34,8 +34,9 @@ import {
 } from '@waves/ui';
 
 import { fetchPersonGroupBalances, type PersonGroupBalanceRow } from '@/data/api';
+import { useBlockedUsers } from '@/data/blocked';
 import { PeopleSkeleton } from '@/components/Skeletons';
-import { useStrings } from '@/i18n';
+import { fill, useStrings } from '@/i18n';
 
 /** A person's balance in one group: the group, and one net per currency in it. */
 interface GroupBlock {
@@ -58,7 +59,27 @@ export default function PersonDetailScreen() {
   });
 
   const rows = useMemo(() => person.data ?? [], [person.data]);
-  const title = name ?? rows[0]?.display_name ?? '';
+
+  // Only a person with an account can be blocked, and for one the `person_key`
+  // in the route *is* their profile id (the list keys them on it), so `key` is
+  // the block key. A ghost or a merged-ghost person_key is not a profile id and
+  // nothing elsewhere keys off it, so those are left un-blockable.
+  const { isBlocked, block, unblock } = useBlockedUsers();
+  const isRealPerson = rows.some((row) => !row.is_ghost);
+  const blocked = isRealPerson && isBlocked(key);
+  const realName = rows.find((row) => !row.is_ghost)?.display_name ?? name ?? t.misc.someone;
+  const title = blocked ? t.misc.someone : (name ?? rows[0]?.display_name ?? '');
+
+  const confirmBlock = (): void => {
+    Alert.alert(fill(t.blocked.confirmTitle, { name: realName }), t.blocked.confirmBody, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.blocked.action,
+        style: 'destructive',
+        onPress: () => block({ id: key, name: realName, avatarUrl: null }),
+      },
+    ]);
+  };
 
   // One block per group (a group can carry two currencies), and the per-currency
   // total across all of them — the figure the Friends list showed, restated here
@@ -103,7 +124,20 @@ export default function PersonDetailScreen() {
               {title}
             </Text>
           </View>
-          <View style={{ width: 44 }} />
+          {isRealPerson ? (
+            <IconButton
+              label={blocked ? t.blocked.unblock : t.blocked.action}
+              onPress={blocked ? () => unblock(key) : confirmBlock}
+            >
+              <Ionicons
+                name={blocked ? 'person-add-outline' : 'person-remove-outline'}
+                size={iconSize.md}
+                color={blocked ? theme.color.brand : theme.color.negative}
+              />
+            </IconButton>
+          ) : (
+            <View style={{ width: 44 }} />
+          )}
         </Row>
 
         {person.isLoading ? (

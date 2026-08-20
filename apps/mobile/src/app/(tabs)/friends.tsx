@@ -45,6 +45,7 @@ import {
 } from '@waves/ui';
 
 import { nudgeToSettle, type PersonBalanceRow } from '@/data/api';
+import { useBlockedUsers } from '@/data/blocked';
 import { useKnownPeopleCount, usePeopleBalances } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
 import { PeopleSkeleton } from '@/components/Skeletons';
@@ -494,6 +495,12 @@ function FriendCard({
   t: ReturnType<typeof useStrings>['t'];
 }): React.JSX.Element {
   const theme = useTheme();
+  const { isBlocked } = useBlockedUsers();
+  // A blocked person is hidden behind the ghost name and the ghost avatar here
+  // too, so their identity never surfaces on the Friends list — the amount and
+  // everything the row does with it are unchanged; only who it names is.
+  const blocked = isBlocked(row.profile_id);
+  const shownName = blocked ? t.misc.someone : row.display_name;
   // Flat WhatsApp row: the money colour is gone from the background, the amount
   // reads in ordinary ink, and the owed/owe meaning is carried by the sign and
   // the section this row sits under. The avatar keeps the person's own colour.
@@ -508,17 +515,17 @@ function FriendCard({
           // The route is typed once expo regenerates its route map; `as never`
           // matches how the other friends/* pushes bridge that gap.
           `/friends/person/${encodeURIComponent(row.person_key)}?name=${encodeURIComponent(
-            row.display_name,
+            shownName,
           )}` as never,
         );
 
   const body = (
     <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}>
       <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
-        <Avatar name={row.display_name} size={44} ghost={row.is_ghost} />
+        <Avatar name={shownName} size={44} ghost={row.is_ghost || blocked} />
         <View style={{ flex: 1 }}>
           <Text variant="subheading" numberOfLines={1}>
-            {row.display_name}
+            {shownName}
           </Text>
           <Text variant="caption" tone="muted" numberOfLines={1}>
             {row.group_count === 1
@@ -572,7 +579,7 @@ function FriendCard({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={row.display_name}
+      accessibilityLabel={shownName}
       style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
     >
       {body}

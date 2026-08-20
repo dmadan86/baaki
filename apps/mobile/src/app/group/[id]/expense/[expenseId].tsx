@@ -33,7 +33,8 @@ import {
   useRestoreExpense,
 } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';
-import { displayName, groupLabel, isGhost } from '@/data/types';
+import { useBlockedUsers } from '@/data/blocked';
+import { displayName, groupLabel, isBlockedMember, isGhost } from '@/data/types';
 import { fill, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { receiptFiles } from '@/lib/receiptStore';
@@ -64,10 +65,11 @@ export default function ExpenseDetailScreen() {
 
   const expense = expenses.rows.find((row) => row.id === expenseId);
   const version = expense?.currentVersion;
+  const { blockedIds } = useBlockedUsers();
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id) : t.misc.someone;
+    return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
   };
   // The label reads "You"; the avatar keeps the real name so the current user's
   // circle is the same initial and colour here as on every other screen — a
@@ -75,7 +77,7 @@ export default function ExpenseDetailScreen() {
   // avatar made it a lone pink "Y" next to a blue "G" elsewhere for one person.
   const avatarNameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member) : t.misc.someone;
+    return member ? displayName(member, null, blockedIds, t.misc.someone) : t.misc.someone;
   };
 
   if (expenses.isLoading) {
@@ -316,7 +318,9 @@ export default function ExpenseDetailScreen() {
                     leading={
                       <Avatar
                         name={avatarNameOf(share.member_id)}
-                        ghost={member ? isGhost(member) : false}
+                        ghost={
+                          member ? isGhost(member) || isBlockedMember(member, blockedIds) : false
+                        }
                         size={38}
                       />
                     }

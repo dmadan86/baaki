@@ -45,10 +45,14 @@ export function parseMoney(
   }
 }
 
-export function describeActivity(entry: ActivityRow, myProfileId: string | null): string {
+export function describeActivity(
+  entry: ActivityRow,
+  myProfileId: string | null,
+  blocked?: ReadonlySet<string> | null,
+): string {
   const { payload } = entry;
   const description = typeof payload.description === 'string' ? payload.description : null;
-  const who = actorName(entry.actor, myProfileId);
+  const who = actorName(entry.actor, myProfileId, blocked);
 
   switch (entry.verb) {
     case 'added':
