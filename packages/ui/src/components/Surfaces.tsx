@@ -4,6 +4,7 @@ import { SafeAreaProvider, SafeAreaView, type Edge } from 'react-native-safe-are
 
 import { useTheme } from '../theme';
 import type { TintName } from '../tokens';
+import { Gradient } from './Gradient';
 import { Text } from './Text';
 
 export function Screen({
@@ -26,9 +27,19 @@ export function Screen({
 }) {
   const theme = useTheme();
   const screen = (
-    <SafeAreaView edges={edges} style={[{ flex: 1, backgroundColor: theme.color.bg }, style]}>
-      {children}
-    </SafeAreaView>
+    <View style={{ flex: 1, backgroundColor: theme.color.bg }}>
+      {/* The soft canvas wash, painted full-bleed behind the content. The
+          Gradient primitive falls back to its first (near-white) stop if the
+          native gradient view is missing, so the background is never a crash. */}
+      <Gradient
+        colors={theme.gradient.canvas}
+        radius={0}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+      <SafeAreaView edges={edges} style={[{ flex: 1 }, style]}>
+        {children}
+      </SafeAreaView>
+    </View>
   );
   return inModal ? <SafeAreaProvider>{screen}</SafeAreaProvider> : screen;
 }

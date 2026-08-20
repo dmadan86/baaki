@@ -100,6 +100,12 @@ export const gradients = {
   // and off warning amber so it never reads as a status. Every stop holds white.
   accentLight: ['#3A4310', '#4C5A16', '#61731F'],
   accentDark: ['#2A310B', '#3A4310', '#4C5A16'],
+  // The app canvas: a soft, cool wallpaper wash — pale lavender-white in the
+  // top-left sliding to a light sky-cyan in the bottom-right. Painted full-bleed
+  // behind every Screen; white cards sit on top of it. The first stop is the
+  // flat fallback if the native gradient view is missing, so it stays near-white.
+  canvasLight: ['#F3F1F7', '#DCE8F1', '#C4E2EE'],
+  canvasDark: ['#101018', '#121A26', '#0E1E2A'],
   // The balance card wears its verdict: a teal wash when the net is in your
   // favour, a red one when you owe. Both are the money hues (positive/negative)
   // deepened across three stops so the white balance and its small labels stay

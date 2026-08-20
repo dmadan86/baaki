@@ -36,6 +36,8 @@ export interface Theme {
     readonly warningSoft: string;
   };
   readonly gradient: {
+    /** Full-bleed wash painted behind every Screen. */
+    readonly canvas: readonly string[];
     /** Stops for the brand wash, in paint order. */
     readonly brand: readonly string[];
     /** A second, blue wash for the paired action tile. */
@@ -97,6 +99,7 @@ const lightTheme: Theme = {
     warningSoft: palette.peach,
   },
   gradient: {
+    canvas: gradients.canvasLight,
     brand: gradients.light,
     accent: gradients.accentLight,
     positive: gradients.positiveLight,
@@ -133,6 +136,7 @@ const darkTheme: Theme = {
     warningSoft: '#463020',
   },
   gradient: {
+    canvas: gradients.canvasDark,
     brand: gradients.dark,
     accent: gradients.accentDark,
     positive: gradients.positiveDark,
