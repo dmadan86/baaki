@@ -4,7 +4,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
+  Animated,
   Modal,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -918,6 +921,10 @@ function HeroDeck({
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const [page, setPage] = useState(0);
+  const { animated } = useMotion();
+  // Lazy-initialised once and never replaced (the same pattern the voice mic’s
+  // animations use); a plain `useRef().current` read trips react-hooks/refs.
+  const [scrollX] = useState(() => new Animated.Value(0));
 
   const slides = [
     {
@@ -971,9 +978,21 @@ function HeroDeck({
   // point instead of stopping a peek short of the edge.
   const snap = cardWidth + gap;
 
+  // Each card’s distance from centred, in scroll units — the three points a
+  // card passes through as it moves from the peek on the right, to centred, to
+  // the peek on the left. Interpolating on the live offset (not on a settled
+  // page) is what makes the growth track the finger instead of snapping after
+  // momentum ends: Apple’s “hint in the direction of the gesture”.
+  const rangeFor = (index: number): number[] => [
+    (index - 1) * snap,
+    index * snap,
+    (index + 1) * snap,
+  ];
+  const active = Math.min(page, slides.length - 1);
+
   return (
     <View style={{ gap: theme.spacing.md }}>
-      <ScrollView
+      <Animated.ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={snap}
@@ -982,34 +1001,95 @@ function HeroDeck({
         disableIntervalMomentum
         scrollEventThrottle={16}
         contentContainerStyle={{ gap, paddingRight: peek }}
-        onMomentumScrollEnd={(event) =>
-          setPage(Math.round(event.nativeEvent.contentOffset.x / snap))
-        }
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+          useNativeDriver: true,
+          // The discrete-dot fallback and the stale-index clamp both want a
+          // settled page; the visual growth above rides scrollX directly.
+          listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+            const next = Math.round(event.nativeEvent.contentOffset.x / snap);
+            setPage((current) => (current === next ? current : next));
+          },
+        })}
       >
-        {slides.map((slide) => (
-          <View key={slide.key} style={{ width: cardWidth }}>
-            {slide.node}
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* The deck can lose a slide under a stale index — a trip ends, a
-          currency settles — so the live dot is clamped, not trusted. */}
-      <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
         {slides.map((slide, index) => (
-          <View
+          <Animated.View
             key={slide.key}
             style={{
-              width: index === Math.min(page, slides.length - 1) ? 18 : 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor:
-                index === Math.min(page, slides.length - 1)
-                  ? theme.color.brand
-                  : theme.color.border,
+              width: cardWidth,
+              // The centred card sits at full size; its neighbours fall back a
+              // touch, so the peek reads as depth and the incoming card grows
+              // into focus as you swipe to it. Transform + opacity only, both
+              // native-driven. Motion off leaves every card flat and full.
+              ...(animated
+                ? {
+                    opacity: scrollX.interpolate({
+                      inputRange: rangeFor(index),
+                      outputRange: [0.75, 1, 0.75],
+                      extrapolate: 'clamp',
+                    }),
+                    transform: [
+                      {
+                        scale: scrollX.interpolate({
+                          inputRange: rangeFor(index),
+                          outputRange: [0.94, 1, 0.94],
+                          extrapolate: 'clamp',
+                        }),
+                      },
+                    ],
+                  }
+                : null),
             }}
-          />
+          >
+            {slide.node}
+          </Animated.View>
         ))}
+      </Animated.ScrollView>
+
+      {/* The pager. Motion on: each dot is a 6px base pill that scales along X
+          up to 3× (an 18px capsule) and brightens as its card centres, so the
+          active pill grows toward the incoming card mid-swipe rather than
+          flicking over at the end. scaleX leaves the layout box at 6px, so the
+          row keeps its tight spacing and never reflows (no jitter). Motion off:
+          the plain discrete dot, clamped against a stale index when a slide
+          drops out from under it (a trip ends, a currency settles). */}
+      <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
+        {slides.map((slide, index) =>
+          animated ? (
+            <Animated.View
+              key={slide.key}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: theme.color.brand,
+                opacity: scrollX.interpolate({
+                  inputRange: rangeFor(index),
+                  outputRange: [0.3, 1, 0.3],
+                  extrapolate: 'clamp',
+                }),
+                transform: [
+                  {
+                    scaleX: scrollX.interpolate({
+                      inputRange: rangeFor(index),
+                      outputRange: [1, 3, 1],
+                      extrapolate: 'clamp',
+                    }),
+                  },
+                ],
+              }}
+            />
+          ) : (
+            <View
+              key={slide.key}
+              style={{
+                width: index === active ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: index === active ? theme.color.brand : theme.color.border,
+              }}
+            />
+          ),
+        )}
       </Row>
     </View>
   );
