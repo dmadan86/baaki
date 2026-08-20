@@ -60,8 +60,17 @@ const PLANS: Plan[] = [
     this with the store's own date. */
 function renewalLabel(plan: PlanId): string {
   const d = new Date();
-  if (plan === 'annual') d.setDate(d.getDate() + 7);
-  else d.setMonth(d.getMonth() + 1);
+  if (plan === 'annual') {
+    d.setDate(d.getDate() + 7);
+  } else {
+    // Adding a month naively overflows a short month — 31 Jan + 1 = 3 Mar.
+    // Move to the first, step the month, then clamp the day to that month's last.
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + 1);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+  }
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
@@ -99,7 +108,7 @@ export default function PaywallScreen() {
 
         {/* The plans. Tapping one selects it; the selected card wears the brand
             border and a green check. */}
-        <View style={{ gap: theme.spacing.lg }}>
+        <View accessibilityRole="radiogroup" style={{ gap: theme.spacing.lg }}>
           {PLANS.map((plan) => {
             const active = plan.id === selected;
             return (
@@ -107,7 +116,7 @@ export default function PaywallScreen() {
                 key={plan.id}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={`${plan.title}, ${plan.price} ${plan.cadence}`}
+                accessibilityLabel={`${plan.badge ? `${plan.badge}, ` : ''}${plan.title}, ${plan.price} ${plan.cadence}. ${plan.note}`}
                 onPress={() => setSelected(plan.id)}
                 style={({ pressed }) => [
                   {

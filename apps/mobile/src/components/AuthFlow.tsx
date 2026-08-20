@@ -161,7 +161,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   };
 
   if (tourSeen === null) {
-    return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
+    return <View style={{ flex: 1, backgroundColor: theme.color.surface }} />;
   }
 
   if (!tourSeen) {
