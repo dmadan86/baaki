@@ -26,11 +26,15 @@ import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES, useStrings } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
+import { useMotion } from '@/lib/motion';
 
 export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-start' }) {
   const theme = useTheme();
   const { t } = useStrings();
   const { language, setLanguage, restartNeeded } = useLanguage();
+  // The fade is decoration — reduced motion drops it to an instant present, the
+  // same gate the overflow menu and the voice picker use (TDR §11).
+  const { animated } = useMotion();
   const [open, setOpen] = useState(false);
 
   const current = LANGUAGE_NAMES[language].own;
@@ -71,7 +75,12 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
         </Text>
       ) : null}
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType={animated ? 'fade' : 'none'}
+        onRequestClose={() => setOpen(false)}
+      >
         {/* Backdrop closes; the card swallows its own taps so a miss inside the
             menu does not dismiss it. */}
         <Pressable
