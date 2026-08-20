@@ -236,13 +236,71 @@ export default function GroupScreen() {
   }
 
   if (group.isError || !group.data) {
+    // A group can vanish for ordinary reasons — archived, left, a link that has
+    // gone stale — so this is a place to step back from, not a crash. It wears
+    // the shape the category's own not-found screens use: an escape at the top,
+    // a soft-tinted tile so the state looks like the app rather than a failure,
+    // and the one way out as a full-width bar under the thumb rather than a pill
+    // adrift in the middle of the page.
     return (
-      <Screen>
-        <EmptyState
-          title={t.group.notFound}
-          body={t.group.notFoundBody}
-          action={<Button label={t.common.back} onPress={() => router.back()} />}
-        />
+      <Screen edges={['top', 'bottom']}>
+        <View style={{ flex: 1, paddingHorizontal: theme.spacing.xl }}>
+          <Row style={{ paddingTop: theme.spacing.md }}>
+            <Pressable
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.back}
+              hitSlop={10}
+            >
+              <Ionicons
+                name={directionalIcon('chevron-back')}
+                size={iconSize.xxl}
+                color={theme.color.text}
+              />
+            </Pressable>
+          </Row>
+
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: theme.spacing.md,
+            }}
+          >
+            {/* Decorative: the title carries the meaning. A tile the size of a
+                group cover, in the soft brand tint the app uses for its empty
+                states. */}
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: theme.radius.xl,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.color.brandSoft,
+                marginBottom: theme.spacing.sm,
+              }}
+            >
+              <Ionicons name="compass-outline" size={48} color={theme.color.brand} />
+            </View>
+            <Text variant="title" align="center" accessibilityRole="header">
+              {t.group.notFound}
+            </Text>
+            <Text variant="body" tone="muted" align="center">
+              {t.group.notFoundBody}
+            </Text>
+          </View>
+
+          <Button
+            label={t.common.back}
+            onPress={() => router.back()}
+            fullWidth
+            style={{ marginBottom: theme.spacing.xl }}
+          />
+        </View>
       </Screen>
     );
   }
