@@ -129,11 +129,11 @@ export default function InboxScreen() {
           />
         }
       >
-        {/* The app's standard pushed-screen header — back chevron, centred
-            title, a matching spacer — the same one Settings, Privacy and
-            Feedback wear, so this screen reads as one of them rather than a
-            bespoke page. */}
-        <Row style={{ paddingTop: theme.spacing.md }}>
+        {/* Back chevron because you drilled in here from the Activity bell,
+            then the same glyph-plus-big-title mark the Activity feed wears — the
+            two screens sit together, so the inbox reads as the sibling it is
+            rather than a generic settings page. */}
+        <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center', gap: theme.spacing.sm }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
             <Ionicons
               name={directionalIcon('chevron-back')}
@@ -141,10 +141,8 @@ export default function InboxScreen() {
               color={theme.color.text}
             />
           </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.inbox.title}</Text>
-          </View>
-          <View style={{ width: 44 }} />
+          <Ionicons name="notifications-outline" size={iconSize.xl} color={theme.color.brand} />
+          <Text variant="title">{t.inbox.title}</Text>
         </Row>
 
         {/* A capture with no group yet is something waiting for you, so it
