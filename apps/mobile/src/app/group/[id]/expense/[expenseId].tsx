@@ -282,25 +282,38 @@ export default function ExpenseDetailScreen() {
           <View>
             <SectionHeader title={t.paidBy} />
             <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {version.payers.map((payer, index) => (
-                <View key={payer.member_id}>
-                  <ListRow
-                    title={nameOf(payer.member_id)}
-                    leading={<Avatar name={avatarNameOf(payer.member_id)} size={38} />}
-                    trailing={
-                      <MoneyText
-                        amount={BigInt(payer.amount)}
-                        currency={currency}
-                        locale={locale}
-                        variant="caption"
-                      />
-                    }
-                  />
-                  {index < version.payers.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
-                </View>
-              ))}
+              {version.payers.map((payer, index) => {
+                const payerMember = lookup.get(payer.member_id);
+                return (
+                  <View key={payer.member_id}>
+                    <ListRow
+                      title={nameOf(payer.member_id)}
+                      leading={
+                        <Avatar
+                          name={avatarNameOf(payer.member_id)}
+                          ghost={
+                            payerMember
+                              ? isGhost(payerMember) || isBlockedMember(payerMember, blockedIds)
+                              : false
+                          }
+                          size={38}
+                        />
+                      }
+                      trailing={
+                        <MoneyText
+                          amount={BigInt(payer.amount)}
+                          currency={currency}
+                          locale={locale}
+                          variant="caption"
+                        />
+                      }
+                    />
+                    {index < version.payers.length - 1 ? (
+                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                    ) : null}
+                  </View>
+                );
+              })}
             </Card>
           </View>
         ) : null}

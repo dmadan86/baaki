@@ -13,7 +13,11 @@ import { parseBlocked, removeBlocked, upsertBlocked, type BlockedUser } from '..
 import { displayName, isBlockedMember } from '../src/data/types';
 import type { MemberRow } from '../src/data/types';
 
-const user = (id: string, name = id): BlockedUser => ({ id, name, avatarUrl: null });
+const user = (id: string, name = id, avatarUrl: string | null = null): BlockedUser => ({
+  id,
+  name,
+  avatarUrl,
+});
 
 const member = (over: Partial<MemberRow>): MemberRow =>
   ({
@@ -43,9 +47,15 @@ describe('the block reducers', () => {
     expect(removeBlocked([user('a'), user('b')], 'a').map((entry) => entry.id)).toEqual(['b']);
   });
 
-  it('reads back what was written', () => {
-    const list = [user('a', 'Ada'), user('b', 'Bo')];
+  it('reads back what was written, avatar and all', () => {
+    const list = [user('a', 'Ada', 'https://cdn/a.png'), user('b', 'Bo')];
     expect(parseBlocked(JSON.stringify(list))).toEqual(list);
+  });
+
+  it('keeps a refreshed avatar on re-block', () => {
+    const list = upsertBlocked([user('a', 'Ada', null)], user('a', 'Ada', 'https://cdn/a2.png'));
+    expect(list).toHaveLength(1);
+    expect(list[0]!.avatarUrl).toBe('https://cdn/a2.png');
   });
 
   it('treats a missing or corrupt store as nobody blocked', () => {
@@ -55,10 +65,16 @@ describe('the block reducers', () => {
   });
 
   it('drops entries with no id and fills a missing name', () => {
-    const raw = JSON.stringify([{ id: 'a' }, { name: 'no id' }, { id: 'b', name: 'Bo' }]);
+    const raw = JSON.stringify([
+      { id: 'a' },
+      { name: 'no id' },
+      { id: 'b', name: 'Bo' },
+      { id: 'c', name: 'Cy', avatarUrl: 123 },
+    ]);
     expect(parseBlocked(raw)).toEqual([
       { id: 'a', name: '', avatarUrl: null },
       { id: 'b', name: 'Bo', avatarUrl: null },
+      { id: 'c', name: 'Cy', avatarUrl: null },
     ]);
   });
 });

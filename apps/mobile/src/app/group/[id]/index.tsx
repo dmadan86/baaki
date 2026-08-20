@@ -761,7 +761,10 @@ export default function GroupScreen() {
                         <Text variant="caption" tone="muted" numberOfLines={1}>
                           {isGhost(member)
                             ? t.notJoinedYet
-                            : (member.vpa ?? member.profile?.default_vpa ?? '—')}
+                            : isBlockedMember(member, blockedIds)
+                              ? // A VPA carries a name or phone — masked for a blocked person.
+                                '—'
+                              : (member.vpa ?? member.profile?.default_vpa ?? '—')}
                         </Text>
                       </View>
                       <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
@@ -804,7 +807,12 @@ export default function GroupScreen() {
                 {(activity.data ?? []).map((entry, index) => (
                   <View key={entry.id}>
                     <ListRow
-                      title={describeActivity(entry, profile?.id ?? null, blockedIds)}
+                      title={describeActivity(
+                        entry,
+                        profile?.id ?? null,
+                        blockedIds,
+                        t.misc.someone,
+                      )}
                       subtitle={new Intl.DateTimeFormat(locale, {
                         day: 'numeric',
                         month: 'short',

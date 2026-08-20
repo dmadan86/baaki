@@ -255,13 +255,14 @@ export function actorName(
   actor: ActivityActor | null | undefined,
   myProfileId: string | null,
   blocked?: ReadonlySet<string> | null,
+  someoneLabel = 'Someone',
 ): string {
-  if (!actor) return 'Someone';
+  if (!actor) return someoneLabel;
   if (myProfileId && actor.profile_id === myProfileId) return 'You';
   // A blocked person is shown as the anonymous ghost everywhere they surface —
   // the feed included — never their real name. Never applied to yourself.
-  if (actor.profile_id && blocked?.has(actor.profile_id)) return 'Someone';
-  return actor.profile?.display_name ?? actor.ghost_name ?? 'Someone';
+  if (actor.profile_id && blocked?.has(actor.profile_id)) return someoneLabel;
+  return actor.profile?.display_name ?? actor.ghost_name ?? someoneLabel;
 }
 
 export interface BalanceRow {
