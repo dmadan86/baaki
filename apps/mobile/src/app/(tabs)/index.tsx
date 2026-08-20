@@ -437,7 +437,7 @@ export default function HomeScreen() {
  */
 function AddExpenseFab({ label, bottom }: { label: string; bottom: number }) {
   const theme = useTheme();
-  const size = 60;
+  const size = 52;
   return (
     <View
       pointerEvents="box-none"
@@ -461,7 +461,7 @@ function AddExpenseFab({ label, bottom }: { label: string; bottom: number }) {
             ...theme.shadow.lifted,
           }}
         >
-          <Ionicons name="add" size={32} color={theme.color.onBrand} />
+          <Ionicons name="add" size={iconSize.lg} color={theme.color.onBrand} />
         </PressableScale>
       </View>
     </View>

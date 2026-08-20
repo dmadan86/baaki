@@ -985,7 +985,7 @@ export default function GroupScreen() {
           <Fab
             label={t.addExpense}
             onPress={() => router.push(`/group/${groupId}/add-expense`)}
-            icon={<Ionicons name="add" size={iconSize.xl} color={theme.color.onBrand} />}
+            icon={<Ionicons name="add" size={iconSize.lg} color={theme.color.onBrand} />}
           />
         )}
       </DetailEnter>
