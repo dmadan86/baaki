@@ -61,7 +61,6 @@ import {
 import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
-import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
 import { SocialButton } from '@/components/SocialButton';
 import { deviceCountry, useStrings, type UiStrings } from '@/i18n';
@@ -194,11 +193,25 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
           style={{
             position: 'absolute',
             top: Constants.statusBarHeight + theme.spacing.sm,
-            right: theme.spacing.xl,
+            right: theme.spacing.sm,
             zIndex: 10,
           }}
         >
-          <LanguagePicker />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.language}
+            hitSlop={12}
+            onPress={() => router.push('/language')}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.buttonPrimary} />
+          </Pressable>
         </View>
 
         {/* A way back to the welcome gateway, in the opposite corner from the
@@ -285,11 +298,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 icon={
                   <Ionicons name="call-outline" size={iconSize.md} color={theme.color.onBrand} />
                 }
-                onPress={() => {
-                  setMode(Mode.Otp);
-                  setStage('phone');
-                  setShowOptions(true);
-                }}
+                onPress={() => router.push('/phone')}
               />
             </View>
 
@@ -419,8 +428,24 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
 
             {/* Above the form rather than below it. A guest arrives straight
                 here without passing the welcome, so this is their only sight of
-                the chips before they are asked to read a form. */}
-            <LanguagePicker />
+                the language switch before they are asked to read a form — the
+                same globe as the gateway, opening the full language screen. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.language}
+              hitSlop={12}
+              onPress={() => router.push('/language')}
+              style={({ pressed }) => ({
+                alignSelf: 'flex-end',
+                width: 44,
+                height: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.buttonPrimary} />
+            </Pressable>
 
             {/* The providers sit above the form here too. They were a row of
                 small squares under it, which put the one-tap way in below a
