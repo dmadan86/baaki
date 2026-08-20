@@ -23,6 +23,7 @@ import {
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { AppTabBar } from '@/components/AppTabBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
+import { NotificationPrompt } from '@/components/NotificationPrompt';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -162,6 +163,10 @@ function RootLayout() {
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
                                     <CampaignPopup />
+                                    {/* The soft ask for push, once, to a
+                                        signed-in person whose permission is
+                                        still undetermined. */}
+                                    <NotificationPrompt />
                                   </DeviceSessionProvider>
                                 </LockGate>
                                 {/* Last, so it paints over the screen rather than
