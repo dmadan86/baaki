@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 
 import {
+  Avatar,
   Badge,
   Button,
   Callout,
@@ -94,6 +95,15 @@ function AccountForm() {
     channel === ContactChannel.Email
       ? (session?.user.email ?? null)
       : (session?.user.phone ?? null);
+
+  // A stable subtitle for the identity header: the account's own contact,
+  // independent of which channel the form below is currently pointed at, so it
+  // does not flip as the chips are toggled. Purely a label.
+  const accountContact = session?.user.email ?? session?.user.phone ?? null;
+
+  // The name shown in the header portrait, never blank — the same "You"
+  // fallback the save path already uses, so the header agrees with the row.
+  const displayName = name.trim() || t.account.you;
 
   // Which providers already sign this account in, so a linked one shows as done
   // rather than offering to link what is already linked. Adding one goes through
@@ -207,6 +217,29 @@ function AccountForm() {
           </View>
           <View style={{ width: 44 }} />
         </Row>
+
+        {/* A calm identity header: the avatar and name give the screen a focal
+            point that names whose account this is (Mobbin — Todoist, TheFork).
+            It is a portrait, not a control — the name is edited in the field
+            just below, and the initials fall back cleanly when there is no
+            display name yet. */}
+        <View
+          style={{
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            paddingTop: theme.spacing.sm,
+          }}
+        >
+          <Avatar name={displayName} size={88} />
+          <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            <Text variant="title">{displayName}</Text>
+            {accountContact ? (
+              <Text variant="caption" tone="muted">
+                {accountContact}
+              </Text>
+            ) : null}
+          </View>
+        </View>
 
         {/* Your name, and how you appear to everyone else. Folded in from the
             old "You" screen so the whole account lives on one page. Save appears
