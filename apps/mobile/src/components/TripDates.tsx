@@ -19,7 +19,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Pressable, View } from 'react-native';
 
-import { Button, Card, iconSize, Row, Text, Toggle, useTheme } from '@waves/ui';
+import { Button, Card, directionalIcon, iconSize, Row, Text, Toggle, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -98,27 +98,77 @@ function showDate(iso: string | null, locale: string, notSet: string): string {
 
 const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
 
-/** A tappable label + value that opens the picker for one field. */
-function FieldRow({
+/**
+ * One end of the range — a tappable label over a big date, filling half the
+ * framed sweep. `align` hugs the start date to the outer left and the end date
+ * to the outer right, so the arrow between them reads as the span of the trip.
+ */
+function RangeEnd({
   label,
   value,
   onPress,
+  align,
 }: {
   label: string;
   value: string;
   onPress: () => void;
+  align: 'flex-start' | 'flex-end';
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value}`}
       onPress={onPress}
-      style={{ flex: 1, gap: 2 }}
+      style={{ flex: 1, gap: 2, alignItems: align }}
     >
       <Text variant="caption" tone="muted">
         {label}
       </Text>
-      <Text variant="subheading">{value}</Text>
+      <Text variant="subheading" style={{ fontWeight: '700' }}>
+        {value}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** A reminder time as a bordered pill: an icon, a small label, and the time. */
+function TimePill({
+  icon,
+  label,
+  value,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.color.border,
+        borderRadius: theme.radius.lg,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.md} color={theme.color.brand} />
+      <View style={{ gap: 1 }}>
+        <Text variant="micro" tone="muted">
+          {label}
+        </Text>
+        <Text variant="subheading">{value}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -198,16 +248,46 @@ export function TripDates({
         ) : null}
       </View>
 
-      <Row style={{ gap: theme.spacing.lg }}>
-        <FieldRow
+      {/* The range as one framed Start → End sweep — the dates hug the outer
+          edges and a chip-borne arrow spans them, so it reads as a trip's
+          length rather than two unrelated fields. */}
+      <Row
+        style={{
+          alignItems: 'center',
+          gap: theme.spacing.md,
+          backgroundColor: theme.color.surfaceMuted,
+          borderRadius: theme.radius.lg,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+        }}
+      >
+        <RangeEnd
           label={t.pickers.starts}
           value={showDate(group.start_date, locale, t.pickers.notSet)}
           onPress={() => setEditing(Field.Start)}
+          align="flex-start"
         />
-        <FieldRow
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.surface,
+          }}
+        >
+          <Ionicons
+            name={directionalIcon('arrow-forward')}
+            size={iconSize.sm}
+            color={theme.color.textMuted}
+          />
+        </View>
+        <RangeEnd
           label={t.pickers.ends}
           value={showDate(group.end_date, locale, t.pickers.notSet)}
           onPress={() => setEditing(Field.End)}
+          align="flex-end"
         />
       </Row>
 
@@ -231,13 +311,15 @@ export function TripDates({
 
           {group.remind_daily ? (
             <>
-              <Row style={{ gap: theme.spacing.lg }}>
-                <FieldRow
+              <Row style={{ gap: theme.spacing.md }}>
+                <TimePill
+                  icon="sunny-outline"
                   label={t.pickers.breakfast}
                   value={showTime(group.remind_morning_at, locale)}
                   onPress={() => setEditing(Field.Morning)}
                 />
-                <FieldRow
+                <TimePill
+                  icon="moon-outline"
                   label={t.pickers.endOfDay}
                   value={showTime(group.remind_evening_at, locale)}
                   onPress={() => setEditing(Field.Evening)}

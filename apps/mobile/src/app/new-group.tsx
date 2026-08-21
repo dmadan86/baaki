@@ -300,13 +300,6 @@ export default function NewGroupScreen() {
                   already shown large on the avatar beside it, so this only needs
                   to be a way in, not a billboard. */}
               <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
-              {/* Photos are a paid feature; the icon above is always free. Said
-                  quietly here rather than as a wall in front of the tap. */}
-              {photoStatus === 'locked' ? (
-                <Text variant="micro" tone="muted">
-                  {t.groupPhoto.paidHint}
-                </Text>
-              ) : null}
             </View>
           </Row>
         </Card>
