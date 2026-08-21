@@ -1,0 +1,26 @@
+{
+  "name": "@waves/agent-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An MCP server that lets an AI agent act inside Waves as a specific signed-in user — create groups, add expenses, and record settlements through the app's own authorized RPCs and edge functions, never raw SQL.",
+  "bin": {
+    "waves-agent-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
