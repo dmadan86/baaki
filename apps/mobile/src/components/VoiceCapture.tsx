@@ -450,12 +450,14 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
             borderRadius: MIC_SIZE / 2,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: listening ? theme.color.brand : theme.color.brandSoft,
+            backgroundColor: listening
+              ? theme.color.buttonPrimaryPressed
+              : theme.color.buttonPrimary,
             opacity: pressed ? 0.9 : 1,
-            // A brand-tinted glow lifts the mic off the surface while it is live.
+            // A soft glow lifts the black mic off the surface while it is live.
             ...(listening
               ? {
-                  shadowColor: theme.color.brand,
+                  shadowColor: '#000000',
                   shadowOpacity: 0.45,
                   shadowRadius: 20,
                   shadowOffset: { width: 0, height: 6 },
@@ -467,7 +469,7 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
           <Ionicons
             name={listening ? 'stop' : 'mic'}
             size={iconSize.xxl}
-            color={listening ? theme.color.onBrand : theme.color.brand}
+            color={theme.color.onButtonPrimary}
           />
         </Pressable>
       </View>

@@ -11,13 +11,13 @@ export interface ChipProps {
   /** Receives the resolved colour so the icon matches the selected state. */
   icon?: (color: string) => ReactNode;
   /**
-   * The fill a selected chip wears: the brand green by default, or `ink` for a
-   * black pill — used where a chip strip is a plain filter, not a brand accent.
+   * The fill a selected chip wears: a black `ink` pill by default, or `brand`
+   * green where a chip strip is meant to read as a brand accent.
    */
   variant?: 'brand' | 'ink';
 }
 
-export function Chip({ label, selected = false, onPress, icon, variant = 'brand' }: ChipProps) {
+export function Chip({ label, selected = false, onPress, icon, variant = 'ink' }: ChipProps) {
   const theme = useTheme();
   const selectedFill = variant === 'ink' ? theme.color.buttonPrimary : theme.color.brand;
   const selectedInk = variant === 'ink' ? theme.color.onButtonPrimary : theme.color.onBrand;
@@ -51,7 +51,7 @@ export function ChipRow<T extends string>({
   options,
   value,
   onChange,
-  variant = 'brand',
+  variant = 'ink',
 }: {
   options: readonly { value: T; label: string; icon?: (color: string) => ReactNode }[];
   value: T;
