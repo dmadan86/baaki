@@ -450,14 +450,12 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
             borderRadius: MIC_SIZE / 2,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: listening
-              ? theme.color.buttonPrimaryPressed
-              : theme.color.buttonPrimary,
+            backgroundColor: theme.color.buttonPrimary,
             opacity: pressed ? 0.9 : 1,
             // A soft glow lifts the black mic off the surface while it is live.
             ...(listening
               ? {
-                  shadowColor: '#000000',
+                  shadowColor: theme.color.buttonPrimary,
                   shadowOpacity: 0.45,
                   shadowRadius: 20,
                   shadowOffset: { width: 0, height: 6 },
