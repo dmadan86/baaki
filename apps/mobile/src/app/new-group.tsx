@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQuery } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -22,19 +21,12 @@ import {
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { friendlyError } from '@/lib/errors';
-import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
+import { type PickedContact } from '@/components/ContactPicker';
 import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
-import { pickGroupPhoto, type PickedImage } from '@/lib/image';
-import {
-  photoGateParam,
-  photoGateStatus,
-  photoTapAction,
-  shouldClearPickedPhoto,
-} from '@/lib/groupPhotoGate';
-import { canUploadGroupPhoto, uploadGroupPhoto } from '@/data/api';
+import { requestContacts } from '@/lib/contactPickerBridge';
 import { useCreateGroup } from '@/data/hooks';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
@@ -84,36 +76,18 @@ export default function NewGroupScreen() {
   const { t, locale } = useStrings();
   const createGroup = useCreateGroup();
   const guard = useGuestGuard();
-  const { mutate, flush } = useSync();
+  const { mutate } = useSync();
 
   const [name, setName] = useState('');
-  const [photo, setPhoto] = useState<PickedImage | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  // A group photo is a paid feature; a cover emoji is free. A new group has only
-  // its creator, so the server gates on whether the creator is paid (null group).
-  const photoGate = useQuery({
-    queryKey: ['photoGate', null],
-    queryFn: () => canUploadGroupPhoto(photoGateParam(null)),
-  });
-  const photoStatus = photoGateStatus(photoGate.data, photoGate.isLoading);
-  // If the gate resolves locked after a photo was somehow chosen, ignore it — a
-  // locked group falls back to its icon, and this photo could never upload.
-  // Derived, not stored, so there is no setState-in-effect and no stale flash.
-  const effectivePhoto = shouldClearPickedPhoto(photoStatus, photo !== null) ? null : photo;
-
-  const onPhotoPress = (): void => {
-    const action = photoTapAction(photoStatus);
-    if (action === 'pick') void pickGroupPhoto().then(setPhoto);
-    else if (action === 'showLockedHint') router.push('/settings/upgrade');
-  };
+  // The group cover is an emoji icon, chosen by tapping the avatar. Photos are
+  // a paid feature edited from group settings, not part of creating one.
+  const [iconOpen, setIconOpen] = useState(false);
   const [type, setType] = useState<GroupType>(GroupType.Trip);
   const [ghostName, setGhostName] = useState('');
   // People to add on Create — a typed name carries no address, a contact carries
   // whatever the phone had. Same shape either way, so the create loop treats
   // them alike.
   const [ghosts, setGhosts] = useState<PickedContact[]>([]);
-  const [browsing, setBrowsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Read once, not on every render: a phone does not change country mid-form.
   const [country, setCountry] = useState<string | null>(() => deviceCountry());
@@ -189,26 +163,6 @@ export default function NewGroupScreen() {
         });
       }
 
-      // The photo lives in Storage, not the offline queue, and its policy is
-      // "members of this group only" — which needs the group and the membership
-      // row actually on the server. Flush the queued create (and everything
-      // behind it) before writing an object under its id.
-      if (effectivePhoto) {
-        setUploading(true);
-        try {
-          await flush([groupId]);
-          await uploadGroupPhoto({
-            groupId,
-            base64: effectivePhoto.base64,
-            mimeType: effectivePhoto.mimeType,
-          });
-        } catch {
-          // A photo that would not upload is not worth losing the group over;
-          // it can be added again from group settings.
-        } finally {
-          setUploading(false);
-        }
-      }
       router.replace(`/group/${groupId}`);
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotSave, 'newGroup.create'));
@@ -243,7 +197,13 @@ export default function NewGroupScreen() {
       }
       return merged;
     });
-    setBrowsing(false);
+  };
+
+  // Hand the picker who is already chosen and what to do with the answer, then
+  // open it on its own screen. It calls `addContacts` back through the bridge.
+  const openContactPicker = (): void => {
+    requestContacts({ initial: ghosts, onPicked: addContacts });
+    router.push('/contact-picker');
   };
 
   return (
@@ -267,42 +227,54 @@ export default function NewGroupScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        <Card style={{ gap: theme.spacing.lg }}>
-          <Row style={{ gap: theme.spacing.lg }}>
-            <GroupPhoto
-              photoPath={null}
-              localUri={effectivePhoto?.uri ?? null}
-              emoji={emoji}
-              size={72}
-              onPress={onPhotoPress}
+        {/* One compact row: the cover — tapped to choose an icon — with the
+            name inline beside it and a clear (×) once there is a name. */}
+        <Card style={{ gap: theme.spacing.md }}>
+          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.group.chooseIcon}
+              onPress={() => setIconOpen(true)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <GroupPhoto photoPath={null} emoji={emoji} size={52} />
+            </Pressable>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder={t.misc.newGroupPlaceholder}
+              placeholderTextColor={theme.color.textFaint}
+              accessibilityLabel={t.group.groupName}
+              autoFocus
+              style={{
+                flex: 1,
+                fontSize: 18,
+                fontWeight: '700',
+                color: theme.color.text,
+                paddingVertical: theme.spacing.sm,
+              }}
             />
-            <View style={{ flex: 1, gap: theme.spacing.xs }}>
-              <InfoDisclosure
-                title={t.group.nameOptional}
-                info={t.extras.blankNameHint}
-                titleVariant="caption"
-              />
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder={t.misc.newGroupPlaceholder}
-                placeholderTextColor={theme.color.textFaint}
-                accessibilityLabel={t.group.groupName}
-                autoFocus
-                style={{
-                  fontSize: 22,
-                  fontWeight: '700',
-                  color: theme.color.text,
-                  paddingVertical: theme.spacing.sm,
-                }}
-              />
-              {/* A compact swatch rather than a full-width button — the icon is
-                  already shown large on the avatar beside it, so this only needs
-                  to be a way in, not a billboard. */}
-              <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
-            </View>
+            {name.length > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.entry.clear}
+                onPress={() => setName('')}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+              >
+                <Ionicons name="close-circle" size={iconSize.md} color={theme.color.textFaint} />
+              </Pressable>
+            ) : null}
           </Row>
         </Card>
+
+        {/* Controlled by the avatar tap above — no trigger of its own. */}
+        <CoverEmojiPicker
+          value={emoji}
+          onChange={setPickedEmoji}
+          open={iconOpen}
+          onOpenChange={setIconOpen}
+        />
 
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="caption" tone="muted">
@@ -357,15 +329,15 @@ export default function NewGroupScreen() {
             info={t.extras.ghostNote}
             titleVariant="caption"
             right={
-              // The same phone-contacts picker, moved to the section heading so
-              // it reads as an action on People rather than a stray button below
-              // the name field. Nobody's book is uploaded (ADR-006).
+              // Opens the address book on its own screen rather than unfolding
+              // it inline — a thousand-name list needs the whole height. Nobody's
+              // book is uploaded (ADR-006). The picker hands its answer back
+              // through the bridge into `addContacts`.
               <Pressable
                 accessibilityRole="button"
-                accessibilityState={{ expanded: browsing }}
-                accessibilityLabel={browsing ? t.people.hideContacts : t.people.browseContacts}
+                accessibilityLabel={t.people.browseContacts}
                 hitSlop={8}
-                onPress={() => setBrowsing((open) => !open)}
+                onPress={openContactPicker}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -373,11 +345,7 @@ export default function NewGroupScreen() {
                   opacity: pressed ? 0.6 : 1,
                 })}
               >
-                <Ionicons
-                  name={browsing ? 'people' : 'people-outline'}
-                  size={iconSize.base}
-                  color={theme.color.brand}
-                />
+                <Ionicons name="people-outline" size={iconSize.base} color={theme.color.brand} />
                 <Text variant="caption" style={{ color: theme.color.brand }}>
                   {t.people.contacts}
                 </Text>
@@ -408,21 +376,6 @@ export default function NewGroupScreen() {
               onPress={addTypedGhost}
             />
           </Row>
-
-          {browsing ? (
-            // Tall enough that the letter rail has something to aim at — a
-            // short window turns a thousand contacts back into a peephole.
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
-                {t.misc.fromYourContacts}
-              </Text>
-              <View style={{ height: 480 }}>
-                {/* Seeded with whoever is already added, so the people already
-                    selected show ticked here rather than the picker opening blank. */}
-                <ContactPicker onConfirm={addContacts} initialSelected={ghosts} />
-              </View>
-            </View>
-          ) : null}
 
           {ghosts.length > 0 ? (
             <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
@@ -466,15 +419,13 @@ export default function NewGroupScreen() {
         }}
       >
         {error ? <Callout tone="negative">{error}</Callout> : null}
-        {createGroup.isPending || uploading ? (
-          <ActivityIndicator color={theme.color.brand} />
-        ) : null}
+        {createGroup.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
 
         <Button
           label={t.misc.createGroup}
           size="lg"
           fullWidth
-          disabled={createGroup.isPending || uploading}
+          disabled={createGroup.isPending}
           onPress={() => void submit()}
         />
       </View>
