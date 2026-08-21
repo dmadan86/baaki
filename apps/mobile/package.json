@@ -52,7 +52,7 @@
     "react-dom": "19.2.8",
     "react-native": "0.86.2",
     "react-native-document-scanner-plugin": "^2.0.4",
-    "react-native-gesture-handler": "~3.2.1",
+    "react-native-gesture-handler": "~2.32.0",
     "react-native-get-sms-android": "^2.1.0",
     "react-native-qrcode-styled": "^0.4.0",
     "react-native-qrcode-svg": "^6.3.21",
