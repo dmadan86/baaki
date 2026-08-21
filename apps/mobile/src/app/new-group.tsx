@@ -273,66 +273,48 @@ export default function NewGroupScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        {/* The identity of the group, top-down: the cover you tap to set a
-            photo, the icon under it, then the name in a field of its own. The
-            avatar used to sit left of a cramped column; centred and stacked it
-            reads as the one thing this card is for. */}
-        <Card style={{ gap: theme.spacing.lg, alignItems: 'center' }}>
-          <GroupPhoto
-            photoPath={null}
-            localUri={effectivePhoto?.uri ?? null}
-            emoji={emoji}
-            size={88}
-            onPress={onPhotoPress}
-          />
-          {/* A compact swatch, not a full-width button — the icon is already
-              shown large on the avatar above, so this is only a way in. */}
-          <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
-
-          <View style={{ width: '100%', gap: theme.spacing.xs }}>
-            <Row
+        {/* One compact row: the cover you tap to set a photo, the name inline
+            beside it, and a clear (×) once there is a name. The icon swatch
+            tucks under the same row. */}
+        <Card style={{ gap: theme.spacing.md }}>
+          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <GroupPhoto
+              photoPath={null}
+              localUri={effectivePhoto?.uri ?? null}
+              emoji={emoji}
+              size={52}
+              onPress={onPhotoPress}
+            />
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder={t.misc.newGroupPlaceholder}
+              placeholderTextColor={theme.color.textFaint}
+              accessibilityLabel={t.group.groupName}
+              autoFocus
               style={{
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                borderWidth: 1,
-                borderColor: theme.color.border,
-                borderRadius: theme.radius.lg,
-                paddingHorizontal: theme.spacing.lg,
+                flex: 1,
+                fontSize: 18,
+                fontWeight: '700',
+                color: theme.color.text,
+                paddingVertical: theme.spacing.sm,
               }}
-            >
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder={t.misc.newGroupPlaceholder}
-                placeholderTextColor={theme.color.textFaint}
-                accessibilityLabel={t.group.groupName}
-                autoFocus
-                style={{
-                  flex: 1,
-                  fontSize: 20,
-                  fontWeight: '700',
-                  color: theme.color.text,
-                  paddingVertical: theme.spacing.md,
-                }}
-              />
-              {name.length > 0 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t.entry.clear}
-                  onPress={() => setName('')}
-                  hitSlop={8}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-                >
-                  <Ionicons name="close-circle" size={iconSize.lg} color={theme.color.textFaint} />
-                </Pressable>
-              ) : null}
-            </Row>
-            {/* Blank is fine — the group is labelled by who is in it. Said once,
-                quietly, under the field rather than behind an info toggle. */}
-            <Text variant="caption" tone="muted" align="center">
-              {t.extras.blankNameHint}
-            </Text>
-          </View>
+            />
+            {name.length > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.entry.clear}
+                onPress={() => setName('')}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+              >
+                <Ionicons name="close-circle" size={iconSize.md} color={theme.color.textFaint} />
+              </Pressable>
+            ) : null}
+          </Row>
+          {/* A compact swatch, not a full-width button — the icon is already on
+              the avatar; this is only a way in to change it. */}
+          <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
         </Card>
 
         <View style={{ gap: theme.spacing.md }}>
