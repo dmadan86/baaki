@@ -286,14 +286,6 @@ export default function GroupSettingsScreen() {
               />
             ) : null}
           </Row>
-
-          {/* Photos are a paid feature; the icon picker above is always free.
-              Only surfaced when the group cannot set one and has none to remove. */}
-          {photoStatus === 'locked' && !group.data.photo_path ? (
-            <Text variant="micro" tone="muted">
-              {t.groupPhoto.paidHint}
-            </Text>
-          ) : null}
         </Card>
 
         {/* The kind of group. Only changes the label, cover default and trip
