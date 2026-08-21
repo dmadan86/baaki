@@ -21,6 +21,7 @@ import {
   Button,
   Card,
   directionalIcon,
+  Divider,
   IconButton,
   iconSize,
   Row,
@@ -35,6 +36,17 @@ import { friendlyError } from '@/lib/errors';
 import { fetchDevices } from '@/data/api';
 import { deviceId } from '@/lib/device';
 import { useDeviceSession } from '@/lib/deviceSession';
+
+/**
+ * A phone or a computer, read off the free-text platform string. Only ever
+ * decides which glyph sits in front of a row — a browser session is a laptop,
+ * everything else is the phone this app usually is.
+ */
+function deviceGlyph(platform: string) {
+  const p = platform.toLowerCase();
+  const isDesktop = /web|mac|windows|linux|desktop|chrome|firefox|safari|browser|edge/.test(p);
+  return isDesktop ? 'desktop-outline' : 'phone-portrait-outline';
+}
 
 export default function DevicesScreen() {
   const theme = useTheme();
@@ -60,6 +72,13 @@ export default function DevicesScreen() {
   const otherLiveCount = ready
     ? rows.filter((row) => row.deviceId !== myDeviceId && !row.revokedAt).length
     : 0;
+
+  // Presentation only: this phone reads first, then the other live sessions in
+  // the server's newest-first order, then anything already signed out settles
+  // to the bottom where it can be scanned past. Nothing about the data changes.
+  const ordered = ready
+    ? [...rows].sort((a, b) => rankOf(a, myDeviceId) - rankOf(b, myDeviceId))
+    : [];
 
   async function onSignOutOthers() {
     setBusy(true);
@@ -115,17 +134,22 @@ export default function DevicesScreen() {
           </View>
         ) : (
           <>
-            <View style={{ gap: theme.spacing.md }}>
-              {rows.map((row) => (
-                <DeviceCard
-                  key={`${row.deviceId}-${row.lastSeenAt}`}
-                  row={row}
-                  current={row.deviceId === myDeviceId}
-                  locale={locale}
-                  t={t}
-                />
+            {/* One grouped list rather than a stack of separate cards: the
+                sessions read as a single set you scan down, this phone marked
+                at the top, hairlines between each. */}
+            <Card style={{ paddingVertical: theme.spacing.xs }}>
+              {ordered.map((row, index) => (
+                <View key={`${row.deviceId}-${row.lastSeenAt}`}>
+                  {index > 0 ? <Divider /> : null}
+                  <DeviceRow
+                    row={row}
+                    current={row.deviceId === myDeviceId}
+                    locale={locale}
+                    t={t}
+                  />
+                </View>
               ))}
-            </View>
+            </Card>
 
             {otherLiveCount === 0 ? (
               <Text variant="caption" tone="muted" align="center">
@@ -163,7 +187,14 @@ export default function DevicesScreen() {
   );
 }
 
-function DeviceCard({
+/** Sort key: this phone first (0), other live sessions next (1), signed-out last (2). */
+function rankOf(row: DeviceSession, myDeviceId: string | null): number {
+  if (row.deviceId === myDeviceId) return 0;
+  if (row.revokedAt) return 2;
+  return 1;
+}
+
+function DeviceRow({
   row,
   current,
   locale,
@@ -182,25 +213,49 @@ function DeviceCard({
   });
 
   return (
-    <Card style={{ gap: 4, opacity: row.revokedAt ? 0.6 : 1 }}>
-      <Row style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="subheading" numberOfLines={1}>
-            {row.label}
-          </Text>
-          <Text variant="caption" tone="muted">
-            {row.platform}
-          </Text>
-          <Text variant="caption" tone="muted">
-            {t.devices.lastActive.replace('{when}', when)}
-          </Text>
-        </View>
-        {current ? (
-          <Badge label={t.devices.thisDevice} tone="brand" />
-        ) : row.revokedAt ? (
-          <Badge label={t.devices.signedOut} tone="neutral" />
-        ) : null}
-      </Row>
-    </Card>
+    <Row
+      style={{
+        paddingVertical: theme.spacing.md,
+        gap: theme.spacing.md,
+        opacity: row.revokedAt ? 0.55 : 1,
+      }}
+    >
+      {/* The current session gets a brand-tinted mark; the rest sit in a quiet
+          neutral square so the eye lands on this phone first. */}
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: theme.radius.md,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: current ? theme.color.brandSoft : theme.color.surfaceMuted,
+        }}
+      >
+        <Ionicons
+          name={deviceGlyph(row.platform)}
+          size={iconSize.xl}
+          color={current ? theme.color.brand : theme.color.textMuted}
+        />
+      </View>
+
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="subheading" numberOfLines={1}>
+          {row.label}
+        </Text>
+        <Text variant="caption" tone="muted" numberOfLines={1}>
+          {row.platform}
+        </Text>
+        <Text variant="caption" tone="muted">
+          {t.devices.lastActive.replace('{when}', when)}
+        </Text>
+      </View>
+
+      {current ? (
+        <Badge label={t.devices.thisDevice} tone="brand" />
+      ) : row.revokedAt ? (
+        <Badge label={t.devices.signedOut} tone="neutral" />
+      ) : null}
+    </Row>
   );
 }
