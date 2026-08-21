@@ -161,7 +161,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   };
 
   if (tourSeen === null) {
-    return <View style={{ flex: 1, backgroundColor: theme.color.surface }} />;
+    return <View style={{ flex: 1, backgroundColor: theme.color.brand }} />;
   }
 
   if (!tourSeen) {
@@ -186,7 +186,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
    */
   if (!showOptions) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.color.surface }}>
+      <View style={{ flex: 1, backgroundColor: theme.color.brand }}>
         {/* The language sits in the corner of the hero — reachable from the
             first frame for somebody who opened the app in a script they cannot
             read, without taking a line in the action column. */}
@@ -211,7 +211,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.buttonPrimary} />
+            <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.onBrand} />
           </Pressable>
         </View>
 
@@ -240,7 +240,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <Ionicons name="chevron-back" size={iconSize.lg} color={theme.color.buttonPrimary} />
+            <Ionicons name="chevron-back" size={iconSize.lg} color={theme.color.onBrand} />
           </Pressable>
         </View>
 
@@ -272,7 +272,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 lineHeight: 38,
                 fontWeight: '800',
                 letterSpacing: -0.5,
-                color: theme.color.text,
+                color: theme.color.onBrand,
               }}
             >
               {t.signIn.splitAnything}
@@ -306,11 +306,11 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             {/* A hairline either side of the label, not bare text — the seam
                 between "one tap" above and "an email and a password" below. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-              <Text variant="caption" tone="muted">
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
+              <Text variant="caption" tone="onBrand" style={{ opacity: 0.9 }}>
                 {t.signIn.or}
               </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
             </View>
 
             <View style={{ gap: theme.spacing.sm }}>
@@ -336,7 +336,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               {isSignup ? (
                 <Button
                   label={t.signIn.continueGuest}
-                  variant="ghost"
+                  variant="onBrandOutline"
                   size="lg"
                   fullWidth
                   disabled={busy}
@@ -354,7 +354,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   }
 
   return (
-    <Screen edges={['bottom']}>
+    <Screen edges={['bottom']} style={{ backgroundColor: theme.color.brand }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -394,7 +394,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
           </CurvedPanel>
 
           <View style={{ gap: theme.spacing.xxl, paddingHorizontal: theme.spacing.xl }}>
-            <Text variant="body" tone="muted" align="center">
+            <Text variant="body" tone="onBrand" align="center" style={{ opacity: 0.9 }}>
               {isGuest ? t.signIn.guestAddWay : t.signIn.signInHowever}
             </Text>
 
@@ -416,7 +416,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 opacity: pressed ? 0.6 : 1,
               })}
             >
-              <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.buttonPrimary} />
+              <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.onBrand} />
             </Pressable>
 
             {/* The providers sit above the form here too. They were a row of
@@ -432,11 +432,11 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-              <Text variant="caption" tone="muted">
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
+              <Text variant="caption" tone="onBrand" style={{ opacity: 0.9 }}>
                 {t.signIn.or}
               </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
             </View>
 
             <Card style={{ gap: theme.spacing.lg }}>
@@ -651,7 +651,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             {isSignup && !isGuest ? (
               <Button
                 label={t.signIn.continueGuest}
-                variant="ghost"
+                variant="onBrandOutline"
                 size="lg"
                 fullWidth
                 disabled={busy}
@@ -659,7 +659,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               />
             ) : null}
 
-            <Text variant="micro" tone="muted" align="center">
+            <Text variant="micro" tone="onBrand" align="center" style={{ opacity: 0.85 }}>
               {isGuest ? t.signIn.guestFootnote : t.signIn.memberFootnote}
             </Text>
           </View>

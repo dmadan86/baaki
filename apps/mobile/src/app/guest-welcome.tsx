@@ -27,6 +27,7 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 
 import { Button, Callout, directionalIcon, iconSize, Text, useTheme } from '@waves/ui';
 
+import { LegalLine } from '@/components/LegalLine';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
@@ -134,9 +135,7 @@ export default function GuestWelcomeScreen() {
           {error ? <Callout tone="negative">{error}</Callout> : null}
 
           <View style={{ paddingBottom: theme.spacing.xl, gap: theme.spacing.md }}>
-            <Text align="center" style={{ color: '#FFFFFF80', fontSize: 12, lineHeight: 18 }}>
-              {t.entry.agreeTerms}
-            </Text>
+            <LegalLine textStyle={{ color: '#FFFFFF80', fontSize: 12, lineHeight: 18 }} />
             <Button
               label={t.entry.continueLabel}
               variant="brand"

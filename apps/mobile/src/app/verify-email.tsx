@@ -1,20 +1,22 @@
 /**
- * Check your inbox — where an email sign-up waits for the confirmation link.
+ * Verify your email — a six-digit code, the same shape as the phone screen.
  *
- * Supabase, with email confirmations on, makes an account but no session until
- * the link in the mail is followed. `withPassword` reports that case and the
- * sign-up form sends the person here with their address. When they follow the
- * link and come back, "I've confirmed" re-reads the session; the moment one
- * exists the auth gate takes them into the app, so there is nothing to route by
- * hand.
+ * A fresh email sign-up gets a code (Supabase sends it when the confirmation
+ * template carries `{{ .Token }}`); `withPassword` reports the case and the
+ * form sends the person here with their address. They type the code, it is
+ * checked with `verifyOtp`, and the session that appears bounces the whole tree
+ * into the app via the auth gate — `verify-email` counts as an auth route for
+ * exactly that reason, so there is nothing to navigate by hand.
  *
- * Public (see `_layout`): there is no session yet, by definition. Hidden from
- * the tab bar like the other signed-out screens.
+ * Resend is rate-limited the way the references do it: a 60-second countdown
+ * before it lights up, and at most three requests before it stops offering —
+ * a spam-and-cost guard, not a punishment, so the copy stays gentle.
  *
- * The copy is translated (see `t.entry`).
+ * The copy is translated (see `t.entry`); only the `__DEV__` code hint stays
+ * hardcoded, since it never reaches a release build.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, View } from 'react-native';
@@ -22,56 +24,92 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Callout, directionalIcon, iconSize, Row, Screen, Text, useTheme } from '@waves/ui';
 
+import { OtpInput, OTP_LEN } from '@/components/OtpInput';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 
+/** Seconds to wait before resend lights up, and how many times it may be used. */
+const RESEND_SECONDS = 60;
+const MAX_RESENDS = 3;
+
 export default function VerifyEmailScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useStrings();
-  const { refresh } = useAuth();
+  const { continueAsGuest } = useAuth();
   const params = useLocalSearchParams<{ email?: string }>();
   const email = typeof params.email === 'string' ? params.email : '';
 
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notYet, setNotYet] = useState(false);
-  const [resent, setResent] = useState(false);
+  const [seconds, setSeconds] = useState(RESEND_SECONDS);
+  const [resends, setResends] = useState(0);
 
-  // Re-read the session. If the link has been followed a session now exists and
-  // the auth gate whisks them in; if not, say so gently rather than silently.
-  const onContinue = async (): Promise<void> => {
-    setBusy(true);
-    setError(null);
-    setNotYet(false);
-    try {
-      await refresh();
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) setNotYet(true);
-    } catch (caught) {
-      setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.verifyEmail'));
-    } finally {
-      setBusy(false);
-    }
+  // DEV-ONLY: real email OTP is not wired yet, so a dev build accepts one fixed
+  // code and stands in a guest session so the app is walkable. `__DEV__` is
+  // false in every release build, so none of this ships.
+  const DEV_OTP = '000000';
+  const devStub = __DEV__;
+
+  // One ticking countdown for the whole screen; it settles at zero and a resend
+  // winds it back up. A single interval, not one per second.
+  useEffect(() => {
+    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const onBack = (): void => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/sign-up');
   };
 
-  const onResend = async (): Promise<void> => {
-    if (!email) return;
-    setBusy(true);
-    setError(null);
-    setResent(false);
-    try {
-      const { error: resendError } = await supabase.auth.resend({ type: 'signup', email });
-      if (resendError) throw resendError;
-      setResent(true);
-    } catch (caught) {
-      setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.verifyEmail'));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const onVerify = (): void =>
+    void (async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        // Dev build: the fixed code takes a guest session so the app is walkable
+        // until real email OTP is wired. Never in release.
+        if (devStub && code === DEV_OTP) {
+          await continueAsGuest();
+          return;
+        }
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          email,
+          token: code,
+          type: 'signup',
+        });
+        if (verifyError) throw verifyError;
+        // The session the client now holds fires the auth listener; the gate
+        // takes it from here into the app.
+      } catch (caught) {
+        setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.verifyEmail'));
+      } finally {
+        setBusy(false);
+      }
+    })();
+
+  const canResend = seconds <= 0 && resends < MAX_RESENDS && !busy && Boolean(email);
+
+  const onResend = (): void =>
+    void (async () => {
+      if (!canResend) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const { error: resendError } = await supabase.auth.resend({ type: 'signup', email });
+        if (resendError) throw resendError;
+        setResends((r) => r + 1);
+        setSeconds(RESEND_SECONDS);
+      } catch (caught) {
+        setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.verifyEmail'));
+      } finally {
+        setBusy(false);
+      }
+    })();
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -88,7 +126,7 @@ export default function VerifyEmailScreen() {
             accessibilityRole="button"
             accessibilityLabel={t.common.back}
             hitSlop={12}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/sign-up'))}
+            onPress={onBack}
             style={({ pressed }) => ({
               width: 44,
               height: 44,
@@ -105,9 +143,7 @@ export default function VerifyEmailScreen() {
           </Pressable>
         </Row>
 
-        {/* The hero: a mailbox and the ask, centred — the same shape the privacy
-            and other entry screens open with. */}
-        <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingTop: theme.spacing.xl }}>
+        <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingTop: theme.spacing.md }}>
           <View
             style={{
               width: 96,
@@ -130,38 +166,71 @@ export default function VerifyEmailScreen() {
               color: theme.color.text,
             }}
           >
-            {t.entry.checkInboxTitle}
+            {t.entry.emailCodeTitle}
           </Text>
           <Text variant="body" tone="muted" align="center">
             {email
-              ? t.entry.checkInboxBody.replace('{email}', email)
+              ? t.entry.emailCodeBody.replace('{email}', email)
               : t.entry.checkInboxBodyNoEmail}
           </Text>
         </View>
 
-        {resent ? <Callout tone="positive">{t.entry.linkResent}</Callout> : null}
-        {notYet ? <Callout tone="warning">{t.entry.notConfirmedYet}</Callout> : null}
+        <OtpInput
+          value={code}
+          onChangeText={setCode}
+          length={OTP_LEN}
+          accessibilityLabel={t.contact.verificationCode}
+          autoFocus
+        />
+
+        {/* Resend: a countdown, then a live link, then — after three — a note
+            that the road runs out, gently. */}
+        <View style={{ alignItems: 'center', minHeight: 24 }}>
+          {seconds > 0 ? (
+            <Text variant="caption" tone="muted">
+              {t.entry.resendIn.replace('{seconds}', String(seconds))}
+            </Text>
+          ) : resends < MAX_RESENDS ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={!canResend}
+              hitSlop={8}
+              onPress={onResend}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Ionicons name="refresh" size={iconSize.md} color={theme.color.brand} />
+              <Text style={{ fontWeight: '700', color: theme.color.brand }}>
+                {t.entry.resendCode}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text variant="caption" tone="muted" align="center">
+              {t.entry.resendLimit}
+            </Text>
+          )}
+          {devStub ? (
+            <Text variant="micro" tone="muted" style={{ marginTop: theme.spacing.xs }}>
+              Dev build — enter {DEV_OTP} to continue.
+            </Text>
+          ) : null}
+        </View>
+
         {error ? <Callout tone="negative">{error}</Callout> : null}
 
         <View style={{ flex: 1 }} />
 
-        <View style={{ gap: theme.spacing.sm }}>
-          <Button
-            label={t.entry.confirmedContinue}
-            size="lg"
-            fullWidth
-            disabled={busy}
-            onPress={() => void onContinue()}
-          />
-          <Button
-            label={t.entry.resendLink}
-            variant="ghost"
-            size="lg"
-            fullWidth
-            disabled={busy || !email}
-            onPress={() => void onResend()}
-          />
-        </View>
+        <Button
+          label={t.signIn.verify}
+          size="lg"
+          fullWidth
+          disabled={busy || code.length !== OTP_LEN}
+          onPress={onVerify}
+        />
         {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
       </View>
     </Screen>

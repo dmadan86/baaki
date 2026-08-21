@@ -10,11 +10,18 @@ export interface ChipProps {
   onPress?: () => void;
   /** Receives the resolved colour so the icon matches the selected state. */
   icon?: (color: string) => ReactNode;
+  /**
+   * The fill a selected chip wears: the brand green by default, or `ink` for a
+   * black pill — used where a chip strip is a plain filter, not a brand accent.
+   */
+  variant?: 'brand' | 'ink';
 }
 
-export function Chip({ label, selected = false, onPress, icon }: ChipProps) {
+export function Chip({ label, selected = false, onPress, icon, variant = 'brand' }: ChipProps) {
   const theme = useTheme();
-  const color = selected ? theme.color.onBrand : theme.color.textMuted;
+  const selectedFill = variant === 'ink' ? theme.color.buttonPrimary : theme.color.brand;
+  const selectedInk = variant === 'ink' ? theme.color.onButtonPrimary : theme.color.onBrand;
+  const color = selected ? selectedInk : theme.color.textMuted;
   return (
     <Pressable
       accessibilityRole="button"
@@ -28,12 +35,12 @@ export function Chip({ label, selected = false, onPress, icon }: ChipProps) {
         paddingHorizontal: theme.spacing.lg,
         height: 36,
         borderRadius: theme.radius.pill,
-        backgroundColor: selected ? theme.color.brand : theme.color.surface,
+        backgroundColor: selected ? selectedFill : theme.color.surface,
         opacity: pressed ? 0.85 : 1,
       })}
     >
       {icon ? icon(color) : null}
-      <Text variant="caption" tone={selected ? 'onBrand' : 'muted'}>
+      <Text variant="caption" style={{ color }}>
         {label}
       </Text>
     </Pressable>
@@ -44,10 +51,13 @@ export function ChipRow<T extends string>({
   options,
   value,
   onChange,
+  variant = 'brand',
 }: {
   options: readonly { value: T; label: string; icon?: (color: string) => ReactNode }[];
   value: T;
   onChange: (value: T) => void;
+  /** The fill selected chips wear — forwarded to every chip in the row. */
+  variant?: 'brand' | 'ink';
 }) {
   const theme = useTheme();
   return (
@@ -63,6 +73,7 @@ export function ChipRow<T extends string>({
           icon={option.icon}
           selected={option.value === value}
           onPress={() => onChange(option.value)}
+          variant={variant}
         />
       ))}
     </ScrollView>

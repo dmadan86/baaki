@@ -46,6 +46,7 @@ import {
 import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
+import { OtpInput, OTP_LEN } from '@/components/OtpInput';
 import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
@@ -106,7 +107,7 @@ export default function PhoneScreen() {
   };
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']} style={{ backgroundColor: theme.color.brand }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -141,7 +142,7 @@ export default function PhoneScreen() {
               <Ionicons
                 name={directionalIcon('chevron-back')}
                 size={iconSize.lg}
-                color={theme.color.buttonPrimary}
+                color={theme.color.onBrand}
               />
             </Pressable>
           </Row>
@@ -155,12 +156,12 @@ export default function PhoneScreen() {
                     lineHeight: 38,
                     fontWeight: '800',
                     letterSpacing: -0.5,
-                    color: theme.color.text,
+                    color: theme.color.onBrand,
                   }}
                 >
                   {t.entry.verifyPhoneTitle}
                 </Text>
-                <Text variant="body" tone="muted">
+                <Text variant="body" tone="onBrand" style={{ opacity: 0.9 }}>
                   {t.entry.verifyPhoneBody}
                 </Text>
               </View>
@@ -192,7 +193,7 @@ export default function PhoneScreen() {
                   />
                 </Row>
               </Card>
-              <Text variant="micro" tone="muted">
+              <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
                 {t.signIn.countryCodeHint}
               </Text>
 
@@ -227,7 +228,7 @@ export default function PhoneScreen() {
                     lineHeight: 38,
                     fontWeight: '800',
                     letterSpacing: -0.5,
-                    color: theme.color.text,
+                    color: theme.color.onBrand,
                   }}
                 >
                   {t.signIn.codeSentTo.replace('{value}', `${dialCode} ${phone}`)}
@@ -245,38 +246,25 @@ export default function PhoneScreen() {
                     opacity: pressed || devStub ? 0.6 : 1,
                   })}
                 >
-                  <Ionicons name="refresh" size={iconSize.md} color={theme.color.brand} />
-                  <Text style={{ fontWeight: '700', color: theme.color.brand }}>
+                  <Ionicons name="refresh" size={iconSize.md} color={theme.color.onBrand} />
+                  <Text style={{ fontWeight: '700', color: theme.color.onBrand }}>
                     {t.entry.resendCode}
                   </Text>
                 </Pressable>
                 {devStub ? (
-                  <Text variant="micro" tone="muted">
+                  <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
                     Dev build — enter {DEV_OTP} to continue.
                   </Text>
                 ) : null}
               </View>
 
-              <Card>
-                <TextInput
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  autoComplete="sms-otp"
-                  autoFocus
-                  accessibilityLabel={t.contact.verificationCode}
-                  placeholder="123456"
-                  placeholderTextColor={theme.color.textFaint}
-                  style={{
-                    fontSize: 28,
-                    fontWeight: '700',
-                    letterSpacing: 8,
-                    color: theme.color.text,
-                    paddingVertical: theme.spacing.sm,
-                    textAlign: 'center',
-                  }}
-                />
-              </Card>
+              <OtpInput
+                value={code}
+                onChangeText={setCode}
+                length={OTP_LEN}
+                accessibilityLabel={t.contact.verificationCode}
+                autoFocus
+              />
 
               {error ? <Callout tone="negative">{error}</Callout> : null}
 
@@ -285,7 +273,7 @@ export default function PhoneScreen() {
                 label={t.signIn.verify}
                 size="lg"
                 fullWidth
-                disabled={busy || code.trim().length < 4}
+                disabled={busy || code.length !== OTP_LEN}
                 onPress={() =>
                   void run(async () => {
                     // Dev build: the fixed code takes a guest session so the app

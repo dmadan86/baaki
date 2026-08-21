@@ -31,6 +31,7 @@ import Animated, {
 
 import { directionalIcon, iconSize, Text, useTheme } from '@waves/ui';
 
+import { LegalLine } from '@/components/LegalLine';
 import { useStrings } from '@/i18n';
 import { useMotion } from '@/lib/motion';
 
@@ -137,17 +138,14 @@ export default function WelcomeScreen() {
               gap: theme.spacing.md,
             }}
           >
-            <Text
-              align="center"
-              style={{
+            <LegalLine
+              textStyle={{
                 color: theme.color.onBrand,
                 opacity: 0.95,
-                marginBottom: theme.spacing.sm,
                 lineHeight: 20,
+                marginBottom: theme.spacing.sm,
               }}
-            >
-              {t.entry.agreeTerms}
-            </Text>
+            />
 
             <GatewayButton
               icon="person-add-outline"

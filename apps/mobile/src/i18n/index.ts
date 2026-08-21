@@ -191,6 +191,10 @@ export interface UiStrings {
   yourGroups: string;
   /** The "show every category" chip at the head of the group filter strip. */
   filterAll: string;
+  /** A small tag on a just-created group row. */
+  tagNew: string;
+  /** A small tag on a group whose trip is running today. */
+  tagOnTrip: string;
   newGroup: string;
   activity: string;
   friends: string;
@@ -224,6 +228,8 @@ export interface UiStrings {
   profile: string;
   home: string;
   addExpense: string;
+  /** The dashboard's primary quick-add circle (→ capture). Pairs with newGroup. */
+  newExpense: string;
   scanBill: string;
   settleUp: string;
   simplify: string;
@@ -694,9 +700,17 @@ export interface UiStrings {
     notConfirmedYet: string;
     confirmedContinue: string;
     resendLink: string;
+    /** The email OTP screen (see `app/verify-email`). */
+    emailCodeTitle: string;
+    emailCodeBody: string;
+    resendIn: string;
+    resendLimit: string;
     guestIntroTitle: string;
     guestIntroBody: string;
+    /** Carries `{terms}` and `{privacy}` placeholders — the two linked words. */
     agreeTerms: string;
+    termsWord: string;
+    privacyWord: string;
     troubleSigningIn: string;
     notifyTitle: string;
     notifyBody: string;
@@ -704,6 +718,23 @@ export interface UiStrings {
     notifyNotNow: string;
     clear: string;
     continueLabel: string;
+  };
+  /** The one-time coach-mark tour over Home (see `lib/tour`). */
+  tour: {
+    badge: string;
+    next: string;
+    done: string;
+    replay: string;
+    introTitle: string;
+    introBody: string;
+    balanceTitle: string;
+    balanceBody: string;
+    groupTitle: string;
+    groupBody: string;
+    expenseTitle: string;
+    expenseBody: string;
+    doneTitle: string;
+    doneBody: string;
   };
   /** The welcome and the ways in (ADR-006: nobody registers to split a bill). */
   signIn: {
@@ -1652,6 +1683,8 @@ const en: UiStrings = {
   allSettled: 'All settled',
   yourGroups: 'Your groups',
   filterAll: 'All',
+  tagNew: 'New',
+  tagOnTrip: 'On trip',
   newGroup: 'New group',
   activity: 'Activity',
   friends: 'Friends',
@@ -1678,6 +1711,7 @@ const en: UiStrings = {
   profile: 'Account',
   home: 'Home',
   addExpense: 'Add expense',
+  newExpense: 'New expense',
   scanBill: 'Scan bill',
   settleUp: 'Settle up',
   simplify: 'Simplify',
@@ -2122,10 +2156,16 @@ const en: UiStrings = {
     notConfirmedYet: 'Not confirmed yet. Open the link in the email, then tap continue.',
     confirmedContinue: "I've confirmed — continue",
     resendLink: 'Resend the link',
+    emailCodeTitle: 'Enter the code',
+    emailCodeBody: 'Enter the 6-digit code we sent to {email}.',
+    resendIn: 'Resend available in {seconds}s',
+    resendLimit: 'That is the most codes we can send. Check your spam, or try again later.',
     guestIntroTitle: 'Start splitting with {app}',
     guestIntroBody:
       'No account needed to begin. Split bills, track who owes what, and settle up — set up your account later and nothing you added is lost.',
-    agreeTerms: 'By continuing you agree to our Terms and Privacy Policy.',
+    agreeTerms: 'By continuing you agree to our {terms} and {privacy}.',
+    termsWord: 'Terms',
+    privacyWord: 'Privacy Policy',
     troubleSigningIn: 'Trouble signing in?',
     notifyTitle: 'Turn on notifications',
     notifyBody:
@@ -2134,6 +2174,22 @@ const en: UiStrings = {
     notifyNotNow: 'Not now',
     clear: 'Clear',
     continueLabel: 'Continue',
+  },
+  tour: {
+    badge: 'Tour',
+    next: 'Next',
+    done: 'Done',
+    replay: 'Take the tour again',
+    introTitle: 'Welcome to Waves',
+    introBody: 'A quick look at where things live — your balances, and the two ways to add.',
+    balanceTitle: 'Your balances, up top',
+    balanceBody: 'Swipe the deck to see what you owe and what you are owed, per currency.',
+    groupTitle: 'Start a group',
+    groupBody: 'Make a group for a trip, a flat, or a night out — then split from there.',
+    expenseTitle: 'Add an expense',
+    expenseBody: 'Type a spend by hand, or use the mic in the bar to just say it.',
+    doneTitle: 'You are all set',
+    doneBody: 'That is the tour. You can replay it any time from the menu.',
   },
   signIn: {
     tagline: 'Waves · what is left over',
@@ -3136,6 +3192,8 @@ const ta: UiStrings = {
   allSettled: 'எல்லாம் சரி',
   yourGroups: 'உங்கள் குழுக்கள்',
   filterAll: 'அனைத்தும்',
+  tagNew: 'புதியது',
+  tagOnTrip: 'பயணத்தில்',
   newGroup: 'புதிய குழு',
   activity: 'செயல்பாடு',
   friends: 'நண்பர்கள்',
@@ -3163,6 +3221,7 @@ const ta: UiStrings = {
   profile: 'கணக்கு',
   home: 'முகப்பு',
   addExpense: 'செலவு சேர்',
+  newExpense: 'புதிய செலவு',
   scanBill: 'ரசீது ஸ்கேன்',
   settleUp: 'தீர்ப்பது',
   simplify: 'எளிமையாக்கு',
@@ -3619,10 +3678,17 @@ const ta: UiStrings = {
       'இன்னும் உறுதிப்படுத்தப்படவில்லை. மின்னஞ்சலில் உள்ள இணைப்பைத் திறந்து, பிறகு தொடரவும்.',
     confirmedContinue: 'உறுதிப்படுத்திவிட்டேன் — தொடரவும்',
     resendLink: 'இணைப்பை மீண்டும் அனுப்பு',
+    emailCodeTitle: 'குறியீட்டை உள்ளிடுங்கள்',
+    emailCodeBody: '{email}-க்கு அனுப்பிய 6-இலக்கக் குறியீட்டை உள்ளிடுங்கள்.',
+    resendIn: '{seconds} வினாடிகளில் மீண்டும் அனுப்பலாம்',
+    resendLimit:
+      'அனுப்பக்கூடிய அதிகபட்சக் குறியீடுகள் இவைதான். ஸ்பேமைப் பார்க்கவும், அல்லது பின்னர் முயற்சிக்கவும்.',
     guestIntroTitle: '{app} உடன் பங்கிடத் தொடங்குங்கள்',
     guestIntroBody:
       'தொடங்க கணக்கு தேவையில்லை. பில்களைப் பகிருங்கள், யார் என்ன கடன்பட்டுள்ளனர் எனக் கண்காணியுங்கள், தீர்த்துக் கொள்ளுங்கள் — பிறகு உங்கள் கணக்கை அமையுங்கள், நீங்கள் சேர்த்தது எதுவும் இழக்கப்படாது.',
-    agreeTerms: 'தொடர்வதன் மூலம் எங்கள் விதிமுறைகள் மற்றும் தனியுரிமைக் கொள்கையை ஏற்கிறீர்கள்.',
+    agreeTerms: 'தொடர்வதன் மூலம் எங்கள் {terms} மற்றும் {privacy}யை ஏற்கிறீர்கள்.',
+    termsWord: 'விதிமுறைகள்',
+    privacyWord: 'தனியுரிமைக் கொள்கை',
     troubleSigningIn: 'உள்நுழைவதில் சிக்கலா?',
     notifyTitle: 'அறிவிப்புகளை இயக்கவும்',
     notifyBody:
@@ -3631,6 +3697,25 @@ const ta: UiStrings = {
     notifyNotNow: 'இப்போது வேண்டாம்',
     clear: 'அழி',
     continueLabel: 'தொடரவும்',
+  },
+  tour: {
+    badge: 'சுற்றுப்பயணம்',
+    next: 'அடுத்து',
+    done: 'முடிந்தது',
+    replay: 'சுற்றுப்பயணத்தை மீண்டும் காண்க',
+    introTitle: 'Waves-க்கு வரவேற்கிறோம்',
+    introBody:
+      'எங்கே என்ன இருக்கிறது என்பதைச் சுருக்கமாகப் பாருங்கள் — உங்கள் இருப்புகள், சேர்க்க இரண்டு வழிகள்.',
+    balanceTitle: 'உங்கள் இருப்புகள், மேலே',
+    balanceBody:
+      'நீங்கள் கொடுக்க வேண்டியதையும் பெற வேண்டியதையும் நாணயவாரியாகப் பார்க்க டெக்கை ஸ்வைப் செய்யுங்கள்.',
+    groupTitle: 'ஒரு குழுவைத் தொடங்குங்கள்',
+    groupBody: 'பயணம், வீடு அல்லது வெளியீட்டிற்கு ஒரு குழுவை உருவாக்கி, அங்கிருந்து பிரியுங்கள்.',
+    expenseTitle: 'ஒரு செலவைச் சேருங்கள்',
+    expenseBody:
+      'ஒரு செலவைக் கையால் தட்டச்சு செய்யுங்கள், அல்லது பட்டியில் உள்ள மைக்கைப் பயன்படுத்திச் சொல்லுங்கள்.',
+    doneTitle: 'எல்லாம் தயார்',
+    doneBody: 'அதுதான் சுற்றுப்பயணம். மெனுவிலிருந்து எப்போது வேண்டுமானாலும் மீண்டும் காணலாம்.',
   },
   signIn: {
     tagline: 'பாக்கி · மீதம் இருப்பது',
@@ -4675,6 +4760,8 @@ const hi: UiStrings = {
   allSettled: 'सब बराबर',
   yourGroups: 'आपके समूह',
   filterAll: 'सभी',
+  tagNew: 'नया',
+  tagOnTrip: 'यात्रा जारी',
   newGroup: 'नया समूह',
   activity: 'गतिविधि',
   friends: 'दोस्त',
@@ -4701,6 +4788,7 @@ const hi: UiStrings = {
   profile: 'खाता',
   home: 'होम',
   addExpense: 'खर्च जोड़ें',
+  newExpense: 'नया खर्च',
   scanBill: 'बिल स्कैन',
   settleUp: 'हिसाब चुकाएँ',
   simplify: 'आसान करें',
@@ -5143,10 +5231,16 @@ const hi: UiStrings = {
     notConfirmedYet: 'अभी पुष्टि नहीं हुई। ईमेल में दिए लिंक को खोलें, फिर जारी रखें दबाएँ।',
     confirmedContinue: 'मैंने पुष्टि कर दी — जारी रखें',
     resendLink: 'लिंक फिर भेजें',
+    emailCodeTitle: 'कोड दर्ज करें',
+    emailCodeBody: '{email} पर भेजा गया 6-अंकों का कोड दर्ज करें।',
+    resendIn: '{seconds} सेकंड में फिर भेज सकते हैं',
+    resendLimit: 'इतने ही कोड भेजे जा सकते हैं। अपना स्पैम देखें, या बाद में फिर कोशिश करें।',
     guestIntroTitle: '{app} के साथ बाँटना शुरू करें',
     guestIntroBody:
       'शुरू करने के लिए खाते की ज़रूरत नहीं। बिल बाँटें, कौन कितना देना है यह देखें, और हिसाब चुकाएँ — अपना खाता बाद में सेट करें और जो कुछ आपने जोड़ा वह नहीं खोएगा।',
-    agreeTerms: 'जारी रखकर आप हमारी शर्तें और गोपनीयता नीति से सहमत होते हैं।',
+    agreeTerms: 'जारी रखकर आप हमारी {terms} और {privacy} से सहमत होते हैं।',
+    termsWord: 'शर्तें',
+    privacyWord: 'गोपनीयता नीति',
     troubleSigningIn: 'साइन इन में परेशानी?',
     notifyTitle: 'सूचनाएँ चालू करें',
     notifyBody:
@@ -5155,6 +5249,23 @@ const hi: UiStrings = {
     notifyNotNow: 'अभी नहीं',
     clear: 'साफ़ करें',
     continueLabel: 'जारी रखें',
+  },
+  tour: {
+    badge: 'टूर',
+    next: 'आगे',
+    done: 'हो गया',
+    replay: 'टूर फिर से देखें',
+    introTitle: 'Waves में आपका स्वागत है',
+    introBody: 'एक झलक कि चीज़ें कहाँ हैं — आपके बैलेंस, और जोड़ने के दो तरीके।',
+    balanceTitle: 'आपके बैलेंस, सबसे ऊपर',
+    balanceBody:
+      'हर मुद्रा के हिसाब से आप कितना देते हैं और कितना पाते हैं, देखने के लिए डेक स्वाइप करें।',
+    groupTitle: 'एक ग्रुप शुरू करें',
+    groupBody: 'यात्रा, फ्लैट या किसी शाम के लिए ग्रुप बनाएँ — फिर वहीं से बाँटें।',
+    expenseTitle: 'एक खर्च जोड़ें',
+    expenseBody: 'खर्च को हाथ से टाइप करें, या बार में माइक से बस बोल दें।',
+    doneTitle: 'सब तैयार है',
+    doneBody: 'यही टूर था। आप इसे मेन्यू से कभी भी फिर से देख सकते हैं।',
   },
   signIn: {
     tagline: 'बाकी · जो बच रहता है',
@@ -6164,6 +6275,8 @@ const ar: UiStrings = {
   allSettled: 'تمت التسوية',
   yourGroups: 'مجموعاتك',
   filterAll: 'الكل',
+  tagNew: 'جديد',
+  tagOnTrip: 'في رحلة',
   newGroup: 'مجموعة جديدة',
   activity: 'النشاط',
   friends: 'الأصدقاء',
@@ -6190,6 +6303,7 @@ const ar: UiStrings = {
   profile: 'الحساب',
   home: 'الرئيسية',
   addExpense: 'إضافة مصروف',
+  newExpense: 'مصروف جديد',
   scanBill: 'مسح الفاتورة',
   settleUp: 'تسوية',
   simplify: 'تبسيط',
@@ -6654,10 +6768,16 @@ const ar: UiStrings = {
     notConfirmedYet: 'لم يتم التأكيد بعد. افتح الرابط في البريد ثم اضغط متابعة.',
     confirmedContinue: 'لقد أكدت — متابعة',
     resendLink: 'إعادة إرسال الرابط',
+    emailCodeTitle: 'أدخل الرمز',
+    emailCodeBody: 'أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى {email}.',
+    resendIn: 'يمكن إعادة الإرسال خلال {seconds} ثانية',
+    resendLimit: 'هذا أقصى عدد من الرموز يمكننا إرساله. تحقّق من البريد المزعج، أو حاول لاحقًا.',
     guestIntroTitle: 'ابدأ التقسيم مع {app}',
     guestIntroBody:
       'لا حاجة لحساب للبدء. قسّم الفواتير، وتابع من يدين بماذا، وسوِّ الحسابات — أعدّ حسابك لاحقًا ولن يضيع أي شيء أضفته.',
-    agreeTerms: 'بالمتابعة فإنك توافق على الشروط وسياسة الخصوصية.',
+    agreeTerms: 'بالمتابعة فإنك توافق على {terms} و{privacy}.',
+    termsWord: 'الشروط',
+    privacyWord: 'سياسة الخصوصية',
     troubleSigningIn: 'تواجه مشكلة في تسجيل الدخول؟',
     notifyTitle: 'تفعيل الإشعارات',
     notifyBody:
@@ -6666,6 +6786,22 @@ const ar: UiStrings = {
     notifyNotNow: 'ليس الآن',
     clear: 'مسح',
     continueLabel: 'متابعة',
+  },
+  tour: {
+    badge: 'جولة',
+    next: 'التالي',
+    done: 'تم',
+    replay: 'أعد الجولة',
+    introTitle: 'مرحبًا بك في Waves',
+    introBody: 'نظرة سريعة على مكان كل شيء — أرصدتك، والطريقتان للإضافة.',
+    balanceTitle: 'أرصدتك، في الأعلى',
+    balanceBody: 'مرّر البطاقات لترى ما عليك وما لك، لكل عملة.',
+    groupTitle: 'ابدأ مجموعة',
+    groupBody: 'أنشئ مجموعة لرحلة أو سكن أو سهرة — ثم قسّم من هناك.',
+    expenseTitle: 'أضف مصروفًا',
+    expenseBody: 'اكتب المصروف يدويًا، أو استخدم الميكروفون في الشريط لتقوله فقط.',
+    doneTitle: 'كل شيء جاهز',
+    doneBody: 'تلك هي الجولة. يمكنك إعادتها في أي وقت من القائمة.',
   },
   signIn: {
     tagline: 'باقي · ما يتبقّى',

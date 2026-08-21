@@ -20,7 +20,11 @@ import { useMotion } from '@/lib/motion';
 export interface OverflowMenuItem {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  route: Href;
+  /** Where the row goes. Omit when the row runs an action instead (`onPress`). */
+  route?: Href;
+  /** An in-app action instead of a route — e.g. replaying the tour. Takes
+      precedence over `route`; the menu still closes first. */
+  onPress?: () => void;
   // Optional grouping key. A divider is drawn between two consecutive items
   // whose `section` differs; items with no `section` never draw one, so a menu
   // that omits it (the group header) stays a flat, undivided list.
@@ -43,9 +47,10 @@ export function OverflowMenu({
   // present/dismiss (TDR §11 treats the setting as an input, not a hint).
   const { animated } = useMotion();
 
-  const go = (route: Href): void => {
+  const activate = (item: OverflowMenuItem): void => {
     onClose();
-    router.push(route);
+    if (item.onPress) item.onPress();
+    else if (item.route) router.push(item.route);
   };
 
   return (
@@ -118,7 +123,7 @@ export function OverflowMenu({
                     />
                   )}
                   <Pressable
-                    onPress={() => go(item.route)}
+                    onPress={() => activate(item)}
                     accessibilityRole="button"
                     accessibilityLabel={item.label}
                     style={({ pressed }) => ({

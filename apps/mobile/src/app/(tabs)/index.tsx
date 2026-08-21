@@ -6,8 +6,6 @@ import { router } from 'expo-router';
 import {
   Animated,
   Modal,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,12 +13,10 @@ import {
   View,
 } from 'react-native';
 
-import { dayNumber, daysBetween, GUEST_TRIAL_DAYS, type GuestGate } from '@waves/core';
+import { dayNumber, daysBetween, type GuestGate } from '@waves/core';
 import {
   Avatar,
   Button,
-  Card,
-  ChipRow,
   EmptyState,
   Gradient,
   iconSize,
@@ -40,6 +36,7 @@ import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useDashboardTips } from '@/lib/tips';
+import { TourTarget, useTour } from '@/lib/tour';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
@@ -67,6 +64,20 @@ export default function HomeScreen() {
   const captures = useCaptures();
   const captureCount = captures.data?.length ?? 0;
   const guard = useGuestGuard();
+  const tour = useTour();
+
+  // First time on Home, once the "seen" flag has been read, run the tour. The
+  // ref makes this fire exactly once — without it the effect would re-run each
+  // time the tour advances (its value changes) and snap back to step one. It
+  // remembers itself when finished; "Take the tour again" in the menu replays.
+  const tourStarted = useRef(false);
+  useEffect(() => {
+    if (tourStarted.current) return;
+    if (tour.ready && !tour.seen) {
+      tourStarted.current = true;
+      tour.start();
+    }
+  }, [tour.ready, tour.seen, tour]);
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
@@ -130,20 +141,15 @@ export default function HomeScreen() {
         route: '/profile',
         section: 'settings',
       },
+      {
+        icon: 'sparkles-outline',
+        label: t.tour.replay,
+        onPress: () => tour.start(),
+        section: 'settings',
+      },
     ],
-    [t, aiKeysEnabled],
+    [t, aiKeysEnabled, tour],
   );
-
-  // The group list gets a category filter strip — but only worth showing once
-  // there is more than one kind of group to sort between. Chips appear in the
-  // canonical group-type order, and only for types the person actually has, so
-  // no chip ever leads to an empty shelf. 'all' is the resting state.
-  const [category, setCategory] = useState<GroupType | 'all'>('all');
-  const presentTypes = GROUP_TYPE_ORDER.filter((type) => list.some((g) => g.type === type));
-  // A filter can outlive the group it matched — leaving the last trip snaps the
-  // strip back to 'all' rather than a chip pointing at nothing.
-  const active = category !== 'all' && presentTypes.includes(category) ? category : 'all';
-  const visible = active === 'all' ? list : list.filter((g) => g.type === active);
 
   // A guest tapping "new group" past their limit is sent to sign up rather than
   // into a form the server would refuse (ADR-006 addendum). A full user's guard
@@ -191,6 +197,13 @@ export default function HomeScreen() {
     })
     .filter((t): t is TripSlide => t !== null);
 
+  // The ids of trips running right now, so their rows can wear an "on trip" tag.
+  const ongoingTripIds = new Set(activeTrips.map((tr) => tr.id));
+  // "Now" sampled once per mount (a lazy initial state, never re-read as a ref
+  // in render) so the "New" window is stable across this screen's renders and
+  // the React Compiler stays happy — a bare Date.now() in render trips its lint.
+  const [nowMs] = useState(() => Date.now());
+
   return (
     <Screen>
       <ScrollView
@@ -236,90 +249,11 @@ export default function HomeScreen() {
               {profile?.display_name ?? t.account.you}
             </Text>
           </Pressable>
-          {/* Unassigned captures: a receipt glyph with the count, only while
-              there is something waiting. Straight to the inbox to assign them. */}
-          {captureCount > 0 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${t.captures.unassigned}. ${plural(locale, captureCount, t.captures.unassignedBody)}`}
-              onPress={() => router.push('/captures')}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-            >
-              <View>
-                <Ionicons name="receipt-outline" size={iconSize.xxl} color={theme.color.text} />
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    minWidth: 16,
-                    height: 16,
-                    borderRadius: 8,
-                    paddingHorizontal: 3,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: theme.color.brand,
-                  }}
-                >
-                  <Text variant="micro" style={{ color: theme.color.onBrand, fontSize: 10 }}>
-                    {captureCount > 99 ? '99+' : String(captureCount)}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          ) : null}
           {/* The sync state as one glyph, to the left of the camera — a quiet
               cloud when there are unsent changes or no connection, a turning
               arrow mid-sync, a red mark for a refused change. Nothing when all is
               well. It replaces the wide banner the dashboard used to carry. */}
           <SyncStatusIcon />
-          {/* Bare icons, no button chrome — the header reads as a title row, not
-              a toolbar of pills. Create a group: the plainest way to start one,
-              sitting with the other top actions rather than inside the group
-              list where its button crowded the title row. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.newGroup}
-            onPress={openNewGroup}
-            hitSlop={10}
-            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-          >
-            {/* People glyph with a small "+" badge, so the action reads as
-                "create a group" rather than "go to groups". The badge sits in a
-                page-coloured disc at the corner so the plus separates cleanly
-                from the people strokes underneath it. */}
-            <View>
-              <Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.text} />
-              <View
-                style={{
-                  position: 'absolute',
-                  right: -5,
-                  bottom: -5,
-                  borderRadius: 999,
-                  backgroundColor: theme.color.bg,
-                }}
-              >
-                <Ionicons name="add-circle" size={iconSize.base} color={theme.color.text} />
-              </View>
-            </View>
-          </Pressable>
-          {/* Straight to the camera: the icon is a scanner, so it opens one
-              rather than a form to fill in first (the capture screen reads the
-              `scan` flag and launches the camera on mount). A fresh `Date.now()`
-              nonce each tap — not a constant `1` — so the capture screen's
-              consumed-once guard survives Android recreating it on the camera's
-              return, yet a genuine second tap still counts as new (the fix for
-              the camera reopening a second time on its own). */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.captures.captureCta}
-            onPress={() => router.push(`/capture?scan=${Date.now()}`)}
-            hitSlop={10}
-            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-          >
-            <Ionicons name="camera-outline" size={iconSize.xxl} color={theme.color.text} />
-          </Pressable>
           {/* The overflow: the settings and the less-used destinations, dropped
               from here rather than owning a tab. */}
           <Pressable
@@ -335,15 +269,7 @@ export default function HomeScreen() {
 
         <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
 
-        {/* Expenses caught without a group yet (A34). Sits near the top so an
-            inbox with something in it is the first thing after the balance, not
-            a screen nobody remembers to open. The same card is in the Inbox. */}
-
-        {isGuest ? (
-          <GuestPrompt gate={guard.gate} t={t} onPress={() => router.push('/settings/account')} />
-        ) : null}
-
-        {/* One deck, one row of dots. The balance rides at the front as the first
+        {/* One deck of swipeable cards. The balance rides at the front as the first
             slide — the number you see on load — then any second currency (no
             total across them, ADR-004), any running trip, and the two shortcuts.
             This used to be a flat balance card with a *second* swipeable deck
@@ -351,17 +277,56 @@ export default function HomeScreen() {
             the category (Cleo, Monzo, Wise) all keep balances as slides of a
             single deck. While the balance loads a hero-shaped skeleton stands in
             rather than a card of confident zeros the query has not returned. */}
-        {summary.isLoading || summary.pendingFirstSync ? (
-          <HeroSkeleton />
-        ) : (
-          <HeroDeck
-            primary={headline}
-            trips={activeTrips}
-            totals={summary.totals.slice(1)}
-            locale={locale}
-            t={t}
+        <TourTarget id="hero">
+          {summary.isLoading || summary.pendingFirstSync ? (
+            <HeroSkeleton />
+          ) : (
+            <HeroDeck
+              primary={headline}
+              trips={activeTrips}
+              totals={summary.totals.slice(1)}
+              locale={locale}
+              t={t}
+            />
+          )}
+        </TourTarget>
+
+        {/* The two things you start on this screen, as round black icon
+            buttons under the deck: make a group, or add a spend by hand. */}
+        <Row
+          style={{
+            justifyContent: 'space-evenly',
+            columnGap: theme.spacing.sm,
+            paddingVertical: theme.spacing.xs,
+          }}
+        >
+          {/* Scan a receipt leads the row. The camera moved out of the header
+              to sit with the other add actions. A fresh nonce each tap so the
+              capture screen's consumed-once scan guard survives Android
+              recreating it. */}
+          <AddAction
+            icon="camera-outline"
+            label={t.scanBill}
+            onPress={() => router.push(`/capture?scan=${Date.now()}`)}
           />
-        )}
+          <AddAction
+            icon="add"
+            label={t.addExpense}
+            tourId="addExpense"
+            onPress={() => router.push('/capture')}
+          />
+          <AddAction icon="people" label={t.newGroup} tourId="addGroup" onPress={openNewGroup} />
+          {/* The captures inbox always holds its place in the row. It carries a
+              count while something is waiting; with an empty inbox it stays put
+              but sits dim and unpressable. */}
+          <AddAction
+            icon="file-tray-outline"
+            label={t.captures.title}
+            badge={captureCount || undefined}
+            disabled={captureCount === 0}
+            onPress={() => router.push('/captures')}
+          />
+        </Row>
 
         {loading ? (
           <SkeletonList rows={3} />
@@ -370,17 +335,18 @@ export default function HomeScreen() {
             title={t.tabs.noGroups}
             body={t.tabs.noGroupsBody}
             icon={<Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.brand} />}
-            action={<Button label={t.newGroup} onPress={openNewGroup} />}
           />
         ) : (
           <View>
-            {presentTypes.length > 1 ? (
-              <CategoryStrip types={presentTypes} active={active} onSelect={setCategory} t={t} />
-            ) : null}
             <View>
-              {visible.map((group, index) => {
+              {list.map((group, index) => {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
+                // A running trip earns a live "on trip" tag; failing that, a
+                // just-made group wears "New" for its first couple of days.
+                const onTrip = ongoingTripIds.has(group.id);
+                const isNew = nowMs - Date.parse(group.created_at) < NEW_GROUP_WINDOW_MS;
+                const tag = onTrip ? t.tagOnTrip : isNew ? t.tagNew : null;
                 return (
                   <View key={group.id}>
                     <GroupCard
@@ -395,9 +361,11 @@ export default function HomeScreen() {
                         balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe
                       }
                       pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
+                      tag={tag}
+                      tagTone={onTrip ? 'positive' : 'brand'}
                       onPress={() => router.push(`/group/${group.id}`)}
                     />
-                    {index < visible.length - 1 ? (
+                    {index < list.length - 1 ? (
                       <View style={{ height: 1, backgroundColor: theme.color.border }} />
                     ) : null}
                   </View>
@@ -408,12 +376,12 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* The one always-there way to add a spend by hand — a floating action in
-          the bottom-right, the place finance apps put it (Buddy, Airwallex). The
-          bar's centre is the mic (speak it) and the header camera scans a bill;
-          this is the third, plainest route: type it. It sits above the bar via
-          the same clearance the scroll uses, so it never covers the last row. */}
-      <AddExpenseFab label={t.addExpense} bottom={clearance} />
+      {/* Guests are nudged to secure their account as an animated popup rather
+          than an inline banner — once a day, dismissible. Held back while the
+          tour is up so the two do not stack on a guest's first run. */}
+      {isGuest && !tour.active ? (
+        <GuestPopup gate={guard.gate} t={t} onAction={() => router.push('/settings/account')} />
+      ) : null}
 
       {/* The daily tip, surfaced as a sheet on the first Home open of the day —
           one useful, Baaki-specific move at a time, then out of the way until
@@ -425,48 +393,95 @@ export default function HomeScreen() {
 }
 
 /**
- * The dashboard's add-expense action, floating over the bottom-right.
- *
- * Routes to the capture screen — the group-optional "capture an expense" form —
- * so it works the same whether or not the person has a group yet: they type the
- * amount now and decide where it belongs later. The header camera opens that
- * same screen straight into scan mode; this opens it blank, to type.
- *
- * Wrapped in a `box-none` overlay so only the button itself takes touches — the
- * transparent area around it lets the list underneath scroll and tap through.
+ * One round quick-add button under the deck: a black circle with a white icon
+ * and its label beneath. The pair (group / expense) is the same two actions the
+ * FAB and the new-group flow reach, surfaced where the eye lands after the
+ * balance.
  */
-function AddExpenseFab({ label, bottom }: { label: string; bottom: number }) {
+function AddAction({
+  icon,
+  label,
+  onPress,
+  badge,
+  disabled,
+  tourId,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  /** An optional count on the circle — e.g. how many captures are waiting. */
+  badge?: number;
+  /** Keep the button in place but dim and unpressable — e.g. an empty inbox. */
+  disabled?: boolean;
+  /** When set, the round icon (only) is a tour target, so a coach-mark's hole
+      hugs the circle rather than the circle plus its caption. */
+  tourId?: string;
+}) {
   const theme = useTheme();
-  const size = 52;
-  return (
+  const circle = (
     <View
-      pointerEvents="box-none"
-      style={{ position: 'absolute', right: theme.spacing.xl, bottom, left: 0, top: 0 }}
+      style={{
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: theme.color.buttonPrimary,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
-      <View
-        pointerEvents="box-none"
-        style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'flex-end' }}
-      >
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          onPress={() => router.push('/capture')}
+      <Ionicons name={icon} size={22} color={theme.color.onBrand} />
+      {badge ? (
+        <View
           style={{
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: theme.color.brand,
+            position: 'absolute',
+            top: -3,
+            right: -3,
+            minWidth: 20,
+            height: 20,
+            borderRadius: 10,
+            paddingHorizontal: 5,
             alignItems: 'center',
             justifyContent: 'center',
-            ...theme.shadow.lifted,
+            backgroundColor: theme.color.brand,
+            borderWidth: 2,
+            borderColor: theme.color.bg,
           }}
         >
-          <Ionicons name="add" size={iconSize.lg} color={theme.color.onBrand} />
-        </PressableScale>
-      </View>
+          <Text
+            variant="micro"
+            style={{ color: theme.color.onBrand, fontSize: 11, fontWeight: '800' }}
+          >
+            {badge > 99 ? '99+' : String(badge)}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={badge ? `${label}. ${badge}` : label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        minWidth: 0,
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
+      })}
+    >
+      {tourId ? <TourTarget id={tourId}>{circle}</TourTarget> : circle}
+      <Text variant="caption" tone="muted" numberOfLines={1} style={{ textAlign: 'center' }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
+
+/** How long after creation a group still counts as "New" — 48 hours. */
+const NEW_GROUP_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 /** The AsyncStorage key holding the day the guest last closed the prompt. */
 const GUEST_PROMPT_DISMISS_KEY = 'guestPrompt:dismissedOn';
@@ -532,18 +547,35 @@ function useDailyDismiss(key: string): { hidden: boolean; ready: boolean; dismis
  * The card carries a close: a guest can dismiss it, but only for the day — it
  * returns tomorrow (see `useDailyDismiss`).
  */
-function GuestPrompt({
+function GuestPopup({
   gate,
   t,
-  onPress,
+  onAction,
 }: {
   gate: GuestGate | null;
   t: UiStrings;
-  onPress: () => void;
+  onAction: () => void;
 }) {
   const theme = useTheme();
+  const { animated } = useMotion();
   const { hidden, ready, dismiss } = useDailyDismiss(GUEST_PROMPT_DISMISS_KEY);
-  if (!ready || hidden) return null;
+  const visible = ready && !hidden;
+
+  // A gentle scale-and-fade in, the way the reference presents this card. RN
+  // Animated (not reanimated) since this file already drives its counters with
+  // it; motion off starts it settled. Held in state (lazy init) rather than a
+  // ref so the value is not read through `.current` during render.
+  const [opacity] = useState(() => new Animated.Value(animated ? 0 : 1));
+  const [scale] = useState(() => new Animated.Value(animated ? 0.92 : 1));
+  useEffect(() => {
+    if (!visible || !animated) return;
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, friction: 7, useNativeDriver: true }),
+    ]).start();
+  }, [visible, animated, opacity, scale]);
+
+  if (!visible) return null;
 
   const expired = gate?.expired ?? false;
   const body = expired
@@ -552,63 +584,72 @@ function GuestPrompt({
       ? t.tabs.guestDaysLeft.replace('{days}', String(gate.daysLeft))
       : t.tabs.guestBannerBody;
   const accent = expired ? theme.color.warning : theme.color.brand;
-  // The fraction of the trial still left — the bar empties from the right as the
-  // days burn down. Clamped so a stale clock can't over- or under-fill it.
-  const remaining = gate ? Math.max(0, Math.min(1, gate.daysLeft / GUEST_TRIAL_DAYS)) : 1;
 
-  // One compact band: the whole card is the way to sign up (the chevron says so),
-  // so there is no separate button, no icon chip, no title line — just the status,
-  // a hairline countdown under it, and a close. The earlier card stacked a chip,
-  // a heading, a full-width button and the bar; that read as bloated for what is
-  // an aside above the balance.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t.tabs.addYourDetails}
-      onPress={onPress}
-      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-    >
-      <Card style={{ gap: theme.spacing.sm }}>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted" numberOfLines={2} style={{ flex: 1, minWidth: 0 }}>
-            {body}
-          </Text>
-          <Ionicons name="chevron-forward" size={iconSize.base} color={accent} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.common.close}
-            onPress={dismiss}
-            hitSlop={10}
-            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-          >
-            <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
-          </Pressable>
-        </Row>
-
-        {gate ? (
+    <Modal visible transparent animationType={animated ? 'fade' : 'none'} onRequestClose={dismiss}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#00000080',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing.xxxl,
+        }}
+      >
+        <Animated.View
+          style={[
+            {
+              width: '100%',
+              maxWidth: 360,
+              backgroundColor: theme.color.surface,
+              borderRadius: theme.radius.lg,
+              padding: theme.spacing.xxl,
+              alignItems: 'center',
+              gap: theme.spacing.lg,
+              ...theme.shadow.lifted,
+            },
+            { opacity, transform: [{ scale }] },
+          ]}
+        >
           <View
-            accessible
-            accessibilityRole="progressbar"
-            accessibilityValue={{ min: 0, max: GUEST_TRIAL_DAYS, now: gate.daysLeft }}
             style={{
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: theme.color.border,
-              overflow: 'hidden',
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: theme.color.brandSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <View
-              style={{
-                width: `${remaining * 100}%`,
-                height: '100%',
-                borderRadius: 2,
-                backgroundColor: accent,
-              }}
+            <Ionicons
+              name={expired ? 'lock-closed' : 'shield-checkmark'}
+              size={38}
+              color={accent}
             />
           </View>
-        ) : null}
-      </Card>
-    </Pressable>
+
+          <View style={{ gap: theme.spacing.sm }}>
+            <Text variant="heading" align="center">
+              {t.tabs.addYourDetails}
+            </Text>
+            <Text variant="body" tone="muted" align="center">
+              {body}
+            </Text>
+          </View>
+
+          <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
+            <Button label={t.signIn.createAccount} size="lg" fullWidth onPress={onAction} />
+            <Button
+              label={t.entry.notifyNotNow}
+              variant="ghost"
+              size="lg"
+              fullWidth
+              onPress={dismiss}
+            />
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
@@ -775,84 +816,6 @@ function TipSheet({ t }: { t: UiStrings }) {
   );
 }
 
-/** The group types in the order chips appear — matches the new-group picker. */
-const GROUP_TYPE_ORDER: readonly GroupType[] = [
-  GroupType.Trip,
-  GroupType.Home,
-  GroupType.Couple,
-  GroupType.Event,
-  GroupType.Other,
-];
-
-/** One Ionicon per group type, echoing the emoji the new-group picker uses. */
-const CATEGORY_ICON: Record<GroupType, keyof typeof Ionicons.glyphMap> = {
-  [GroupType.Trip]: 'airplane',
-  [GroupType.Home]: 'home',
-  [GroupType.Couple]: 'heart',
-  [GroupType.Event]: 'sparkles',
-  [GroupType.Other]: 'people',
-};
-
-/** The localized label for a group type, from the same strings the picker uses. */
-function categoryLabel(type: GroupType, t: UiStrings): string {
-  switch (type) {
-    case GroupType.Trip:
-      return t.extras.typeTrip;
-    case GroupType.Home:
-      return t.extras.typeHome;
-    case GroupType.Couple:
-      return t.extras.typeCouple;
-    case GroupType.Event:
-      return t.extras.typeEvent;
-    case GroupType.Other:
-      return t.extras.typeOther;
-  }
-}
-
-/**
- * The group filter as a row of compact pills — a leading "All", then one per
- * group type the person actually has, each an inline icon + label. The active
- * pill wears the brand fill; the rest sit quiet on the surface. It scrolls
- * sideways, so more types never crowd the row.
- *
- * This was a strip of chunky 74px icon-over-label tiles; the finance apps in the
- * category (Splitwise, PayPal, Monzo) filter with small pills, not tiles, so it
- * now reuses the shared {@link ChipRow} — lighter to read and one fewer bespoke
- * control to keep in step with the rest of the app.
- */
-function CategoryStrip({
-  types,
-  active,
-  onSelect,
-  t,
-}: {
-  types: readonly GroupType[];
-  active: GroupType | 'all';
-  onSelect: (value: GroupType | 'all') => void;
-  t: UiStrings;
-}) {
-  const options: {
-    value: GroupType | 'all';
-    label: string;
-    icon: (color: string) => React.ReactNode;
-  }[] = [
-    {
-      value: 'all',
-      label: t.filterAll,
-      icon: (color) => <Ionicons name="apps" size={iconSize.sm} color={color} />,
-    },
-    ...types.map((type) => ({
-      value: type,
-      label: categoryLabel(type, t),
-      icon: (color: string) => (
-        <Ionicons name={CATEGORY_ICON[type]} size={iconSize.sm} color={color} />
-      ),
-    })),
-  ];
-
-  return <ChipRow options={options} value={active} onChange={onSelect} />;
-}
-
 /** One currency's standing: the net, and the two sides that make it up. */
 type CurrencyTotal = { currency: string; net: bigint; owed: bigint; owing: bigint };
 
@@ -916,7 +879,6 @@ function HeroDeck({
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
-  const [page, setPage] = useState(0);
   const { animated } = useMotion();
   // Lazy-initialised once and never replaced (the same pattern the voice mic’s
   // animations use); a plain `useRef().current` read trips react-hooks/refs.
@@ -984,7 +946,6 @@ function HeroDeck({
     index * snap,
     (index + 1) * snap,
   ];
-  const active = Math.min(page, slides.length - 1);
 
   return (
     <View style={{ gap: theme.spacing.md }}>
@@ -999,12 +960,6 @@ function HeroDeck({
         contentContainerStyle={{ gap, paddingRight: peek }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
           useNativeDriver: true,
-          // The discrete-dot fallback and the stale-index clamp both want a
-          // settled page; the visual growth above rides scrollX directly.
-          listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-            const next = Math.round(event.nativeEvent.contentOffset.x / snap);
-            setPage((current) => (current === next ? current : next));
-          },
         })}
       >
         {slides.map((slide, index) => (
@@ -1040,53 +995,6 @@ function HeroDeck({
           </Animated.View>
         ))}
       </Animated.ScrollView>
-
-      {/* The pager. Motion on: each dot is a 6px base pill that scales along X
-          up to 3× (an 18px capsule) and brightens as its card centres, so the
-          active pill grows toward the incoming card mid-swipe rather than
-          flicking over at the end. scaleX leaves the layout box at 6px, so the
-          row keeps its tight spacing and never reflows (no jitter). Motion off:
-          the plain discrete dot, clamped against a stale index when a slide
-          drops out from under it (a trip ends, a currency settles). */}
-      <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
-        {slides.map((slide, index) =>
-          animated ? (
-            <Animated.View
-              key={slide.key}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: theme.color.brand,
-                opacity: scrollX.interpolate({
-                  inputRange: rangeFor(index),
-                  outputRange: [0.3, 1, 0.3],
-                  extrapolate: 'clamp',
-                }),
-                transform: [
-                  {
-                    scaleX: scrollX.interpolate({
-                      inputRange: rangeFor(index),
-                      outputRange: [1, 3, 1],
-                      extrapolate: 'clamp',
-                    }),
-                  },
-                ],
-              }}
-            />
-          ) : (
-            <View
-              key={slide.key}
-              style={{
-                width: index === active ? 18 : 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: index === active ? theme.color.brand : theme.color.border,
-              }}
-            />
-          ),
-        )}
-      </Row>
     </View>
   );
 }
@@ -1122,19 +1030,6 @@ function HeroSkeleton() {
           animated={animated}
         />
       </View>
-      <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
-        {[0, 1, 2].map((dot) => (
-          <View
-            key={dot}
-            style={{
-              width: dot === 0 ? 18 : 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: dot === 0 ? theme.color.brand : theme.color.border,
-            }}
-          />
-        ))}
-      </Row>
     </View>
   );
 }

@@ -24,6 +24,7 @@ import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { AppTabBar } from '@/components/AppTabBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
 import { NotificationPrompt } from '@/components/NotificationPrompt';
+import { TourOverlay } from '@/components/TourOverlay';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -33,6 +34,7 @@ import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { TourProvider } from '@/lib/tour';
 import { SyncNetworkProvider } from '@/lib/syncNetwork';
 import { BackupProvider } from '@/lib/cloud/BackupProvider';
 import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
@@ -146,38 +148,44 @@ function RootLayout() {
                       <BackupProvider>
                         <UpdateProvider>
                           <ThemePreferenceProvider>
-                            <ThemedRoot>
-                              <ThemedStatusBar />
-                              {/* Outside the lock and the auth gate on purpose: a build
+                            <TourProvider>
+                              <ThemedRoot>
+                                <ThemedStatusBar />
+                                {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                              <UpdateGate>
-                                <PushRouting />
-                                <LockGate>
-                                  {/* Inside the lock so the two-device gate never
+                                <UpdateGate>
+                                  <PushRouting />
+                                  <LockGate>
+                                    {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                  <DeviceSessionProvider>
-                                    <AuthGate />
-                                    {/* Inside the lock on purpose: a promotion is not a
+                                    <DeviceSessionProvider>
+                                      <AuthGate />
+                                      {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                    <CampaignPopup />
-                                    {/* The soft ask for push, once, to a
+                                      <CampaignPopup />
+                                      {/* The soft ask for push, once, to a
                                         signed-in person whose permission is
                                         still undetermined. */}
-                                    <NotificationPrompt />
-                                  </DeviceSessionProvider>
-                                </LockGate>
-                                {/* Last, so it paints over the screen rather than
+                                      <NotificationPrompt />
+                                    </DeviceSessionProvider>
+                                  </LockGate>
+                                  {/* The coach-mark tour, over the whole app but
+                                    only ever started from Home. Above the gate
+                                    so its scrim covers the screen. */}
+                                  <TourOverlay />
+                                  {/* Last, so it paints over the screen rather than
                               under it. */}
-                                <UpdateBanner />
-                              </UpdateGate>
-                              {/* Topmost of all: the launch field, painting over
+                                  <UpdateBanner />
+                                </UpdateGate>
+                                {/* Topmost of all: the launch field, painting over
                                   the whole app until it fades itself out. Native
                                   only; renders nothing on web. */}
-                              <AnimatedSplash />
-                            </ThemedRoot>
+                                <AnimatedSplash />
+                              </ThemedRoot>
+                            </TourProvider>
                           </ThemePreferenceProvider>
                         </UpdateProvider>
                       </BackupProvider>
@@ -359,17 +367,26 @@ function AuthGate() {
   // The guest doorway counts as auth too: a signed-out person is allowed to sit
   // on it, and the moment its Continue mints a guest session the gate bounces it
   // into the app, exactly like the doors.
+  // `phone` counts as auth for the same reason the doors do: a nobody signs in
+  // there (or, in a dev build, the 000000 stub mints a guest), and the moment
+  // that session appears the gate must bounce it into the app — otherwise it
+  // sits on the code screen with a live session and nowhere to go.
+  // `verify-email` joins them: the email code is entered there, and the session
+  // `verifyOtp` mints must bounce into the app just like the phone code does.
   const onAuth =
     onSignIn ||
     segments[0] === 'sign-up' ||
     segments[0] === 'welcome' ||
-    segments[0] === 'guest-welcome';
+    segments[0] === 'guest-welcome' ||
+    segments[0] === 'phone' ||
+    segments[0] === 'verify-email';
+  // The privacy screen is reachable signed-out too, so the Terms & Privacy line
+  // on the welcome and guest doorways can open it before anybody has an account.
   const onPublicRoute =
     onAuth ||
     segments[0] === 'join' ||
     segments[0] === 'language' ||
-    segments[0] === 'phone' ||
-    segments[0] === 'verify-email';
+    (segments[0] === 'settings' && segments[1] === 'privacy');
 
   /**
    * The route we are on disagrees with the session we have, and the effect

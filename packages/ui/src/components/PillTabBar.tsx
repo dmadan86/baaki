@@ -149,7 +149,7 @@ function CenterButton({ action }: { action: PillTabAction }) {
           borderRadius: 29,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: theme.color.brand,
+          backgroundColor: theme.color.buttonPrimary,
           // Lifted so it reads as sitting above the bar, not in the row.
           transform: [{ translateY: -16 }],
           opacity: pressed ? 0.9 : 1,
