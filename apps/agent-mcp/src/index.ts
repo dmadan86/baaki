@@ -102,7 +102,7 @@ async function main(): Promise<void> {
     'list_groups',
     {
       description:
-        "List the groups the signed-in user belongs to (RLS scopes this to them). Use it to find a group id before adding an expense or a settlement.",
+        'List the groups the signed-in user belongs to (RLS scopes this to them). Use it to find a group id before adding an expense or a settlement.',
       inputSchema: {
         includeArchived: z
           .boolean()
@@ -193,9 +193,7 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // A stdio server must not print to stdout (that is the protocol channel).
-  process.stderr.write(
-    `waves-agent MCP up as ${meId}${env.readOnly ? ' (read-only)' : ''}\n`,
-  );
+  process.stderr.write(`waves-agent MCP up as ${meId}${env.readOnly ? ' (read-only)' : ''}\n`);
 }
 
 function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
@@ -205,7 +203,11 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
       description:
         'Create a new group. The signed-in user is added as its first (admin) member automatically. Returns the new group id.',
       inputSchema: {
-        name: z.string().min(1).optional().describe('Optional; an unnamed group is labelled by its members.'),
+        name: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('Optional; an unnamed group is labelled by its members.'),
         type: z
           .enum(['trip', 'home', 'couple', 'event', 'other'])
           .default('other')
@@ -251,10 +253,7 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
         amount: MinorUnits.describe('Total of the expense, in minor units.'),
         currency: Currency.optional().describe("Defaults to the group's currency if omitted."),
         paidBy: MemberId.describe('The member who paid (single payer).'),
-        participants: z
-          .array(MemberId)
-          .min(1)
-          .describe('The members the expense is split across.'),
+        participants: z.array(MemberId).min(1).describe('The members the expense is split across.'),
         split: z
           .discriminatedUnion('kind', [
             z.object({ kind: z.literal('equal') }),
@@ -335,7 +334,15 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
         note: z.string().optional(),
       },
     },
-    async ({ groupId, fromMemberId, toMemberId, amount, rail, currency, note }): Promise<ToolResult> => {
+    async ({
+      groupId,
+      fromMemberId,
+      toMemberId,
+      amount,
+      rail,
+      currency,
+      note,
+    }): Promise<ToolResult> => {
       const method = (['upi', 'cash', 'bank', 'other'] as const).includes(
         rail as 'upi' | 'cash' | 'bank' | 'other',
       )
@@ -372,7 +379,9 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
         payeeVpa: z
           .string()
           .optional()
-          .describe('The payee UPI id (vpa), e.g. name@bank — from list_members. Required for upi.'),
+          .describe(
+            'The payee UPI id (vpa), e.g. name@bank — from list_members. Required for upi.',
+          ),
         payeeHandle: z
           .string()
           .optional()
@@ -390,7 +399,7 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
         .padStart(2, '0')}`;
 
       if (rail === 'upi') {
-        if (!payeeVpa) return fail('A UPI link needs payeeVpa (the payee\'s UPI id).');
+        if (!payeeVpa) return fail("A UPI link needs payeeVpa (the payee's UPI id).");
         const params = new URLSearchParams({
           pa: payeeVpa,
           ...(payeeName ? { pn: payeeName } : {}),
@@ -412,6 +421,8 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`waves-agent MCP failed to start: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `waves-agent MCP failed to start: ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.exit(1);
 });

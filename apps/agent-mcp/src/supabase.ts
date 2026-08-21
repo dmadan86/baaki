@@ -39,7 +39,7 @@ export function readEnv(): WavesEnv {
   if (missing.length) {
     throw new Error(
       `Missing required environment: ${missing.join(', ')}. ` +
-        'The server acts as a signed-in user, so it needs that user\'s Supabase ' +
+        "The server acts as a signed-in user, so it needs that user's Supabase " +
         'session (a WAVES_SUPABASE_ACCESS_TOKEN, and ideally a ' +
         'WAVES_SUPABASE_REFRESH_TOKEN so long sessions keep working).',
     );
