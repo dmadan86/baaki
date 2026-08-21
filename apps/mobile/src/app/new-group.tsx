@@ -273,21 +273,33 @@ export default function NewGroupScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        <Card style={{ gap: theme.spacing.lg }}>
-          <Row style={{ gap: theme.spacing.lg }}>
-            <GroupPhoto
-              photoPath={null}
-              localUri={effectivePhoto?.uri ?? null}
-              emoji={emoji}
-              size={72}
-              onPress={onPhotoPress}
-            />
-            <View style={{ flex: 1, gap: theme.spacing.xs }}>
-              <InfoDisclosure
-                title={t.group.nameOptional}
-                info={t.extras.blankNameHint}
-                titleVariant="caption"
-              />
+        {/* The identity of the group, top-down: the cover you tap to set a
+            photo, the icon under it, then the name in a field of its own. The
+            avatar used to sit left of a cramped column; centred and stacked it
+            reads as the one thing this card is for. */}
+        <Card style={{ gap: theme.spacing.lg, alignItems: 'center' }}>
+          <GroupPhoto
+            photoPath={null}
+            localUri={effectivePhoto?.uri ?? null}
+            emoji={emoji}
+            size={88}
+            onPress={onPhotoPress}
+          />
+          {/* A compact swatch, not a full-width button — the icon is already
+              shown large on the avatar above, so this is only a way in. */}
+          <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
+
+          <View style={{ width: '100%', gap: theme.spacing.xs }}>
+            <Row
+              style={{
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                borderWidth: 1,
+                borderColor: theme.color.border,
+                borderRadius: theme.radius.lg,
+                paddingHorizontal: theme.spacing.lg,
+              }}
+            >
               <TextInput
                 value={name}
                 onChangeText={setName}
@@ -296,18 +308,31 @@ export default function NewGroupScreen() {
                 accessibilityLabel={t.group.groupName}
                 autoFocus
                 style={{
-                  fontSize: 22,
+                  flex: 1,
+                  fontSize: 20,
                   fontWeight: '700',
                   color: theme.color.text,
-                  paddingVertical: theme.spacing.sm,
+                  paddingVertical: theme.spacing.md,
                 }}
               />
-              {/* A compact swatch rather than a full-width button — the icon is
-                  already shown large on the avatar beside it, so this only needs
-                  to be a way in, not a billboard. */}
-              <CoverEmojiPicker value={emoji} onChange={setPickedEmoji} compact />
-            </View>
-          </Row>
+              {name.length > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.entry.clear}
+                  onPress={() => setName('')}
+                  hitSlop={8}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+                >
+                  <Ionicons name="close-circle" size={iconSize.lg} color={theme.color.textFaint} />
+                </Pressable>
+              ) : null}
+            </Row>
+            {/* Blank is fine — the group is labelled by who is in it. Said once,
+                quietly, under the field rather than behind an info toggle. */}
+            <Text variant="caption" tone="muted" align="center">
+              {t.extras.blankNameHint}
+            </Text>
+          </View>
         </Card>
 
         <View style={{ gap: theme.spacing.md }}>

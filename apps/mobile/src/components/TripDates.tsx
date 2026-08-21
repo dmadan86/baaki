@@ -211,13 +211,27 @@ export function TripDates({
         />
       </Row>
 
+      {/* A quiet way out, not a competing action: a small muted link tucked
+          under the range rather than a full-width button. */}
       {group.start_date && group.end_date ? (
-        <Button
-          label={t.pickers.clearDates}
-          size="sm"
-          variant="ghost"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.pickers.clearDates}
           onPress={() => onChange({ start_date: null, end_date: null })}
-        />
+          hitSlop={8}
+          style={({ pressed }) => ({ alignSelf: 'center', opacity: pressed ? 0.6 : 1 })}
+        >
+          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            <Ionicons
+              name="close-circle-outline"
+              size={iconSize.sm}
+              color={theme.color.textMuted}
+            />
+            <Text variant="caption" tone="muted">
+              {t.pickers.clearDates}
+            </Text>
+          </Row>
+        </Pressable>
       ) : null}
 
       {editing ? (
