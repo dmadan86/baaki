@@ -13,7 +13,7 @@
  * guess back from the code.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
@@ -56,11 +56,19 @@ export function CountryCodePicker({
   useEffect(() => {
     if (disabledCache) return;
     let cancelled = false;
-    void disabledCountries().then((codes) => {
-      const set = new Set(codes.map((entry) => entry.toUpperCase()));
-      disabledCache = set;
-      if (!cancelled) setDisabled(set);
-    });
+    void disabledCountries()
+      .then((codes) => {
+        const set = new Set(codes.map((entry) => entry.toUpperCase()));
+        disabledCache = set;
+        if (!cancelled) setDisabled(set);
+      })
+      .catch(() => {
+        // A failure or an offline phone leaves the set empty, so every market
+        // stays offered rather than none — and the void call cannot reject
+        // unhandled.
+        disabledCache = new Set();
+        if (!cancelled) setDisabled(new Set());
+      });
     return () => {
       cancelled = true;
     };
@@ -73,15 +81,23 @@ export function CountryCodePicker({
     [disabled],
   );
 
+  // Held in a ref so an inline `onChange` (a fresh identity each parent render)
+  // does not re-fire the correction effect below every render — which, while
+  // the guessed country stays switched off, would loop.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   // If the guessed country turns out to be switched off, move the selection to
   // the first market that is still offered — otherwise the chip would show a
   // dial code the list will not let the person change.
   useEffect(() => {
     if (available.length === 0) return;
     if (!available.some((country) => country.code === code)) {
-      onChange(available[0].code);
+      onChangeRef.current(available[0].code);
     }
-  }, [available, code, onChange]);
+  }, [available, code]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
