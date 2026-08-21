@@ -22,11 +22,12 @@ import {
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { friendlyError } from '@/lib/errors';
-import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
+import { type PickedContact } from '@/components/ContactPicker';
 import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
+import { requestContacts } from '@/lib/contactPickerBridge';
 import { pickGroupPhoto, type PickedImage } from '@/lib/image';
 import {
   photoGateParam,
@@ -113,7 +114,6 @@ export default function NewGroupScreen() {
   // whatever the phone had. Same shape either way, so the create loop treats
   // them alike.
   const [ghosts, setGhosts] = useState<PickedContact[]>([]);
-  const [browsing, setBrowsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Read once, not on every render: a phone does not change country mid-form.
   const [country, setCountry] = useState<string | null>(() => deviceCountry());
@@ -243,7 +243,13 @@ export default function NewGroupScreen() {
       }
       return merged;
     });
-    setBrowsing(false);
+  };
+
+  // Hand the picker who is already chosen and what to do with the answer, then
+  // open it on its own screen. It calls `addContacts` back through the bridge.
+  const openContactPicker = (): void => {
+    requestContacts({ initial: ghosts, onPicked: addContacts });
+    router.push('/contact-picker');
   };
 
   return (
@@ -357,15 +363,15 @@ export default function NewGroupScreen() {
             info={t.extras.ghostNote}
             titleVariant="caption"
             right={
-              // The same phone-contacts picker, moved to the section heading so
-              // it reads as an action on People rather than a stray button below
-              // the name field. Nobody's book is uploaded (ADR-006).
+              // Opens the address book on its own screen rather than unfolding
+              // it inline — a thousand-name list needs the whole height. Nobody's
+              // book is uploaded (ADR-006). The picker hands its answer back
+              // through the bridge into `addContacts`.
               <Pressable
                 accessibilityRole="button"
-                accessibilityState={{ expanded: browsing }}
-                accessibilityLabel={browsing ? t.people.hideContacts : t.people.browseContacts}
+                accessibilityLabel={t.people.browseContacts}
                 hitSlop={8}
-                onPress={() => setBrowsing((open) => !open)}
+                onPress={openContactPicker}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -373,11 +379,7 @@ export default function NewGroupScreen() {
                   opacity: pressed ? 0.6 : 1,
                 })}
               >
-                <Ionicons
-                  name={browsing ? 'people' : 'people-outline'}
-                  size={iconSize.base}
-                  color={theme.color.brand}
-                />
+                <Ionicons name="people-outline" size={iconSize.base} color={theme.color.brand} />
                 <Text variant="caption" style={{ color: theme.color.brand }}>
                   {t.people.contacts}
                 </Text>
@@ -408,21 +410,6 @@ export default function NewGroupScreen() {
               onPress={addTypedGhost}
             />
           </Row>
-
-          {browsing ? (
-            // Tall enough that the letter rail has something to aim at — a
-            // short window turns a thousand contacts back into a peephole.
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
-                {t.misc.fromYourContacts}
-              </Text>
-              <View style={{ height: 480 }}>
-                {/* Seeded with whoever is already added, so the people already
-                    selected show ticked here rather than the picker opening blank. */}
-                <ContactPicker onConfirm={addContacts} initialSelected={ghosts} />
-              </View>
-            </View>
-          ) : null}
 
           {ghosts.length > 0 ? (
             <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>

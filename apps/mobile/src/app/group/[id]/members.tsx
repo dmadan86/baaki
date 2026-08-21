@@ -21,7 +21,7 @@ import {
   useScreenClearance,
 } from '@waves/ui';
 
-import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
+import { type PickedContact } from '@/components/ContactPicker';
 import {
   useAddGhostMember,
   useDecideMemberClaim,
@@ -33,6 +33,7 @@ import { useBlockedUsers } from '@/data/blocked';
 import { displayName, groupLabel, isBlockedMember, isGhost, vpaOf } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { requestContacts } from '@/lib/contactPickerBridge';
 import { friendlyError } from '@/lib/errors';
 
 export default function MembersScreen() {
@@ -52,7 +53,6 @@ export default function MembersScreen() {
 
   const [ghostName, setGhostName] = useState('');
   const [ghostContact, setGhostContact] = useState('');
-  const [browsing, setBrowsing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
@@ -154,10 +154,7 @@ export default function MembersScreen() {
       }
     }
     setAdding(false);
-    if (failed.length === 0) {
-      setBrowsing(false);
-      return;
-    }
+    if (failed.length === 0) return;
     setError(fill(t.misc.couldNotAddSome, { reason: reason ?? '' }));
   };
 
@@ -169,6 +166,18 @@ export default function MembersScreen() {
       [member.invite_email, member.invite_phone].filter((value): value is string => Boolean(value)),
     ),
   );
+
+  // Opens the address book on its own screen rather than unfolding it inline.
+  // Whoever is already in the group is greyed out there; the ticked people come
+  // back through the bridge into `addPicked`.
+  const openContactPicker = (): void => {
+    requestContacts({
+      initial: [],
+      existing: alreadyAdded,
+      onPicked: (people) => void addPicked(people),
+    });
+    router.push('/contact-picker');
+  };
 
   return (
     <Screen>
@@ -328,23 +337,7 @@ export default function MembersScreen() {
             }}
           />
 
-          <Button
-            label={browsing ? t.people.hideContacts : t.people.browseContacts}
-            variant="ghost"
-            onPress={() => setBrowsing((open) => !open)}
-          />
-
-          {browsing ? (
-            // Tall enough that the letter rail has something to aim at — a
-            // 320pt window turns a thousand contacts back into a peephole.
-            <View style={{ height: 480 }}>
-              <ContactPicker
-                onConfirm={(people) => void addPicked(people)}
-                existing={alreadyAdded}
-                busy={adding}
-              />
-            </View>
-          ) : null}
+          <Button label={t.people.browseContacts} variant="ghost" onPress={openContactPicker} />
           <Text variant="micro" tone="muted">
             {t.misc.nameAloneBody}
           </Text>
