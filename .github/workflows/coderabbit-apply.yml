@@ -119,7 +119,7 @@ jobs:
             echo "No actionable CodeRabbit comments found; nothing to apply."
           fi
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         if: steps.check.outputs.has_comments == 'true'
         with:
           node-version-file: .nvmrc
