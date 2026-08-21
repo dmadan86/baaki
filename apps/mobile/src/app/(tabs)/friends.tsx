@@ -31,7 +31,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Badge,
-  Button,
   Card,
   EmptyState,
   iconSize,
@@ -356,32 +355,6 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
       <Text variant="heading" align="center">
         {t.tabs.noFriends}
       </Text>
-      <Text variant="caption" tone="muted" align="center">
-        {t.tabs.noFriendsBody}
-      </Text>
-
-      <View style={{ alignItems: 'center', gap: theme.spacing.md, marginTop: theme.spacing.lg }}>
-        <Button
-          label={t.addPerson.title}
-          onPress={() => router.push('/friends/add-person' as never)}
-        />
-        {/* The second path the category always offers in this state. A quiet
-            text button under the primary — a way in, not a competing verb. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.tabs.fromContacts}
-          onPress={() => router.push('/friends/contacts')}
-          hitSlop={10}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-        >
-          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-            <Ionicons name="people-outline" size={iconSize.md} color={theme.color.brand} />
-            <Text variant="body" style={{ color: theme.color.brand }}>
-              {t.tabs.fromContacts}
-            </Text>
-          </Row>
-        </Pressable>
-      </View>
     </View>
   );
 }

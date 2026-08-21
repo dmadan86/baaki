@@ -2257,7 +2257,7 @@ const en: UiStrings = {
     inbox: 'Inbox',
     fromContacts: 'From contacts',
     addFromContacts: 'Add from contacts',
-    noFriends: 'No friends yet',
+    noFriends: 'Your circle starts here',
     noFriendsBody:
       'Add the people you share costs with. They do not need the app — a name is enough to start.',
     allSquare: 'All square',
@@ -3785,7 +3785,7 @@ const ta: UiStrings = {
     inbox: 'அஞ்சல் பெட்டி',
     fromContacts: 'தொடர்புகளிலிருந்து',
     addFromContacts: 'தொடர்புகளிலிருந்து சேர்',
-    noFriends: 'இன்னும் நண்பர்கள் இல்லை',
+    noFriends: 'உங்கள் வட்டம் இங்கே தொடங்குகிறது',
     noFriendsBody:
       'நீங்கள் செலவுகளைப் பகிர்பவர்களைச் சேருங்கள். அவர்களுக்கு ஆப் தேவையில்லை — ஒரு பெயர் போதும்.',
     allSquare: 'எல்லாம் சரி',
@@ -5332,7 +5332,7 @@ const hi: UiStrings = {
     inbox: 'इनबॉक्स',
     fromContacts: 'संपर्कों से',
     addFromContacts: 'संपर्कों से जोड़ें',
-    noFriends: 'अभी कोई दोस्त नहीं',
+    noFriends: 'आपका सर्कल यहाँ से शुरू होता है',
     noFriendsBody:
       'जिनके साथ आप खर्च बाँटते हैं उन्हें जोड़ें। उन्हें ऐप की ज़रूरत नहीं — बस एक नाम काफ़ी है।',
     allSquare: 'सब बराबर',
@@ -6865,7 +6865,7 @@ const ar: UiStrings = {
     inbox: 'صندوق الوارد',
     fromContacts: 'من جهات الاتصال',
     addFromContacts: 'أضف من جهات الاتصال',
-    noFriends: 'لا أصدقاء بعد',
+    noFriends: 'دائرتك تبدأ من هنا',
     noFriendsBody: 'أضف من تتشارك معهم المصاريف. لا يحتاجون إلى التطبيق — يكفي اسم للبدء.',
     allSquare: 'كل شيء متساوٍ',
     allSquareBody: 'لا أحد يدين لك ولا أنت تدين لأحد. ستظهر هنا أي مبالغ جديدة.',
