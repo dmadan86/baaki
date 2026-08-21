@@ -19,18 +19,22 @@ import { router, useSegments } from 'expo-router';
 import { iconSize, PillTabBar, type PillTabItem } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
+import { useAuth } from '@/lib/auth';
 import { useMotion } from '@/lib/motion';
 import { resolveTabBar } from '@/lib/tabBar';
 
 export function AppTabBar() {
   const { t } = useStrings();
   const { animated } = useMotion();
+  const { session } = useAuth();
   // `useSegments` is typed as a union of fixed-length route tuples, so indexing
   // past the first element trips the tuple bounds check under the CI tsconfig.
   // We only ever read positions generically, so widen to a plain string array.
   const segments = useSegments() as readonly string[];
 
-  const { hidden, activeKey } = resolveTabBar(segments);
+  // No session means no bar anywhere — the privacy page opened from the login
+  // legal line is the one place it used to leak onto a signed-out screen.
+  const { hidden, activeKey } = resolveTabBar(segments, !session);
   if (hidden) return null;
 
   const items: PillTabItem[] = [

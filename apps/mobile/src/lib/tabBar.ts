@@ -44,11 +44,21 @@ export interface TabBarState {
 /**
  * Resolve the bar's state from the current route segments.
  *
- * `hidden` wins first: a modal or the camera or a signed-out screen shows no
- * bar. Otherwise the active destination is the tab inside the `(tabs)` group,
- * or the pushed inbox, or nothing when you are deeper in the app.
+ * `signedOut` wins first: the bar belongs to the app proper, which needs a
+ * session, so a person with no account never sees it — not on the auth screens,
+ * and not on the one public page they can still reach signed-out (the privacy
+ * policy, opened from the login legal line). Once they are in, that same privacy
+ * page — now reached from Settings — keeps the bar like any other settings page.
+ *
+ * Then `hidden`: a modal or the camera or a signed-out screen shows no bar.
+ * Otherwise the active destination is the tab inside the `(tabs)` group, or the
+ * pushed inbox, or nothing when you are deeper in the app.
  */
-export function resolveTabBar(segments: readonly string[]): TabBarState {
+export function resolveTabBar(segments: readonly string[], signedOut = false): TabBarState {
+  if (signedOut) {
+    return { hidden: true, activeKey: '' };
+  }
+
   const root = segments[0] ?? '';
   const leaf = segments[segments.length - 1] ?? '';
 

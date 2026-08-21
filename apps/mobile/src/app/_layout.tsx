@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
@@ -20,6 +21,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
+import { Onboarding } from '@/components/Onboarding';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { AppTabBar } from '@/components/AppTabBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
@@ -36,6 +38,7 @@ import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
 import { TourProvider } from '@/lib/tour';
+import { PromptQueueProvider } from '@/lib/promptQueue';
 import { SyncNetworkProvider } from '@/lib/syncNetwork';
 import { BackupProvider } from '@/lib/cloud/BackupProvider';
 import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
@@ -80,6 +83,11 @@ if (pushSupported) {
     }),
   });
 }
+
+// The device-local flag that the intro tour has been seen. Shared verbatim with
+// the value AuthFlow wrote before the tour moved here, so anybody who already
+// saw it pre-move is not shown it again.
+const TOUR_KEY = 'baaki.onboarding_seen';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -150,42 +158,44 @@ function RootLayout() {
                         <UpdateProvider>
                           <ThemePreferenceProvider>
                             <TourProvider>
-                              <ThemedRoot>
-                                <ThemedStatusBar />
-                                {/* Outside the lock and the auth gate on purpose: a build
+                              <PromptQueueProvider>
+                                <ThemedRoot>
+                                  <ThemedStatusBar />
+                                  {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                                <UpdateGate>
-                                  <PushRouting />
-                                  <LockGate>
-                                    {/* Inside the lock so the two-device gate never
+                                  <UpdateGate>
+                                    <PushRouting />
+                                    <LockGate>
+                                      {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                    <DeviceSessionProvider>
-                                      <AuthGate />
-                                      {/* Inside the lock on purpose: a promotion is not a
+                                      <DeviceSessionProvider>
+                                        <AuthGate />
+                                        {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                      <CampaignPopup />
-                                      {/* The soft ask for push, once, to a
+                                        <CampaignPopup />
+                                        {/* The soft ask for push, once, to a
                                         signed-in person whose permission is
                                         still undetermined. */}
-                                      <NotificationPrompt />
-                                    </DeviceSessionProvider>
-                                  </LockGate>
-                                  {/* The coach-mark tour, over the whole app but
+                                        <NotificationPrompt />
+                                      </DeviceSessionProvider>
+                                    </LockGate>
+                                    {/* The coach-mark tour, over the whole app but
                                     only ever started from Home. Above the gate
                                     so its scrim covers the screen. */}
-                                  <TourOverlay />
-                                  {/* Last, so it paints over the screen rather than
+                                    <TourOverlay />
+                                    {/* Last, so it paints over the screen rather than
                               under it. */}
-                                  <UpdateBanner />
-                                </UpdateGate>
-                                {/* Topmost of all: the launch field, painting over
+                                    <UpdateBanner />
+                                  </UpdateGate>
+                                  {/* Topmost of all: the launch field, painting over
                                   the whole app until it fades itself out. Native
                                   only; renders nothing on web. */}
-                                <AnimatedSplash />
-                              </ThemedRoot>
+                                  <AnimatedSplash />
+                                </ThemedRoot>
+                              </PromptQueueProvider>
                             </TourProvider>
                           </ThemePreferenceProvider>
                         </UpdateProvider>
@@ -409,6 +419,27 @@ function AuthGate() {
     else if (session && onAuth) router.replace('/');
   }, [session, loading, onAuth, onPublicRoute, router]);
 
+  // The intro tour now comes *after* sign-in, not in front of it: the first
+  // authenticated launch on this device shows the three cards once, over the
+  // app, then never again. `null` until storage answers, so it neither flashes
+  // for a returning account nor holds a first-timer at a blank screen.
+  const [tourSeen, setTourSeen] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void AsyncStorage.getItem(TOUR_KEY)
+      .then((value) => {
+        if (!cancelled) setTourSeen(value === 'yes');
+      })
+      // Storage failing is not a reason to trap somebody on the tour forever;
+      // worst case they miss it, which costs nothing they cannot find later.
+      .catch(() => {
+        if (!cancelled) setTourSeen(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (loading || needsRedirect) {
     return (
       <View
@@ -421,6 +452,36 @@ function AuthGate() {
       >
         <ActivityIndicator color={theme.color.brand} />
       </View>
+    );
+  }
+
+  // A signed-in person who has not seen the tour meets it here, once, before
+  // the app proper. Held while storage is still answering so the app tree does
+  // not paint under it for a frame.
+  if (session && tourSeen !== true) {
+    if (tourSeen === null) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.bg,
+          }}
+        >
+          <ActivityIndicator color={theme.color.brand} />
+        </View>
+      );
+    }
+    return (
+      <Onboarding
+        onDone={() => {
+          setTourSeen(true);
+          // Not awaited: the tour is over the moment they say so, and a write
+          // that fails costs them one repeat, not a stuck screen.
+          void AsyncStorage.setItem(TOUR_KEY, 'yes').catch(() => {});
+        }}
+      />
     );
   }
 

@@ -1,12 +1,13 @@
 /**
  * The "by continuing you agree to our Terms and Privacy Policy" line, with only
- * the two named documents underlined and tappable.
+ * Privacy Policy underlined and tappable.
  *
  * The sentence carries `{terms}` and `{privacy}` placeholders (see
- * `t.entry.agreeTerms`) so word order survives translation; those two are
- * rendered as underlined spans that open the privacy screen, and everything
- * else stays plain. Nested `Text` with `onPress` keeps the links inline rather
- * than wrapping the whole line in one control.
+ * `t.entry.agreeTerms`) so word order survives translation. Only `{privacy}`
+ * opens the privacy screen — the one document that exists; `{terms}` is plain
+ * words for now, since there is no separate terms page to point it at. Nested
+ * `Text` with `onPress` keeps the link inline rather than wrapping the whole
+ * line in one control.
  */
 
 import { router } from 'expo-router';
@@ -20,20 +21,22 @@ export function LegalLine({ textStyle }: { textStyle?: TextStyle }) {
 
   return (
     <Text style={[{ textAlign: 'center' }, textStyle]}>
-      {parts.map((part, index) =>
-        part === '{terms}' || part === '{privacy}' ? (
-          <Text
-            key={index}
-            accessibilityRole="link"
-            onPress={() => router.push('/settings/privacy')}
-            style={{ textDecorationLine: 'underline', fontWeight: '700' }}
-          >
-            {part === '{terms}' ? t.entry.termsWord : t.entry.privacyWord}
-          </Text>
-        ) : (
-          part
-        ),
-      )}
+      {parts.map((part, index) => {
+        if (part === '{privacy}') {
+          return (
+            <Text
+              key={index}
+              accessibilityRole="link"
+              onPress={() => router.push('/settings/privacy')}
+              style={{ textDecorationLine: 'underline', fontWeight: '700' }}
+            >
+              {t.entry.privacyWord}
+            </Text>
+          );
+        }
+        if (part === '{terms}') return t.entry.termsWord;
+        return part;
+      })}
     </Text>
   );
 }
