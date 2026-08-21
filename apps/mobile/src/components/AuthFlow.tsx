@@ -28,9 +28,8 @@
  * and set their phone up in English.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -62,7 +61,6 @@ import {
 import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
-import { Onboarding } from '@/components/Onboarding';
 import { SocialButton } from '@/components/SocialButton';
 import { deviceCountry, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -74,8 +72,6 @@ enum Mode {
   Otp = 'otp',
   Password = 'password',
 }
-
-const TOUR_KEY = 'baaki.onboarding_seen';
 
 export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const theme = useTheme();
@@ -90,34 +86,6 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
    * be asking a question they answered a week ago.
    */
   const [showOptions, setShowOptions] = useState(isGuest);
-
-  /**
-   * `null` until storage answers. Rendering the welcome while we find out would
-   * show it for one frame and then yank it away, which reads as a glitch on the
-   * very first screen of the app.
-   *
-   * The tour belongs to the login entry alone: the sign-up page is somewhere a
-   * person navigates to on purpose, never the first thing the app shows, so it
-   * never owes them the tour. A guest is not a first-time user either.
-   */
-  const [tourSeen, setTourSeen] = useState<boolean | null>(isGuest || isSignup ? true : null);
-
-  useEffect(() => {
-    if (tourSeen !== null) return;
-    let cancelled = false;
-    void AsyncStorage.getItem(TOUR_KEY)
-      .then((value) => {
-        if (!cancelled) setTourSeen(value === 'yes');
-      })
-      // Storage failing is not a reason to hold somebody at a blank screen.
-      // Worst case they see the tour once more than they should.
-      .catch(() => {
-        if (!cancelled) setTourSeen(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [tourSeen]);
 
   // The dial code is a tappable country, not a prefix typed into the field. It
   // starts on the country this handset is set to — +971 in the UAE, +44 in the
@@ -161,27 +129,10 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
     }
   };
 
-  if (tourSeen === null) {
-    return <View style={{ flex: 1, backgroundColor: theme.color.brand }} />;
-  }
-
-  if (!tourSeen) {
-    return (
-      <Onboarding
-        onDone={() => {
-          setTourSeen(true);
-          // Not awaited: the tour is over the moment they say so, and a write
-          // that fails costs them one repeat, not a stuck screen.
-          void AsyncStorage.setItem(TOUR_KEY, 'yes').catch(() => {});
-        }}
-      />
-    );
-  }
-
   /**
    * The welcome: a round photo hero with a scribble, the value line in heavy
    * ink, the language in the corner, and the ways in beneath — Google first,
-   * then "continue with phone", then a hairline and the email path, and last the
+   * then "continue with email", then a hairline and the phone path, and last the
    * line to the other door. On the sign-up page the guest way sits among them; on
    * the login screen it does not.
    */
@@ -293,18 +244,22 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 onGoogle={() => void run(withGoogle)}
                 t={t}
               />
-              {/* Phone as its own top-level way in, like the reference concept:
-                  a tap that drops straight into the code form rather than a tab
-                  the person has to find inside a card about passwords. */}
+              {/* Email as its own top-level way in: a tap that drops straight
+                  into the email-and-password form rather than a tab the person
+                  has to find inside a card. */}
               <Button
-                label={t.signIn.continuePhone}
+                label={t.signIn.continueEmail}
+                variant="primary"
                 size="lg"
                 fullWidth
                 disabled={busy}
                 icon={
-                  <Ionicons name="call-outline" size={iconSize.md} color={theme.color.onBrand} />
+                  <Ionicons name="mail-outline" size={iconSize.md} color={theme.color.onBrand} />
                 }
-                onPress={() => router.push('/phone')}
+                onPress={() => {
+                  setMode(Mode.Password);
+                  setShowOptions(true);
+                }}
               />
             </View>
 
@@ -319,21 +274,17 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             </View>
 
             <View style={{ gap: theme.spacing.sm }}>
-              {/* Same ink as the phone button above — the two email/phone ways
-                  in read as one pair. */}
+              {/* The phone way in, below the seam — the two email/phone ways in
+                  read as one pair. */}
               <Button
-                label={t.signIn.continueEmail}
-                variant="primary"
+                label={t.signIn.continuePhone}
                 size="lg"
                 fullWidth
                 disabled={busy}
                 icon={
-                  <Ionicons name="mail-outline" size={iconSize.md} color={theme.color.onBrand} />
+                  <Ionicons name="call-outline" size={iconSize.md} color={theme.color.onBrand} />
                 }
-                onPress={() => {
-                  setMode(Mode.Password);
-                  setShowOptions(true);
-                }}
+                onPress={() => router.push('/phone')}
               />
               {/* ADR-006 addendum: the guest way in lives on the sign-up page,
                   not the login screen — quieter than the account buttons, still

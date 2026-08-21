@@ -35,6 +35,7 @@ import { useFlagEnabled } from '@/lib/flags';
 import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
+import { usePromptSlot } from '@/lib/promptQueue';
 import { useDashboardTips } from '@/lib/tips';
 import { TourTarget, useTour } from '@/lib/tour';
 import { SyncStatusIcon } from '@/components/SyncBanner';
@@ -66,21 +67,31 @@ export default function HomeScreen() {
   const guard = useGuestGuard();
   const tour = useTour();
 
-  // First time on Home, once the "seen" flag has been read, run the tour. The
-  // ref makes this fire exactly once — without it the effect would re-run each
-  // time the tour advances (its value changes) and snap back to step one. It
-  // remembers itself when finished; "Take the tour again" in the menu replays.
+  const list = groups.data ?? [];
+  const loading = groups.isLoading || summary.isLoading;
+
+  // First time on Home, once the "seen" flag has been read *and the data has
+  // loaded*, run the tour. Waiting on the data matters: the coach-marks anchor
+  // on the hero and the add buttons, and starting over skeletons spotlights the
+  // wrong rectangle until the real content reflows in under the hole.
+  //
+  // The ref makes this fire exactly once — without it the effect would re-run
+  // each time the tour advances (its value changes) and snap back to step one.
+  // It remembers itself when finished; "Take the tour again" in the menu replays.
   const tourStarted = useRef(false);
   useEffect(() => {
     if (tourStarted.current) return;
-    if (tour.ready && !tour.seen) {
+    if (tour.ready && !tour.seen && !loading) {
       tourStarted.current = true;
       tour.start();
     }
-  }, [tour.ready, tour.seen, tour]);
+  }, [tour.ready, tour.seen, tour, loading]);
 
-  const list = groups.data ?? [];
-  const loading = groups.isLoading || summary.isLoading;
+  // The tour holds the top of the prompt queue for the whole of a first run —
+  // from the moment we know it is owed (ready, not seen), through the wait for
+  // data and the tour itself, until it finishes and marks itself seen. While it
+  // holds the slot the daily tip stands down; see `TipSheet`.
+  usePromptSlot({ id: 'tour', priority: 100, active: tour.active || (tour.ready && !tour.seen) });
 
   // The header overflow menu (the three-dot dropdown): the settings and the
   // less-used destinations, surfaced from the dashboard rather than only from
@@ -657,6 +668,13 @@ function GuestPopup({
 const TIP_SHEET_KEY = 'dashboardTips:shownOn';
 
 /**
+ * How long the tip waits once it is cleared to show. On a first run this is the
+ * beat after the tour finishes before the hint lands; on any other day it is a
+ * small settle so the tip does not race the dashboard in. See `usePromptSlot`.
+ */
+const TIP_DELAY_MS = 1400;
+
+/**
  * The daily tip, as a bottom sheet.
  *
  * It shows itself once on the first Home open of each day — the deck rotates by
@@ -700,7 +718,17 @@ function TipSheet({ t }: { t: UiStrings }) {
     };
   }, []);
 
-  const open = ready && shownOn !== localToday() && !closed && Boolean(tip);
+  // Wants to show, on the merits: read, unshown today, not closed, has a tip.
+  const wants = ready && shownOn !== localToday() && !closed && Boolean(tip);
+  // But it only actually opens once the prompt queue clears it — behind the
+  // tour on a first run, and after a short delay either way (see TIP_DELAY_MS).
+  const granted = usePromptSlot({
+    id: 'dashboardTip',
+    priority: 10,
+    active: wants,
+    delayMs: TIP_DELAY_MS,
+  });
+  const open = wants && granted;
 
   // Stamp the day the moment the sheet is shown — not on close — so someone who
   // reads it and backgrounds the app is not shown it again on the next open. The
