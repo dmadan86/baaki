@@ -104,11 +104,22 @@ export function CoverEmojiPicker({
         {/* A bottom sheet, not a full page: a dim backdrop you can tap to
             dismiss, over a rounded card anchored to the bottom. */}
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          {/* Dim scrim; tap to dismiss. Kept out of the accessibility tree —
+              the header's close button is the labelled way out, so a
+              full-screen dismissal target would only add screen-reader noise.
+              No theme scrim token exists; this matches the app's modal dim. */}
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.common.close}
             onPress={() => setOpen(false)}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: '#00000080',
+            }}
           />
 
           <View

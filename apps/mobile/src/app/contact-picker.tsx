@@ -23,16 +23,16 @@ import { directionalIcon, IconButton, iconSize, Row, Screen, Text, useTheme } fr
 import { useStrings } from '@/i18n';
 
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
-import { clearContactRequest, peekContactRequest } from '@/lib/contactPickerBridge';
+import { takeContactRequest } from '@/lib/contactPickerBridge';
 
 export default function ContactPickerScreen(): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
 
-  // Read once on mount and hold it: the module request is cleared on the way
-  // out, but this screen keeps its own copy so a re-render cannot lose the
-  // caller's callback mid-session.
-  const [request] = useState(() => peekContactRequest());
+  // Taken once on mount — this captures the request and clears the bridge in
+  // one step, so the route owns it outright and no re-render or later open can
+  // see a stale request. Nothing else clears it; this screen is the sole owner.
+  const [request] = useState(() => takeContactRequest());
 
   // Opened with no pending request (a deep link, a stray navigation) has
   // nothing to pick for — close rather than show a picker that answers nobody.
@@ -42,7 +42,6 @@ export default function ContactPickerScreen(): React.JSX.Element {
 
   const confirm = (people: readonly PickedContact[]): void => {
     request?.onPicked(people);
-    clearContactRequest();
     router.back();
   };
 

@@ -37,12 +37,13 @@ export function requestContacts(request: ContactRequest): void {
   pending = request;
 }
 
-/** Read the open request (the picker reads this once on mount). */
-export function peekContactRequest(): ContactRequest | null {
-  return pending;
-}
-
-/** Drop the request — answered or abandoned, it must not carry over. */
-export function clearContactRequest(): void {
+/**
+ * Take the open request and clear it in the same step — the picker reads this
+ * once on mount and thereafter owns the captured request, so nothing can carry
+ * over to the next open whether it confirms or is backed out of.
+ */
+export function takeContactRequest(): ContactRequest | null {
+  const request = pending;
   pending = null;
+  return request;
 }
