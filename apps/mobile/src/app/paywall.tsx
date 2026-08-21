@@ -235,7 +235,13 @@ export default function PaywallScreen() {
           gap: theme.spacing.lg,
         }}
       >
-        <Pressable onPress={() => {}} hitSlop={8} style={{ alignSelf: 'center' }}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Terms and conditions"
+          onPress={() => router.push('/settings/privacy')}
+          hitSlop={8}
+          style={{ alignSelf: 'center' }}
+        >
           <Text tone="brand" style={{ fontWeight: '700' }}>
             Terms and conditions
           </Text>

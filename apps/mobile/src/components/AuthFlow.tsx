@@ -50,6 +50,7 @@ import {
   Callout,
   Card,
   CurvedPanel,
+  directionalIcon,
   iconSize,
   Row,
   Screen,
@@ -240,7 +241,11 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <Ionicons name="chevron-back" size={iconSize.lg} color={theme.color.onBrand} />
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.onBrand}
+            />
           </Pressable>
         </View>
 

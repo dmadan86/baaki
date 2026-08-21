@@ -70,6 +70,10 @@ export function NotificationPrompt() {
       // The result does not change what we do here: whether they allow or deny
       // at the OS level, the soft ask is done.
       await enablePush();
+    } catch {
+      // A failure to register is not worth surfacing on a soft ask — swallow it
+      // so the onPress promise cannot reject unhandled; the finally still
+      // remembers and closes.
     } finally {
       remember();
       setBusy(false);

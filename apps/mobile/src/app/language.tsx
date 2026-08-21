@@ -130,7 +130,9 @@ export default function LanguageScreen() {
                   title={row.title}
                   subtitle={row.subtitle}
                   onPress={() => void setLanguage(row.value)}
-                  accessibilityLabel={`${row.title}${chosen ? ', selected' : ''}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: chosen }}
+                  accessibilityLabel={row.title}
                   trailing={
                     chosen ? (
                       <Ionicons name="checkmark" size={iconSize.lg} color={theme.color.brand} />

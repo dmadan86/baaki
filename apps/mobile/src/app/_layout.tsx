@@ -29,6 +29,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
+import { useFlagEnabled } from '@/lib/flags';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
@@ -346,6 +347,10 @@ function AuthGate() {
   const router = useRouter();
   const theme = useTheme();
   const { animated } = useMotion();
+  // The paywall is an unwired placeholder (no store products, no purchase
+  // handling), so its route is registered only where a flag turns it on —
+  // otherwise a deep link cannot reach a screen that would only mislead.
+  const paywallEnabled = useFlagEnabled('paywall');
 
   /**
    * Pushes cut straight to the destination — no slide. The slide-from-right was
@@ -386,7 +391,7 @@ function AuthGate() {
     onAuth ||
     segments[0] === 'join' ||
     segments[0] === 'language' ||
-    (segments[0] === 'settings' && segments[1] === 'privacy');
+    (segments[0] === 'settings' && (segments as string[])[1] === 'privacy');
 
   /**
    * The route we are on disagrees with the session we have, and the effect
@@ -445,7 +450,7 @@ function AuthGate() {
         <Stack.Screen name="guest-welcome" />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
         <Stack.Screen name="new-group" options={modal} />
-        <Stack.Screen name="paywall" options={modal} />
+        {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
         <Stack.Screen name="capture" options={modal} />
         <Stack.Screen name="captures" />
         <Stack.Screen name="group/[id]/index" />

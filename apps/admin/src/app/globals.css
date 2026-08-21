@@ -668,7 +668,9 @@ form.flag button {
   gap: 6px 18px;
 }
 
-.country-row {
+/* Match the specificity of `form.flag label` (which sets column) so the row
+   layout actually wins — a bare `.country-row` loses to it and stacks. */
+form.flag label.country-row {
   flex-direction: row;
   align-items: center;
   gap: 9px;
