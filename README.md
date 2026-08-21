@@ -475,51 +475,18 @@ tells you what happened to each one — `suppressed` means we chose not to mail 
 list), `failed` means Resend refused it, and NULL after a run means it will be
 retried. `email_events` is the trail, one row per send plus one per report.
 
-## Turning on Sign in with Apple
+## Sign in with Apple (removed)
 
-Like push, the code is here and the credential is not: Apple issues it to whoever
-owns the app. Unlike push, **two** things have to be configured, because Baaki
-reaches Apple by two different roads and they authenticate differently.
+Sign in with Apple has been taken out of the app. The client button, the
+`expo-apple-authentication` dependency, the `usesAppleSignIn` entitlement, and
+`withApple` in `lib/auth.tsx` are all gone; the only way in through a provider is
+Google. The `AuthMethod.Apple` / `OAuthMethod.Apple` plumbing in
+`@waves/core` is left in place (unused) so the identity tests stay green.
 
-The two roads, and why there are two:
-
-| Who is tapping                                                               | Road                                              | Needs                   |
-| ---------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------- |
-| Nobody signed in, on an iPhone                                               | native sheet → `signInWithIdToken`                | the **bundle ID**       |
-| Everybody else — Android, and **any** guest or existing account adding Apple | web redirect → `linkIdentity` / `signInWithOAuth` | a **Services ID** + key |
-
-The second row is the common one, not the fallback. ADR-006 puts everybody
-through the guest door first, so most people who ever tap Apple are linking it to
-an account they already have — and `signInWithIdToken` has no way to add a
-provider to an existing session. Configure only the native side and Apple works
-for a fresh install and silently fails for everyone the app is actually built
-around.
-
-**In the Apple Developer console, once:**
-
-1. Enable the **Sign in with Apple** capability on the App ID `app.baaki.mobile`.
-2. Create a **Services ID** (a separate identifier — this is the web client), and
-   set its return URL to
-   `https://xvjzbpgcmotoahtqcxve.supabase.co/auth/v1/callback`.
-3. Create a **Sign in with Apple key**, and keep the `.p8` — it is downloadable
-   exactly once.
-
-**In the Supabase dashboard**, under Authentication → Providers → Apple: enable
-it, put **both** identifiers in Client IDs as a comma-separated pair
-(`app.baaki.mobile,<the Services ID>`), and paste the Team ID, Key ID and `.p8`.
-Both roads then land on the same account, which is the point of listing both.
-
-All of this needs a paid Apple Developer account. Without it, `withApple` in
-`lib/auth.tsx` still compiles and the button still renders — it is Supabase that
-refuses, and the screen shows what it said.
-
-**What is safe to skip:** nothing about a device or a build. `expo-apple-authentication`
-resolves its functions through `requireOptionalNativeModule`, and
-`lib/appleAuth.ts` reads Expo's registry before requiring the package at all, so
-an Android phone or an iOS build made before this package existed shows the plain
-fallback button rather than failing to launch. `usesAppleSignIn` in `app.json` is
-what writes the entitlement into the binary, so turning this on **needs a
-rebuild** — an existing build has no capability to use.
+Note for an eventual iOS release: App Store guideline 4.8 requires an equivalent
+private sign-in option (Sign in with Apple) alongside any third-party social
+login. With Google as the only provider, this must be revisited before shipping
+to the App Store.
 
 ## Releasing, and stopping old builds
 

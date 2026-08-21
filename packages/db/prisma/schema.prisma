@@ -1278,3 +1278,17 @@ model AppConfig {
   @@map("app_config")
   @@schema("public")
 }
+
+/// Which countries the phone-number sign-in offers, turned from the admin
+/// console (see 20260820130000_country_enablement). Denylist: a country is
+/// offered unless a row here disables it, so an empty table offers every market
+/// the app stocks. Readable by any client (it is configuration, not data about
+/// a person); written by the service role alone.
+model CountrySetting {
+  code      String   @id @db.Char(2)
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("country_settings")
+  @@schema("public")
+}

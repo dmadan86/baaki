@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, View, type AccessibilityRole, type AccessibilityState } from 'react-native';
 
 import { useTheme } from '../theme';
 import { Text } from './Text';
@@ -11,6 +11,10 @@ export interface ListRowProps {
   trailing?: ReactNode;
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** The row's a11y role — defaults to "button"; pass "radio" in a picker. */
+  accessibilityRole?: AccessibilityRole;
+  /** The row's a11y state — e.g. `{ selected }` for a chosen radio row. */
+  accessibilityState?: AccessibilityState;
   /**
    * Colours the title with the negative tone, for rows that end something —
    * signing out, erasing an account. Only the title: a red subtitle would make
@@ -26,6 +30,8 @@ export function ListRow({
   trailing,
   onPress,
   accessibilityLabel,
+  accessibilityRole = 'button',
+  accessibilityState,
   destructive = false,
 }: ListRowProps) {
   const theme = useTheme();
@@ -57,7 +63,8 @@ export function ListRow({
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
+      accessibilityState={accessibilityState}
       accessibilityLabel={accessibilityLabel ?? `${title}${subtitle ? `, ${subtitle}` : ''}`}
       onPress={onPress}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}

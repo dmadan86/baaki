@@ -23,15 +23,19 @@ import {
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { AppTabBar } from '@/components/AppTabBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
+import { NotificationPrompt } from '@/components/NotificationPrompt';
+import { TourOverlay } from '@/components/TourOverlay';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
+import { useFlagEnabled } from '@/lib/flags';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { TourProvider } from '@/lib/tour';
 import { SyncNetworkProvider } from '@/lib/syncNetwork';
 import { BackupProvider } from '@/lib/cloud/BackupProvider';
 import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
@@ -145,34 +149,44 @@ function RootLayout() {
                       <BackupProvider>
                         <UpdateProvider>
                           <ThemePreferenceProvider>
-                            <ThemedRoot>
-                              <ThemedStatusBar />
-                              {/* Outside the lock and the auth gate on purpose: a build
+                            <TourProvider>
+                              <ThemedRoot>
+                                <ThemedStatusBar />
+                                {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                              <UpdateGate>
-                                <PushRouting />
-                                <LockGate>
-                                  {/* Inside the lock so the two-device gate never
+                                <UpdateGate>
+                                  <PushRouting />
+                                  <LockGate>
+                                    {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                  <DeviceSessionProvider>
-                                    <AuthGate />
-                                    {/* Inside the lock on purpose: a promotion is not a
+                                    <DeviceSessionProvider>
+                                      <AuthGate />
+                                      {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                    <CampaignPopup />
-                                  </DeviceSessionProvider>
-                                </LockGate>
-                                {/* Last, so it paints over the screen rather than
+                                      <CampaignPopup />
+                                      {/* The soft ask for push, once, to a
+                                        signed-in person whose permission is
+                                        still undetermined. */}
+                                      <NotificationPrompt />
+                                    </DeviceSessionProvider>
+                                  </LockGate>
+                                  {/* The coach-mark tour, over the whole app but
+                                    only ever started from Home. Above the gate
+                                    so its scrim covers the screen. */}
+                                  <TourOverlay />
+                                  {/* Last, so it paints over the screen rather than
                               under it. */}
-                                <UpdateBanner />
-                              </UpdateGate>
-                              {/* Topmost of all: the launch field, painting over
+                                  <UpdateBanner />
+                                </UpdateGate>
+                                {/* Topmost of all: the launch field, painting over
                                   the whole app until it fades itself out. Native
                                   only; renders nothing on web. */}
-                              <AnimatedSplash />
-                            </ThemedRoot>
+                                <AnimatedSplash />
+                              </ThemedRoot>
+                            </TourProvider>
                           </ThemePreferenceProvider>
                         </UpdateProvider>
                       </BackupProvider>
@@ -333,6 +347,10 @@ function AuthGate() {
   const router = useRouter();
   const theme = useTheme();
   const { animated } = useMotion();
+  // The paywall is an unwired placeholder (no store products, no purchase
+  // handling), so its route is registered only where a flag turns it on —
+  // otherwise a deep link cannot reach a screen that would only mislead.
+  const paywallEnabled = useFlagEnabled('paywall');
 
   /**
    * Pushes cut straight to the destination — no slide. The slide-from-right was
@@ -349,8 +367,31 @@ function AuthGate() {
   // signed-out person is allowed to sit on. `onAuth` covers both doors so a
   // session that appears bounces off either one back into the app.
   const onSignIn = segments[0] === 'sign-in';
-  const onAuth = onSignIn || segments[0] === 'sign-up';
-  const onPublicRoute = onAuth || segments[0] === 'join';
+  // The welcome gateway is where a signed-out person lands; a session appearing
+  // on it (or on either door) bounces back into the app, so it counts as auth.
+  // The guest doorway counts as auth too: a signed-out person is allowed to sit
+  // on it, and the moment its Continue mints a guest session the gate bounces it
+  // into the app, exactly like the doors.
+  // `phone` counts as auth for the same reason the doors do: a nobody signs in
+  // there (or, in a dev build, the 000000 stub mints a guest), and the moment
+  // that session appears the gate must bounce it into the app — otherwise it
+  // sits on the code screen with a live session and nowhere to go.
+  // `verify-email` joins them: the email code is entered there, and the session
+  // `verifyOtp` mints must bounce into the app just like the phone code does.
+  const onAuth =
+    onSignIn ||
+    segments[0] === 'sign-up' ||
+    segments[0] === 'welcome' ||
+    segments[0] === 'guest-welcome' ||
+    segments[0] === 'phone' ||
+    segments[0] === 'verify-email';
+  // The privacy screen is reachable signed-out too, so the Terms & Privacy line
+  // on the welcome and guest doorways can open it before anybody has an account.
+  const onPublicRoute =
+    onAuth ||
+    segments[0] === 'join' ||
+    segments[0] === 'language' ||
+    (segments[0] === 'settings' && (segments as string[])[1] === 'privacy');
 
   /**
    * The route we are on disagrees with the session we have, and the effect
@@ -364,7 +405,7 @@ function AuthGate() {
 
   useEffect(() => {
     if (loading) return;
-    if (!session && !onPublicRoute) router.replace('/sign-in');
+    if (!session && !onPublicRoute) router.replace('/welcome');
     else if (session && onAuth) router.replace('/');
   }, [session, loading, onAuth, onPublicRoute, router]);
 
@@ -398,12 +439,18 @@ function AuthGate() {
       >
         {/* Signing in and out replaces the whole tree; sliding it would suggest a
           place to go back to, and there is not one. */}
+        <Stack.Screen name="welcome" options={{ animation: 'none' }} />
+        <Stack.Screen name="language" />
         <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
         {/* The sign-up page slides in from the login screen and back out, so it
             keeps a normal push — unlike sign-in, which replaces the whole tree. */}
         <Stack.Screen name="sign-up" />
+        <Stack.Screen name="phone" />
+        <Stack.Screen name="verify-email" />
+        <Stack.Screen name="guest-welcome" />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
         <Stack.Screen name="new-group" options={modal} />
+        {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
         <Stack.Screen name="capture" options={modal} />
         <Stack.Screen name="captures" />
         <Stack.Screen name="group/[id]/index" />

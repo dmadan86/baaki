@@ -25,6 +25,11 @@ export interface Theme {
     readonly brandPressed: string;
     readonly brandSoft: string;
     readonly onBrand: string;
+    /** The fill of a primary button. A near-black, separate from the purple
+        `brand` accent: buttons are ink, links and glyphs stay brand. */
+    readonly buttonPrimary: string;
+    readonly buttonPrimaryPressed: string;
+    readonly onButtonPrimary: string;
     /** The bar a skeleton placeholder is painted in — a shade off the surface it sits on. */
     readonly skeleton: string;
     /** Semantic money colours — see tokens.ts. */
@@ -84,10 +89,13 @@ const lightTheme: Theme = {
     // ink400 clears 3:1, so muted body text and faint UI marks both pass AA.
     textMuted: palette.ink500,
     textFaint: palette.ink400,
-    brand: palette.brand500,
-    brandPressed: palette.brand600,
-    brandSoft: palette.brand100,
+    brand: '#75C946',
+    brandPressed: '#5FA838',
+    brandSoft: '#E4F5D8',
     onBrand: palette.white,
+    buttonPrimary: '#181818',
+    buttonPrimaryPressed: '#2E2E2E',
+    onButtonPrimary: palette.white,
     skeleton: palette.ink200,
     positive: palette.positive,
     positiveSoft: palette.mint,
@@ -120,10 +128,13 @@ const darkTheme: Theme = {
     text: '#F4F3FF',
     textMuted: '#9E9EB8',
     textFaint: '#6B6B85',
-    brand: palette.brand400,
-    brandPressed: palette.brand500,
-    brandSoft: '#2A2455',
+    brand: '#75C946',
+    brandPressed: '#5FA838',
+    brandSoft: '#1E3314',
     onBrand: palette.white,
+    buttonPrimary: '#181818',
+    buttonPrimaryPressed: '#2E2E2E',
+    onButtonPrimary: palette.white,
     skeleton: palette.night600,
     positive: '#34D399',
     positiveSoft: '#123F36',

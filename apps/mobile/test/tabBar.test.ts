@@ -33,10 +33,16 @@ describe('resolveTabBar', () => {
 
   it('hides on the full-screen camera and the signed-out screens', () => {
     expect(resolveTabBar(['capture']).hidden).toBe(true);
+    expect(resolveTabBar(['welcome']).hidden).toBe(true);
     expect(resolveTabBar(['sign-in']).hidden).toBe(true);
     expect(resolveTabBar(['sign-up']).hidden).toBe(true);
+    expect(resolveTabBar(['phone']).hidden).toBe(true);
+    expect(resolveTabBar(['verify-email']).hidden).toBe(true);
+    expect(resolveTabBar(['guest-welcome']).hidden).toBe(true);
     expect(resolveTabBar(['join']).hidden).toBe(true);
+    expect(resolveTabBar(['language']).hidden).toBe(true);
     expect(resolveTabBar(['new-group']).hidden).toBe(true);
+    expect(resolveTabBar(['paywall']).hidden).toBe(true);
   });
 
   it('hides on the rise-from-bottom modals nested under a group', () => {

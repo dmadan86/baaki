@@ -17,8 +17,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.waves.mobile",
-      "usesAppleSignIn": true
+      "bundleIdentifier": "app.waves.mobile"
     },
     "android": {
       "package": "app.waves.mobile",
@@ -39,11 +38,10 @@
       "expo-router",
       "expo-localization",
       "expo-sqlite",
-      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#7A5AF8",
+          "backgroundColor": "#65B63E",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }

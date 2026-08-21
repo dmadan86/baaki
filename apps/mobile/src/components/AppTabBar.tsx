@@ -75,7 +75,9 @@ export function AppTabBar() {
     }
   };
 
-  // The raised mic: speak an expense from anywhere the bar is showing.
+  // The raised mic: speak an expense from anywhere the bar is showing. The
+  // button is a black circle, so the mic wears the on-brand (white) colour the
+  // bar hands it.
   const voice = {
     accessibilityLabel: t.voice.speakExpense,
     onPress: () => router.push('/voice'),

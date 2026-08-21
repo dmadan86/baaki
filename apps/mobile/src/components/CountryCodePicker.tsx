@@ -13,17 +13,26 @@
  * guess back from the code.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { COUNTRIES, countryFlag, dialingCodeForCountry } from '@waves/core';
-import { Button, iconSize, Row, Screen, Text, useTheme } from '@waves/ui';
+import { iconSize, Row, Screen, Text, useTheme } from '@waves/ui';
 
+import { disabledCountries } from '@/data/api';
 import { useStrings } from '@/i18n';
 
 /** The pickable countries: those the app stocks that also carry a dial code. */
 const DIALABLE = COUNTRIES.filter((country) => dialingCodeForCountry(country.code));
+
+/**
+ * The admin denylist, remembered for the run once fetched, so opening the
+ * picker a second time does not go back to the network. `null` until the first
+ * read answers; an empty set means "nothing disabled", which is also the safe
+ * fallback when the read fails or the app is offline.
+ */
+let disabledCache: Set<string> | null = null;
 
 export function CountryCodePicker({
   code,
@@ -37,14 +46,47 @@ export function CountryCodePicker({
   const { t } = useStrings();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [disabled, setDisabled] = useState<Set<string>>(() => disabledCache ?? new Set());
 
   const dial = dialingCodeForCountry(code) ?? '+';
   const flag = countryFlag(code) ?? '🌐';
 
+  // The denylist, once per run. A failure or an offline phone leaves the set
+  // empty, so every market stays offered rather than none.
+  useEffect(() => {
+    if (disabledCache) return;
+    let cancelled = false;
+    void disabledCountries().then((codes) => {
+      const set = new Set(codes.map((entry) => entry.toUpperCase()));
+      disabledCache = set;
+      if (!cancelled) setDisabled(set);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The offered markets: the app's dialable set less anything the console has
+  // switched off.
+  const available = useMemo(
+    () => DIALABLE.filter((country) => !disabled.has(country.code)),
+    [disabled],
+  );
+
+  // If the guessed country turns out to be switched off, move the selection to
+  // the first market that is still offered — otherwise the chip would show a
+  // dial code the list will not let the person change.
+  useEffect(() => {
+    if (available.length === 0) return;
+    if (!available.some((country) => country.code === code)) {
+      onChange(available[0].code);
+    }
+  }, [available, code, onChange]);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return DIALABLE;
-    return DIALABLE.filter((country) => {
+    if (!q) return available;
+    return available.filter((country) => {
       const d = dialingCodeForCountry(country.code) ?? '';
       return (
         country.name.toLowerCase().includes(q) ||
@@ -52,7 +94,7 @@ export function CountryCodePicker({
         country.code.toLowerCase().includes(q)
       );
     });
-  }, [query]);
+  }, [query, available]);
 
   const close = (): void => {
     setOpen(false);
@@ -89,24 +131,67 @@ export function CountryCodePicker({
               gap: theme.spacing.sm,
             }}
           >
-            <Text variant="heading">{t.pickers.dialCodeTitle}</Text>
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder={t.pickers.searchCountry}
-              placeholderTextColor={theme.color.textFaint}
-              accessibilityLabel={t.pickers.searchCountry}
+            {/* Title on the left, a close X on the right in the primary ink —
+                the way out sits at the top where the thumb reaches on a sheet,
+                not buried under the list. */}
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text variant="heading">{t.pickers.dialCodeTitle}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.common.close}
+                hitSlop={12}
+                onPress={close}
+                style={({ pressed }) => ({
+                  width: 44,
+                  height: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Ionicons name="close" size={iconSize.lg} color={theme.color.buttonPrimary} />
+              </Pressable>
+            </Row>
+
+            {/* A leading search glyph, and a clear X once there is something to
+                clear — the search box every list picker draws. */}
+            <Row
               style={{
-                fontSize: 16,
-                color: theme.color.text,
+                gap: theme.spacing.sm,
+                alignItems: 'center',
                 backgroundColor: theme.color.surfaceMuted,
                 borderRadius: theme.radius.md,
                 paddingHorizontal: theme.spacing.lg,
-                paddingVertical: theme.spacing.md,
               }}
-            />
+            >
+              <Ionicons name="search" size={iconSize.md} color={theme.color.textMuted} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder={t.pickers.searchCountry}
+                placeholderTextColor={theme.color.textFaint}
+                accessibilityLabel={t.pickers.searchCountry}
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  color: theme.color.text,
+                  paddingVertical: theme.spacing.md,
+                }}
+              />
+              {query.length > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.entry.clear}
+                  hitSlop={12}
+                  onPress={() => setQuery('')}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                >
+                  <Ionicons name="close-circle" size={iconSize.md} color={theme.color.textMuted} />
+                </Pressable>
+              ) : null}
+            </Row>
           </View>
 
           <ScrollView
@@ -149,10 +234,6 @@ export function CountryCodePicker({
               );
             })}
           </ScrollView>
-
-          <View style={{ paddingHorizontal: theme.spacing.xl, paddingBottom: theme.spacing.lg }}>
-            <Button label={t.common.close} variant="ghost" fullWidth onPress={close} />
-          </View>
         </Screen>
       </Modal>
     </>

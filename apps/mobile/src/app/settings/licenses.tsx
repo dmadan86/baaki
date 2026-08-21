@@ -42,7 +42,6 @@ const LICENSES: readonly { name: string; license: string }[] = [
   { name: 'Expo Router', license: 'MIT' },
   { name: 'Expo UI', license: 'MIT' },
   { name: 'Expo Vector Icons', license: 'MIT' },
-  { name: 'Expo Apple Authentication', license: 'MIT' },
   { name: 'Expo Auth Session', license: 'MIT' },
   { name: 'Expo Clipboard', license: 'MIT' },
   { name: 'Expo Constants', license: 'MIT' },

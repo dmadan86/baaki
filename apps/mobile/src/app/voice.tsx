@@ -347,11 +347,10 @@ export default function VoiceScreen() {
             alignItems: 'center',
           }}
         >
-          {/* The heading wears the voice glyph so the screen reads as "the thing
-              you spoke", not a generic form — the same mic that started the
-              flow, carried through to the review. */}
+          {/* The heading wears a receipt glyph in ink — the review is an expense
+              draft to check over, not the mic that started it. */}
           <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-            <Ionicons name="mic" size={iconSize.lg} color={theme.color.brand} />
+            <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.buttonPrimary} />
             <Text variant="heading">{phase === 'review' ? t.voice.review : t.voice.title}</Text>
           </Row>
           <IconButton label={t.common.close} onPress={() => router.back()}>
@@ -676,7 +675,7 @@ function DestinationPicker({
           choice, so it reads as a single control (Expensify "To", Monzo lists)
           rather than a stack of floating pills. Selection is a leading glyph
           that lights to brand plus a filled radio, not a full-width purple fill. */}
-      <Card padded={false} style={{ overflow: 'hidden' }}>
+      <Card padded={false} flat style={{ overflow: 'hidden' }}>
         {rows.map((row, index) => (
           <View key={row.key}>
             <Pressable

@@ -21,7 +21,14 @@ import { Text } from './Text';
  * settings screen, not in the main flow.
  */
 export type ButtonVariant =
-  'primary' | 'secondary' | 'ghost' | 'ghostDanger' | 'onBrand' | 'onBrandOutline' | 'danger';
+  | 'primary'
+  | 'brand'
+  | 'secondary'
+  | 'ghost'
+  | 'ghostDanger'
+  | 'onBrand'
+  | 'onBrandOutline'
+  | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
@@ -66,21 +73,35 @@ export function Button({
           backgroundColor:
             variant === 'primary'
               ? pressed
-                ? theme.color.brandPressed
-                : theme.color.brand
-              : variant === 'danger'
-                ? theme.color.negative
-                : variant === 'secondary'
-                  ? theme.color.brandSoft
-                  : variant === 'onBrand'
-                    ? theme.color.onBrand
-                    : variant === 'onBrandOutline'
-                      ? pressed
-                        ? '#FFFFFF29'
-                        : '#FFFFFF1F'
-                      : 'transparent',
-          borderWidth: variant === 'onBrandOutline' ? 1 : 0,
-          borderColor: variant === 'onBrandOutline' ? '#FFFFFF5C' : undefined,
+                ? theme.color.buttonPrimaryPressed
+                : theme.color.buttonPrimary
+              : variant === 'brand'
+                ? pressed
+                  ? theme.color.brandPressed
+                  : theme.color.brand
+                : variant === 'danger'
+                  ? theme.color.negative
+                  : variant === 'secondary'
+                    ? theme.color.brandSoft
+                    : variant === 'onBrand'
+                      ? theme.color.onBrand
+                      : variant === 'onBrandOutline'
+                        ? pressed
+                          ? '#FFFFFF29'
+                          : '#FFFFFF1F'
+                        : 'transparent',
+          // A near-black primary button can vanish against a dark page, so in
+          // dark mode it wears a hairline to separate from the surface behind.
+          borderWidth:
+            variant === 'onBrandOutline' || (variant === 'primary' && theme.scheme === 'dark')
+              ? 1
+              : 0,
+          borderColor:
+            variant === 'onBrandOutline'
+              ? '#FFFFFF5C'
+              : variant === 'primary' && theme.scheme === 'dark'
+                ? theme.color.border
+                : undefined,
           opacity: disabled
             ? 0.45
             : (variant === 'onBrand' || variant === 'danger') && pressed
@@ -96,7 +117,10 @@ export function Button({
       <Text
         variant={size === 'sm' ? 'caption' : 'subheading'}
         tone={
-          variant === 'primary' || variant === 'onBrandOutline' || variant === 'danger'
+          variant === 'primary' ||
+          variant === 'brand' ||
+          variant === 'onBrandOutline' ||
+          variant === 'danger'
             ? 'onBrand'
             : variant === 'ghostDanger'
               ? 'negative'

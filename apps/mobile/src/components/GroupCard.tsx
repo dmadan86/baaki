@@ -35,6 +35,8 @@ export function GroupCard({
   locale,
   statusLabel,
   pendingLabel,
+  tag,
+  tagTone = 'brand',
   onPress,
 }: {
   id: string;
@@ -49,6 +51,10 @@ export function GroupCard({
   statusLabel: string;
   /** Badge text when a settlement is awaiting confirmation, else null. */
   pendingLabel: string | null;
+  /** A small tag beside the name — "New", "On trip" — or null for none. */
+  tag?: string | null;
+  /** The tag's colour. */
+  tagTone?: 'brand' | 'positive';
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -60,7 +66,7 @@ export function GroupCard({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${title}, ${statusLabel}${pendingLabel ? `, ${pendingLabel}` : ''}`}
+      accessibilityLabel={`${title}${tag ? `, ${tag}` : ''}, ${statusLabel}${pendingLabel ? `, ${pendingLabel}` : ''}`}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Row
@@ -71,9 +77,12 @@ export function GroupCard({
         <Avatar name={title} emoji={coverEmoji ?? undefined} size={46} tint={tintForKey(id)} />
 
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="subheading" numberOfLines={1}>
-            {title}
-          </Text>
+          <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+            <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {title}
+            </Text>
+            {tag ? <Badge label={tag} tone={tagTone} /> : null}
+          </Row>
           <Text variant="caption" tone="muted" numberOfLines={1}>
             {memberLabel}
           </Text>

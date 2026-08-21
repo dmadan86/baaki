@@ -32,7 +32,9 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -40,7 +42,6 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -49,6 +50,7 @@ import {
   Callout,
   Card,
   CurvedPanel,
+  directionalIcon,
   iconSize,
   Row,
   Screen,
@@ -60,7 +62,6 @@ import {
 import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
-import { LanguagePicker } from '@/components/LanguagePicker';
 import { Onboarding } from '@/components/Onboarding';
 import { SocialButton } from '@/components/SocialButton';
 import { deviceCountry, useStrings, type UiStrings } from '@/i18n';
@@ -79,9 +80,7 @@ const TOUR_KEY = 'baaki.onboarding_seen';
 export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const theme = useTheme();
   const { t } = useStrings();
-  const { sendOtp, verifyOtp, continueAsGuest, withPassword, withGoogle, withApple, isGuest } =
-    useAuth();
-  const { height: screenHeight } = useWindowDimensions();
+  const { sendOtp, verifyOtp, withPassword, withGoogle, isGuest } = useAuth();
 
   const isSignup = flow === 'signup';
 
@@ -149,20 +148,21 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const run = async (action: () => Promise<void>): Promise<void> => {
+  const run = async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true);
     setError(null);
     try {
-      await action();
+      return await action();
     } catch (caught) {
       setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.signIn'));
+      return undefined;
     } finally {
       setBusy(false);
     }
   };
 
   if (tourSeen === null) {
-    return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
+    return <View style={{ flex: 1, backgroundColor: theme.color.brand }} />;
   }
 
   if (!tourSeen) {
@@ -179,41 +179,15 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   }
 
   /**
-   * The welcome: the wordmark on a coloured sweep, the language in the corner,
-   * and the ways in beneath — the two providers first as full-width branded
-   * rows, then "continue with phone", then a hairline and the email path, and
-   * last the line to the other door. On the sign-up page the guest way sits
-   * among them; on the login screen it does not.
+   * The welcome: a round photo hero with a scribble, the value line in heavy
+   * ink, the language in the corner, and the ways in beneath — Google first,
+   * then "continue with phone", then a hairline and the email path, and last the
+   * line to the other door. On the sign-up page the guest way sits among them; on
+   * the login screen it does not.
    */
   if (!showOptions) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.color.bg }}>
-        <CurvedPanel height={Math.min(screenHeight * 0.46, 420)}>
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: theme.spacing.xxxl,
-              gap: theme.spacing.sm,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 56,
-                lineHeight: 72,
-                fontWeight: '700',
-                color: theme.color.onBrand,
-              }}
-            >
-              {t.common.appName}
-            </Text>
-            <Text variant="caption" tone="onBrand" align="center">
-              {isSignup ? t.signIn.splitAnything.replace('\n', ' ') : t.signIn.tagline}
-            </Text>
-          </View>
-        </CurvedPanel>
-
+      <View style={{ flex: 1, backgroundColor: theme.color.brand }}>
         {/* The language sits in the corner of the hero — reachable from the
             first frame for somebody who opened the app in a script they cannot
             read, without taking a line in the action column. */}
@@ -221,35 +195,59 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
           style={{
             position: 'absolute',
             top: Constants.statusBarHeight + theme.spacing.sm,
-            right: theme.spacing.xl,
+            right: theme.spacing.sm,
             zIndex: 10,
           }}
         >
-          <LanguagePicker />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.language}
+            hitSlop={12}
+            onPress={() => router.push('/language')}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.onBrand} />
+          </Pressable>
         </View>
 
-        {/* A way back to the login screen from the sign-up page, in the opposite
-            corner, so leaving is as reachable as the language. */}
-        {isSignup ? (
-          <View
-            style={{
-              position: 'absolute',
-              top: Constants.statusBarHeight + theme.spacing.sm,
-              left: theme.spacing.md,
-              zIndex: 10,
-            }}
+        {/* A way back to the welcome gateway, in the opposite corner from the
+            language so leaving is as reachable. A chevron in the primary ink,
+            shown on both doors — login and sign-up are both reached from the
+            gateway, so both return to it. */}
+        <View
+          style={{
+            position: 'absolute',
+            top: Constants.statusBarHeight + theme.spacing.sm,
+            left: theme.spacing.sm,
+            zIndex: 10,
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.back}
+            hitSlop={12}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
-            <Button
-              label={t.common.back}
-              variant="ghost"
-              size="sm"
-              // A small corner ghost by design, but 38pt is under the 44 floor —
-              // hitSlop grows the target without inflating the visible pill.
-              hitSlop={8}
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/sign-in'))}
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.onBrand}
             />
-          </View>
-        ) : null}
+          </Pressable>
+        </View>
 
         {/* Below the curve, the ways in — centred in the space the hero leaves.
             A ScrollView so a short screen scrolls rather than clipping. */}
@@ -259,21 +257,39 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             flexGrow: 1,
             justifyContent: 'center',
             paddingHorizontal: theme.spacing.xxxl,
-            paddingTop: theme.spacing.xxl,
+            paddingTop: Constants.statusBarHeight + theme.spacing.xxxl,
             paddingBottom: theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ gap: theme.spacing.xl }}>
-            {/* The fastest way in goes first. Somebody who has a Google or an
-                Apple account is one tap from being in, and every app that does
-                this well puts that tap above the form rather than under it. */}
+            {/* The hero: a round photo with a hand-drawn scribble tucked behind
+                its shoulder, then the value line in heavy ink. This replaces the
+                brand-wash panel — the way in is the screen now, not a banner over
+                it. Placeholder photo (assets/images/auth-hero.jpg) and no Terms
+                line yet; both are follow-ups. */}
+            <AuthHero />
+            <Text
+              align="center"
+              style={{
+                fontSize: 30,
+                lineHeight: 38,
+                fontWeight: '800',
+                letterSpacing: -0.5,
+                color: theme.color.onBrand,
+              }}
+            >
+              {t.signIn.splitAnything}
+            </Text>
+
+            {/* The fastest way in goes first. Somebody who has a Google account
+                is one tap from being in, and every app that does this well puts
+                that tap above the form rather than under it. */}
             <View style={{ gap: theme.spacing.md }}>
               <SocialRow
                 busy={busy}
                 wording={isSignup ? 'continue' : 'signIn'}
-                onApple={() => void run(withApple)}
                 onGoogle={() => void run(withGoogle)}
                 t={t}
               />
@@ -288,32 +304,32 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 icon={
                   <Ionicons name="call-outline" size={iconSize.md} color={theme.color.onBrand} />
                 }
-                onPress={() => {
-                  setMode(Mode.Otp);
-                  setStage('phone');
-                  setShowOptions(true);
-                }}
+                onPress={() => router.push('/phone')}
               />
             </View>
 
             {/* A hairline either side of the label, not bare text — the seam
                 between "one tap" above and "an email and a password" below. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-              <Text variant="caption" tone="muted">
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
+              <Text variant="caption" tone="onBrand" style={{ opacity: 0.9 }}>
                 {t.signIn.or}
               </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
             </View>
 
             <View style={{ gap: theme.spacing.sm }}>
+              {/* Same ink as the phone button above — the two email/phone ways
+                  in read as one pair. */}
               <Button
                 label={t.signIn.continueEmail}
-                variant="secondary"
+                variant="primary"
                 size="lg"
                 fullWidth
                 disabled={busy}
-                icon={<Ionicons name="mail-outline" size={iconSize.md} color={theme.color.brand} />}
+                icon={
+                  <Ionicons name="mail-outline" size={iconSize.md} color={theme.color.onBrand} />
+                }
                 onPress={() => {
                   setMode(Mode.Password);
                   setShowOptions(true);
@@ -325,42 +341,17 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               {isSignup ? (
                 <Button
                   label={t.signIn.continueGuest}
-                  variant="ghost"
+                  variant="onBrandOutline"
                   size="lg"
                   fullWidth
                   disabled={busy}
-                  onPress={() => void run(continueAsGuest)}
+                  onPress={() => router.push('/guest-welcome')}
                 />
               ) : null}
             </View>
 
             {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
             {error ? <Callout tone="negative">{error}</Callout> : null}
-
-            {/* The line to the other door. Coming back to sign in and starting
-                fresh are different errands; each screen names the one it is not. */}
-            <Button
-              label={isSignup ? t.signIn.haveAccount : t.signIn.createAccount}
-              variant="ghost"
-              fullWidth
-              disabled={busy}
-              onPress={() =>
-                isSignup
-                  ? router.canGoBack()
-                    ? router.back()
-                    : router.replace('/sign-in')
-                  : router.push('/sign-up')
-              }
-            />
-
-            <Text
-              variant="micro"
-              tone="faint"
-              align="center"
-              style={{ paddingTop: theme.spacing.xs }}
-            >
-              {t.common.appName} {Constants.expoConfig?.version ?? ''}
-            </Text>
           </View>
         </ScrollView>
       </View>
@@ -368,7 +359,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   }
 
   return (
-    <Screen edges={['bottom']}>
+    <Screen edges={['bottom']} style={{ backgroundColor: theme.color.brand }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -408,14 +399,30 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
           </CurvedPanel>
 
           <View style={{ gap: theme.spacing.xxl, paddingHorizontal: theme.spacing.xl }}>
-            <Text variant="body" tone="muted" align="center">
+            <Text variant="body" tone="onBrand" align="center" style={{ opacity: 0.9 }}>
               {isGuest ? t.signIn.guestAddWay : t.signIn.signInHowever}
             </Text>
 
             {/* Above the form rather than below it. A guest arrives straight
                 here without passing the welcome, so this is their only sight of
-                the chips before they are asked to read a form. */}
-            <LanguagePicker />
+                the language switch before they are asked to read a form — the
+                same globe as the gateway, opening the full language screen. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.language}
+              hitSlop={12}
+              onPress={() => router.push('/language')}
+              style={({ pressed }) => ({
+                alignSelf: 'flex-end',
+                width: 44,
+                height: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.onBrand} />
+            </Pressable>
 
             {/* The providers sit above the form here too. They were a row of
                 small squares under it, which put the one-tap way in below a
@@ -424,18 +431,17 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               <SocialRow
                 busy={busy}
                 wording={isGuest || isSignup ? 'continue' : 'signIn'}
-                onApple={() => void run(withApple)}
                 onGoogle={() => void run(withGoogle)}
                 t={t}
               />
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-              <Text variant="caption" tone="muted">
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
+              <Text variant="caption" tone="onBrand" style={{ opacity: 0.9 }}>
                 {t.signIn.or}
               </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: '#FFFFFF5C' }} />
             </View>
 
             <Card style={{ gap: theme.spacing.lg }}>
@@ -622,7 +628,19 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                     size="lg"
                     fullWidth
                     disabled={busy || !identifier.trim() || password.length < 8}
-                    onPress={() => void run(() => withPassword(identifier, password, intent))}
+                    onPress={() =>
+                      void (async () => {
+                        const outcome = await run(() => withPassword(identifier, password, intent));
+                        // A confirmation mail went out — send them to check it
+                        // rather than leave them on a form that looks inert.
+                        if (outcome?.verifyEmail) {
+                          router.push({
+                            pathname: '/verify-email',
+                            params: { email: outcome.verifyEmail },
+                          });
+                        }
+                      })()
+                    }
                   />
                 </>
               ) : null}
@@ -638,15 +656,15 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             {isSignup && !isGuest ? (
               <Button
                 label={t.signIn.continueGuest}
-                variant="ghost"
+                variant="onBrandOutline"
                 size="lg"
                 fullWidth
                 disabled={busy}
-                onPress={() => void run(continueAsGuest)}
+                onPress={() => router.push('/guest-welcome')}
               />
             ) : null}
 
-            <Text variant="micro" tone="muted" align="center">
+            <Text variant="micro" tone="onBrand" align="center" style={{ opacity: 0.85 }}>
               {isGuest ? t.signIn.guestFootnote : t.signIn.memberFootnote}
             </Text>
           </View>
@@ -657,51 +675,84 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
 }
 
 /**
- * The two providers, stacked, in the order this platform expects.
+ * The welcome hero: a round photo with a scribble tucked behind its shoulder.
  *
- * Apple leads on iOS and Google on Android — not a style choice: on an iPhone
- * the Apple sheet is the one that needs no browser and no typing, and on
- * Android it is Google's. Putting the home platform's own account first is what
- * every well-made sign-in on either store does, and it is the difference
- * between one tap and one tap plus a web view.
+ * The photo is a placeholder stock shot (`assets/images/auth-hero.jpg`) — the
+ * shape and the scribble are the design; the picture inside gets swapped for the
+ * brand's own. The scribble is a single hand-drawn stroke in the brand's light
+ * lilac, positioned to peek out from the top-right the way the reference does.
+ */
+const AUTH_HERO = require('../../assets/images/auth-hero.jpg');
+
+function AuthHero() {
+  const theme = useTheme();
+  const size = 200;
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ width: size, height: size }}>
+        {/* Scribble first so the circle sits over its lower end, letting the
+            stroke read as tucked *behind* the shoulder. */}
+        <Svg
+          width={size * 0.62}
+          height={size * 0.5}
+          viewBox="0 0 120 90"
+          style={{ position: 'absolute', top: -10, right: -14 }}
+        >
+          <Path
+            d="M8 70 C40 20 50 80 70 30 M20 78 C55 30 60 84 82 40 M34 82 C68 42 72 88 96 48"
+            stroke="#B4A5FB"
+            strokeWidth={7}
+            strokeLinecap="round"
+            fill="none"
+          />
+        </Svg>
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: 'hidden',
+            backgroundColor: theme.color.surfaceMuted,
+          }}
+        >
+          <Image source={AUTH_HERO} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The provider way in — Google.
+ *
+ * Apple sign-in used to lead this row on iOS; it has been taken out. If Google
+ * stays the only provider, note that App Store guideline 4.8 requires an
+ * equivalent (Apple sign-in) alongside it on iOS, so this may need revisiting
+ * before an iOS release.
  *
  * "Sign in with" is reserved for the login screen, where it is true. On the
  * sign-up page — and for a guest attaching a way back into the groups already
- * on this phone — both Apple's and Google's own guidelines say to write
- * "Continue with", because the same button both makes an account and returns to
- * one, and "sign in" would suggest landing somewhere else.
+ * on this phone — Google's own guidelines say to write "Continue with", because
+ * the same button both makes an account and returns to one, and "sign in" would
+ * suggest landing somewhere else.
  */
 function SocialRow({
   busy,
   wording,
-  onApple,
   onGoogle,
   t,
 }: {
   busy: boolean;
   wording: 'continue' | 'signIn';
-  onApple: () => void;
   onGoogle: () => void;
   t: UiStrings;
 }) {
   const carryOn = wording === 'continue';
-  const apple = (
+  return (
     <SocialButton
-      key="apple"
-      provider="apple"
-      label={carryOn ? t.signIn.continueApple : t.signIn.signInApple}
-      disabled={busy}
-      onPress={onApple}
-    />
-  );
-  const google = (
-    <SocialButton
-      key="google"
-      provider="google"
       label={carryOn ? t.signIn.continueGoogle : t.signIn.signInGoogle}
       disabled={busy}
       onPress={onGoogle}
     />
   );
-  return <>{Platform.OS === 'ios' ? [apple, google] : [google, apple]}</>;
 }

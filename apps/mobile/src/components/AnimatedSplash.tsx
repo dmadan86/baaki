@@ -18,15 +18,16 @@
  * turned motion down inside Baaki gets a brief static hold and a fade, no
  * logo animation.
  *
- * To rebrand: replace `assets/images/splash-icon.png` with the logo and set
- * `SPLASH_BG` to the background — keep it identical to the `backgroundColor` in
- * `app.json` so the native-to-JS handoff stays seamless. For full-bleed
- * background art, drop an absolute-fill `<Image>` behind the logo below.
+ * To rebrand: set `GRADIENT`/`SPLASH_BG` to the brand wash and `WORDMARK` (or
+ * swap the wordmark <Text> for a logo <Image>). Keep `SPLASH_BG` identical to
+ * the `backgroundColor` in `app.json` — the native splash is a solid field, so
+ * matching it to this gradient's middle stop keeps the native-to-JS handoff
+ * from jumping. The native splash still shows `assets/images/splash-icon.png`.
  */
 import { useCallback, useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, StyleSheet, Text } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -39,13 +40,20 @@ import Animated, {
 
 import { useMotion } from '@/lib/motion';
 
-/** Kept identical to `expo-splash-screen`'s `backgroundColor` in `app.json` so
-    the native splash and this one are the same field — change both together. */
-const SPLASH_BG = '#7A5AF8';
+/** The mid stop of the field. Kept identical to `expo-splash-screen`'s
+    `backgroundColor` in `app.json` so the native splash (a solid field) and the
+    middle of this gradient are the same colour — the handoff shifts as little as
+    possible. Change both together. */
+const SPLASH_BG = '#65B63E';
 
-/** The logo drawn on the field. Swap this file to rebrand; a transparent PNG
-    reads best over the coloured background. */
-const LOGO = require('../../assets/images/splash-icon.png');
+/** The field is a diagonal wash, light top-left to deep bottom-right — the Digit
+    concept, in the app's brand green. Revisit once the final splash art is
+    settled. */
+const GRADIENT = ['#7BC94E', SPLASH_BG, '#4F9A2E'] as const;
+
+/** The wordmark drawn on the field. Placeholder text until the brand mark
+    lands. Lowercase to match the reference. */
+const WORDMARK = 'waves';
 
 export function AnimatedSplash() {
   const { animated } = useMotion();
@@ -107,17 +115,30 @@ export function AnimatedSplash() {
       // Eats touches while it is up, so a tap never reaches the app underneath
       // mid-fade.
       pointerEvents="auto"
-      style={[
-        StyleSheet.absoluteFill,
-        { backgroundColor: SPLASH_BG, alignItems: 'center', justifyContent: 'center' },
-        fieldStyle,
-      ]}
+      style={[StyleSheet.absoluteFill, fieldStyle]}
     >
-      {/* Full-bleed background art, when there is any, goes here as an
-          absolute-fill <Image> behind the logo. */}
-      <Animated.View style={logoStyle}>
-        <Image source={LOGO} style={{ width: 100, height: 100 }} contentFit="contain" />
-      </Animated.View>
+      {/* The diagonal wash fills the field; the wordmark rides on top. The
+          solid SPLASH_BG in app.json matches the middle stop so the native
+          splash flows into this one. */}
+      <LinearGradient
+        colors={GRADIENT}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
+      >
+        <Animated.View style={logoStyle}>
+          <Text
+            style={{
+              fontSize: 56,
+              fontWeight: '700',
+              letterSpacing: -1,
+              color: '#FFFFFF',
+            }}
+          >
+            {WORDMARK}
+          </Text>
+        </Animated.View>
+      </LinearGradient>
     </Animated.View>
   );
 }
