@@ -171,15 +171,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, [remember]);
 
   const next = useCallback(() => {
-    setStep((current) => {
-      if (current >= TOUR_STEPS.length - 1) {
-        setActive(false);
-        remember();
-        return current;
-      }
-      return current + 1;
-    });
-  }, [remember]);
+    // Decide the terminal step before touching state so the setStep updater
+    // stays pure — no setActive/remember side effects inside it, which React
+    // may run more than once.
+    if (step >= TOUR_STEPS.length - 1) {
+      setActive(false);
+      remember();
+      return;
+    }
+    setStep((current) => Math.min(current + 1, TOUR_STEPS.length - 1));
+  }, [step, remember]);
 
   const prev = useCallback(() => setStep((current) => Math.max(0, current - 1)), []);
 
