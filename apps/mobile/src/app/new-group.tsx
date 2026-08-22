@@ -243,7 +243,7 @@ export default function NewGroupScreen() {
   };
   const dateSummary =
     tripDates.start_date && tripDates.end_date
-      ? `${shortDate(tripDates.start_date)} – ${shortDate(tripDates.end_date)}`
+      ? `${shortDate(tripDates.start_date)} - ${shortDate(tripDates.end_date)}`
       : t.add;
 
   // The budget for its pill, minor units back to a plain major string with the
