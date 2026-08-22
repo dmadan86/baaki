@@ -301,11 +301,11 @@ export default function GroupScreen() {
                 borderRadius: theme.radius.xl,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: theme.color.brandSoft,
+                backgroundColor: theme.color.buttonPrimary,
                 marginBottom: theme.spacing.sm,
               }}
             >
-              <Ionicons name="compass-outline" size={48} color={theme.color.brand} />
+              <Ionicons name="compass-outline" size={48} color={theme.color.onBrand} />
             </View>
             <Text variant="title" align="center" accessibilityRole="header">
               {t.group.notFound}
@@ -946,13 +946,13 @@ export default function GroupScreen() {
                             borderRadius: 19,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: theme.color.brandSoft,
+                            backgroundColor: theme.color.buttonPrimary,
                           }}
                         >
                           <Ionicons
                             name={verbIcon(entry.verb)}
                             size={iconSize.lg}
-                            color={theme.color.brand}
+                            color={theme.color.onBrand}
                           />
                         </View>
                       }

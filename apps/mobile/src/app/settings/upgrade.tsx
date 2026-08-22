@@ -79,14 +79,14 @@ export default function UpgradeScreen() {
           <View style={{ width: 44 }} />
         </Row>
 
-        <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.md }}>
+        <Card style={{ backgroundColor: theme.color.buttonPrimary, gap: theme.spacing.md }}>
           {/* No badge saying "coming later". A brand badge on a brand-soft card
               is text with an invisible pill behind it, and the heading is
               already the whole announcement. */}
-          <Text variant="subheading" tone="brand">
+          <Text variant="subheading" tone="onBrand">
             {t.upgradeScreen.nothingToBuy}
           </Text>
-          <Text variant="caption" tone="muted">
+          <Text variant="caption" tone="onBrand">
             {t.upgradeScreen.nothingToBuyBody}
           </Text>
         </Card>

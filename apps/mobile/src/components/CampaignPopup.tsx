@@ -130,16 +130,16 @@ export function CampaignPopup() {
               accessibilityRole="button"
               accessibilityLabel={t.misc.tapToCopy}
               style={{
-                backgroundColor: theme.color.brandSoft,
+                backgroundColor: theme.color.buttonPrimary,
                 borderRadius: theme.radius.md,
                 paddingVertical: theme.spacing.md,
                 alignItems: 'center',
               }}
             >
-              <Text variant="heading" tone="brand">
+              <Text variant="heading" tone="onBrand">
                 {campaign.promo_code}
               </Text>
-              <Text variant="micro" tone="muted">
+              <Text variant="micro" tone="onBrand">
                 {copied ? t.misc.copied : t.misc.tapToCopy}
               </Text>
             </Pressable>

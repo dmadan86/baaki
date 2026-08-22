@@ -184,11 +184,11 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
   // the phone is not offline, it is being polite about data.
   if (status === 'metered') {
     return (
-      <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.xs }}>
+      <Card style={{ backgroundColor: theme.color.buttonPrimary, gap: theme.spacing.xs }}>
         <Row style={{ gap: theme.spacing.sm }}>
-          <Ionicons name="cloud-offline-outline" size={iconSize.md} color={theme.color.brand} />
+          <Ionicons name="cloud-offline-outline" size={iconSize.md} color={theme.color.onBrand} />
           <View style={{ flex: 1 }}>
-            <Text variant="caption" tone="brand">
+            <Text variant="caption" tone="onBrand">
               {syncNetwork === SyncNetworkPreference.Cellular
                 ? t.sync.waitingCellular
                 : t.sync.waitingWifi}
@@ -233,11 +233,11 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
           };
 
   return (
-    <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.xs }}>
+    <Card style={{ backgroundColor: theme.color.buttonPrimary, gap: theme.spacing.xs }}>
       <Row style={{ gap: theme.spacing.sm }}>
-        <Ionicons name={icon} size={iconSize.md} color={theme.color.brand} />
+        <Ionicons name={icon} size={iconSize.md} color={theme.color.onBrand} />
         <View style={{ flex: 1 }}>
-          <Text variant="caption" tone="brand">
+          <Text variant="caption" tone="onBrand">
             {message}
           </Text>
         </View>

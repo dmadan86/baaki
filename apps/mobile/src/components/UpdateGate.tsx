@@ -49,10 +49,10 @@ function BlockingScreen(): React.JSX.Element {
           borderRadius: theme.radius.pill,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: theme.color.brandSoft,
+          backgroundColor: theme.color.buttonPrimary,
         }}
       >
-        <Ionicons name="arrow-up-circle" size={iconSize.huge} color={theme.color.brand} />
+        <Ionicons name="arrow-up-circle" size={iconSize.huge} color={theme.color.onBrand} />
       </View>
 
       <Text variant="heading" align="center">

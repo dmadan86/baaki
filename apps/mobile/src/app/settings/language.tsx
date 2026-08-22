@@ -85,14 +85,14 @@ export default function LanguageSettingsScreen() {
             is looking at a screen that did not mirror needs the explanation
             where their eyes already are. */}
         {restartNeeded ? (
-          <Card style={{ backgroundColor: theme.color.brandSoft, gap: theme.spacing.sm }}>
+          <Card style={{ backgroundColor: theme.color.buttonPrimary, gap: theme.spacing.sm }}>
             <Row style={{ gap: theme.spacing.sm }}>
-              <Ionicons name="refresh" size={iconSize.md} color={theme.color.brand} />
-              <Text variant="subheading" tone="brand">
+              <Ionicons name="refresh" size={iconSize.md} color={theme.color.onBrand} />
+              <Text variant="subheading" tone="onBrand">
                 {t.account.restartTitle}
               </Text>
             </Row>
-            <Text variant="caption" tone="muted">
+            <Text variant="caption" tone="onBrand">
               {isRtlLanguage(language)
                 ? t.account.restartBannerMirror
                 : t.account.restartBannerUnmirror}

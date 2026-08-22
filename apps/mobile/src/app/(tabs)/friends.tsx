@@ -443,10 +443,10 @@ function FriendsSection({
                 borderRadius: 22,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: theme.color.brandSoft,
+                backgroundColor: theme.color.buttonPrimary,
               }}
             >
-              <Ionicons name={emptyIcon} size={22} color={theme.color.brand} />
+              <Ionicons name={emptyIcon} size={22} color={theme.color.onBrand} />
             </View>
             <Text variant="caption" tone="muted" align="center">
               {emptyBody}

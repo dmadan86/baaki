@@ -195,15 +195,15 @@ export default function NotificationSettingsScreen() {
             defaults are the fix, and they are all off-switchable. */}
         <Card
           flat
-          style={{ backgroundColor: theme.color.brandSoft, paddingVertical: theme.spacing.lg }}
+          style={{ backgroundColor: theme.color.buttonPrimary, paddingVertical: theme.spacing.lg }}
         >
           <Row gap={theme.spacing.md}>
             <Ionicons
               name="shield-checkmark-outline"
               size={iconSize.xl}
-              color={theme.color.brand}
+              color={theme.color.onBrand}
             />
-            <Text variant="caption" tone="brand" style={{ flex: 1 }}>
+            <Text variant="caption" tone="onBrand" style={{ flex: 1 }}>
               {t.notifications.neverSpam}
             </Text>
           </Row>
@@ -288,12 +288,12 @@ function IconChip({ icon }: { icon: IconName }) {
         width: 40,
         height: 40,
         borderRadius: theme.radius.pill,
-        backgroundColor: theme.color.brandSoft,
+        backgroundColor: theme.color.buttonPrimary,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Ionicons name={icon} size={iconSize.lg} color={theme.color.brand} />
+      <Ionicons name={icon} size={iconSize.lg} color={theme.color.onBrand} />
     </View>
   );
 }

@@ -416,13 +416,17 @@ export default function VoiceScreen() {
                       borderRadius: 18,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: theme.color.brandSoft,
+                      backgroundColor: theme.color.buttonPrimary,
                     }}
                   >
                     {current.emoji ? (
                       <Text style={{ fontSize: 18 }}>{current.emoji}</Text>
                     ) : (
-                      <Ionicons name={current.icon} size={iconSize.md} color={theme.color.brand} />
+                      <Ionicons
+                        name={current.icon}
+                        size={iconSize.md}
+                        color={theme.color.onBrand}
+                      />
                     )}
                   </View>
                   <Text numberOfLines={1} style={{ flex: 1, color: theme.color.text }}>
@@ -770,10 +774,10 @@ function DraftRow({
             borderRadius: 20,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.color.brandSoft,
+            backgroundColor: theme.color.buttonPrimary,
           }}
         >
-          <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.brand} />
+          <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.onBrand} />
         </View>
 
         <View style={{ flex: 1, gap: theme.spacing.xs }}>

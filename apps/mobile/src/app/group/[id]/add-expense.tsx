@@ -844,8 +844,8 @@ export default function AddExpenseScreen() {
           />
 
           {editing ? (
-            <Card style={{ backgroundColor: theme.color.brandSoft }}>
-              <Text variant="caption" tone="brand">
+            <Card style={{ backgroundColor: theme.color.buttonPrimary }}>
+              <Text variant="caption" tone="onBrand">
                 {t.expense.editingKeepsVersion}
               </Text>
             </Card>

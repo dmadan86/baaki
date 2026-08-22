@@ -218,19 +218,19 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
           paddingHorizontal: theme.spacing.lg,
           paddingVertical: theme.spacing.sm,
           borderRadius: theme.radius.pill,
-          backgroundColor: theme.color.brandSoft,
+          backgroundColor: theme.color.buttonPrimary,
         }}
       >
-        <Ionicons name="checkmark-done" size={iconSize.base} color={theme.color.brand} />
+        <Ionicons name="checkmark-done" size={iconSize.base} color={theme.color.onBrand} />
         <Row style={{ gap: 4 }}>
           <MoneyText
             amount={top[1]}
             currency={top[0] as never}
             locale={locale}
             variant="subheading"
-            tone="brand"
+            tone="onBrand"
           />
-          <Text variant="caption" tone="brand">
+          <Text variant="caption" tone="onBrand">
             {t.account.settled}
           </Text>
         </Row>

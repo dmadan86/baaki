@@ -165,13 +165,13 @@ export default function ActivityScreen() {
                               borderRadius: 21,
                               alignItems: 'center',
                               justifyContent: 'center',
-                              backgroundColor: theme.color.brandSoft,
+                              backgroundColor: theme.color.buttonPrimary,
                             }}
                           >
                             <Ionicons
                               name={verbIcon(entry.verb)}
                               size={iconSize.xl}
-                              color={theme.color.brand}
+                              color={theme.color.onBrand}
                             />
                           </View>
                           {!isLast ? (

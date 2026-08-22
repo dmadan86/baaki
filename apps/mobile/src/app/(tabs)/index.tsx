@@ -614,7 +614,6 @@ function GuestPopup({
     : gate
       ? t.tabs.guestDaysLeft.replace('{days}', String(gate.daysLeft))
       : t.tabs.guestBannerBody;
-  const accent = expired ? theme.color.warning : theme.color.brand;
 
   return (
     <Modal visible transparent animationType={animated ? 'fade' : 'none'} onRequestClose={dismiss}>
@@ -647,7 +646,7 @@ function GuestPopup({
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: theme.color.brandSoft,
+              backgroundColor: theme.color.buttonPrimary,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -655,7 +654,7 @@ function GuestPopup({
             <Ionicons
               name={expired ? 'lock-closed' : 'shield-checkmark'}
               size={38}
-              color={accent}
+              color={expired ? theme.color.warning : theme.color.onBrand}
             />
           </View>
 
@@ -825,10 +824,10 @@ function TipSheet({ t }: { t: UiStrings }) {
                   borderRadius: 32,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: theme.color.brandSoft,
+                  backgroundColor: theme.color.buttonPrimary,
                 }}
               >
-                <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.brand} />
+                <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.onBrand} />
               </View>
               <Text variant="micro" tone="brand" style={{ letterSpacing: 0.8 }}>
                 {t.tips.label.toUpperCase()}

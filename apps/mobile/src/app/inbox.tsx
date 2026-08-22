@@ -246,13 +246,13 @@ export default function InboxScreen() {
                               borderRadius: theme.radius.pill,
                               alignItems: 'center',
                               justifyContent: 'center',
-                              backgroundColor: theme.color.brandSoft,
+                              backgroundColor: theme.color.buttonPrimary,
                             }}
                           >
                             <Ionicons
                               name={ICONS[row.kind] ?? 'notifications-outline'}
                               size={iconSize.lg}
-                              color={theme.color.brand}
+                              color={theme.color.onBrand}
                             />
                           </View>
                           <View style={{ flex: 1, gap: 2 }}>
