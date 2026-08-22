@@ -189,9 +189,88 @@ jobs:
   e2e:
     name: e2e (Maestro)
     runs-on: ubuntu-latest
-    # Enabled once a build profile exists; the flow itself is committed so the
-    # happy path is reviewed alongside the code that implements it.
-    if: false
+    # Real mobile E2E: seed a known account, build the app against a staging
+    # project, boot an emulator, drive the flows in e2e/. It is gated on the
+    # repo variable E2E_ENABLED so it stays a clean skip (not a red X) until the
+    # prerequisites are provisioned — see e2e/README-e2e.md. Prerequisites:
+    #   • repo VARIABLE  E2E_ENABLED = true
+    #   • repo SECRETS   E2E_SUPABASE_URL, E2E_SUPABASE_ANON_KEY, E2E_SERVICE_KEY,
+    #                    E2E_EMAIL, E2E_PASSWORD, and GOOGLE_SERVICES_JSON_B64
+    #                    (android/app/google-services.json for app.waves.mobile,
+    #                    base64) — the Waves build profile the old stub waited on.
+    if: ${{ vars.E2E_ENABLED == 'true' }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
-      - run: echo "maestro test e2e/"
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: pnpm install --frozen-lockfile
+
+      # Seed the deterministic fixture the flows assert (Goa trip, Beach shack
+      # dinner, the ghost Priya) into the staging project.
+      - name: Seed the E2E backend
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SERVICE_KEY: ${{ secrets.E2E_SERVICE_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: node e2e/seed-e2e.mjs
+
+      # Build the app against the SAME staging project. The public keys are baked
+      # at bundle time from the env below; app.config reads them via .env.
+      - name: Point the build at staging
+        run: |
+          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' \
+            "${{ secrets.E2E_SUPABASE_URL }}" "${{ secrets.E2E_SUPABASE_ANON_KEY }}" \
+            > apps/mobile/.env
+      # Prebuild regenerates android/ from app config; --clean wipes it, so the
+      # Firebase file must land AFTER prebuild and before the Gradle build.
+      - name: Prebuild the Android project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --clean
+      - name: Restore Waves google-services.json
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d \
+            > apps/mobile/android/app/google-services.json
+      - name: Assemble debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      # Boot an emulator, install Maestro, install the APK, run the flows.
+      - name: Run Maestro flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            curl -Ls "https://get.maestro.mobile.dev" | bash
+            export PATH="$PATH:$HOME/.maestro/bin"
+            adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            # Explicit list so the login.yaml sub-flow is not run standalone.
+            maestro test \
+              --env E2E_EMAIL="${{ secrets.E2E_EMAIL }}" \
+              --env E2E_PASSWORD="${{ secrets.E2E_PASSWORD }}" \
+              --format junit --output maestro-report.xml \
+              e2e/home-to-add-expense.yaml \
+              e2e/clone-group.yaml \
+              e2e/group-photo-paid-gate.yaml \
+              e2e/friends-merge-guests.yaml \
+              e2e/leave-group.yaml
+      - name: Upload Maestro report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report
+          path: |
+            maestro-report.xml
+            ~/.maestro/tests/**
+          if-no-files-found: ignore

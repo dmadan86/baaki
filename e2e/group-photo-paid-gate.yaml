@@ -8,8 +8,7 @@
 # account to exercise the locked path fully.
 appId: app.waves.mobile
 ---
-- launchApp:
-    clearState: true
+- runFlow: login.yaml
 
 # Home → new group
 - assertVisible: 'Your groups'
