@@ -181,7 +181,7 @@ export default function ActivityScreen() {
                                 width: 2,
                                 marginTop: theme.spacing.xs,
                                 borderRadius: 1,
-                                backgroundColor: theme.color.brandSoft,
+                                backgroundColor: theme.color.buttonPrimary,
                               }}
                             />
                           ) : null}
