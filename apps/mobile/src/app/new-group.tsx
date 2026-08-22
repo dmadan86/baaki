@@ -43,6 +43,7 @@ const EMOJI_FOR_TYPE: Record<GroupType, string> = {
   [GroupType.Home]: '🏠',
   [GroupType.Couple]: '💜',
   [GroupType.Event]: '🎉',
+  [GroupType.Friends]: '🧑‍🤝‍🧑',
   [GroupType.Other]: '👥',
 };
 
@@ -289,6 +290,11 @@ export default function NewGroupScreen() {
               { value: GroupType.Home, label: t.extras.typeHome, icon: iconFor('home') },
               { value: GroupType.Couple, label: t.extras.typeCouple, icon: iconFor('heart') },
               { value: GroupType.Event, label: t.extras.typeEvent, icon: iconFor('sparkles') },
+              {
+                value: GroupType.Friends,
+                label: t.extras.typeFriends,
+                icon: iconFor('people-circle'),
+              },
               { value: GroupType.Other, label: t.extras.typeOther, icon: iconFor('people') },
             ]}
           />

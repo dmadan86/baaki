@@ -588,6 +588,7 @@ const GROUP_TYPE_ICON: Record<GroupType, React.ComponentProps<typeof Ionicons>['
   [GroupType.Home]: 'home',
   [GroupType.Couple]: 'heart',
   [GroupType.Event]: 'sparkles',
+  [GroupType.Friends]: 'people-circle',
   [GroupType.Other]: 'people-outline',
 };
 
