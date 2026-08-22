@@ -37,6 +37,8 @@ import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { ShortcutProvider } from '@/lib/shortcut';
+import { ShortcutGesture } from '@/components/ShortcutGesture';
 import { TourProvider } from '@/lib/tour';
 import { PromptQueueProvider } from '@/lib/promptQueue';
 import { SyncNetworkProvider } from '@/lib/syncNetwork';
@@ -159,42 +161,44 @@ function RootLayout() {
                           <ThemePreferenceProvider>
                             <TourProvider>
                               <PromptQueueProvider>
-                                <ThemedRoot>
-                                  <ThemedStatusBar />
-                                  {/* Outside the lock and the auth gate on purpose: a build
+                                <ShortcutProvider>
+                                  <ThemedRoot>
+                                    <ThemedStatusBar />
+                                    {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                                  <UpdateGate>
-                                    <PushRouting />
-                                    <LockGate>
-                                      {/* Inside the lock so the two-device gate never
+                                    <UpdateGate>
+                                      <PushRouting />
+                                      <LockGate>
+                                        {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                      <DeviceSessionProvider>
-                                        <AuthGate />
-                                        {/* Inside the lock on purpose: a promotion is not a
+                                        <DeviceSessionProvider>
+                                          <AuthGate />
+                                          {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                        <CampaignPopup />
-                                        {/* The soft ask for push, once, to a
+                                          <CampaignPopup />
+                                          {/* The soft ask for push, once, to a
                                         signed-in person whose permission is
                                         still undetermined. */}
-                                        <NotificationPrompt />
-                                      </DeviceSessionProvider>
-                                    </LockGate>
-                                    {/* The coach-mark tour, over the whole app but
+                                          <NotificationPrompt />
+                                        </DeviceSessionProvider>
+                                      </LockGate>
+                                      {/* The coach-mark tour, over the whole app but
                                     only ever started from Home. Above the gate
                                     so its scrim covers the screen. */}
-                                    <TourOverlay />
-                                    {/* Last, so it paints over the screen rather than
+                                      <TourOverlay />
+                                      {/* Last, so it paints over the screen rather than
                               under it. */}
-                                    <UpdateBanner />
-                                  </UpdateGate>
-                                  {/* Topmost of all: the launch field, painting over
+                                      <UpdateBanner />
+                                    </UpdateGate>
+                                    {/* Topmost of all: the launch field, painting over
                                   the whole app until it fades itself out. Native
                                   only; renders nothing on web. */}
-                                  <AnimatedSplash />
-                                </ThemedRoot>
+                                    <AnimatedSplash />
+                                  </ThemedRoot>
+                                </ShortcutProvider>
                               </PromptQueueProvider>
                             </TourProvider>
                           </ThemePreferenceProvider>
@@ -486,71 +490,74 @@ function AuthGate() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: 'transparent' },
-          animation: push,
-          animationDuration: TRANSITION_MS,
-          // Swiping back is the same journey as the animation, so it belongs to
-          // the same switch: with motion off there is nothing to drag.
-          gestureEnabled: animated,
-        }}
-      >
-        {/* Signing in and out replaces the whole tree; sliding it would suggest a
+    <ShortcutGesture>
+      <View style={{ flex: 1 }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: 'transparent' },
+            animation: push,
+            animationDuration: TRANSITION_MS,
+            // Swiping back is the same journey as the animation, so it belongs to
+            // the same switch: with motion off there is nothing to drag.
+            gestureEnabled: animated,
+          }}
+        >
+          {/* Signing in and out replaces the whole tree; sliding it would suggest a
           place to go back to, and there is not one. */}
-        <Stack.Screen name="welcome" options={{ animation: 'none' }} />
-        <Stack.Screen name="language" />
-        <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
-        {/* The sign-up page slides in from the login screen and back out, so it
+          <Stack.Screen name="welcome" options={{ animation: 'none' }} />
+          <Stack.Screen name="language" />
+          <Stack.Screen name="sign-in" options={{ animation: 'none' }} />
+          {/* The sign-up page slides in from the login screen and back out, so it
             keeps a normal push — unlike sign-in, which replaces the whole tree. */}
-        <Stack.Screen name="sign-up" />
-        <Stack.Screen name="phone" />
-        <Stack.Screen name="verify-email" />
-        <Stack.Screen name="guest-welcome" />
-        <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
-        <Stack.Screen name="new-group" options={modal} />
-        {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
-        <Stack.Screen name="capture" options={modal} />
-        <Stack.Screen name="captures" />
-        <Stack.Screen name="group/[id]/index" />
-        <Stack.Screen name="group/[id]/add-expense" options={modal} />
-        <Stack.Screen name="group/[id]/settle" options={modal} />
-        <Stack.Screen name="group/[id]/simplify" />
-        <Stack.Screen name="group/[id]/settings" />
-        <Stack.Screen name="group/[id]/members" />
-        <Stack.Screen name="group/[id]/member/[memberId]" />
-        <Stack.Screen name="group/[id]/expense/[expenseId]" />
-        <Stack.Screen name="group/[id]/invite" options={modal} />
-        <Stack.Screen name="group/[id]/itemize" options={modal} />
-        <Stack.Screen name="receipt/[id]" options={modal} />
-        <Stack.Screen name="friends/contacts" />
-        <Stack.Screen name="contact-picker" options={modal} />
-        <Stack.Screen name="scan" options={modal} />
-        <Stack.Screen name="settings/backup" />
-        <Stack.Screen name="settings/notifications" />
-        <Stack.Screen name="settings/export" />
-        <Stack.Screen name="settings/import" />
-        <Stack.Screen name="settings/lock" />
-        <Stack.Screen name="settings/devices" />
-        <Stack.Screen name="settings/motion" />
-        <Stack.Screen name="settings/sync" />
-        <Stack.Screen name="settings/theme" />
-        <Stack.Screen name="settings/language" />
-        <Stack.Screen name="settings/upgrade" />
-        <Stack.Screen name="settings/redeem" />
-        <Stack.Screen name="settings/account" />
-        <Stack.Screen name="settings/feedback" />
-        <Stack.Screen name="settings/privacy" />
-        <Stack.Screen name="settings/delete-account" />
-        <Stack.Screen name="join" />
-        <Stack.Screen name="inbox" />
-        <Stack.Screen name="voice" options={modal} />
-      </Stack>
-      {/* One bar over the whole stack, so every screen keeps it — it hides
+          <Stack.Screen name="sign-up" />
+          <Stack.Screen name="phone" />
+          <Stack.Screen name="verify-email" />
+          <Stack.Screen name="guest-welcome" />
+          <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+          <Stack.Screen name="new-group" options={modal} />
+          {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
+          <Stack.Screen name="capture" options={modal} />
+          <Stack.Screen name="captures" />
+          <Stack.Screen name="group/[id]/index" />
+          <Stack.Screen name="group/[id]/add-expense" options={modal} />
+          <Stack.Screen name="group/[id]/settle" options={modal} />
+          <Stack.Screen name="group/[id]/simplify" />
+          <Stack.Screen name="group/[id]/settings" />
+          <Stack.Screen name="group/[id]/members" />
+          <Stack.Screen name="group/[id]/member/[memberId]" />
+          <Stack.Screen name="group/[id]/expense/[expenseId]" />
+          <Stack.Screen name="group/[id]/invite" options={modal} />
+          <Stack.Screen name="group/[id]/itemize" options={modal} />
+          <Stack.Screen name="receipt/[id]" options={modal} />
+          <Stack.Screen name="friends/contacts" />
+          <Stack.Screen name="contact-picker" options={modal} />
+          <Stack.Screen name="scan" options={modal} />
+          <Stack.Screen name="settings/backup" />
+          <Stack.Screen name="settings/notifications" />
+          <Stack.Screen name="settings/export" />
+          <Stack.Screen name="settings/import" />
+          <Stack.Screen name="settings/lock" />
+          <Stack.Screen name="settings/devices" />
+          <Stack.Screen name="settings/motion" />
+          <Stack.Screen name="settings/shortcut" />
+          <Stack.Screen name="settings/sync" />
+          <Stack.Screen name="settings/theme" />
+          <Stack.Screen name="settings/language" />
+          <Stack.Screen name="settings/upgrade" />
+          <Stack.Screen name="settings/redeem" />
+          <Stack.Screen name="settings/account" />
+          <Stack.Screen name="settings/feedback" />
+          <Stack.Screen name="settings/privacy" />
+          <Stack.Screen name="settings/delete-account" />
+          <Stack.Screen name="join" />
+          <Stack.Screen name="inbox" />
+          <Stack.Screen name="voice" options={modal} />
+        </Stack>
+        {/* One bar over the whole stack, so every screen keeps it — it hides
           itself on the modals and the camera. */}
-      <AppTabBar />
-    </View>
+        <AppTabBar />
+      </View>
+    </ShortcutGesture>
   );
 }

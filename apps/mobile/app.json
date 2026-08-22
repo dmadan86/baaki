@@ -38,6 +38,7 @@
       "expo-router",
       "expo-localization",
       "expo-sqlite",
+      "expo-quick-actions",
       [
         "expo-splash-screen",
         {
