@@ -951,6 +951,27 @@ export interface UiStrings {
     couldNotSave: string;
     save: string;
   };
+  /** The custom expense-tag catalog (extends TDR §8): the create/edit sheet and
+   *  the Settings manager. Built-in category labels stay in `categories`. */
+  tags: {
+    /** Settings menu row + manager screen title. */
+    manageTitle: string;
+    manageSubtitle: string;
+    settingsRow: string;
+    newTag: string;
+    editTag: string;
+    namePlaceholder: string;
+    iconLabel: string;
+    colourLabel: string;
+    yourTags: string;
+    builtinSection: string;
+    noCustomTags: string;
+    reorderHint: string;
+    hide: string;
+    show: string;
+    deleteConfirm: string;
+    saveTag: string;
+  };
   /** Backing up scanned receipts to the user's own cloud drive (Drive/Dropbox/OneDrive). */
   backup: {
     connectFailed: string;
@@ -2448,6 +2469,24 @@ const en: UiStrings = {
     savedOnDevice: 'Saved on this device',
     couldNotSave: "Couldn't save this — please try again in a moment.",
     save: 'Save capture',
+  },
+  tags: {
+    manageTitle: 'Tags & categories',
+    manageSubtitle: 'Make your own tags, and hide or reorder the built-in ones.',
+    settingsRow: 'Tags & categories',
+    newTag: 'New tag',
+    editTag: 'Edit tag',
+    namePlaceholder: 'e.g. Client dinner',
+    iconLabel: 'Icon',
+    colourLabel: 'Colour',
+    yourTags: 'Your tags',
+    builtinSection: 'Built-in',
+    noCustomTags: 'No tags of your own yet. Make one to sort spending your way.',
+    reorderHint: 'Use the arrows to move a tag up or down.',
+    hide: 'Hide',
+    show: 'Show',
+    deleteConfirm: 'Delete this tag? Past expenses keep it; it just leaves the list.',
+    saveTag: 'Save tag',
   },
   backup: {
     connectFailed: 'Could not connect. Please try again.',
@@ -4033,6 +4072,27 @@ const ta: UiStrings = {
     savedOnDevice: 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது',
     couldNotSave: 'இதைச் சேமிக்க முடியவில்லை — சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
     save: 'சேமி',
+  },
+  tags: {
+    manageTitle: 'குறிச்சொற்கள் & வகைகள்',
+    manageSubtitle:
+      'உங்கள் சொந்தக் குறிச்சொற்களை உருவாக்குங்கள், உள்ளமைந்தவற்றை மறைக்கவோ மறுவரிசைப்படுத்தவோ செய்யுங்கள்.',
+    settingsRow: 'குறிச்சொற்கள் & வகைகள்',
+    newTag: 'புதிய குறிச்சொல்',
+    editTag: 'குறிச்சொல்லைத் திருத்து',
+    namePlaceholder: 'எ.கா. வாடிக்கையாளர் இரவு உணவு',
+    iconLabel: 'சின்னம்',
+    colourLabel: 'நிறம்',
+    yourTags: 'உங்கள் குறிச்சொற்கள்',
+    builtinSection: 'உள்ளமைந்தவை',
+    noCustomTags:
+      'இன்னும் சொந்தக் குறிச்சொற்கள் இல்லை. உங்கள் வழியில் செலவுகளை வகைப்படுத்த ஒன்றை உருவாக்குங்கள்.',
+    reorderHint: 'அம்புக்குறிகளால் ஒரு குறிச்சொல்லை மேலே அல்லது கீழே நகர்த்துங்கள்.',
+    hide: 'மறை',
+    show: 'காட்டு',
+    deleteConfirm:
+      'இந்தக் குறிச்சொல்லை நீக்கவா? கடந்த செலவுகள் அதை வைத்திருக்கும்; பட்டியலிலிருந்து மட்டும் நீங்கும்.',
+    saveTag: 'குறிச்சொல்லைச் சேமி',
   },
   backup: {
     connectFailed: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
@@ -5625,6 +5685,24 @@ const hi: UiStrings = {
     couldNotSave: 'इसे सहेजा नहीं जा सका — कृपया थोड़ी देर में फिर से कोशिश करें।',
     save: 'सहेजें',
   },
+  tags: {
+    manageTitle: 'टैग और श्रेणियाँ',
+    manageSubtitle: 'अपने टैग बनाएँ, और पहले से मौजूद को छिपाएँ या क्रम बदलें।',
+    settingsRow: 'टैग और श्रेणियाँ',
+    newTag: 'नया टैग',
+    editTag: 'टैग संपादित करें',
+    namePlaceholder: 'जैसे क्लाइंट डिनर',
+    iconLabel: 'आइकन',
+    colourLabel: 'रंग',
+    yourTags: 'आपके टैग',
+    builtinSection: 'पहले से मौजूद',
+    noCustomTags: 'अभी आपका कोई टैग नहीं है। अपने तरीके से खर्च बाँटने के लिए एक बनाएँ।',
+    reorderHint: 'तीरों से किसी टैग को ऊपर या नीचे ले जाएँ।',
+    hide: 'छिपाएँ',
+    show: 'दिखाएँ',
+    deleteConfirm: 'यह टैग हटाएँ? पुराने खर्च इसे रखेंगे; यह बस सूची से हटेगा।',
+    saveTag: 'टैग सहेजें',
+  },
   backup: {
     connectFailed: 'कनेक्ट नहीं हो सका। कृपया फिर कोशिश करें।',
     title: 'स्टोरेज',
@@ -7214,6 +7292,24 @@ const ar: UiStrings = {
     savedOnDevice: 'محفوظ على هذا الجهاز',
     couldNotSave: 'تعذّر حفظ هذا — يُرجى المحاولة مرة أخرى بعد قليل.',
     save: 'حفظ',
+  },
+  tags: {
+    manageTitle: 'الوسوم والفئات',
+    manageSubtitle: 'أنشئ وسومك الخاصة، وأخفِ أو أعد ترتيب الوسوم الجاهزة.',
+    settingsRow: 'الوسوم والفئات',
+    newTag: 'وسم جديد',
+    editTag: 'تعديل الوسم',
+    namePlaceholder: 'مثال: عشاء عمل',
+    iconLabel: 'أيقونة',
+    colourLabel: 'اللون',
+    yourTags: 'وسومك',
+    builtinSection: 'جاهزة',
+    noCustomTags: 'لا توجد وسوم خاصة بك بعد. أنشئ واحدًا لتصنيف المصروفات بطريقتك.',
+    reorderHint: 'استخدم الأسهم لتحريك وسم لأعلى أو لأسفل.',
+    hide: 'إخفاء',
+    show: 'إظهار',
+    deleteConfirm: 'حذف هذا الوسم؟ ستحتفظ به المصروفات السابقة؛ يختفي من القائمة فقط.',
+    saveTag: 'حفظ الوسم',
   },
   backup: {
     connectFailed: 'تعذّر الاتصال. حاول مرة أخرى.',

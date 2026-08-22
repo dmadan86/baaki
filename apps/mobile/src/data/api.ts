@@ -14,6 +14,7 @@ import {
   normaliseEmail,
   normalisePhone,
   serialiseSplitParams,
+  type CategoryMeta,
   type CurrencyCode,
   type DeviceLimitStatus,
   type DeviceSession,
@@ -557,6 +558,8 @@ export interface WriteExpenseInput {
   notes?: string | null;
   /** How the money moved: cash | credit | debit | forex. Optional. */
   paymentMethod?: PaymentMethod | null;
+  /** Denormalised custom-tag display (extends TDR §8); null for a built-in. */
+  categoryMeta?: CategoryMeta | null;
   /** A view-only link to the owner's own cloud copy of the receipt (E3). */
   receiptShareUrl?: string | null;
   /** The rate used, when this expense is not in the group's currency. */
@@ -1401,6 +1404,10 @@ export interface SpendingRow {
   currency: string;
   /** Always set — an expense with no category comes back as 'other'. */
   category: string;
+  /** A custom tag's {label, icon, tint} snapshot when the category is a user
+   *  tag (extends TDR §8), so insights can label and colour its bar. Absent from
+   *  the server RPC's rows; only the local twin fills it. */
+  category_meta?: CategoryMeta | null;
   /** First day of the month, 'YYYY-MM-DD'. */
   month: string;
   /** This member's share of that category, in minor units. */

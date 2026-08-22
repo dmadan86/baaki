@@ -152,11 +152,15 @@ model Profile {
   /// `baaki_next_capture_seq`.
   capturesSeq       BigInt   @default(0) @map("captures_seq")
   ghostMergesSeq    BigInt   @default(0) @map("ghost_merges_seq")
+  /// Per-owner counter behind the personal category-tag catalog scope, the
+  /// captures equivalent for `category_tags`. Bumped by `baaki_next_category_tag_seq`.
+  categoryTagsSeq   BigInt   @default(0) @map("category_tags_seq")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships         GroupMember[]
   captures            Capture[]
+  categoryTags        CategoryTag[]
   pushTokens          PushToken[]
   notifications       Notification[]
   emailEvents         EmailEvent[]
@@ -459,6 +463,11 @@ model ExpenseVersion {
   authorMemberId   String?       @map("author_member_id") @db.Uuid
   description      String
   category         String?
+  /// Denormalised {label, icon, tint} snapshot of a custom tag, so a member
+  /// without the author's catalog still renders it (see category_tags). Null for
+  /// a built-in category, which resolves from the app's own list. Never part of
+  /// the split or a balance — a label, like paymentMethod beside it.
+  categoryMeta     Json?         @map("category_meta")
   expenseDate      DateTime      @map("expense_date") @db.Date
   currency         String        @db.Char(3)
   amount           BigInt
@@ -839,6 +848,9 @@ model Capture {
   ownerUserId       String    @map("owner_user_id") @db.Uuid
   description       String    @default("")
   category          String?
+  /// Denormalised {label, icon, tint} snapshot of a custom tag (see
+  /// category_tags), carried onto the expense at assignment. Null for built-ins.
+  categoryMeta      Json?     @map("category_meta")
   expenseDate       DateTime  @map("expense_date") @db.Date
   currency          String
   /// Minor units. Never a float.
@@ -871,6 +883,36 @@ model Capture {
 
   @@index([ownerUserId, updatedSeq], map: "captures_owner_user_id_updated_seq_idx")
   @@map("captures")
+  @@schema("public")
+}
+
+/// A user's personal expense-tag catalog (extends TDR §8). Personal, so it syncs
+/// under the owner exactly like `Capture` — a per-owner `updatedSeq`, owner-only
+/// RLS, soft delete. A row is either a CUSTOM tag (builtinId null, carries
+/// label/icon/tint) or an OVERRIDE of a built-in category (builtinId set, carries
+/// only sortOrder + hidden; its label stays in the app string table).
+model CategoryTag {
+  id          String    @id @db.Uuid
+  ownerUserId String    @map("owner_user_id") @db.Uuid
+  /// The built-in category id this row overrides (e.g. 'food'); null for a custom tag.
+  builtinId   String?   @map("builtin_id")
+  /// Custom tags only — a built-in's label comes from the app string table.
+  label       String?
+  /// An Ionicons glyph name (custom tags only).
+  icon        String?
+  /// One of the six design-system tints (lilac/pink/mint/peach/sky/coral).
+  tint        String?
+  sortOrder   Int       @default(0) @map("sort_order")
+  hidden      Boolean   @default(false)
+  updatedSeq  BigInt    @default(0) @map("updated_seq")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  owner Profile @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId, updatedSeq], map: "category_tags_owner_user_id_updated_seq_idx")
+  @@map("category_tags")
   @@schema("public")
 }
 

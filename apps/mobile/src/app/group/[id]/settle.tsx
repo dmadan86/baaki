@@ -132,7 +132,7 @@ export default function SettleScreen() {
 
   const titleFor = (expenseId: string): string => {
     const version = expenses.rows.find((expense) => expense.id === expenseId)?.currentVersion;
-    return expenseTitle(version?.description, version?.category, t);
+    return expenseTitle(version?.description, version?.category, t, version?.category_meta);
   };
 
   /**

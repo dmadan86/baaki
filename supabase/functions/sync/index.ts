@@ -61,6 +61,11 @@ type MutationKind =
   | 'capture.update'
   | 'capture.delete'
   | 'capture.assign'
+  // The user's expense-tag catalog (extends TDR §8): personal like captures, but
+  // under its own suffixed scope key so it keeps a separate cursor.
+  | 'tag.create'
+  | 'tag.update'
+  | 'tag.delete'
   // Trip plan + budgets (A23) — group-scoped, authorised by membership, so NOT
   // in isPersonalKind below.
   | 'plan_item.create'
@@ -76,8 +81,18 @@ function isPersonalKind(kind: MutationKind): boolean {
     kind === 'capture.create' ||
     kind === 'capture.update' ||
     kind === 'capture.delete' ||
-    kind === 'capture.assign'
+    kind === 'capture.assign' ||
+    kind === 'tag.create' ||
+    kind === 'tag.update' ||
+    kind === 'tag.delete'
   );
+}
+
+/** The personal-scope key for a user's category-tag catalog. Must match the
+ *  client's `categoryTagsScope`; unlike captures (bare profile id) it is
+ *  suffixed, so the two personal scopes keep separate cursors. */
+function categoryTagsScope(profileId: string): string {
+  return `${profileId}:category_tags`;
 }
 
 interface MutationEnvelope {
@@ -140,7 +155,7 @@ const MAX_ROWS_PER_TABLE = 500;
 const EXPENSE_SELECT = `
   id, group_id, deleted_at, created_at, updated_seq,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
-    id, version_no, description, category, expense_date, currency, amount,
+    id, version_no, description, category, category_meta, expense_date, currency, amount,
     split_type, split_params, author_member_id, notes, payment_method, created_at,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
@@ -393,6 +408,11 @@ class SyncSession {
         return await this.deleteCapture(mutation);
       case 'capture.assign':
         return await this.assignCapture(mutation);
+      case 'tag.create':
+      case 'tag.update':
+        return await this.upsertTag(mutation);
+      case 'tag.delete':
+        return await this.deleteTag(mutation);
       case 'plan_item.create':
         return await this.rpcAsCaller('baaki_add_plan_item', {
           p_group_id: mutation.groupId,
@@ -475,6 +495,7 @@ class SyncSession {
       notes?: string | null;
       paymentMethod?: string | null;
       receiptShareUrl?: string | null;
+      categoryMeta?: { label: string; icon: string; tint: string } | null;
       receiptId?: string | null;
       baseVersionNo?: number;
     };
@@ -551,6 +572,9 @@ class SyncSession {
       p_fx: payload.fx ?? null,
       p_payment_method: payload.paymentMethod ?? null,
       p_receipt_share_url: payload.receiptShareUrl ?? null,
+      // Denormalised custom-tag display, so a member without the author's catalog
+      // still renders the tag (extends TDR §8). Null for a built-in category.
+      p_category_meta: sanitiseCategoryMeta(payload.categoryMeta),
     });
     if (error) throw error;
     return data;
@@ -612,6 +636,7 @@ class SyncSession {
       parsed?: Record<string, unknown> | null;
       paymentMethod?: string | null;
       targetGroupId?: string | null;
+      categoryMeta?: { label: string; icon: string; tint: string } | null;
     };
 
     const captureId = requireString(payload.captureId, 'captureId');
@@ -625,6 +650,7 @@ class SyncSession {
       owner_user_id: this.profileId,
       description: payload.description ?? '',
       category: payload.category ?? null,
+      category_meta: sanitiseCategoryMeta(payload.categoryMeta),
       expense_date: payload.expenseDate,
       currency: payload.currency.toUpperCase(),
       amount: amount.toString(),
@@ -661,6 +687,7 @@ class SyncSession {
       parsed: 'parsed',
       paymentMethod: 'payment_method',
       targetGroupId: 'target_group_id',
+      categoryMeta: 'category_meta',
     };
     const patch: Record<string, unknown> = {};
     for (const [key, column] of Object.entries(CAPTURE_FIELD_COLUMNS)) {
@@ -668,6 +695,9 @@ class SyncSession {
     }
     if (Object.prototype.hasOwnProperty.call(patch, 'payment_method')) {
       patch.payment_method = normalisePaymentMethod(patch.payment_method);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'category_meta')) {
+      patch.category_meta = sanitiseCategoryMeta(patch.category_meta);
     }
     if (typeof patch.amount === 'string') {
       const amount = parseMinor(patch.amount, 'amount');
@@ -721,6 +751,73 @@ class SyncSession {
     if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
     return { captureId, expenseId, groupId };
   }
+
+  // A tag's scope is suffixed (`<profileId>:category_tags`), so ownership is
+  // asserted against that, not the bare profile id captures uses. Ownership on
+  // the row itself is set from the authenticated identity, never the payload.
+  private requireTagScope(mutation: MutationEnvelope): void {
+    if (mutation.groupId !== categoryTagsScope(this.profileId)) {
+      throw new HttpError(403, 'NOT_OWNER', 'A tag may only be written under its own owner');
+    }
+  }
+
+  private async upsertTag(mutation: MutationEnvelope): Promise<unknown> {
+    this.requireTagScope(mutation);
+    const payload = mutation.payload as {
+      tagId?: string;
+      builtinId?: string | null;
+      label?: string | null;
+      icon?: string | null;
+      tint?: string | null;
+      sortOrder?: number;
+      hidden?: boolean;
+    };
+    const tagId = requireString(payload.tagId, 'tagId');
+    const builtinId = typeof payload.builtinId === 'string' ? payload.builtinId : null;
+    const label = typeof payload.label === 'string' ? payload.label.trim().slice(0, 40) : null;
+    // A custom tag (no builtinId) must carry a label; a built-in override never
+    // does — the DB check enforces this too, but reject early with a reason.
+    if (!builtinId && !label) {
+      throw new HttpError(400, 'VALIDATION_FAILED', 'A custom tag needs a label');
+    }
+    const icon = typeof payload.icon === 'string' ? payload.icon.trim().slice(0, 64) : null;
+    const tint =
+      typeof payload.tint === 'string' && TAG_TINTS.has(payload.tint) ? payload.tint : null;
+    // Upsert by id, so a create and its later edits are the same row and a replay
+    // is harmless. owner_user_id comes from the identity, never the payload.
+    const { error } = await this.caller.from('category_tags').upsert(
+      {
+        id: tagId,
+        owner_user_id: this.profileId,
+        builtin_id: builtinId,
+        label,
+        icon,
+        tint,
+        sort_order: Number.isFinite(payload.sortOrder)
+          ? Math.trunc(payload.sortOrder as number)
+          : 0,
+        hidden: payload.hidden === true,
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' },
+    );
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { tagId };
+  }
+
+  private async deleteTag(mutation: MutationEnvelope): Promise<unknown> {
+    this.requireTagScope(mutation);
+    const tagId = requireString(mutation.payload.tagId, 'tagId');
+    // Soft delete, so the removal reaches the owner's other devices through the
+    // cursor rather than vanishing from only one.
+    const { error } = await this.caller
+      .from('category_tags')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', tagId);
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { tagId };
+  }
 }
 
 /**
@@ -754,6 +851,12 @@ async function pull(
   // in @waves/core; inlined to keep the edge bundle free of that import.
   const gmScope = `${profileId}:ghost_merges`;
   groupIds.delete(gmScope);
+
+  // The category-tag catalog (extends TDR §8) rides a third personal scope, its
+  // own suffixed key so it shares a cursor with neither captures nor ghost
+  // merges. Must equal `categoryTagsScope(profileId)` in @waves/core.
+  const tagScope = `${profileId}:category_tags`;
+  groupIds.delete(tagScope);
 
   for (const groupId of groupIds) {
     const since = cursors[groupId] ?? 0;
@@ -861,6 +964,28 @@ async function pull(
   }
   nextCursors[gmScope] = gmHighWater;
 
+  // Personal scope (extends TDR §8): the caller's own category-tag catalog, its
+  // own suffixed cursor. Read as the caller so owner-only RLS guarantees they
+  // are theirs, exactly like captures above.
+  const tagSince = cursors[tagScope] ?? 0;
+  const { data: tags, error: tagsError } = await caller
+    .from('category_tags')
+    .select('*')
+    .eq('owner_user_id', profileId)
+    .gt('updated_seq', tagSince)
+    .order('updated_seq', { ascending: true })
+    .limit(MAX_ROWS_PER_TABLE);
+  if (tagsError) throw new HttpError(500, 'PULL_FAILED', `category_tags: ${tagsError.message}`);
+
+  let tagsHighWater = tagSince;
+  for (const row of tags ?? []) {
+    const record = row as Record<string, unknown>;
+    const seq = Number(record.updated_seq ?? 0);
+    changes.push({ table: 'category_tags', groupId: tagScope, seq, row: record });
+    if (seq > tagsHighWater) tagsHighWater = seq;
+  }
+  nextCursors[tagScope] = tagsHighWater;
+
   return { changes, cursors: nextCursors };
 }
 
@@ -880,6 +1005,28 @@ function requireString(value: unknown, field: string): string {
 const PAYMENT_METHODS = new Set(['cash', 'credit', 'debit', 'forex']);
 function normalisePaymentMethod(value: unknown): string | null {
   return typeof value === 'string' && PAYMENT_METHODS.has(value) ? value : null;
+}
+
+/** The six design-system tints a custom tag may carry (kept in step with the
+ *  client's `TINTS`); anything else is coerced to a safe default. */
+const TAG_TINTS = new Set(['lilac', 'pink', 'mint', 'peach', 'sky', 'coral']);
+
+/**
+ * Validate the denormalised custom-tag display before it lands on a ledger row.
+ * Anything not a proper {label, icon, tint} object becomes null (a built-in),
+ * and an unknown tint is coerced rather than trusted — the payload is client
+ * text, and this snapshot is shown to every group member.
+ */
+function sanitiseCategoryMeta(
+  value: unknown,
+): { label: string; icon: string; tint: string } | null {
+  if (!value || typeof value !== 'object') return null;
+  const meta = value as Record<string, unknown>;
+  const label = typeof meta.label === 'string' ? meta.label.trim() : '';
+  const icon = typeof meta.icon === 'string' ? meta.icon.trim() : '';
+  if (!label || !icon) return null;
+  const tint = typeof meta.tint === 'string' && TAG_TINTS.has(meta.tint) ? meta.tint : 'sky';
+  return { label: label.slice(0, 40), icon: icon.slice(0, 64), tint };
 }
 
 /** Turn a thrown error into the vocabulary the client's queue understands. */

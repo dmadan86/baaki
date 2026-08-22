@@ -23,7 +23,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { categoryOf, format, type CategoryId } from '@waves/core';
+import { format, resolveCategory, type CategoryId, type CategoryMeta } from '@waves/core';
 import {
   BarList,
   Card,
@@ -200,20 +200,28 @@ function CurrencySection({
 
   const categories: BarDatum[] = useMemo(() => {
     const totals = new Map<string, bigint>();
+    // A custom tag's display travels on its rows; keep the first seen so its bar
+    // shows the tag rather than folding into "Other".
+    const metaByCategory = new Map<string, CategoryMeta | null>();
     for (const row of rows) {
       totals.set(row.category, (totals.get(row.category) ?? 0n) + BigInt(row.share_amount));
+      if (!metaByCategory.has(row.category)) {
+        metaByCategory.set(row.category, row.category_meta ?? null);
+      }
     }
     return [...totals]
       .sort((a, b) => (b[1] === a[1] ? a[0].localeCompare(b[0]) : b[1] > a[1] ? 1 : -1))
       .map(([id, value]) => {
-        const category = categoryOf(id);
+        const meta = metaByCategory.get(id) ?? null;
+        const resolved = resolveCategory(id, meta);
         return {
           key: id,
-          label: labels[category.id],
+          // A custom tag names itself; a built-in is named through the table.
+          label: resolved.custom ? resolved.label : labels[resolved.builtinId ?? 'other'],
           value,
           formatted: format({ minor: value, currency }, { locale, compactFraction: true }),
-          tint: category.tint,
-          leading: <CategoryBadge category={id} size={26} />,
+          tint: resolved.tint,
+          leading: <CategoryBadge category={id} meta={meta} size={26} />,
         };
       });
   }, [rows, labels, locale, currency]);

@@ -13,9 +13,11 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 
 import {
+  categoryTagsScope,
   emptyMirror,
   enqueue,
   materialiseCaptures,
+  materialiseCategoryTags,
   materialiseGroups,
   materialiseMemberBudgets,
   materialiseMembers,
@@ -773,5 +775,87 @@ describe('overall trip budget rides the group row', () => {
     const [row] = materialiseGroups(withBudget, queued(clear));
     expect(row?.budget_minor).toBeNull();
     expect(row?.budget_currency).toBeNull();
+  });
+});
+
+describe('category tags', () => {
+  const OWNER = 'user-1';
+  const SCOPE = categoryTagsScope(OWNER);
+
+  it('surfaces a tag created offline, before it has synced', () => {
+    const create = envelope(
+      'm-1',
+      MutationKind.TagCreate,
+      {
+        tagId: 't1',
+        label: 'Client dinner',
+        icon: 'briefcase-outline',
+        tint: 'mint',
+        sortOrder: 100,
+        hidden: false,
+      },
+      SCOPE,
+    );
+    const rows = materialiseCategoryTags(emptyMirror(), queued(create), { ownerId: OWNER });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: 't1', label: 'Client dinner', tint: 'mint' });
+  });
+
+  it('applies an edit on top of the server row', () => {
+    const mirror = reconcile(emptyMirror(), [
+      {
+        table: SyncTable.CategoryTags,
+        groupId: SCOPE,
+        seq: 1,
+        row: {
+          id: 't1',
+          owner_user_id: OWNER,
+          builtin_id: null,
+          label: 'Old',
+          icon: 'star',
+          tint: 'sky',
+          sort_order: 100,
+          hidden: false,
+          deleted_at: null,
+        },
+      } as SyncChange,
+    ]).state;
+    const edit = envelope(
+      'm-2',
+      MutationKind.TagUpdate,
+      { tagId: 't1', label: 'New', icon: 'star', tint: 'coral', sortOrder: 100, hidden: false },
+      SCOPE,
+    );
+    const [row] = materialiseCategoryTags(mirror, queued(edit), { ownerId: OWNER });
+    expect(row).toMatchObject({ label: 'New', tint: 'coral' });
+  });
+
+  it('drops a soft-deleted tag from the catalog', () => {
+    const create = envelope(
+      'm-1',
+      MutationKind.TagCreate,
+      { tagId: 't1', label: 'Temp', icon: 'star', tint: 'sky', sortOrder: 100, hidden: false },
+      SCOPE,
+    );
+    const del = envelope('m-2', MutationKind.TagDelete, { tagId: 't1' }, SCOPE);
+    const rows = materialiseCategoryTags(emptyMirror(), queued(create, del), { ownerId: OWNER });
+    expect(rows).toHaveLength(0);
+  });
+
+  it('never shows another owner rows', () => {
+    const mine = envelope(
+      'm-1',
+      MutationKind.TagCreate,
+      { tagId: 't1', label: 'Mine', icon: 'star', tint: 'sky', sortOrder: 100, hidden: false },
+      SCOPE,
+    );
+    const theirs = envelope(
+      'm-2',
+      MutationKind.TagCreate,
+      { tagId: 't2', label: 'Theirs', icon: 'star', tint: 'sky', sortOrder: 100, hidden: false },
+      categoryTagsScope('user-2'),
+    );
+    const rows = materialiseCategoryTags(emptyMirror(), queued(mine, theirs), { ownerId: OWNER });
+    expect(rows.map((r) => r.id)).toEqual(['t1']);
   });
 });

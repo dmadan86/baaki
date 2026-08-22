@@ -21,6 +21,8 @@
  * and correct: it is money the group has spent.
  */
 
+import type { CategoryMeta } from '@waves/core';
+
 import type { SpendingRow } from './api';
 import type { ExpenseRow } from './types';
 
@@ -44,6 +46,9 @@ interface Bucket {
   member_id: string;
   currency: string;
   category: string;
+  /** A custom tag's snapshot, so insights labels the bar with the tag rather
+   *  than folding it into "Other" (extends TDR §8). Null for a built-in. */
+  categoryMeta: CategoryMeta | null;
   month: string;
   amount: bigint;
   expenseIds: Set<string>;
@@ -70,6 +75,7 @@ export function computeSpendingRows(expenses: readonly ExpenseRow[]): SpendingRo
 
     const currency = version.currency;
     const category = normaliseCategory(version.category);
+    const categoryMeta = version.category_meta ?? null;
     const month = firstOfMonth(version.expense_date);
 
     for (const share of version.shares) {
@@ -80,6 +86,7 @@ export function computeSpendingRows(expenses: readonly ExpenseRow[]): SpendingRo
           member_id: share.member_id,
           currency,
           category,
+          categoryMeta,
           month,
           amount: 0n,
           expenseIds: new Set(),
@@ -95,6 +102,7 @@ export function computeSpendingRows(expenses: readonly ExpenseRow[]): SpendingRo
     member_id: bucket.member_id,
     currency: bucket.currency,
     category: bucket.category,
+    category_meta: bucket.categoryMeta,
     month: bucket.month,
     // BIGINT is a string across the wire; keep the same so callers `BigInt(...)`
     // it exactly as they do the RPC's rows.

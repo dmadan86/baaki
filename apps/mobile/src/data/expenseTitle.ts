@@ -28,6 +28,9 @@ export function expenseTitle(
   description: string | null | undefined,
   category: string | null | undefined,
   t: TitleStrings,
+  /** The custom tag's snapshot, when the category is a user tag (extends TDR §8);
+   *  its label names the expense, since `t.categories` only knows the built-ins. */
+  meta?: { label: string } | null,
 ): string {
   // `?? ''` is not enough: the column is NOT NULL, so "no description" arrives
   // as an empty string far more often than as null, and whitespace is what a
@@ -35,6 +38,7 @@ export function expenseTitle(
   const said = (description ?? '').trim();
   if (said !== '') return said;
 
-  const label = category ? t.categories[category] : undefined;
+  // A custom tag names itself; a built-in is named through the string table.
+  const label = meta?.label ?? (category ? t.categories[category] : undefined);
   return label ?? t.expense.untitled;
 }
