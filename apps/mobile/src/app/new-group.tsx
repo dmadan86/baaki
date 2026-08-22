@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
@@ -35,12 +35,12 @@ import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { requestContacts } from '@/lib/contactPickerBridge';
-import { useCreateGroup } from '@/data/hooks';
+import { useCreateGroup, useGroup } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
-import { GroupType } from '@/data/types';
+import { displayName, GroupType } from '@/data/types';
 import { deviceCountry, fill, useStrings } from '@/i18n';
 
 /**
@@ -216,6 +216,16 @@ export default function NewGroupScreen() {
   const guard = useGuestGuard();
   const { mutate } = useSync();
 
+  // Cloning: `?from=<groupId>` opens this screen filled from an existing group.
+  // The source is read straight from the local mirror (synchronous once
+  // hydrated), so nothing here waits on the network — the seed lands as soon as
+  // the group is on disk. Everything seeded stays editable, and the people are
+  // seeded into the same removable chip list a fresh group uses, which is what
+  // lets you drop someone before the group is made.
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const cloning = Boolean(from);
+  const source = useGroup(from ?? '');
+
   const [name, setName] = useState('');
   // The group cover is an emoji icon, chosen by tapping the avatar. Photos are
   // a paid feature edited from group settings, not part of creating one.
@@ -249,6 +259,65 @@ export default function NewGroupScreen() {
     remind_morning_at: '09:00:00',
     remind_evening_at: '20:00:00',
   }));
+  // The source group's photo, carried onto the clone. A photo is a paid feature,
+  // so the server's photo-gate is what decides whether it survives on the new
+  // group — this only copies the reference; it never grants the perk.
+  const [clonePhotoPath, setClonePhotoPath] = useState<string | null>(null);
+
+  // Fill the form from the source group, once, the first render it is readable.
+  const seeded = useRef(false);
+  const sourceGroup = source.group.data;
+  const sourceMembers = source.members.data;
+  useEffect(() => {
+    if (!cloning || seeded.current || !sourceGroup) return;
+    seeded.current = true;
+    const group = sourceGroup;
+    const members = sourceMembers ?? [];
+    let budgetMinor: bigint | null = null;
+    if (group.budget_minor) {
+      try {
+        budgetMinor = BigInt(group.budget_minor);
+      } catch {
+        // A budget that will not parse is simply left unset.
+      }
+    }
+    // The people become the same removable chips a fresh group builds up — minus
+    // whoever is making the clone (they are the new group's creator) and anyone
+    // who had left. Each carries whatever address the source row held, so the
+    // ones already on Waves can be tapped on their shoulder when re-added.
+    const seededGhosts: PickedContact[] = members
+      .filter((member) => !member.left_at)
+      .filter((member) => !(member.profile_id && member.profile_id === profile?.id))
+      .map((member) => ({
+        name: displayName(member, profile?.id),
+        email: member.invite_email ?? null,
+        phone: member.invite_phone ?? null,
+      }));
+    // Applied off the effect body, in a microtask: this is a one-time hydrate
+    // from the local mirror, and putting the writes in a callback keeps the
+    // React Compiler's no-synchronous-setState-in-effect rule satisfied (the
+    // same shape GroupPhoto's signed-URL fetch uses).
+    void Promise.resolve().then(() => {
+      setName(group.name ? fill(t.clone.copyOf, { name: group.name }) : '');
+      setType(group.type);
+      setPickedEmoji(group.cover_emoji ?? null);
+      setClonePhotoPath(group.photo_path ?? null);
+      setSimplify(group.simplify_debts);
+      if (budgetMinor !== null) setBudget(budgetMinor);
+      if (group.start_date && group.end_date) {
+        setTripDates((current) => ({
+          ...current,
+          start_date: group.start_date,
+          end_date: group.end_date,
+          time_zone: group.time_zone ?? current.time_zone,
+          remind_daily: group.remind_daily ?? current.remind_daily,
+          remind_morning_at: group.remind_morning_at ?? current.remind_morning_at,
+          remind_evening_at: group.remind_evening_at ?? current.remind_evening_at,
+        }));
+      }
+      setGhosts(seededGhosts);
+    });
+  }, [cloning, sourceGroup, sourceMembers, profile?.id, t]);
 
   // The icon is a reading of the name, unless somebody has chosen one; it
   // changes under the caret as they type "Goa" and again if they change the
@@ -317,6 +386,9 @@ export default function NewGroupScreen() {
         country,
         currency,
         emoji,
+        // Carried from the source when cloning; null on a fresh group. The
+        // server photo-gate still rules whether it sticks (paid-only).
+        photoPath: clonePhotoPath,
         simplify: effectiveSimplify,
       });
 
@@ -418,7 +490,7 @@ export default function NewGroupScreen() {
             <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.newGroup}</Text>
+            <Text variant="heading">{cloning ? t.clone.duplicateTitle : t.newGroup}</Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
@@ -433,7 +505,7 @@ export default function NewGroupScreen() {
               onPress={() => setIconOpen(true)}
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
-              <GroupPhoto photoPath={null} emoji={emoji} size={44} />
+              <GroupPhoto photoPath={clonePhotoPath} emoji={emoji} size={44} />
             </Pressable>
             <TextInput
               value={name}
@@ -463,6 +535,36 @@ export default function NewGroupScreen() {
             ) : null}
           </Row>
         </Card>
+
+        {/* Seed the whole form from a group you already have. Hidden once you
+            are already cloning — you are past the choosing. */}
+        {!cloning ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.clone.startFromExisting}
+            onPress={() => router.push('/clone-group')}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Card style={{ paddingVertical: theme.spacing.md }}>
+              <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                <IconTile tint="lilac" icon="copy-outline" />
+                <View style={{ flex: 1 }}>
+                  <Text variant="subheading" style={{ fontWeight: '600' }}>
+                    {t.clone.startFromExisting}
+                  </Text>
+                  <Text variant="caption" tone="muted">
+                    {t.clone.startFromExistingHint}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={iconSize.base}
+                  color={theme.color.textFaint}
+                />
+              </Row>
+            </Card>
+          </Pressable>
+        ) : null}
 
         {/* Controlled by the avatar tap above — no trigger of its own. */}
         <CoverEmojiPicker

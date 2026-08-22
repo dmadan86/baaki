@@ -53,6 +53,12 @@ export enum NotificationKind {
   GhostClaimRequested = 'ghost_claim_requested',
   GhostClaimApproved = 'ghost_claim_approved',
   GhostClaimDeclined = 'ghost_claim_declined',
+  /**
+   * Somebody added you to a group by your email or number, and you already
+   * have an account (the clone flow's "notify the people who are on Waves").
+   * A tap, not a claim request: you are already in.
+   */
+  GroupAdded = 'group_added',
 }
 
 /**
@@ -168,6 +174,10 @@ const en: CopyStrings = {
       title: 'Not confirmed',
       body: '{group} did not confirm that place. You can still join as yourself.',
     },
+    [NotificationKind.GroupAdded]: {
+      title: '{actor} added you to {group}',
+      body: 'Tap to open the group',
+    },
   },
   email: {
     confirmAction: 'Confirm you received it',
@@ -260,6 +270,10 @@ const ta: CopyStrings = {
       title: 'உறுதி செய்யப்படவில்லை',
       body: '{group} அந்த இடத்தை உறுதி செய்யவில்லை. நீங்களாகவே சேரலாம்.',
     },
+    [NotificationKind.GroupAdded]: {
+      title: '{actor} உங்களை {group} இல் சேர்த்தார்',
+      body: 'குழுவைத் திறக்கத் தட்டவும்',
+    },
   },
   email: {
     confirmAction: 'கிடைத்தது என உறுதிப்படுத்தவும்',
@@ -349,6 +363,10 @@ const hi: CopyStrings = {
       title: 'पुष्टि नहीं हुई',
       body: '{group} ने वह जगह पक्की नहीं की। आप अपने नाम से शामिल हो सकते हैं।',
     },
+    [NotificationKind.GroupAdded]: {
+      title: '{actor} ने आपको {group} में जोड़ा',
+      body: 'ग्रुप खोलने के लिए टैप करें',
+    },
   },
   email: {
     confirmAction: 'मिलने की पुष्टि करें',
@@ -437,6 +455,10 @@ const ar: CopyStrings = {
     [NotificationKind.GhostClaimDeclined]: {
       title: 'لم يتم التأكيد',
       body: 'لم تؤكّد {group} ذلك المكان. ما زال بإمكانك الانضمام باسمك.',
+    },
+    [NotificationKind.GroupAdded]: {
+      title: 'أضافك {actor} إلى {group}',
+      body: 'اضغط لفتح المجموعة',
     },
   },
   email: {
