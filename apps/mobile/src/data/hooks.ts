@@ -78,6 +78,8 @@ import {
 import { totalsByCurrency } from './totals';
 import { SettlementStatus } from './types';
 import type {
+  ActivityActor,
+  ActivityGroup,
   ActivityRow,
   CaptureRow,
   ExpenseRow,
@@ -443,6 +445,56 @@ export function usePendingAware(groupId: string, expenses: ExpenseRow[]): Expens
       }) as unknown as ExpenseRow[],
     [expenses, queue, groupId],
   );
+}
+
+export type RecentActivityRow = ActivityRow & { group: ActivityGroup | null };
+
+/**
+ * The recent-activity feed, entirely from the mirror — offline-first (ADR-005).
+ *
+ * `activity_log` is already pulled into the mirror per group, so the global feed
+ * is a read over what is on the phone rather than a network call: it shows the
+ * moment the app opens, works with no connection, and never empties because a
+ * request failed. The rows are stored raw (no embeds), so the group and the
+ * actor are joined back on from the mirrored `groups` and `group_members` — a
+ * member row carries its own `profile.display_name`, so a name needs no fetch.
+ *
+ * Newest-first across every group the phone knows about; the screen paginates
+ * this local list rather than asking the server for the next page.
+ */
+export function useRecentActivity(): RecentActivityRow[] {
+  const { mirror } = useSync();
+  return useMemo(() => {
+    const groups = new Map<string, ActivityGroup>();
+    for (const row of rowsFor(mirror, SyncTable.Groups)) {
+      const g = row as unknown as { id: string; name: string | null; cover_emoji: string | null };
+      groups.set(g.id, { id: g.id, name: g.name, cover_emoji: g.cover_emoji });
+    }
+
+    const actors = new Map<string, ActivityActor>();
+    for (const row of rowsFor(mirror, SyncTable.GroupMembers)) {
+      const m = row as unknown as {
+        id: string;
+        profile_id: string | null;
+        ghost_name: string | null;
+        profile?: { display_name: string | null } | null;
+      };
+      actors.set(m.id, {
+        id: m.id,
+        profile_id: m.profile_id,
+        ghost_name: m.ghost_name,
+        profile: m.profile ? { display_name: m.profile.display_name } : null,
+      });
+    }
+
+    return (rowsFor(mirror, SyncTable.ActivityLog) as unknown as ActivityRow[])
+      .map((row) => ({
+        ...row,
+        group: groups.get(row.group_id) ?? null,
+        actor: row.actor_member_id ? (actors.get(row.actor_member_id) ?? null) : null,
+      }))
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  }, [mirror]);
 }
 
 /**
