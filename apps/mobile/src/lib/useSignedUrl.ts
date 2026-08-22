@@ -40,11 +40,18 @@ export function useSignedUrl(
     if (!path) return;
     let active = true;
     let lastMintAt = 0;
+    // mint() fires from three places — the initial call, the timer and the
+    // foreground listener — so several can be in flight at once. A slower older
+    // request must not resolve after a newer one and overwrite the fresh URL
+    // (or push `lastMintAt` forward), so each mint takes a ticket and only the
+    // latest one is allowed to apply its result.
+    let latest = 0;
 
     const mint = (): void => {
+      const ticket = (latest += 1);
       void resolve(path)
         .then((url) => {
-          if (!active) return;
+          if (!active || ticket !== latest) return;
           // Advance the clock only on a real URL, so a failed mint (a null from
           // the resolver, or a rejection) leaves `lastMintAt` where it was —
           // then the next foreground retries at once instead of the broken image
@@ -53,7 +60,7 @@ export function useSignedUrl(
           setResolved({ key: path, url });
         })
         .catch(() => {
-          if (active) setResolved({ key: path, url: null });
+          if (active && ticket === latest) setResolved({ key: path, url: null });
         });
     };
 
