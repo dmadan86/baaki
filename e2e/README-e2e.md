@@ -57,14 +57,19 @@ export E2E_EMAIL="e2e@waves.test"
 export E2E_PASSWORD="<password>"
 node e2e/seed-e2e.mjs
 
-# 2. Build + install the app against the same project (see apps/mobile), then:
-maestro test --env E2E_EMAIL="$E2E_EMAIL" --env E2E_PASSWORD="$E2E_PASSWORD" \
-  e2e/home-to-add-expense.yaml e2e/clone-group.yaml \
-  e2e/group-photo-paid-gate.yaml e2e/friends-merge-guests.yaml e2e/leave-group.yaml
+# 2. Build + install the app against the same project (see apps/mobile). Then run
+#    each flow on its own, reseeding first, because the flows mutate the backend:
+for flow in home-to-add-expense edit-expense delete-restore-expense \
+            rename-archive-group sign-out-privacy clone-group \
+            group-photo-paid-gate friends-merge-guests leave-group; do
+  node e2e/seed-e2e.mjs
+  maestro test --env E2E_EMAIL="$E2E_EMAIL" --env E2E_PASSWORD="$E2E_PASSWORD" "e2e/$flow.yaml"
+done
 ```
 
-`login.yaml` is a sub-flow (`runFlow`) — run the five flows explicitly rather
-than `maestro test e2e/`, so it is not executed on its own.
+`login.yaml` is a sub-flow (`runFlow`) — run the flows explicitly (one per
+invocation) rather than `maestro test e2e/`, so it is not executed on its own.
+In CI this loop lives in `e2e/run-maestro.sh`.
 
 ## The flows
 

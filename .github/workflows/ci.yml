@@ -256,30 +256,10 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            curl -Ls "https://get.maestro.mobile.dev" | bash
-            export PATH="$PATH:$HOME/.maestro/bin"
-            adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
-            # Each flow mutates the shared staging backend (archive, leave,
-            # rename, delete), so reseed the deterministic fixture before every
-            # flow for isolation. The seed is idempotent (reset + rebuild), and
-            # each flow's login.yaml does clearState, so no state leaks across.
-            # Run flows one at a time (not `maestro test e2e/`) so the login.yaml
-            # sub-flow is never executed standalone.
-            status=0
-            for flow in \
-              home-to-add-expense edit-expense delete-restore-expense \
-              rename-archive-group sign-out-privacy clone-group \
-              group-photo-paid-gate friends-merge-guests leave-group; do
-              echo "::group::seed + $flow"
-              node e2e/seed-e2e.mjs
-              maestro test \
-                --env E2E_EMAIL="$E2E_EMAIL" \
-                --env E2E_PASSWORD="$E2E_PASSWORD" \
-                "e2e/$flow.yaml" || status=1
-              echo "::endgroup::"
-            done
-            exit $status
+          # A single line: android-emulator-runner parses `script` line-by-line,
+          # so the loop + reseed logic lives in a committed shell script that
+          # runs as one command. See e2e/run-maestro.sh.
+          script: bash e2e/run-maestro.sh
       - name: Upload Maestro report
         if: always()
         uses: actions/upload-artifact@v4
