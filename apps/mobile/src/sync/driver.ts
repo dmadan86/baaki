@@ -13,6 +13,7 @@ import * as SQLite from 'expo-sqlite';
 
 import type { MirrorRow, QueuedMutation, SyncTable } from '@waves/core';
 
+import { mapYielding } from './hydrateChunk';
 import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';
 
@@ -123,7 +124,11 @@ class SqliteStore implements LocalStore {
         seq: number;
         json: string;
       }>(`SELECT table_name, id, group_id, seq, json FROM mirror_rows`);
-      return rows.map((row) => ({
+      // Parse in chunks that yield to the event loop between them. This read is
+      // the cold-start hydration path (see `hydrateChunk`): a heavy account's
+      // whole mirror is `JSON.parse`d here before `hydrated` flips, and doing it
+      // in one synchronous burst froze the loading skeleton and the first frame.
+      return mapYielding(rows, (row) => ({
         table: row.table_name as SyncTable,
         id: row.id,
         groupId: row.group_id,
