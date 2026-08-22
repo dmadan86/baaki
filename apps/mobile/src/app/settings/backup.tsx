@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -25,7 +26,6 @@ import {
   Callout,
   Card,
   directionalIcon,
-  Divider,
   IconButton,
   iconSize,
   Row,
@@ -126,23 +126,35 @@ export default function BackupSettingsScreen() {
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.backup.title}</Text>
+            <Text variant="caption" tone="muted" align="center">
+              {t.backup.subtitle}
+            </Text>
           </View>
           <View style={{ width: 44 }} />
         </Row>
 
-        <Text variant="caption" tone="muted">
-          {t.backup.primaryBody}
-        </Text>
-
         <View>
           <SectionHeader title={t.backup.primaryTitle} />
-          <Card style={{ gap: theme.spacing.md }}>
+          {/* The privacy promise, sitting with the choice it explains. */}
+          <Text variant="caption" tone="muted" style={{ marginBottom: theme.spacing.md }}>
+            {t.backup.primaryBody}
+          </Text>
+          <Card padded={false} style={{ padding: theme.spacing.sm, gap: theme.spacing.xs }}>
             {/* "Off" — receipts stay on the device only. */}
-            <SelectRow
-              label={t.backup.off}
-              selected={backup.primary === null}
-              onPress={() => void backup.setPrimary(null)}
-            />
+            <OptionRow selected={backup.primary === null}>
+              <SelectRow
+                leading={
+                  <Ionicons
+                    name="phone-portrait-outline"
+                    size={iconSize.lg}
+                    color={theme.color.textMuted}
+                  />
+                }
+                label={t.backup.off}
+                selected={backup.primary === null}
+                onPress={() => void backup.setPrimary(null)}
+              />
+            </OptionRow>
 
             {providers.map((provider) => {
               const configured = provider.isConfigured();
@@ -154,8 +166,7 @@ export default function BackupSettingsScreen() {
               const isWaves = provider.id === 'waves';
               const lockedForFree = isWaves && paid === false;
               return (
-                <View key={provider.id} style={{ gap: theme.spacing.md }}>
-                  <Divider />
+                <OptionRow key={provider.id} selected={isPrimary}>
                   <Row
                     style={{
                       justifyContent: 'space-between',
@@ -164,6 +175,13 @@ export default function BackupSettingsScreen() {
                     }}
                   >
                     <SelectRow
+                      leading={
+                        <Ionicons
+                          name={isWaves ? 'cloud' : 'cloud-outline'}
+                          size={iconSize.lg}
+                          color={isWaves ? theme.color.brand : theme.color.textMuted}
+                        />
+                      }
                       label={provider.label}
                       // Only a connected provider can be the destination.
                       selected={isPrimary}
@@ -202,7 +220,7 @@ export default function BackupSettingsScreen() {
                       />
                     )}
                   </Row>
-                </View>
+                </OptionRow>
               );
             })}
           </Card>
@@ -212,21 +230,30 @@ export default function BackupSettingsScreen() {
         {/* Only worth choosing a network policy once something will actually be
             uploaded. */}
         {backup.primary ? (
-          <View style={{ gap: theme.spacing.md }}>
+          <View>
             <SectionHeader title={t.backup.networkTitle} />
-            <SegmentedTabs<BackupNetworkPolicy>
-              value={backup.policy}
-              onChange={(value) => void backup.setPolicy(value)}
-              tabs={[
-                { value: 'wifi', label: t.backup.wifiOnly },
-                { value: 'any', label: t.backup.wifiAndData },
-              ]}
-            />
-            <Text variant="caption" tone="muted">
-              {backup.pending > 0
-                ? plural(locale, backup.pending, t.backup.pending)
-                : t.backup.allBackedUp}
-            </Text>
+            <Card style={{ gap: theme.spacing.md }}>
+              <SegmentedTabs<BackupNetworkPolicy>
+                value={backup.policy}
+                onChange={(value) => void backup.setPolicy(value)}
+                tabs={[
+                  { value: 'wifi', label: t.backup.wifiOnly },
+                  { value: 'any', label: t.backup.wifiAndData },
+                ]}
+              />
+              <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                <Ionicons
+                  name={backup.pending > 0 ? 'cloud-upload-outline' : 'checkmark-circle'}
+                  size={iconSize.md}
+                  color={backup.pending > 0 ? theme.color.textMuted : theme.color.positive}
+                />
+                <Text variant="caption" tone="muted" style={{ flex: 1 }}>
+                  {backup.pending > 0
+                    ? plural(locale, backup.pending, t.backup.pending)
+                    : t.backup.allBackedUp}
+                </Text>
+              </Row>
+            </Card>
           </View>
         ) : null}
 
@@ -234,7 +261,7 @@ export default function BackupSettingsScreen() {
             and its fix, and offer one button to try again — the photos are safe
             in the device vault throughout, so this is a nudge, never a loss. */}
         {backup.errored > 0 ? (
-          <Card style={{ gap: theme.spacing.sm }}>
+          <Card style={{ gap: theme.spacing.sm, backgroundColor: theme.color.warningSoft }}>
             <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
               <Ionicons
                 name="alert-circle-outline"
@@ -274,18 +301,41 @@ export default function BackupSettingsScreen() {
   );
 }
 
+/**
+ * The inset frame around one destination option. The chosen destination wears a
+ * soft brand wash so the current answer to "where do receipts go" is legible at
+ * a glance, the way an iOS picker marks its selected row.
+ */
+function OptionRow({ selected, children }: { selected: boolean; children: ReactNode }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        borderRadius: theme.radius.md,
+        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
+        backgroundColor: selected ? theme.color.brandSoft : 'transparent',
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
 /** A radio-style selectable line: a mark, a label, and an optional status word. */
 function SelectRow({
   label,
   selected,
   disabled = false,
   status,
+  leading,
   onPress,
 }: {
   label: string;
   selected: boolean;
   disabled?: boolean;
   status?: string;
+  leading?: ReactNode;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -308,6 +358,7 @@ function SelectRow({
         size={iconSize.xl}
         color={selected ? theme.color.brand : theme.color.textFaint}
       />
+      {leading}
       <View style={{ flex: 1 }}>
         <Text variant="subheading">{label}</Text>
         {status ? (
