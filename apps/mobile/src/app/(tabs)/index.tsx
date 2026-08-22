@@ -419,16 +419,16 @@ function AddAction({
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
-  /** An optional count on the circle — e.g. how many captures are waiting. */
+  /** An optional count on the glyph — e.g. how many captures are waiting. */
   badge?: number;
   /** Keep the button in place but dim and unpressable — e.g. an empty inbox. */
   disabled?: boolean;
-  /** When set, the round icon (only) is a tour target, so a coach-mark's hole
-      hugs the circle rather than the circle plus its caption. */
+  /** When set, the glyph (only) is a tour target, so a coach-mark's hole hugs
+      the icon rather than the icon plus its caption. */
   tourId?: string;
 }) {
   const theme = useTheme();
-  const circle = (
+  const iconTarget = (
     <View
       style={{
         width: 48,
@@ -480,7 +480,7 @@ function AddAction({
         opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
       })}
     >
-      {tourId ? <TourTarget id={tourId}>{circle}</TourTarget> : circle}
+      {tourId ? <TourTarget id={tourId}>{iconTarget}</TourTarget> : iconTarget}
       <Text variant="caption" tone="muted" numberOfLines={1} style={{ textAlign: 'center' }}>
         {label}
       </Text>
