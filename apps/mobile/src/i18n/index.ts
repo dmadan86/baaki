@@ -841,6 +841,7 @@ export interface UiStrings {
   /** The dashboard hero carousel's action slides — the promo-style cards that
       sit in the swipe deck after the balance (scan a receipt, add a person). */
   dashHero: {
+    updating: string;
     scanTitle: string;
     scanBody: string;
     scanCta: string;
@@ -2323,6 +2324,7 @@ const en: UiStrings = {
     group: 'Group',
   },
   dashHero: {
+    updating: 'Updating…',
     scanTitle: 'Snap a receipt',
     scanBody: 'Scan a bill and the items fill themselves in — split it in seconds.',
     scanCta: 'Scan',
@@ -3885,6 +3887,7 @@ const ta: UiStrings = {
     group: 'குழு',
   },
   dashHero: {
+    updating: 'புதுப்பிக்கிறது…',
     scanTitle: 'ரசீதைப் படம் எடுங்கள்',
     scanBody: 'பில்லை ஸ்கேன் செய்தால் பொருட்கள் தானாக நிரம்பும் — நொடிகளில் பங்கிடுங்கள்.',
     scanCta: 'ஸ்கேன்',
@@ -5463,6 +5466,7 @@ const hi: UiStrings = {
     group: 'समूह',
   },
   dashHero: {
+    updating: 'अपडेट हो रहा है…',
     scanTitle: 'रसीद स्कैन करें',
     scanBody: 'बिल स्कैन करें और आइटम अपने आप भर जाते हैं — कुछ ही पलों में बाँटें.',
     scanCta: 'स्कैन',
@@ -7034,6 +7038,7 @@ const ar: UiStrings = {
     group: 'مجموعة',
   },
   dashHero: {
+    updating: 'يُحدَّث…',
     scanTitle: 'صوّر الإيصال',
     scanBody: 'امسح الفاتورة وتُملأ البنود تلقائيًا — قسّمها في ثوانٍ.',
     scanCta: 'مسح',

@@ -271,6 +271,12 @@ const syncBatch = (): fc.Arbitrary<SyncChange[]> =>
       fc.record({
         table: fc.constantFrom(SyncTable.TripPlanItems, SyncTable.Settlements),
         groupId: fc.constantFrom(GROUP, OTHER),
+        // The bare row number; the group is prefixed below so the id is unique
+        // across groups. Production ids are UUIDs (globally unique), so a `row-5`
+        // in one group and a `row-5` in another cannot be the same row — and the
+        // mirror stores a table's rows by id, so letting the fuzzer collide two
+        // groups on one id models a state the protocol never produces and makes
+        // the order-independence assertion spuriously order-dependent.
         id: fc.integer({ min: 0, max: 200 }).map((n) => `row-${n}`),
         // A random positive step, accumulated per group below, so each group's
         // seqs are strictly increasing and unique — the protocol baaki_next_group_seq
@@ -285,18 +291,21 @@ const syncBatch = (): fc.Arbitrary<SyncChange[]> =>
       const nextSeq: Record<string, number> = {};
       return rows.map((r) => {
         nextSeq[r.groupId] = (nextSeq[r.groupId] ?? 0) + r.step;
+        // Group-namespaced id, matching production's globally-unique UUIDs, so no
+        // two groups ever share a storage key in a table.
+        const rowId = `${r.groupId}:${r.id}`;
         return {
           table: r.table,
           groupId: r.groupId,
           seq: nextSeq[r.groupId] as number,
           row: {
-            id: r.id,
+            id: rowId,
             group_id: r.groupId,
             day: '2026-05-01',
             currency: INR,
             deleted_at: null,
             position: 0,
-            title: r.id,
+            title: rowId,
           },
           deleted: r.deleted,
         };
