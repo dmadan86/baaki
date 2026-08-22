@@ -1404,6 +1404,10 @@ export interface SpendingRow {
   currency: string;
   /** Always set — an expense with no category comes back as 'other'. */
   category: string;
+  /** A custom tag's {label, icon, tint} snapshot when the category is a user
+   *  tag (extends TDR §8), so insights can label and colour its bar. Absent from
+   *  the server RPC's rows; only the local twin fills it. */
+  category_meta?: CategoryMeta | null;
   /** First day of the month, 'YYYY-MM-DD'. */
   month: string;
   /** This member's share of that category, in minor units. */
