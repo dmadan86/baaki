@@ -300,7 +300,7 @@ export default function HomeScreen() {
             single deck. While the balance loads a hero-shaped skeleton stands in
             rather than a card of confident zeros the query has not returned. */}
         <TourTarget id="hero">
-          {summary.isLoading || summary.pendingFirstSync ? (
+          {summary.isLoading ? (
             <HeroSkeleton />
           ) : (
             <HeroDeck
@@ -309,6 +309,11 @@ export default function HomeScreen() {
               totals={summary.totals.slice(1)}
               locale={locale}
               t={t}
+              // The mirror hydrates instantly, so the deck shows at once. Until
+              // this session's first sync settles the balance is provisional —
+              // shown in a neutral wash without the owe/owed colour, so it never
+              // flips red↔green when the sync reconciles (see BalanceCard).
+              provisional={summary.pendingFirstSync}
             />
           )}
         </TourTarget>
@@ -919,12 +924,16 @@ function HeroDeck({
   totals,
   locale,
   t,
+  provisional,
 }: {
   primary: CurrencyTotal;
   trips: readonly TripSlide[];
   totals: readonly CurrencyTotal[];
   locale: string;
   t: UiStrings;
+  /** True until this session's first sync settles: the balance is shown from the
+   *  local snapshot, neutral (no owe/owed colour) so it never flips on reconcile. */
+  provisional: boolean;
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
@@ -936,7 +945,7 @@ function HeroDeck({
   const slides = [
     {
       key: `cur:${primary.currency}:primary`,
-      node: <BalanceCard total={primary} locale={locale} t={t} />,
+      node: <BalanceCard total={primary} locale={locale} t={t} provisional={provisional} />,
     },
     ...trips.map((trip) => ({
       key: `trip:${trip.id}`,
@@ -944,7 +953,7 @@ function HeroDeck({
     })),
     ...totals.map((total) => ({
       key: `cur:${total.currency}`,
-      node: <BalanceCard total={total} locale={locale} t={t} />,
+      node: <BalanceCard total={total} locale={locale} t={t} provisional={provisional} />,
     })),
     {
       key: 'act:scan',
@@ -1171,10 +1180,26 @@ function ActionSlide({
  * settled — so the card's colour, not just its number, tells you where you
  * stand at a glance. The net big, the owed/owe split beneath.
  */
-function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: string; t: UiStrings }) {
+function BalanceCard({
+  total,
+  locale,
+  t,
+  provisional,
+}: {
+  total: CurrencyTotal;
+  locale: string;
+  t: UiStrings;
+  /** Before the session's first sync: keep the wash neutral and say "updating"
+   *  rather than owe/owed, so the card never flips colour when the sync lands. */
+  provisional?: boolean;
+}) {
   const theme = useTheme();
-  const wash =
-    total.net > 0n
+  // Neutral (brand) wash while provisional: the owe/owed colour is exactly what
+  // must not appear from a stale snapshot and then flip. It firms up in place the
+  // moment the first sync settles.
+  const wash = provisional
+    ? theme.gradient.brand
+    : total.net > 0n
       ? theme.gradient.positive
       : total.net < 0n
         ? theme.gradient.negative
@@ -1208,8 +1233,14 @@ function BalanceCard({ total, locale, t }: { total: CurrencyTotal; locale: strin
           tone="onBrand"
           style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
         />
-        <Text variant="caption" tone="onBrand">
-          {total.net === 0n ? t.allSettled : total.net > 0n ? t.overallOwed : t.overallOwe}
+        <Text variant="caption" tone="onBrand" style={provisional ? { opacity: 0.8 } : undefined}>
+          {provisional
+            ? t.dashHero.updating
+            : total.net === 0n
+              ? t.allSettled
+              : total.net > 0n
+                ? t.overallOwed
+                : t.overallOwe}
         </Text>
       </View>
 
