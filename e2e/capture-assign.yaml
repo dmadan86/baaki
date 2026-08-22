@@ -1,0 +1,45 @@
+# Capture an expense with no group, then assign it to one later (F-CAP-01, A34).
+# Adds a capture from the dashboard with the group left as "Decide later", finds
+# it waiting in the captures inbox, and assigns it to the seeded group — which
+# opens add-expense prefilled with the captured note.
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+- assertVisible: 'Your groups'
+
+# Dashboard add row → the short capture form.
+- tapOn: 'Add expense'
+- assertVisible: 'Capture an expense'
+
+# Amount via the shared calculator keypad: 250.00.
+- tapOn: '2'
+- tapOn: '5'
+- tapOn: '0'
+- tapOn: '0'
+
+# A note to recognise it by.
+- tapOn: 'What was it?'
+- inputText: 'Auto to airport'
+- hideKeyboard
+
+# Group left unset — the capture stays in the inbox rather than landing anywhere.
+- assertVisible: 'Decide later'
+- tapOn: 'Save capture'
+
+# Back on the dashboard the captures action now carries a count (local-first, no
+# server round-trip). Wait for it, then open the inbox.
+- extendedWaitUntilVisible:
+    text: 'Captures. 1'
+    timeout: 20000
+- tapOn: 'Captures. 1'
+
+# The waiting capture is listed; assign it to the seeded group.
+- assertVisible: 'Auto to airport'
+- tapOn: 'Assign to group'
+- tapOn: 'Goa trip'
+
+# Assigning opens add-expense — its description prompt ("What was it for?")
+# differs from the capture form's, so it proves we navigated off the inbox
+# before we check the captured note carried over as the prefill.
+- assertVisible: 'What was it for?'
+- assertVisible: 'Auto to airport'

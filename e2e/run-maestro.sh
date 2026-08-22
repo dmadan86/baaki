@@ -24,6 +24,9 @@ FLOWS=(
   edit-expense
   delete-restore-expense
   rename-archive-group
+  change-logo
+  capture-assign
+  locale-switch
   sign-out-privacy
   clone-group
   group-photo-paid-gate

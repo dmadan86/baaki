@@ -1,0 +1,27 @@
+# Changing a group's icon (its "logo") applies live from Group settings
+# (F-CFG-02). Opens the seeded group, opens its cover-emoji picker, picks a new
+# icon, and confirms the sheet dismisses with the change accepted. The photo path
+# is a separate paid-gated flow (group-photo-paid-gate.yaml); this covers the
+# free icon path every account has.
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+
+# Home → the seeded group → its settings (the photo-and-name cluster opens it).
+- tapOn: 'Goa trip'
+- tapOn: 'Group settings'
+
+# The cover-emoji picker trigger is always present on the settings form.
+- assertVisible: 'Choose an icon'
+- tapOn: 'Choose an icon'
+
+# The bottom sheet is up (its close control is the labelled way out); pick a new
+# icon. Selecting fires the update and dismisses the sheet in one tap.
+- assertVisible: 'Close'
+- tapOn: '🏕️'
+
+# Back on the settings form: the sheet is gone and the settings header now
+# renders the chosen icon — proof the update applied, not just that the picker
+# dismissed (which would also happen if the write failed).
+- assertNotVisible: 'Close'
+- assertVisible: '🏕️'
