@@ -302,8 +302,8 @@ export default function HomeScreen() {
           )}
         </TourTarget>
 
-        {/* The two things you start on this screen, as round black icon
-            buttons under the deck: make a group, or add a spend by hand. */}
+        {/* The things you start on this screen, as plain icon buttons under the
+            deck: scan, add a spend, make a group, open the inbox. */}
         <Row
           style={{
             justifyContent: 'space-evenly',
@@ -403,10 +403,10 @@ export default function HomeScreen() {
 }
 
 /**
- * One round quick-add button under the deck: a black circle with a white icon
- * and its label beneath. The pair (group / expense) is the same two actions the
- * FAB and the new-group flow reach, surfaced where the eye lands after the
- * balance.
+ * One quick-add button under the deck: a plain inked glyph with its label
+ * beneath — no filled disc, the way a services row reads. The actions are the
+ * same ones the FAB and the new-group flow reach, surfaced where the eye lands
+ * after the balance.
  */
 function AddAction({
   icon,
@@ -419,27 +419,25 @@ function AddAction({
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
-  /** An optional count on the circle — e.g. how many captures are waiting. */
+  /** An optional count on the glyph — e.g. how many captures are waiting. */
   badge?: number;
   /** Keep the button in place but dim and unpressable — e.g. an empty inbox. */
   disabled?: boolean;
-  /** When set, the round icon (only) is a tour target, so a coach-mark's hole
-      hugs the circle rather than the circle plus its caption. */
+  /** When set, the glyph (only) is a tour target, so a coach-mark's hole hugs
+      the icon rather than the icon plus its caption. */
   tourId?: string;
 }) {
   const theme = useTheme();
-  const circle = (
+  const iconTarget = (
     <View
       style={{
         width: 48,
         height: 48,
-        borderRadius: 24,
-        backgroundColor: theme.color.buttonPrimary,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Ionicons name={icon} size={22} color={theme.color.onBrand} />
+      <Ionicons name={icon} size={28} color={theme.color.text} />
       {badge ? (
         <View
           style={{
@@ -482,7 +480,7 @@ function AddAction({
         opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
       })}
     >
-      {tourId ? <TourTarget id={tourId}>{circle}</TourTarget> : circle}
+      {tourId ? <TourTarget id={tourId}>{iconTarget}</TourTarget> : iconTarget}
       <Text variant="caption" tone="muted" numberOfLines={1} style={{ textAlign: 'center' }}>
         {label}
       </Text>
