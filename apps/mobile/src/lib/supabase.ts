@@ -38,8 +38,12 @@ if (!supabaseConfigured) {
 const isServer = typeof window === 'undefined';
 
 export const supabase = createClient(
-  url ?? 'https://unconfigured.invalid',
-  anonKey ?? 'unconfigured',
+  // A well-formed, never-contacted placeholder when the build is unconfigured:
+  // it only exists so `createClient` constructs without throwing on import (the
+  // root gates on `supabaseConfigured`, so no request is ever made to it). Shaped
+  // like a real project URL so even a stricter future URL validation accepts it.
+  url ?? 'https://placeholder.supabase.co',
+  anonKey ?? 'placeholder-anon-key',
   {
     auth: {
       // Native keeps the session (incl. the long-lived refresh token) in the OS
