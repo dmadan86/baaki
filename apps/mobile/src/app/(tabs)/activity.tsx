@@ -1,14 +1,7 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import {
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  View,
-} from 'react-native';
+import { Pressable, RefreshControl, SectionList, View } from 'react-native';
 
 import {
   Button,
@@ -26,19 +19,13 @@ import {
 import { dayHeading, describeActivity, groupByDay, parseMoney, verbIcon } from '@/data/activity';
 import { useBlockedUsers } from '@/data/blocked';
 import { FeedSkeleton } from '@/components/Skeletons';
-import { useNotifications, useRecentActivity } from '@/data/hooks';
+import { useNotifications, useRecentActivity, type RecentActivityRow } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
 import { SyncStatus, useSync } from '@/sync';
 
-// How many rows the feed shows at first, and how many more each time the scroll
-// nears the bottom. The whole history is already on the phone (the mirror), so
-// this only bounds how much is mounted at once — a cheap window, not a fetch.
-const PAGE = 25;
-// Grow the window a little before the very end scrolls into view, so more rows
-// are already there rather than appearing under the thumb.
-const LOAD_AHEAD_PX = 600;
+type DaySection = { key: string; first: RecentActivityRow; data: RecentActivityRow[] };
 
 export default function ActivityScreen() {
   const theme = useTheme();
@@ -57,38 +44,120 @@ export default function ActivityScreen() {
   const { hydrated, status, flush } = useSync();
   const allEntries = useRecentActivity();
 
-  // Infinite scroll over the local list: show `visible` rows, grow the window as
-  // the scroll nears the bottom. No page is ever fetched — the rows are already
-  // on the phone.
-  const [visible, setVisible] = useState(PAGE);
-  const entries = allEntries.slice(0, visible);
-  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const nearBottom =
-      layoutMeasurement.height + contentOffset.y >= contentSize.height - LOAD_AHEAD_PX;
-    if (nearBottom && visible < allEntries.length) {
-      setVisible((current) => Math.min(current + PAGE, allEntries.length));
-    }
-  };
+  // The whole history is already on the phone (the mirror), so there is no page
+  // to fetch — the list is fully known. `SectionList` virtualizes it: only the
+  // rows near the viewport are mounted, and they recycle as the feed scrolls, so
+  // a heavy account's memory and mount cost stay bounded no matter how far back
+  // it goes. (This replaced a plain `ScrollView` that grew a window but never
+  // recycled a mounted row.)
+  const sections: DaySection[] = useMemo(
+    () =>
+      groupByDay(allEntries).map((section) => ({
+        key: section.key,
+        first: section.entries[0]!,
+        data: section.entries,
+      })),
+    [allEntries],
+  );
+
+  // One formatter per locale, not one per row per render. Building an
+  // `Intl.DateTimeFormat` is costly, and the row clock did it O(rows) times a
+  // render — the single most avoidable cost in a long feed.
+  const timeFormat = useMemo(
+    () => new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }),
+    [locale],
+  );
 
   const notifications = useNotifications();
   const unread = (notifications.data ?? []).filter((row) => row.read_at === null).length;
 
+  const header = (
+    <Row style={{ paddingTop: theme.spacing.md, justifyContent: 'space-between' }}>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+        <Ionicons name="pulse" size={iconSize.xl} color={theme.color.brand} />
+        <Text variant="title">{t.activity}</Text>
+      </Row>
+      {/* The feed is what happened in the groups; the inbox is what Baaki said
+          to you. Related enough to sit together, different enough not to be
+          interleaved. */}
+      <IconButton label={t.tabs.inbox} onPress={() => router.push('/inbox' as never)}>
+        <Ionicons name="notifications-outline" size={iconSize.lg} color={theme.color.text} />
+        {unread > 0 ? (
+          <View
+            style={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              width: 9,
+              height: 9,
+              borderRadius: 5,
+              backgroundColor: theme.color.brand,
+            }}
+          />
+        ) : null}
+      </IconButton>
+    </Row>
+  );
+
+  // The states the feed can be in when there are no rows to show — mounted as
+  // the list's empty component so the header, pull-to-refresh and centred layout
+  // all still apply exactly as with a feed present.
+  const empty = !hydrated ? (
+    status === SyncStatus.Error ? (
+      // The mirror read itself failed (a corrupt or unreadable local DB). Rare,
+      // but without this branch the skeleton would sit forever — so offer a
+      // retry, which re-runs hydration through a flush.
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <EmptyState
+          title={t.loadError}
+          body={t.loadErrorBody}
+          icon={
+            <Ionicons name="cloud-offline-outline" size={iconSize.xxl} color={theme.color.brand} />
+          }
+          action={<Button label={t.retry} variant="secondary" onPress={() => void flush()} />}
+        />
+      </View>
+    ) : (
+      // The ordinary wait: the first read of the on-disk mirror at cold start.
+      // An empty feed after it lands is "nothing yet", not "failed".
+      <FeedSkeleton />
+    )
+  ) : (
+    <View style={{ flex: 1, justifyContent: 'center' }}>
+      <EmptyState
+        title={t.nothingYet}
+        body={t.tabs.activityEmptyBody}
+        icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
+        action={<Button label={t.newGroup} onPress={() => router.push('/new-group')} />}
+      />
+    </View>
+  );
+
   return (
     <Screen>
-      <ScrollView
+      {/* A vertical timeline broken into days: each event is a node on a
+          connector line running down the left, its icon in a soft circle, the
+          sentence beside it and the time beneath. The day headings are what make
+          a long feed skimmable — without them every row had to be read to place
+          it in time. */}
+      <SectionList<RecentActivityRow, DaySection>
+        sections={sections}
+        keyExtractor={(entry) => entry.id}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
-          gap: theme.spacing.xl,
-          // So the empty and error states can take the room the feed is not using
-          // and sit centred, the same way the Friends screen does. With a feed
-          // present this changes nothing.
+          // So the empty and error states can take the room the feed is not
+          // using and sit centred. With a feed present this changes nothing.
           flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
+        // Recycle offscreen rows rather than keep every scrolled-past one
+        // mounted — the point of moving off the old ScrollView.
+        removeClippedSubviews
+        initialNumToRender={12}
+        windowSize={9}
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
         refreshControl={
           <RefreshControl
             refreshing={pull.refreshing}
@@ -96,180 +165,100 @@ export default function ActivityScreen() {
             tintColor={theme.color.brand}
           />
         }
-      >
-        <Row style={{ paddingTop: theme.spacing.md, justifyContent: 'space-between' }}>
-          <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            <Ionicons name="pulse" size={iconSize.xl} color={theme.color.brand} />
-            <Text variant="title">{t.activity}</Text>
-          </Row>
-          {/* The feed is what happened in the groups; the inbox is what Baaki
-              said to you. Related enough to sit together, different enough not
-              to be interleaved. */}
-          <IconButton label={t.tabs.inbox} onPress={() => router.push('/inbox' as never)}>
-            <Ionicons name="notifications-outline" size={iconSize.lg} color={theme.color.text} />
-            {unread > 0 ? (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 6,
-                  right: 6,
-                  width: 9,
-                  height: 9,
-                  borderRadius: 5,
-                  backgroundColor: theme.color.brand,
-                }}
-              />
-            ) : null}
-          </IconButton>
-        </Row>
-
-        {!hydrated && allEntries.length === 0 ? (
-          status === SyncStatus.Error ? (
-            // The mirror read itself failed (a corrupt or unreadable local DB).
-            // Rare, but without this branch the skeleton would sit forever — so
-            // offer a retry, which re-runs hydration through a flush.
-            <View style={{ flex: 1, justifyContent: 'center' }}>
-              <EmptyState
-                title={t.loadError}
-                body={t.loadErrorBody}
-                icon={
-                  <Ionicons
-                    name="cloud-offline-outline"
-                    size={iconSize.xxl}
-                    color={theme.color.brand}
-                  />
-                }
-                action={<Button label={t.retry} variant="secondary" onPress={() => void flush()} />}
-              />
-            </View>
-          ) : (
-            // The ordinary wait: the first read of the on-disk mirror at cold
-            // start. An empty feed after it lands is "nothing yet", not "failed".
-            <FeedSkeleton />
-          )
-        ) : allEntries.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState
-              title={t.nothingYet}
-              body={t.tabs.activityEmptyBody}
-              icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
-              action={<Button label={t.newGroup} onPress={() => router.push('/new-group')} />}
-            />
-          </View>
-        ) : (
-          // A vertical timeline broken into days: each event is a node on a
-          // connector line running down the left, its icon in a soft circle
-          // tinted by the group it belongs to, the sentence beside it and the
-          // time beneath. The day headings are what make forty rows skimmable —
-          // without them every row had to be read to place it in time.
-          <View style={{ gap: theme.spacing.lg }}>
-            {groupByDay(entries).map((section) => (
-              <View key={section.key}>
-                <Text
-                  variant="micro"
-                  tone="muted"
-                  style={{ textTransform: 'uppercase', marginBottom: theme.spacing.md }}
-                >
-                  {dayHeading(locale, section.entries[0]!.created_at)}
-                </Text>
-                {section.entries.map((entry, index) => {
-                  const isLast = index === section.entries.length - 1;
-                  return (
-                    <Pressable
-                      key={entry.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={describeActivity(
-                        entry,
-                        myProfileId,
-                        blockedIds,
-                        t.misc.someone,
-                      )}
-                      onPress={() => router.push(`/group/${entry.group_id}`)}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-                    >
-                      <Row style={{ alignItems: 'stretch' }}>
-                        {/* The rail: the node — the dashboard's line glyph in a
-                        soft-brand circle — and a thin connector running from it
-                        down to the next node, so the day reads as one continuous
-                        timeline (Oura, Airwallex) rather than loose rows. The
-                        connector is a hairline in brandSoft, centred on the
-                        circle, and it stops at the last node so it ends, not
-                        dangles. */}
-                        <View style={{ width: 42, alignItems: 'center' }}>
-                          <View
-                            style={{
-                              width: 42,
-                              height: 42,
-                              borderRadius: 21,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Ionicons
-                              name={verbIcon(entry.verb)}
-                              size={iconSize.xl}
-                              color={theme.color.brand}
-                            />
-                          </View>
-                          {!isLast ? (
-                            <View
-                              style={{
-                                flex: 1,
-                                width: 2,
-                                marginTop: theme.spacing.xs,
-                                borderRadius: 1,
-                                backgroundColor: theme.color.border,
-                              }}
-                            />
-                          ) : null}
-                        </View>
-
-                        <View
-                          style={{
-                            flex: 1,
-                            paddingStart: theme.spacing.md,
-                            paddingBottom: isLast ? 0 : theme.spacing.xl,
-                          }}
-                        >
-                          <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
-                            <Text variant="body" numberOfLines={3} style={{ flex: 1 }}>
-                              {describeActivity(entry, myProfileId, blockedIds, t.misc.someone)}
-                            </Text>
-                            {/* `payload` is an untyped JSON blob, so a bad amount
-                            must render as no amount, not as a crashed tab. */}
-                            {(() => {
-                              const money = parseMoney(entry.payload);
-                              if (!money) return null;
-                              return (
-                                <MoneyText
-                                  amount={money.amount}
-                                  currency={money.currency}
-                                  locale={locale}
-                                  variant="subheading"
-                                  tone="default"
-                                />
-                              );
-                            })()}
-                          </Row>
-                          {/* The day is the heading's job now, so the row keeps only
-                          the clock — "yesterday" printed forty times under a
-                          heading that already said it was noise. */}
-                          <Text variant="micro" tone="muted" style={{ marginTop: 2 }}>
-                            {new Intl.DateTimeFormat(locale, {
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            }).format(new Date(entry.created_at))}
-                          </Text>
-                        </View>
-                      </Row>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
+        renderSectionHeader={({ section }) => (
+          <Text
+            variant="micro"
+            tone="muted"
+            style={{
+              textTransform: 'uppercase',
+              marginTop: theme.spacing.lg,
+              marginBottom: theme.spacing.md,
+              backgroundColor: theme.color.bg,
+            }}
+          >
+            {dayHeading(locale, section.first.created_at)}
+          </Text>
         )}
-      </ScrollView>
+        renderItem={({ item: entry, index, section }) => {
+          const isLast = index === section.data.length - 1;
+          const money = parseMoney(entry.payload);
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={describeActivity(entry, myProfileId, blockedIds, t.misc.someone)}
+              onPress={() => router.push(`/group/${entry.group_id}`)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Row style={{ alignItems: 'stretch' }}>
+                {/* The rail: the node — the dashboard's line glyph in a soft
+                    circle — and a thin connector running from it down to the
+                    next node, so the day reads as one continuous timeline rather
+                    than loose rows. The connector stops at the last node so it
+                    ends, not dangles. */}
+                <View style={{ width: 42, alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name={verbIcon(entry.verb)}
+                      size={iconSize.xl}
+                      color={theme.color.brand}
+                    />
+                  </View>
+                  {!isLast ? (
+                    <View
+                      style={{
+                        flex: 1,
+                        width: 2,
+                        marginTop: theme.spacing.xs,
+                        borderRadius: 1,
+                        backgroundColor: theme.color.border,
+                      }}
+                    />
+                  ) : null}
+                </View>
+
+                <View
+                  style={{
+                    flex: 1,
+                    paddingStart: theme.spacing.md,
+                    paddingBottom: isLast ? 0 : theme.spacing.xl,
+                  }}
+                >
+                  <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
+                    <Text variant="body" numberOfLines={3} style={{ flex: 1 }}>
+                      {describeActivity(entry, myProfileId, blockedIds, t.misc.someone)}
+                    </Text>
+                    {/* `payload` is an untyped JSON blob, so a bad amount must
+                        render as no amount, not as a crashed tab. */}
+                    {money ? (
+                      <MoneyText
+                        amount={money.amount}
+                        currency={money.currency}
+                        locale={locale}
+                        variant="subheading"
+                        tone="default"
+                      />
+                    ) : null}
+                  </Row>
+                  {/* The day is the heading's job now, so the row keeps only the
+                      clock — "yesterday" printed under a heading that already
+                      said it was noise. */}
+                  <Text variant="micro" tone="muted" style={{ marginTop: 2 }}>
+                    {timeFormat.format(new Date(entry.created_at))}
+                  </Text>
+                </View>
+              </Row>
+            </Pressable>
+          );
+        }}
+      />
     </Screen>
   );
 }
