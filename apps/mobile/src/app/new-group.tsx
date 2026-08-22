@@ -229,7 +229,7 @@ export default function NewGroupScreen() {
 
         {/* One compact row: the cover — tapped to choose an icon — with the
             name inline beside it and a clear (×) once there is a name. */}
-        <Card style={{ gap: theme.spacing.md }}>
+        <Card style={{ paddingVertical: theme.spacing.md }}>
           <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
             <Pressable
               accessibilityRole="button"
@@ -237,7 +237,7 @@ export default function NewGroupScreen() {
               onPress={() => setIconOpen(true)}
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
-              <GroupPhoto photoPath={null} emoji={emoji} size={52} />
+              <GroupPhoto photoPath={null} emoji={emoji} size={44} />
             </Pressable>
             <TextInput
               value={name}
@@ -251,7 +251,7 @@ export default function NewGroupScreen() {
                 fontSize: 18,
                 fontWeight: '700',
                 color: theme.color.text,
-                paddingVertical: theme.spacing.sm,
+                paddingVertical: 0,
               }}
             />
             {name.length > 0 ? (
