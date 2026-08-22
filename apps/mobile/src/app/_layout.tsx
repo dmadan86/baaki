@@ -527,6 +527,7 @@ function AuthGate() {
         <Stack.Screen name="receipt/[id]" options={modal} />
         <Stack.Screen name="friends/contacts" />
         <Stack.Screen name="contact-picker" options={modal} />
+        <Stack.Screen name="scan" options={modal} />
         <Stack.Screen name="settings/backup" />
         <Stack.Screen name="settings/notifications" />
         <Stack.Screen name="settings/export" />

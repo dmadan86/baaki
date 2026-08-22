@@ -66,6 +66,12 @@
           "cameraPermission": "Waves uses the camera to scan a bill, so the total and the items come out filled in instead of typed. The photograph stays on this phone whenever it can be read here."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Waves uses the camera to scan a group's invite QR code, so you can join without typing the link."
+        }
+      ],
       "./plugins/withShortNativeBuildPath",
       "expo-secure-store",
       "expo-sharing",
