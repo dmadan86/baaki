@@ -939,6 +939,10 @@ export interface UiStrings {
     assign: string;
     assignTitle: string;
     assignBody: string;
+    assignSearch: string;
+    assignNew: string;
+    assignNewBody: string;
+    assignNoMatch: string;
     noGroups: string;
     delete: string;
     deleteConfirm: string;
@@ -2431,6 +2435,10 @@ const en: UiStrings = {
     assign: 'Assign to group',
     assignTitle: 'Assign to a group',
     assignBody: 'Pick the group this belongs to. You can set who paid and how it splits next.',
+    assignSearch: 'Search groups',
+    assignNew: 'New group',
+    assignNewBody: 'Create one and add this to it',
+    assignNoMatch: 'No groups match',
     noGroups: 'You have no groups yet. Make one first, then assign this to it.',
     delete: 'Delete',
     deleteConfirm: 'Delete this capture? The amount and any bill photo go with it.',
@@ -4016,6 +4024,10 @@ const ta: UiStrings = {
     assignTitle: 'ஒரு குழுவுக்கு ஒதுக்குங்கள்',
     assignBody:
       'இது எந்தக் குழுவுக்கு உரியது என்பதைத் தேர்ந்தெடுங்கள். யார் கட்டினார், எப்படிப் பிரிக்கிறது என்பதை அடுத்து அமைக்கலாம்.',
+    assignSearch: 'குழுக்களைத் தேடு',
+    assignNew: 'புதிய குழு',
+    assignNewBody: 'ஒன்றை உருவாக்கி இதை அதில் சேருங்கள்',
+    assignNoMatch: 'எந்தக் குழுவும் பொருந்தவில்லை',
     noGroups: 'உங்களிடம் இன்னும் குழுக்கள் இல்லை. முதலில் ஒன்றை உருவாக்கி, பிறகு இதை ஒதுக்குங்கள்.',
     delete: 'நீக்கு',
     deleteConfirm: 'இந்தப் பதிவை நீக்கவா? தொகையும் ரசீதுப் படமும் சேர்ந்து போகும்.',
@@ -5607,6 +5619,10 @@ const hi: UiStrings = {
     assign: 'समूह को सौंपें',
     assignTitle: 'किसी समूह को सौंपें',
     assignBody: 'चुनें कि यह किस समूह का है। किसने चुकाया और कैसे बँटेगा, यह आगे तय कर सकते हैं।',
+    assignSearch: 'समूह खोजें',
+    assignNew: 'नया समूह',
+    assignNewBody: 'एक बनाएँ और इसे उसमें जोड़ें',
+    assignNoMatch: 'कोई समूह मेल नहीं खाता',
     noGroups: 'आपके पास अभी कोई समूह नहीं है। पहले एक बनाएँ, फिर इसे उसमें सौंपें।',
     delete: 'हटाएँ',
     deleteConfirm: 'यह कैप्चर हटाएँ? राशि और बिल की फ़ोटो भी चली जाएगी।',
@@ -7190,6 +7206,10 @@ const ar: UiStrings = {
     assign: 'أسنِد إلى مجموعة',
     assignTitle: 'أسنِد إلى مجموعة',
     assignBody: 'اختر المجموعة التي ينتمي إليها. يمكنك تحديد من دفع وكيفية التقسيم بعد ذلك.',
+    assignSearch: 'ابحث عن المجموعات',
+    assignNew: 'مجموعة جديدة',
+    assignNewBody: 'أنشئ واحدة وأضف هذا إليها',
+    assignNoMatch: 'لا توجد مجموعات مطابقة',
     noGroups: 'ليست لديك مجموعات بعد. أنشئ واحدة أولًا ثم أسنِد هذا إليها.',
     delete: 'حذف',
     deleteConfirm: 'حذف هذا الالتقاط؟ سيُحذف المبلغ وصورة الفاتورة معه.',
