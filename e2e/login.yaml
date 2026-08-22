@@ -1,0 +1,32 @@
+# Reusable sign-in preamble.
+#
+# The other flows `runFlow: login.yaml` first so they open on a real, seeded,
+# signed-in dashboard rather than the sign-in wall. Without this, `clearState`
+# lands on `/welcome` and every "assertVisible: Goa trip" fails — which is why
+# the flows never actually passed.
+#
+# Credentials come from the Maestro env, matching the account e2e/seed-e2e.mjs
+# creates:  maestro test --env E2E_EMAIL=… --env E2E_PASSWORD=… e2e/
+appId: app.waves.mobile
+---
+- launchApp:
+    clearState: true
+
+# /welcome → /sign-in → the email form
+- tapOn: 'Sign in'
+- tapOn: 'Continue with email'
+- tapOn: 'Email or phone number'
+- inputText: '${E2E_EMAIL}'
+- tapOn: 'Password'
+- inputText: '${E2E_PASSWORD}'
+- hideKeyboard
+- tapOn: 'Sign in'
+
+# The dashboard appears once the first sync has pulled the seeded group. Give it
+# room — a cold sign-in does an auth round-trip and a full cursor pull.
+- extendedWaitUntilVisible:
+    element: 'Your groups'
+    timeout: 40000
+- extendedWaitUntilVisible:
+    element: 'Goa trip'
+    timeout: 40000

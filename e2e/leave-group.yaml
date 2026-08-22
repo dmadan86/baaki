@@ -12,8 +12,9 @@
 # carries an open balance, settle it first with the settle flow.
 appId: app.waves.mobile
 ---
-- launchApp:
-    clearState: true
+# Sign into the seeded account. The fixture leaves the focus user's balance at
+# zero in "Goa trip", so leaving is allowed without settling first.
+- runFlow: login.yaml
 
 # Home shows the group
 - assertVisible: 'Your groups'

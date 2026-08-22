@@ -9,8 +9,7 @@
 # "person1") to make the confirm path run.
 appId: app.waves.mobile
 ---
-- launchApp:
-    clearState: true
+- runFlow: login.yaml
 
 # Home → Friends
 - assertVisible: 'Your groups'

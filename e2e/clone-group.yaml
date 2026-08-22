@@ -15,8 +15,7 @@
 # the chip name in the "drop a member" step below.
 appId: app.waves.mobile
 ---
-- launchApp:
-    clearState: true
+- runFlow: login.yaml
 
 # Home shows the group we will clone.
 - assertVisible: 'Your groups'
