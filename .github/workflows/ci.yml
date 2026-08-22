@@ -246,6 +246,11 @@ jobs:
       # Boot an emulator, install Maestro, install the APK, run the flows.
       - name: Run Maestro flows
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SERVICE_KEY: ${{ secrets.E2E_SERVICE_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         with:
           api-level: 34
           arch: x86_64
@@ -255,16 +260,26 @@ jobs:
             curl -Ls "https://get.maestro.mobile.dev" | bash
             export PATH="$PATH:$HOME/.maestro/bin"
             adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
-            # Explicit list so the login.yaml sub-flow is not run standalone.
-            maestro test \
-              --env E2E_EMAIL="${{ secrets.E2E_EMAIL }}" \
-              --env E2E_PASSWORD="${{ secrets.E2E_PASSWORD }}" \
-              --format junit --output maestro-report.xml \
-              e2e/home-to-add-expense.yaml \
-              e2e/clone-group.yaml \
-              e2e/group-photo-paid-gate.yaml \
-              e2e/friends-merge-guests.yaml \
-              e2e/leave-group.yaml
+            # Each flow mutates the shared staging backend (archive, leave,
+            # rename, delete), so reseed the deterministic fixture before every
+            # flow for isolation. The seed is idempotent (reset + rebuild), and
+            # each flow's login.yaml does clearState, so no state leaks across.
+            # Run flows one at a time (not `maestro test e2e/`) so the login.yaml
+            # sub-flow is never executed standalone.
+            status=0
+            for flow in \
+              home-to-add-expense edit-expense delete-restore-expense \
+              rename-archive-group sign-out-privacy clone-group \
+              group-photo-paid-gate friends-merge-guests leave-group; do
+              echo "::group::seed + $flow"
+              node e2e/seed-e2e.mjs
+              maestro test \
+                --env E2E_EMAIL="$E2E_EMAIL" \
+                --env E2E_PASSWORD="$E2E_PASSWORD" \
+                "e2e/$flow.yaml" || status=1
+              echo "::endgroup::"
+            done
+            exit $status
       - name: Upload Maestro report
         if: always()
         uses: actions/upload-artifact@v4

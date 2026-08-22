@@ -1,0 +1,28 @@
+# Renaming a group persists, and archiving removes it from Home (F-CFG-01 /
+# F-CFG-04). Uses the seeded "Goa trip".
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+
+- tapOn: 'Goa trip'
+- tapOn: 'Settings'
+- assertVisible: 'Save name'
+
+# Rename: the name field holds "Goa trip".
+- tapOn: 'Goa trip'
+- eraseText: 30
+- inputText: 'Goa 2026'
+- hideKeyboard
+- tapOn: 'Save name'
+
+# Archive it — the button sits below, past the roster.
+- scrollUntilVisible:
+    element: 'Archive group'
+    direction: DOWN
+- tapOn: 'Archive group'
+- assertVisible: 'Archive this group?'
+- tapOn: 'Archive'
+
+# Back on Home, the renamed group is gone from the list.
+- assertVisible: 'Your groups'
+- assertNotVisible: 'Goa 2026'

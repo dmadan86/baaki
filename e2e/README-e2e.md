@@ -68,13 +68,21 @@ than `maestro test e2e/`, so it is not executed on its own.
 
 ## The flows
 
-| Flow                         | Guards                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------- |
-| `home-to-add-expense.yaml`   | launch → balance → open group → see expense + ghost → add-expense calculator        |
-| `leave-group.yaml`           | leave a settled group → gone from Home and stays gone after relaunch                |
-| `clone-group.yaml`           | Duplicate → prefilled New Group → drop a member → Create → copy made, original kept |
-| `group-photo-paid-gate.yaml` | group photo is paid, cover emoji is free                                            |
-| `friends-merge-guests.yaml`  | merge same-person ghosts, with the irreversible-warning gate                        |
+| Flow                          | Guards                                                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| `home-to-add-expense.yaml`    | launch → balance → open group → see expense + ghost → add-expense calculator        |
+| `edit-expense.yaml`           | edit the seeded expense → the ledger reflects the new value                         |
+| `delete-restore-expense.yaml` | delete → gone from the default view → Show deleted → Restore → back                 |
+| `rename-archive-group.yaml`   | rename a group (persists) → archive → gone from Home                                |
+| `sign-out-privacy.yaml`       | sign out → back at the gateway, the ledger off screen                               |
+| `clone-group.yaml`            | Duplicate → prefilled New Group → drop a member → Create → copy made, original kept |
+| `group-photo-paid-gate.yaml`  | group photo is paid, cover emoji is free                                            |
+| `friends-merge-guests.yaml`   | merge the two seeded "Reeya" ghosts, with the irreversible-warning gate             |
+| `leave-group.yaml`            | leave a settled group → gone from Home and stays gone after relaunch                |
+
+Each flow mutates the shared staging backend, so CI **reseeds the fixture before
+every flow** (the seed is idempotent). Locally, run one flow at a time and
+reseed between them.
 
 The `.mjs` scripts in this directory are a separate concern: manual integration
 checks against a **deployed** stack (see each file's header).
