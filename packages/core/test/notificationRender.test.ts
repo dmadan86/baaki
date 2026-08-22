@@ -23,6 +23,20 @@ describe('reading a notification', () => {
     expect(body).not.toContain('{group}');
   });
 
+  it('names who added you and to which group', () => {
+    // The clone flow taps people already on Waves: `counterparty` is the adder,
+    // `group` the group. Both placeholders must be gone, and the adder present.
+    const { title } = renderNotification(
+      'group_added',
+      { counterparty: 'Ravi', group: 'Goa' },
+      'en-IN',
+    );
+    expect(title).toContain('Ravi');
+    expect(title).toContain('Goa');
+    expect(title).not.toContain('{actor}');
+    expect(title).not.toContain('{group}');
+  });
+
   it('formats minor units as money, in the reader’s locale', () => {
     // 42000 paise is ₹420.00, and the row has no idea of either fact.
     const { body } = renderNotification('settlement_confirmed', TRIP, 'en-IN');

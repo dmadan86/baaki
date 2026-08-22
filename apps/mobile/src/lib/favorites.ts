@@ -10,8 +10,10 @@
  * A module-level store rather than a provider: the star is read from the group
  * settings screen and the clone picker at once, and both should agree the
  * instant one of them toggles, without threading a context through the tree.
+ * The store is a plain, framework-free object so it can be tested without React;
+ * `useFavorites` is only the thin subscription that re-renders a screen.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'favorites.groups';
@@ -30,7 +32,8 @@ const persist = (): void => {
   void AsyncStorage.setItem(KEY, JSON.stringify([...ids])).catch(() => undefined);
 };
 
-const load = async (): Promise<void> => {
+/** Read the stored stars once, on first use. Idempotent — later calls are no-ops. */
+export async function loadFavorites(): Promise<void> {
   if (loaded) return;
   loaded = true;
   try {
@@ -45,10 +48,36 @@ const load = async (): Promise<void> => {
     ids = new Set();
   }
   emit();
-};
+}
+
+export function isFavorite(groupId: string): boolean {
+  return ids.has(groupId);
+}
+
+export function toggleFavorite(groupId: string): void {
+  if (!groupId) return;
+  if (ids.has(groupId)) ids.delete(groupId);
+  else ids.add(groupId);
+  persist();
+  emit();
+}
+
+/** Subscribe to any change; returns an unsubscribe. */
+export function subscribeFavorites(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Test-only: forget everything, as if the app had never run. */
+export function __resetFavoritesForTest(): void {
+  ids = new Set();
+  loaded = false;
+  listeners.clear();
+}
 
 export interface Favorites {
-  readonly favorites: ReadonlySet<string>;
   readonly ready: boolean;
   isFavorite(groupId: string): boolean;
   toggle(groupId: string): void;
@@ -59,26 +88,13 @@ export function useFavorites(): Favorites {
   const [ready, setReady] = useState(loaded);
 
   useEffect(() => {
-    const listener = (): void => {
+    const unsubscribe = subscribeFavorites(() => {
       setReady(true);
       force((n) => n + 1);
-    };
-    listeners.add(listener);
-    void load().then(() => setReady(true));
-    return () => {
-      listeners.delete(listener);
-    };
+    });
+    void loadFavorites().then(() => setReady(true));
+    return unsubscribe;
   }, []);
 
-  const toggle = useCallback((groupId: string): void => {
-    if (!groupId) return;
-    if (ids.has(groupId)) ids.delete(groupId);
-    else ids.add(groupId);
-    persist();
-    emit();
-  }, []);
-
-  const isFavorite = useCallback((groupId: string): boolean => ids.has(groupId), []);
-
-  return { favorites: ids, ready, isFavorite, toggle };
+  return { ready, isFavorite, toggle: toggleFavorite };
 }

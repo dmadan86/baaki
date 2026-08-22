@@ -1,0 +1,56 @@
+# Maestro flow: making a new group from an existing one (the clone flow).
+#
+# Guards the whole promise on-device: a group's settings can start a duplicate,
+# the New Group screen opens already filled from the source (its name as
+# "<name> copy", its people as removable chips), a person can be dropped before
+# anything is written, and Create lands on a real new group — separate from the
+# one it was cloned from, which is still there.
+#
+# The notify-the-people-already-on-Waves half is a server behaviour and is
+# covered where it can be asserted without a phone: packages/db/test/
+# group-add-notify.test.ts.
+#
+# Precondition: the standard e2e seed (the "Goa trip" group with a few members,
+# one of them named "Priya"). If your seed names its members differently, adjust
+# the chip name in the "drop a member" step below.
+appId: app.waves.mobile
+---
+- launchApp:
+    clearState: true
+
+# Home shows the group we will clone.
+- assertVisible: 'Your groups'
+- assertVisible: 'Goa trip'
+
+# Into the group, then its settings, then Duplicate.
+- tapOn: 'Goa trip'
+- tapOn: 'Settings'
+- scrollUntilVisible:
+    element: 'Duplicate group'
+    direction: DOWN
+- tapOn: 'Duplicate group'
+
+# The New Group screen, wearing the clone's clothes: the header says Duplicate,
+# and the name is pre-filled as a copy rather than blank.
+- assertVisible: 'Duplicate group'
+- assertVisible: 'Goa trip copy'
+
+# The people came across as removable chips. Drop one before the group is made —
+# tapping the chip removes it (this is the "remove users before creating" step).
+- scrollUntilVisible:
+    element: 'Priya'
+    direction: DOWN
+- tapOn: 'Priya'
+- assertNotVisible: 'Priya'
+
+# Make the group. It lands on the new group's own screen.
+- scrollUntilVisible:
+    element: 'Create group'
+    direction: DOWN
+- tapOn: 'Create group'
+- assertVisible: 'Goa trip copy'
+
+# And the original is untouched — still on Home alongside the copy.
+- tapOn: 'Waves'
+- assertVisible: 'Goa trip'
+- assertVisible: 'Goa trip copy'
