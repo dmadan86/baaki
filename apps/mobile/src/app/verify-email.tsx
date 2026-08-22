@@ -151,10 +151,10 @@ export default function VerifyEmailScreen() {
               borderRadius: 48,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: theme.color.brandSoft,
+              backgroundColor: theme.color.buttonPrimary,
             }}
           >
-            <Ionicons name="mail-unread-outline" size={44} color={theme.color.brand} />
+            <Ionicons name="mail-unread-outline" size={44} color={theme.color.onBrand} />
           </View>
           <Text
             align="center"

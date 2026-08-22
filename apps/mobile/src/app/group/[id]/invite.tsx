@@ -305,10 +305,10 @@ export default function InviteScreen() {
                       borderRadius: 28,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: theme.color.brandSoft,
+                      backgroundColor: theme.color.buttonPrimary,
                     }}
                   >
-                    <Ionicons name={option.icon} size={iconSize.lg} color={theme.color.brand} />
+                    <Ionicons name={option.icon} size={iconSize.lg} color={theme.color.onBrand} />
                   </View>
                   <Text variant="caption" tone="muted">
                     {option.label}

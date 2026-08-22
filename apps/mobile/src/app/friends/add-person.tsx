@@ -45,8 +45,9 @@ import { friendlyError } from '@/lib/errors';
 import { DictateButton } from '@/components/DictateButton';
 import { useAddGhostMember, useCreateGroup, useWriteExpense } from '@/data/hooks';
 import { GroupType } from '@/data/types';
-import { deviceDefaultCurrency, deviceSupportsUpi, useStrings } from '@/i18n';
+import { deviceSupportsUpi, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useDefaultCurrency } from '@/lib/currency';
 import { useBackup } from '@/lib/cloud/BackupProvider';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { useGuestGuard } from '@/lib/guestGuard';
@@ -119,7 +120,7 @@ export default function AddPersonScreen() {
   const writeExpense = useWriteExpense(groupId);
   const backup = useBackup();
 
-  const currency = deviceDefaultCurrency();
+  const currency = useDefaultCurrency();
   // UPI only where the region has the rail; every other method is universal.
   const paymentMethods = PAYMENT_METHODS.filter(
     (method) => !method.regional || deviceSupportsUpi(),

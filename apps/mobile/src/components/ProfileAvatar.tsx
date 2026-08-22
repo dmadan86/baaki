@@ -95,12 +95,12 @@ export function ProfileAvatar({
             borderRadius: size,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.color.brand,
+            backgroundColor: theme.color.buttonPrimary,
             borderWidth: 2,
             borderColor: theme.color.surface,
           }}
         >
-          <Ionicons name="camera" size={size * 0.17} color={theme.color.onBrand} />
+          <Ionicons name="camera" size={size * 0.17} color={theme.color.onButtonPrimary} />
         </View>
       ) : null}
     </View>

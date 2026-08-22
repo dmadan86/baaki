@@ -50,8 +50,9 @@ import {
   useWriteExpense,
 } from '@/data/hooks';
 import { groupLabel, GroupType, type GroupRow } from '@/data/types';
-import { deviceDefaultCurrency, plural, useStrings } from '@/i18n';
+import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useDefaultCurrency } from '@/lib/currency';
 import { useMotion } from '@/lib/motion';
 import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
@@ -94,6 +95,7 @@ export default function VoiceScreen() {
   const { t, locale } = useStrings();
   const { animated } = useMotion();
   const { profile } = useAuth();
+  const dc = useDefaultCurrency();
   const access = useAiAccess();
   const groups = useGroups();
 
@@ -180,7 +182,7 @@ export default function VoiceScreen() {
         result = await interpretVoiceExpenses(transcript, {
           groups: groupRefs,
           locale,
-          defaultCurrency: deviceDefaultCurrency(),
+          defaultCurrency: dc,
         }).catch(() => null);
       }
       applyResult(result ?? parseVoiceExpenses(transcript, groupRefs));
@@ -222,7 +224,7 @@ export default function VoiceScreen() {
             captureId: draft.key,
             description: draft.note.trim() || fallback,
             expenseDate: date,
-            currency: draft.currency ?? deviceDefaultCurrency(),
+            currency: draft.currency ?? dc,
             amount,
           });
         }
@@ -240,15 +242,13 @@ export default function VoiceScreen() {
           creatorMemberId: dest.memberId,
           name: dest.name,
           type: GroupType.Other,
-          currency: deviceDefaultCurrency(),
+          currency: dc,
         });
         groupCreated.current = true;
       }
 
       const groupCurrency =
-        dest.kind === 'create'
-          ? deviceDefaultCurrency()
-          : (target.group.data?.default_currency ?? deviceDefaultCurrency());
+        dest.kind === 'create' ? dc : (target.group.data?.default_currency ?? dc);
       const participants =
         dest.kind === 'create'
           ? [dest.memberId]
@@ -315,13 +315,13 @@ export default function VoiceScreen() {
     dest.kind === 'unassigned'
       ? null
       : dest.kind === 'create'
-        ? deviceDefaultCurrency()
-        : (target.group.data?.default_currency ?? deviceDefaultCurrency());
+        ? dc
+        : (target.group.data?.default_currency ?? dc);
   const draftTotals = new Map<string, bigint>();
   for (const draft of drafts) {
     const minor = toMinor(draft.amount);
     if (minor === null) continue;
-    const currency = destCurrency ?? draft.currency ?? deviceDefaultCurrency();
+    const currency = destCurrency ?? draft.currency ?? dc;
     draftTotals.set(currency, (draftTotals.get(currency) ?? 0n) + minor);
   }
   const singleTotal = draftTotals.size === 1 ? [...draftTotals.entries()][0] : null;
@@ -416,13 +416,17 @@ export default function VoiceScreen() {
                       borderRadius: 18,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: theme.color.brandSoft,
+                      backgroundColor: theme.color.buttonPrimary,
                     }}
                   >
                     {current.emoji ? (
                       <Text style={{ fontSize: 18 }}>{current.emoji}</Text>
                     ) : (
-                      <Ionicons name={current.icon} size={iconSize.md} color={theme.color.brand} />
+                      <Ionicons
+                        name={current.icon}
+                        size={iconSize.md}
+                        color={theme.color.onBrand}
+                      />
                     )}
                   </View>
                   <Text numberOfLines={1} style={{ flex: 1, color: theme.color.text }}>
@@ -770,10 +774,10 @@ function DraftRow({
             borderRadius: 20,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.color.brandSoft,
+            backgroundColor: theme.color.buttonPrimary,
           }}
         >
-          <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.brand} />
+          <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.onBrand} />
         </View>
 
         <View style={{ flex: 1, gap: theme.spacing.xs }}>

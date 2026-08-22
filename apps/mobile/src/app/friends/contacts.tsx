@@ -154,10 +154,14 @@ export default function ContactsScreen(): React.JSX.Element {
         ) : (
           <>
             {added !== null ? (
-              <Card style={{ backgroundColor: theme.color.brandSoft }}>
+              <Card style={{ backgroundColor: theme.color.buttonPrimary }}>
                 <Row style={{ gap: theme.spacing.sm }}>
-                  <Ionicons name="checkmark-circle" size={iconSize.lg} color={theme.color.brand} />
-                  <Text variant="caption" tone="brand" style={{ flex: 1 }}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={iconSize.lg}
+                    color={theme.color.onBrand}
+                  />
+                  <Text variant="caption" tone="onBrand" style={{ flex: 1 }}>
                     {fill(t.misc.contactsAdded, {
                       count: plural(locale, added, t.misc.peopleCount),
                     })}

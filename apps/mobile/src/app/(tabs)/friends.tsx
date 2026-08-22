@@ -352,14 +352,14 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
             width: 30,
             height: 30,
             borderRadius: 15,
-            backgroundColor: theme.color.brand,
+            backgroundColor: theme.color.buttonPrimary,
             borderWidth: 3,
             borderColor: theme.color.surface,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="add" size={iconSize.lg} color={theme.color.onBrand} />
+          <Ionicons name="add" size={iconSize.lg} color={theme.color.onButtonPrimary} />
         </View>
       </View>
 
@@ -443,10 +443,10 @@ function FriendsSection({
                 borderRadius: 22,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: theme.color.brandSoft,
+                backgroundColor: theme.color.buttonPrimary,
               }}
             >
-              <Ionicons name={emptyIcon} size={22} color={theme.color.brand} />
+              <Ionicons name={emptyIcon} size={22} color={theme.color.onBrand} />
             </View>
             <Text variant="caption" tone="muted" align="center">
               {emptyBody}

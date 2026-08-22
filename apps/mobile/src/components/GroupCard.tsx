@@ -9,21 +9,10 @@
  * amount and the amount's sign, not the row's background.
  */
 
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, View } from 'react-native';
 
 import type { CurrencyCode } from '@waves/core';
-import {
-  Avatar,
-  Badge,
-  directionalIcon,
-  iconSize,
-  MoneyText,
-  Row,
-  Text,
-  tintForKey,
-  useTheme,
-} from '@waves/ui';
+import { Avatar, Badge, MoneyText, Row, Text, tintForKey, useTheme } from '@waves/ui';
 
 export function GroupCard({
   id,
@@ -70,15 +59,16 @@ export function GroupCard({
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Row
-        style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
+        style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.lg }}
       >
-        {/* The avatar keeps the group's colour and initial — WhatsApp rows are
-            flat, but the face on the left still tells one row from the next. */}
-        <Avatar name={title} emoji={coverEmoji ?? undefined} size={46} tint={tintForKey(id)} />
+        {/* A bigger circular avatar carries the group's colour and initial. The
+            LINE-services look: solid round icon, bold name, muted line beneath,
+            airy rows with no hairline between them. */}
+        <Avatar name={title} emoji={coverEmoji ?? undefined} size={52} tint={tintForKey(id)} />
 
         <View style={{ flex: 1, minWidth: 0 }}>
           <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-            <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
+            <Text variant="heading" numberOfLines={1} style={{ flexShrink: 1 }}>
               {title}
             </Text>
             {tag ? <Badge label={tag} tone={tagTone} /> : null}
@@ -111,12 +101,6 @@ export function GroupCard({
             </Text>
           )}
         </View>
-
-        <Ionicons
-          name={directionalIcon('chevron-forward')}
-          size={iconSize.md}
-          color={theme.color.textFaint}
-        />
       </Row>
     </Pressable>
   );

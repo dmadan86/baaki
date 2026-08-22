@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
-  currencyForCountry,
   currencySymbol,
   guessGroupEmoji,
   minorUnitExponent,
@@ -37,6 +36,8 @@ import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { requestContacts } from '@/lib/contactPickerBridge';
 import { useCreateGroup } from '@/data/hooks';
+import { useAuth } from '@/lib/auth';
+import { useDefaultCurrency } from '@/lib/currency';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
 import { GroupType } from '@/data/types';
@@ -210,6 +211,8 @@ export default function NewGroupScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const createGroup = useCreateGroup();
+  const { profile } = useAuth();
+  const currency = useDefaultCurrency();
   const guard = useGuestGuard();
   const { mutate } = useSync();
 
@@ -227,10 +230,10 @@ export default function NewGroupScreen() {
   // them alike.
   const [ghosts, setGhosts] = useState<PickedContact[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Not asked on this screen anymore — derived silently from the phone's locale
-  // so the group still gets a sensible currency and settle rails (both changeable
-  // later in group settings, which keeps the country row).
-  const country: string | null = deviceCountry();
+  // Not asked on this screen — taken from the account country (which the user
+  // sets on "Your account"), falling back to the phone's region. Decides the
+  // group's currency and settle rails, both changeable later in group settings.
+  const country: string | null = profile?.country_code ?? deviceCountry();
   // Null until somebody picks: the icon is otherwise read from the name, so an
   // untouched group still gets a sensible cover.
   const [pickedEmoji, setPickedEmoji] = useState<string | null>(null);
@@ -254,7 +257,6 @@ export default function NewGroupScreen() {
   // Trips and events benefit most from simplification; a two-person group does
   // not. Follows the type until somebody says otherwise.
   const effectiveSimplify = simplify ?? (type === GroupType.Trip || type === GroupType.Event);
-  const currency = currencyForCountry(country) ?? 'INR';
 
   // The kinds of group, one place — the chips inside the picker and the icon on
   // the collapsed pill both read from this.

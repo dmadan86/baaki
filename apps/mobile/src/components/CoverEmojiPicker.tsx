@@ -172,7 +172,7 @@ export function CoverEmojiPicker({
                   borderRadius: 28,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: theme.color.brandSoft,
+                  backgroundColor: theme.color.buttonPrimary,
                 }}
               >
                 <Text style={{ fontSize: 44 }}>{value ?? '👥'}</Text>

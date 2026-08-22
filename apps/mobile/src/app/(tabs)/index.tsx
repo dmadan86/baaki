@@ -32,7 +32,7 @@ import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale } from '@/lib/anim';
 import { useMotion } from '@/lib/motion';
 import { useFlagEnabled } from '@/lib/flags';
-import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
+import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { usePromptSlot } from '@/lib/promptQueue';
@@ -41,6 +41,8 @@ import { TourTarget, useTour } from '@/lib/tour';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
+import { useDefaultCurrency } from '@/lib/currency';
+import { QuickAddSheet, useQuickAddActions } from '@/components/QuickAddSheet';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { groupLabel, GroupType } from '@/data/types';
@@ -66,6 +68,12 @@ export default function HomeScreen() {
   const captureCount = captures.data?.length ?? 0;
   const guard = useGuestGuard();
   const tour = useTour();
+
+  // A press-and-hold on any add icon raises the same quick-add sheet — type,
+  // scan, or speak an expense — the phone-home-screen quick-actions gesture.
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const quickAddActions = useQuickAddActions();
+  const defaultCurrency = useDefaultCurrency();
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
@@ -180,7 +188,7 @@ export default function HomeScreen() {
    * empty state reads ₹0 and the first group then counts in dollars.
    */
   const headline = summary.totals[0] ?? {
-    currency: deviceDefaultCurrency(),
+    currency: defaultCurrency,
     net: 0n,
     owed: 0n,
     owing: 0n,
@@ -222,6 +230,9 @@ export default function HomeScreen() {
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
+          // Fill the viewport so the no-groups empty state can centre itself in
+          // whatever height is left under the deck rather than hugging it.
+          flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -319,12 +330,14 @@ export default function HomeScreen() {
             icon="camera-outline"
             label={t.scanBill}
             onPress={() => router.push(`/capture?scan=${Date.now()}`)}
+            onLongPress={() => setQuickAddOpen(true)}
           />
           <AddAction
             icon="add"
             label={t.addExpense}
             tourId="addExpense"
             onPress={() => router.push('/capture')}
+            onLongPress={() => setQuickAddOpen(true)}
           />
           <AddAction icon="people" label={t.newGroup} tourId="addGroup" onPress={openNewGroup} />
           {/* The captures inbox always holds its place in the row. It carries a
@@ -342,14 +355,18 @@ export default function HomeScreen() {
         {loading ? (
           <SkeletonList rows={3} />
         ) : list.length === 0 ? (
-          <EmptyState
-            title={t.tabs.noGroups}
-            icon={<Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.brand} />}
-          />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              title={t.tabs.noGroups}
+              icon={
+                <Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.brand} />
+              }
+            />
+          </View>
         ) : (
           <View>
             <View>
-              {list.map((group, index) => {
+              {list.map((group) => {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
                 // A running trip earns a live "on trip" tag; failing that, a
@@ -358,27 +375,23 @@ export default function HomeScreen() {
                 const isNew = nowMs - Date.parse(group.created_at) < NEW_GROUP_WINDOW_MS;
                 const tag = onTrip ? t.tagOnTrip : isNew ? t.tagNew : null;
                 return (
-                  <View key={group.id}>
-                    <GroupCard
-                      id={group.id}
-                      title={groupLabel(group, members, profile?.id)}
-                      memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
-                      coverEmoji={group.cover_emoji}
-                      balance={balance}
-                      currency={group.default_currency}
-                      locale={locale}
-                      statusLabel={
-                        balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe
-                      }
-                      pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
-                      tag={tag}
-                      tagTone={onTrip ? 'positive' : 'brand'}
-                      onPress={() => router.push(`/group/${group.id}`)}
-                    />
-                    {index < list.length - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
+                  <GroupCard
+                    key={group.id}
+                    id={group.id}
+                    title={groupLabel(group, members, profile?.id)}
+                    memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
+                    coverEmoji={group.cover_emoji}
+                    balance={balance}
+                    currency={group.default_currency}
+                    locale={locale}
+                    statusLabel={
+                      balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe
+                    }
+                    pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
+                    tag={tag}
+                    tagTone={onTrip ? 'positive' : 'brand'}
+                    onPress={() => router.push(`/group/${group.id}`)}
+                  />
                 );
               })}
             </View>
@@ -398,6 +411,12 @@ export default function HomeScreen() {
           tomorrow. Replaces the inline card so a hint asks for a beat of
           attention rather than sitting as furniture nobody reads. */}
       <TipSheet t={t} />
+
+      <QuickAddSheet
+        visible={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        actions={quickAddActions}
+      />
     </Screen>
   );
 }
@@ -412,6 +431,7 @@ function AddAction({
   icon,
   label,
   onPress,
+  onLongPress,
   badge,
   disabled,
   tourId,
@@ -419,6 +439,9 @@ function AddAction({
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  /** A press-and-hold on the glyph — raises the quick-add sheet. Optional; the
+      icons that only do one thing (the inbox) leave it off. */
+  onLongPress?: () => void;
   /** An optional count on the glyph — e.g. how many captures are waiting. */
   badge?: number;
   /** Keep the button in place but dim and unpressable — e.g. an empty inbox. */
@@ -432,7 +455,7 @@ function AddAction({
     <View
       style={{
         width: 48,
-        height: 48,
+        height: 34,
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -472,11 +495,13 @@ function AddAction({
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={250}
       style={({ pressed }) => ({
         flex: 1,
         minWidth: 0,
         alignItems: 'center',
-        gap: theme.spacing.xs,
+        gap: 2,
         opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
       })}
     >
@@ -591,7 +616,6 @@ function GuestPopup({
     : gate
       ? t.tabs.guestDaysLeft.replace('{days}', String(gate.daysLeft))
       : t.tabs.guestBannerBody;
-  const accent = expired ? theme.color.warning : theme.color.brand;
 
   return (
     <Modal visible transparent animationType={animated ? 'fade' : 'none'} onRequestClose={dismiss}>
@@ -624,7 +648,7 @@ function GuestPopup({
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: theme.color.brandSoft,
+              backgroundColor: theme.color.buttonPrimary,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -632,7 +656,7 @@ function GuestPopup({
             <Ionicons
               name={expired ? 'lock-closed' : 'shield-checkmark'}
               size={38}
-              color={accent}
+              color={expired ? theme.color.warning : theme.color.onBrand}
             />
           </View>
 
@@ -802,10 +826,10 @@ function TipSheet({ t }: { t: UiStrings }) {
                   borderRadius: 32,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: theme.color.brandSoft,
+                  backgroundColor: theme.color.buttonPrimary,
                 }}
               >
-                <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.brand} />
+                <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.onBrand} />
               </View>
               <Text variant="micro" tone="brand" style={{ letterSpacing: 0.8 }}>
                 {t.tips.label.toUpperCase()}

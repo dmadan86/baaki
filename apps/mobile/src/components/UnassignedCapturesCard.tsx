@@ -42,10 +42,10 @@ export function UnassignedCapturesCard() {
             borderRadius: 21,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.color.brandSoft,
+            backgroundColor: theme.color.buttonPrimary,
           }}
         >
-          <Ionicons name="file-tray-full-outline" size={iconSize.xl} color={theme.color.brand} />
+          <Ionicons name="file-tray-full-outline" size={iconSize.xl} color={theme.color.onBrand} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="subheading">{t.captures.unassigned}</Text>

@@ -499,6 +499,13 @@ export interface UiStrings {
     otherCurrencies: PluralForms;
     saved: string;
     displayName: string;
+    regionTitle: string;
+    currencyLabel: string;
+    currencyFromCountry: string;
+    countryRequired: string;
+    addressTitle: string;
+    addressOptional: string;
+    addressPlaceholder: string;
     you: string;
     guestAccount: string;
     guestAccountBody: string;
@@ -1971,6 +1978,13 @@ const en: UiStrings = {
     otherCurrencies: { one: 'and {n} other currency', other: 'and {n} other currencies' },
     saved: 'Saved',
     displayName: 'Display name',
+    regionTitle: 'Region',
+    currencyLabel: 'Currency',
+    currencyFromCountry: 'Set from your country',
+    countryRequired: 'Pick your country to set your currency and payment options.',
+    addressTitle: 'Address',
+    addressOptional: 'Optional',
+    addressPlaceholder: 'Street, city, postal code',
     you: 'You',
     guestAccount: 'Guest account',
     guestAccountBody:
@@ -3057,7 +3071,7 @@ const en: UiStrings = {
       'Waves holds as little about you as it can and still work. This describes what that is, in plain terms.',
     storeTitle: 'What is stored',
     storeBody:
-      'Your display name, and whichever of a phone number, email or sign-in identity you used. Optionally a payment handle, so somebody can pay you back, and a country, which decides which payment rails you are offered. The groups you are in, the expenses in them, and who owes whom. Nothing else: no contacts are uploaded, and there is no advertising identifier.',
+      'Your display name, and whichever of a phone number, email or sign-in identity you used. Optionally a payment handle, so somebody can pay you back, and a country, which decides which payment rails you are offered, and an optional postal address if you add one. The groups you are in, the expenses in them, and who owes whom. Nothing else: no contacts are uploaded, and there is no advertising identifier.',
     protectTitle: 'How it is kept',
     protectBody:
       'Every table is behind row-level security in the database, so a request can only ever read rows your own account is entitled to — not a filter applied by the app, but a rule the database enforces. Receipt images sit in a private bucket reached through short-lived signed links. Crash reports are scrubbed of addresses, phone numbers, payment handles and keys before they leave the phone. You can require your fingerprint or face to open the app.',
@@ -3497,6 +3511,14 @@ const ta: UiStrings = {
     otherCurrencies: { one: 'மேலும் {n} நாணயம்', other: 'மேலும் {n} நாணயங்கள்' },
     saved: 'சேமிக்கப்பட்டது',
     displayName: 'காட்டப்படும் பெயர்',
+    regionTitle: 'பகுதி',
+    currencyLabel: 'நாணயம்',
+    currencyFromCountry: 'உங்கள் நாட்டிலிருந்து அமைக்கப்படுகிறது',
+    countryRequired:
+      'நாணயத்தையும் பணச் செலுத்தல் விருப்பங்களையும் அமைக்க உங்கள் நாட்டைத் தேர்ந்தெடுக்கவும்.',
+    addressTitle: 'முகவரி',
+    addressOptional: 'விருப்பம்',
+    addressPlaceholder: 'தெரு, நகரம், அஞ்சல் குறியீடு',
     you: 'நீங்கள்',
     guestAccount: 'விருந்தினர் கணக்கு',
     guestAccountBody:
@@ -4641,7 +4663,7 @@ const ta: UiStrings = {
       'பாக்கி வேலை செய்ய எவ்வளவு தேவையோ அவ்வளவு மட்டுமே உங்களைப் பற்றி வைத்திருக்கிறது. அது என்ன என்பது இங்கே.',
     storeTitle: 'என்ன சேமிக்கப்படுகிறது',
     storeBody:
-      'உங்கள் பெயர், நீங்கள் பயன்படுத்திய தொலைபேசி எண், மின்னஞ்சல் அல்லது உள்நுழைவு அடையாளம். விருப்பப்படி ஒரு பணப் பரிமாற்ற முகவரி, மற்றும் ஒரு நாடு. நீங்கள் இருக்கும் குழுக்கள், அவற்றின் செலவுகள், யார் யாருக்குக் கடன்பட்டவர். வேறு எதுவும் இல்லை: தொடர்புகள் பதிவேற்றப்படுவதில்லை, விளம்பர அடையாளம் இல்லை.',
+      'உங்கள் பெயர், நீங்கள் பயன்படுத்திய தொலைபேசி எண், மின்னஞ்சல் அல்லது உள்நுழைவு அடையாளம். விருப்பப்படி ஒரு பணப் பரிமாற்ற முகவரி, ஒரு நாடு, மற்றும் நீங்கள் சேர்த்தால் ஒரு அஞ்சல் முகவரி. நீங்கள் இருக்கும் குழுக்கள், அவற்றின் செலவுகள், யார் யாருக்குக் கடன்பட்டவர். வேறு எதுவும் இல்லை: தொடர்புகள் பதிவேற்றப்படுவதில்லை, விளம்பர அடையாளம் இல்லை.',
     protectTitle: 'எப்படி பாதுகாக்கப்படுகிறது',
     protectBody:
       'ஒவ்வொரு அட்டவணையும் தரவுத்தளத்தில் வரிசை-நிலை பாதுகாப்பின் பின்னால் உள்ளது — செயலி வடிகட்டுவதல்ல, தரவுத்தளமே அமல்படுத்தும் விதி. ரசீது படங்கள் தனிப்பட்ட இடத்தில், குறுகிய கால இணைப்புகள் வழியாக மட்டுமே. செயலி முறிவு அறிக்கைகளிலிருந்து முகவரிகள், எண்கள், பணமுகவரிகள் தொலைபேசியை விட்டு வெளியேறும் முன்பே நீக்கப்படுகின்றன.',
@@ -5070,6 +5092,13 @@ const hi: UiStrings = {
     otherCurrencies: { one: 'और {n} अन्य मुद्रा', other: 'और {n} अन्य मुद्राएँ' },
     saved: 'सेव हो गया',
     displayName: 'दिखने वाला नाम',
+    regionTitle: 'क्षेत्र',
+    currencyLabel: 'मुद्रा',
+    currencyFromCountry: 'आपके देश से सेट',
+    countryRequired: 'मुद्रा और भुगतान विकल्प सेट करने के लिए अपना देश चुनें।',
+    addressTitle: 'पता',
+    addressOptional: 'वैकल्पिक',
+    addressPlaceholder: 'गली, शहर, पिन कोड',
     you: 'आप',
     guestAccount: 'मेहमान खाता',
     guestAccountBody:
@@ -6163,7 +6192,7 @@ const hi: UiStrings = {
       'बाकी आपके बारे में उतना ही रखता है जितना काम करने के लिए ज़रूरी है। वह क्या है, सीधे शब्दों में।',
     storeTitle: 'क्या रखा जाता है',
     storeBody:
-      'आपका नाम, और फ़ोन नंबर, ईमेल या साइन-इन पहचान में से जो आपने इस्तेमाल किया। वैकल्पिक रूप से एक भुगतान पता, ताकि कोई आपको लौटा सके, और एक देश। आप जिन समूहों में हैं, उनके ख़र्चे, और कौन किसका देनदार है। और कुछ नहीं: कोई संपर्क अपलोड नहीं होते, कोई विज्ञापन पहचानकर्ता नहीं।',
+      'आपका नाम, और फ़ोन नंबर, ईमेल या साइन-इन पहचान में से जो आपने इस्तेमाल किया। वैकल्पिक रूप से एक भुगतान पता, ताकि कोई आपको लौटा सके, एक देश, और यदि आप जोड़ें तो एक डाक पता। आप जिन समूहों में हैं, उनके ख़र्चे, और कौन किसका देनदार है। और कुछ नहीं: कोई संपर्क अपलोड नहीं होते, कोई विज्ञापन पहचानकर्ता नहीं।',
     protectTitle: 'कैसे सुरक्षित रहता है',
     protectBody:
       'हर तालिका डेटाबेस में row-level security के पीछे है — ऐप का लगाया फ़िल्टर नहीं, बल्कि डेटाबेस का लागू किया नियम। रसीद की तस्वीरें एक निजी जगह में, छोटी अवधि के लिंक से ही पहुँच में। क्रैश रिपोर्ट से पते, नंबर और भुगतान पते फ़ोन छोड़ने से पहले ही हटा दिए जाते हैं।',
@@ -6627,6 +6656,13 @@ const ar: UiStrings = {
     },
     saved: 'تم الحفظ',
     displayName: 'الاسم الظاهر',
+    regionTitle: 'المنطقة',
+    currencyLabel: 'العملة',
+    currencyFromCountry: 'يُضبط حسب بلدك',
+    countryRequired: 'اختر بلدك لضبط العملة وخيارات الدفع.',
+    addressTitle: 'العنوان',
+    addressOptional: 'اختياري',
+    addressPlaceholder: 'الشارع، المدينة، الرمز البريدي',
     you: 'أنت',
     guestAccount: 'حساب ضيف',
     guestAccountBody:
@@ -7858,7 +7894,7 @@ const ar: UiStrings = {
     intro: 'يحتفظ باقي بأقل قدر ممكن عنك مع بقائه صالحًا للعمل. وهذا بيان بما يحتفظ به.',
     storeTitle: 'ما الذي يُحفظ',
     storeBody:
-      'اسمك، وما استخدمته من رقم هاتف أو بريد أو هوية دخول. واختياريًا عنوان دفع كي يتمكن أحدهم من ردّ المال إليك، وبلد. المجموعات التي تشارك فيها ومصروفاتها ومن يدين لمن. لا شيء غير ذلك: لا تُرفع جهات الاتصال، ولا يوجد معرّف إعلاني.',
+      'اسمك، وما استخدمته من رقم هاتف أو بريد أو هوية دخول. واختياريًا عنوان دفع كي يتمكن أحدهم من ردّ المال إليك، وبلد، وعنوان بريدي اختياري إن أضفته. المجموعات التي تشارك فيها ومصروفاتها ومن يدين لمن. لا شيء غير ذلك: لا تُرفع جهات الاتصال، ولا يوجد معرّف إعلاني.',
     protectTitle: 'كيف يُحمى',
     protectBody:
       'كل جدول محميّ بأمان على مستوى الصف داخل قاعدة البيانات — ليس ترشيحًا يجريه التطبيق، بل قاعدة تفرضها قاعدة البيانات نفسها. صور الإيصالات في مكان خاص لا يُوصل إليه إلا بروابط قصيرة الأجل. وتُنقّى تقارير الأعطال من العناوين والأرقام وعناوين الدفع قبل مغادرتها الهاتف.',

@@ -81,10 +81,10 @@ export function GroupPhoto({
             borderRadius: size,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.color.brand,
+            backgroundColor: theme.color.buttonPrimary,
           }}
         >
-          <Ionicons name="camera" size={size * 0.18} color={theme.color.onBrand} />
+          <Ionicons name="camera" size={size * 0.18} color={theme.color.onButtonPrimary} />
         </View>
       ) : null}
     </View>

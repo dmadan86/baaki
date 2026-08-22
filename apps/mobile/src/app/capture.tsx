@@ -40,7 +40,8 @@ import { ChoiceRow, FieldRow, SheetOverlay } from '@/components/expense/SheetOve
 import { useCreateCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, GroupType, type GroupRow, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
-import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
+import { useDefaultCurrency } from '@/lib/currency';
+import { plural, useStrings, type UiStrings } from '@/i18n';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
 import { saveReceipt } from '@/lib/receiptStore';
@@ -153,7 +154,14 @@ export default function CaptureScreen() {
   // US default) but is the person's to change here — the currency pill under the
   // amount opens the picker. A traveller paying in a currency their phone's
   // region does not use should not have to leave and reopen the group form.
-  const [currency, setCurrency] = useState<string>(() => deviceDefaultCurrency());
+  const defaultCurrency = useDefaultCurrency();
+  // Until the person picks a currency by hand, it follows the account default —
+  // which can arrive a beat after this screen mounts, once the profile loads, so
+  // an untouched capture is never saved in the device currency when the account
+  // says something else. Their pick then wins and sticks. Derived, not synced in
+  // an effect, so there is no setState-in-effect and no first-render snapshot.
+  const [pickedCurrency, setPickedCurrency] = useState<string | null>(null);
+  const currency = pickedCurrency ?? defaultCurrency;
   const [pickingCurrency, setPickingCurrency] = useState(false);
 
   const [amount, setAmount] = useState<bigint>(0n);
@@ -570,7 +578,7 @@ export default function CaptureScreen() {
                 label={code}
                 selected={currency === code}
                 onPress={() => {
-                  setCurrency(code);
+                  setPickedCurrency(code);
                   setPickingCurrency(false);
                 }}
               />

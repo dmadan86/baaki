@@ -1,7 +1,14 @@
+import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
 
 import {
   Button,
@@ -17,13 +24,21 @@ import {
 } from '@waves/ui';
 
 import { dayHeading, describeActivity, groupByDay, parseMoney, verbIcon } from '@/data/activity';
-import { fetchRecentActivity } from '@/data/api';
 import { useBlockedUsers } from '@/data/blocked';
 import { FeedSkeleton } from '@/components/Skeletons';
-import { useNotifications } from '@/data/hooks';
+import { useNotifications, useRecentActivity } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
+import { SyncStatus, useSync } from '@/sync';
+
+// How many rows the feed shows at first, and how many more each time the scroll
+// nears the bottom. The whole history is already on the phone (the mirror), so
+// this only bounds how much is mounted at once — a cheap window, not a fetch.
+const PAGE = 25;
+// Grow the window a little before the very end scrolls into view, so more rows
+// are already there rather than appearing under the thumb.
+const LOAD_AHEAD_PX = 600;
 
 export default function ActivityScreen() {
   const theme = useTheme();
@@ -34,11 +49,27 @@ export default function ActivityScreen() {
   const myProfileId = session?.user.id ?? null;
   const { blockedIds } = useBlockedUsers();
 
-  const activity = useQuery({
-    queryKey: ['activity', 'recent'],
-    queryFn: () => fetchRecentActivity(),
-  });
-  const entries = activity.data ?? [];
+  // The feed is read straight from the mirror, so it is here offline and the
+  // moment the screen opens; `hydrated` is the one wait — the first read of the
+  // on-disk mirror at cold start, not a network call. If that read itself fails
+  // (`status` goes to Error while still unhydrated), a retry re-runs it via
+  // `flush`, so the screen offers a way out rather than a skeleton forever.
+  const { hydrated, status, flush } = useSync();
+  const allEntries = useRecentActivity();
+
+  // Infinite scroll over the local list: show `visible` rows, grow the window as
+  // the scroll nears the bottom. No page is ever fetched — the rows are already
+  // on the phone.
+  const [visible, setVisible] = useState(PAGE);
+  const entries = allEntries.slice(0, visible);
+  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const nearBottom =
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - LOAD_AHEAD_PX;
+    if (nearBottom && visible < allEntries.length) {
+      setVisible((current) => Math.min(current + PAGE, allEntries.length));
+    }
+  };
 
   const notifications = useNotifications();
   const unread = (notifications.data ?? []).filter((row) => row.read_at === null).length;
@@ -56,6 +87,8 @@ export default function ActivityScreen() {
           flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={pull.refreshing}
@@ -90,26 +123,31 @@ export default function ActivityScreen() {
           </IconButton>
         </Row>
 
-        {activity.isLoading ? (
-          <FeedSkeleton />
-        ) : activity.isError ? (
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState
-              title={t.loadError}
-              body={t.loadErrorBody}
-              icon={
-                <Ionicons
-                  name="cloud-offline-outline"
-                  size={iconSize.xxl}
-                  color={theme.color.brand}
-                />
-              }
-              action={
-                <Button label={t.retry} variant="secondary" onPress={() => activity.refetch()} />
-              }
-            />
-          </View>
-        ) : entries.length === 0 ? (
+        {!hydrated && allEntries.length === 0 ? (
+          status === SyncStatus.Error ? (
+            // The mirror read itself failed (a corrupt or unreadable local DB).
+            // Rare, but without this branch the skeleton would sit forever — so
+            // offer a retry, which re-runs hydration through a flush.
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <EmptyState
+                title={t.loadError}
+                body={t.loadErrorBody}
+                icon={
+                  <Ionicons
+                    name="cloud-offline-outline"
+                    size={iconSize.xxl}
+                    color={theme.color.brand}
+                  />
+                }
+                action={<Button label={t.retry} variant="secondary" onPress={() => void flush()} />}
+              />
+            </View>
+          ) : (
+            // The ordinary wait: the first read of the on-disk mirror at cold
+            // start. An empty feed after it lands is "nothing yet", not "failed".
+            <FeedSkeleton />
+          )
+        ) : allEntries.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               title={t.nothingYet}
@@ -165,7 +203,6 @@ export default function ActivityScreen() {
                               borderRadius: 21,
                               alignItems: 'center',
                               justifyContent: 'center',
-                              backgroundColor: theme.color.brandSoft,
                             }}
                           >
                             <Ionicons
@@ -181,7 +218,7 @@ export default function ActivityScreen() {
                                 width: 2,
                                 marginTop: theme.spacing.xs,
                                 borderRadius: 1,
-                                backgroundColor: theme.color.brandSoft,
+                                backgroundColor: theme.color.border,
                               }}
                             />
                           ) : null}
