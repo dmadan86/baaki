@@ -42,10 +42,15 @@ export function useSignedUrl(
     let lastMintAt = 0;
 
     const mint = (): void => {
-      lastMintAt = Date.now();
       void resolve(path)
         .then((url) => {
-          if (active) setResolved({ key: path, url });
+          if (!active) return;
+          // Advance the clock only on a real URL, so a failed mint (a null from
+          // the resolver, or a rejection) leaves `lastMintAt` where it was —
+          // then the next foreground retries at once instead of the broken image
+          // sitting for the full refresh window before another attempt.
+          if (url) lastMintAt = Date.now();
+          setResolved({ key: path, url });
         })
         .catch(() => {
           if (active) setResolved({ key: path, url: null });
