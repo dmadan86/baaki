@@ -44,6 +44,7 @@ import {
 } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { useFavorites } from '@/lib/favorites';
 import { displayName, groupLabel, GroupType, isGhost, vpaOf } from '@/data/types';
 
 // Same chip icons the create screen wears, so changing a group's kind looks
@@ -68,6 +69,7 @@ export default function GroupSettingsScreen() {
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const updateGroup = useUpdateGroup(groupId);
   const leaveGroup = useLeaveGroup(groupId);
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const addGhost = useAddGhostMember(groupId);
 
   // A name is enough to start splitting with someone (ADR-006). The heavier
@@ -441,6 +443,46 @@ export default function GroupSettingsScreen() {
                   name={directionalIcon('chevron-forward')}
                   size={iconSize.md}
                   color={theme.color.textFaint}
+                />
+              }
+            />
+          </Card>
+
+          {/* Make another group from this one, and star it so it sits at the top
+              of the "start from a group" list. Both live here because both are
+              about this group as a template, not about its ledger. */}
+          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+            <ListRow
+              title={t.clone.duplicateTitle}
+              subtitle={t.clone.duplicateHint}
+              leading={
+                <Ionicons name="copy-outline" size={iconSize.xl} color={theme.color.textMuted} />
+              }
+              onPress={() => router.push(`/new-group?from=${groupId}`)}
+              trailing={
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={iconSize.md}
+                  color={theme.color.textFaint}
+                />
+              }
+            />
+            <ListRow
+              title={t.clone.favoriteTitle}
+              subtitle={t.clone.favoriteHint}
+              leading={
+                <Ionicons
+                  name={isFavorite(groupId) ? 'star' : 'star-outline'}
+                  size={iconSize.xl}
+                  color={isFavorite(groupId) ? theme.color.brand : theme.color.textMuted}
+                />
+              }
+              onPress={() => toggleFavorite(groupId)}
+              trailing={
+                <Toggle
+                  value={isFavorite(groupId)}
+                  onValueChange={() => toggleFavorite(groupId)}
+                  accessibilityLabel={t.clone.favoriteTitle}
                 />
               }
             />

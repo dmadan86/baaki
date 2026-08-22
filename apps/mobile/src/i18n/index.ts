@@ -1653,6 +1653,21 @@ export interface UiStrings {
     deleteDone: string;
     deleteSummary: PluralForms;
   };
+  clone: {
+    pickTitle: string;
+    pickIntro: string;
+    nothingToClone: string;
+    startFrom: string;
+    star: string;
+    unstar: string;
+    copyOf: string;
+    duplicateTitle: string;
+    duplicateHint: string;
+    startFromExisting: string;
+    startFromExistingHint: string;
+    favoriteTitle: string;
+    favoriteHint: string;
+  };
   extras: {
     blankNameHint: string;
     tripBudgetOptional: string;
@@ -3178,6 +3193,22 @@ const en: UiStrings = {
       one: 'You are now a former member of {n} group.',
       other: 'You are now a former member of {n} groups.',
     },
+  },
+  clone: {
+    pickTitle: 'Start from a group',
+    pickIntro:
+      'Pick a group to copy. You can rename it, change the icon, and drop anyone before it is made.',
+    nothingToClone: 'No groups yet to start from.',
+    startFrom: 'Start a new group from {name}',
+    star: 'Favourite {name}',
+    unstar: 'Remove {name} from favourites',
+    copyOf: '{name} copy',
+    duplicateTitle: 'Duplicate group',
+    duplicateHint: 'Make a new group from this one',
+    startFromExisting: 'Start from an existing group',
+    startFromExistingHint: 'Copy the people and settings, then edit',
+    favoriteTitle: 'Favourite',
+    favoriteHint: 'Keep it at the top when starting a new group',
   },
   extras: {
     blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
@@ -4788,6 +4819,22 @@ const ta: UiStrings = {
       other: 'நீங்கள் இப்போது {n} குழுக்களின் முன்னாள் உறுப்பினர்.',
     },
   },
+  clone: {
+    pickTitle: 'ஒரு குழுவிலிருந்து தொடங்கு',
+    pickIntro:
+      'நகலெடுக்க ஒரு குழுவைத் தேர்ந்தெடுக்கவும். உருவாக்கும் முன் பெயரை மாற்றலாம், சின்னத்தை மாற்றலாம், யாரையும் நீக்கலாம்.',
+    nothingToClone: 'தொடங்க இன்னும் குழுக்கள் இல்லை.',
+    startFrom: '{name} இலிருந்து புதிய குழுவைத் தொடங்கு',
+    star: '{name} ஐ பிடித்தமானதாக்கு',
+    unstar: '{name} ஐ பிடித்தவற்றிலிருந்து நீக்கு',
+    copyOf: '{name} நகல்',
+    duplicateTitle: 'குழுவை நகலெடு',
+    duplicateHint: 'இதிலிருந்து ஒரு புதிய குழுவை உருவாக்கு',
+    startFromExisting: 'இருக்கும் குழுவிலிருந்து தொடங்கு',
+    startFromExistingHint: 'நபர்களையும் அமைப்புகளையும் நகலெடுத்து, பிறகு திருத்து',
+    favoriteTitle: 'பிடித்தது',
+    favoriteHint: 'புதிய குழு தொடங்கும்போது மேலே வைத்திரு',
+  },
   extras: {
     blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
     tripBudgetOptional: 'பயண பட்ஜெட் (விருப்பம்)',
@@ -6326,6 +6373,22 @@ const hi: UiStrings = {
       one: 'अब आप {n} समूह के पूर्व-सदस्य हैं।',
       other: 'अब आप {n} समूहों के पूर्व-सदस्य हैं।',
     },
+  },
+  clone: {
+    pickTitle: 'किसी ग्रुप से शुरू करें',
+    pickIntro:
+      'कॉपी करने के लिए एक ग्रुप चुनें। बनाने से पहले नाम बदलें, आइकन बदलें, और किसी को भी हटाएँ।',
+    nothingToClone: 'शुरू करने के लिए अभी कोई ग्रुप नहीं।',
+    startFrom: '{name} से नया ग्रुप शुरू करें',
+    star: '{name} को पसंदीदा बनाएँ',
+    unstar: '{name} को पसंदीदा से हटाएँ',
+    copyOf: '{name} कॉपी',
+    duplicateTitle: 'ग्रुप की कॉपी बनाएँ',
+    duplicateHint: 'इससे एक नया ग्रुप बनाएँ',
+    startFromExisting: 'किसी मौजूदा ग्रुप से शुरू करें',
+    startFromExistingHint: 'लोग और सेटिंग्स कॉपी करें, फिर बदलें',
+    favoriteTitle: 'पसंदीदा',
+    favoriteHint: 'नया ग्रुप शुरू करते समय इसे ऊपर रखें',
   },
   extras: {
     blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
@@ -8060,6 +8123,21 @@ const ar: UiStrings = {
       many: 'أنت الآن عضو سابق في {n} مجموعة.',
       other: 'أنت الآن عضو سابق في {n} مجموعة.',
     },
+  },
+  clone: {
+    pickTitle: 'ابدأ من مجموعة',
+    pickIntro: 'اختر مجموعة لنسخها. يمكنك تغيير الاسم والأيقونة وحذف أي شخص قبل إنشائها.',
+    nothingToClone: 'لا توجد مجموعات للبدء منها بعد.',
+    startFrom: 'ابدأ مجموعة جديدة من {name}',
+    star: 'إضافة {name} إلى المفضّلة',
+    unstar: 'إزالة {name} من المفضّلة',
+    copyOf: 'نسخة {name}',
+    duplicateTitle: 'تكرار المجموعة',
+    duplicateHint: 'أنشئ مجموعة جديدة من هذه',
+    startFromExisting: 'ابدأ من مجموعة موجودة',
+    startFromExistingHint: 'انسخ الأشخاص والإعدادات ثم عدّلها',
+    favoriteTitle: 'المفضّلة',
+    favoriteHint: 'ابقها في الأعلى عند بدء مجموعة جديدة',
   },
   extras: {
     blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',

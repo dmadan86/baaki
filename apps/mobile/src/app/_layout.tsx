@@ -516,6 +516,7 @@ function AuthGate() {
           <Stack.Screen name="guest-welcome" />
           <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
           <Stack.Screen name="new-group" options={modal} />
+          <Stack.Screen name="clone-group" options={modal} />
           {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
           <Stack.Screen name="capture" options={modal} />
           <Stack.Screen name="captures" />
