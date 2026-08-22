@@ -24,6 +24,7 @@ import {
   Row,
   Screen,
   Text,
+  type TintName,
   Toggle,
   useTheme,
 } from '@waves/ui';
@@ -69,16 +70,42 @@ const iconFor =
   // eslint-disable-next-line react/display-name
   (color: string): ReactNode => <Ionicons name={name} size={iconSize.base} color={color} />;
 
+/** The leading colour tile of a grouped row — a pastel square with an inked
+ *  glyph, the way each Apple Wallet row is led by its own coloured icon. */
+const TILE = 38;
+function IconTile({ tint, icon }: { tint: TintName; icon: keyof typeof Ionicons.glyphMap }) {
+  const theme = useTheme();
+  const pair = theme.tint[tint];
+  return (
+    <View
+      style={{
+        width: TILE,
+        height: TILE,
+        borderRadius: theme.radius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: pair.bg,
+      }}
+    >
+      <Ionicons name={icon} size={iconSize.md} color={pair.ink} />
+    </View>
+  );
+}
+
 /**
- * One line of the combined attributes card: a label (with an optional one-line
- * hint under it) on the left, and its control — a value pill or a toggle — at
- * the far right, the way a task-details sheet stacks time, date and repeat.
+ * One row of the grouped attributes card, Apple-Wallet style: a leading colour
+ * tile, a bold label (with an optional one-line hint under it), and its control
+ * — a value pill or a toggle — at the far right.
  */
 function AttrRow({
+  tint,
+  icon,
   label,
   subtitle,
   children,
 }: {
+  tint: TintName;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   subtitle?: string;
   children: ReactNode;
@@ -88,12 +115,13 @@ function AttrRow({
     <Row
       style={{
         alignItems: 'center',
-        justifyContent: 'space-between',
         gap: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
         paddingVertical: theme.spacing.md,
       }}
     >
-      <View style={{ flexShrink: 1, gap: 2 }}>
+      <IconTile tint={tint} icon={icon} />
+      <View style={{ flex: 1, gap: 2 }}>
         <Text variant="subheading" style={{ fontWeight: '600' }}>
           {label}
         </Text>
@@ -108,20 +136,29 @@ function AttrRow({
   );
 }
 
+/** The hairline between grouped rows, inset past the colour tile so it starts
+ *  under the label the way a native grouped list draws it. */
+function InsetDivider() {
+  const theme = useTheme();
+  return (
+    <View style={{ paddingLeft: theme.spacing.lg + TILE + theme.spacing.md }}>
+      <Divider />
+    </View>
+  );
+}
+
 /**
- * The tappable value on the right of an AttrRow: an icon and its current value
- * on a soft pill. It lights up in the brand tint while its editor is unfolded
- * below, so the open row is obvious.
+ * The tappable value at the right of an AttrRow: the current value and a chevron
+ * that flips while its editor is unfolded below. It sits on a solid chip so it
+ * reads against the tinted group fill, and lights up in the brand tint open.
  */
 function Pill({
-  icon,
   label,
   placeholder = false,
   expanded,
   onPress,
   accessibilityLabel,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   placeholder?: boolean;
   expanded: boolean;
@@ -140,17 +177,20 @@ function Pill({
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.xs,
-        paddingHorizontal: theme.spacing.md,
-        height: 38,
+        paddingLeft: theme.spacing.md,
+        paddingRight: theme.spacing.sm,
+        height: 36,
         borderRadius: theme.radius.pill,
-        backgroundColor: expanded ? theme.color.brandSoft : theme.color.surfaceMuted,
+        backgroundColor: expanded ? theme.color.brandSoft : theme.color.surface,
+        borderWidth: 1,
+        borderColor: expanded ? theme.color.brand : theme.color.border,
         opacity: pressed ? 0.7 : 1,
       })}
     >
-      <Ionicons name={icon} size={iconSize.base} color={ink} />
       <Text variant="subheading" style={{ fontWeight: '600', color: ink }}>
         {label}
       </Text>
+      <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={iconSize.sm} color={ink} />
     </Pressable>
   );
 }
@@ -439,10 +479,13 @@ export default function NewGroupScreen() {
             planner's overall cap on create so the Plan screen opens with the
             number already in it. ADR-009: simplification is presentation only —
             the pairwise ledger underneath is untouched. */}
-        <Card style={{ gap: 0 }}>
-          <AttrRow label={t.extras.groupKind}>
+        <Card
+          flat
+          padded={false}
+          style={{ backgroundColor: theme.color.surfaceMuted, overflow: 'hidden' }}
+        >
+          <AttrRow tint="lilac" icon={currentType.icon} label={t.extras.groupKind}>
             <Pill
-              icon={currentType.icon}
               label={currentType.label}
               expanded={openAttr === 'kind'}
               accessibilityLabel={t.extras.whatKindOfGroup}
@@ -450,7 +493,7 @@ export default function NewGroupScreen() {
             />
           </AttrRow>
           {openAttr === 'kind' ? (
-            <View style={{ paddingBottom: theme.spacing.md }}>
+            <View style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}>
               <ChipRow<GroupType>
                 value={type}
                 onChange={(next) => {
@@ -468,10 +511,9 @@ export default function NewGroupScreen() {
 
           {type === GroupType.Trip ? (
             <>
-              <Divider />
-              <AttrRow label={t.misc.tripDatesTitle}>
+              <InsetDivider />
+              <AttrRow tint="sky" icon="calendar-outline" label={t.misc.tripDatesTitle}>
                 <Pill
-                  icon="calendar-outline"
                   label={dateSummary}
                   placeholder={!tripDates.start_date || !tripDates.end_date}
                   expanded={openAttr === 'dates'}
@@ -480,7 +522,9 @@ export default function NewGroupScreen() {
                 />
               </AttrRow>
               {openAttr === 'dates' ? (
-                <View style={{ paddingBottom: theme.spacing.md }}>
+                <View
+                  style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}
+                >
                   <TripDates
                     group={tripDates}
                     locale={locale}
@@ -490,10 +534,9 @@ export default function NewGroupScreen() {
                 </View>
               ) : null}
 
-              <Divider />
-              <AttrRow label={t.extras.tripBudget}>
+              <InsetDivider />
+              <AttrRow tint="mint" icon="wallet-outline" label={t.extras.tripBudget}>
                 <Pill
-                  icon="wallet-outline"
                   label={budgetSummary}
                   placeholder={budget <= 0n}
                   expanded={openAttr === 'budget'}
@@ -502,15 +545,22 @@ export default function NewGroupScreen() {
                 />
               </AttrRow>
               {openAttr === 'budget' ? (
-                <View style={{ paddingBottom: theme.spacing.md }}>
+                <View
+                  style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}
+                >
                   <AmountField currency={currency} value={budget} onChange={setBudget} />
                 </View>
               ) : null}
             </>
           ) : null}
 
-          <Divider />
-          <AttrRow label={t.group.simplifyDebts} subtitle={t.group.simplifyDebtsHint}>
+          <InsetDivider />
+          <AttrRow
+            tint="peach"
+            icon="flash-outline"
+            label={t.group.simplifyDebts}
+            subtitle={t.group.simplifyDebtsHint}
+          >
             <Toggle
               value={effectiveSimplify}
               onValueChange={setSimplify}
