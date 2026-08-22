@@ -1,0 +1,22 @@
+# Switching the app language applies live for a left-to-right locale (N-16).
+# Goes to Account → Language, switches to Hindi by its own name, and confirms the
+# screen re-renders in Hindi without a restart. (Arabic mirrors the layout and so
+# needs a native restart — out of scope for a single-session flow.)
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+- assertVisible: 'Your groups'
+
+# Account → Language (the row sits in the settings section, may be below fold).
+- tapOn: 'Account'
+- scrollUntilVisible:
+    element: 'Language'
+    direction: DOWN
+- tapOn: 'Language'
+- assertVisible: 'Language'
+
+# Pick Hindi by its endonym; the change applies to the live tree at once.
+- tapOn: 'हिन्दी'
+
+# The header is now Hindi — proof the strings switched without a relaunch.
+- assertVisible: 'भाषा'

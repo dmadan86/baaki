@@ -60,6 +60,7 @@ node e2e/seed-e2e.mjs
 # 2. Build + install the app against the same project (see apps/mobile). Then run
 #    each flow on its own, reseeding first, because the flows mutate the backend:
 for flow in home-to-add-expense edit-expense delete-restore-expense \
+            change-logo capture-assign locale-switch \
             rename-archive-group sign-out-privacy clone-group \
             group-photo-paid-gate friends-merge-guests leave-group; do
   node e2e/seed-e2e.mjs
@@ -79,6 +80,9 @@ In CI this loop lives in `e2e/run-maestro.sh`.
 | `edit-expense.yaml`           | edit the seeded expense → the ledger reflects the new value                         |
 | `delete-restore-expense.yaml` | delete → gone from the default view → Show deleted → Restore → back                 |
 | `rename-archive-group.yaml`   | rename a group (persists) → archive → gone from Home                                |
+| `change-logo.yaml`            | open Group settings → cover-emoji picker → pick a new icon → applies, sheet closes  |
+| `capture-assign.yaml`         | capture with no group → find it in the inbox → assign → add-expense prefilled       |
+| `locale-switch.yaml`          | Account → Language → switch to Hindi → strings re-render live (no restart)          |
 | `sign-out-privacy.yaml`       | sign out → back at the gateway, the ledger off screen                               |
 | `clone-group.yaml`            | Duplicate → prefilled New Group → drop a member → Create → copy made, original kept |
 | `group-photo-paid-gate.yaml`  | group photo is paid, cover emoji is free                                            |
