@@ -1632,6 +1632,7 @@ export interface UiStrings {
     typeHome: string;
     typeCouple: string;
     typeEvent: string;
+    typeFriends: string;
     typeOther: string;
     addPeopleByName: string;
     ghostNote: string;
@@ -3125,6 +3126,7 @@ const en: UiStrings = {
     typeHome: 'Home',
     typeCouple: 'Couple',
     typeEvent: 'Event',
+    typeFriends: 'Friends',
     typeOther: 'Other',
     addPeopleByName: 'Add friends',
     ghostNote: 'They do not need the app. Add them now and they can claim their history later.',
@@ -4700,6 +4702,7 @@ const ta: UiStrings = {
     typeHome: 'வீடு',
     typeCouple: 'தம்பதி',
     typeEvent: 'நிகழ்வு',
+    typeFriends: 'நண்பர்கள்',
     typeOther: 'மற்றவை',
     addPeopleByName: 'நண்பர்களைச் சேர்',
     ghostNote:
@@ -6206,6 +6209,7 @@ const hi: UiStrings = {
     typeHome: 'घर',
     typeCouple: 'जोड़ा',
     typeEvent: 'आयोजन',
+    typeFriends: 'दोस्त',
     typeOther: 'अन्य',
     addPeopleByName: 'दोस्त जोड़ें',
     ghostNote: 'उन्हें ऐप की ज़रूरत नहीं। अभी जोड़ दें, बाद में वे अपना इतिहास ले सकते हैं।',
@@ -7907,6 +7911,7 @@ const ar: UiStrings = {
     typeHome: 'المنزل',
     typeCouple: 'ثنائي',
     typeEvent: 'مناسبة',
+    typeFriends: 'الأصدقاء',
     typeOther: 'أخرى',
     addPeopleByName: 'أضف أصدقاء',
     ghostNote: 'لا يحتاجون التطبيق. أضفهم الآن ويمكنهم المطالبة بسجلّهم لاحقًا.',

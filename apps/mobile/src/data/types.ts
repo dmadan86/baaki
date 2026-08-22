@@ -5,6 +5,7 @@ export enum GroupType {
   Home = 'home',
   Couple = 'couple',
   Event = 'event',
+  Friends = 'friends',
   Other = 'other',
 }
 export enum SettlementMethod {

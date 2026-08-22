@@ -28,6 +28,7 @@ enum GroupType {
   home
   couple
   event
+  friends
   other
 
   @@schema("public")
