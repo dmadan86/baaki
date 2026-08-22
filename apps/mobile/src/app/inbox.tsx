@@ -20,9 +20,7 @@ import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { renderNotification } from '@waves/core';
 import {
   Button,
-  directionalIcon,
   EmptyState,
-  IconButton,
   iconSize,
   Row,
   Screen,
@@ -129,18 +127,11 @@ export default function InboxScreen() {
           />
         }
       >
-        {/* Back chevron because you drilled in here from the Activity bell,
-            then the same glyph-plus-big-title mark the Activity feed wears — the
-            two screens sit together, so the inbox reads as the sibling it is
-            rather than a generic settings page. */}
+        {/* The same glyph-plus-big-title mark the Activity feed wears — the two
+            screens sit together, so the inbox reads as the sibling it is. No
+            back chevron: the title sits at the left edge exactly like Activity,
+            and the bottom bar carries the way back. */}
         <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center', gap: theme.spacing.sm }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
           <Ionicons name="notifications-outline" size={iconSize.xl} color={theme.color.brand} />
           <Text variant="title">{t.inbox.title}</Text>
         </Row>
