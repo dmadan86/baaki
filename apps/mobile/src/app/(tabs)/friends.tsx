@@ -218,6 +218,17 @@ export default function FriendsScreen() {
             >
               <Ionicons name="people-outline" size={iconSize.xl} color={theme.color.text} />
             </Pressable>
+            {/* Point the camera at a group's invite QR to join it — the read
+                lands in the same join flow an invite link opens. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.misc.scanToJoin}
+              onPress={() => router.push('/scan')}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+            >
+              <Ionicons name="qr-code-outline" size={iconSize.lg} color={theme.color.text} />
+            </Pressable>
             {/* The sort control — a bare vertical three-dot beside the button,
                 opening the same corner dropdown the rest of the app uses. */}
             <Pressable

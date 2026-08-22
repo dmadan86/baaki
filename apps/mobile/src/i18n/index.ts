@@ -1160,6 +1160,13 @@ export interface UiStrings {
     couldNotJoin: string;
     rateFetchFailed: string;
     newGroupPlaceholder: string;
+    scanToJoin: string;
+    scanHint: string;
+    scanAllowBody: string;
+    scanAllow: string;
+    scanDenied: string;
+    scanInvalid: string;
+    scanRebuild: string;
     personName: string;
     createGroup: string;
     linkExpired: string;
@@ -2602,6 +2609,13 @@ const en: UiStrings = {
     couldNotJoin: 'Could not open this invite. Please try again.',
     rateFetchFailed: 'Could not fetch the rate',
     newGroupPlaceholder: 'Name this group',
+    scanToJoin: 'Scan to join',
+    scanHint: "Point at a group's invite QR code",
+    scanAllowBody: 'Allow the camera to read an invite QR code.',
+    scanAllow: 'Allow camera',
+    scanDenied: 'Camera access is off. Turn it on in Settings to scan.',
+    scanInvalid: 'That is not a Waves invite code.',
+    scanRebuild: 'Update the app to scan invite codes.',
     personName: "Person's name",
     createGroup: 'Create group',
     linkExpired: 'This link has expired',
@@ -4150,6 +4164,13 @@ const ta: UiStrings = {
     couldNotJoin: 'இந்த அழைப்பைத் திறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     rateFetchFailed: 'மாற்று விகிதத்தைப் பெற முடியவில்லை',
     newGroupPlaceholder: 'இந்தக் குழுவுக்குப் பெயரிடுங்கள்',
+    scanToJoin: 'ஸ்கேன் செய்து சேரவும்',
+    scanHint: 'குழுவின் அழைப்பு QR குறியீட்டை நோக்கிக் காட்டவும்',
+    scanAllowBody: 'அழைப்பு QR குறியீட்டைப் படிக்க கேமராவை அனுமதிக்கவும்.',
+    scanAllow: 'கேமராவை அனுமதி',
+    scanDenied: 'கேமரா அணுகல் அணைக்கப்பட்டுள்ளது. ஸ்கேன் செய்ய அமைப்புகளில் இயக்கவும்.',
+    scanInvalid: 'இது Waves அழைப்புக் குறியீடு அல்ல.',
+    scanRebuild: 'அழைப்புக் குறியீடுகளை ஸ்கேன் செய்ய ஆப்பைப் புதுப்பிக்கவும்.',
     personName: 'நபரின் பெயர்',
     createGroup: 'குழுவை உருவாக்கு',
     linkExpired: 'இந்த இணைப்பு காலாவதியாகிவிட்டது',
@@ -5684,6 +5705,13 @@ const hi: UiStrings = {
     couldNotJoin: 'यह निमंत्रण नहीं खुल सका। कृपया फिर कोशिश करें।',
     rateFetchFailed: 'दर प्राप्त नहीं हो सकी',
     newGroupPlaceholder: 'इस ग्रुप को नाम दें',
+    scanToJoin: 'स्कैन करके जुड़ें',
+    scanHint: 'ग्रुप के इनवाइट QR कोड की ओर कैमरा करें',
+    scanAllowBody: 'इनवाइट QR कोड पढ़ने के लिए कैमरे की अनुमति दें।',
+    scanAllow: 'कैमरा अनुमति दें',
+    scanDenied: 'कैमरा एक्सेस बंद है। स्कैन करने के लिए सेटिंग्स में चालू करें।',
+    scanInvalid: 'यह Waves इनवाइट कोड नहीं है।',
+    scanRebuild: 'इनवाइट कोड स्कैन करने के लिए ऐप अपडेट करें।',
     personName: 'व्यक्ति का नाम',
     createGroup: 'समूह बनाएँ',
     linkExpired: 'यह लिंक खत्म हो चुका है',
@@ -7254,6 +7282,13 @@ const ar: UiStrings = {
     couldNotJoin: 'تعذّر فتح هذه الدعوة. حاول مرة أخرى.',
     rateFetchFailed: 'تعذّر جلب سعر الصرف',
     newGroupPlaceholder: 'سمِّ هذه المجموعة',
+    scanToJoin: 'امسح للانضمام',
+    scanHint: 'وجّه الكاميرا إلى رمز QR الخاص بدعوة المجموعة',
+    scanAllowBody: 'اسمح للكاميرا بقراءة رمز QR الخاص بالدعوة.',
+    scanAllow: 'السماح للكاميرا',
+    scanDenied: 'الوصول إلى الكاميرا متوقف. فعّله من الإعدادات للمسح.',
+    scanInvalid: 'هذا ليس رمز دعوة Waves.',
+    scanRebuild: 'حدّث التطبيق لمسح رموز الدعوة.',
     personName: 'اسم الشخص',
     createGroup: 'إنشاء مجموعة',
     linkExpired: 'انتهت صلاحية هذا الرابط',

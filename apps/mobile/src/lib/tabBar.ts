@@ -23,6 +23,7 @@ export const TAB_BAR_HIDDEN_ROUTES: ReadonlySet<string> = new Set([
   'language',
   'capture',
   'contact-picker',
+  'scan',
   'new-group',
   'add-expense',
   'settle',
