@@ -200,9 +200,18 @@ describe('adding someone already on Waves', () => {
     const owner = await person('Asha');
     const groupId = await group(owner.id);
 
-    const before = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
+    // Scoped to this group: the suite shares one Postgres, so a global count
+    // could move under a concurrent test between the two reads.
+    const countHere = async (): Promise<number> =>
+      (
+        await client.query(`SELECT count(*)::int AS n FROM notifications WHERE group_id = $1`, [
+          groupId,
+        ])
+      ).rows[0].n;
+
+    const before = await countHere();
     const memberId = await addGhost(owner.id, groupId, { name: 'Someone from the trip' });
-    const after = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
+    const after = await countHere();
 
     expect(memberId).toBeTruthy();
     // A name-only ghost carries no address to match, so nothing was written.
@@ -213,9 +222,16 @@ describe('adding someone already on Waves', () => {
     const owner = await person('Asha');
     const groupId = await group(owner.id);
 
-    const before = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
+    const countHere = async (): Promise<number> =>
+      (
+        await client.query(`SELECT count(*)::int AS n FROM notifications WHERE group_id = $1`, [
+          groupId,
+        ])
+      ).rows[0].n;
+
+    const before = await countHere();
     await addGhost(owner.id, groupId, { name: 'Nobody', email: 'nobody@nowhere.example' });
-    const after = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
+    const after = await countHere();
 
     expect(after).toBe(before);
   });

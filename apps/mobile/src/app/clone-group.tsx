@@ -2,7 +2,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { Avatar, IconButton, iconSize, Row, Screen, Text, tintForKey, useTheme } from '@waves/ui';
+import {
+  Avatar,
+  directionalIcon,
+  IconButton,
+  iconSize,
+  Row,
+  Screen,
+  Text,
+  tintForKey,
+  useTheme,
+} from '@waves/ui';
 
 import { useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel } from '@/data/types';
@@ -122,7 +132,7 @@ export default function CloneGroupScreen() {
                     />
                   </Pressable>
                   <Ionicons
-                    name="chevron-forward"
+                    name={directionalIcon('chevron-forward')}
                     size={iconSize.base}
                     color={theme.color.textFaint}
                   />

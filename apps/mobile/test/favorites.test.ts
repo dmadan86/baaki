@@ -68,4 +68,18 @@ describe('starring a group', () => {
     await loadFavorites();
     expect(isFavorite('never-starred')).toBe(false);
   });
+
+  it('keeps a toggle made before the first load resolves', async () => {
+    // A prior run left one star on disk; the app relaunches and the load begins.
+    await AsyncStorage.setItem('favorites.groups', JSON.stringify(['old']));
+    __resetFavoritesForTest();
+
+    const loading = loadFavorites();
+    // The user stars a group before that read comes back.
+    toggleFavorite('fresh');
+    await loading;
+
+    // The fresh star must survive — the slow stored set does not clobber it.
+    expect(isFavorite('fresh')).toBe(true);
+  });
 });

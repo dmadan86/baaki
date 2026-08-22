@@ -20,6 +20,10 @@ const KEY = 'favorites.groups';
 
 let ids = new Set<string>();
 let loaded = false;
+// True once the user has toggled a star in this run. If a toggle lands while the
+// first disk read is still in flight, the in-memory set is the truth and the
+// slower stored set must not clobber it (nor undo the write the toggle queued).
+let touched = false;
 const listeners = new Set<() => void>();
 
 const emit = (): void => {
@@ -38,14 +42,17 @@ export async function loadFavorites(): Promise<void> {
   loaded = true;
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    if (raw) {
+    // A toggle that raced ahead of this read already made the in-memory set (and
+    // the disk) authoritative — adopting the older stored set would undo it.
+    if (raw && !touched) {
       const parsed: unknown = JSON.parse(raw);
       if (Array.isArray(parsed))
         ids = new Set(parsed.filter((x): x is string => typeof x === 'string'));
     }
   } catch {
-    // A corrupt value is no favourites, not a crash.
-    ids = new Set();
+    // A corrupt value is no favourites, not a crash — unless a toggle already
+    // seeded the set, in which case keep what the user just did.
+    if (!touched) ids = new Set();
   }
   emit();
 }
@@ -56,6 +63,7 @@ export function isFavorite(groupId: string): boolean {
 
 export function toggleFavorite(groupId: string): void {
   if (!groupId) return;
+  touched = true;
   if (ids.has(groupId)) ids.delete(groupId);
   else ids.add(groupId);
   persist();
@@ -74,6 +82,7 @@ export function subscribeFavorites(listener: () => void): () => void {
 export function __resetFavoritesForTest(): void {
   ids = new Set();
   loaded = false;
+  touched = false;
   listeners.clear();
 }
 

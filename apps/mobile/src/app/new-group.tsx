@@ -17,6 +17,7 @@ import {
   Callout,
   Card,
   ChipRow,
+  directionalIcon,
   Divider,
   IconButton,
   iconSize,
@@ -554,7 +555,7 @@ export default function NewGroupScreen() {
                   </Text>
                 </View>
                 <Ionicons
-                  name="chevron-forward"
+                  name={directionalIcon('chevron-forward')}
                   size={iconSize.base}
                   color={theme.color.textFaint}
                 />
