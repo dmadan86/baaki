@@ -37,7 +37,7 @@ import { useThemePreference } from '@/lib/theme';
 interface SettingsRow {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  hint: string;
+  hint?: string;
   route?: string;
   onPress?: () => void;
   /** Ends something. Red title, red icon. */
@@ -510,6 +510,11 @@ function ProfileForm() {
               label: t.account.motionRow,
               hint: motionSummary,
               route: '/settings/motion',
+            },
+            {
+              icon: 'flash-outline',
+              label: t.shortcut.title,
+              route: '/settings/shortcut',
             },
             {
               icon: 'cloud-outline',

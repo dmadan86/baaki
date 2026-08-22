@@ -404,6 +404,18 @@ export interface UiStrings {
     importInstead: string;
   };
   /** The motion switch, and the phone setting it defers to. */
+  shortcut: {
+    title: string;
+    intro: string;
+    actionLabel: string;
+    optionScan: string;
+    optionVoice: string;
+    optionAdd: string;
+    optionOff: string;
+    doubleTapTitle: string;
+    doubleTapExplain: string;
+    iconHint: string;
+  };
   motion: {
     title: string;
     animateBetweenScreens: string;
@@ -1881,6 +1893,19 @@ const en: UiStrings = {
     webNote: 'On web the file is written to the app cache; use a device to share it onward.',
     shareTitle: 'Your Waves export',
     importInstead: 'Import from Splitwise',
+  },
+  shortcut: {
+    title: 'Quick shortcut',
+    intro:
+      'Pick one thing the shortcut does, and reach it fast — a two-finger double-tap anywhere in the app, or a long-press on the Waves icon on your home screen.',
+    actionLabel: 'The shortcut opens',
+    optionScan: 'Scan a receipt',
+    optionVoice: 'Speak an expense',
+    optionAdd: 'Add an expense',
+    optionOff: 'Off',
+    doubleTapTitle: 'Two-finger double-tap',
+    doubleTapExplain: 'Double-tap anywhere with two fingers to fire the shortcut.',
+    iconHint: 'Long-press the Waves icon on your home screen for the same shortcut.',
   },
   motion: {
     title: 'Motion',
@@ -3409,6 +3434,19 @@ const ta: UiStrings = {
       'வலையில் கோப்பு ஆப்பின் தற்காலிக இடத்தில் எழுதப்படுகிறது; மேலும் பகிர ஒரு சாதனத்தைப் பயன்படுத்துங்கள்.',
     shareTitle: 'உங்கள் பாக்கி ஏற்றுமதி',
     importInstead: 'Splitwise இலிருந்து இறக்குமதி',
+  },
+  shortcut: {
+    title: 'விரைவு குறுக்குவழி',
+    intro:
+      'குறுக்குவழி செய்யும் ஒரு செயலைத் தேர்ந்தெடுங்கள் — செயலியில் எங்கும் இரு விரல் இரட்டைத் தட்டு, அல்லது முகப்புத் திரையில் Waves சின்னத்தை நீண்ட நேரம் அழுத்துதல்.',
+    actionLabel: 'குறுக்குவழி திறப்பது',
+    optionScan: 'ரசீதை ஸ்கேன் செய்',
+    optionVoice: 'செலவைப் பேசு',
+    optionAdd: 'செலவைச் சேர்',
+    optionOff: 'அணை',
+    doubleTapTitle: 'இரு விரல் இரட்டைத் தட்டு',
+    doubleTapExplain: 'குறுக்குவழியைத் தூண்ட எங்கும் இரு விரல்களால் இரட்டைத் தட்டவும்.',
+    iconHint: 'அதே குறுக்குவழிக்கு முகப்புத் திரையில் Waves சின்னத்தை நீண்ட நேரம் அழுத்தவும்.',
   },
   motion: {
     title: 'அசைவு',
@@ -4995,6 +5033,19 @@ const hi: UiStrings = {
     shareTitle: 'आपका बाकी निर्यात',
     importInstead: 'Splitwise से आयात करें',
   },
+  shortcut: {
+    title: 'क्विक शॉर्टकट',
+    intro:
+      'शॉर्टकट जो एक काम करे उसे चुनें — ऐप में कहीं भी दो उँगलियों से डबल-टैप, या होम स्क्रीन पर Waves आइकन को देर तक दबाना।',
+    actionLabel: 'शॉर्टकट खोलता है',
+    optionScan: 'रसीद स्कैन करें',
+    optionVoice: 'खर्च बोलें',
+    optionAdd: 'खर्च जोड़ें',
+    optionOff: 'बंद',
+    doubleTapTitle: 'दो उँगलियों से डबल-टैप',
+    doubleTapExplain: 'शॉर्टकट चलाने के लिए कहीं भी दो उँगलियों से डबल-टैप करें।',
+    iconHint: 'वही शॉर्टकट पाने के लिए होम स्क्रीन पर Waves आइकन को देर तक दबाएँ।',
+  },
   motion: {
     title: 'गति',
     animateBetweenScreens: 'स्क्रीनों के बीच एनिमेशन',
@@ -6534,6 +6585,19 @@ const ar: UiStrings = {
     webNote: 'على الويب يُكتب الملف في ذاكرة التطبيق المؤقتة؛ استخدم جهازًا لمشاركته.',
     shareTitle: 'تصدير باقي الخاص بك',
     importInstead: 'استيراد من Splitwise',
+  },
+  shortcut: {
+    title: 'اختصار سريع',
+    intro:
+      'اختر ما يفعله الاختصار، وشغّله بسرعة — نقرة مزدوجة بإصبعين في أي مكان بالتطبيق، أو ضغطة مطوّلة على أيقونة Waves في الشاشة الرئيسية.',
+    actionLabel: 'يفتح الاختصار',
+    optionScan: 'مسح إيصال',
+    optionVoice: 'انطق مصروفًا',
+    optionAdd: 'أضف مصروفًا',
+    optionOff: 'إيقاف',
+    doubleTapTitle: 'نقرة مزدوجة بإصبعين',
+    doubleTapExplain: 'انقر نقرة مزدوجة بإصبعين في أي مكان لتشغيل الاختصار.',
+    iconHint: 'اضغط مطوّلًا على أيقونة Waves في الشاشة الرئيسية للاختصار نفسه.',
   },
   motion: {
     title: 'الحركة',
