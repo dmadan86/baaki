@@ -4,7 +4,14 @@ import { randomUUID } from 'expo-crypto';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { currencyForCountry, guessGroupEmoji, MutationKind } from '@waves/core';
+import {
+  currencyForCountry,
+  currencySymbol,
+  guessGroupEmoji,
+  minorUnitExponent,
+  minorUnitScale,
+  MutationKind,
+} from '@waves/core';
 import {
   AmountField,
   Button,
@@ -62,54 +69,89 @@ const iconFor =
   // eslint-disable-next-line react/display-name
   (color: string): ReactNode => <Ionicons name={name} size={iconSize.base} color={color} />;
 
-/** The soft brand-tinted square that leads a settings row. */
-function IconChip({ name }: { name: keyof typeof Ionicons.glyphMap }) {
-  const theme = useTheme();
-  return (
-    <View
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: theme.radius.md,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.color.brandSoft,
-      }}
-    >
-      <Ionicons name={name} size={iconSize.base} color={theme.color.brand} />
-    </View>
-  );
-}
-
 /**
- * One line of a grouped settings card: a leading icon, a title over an optional
- * one-line hint, and the control it toggles or fills sitting at the far right.
+ * One line of the combined attributes card: a label (with an optional one-line
+ * hint under it) on the left, and its control — a value pill or a toggle — at
+ * the far right, the way a task-details sheet stacks time, date and repeat.
  */
-function SettingRow({
-  icon,
-  title,
+function AttrRow({
+  label,
   subtitle,
-  trailing,
+  children,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
+  label: string;
   subtitle?: string;
-  trailing: ReactNode;
+  children: ReactNode;
 }) {
   const theme = useTheme();
   return (
-    <Row style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.sm }}>
-      <IconChip name={icon} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="subheading">{title}</Text>
+    <Row
+      style={{
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+      }}
+    >
+      <View style={{ flexShrink: 1, gap: 2 }}>
+        <Text variant="subheading" style={{ fontWeight: '600' }}>
+          {label}
+        </Text>
         {subtitle ? (
           <Text variant="caption" tone="muted">
             {subtitle}
           </Text>
         ) : null}
       </View>
-      {trailing}
+      {children}
     </Row>
+  );
+}
+
+/**
+ * The tappable value on the right of an AttrRow: an icon and its current value
+ * on a soft pill. It lights up in the brand tint while its editor is unfolded
+ * below, so the open row is obvious.
+ */
+function Pill({
+  icon,
+  label,
+  placeholder = false,
+  expanded,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  placeholder?: boolean;
+  expanded: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const theme = useTheme();
+  const ink = expanded ? theme.color.brand : placeholder ? theme.color.textMuted : theme.color.text;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.md,
+        height: 38,
+        borderRadius: theme.radius.pill,
+        backgroundColor: expanded ? theme.color.brandSoft : theme.color.surfaceMuted,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.base} color={ink} />
+      <Text variant="subheading" style={{ fontWeight: '600', color: ink }}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -136,6 +178,9 @@ export default function NewGroupScreen() {
   // a paid feature edited from group settings, not part of creating one.
   const [iconOpen, setIconOpen] = useState(false);
   const [type, setType] = useState<GroupType>(GroupType.Trip);
+  // Which attribute row of the combined card is unfolded, if any — one at a
+  // time, so the card stays a short list until you open the one you want.
+  const [openAttr, setOpenAttr] = useState<'kind' | 'dates' | 'budget' | null>(null);
   const [ghostName, setGhostName] = useState('');
   // People to add on Create — a typed name carries no address, a contact carries
   // whatever the phone had. Same shape either way, so the create loop treats
@@ -170,6 +215,48 @@ export default function NewGroupScreen() {
   // not. Follows the type until somebody says otherwise.
   const effectiveSimplify = simplify ?? (type === GroupType.Trip || type === GroupType.Event);
   const currency = currencyForCountry(country) ?? 'INR';
+
+  // The kinds of group, one place — the chips inside the picker and the icon on
+  // the collapsed pill both read from this.
+  const typeOptions: { value: GroupType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { value: GroupType.Trip, label: t.extras.typeTrip, icon: 'airplane' },
+    { value: GroupType.Home, label: t.extras.typeHome, icon: 'home' },
+    { value: GroupType.Couple, label: t.extras.typeCouple, icon: 'heart' },
+    { value: GroupType.Event, label: t.extras.typeEvent, icon: 'sparkles' },
+    { value: GroupType.Friends, label: t.extras.typeFriends, icon: 'people-circle' },
+    { value: GroupType.Other, label: t.extras.typeOther, icon: 'people' },
+  ];
+  const currentType = typeOptions.find((option) => option.value === type) ?? {
+    value: type,
+    label: t.extras.typeOther,
+    icon: 'people' as const,
+  };
+
+  // A short "9 Jan" for the date pill; the full weekday form lives inside the
+  // picker. Parsed at local noon so a date-only string never slips a day.
+  const shortDate = (iso: string): string => {
+    const [year, month, day] = iso.split('-').map(Number);
+    return new Date(year ?? 2026, (month ?? 1) - 1, day ?? 1, 12).toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'short',
+    });
+  };
+  const dateSummary =
+    tripDates.start_date && tripDates.end_date
+      ? `${shortDate(tripDates.start_date)} – ${shortDate(tripDates.end_date)}`
+      : t.add;
+
+  // The budget for its pill, minor units back to a plain major string with the
+  // currency symbol — the same maths AmountField does, just for display.
+  const budgetSummary = ((): string => {
+    if (budget <= 0n) return t.add;
+    const scale = minorUnitScale(currency);
+    const exponent = minorUnitExponent(currency);
+    const whole = (budget / scale).toString();
+    const major =
+      exponent === 0 ? whole : `${whole}.${(budget % scale).toString().padStart(exponent, '0')}`;
+    return `${currencySymbol(currency)}${major}`;
+  })();
 
   const submit = async (): Promise<void> => {
     // A guest gets one group and ten days (ADR-006 addendum). Past either, this
@@ -343,75 +430,93 @@ export default function NewGroupScreen() {
           onOpenChange={setIconOpen}
         />
 
-        <View style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.extras.whatKindOfGroup}
-          </Text>
-          <ChipRow<GroupType>
-            value={type}
-            onChange={setType}
-            options={[
-              { value: GroupType.Trip, label: t.extras.typeTrip, icon: iconFor('airplane') },
-              { value: GroupType.Home, label: t.extras.typeHome, icon: iconFor('home') },
-              { value: GroupType.Couple, label: t.extras.typeCouple, icon: iconFor('heart') },
-              { value: GroupType.Event, label: t.extras.typeEvent, icon: iconFor('sparkles') },
-              {
-                value: GroupType.Friends,
-                label: t.extras.typeFriends,
-                icon: iconFor('people-circle'),
-              },
-              { value: GroupType.Other, label: t.extras.typeOther, icon: iconFor('people') },
-            ]}
-          />
-        </View>
-
-        {/* Dates only mean anything for a trip — a flatshare or a couple has no
-            start and end. Shown only for trips. */}
-        {type === GroupType.Trip ? (
-          <TripDates
-            group={tripDates}
-            locale={locale}
-            onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
-          />
-        ) : null}
-
-        {/* Trip budget (trips only) and simplify debts as one grouped card of
-            icon-led rows — a label with its control at the far right.
+        {/* Kind, dates, budget and simplify as one card of attribute rows —
+            each a label with a value pill that unfolds its editor beneath, so
+            the whole shape of a group is set from one short list rather than
+            four stacked cards. Dates and budget are trip-only.
 
             The budget, left at zero, sets nothing; entered, it seeds the
             planner's overall cap on create so the Plan screen opens with the
             number already in it. ADR-009: simplification is presentation only —
             the pairwise ledger underneath is untouched. */}
         <Card style={{ gap: 0 }}>
+          <AttrRow label={t.extras.groupKind}>
+            <Pill
+              icon={currentType.icon}
+              label={currentType.label}
+              expanded={openAttr === 'kind'}
+              accessibilityLabel={t.extras.whatKindOfGroup}
+              onPress={() => setOpenAttr((current) => (current === 'kind' ? null : 'kind'))}
+            />
+          </AttrRow>
+          {openAttr === 'kind' ? (
+            <View style={{ paddingBottom: theme.spacing.md }}>
+              <ChipRow<GroupType>
+                value={type}
+                onChange={(next) => {
+                  setType(next);
+                  setOpenAttr(null);
+                }}
+                options={typeOptions.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  icon: iconFor(option.icon),
+                }))}
+              />
+            </View>
+          ) : null}
+
           {type === GroupType.Trip ? (
             <>
-              <SettingRow
-                icon="wallet-outline"
-                title={t.extras.tripBudgetOptional}
-                trailing={
-                  <AmountField
-                    currency={currency}
-                    value={budget}
-                    onChange={setBudget}
-                    size="compact"
-                  />
-                }
-              />
               <Divider />
+              <AttrRow label={t.misc.tripDatesTitle}>
+                <Pill
+                  icon="calendar-outline"
+                  label={dateSummary}
+                  placeholder={!tripDates.start_date || !tripDates.end_date}
+                  expanded={openAttr === 'dates'}
+                  accessibilityLabel={t.misc.tripDatesTitle}
+                  onPress={() => setOpenAttr((current) => (current === 'dates' ? null : 'dates'))}
+                />
+              </AttrRow>
+              {openAttr === 'dates' ? (
+                <View style={{ paddingBottom: theme.spacing.md }}>
+                  <TripDates
+                    group={tripDates}
+                    locale={locale}
+                    embedded
+                    onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
+                  />
+                </View>
+              ) : null}
+
+              <Divider />
+              <AttrRow label={t.extras.tripBudget}>
+                <Pill
+                  icon="wallet-outline"
+                  label={budgetSummary}
+                  placeholder={budget <= 0n}
+                  expanded={openAttr === 'budget'}
+                  accessibilityLabel={t.extras.tripBudgetOptional}
+                  onPress={() => setOpenAttr((current) => (current === 'budget' ? null : 'budget'))}
+                />
+              </AttrRow>
+              {openAttr === 'budget' ? (
+                <View style={{ paddingBottom: theme.spacing.md }}>
+                  <AmountField currency={currency} value={budget} onChange={setBudget} />
+                </View>
+              ) : null}
             </>
           ) : null}
-          <SettingRow
-            icon="flash-outline"
-            title={t.group.simplifyDebts}
-            subtitle={t.group.simplifyDebtsHint}
-            trailing={
-              <Toggle
-                value={effectiveSimplify}
-                onValueChange={setSimplify}
-                accessibilityLabel={t.group.simplifyDebts}
-              />
-            }
-          />
+
+          <Divider />
+          <AttrRow label={t.group.simplifyDebts} subtitle={t.group.simplifyDebtsHint}>
+            <Toggle
+              value={effectiveSimplify}
+              onValueChange={setSimplify}
+              accessibilityLabel={t.group.simplifyDebts}
+            />
+          </AttrRow>
         </Card>
 
         <Card style={{ gap: theme.spacing.md }}>

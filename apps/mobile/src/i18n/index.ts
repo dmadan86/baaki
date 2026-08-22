@@ -1629,6 +1629,8 @@ export interface UiStrings {
   extras: {
     blankNameHint: string;
     tripBudgetOptional: string;
+    groupKind: string;
+    tripBudget: string;
     whatKindOfGroup: string;
     typeTrip: string;
     typeHome: string;
@@ -3125,6 +3127,8 @@ const en: UiStrings = {
   extras: {
     blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
     tripBudgetOptional: 'Trip budget (optional)',
+    groupKind: 'Kind',
+    tripBudget: 'Budget',
     whatKindOfGroup: 'What kind of group?',
     typeTrip: 'Trip',
     typeHome: 'Home',
@@ -4703,6 +4707,8 @@ const ta: UiStrings = {
   extras: {
     blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
     tripBudgetOptional: 'பயண பட்ஜெட் (விருப்பம்)',
+    groupKind: 'வகை',
+    tripBudget: 'பட்ஜெட்',
     whatKindOfGroup: 'என்ன வகைக் குழு?',
     typeTrip: 'பயணம்',
     typeHome: 'வீடு',
@@ -6212,6 +6218,8 @@ const hi: UiStrings = {
   extras: {
     blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
     tripBudgetOptional: 'ट्रिप बजट (वैकल्पिक)',
+    groupKind: 'प्रकार',
+    tripBudget: 'बजट',
     whatKindOfGroup: 'किस तरह का समूह?',
     typeTrip: 'यात्रा',
     typeHome: 'घर',
@@ -7916,6 +7924,8 @@ const ar: UiStrings = {
   extras: {
     blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',
     tripBudgetOptional: 'ميزانية الرحلة (اختياري)',
+    groupKind: 'النوع',
+    tripBudget: 'الميزانية',
     whatKindOfGroup: 'أي نوع من المجموعات؟',
     typeTrip: 'رحلة',
     typeHome: 'المنزل',
