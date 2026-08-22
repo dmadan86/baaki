@@ -259,10 +259,6 @@ export default function NewGroupScreen() {
     remind_morning_at: '09:00:00',
     remind_evening_at: '20:00:00',
   }));
-  // The source group's photo, carried onto the clone. A photo is a paid feature,
-  // so the server's photo-gate is what decides whether it survives on the new
-  // group — this only copies the reference; it never grants the perk.
-  const [clonePhotoPath, setClonePhotoPath] = useState<string | null>(null);
 
   // Fill the form from the source group, once, the first render it is readable.
   const seeded = useRef(false);
@@ -301,7 +297,6 @@ export default function NewGroupScreen() {
       setName(group.name ? fill(t.clone.copyOf, { name: group.name }) : '');
       setType(group.type);
       setPickedEmoji(group.cover_emoji ?? null);
-      setClonePhotoPath(group.photo_path ?? null);
       setSimplify(group.simplify_debts);
       if (budgetMinor !== null) setBudget(budgetMinor);
       if (group.start_date && group.end_date) {
@@ -386,9 +381,11 @@ export default function NewGroupScreen() {
         country,
         currency,
         emoji,
-        // Carried from the source when cloning; null on a fresh group. The
-        // server photo-gate still rules whether it sticks (paid-only).
-        photoPath: clonePhotoPath,
+        // A group photo is not carried onto a clone: its storage object is
+        // scoped to the source group's path, so a copied reference would only
+        // render for viewers who are also in the source (emoji for everyone
+        // else). The clone keeps the emoji; a photo is set later in settings,
+        // where it is uploaded under this group's own path and paid-gated.
         simplify: effectiveSimplify,
       });
 
@@ -505,7 +502,7 @@ export default function NewGroupScreen() {
               onPress={() => setIconOpen(true)}
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
-              <GroupPhoto photoPath={clonePhotoPath} emoji={emoji} size={44} />
+              <GroupPhoto photoPath={null} emoji={emoji} size={44} />
             </Pressable>
             <TextInput
               value={name}
