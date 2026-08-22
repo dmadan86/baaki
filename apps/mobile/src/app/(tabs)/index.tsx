@@ -32,7 +32,7 @@ import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney, PressableScale } from '@/lib/anim';
 import { useMotion } from '@/lib/motion';
 import { useFlagEnabled } from '@/lib/flags';
-import { deviceDefaultCurrency, plural, useStrings, type UiStrings } from '@/i18n';
+import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { usePromptSlot } from '@/lib/promptQueue';
@@ -41,6 +41,7 @@ import { TourTarget, useTour } from '@/lib/tour';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
 import { GroupCard } from '@/components/GroupCard';
+import { useDefaultCurrency } from '@/lib/currency';
 import { QuickAddSheet, useQuickAddActions } from '@/components/QuickAddSheet';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
@@ -72,6 +73,7 @@ export default function HomeScreen() {
   // scan, or speak an expense — the phone-home-screen quick-actions gesture.
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const quickAddActions = useQuickAddActions();
+  const defaultCurrency = useDefaultCurrency();
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
@@ -186,7 +188,7 @@ export default function HomeScreen() {
    * empty state reads ₹0 and the first group then counts in dollars.
    */
   const headline = summary.totals[0] ?? {
-    currency: deviceDefaultCurrency(),
+    currency: defaultCurrency,
     net: 0n,
     owed: 0n,
     owing: 0n,

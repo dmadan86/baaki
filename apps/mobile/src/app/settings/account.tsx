@@ -30,9 +30,10 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { dialingCodeForCountry } from '@waves/core';
+import { currencyForCountry, currencySymbol, dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
+import { CountryRow } from '@/components/CountryPicker';
 import { friendlyError } from '@/lib/errors';
 import { confirmContact, startAddingContact, ContactChannel } from '@/data/api';
 import { deviceCountry, useStrings } from '@/i18n';
@@ -76,6 +77,18 @@ function AccountForm() {
   // profile; the key on this screen's owner keeps it honest across a swap.
   const [name, setName] = useState(profile?.display_name ?? '');
   const [nameStatus, setNameStatus] = useState<string | null>(null);
+
+  // Region: the country decides the default currency (and settle rails) and,
+  // optionally, a postal address. Seeded from the profile, falling back to the
+  // phone's region so the field is rarely empty on first open.
+  const [country, setCountry] = useState<string | null>(
+    profile?.country_code ?? deviceCountry() ?? null,
+  );
+  const [regionStatus, setRegionStatus] = useState<string | null>(null);
+  const [address, setAddress] = useState(profile?.address ?? '');
+  const [addressStatus, setAddressStatus] = useState<string | null>(null);
+  // The country drives this: it is what every new group and expense starts on.
+  const currency = currencyForCountry(country) ?? profile?.default_currency ?? 'INR';
 
   const [channel, setChannel] = useState<ContactChannel>(ContactChannel.Email);
   const [value, setValue] = useState('');
@@ -137,6 +150,34 @@ function AccountForm() {
       setNameStatus(t.account.saved);
     } catch (caught) {
       setNameStatus(friendlyError(caught, t.couldNotSave, 'account.saveName'));
+    }
+  };
+
+  // Picking a country saves it and, with it, the currency it implies — the one
+  // decision the field exists to make.
+  const saveCountry = async (next: string | null): Promise<void> => {
+    setCountry(next);
+    setRegionStatus(null);
+    try {
+      await updateProfile({
+        country_code: next,
+        default_currency: currencyForCountry(next) ?? profile?.default_currency ?? 'INR',
+      });
+      setRegionStatus(t.account.saved);
+    } catch (caught) {
+      setRegionStatus(friendlyError(caught, t.couldNotSave, 'account.saveCountry'));
+    }
+  };
+
+  const addressDirty = address.trim() !== (profile?.address ?? '');
+  const saveAddress = async (): Promise<void> => {
+    setAddressStatus(null);
+    try {
+      // Empty clears it to null rather than storing a blank string.
+      await updateProfile({ address: address.trim() || null });
+      setAddressStatus(t.account.saved);
+    } catch (caught) {
+      setAddressStatus(friendlyError(caught, t.couldNotSave, 'account.saveAddress'));
     }
   };
 
@@ -266,6 +307,74 @@ function AccountForm() {
                 {nameStatus}
               </Text>
             ) : null}
+          </Card>
+        </View>
+
+        {/* Where you are: the country sets the currency every new group and
+            expense starts on, and the settle rails you are offered. Required —
+            an address may follow, but it never has to. */}
+        <View style={{ gap: theme.spacing.md }}>
+          <SectionHeader title={t.account.regionTitle} />
+          <Card style={{ gap: theme.spacing.lg }}>
+            <CountryRow countryCode={country} onChange={(next) => void saveCountry(next)} />
+
+            {country ? (
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <View>
+                  <Text variant="caption" tone="muted">
+                    {t.account.currencyLabel}
+                  </Text>
+                  <Text variant="caption" tone="muted">
+                    {t.account.currencyFromCountry}
+                  </Text>
+                </View>
+                <Text variant="subheading">{`${currencySymbol(currency)} ${currency}`}</Text>
+              </Row>
+            ) : (
+              <Text variant="caption" tone="negative">
+                {t.account.countryRequired}
+              </Text>
+            )}
+
+            {regionStatus ? (
+              <Text
+                variant="caption"
+                tone={regionStatus === t.account.saved ? 'positive' : 'negative'}
+              >
+                {regionStatus}
+              </Text>
+            ) : null}
+
+            <View style={{ gap: theme.spacing.xs }}>
+              <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+                <Text variant="caption" tone="muted">
+                  {t.account.addressTitle}
+                </Text>
+                <Text variant="caption" tone="faint">
+                  {`· ${t.account.addressOptional}`}
+                </Text>
+              </Row>
+              <TextInput
+                value={address}
+                onChangeText={setAddress}
+                multiline
+                accessibilityLabel={t.account.addressTitle}
+                placeholder={t.account.addressPlaceholder}
+                placeholderTextColor={theme.color.textFaint}
+                style={[fieldStyle, { minHeight: 72, textAlignVertical: 'top' }]}
+              />
+              {addressDirty ? (
+                <Button label={t.common.save} fullWidth onPress={() => void saveAddress()} />
+              ) : null}
+              {addressStatus ? (
+                <Text
+                  variant="caption"
+                  tone={addressStatus === t.account.saved ? 'positive' : 'negative'}
+                >
+                  {addressStatus}
+                </Text>
+              ) : null}
+            </View>
           </Card>
         </View>
 

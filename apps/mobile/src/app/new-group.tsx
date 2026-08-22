@@ -37,6 +37,7 @@ import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { requestContacts } from '@/lib/contactPickerBridge';
 import { useCreateGroup } from '@/data/hooks';
+import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
 import { GroupType } from '@/data/types';
@@ -210,6 +211,7 @@ export default function NewGroupScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const createGroup = useCreateGroup();
+  const { profile } = useAuth();
   const guard = useGuestGuard();
   const { mutate } = useSync();
 
@@ -227,10 +229,10 @@ export default function NewGroupScreen() {
   // them alike.
   const [ghosts, setGhosts] = useState<PickedContact[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Not asked on this screen anymore — derived silently from the phone's locale
-  // so the group still gets a sensible currency and settle rails (both changeable
-  // later in group settings, which keeps the country row).
-  const country: string | null = deviceCountry();
+  // Not asked on this screen — taken from the account country (which the user
+  // sets on "Your account"), falling back to the phone's region. Decides the
+  // group's currency and settle rails, both changeable later in group settings.
+  const country: string | null = profile?.country_code ?? deviceCountry();
   // Null until somebody picks: the icon is otherwise read from the name, so an
   // untouched group still gets a sensible cover.
   const [pickedEmoji, setPickedEmoji] = useState<string | null>(null);

@@ -138,8 +138,12 @@ model Profile {
   /// number or a Zelle number, and only the rail says which.
   paymentRail       String?  @map("payment_rail")
   paymentHandle     String?  @map("payment_handle")
-  /// ISO-3166 alpha-2. Decides which rails they are offered.
+  /// ISO-3166 alpha-2. Decides which rails they are offered and the default
+  /// currency (see `currencyForCountry`).
   countryCode       String?  @map("country_code") @db.Char(2)
+  /// Optional postal address, one free-text field — Waves never posts to it, so
+  /// it is never parsed into lines. Null until the owner types one.
+  address           String?  @map("address")
   defaultCurrency   String   @default("INR") @map("default_currency") @db.Char(3)
   locale            String   @default("en")
   notificationPrefs Json     @default("{}") @map("notification_prefs")

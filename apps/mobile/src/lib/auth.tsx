@@ -91,8 +91,10 @@ export interface Profile {
   /** How this person is paid: a `RailId` from `@waves/core`, and a handle on it. */
   payment_rail: string | null;
   payment_handle: string | null;
-  /** ISO-3166 alpha-2 — seeds a new group's country when they make one. */
+  /** ISO-3166 alpha-2 — seeds a new group's country and the default currency. */
   country_code: string | null;
+  /** Optional postal address, one free-text field. Null until they type one. */
+  address: string | null;
   default_currency: string;
   locale: string;
 }
@@ -211,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await supabase
           .from('profiles')
           .select(
-            'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, default_currency, locale',
+            'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, address, default_currency, locale',
           )
           .eq('id', session.user.id)
           .maybeSingle();
@@ -296,7 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .update(patch)
           .eq('id', session.user.id)
           .select(
-            'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, default_currency, locale',
+            'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, address, default_currency, locale',
           )
           .single();
         if (error) throw error;

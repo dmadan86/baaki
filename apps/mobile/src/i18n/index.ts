@@ -499,6 +499,13 @@ export interface UiStrings {
     otherCurrencies: PluralForms;
     saved: string;
     displayName: string;
+    regionTitle: string;
+    currencyLabel: string;
+    currencyFromCountry: string;
+    countryRequired: string;
+    addressTitle: string;
+    addressOptional: string;
+    addressPlaceholder: string;
     you: string;
     guestAccount: string;
     guestAccountBody: string;
@@ -1971,6 +1978,13 @@ const en: UiStrings = {
     otherCurrencies: { one: 'and {n} other currency', other: 'and {n} other currencies' },
     saved: 'Saved',
     displayName: 'Display name',
+    regionTitle: 'Region',
+    currencyLabel: 'Currency',
+    currencyFromCountry: 'Set from your country',
+    countryRequired: 'Pick your country to set your currency and payment options.',
+    addressTitle: 'Address',
+    addressOptional: 'Optional',
+    addressPlaceholder: 'Street, city, postal code',
     you: 'You',
     guestAccount: 'Guest account',
     guestAccountBody:
@@ -3497,6 +3511,14 @@ const ta: UiStrings = {
     otherCurrencies: { one: 'மேலும் {n} நாணயம்', other: 'மேலும் {n} நாணயங்கள்' },
     saved: 'சேமிக்கப்பட்டது',
     displayName: 'காட்டப்படும் பெயர்',
+    regionTitle: 'பகுதி',
+    currencyLabel: 'நாணயம்',
+    currencyFromCountry: 'உங்கள் நாட்டிலிருந்து அமைக்கப்படுகிறது',
+    countryRequired:
+      'நாணயத்தையும் பணச் செலுத்தல் விருப்பங்களையும் அமைக்க உங்கள் நாட்டைத் தேர்ந்தெடுக்கவும்.',
+    addressTitle: 'முகவரி',
+    addressOptional: 'விருப்பம்',
+    addressPlaceholder: 'தெரு, நகரம், அஞ்சல் குறியீடு',
     you: 'நீங்கள்',
     guestAccount: 'விருந்தினர் கணக்கு',
     guestAccountBody:
@@ -5070,6 +5092,13 @@ const hi: UiStrings = {
     otherCurrencies: { one: 'और {n} अन्य मुद्रा', other: 'और {n} अन्य मुद्राएँ' },
     saved: 'सेव हो गया',
     displayName: 'दिखने वाला नाम',
+    regionTitle: 'क्षेत्र',
+    currencyLabel: 'मुद्रा',
+    currencyFromCountry: 'आपके देश से सेट',
+    countryRequired: 'मुद्रा और भुगतान विकल्प सेट करने के लिए अपना देश चुनें।',
+    addressTitle: 'पता',
+    addressOptional: 'वैकल्पिक',
+    addressPlaceholder: 'गली, शहर, पिन कोड',
     you: 'आप',
     guestAccount: 'मेहमान खाता',
     guestAccountBody:
@@ -6627,6 +6656,13 @@ const ar: UiStrings = {
     },
     saved: 'تم الحفظ',
     displayName: 'الاسم الظاهر',
+    regionTitle: 'المنطقة',
+    currencyLabel: 'العملة',
+    currencyFromCountry: 'يُضبط حسب بلدك',
+    countryRequired: 'اختر بلدك لضبط العملة وخيارات الدفع.',
+    addressTitle: 'العنوان',
+    addressOptional: 'اختياري',
+    addressPlaceholder: 'الشارع، المدينة، الرمز البريدي',
     you: 'أنت',
     guestAccount: 'حساب ضيف',
     guestAccountBody:
