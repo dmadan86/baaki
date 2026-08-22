@@ -30,7 +30,7 @@ import { useNotifications, useRecentActivity } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
-import { useSync } from '@/sync';
+import { SyncStatus, useSync } from '@/sync';
 
 // How many rows the feed shows at first, and how many more each time the scroll
 // nears the bottom. The whole history is already on the phone (the mirror), so
@@ -51,8 +51,10 @@ export default function ActivityScreen() {
 
   // The feed is read straight from the mirror, so it is here offline and the
   // moment the screen opens; `hydrated` is the one wait — the first read of the
-  // on-disk mirror at cold start, not a network call.
-  const { hydrated } = useSync();
+  // on-disk mirror at cold start, not a network call. If that read itself fails
+  // (`status` goes to Error while still unhydrated), a retry re-runs it via
+  // `flush`, so the screen offers a way out rather than a skeleton forever.
+  const { hydrated, status, flush } = useSync();
   const allEntries = useRecentActivity();
 
   // Infinite scroll over the local list: show `visible` rows, grow the window as
@@ -122,10 +124,29 @@ export default function ActivityScreen() {
         </Row>
 
         {!hydrated && allEntries.length === 0 ? (
-          // The only wait is the first read of the on-disk mirror. There is no
-          // error branch: a mirror read cannot fail the way a network call can,
-          // and an empty feed after hydration is "nothing yet", not "failed".
-          <FeedSkeleton />
+          status === SyncStatus.Error ? (
+            // The mirror read itself failed (a corrupt or unreadable local DB).
+            // Rare, but without this branch the skeleton would sit forever — so
+            // offer a retry, which re-runs hydration through a flush.
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <EmptyState
+                title={t.loadError}
+                body={t.loadErrorBody}
+                icon={
+                  <Ionicons
+                    name="cloud-offline-outline"
+                    size={iconSize.xxl}
+                    color={theme.color.brand}
+                  />
+                }
+                action={<Button label={t.retry} variant="secondary" onPress={() => void flush()} />}
+              />
+            </View>
+          ) : (
+            // The ordinary wait: the first read of the on-disk mirror at cold
+            // start. An empty feed after it lands is "nothing yet", not "failed".
+            <FeedSkeleton />
+          )
         ) : allEntries.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
