@@ -13,7 +13,8 @@ import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   Button,
@@ -84,6 +85,7 @@ function CaptureThumb({ path, size }: { path: string; size: number }) {
 export default function CapturesScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const pull = usePullRefresh();
   const { profile } = useAuth();
@@ -253,18 +255,24 @@ export default function CapturesScreen() {
 
       {/* The group picker, as a sheet over the list rather than a screen away —
           assigning is one tap and one choice, and a whole route for it would be
-          a scroll and a back button around a short list. */}
-      {assigning ? (
+          a scroll and a back button around a short list.
+
+          A real Modal, not an absolute overlay: the one bottom bar (`AppTabBar`)
+          is rendered at the root over the whole stack, so an in-tree overlay
+          paints *under* it and the sheet's lower rows hide behind the nav bar.
+          A Modal floats above everything, the way the other sheets do. */}
+      <Modal
+        transparent
+        visible={assigning !== null}
+        animationType="fade"
+        onRequestClose={() => setAssigning(null)}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t.common.close}
           onPress={() => setAssigning(null)}
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            flex: 1,
             backgroundColor: 'rgba(10, 10, 26, 0.55)',
             justifyContent: 'flex-end',
           }}
@@ -272,11 +280,15 @@ export default function CapturesScreen() {
           <Pressable
             // Swallow taps on the sheet itself; only the backdrop dismisses.
             onPress={() => {}}
+            accessibilityViewIsModal
             style={{
               backgroundColor: theme.color.surface,
               borderTopLeftRadius: theme.radius.lg,
               borderTopRightRadius: theme.radius.lg,
               padding: theme.spacing.xl,
+              // Clear the Android gesture/nav bar so the last group row is not
+              // hidden behind it.
+              paddingBottom: theme.spacing.xl + insets.bottom,
               gap: theme.spacing.md,
               maxHeight: '70%',
             }}
@@ -302,7 +314,11 @@ export default function CapturesScreen() {
                         summary.membersFor(group.id),
                         profile?.id,
                       )}
-                      onPress={() => assignTo(assigning, group)}
+                      onPress={() => {
+                        // The Modal stays mounted through its fade-out, so this
+                        // can fire a frame after the backdrop cleared `assigning`.
+                        if (assigning) assignTo(assigning, group);
+                      }}
                       style={({ pressed }) => ({
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -327,7 +343,7 @@ export default function CapturesScreen() {
             )}
           </Pressable>
         </Pressable>
-      ) : null}
+      </Modal>
     </Screen>
   );
 }
