@@ -35,6 +35,19 @@ describe('mapYielding', () => {
     expect(onYield).not.toHaveBeenCalled();
   });
 
+  it('falls back to the default step for a non-positive-integer chunk', async () => {
+    const onYield = vi.fn(async () => {});
+    // chunk 0 would make the modulo NaN and never yield; the guard falls back to
+    // the 512 default, so a short list still maps correctly and simply doesn't
+    // reach a chunk boundary.
+    for (const bad of [0, -4, 2.5, Number.NaN]) {
+      onYield.mockClear();
+      const out = await mapYielding([1, 2, 3], (n) => n, bad, onYield);
+      expect(out).toEqual([1, 2, 3]);
+      expect(onYield).not.toHaveBeenCalled();
+    }
+  });
+
   it('handles an empty list without mapping or yielding', async () => {
     const map = vi.fn((n: number) => n);
     const onYield = vi.fn(async () => {});
