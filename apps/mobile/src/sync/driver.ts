@@ -255,12 +255,18 @@ class SqliteStore implements LocalStore {
   reset(): Promise<void> {
     return this.serial.run(async () => {
       const database = await this.db();
-      await database.execAsync(`
-        DELETE FROM mirror_rows WHERE 1 = 1;
-        DELETE FROM pending_mutations WHERE 1 = 1;
-        DELETE FROM sync_cursors WHERE 1 = 1;
-        DELETE FROM drafts WHERE 1 = 1;
-      `);
+      // The sign-out wipe is one fact — "this account's local data is gone" —
+      // and it is a privacy promise, so it runs in a transaction like
+      // `forgetGroup`. As a multi-statement `execAsync` (its previous form) a
+      // process kill between the four DELETEs left a partial wipe, and the next
+      // account on a shared phone could inherit the previous user's rows or
+      // drafts. All four now commit together or not at all.
+      await database.withTransactionAsync(async () => {
+        await database.runAsync(`DELETE FROM mirror_rows WHERE 1 = 1`);
+        await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
+        await database.runAsync(`DELETE FROM sync_cursors WHERE 1 = 1`);
+        await database.runAsync(`DELETE FROM drafts WHERE 1 = 1`);
+      });
     });
   }
 }

@@ -7,7 +7,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Platform, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Text as RNText,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -30,6 +36,7 @@ import { TourOverlay } from '@/components/TourOverlay';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { supabaseConfigured } from '@/lib/supabase';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
 import { useFlagEnabled } from '@/lib/flags';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
@@ -139,7 +146,43 @@ function DirectionRoot({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The screen a misconfigured build shows instead of crashing.
+ *
+ * Deliberately self-contained — plain `react-native`, no theme, no i18n, no
+ * providers — because the reason it renders is that the app's foundations are
+ * not set up (see `supabaseConfigured`). Its copy is in English because there is
+ * no working string table to translate it, and the only audience is whoever
+ * installed a build whose keys were never baked in.
+ */
+function MisconfiguredBuild() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: '#0e1211',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 32,
+      }}
+    >
+      <RNText style={{ color: '#e7ece9', fontSize: 20, fontWeight: '700', marginBottom: 10 }}>
+        This build isn’t configured
+      </RNText>
+      <RNText style={{ color: '#9aa4a0', fontSize: 15, lineHeight: 22, textAlign: 'center' }}>
+        Waves is missing the keys it needs to reach its servers. Please reinstall the app from the
+        store, or contact support if this keeps happening.
+      </RNText>
+    </View>
+  );
+}
+
 function RootLayout() {
+  // A build shipped without its Supabase keys can do nothing useful, and must
+  // not mount the auth/sync tree below — that tree would poke an unreachable
+  // client. Show a plain notice instead of the crash the module-load throw used
+  // to cause (see supabase.ts).
+  if (!supabaseConfigured) return <MisconfiguredBuild />;
   return (
     // Outermost, above even the gesture root: every string in the app below it
     // reads from here, and the root view's own direction is one of them.

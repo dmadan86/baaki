@@ -8,11 +8,23 @@ import { secureAuthStorage } from './secureStorage';
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!url || !anonKey) {
-  // Fail loudly at start-up rather than with a confusing network error later.
-  throw new Error(
-    'EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set. ' +
-      'Copy .env.example to .env at the repo root and run `pnpm supabase:start`.',
+/**
+ * Whether this build actually shipped its Supabase keys.
+ *
+ * A build with the wrong or empty `EXPO_PUBLIC_*` env — a misconfigured EAS
+ * profile — used to `throw` right here, at module load. This module is imported
+ * by the root layout, *above* every error boundary, so that threw before React
+ * mounted and the app died on the first frame with no recoverable screen for
+ * 100% of users. Now the miss is a flag the root reads (see `_layout`) to paint
+ * a plain "this build is misconfigured" screen instead of crashing. The client
+ * is still constructed below — with an unreachable placeholder so `createClient`
+ * cannot throw on import — and the root never lets it be *used* when this is
+ * false, so no request is ever made to the placeholder.
+ */
+export const supabaseConfigured = Boolean(url && anonKey);
+if (!supabaseConfigured) {
+  console.error(
+    'Waves is misconfigured: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY are not set in this build.',
   );
 }
 
@@ -25,20 +37,29 @@ if (!url || !anonKey) {
 // window; the client must construct there without touching either.
 const isServer = typeof window === 'undefined';
 
-export const supabase = createClient(url, anonKey, {
-  auth: {
-    // Native keeps the session (incl. the long-lived refresh token) in the OS
-    // keystore, not plaintext AsyncStorage; web falls back inside the adapter.
-    storage: isServer ? undefined : secureAuthStorage,
-    autoRefreshToken: !isServer,
-    persistSession: !isServer,
-    // No URL-based session handoff on native; deep links are handled explicitly.
-    detectSessionInUrl: !isServer && Platform.OS === 'web',
+export const supabase = createClient(
+  // A well-formed, never-contacted placeholder when the build is unconfigured:
+  // it only exists so `createClient` constructs without throwing on import (the
+  // root gates on `supabaseConfigured`, so no request is ever made to it). Shaped
+  // like a real project URL so even a stricter future URL validation accepts it.
+  url ?? 'https://placeholder.supabase.co',
+  anonKey ?? 'placeholder-anon-key',
+  {
+    auth: {
+      // Native keeps the session (incl. the long-lived refresh token) in the OS
+      // keystore, not plaintext AsyncStorage; web falls back inside the adapter.
+      storage: isServer ? undefined : secureAuthStorage,
+      autoRefreshToken: !isServer,
+      persistSession: !isServer,
+      // No URL-based session handoff on native; deep links are handled explicitly.
+      detectSessionInUrl: !isServer && Platform.OS === 'web',
+    },
   },
-});
+);
 
-// Refresh tokens only while the app is in front of the user.
-if (!isServer) {
+// Refresh tokens only while the app is in front of the user. Skipped entirely
+// on a misconfigured build so the placeholder client is never poked.
+if (!isServer && supabaseConfigured) {
   AppState.addEventListener('change', (state) => {
     if (state === 'active') void supabase.auth.startAutoRefresh();
     else void supabase.auth.stopAutoRefresh();

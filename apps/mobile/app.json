@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "app.waves.mobile",
-      "permissions": ["android.permission.READ_SMS"],
+      "permissions": [],
       "adaptiveIcon": {
         "backgroundColor": "#7A5AF8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
