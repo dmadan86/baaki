@@ -992,6 +992,7 @@ export interface UiStrings {
     removePhoto: string;
     simplifyDebts: string;
     simplifyDebtsBody: string;
+    simplifyDebtsHint: string;
     membersHint: string;
     invitePeople: string;
     invitePeopleHint: string;
@@ -1628,6 +1629,8 @@ export interface UiStrings {
   extras: {
     blankNameHint: string;
     tripBudgetOptional: string;
+    groupKind: string;
+    tripBudget: string;
     whatKindOfGroup: string;
     typeTrip: string;
     typeHome: string;
@@ -2442,6 +2445,7 @@ const en: UiStrings = {
     simplifyDebts: 'Simplify debts',
     simplifyDebtsBody:
       'Suggest the fewest payments that settle the group. The real who-owes-whom ledger is never rewritten.',
+    simplifyDebtsHint: 'Fewest payments to settle up',
     membersHint: 'Add people, rename, set UPI IDs',
     invitePeople: 'Invite people',
     invitePeopleHint: 'Share a link — no install needed to join',
@@ -3123,6 +3127,8 @@ const en: UiStrings = {
   extras: {
     blankNameHint: 'Leave it blank and the group is named after whoever is in it.',
     tripBudgetOptional: 'Trip budget (optional)',
+    groupKind: 'Kind',
+    tripBudget: 'Budget',
     whatKindOfGroup: 'What kind of group?',
     typeTrip: 'Trip',
     typeHome: 'Home',
@@ -3982,6 +3988,7 @@ const ta: UiStrings = {
     simplifyDebts: 'கடன்களை எளிமையாக்கு',
     simplifyDebtsBody:
       'குழுவைத் தீர்க்கும் மிகக் குறைந்த பணப்பரிமாற்றங்களைப் பரிந்துரைக்கும். யார் யாருக்குத் தர வேண்டும் என்ற உண்மையான கணக்கு மாற்றப்படுவதே இல்லை.',
+    simplifyDebtsHint: 'தீர்க குறைந்தபட்ச பணம் செலுத்தல்கள்',
     membersHint: 'ஆட்களைச் சேர், பெயர் மாற்று, UPI ID அமை',
     invitePeople: 'ஆட்களை அழை',
     invitePeopleHint: 'ஒரு இணைப்பைப் பகிருங்கள் — சேர ஆப் நிறுவத் தேவையில்லை',
@@ -4700,6 +4707,8 @@ const ta: UiStrings = {
   extras: {
     blankNameHint: 'காலியாக விட்டால், குழுவில் உள்ளவர்களின் பெயரில் குழு அமையும்.',
     tripBudgetOptional: 'பயண பட்ஜெட் (விருப்பம்)',
+    groupKind: 'வகை',
+    tripBudget: 'பட்ஜெட்',
     whatKindOfGroup: 'என்ன வகைக் குழு?',
     typeTrip: 'பயணம்',
     typeHome: 'வீடு',
@@ -5524,6 +5533,7 @@ const hi: UiStrings = {
     simplifyDebts: 'हिसाब सरल करें',
     simplifyDebtsBody:
       'समूह को निपटाने के सबसे कम भुगतान सुझाता है। किस पर किसका बाकी है, वह असली हिसाब कभी नहीं बदला जाता।',
+    simplifyDebtsHint: 'सेटल करने के लिए कम से कम भुगतान',
     membersHint: 'लोग जोड़ें, नाम बदलें, UPI ID सेट करें',
     invitePeople: 'लोगों को बुलाएँ',
     invitePeopleHint: 'एक लिंक साझा करें — जुड़ने के लिए कुछ इंस्टॉल करने की ज़रूरत नहीं',
@@ -6208,6 +6218,8 @@ const hi: UiStrings = {
   extras: {
     blankNameHint: 'खाली छोड़ दें तो समूह का नाम उसमें शामिल लोगों पर रख दिया जाएगा।',
     tripBudgetOptional: 'ट्रिप बजट (वैकल्पिक)',
+    groupKind: 'प्रकार',
+    tripBudget: 'बजट',
     whatKindOfGroup: 'किस तरह का समूह?',
     typeTrip: 'यात्रा',
     typeHome: 'घर',
@@ -7070,6 +7082,7 @@ const ar: UiStrings = {
     simplifyDebts: 'تبسيط الديون',
     simplifyDebtsBody:
       'يقترح أقل عدد من الدفعات لتسوية المجموعة. أما دفتر من يدين لمن فلا يُعاد كتابته أبدًا.',
+    simplifyDebtsHint: 'أقل عدد من المدفوعات للتسوية',
     membersHint: 'أضف أشخاصًا، غيّر الأسماء، اضبط معرّفات الدفع',
     invitePeople: 'ادعُ أشخاصًا',
     invitePeopleHint: 'شارك رابطًا — لا حاجة لتثبيت شيء للانضمام',
@@ -7911,6 +7924,8 @@ const ar: UiStrings = {
   extras: {
     blankNameHint: 'اتركه فارغًا فتُسمّى المجموعة بأسماء من فيها.',
     tripBudgetOptional: 'ميزانية الرحلة (اختياري)',
+    groupKind: 'النوع',
+    tripBudget: 'الميزانية',
     whatKindOfGroup: 'أي نوع من المجموعات؟',
     typeTrip: 'رحلة',
     typeHome: 'المنزل',

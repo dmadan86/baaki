@@ -13,7 +13,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Pressable, View } from 'react-native';
 
-import { Button, Card, directionalIcon, iconSize, Row, Text, useTheme } from '@waves/ui';
+import { Button, Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -73,34 +73,53 @@ function showDate(iso: string | null, locale: string, notSet: string): string {
 }
 
 /**
- * One end of the range — a tappable label over a big date, filling half the
- * framed sweep. `align` hugs the start date to the outer left and the end date
- * to the outer right, so the arrow between them reads as the span of the trip.
+ * One end of the range — its own bordered field, a small label over the date
+ * with a calendar glyph. `set` lights the field in the brand tint so a chosen
+ * end reads as filled and an untouched one reads as waiting, and the two boxes
+ * sit side by side like the from/to of a date-range picker.
  */
 function RangeEnd({
   label,
   value,
+  set,
   onPress,
-  align,
 }: {
   label: string;
   value: string;
+  set: boolean;
   onPress: () => void;
-  align: 'flex-start' | 'flex-end';
 }) {
+  const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value}`}
       onPress={onPress}
-      style={{ flex: 1, gap: 2, alignItems: align }}
+      style={({ pressed }) => ({
+        flex: 1,
+        gap: 4,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.md,
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        borderColor: set ? theme.color.brand : theme.color.border,
+        backgroundColor: set ? theme.color.brandSoft : theme.color.surface,
+        opacity: pressed ? 0.7 : 1,
+      })}
     >
       <Text variant="caption" tone="muted">
         {label}
       </Text>
-      <Text variant="subheading" style={{ fontWeight: '700' }}>
-        {value}
-      </Text>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+        <Ionicons
+          name="calendar-outline"
+          size={iconSize.sm}
+          color={set ? theme.color.brand : theme.color.textMuted}
+        />
+        <Text variant="subheading" style={{ fontWeight: '700' }}>
+          {value}
+        </Text>
+      </Row>
     </Pressable>
   );
 }
@@ -109,10 +128,17 @@ export function TripDates({
   group,
   locale,
   onChange,
+  embedded = false,
 }: {
   group: TripDatesValue;
   locale: string;
   onChange: (patch: TripDatesPatch) => void;
+  /**
+   * Drop the outer card and the title/info header, leaving just the two date
+   * fields, the clear link and the picker — for when this editor is unfolded
+   * inside a row of a bigger card that already carries the "Dates" label.
+   */
+  embedded?: boolean;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
@@ -141,73 +167,50 @@ export function TripDates({
     onChange({ end_date: end, start_date: start ?? end });
   };
 
-  return (
-    <Card style={{ gap: theme.spacing.lg }}>
-      <View style={{ gap: theme.spacing.xs }}>
-        <Row style={{ justifyContent: 'space-between', gap: theme.spacing.sm }}>
-          <Text variant="subheading">{t.misc.tripDatesTitle}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showInfo }}
-            accessibilityLabel={t.misc.aboutTripDates}
-            hitSlop={8}
-            onPress={() => setShowInfo((open) => !open)}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <Ionicons
-              name={showInfo ? 'information-circle' : 'information-circle-outline'}
-              size={iconSize.lg}
-              color={showInfo ? theme.color.brand : theme.color.textFaint}
-            />
-          </Pressable>
-        </Row>
-        {showInfo ? (
-          <Text variant="caption" tone="muted">
-            {t.misc.tripDatesBody}
-          </Text>
-        ) : null}
-      </View>
+  const body = (
+    <>
+      {embedded ? null : (
+        <View style={{ gap: theme.spacing.xs }}>
+          <Row style={{ justifyContent: 'space-between', gap: theme.spacing.sm }}>
+            <Text variant="subheading">{t.misc.tripDatesTitle}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showInfo }}
+              accessibilityLabel={t.misc.aboutTripDates}
+              hitSlop={8}
+              onPress={() => setShowInfo((open) => !open)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Ionicons
+                name={showInfo ? 'information-circle' : 'information-circle-outline'}
+                size={iconSize.lg}
+                color={showInfo ? theme.color.brand : theme.color.textFaint}
+              />
+            </Pressable>
+          </Row>
+          {showInfo ? (
+            <Text variant="caption" tone="muted">
+              {t.misc.tripDatesBody}
+            </Text>
+          ) : null}
+        </View>
+      )}
 
-      {/* The range as one framed Start → End sweep — the dates hug the outer
-          edges and a chip-borne arrow spans them, so it reads as a trip's
-          length rather than two unrelated fields. */}
-      <Row
-        style={{
-          alignItems: 'center',
-          gap: theme.spacing.md,
-          backgroundColor: theme.color.surfaceMuted,
-          borderRadius: theme.radius.lg,
-          paddingVertical: theme.spacing.md,
-          paddingHorizontal: theme.spacing.lg,
-        }}
-      >
+      {/* Start and end as two side-by-side fields — each its own bordered box
+          that lights up once picked, the way a from/to date-range picker reads,
+          rather than two labels sharing one strip. */}
+      <Row style={{ alignItems: 'stretch', gap: theme.spacing.sm }}>
         <RangeEnd
           label={t.pickers.starts}
           value={showDate(group.start_date, locale, t.pickers.notSet)}
+          set={Boolean(group.start_date)}
           onPress={() => setEditing(Field.Start)}
-          align="flex-start"
         />
-        <View
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: theme.color.surface,
-          }}
-        >
-          <Ionicons
-            name={directionalIcon('arrow-forward')}
-            size={iconSize.sm}
-            color={theme.color.textMuted}
-          />
-        </View>
         <RangeEnd
           label={t.pickers.ends}
           value={showDate(group.end_date, locale, t.pickers.notSet)}
+          set={Boolean(group.end_date)}
           onPress={() => setEditing(Field.End)}
-          align="flex-end"
         />
       </Row>
 
@@ -255,6 +258,9 @@ export function TripDates({
           onPress={() => setEditing(null)}
         />
       ) : null}
-    </Card>
+    </>
   );
+
+  if (embedded) return <View style={{ gap: theme.spacing.lg }}>{body}</View>;
+  return <Card style={{ gap: theme.spacing.lg }}>{body}</Card>;
 }
