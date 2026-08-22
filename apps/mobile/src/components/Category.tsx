@@ -3,32 +3,38 @@
  *
  * `CategoryBadge` is the tinted circle that stands in for an expense in a list
  * — a fork for dinner, an auto for the ride — which is worth more than the two
- * initials of a description at a glance.
+ * initials of a description at a glance. It renders a built-in from its id, or a
+ * custom tag from the {label, icon, tint} snapshot carried on the expense
+ * (`meta`), so a groupmate without the author's catalog still sees it.
  *
- * `CategoryPicker` is the row of chips under the description on the
- * add-expense screen. It is pre-selected from what was typed
- * (`guessCategory`), and the moment somebody taps a chip themselves the guess
- * stops overriding them: a field that keeps changing under your finger is
- * worse than no field.
+ * `CategoryPicker` is the row of chips under the description on the add-expense
+ * and capture screens. It now draws the person's whole catalog — built-ins plus
+ * their own tags, in their chosen order — and ends with a "＋ New tag" chip. It
+ * is pre-selected from what was typed (`guessCategory`), and the moment somebody
+ * taps a chip themselves the guess stops overriding them.
  */
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { CATEGORIES, categoryOf, type CategoryId } from '@waves/core';
+import { normaliseTint, resolveCategory, type CategoryMeta } from '@waves/core';
 import { iconSize, Text, useTheme } from '@waves/ui';
 
+import { useCategoryCatalog } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 
 export function CategoryBadge({
   category,
+  meta,
   size = 42,
 }: {
   category: string | null | undefined;
+  /** The custom tag's denormalised display, when the value is a custom tag. */
+  meta?: CategoryMeta | null;
   size?: number;
 }) {
   const theme = useTheme();
-  const resolved = categoryOf(category);
+  const resolved = resolveCategory(category, meta ?? null);
   const tint = theme.tint[resolved.tint];
   return (
     <View
@@ -53,12 +59,18 @@ export function CategoryBadge({
 export function CategoryPicker({
   value,
   onChange,
+  onCreate,
 }: {
-  value: CategoryId | null;
-  onChange: (value: CategoryId) => void;
+  value: string | null;
+  /** The chosen category's key and, for a custom tag, its display snapshot to
+   *  carry onto the expense (null for a built-in). */
+  onChange: (key: string, meta: CategoryMeta | null) => void;
+  /** Opens the create-tag sheet; the "＋ New tag" chip shows only when set. */
+  onCreate?: () => void;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
+  const { visible } = useCategoryCatalog((id) => t.categories[id as keyof typeof t.categories]);
 
   return (
     <ScrollView
@@ -67,26 +79,24 @@ export function CategoryPicker({
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
     >
-      {CATEGORIES.map((category) => {
-        const selected = category.id === value;
-        const label = t.categories[category.id];
+      {visible.map((entry) => {
+        const selected = entry.key === value;
+        const meta: CategoryMeta | null = entry.custom
+          ? { label: entry.label, icon: entry.icon, tint: normaliseTint(entry.tint) }
+          : null;
         return (
           <Pressable
-            key={category.id}
+            key={entry.key}
             accessibilityRole="radio"
             accessibilityState={{ selected }}
-            accessibilityLabel={label}
-            onPress={() => onChange(category.id)}
-            // Same chip shape and brand tint as the "Paid with" row on the same
-            // screen, so the two selectors read as one language rather than the
-            // louder per-category fill this used to wear.
+            accessibilityLabel={entry.label}
+            onPress={() => onChange(entry.key, meta)}
+            // One chip shape for built-ins and custom tags, so the person's own
+            // tags read as first-class rather than an afterthought.
             style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
               gap: theme.spacing.xs,
-              // A 44pt floor keeps the chip a comfortable tap target — the body
-              // text plus `sm` padding alone left it ~37pt, under the iOS 44 /
-              // Android 48 minimum.
               minHeight: 44,
               paddingVertical: theme.spacing.sm,
               paddingHorizontal: theme.spacing.md,
@@ -98,16 +108,43 @@ export function CategoryPicker({
             })}
           >
             <Ionicons
-              name={category.icon as keyof typeof Ionicons.glyphMap}
+              name={entry.icon as keyof typeof Ionicons.glyphMap}
               size={iconSize.md}
               color={selected ? theme.color.brand : theme.color.textMuted}
             />
             <Text variant="body" style={{ color: selected ? theme.color.brand : theme.color.text }}>
-              {label}
+              {entry.label}
             </Text>
           </Pressable>
         );
       })}
+
+      {onCreate ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.tags.newTag}
+          onPress={onCreate}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            minHeight: 44,
+            paddingVertical: theme.spacing.sm,
+            paddingHorizontal: theme.spacing.md,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.color.border,
+            borderStyle: 'dashed',
+            backgroundColor: theme.color.surface,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Ionicons name="add" size={iconSize.md} color={theme.color.brand} />
+          <Text variant="body" style={{ color: theme.color.brand }}>
+            {t.tags.newTag}
+          </Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }

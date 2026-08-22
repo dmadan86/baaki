@@ -424,7 +424,7 @@ export default function GroupScreen() {
     // Flat row: the category is the badge on the left, not the row's
     // colour. A deleted row is dimmed rather than hidden, so the
     // ledger stays visibly append-only.
-    const title = expenseTitle(version?.description, version?.category, t);
+    const title = expenseTitle(version?.description, version?.category, t, version?.category_meta);
     return (
       <View>
         <Pressable
@@ -442,7 +442,7 @@ export default function GroupScreen() {
               paddingVertical: theme.spacing.md,
             }}
           >
-            <CategoryBadge category={version?.category} size={40} />
+            <CategoryBadge category={version?.category} meta={version?.category_meta} size={40} />
             <View style={{ flex: 1 }}>
               <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
                 <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>

@@ -1072,11 +1072,12 @@ export function useCategoryCatalog(labelForBuiltin: (id: string) => string): {
   loading: boolean;
 } {
   const tags = useCategoryTags();
-  const rows = tags.data ?? [];
+  const rows = tags.data;
+  const loading = tags.isLoading;
   return useMemo(() => {
-    const { visible, all } = buildCatalog(rows, (id) => labelForBuiltin(id));
-    return { visible, all, loading: tags.isLoading };
-  }, [rows, labelForBuiltin, tags.isLoading]);
+    const { visible, all } = buildCatalog(rows ?? [], (id) => labelForBuiltin(id));
+    return { visible, all, loading };
+  }, [rows, labelForBuiltin, loading]);
 }
 
 export interface TagUpsertInput {

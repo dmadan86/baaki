@@ -20,6 +20,7 @@ import {
   currencySymbol,
   guessCategory,
   MutationKind,
+  type CategoryMeta,
   type FxRecord,
   type MemberId,
   type PaymentMethod,
@@ -44,6 +45,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { TagEditorSheet } from '@/components/TagEditorSheet';
 import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
 import { friendlyError } from '@/lib/errors';
 import { COMMON_CURRENCIES, CurrencyRate } from '@/components/CurrencyRate';
@@ -96,7 +98,9 @@ interface ExpenseDraft {
   /** Kept apart, because a weight of 1 is not one percent. */
   weights: SplitEntries;
   percents: SplitEntries;
-  category: CategoryId | null;
+  category: string | null;
+  /** The custom tag's display, when `category` is a custom tag (extends TDR §8). */
+  categoryMeta: CategoryMeta | null;
   /** Whether the category above was chosen, rather than guessed. */
   categoryChosen: boolean;
 }
@@ -121,6 +125,28 @@ function safeBigInt(value: string | undefined): bigint {
   }
 }
 
+/**
+ * A custom tag's display arrives from the capture hand-off as a JSON route
+ * param. Anything that does not parse to a proper {label, icon, tint} is simply
+ * no meta — the expense falls back to a built-in rather than crashing the form.
+ */
+function parseCategoryMetaParam(value: string | undefined): CategoryMeta | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<CategoryMeta>;
+    if (parsed && typeof parsed.label === 'string' && typeof parsed.icon === 'string') {
+      return {
+        label: parsed.label,
+        icon: parsed.icon,
+        tint: (parsed.tint as CategoryMeta['tint']) ?? 'sky',
+      };
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
 export default function AddExpenseScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -136,6 +162,7 @@ export default function AddExpenseScreen() {
     amount: captureAmount,
     description: captureDescription,
     category: captureCategory,
+    categoryMeta: captureCategoryMeta,
     expenseDate: captureExpenseDate,
   } = useLocalSearchParams<{
     id: string;
@@ -148,6 +175,9 @@ export default function AddExpenseScreen() {
     amount?: string;
     description?: string;
     category?: string;
+    /** A custom tag's {label,icon,tint} snapshot, JSON-encoded, when a capture
+     *  tagged with one is being assigned (extends TDR §8). */
+    categoryMeta?: string;
     expenseDate?: string;
   }>();
   const groupId = id ?? '';
@@ -188,8 +218,13 @@ export default function AddExpenseScreen() {
   const [percents, setPercents] = useState<SplitEntries>({});
   // Guessed from the description until somebody picks one themselves, at which
   // point the guess must stop moving it — see `categoryChosen`.
-  const [category, setCategory] = useState<CategoryId | null>(CategoryId.Food);
+  // A built-in id or a custom tag's id; `categoryMeta` carries a custom tag's
+  // display so it rides onto the expense for every member (extends TDR §8).
+  const [category, setCategory] = useState<string | null>(CategoryId.Food);
+  const [categoryMeta, setCategoryMeta] = useState<CategoryMeta | null>(null);
   const [categoryChosen, setCategoryChosen] = useState(false);
+  // The create-tag sheet, opened from the picker's "＋ New tag" chip.
+  const [editingTag, setEditingTag] = useState(false);
   /**
    * Names to bias the recogniser towards. "You" and "Someone" are placeholders
    * this screen prints, not things anybody says out loud, so they would only
@@ -320,7 +355,11 @@ export default function AddExpenseScreen() {
             )
           : (captureDescription ?? ''),
       );
-      setCategory((captureCategory as CategoryId) || null);
+      setCategory(captureCategory || null);
+      // A capture tagged with a custom tag carries its display as a JSON param,
+      // so the assigned expense keeps the same tag rather than dropping to a
+      // built-in. A malformed param is simply no meta (a built-in).
+      setCategoryMeta(parseCategoryMetaParam(captureCategoryMeta));
       setCategoryChosen(Boolean(captureCategory));
       setPayer(myMemberId);
     } else if (draft) {
@@ -341,13 +380,15 @@ export default function AddExpenseScreen() {
       setWeights(draft.weights ?? {});
       setPercents(draft.percents ?? {});
       setCategory(draft.category ?? null);
+      setCategoryMeta(draft.categoryMeta ?? null);
       setCategoryChosen(draft.categoryChosen ?? false);
     } else if (version) {
       setAmount(BigInt(version.amount));
       setDescription(version.description);
       // A saved category is a decision somebody already made. Re-guessing it on
       // open would quietly rewrite their answer.
-      setCategory((version.category as CategoryId | null) ?? null);
+      setCategory(version.category ?? null);
+      setCategoryMeta((version.category_meta as CategoryMeta | null) ?? null);
       setCategoryChosen(version.category !== null);
       // The expense keeps the currency it was paid in — without this, editing a
       // foreign-currency expense reopened on the group currency and quietly
@@ -394,7 +435,11 @@ export default function AddExpenseScreen() {
     // returns null for unrecognised descriptions, and clearing on null would
     // wipe the Food & drink default (or an earlier guess).
     const guess = guessCategory(description);
-    if (guess) setCategory(guess);
+    if (guess) {
+      setCategory(guess);
+      // The guess is always a built-in, so it carries no custom snapshot.
+      setCategoryMeta(null);
+    }
   }
 
   // Everybody in a weighted split needs a number to start from, and the set
@@ -466,6 +511,7 @@ export default function AddExpenseScreen() {
       weights,
       percents,
       category,
+      categoryMeta,
       categoryChosen,
     },
     { enabled: seededFor !== null },
@@ -583,6 +629,7 @@ export default function AddExpenseScreen() {
         // in one language, for an app that speaks four.
         description: description.trim(),
         category,
+        categoryMeta,
         // A capture keeps the day it was caught; an ordinary expense is today's.
         expenseDate:
           captureId && captureExpenseDate
@@ -1028,10 +1075,12 @@ export default function AddExpenseScreen() {
             </Text>
             <CategoryPicker
               value={category}
-              onChange={(picked) => {
+              onChange={(picked, meta) => {
                 setCategory(picked);
+                setCategoryMeta(meta);
                 setCategoryChosen(true);
               }}
+              onCreate={() => setEditingTag(true)}
             />
           </View>
 
@@ -1338,6 +1387,9 @@ export default function AddExpenseScreen() {
           </View>
         </SheetOverlay>
       ) : null}
+
+      {/* Make a tag on the spot, from the picker's "＋ New tag" chip. */}
+      <TagEditorSheet open={editingTag} onClose={() => setEditingTag(false)} />
     </Screen>
   );
 }

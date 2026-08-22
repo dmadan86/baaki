@@ -13,6 +13,7 @@ import {
   guessCategory,
   parseReceiptText,
   CategoryId,
+  type CategoryMeta,
   type HeuristicReceipt,
   type PaymentMethod,
 } from '@waves/core';
@@ -30,6 +31,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { TagEditorSheet } from '@/components/TagEditorSheet';
 import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
 import { ZoomableImage } from '@/components/ZoomableImage';
 import { COMMON_CURRENCIES } from '@/components/CurrencyRate';
@@ -166,8 +168,13 @@ export default function CaptureScreen() {
 
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<CategoryId | null>(CategoryId.Food);
+  // A built-in id or a custom tag's id; `categoryMeta` carries the display of a
+  // custom tag so it rides onto the capture (extends TDR §8).
+  const [category, setCategory] = useState<string | null>(CategoryId.Food);
+  const [categoryMeta, setCategoryMeta] = useState<CategoryMeta | null>(null);
   const [categoryChosen, setCategoryChosen] = useState(false);
+  // The create-tag sheet, opened from the "＋ New tag" chip in the picker.
+  const [editingTag, setEditingTag] = useState(false);
   const [date, setDate] = useState<string>(() => todayIso());
   const [editingDate, setEditingDate] = useState(false);
   const [photo, setPhoto] = useState<PickedImage | null>(null);
@@ -211,7 +218,11 @@ export default function CaptureScreen() {
     // guessCategory returns null for unrecognised text, and clearing on null
     // would wipe the Food default (or a prior guess) leaving no chip selected.
     const guess = guessCategory(description);
-    if (guess) setCategory(guess);
+    if (guess) {
+      setCategory(guess);
+      // The guess is always a built-in, so it carries no custom snapshot.
+      setCategoryMeta(null);
+    }
   }
 
   const applyDate = (event: DateTimePickerEvent, picked?: Date): void => {
@@ -317,6 +328,7 @@ export default function CaptureScreen() {
         captureId,
         description: description.trim(),
         category,
+        categoryMeta,
         expenseDate: date,
         currency,
         amount,
@@ -381,10 +393,12 @@ export default function CaptureScreen() {
           </Text>
           <CategoryPicker
             value={category}
-            onChange={(picked) => {
+            onChange={(picked, meta) => {
               setCategory(picked);
+              setCategoryMeta(meta);
               setCategoryChosen(true);
             }}
+            onCreate={() => setEditingTag(true)}
           />
         </View>
 
@@ -639,6 +653,9 @@ export default function CaptureScreen() {
           </Pressable>
         </View>
       </Modal>
+
+      {/* Make a tag on the spot, from the picker's "＋ New tag" chip. */}
+      <TagEditorSheet open={editingTag} onClose={() => setEditingTag(false)} />
     </Screen>
   );
 }

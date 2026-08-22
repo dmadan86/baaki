@@ -1,4 +1,4 @@
-import type { MemberId, SplitParams } from '@waves/core';
+import type { CategoryMeta, MemberId, SplitParams } from '@waves/core';
 
 export enum GroupType {
   Trip = 'trip',
@@ -92,6 +92,9 @@ export interface ExpenseVersionRow {
   version_no: number;
   description: string;
   category: string | null;
+  /** A custom tag's {label, icon, tint} snapshot (extends TDR §8); null for a
+   *  built-in category. Lets any member render the tag without the author's catalog. */
+  category_meta: CategoryMeta | null;
   expense_date: string;
   currency: string;
   /** BIGINT arrives as a string from PostgREST — parse, never Number(). */
@@ -138,6 +141,8 @@ export interface CaptureRow {
   owner_user_id: string;
   description: string;
   category: string | null;
+  /** A custom tag's {label, icon, tint} snapshot (extends TDR §8); null for a built-in. */
+  category_meta: CategoryMeta | null;
   expense_date: string;
   currency: string;
   /** BIGINT arrives as a string from PostgREST — parse, never Number(). */
