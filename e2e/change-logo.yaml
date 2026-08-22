@@ -20,7 +20,8 @@ appId: app.waves.mobile
 - assertVisible: 'Close'
 - tapOn: '🏕️'
 
-# Back on the settings form: the sheet is gone (change accepted), the trigger
-# remains for the next change.
+# Back on the settings form: the sheet is gone and the settings header now
+# renders the chosen icon — proof the update applied, not just that the picker
+# dismissed (which would also happen if the write failed).
 - assertNotVisible: 'Close'
-- assertVisible: 'Choose an icon'
+- assertVisible: '🏕️'

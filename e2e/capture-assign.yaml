@@ -38,5 +38,8 @@ appId: app.waves.mobile
 - tapOn: 'Assign to group'
 - tapOn: 'Goa trip'
 
-# Assigning opens add-expense prefilled with the captured note.
+# Assigning opens add-expense — its description prompt ("What was it for?")
+# differs from the capture form's, so it proves we navigated off the inbox
+# before we check the captured note carried over as the prefill.
+- assertVisible: 'What was it for?'
 - assertVisible: 'Auto to airport'
