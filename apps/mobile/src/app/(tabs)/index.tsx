@@ -302,8 +302,8 @@ export default function HomeScreen() {
           )}
         </TourTarget>
 
-        {/* The two things you start on this screen, as round black icon
-            buttons under the deck: make a group, or add a spend by hand. */}
+        {/* The things you start on this screen, as plain icon buttons under the
+            deck: scan, add a spend, make a group, open the inbox. */}
         <Row
           style={{
             justifyContent: 'space-evenly',
@@ -403,10 +403,10 @@ export default function HomeScreen() {
 }
 
 /**
- * One round quick-add button under the deck: a black circle with a white icon
- * and its label beneath. The pair (group / expense) is the same two actions the
- * FAB and the new-group flow reach, surfaced where the eye lands after the
- * balance.
+ * One quick-add button under the deck: a plain inked glyph with its label
+ * beneath — no filled disc, the way a services row reads. The actions are the
+ * same ones the FAB and the new-group flow reach, surfaced where the eye lands
+ * after the balance.
  */
 function AddAction({
   icon,
@@ -433,13 +433,11 @@ function AddAction({
       style={{
         width: 48,
         height: 48,
-        borderRadius: 24,
-        backgroundColor: theme.color.buttonPrimary,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Ionicons name={icon} size={22} color={theme.color.onBrand} />
+      <Ionicons name={icon} size={28} color={theme.color.text} />
       {badge ? (
         <View
           style={{
