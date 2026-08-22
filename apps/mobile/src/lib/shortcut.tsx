@@ -67,6 +67,10 @@ export function ShortcutProvider({ children }: { children: ReactNode }) {
     actionRef.current = action;
   }, [action]);
 
+  // If the user changes a setting during the (brief) storage read, the hydrated
+  // value must not land afterwards and reverse it. `dirty` is set by either
+  // setter and tells the load to leave that already-chosen value alone.
+  const dirty = useRef(false);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -75,9 +79,11 @@ export function ShortcutProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem(DOUBLE_TAP_KEY).catch(() => null),
       ]);
       if (!active) return;
-      if (isAction(savedAction)) setActionState(savedAction);
-      // Default on: an armed gesture is the point of setting an action at all.
-      setDoubleTapState(savedTap === null ? true : savedTap === 'true');
+      if (!dirty.current) {
+        if (isAction(savedAction)) setActionState(savedAction);
+        // Default on: an armed gesture is the point of setting an action at all.
+        setDoubleTapState(savedTap === null ? true : savedTap === 'true');
+      }
       setLoading(false);
     })();
     return () => {
@@ -105,11 +111,13 @@ export function ShortcutProvider({ children }: { children: ReactNode }) {
   }, [action, loading, titleFor]);
 
   const setAction = useCallback(async (next: ShortcutAction) => {
+    dirty.current = true;
     setActionState(next);
     await AsyncStorage.setItem(ACTION_KEY, next).catch(() => undefined);
   }, []);
 
   const setDoubleTap = useCallback(async (on: boolean) => {
+    dirty.current = true;
     setDoubleTapState(on);
     await AsyncStorage.setItem(DOUBLE_TAP_KEY, String(on)).catch(() => undefined);
   }, []);

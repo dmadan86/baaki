@@ -11,26 +11,39 @@
  * action is chosen, so the wrapper is inert by default and costs nothing.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { useShortcut } from '@/lib/shortcut';
 import { initialQuickAction, onQuickAction, QUICK_ACTION_ID } from '@/lib/quickActions';
 
 export function ShortcutGesture({ children }: { children: React.ReactNode }) {
-  const { run, action, doubleTap } = useShortcut();
+  const { run, action, doubleTap, loading } = useShortcut();
   const armed = doubleTap && action !== 'off';
 
-  // The app-icon shortcut: a cold launch from it, and taps on it while running.
-  // Independent of the gesture toggle — choosing an action is opting into the
-  // icon menu, and turning the double-tap off should not silence the icon.
+  // The cold-launch icon shortcut, consumed exactly once and only after the
+  // stored action has loaded (so `run` reads the right action, not the default).
+  // `initialQuickAction()` stays set for the process, so without this guard
+  // changing the action in Settings — which used to re-run this effect — would
+  // fire it again.
+  const consumedInitial = useRef(false);
   useEffect(() => {
-    if (action === 'off') return;
-    if (initialQuickAction() === QUICK_ACTION_ID) run();
-    return onQuickAction((id) => {
-      if (id === QUICK_ACTION_ID) run();
-    });
-  }, [action, run]);
+    if (loading || consumedInitial.current) return;
+    if (initialQuickAction() === QUICK_ACTION_ID) {
+      consumedInitial.current = true;
+      run();
+    }
+  }, [loading, run]);
+
+  // Taps on the icon shortcut while the app is already open — registered once
+  // (run is stable), independent of the cold-launch guard above.
+  useEffect(
+    () =>
+      onQuickAction((id) => {
+        if (id === QUICK_ACTION_ID) run();
+      }),
+    [run],
+  );
 
   const tap = Gesture.Tap()
     .enabled(armed)
