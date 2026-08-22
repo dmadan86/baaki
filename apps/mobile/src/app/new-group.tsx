@@ -22,7 +22,6 @@ import {
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { friendlyError } from '@/lib/errors';
 import { type PickedContact } from '@/components/ContactPicker';
-import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
@@ -89,8 +88,10 @@ export default function NewGroupScreen() {
   // them alike.
   const [ghosts, setGhosts] = useState<PickedContact[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Read once, not on every render: a phone does not change country mid-form.
-  const [country, setCountry] = useState<string | null>(() => deviceCountry());
+  // Not asked on this screen anymore — derived silently from the phone's locale
+  // so the group still gets a sensible currency and settle rails (both changeable
+  // later in group settings, which keeps the country row).
+  const country: string | null = deviceCountry();
   // Null until somebody picks: the icon is otherwise read from the name, so an
   // untouched group still gets a sensible cover.
   const [pickedEmoji, setPickedEmoji] = useState<string | null>(null);
@@ -292,10 +293,6 @@ export default function NewGroupScreen() {
             ]}
           />
         </View>
-
-        {/* Decides which payment rails the settle screen offers, and what a new
-            expense starts in. The same flagged row the settings screen uses. */}
-        <CountryRow countryCode={country} onChange={setCountry} />
 
         {/* Dates and their daily nudges only mean anything for a trip — a
             flatshare or a couple has no start and end. Shown only for trips. */}
