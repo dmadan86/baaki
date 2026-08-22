@@ -230,16 +230,18 @@ jobs:
           printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' \
             "${{ secrets.E2E_SUPABASE_URL }}" "${{ secrets.E2E_SUPABASE_ANON_KEY }}" \
             > apps/mobile/.env
+      # Prebuild regenerates android/ from app config; --clean wipes it, so the
+      # Firebase file must land AFTER prebuild and before the Gradle build.
+      - name: Prebuild the Android project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --clean
       - name: Restore Waves google-services.json
         run: |
-          mkdir -p apps/mobile/android/app
           echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d \
             > apps/mobile/android/app/google-services.json
-      - name: Prebuild + assemble debug APK
-        working-directory: apps/mobile
-        run: |
-          npx expo prebuild --platform android --clean
-          cd android && ./gradlew :app:assembleDebug --no-daemon
+      - name: Assemble debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew :app:assembleDebug --no-daemon
 
       # Boot an emulator, install Maestro, install the APK, run the flows.
       - name: Run Maestro flows

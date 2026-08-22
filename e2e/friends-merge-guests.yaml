@@ -1,12 +1,10 @@
 # Maestro flow (ADR-014): merging same-person guests on the Friends screen.
 #
-# Exercises the journey end to end — Friends → the merge entry (which only shows
-# with two or more guests) → pick two guests → the irreversible-warning gate →
-# confirm → back to Friends. The pick-and-confirm steps are marked optional so
-# the flow still passes on a seed without two mergeable guests: it will at least
-# prove the screen renders and the "cannot be undone" warning is shown before any
-# button. Seed a data set with two guests (e.g. two groups each with a ghost
-# "person1") to make the confirm path run.
+# The seed (e2e/seed-e2e.mjs) puts the same ghost "Reeya" in two groups, each
+# with an unsettled balance, so she appears twice on Friends and the merge entry
+# (which only shows with two or more mergeable guests) is present. This drives
+# the whole journey: open the merge screen, see the irreversible-warning before
+# any button, pick both Reeya rows, and confirm.
 appId: app.waves.mobile
 ---
 - runFlow: login.yaml
@@ -16,41 +14,26 @@ appId: app.waves.mobile
 - tapOn: 'Friends'
 - assertVisible: 'Friends'
 
-# The merge entry is a header icon that appears only with 2+ guests.
-- tapOn:
-    id: 'Merge people'
-    optional: true
-- tapOn:
-    text: 'Merge people'
-    optional: true
+# The merge entry — a header action present because there are two mergeable guests.
+- tapOn: 'Merge people'
 
-# Merge screen: the title, the subtitle, and — before any button — the warning
-# that this cannot be undone.
-- assertVisible:
-    text: 'Merge people'
-    optional: true
-- assertVisible:
-    text: 'undone'
-    optional: true
+# Merge screen: its title, and — before any button — the "can't be undone" warning.
+- assertVisible: 'Merge people'
+- assertVisible: 'undone'
 
-# Pick the first two guests in the list, then confirm. Optional: depends on the
-# seed having two mergeable guests.
+# Pick both Reeya rows. The merged name pre-fills to "Reeya", so the button arms.
 - tapOn:
-    id: 'person1'
+    text: 'Reeya'
     index: 0
-    optional: true
 - tapOn:
-    id: 'person1'
+    text: 'Reeya'
     index: 1
-    optional: true
+
+# Confirm. Exact-match the button so it isn't the "Merge people" title.
 - assertVisible:
-    text: 'Merge'
-    optional: true
+    text: '^Merge$'
 - tapOn:
-    text: 'Merge'
-    optional: true
+    text: '^Merge$'
 
 # Back on Friends, still a working screen.
-- assertVisible:
-    text: 'Friends'
-    optional: true
+- assertVisible: 'Friends'

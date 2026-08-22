@@ -122,6 +122,94 @@ async function insert(table, row) {
   if (error) die(`insert into ${table} failed`, error);
 }
 
+// One expense: `payer` paid `amount`, split equally among `shareMembers`.
+async function insertExpense({
+  groupId,
+  payer,
+  amount,
+  shareMembers,
+  description,
+  category,
+  date,
+}) {
+  const expenseId = randomUUID();
+  const versionId = randomUUID();
+  await insert('expenses', { id: expenseId, group_id: groupId, created_by: payer });
+  await insert('expense_versions', {
+    id: versionId,
+    expense_id: expenseId,
+    version_no: 1,
+    author_member_id: payer,
+    description,
+    category,
+    expense_date: date,
+    currency: 'INR',
+    amount: amount.toString(),
+    split_type: 'equal',
+    split_params: { kind: 'equal' },
+    source: 'manual',
+  });
+  await insert('expense_payers', {
+    id: randomUUID(),
+    expense_version_id: versionId,
+    member_id: payer,
+    amount: amount.toString(),
+  });
+  const shares = equalShares(amount, shareMembers.length);
+  for (let i = 0; i < shareMembers.length; i += 1) {
+    await insert('expense_shares', {
+      id: randomUUID(),
+      expense_version_id: versionId,
+      member_id: shareMembers[i],
+      amount: shares[i].toString(),
+    });
+  }
+  const { error } = await db
+    .from('expenses')
+    .update({ current_version_id: versionId })
+    .eq('id', expenseId);
+  if (error) die('setting current_version_id failed', error);
+}
+
+// A small group where the focus user shares an unsettled balance with one named
+// ghost — so that ghost shows up on the Friends screen. Two of these, with the
+// SAME ghost name, give `friends-merge-guests.yaml` two mergeable rows to fold
+// together. The focus user pays and both split equally, so the ghost owes them.
+async function seedMergeGroup(userId, groupName, ghostName) {
+  const groupId = randomUUID();
+  await insert('groups', {
+    id: groupId,
+    name: groupName,
+    type: 'other',
+    default_currency: 'INR',
+    created_by: userId,
+  });
+  const focusMemberId = randomUUID();
+  const ghostMemberId = randomUUID();
+  await insert('group_members', {
+    id: focusMemberId,
+    group_id: groupId,
+    profile_id: userId,
+    role: 'admin',
+    joined_via: 'creator',
+  });
+  await insert('group_members', {
+    id: ghostMemberId,
+    group_id: groupId,
+    ghost_name: ghostName,
+    joined_via: 'ghost',
+  });
+  await insertExpense({
+    groupId,
+    payer: focusMemberId,
+    amount: 60000n, // ₹600, split 50/50 → the ghost owes the focus user ₹300
+    shareMembers: [focusMemberId, ghostMemberId],
+    description: `${groupName} split`,
+    category: 'other',
+    date: '2026-08-05',
+  });
+}
+
 async function seed() {
   // The login user + its profile.
   const { data: created, error: userErr } = await db.auth.admin.createUser({
@@ -208,8 +296,14 @@ async function seed() {
     .eq('id', expenseId);
   if (curErr) die('setting current_version_id failed', curErr);
 
+  // The mergeable pair for friends-merge-guests: the same ghost "Reeya" in two
+  // groups, each with a balance so she appears twice on Friends and can be
+  // merged. Kept separate from Goa trip, whose focus balance stays zero.
+  await seedMergeGroup(userId, 'Weekend hike', 'Reeya');
+  await seedMergeGroup(userId, 'Diwali dinner', 'Reeya');
+
   console.log(
-    `✓ seeded ${EMAIL}: "${GROUP_NAME}" with ${GHOSTS.length} ghosts and "${EXPENSE_DESC}" (₹1200)`,
+    `✓ seeded ${EMAIL}: "${GROUP_NAME}" (${GHOSTS.length} ghosts, "${EXPENSE_DESC}" ₹1200) + a mergeable "Reeya" in two groups`,
   );
 }
 
