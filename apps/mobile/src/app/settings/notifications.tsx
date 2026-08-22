@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   directionalIcon,
+  Divider,
   IconButton,
   iconSize,
   Row,
@@ -30,7 +31,8 @@ import { friendlyError } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 import { enablePush, PushFailure, PushPermission, pushPermission } from '@/lib/push';
 
-type PrefRow = { key: keyof NotificationPrefs; title: string; body: string };
+type IconName = ComponentProps<typeof Ionicons>['name'];
+type PrefRow = { key: keyof NotificationPrefs; title: string; body: string; icon: IconName };
 
 /** The push notifications — everything the phone delivers. */
 function pushRows(t: UiStrings): PrefRow[] {
@@ -39,17 +41,25 @@ function pushRows(t: UiStrings): PrefRow[] {
       key: 'involvesMe',
       title: t.notifications.involvesMe,
       body: t.notifications.involvesMeBody,
+      icon: 'people-outline',
     },
     {
       key: 'settlementRequests',
       title: t.notifications.settlementRequests,
       body: t.notifications.settlementRequestsBody,
+      icon: 'swap-horizontal-outline',
     },
-    { key: 'nudges', title: t.notifications.nudges, body: t.notifications.nudgesBody },
+    {
+      key: 'nudges',
+      title: t.notifications.nudges,
+      body: t.notifications.nudgesBody,
+      icon: 'hand-left-outline',
+    },
     {
       key: 'groupActivityDigest',
       title: t.notifications.digest,
       body: t.notifications.digestBody,
+      icon: 'newspaper-outline',
     },
   ];
 }
@@ -61,6 +71,7 @@ function emailRows(t: UiStrings): PrefRow[] {
       key: 'weeklyEmail',
       title: t.notifications.weeklyEmail,
       body: t.notifications.weeklyEmailBody,
+      icon: 'mail-outline',
     },
   ];
 }
@@ -182,15 +193,37 @@ export default function NotificationSettingsScreen() {
 
         {/* ADR-010: the competition is simultaneously spammy and silent. These
             defaults are the fix, and they are all off-switchable. */}
-        <Card style={{ backgroundColor: theme.color.brandSoft }}>
-          <Text variant="caption" tone="brand">
-            {t.notifications.neverSpam}
-          </Text>
+        <Card
+          flat
+          style={{ backgroundColor: theme.color.brandSoft, paddingVertical: theme.spacing.lg }}
+        >
+          <Row gap={theme.spacing.md}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={iconSize.xl}
+              color={theme.color.brand}
+            />
+            <Text variant="caption" tone="brand" style={{ flex: 1 }}>
+              {t.notifications.neverSpam}
+            </Text>
+          </Row>
         </Card>
 
+        {/* The master switch: nothing below fires until the phone itself is
+            allowed to deliver, so this device-permission state leads. */}
         <Card style={{ gap: theme.spacing.md }}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text variant="subheading">{t.notifications.onThisPhone}</Text>
+          <Row gap={theme.spacing.md}>
+            <IconChip icon="phone-portrait-outline" />
+            <View style={{ flex: 1 }}>
+              <Text variant="subheading">{t.notifications.onThisPhone}</Text>
+              <Text variant="caption" tone="muted">
+                {permission === 'granted'
+                  ? t.notifications.permissionOn
+                  : permission === 'denied'
+                    ? t.notifications.permissionOff
+                    : t.notifications.permissionUnset}
+              </Text>
+            </View>
             <Badge
               label={
                 permission === 'granted'
@@ -202,13 +235,6 @@ export default function NotificationSettingsScreen() {
               tone={permission === 'granted' ? 'positive' : undefined}
             />
           </Row>
-          <Text variant="caption" tone="muted">
-            {permission === 'granted'
-              ? t.notifications.permissionOn
-              : permission === 'denied'
-                ? t.notifications.permissionOff
-                : t.notifications.permissionUnset}
-          </Text>
           {permission === 'granted' ? null : (
             <Button
               label={asking ? t.notifications.asking : t.notifications.turnOn}
@@ -248,6 +274,30 @@ export default function NotificationSettingsScreen() {
   );
 }
 
+/**
+ * A soft round badge that carries a row's glyph. Purely decorative — the
+ * screen reader ignores it and reads the row title instead — but it gives each
+ * preference a fixed anchor on the left, the way the reference notification
+ * lists lean on a leading icon column.
+ */
+function IconChip({ icon }: { icon: IconName }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: theme.radius.pill,
+        backgroundColor: theme.color.brandSoft,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name={icon} size={iconSize.lg} color={theme.color.brand} />
+    </View>
+  );
+}
+
 /** One card of preference toggles, shared by the push and email sections. */
 function PrefSection({
   rows,
@@ -260,21 +310,25 @@ function PrefSection({
 }) {
   const theme = useTheme();
   return (
-    <Card style={{ gap: theme.spacing.xl }}>
-      {rows.map((row) => (
-        <Row key={row.key} style={{ justifyContent: 'space-between' }}>
-          <View style={{ flex: 1, paddingRight: theme.spacing.lg }}>
-            <Text variant="subheading">{row.title}</Text>
-            <Text variant="caption" tone="muted">
-              {row.body}
-            </Text>
-          </View>
-          <Toggle
-            value={prefs[row.key]}
-            onValueChange={(value) => onToggle(row.key, value)}
-            accessibilityLabel={row.title}
-          />
-        </Row>
+    <Card padded={false} style={{ paddingHorizontal: theme.spacing.xl }}>
+      {rows.map((row, index) => (
+        <View key={row.key}>
+          {index > 0 ? <Divider /> : null}
+          <Row gap={theme.spacing.md} style={{ paddingVertical: theme.spacing.lg }}>
+            <IconChip icon={row.icon} />
+            <View style={{ flex: 1 }}>
+              <Text variant="subheading">{row.title}</Text>
+              <Text variant="caption" tone="muted">
+                {row.body}
+              </Text>
+            </View>
+            <Toggle
+              value={prefs[row.key]}
+              onValueChange={(value) => onToggle(row.key, value)}
+              accessibilityLabel={row.title}
+            />
+          </Row>
+        </View>
       ))}
     </Card>
   );
