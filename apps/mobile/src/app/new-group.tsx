@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react
 
 import { currencyForCountry, guessGroupEmoji, MutationKind } from '@waves/core';
 import {
+  AmountField,
   Button,
   Callout,
   Card,
@@ -98,6 +99,8 @@ export default function NewGroupScreen() {
   const [pickedEmoji, setPickedEmoji] = useState<string | null>(null);
   // Null until toggled, so it can follow the group type's default until then.
   const [simplify, setSimplify] = useState<boolean | null>(null);
+  // Optional starting budget for a trip, minor units. Zero is "not set".
+  const [budget, setBudget] = useState<bigint>(0n);
   const [tripDates, setTripDates] = useState<TripDatesValue>(() => ({
     start_date: null,
     end_date: null,
@@ -162,6 +165,16 @@ export default function NewGroupScreen() {
           remind_daily: tripDates.remind_daily,
           remind_morning_at: tripDates.remind_morning_at,
           remind_evening_at: tripDates.remind_evening_at,
+        });
+      }
+
+      // A starting budget, if one was typed. Same ordered queue behind the
+      // create, so it lands once the group exists (like the dates). Zero means
+      // "not set" — the planner shows no cap rather than a ₹0 ceiling.
+      if (type === GroupType.Trip && budget > 0n) {
+        await mutate(MutationKind.GroupBudgetSet, groupId, {
+          amountMinor: budget.toString(),
+          currency,
         });
       }
 
@@ -303,11 +316,23 @@ export default function NewGroupScreen() {
         {/* Dates and their daily nudges only mean anything for a trip — a
             flatshare or a couple has no start and end. Shown only for trips. */}
         {type === GroupType.Trip ? (
-          <TripDates
-            group={tripDates}
-            locale={locale}
-            onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
-          />
+          <>
+            <TripDates
+              group={tripDates}
+              locale={locale}
+              onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
+            />
+
+            {/* An optional starting budget for the trip. Left at zero it sets
+                nothing; entered, it seeds the planner's overall cap on create,
+                so the Plan screen opens with the number already in it. */}
+            <Card style={{ gap: theme.spacing.sm }}>
+              <Text variant="caption" tone="muted">
+                {t.extras.tripBudgetOptional}
+              </Text>
+              <AmountField currency={currency} value={budget} onChange={setBudget} />
+            </Card>
+          </>
         ) : null}
 
         {/* ADR-009: simplification is presentation only — the pairwise ledger
