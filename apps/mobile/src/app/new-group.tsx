@@ -22,7 +22,6 @@ import {
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { friendlyError } from '@/lib/errors';
 import { type PickedContact } from '@/components/ContactPicker';
-import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
@@ -89,8 +88,10 @@ export default function NewGroupScreen() {
   // them alike.
   const [ghosts, setGhosts] = useState<PickedContact[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Read once, not on every render: a phone does not change country mid-form.
-  const [country, setCountry] = useState<string | null>(() => deviceCountry());
+  // Not asked on this screen anymore — derived silently from the phone's locale
+  // so the group still gets a sensible currency and settle rails (both changeable
+  // later in group settings, which keeps the country row).
+  const country: string | null = deviceCountry();
   // Null until somebody picks: the icon is otherwise read from the name, so an
   // untouched group still gets a sensible cover.
   const [pickedEmoji, setPickedEmoji] = useState<string | null>(null);
@@ -229,7 +230,7 @@ export default function NewGroupScreen() {
 
         {/* One compact row: the cover — tapped to choose an icon — with the
             name inline beside it and a clear (×) once there is a name. */}
-        <Card style={{ gap: theme.spacing.md }}>
+        <Card style={{ paddingVertical: theme.spacing.md }}>
           <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
             <Pressable
               accessibilityRole="button"
@@ -237,7 +238,7 @@ export default function NewGroupScreen() {
               onPress={() => setIconOpen(true)}
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
-              <GroupPhoto photoPath={null} emoji={emoji} size={52} />
+              <GroupPhoto photoPath={null} emoji={emoji} size={44} />
             </Pressable>
             <TextInput
               value={name}
@@ -251,7 +252,7 @@ export default function NewGroupScreen() {
                 fontSize: 18,
                 fontWeight: '700',
                 color: theme.color.text,
-                paddingVertical: theme.spacing.sm,
+                paddingVertical: 0,
               }}
             />
             {name.length > 0 ? (
@@ -292,10 +293,6 @@ export default function NewGroupScreen() {
             ]}
           />
         </View>
-
-        {/* Decides which payment rails the settle screen offers, and what a new
-            expense starts in. The same flagged row the settings screen uses. */}
-        <CountryRow countryCode={country} onChange={setCountry} />
 
         {/* Dates and their daily nudges only mean anything for a trip — a
             flatshare or a couple has no start and end. Shown only for trips. */}
