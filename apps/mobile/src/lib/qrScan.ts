@@ -27,14 +27,46 @@ export function cameraAvailable(): boolean {
  * `token` query on a join URL; a random QR from a poster is not an invite, and
  * returns null so the screen can say so rather than routing nowhere.
  */
+/** Where a real Waves invite points: the https link's host, and the deep-link
+ *  schemes the app registers. Anything else is somebody else's QR. */
+const INVITE_HOST = 'baaki.app';
+const INVITE_SCHEMES = new Set(['waves', 'baaki']);
+
 export function tokenFromScan(data: string): string | null {
   const text = data.trim();
   if (!text) return null;
-  // Must look like our join link, not just any string that happens to carry a
-  // token= pair.
-  if (!/\/join\b/i.test(text) && !/^waves:\/\/join\b/i.test(text)) return null;
-  const match = text.match(/[?&]token=([^&\s]+)/);
-  if (!match) return null;
+
+  // A token must not carry a fragment; drop anything after '#' before reading
+  // the query so `token=abc#frag` cannot smuggle the fragment into the token.
+  const withoutFragment = text.split('#')[0];
+
+  let parsed: URL;
+  try {
+    parsed = new URL(withoutFragment);
+  } catch {
+    return null;
+  }
+
+  // Only our own invite surfaces: the https link on the invite host, or the
+  // app's own deep-link schemes. The path must be exactly /join, not merely
+  // contain it, so `https://evil.example/x/join` is rejected.
+  const scheme = parsed.protocol.replace(/:$/, '').toLowerCase();
+  const path = parsed.pathname.replace(/\/+$/, '') || '/';
+  if (scheme === 'https') {
+    if (parsed.hostname.toLowerCase() !== INVITE_HOST || path !== '/join') return null;
+  } else if (INVITE_SCHEMES.has(scheme)) {
+    // `waves://join?token=…` parses with `join` as the host and an empty path.
+    const host = parsed.hostname.toLowerCase();
+    if (host !== 'join' && path !== '/join') return null;
+  } else {
+    return null;
+  }
+
+  // Read the token off the raw query rather than `searchParams`, whose support
+  // is patchy in the React Native URL polyfill. The fragment is already gone, so
+  // the capture cannot run past the query.
+  const match = parsed.search.match(/[?&]token=([^&]+)/);
+  if (!match || !match[1]) return null;
   try {
     return decodeURIComponent(match[1]);
   } catch {
