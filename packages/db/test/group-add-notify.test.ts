@@ -63,18 +63,32 @@ async function asUser<T>(profileId: string, run: () => Promise<T>): Promise<T> {
   }
 }
 
-/** A profile, optionally with an account (email/phone) so it can be matched. */
-async function person(name: string, account?: { email?: string; phone?: string }): Promise<string> {
+interface Person {
+  id: string;
+  /** Unique — real accounts never share an address, and neither may two tests,
+   *  or the `LIMIT 1` match picks a stranger who happens to share the email. */
+  email: string;
+  /** Bare E.164 digits, the shape `auth.users` stores. */
+  phone: string;
+}
+
+/** A profile with a Waves account (unique email + number) that can be matched.
+ *  The address must be unique across the *whole* database, not just this file:
+ *  the suite runs many test files against one shared Postgres at once, and the
+ *  phone match would otherwise land on a stranger another file happens to have
+ *  inserted. Random digits make that collision vanishingly unlikely. */
+async function person(name: string): Promise<Person> {
   const id = randomUUID();
+  const email = `${name.toLowerCase()}.${randomUUID().slice(0, 8)}@example.com`;
+  const phone = `91${Math.floor(Math.random() * 1e10)
+    .toString()
+    .padStart(10, '0')}`;
   await client.query(`INSERT INTO profiles (id, display_name) VALUES ($1, $2)`, [id, name]);
-  if (account) {
-    await client.query(
-      `INSERT INTO auth.users (id, email, phone, email_confirmed_at)
-       VALUES ($1, $2, $3, now())`,
-      [id, account.email ?? null, account.phone ?? null],
-    );
-  }
-  return id;
+  await client.query(
+    `INSERT INTO auth.users (id, email, phone, email_confirmed_at) VALUES ($1, $2, $3, now())`,
+    [id, email, phone],
+  );
+  return { id, email, phone };
 }
 
 /** A group with `owner` as its creator-member. */
@@ -101,9 +115,7 @@ async function addGhost(
   });
 }
 
-async function notificationsFor(
-  profileId: string,
-): Promise<
+async function notificationsFor(profileId: string): Promise<
   {
     kind: string;
     group_id: string | null;
@@ -120,13 +132,13 @@ async function notificationsFor(
 
 describe('adding someone already on Waves', () => {
   it('taps a match by email, once, about the right group', async () => {
-    const owner = await person('Asha', { email: 'asha@example.com' });
-    const ravi = await person('Ravi', { email: 'ravi@example.com' });
-    const groupId = await group(owner);
+    const owner = await person('Asha');
+    const ravi = await person('Ravi');
+    const groupId = await group(owner.id);
 
-    await addGhost(owner, groupId, { name: 'Ravi', email: 'ravi@example.com' });
+    await addGhost(owner.id, groupId, { name: 'Ravi', email: ravi.email });
 
-    const notes = await notificationsFor(ravi);
+    const notes = await notificationsFor(ravi.id);
     expect(notes).toHaveLength(1);
     expect(notes[0]?.kind).toBe('group_added');
     expect(notes[0]?.group_id).toBe(groupId);
@@ -136,60 +148,60 @@ describe('adding someone already on Waves', () => {
   });
 
   it('taps a match by phone', async () => {
-    const owner = await person('Asha', { phone: '911111111111' });
-    const mira = await person('Mira', { phone: '919876543210' });
-    const groupId = await group(owner);
+    const owner = await person('Asha');
+    const mira = await person('Mira');
+    const groupId = await group(owner.id);
 
     // The address book carries the number with its country code and '+'; the
     // account stores it bare. The match must cross that gap.
-    await addGhost(owner, groupId, { name: 'Mira', phone: '+919876543210' });
+    await addGhost(owner.id, groupId, { name: 'Mira', phone: `+${mira.phone}` });
 
-    expect(await notificationsFor(mira)).toHaveLength(1);
+    expect(await notificationsFor(mira.id)).toHaveLength(1);
   });
 
   it('does not tap you for adding yourself', async () => {
-    const owner = await person('Asha', { email: 'asha@example.com' });
-    const groupId = await group(owner);
+    const owner = await person('Asha');
+    const groupId = await group(owner.id);
 
-    await addGhost(owner, groupId, { name: 'Asha', email: 'asha@example.com' });
+    await addGhost(owner.id, groupId, { name: 'Asha', email: owner.email });
 
-    expect(await notificationsFor(owner)).toHaveLength(0);
+    expect(await notificationsFor(owner.id)).toHaveLength(0);
   });
 
   it('does not tap someone already in the group', async () => {
-    const owner = await person('Asha', { email: 'asha@example.com' });
-    const ravi = await person('Ravi', { email: 'ravi@example.com' });
-    const groupId = await group(owner);
+    const owner = await person('Asha');
+    const ravi = await person('Ravi');
+    const groupId = await group(owner.id);
     // Ravi is a real, active member — not a ghost.
     await client.query(
       `INSERT INTO group_members (group_id, profile_id, joined_via) VALUES ($1, $2, 'invite_link')`,
-      [groupId, ravi],
+      [groupId, ravi.id],
     );
 
-    await addGhost(owner, groupId, { name: 'Ravi', email: 'ravi@example.com' });
+    await addGhost(owner.id, groupId, { name: 'Ravi', email: ravi.email });
 
-    expect(await notificationsFor(ravi)).toHaveLength(0);
+    expect(await notificationsFor(ravi.id)).toHaveLength(0);
   });
 
   it('does not tap twice when the same contact is re-added', async () => {
-    const owner = await person('Asha', { email: 'asha@example.com' });
-    const ravi = await person('Ravi', { email: 'ravi@example.com' });
-    const groupId = await group(owner);
+    const owner = await person('Asha');
+    const ravi = await person('Ravi');
+    const groupId = await group(owner.id);
 
-    await addGhost(owner, groupId, { name: 'Ravi', email: 'ravi@example.com' });
+    await addGhost(owner.id, groupId, { name: 'Ravi', email: ravi.email });
     // A second add of the same contact returns the existing member (idempotent),
     // and the dedupe key keeps the inbox to one line.
-    await addGhost(owner, groupId, { name: 'Ravi', email: 'ravi@example.com' });
+    await addGhost(owner.id, groupId, { name: 'Ravi', email: ravi.email });
 
-    expect(await notificationsFor(ravi)).toHaveLength(1);
+    expect(await notificationsFor(ravi.id)).toHaveLength(1);
   });
 
   it('taps no one for a plain ghost with no address', async () => {
-    const owner = await person('Asha', { email: 'asha@example.com' });
-    const groupId = await group(owner);
+    const owner = await person('Asha');
+    const groupId = await group(owner.id);
 
     const before = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
-    const memberId = await addGhost(owner, groupId, { name: 'Someone from the trip' });
+    const memberId = await addGhost(owner.id, groupId, { name: 'Someone from the trip' });
     const after = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
 
     expect(memberId).toBeTruthy();
@@ -198,11 +210,11 @@ describe('adding someone already on Waves', () => {
   });
 
   it('taps no one for a contact that matches no account', async () => {
-    const owner = await person('Asha', { email: 'asha@example.com' });
-    const groupId = await group(owner);
+    const owner = await person('Asha');
+    const groupId = await group(owner.id);
 
     const before = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
-    await addGhost(owner, groupId, { name: 'Nobody', email: 'nobody@nowhere.example' });
+    await addGhost(owner.id, groupId, { name: 'Nobody', email: 'nobody@nowhere.example' });
     const after = (await client.query(`SELECT count(*)::int AS n FROM notifications`)).rows[0].n;
 
     expect(after).toBe(before);
