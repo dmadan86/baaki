@@ -352,7 +352,7 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
             width: 30,
             height: 30,
             borderRadius: 15,
-            backgroundColor: theme.color.brand,
+            backgroundColor: theme.color.buttonPrimary,
             borderWidth: 3,
             borderColor: theme.color.surface,
             alignItems: 'center',

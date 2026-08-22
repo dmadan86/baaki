@@ -95,7 +95,7 @@ export function ProfileAvatar({
             borderRadius: size,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.color.brand,
+            backgroundColor: theme.color.buttonPrimary,
             borderWidth: 2,
             borderColor: theme.color.surface,
           }}
