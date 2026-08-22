@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
-  currencyForCountry,
   currencySymbol,
   guessGroupEmoji,
   minorUnitExponent,
@@ -38,6 +37,7 @@ import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { requestContacts } from '@/lib/contactPickerBridge';
 import { useCreateGroup } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
+import { useDefaultCurrency } from '@/lib/currency';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
 import { GroupType } from '@/data/types';
@@ -212,6 +212,7 @@ export default function NewGroupScreen() {
   const { t, locale } = useStrings();
   const createGroup = useCreateGroup();
   const { profile } = useAuth();
+  const currency = useDefaultCurrency();
   const guard = useGuestGuard();
   const { mutate } = useSync();
 
@@ -256,7 +257,6 @@ export default function NewGroupScreen() {
   // Trips and events benefit most from simplification; a two-person group does
   // not. Follows the type until somebody says otherwise.
   const effectiveSimplify = simplify ?? (type === GroupType.Trip || type === GroupType.Event);
-  const currency = currencyForCountry(country) ?? 'INR';
 
   // The kinds of group, one place — the chips inside the picker and the icon on
   // the collapsed pill both read from this.

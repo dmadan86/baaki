@@ -64,6 +64,25 @@ serveWithCors(async (request) => {
       throw new HttpError(404, 'NOTHING_TO_EXPORT', 'You are not in any groups yet');
     }
 
+    // The caller's own profile row — the account data they gave us, including the
+    // optional postal address (ADR-012 portability, and the privacy screen's
+    // promise that everything stored is exportable). Read as the service so it
+    // is the whole row, not the RLS-narrowed view.
+    const { data: me, error: meError } = await service
+      .from('profiles')
+      .select(
+        'id, display_name, country_code, address, default_currency, default_vpa, payment_rail, payment_handle, locale, created_at',
+      )
+      .eq('id', user.user.id)
+      .single();
+    if (meError) {
+      throw new HttpError(
+        500,
+        'EXPORT_INCOMPLETE',
+        `Could not read your profile: ${meError.message}`,
+      );
+    }
+
     const exported = [];
     for (const groupId of groupIds) {
       const [group, members, expenses, settlements, activity] = await Promise.all([
@@ -130,6 +149,7 @@ serveWithCors(async (request) => {
             // Amounts stay in minor units, as strings: re-importing this file
             // must reproduce the ledger exactly (ADR-003).
             amountUnit: 'minor',
+            profile: me,
             groups: exported,
           },
           null,

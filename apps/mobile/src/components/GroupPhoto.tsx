@@ -84,7 +84,7 @@ export function GroupPhoto({
             backgroundColor: theme.color.buttonPrimary,
           }}
         >
-          <Ionicons name="camera" size={size * 0.18} color={theme.color.onBrand} />
+          <Ionicons name="camera" size={size * 0.18} color={theme.color.onButtonPrimary} />
         </View>
       ) : null}
     </View>

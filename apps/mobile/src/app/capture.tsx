@@ -155,7 +155,13 @@ export default function CaptureScreen() {
   // amount opens the picker. A traveller paying in a currency their phone's
   // region does not use should not have to leave and reopen the group form.
   const defaultCurrency = useDefaultCurrency();
-  const [currency, setCurrency] = useState<string>(() => defaultCurrency);
+  // Until the person picks a currency by hand, it follows the account default —
+  // which can arrive a beat after this screen mounts, once the profile loads, so
+  // an untouched capture is never saved in the device currency when the account
+  // says something else. Their pick then wins and sticks. Derived, not synced in
+  // an effect, so there is no setState-in-effect and no first-render snapshot.
+  const [pickedCurrency, setPickedCurrency] = useState<string | null>(null);
+  const currency = pickedCurrency ?? defaultCurrency;
   const [pickingCurrency, setPickingCurrency] = useState(false);
 
   const [amount, setAmount] = useState<bigint>(0n);
@@ -572,7 +578,7 @@ export default function CaptureScreen() {
                 label={code}
                 selected={currency === code}
                 onPress={() => {
-                  setCurrency(code);
+                  setPickedCurrency(code);
                   setPickingCurrency(false);
                 }}
               />

@@ -7,7 +7,7 @@
  * a new one, so everything entered as a guest comes with them.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
@@ -154,8 +154,15 @@ function AccountForm() {
   };
 
   // Picking a country saves it and, with it, the currency it implies — the one
-  // decision the field exists to make.
+  // decision the field exists to make. Serialised: a save in flight blocks a
+  // second pick, so a slow first response can never land after and overwrite a
+  // newer choice, and a failed save puts the row back to the country that is
+  // actually stored rather than leaving an unsaved one selected.
+  const countrySaving = useRef(false);
   const saveCountry = async (next: string | null): Promise<void> => {
+    if (countrySaving.current) return;
+    const prior = country;
+    countrySaving.current = true;
     setCountry(next);
     setRegionStatus(null);
     try {
@@ -165,7 +172,10 @@ function AccountForm() {
       });
       setRegionStatus(t.account.saved);
     } catch (caught) {
+      setCountry(prior);
       setRegionStatus(friendlyError(caught, t.couldNotSave, 'account.saveCountry'));
+    } finally {
+      countrySaving.current = false;
     }
   };
 

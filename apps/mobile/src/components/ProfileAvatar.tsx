@@ -100,7 +100,7 @@ export function ProfileAvatar({
             borderColor: theme.color.surface,
           }}
         >
-          <Ionicons name="camera" size={size * 0.17} color={theme.color.onBrand} />
+          <Ionicons name="camera" size={size * 0.17} color={theme.color.onButtonPrimary} />
         </View>
       ) : null}
     </View>

@@ -359,7 +359,7 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="add" size={iconSize.lg} color={theme.color.onBrand} />
+          <Ionicons name="add" size={iconSize.lg} color={theme.color.onButtonPrimary} />
         </View>
       </View>
 
