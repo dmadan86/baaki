@@ -354,6 +354,16 @@ describe('two engines, one group', () => {
     expect(asha.getState().queue).toHaveLength(5);
     expect(bharath.getState().queue).toHaveLength(5);
 
+    // Each `enqueue` kicked a fire-and-forget `flush()`; while offline those are
+    // no-ops, but the last one may still be in flight. Await both to a settled
+    // single-flight state (still offline, so the queues stay intact) before
+    // flipping the network — otherwise the first online flush could join a
+    // lingering offline flush and skip a device's push this round.
+    await asha.flush({ groupIds: [GROUP] });
+    await bharath.flush({ groupIds: [GROUP] });
+    expect(asha.getState().queue).toHaveLength(5);
+    expect(bharath.getState().queue).toHaveLength(5);
+
     // Reconnect. Two rounds each so both push their own and pull the other's.
     online();
     await asha.flush({ groupIds: [GROUP] });
