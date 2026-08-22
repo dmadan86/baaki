@@ -124,6 +124,12 @@ function settingsRows(t: UiStrings): SettingsRow[] {
       route: '/settings/notifications',
     },
     {
+      icon: 'pricetags-outline',
+      label: t.tags.settingsRow,
+      hint: t.tags.manageSubtitle,
+      route: '/settings/categories',
+    },
+    {
       icon: 'download-outline',
       label: t.account.exportDataRow,
       hint: t.account.exportHint,

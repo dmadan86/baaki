@@ -121,7 +121,11 @@ export function TagEditorSheet({
               so its fields initialise from the tag being edited without a
               setState-in-effect to seed them. */}
           {open ? (
-            <TagEditorForm key={editing?.tagId ?? 'new'} editing={editing ?? null} onClose={onClose} />
+            <TagEditorForm
+              key={editing?.tagId ?? 'new'}
+              editing={editing ?? null}
+              onClose={onClose}
+            />
           ) : null}
         </View>
       </View>
