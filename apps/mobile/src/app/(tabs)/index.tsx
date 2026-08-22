@@ -344,7 +344,6 @@ export default function HomeScreen() {
         ) : list.length === 0 ? (
           <EmptyState
             title={t.tabs.noGroups}
-            body={t.tabs.noGroupsBody}
             icon={<Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.brand} />}
           />
         ) : (

@@ -81,7 +81,8 @@ export function EmptyState({
   icon,
 }: {
   title: string;
-  body: string;
+  /** The line under the title. Omit for a title-only empty state. */
+  body?: string;
   action?: ReactNode;
   /**
    * A glyph above the words, in a soft brand-tinted square. An empty screen is
@@ -116,9 +117,11 @@ export function EmptyState({
       <Text variant="heading" align="center">
         {title}
       </Text>
-      <Text variant="caption" tone="muted" align="center">
-        {body}
-      </Text>
+      {body ? (
+        <Text variant="caption" tone="muted" align="center">
+          {body}
+        </Text>
+      ) : null}
       {action ? <View style={{ marginTop: theme.spacing.md }}>{action}</View> : null}
     </View>
   );
