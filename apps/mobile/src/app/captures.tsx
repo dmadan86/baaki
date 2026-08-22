@@ -9,7 +9,7 @@
  * than hiding until the server has seen it (ADR-005).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -33,6 +33,7 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { InboxSkeleton } from '@/components/Skeletons';
 import { capturePhotoUrl } from '@/data/api';
+import { useSignedUrl } from '@/lib/useSignedUrl';
 import { dayHeading, groupByDay } from '@/data/activity';
 import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
@@ -53,24 +54,11 @@ function shortDate(iso: string, locale: string): string {
   });
 }
 
-/** A short-lived signed URL for a capture's receipt, re-resolved when it changes. */
+/** A signed URL for a capture's receipt, re-resolved on change and kept fresh
+ *  past the signed-URL expiry (see `useSignedUrl`). */
 function CaptureThumb({ path, size }: { path: string; size: number }) {
   const theme = useTheme();
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void capturePhotoUrl(path)
-      .then((resolved) => {
-        if (active) setUrl(resolved);
-      })
-      .catch(() => {
-        if (active) setUrl(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [path]);
+  const url = useSignedUrl(path, capturePhotoUrl);
 
   return (
     <View

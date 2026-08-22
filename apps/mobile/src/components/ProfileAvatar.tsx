@@ -7,7 +7,6 @@
  * resolves both, and this component only ever deals in the resolved value.
  */
 
-import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
@@ -16,36 +15,16 @@ import { Avatar, useTheme } from '@waves/ui';
 import { useStrings } from '@/i18n';
 
 import { avatarPhotoUrl } from '@/data/api';
+import { useSignedUrl } from '@/lib/useSignedUrl';
 
-/** Resolves whatever is in `avatar_url` to a displayable URL, and re-resolves on change. */
+/**
+ * Resolves whatever is in `avatar_url` to a displayable URL, re-resolving on
+ * change and re-minting before a signed URL can expire (see `useSignedUrl`).
+ * `avatarPhotoUrl` passes an https OAuth avatar straight through, so those never
+ * expire and the extra re-mints are cheap no-ops.
+ */
 export function useAvatarUrl(value: string | null | undefined): string | null {
-  const stored = value ?? null;
-  const [resolved, setResolved] = useState<{ stored: string | null; url: string | null }>({
-    stored: null,
-    url: null,
-  });
-
-  // Adjusted during render rather than in an effect: clearing a stale URL is
-  // derived from the new value, and doing it in an effect would show the
-  // previous person's face for a frame first.
-  if (resolved.stored !== stored) setResolved({ stored, url: null });
-
-  useEffect(() => {
-    if (!stored) return;
-    let active = true;
-    void avatarPhotoUrl(stored)
-      .then((url) => {
-        if (active) setResolved({ stored, url });
-      })
-      .catch(() => {
-        if (active) setResolved({ stored, url: null });
-      });
-    return () => {
-      active = false;
-    };
-  }, [stored]);
-
-  return resolved.stored === stored ? resolved.url : null;
+  return useSignedUrl(value, avatarPhotoUrl);
 }
 
 export function ProfileAvatar({

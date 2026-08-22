@@ -11,7 +11,6 @@
  * the app goes through.
  */
 
-import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -21,6 +20,7 @@ import { Text, useTheme } from '@waves/ui';
 import { useStrings } from '@/i18n';
 
 import { groupPhotoUrl } from '@/data/api';
+import { useSignedUrl } from '@/lib/useSignedUrl';
 
 interface GroupPhotoProps {
   photoPath?: string | null;
@@ -102,33 +102,10 @@ export function GroupPhoto({
   );
 }
 
-/** Resolves a storage path to a signed URL, and re-resolves when it changes. */
+/**
+ * Resolves a storage path to a signed URL, re-resolving when it changes and
+ * re-minting before the URL can expire (see `useSignedUrl`).
+ */
 export function useGroupPhotoUrl(photoPath: string | null | undefined): string | null {
-  const path = photoPath ?? null;
-  const [resolved, setResolved] = useState<{ path: string | null; url: string | null }>({
-    path: null,
-    url: null,
-  });
-
-  // Adjusted during render rather than in an effect: clearing a stale URL is
-  // derived from the new path, and doing it in an effect would show the old
-  // group's photo for a frame first.
-  if (resolved.path !== path) setResolved({ path, url: null });
-
-  useEffect(() => {
-    if (!path) return;
-    let active = true;
-    void groupPhotoUrl(path)
-      .then((url) => {
-        if (active) setResolved({ path, url });
-      })
-      .catch(() => {
-        if (active) setResolved({ path, url: null });
-      });
-    return () => {
-      active = false;
-    };
-  }, [path]);
-
-  return resolved.path === path ? resolved.url : null;
+  return useSignedUrl(photoPath, groupPhotoUrl);
 }
