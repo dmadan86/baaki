@@ -11,6 +11,7 @@ import {
   Callout,
   Card,
   ChipRow,
+  Divider,
   IconButton,
   iconSize,
   Row,
@@ -60,6 +61,57 @@ const iconFor =
   (name: keyof typeof Ionicons.glyphMap) =>
   // eslint-disable-next-line react/display-name
   (color: string): ReactNode => <Ionicons name={name} size={iconSize.base} color={color} />;
+
+/** The soft brand-tinted square that leads a settings row. */
+function IconChip({ name }: { name: keyof typeof Ionicons.glyphMap }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: theme.radius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.color.brandSoft,
+      }}
+    >
+      <Ionicons name={name} size={iconSize.base} color={theme.color.brand} />
+    </View>
+  );
+}
+
+/**
+ * One line of a grouped settings card: a leading icon, a title over an optional
+ * one-line hint, and the control it toggles or fills sitting at the far right.
+ */
+function SettingRow({
+  icon,
+  title,
+  subtitle,
+  trailing,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle?: string;
+  trailing: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <Row style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.sm }}>
+      <IconChip name={icon} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="subheading">{title}</Text>
+        {subtitle ? (
+          <Text variant="caption" tone="muted">
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      {trailing}
+    </Row>
+  );
+}
 
 /**
  * Making a group, wearing the same clothes as the settings that edit one.
@@ -313,35 +365,46 @@ export default function NewGroupScreen() {
           />
         </View>
 
-        {/* Dates and their daily nudges only mean anything for a trip — a
-            flatshare or a couple has no start and end. Shown only for trips. */}
+        {/* Dates only mean anything for a trip — a flatshare or a couple has no
+            start and end. Shown only for trips. */}
         {type === GroupType.Trip ? (
-          <>
-            <TripDates
-              group={tripDates}
-              locale={locale}
-              onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
-            />
-
-            {/* An optional starting budget for the trip. Left at zero it sets
-                nothing; entered, it seeds the planner's overall cap on create,
-                so the Plan screen opens with the number already in it. */}
-            <Card style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
-                {t.extras.tripBudgetOptional}
-              </Text>
-              <AmountField currency={currency} value={budget} onChange={setBudget} />
-            </Card>
-          </>
+          <TripDates
+            group={tripDates}
+            locale={locale}
+            onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
+          />
         ) : null}
 
-        {/* ADR-009: simplification is presentation only — the pairwise ledger
-            underneath is untouched. */}
-        <Card>
-          <InfoDisclosure
+        {/* Trip budget (trips only) and simplify debts as one grouped card of
+            icon-led rows — a label with its control at the far right.
+
+            The budget, left at zero, sets nothing; entered, it seeds the
+            planner's overall cap on create so the Plan screen opens with the
+            number already in it. ADR-009: simplification is presentation only —
+            the pairwise ledger underneath is untouched. */}
+        <Card style={{ gap: 0 }}>
+          {type === GroupType.Trip ? (
+            <>
+              <SettingRow
+                icon="wallet-outline"
+                title={t.extras.tripBudgetOptional}
+                trailing={
+                  <AmountField
+                    currency={currency}
+                    value={budget}
+                    onChange={setBudget}
+                    size="compact"
+                  />
+                }
+              />
+              <Divider />
+            </>
+          ) : null}
+          <SettingRow
+            icon="flash-outline"
             title={t.group.simplifyDebts}
-            info={t.group.simplifyDebtsBody}
-            right={
+            subtitle={t.group.simplifyDebtsHint}
+            trailing={
               <Toggle
                 value={effectiveSimplify}
                 onValueChange={setSimplify}

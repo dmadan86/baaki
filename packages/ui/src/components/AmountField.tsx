@@ -16,12 +16,21 @@ export function AmountField({
   currency,
   value,
   onChange,
+  size = 'display',
 }: {
   currency: CurrencyCode;
   value: bigint;
   onChange: (amount: bigint) => void;
+  /**
+   * 'display' is the hero amount — big and centred, for the expense entry
+   * screen. 'compact' is the right-aligned inline value that sits at the end of
+   * a settings row (a trip budget beside its label), sized to read as a field
+   * value rather than the point of the screen.
+   */
+  size?: 'display' | 'compact';
 }) {
   const theme = useTheme();
+  const compact = size === 'compact';
   const exponent = minorUnitExponent(currency);
   const scale = minorUnitScale(currency);
 
@@ -83,14 +92,15 @@ export function AmountField({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: compact ? 'flex-end' : 'center',
         gap: theme.spacing.xs,
+        flexShrink: 0,
       }}
     >
       <Text
         style={{
-          fontSize: 30,
-          lineHeight: 44,
+          fontSize: compact ? 18 : 30,
+          lineHeight: compact ? 24 : 44,
           fontWeight: '700',
           color: theme.color.textMuted,
         }}
@@ -107,14 +117,14 @@ export function AmountField({
         accessibilityLabel={`Amount ${format(value) || '0'} ${currency}`}
         maxFontSizeMultiplier={1.4}
         style={{
-          minWidth: 28,
+          minWidth: compact ? 40 : 28,
           padding: 0,
-          fontSize: 44,
-          lineHeight: 50,
+          fontSize: compact ? 18 : 44,
+          lineHeight: compact ? 24 : 50,
           fontWeight: '700',
           color: theme.color.text,
           fontVariant: ['tabular-nums'],
-          textAlign: 'left',
+          textAlign: compact ? 'right' : 'left',
         }}
       />
     </View>

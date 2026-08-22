@@ -992,6 +992,7 @@ export interface UiStrings {
     removePhoto: string;
     simplifyDebts: string;
     simplifyDebtsBody: string;
+    simplifyDebtsHint: string;
     membersHint: string;
     invitePeople: string;
     invitePeopleHint: string;
@@ -2442,6 +2443,7 @@ const en: UiStrings = {
     simplifyDebts: 'Simplify debts',
     simplifyDebtsBody:
       'Suggest the fewest payments that settle the group. The real who-owes-whom ledger is never rewritten.',
+    simplifyDebtsHint: 'Fewest payments to settle up',
     membersHint: 'Add people, rename, set UPI IDs',
     invitePeople: 'Invite people',
     invitePeopleHint: 'Share a link — no install needed to join',
@@ -3982,6 +3984,7 @@ const ta: UiStrings = {
     simplifyDebts: 'கடன்களை எளிமையாக்கு',
     simplifyDebtsBody:
       'குழுவைத் தீர்க்கும் மிகக் குறைந்த பணப்பரிமாற்றங்களைப் பரிந்துரைக்கும். யார் யாருக்குத் தர வேண்டும் என்ற உண்மையான கணக்கு மாற்றப்படுவதே இல்லை.',
+    simplifyDebtsHint: 'தீர்க குறைந்தபட்ச பணம் செலுத்தல்கள்',
     membersHint: 'ஆட்களைச் சேர், பெயர் மாற்று, UPI ID அமை',
     invitePeople: 'ஆட்களை அழை',
     invitePeopleHint: 'ஒரு இணைப்பைப் பகிருங்கள் — சேர ஆப் நிறுவத் தேவையில்லை',
@@ -5524,6 +5527,7 @@ const hi: UiStrings = {
     simplifyDebts: 'हिसाब सरल करें',
     simplifyDebtsBody:
       'समूह को निपटाने के सबसे कम भुगतान सुझाता है। किस पर किसका बाकी है, वह असली हिसाब कभी नहीं बदला जाता।',
+    simplifyDebtsHint: 'सेटल करने के लिए कम से कम भुगतान',
     membersHint: 'लोग जोड़ें, नाम बदलें, UPI ID सेट करें',
     invitePeople: 'लोगों को बुलाएँ',
     invitePeopleHint: 'एक लिंक साझा करें — जुड़ने के लिए कुछ इंस्टॉल करने की ज़रूरत नहीं',
@@ -7070,6 +7074,7 @@ const ar: UiStrings = {
     simplifyDebts: 'تبسيط الديون',
     simplifyDebtsBody:
       'يقترح أقل عدد من الدفعات لتسوية المجموعة. أما دفتر من يدين لمن فلا يُعاد كتابته أبدًا.',
+    simplifyDebtsHint: 'أقل عدد من المدفوعات للتسوية',
     membersHint: 'أضف أشخاصًا، غيّر الأسماء، اضبط معرّفات الدفع',
     invitePeople: 'ادعُ أشخاصًا',
     invitePeopleHint: 'شارك رابطًا — لا حاجة لتثبيت شيء للانضمام',
