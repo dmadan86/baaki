@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { mapYielding } from '../src/sync/hydrateChunk';
+import { HYDRATE_CHUNK, mapYielding } from '../src/sync/hydrateChunk';
 
 describe('mapYielding', () => {
   it('maps every item in order, like a plain map', async () => {
@@ -37,14 +37,16 @@ describe('mapYielding', () => {
 
   it('falls back to the default step for a non-positive-integer chunk', async () => {
     const onYield = vi.fn(async () => {});
-    // chunk 0 would make the modulo NaN and never yield; the guard falls back to
-    // the 512 default, so a short list still maps correctly and simply doesn't
-    // reach a chunk boundary.
+    // A bad chunk (0 makes the modulo NaN and never yields) must fall back to the
+    // HYDRATE_CHUNK default — not to "never yield". Prove it lands on the default
+    // boundary: HYDRATE_CHUNK + 1 items yield exactly once (after the first full
+    // default chunk, not after the final item).
+    const items = Array.from({ length: HYDRATE_CHUNK + 1 }, (_, i) => i);
     for (const bad of [0, -4, 2.5, Number.NaN]) {
       onYield.mockClear();
-      const out = await mapYielding([1, 2, 3], (n) => n, bad, onYield);
-      expect(out).toEqual([1, 2, 3]);
-      expect(onYield).not.toHaveBeenCalled();
+      const out = await mapYielding(items, (n) => n, bad, onYield);
+      expect(out).toEqual(items);
+      expect(onYield).toHaveBeenCalledTimes(1);
     }
   });
 
