@@ -1,0 +1,22 @@
+# Signing out returns to the signed-out gateway — the ledger is no longer on
+# screen (F-AUTH-05). The deeper privacy guard (the mirror is wiped) is a
+# reliability check in the audit; here we prove the session ends.
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+
+# Account → Sign out (the row sits at the foot of the settings list).
+- tapOn: 'Account'
+- scrollUntilVisible:
+    element: 'Sign out'
+    direction: DOWN
+- tapOn: 'Sign out'
+
+# Confirm the alert (exact-match so it isn't the row behind it).
+- assertVisible: 'Sign out?'
+- tapOn:
+    text: '^Sign out$'
+
+# Back at the signed-out gateway; the account and its groups are off screen.
+- assertVisible: 'Create account'
+- assertNotVisible: 'Goa trip'

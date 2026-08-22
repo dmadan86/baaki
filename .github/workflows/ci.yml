@@ -246,25 +246,20 @@ jobs:
       # Boot an emulator, install Maestro, install the APK, run the flows.
       - name: Run Maestro flows
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SERVICE_KEY: ${{ secrets.E2E_SERVICE_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            curl -Ls "https://get.maestro.mobile.dev" | bash
-            export PATH="$PATH:$HOME/.maestro/bin"
-            adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
-            # Explicit list so the login.yaml sub-flow is not run standalone.
-            maestro test \
-              --env E2E_EMAIL="${{ secrets.E2E_EMAIL }}" \
-              --env E2E_PASSWORD="${{ secrets.E2E_PASSWORD }}" \
-              --format junit --output maestro-report.xml \
-              e2e/home-to-add-expense.yaml \
-              e2e/clone-group.yaml \
-              e2e/group-photo-paid-gate.yaml \
-              e2e/friends-merge-guests.yaml \
-              e2e/leave-group.yaml
+          # A single line: android-emulator-runner parses `script` line-by-line,
+          # so the loop + reseed logic lives in a committed shell script that
+          # runs as one command. See e2e/run-maestro.sh.
+          script: bash e2e/run-maestro.sh
       - name: Upload Maestro report
         if: always()
         uses: actions/upload-artifact@v4

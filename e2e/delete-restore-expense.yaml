@@ -1,0 +1,24 @@
+# Deleting an expense removes it from balances and the default view; Restore
+# brings it back (F-EXP-03). Uses the seeded "Beach shack dinner".
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+
+- tapOn: 'Goa trip'
+- tapOn: 'Beach shack dinner'
+
+# Delete, confirming the alert (exact-match so it isn't "Delete expense").
+- assertVisible: 'Delete expense'
+- tapOn: 'Delete expense'
+- assertVisible: 'Delete this expense?'
+- tapOn:
+    text: '^Delete$'
+
+# Back on the ledger it is gone from the default view.
+- assertNotVisible: 'Beach shack dinner'
+
+# Reveal deleted, reopen it, restore it.
+- tapOn: 'Show deleted'
+- tapOn: 'Beach shack dinner'
+- tapOn: 'Restore this expense'
+- assertVisible: 'Beach shack dinner'

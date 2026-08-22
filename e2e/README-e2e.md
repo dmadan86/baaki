@@ -57,24 +57,37 @@ export E2E_EMAIL="e2e@waves.test"
 export E2E_PASSWORD="<password>"
 node e2e/seed-e2e.mjs
 
-# 2. Build + install the app against the same project (see apps/mobile), then:
-maestro test --env E2E_EMAIL="$E2E_EMAIL" --env E2E_PASSWORD="$E2E_PASSWORD" \
-  e2e/home-to-add-expense.yaml e2e/clone-group.yaml \
-  e2e/group-photo-paid-gate.yaml e2e/friends-merge-guests.yaml e2e/leave-group.yaml
+# 2. Build + install the app against the same project (see apps/mobile). Then run
+#    each flow on its own, reseeding first, because the flows mutate the backend:
+for flow in home-to-add-expense edit-expense delete-restore-expense \
+            rename-archive-group sign-out-privacy clone-group \
+            group-photo-paid-gate friends-merge-guests leave-group; do
+  node e2e/seed-e2e.mjs
+  maestro test --env E2E_EMAIL="$E2E_EMAIL" --env E2E_PASSWORD="$E2E_PASSWORD" "e2e/$flow.yaml"
+done
 ```
 
-`login.yaml` is a sub-flow (`runFlow`) — run the five flows explicitly rather
-than `maestro test e2e/`, so it is not executed on its own.
+`login.yaml` is a sub-flow (`runFlow`) — run the flows explicitly (one per
+invocation) rather than `maestro test e2e/`, so it is not executed on its own.
+In CI this loop lives in `e2e/run-maestro.sh`.
 
 ## The flows
 
-| Flow                         | Guards                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------- |
-| `home-to-add-expense.yaml`   | launch → balance → open group → see expense + ghost → add-expense calculator        |
-| `leave-group.yaml`           | leave a settled group → gone from Home and stays gone after relaunch                |
-| `clone-group.yaml`           | Duplicate → prefilled New Group → drop a member → Create → copy made, original kept |
-| `group-photo-paid-gate.yaml` | group photo is paid, cover emoji is free                                            |
-| `friends-merge-guests.yaml`  | merge same-person ghosts, with the irreversible-warning gate                        |
+| Flow                          | Guards                                                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| `home-to-add-expense.yaml`    | launch → balance → open group → see expense + ghost → add-expense calculator        |
+| `edit-expense.yaml`           | edit the seeded expense → the ledger reflects the new value                         |
+| `delete-restore-expense.yaml` | delete → gone from the default view → Show deleted → Restore → back                 |
+| `rename-archive-group.yaml`   | rename a group (persists) → archive → gone from Home                                |
+| `sign-out-privacy.yaml`       | sign out → back at the gateway, the ledger off screen                               |
+| `clone-group.yaml`            | Duplicate → prefilled New Group → drop a member → Create → copy made, original kept |
+| `group-photo-paid-gate.yaml`  | group photo is paid, cover emoji is free                                            |
+| `friends-merge-guests.yaml`   | merge the two seeded "Reeya" ghosts, with the irreversible-warning gate             |
+| `leave-group.yaml`            | leave a settled group → gone from Home and stays gone after relaunch                |
+
+Each flow mutates the shared staging backend, so CI **reseeds the fixture before
+every flow** (the seed is idempotent). Locally, run one flow at a time and
+reseed between them.
 
 The `.mjs` scripts in this directory are a separate concern: manual integration
 checks against a **deployed** stack (see each file's header).
