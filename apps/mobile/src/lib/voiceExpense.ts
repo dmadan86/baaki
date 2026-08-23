@@ -344,12 +344,35 @@ export function normalizeDigits(text: string): string {
 
 /** Words for numbers, and the Indian/Western multipliers that scale them. */
 const NUMBER_WORDS: ReadonlyMap<string, number> = new Map([
-  ['zero', 0], ['one', 1], ['two', 2], ['three', 3], ['four', 4], ['five', 5],
-  ['six', 6], ['seven', 7], ['eight', 8], ['nine', 9], ['ten', 10],
-  ['eleven', 11], ['twelve', 12], ['thirteen', 13], ['fourteen', 14],
-  ['fifteen', 15], ['sixteen', 16], ['seventeen', 17], ['eighteen', 18],
-  ['nineteen', 19], ['twenty', 20], ['thirty', 30], ['forty', 40], ['fourty', 40],
-  ['fifty', 50], ['sixty', 60], ['seventy', 70], ['eighty', 80], ['ninety', 90],
+  ['zero', 0],
+  ['one', 1],
+  ['two', 2],
+  ['three', 3],
+  ['four', 4],
+  ['five', 5],
+  ['six', 6],
+  ['seven', 7],
+  ['eight', 8],
+  ['nine', 9],
+  ['ten', 10],
+  ['eleven', 11],
+  ['twelve', 12],
+  ['thirteen', 13],
+  ['fourteen', 14],
+  ['fifteen', 15],
+  ['sixteen', 16],
+  ['seventeen', 17],
+  ['eighteen', 18],
+  ['nineteen', 19],
+  ['twenty', 20],
+  ['thirty', 30],
+  ['forty', 40],
+  ['fourty', 40],
+  ['fifty', 50],
+  ['sixty', 60],
+  ['seventy', 70],
+  ['eighty', 80],
+  ['ninety', 90],
 ]);
 
 /** Scaling words. `group` ones close off a chunk ("two thousand five hundred"). */
@@ -375,9 +398,19 @@ const SPOKEN_NUMBER = new RegExp(
   'gi',
 );
 
-/** A currency word or symbol — the signal that a nearby number is money. */
+/**
+ * A currency word or symbol — the signal that a nearby number is money.
+ *
+ * The alphabetic words carry word boundaries so a short token like "rs" cannot
+ * match inside an ordinary word ("person" → "pe-rs-on"): without them "one
+ * person paid" would read "rs" as currency and mint a false amount.
+ */
 const CURRENCY_TOKEN =
-  /(?:₹|\$|€|£|rupees?|rupaye|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)/i;
+  /(?:₹|\$|€|£|\b(?:rupees?|rupaye|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)\b)/i;
+
+/** Split-phrase context — a number here is a people count, still worth digitising. */
+const SPLIT_BEFORE_WORD = /^(?:among|amongst|between)$/i;
+const SPLIT_AFTER_WORD = /^(?:people|persons?|ppl|ways?|folks?|heads?)\b/i;
 
 /** Add up one run of number words: "five hundred and fifty" → 550. */
 function spokenRunToNumber(run: string): number | null {
@@ -415,20 +448,27 @@ function spokenRunToNumber(run: string): number | null {
  * silently dropped.
  *
  * Deliberately conservative: a run is only rewritten when it carries a
- * multiplier ("five hundred") or sits against a currency word ("twenty rupees").
- * A bare small number is left alone, because "one of us" and "table for two" are
- * ordinary speech, and turning them into digits would invent an amount out of a
- * sentence that never named one.
+ * multiplier ("five hundred"), sits against a currency word ("twenty rupees"),
+ * or sits in a split-count phrase ("split among five", "five people") — where
+ * the number is a people count that extractSplitCount, being digit-only, would
+ * otherwise miss. A bare small number in any other context is left alone,
+ * because "one of us" and "table for two" are ordinary speech, and turning them
+ * into digits would invent an amount out of a sentence that never named one.
  */
 export function normalizeSpokenNumbers(text: string): string {
   return text.replace(SPOKEN_NUMBER, (run, offset: number, whole: string) => {
-    const words = run.toLowerCase().split(/[\s-]+/).filter((w: string) => w && w !== 'and');
+    const words = run
+      .toLowerCase()
+      .split(/[\s-]+/)
+      .filter((w: string) => w && w !== 'and');
     const hasMultiplier = words.some((w: string) => NUMBER_MULTIPLIERS.has(w));
     const after = whole.slice(offset + run.length).trimStart();
     const before = whole.slice(0, offset).trimEnd();
+    const prevWord = before.split(/\s+/).pop() ?? '';
     const nextIsCurrency = CURRENCY_TOKEN.test(after.split(/\s+/)[0] ?? '');
-    const prevIsCurrency = CURRENCY_TOKEN.test(before.split(/\s+/).pop() ?? '');
-    if (!hasMultiplier && !nextIsCurrency && !prevIsCurrency) return run;
+    const prevIsCurrency = CURRENCY_TOKEN.test(prevWord);
+    const splitContext = SPLIT_BEFORE_WORD.test(prevWord) || SPLIT_AFTER_WORD.test(after);
+    if (!hasMultiplier && !nextIsCurrency && !prevIsCurrency && !splitContext) return run;
     const value = spokenRunToNumber(run);
     return value === null ? run : String(value);
   });

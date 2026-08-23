@@ -120,13 +120,16 @@ describe('speaking an expense into the watch', () => {
   });
 
   it('refuses a malformed intent before it can reach the queue', () => {
-    expect(bridgeVoiceAdd({ t: 'voiceAdd', id: '', transcript: 'five hundred rupees' }, noGroups).ack)
-      .toBe(false);
+    expect(
+      bridgeVoiceAdd({ t: 'voiceAdd', id: '', transcript: 'five hundred rupees' }, noGroups).ack,
+    ).toBe(false);
     expect(bridgeVoiceAdd({ t: 'voiceAdd', id: 'x', transcript: '   ' }, noGroups).ack).toBe(false);
     // A version the phone cannot read is rejected rather than guessed at.
     expect(
-      bridgeVoiceAdd({ t: 'voiceAdd', id: 'x', transcript: 'five hundred rupees', version: 99 }, noGroups)
-        .ack,
+      bridgeVoiceAdd(
+        { t: 'voiceAdd', id: 'x', transcript: 'five hundred rupees', version: 99 },
+        noGroups,
+      ).ack,
     ).toBe(false);
   });
 });
