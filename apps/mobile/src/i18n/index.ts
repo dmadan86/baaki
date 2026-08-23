@@ -789,6 +789,8 @@ export interface UiStrings {
     switchToSignUp: string;
     continueGoogle: string;
     signInGoogle: string;
+    continueApple: string;
+    signInApple: string;
     orSignInWith: string;
     /** The word on the hairline between the provider buttons and the form. */
     or: string;
@@ -2292,6 +2294,8 @@ const en: UiStrings = {
     switchToSignUp: 'New here? Create an account',
     continueGoogle: 'Continue with Google',
     signInGoogle: 'Sign in with Google',
+    continueApple: 'Continue with Apple',
+    signInApple: 'Sign in with Apple',
     orSignInWith: 'or sign in with',
     or: 'or',
     continueEmail: 'Continue with email',
@@ -3869,6 +3873,8 @@ const ta: UiStrings = {
     switchToSignUp: 'புதியவரா? கணக்கை உருவாக்கவும்',
     continueGoogle: 'Google மூலம் தொடர்',
     signInGoogle: 'Google மூலம் உள்நுழை',
+    continueApple: 'Apple மூலம் தொடர்',
+    signInApple: 'Apple மூலம் உள்நுழை',
     orSignInWith: 'அல்லது இதன் மூலம் உள்நுழை',
     or: 'அல்லது',
     continueEmail: 'மின்னஞ்சலில் தொடர்க',
@@ -5466,6 +5472,8 @@ const hi: UiStrings = {
     switchToSignUp: 'नए हैं? खाता बनाएँ',
     continueGoogle: 'Google से जारी रखें',
     signInGoogle: 'Google से साइन इन करें',
+    continueApple: 'Apple से जारी रखें',
+    signInApple: 'Apple से साइन इन करें',
     orSignInWith: 'या इसके ज़रिए साइन इन करें',
     or: 'या',
     continueEmail: 'ईमेल से जारी रखें',
@@ -7050,6 +7058,8 @@ const ar: UiStrings = {
     switchToSignUp: 'جديد هنا؟ أنشئ حسابًا',
     continueGoogle: 'المتابعة عبر Google',
     signInGoogle: 'تسجيل الدخول عبر Google',
+    continueApple: 'المتابعة عبر Apple',
+    signInApple: 'تسجيل الدخول عبر Apple',
     orSignInWith: 'أو سجّل الدخول عبر',
     or: 'أو',
     continueEmail: 'المتابعة بالبريد الإلكتروني',

@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
 import {
+  appleFullName,
   AuthMethod,
   checkPassword,
   OAuthMethod,
@@ -82,6 +84,58 @@ async function oauthThroughBrowser(
   return signedIn.session;
 }
 
+/**
+ * Sign in with Apple's native sheet — iOS only.
+ *
+ * The module is a native one, so it is required lazily behind a catch: a build
+ * that predates the `expo-apple-authentication` dependency (Android, web, or an
+ * old dev client) must fall back to the browser flow rather than crash at
+ * launch (see the native-module rule).
+ */
+type AppleAuthModule = typeof import('expo-apple-authentication');
+
+function loadAppleAuth(): AppleAuthModule | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-apple-authentication') as AppleAuthModule;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Present Apple's native sheet and hand back the identity token plus, only on
+ * the very first authorization, the person's name — Apple returns it once and
+ * never again. `undefined` means they dismissed the sheet.
+ */
+async function appleNativeCredential(apple: AppleAuthModule): Promise<
+  | {
+      identityToken: string;
+      fullName: {
+        givenName: string | null;
+        middleName: string | null;
+        familyName: string | null;
+      } | null;
+    }
+  | undefined
+> {
+  try {
+    const credential = await apple.signInAsync({
+      requestedScopes: [
+        apple.AppleAuthenticationScope.FULL_NAME,
+        apple.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+    if (!credential.identityToken) {
+      throw new Error('Apple sign-in returned no identity token');
+    }
+    return { identityToken: credential.identityToken, fullName: credential.fullName };
+  } catch (error) {
+    if ((error as { code?: string }).code === 'ERR_REQUEST_CANCELED') return undefined;
+    throw error;
+  }
+}
+
 export interface Profile {
   id: string;
   display_name: string;
@@ -132,6 +186,8 @@ interface AuthValue {
   ) => Promise<PasswordOutcome>;
   /** Google. Links to the current account when there is one, for the same reason. */
   withGoogle: () => Promise<void>;
+  /** Apple. Native sheet on iOS for a fresh sign-in; browser otherwise and for links. */
+  withApple: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
   /** Re-read the session after it changes underneath us (e.g. a linked email). */
   refresh: () => Promise<void>;
@@ -288,6 +344,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async withGoogle() {
         const action = planAuth(viewerFrom(session), AuthMethod.Google);
         const next = await oauthThroughBrowser(OAuthMethod.Google, action.call === 'linkIdentity');
+        if (next !== undefined) setSession(next);
+      },
+
+      async withApple() {
+        const action = planAuth(viewerFrom(session), AuthMethod.Apple);
+        // The native id-token flow is a fresh sign-in only: Supabase has no
+        // id-token form of linkIdentity, so a guest upgrading (the ADR-006
+        // common path) still goes through the browser, exactly like Google.
+        if (Platform.OS === 'ios' && action.call === 'signInWithOAuth') {
+          const apple = loadAppleAuth();
+          if (apple) {
+            const credential = await appleNativeCredential(apple);
+            if (credential === undefined) return; // sheet dismissed
+            const { data, error } = await supabase.auth.signInWithIdToken({
+              provider: 'apple',
+              token: credential.identityToken,
+            });
+            if (error) throw error;
+            // Apple hands over the name only on the first authorization; seed
+            // the profile with it before it is gone for good.
+            const name = appleFullName(credential.fullName);
+            if (name && data.user) {
+              await supabase.from('profiles').update({ display_name: name }).eq('id', data.user.id);
+            }
+            setSession(data.session);
+            return;
+          }
+          // No native module in this build — fall through to the browser.
+        }
+        const next = await oauthThroughBrowser(OAuthMethod.Apple, action.call === 'linkIdentity');
         if (next !== undefined) setSession(next);
       },
 

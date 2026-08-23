@@ -76,7 +76,7 @@ enum Mode {
 export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const theme = useTheme();
   const { t } = useStrings();
-  const { sendOtp, verifyOtp, withPassword, withGoogle, isGuest } = useAuth();
+  const { sendOtp, verifyOtp, withPassword, withGoogle, withApple, isGuest } = useAuth();
 
   const isSignup = flow === 'signup';
 
@@ -242,6 +242,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 busy={busy}
                 wording={isSignup ? 'continue' : 'signIn'}
                 onGoogle={() => void run(withGoogle)}
+                onApple={() => void run(withApple)}
                 t={t}
               />
               {/* Email as its own top-level way in: a tap that drops straight
@@ -383,6 +384,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 busy={busy}
                 wording={isGuest || isSignup ? 'continue' : 'signIn'}
                 onGoogle={() => void run(withGoogle)}
+                onApple={() => void run(withApple)}
                 t={t}
               />
             </View>
@@ -691,19 +693,36 @@ function SocialRow({
   busy,
   wording,
   onGoogle,
+  onApple,
   t,
 }: {
   busy: boolean;
   wording: 'continue' | 'signIn';
   onGoogle: () => void;
+  onApple: () => void;
   t: UiStrings;
 }) {
   const carryOn = wording === 'continue';
-  return (
+  const google = (
     <SocialButton
+      key="google"
+      provider="google"
       label={carryOn ? t.signIn.continueGoogle : t.signIn.signInGoogle}
       disabled={busy}
       onPress={onGoogle}
     />
   );
+  const apple = (
+    <SocialButton
+      key="apple"
+      provider="apple"
+      label={carryOn ? t.signIn.continueApple : t.signIn.signInApple}
+      disabled={busy}
+      onPress={onApple}
+    />
+  );
+  // Apple's guidelines want its button at least as prominent as the others on
+  // iOS, so it leads there; Google leads on every other platform, where Apple
+  // is the browser fallback.
+  return <>{Platform.OS === 'ios' ? [apple, google] : [google, apple]}</>;
 }
