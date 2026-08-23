@@ -128,7 +128,7 @@ function CaptureListRow({
         {capture.photo_path ? (
           <CaptureThumb path={capture.photo_path} size={46} />
         ) : (
-          <CategoryBadge category={capture.category} size={46} />
+          <CategoryBadge category={capture.category} meta={capture.category_meta} size={46} />
         )}
 
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -230,6 +230,9 @@ export default function CapturesScreen() {
         amount: capture.amount,
         description: capture.description,
         category: capture.category ?? '',
+        // A custom tag rides along as JSON so the assigned expense keeps it,
+        // rather than dropping to a built-in (extends TDR §8).
+        ...(capture.category_meta ? { categoryMeta: JSON.stringify(capture.category_meta) } : {}),
         expenseDate: capture.expense_date,
       },
     });
@@ -400,7 +403,11 @@ export default function CapturesScreen() {
                 glyph. */}
             {assigning ? (
               <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                <CategoryBadge category={assigning.category} size={38} />
+                <CategoryBadge
+                  category={assigning.category}
+                  meta={assigning.category_meta}
+                  size={38}
+                />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <MoneyText
                     amount={BigInt(assigning.amount)}

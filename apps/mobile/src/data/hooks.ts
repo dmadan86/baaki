@@ -13,11 +13,14 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { randomUUID } from 'expo-crypto';
 
 import {
+  buildCatalog,
+  categoryTagsScope,
   computeNetBalances,
   computePairwiseBalances,
   ghostMerges,
   materialiseArchivedGroups,
   materialiseCaptures,
+  materialiseCategoryTags,
   materialiseExpenses,
   materialiseGroup,
   materialiseGroups,
@@ -26,14 +29,19 @@ import {
   materialisePlanItems,
   materialiseSettlements,
   MutationKind,
+  nextSortOrder,
   openCaptures,
   openPlanItems,
   overlayPending,
   rowsFor,
   simplify,
   SyncTable,
+  type CatalogEntry,
+  type CategoryMeta,
+  type CategoryTagRow,
   type ExpenseSnapshot,
   type MemberId,
+  type MirrorCategoryTag,
   type MirrorExpense,
   type SettlementSnapshot,
   type Transfer,
@@ -781,6 +789,7 @@ function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<str
       : undefined,
     notes: input.notes ?? null,
     paymentMethod: input.paymentMethod ?? null,
+    categoryMeta: input.categoryMeta ?? null,
     receiptShareUrl: input.receiptShareUrl ?? null,
   };
 }
@@ -934,6 +943,8 @@ export interface CaptureInput {
   paymentMethod?: string | null;
   /** Intended destination group; null means decide later. */
   targetGroupId?: string | null;
+  /** Denormalised custom-tag display (extends TDR §8); null for a built-in. */
+  categoryMeta?: CategoryMeta | null;
 }
 
 /** bigint → decimal string at the queue boundary, like `serialiseExpense`. */
@@ -951,6 +962,7 @@ function serialiseCapture(input: CaptureInput, captureId: string): Record<string
     parsed: input.parsed ?? null,
     paymentMethod: input.paymentMethod ?? null,
     targetGroupId: input.targetGroupId ?? null,
+    categoryMeta: input.categoryMeta ?? null,
   };
 }
 
@@ -1012,6 +1024,116 @@ export function useAssignCapture() {
         expenseId: input.expenseId,
       });
       return input.captureId;
+    },
+  });
+}
+
+// ─────────────────────────────── the custom expense-tag catalog (§8) ──
+
+/** A mirror row (snake_case) as the app-facing camelCase catalog row. */
+function tagRowFrom(row: MirrorCategoryTag): CategoryTagRow {
+  return {
+    id: row.id,
+    builtinId: row.builtin_id ?? null,
+    label: row.label ?? null,
+    icon: row.icon ?? null,
+    tint: row.tint ?? null,
+    sortOrder: Number(row.sort_order ?? 0),
+    hidden: row.hidden === true,
+  };
+}
+
+/** The person's raw catalog rows — custom tags plus their built-in overrides.
+ *  Feed to `buildCatalog` (with `t.categories` for the built-in labels) to get
+ *  the ordered list the pickers and the manager render. */
+export function useCategoryTags(): LocalRead<CategoryTagRow[]> {
+  const { session } = useAuth();
+  const ownerId = session?.user?.id ?? '';
+  const { mirror, queue } = useSync();
+  const rows = useMemo(
+    () =>
+      ownerId
+        ? materialiseCategoryTags(mirror, queue, { ownerId }).map(tagRowFrom)
+        : ([] as CategoryTagRow[]),
+    [mirror, queue, ownerId],
+  );
+  return useLocalRead(rows);
+}
+
+/**
+ * The effective catalog for rendering: built-ins merged with the person's
+ * overrides and custom tags, ordered. `labelForBuiltin` supplies the translated
+ * built-in labels (pass `(id) => t.categories[id]`). Returns `visible` (hidden
+ * dropped, for pickers) and `all` (for the manager).
+ */
+export function useCategoryCatalog(labelForBuiltin: (id: string) => string): {
+  visible: readonly CatalogEntry[];
+  all: readonly CatalogEntry[];
+  loading: boolean;
+} {
+  const tags = useCategoryTags();
+  const rows = tags.data;
+  const loading = tags.isLoading;
+  return useMemo(() => {
+    const { visible, all } = buildCatalog(rows ?? [], (id) => labelForBuiltin(id));
+    return { visible, all, loading };
+  }, [rows, labelForBuiltin, loading]);
+}
+
+export interface TagUpsertInput {
+  /** Omit to create a new custom tag; pass to edit an existing row (or a
+   *  built-in's override row). */
+  tagId?: string;
+  /** Set for a built-in override (its id, e.g. 'food'); omit for a custom tag. */
+  builtinId?: string | null;
+  label?: string | null;
+  icon?: string | null;
+  tint?: string | null;
+  /** Omit on create to append after everything; required when reordering. */
+  sortOrder?: number;
+  hidden?: boolean;
+}
+
+/**
+ * Create or edit a catalog row — one upsert covers a new custom tag, an edit,
+ * and a built-in the person hides or reorders (which lazily gets an override
+ * row). Scoped to the owner's catalog, so it rides the personal queue.
+ */
+export function useUpsertTag() {
+  const { mutate, mirror, queue } = useSync();
+  const { session } = useAuth();
+  return useMutation({
+    mutationFn: async (input: TagUpsertInput) => {
+      const ownerId = session?.user?.id;
+      if (!ownerId) throw new Error('Sign in first');
+      const tagId = input.tagId ?? randomUUID();
+      const rows = materialiseCategoryTags(mirror, queue, { ownerId }).map(tagRowFrom);
+      const payload = {
+        tagId,
+        builtinId: input.builtinId ?? null,
+        label: input.label ?? null,
+        icon: input.icon ?? null,
+        tint: input.tint ?? null,
+        sortOrder: input.sortOrder ?? nextSortOrder(rows),
+        hidden: input.hidden ?? false,
+      };
+      const kind = input.tagId ? MutationKind.TagUpdate : MutationKind.TagCreate;
+      await mutate(kind, categoryTagsScope(ownerId), payload);
+      return tagId;
+    },
+  });
+}
+
+/** Soft-delete a custom tag. Past expenses keep their denormalised snapshot. */
+export function useDeleteTag() {
+  const { mutate } = useSync();
+  const { session } = useAuth();
+  return useMutation({
+    mutationFn: async (tagId: string) => {
+      const ownerId = session?.user?.id;
+      if (!ownerId) throw new Error('Sign in first');
+      await mutate(MutationKind.TagDelete, categoryTagsScope(ownerId), { tagId });
+      return tagId;
     },
   });
 }

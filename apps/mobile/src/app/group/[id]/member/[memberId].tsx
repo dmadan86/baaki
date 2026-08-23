@@ -323,6 +323,7 @@ export default function MemberScreen() {
                       expense.currentVersion?.description,
                       expense.currentVersion?.category,
                       t,
+                      expense.currentVersion?.category_meta,
                     )}
                     subtitle={
                       expense.currentVersion

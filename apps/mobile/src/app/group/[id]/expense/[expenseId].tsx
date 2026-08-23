@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 
-import { categoryOf } from '@waves/core';
+import { resolveCategory } from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -141,7 +141,7 @@ export default function ExpenseDetailScreen() {
   // The hero wears the expense's category colour, not a money colour: this
   // amount is a total that belongs to nobody, shown neutral. Ink from the same
   // pair keeps it legible on the tint.
-  const heroTint = categoryOf(version.category).tint;
+  const heroTint = resolveCategory(version.category, version.category_meta).tint;
   const heroInk = theme.tint[heroTint].ink;
   const heroInkMuted = theme.tint[heroTint].inkMuted;
 
@@ -178,7 +178,7 @@ export default function ExpenseDetailScreen() {
           </IconButton>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading" numberOfLines={1}>
-              {expenseTitle(version.description, version.category, t)}
+              {expenseTitle(version.description, version.category, t, version.category_meta)}
             </Text>
             <Text variant="micro" tone="muted">
               {groupLabel(group.data, members.data ?? [])}
@@ -201,7 +201,7 @@ export default function ExpenseDetailScreen() {
             padding: theme.spacing.xl,
           }}
         >
-          <CategoryBadge category={version.category} size={48} />
+          <CategoryBadge category={version.category} meta={version.category_meta} size={48} />
           <MoneyText
             amount={BigInt(version.amount)}
             currency={currency}

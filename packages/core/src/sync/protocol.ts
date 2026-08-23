@@ -9,6 +9,7 @@
  */
 
 import { MoneyError, MoneyErrorCode, type CurrencyCode } from '../money/currency';
+import type { CategoryMeta } from '../category/catalog';
 import type { MemberId, SplitParams } from '../split/types';
 import type { SettlementAllocation, SettlementStatus } from '../balances/types';
 
@@ -34,6 +35,14 @@ export enum MutationKind {
   CaptureUpdate = 'capture.update',
   CaptureDelete = 'capture.delete',
   CaptureAssign = 'capture.assign',
+  // Personal-scope kinds for the user's expense-tag catalog (extends TDR §8).
+  // Like captures they ride a personal scope, but their own cursor key
+  // (`categoryTagsScope`) so the two do not share a cursor. A create/update is an
+  // upsert by `tagId`; a built-in the person hides or reorders gets an override
+  // row through the same upsert. Delete soft-removes a custom tag.
+  TagCreate = 'tag.create',
+  TagUpdate = 'tag.update',
+  TagDelete = 'tag.delete',
   // Trip plan + budgets (A23) — group-scoped, so unlike captures these carry a
   // real group id in the envelope and are authorised by membership. Plan items
   // get create/update/delete; a personal budget is a single upsert with an
@@ -78,6 +87,12 @@ export interface ExpenseCreatePayload {
    * explicitly opted in; the image itself never touches Waves.
    */
   readonly receiptShareUrl?: string | null;
+  /**
+   * Denormalised {label, icon, tint} of a custom tag (extends TDR §8), so a
+   * group member without the author's catalog still renders it. Null/omitted for
+   * a built-in category, which every client resolves from its own list.
+   */
+  readonly categoryMeta?: CategoryMeta | null;
 }
 
 /** The four ways an expense is paid for; optional everywhere it appears. */
@@ -132,6 +147,32 @@ export interface CaptureCreatePayload {
   readonly paymentMethod?: string | null;
   /** Intended destination group, chosen up front; null means decide later. */
   readonly targetGroupId?: string | null;
+  /** Denormalised custom-tag display, carried onto the expense at assignment
+   *  (extends TDR §8). Null for a built-in category. */
+  readonly categoryMeta?: CategoryMeta | null;
+}
+
+/**
+ * A row of the user's personal expense-tag catalog (extends TDR §8). An upsert
+ * by `tagId`: a custom tag carries `label`/`icon`/`tint`; a hidden or reordered
+ * built-in carries `builtinId` plus its `sortOrder`/`hidden` bookkeeping.
+ */
+export interface TagUpsertPayload {
+  readonly tagId: string;
+  /** Set → this row overrides a built-in (its id); null/omitted → a custom tag. */
+  readonly builtinId?: string | null;
+  readonly label?: string | null;
+  readonly icon?: string | null;
+  readonly tint?: string | null;
+  readonly sortOrder: number;
+  readonly hidden: boolean;
+}
+
+export type TagCreatePayload = TagUpsertPayload;
+export type TagUpdatePayload = TagUpsertPayload;
+
+export interface TagDeletePayload {
+  readonly tagId: string;
 }
 
 /** Editing a capture before it is assigned. Last write wins — a capture has one owner and no versions. */
@@ -265,6 +306,9 @@ export enum SyncTable {
   /** Personal scope (A38): the viewer's ghost merges, pull-only, so Friends can
    * fold merged guests offline. Never written through the queue. */
   GhostMerges = 'ghost_merges',
+  /** Personal scope (extends TDR §8): the user's expense-tag catalog — custom
+   * tags plus their hidden/reordered built-ins. Read + write. */
+  CategoryTags = 'category_tags',
   /** Group-scoped, read+write (A23). The trip plan is not money, so it never
    * touches a balance — but it is a group's shared list and belongs offline. */
   TripPlanItems = 'trip_plan_items',
@@ -281,6 +325,15 @@ export enum SyncTable {
  */
 export function ghostMergesScope(profileId: string): string {
   return `${profileId}:ghost_merges`;
+}
+
+/**
+ * The sync scope key for a viewer's category-tag catalog. Distinct from the bare
+ * profile id captures uses and from `ghostMergesScope`, so each personal-scope
+ * table keeps its own cursor. The edge and the client must agree on this string.
+ */
+export function categoryTagsScope(profileId: string): string {
+  return `${profileId}:category_tags`;
 }
 
 /** bigint ↔ string at the wire boundary; JSON has no integers this size. */

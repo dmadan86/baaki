@@ -20,7 +20,8 @@ import type { MemberId, SplitParams, SplitType } from '../split/types';
 import type { CurrencyCode } from '../money/currency';
 import type { ExpenseSnapshot } from '../balances/types';
 
-import { parseAmount, SyncTable } from './protocol';
+import { categoryTagsScope, parseAmount, SyncTable } from './protocol';
+import type { CategoryMeta } from '../category/catalog';
 import type {
   CaptureAssignPayload,
   CaptureCreatePayload,
@@ -33,6 +34,8 @@ import type {
   PlanItemDeletePayload,
   PlanItemUpdatePayload,
   SyncChange,
+  TagDeletePayload,
+  TagUpsertPayload,
 } from './protocol';
 import type { QueuedMutation } from './queue';
 
@@ -57,6 +60,7 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.ActivityLog,
   SyncTable.Captures,
   SyncTable.GhostMerges,
+  SyncTable.CategoryTags,
   SyncTable.TripPlanItems,
   SyncTable.TripMemberBudgets,
 ];
@@ -138,6 +142,7 @@ export interface MirrorExpense extends MirrorRow {
     readonly version_no: number;
     readonly description: string;
     readonly category: string | null;
+    readonly category_meta: CategoryMeta | null;
     readonly expense_date: string;
     readonly currency: string;
     readonly amount: string;
@@ -226,6 +231,7 @@ function applyPending(
           version_no: (existing?.currentVersion?.version_no ?? 0) + 1,
           description: payload.description,
           category: payload.category ?? null,
+          category_meta: payload.categoryMeta ?? null,
           expense_date: payload.expenseDate,
           currency: payload.currency,
           amount: payload.amount,
@@ -611,6 +617,7 @@ export interface MirrorCapture extends MirrorRow {
   readonly owner_user_id: string;
   readonly description: string;
   readonly category: string | null;
+  readonly category_meta: CategoryMeta | null;
   readonly expense_date: string;
   readonly currency: string;
   readonly amount: string;
@@ -661,6 +668,10 @@ export function materialiseCaptures(
           owner_user_id: options.ownerId,
           description: payload.description,
           category: payload.category ?? null,
+          category_meta:
+            'categoryMeta' in payload
+              ? (payload.categoryMeta ?? null)
+              : (existing?.category_meta ?? null),
           expense_date: payload.expenseDate,
           currency: payload.currency,
           amount: payload.amount,
@@ -724,6 +735,78 @@ export function materialiseCaptures(
 /** The inbox: open, not deleted. What has been assigned or removed is gone from it. */
 export function openCaptures(captures: readonly MirrorCapture[]): MirrorCapture[] {
   return captures.filter((capture) => capture.status === 'open' && capture.deleted_at === null);
+}
+
+// ─────────────────────────────────────── the category-tag catalog ──
+// Personal scope, exactly like captures, but under its own cursor key
+// (`categoryTagsScope`). A tag made offline is only in the queue, so the same
+// server+pending overlay applies or a freshly created tag would be invisible
+// until it synced.
+
+export interface MirrorCategoryTag extends MirrorRow {
+  readonly id: string;
+  readonly owner_user_id: string;
+  readonly builtin_id: string | null;
+  readonly label: string | null;
+  readonly icon: string | null;
+  readonly tint: string | null;
+  readonly sort_order: number;
+  readonly hidden: boolean;
+  readonly deleted_at: string | null;
+}
+
+/**
+ * The catalog rows to read: the server's rows for this owner, with the queue
+ * replayed on top. `ownerId` is the personal scope; every queued tag mutation
+ * carries `categoryTagsScope(ownerId)` in the envelope's group slot.
+ */
+export function materialiseCategoryTags(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  options: { readonly ownerId: string },
+): MirrorCategoryTag[] {
+  const scope = categoryTagsScope(options.ownerId);
+  const byId = new Map<string, MirrorCategoryTag>();
+  for (const row of rowsFor(state, SyncTable.CategoryTags) as MirrorCategoryTag[]) {
+    if (row.owner_user_id !== options.ownerId) continue;
+    byId.set(row.id, row);
+  }
+
+  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+    if (mutation.groupId !== scope) continue;
+
+    switch (mutation.kind) {
+      case 'tag.create':
+      case 'tag.update': {
+        const payload = mutation.payload as TagUpsertPayload;
+        const existing = byId.get(payload.tagId);
+        byId.set(payload.tagId, {
+          id: payload.tagId,
+          owner_user_id: options.ownerId,
+          builtin_id: payload.builtinId ?? existing?.builtin_id ?? null,
+          label: payload.label ?? existing?.label ?? null,
+          icon: payload.icon ?? existing?.icon ?? null,
+          tint: payload.tint ?? existing?.tint ?? null,
+          sort_order: payload.sortOrder,
+          hidden: payload.hidden,
+          deleted_at: existing?.deleted_at ?? null,
+        });
+        break;
+      }
+      case 'tag.delete': {
+        const { tagId } = mutation.payload as TagDeletePayload;
+        const existing = byId.get(tagId);
+        if (existing) {
+          byId.set(tagId, { ...existing, deleted_at: mutation.clientCreatedAt });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return [...byId.values()].filter((tag) => tag.deleted_at === null);
 }
 
 /**

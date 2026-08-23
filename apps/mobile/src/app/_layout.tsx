@@ -597,6 +597,7 @@ function AuthGate() {
           <Stack.Screen name="settings/recent" />
           <Stack.Screen name="settings/sync" />
           <Stack.Screen name="settings/theme" />
+          <Stack.Screen name="settings/categories" />
           <Stack.Screen name="settings/language" />
           <Stack.Screen name="settings/upgrade" />
           <Stack.Screen name="settings/redeem" />

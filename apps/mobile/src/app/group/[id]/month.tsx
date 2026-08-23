@@ -204,7 +204,12 @@ export default function SpendingMonthScreen() {
                   {bucket.items.map(({ expense, amount }, index, arr) => {
                     const version = expense.currentVersion;
                     const payer = version?.payers[0]?.member_id ?? null;
-                    const title = expenseTitle(version?.description, version?.category, t);
+                    const title = expenseTitle(
+                      version?.description,
+                      version?.category,
+                      t,
+                      version?.category_meta,
+                    );
                     return (
                       <View key={expense.id}>
                         <Pressable
@@ -220,7 +225,11 @@ export default function SpendingMonthScreen() {
                               paddingVertical: theme.spacing.md,
                             }}
                           >
-                            <CategoryBadge category={version?.category} size={40} />
+                            <CategoryBadge
+                              category={version?.category}
+                              meta={version?.category_meta}
+                              size={40}
+                            />
                             <View style={{ flex: 1 }}>
                               <Text variant="subheading" numberOfLines={1}>
                                 {title}

@@ -14,6 +14,7 @@ function expense(over: {
   version?: null;
   currency?: string;
   category?: string | null;
+  meta?: { label: string; icon: string; tint: string } | null;
   date?: string;
   shares?: { member_id: string; amount: string }[];
 }): ExpenseRow {
@@ -25,6 +26,7 @@ function expense(over: {
           version_no: 1,
           description: 'x',
           category: over.category === undefined ? 'food' : over.category,
+          category_meta: over.meta ?? null,
           expense_date: over.date ?? '2026-03-15',
           currency: over.currency ?? 'INR',
           amount: '0',
@@ -161,5 +163,24 @@ describe('computeSpendingRows', () => {
 
   it('is empty for no expenses', () => {
     expect(computeSpendingRows([])).toEqual([]);
+  });
+
+  it('keeps a custom tag its own bucket and carries its snapshot', () => {
+    const meta = { label: 'Client dinner', icon: 'briefcase-outline', tint: 'mint' };
+    const rows = computeSpendingRows([
+      expense({
+        id: 'a',
+        category: 'tag-uuid',
+        meta,
+        shares: [{ member_id: 'm1', amount: '500' }],
+      }),
+      expense({ id: 'b', category: 'food', shares: [{ member_id: 'm1', amount: '300' }] }),
+    ]);
+    // A custom tag does not fold into 'other' — it is its own category key.
+    const custom = rows.find((r) => r.category === 'tag-uuid');
+    expect(custom?.share_amount).toBe('500');
+    expect(custom?.category_meta).toEqual(meta);
+    // The built-in beside it carries no snapshot.
+    expect(rows.find((r) => r.category === 'food')?.category_meta).toBeNull();
   });
 });
