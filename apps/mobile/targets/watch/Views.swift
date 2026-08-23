@@ -94,28 +94,51 @@ struct VoiceView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var text: String = ""
 
+  private var transcript: String {
+    text.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
   var body: some View {
-    VStack(spacing: 12) {
-      Text("Say what you spent")
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-      // On watchOS a TextField offers Scribble and Dictation; the mic there is
-      // the "speak an expense" path. The phone parses the transcript.
-      TextField("e.g. add 500 to Goa", text: $text)
-        .textFieldStyle(.plain)
-      Button {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty else { return }
-        relay.voiceAdd(t)
-        dismiss()
-      } label: {
-        Label("Send", systemImage: "paperplane.fill").frame(maxWidth: .infinity)
+    ScrollView {
+      VStack(spacing: 10) {
+        // A plain TextField reaches dictation in two taps — open the field, then
+        // pick the mic out of the input menu — which is a strange way to enter a
+        // screen called "Speak". TextFieldLink presents that same system input
+        // controller straight from this button, so the screen opens speaking.
+        // Whatever comes back (dictated, scribbled, or typed on a Mac keyboard in
+        // the Simulator, which has no dictation) lands in `text` to be read back
+        // before it is sent, since a misheard amount is worth catching here
+        // rather than on the phone.
+        TextFieldLink(prompt: Text("Say what you spent")) {
+          Label(transcript.isEmpty ? "Speak" : "Say again", systemImage: "mic.fill")
+            .frame(maxWidth: .infinity)
+        } onSubmit: { spoken in
+          text = spoken
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(accent)
+
+        if transcript.isEmpty {
+          Text("e.g. add 500 to Goa")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        } else {
+          Text(transcript)
+            .font(.footnote)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        Button {
+          relay.voiceAdd(transcript)
+          dismiss()
+        } label: {
+          Label("Send", systemImage: "paperplane.fill").frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .disabled(transcript.isEmpty)
       }
-      .buttonStyle(.borderedProminent)
-      .tint(accent)
-      .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      .padding(.horizontal, 4)
     }
-    .padding()
     .navigationTitle("Speak")
   }
 }
