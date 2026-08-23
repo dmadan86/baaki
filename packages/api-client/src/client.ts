@@ -18,7 +18,14 @@
 
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
-import { AuthMethod, checkPassword, planAuth, readIdentifier, type Viewer } from '@waves/core';
+import {
+  AuthMethod,
+  checkPassword,
+  planAuth,
+  readIdentifier,
+  type ExpenseLocation,
+  type Viewer,
+} from '@waves/core';
 
 import type { AcceptedInvite, Expense, Group, InvitePreview, Member, Settlement } from './types';
 import {
@@ -63,7 +70,7 @@ const EXPENSE_COLUMNS = `
   id, group_id, deleted_at, created_at,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
     id, version_no, description, category, expense_date, currency, amount,
-    split_type, split_params,
+    split_type, split_params, location,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
   )
@@ -569,6 +576,8 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
             )
           : undefined,
         notes: input.notes ?? null,
+        // Where the spend happened (A43); null unless the person opted in.
+        location: input.location ?? null,
         // The idempotency key. A guest on a flaky phone browser is exactly who
         // double-taps Save, and this is what makes the second one harmless.
         clientMutationId: input.clientMutationId,
@@ -593,6 +602,9 @@ export interface WriteExpenseInput {
   payers: Record<string, bigint>;
   expectedShares?: Record<string, bigint>;
   notes?: string | null;
+  /** Where the spend happened (A43); null unless the person opted in. The edge
+   *  function validates it to Earth's ranges before it is stored. */
+  location?: ExpenseLocation | null;
   clientMutationId: string;
 }
 
