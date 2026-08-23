@@ -156,7 +156,8 @@ const EXPENSE_SELECT = `
   id, group_id, deleted_at, created_at, updated_seq,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
     id, version_no, description, category, category_meta, expense_date, currency, amount,
-    split_type, split_params, author_member_id, notes, payment_method, location, created_at,
+    split_type, split_params, author_member_id, notes, payment_method, receipt_share_url,
+    location, created_at,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
   )
