@@ -79,6 +79,18 @@ describe('parseVoiceExpense', () => {
     expect(parseVoiceExpense('300 split 3 ways', groups).amountMajor).toBe(300);
   });
 
+  it('reads a spoken split count ("split among five")', () => {
+    const parsed = parseVoiceExpense('five hundred rupees dinner split among five', groups);
+    expect(parsed.amountMajor).toBe(500);
+    expect(parsed.splitCount).toBe(5);
+  });
+
+  it('reads a spoken "five people" count', () => {
+    const parsed = parseVoiceExpense('five hundred rupees dinner for five people', groups);
+    expect(parsed.amountMajor).toBe(500);
+    expect(parsed.splitCount).toBe(5);
+  });
+
   it('leaves the count null when no split is said', () => {
     expect(parseVoiceExpense('add 500 for dinner', groups).splitCount).toBeNull();
   });
