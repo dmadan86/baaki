@@ -107,7 +107,10 @@ export default function HomeScreen() {
   // First time on Home, once the "seen" flag has been read *and the data has
   // loaded*, run the tour. Waiting on the data matters: the coach-marks anchor
   // on the hero and the add buttons, and starting over skeletons spotlights the
-  // wrong rectangle until the real content reflows in under the hole.
+  // wrong rectangle until the real content reflows in under the hole. That
+  // includes the balance skeleton — `balanceReady` gates the hero's number, so
+  // starting before it settles would anchor the hero mark on the placeholder
+  // and then shift when the real amount paints.
   //
   // The ref makes this fire exactly once — without it the effect would re-run
   // each time the tour advances (its value changes) and snap back to step one.
@@ -115,11 +118,11 @@ export default function HomeScreen() {
   const tourStarted = useRef(false);
   useEffect(() => {
     if (tourStarted.current) return;
-    if (tour.ready && !tour.seen && !loading) {
+    if (tour.ready && !tour.seen && !loading && balanceReady) {
       tourStarted.current = true;
       tour.start();
     }
-  }, [tour.ready, tour.seen, tour, loading]);
+  }, [tour.ready, tour.seen, tour, loading, balanceReady]);
 
   // The tour holds the top of the prompt queue for the whole of a first run —
   // from the moment we know it is owed (ready, not seen), through the wait for
