@@ -23,6 +23,7 @@ struct RecentItem: Identifiable {
 final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   @Published var recent: [RecentItem] = []
   @Published var recentCount: Int = 5
+  @Published var currency: String = "USD"
   @Published var lastAckOk: Bool? = nil
   @Published var reachable: Bool = false
 
@@ -116,6 +117,7 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
         }
       case "settings":
         if let n = message["recentCount"] as? Int { self.recentCount = n }
+        if let c = message["currency"] as? String, !c.isEmpty { self.currency = c }
       case "ack":
         self.lastAckOk = message["ok"] as? Bool ?? false
       default:

@@ -119,10 +119,11 @@ describe('parseWatchToPhone', () => {
 
 describe('encodePhoneToWatch', () => {
   it('stamps the relay version onto every outbound message', () => {
-    expect(encodePhoneToWatch({ t: 'settings', recentCount: 5 })).toEqual({
+    expect(encodePhoneToWatch({ t: 'settings', recentCount: 5, currency: 'INR' })).toEqual({
       version: WATCH_RELAY_VERSION,
       t: 'settings',
       recentCount: 5,
+      currency: 'INR',
     });
     expect(encodePhoneToWatch({ t: 'ack', ok: true })).toEqual({
       version: WATCH_RELAY_VERSION,

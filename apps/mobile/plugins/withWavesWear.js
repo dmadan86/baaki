@@ -190,6 +190,10 @@ object WearRelay {
     private val _recentCount = MutableStateFlow(5)
     val recentCount: StateFlow<Int> = _recentCount
 
+    // The currency a quick-add is booked in, relayed from the phone's default.
+    private val _currency = MutableStateFlow("USD")
+    val currency: StateFlow<String> = _currency
+
     /** Called by PhoneListenerService for every inbound message. Fails closed on
      *  a malformed or version-skewed payload rather than crashing the binder. */
     fun onMessage(json: String) {
@@ -215,7 +219,10 @@ object WearRelay {
                 }
                 _recent.value = list
             }
-            "settings" -> _recentCount.value = obj.optInt("recentCount", _recentCount.value)
+            "settings" -> {
+                _recentCount.value = obj.optInt("recentCount", _recentCount.value)
+                obj.optString("currency").takeIf { it.isNotEmpty() }?.let { _currency.value = it }
+            }
             else -> {}
         }
     }
@@ -324,9 +331,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material.Stepper
+import androidx.wear.compose.material.StepperDefaults
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
@@ -347,6 +357,7 @@ fun WearApp() {
     MaterialTheme {
         SwipeDismissableNavHost(navController = nav, startDestination = "home") {
             composable("home") { HomeScreen(nav) }
+            composable("add") { QuickAddScreen(nav) }
             composable("recent") { RecentScreen() }
         }
     }
@@ -392,6 +403,14 @@ fun HomeScreen(nav: NavHostController) {
         item {
             Chip(
                 modifier = Modifier.fillMaxWidth(),
+                label = { Text("Add") },
+                onClick = { nav.navigate("add") },
+                colors = ChipDefaults.secondaryChipColors(),
+            )
+        }
+        item {
+            Chip(
+                modifier = Modifier.fillMaxWidth(),
                 label = { Text("Recent") },
                 onClick = {
                     WearRelay.requestRecent(context, scope)
@@ -399,6 +418,42 @@ fun HomeScreen(nav: NavHostController) {
                 },
                 colors = ChipDefaults.secondaryChipColors(),
             )
+        }
+    }
+}
+
+@Composable
+fun QuickAddScreen(nav: NavHostController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val currency by WearRelay.currency.collectAsState()
+    // Whole units on the crown/stepper; converted to minor units on send.
+    var amount by remember { mutableStateOf(0) }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Stepper(
+            value = amount,
+            onValueChange = { amount = it },
+            valueProgression = 0..100000 step 10,
+            decreaseIcon = { Text("-") },
+            increaseIcon = { Text("+") },
+            modifier = Modifier.weight(1f),
+        ) {
+            Text("$currency $amount")
+        }
+        Button(
+            onClick = {
+                if (amount > 0) {
+                    WearRelay.quickAdd(context, scope, amount.toLong() * 100, currency, "")
+                    nav.popBackStack()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Add")
         }
     }
 }

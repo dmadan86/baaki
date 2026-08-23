@@ -55,7 +55,9 @@ export type WatchToPhone =
 /** Messages the phone sends to the watch. */
 export type PhoneToWatch =
   | { t: 'recent'; items: WatchRecentItem[] }
-  | { t: 'settings'; recentCount: RecentCount }
+  // `currency` is the phone's default (ISO code); the watch has no currency
+  // knowledge of its own, so it books a quick-add in whatever the phone relays.
+  | { t: 'settings'; recentCount: RecentCount; currency: string }
   | { t: 'ack'; ok: boolean; error?: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

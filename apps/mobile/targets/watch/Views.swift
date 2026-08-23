@@ -75,7 +75,7 @@ struct QuickAddView: View {
         // The crown value is a major-unit amount; convert to minor (×100) for
         // the two-decimal currencies the phone defaults to. The phone re-derives
         // the real currency; this sends its default.
-        relay.quickAdd(amountMinor: Int(amount * 100), currency: "INR", note: "")
+        relay.quickAdd(amountMinor: Int(amount * 100), currency: relay.currency, note: "")
         dismiss()
       } label: {
         Text("Add").frame(maxWidth: .infinity)

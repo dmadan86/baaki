@@ -207,11 +207,16 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // Keep the watch's copy of the recent-count setting in step with the phone.
+  // Keep the watch's copy of the settings (list size + the currency a quick-add
+  // is booked in) in step with the phone.
   useEffect(() => {
     if (!watchAvailable()) return;
-    sendToWatch({ t: 'settings', recentCount: coerceRecentCount(count) });
-  }, [count]);
+    sendToWatch({
+      t: 'settings',
+      recentCount: coerceRecentCount(count),
+      currency: defaultCurrency,
+    });
+  }, [count, defaultCurrency]);
 
   return <>{children ?? null}</>;
 }
