@@ -41,8 +41,17 @@ export function watchReachable(): boolean {
   }
 }
 
-/** Send one phone→watch message (stamped with the relay version). No-op if absent. */
-export function sendToWatch(message: PhoneToWatch): void {
+/**
+ * Hand a payload to the native transport. Returns whether the payload was
+ * dispatched — false when no watch module is present or the native call threw
+ * synchronously — so a caller that dedupes on the last sent payload can hold
+ * its state until a send is at least dispatched (see the recent-list relay in
+ * bridge.tsx). An asynchronous delivery failure (Android with no paired watch)
+ * is swallowed below so it cannot become an unhandled rejection; those cases
+ * still return true, since the payload did leave this side.
+ */
+export function sendToWatch(message: PhoneToWatch): boolean {
+  if (!native) return false;
   try {
     // The rejection has to be swallowed as well as the throw. On Android this
     // is an AsyncFunction, and its `Tasks.await(connectedNodes)` fails on any
@@ -51,9 +60,11 @@ export function sendToWatch(message: PhoneToWatch): void {
     // so those failures surfaced as unhandled promise rejections, which is the
     // opposite of the safe no-op this module exists to promise. `Promise.resolve`
     // normalises iOS's undefined return so the same line covers both platforms.
-    void Promise.resolve(native?.sendToWatch(encodePhoneToWatch(message))).catch(() => undefined);
+    void Promise.resolve(native.sendToWatch(encodePhoneToWatch(message))).catch(() => undefined);
+    return true;
   } catch {
     // The transport went away between the check and the send; nothing to do.
+    return false;
   }
 }
 
