@@ -20,51 +20,9 @@ import { TINTS, type CatalogEntry, type TintName } from '@waves/core';
 import { Button, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { DEFAULT_TAG_ICON, TAG_ICON_GROUPS } from '@/components/tagIcons';
 import { useDeleteTag, useUpsertTag } from '@/data/hooks';
 import { useStrings } from '@/i18n';
-
-/**
- * A curated set of Ionicons an expense tag might wear — the everyday shapes of
- * spending, not the whole glyph map. Outline style, to sit with the built-ins.
- */
-const TAG_ICONS: readonly string[] = [
-  'restaurant-outline',
-  'cafe-outline',
-  'fast-food-outline',
-  'wine-outline',
-  'cart-outline',
-  'basket-outline',
-  'car-outline',
-  'bus-outline',
-  'airplane-outline',
-  'bed-outline',
-  'home-outline',
-  'bag-handle-outline',
-  'shirt-outline',
-  'gift-outline',
-  'game-controller-outline',
-  'musical-notes-outline',
-  'film-outline',
-  'football-outline',
-  'barbell-outline',
-  'medkit-outline',
-  'fitness-outline',
-  'briefcase-outline',
-  'school-outline',
-  'book-outline',
-  'paw-outline',
-  'leaf-outline',
-  'flower-outline',
-  'flash-outline',
-  'water-outline',
-  'wifi-outline',
-  'call-outline',
-  'construct-outline',
-  'card-outline',
-  'cash-outline',
-  'heart-outline',
-  'star-outline',
-];
 
 export function TagEditorSheet({
   open,
@@ -148,7 +106,7 @@ function TagEditorForm({
   const deleteTag = useDeleteTag();
 
   const [name, setName] = useState(editing?.label ?? '');
-  const [icon, setIcon] = useState<string>(editing?.icon ?? TAG_ICONS[0]!);
+  const [icon, setIcon] = useState<string>(editing?.icon ?? DEFAULT_TAG_ICON);
   const [tint, setTint] = useState<TintName>((editing?.tint as TintName) ?? 'mint');
 
   const trimmed = name.trim();
@@ -272,41 +230,51 @@ function TagEditorForm({
           </Row>
         </View>
 
-        {/* Icon — the curated glyph grid. */}
+        {/* Icon — the curated glyph set, in bands (food, travel, home…) so the
+            wide list reads rather than blurs into one grid. */}
         <View style={{ gap: theme.spacing.sm }}>
           <Text variant="caption" tone="muted">
             {t.tags.iconLabel}
           </Text>
-          <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-            {TAG_ICONS.map((glyph) => {
-              const selected = icon === glyph;
-              return (
-                <Pressable
-                  key={glyph}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={glyph}
-                  onPress={() => setIcon(glyph)}
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: theme.radius.md,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: selected ? 2 : 1,
-                    borderColor: selected ? theme.color.brand : theme.color.border,
-                    backgroundColor: selected ? theme.color.brandSoft : theme.color.surfaceMuted,
-                  }}
-                >
-                  <Ionicons
-                    name={glyph as keyof typeof Ionicons.glyphMap}
-                    size={iconSize.md}
-                    color={selected ? theme.color.brand : theme.color.textMuted}
-                  />
-                </Pressable>
-              );
-            })}
-          </Row>
+          {TAG_ICON_GROUPS.map((group, index) => (
+            <View key={index} style={{ gap: theme.spacing.sm }}>
+              {index > 0 ? (
+                <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              ) : null}
+              <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                {group.map((glyph) => {
+                  const selected = icon === glyph;
+                  return (
+                    <Pressable
+                      key={glyph}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={glyph}
+                      onPress={() => setIcon(glyph)}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: theme.radius.md,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? theme.color.brand : theme.color.border,
+                        backgroundColor: selected
+                          ? theme.color.brandSoft
+                          : theme.color.surfaceMuted,
+                      }}
+                    >
+                      <Ionicons
+                        name={glyph}
+                        size={iconSize.md}
+                        color={selected ? theme.color.brand : theme.color.textMuted}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </Row>
+            </View>
+          ))}
         </View>
 
         <Button label={t.tags.saveTag} size="lg" fullWidth disabled={!canSave} onPress={save} />

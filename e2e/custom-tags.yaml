@@ -1,0 +1,53 @@
+# User-defined expense tags (A42): make a tag in Settings, then tag an expense
+# with it and see it name the row. Covers the whole journey — the manager, the
+# create sheet, the picker in add-expense, and the tag rendering on the ledger.
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+- assertVisible: 'Your groups'
+
+# Header avatar → the profile/settings list → the tag manager.
+- tapOn: 'Profile'
+- tapOn: 'Tags & categories'
+- assertVisible: 'Tags & categories'
+# A built-in is present in the ordered list (proof the catalog rendered).
+- assertVisible: 'Food & drink'
+
+# Make a new tag from the header "+". Its accessibility label is "New tag".
+- tapOn: 'New tag'
+- assertVisible: 'Save tag'
+- tapOn: 'Name'
+- inputText: 'Client dinner'
+- hideKeyboard
+- tapOn: 'Save tag'
+
+# Back in the manager the new tag is listed.
+- extendedWaitUntilVisible:
+    element: 'Client dinner'
+    timeout: 20000
+
+# Back to home, into the seeded group, and open add-expense.
+- tapOn: 'Back'
+- tapOn: 'Home'
+- assertVisible: 'Goa trip'
+- tapOn: 'Goa trip'
+- tapOn: 'Expenses'
+- tapOn: 'Add expense'
+- assertVisible: 'What was it for?'
+
+# The amount, via the shared calculator.
+- tapOn: '3'
+- tapOn: '0'
+- tapOn: '0'
+
+# The new tag is a chip in the category picker — pick it. (No description, so the
+# tag itself will name the expense.)
+- assertVisible: 'Client dinner'
+- tapOn: 'Client dinner'
+- tapOn: 'Save expense'
+
+# Back in the group ledger, the undescribed expense is named by its tag — proof
+# the tag was created, chosen, written and rendered end to end.
+- extendedWaitUntilVisible:
+    element: 'Client dinner'
+    timeout: 20000

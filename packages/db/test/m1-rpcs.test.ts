@@ -322,6 +322,47 @@ describe('baaki_apply_expense (atomic write)', () => {
     expect(pointer.rows[0]?.current_version_id).toBe(written.versionId);
   });
 
+  it('persists a custom tag key and its denormalised display (A42)', async () => {
+    const { groupId, memberIds } = await seedGroup(client, { memberCount: 2 });
+    const [a, b] = memberIds as [string, string];
+
+    // Named args so only the category fields need spelling out; the rest take
+    // their defaults. `p_category` carries the tag's key, `p_category_meta` the
+    // snapshot every member renders it from.
+    const meta = { label: 'Client dinner', icon: 'briefcase-outline', tint: 'mint' };
+    const written = await client.query(
+      `SELECT baaki_apply_expense(
+         p_group_id => $1, p_expense_id => NULL, p_author_member_id => $2,
+         p_description => 'Dinner', p_category => 'tag-uuid', p_expense_date => '2026-03-01',
+         p_currency => 'INR', p_amount => $3, p_split_type => 'equal',
+         p_split_params => '{"kind":"equal"}'::jsonb,
+         p_payers => $4::jsonb, p_shares => $5::jsonb, p_client_mutation_id => NULL,
+         p_category_meta => $6::jsonb
+       ) AS out`,
+      [
+        groupId,
+        a,
+        '10000',
+        JSON.stringify([{ memberId: a, amount: '10000' }]),
+        JSON.stringify([
+          { memberId: a, amount: '5000' },
+          { memberId: b, amount: '5000' },
+        ]),
+        JSON.stringify(meta),
+      ],
+    );
+    const versionId = (written.rows[0]?.out as { versionId: string }).versionId;
+
+    const row = await client.query(
+      `SELECT category, category_meta FROM expense_versions WHERE id = $1`,
+      [versionId],
+    );
+    expect(row.rows[0]?.category).toBe('tag-uuid');
+    // The snapshot comes back verbatim, so a member without the author's catalog
+    // still renders "Client dinner".
+    expect(row.rows[0]?.category_meta).toEqual(meta);
+  });
+
   it('appends a version instead of rewriting one (ADR-004)', async () => {
     const { groupId, memberIds } = await seedGroup(client, { memberCount: 2 });
     const [a, b] = memberIds as [string, string];

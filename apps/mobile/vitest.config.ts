@@ -21,6 +21,11 @@ export default defineConfig({
       '@react-native-async-storage/async-storage': fileURLToPath(
         new URL('./test/mocks/async-storage.ts', import.meta.url),
       ),
+      // Ionicons pulls the native font pipeline; the pure icon-list module only
+      // needs its `glyphMap` shape (in a type position), so a bare stub loads it.
+      '@expo/vector-icons/Ionicons': fileURLToPath(
+        new URL('./test/mocks/ionicons.ts', import.meta.url),
+      ),
     },
   },
 });

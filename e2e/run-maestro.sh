@@ -26,6 +26,7 @@ FLOWS=(
   rename-archive-group
   change-logo
   capture-assign
+  custom-tags
   locale-switch
   sign-out-privacy
   clone-group
