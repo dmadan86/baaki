@@ -860,6 +860,15 @@ export interface UiStrings {
     inviteCta: string;
     /** Balance-deck slide label: your spend so far in the current month. */
     monthSpent: string;
+    /** The hero greeting over the name: "Hi, {name}". */
+    hi: string;
+    /** Time-of-day line under the greeting. */
+    morning: string;
+    afternoon: string;
+    evening: string;
+    /** A11y labels for the balance eye toggle. */
+    hideBalance: string;
+    showBalance: string;
   };
   /** The rotating "did you know" tips card on the dashboard — one useful,
    *  app-specific hint at a time, dismissible for good. */
@@ -2409,6 +2418,12 @@ const en: UiStrings = {
     inviteBody: 'Add the people you share costs with and keep everyone square.',
     inviteCta: 'Add a person',
     monthSpent: 'This month',
+    hi: 'Hi, {name}',
+    morning: 'Good morning',
+    afternoon: 'Good afternoon',
+    evening: 'Good evening',
+    hideBalance: 'Hide balance',
+    showBalance: 'Show balance',
   },
   tips: {
     label: 'Tip',
@@ -4032,6 +4047,12 @@ const ta: UiStrings = {
     inviteBody: 'செலவுகளைப் பகிர்பவர்களைச் சேர்த்து அனைவரையும் சரிசெய்யுங்கள்.',
     inviteCta: 'ஒருவரைச் சேர்',
     monthSpent: 'இந்த மாதம்',
+    hi: 'வணக்கம், {name}',
+    morning: 'காலை வணக்கம்',
+    afternoon: 'மதிய வணக்கம்',
+    evening: 'மாலை வணக்கம்',
+    hideBalance: 'இருப்பை மறை',
+    showBalance: 'இருப்பைக் காட்டு',
   },
   tips: {
     label: 'உதவிக்குறிப்பு',
@@ -5674,6 +5695,12 @@ const hi: UiStrings = {
     inviteBody: 'जिनके साथ खर्च बाँटते हैं उन्हें जोड़ें और सबका हिसाब बराबर रखें.',
     inviteCta: 'व्यक्ति जोड़ें',
     monthSpent: 'इस महीने',
+    hi: 'नमस्ते, {name}',
+    morning: 'शुभ प्रभात',
+    afternoon: 'नमस्कार',
+    evening: 'शुभ संध्या',
+    hideBalance: 'बैलेंस छिपाएँ',
+    showBalance: 'बैलेंस दिखाएँ',
   },
   tips: {
     label: 'सुझाव',
@@ -7306,6 +7333,12 @@ const ar: UiStrings = {
     inviteBody: 'أضف من تتشارك معهم النفقات وابقوا جميعًا على حساب متوازن.',
     inviteCta: 'إضافة شخص',
     monthSpent: 'هذا الشهر',
+    hi: 'مرحباً، {name}',
+    morning: 'صباح الخير',
+    afternoon: 'مساء الخير',
+    evening: 'مساء الخير',
+    hideBalance: 'إخفاء الرصيد',
+    showBalance: 'إظهار الرصيد',
   },
   tips: {
     label: 'نصيحة',

@@ -30,7 +30,7 @@ import { SyncStatus, useSync } from '@/sync';
  * is nothing to report — online, idle, nothing queued — it renders nothing, so
  * the header is not carrying a permanent "all good" badge nobody asked for.
  */
-export function SyncStatusIcon() {
+export function SyncStatusIcon({ onBrand = false }: { onBrand?: boolean } = {}) {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const { animated } = useMotion();
@@ -60,7 +60,10 @@ export function SyncStatusIcon() {
   // camera beside it, not a different-coloured badge each time the network
   // shifts. Red is reserved for the one state that needs a decision: a change
   // the server refused (ADR-005 treats plain offline as normal, not an error).
-  const neutral = theme.color.text;
+  // On the green hero the glyph rides white ink (onBrand); everywhere else the
+  // neutral header ink. Red still wins for a refused change — it needs to read
+  // as an alert whatever it sits on.
+  const neutral = onBrand ? theme.color.onBrand : theme.color.text;
   const state =
     rejected.length > 0
       ? {
