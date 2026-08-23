@@ -12,7 +12,7 @@
  * in the native transport, not here.
  */
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 
 import {
   coerceRecentCount,
@@ -101,6 +101,8 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
     personal: t.captures.unassigned,
   });
   const createRef = useRef(createCapture);
+  /** The last recent payload sent, so an unchanged list is not re-sent. */
+  const lastRecentRef = useRef<string | null>(null);
 
   // Refs are written in an effect, never during render (react-hooks/refs): the
   // once-bound message handler reads the latest of everything through them.
@@ -118,24 +120,61 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
     createRef.current = createCapture;
   });
 
+  /**
+   * Send the watch the current recent list.
+   *
+   * `force` is for a watch that asked (`requestRecent`): it must always get an
+   * answer, because a freshly launched watch has an empty list of its own and
+   * would otherwise be told nothing when the payload happens to match what the
+   * last watch session was sent. The automatic push deduplicates instead, so an
+   * unrelated sync tick — the mirror changes often — does not spend a
+   * WatchConnectivity message re-sending rows the watch already shows.
+   */
+  const relayRecent = useCallback((n: number, opts?: { force?: boolean }) => {
+    if (!watchAvailable()) return;
+    const s = stateRef.current;
+    const items = buildRecentItems(s.recent, n, {
+      myProfileId: s.myProfileId,
+      locale: s.locale,
+      fallbackCurrency: s.defaultCurrency,
+      someoneLabel: s.someone,
+      personalLabel: s.personal,
+      now: Date.now(),
+    });
+    const encoded = JSON.stringify(items);
+    if (!opts?.force && encoded === lastRecentRef.current) return;
+    lastRecentRef.current = encoded;
+    sendToWatch({ t: 'recent', items });
+  }, []);
+
+  /**
+   * Relay the list when it actually changes, rather than when a write is made.
+   *
+   * `useSync`'s `mutate` only enqueues — it does not touch the mirror — and
+   * `useRecentActivity` derives purely from the mirror, so relaying straight
+   * after `await mutateAsync` sent the watch the list from *before* the write
+   * every time: the expense just added from the wrist was the one row it could
+   * never contain. Waiting for the mirror to change means the watch is told once
+   * the write has actually landed, whenever that is.
+   */
+  useEffect(() => {
+    relayRecent(count);
+    // The two label strings rather than the whole `t` object, which is a fresh
+    // identity each render and would run this on every one.
+  }, [
+    relayRecent,
+    recent,
+    count,
+    defaultCurrency,
+    locale,
+    session?.user?.id,
+    t.misc.someone,
+    t.captures.unassigned,
+  ]);
+
   // Subscribe once. Everything the handler needs comes from the refs above.
   useEffect(() => {
     if (!watchAvailable()) return;
-
-    const sendRecent = (n: number) => {
-      const s = stateRef.current;
-      sendToWatch({
-        t: 'recent',
-        items: buildRecentItems(s.recent, n, {
-          myProfileId: s.myProfileId,
-          locale: s.locale,
-          fallbackCurrency: s.defaultCurrency,
-          someoneLabel: s.someone,
-          personalLabel: s.personal,
-          now: Date.now(),
-        }),
-      });
-    };
 
     const unsubscribe = onWatchMessage((raw) => {
       const msg = parseWatchToPhone(raw);
@@ -155,8 +194,10 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
                 expenseDate: localDate(Date.now()),
                 rawText: msg.note || null,
               });
+              // No recent relay here: the write is only queued at this point,
+              // so the list would still be the pre-write one. The effect above
+              // sends it when the mirror actually changes.
               sendToWatch({ t: 'ack', ok: true });
-              sendRecent(s.count);
               break;
             }
             case 'voiceAdd': {
@@ -187,11 +228,10 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
                 });
               }
               sendToWatch({ t: 'ack', ok: true });
-              sendRecent(s.count);
               break;
             }
             case 'requestRecent':
-              sendRecent(coerceRecentCount(msg.count));
+              relayRecent(coerceRecentCount(msg.count), { force: true });
               break;
             case 'notifAction':
               // Wired in the notification-actions phase; acknowledge for now.
@@ -205,7 +245,8 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
     });
 
     return unsubscribe;
-  }, []);
+    // `relayRecent` is stable, so this still subscribes exactly once.
+  }, [relayRecent]);
 
   // Keep the watch's copy of the settings (list size + the currency a quick-add
   // is booked in) in step with the phone.
