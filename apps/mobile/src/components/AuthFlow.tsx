@@ -122,7 +122,9 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
     try {
       return await action();
     } catch (caught) {
-      setError(friendlyError(caught, t.signIn.couldNotSignIn, 'auth.signIn'));
+      setError(
+        friendlyError(caught, t.signIn.couldNotSignIn, 'auth.signIn', t.misc.connectionProblem),
+      );
       return undefined;
     } finally {
       setBusy(false);

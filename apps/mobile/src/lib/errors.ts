@@ -23,7 +23,12 @@ interface Postgrestish {
   code?: string;
 }
 
-export function friendlyError(caught: unknown, fallback: string, where: string): string {
+export function friendlyError(
+  caught: unknown,
+  fallback: string,
+  where: string,
+  offline?: string,
+): string {
   const error = (caught ?? {}) as Postgrestish;
   const message =
     typeof error.message === 'string' ? error.message : typeof caught === 'string' ? caught : '';
@@ -45,9 +50,18 @@ export function friendlyError(caught: unknown, fallback: string, where: string):
     return fallback;
   }
 
-  // A network failure already reads plainly, and telling somebody their
-  // connection dropped is worth more than a generic apology. Everything else is
-  // a sentence about the schema, so it stays in the crash report only.
-  if (/network request failed|fetch failed|timeout|offline/i.test(message)) return message;
+  // A network failure is worth naming — telling somebody their connection
+  // dropped beats a generic apology. But the raw message is not safe to echo:
+  // a native transport failure surfaces as internal noise, e.g. a TLS
+  // handshake error arriving as "fetch failed: UnexpectedException: A TLS
+  // error caused the secure connection to fail. (at
+  // ExpoModulesCore/Promise.swift:56)". That names an exception class and a
+  // Swift file:line to a person trying to sign in. So: recognise the network
+  // case, but return the caller's clean connection sentence (or the generic
+  // fallback), never the raw string. The original still goes to the crash
+  // report via reportHandled above. Everything else is a sentence about the
+  // schema, so it stays in the crash report only.
+  if (/network request failed|fetch failed|timeout|offline|tls|secure connection/i.test(message))
+    return offline ?? fallback;
   return fallback;
 }
