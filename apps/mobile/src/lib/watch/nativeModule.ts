@@ -38,11 +38,20 @@ export function watchReachable(): boolean {
 }
 
 /** Send one phone→watch message (stamped with the relay version). No-op if absent. */
-export function sendToWatch(message: PhoneToWatch): void {
+/**
+ * Hand a payload to the native transport. Returns whether the handoff actually
+ * happened — false when no watch module is present or the native call threw —
+ * so a caller that dedupes on the last sent payload can hold its state until a
+ * send truly lands (see the recent-list relay in bridge.tsx).
+ */
+export function sendToWatch(message: PhoneToWatch): boolean {
+  if (!native) return false;
   try {
-    native?.sendToWatch(encodePhoneToWatch(message));
+    native.sendToWatch(encodePhoneToWatch(message));
+    return true;
   } catch {
     // The transport went away between the check and the send; nothing to do.
+    return false;
   }
 }
 

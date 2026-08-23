@@ -143,8 +143,12 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
     });
     const encoded = JSON.stringify(items);
     if (!opts?.force && encoded === lastRecentRef.current) return;
-    lastRecentRef.current = encoded;
-    sendToWatch({ t: 'recent', items });
+    // Only remember this payload as sent once the transport handoff succeeds; a
+    // failed send stays eligible for the next automatic relay, so a transient
+    // failure can't leave the watch stale until it asks for the list itself.
+    if (sendToWatch({ t: 'recent', items })) {
+      lastRecentRef.current = encoded;
+    }
   }, []);
 
   /**
