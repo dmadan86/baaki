@@ -14,11 +14,18 @@ public final class WavesWatchModule: Module {
   public func definition() -> ModuleDefinition {
     Name("WavesWatch")
 
-    Events("onWatchMessage")
+    Events("onWatchMessage", "onWatchSendFailed")
 
     OnCreate {
       self.relay.onMessage = { [weak self] payload in
         self?.sendEvent("onWatchMessage", ["payload": payload])
+      }
+      // A queued transfer reports its outcome asynchronously and long after
+      // `sendToWatch` returned, so JS cannot learn of the failure from the call
+      // itself — this is the only signal it gets. `t` is the message kind that
+      // was lost, so the bridge can decide what to redo.
+      self.relay.onSendFailed = { [weak self] kind in
+        self?.sendEvent("onWatchSendFailed", ["t": kind ?? ""])
       }
       self.relay.activate()
     }
@@ -37,6 +44,8 @@ public final class WavesWatchModule: Module {
 // Objective-C must see) is isolated from Expo's generics.
 private final class WatchRelay: NSObject, WCSessionDelegate {
   var onMessage: (([String: Any]) -> Void)?
+  /** Called with the `t` of a queued payload that never reached the watch. */
+  var onSendFailed: ((String?) -> Void)?
 
   private var session: WCSession? {
     WCSession.isSupported() ? WCSession.default : nil
@@ -77,6 +86,29 @@ private final class WatchRelay: NSObject, WCSessionDelegate {
   // The queued counterpart of the live sendMessage path — delivered on wake.
   func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
     onMessage?(userInfo)
+  }
+
+  /**
+   * The outcome of a `transferUserInfo`.
+   *
+   * Without this method WatchConnectivity has nowhere to report a failed
+   * transfer and logs that the delegate does not implement it, so every queued
+   * payload that never arrived was dropped in silence. That matters most for
+   * `recent`: the bridge remembers the last list it sent and skips re-sending an
+   * identical one, so a lost transfer would otherwise leave the watch showing a
+   * stale list until the list itself changed.
+   *
+   * `error` is terminal — WatchConnectivity has already retried the queued
+   * transfer on its own — so this reports the loss rather than re-sending, which
+   * against an unpaired or deleted watch would only fail again in a loop.
+   */
+  func session(
+    _ session: WCSession,
+    didFinish userInfoTransfer: WCSessionUserInfoTransfer,
+    error: Error?
+  ) {
+    guard error != nil else { return }
+    onSendFailed?(userInfoTransfer.userInfo["t"] as? String)
   }
 
   func session(

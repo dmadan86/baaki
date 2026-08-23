@@ -34,7 +34,7 @@ import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
 import { useRecentCount } from '@/lib/recentCount';
 import { parseVoiceExpenses, type VoiceGroupRef } from '@/lib/voiceExpense';
-import { onWatchMessage, sendToWatch, watchAvailable } from './nativeModule';
+import { onWatchMessage, onWatchSendFailed, sendToWatch, watchAvailable } from './nativeModule';
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -149,6 +149,28 @@ export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
     if (sendToWatch({ t: 'recent', items })) {
       lastRecentRef.current = encoded;
     }
+  }, []);
+
+  /**
+   * Forget the cached payload when a relay is reported lost in transit.
+   *
+   * `relayRecent` skips a list identical to the one it last sent, and a send
+   * that fails only after it left this side still counted as sent — so a lost
+   * transfer pinned the watch to a stale list until the list itself changed,
+   * which on a quiet ledger can be days. Clearing the cache makes the next
+   * automatic relay send the same list again.
+   *
+   * It deliberately does not re-send here. Both platforms report this only once
+   * their own retries are exhausted, so an immediate retry would fail again
+   * against an unpaired or deleted watch — and each failure would ask for
+   * another one. The watch also asks outright (`requestRecent`) whenever its
+   * Home or Recent screen appears, which is the faster path back in practice.
+   */
+  useEffect(() => {
+    if (!watchAvailable()) return;
+    return onWatchSendFailed((kind) => {
+      if (kind === null || kind === 'recent') lastRecentRef.current = null;
+    });
   }, []);
 
   /**

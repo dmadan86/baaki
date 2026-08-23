@@ -26,6 +26,8 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   @Published var currency: String = "USD"
   @Published var lastAckOk: Bool? = nil
   @Published var reachable: Bool = false
+  /// An expense this watch sent that WatchConnectivity could not deliver.
+  @Published var lastSendFailed: Bool = false
 
   private var session: WCSession? { WCSession.isSupported() ? WCSession.default : nil }
 
@@ -44,6 +46,7 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   func quickAdd(amountMinor: Int, currency: String, note: String) {
+    lastSendFailed = false
     send([
       "t": "quickAdd",
       // A stable id per intent so a transport retry of the same tap is
@@ -56,6 +59,7 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   func voiceAdd(_ transcript: String) {
+    lastSendFailed = false
     send(["t": "voiceAdd", "id": UUID().uuidString, "transcript": transcript])
   }
 
@@ -99,6 +103,30 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
 
   func sessionReachabilityDidChange(_ session: WCSession) {
     DispatchQueue.main.async { self.reachable = session.isReachable }
+  }
+
+  /**
+   * The outcome of a `transferUserInfo` — the path every intent takes whenever
+   * the phone is not reachable, which on a wrist is most of the time.
+   *
+   * Without this method WatchConnectivity has nowhere to report a failed
+   * transfer, so an expense spoken or dialled here could disappear between the
+   * watch and the phone with nothing shown: the view dismisses on tap and the
+   * only other signal, `ack`, comes from a phone that never got the message.
+   *
+   * Only the intents that carry an expense raise the warning. A lost
+   * `requestRecent` costs nothing — the list simply stays as it was, which the
+   * Recent screen already shows honestly.
+   */
+  func session(
+    _ session: WCSession,
+    didFinish userInfoTransfer: WCSessionUserInfoTransfer,
+    error: Error?
+  ) {
+    let kind = userInfoTransfer.userInfo["t"] as? String
+    guard kind == "quickAdd" || kind == "voiceAdd" else { return }
+    let failed = error != nil
+    DispatchQueue.main.async { self.lastSendFailed = failed }
   }
 
   private func handle(_ message: [String: Any]) {
