@@ -1,0 +1,18 @@
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'expo.modules.waveswatch'
+version = '1.0.0'
+
+android {
+  namespace 'expo.modules.waveswatch'
+  defaultConfig {
+    minSdkVersion 24
+  }
+}
+
+dependencies {
+  // The Wearable Data Layer — MessageClient / NodeClient / WearableListenerService.
+  implementation 'com.google.android.gms:play-services-wearable:18.2.0'
+}
