@@ -159,6 +159,8 @@ export interface CaptureRow {
   payment_method: string | null;
   /** Intended destination group, chosen up front; null means decide later. */
   target_group_id: string | null;
+  /** Where the spend happened (A43): a {lat, lng, name} snapshot, or null. */
+  location: ExpenseLocation | null;
   status: CaptureStatus;
   assigned_expense_id: string | null;
   assigned_group_id: string | null;

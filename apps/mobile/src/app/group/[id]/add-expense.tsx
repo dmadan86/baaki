@@ -151,6 +151,27 @@ function parseCategoryMetaParam(value: string | undefined): CategoryMeta | null 
   return null;
 }
 
+/**
+ * A capture's location arrives as a JSON route param (A43), the same handoff
+ * `categoryMeta` uses. A malformed or out-of-range value is simply no location —
+ * a prefill is never worth a crash — so the point is validated to Earth's ranges
+ * exactly as the server does before it seeds the form.
+ */
+function parseLocationParam(value: string | undefined): ExpenseLocation | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<ExpenseLocation>;
+    const lat = typeof parsed?.lat === 'number' ? parsed.lat : NaN;
+    const lng = typeof parsed?.lng === 'number' ? parsed.lng : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    const name = typeof parsed.name === 'string' ? parsed.name : null;
+    return { lat, lng, name };
+  } catch {
+    return null;
+  }
+}
+
 export default function AddExpenseScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -167,6 +188,7 @@ export default function AddExpenseScreen() {
     description: captureDescription,
     category: captureCategory,
     categoryMeta: captureCategoryMeta,
+    location: captureLocation,
     expenseDate: captureExpenseDate,
   } = useLocalSearchParams<{
     id: string;
@@ -182,6 +204,9 @@ export default function AddExpenseScreen() {
     /** A custom tag's {label,icon,tint} snapshot, JSON-encoded, when a capture
      *  tagged with one is being assigned (extends TDR §8). */
     categoryMeta?: string;
+    /** The capture's {lat,lng,name} place, JSON-encoded, carried onto the
+     *  assigned expense (A43). Absent when the capture had no location. */
+    location?: string;
     expenseDate?: string;
   }>();
   const groupId = id ?? '';
@@ -370,6 +395,8 @@ export default function AddExpenseScreen() {
       // built-in. A malformed param is simply no meta (a built-in).
       setCategoryMeta(parseCategoryMetaParam(captureCategoryMeta));
       setCategoryChosen(Boolean(captureCategory));
+      // Carry the capture's place onto the expense it becomes (A43).
+      setLocation(parseLocationParam(captureLocation));
       setPayer(myMemberId);
     } else if (draft) {
       // A draft outranks the saved version: it is what the user was in the
