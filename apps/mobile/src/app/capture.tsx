@@ -14,6 +14,7 @@ import {
   parseReceiptText,
   CategoryId,
   type CategoryMeta,
+  type ExpenseLocation,
   type HeuristicReceipt,
   type PaymentMethod,
 } from '@waves/core';
@@ -33,6 +34,7 @@ import {
 import { CategoryPicker } from '@/components/Category';
 import { TagEditorSheet } from '@/components/TagEditorSheet';
 import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
+import { LocationField } from '@/components/LocationField';
 import { ZoomableImage } from '@/components/ZoomableImage';
 import { COMMON_CURRENCIES } from '@/components/CurrencyRate';
 import { AmountHeader } from '@/components/expense/AmountHeader';
@@ -195,6 +197,9 @@ export default function CaptureScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>('cash');
   const [targetGroupId, setTargetGroupId] = useState<string | null>(null);
   const [pickingGroup, setPickingGroup] = useState(false);
+  // Where it happened (A43). Optional and opt-in; null until the person taps
+  // "Add location" and grants the permission.
+  const [location, setLocation] = useState<ExpenseLocation | null>(null);
 
   const { profile } = useAuth();
   const groups = useGroups();
@@ -337,6 +342,7 @@ export default function CaptureScreen() {
         parsed: parsed ? (parsed as unknown as Record<string, unknown>) : null,
         paymentMethod,
         targetGroupId,
+        location,
       });
       router.back();
     } catch (caught) {
@@ -415,6 +421,9 @@ export default function CaptureScreen() {
               the chosen chip clears it (allowDeselect). */}
           <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} allowDeselect />
         </View>
+
+        {/* Where it happened (A43) — optional, opt-in, never a background track. */}
+        <LocationField value={location} onChange={setLocation} />
 
         {/* Destination and date, folded into one card of divided rows rather than
             two stacked cards — the meta a capture carries, grouped so it reads as

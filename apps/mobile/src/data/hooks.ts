@@ -39,6 +39,7 @@ import {
   type CatalogEntry,
   type CategoryMeta,
   type CategoryTagRow,
+  type ExpenseLocation,
   type ExpenseSnapshot,
   type MemberId,
   type MirrorCategoryTag,
@@ -791,6 +792,7 @@ function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<str
     paymentMethod: input.paymentMethod ?? null,
     categoryMeta: input.categoryMeta ?? null,
     receiptShareUrl: input.receiptShareUrl ?? null,
+    location: input.location ?? null,
   };
 }
 
@@ -945,6 +947,8 @@ export interface CaptureInput {
   targetGroupId?: string | null;
   /** Denormalised custom-tag display (extends TDR §8); null for a built-in. */
   categoryMeta?: CategoryMeta | null;
+  /** Where the spend happened (A43); null unless the owner opted in. */
+  location?: ExpenseLocation | null;
 }
 
 /** bigint → decimal string at the queue boundary, like `serialiseExpense`. */
@@ -963,6 +967,7 @@ function serialiseCapture(input: CaptureInput, captureId: string): Record<string
     paymentMethod: input.paymentMethod ?? null,
     targetGroupId: input.targetGroupId ?? null,
     categoryMeta: input.categoryMeta ?? null,
+    location: input.location ?? null,
   };
 }
 

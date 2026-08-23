@@ -38,6 +38,7 @@ import { displayName, groupLabel, isBlockedMember, isGhost } from '@/data/types'
 import { fill, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { receiptFiles } from '@/lib/receiptStore';
+import { coordLabel, mapsUrl } from '@/lib/location';
 
 function splitLabels(t: UiStrings): Record<string, string> {
   return {
@@ -126,6 +127,9 @@ export default function ExpenseDetailScreen() {
   // opens the in-app zoom viewer, the link opens the owner's own Drive.
   const localReceipt = receiptFiles(expense.id);
   const receiptShareUrl = version.receipt_share_url;
+  // Where it happened (A43), when the author attached one. A plain snapshot — a
+  // tap opens the point in the phone's maps app.
+  const location = version.location;
   const hasReceipt = Boolean(localReceipt) || Boolean(receiptShareUrl);
   const openReceipt = (): void => {
     if (localReceipt) {
@@ -266,6 +270,46 @@ export default function ExpenseDetailScreen() {
                   </Text>
                   <Text variant="micro" tone="muted" numberOfLines={1}>
                     {t.expense.receiptTitle}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={directionalIcon('chevron-forward')}
+                  size={iconSize.md}
+                  color={theme.color.textFaint}
+                />
+              </Row>
+            </Card>
+          </Pressable>
+        ) : null}
+
+        {/* Where it happened (A43). A tap opens the point in the phone's maps
+            app; absent when the author attached no location. */}
+        {location ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.location.openMap}
+            onPress={() => void Linking.openURL(mapsUrl(location)).catch(() => undefined)}
+          >
+            <Card style={{ paddingVertical: theme.spacing.md }}>
+              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: theme.radius.md,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.color.bg,
+                  }}
+                >
+                  <Ionicons name="location" size={iconSize.lg} color={theme.color.brand} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="subheading" numberOfLines={1}>
+                    {location.name?.trim() || coordLabel(location)}
+                  </Text>
+                  <Text variant="micro" tone="muted" numberOfLines={1}>
+                    {t.location.openMap}
                   </Text>
                 </View>
                 <Ionicons

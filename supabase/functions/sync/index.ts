@@ -156,7 +156,7 @@ const EXPENSE_SELECT = `
   id, group_id, deleted_at, created_at, updated_seq,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
     id, version_no, description, category, category_meta, expense_date, currency, amount,
-    split_type, split_params, author_member_id, notes, payment_method, created_at,
+    split_type, split_params, author_member_id, notes, payment_method, location, created_at,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
   )
@@ -496,6 +496,7 @@ class SyncSession {
       paymentMethod?: string | null;
       receiptShareUrl?: string | null;
       categoryMeta?: { label: string; icon: string; tint: string } | null;
+      location?: { lat: number; lng: number; name?: string | null } | null;
       receiptId?: string | null;
       baseVersionNo?: number;
     };
@@ -575,6 +576,10 @@ class SyncSession {
       // Denormalised custom-tag display, so a member without the author's catalog
       // still renders the tag (extends TDR §8). Null for a built-in category.
       p_category_meta: sanitiseCategoryMeta(payload.categoryMeta),
+      // Where the spend happened (A43), validated so a client can never write a
+      // NaN or an out-of-range point onto a row every member reads. Null unless
+      // the author opted in.
+      p_location: sanitiseLocation(payload.location),
     });
     if (error) throw error;
     return data;
@@ -637,6 +642,7 @@ class SyncSession {
       paymentMethod?: string | null;
       targetGroupId?: string | null;
       categoryMeta?: { label: string; icon: string; tint: string } | null;
+      location?: { lat: number; lng: number; name?: string | null } | null;
     };
 
     const captureId = requireString(payload.captureId, 'captureId');
@@ -662,6 +668,7 @@ class SyncSession {
       // at assignment. Constrained to the known set on the client.
       payment_method: normalisePaymentMethod(payload.paymentMethod),
       target_group_id: payload.targetGroupId ?? null,
+      location: sanitiseLocation(payload.location),
       status: 'open',
     });
     if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
@@ -688,6 +695,7 @@ class SyncSession {
       paymentMethod: 'payment_method',
       targetGroupId: 'target_group_id',
       categoryMeta: 'category_meta',
+      location: 'location',
     };
     const patch: Record<string, unknown> = {};
     for (const [key, column] of Object.entries(CAPTURE_FIELD_COLUMNS)) {
@@ -698,6 +706,9 @@ class SyncSession {
     }
     if (Object.prototype.hasOwnProperty.call(patch, 'category_meta')) {
       patch.category_meta = sanitiseCategoryMeta(patch.category_meta);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'location')) {
+      patch.location = sanitiseLocation(patch.location);
     }
     if (typeof patch.amount === 'string') {
       const amount = parseMinor(patch.amount, 'amount');
@@ -1027,6 +1038,23 @@ function sanitiseCategoryMeta(
   if (!label || !icon) return null;
   const tint = typeof meta.tint === 'string' && TAG_TINTS.has(meta.tint) ? meta.tint : 'sky';
   return { label: label.slice(0, 40), icon: icon.slice(0, 64), tint };
+}
+
+/**
+ * Validate a client-supplied location before it lands on a ledger row (A43).
+ * Only a proper {lat, lng} inside Earth's ranges survives; a name is an optional
+ * trimmed label. Anything else — junk, NaN, an out-of-range point — becomes
+ * null, so a snapshot every group member sees can never carry garbage.
+ */
+function sanitiseLocation(value: unknown): { lat: number; lng: number; name?: string } | null {
+  if (!value || typeof value !== 'object') return null;
+  const loc = value as Record<string, unknown>;
+  const lat = typeof loc.lat === 'number' ? loc.lat : NaN;
+  const lng = typeof loc.lng === 'number' ? loc.lng : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  const name = typeof loc.name === 'string' ? loc.name.trim().slice(0, 120) : '';
+  return name ? { lat, lng, name } : { lat, lng };
 }
 
 /** Turn a thrown error into the vocabulary the client's queue understands. */
