@@ -416,6 +416,14 @@ export interface UiStrings {
     doubleTapExplain: string;
     iconHint: string;
   };
+  recent: {
+    title: string;
+    intro: string;
+    countLabel: string;
+    /** `{count}` interpolated with the chosen size. */
+    countOption: string;
+    watchHint: string;
+  };
   motion: {
     title: string;
     animateBetweenScreens: string;
@@ -1924,6 +1932,13 @@ const en: UiStrings = {
     doubleTapTitle: 'Two-finger double-tap',
     doubleTapExplain: 'Double-tap anywhere with two fingers to fire the shortcut.',
     iconHint: 'Long-press the Waves icon on your home screen for the same shortcut.',
+  },
+  recent: {
+    title: 'Recent on your watch',
+    intro: 'How many recent expenses your paired watch shows at a glance.',
+    countLabel: 'Show',
+    countOption: '{count} expenses',
+    watchHint: 'This applies to the Apple Watch and Wear OS apps.',
   },
   motion: {
     title: 'Motion',
@@ -3484,6 +3499,13 @@ const ta: UiStrings = {
     doubleTapTitle: 'இரு விரல் இரட்டைத் தட்டு',
     doubleTapExplain: 'குறுக்குவழியைத் தூண்ட எங்கும் இரு விரல்களால் இரட்டைத் தட்டவும்.',
     iconHint: 'அதே குறுக்குவழிக்கு முகப்புத் திரையில் Waves சின்னத்தை நீண்ட நேரம் அழுத்தவும்.',
+  },
+  recent: {
+    title: 'கடிகாரத்தில் சமீபத்தியவை',
+    intro: 'இணைந்த கடிகாரம் ஒரே பார்வையில் காட்டும் சமீபத்திய செலவுகளின் எண்ணிக்கை.',
+    countLabel: 'காட்டு',
+    countOption: '{count} செலவுகள்',
+    watchHint: 'இது Apple Watch மற்றும் Wear OS செயலிகளுக்குப் பொருந்தும்.',
   },
   motion: {
     title: 'அசைவு',
@@ -5102,6 +5124,13 @@ const hi: UiStrings = {
     doubleTapExplain: 'शॉर्टकट चलाने के लिए कहीं भी दो उँगलियों से डबल-टैप करें।',
     iconHint: 'वही शॉर्टकट पाने के लिए होम स्क्रीन पर Waves आइकन को देर तक दबाएँ।',
   },
+  recent: {
+    title: 'घड़ी पर हाल के खर्च',
+    intro: 'आपकी जुड़ी हुई घड़ी एक नज़र में कितने हाल के खर्च दिखाए।',
+    countLabel: 'दिखाएँ',
+    countOption: '{count} खर्च',
+    watchHint: 'यह Apple Watch और Wear OS ऐप पर लागू होता है।',
+  },
   motion: {
     title: 'गति',
     animateBetweenScreens: 'स्क्रीनों के बीच एनिमेशन',
@@ -6673,6 +6702,13 @@ const ar: UiStrings = {
     doubleTapTitle: 'نقرة مزدوجة بإصبعين',
     doubleTapExplain: 'انقر نقرة مزدوجة بإصبعين في أي مكان لتشغيل الاختصار.',
     iconHint: 'اضغط مطوّلًا على أيقونة Waves في الشاشة الرئيسية للاختصار نفسه.',
+  },
+  recent: {
+    title: 'الأحدث على ساعتك',
+    intro: 'عدد المصروفات الأخيرة التي تعرضها ساعتك المقترنة بنظرة واحدة.',
+    countLabel: 'أظهِر',
+    countOption: '{count} مصروفات',
+    watchHint: 'ينطبق هذا على تطبيقي Apple Watch وWear OS.',
   },
   motion: {
     title: 'الحركة',

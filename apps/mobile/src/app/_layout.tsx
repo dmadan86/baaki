@@ -44,7 +44,9 @@ import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
 import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { RecentCountProvider } from '@/lib/recentCount';
 import { ShortcutProvider } from '@/lib/shortcut';
+import { WatchBridgeProvider } from '@/lib/watch/bridge';
 import { ShortcutGesture } from '@/components/ShortcutGesture';
 import { TourProvider } from '@/lib/tour';
 import { PromptQueueProvider } from '@/lib/promptQueue';
@@ -205,42 +207,46 @@ function RootLayout() {
                             <TourProvider>
                               <PromptQueueProvider>
                                 <ShortcutProvider>
-                                  <ThemedRoot>
-                                    <ThemedStatusBar />
-                                    {/* Outside the lock and the auth gate on purpose: a build
+                                  <RecentCountProvider>
+                                    <WatchBridgeProvider>
+                                      <ThemedRoot>
+                                        <ThemedStatusBar />
+                                        {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                                    <UpdateGate>
-                                      <PushRouting />
-                                      <LockGate>
-                                        {/* Inside the lock so the two-device gate never
+                                        <UpdateGate>
+                                          <PushRouting />
+                                          <LockGate>
+                                            {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                        <DeviceSessionProvider>
-                                          <AuthGate />
-                                          {/* Inside the lock on purpose: a promotion is not a
+                                            <DeviceSessionProvider>
+                                              <AuthGate />
+                                              {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                          <CampaignPopup />
-                                          {/* The soft ask for push, once, to a
+                                              <CampaignPopup />
+                                              {/* The soft ask for push, once, to a
                                         signed-in person whose permission is
                                         still undetermined. */}
-                                          <NotificationPrompt />
-                                        </DeviceSessionProvider>
-                                      </LockGate>
-                                      {/* The coach-mark tour, over the whole app but
+                                              <NotificationPrompt />
+                                            </DeviceSessionProvider>
+                                          </LockGate>
+                                          {/* The coach-mark tour, over the whole app but
                                     only ever started from Home. Above the gate
                                     so its scrim covers the screen. */}
-                                      <TourOverlay />
-                                      {/* Last, so it paints over the screen rather than
+                                          <TourOverlay />
+                                          {/* Last, so it paints over the screen rather than
                               under it. */}
-                                      <UpdateBanner />
-                                    </UpdateGate>
-                                    {/* Topmost of all: the launch field, painting over
+                                          <UpdateBanner />
+                                        </UpdateGate>
+                                        {/* Topmost of all: the launch field, painting over
                                   the whole app until it fades itself out. Native
                                   only; renders nothing on web. */}
-                                    <AnimatedSplash />
-                                  </ThemedRoot>
+                                        <AnimatedSplash />
+                                      </ThemedRoot>
+                                    </WatchBridgeProvider>
+                                  </RecentCountProvider>
                                 </ShortcutProvider>
                               </PromptQueueProvider>
                             </TourProvider>
@@ -585,6 +591,7 @@ function AuthGate() {
           <Stack.Screen name="settings/devices" />
           <Stack.Screen name="settings/motion" />
           <Stack.Screen name="settings/shortcut" />
+          <Stack.Screen name="settings/recent" />
           <Stack.Screen name="settings/sync" />
           <Stack.Screen name="settings/theme" />
           <Stack.Screen name="settings/language" />
