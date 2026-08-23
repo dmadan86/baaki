@@ -1276,6 +1276,10 @@ export interface UiStrings {
     cantReachServer: PluralForms;
     /** Server unreachable but nothing is queued — no count to quote. */
     cantReachServerIdle: string;
+    /** A network call failed for a reason that is not worth quoting (the raw
+     *  transport error is internal noise). Said on foreground actions like
+     *  signing in, where "saved here" does not apply. */
+    connectionProblem: string;
     syncingCount: PluralForms;
     notAnAmount: string;
     notARate: string;
@@ -2809,6 +2813,7 @@ const en: UiStrings = {
       other: "Can't reach the server — {n} changes saved here, waiting to send",
     },
     cantReachServerIdle: "Can't reach the server — everything here is saved",
+    connectionProblem: 'Check your connection and try again.',
     syncingCount: { one: 'Sending {n} change…', other: 'Sending {n} changes…' },
     offlineSaved: 'Offline — everything here is saved on this phone',
     notAnAmount: 'That does not look like an amount',
@@ -4452,6 +4457,7 @@ const ta: UiStrings = {
       other: 'சர்வரை அடைய முடியவில்லை — {n} மாற்றங்கள் இங்கே சேமிக்கப்பட்டு காத்திருக்கின்றன',
     },
     cantReachServerIdle: 'சர்வரை அடைய முடியவில்லை — எல்லாம் இங்கே சேமிக்கப்பட்டுள்ளது',
+    connectionProblem: 'இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
     syncingCount: {
       one: '{n} மாற்றம் அனுப்பப்படுகிறது…',
       other: '{n} மாற்றங்கள் அனுப்பப்படுகின்றன…',
@@ -6075,6 +6081,7 @@ const hi: UiStrings = {
       other: 'सर्वर तक नहीं पहुँच पा रहे — {n} बदलाव यहीं सेव हैं, भेजने का इंतज़ार',
     },
     cantReachServerIdle: 'सर्वर तक नहीं पहुँच पा रहे — सब कुछ यहीं सेव है',
+    connectionProblem: 'अपना कनेक्शन जाँचें और फिर से कोशिश करें।',
     syncingCount: { one: '{n} बदलाव भेजा जा रहा है…', other: '{n} बदलाव भेजे जा रहे हैं…' },
     offlineSaved: 'ऑफ़लाइन — यहाँ का सब कुछ इसी फ़ोन पर सेव है',
     notAnAmount: 'यह रकम जैसा नहीं लगता',
@@ -7742,6 +7749,7 @@ const ar: UiStrings = {
       other: 'تعذّر الوصول إلى الخادم — {n} تغيير محفوظ هنا في انتظار الإرسال',
     },
     cantReachServerIdle: 'تعذّر الوصول إلى الخادم — كل شيء هنا محفوظ',
+    connectionProblem: 'تحقّق من اتصالك وحاول مرة أخرى.',
     syncingCount: {
       zero: 'جارٍ الإرسال…',
       one: 'جارٍ إرسال تغيير واحد…',
