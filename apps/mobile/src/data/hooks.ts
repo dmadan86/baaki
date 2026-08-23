@@ -8,7 +8,7 @@
  * the number is the product (ADR-004).
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 
@@ -215,6 +215,40 @@ export function useSettledTotals(profileId: string | null): LocalRead<Map<string
   return useLocalRead(totals);
 }
 
+/** Today's local calendar month, as the `YYYY-MM` prefix `snapshot.date` uses. */
+function localMonthPrefix(): string {
+  return new Intl.DateTimeFormat('en-CA').format(new Date()).slice(0, 7);
+}
+
+/**
+ * The current local month, kept fresh across midnight.
+ *
+ * The month prefix is otherwise captured in a `useMemo` that only re-runs on
+ * mirror/queue changes, so a phone left on the Home screen across midnight into
+ * a new month would keep filtering "this month" by the old one until something
+ * else happened to sync. A timer to the next local midnight re-reads it; the
+ * value only actually changes on the 1st, and returning the same string is a
+ * no-op re-render. The interval is a day at most, well under the setTimeout
+ * overflow ceiling.
+ */
+function useLocalMonthPrefix(): string {
+  const [prefix, setPrefix] = useState(localMonthPrefix);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      setPrefix(localMonthPrefix());
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      timer = setTimeout(tick, nextMidnight.getTime() - now.getTime());
+    };
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    timer = setTimeout(tick, nextMidnight.getTime() - now.getTime());
+    return () => clearTimeout(timer);
+  }, []);
+  return prefix;
+}
+
 /**
  * Home-screen data: my balance per group, member counts, pending confirmations.
  *
@@ -225,6 +259,7 @@ export function useSettledTotals(profileId: string | null): LocalRead<Map<string
  */
 export function useHomeSummary(profileId: string | null) {
   const { mirror, queue, hydrated, status, lastSyncedAt, flush } = useSync();
+  const monthPrefix = useLocalMonthPrefix();
 
   const summary = useMemo(() => {
     const membersByGroup = new Map<string, MemberRow[]>();
@@ -233,6 +268,14 @@ export function useHomeSummary(profileId: string | null) {
     // are a pile of numbers with no units.
     const currencyByGroup = new Map<string, string>();
     const awaiting = new Set<string>();
+    // My own share of everything dated in the current month, per currency — the
+    // dashboard's "this month" slide. Summed from expense shares, not balances:
+    // it is money I am on the hook for this month regardless of who has paid.
+    // My month total is filtered by `monthPrefix` (the local calendar month,
+    // from useLocalMonthPrefix). It has to be the local month, not the UTC one:
+    // `snapshot.date` comes from `expense_date`, a local date, so a UTC prefix
+    // is the wrong month for the hours either side of the 1st.
+    const monthByCurrency = new Map<string, bigint>();
 
     for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
       const currency = group.default_currency ?? 'INR';
@@ -255,6 +298,20 @@ export function useHomeSummary(profileId: string | null) {
       if (mine) {
         byGroup.set(group.id, net.get(currency)?.get(mine.id) ?? 0n);
         currencyByGroup.set(group.id, currency);
+        for (const snapshot of snapshots) {
+          if (snapshot.deletedAt || !snapshot.date.startsWith(monthPrefix)) continue;
+          const myShare = snapshot.shares[mine.id] ?? 0n;
+          if (myShare > 0n) {
+            // Key by the expense's own currency, not the group default: a USD
+            // expense in an INR group holds USD minor units, and bucketing it
+            // under INR would render those units labelled as rupees.
+            const spendCurrency = snapshot.currency;
+            monthByCurrency.set(
+              spendCurrency,
+              (monthByCurrency.get(spendCurrency) ?? 0n) + myShare,
+            );
+          }
+        }
       }
 
       if (settlements.some((settlement) => settlement.status === SettlementStatus.Initiated)) {
@@ -268,8 +325,12 @@ export function useHomeSummary(profileId: string | null) {
       ),
     );
 
-    return { byGroup, membersByGroup, awaiting, totals };
-  }, [mirror, queue, profileId]);
+    const monthSpent = [...monthByCurrency]
+      .map(([currency, amount]) => ({ currency, amount }))
+      .sort((a, b) => (b.amount > a.amount ? 1 : b.amount < a.amount ? -1 : 0));
+
+    return { byGroup, membersByGroup, awaiting, totals, monthSpent };
+  }, [mirror, queue, profileId, monthPrefix]);
 
   return {
     balanceFor: (groupId: string) => summary.byGroup.get(groupId) ?? 0n,
@@ -277,6 +338,8 @@ export function useHomeSummary(profileId: string | null) {
     memberCountFor: (groupId: string) => summary.membersByGroup.get(groupId)?.length ?? 0,
     hasPending: (groupId: string) => summary.awaiting.has(groupId),
     totals: summary.totals,
+    /** My share of this month's expenses, per currency, biggest first. */
+    monthSpent: summary.monthSpent,
     isLoading: !hydrated,
     isFetching: status === 'syncing',
     // The mirror hydrates from disk instantly (ADR-005), but that snapshot can
