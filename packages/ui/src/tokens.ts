@@ -12,8 +12,14 @@
  * like a pill. Pills are for things you tap.
  *
  * Money colour is semantic and global, never decorative: owed-to-you is always
- * the mint/green pair, you-owe is always the pink/red pair. Nothing else in the
- * app is allowed to use those two colours.
+ * the periwinkle/blue pair, you-owe is always the pink/red pair. Nothing else in
+ * the app is allowed to use those two colours.
+ *
+ * The palette is deliberately green-free (and free of blue-green/teal): the
+ * brand wears a 2025 neon-indigo/violet, the paired accent a warm sunset coral,
+ * owed-money a calm blue, and owed-by-you the raspberry red. "Good" money reads
+ * blue rather than green, so nothing on any surface — dashboard included — needs
+ * a green.
  */
 
 export const palette = {
@@ -53,9 +59,12 @@ export const palette = {
   peach: '#FBE0C4',
   peachInk: '#674215',
   peachInkMuted: '#8E5A1D',
-  mint: '#C7EDE4',
-  mintInk: '#0A5540',
-  mintInkMuted: '#0D7356',
+  // Was a mint green; recoloured to a periwinkle so the owed-money soft (which
+  // points here) is blue, not green. The key keeps its name so every caller is
+  // unchanged. Both inks clear WCAG AA on the soft periwinkle bg.
+  mint: '#DCE1FF',
+  mintInk: '#2E3A8C',
+  mintInkMuted: '#3B47A0',
   lilac: '#DCD9FB',
   lilacInk: '#413792',
   lilacInkMuted: '#4B3FA8',
@@ -66,7 +75,11 @@ export const palette = {
   skyInk: '#154C77',
   skyInkMuted: '#1D68A3',
 
-  positive: '#0E9F6E',
+  // Owed-to-you money. A calm blue rather than a green — "good" money still
+  // reads unmistakably apart from the raspberry "money leaving" below, and the
+  // palette stays green-free. Clear of the indigo brand (darker, more violet)
+  // and of the sky pastel (much lighter).
+  positive: '#2563EB',
   // Raspberry-leaning red (hue near the #F04770 reference) — friendlier than
   // the old fire-engine #E5484D, still unmistakably "money leaving" and clear
   // of the warning orange.
@@ -87,25 +100,26 @@ export const palette = {
  * to hold white text, because the balance and its labels sit on all of them.
  */
 export const gradients = {
-  // The brand green (#75C946), deepened across three stops so white text and
-  // the small balance labels stay legible on every corner — the lightest stop
-  // matches the luminance of the outgoing purple ramp, so nothing that held
-  // white on purple loses it on green.
-  light: ['#2C6A14', '#3E8F22', '#4CA82C'],
-  dark: ['#1F4D10', '#2F7A1C', '#3E9426'],
-  // A second, unmistakably-blue wash for the paired action tile — vibrant like
-  // the reference's yellow second tile, but kept off the money hues (mint/red)
-  // and off warning amber so it never reads as a status. Every stop holds white.
-  accentLight: ['#0369A1', '#2563EB', '#4F46E5'],
-  accentDark: ['#0C4A6E', '#1E40AF', '#3730A3'],
-  // The balance card wears its verdict: a teal wash when the net is in your
+  // The brand wash — a 2025 neon-indigo/violet, deepened across three stops so
+  // white text and the small balance labels stay legible on every corner. No
+  // green anywhere: the neutral balance deck and the primary action tile both
+  // wear this, so the dashboard opens on indigo, never green.
+  light: ['#4326A6', '#5B3FD1', '#6C4EE3'],
+  dark: ['#2E1E6B', '#4326A6', '#5B3FD1'],
+  // The paired action tile: a warm sunset coral, the "warm highlight over a cool
+  // base" of the 2025 palettes. Kept off the money hues (blue/red) and off
+  // warning amber (deeper, more orange-brown) so it never reads as a status.
+  // Every stop holds white.
+  accentLight: ['#C2410C', '#EA580C', '#F97316'],
+  accentDark: ['#7C2D12', '#B4471C', '#EA580C'],
+  // The balance card wears its verdict: a blue wash when the net is in your
   // favour, a red one when you owe. Both are the money hues (positive/negative)
   // deepened across three stops so the white balance and its small labels stay
   // legible on every corner — the same rule the brand wash follows above. The
   // neutral, all-settled state keeps the brand wash, so colour only ever
-  // appears when there is a debt to point at.
-  positiveLight: ['#0A5A5F', '#0A6E70', '#0A7E76'],
-  positiveDark: ['#04403E', '#065F5C', '#0A7E76'],
+  // appears when there is a debt to point at. Blue, not teal — no blue-green.
+  positiveLight: ['#1E3A8A', '#1D4ED8', '#2563EB'],
+  positiveDark: ['#13275E', '#1E40AF', '#2563EB'],
   negativeLight: ['#8C1D3F', '#B01D50', '#D22C63'],
   negativeDark: ['#611228', '#8C1D3F', '#A81F4C'],
 } as const;
