@@ -26,7 +26,7 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { computeShares, type SplitParams } from '@waves/core';
+import { computeShares, type ExpenseLocation, type SplitParams } from '@waves/core';
 import {
   Button,
   Callout,
@@ -57,6 +57,7 @@ import { useMotion } from '@/lib/motion';
 import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
+import { LocationField } from '@/components/LocationField';
 import { parseVoiceExpenses, type VoiceGroupRef, type VoiceParseResult } from '@/lib/voiceExpense';
 import { interpretVoiceExpenses } from '@/lib/voiceLlm';
 
@@ -106,6 +107,10 @@ export default function VoiceScreen() {
   // heard expenses, editable, awaiting a destination and a Save.
   const [phase, setPhase] = useState<'listening' | 'thinking' | 'review'>('listening');
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  // One place for the whole spoken batch — a run of "coffee, then the taxi" all
+  // happened where you are standing (A43). Optional and opt-in; null until the
+  // reader taps "Add location" on the review.
+  const [location, setLocation] = useState<ExpenseLocation | null>(null);
   const [dest, setDest] = useState<Dest>({ kind: 'unassigned' });
   // The destination folds into a single row that opens this sheet, so the
   // expenses — not a wall of group rows — are the first thing on the review.
@@ -226,6 +231,7 @@ export default function VoiceScreen() {
             expenseDate: date,
             currency: draft.currency ?? dc,
             amount,
+            location,
           });
         }
         router.replace('/captures');
@@ -289,6 +295,7 @@ export default function VoiceScreen() {
           payers: { [payer]: amount },
           // ShareMap is a Map; the write input wants a plain record.
           expectedShares: Object.fromEntries(shares),
+          location,
         });
       }
       router.replace({ pathname: '/group/[id]', params: { id: dest.groupId } });
@@ -436,6 +443,10 @@ export default function VoiceScreen() {
                 </Pressable>
               </Card>
             </View>
+
+            {/* One place for the whole batch (A43) — opt-in, never a background
+                track. It rides onto every expense saved from this review. */}
+            <LocationField value={location} onChange={setLocation} />
           </View>
         ) : (
           // Listening.
