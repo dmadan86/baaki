@@ -53,13 +53,18 @@ private final class WatchRelay: NSObject, WCSessionDelegate {
   }
 
   func send(_ payload: [String: Any]) {
-    guard let session else { return }
+    guard let session, session.activationState == .activated else { return }
     if session.isReachable {
-      session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+      // Live path; if it fails, fall back to a queued transfer rather than
+      // dropping the message.
+      session.sendMessage(payload, replyHandler: nil) { _ in
+        session.transferUserInfo(payload)
+      }
     } else {
-      // Not reachable right now — leave it as the latest context the watch
-      // reads on its next wake. Replaces any older pending context.
-      try? session.updateApplicationContext(payload)
+      // Guaranteed, FIFO delivery on the watch's next wake — unlike
+      // updateApplicationContext, which keeps only the newest payload and would
+      // coalesce independent recent/ack/settings messages into one.
+      session.transferUserInfo(payload)
     }
   }
 
@@ -67,6 +72,11 @@ private final class WatchRelay: NSObject, WCSessionDelegate {
 
   func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
     onMessage?(message)
+  }
+
+  // The queued counterpart of the live sendMessage path — delivered on wake.
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    onMessage?(userInfo)
   }
 
   func session(

@@ -23,37 +23,70 @@ describe('coerceRecentCount', () => {
 describe('parseWatchToPhone', () => {
   it('accepts a well-formed quickAdd', () => {
     expect(
-      parseWatchToPhone({ t: 'quickAdd', amountMinor: '1200', currency: 'INR', note: 'Lunch' }),
-    ).toEqual({ t: 'quickAdd', amountMinor: '1200', currency: 'INR', note: 'Lunch' });
+      parseWatchToPhone({
+        t: 'quickAdd',
+        id: 'w1',
+        amountMinor: '1200',
+        currency: 'INR',
+        note: 'Lunch',
+      }),
+    ).toEqual({ t: 'quickAdd', id: 'w1', amountMinor: '1200', currency: 'INR', note: 'Lunch' });
   });
 
   it('rejects a quickAdd with a non-integer, zero, negative, or empty-currency amount', () => {
     expect(
-      parseWatchToPhone({ t: 'quickAdd', amountMinor: '12.5', currency: 'INR', note: '' }),
+      parseWatchToPhone({
+        t: 'quickAdd',
+        id: 'w1',
+        amountMinor: '12.5',
+        currency: 'INR',
+        note: '',
+      }),
     ).toBeNull();
     expect(
-      parseWatchToPhone({ t: 'quickAdd', amountMinor: '0', currency: 'INR', note: '' }),
+      parseWatchToPhone({ t: 'quickAdd', id: 'w1', amountMinor: '0', currency: 'INR', note: '' }),
+    ).toBeNull();
+    // Leading-zero zero: BigInt('00') is 0n, so this must be rejected too.
+    expect(
+      parseWatchToPhone({ t: 'quickAdd', id: 'w1', amountMinor: '00', currency: 'INR', note: '' }),
     ).toBeNull();
     expect(
-      parseWatchToPhone({ t: 'quickAdd', amountMinor: '-5', currency: 'INR', note: '' }),
+      parseWatchToPhone({ t: 'quickAdd', id: 'w1', amountMinor: '-5', currency: 'INR', note: '' }),
     ).toBeNull();
     expect(
-      parseWatchToPhone({ t: 'quickAdd', amountMinor: '100', currency: '', note: '' }),
+      parseWatchToPhone({ t: 'quickAdd', id: 'w1', amountMinor: '100', currency: '', note: '' }),
     ).toBeNull();
+  });
+
+  it('accepts a versionless (v1) message and rejects an explicit version mismatch', () => {
+    expect(
+      parseWatchToPhone({ t: 'requestRecent', count: 5, version: WATCH_RELAY_VERSION }),
+    ).not.toBeNull();
+    expect(parseWatchToPhone({ t: 'requestRecent', count: 5, version: 999 })).toBeNull();
+    // No version field at all = a v1 watch, still accepted.
+    expect(parseWatchToPhone({ t: 'requestRecent', count: 5 })).not.toBeNull();
   });
 
   it('accepts an empty note (money is enough for a capture)', () => {
     expect(
-      parseWatchToPhone({ t: 'quickAdd', amountMinor: '100', currency: 'INR', note: '' }),
+      parseWatchToPhone({ t: 'quickAdd', id: 'w1', amountMinor: '100', currency: 'INR', note: '' }),
     ).not.toBeNull();
   });
 
   it('accepts a non-empty voiceAdd and rejects a blank one', () => {
-    expect(parseWatchToPhone({ t: 'voiceAdd', transcript: 'add 500 to goa' })).toEqual({
+    expect(parseWatchToPhone({ t: 'voiceAdd', id: 'w1', transcript: 'add 500 to goa' })).toEqual({
       t: 'voiceAdd',
+      id: 'w1',
       transcript: 'add 500 to goa',
     });
-    expect(parseWatchToPhone({ t: 'voiceAdd', transcript: '   ' })).toBeNull();
+    expect(parseWatchToPhone({ t: 'voiceAdd', id: 'w1', transcript: '   ' })).toBeNull();
+  });
+
+  it('rejects a quickAdd or voiceAdd with no idempotency id', () => {
+    expect(
+      parseWatchToPhone({ t: 'quickAdd', amountMinor: '100', currency: 'INR', note: '' }),
+    ).toBeNull();
+    expect(parseWatchToPhone({ t: 'voiceAdd', transcript: 'add 500' })).toBeNull();
   });
 
   it('clamps requestRecent count to an offered size', () => {

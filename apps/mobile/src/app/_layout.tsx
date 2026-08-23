@@ -208,44 +208,47 @@ function RootLayout() {
                               <PromptQueueProvider>
                                 <ShortcutProvider>
                                   <RecentCountProvider>
-                                    <WatchBridgeProvider>
-                                      <ThemedRoot>
-                                        <ThemedStatusBar />
-                                        {/* Outside the lock and the auth gate on purpose: a build
+                                    <ThemedRoot>
+                                      <ThemedStatusBar />
+                                      {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                                        <UpdateGate>
-                                          <PushRouting />
-                                          <LockGate>
-                                            {/* Inside the lock so the two-device gate never
+                                      <UpdateGate>
+                                        <PushRouting />
+                                        <LockGate>
+                                          {/* Below the lock and update gates so the watch
+                                bridge never turns a wrist tap into a capture
+                                while the app is locked or on a build we have
+                                stopped trusting. */}
+                                          <WatchBridgeProvider />
+                                          {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                            <DeviceSessionProvider>
-                                              <AuthGate />
-                                              {/* Inside the lock on purpose: a promotion is not a
+                                          <DeviceSessionProvider>
+                                            <AuthGate />
+                                            {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                              <CampaignPopup />
-                                              {/* The soft ask for push, once, to a
+                                            <CampaignPopup />
+                                            {/* The soft ask for push, once, to a
                                         signed-in person whose permission is
                                         still undetermined. */}
-                                              <NotificationPrompt />
-                                            </DeviceSessionProvider>
-                                          </LockGate>
-                                          {/* The coach-mark tour, over the whole app but
+                                            <NotificationPrompt />
+                                          </DeviceSessionProvider>
+                                        </LockGate>
+                                        {/* The coach-mark tour, over the whole app but
                                     only ever started from Home. Above the gate
                                     so its scrim covers the screen. */}
-                                          <TourOverlay />
-                                          {/* Last, so it paints over the screen rather than
+                                        <TourOverlay />
+                                        {/* Last, so it paints over the screen rather than
                               under it. */}
-                                          <UpdateBanner />
-                                        </UpdateGate>
-                                        {/* Topmost of all: the launch field, painting over
+                                        <UpdateBanner />
+                                      </UpdateGate>
+                                      {/* Topmost of all: the launch field, painting over
                                   the whole app until it fades itself out. Native
                                   only; renders nothing on web. */}
-                                        <AnimatedSplash />
-                                      </ThemedRoot>
-                                    </WatchBridgeProvider>
+                                      <AnimatedSplash />
+                                    </ThemedRoot>
                                   </RecentCountProvider>
                                 </ShortcutProvider>
                               </PromptQueueProvider>

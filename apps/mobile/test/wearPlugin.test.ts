@@ -6,14 +6,21 @@ import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { _internals } = require('../plugins/withWavesWear.js');
-const { WEAR_PACKAGE, APPLICATION_ID, MARKER, settingsWithInclude, writeWearModule } =
-  _internals as {
-    WEAR_PACKAGE: string;
-    APPLICATION_ID: string;
-    MARKER: string;
-    settingsWithInclude: (contents: string) => string;
-    writeWearModule: (projectRoot: string) => void;
-  };
+const {
+  WEAR_PACKAGE,
+  APPLICATION_ID,
+  MARKER,
+  settingsWithInclude,
+  buildscriptWithCompose,
+  writeWearModule,
+} = _internals as {
+  WEAR_PACKAGE: string;
+  APPLICATION_ID: string;
+  MARKER: string;
+  settingsWithInclude: (contents: string) => string;
+  buildscriptWithCompose: (contents: string) => string;
+  writeWearModule: (projectRoot: string) => void;
+};
 
 describe('withWavesWear — settings.gradle include', () => {
   it("adds a single include ':wear' and is idempotent", () => {
@@ -23,6 +30,24 @@ describe('withWavesWear — settings.gradle include', () => {
     expect(once).toContain(MARKER);
     // A second prebuild must not append it again.
     expect(settingsWithInclude(once)).toBe(once);
+  });
+});
+
+describe('withWavesWear — Compose compiler classpath', () => {
+  const root = `buildscript {
+    dependencies {
+        classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    }
+}`;
+
+  it('adds the compose-compiler plugin next to kotlin-gradle-plugin, once', () => {
+    const once = buildscriptWithCompose(root);
+    expect(once).toContain('org.jetbrains.kotlin:compose-compiler-gradle-plugin');
+    expect(once).toContain("classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')");
+    // Idempotent across prebuilds.
+    expect(buildscriptWithCompose(once)).toBe(once);
+    // Exactly one insertion.
+    expect(once.match(/compose-compiler-gradle-plugin/g)).toHaveLength(1);
   });
 });
 

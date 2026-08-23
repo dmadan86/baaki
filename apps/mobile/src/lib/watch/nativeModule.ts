@@ -49,6 +49,17 @@ export function sendToWatch(message: PhoneToWatch): void {
 /** Subscribe to raw watch→phone payloads. Returns an unsubscribe; no-op if absent. */
 export function onWatchMessage(handler: (raw: unknown) => void): () => void {
   if (!native) return () => undefined;
-  const sub = native.addListener('onWatchMessage', (event) => handler(event.payload));
-  return () => sub.remove();
+  try {
+    const sub = native.addListener('onWatchMessage', (event) => handler(event.payload));
+    return () => {
+      try {
+        sub.remove();
+      } catch {
+        // The module was torn down first; nothing to remove.
+      }
+    };
+  } catch {
+    // Subscribing failed — behave as if there were no transport.
+    return () => undefined;
+  }
 }

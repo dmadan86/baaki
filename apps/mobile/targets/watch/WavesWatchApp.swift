@@ -35,24 +35,39 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
     session.activate()
   }
 
+  // Matches @waves/core's WATCH_RELAY_VERSION so a version-skewed phone rejects us.
+  private let relayVersion = 1
+
   func requestRecent() {
     send(["t": "requestRecent", "count": recentCount])
   }
 
   func quickAdd(amountMinor: Int, currency: String, note: String) {
-    send(["t": "quickAdd", "amountMinor": String(amountMinor), "currency": currency, "note": note])
+    send([
+      "t": "quickAdd",
+      // A stable id per intent so a transport retry of the same tap is
+      // idempotent on the phone rather than creating a duplicate expense.
+      "id": UUID().uuidString,
+      "amountMinor": String(amountMinor),
+      "currency": currency,
+      "note": note,
+    ])
   }
 
   func voiceAdd(_ transcript: String) {
-    send(["t": "voiceAdd", "transcript": transcript])
+    send(["t": "voiceAdd", "id": UUID().uuidString, "transcript": transcript])
   }
 
   private func send(_ message: [String: Any]) {
     guard let session, session.activationState == .activated else { return }
+    var payload = message
+    payload["version"] = relayVersion
     if session.isReachable {
-      session.sendMessage(message, replyHandler: nil, errorHandler: nil)
+      session.sendMessage(payload, replyHandler: nil) { _ in
+        session.transferUserInfo(payload)
+      }
     } else {
-      try? session.updateApplicationContext(message)
+      session.transferUserInfo(payload)
     }
   }
 
@@ -75,6 +90,10 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
     handle(applicationContext)
+  }
+
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    handle(userInfo)
   }
 
   func sessionReachabilityDidChange(_ session: WCSession) {

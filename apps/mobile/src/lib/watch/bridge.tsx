@@ -79,7 +79,7 @@ export function buildRecentItems(
   });
 }
 
-export function WatchBridgeProvider({ children }: { children: ReactNode }) {
+export function WatchBridgeProvider({ children }: { children?: ReactNode }) {
   const createCapture = useCreateCapture();
   const recent = useRecentActivity();
   const groups = useGroups();
@@ -146,6 +146,9 @@ export function WatchBridgeProvider({ children }: { children: ReactNode }) {
           switch (msg.t) {
             case 'quickAdd': {
               await createRef.current.mutateAsync({
+                // The watch's per-intent id becomes the capture id, so a
+                // transport retry of the same tap is a no-op upsert, not a dup.
+                captureId: msg.id,
                 amount: BigInt(msg.amountMinor),
                 currency: msg.currency,
                 description: msg.note,
@@ -167,8 +170,15 @@ export function WatchBridgeProvider({ children }: { children: ReactNode }) {
               // Always land as unassigned captures — the safe group-less path;
               // the person tags a destination later on the phone. Group-target
               // routing from the wrist is a later refinement.
+              //
+              // The single-expense case (the common one) reuses the watch id as
+              // the capture id, so a replayed utterance is idempotent. A
+              // multi-expense utterance keeps server-generated ids — a replay of
+              // that rarer case can duplicate, a documented v1 limitation.
+              const single = items.length === 1;
               for (const item of items) {
                 await createRef.current.mutateAsync({
+                  captureId: single ? msg.id : undefined,
                   amount: item.amountMinor,
                   currency: item.currency ?? s.defaultCurrency,
                   description: item.note,
@@ -203,5 +213,5 @@ export function WatchBridgeProvider({ children }: { children: ReactNode }) {
     sendToWatch({ t: 'settings', recentCount: coerceRecentCount(count) });
   }, [count]);
 
-  return <>{children}</>;
+  return <>{children ?? null}</>;
 }

@@ -44,8 +44,11 @@ export interface WatchRecentItem {
 
 /** Messages the watch sends to the phone. */
 export type WatchToPhone =
-  | { t: 'quickAdd'; amountMinor: string; currency: string; note: string }
-  | { t: 'voiceAdd'; transcript: string }
+  // `id` is a stable per-intent key (a UUID the watch mints once per send). The
+  // phone derives the capture id from it, so a transport-level retry of the same
+  // tap is idempotent instead of creating a duplicate expense.
+  | { t: 'quickAdd'; id: string; amountMinor: string; currency: string; note: string }
+  | { t: 'voiceAdd'; id: string; transcript: string }
   | { t: 'requestRecent'; count: number }
   | { t: 'notifAction'; actionId: string; objectId: string };
 
@@ -59,8 +62,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isDecimalString(value: unknown): value is string {
-  return typeof value === 'string' && /^-?\d+$/.test(value);
+/** A positive integer minor-unit amount as a string — no sign, at least one
+ *  non-zero digit (so "0", "00" and "" are all rejected). */
+function isPositiveMinor(value: unknown): value is string {
+  return typeof value === 'string' && /^\d+$/.test(value) && /[1-9]/.test(value);
 }
 
 /**
@@ -72,19 +77,29 @@ function isDecimalString(value: unknown): value is string {
  */
 export function parseWatchToPhone(raw: unknown): WatchToPhone | null {
   if (!isRecord(raw)) return null;
+  // A watch that stamps a version must match ours; a versionless message is a
+  // v1 watch and is accepted. Guards against an old intent being read with new
+  // semantics after a breaking relay change.
+  if (raw.version !== undefined && raw.version !== WATCH_RELAY_VERSION) return null;
+  const id = typeof raw.id === 'string' && raw.id.length > 0 ? raw.id : null;
   switch (raw.t) {
     case 'quickAdd':
-      return isDecimalString(raw.amountMinor) &&
-        raw.amountMinor !== '0' &&
-        raw.amountMinor[0] !== '-' &&
+      return id &&
+        isPositiveMinor(raw.amountMinor) &&
         typeof raw.currency === 'string' &&
         raw.currency.length > 0 &&
         typeof raw.note === 'string'
-        ? { t: 'quickAdd', amountMinor: raw.amountMinor, currency: raw.currency, note: raw.note }
+        ? {
+            t: 'quickAdd',
+            id,
+            amountMinor: raw.amountMinor,
+            currency: raw.currency,
+            note: raw.note,
+          }
         : null;
     case 'voiceAdd':
-      return typeof raw.transcript === 'string' && raw.transcript.trim().length > 0
-        ? { t: 'voiceAdd', transcript: raw.transcript }
+      return id && typeof raw.transcript === 'string' && raw.transcript.trim().length > 0
+        ? { t: 'voiceAdd', id, transcript: raw.transcript }
         : null;
     case 'requestRecent':
       return { t: 'requestRecent', count: coerceRecentCount(raw.count) };
@@ -106,5 +121,7 @@ export function parseWatchToPhone(raw: unknown): WatchToPhone | null {
  * documented envelope. `version` lets a watch ignore a newer phone it can't read.
  */
 export function encodePhoneToWatch(msg: PhoneToWatch): Record<string, unknown> {
-  return { version: WATCH_RELAY_VERSION, ...msg };
+  // version after the spread: a structurally compatible `msg` carrying its own
+  // `version` must not override the real one.
+  return { ...msg, version: WATCH_RELAY_VERSION };
 }

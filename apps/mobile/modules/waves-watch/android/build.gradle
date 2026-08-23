@@ -1,5 +1,6 @@
-apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
+// The expo-module-gradle-plugin alone applies com.android.library + Kotlin and
+// wires the `release` software component autolinking expects; applying those
+// plugins again here breaks that component.
 apply plugin: 'expo-module-gradle-plugin'
 
 group = 'expo.modules.waveswatch'
@@ -9,6 +10,8 @@ android {
   namespace 'expo.modules.waveswatch'
   defaultConfig {
     minSdkVersion 24
+    versionCode 1
+    versionName '1.0.0'
   }
 }
 

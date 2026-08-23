@@ -20,11 +20,19 @@
 
 const fs = require('fs');
 const path = require('path');
-const { withSettingsGradle, withDangerousMod } = require('expo/config-plugins');
+const {
+  withSettingsGradle,
+  withProjectBuildGradle,
+  withDangerousMod,
+} = require('expo/config-plugins');
 
 const WEAR_PACKAGE = 'app.waves.wear';
 const APPLICATION_ID = 'app.waves.wear';
 const MARKER = 'waves:wear-module';
+// Kotlin 2 needs the Compose compiler Gradle plugin; Expo's generated root
+// build.gradle only ships kotlin-gradle-plugin. Pinned to the Kotlin the RN
+// gradle plugin resolves (Expo SDK 57 → 2.2.x); bump alongside an SDK upgrade.
+const COMPOSE_COMPILER_VERSION = '2.2.21';
 
 // --- settings.gradle include --------------------------------------------------
 
@@ -37,6 +45,22 @@ function settingsWithInclude(contents) {
 function includeWearModule(config) {
   return withSettingsGradle(config, (cfg) => {
     cfg.modResults.contents = settingsWithInclude(cfg.modResults.contents);
+    return cfg;
+  });
+}
+
+/** Pure: add the Compose compiler plugin to the root buildscript classpath, once. */
+function buildscriptWithCompose(contents) {
+  if (contents.includes('compose-compiler-gradle-plugin')) return contents;
+  return contents.replace(
+    /classpath\((['"])org\.jetbrains\.kotlin:kotlin-gradle-plugin\1\)/,
+    `$&\n        classpath('org.jetbrains.kotlin:compose-compiler-gradle-plugin:${COMPOSE_COMPILER_VERSION}')`,
+  );
+}
+
+function addComposeClasspath(config) {
+  return withProjectBuildGradle(config, (cfg) => {
+    cfg.modResults.contents = buildscriptWithCompose(cfg.modResults.contents);
     return cfg;
   });
 }
@@ -55,7 +79,11 @@ android {
     defaultConfig {
         applicationId "${APPLICATION_ID}"
         minSdkVersion 30
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        // Pinned to 34, not the app's target: Wear OS 5 (API 35+) makes the
+        // reduce_motion setting that wear-compose-navigation reads readable only
+        // to apps targeting <= 34, so a higher target crashes on launch with a
+        // SecurityException. Verified on a Wear OS 5 emulator.
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
     }
@@ -138,6 +166,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 /** A recent-expense row the phone relayed. */
 data class RecentItem(
@@ -160,15 +190,20 @@ object WearRelay {
     private val _recentCount = MutableStateFlow(5)
     val recentCount: StateFlow<Int> = _recentCount
 
-    /** Called by PhoneListenerService for every inbound message. */
+    /** Called by PhoneListenerService for every inbound message. Fails closed on
+     *  a malformed or version-skewed payload rather than crashing the binder. */
     fun onMessage(json: String) {
-        val obj = JSONObject(json)
+        val obj = try {
+            JSONObject(json)
+        } catch (e: Exception) {
+            return
+        }
         when (obj.optString("t")) {
             "recent" -> {
                 val arr = obj.optJSONArray("items") ?: return
                 val list = ArrayList<RecentItem>(arr.length())
                 for (i in 0 until arr.length()) {
-                    val it = arr.getJSONObject(i)
+                    val it = arr.optJSONObject(i) ?: continue
                     list.add(
                         RecentItem(
                             it.optString("title"),
@@ -187,18 +222,35 @@ object WearRelay {
 
     private suspend fun send(context: Context, message: JSONObject) {
         withContext(Dispatchers.IO) {
-            val bytes = message.toString().toByteArray(Charsets.UTF_8)
-            val nodes = Tasks.await(Wearable.getNodeClient(context).connectedNodes)
-            val client = Wearable.getMessageClient(context)
-            for (node in nodes) {
-                client.sendMessage(node.id, PATH, bytes)
+            try {
+                val bytes = message.toString().toByteArray(Charsets.UTF_8)
+                // Bounded so a node lookup that never resolves can't pin an IO
+                // thread; a failed/timed-out send just shows no update on the watch.
+                val nodes = Tasks.await(
+                    Wearable.getNodeClient(context).connectedNodes,
+                    10,
+                    TimeUnit.SECONDS,
+                )
+                val client = Wearable.getMessageClient(context)
+                for (node in nodes) {
+                    client.sendMessage(node.id, PATH, bytes)
+                }
+            } catch (e: Exception) {
+                // Swallowed on purpose — the Data Layer is best-effort here.
             }
         }
     }
 
+    // Matches @waves/core's WATCH_RELAY_VERSION.
+    private const val RELAY_VERSION = 1
+
     fun requestRecent(context: Context, scope: CoroutineScope) {
         scope.launch {
-            send(context, JSONObject().put("t", "requestRecent").put("count", _recentCount.value))
+            send(
+                context,
+                JSONObject().put("t", "requestRecent").put("version", RELAY_VERSION)
+                    .put("count", _recentCount.value),
+            )
         }
     }
 
@@ -212,7 +264,10 @@ object WearRelay {
         scope.launch {
             send(
                 context,
-                JSONObject().put("t", "quickAdd").put("amountMinor", amountMinor.toString())
+                // A stable id per intent so a transport retry is idempotent on the phone.
+                JSONObject().put("t", "quickAdd").put("version", RELAY_VERSION)
+                    .put("id", UUID.randomUUID().toString())
+                    .put("amountMinor", amountMinor.toString())
                     .put("currency", currency).put("note", note),
             )
         }
@@ -220,7 +275,11 @@ object WearRelay {
 
     fun voiceAdd(context: Context, scope: CoroutineScope, transcript: String) {
         scope.launch {
-            send(context, JSONObject().put("t", "voiceAdd").put("transcript", transcript))
+            send(
+                context,
+                JSONObject().put("t", "voiceAdd").put("version", RELAY_VERSION)
+                    .put("id", UUID.randomUUID().toString()).put("transcript", transcript),
+            )
         }
     }
 }
@@ -394,6 +453,7 @@ function writeWearModule(projectRoot) {
 
 module.exports = function withWavesWear(config) {
   config = includeWearModule(config);
+  config = addComposeClasspath(config);
   config = withDangerousMod(config, [
     'android',
     (cfg) => {
@@ -411,5 +471,6 @@ module.exports._internals = {
   buildGradle,
   manifest,
   settingsWithInclude,
+  buildscriptWithCompose,
   writeWearModule,
 };
