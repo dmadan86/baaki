@@ -77,7 +77,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // The eye toggle: hide the money on a shared screen, remembered across opens.
-  const { hidden: balanceHidden, toggle: toggleBalance } = useBalanceHidden();
+  const { hidden: balanceHidden, ready: balanceReady, toggle: toggleBalance } = useBalanceHidden();
   // The carousel's live scroll offset, owned here so the hero background and the
   // balance deck share one value: the background crossfades between the slide
   // colours (SLIDE_GRADIENTS) exactly as the deck moves. Lazy-init, never
@@ -368,7 +368,7 @@ export default function HomeScreen() {
                 across currencies, so each is its own slide). Its scroll drives the
                 background crossfade above. While it loads a light placeholder
                 stands in so the number never paints confident zeros. */}
-            {summary.isLoading ? (
+            {summary.isLoading || !balanceReady ? (
               <HeroBalanceSkeleton />
             ) : (
               <HeroBalance
@@ -589,15 +589,23 @@ const BALANCE_HIDDEN_KEY = 'dashboard:balanceHidden';
  * hidden balance stays hidden after a relaunch, not flashing the number first)
  * and writes on every toggle. Defaults to shown.
  */
-function useBalanceHidden(): { hidden: boolean; toggle: () => void } {
+function useBalanceHidden(): { hidden: boolean; ready: boolean; toggle: () => void } {
   const [hidden, setHidden] = useState(false);
+  // `hidden` starts shown and the stored value arrives a frame or more later,
+  // so without a gate the real number paints before the mask does — exactly the
+  // flash the doc above promises not to do. `ready` flips once the read settles
+  // (success or failure) so the caller can hold the skeleton until then.
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     let alive = true;
     AsyncStorage.getItem(BALANCE_HIDDEN_KEY)
       .then((value) => {
         if (alive && value === '1') setHidden(true);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setReady(true);
+      });
     return () => {
       alive = false;
     };
@@ -609,7 +617,7 @@ function useBalanceHidden(): { hidden: boolean; toggle: () => void } {
       return next;
     });
   }, []);
-  return { hidden, toggle };
+  return { hidden, ready, toggle };
 }
 
 /**

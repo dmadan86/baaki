@@ -237,7 +237,12 @@ export function useHomeSummary(profileId: string | null) {
     // dashboard's "this month" slide. Summed from expense shares, not balances:
     // it is money I am on the hook for this month regardless of who has paid.
     const monthByCurrency = new Map<string, bigint>();
-    const monthPrefix = new Date().toISOString().slice(0, 7);
+    // The local calendar month, not the UTC one. `snapshot.date` comes from
+    // `expense_date`, a local date, so a UTC prefix is the wrong month for the
+    // hours either side of the 1st — an expense dated the 1st at UTC+5:30, or
+    // the whole slide reading 0 late on the last day at UTC-8. `en-CA` renders
+    // YYYY-MM-DD in local time, the same format the dates are in.
+    const monthPrefix = new Intl.DateTimeFormat('en-CA').format(new Date()).slice(0, 7);
 
     for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
       const currency = group.default_currency ?? 'INR';
@@ -264,7 +269,14 @@ export function useHomeSummary(profileId: string | null) {
           if (snapshot.deletedAt || !snapshot.date.startsWith(monthPrefix)) continue;
           const myShare = snapshot.shares[mine.id] ?? 0n;
           if (myShare > 0n) {
-            monthByCurrency.set(currency, (monthByCurrency.get(currency) ?? 0n) + myShare);
+            // Key by the expense's own currency, not the group default: a USD
+            // expense in an INR group holds USD minor units, and bucketing it
+            // under INR would render those units labelled as rupees.
+            const spendCurrency = snapshot.currency;
+            monthByCurrency.set(
+              spendCurrency,
+              (monthByCurrency.get(spendCurrency) ?? 0n) + myShare,
+            );
           }
         }
       }
