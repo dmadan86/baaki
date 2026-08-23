@@ -1,0 +1,7 @@
+{
+  "name": "waves-watch",
+  "version": "1.0.0",
+  "description": "Native transport for the Waves smartwatch companions (WatchConnectivity / Wearable Data Layer).",
+  "main": "index.ts",
+  "private": true
+}
