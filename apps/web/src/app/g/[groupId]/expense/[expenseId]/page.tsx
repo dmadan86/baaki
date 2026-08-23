@@ -27,6 +27,7 @@ import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
 import { baaki } from '@/lib/baaki';
 import { money } from '@/lib/money';
+import { coordLabel, mapsUrl } from '@/lib/geo';
 import { fill } from '@/i18n';
 import { useStrings } from '@/i18n-context';
 
@@ -166,6 +167,31 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
             {money(BigInt(version.amount), currency, locale)}
           </div>
         </div>
+
+        {/* Where it happened (A43), when the author attached one — a link to
+            the point in maps. Absent otherwise. */}
+        {version.location ? (
+          <section className="panel">
+            <div className="panel-head">
+              <h2>{t.location.label}</h2>
+            </div>
+            <a
+              className="item"
+              href={mapsUrl(version.location)}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <span aria-hidden>📍</span>
+              <span className="grow">
+                <span className="title">
+                  {version.location.name?.trim() || coordLabel(version.location)}
+                </span>
+              </span>
+              <span className="muted">{t.location.openMap}</span>
+            </a>
+          </section>
+        ) : null}
 
         <section className="panel">
           <div className="panel-head">

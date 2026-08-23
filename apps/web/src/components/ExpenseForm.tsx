@@ -12,7 +12,7 @@
  * written (TDR §4). The server still recomputes and owns the answer.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -23,12 +23,14 @@ import {
   serialiseSplitParams,
   toMajorString,
   type CurrencyCode,
+  type ExpenseLocation,
   type SplitParams,
 } from '@waves/core';
 import { nameOf, type Group, type Member } from '@waves/api-client';
 
 import { baaki } from '@/lib/baaki';
 import { money as fmtMoney } from '@/lib/money';
+import { captureLocation, coordLabel, geolocationSupported, LocationFailure } from '@/lib/geo';
 import { fill } from '@/i18n';
 import { useStrings } from '@/i18n-context';
 
@@ -72,6 +74,36 @@ export function ExpenseForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Where the spend happened (A43). Optional and opt-in: null until the person
+  // clicks "Add location" and the browser grants it. Coordinates only on the web
+  // (no on-device reverse-geocode — see lib/geo).
+  const [location, setLocation] = useState<ExpenseLocation | null>(null);
+  const [locBusy, setLocBusy] = useState(false);
+  const [locFailure, setLocFailure] = useState<LocationFailure | null>(null);
+  // `navigator` does not exist during SSR, so reading it at render would make the
+  // server (no panel) and the first client render (panel) disagree — a hydration
+  // mismatch. useSyncExternalStore gives React a distinct server snapshot
+  // (false) and client snapshot, so hydration matches and the panel appears
+  // afterward on a browser that can locate. Support does not change at runtime,
+  // so the subscription is a no-op.
+  const canGeo = useSyncExternalStore(
+    () => () => {},
+    () => geolocationSupported,
+    () => false,
+  );
+
+  const addLocation = useCallback(async () => {
+    setLocFailure(null);
+    setLocBusy(true);
+    try {
+      const result = await captureLocation();
+      if (result.ok) setLocation(result.location);
+      else if (result.why !== LocationFailure.Unsupported) setLocFailure(result.why);
+    } finally {
+      setLocBusy(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -100,6 +132,7 @@ export function ExpenseForm({
           setExpenseDate(version.expense_date);
           setPayer(version.payers[0]?.member_id ?? null);
           setParticipants(version.shares.map((s) => s.member_id));
+          setLocation(version.location ?? null);
           try {
             // Deserialise the stored split back into the editor. Anything the web
             // cannot express (adjustment, itemised) drops to a read-only note.
@@ -248,6 +281,7 @@ export function ExpenseForm({
         participants,
         payers: { [payer]: amount },
         expectedShares: Object.fromEntries(preview),
+        location,
         clientMutationId: crypto.randomUUID(),
       });
       router.replace(`/g/${groupId}`);
@@ -266,6 +300,7 @@ export function ExpenseForm({
     expenseDate,
     currency,
     participants,
+    location,
     router,
     t.add.defaultDescription,
   ]);
@@ -333,6 +368,49 @@ export function ExpenseForm({
             <p className="error">{t.add.notAnAmount}</p>
           ) : null}
         </section>
+
+        {/* Where it happened (A43) — optional, opt-in, coordinates only on the
+            web (no on-device reverse-geocode). Absent when the browser has no
+            geolocation at all. */}
+        {canGeo ? (
+          <section className="panel">
+            <div className="panel-head">
+              <h2>{t.location.label}</h2>
+            </div>
+            {location ? (
+              <div className="row" style={{ alignItems: 'center', gap: 8 }}>
+                <span aria-hidden>📍</span>
+                <span style={{ flex: 1 }}>{location.name?.trim() || coordLabel(location)}</span>
+                <button
+                  type="button"
+                  className="btn soft"
+                  onClick={() => setLocation(null)}
+                  aria-label={t.location.remove}
+                >
+                  {t.location.remove}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn soft"
+                onClick={() => void addLocation()}
+                disabled={locBusy}
+              >
+                {locBusy ? t.location.adding : t.location.add}
+              </button>
+            )}
+            {locFailure === LocationFailure.Denied ? (
+              <p className="muted" style={{ marginTop: 6 }}>
+                {t.location.blocked}
+              </p>
+            ) : locFailure === LocationFailure.Unavailable ? (
+              <p className="muted" style={{ marginTop: 6 }}>
+                {t.location.unavailable}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="panel">
           <div className="panel-head">
