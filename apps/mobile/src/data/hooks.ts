@@ -233,6 +233,11 @@ export function useHomeSummary(profileId: string | null) {
     // are a pile of numbers with no units.
     const currencyByGroup = new Map<string, string>();
     const awaiting = new Set<string>();
+    // My own share of everything dated in the current month, per currency — the
+    // dashboard's "this month" slide. Summed from expense shares, not balances:
+    // it is money I am on the hook for this month regardless of who has paid.
+    const monthByCurrency = new Map<string, bigint>();
+    const monthPrefix = new Date().toISOString().slice(0, 7);
 
     for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
       const currency = group.default_currency ?? 'INR';
@@ -255,6 +260,13 @@ export function useHomeSummary(profileId: string | null) {
       if (mine) {
         byGroup.set(group.id, net.get(currency)?.get(mine.id) ?? 0n);
         currencyByGroup.set(group.id, currency);
+        for (const snapshot of snapshots) {
+          if (snapshot.deletedAt || !snapshot.date.startsWith(monthPrefix)) continue;
+          const myShare = snapshot.shares[mine.id] ?? 0n;
+          if (myShare > 0n) {
+            monthByCurrency.set(currency, (monthByCurrency.get(currency) ?? 0n) + myShare);
+          }
+        }
       }
 
       if (settlements.some((settlement) => settlement.status === SettlementStatus.Initiated)) {
@@ -268,7 +280,11 @@ export function useHomeSummary(profileId: string | null) {
       ),
     );
 
-    return { byGroup, membersByGroup, awaiting, totals };
+    const monthSpent = [...monthByCurrency]
+      .map(([currency, amount]) => ({ currency, amount }))
+      .sort((a, b) => (b.amount > a.amount ? 1 : b.amount < a.amount ? -1 : 0));
+
+    return { byGroup, membersByGroup, awaiting, totals, monthSpent };
   }, [mirror, queue, profileId]);
 
   return {
@@ -277,6 +293,8 @@ export function useHomeSummary(profileId: string | null) {
     memberCountFor: (groupId: string) => summary.membersByGroup.get(groupId)?.length ?? 0,
     hasPending: (groupId: string) => summary.awaiting.has(groupId),
     totals: summary.totals,
+    /** My share of this month's expenses, per currency, biggest first. */
+    monthSpent: summary.monthSpent,
     isLoading: !hydrated,
     isFetching: status === 'syncing',
     // The mirror hydrates from disk instantly (ADR-005), but that snapshot can

@@ -29,7 +29,7 @@ import {
 } from '@waves/ui';
 
 import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
-import { CountUpMoney, PressableScale } from '@/lib/anim';
+import { CountUpMoney } from '@/lib/anim';
 import { useMotion } from '@/lib/motion';
 import { useFlagEnabled } from '@/lib/flags';
 import { plural, useStrings, type UiStrings } from '@/i18n';
@@ -40,7 +40,6 @@ import { useDashboardTips } from '@/lib/tips';
 import { TourTarget, useTour } from '@/lib/tour';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { SkeletonList } from '@/components/Skeletons';
-import { GroupCard } from '@/components/GroupCard';
 import { useDefaultCurrency } from '@/lib/currency';
 import { QuickAddSheet, useQuickAddActions } from '@/components/QuickAddSheet';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
@@ -305,14 +304,13 @@ export default function HomeScreen() {
           ) : (
             <HeroDeck
               primary={headline}
-              trips={activeTrips}
-              totals={summary.totals.slice(1)}
+              monthSpent={summary.monthSpent}
               locale={locale}
               t={t}
               // The mirror hydrates instantly, so the deck shows at once. Until
               // this session's first sync settles the balance is provisional —
-              // shown in a neutral wash without the owe/owed colour, so it never
-              // flips red↔green when the sync reconciles (see BalanceCard).
+              // shown as "updating" rather than an owe/owed verdict, so the sub
+              // line never flips when the sync reconciles (see MetricSlide).
               provisional={summary.pendingFirstSync}
             />
           )}
@@ -369,9 +367,21 @@ export default function HomeScreen() {
             />
           </View>
         ) : (
-          <View>
-            <View>
-              {list.map((group) => {
+          <View style={{ gap: theme.spacing.md }}>
+            <Text variant="subheading">{t.yourGroups}</Text>
+            {/* The groups as one clean list on a single card — an emoji chip, the
+                name and its standing, the balance to the right — the banking-app
+                "recent" list the reference leans on, hairline-divided. */}
+            <View
+              style={{
+                backgroundColor: theme.color.surface,
+                borderRadius: theme.radius.lg,
+                borderWidth: 1,
+                borderColor: theme.color.border,
+                overflow: 'hidden',
+              }}
+            >
+              {list.map((group, index) => {
                 const members = summary.membersFor(group.id);
                 const balance = summary.balanceFor(group.id);
                 // A running trip earns a live "on trip" tag; failing that, a
@@ -380,9 +390,8 @@ export default function HomeScreen() {
                 const isNew = nowMs - Date.parse(group.created_at) < NEW_GROUP_WINDOW_MS;
                 const tag = onTrip ? t.tagOnTrip : isNew ? t.tagNew : null;
                 return (
-                  <GroupCard
+                  <GroupRow
                     key={group.id}
-                    id={group.id}
                     title={groupLabel(group, members, profile?.id)}
                     memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
                     coverEmoji={group.cover_emoji}
@@ -395,6 +404,7 @@ export default function HomeScreen() {
                     pendingLabel={summary.hasPending(group.id) ? t.pendingConfirmation : null}
                     tag={tag}
                     tagTone={onTrip ? 'positive' : 'brand'}
+                    divider={index > 0}
                     onPress={() => router.push(`/group/${group.id}`)}
                   />
                 );
@@ -904,6 +914,15 @@ function todayIn(timeZone: string): string {
 export const HERO_CARD_HEIGHT = 196;
 
 /**
+ * The balance card's saturated green wash — the reference design's signature
+ * "account card" surface. One green for both themes on purpose: like a physical
+ * bank card, the hero keeps its colour whether the app is light or dark, and its
+ * white ink clears AA on either stop. Money's own red/green stays for the ledger
+ * rows below, where owe-vs-owed has to be told apart at a glance.
+ */
+const HERO_GREEN = ['#1F6B49', '#0C3A27'] as const;
+
+/**
  * The one swipeable deck on the dashboard: a peek of the next card at the right
  * edge and a dot pager beneath. The balance rides at the front as the first
  * slide — the number you see on load, never behind a gesture on arrival — then
@@ -920,19 +939,18 @@ export const HERO_CARD_HEIGHT = 196;
  */
 function HeroDeck({
   primary,
-  trips,
-  totals,
+  monthSpent,
   locale,
   t,
   provisional,
 }: {
   primary: CurrencyTotal;
-  trips: readonly TripSlide[];
-  totals: readonly CurrencyTotal[];
+  /** My share of this month's spend, per currency (from useHomeSummary). */
+  monthSpent: readonly { currency: string; amount: bigint }[];
   locale: string;
   t: UiStrings;
-  /** True until this session's first sync settles: the balance is shown from the
-   *  local snapshot, neutral (no owe/owed colour) so it never flips on reconcile. */
+  /** True until this session's first sync settles: the net's direction line is
+   *  held at "updating" so it never flips owe↔owed when the sync reconciles. */
   provisional: boolean;
 }) {
   const theme = useTheme();
@@ -941,64 +959,73 @@ function HeroDeck({
   // Lazy-initialised once and never replaced (the same pattern the voice mic’s
   // animations use); a plain `useRef().current` read trips react-hooks/refs.
   const [scrollX] = useState(() => new Animated.Value(0));
+  const [page, setPage] = useState(0);
+
+  // The three balance views the dashboard leads with, one per swipe: where you
+  // stand overall (net), what is owed to you, and what you have spent this month
+  // — all in your primary currency, which is the one the headline is already in
+  // (no total across currencies, ADR-004).
+  const monthAmount = monthSpent.find((entry) => entry.currency === primary.currency)?.amount ?? 0n;
+  const netSub = provisional
+    ? t.dashHero.updating
+    : primary.net === 0n
+      ? t.allSettled
+      : primary.net > 0n
+        ? t.overallOwed
+        : t.overallOwe;
 
   const slides = [
     {
-      key: `cur:${primary.currency}:primary`,
-      node: <BalanceCard total={primary} locale={locale} t={t} provisional={provisional} />,
-    },
-    ...trips.map((trip) => ({
-      key: `trip:${trip.id}`,
-      node: <TripCard trip={trip} locale={locale} t={t} />,
-    })),
-    ...totals.map((total) => ({
-      key: `cur:${total.currency}`,
-      node: <BalanceCard total={total} locale={locale} t={t} provisional={provisional} />,
-    })),
-    {
-      key: 'act:scan',
+      key: 'net',
       node: (
-        <ActionSlide
-          icon="scan-outline"
-          title={t.dashHero.scanTitle}
-          body={t.dashHero.scanBody}
-          cta={t.dashHero.scanCta}
-          colors={theme.gradient.brand}
-          onPress={() => router.push(`/capture?scan=${Date.now()}`)}
+        <MetricSlide
+          label={`${t.yourBaaki} · ${primary.currency}`}
+          icon="wallet-outline"
+          amount={primary.net < 0n ? -primary.net : primary.net}
+          currency={primary.currency}
+          sub={netSub}
+          locale={locale}
         />
       ),
     },
     {
-      key: 'act:invite',
+      key: 'owed',
       node: (
-        <ActionSlide
-          icon="person-add-outline"
-          title={t.dashHero.inviteTitle}
-          body={t.dashHero.inviteBody}
-          cta={t.dashHero.inviteCta}
-          colors={theme.gradient.accent}
-          onPress={() => router.push('/friends/add-person')}
+        <MetricSlide
+          label={`${t.youAreOwed} · ${primary.currency}`}
+          icon="arrow-down-circle-outline"
+          amount={primary.owed}
+          currency={primary.currency}
+          sub={t.youAreOwed}
+          locale={locale}
+        />
+      ),
+    },
+    {
+      key: 'month',
+      node: (
+        <MetricSlide
+          label={`${t.dashHero.monthSpent} · ${primary.currency}`}
+          icon="calendar-outline"
+          amount={monthAmount}
+          currency={primary.currency}
+          sub={t.spent}
+          locale={locale}
         />
       ),
     },
   ];
 
   // The deck sits inside the screen's `spacing.xl` gutter. A card is that inner
-  // width less a sliver, so the next card's edge shows through on the right; the
-  // sliver collapses to nothing when there is only one slide to swipe to.
+  // width less a sliver, so the next card's edge shows through on the right.
   const available = width - theme.spacing.xl * 2;
   const gap = theme.spacing.md;
-  const peek = slides.length > 1 ? theme.spacing.xxl + theme.spacing.xs : 0;
+  const peek = theme.spacing.xxl + theme.spacing.xs;
   const cardWidth = available - peek;
   // Snap card-to-card; the trailing pad lets the last card reach its own snap
   // point instead of stopping a peek short of the edge.
   const snap = cardWidth + gap;
 
-  // Each card’s distance from centred, in scroll units — the three points a
-  // card passes through as it moves from the peek on the right, to centred, to
-  // the peek on the left. Interpolating on the live offset (not on a settled
-  // page) is what makes the growth track the finger instead of snapping after
-  // momentum ends: Apple’s “hint in the direction of the gesture”.
   const rangeFor = (index: number): number[] => [
     (index - 1) * snap,
     index * snap,
@@ -1015,6 +1042,9 @@ function HeroDeck({
         decelerationRate="fast"
         disableIntervalMomentum
         scrollEventThrottle={16}
+        onMomentumScrollEnd={(event) =>
+          setPage(Math.round(event.nativeEvent.contentOffset.x / snap))
+        }
         contentContainerStyle={{ gap, paddingRight: peek }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
           useNativeDriver: true,
@@ -1053,6 +1083,22 @@ function HeroDeck({
           </Animated.View>
         ))}
       </Animated.ScrollView>
+
+      {/* The dot pager — the "swipe me" signal the reference keeps under its
+          balance card. The active dot wears the hero green; the rest sit faint. */}
+      <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
+        {slides.map((slide, index) => (
+          <View
+            key={slide.key}
+            style={{
+              width: index === page ? 18 : 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: index === page ? HERO_GREEN[0] : theme.color.border,
+            }}
+          />
+        ))}
+      </Row>
     </View>
   );
 }
@@ -1093,13 +1139,6 @@ function HeroSkeleton() {
 }
 
 /**
- * A hero action card — the promo-style slide that rides at the tail of the deck.
- * It wears the same gradient wash as the balance cards so the deck reads as one
- * family, with an oversized icon bled into the bottom-right as the "illustration"
- * the reference design leans on, and a call to action beneath the copy. The whole
- * card is the tap target.
- */
-/**
  * The faint oversized icon bled off a hero card's bottom-right corner — the
  * "illustration" every slide in the deck carries, so the balance, trip and
  * action cards all read as one family rather than some plain and some drawn on.
@@ -1125,213 +1164,161 @@ function HeroBackdropIcon({ name }: { name: keyof typeof Ionicons.glyphMap }) {
   );
 }
 
-function ActionSlide({
-  icon,
-  title,
-  body,
-  cta,
-  colors,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  body: string;
-  cta: string;
-  colors: readonly string[];
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
-      <Gradient
-        colors={colors}
-        radius={theme.radius.lg}
-        style={{
-          padding: theme.spacing.xl,
-          height: HERO_CARD_HEIGHT,
-          justifyContent: 'space-between',
-          gap: theme.spacing.sm,
-          overflow: 'hidden',
-        }}
-      >
-        <HeroBackdropIcon name={icon} />
-        <View style={{ gap: 2, paddingRight: 72 }}>
-          <Text variant="subheading" tone="onBrand" numberOfLines={1}>
-            {title}
-          </Text>
-          <Text variant="micro" tone="onBrand" numberOfLines={2} style={{ opacity: 0.9 }}>
-            {body}
-          </Text>
-        </View>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-          <Text variant="micro" tone="onBrand" style={{ fontWeight: '700' }}>
-            {cta}
-          </Text>
-          <Ionicons name="arrow-forward" size={iconSize.base} color={theme.color.onBrand} />
-        </Row>
-      </Gradient>
-    </PressableScale>
-  );
-}
-
 /**
- * One balance card, coloured by its verdict: a teal wash when the net is owed
- * to you, red when you owe, and the neutral brand wash once everything is
- * settled — so the card's colour, not just its number, tells you where you
- * stand at a glance. The net big, the owed/owe split beneath.
+ * One balance-deck slide — a saturated green "account card" carrying a single
+ * figure: a label, the money big, and a one-line caption beneath. White ink on
+ * green in both themes, so it reads the same in light and dark like a bank card.
  */
-function BalanceCard({
-  total,
+function MetricSlide({
+  label,
+  icon,
+  amount,
+  currency,
+  sub,
   locale,
-  t,
-  provisional,
 }: {
-  total: CurrencyTotal;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  amount: bigint;
+  currency: string;
+  sub: string;
   locale: string;
-  t: UiStrings;
-  /** Before the session's first sync: keep the wash neutral and say "updating"
-   *  rather than owe/owed, so the card never flips colour when the sync lands. */
-  provisional?: boolean;
 }) {
   const theme = useTheme();
-  // Neutral (brand) wash while provisional: the owe/owed colour is exactly what
-  // must not appear from a stale snapshot and then flip. It firms up in place the
-  // moment the first sync settles.
-  const wash = provisional
-    ? theme.gradient.brand
-    : total.net > 0n
-      ? theme.gradient.positive
-      : total.net < 0n
-        ? theme.gradient.negative
-        : theme.gradient.brand;
   return (
     <Gradient
-      colors={wash}
+      colors={HERO_GREEN}
       radius={theme.radius.lg}
       style={{
         padding: theme.spacing.xl,
-        gap: theme.spacing.lg,
+        gap: theme.spacing.sm,
         height: HERO_CARD_HEIGHT,
         justifyContent: 'space-between',
         overflow: 'hidden',
       }}
     >
-      <HeroBackdropIcon name="wallet-outline" />
-      {/* Currencies are never summed (ADR-004), so the deck can carry a card per
-          currency. The code rides in the heading — not just a corner chip — so
-          two balance cards read as "your USD" and "your INR", never as two
-          identical "Your balance". */}
-      <Text variant="caption" tone="onBrand">
-        {`${t.yourBaaki} · ${total.currency}`}
+      <HeroBackdropIcon name={icon} />
+      <Text variant="caption" tone="onBrand" numberOfLines={1}>
+        {label}
       </Text>
-
-      <View>
+      <View style={{ gap: 2 }}>
         <CountUpMoney
-          amount={total.net < 0n ? -total.net : total.net}
-          currency={total.currency as never}
+          amount={amount}
+          currency={currency as never}
           locale={locale}
           tone="onBrand"
           style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
         />
-        <Text variant="caption" tone="onBrand" style={provisional ? { opacity: 0.8 } : undefined}>
-          {provisional
-            ? t.dashHero.updating
-            : total.net === 0n
-              ? t.allSettled
-              : total.net > 0n
-                ? t.overallOwed
-                : t.overallOwe}
+        <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+          {sub}
         </Text>
       </View>
-
-      <Row style={{ gap: theme.spacing.xxl }}>
-        <View>
-          <Text variant="micro" tone="onBrand">
-            {t.youAreOwed}
-          </Text>
-          <CountUpMoney
-            amount={total.owed}
-            currency={total.currency as never}
-            locale={locale}
-            tone="onBrand"
-          />
-        </View>
-        <View>
-          <Text variant="micro" tone="onBrand">
-            {t.youOwe}
-          </Text>
-          <CountUpMoney
-            amount={total.owing}
-            currency={total.currency as never}
-            locale={locale}
-            tone="onBrand"
-          />
-        </View>
-      </Row>
     </Gradient>
   );
 }
 
 /**
- * A running trip's card — the accent wash to set it apart from the brand
- * balance cards, its day out of the total big, its standing beneath. The whole
- * card is the way into the planner that the group's ••• menu otherwise hides.
+ * One group as a clean list row — an emoji chip, the name over its member count
+ * and standing, the balance to the right coloured by who owes whom. The banking
+ * "recent" row applied to a group; the whole row is the tap into the group.
  */
-function TripCard({ trip, locale, t }: { trip: TripSlide; locale: string; t: UiStrings }) {
+function GroupRow({
+  title,
+  memberLabel,
+  coverEmoji,
+  balance,
+  currency,
+  locale,
+  statusLabel,
+  pendingLabel,
+  tag,
+  tagTone,
+  divider,
+  onPress,
+}: {
+  title: string;
+  memberLabel: string;
+  coverEmoji: string | null;
+  balance: bigint;
+  currency: string;
+  locale: string;
+  statusLabel: string;
+  pendingLabel: string | null;
+  tag: string | null;
+  tagTone: 'positive' | 'brand';
+  /** A hairline above the row — every row but the first, so the card reads as
+      one divided list rather than a stack of loose cards. */
+  divider: boolean;
+  onPress: () => void;
+}) {
   const theme = useTheme();
-  const net = trip.balance;
+  // Money's own colour, kept for the ledger even though the hero is green:
+  // owed-to-you positive, you-owe negative, square is quiet.
+  const tone = balance === 0n ? 'muted' : balance > 0n ? 'positive' : 'negative';
   return (
-    <PressableScale
-      onPress={() => router.push(`/group/${trip.id}/plan`)}
+    <Pressable
       accessibilityRole="button"
-      accessibilityLabel={trip.title}
+      accessibilityLabel={`${title}. ${statusLabel}`}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+        borderTopWidth: divider ? 1 : 0,
+        borderTopColor: theme.color.border,
+        opacity: pressed ? 0.6 : 1,
+      })}
     >
-      <Gradient
-        colors={theme.gradient.accent}
-        radius={theme.radius.lg}
+      <View
         style={{
-          padding: theme.spacing.xl,
-          gap: theme.spacing.sm,
-          height: HERO_CARD_HEIGHT,
-          justifyContent: 'space-between',
-          overflow: 'hidden',
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: theme.color.surfaceMuted,
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <HeroBackdropIcon name="airplane-outline" />
-        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Row style={{ gap: theme.spacing.sm, alignItems: 'center', flex: 1 }}>
-            <Text variant="caption">{trip.coverEmoji ?? '🧳'}</Text>
-            <Text variant="caption" tone="onBrand" numberOfLines={1} style={{ flex: 1 }}>
-              {trip.title}
-            </Text>
-          </Row>
-          <Text variant="micro" tone="onBrand">
-            {trip.currency}
+        <Text style={{ fontSize: 20 }}>{coverEmoji ?? '👥'}</Text>
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+          <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, fontWeight: '600' }}>
+            {title}
           </Text>
+          {tag ? (
+            <View
+              style={{
+                paddingHorizontal: 6,
+                paddingVertical: 1,
+                borderRadius: 6,
+                backgroundColor:
+                  tagTone === 'positive' ? theme.color.positiveSoft : theme.color.brandSoft,
+              }}
+            >
+              <Text
+                variant="micro"
+                tone={tagTone === 'positive' ? 'positive' : 'brand'}
+                style={{ fontWeight: '700' }}
+              >
+                {tag}
+              </Text>
+            </View>
+          ) : null}
         </Row>
-
-        <Text tone="onBrand" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700' }}>
-          {t.tripDay.replace('{day}', String(trip.day)).replace('{total}', String(trip.total))}
+        <Text variant="caption" tone="muted" numberOfLines={1}>
+          {pendingLabel ?? `${memberLabel} · ${statusLabel}`}
         </Text>
-
-        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <View>
-            <Text variant="micro" tone="onBrand">
-              {net === 0n ? t.allSettled : net > 0n ? t.youAreOwed : t.youOwe}
-            </Text>
-            <CountUpMoney
-              amount={net < 0n ? -net : net}
-              currency={trip.currency as never}
-              locale={locale}
-              tone="onBrand"
-              variant="caption"
-            />
-          </View>
-          <Text variant="micro" tone="onBrand">
-            {t.plan}
-          </Text>
-        </Row>
-      </Gradient>
-    </PressableScale>
+      </View>
+      <CountUpMoney
+        amount={balance < 0n ? -balance : balance}
+        currency={currency as never}
+        locale={locale}
+        tone={tone}
+        style={{ fontWeight: '700' }}
+      />
+    </Pressable>
   );
 }
