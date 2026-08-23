@@ -1,0 +1,24 @@
+# Home-screen widgets — the deep links they fire.
+#
+# The three widgets (plugins/withWavesWidgets.js on Android, targets/widgets on
+# iOS) are pure launchers: each carries a `waves://` deep link and nothing else.
+# Maestro can't tap a real home-screen widget, so this drives the exact links
+# the widgets hold and asserts each lands on the right screen — which is the
+# whole of a launcher widget's behaviour. Fixture: e2e/seed-e2e.mjs.
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+
+# Quick-add-expense widget → /capture
+- openLink: waves:///capture
+- assertVisible: 'Capture an expense'
+
+# Voice widget → /voice
+- openLink: waves:///voice
+- assertVisible: 'Speak an expense'
+# The scan-receipt widget (waves:///capture?scan=1) is deliberately not driven
+# here: it opens the capture screen and immediately hands off to the OS document
+# scanner, which lives outside the app and cannot be driven or asserted by
+# Maestro. A soft (optional) assertion would pass whether or not anything
+# happened, so it is verified manually on a device instead. The other two
+# widgets above are the launcher behaviour this flow can prove end to end.

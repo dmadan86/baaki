@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Receives messages the Wear app sends on the /waves path and hands them
+         to the Expo module, which forwards them to JS. -->
+    <service
+      android:name="expo.modules.waveswatch.WavesWatchListenerService"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+        <data android:scheme="wear" android:host="*" android:pathPrefix="/waves" />
+      </intent-filter>
+    </service>
+  </application>
+</manifest>

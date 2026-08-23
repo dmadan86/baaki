@@ -523,6 +523,11 @@ function ProfileForm() {
               route: '/settings/shortcut',
             },
             {
+              icon: 'watch-outline',
+              label: t.recent.title,
+              route: '/settings/recent',
+            },
+            {
               icon: 'cloud-outline',
               label: t.sync.title,
               hint: syncNetworkSummary,

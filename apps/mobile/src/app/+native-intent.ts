@@ -30,6 +30,20 @@ export function redirectSystemPath({ path }: { path: string; initial: boolean })
     if (url.hostname === 'auth' || firstSegment === 'auth') {
       return '/';
     }
+    // The scan-receipt home-screen widget carries a fixed `?scan=1` — its link
+    // is baked at build time and cannot mint a fresh value per tap. The capture
+    // screen's consume-once guard keys off the nonce *value*, so a constant one
+    // fires the scanner only on the first tap of a warm process and silently
+    // drops to the plain form thereafter. Rewriting to a fresh `Date.now()`
+    // here — the boundary every incoming link crosses, cold or warm — gives
+    // each tap a unique nonce while still letting the guard swallow the
+    // duplicate Android delivers when it returns from the native camera.
+    if (
+      (url.hostname === 'capture' || firstSegment === 'capture') &&
+      url.searchParams.has('scan')
+    ) {
+      return `/capture?scan=${Date.now()}`;
+    }
     return path;
   } catch {
     return path;

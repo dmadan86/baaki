@@ -416,6 +416,14 @@ export interface UiStrings {
     doubleTapExplain: string;
     iconHint: string;
   };
+  recent: {
+    title: string;
+    intro: string;
+    countLabel: string;
+    /** `{count}` interpolated with the chosen size. */
+    countOption: string;
+    watchHint: string;
+  };
   motion: {
     title: string;
     animateBetweenScreens: string;
@@ -789,6 +797,8 @@ export interface UiStrings {
     switchToSignUp: string;
     continueGoogle: string;
     signInGoogle: string;
+    continueApple: string;
+    signInApple: string;
     orSignInWith: string;
     /** The word on the hairline between the provider buttons and the form. */
     or: string;
@@ -939,6 +949,10 @@ export interface UiStrings {
     assign: string;
     assignTitle: string;
     assignBody: string;
+    assignSearch: string;
+    assignNew: string;
+    assignNewBody: string;
+    assignNoMatch: string;
     noGroups: string;
     delete: string;
     deleteConfirm: string;
@@ -1944,6 +1958,13 @@ const en: UiStrings = {
     doubleTapExplain: 'Double-tap anywhere with two fingers to fire the shortcut.',
     iconHint: 'Long-press the Waves icon on your home screen for the same shortcut.',
   },
+  recent: {
+    title: 'Recent on your watch',
+    intro: 'How many recent expenses your paired watch shows at a glance.',
+    countLabel: 'Show',
+    countOption: '{count} expenses',
+    watchHint: 'This applies to the Apple Watch and Wear OS apps.',
+  },
   motion: {
     title: 'Motion',
     animateBetweenScreens: 'Animate between screens',
@@ -2313,6 +2334,8 @@ const en: UiStrings = {
     switchToSignUp: 'New here? Create an account',
     continueGoogle: 'Continue with Google',
     signInGoogle: 'Sign in with Google',
+    continueApple: 'Continue with Apple',
+    signInApple: 'Sign in with Apple',
     orSignInWith: 'or sign in with',
     or: 'or',
     continueEmail: 'Continue with email',
@@ -2452,6 +2475,10 @@ const en: UiStrings = {
     assign: 'Assign to group',
     assignTitle: 'Assign to a group',
     assignBody: 'Pick the group this belongs to. You can set who paid and how it splits next.',
+    assignSearch: 'Search groups',
+    assignNew: 'New group',
+    assignNewBody: 'Create one and add this to it',
+    assignNoMatch: 'No groups match',
     noGroups: 'You have no groups yet. Make one first, then assign this to it.',
     delete: 'Delete',
     deleteConfirm: 'Delete this capture? The amount and any bill photo go with it.',
@@ -3520,6 +3547,13 @@ const ta: UiStrings = {
     doubleTapExplain: 'குறுக்குவழியைத் தூண்ட எங்கும் இரு விரல்களால் இரட்டைத் தட்டவும்.',
     iconHint: 'அதே குறுக்குவழிக்கு முகப்புத் திரையில் Waves சின்னத்தை நீண்ட நேரம் அழுத்தவும்.',
   },
+  recent: {
+    title: 'கடிகாரத்தில் சமீபத்தியவை',
+    intro: 'இணைந்த கடிகாரம் ஒரே பார்வையில் காட்டும் சமீபத்திய செலவுகளின் எண்ணிக்கை.',
+    countLabel: 'காட்டு',
+    countOption: '{count} செலவுகள்',
+    watchHint: 'இது Apple Watch மற்றும் Wear OS செயலிகளுக்குப் பொருந்தும்.',
+  },
   motion: {
     title: 'அசைவு',
     animateBetweenScreens: 'திரைகளுக்கு இடையே அசைவு',
@@ -3908,6 +3942,8 @@ const ta: UiStrings = {
     switchToSignUp: 'புதியவரா? கணக்கை உருவாக்கவும்',
     continueGoogle: 'Google மூலம் தொடர்',
     signInGoogle: 'Google மூலம் உள்நுழை',
+    continueApple: 'Apple மூலம் தொடர்',
+    signInApple: 'Apple மூலம் உள்நுழை',
     orSignInWith: 'அல்லது இதன் மூலம் உள்நுழை',
     or: 'அல்லது',
     continueEmail: 'மின்னஞ்சலில் தொடர்க',
@@ -4055,6 +4091,10 @@ const ta: UiStrings = {
     assignTitle: 'ஒரு குழுவுக்கு ஒதுக்குங்கள்',
     assignBody:
       'இது எந்தக் குழுவுக்கு உரியது என்பதைத் தேர்ந்தெடுங்கள். யார் கட்டினார், எப்படிப் பிரிக்கிறது என்பதை அடுத்து அமைக்கலாம்.',
+    assignSearch: 'குழுக்களைத் தேடு',
+    assignNew: 'புதிய குழு',
+    assignNewBody: 'ஒன்றை உருவாக்கி இதை அதில் சேருங்கள்',
+    assignNoMatch: 'எந்தக் குழுவும் பொருந்தவில்லை',
     noGroups: 'உங்களிடம் இன்னும் குழுக்கள் இல்லை. முதலில் ஒன்றை உருவாக்கி, பிறகு இதை ஒதுக்குங்கள்.',
     delete: 'நீக்கு',
     deleteConfirm: 'இந்தப் பதிவை நீக்கவா? தொகையும் ரசீதுப் படமும் சேர்ந்து போகும்.',
@@ -5156,6 +5196,13 @@ const hi: UiStrings = {
     doubleTapExplain: 'शॉर्टकट चलाने के लिए कहीं भी दो उँगलियों से डबल-टैप करें।',
     iconHint: 'वही शॉर्टकट पाने के लिए होम स्क्रीन पर Waves आइकन को देर तक दबाएँ।',
   },
+  recent: {
+    title: 'घड़ी पर हाल के खर्च',
+    intro: 'आपकी जुड़ी हुई घड़ी एक नज़र में कितने हाल के खर्च दिखाए।',
+    countLabel: 'दिखाएँ',
+    countOption: '{count} खर्च',
+    watchHint: 'यह Apple Watch और Wear OS ऐप पर लागू होता है।',
+  },
   motion: {
     title: 'गति',
     animateBetweenScreens: 'स्क्रीनों के बीच एनिमेशन',
@@ -5526,6 +5573,8 @@ const hi: UiStrings = {
     switchToSignUp: 'नए हैं? खाता बनाएँ',
     continueGoogle: 'Google से जारी रखें',
     signInGoogle: 'Google से साइन इन करें',
+    continueApple: 'Apple से जारी रखें',
+    signInApple: 'Apple से साइन इन करें',
     orSignInWith: 'या इसके ज़रिए साइन इन करें',
     or: 'या',
     continueEmail: 'ईमेल से जारी रखें',
@@ -5667,6 +5716,10 @@ const hi: UiStrings = {
     assign: 'समूह को सौंपें',
     assignTitle: 'किसी समूह को सौंपें',
     assignBody: 'चुनें कि यह किस समूह का है। किसने चुकाया और कैसे बँटेगा, यह आगे तय कर सकते हैं।',
+    assignSearch: 'समूह खोजें',
+    assignNew: 'नया समूह',
+    assignNewBody: 'एक बनाएँ और इसे उसमें जोड़ें',
+    assignNoMatch: 'कोई समूह मेल नहीं खाता',
     noGroups: 'आपके पास अभी कोई समूह नहीं है। पहले एक बनाएँ, फिर इसे उसमें सौंपें।',
     delete: 'हटाएँ',
     deleteConfirm: 'यह कैप्चर हटाएँ? राशि और बिल की फ़ोटो भी चली जाएगी।',
@@ -6744,6 +6797,13 @@ const ar: UiStrings = {
     doubleTapExplain: 'انقر نقرة مزدوجة بإصبعين في أي مكان لتشغيل الاختصار.',
     iconHint: 'اضغط مطوّلًا على أيقونة Waves في الشاشة الرئيسية للاختصار نفسه.',
   },
+  recent: {
+    title: 'الأحدث على ساعتك',
+    intro: 'عدد المصروفات الأخيرة التي تعرضها ساعتك المقترنة بنظرة واحدة.',
+    countLabel: 'أظهِر',
+    countOption: '{count} مصروفات',
+    watchHint: 'ينطبق هذا على تطبيقي Apple Watch وWear OS.',
+  },
   motion: {
     title: 'الحركة',
     animateBetweenScreens: 'حركة بين الشاشات',
@@ -7128,6 +7188,8 @@ const ar: UiStrings = {
     switchToSignUp: 'جديد هنا؟ أنشئ حسابًا',
     continueGoogle: 'المتابعة عبر Google',
     signInGoogle: 'تسجيل الدخول عبر Google',
+    continueApple: 'المتابعة عبر Apple',
+    signInApple: 'تسجيل الدخول عبر Apple',
     orSignInWith: 'أو سجّل الدخول عبر',
     or: 'أو',
     continueEmail: 'المتابعة بالبريد الإلكتروني',
@@ -7268,6 +7330,10 @@ const ar: UiStrings = {
     assign: 'أسنِد إلى مجموعة',
     assignTitle: 'أسنِد إلى مجموعة',
     assignBody: 'اختر المجموعة التي ينتمي إليها. يمكنك تحديد من دفع وكيفية التقسيم بعد ذلك.',
+    assignSearch: 'ابحث عن المجموعات',
+    assignNew: 'مجموعة جديدة',
+    assignNewBody: 'أنشئ واحدة وأضف هذا إليها',
+    assignNoMatch: 'لا توجد مجموعات مطابقة',
     noGroups: 'ليست لديك مجموعات بعد. أنشئ واحدة أولًا ثم أسنِد هذا إليها.',
     delete: 'حذف',
     deleteConfirm: 'حذف هذا الالتقاط؟ سيُحذف المبلغ وصورة الفاتورة معه.',

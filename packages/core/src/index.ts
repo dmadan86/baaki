@@ -26,3 +26,4 @@ export * from './version/index';
 export * from './billing/index';
 export * from './session/index';
 export * from './trip/index';
+export * from './watch/index';

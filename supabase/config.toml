@@ -110,6 +110,19 @@ enabled = true
 client_id = "755904924475-vkp5ga0cpt58fr6patnst4e4r02cmhcv.apps.googleusercontent.com"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 
+# Sign in with Apple. Two audiences share one block:
+#   - the native bundle id (`app.waves.mobile`) authorizes the iOS id-token flow
+#     (AppleAuthentication.signInAsync -> supabase.auth.signInWithIdToken),
+#   - the Services ID authorizes the browser-redirect fallback used on Android
+#     and web (signInWithOAuth via `oauthThroughBrowser`).
+# `secret` is the ES256 client-secret JWT signed with the Sign in with Apple key
+# (.p8); regenerate it before it expires (max 6 months). Replace <services-id>
+# with the real Services ID once created in the Apple Developer portal.
+[auth.external.apple]
+enabled = true
+client_id = "app.waves.mobile,<services-id>"
+secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
+
 [edge_runtime]
 enabled = true
 policy = "oneshot"

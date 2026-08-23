@@ -13,11 +13,13 @@ import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  Avatar,
+  Badge,
   Button,
-  Card,
   directionalIcon,
   EmptyState,
   IconButton,
@@ -26,6 +28,7 @@ import {
   Row,
   Screen,
   Text,
+  tintForKey,
   useTabBarClearance,
   useTheme,
 } from '@waves/ui';
@@ -37,7 +40,7 @@ import { useSignedUrl } from '@/lib/useSignedUrl';
 import { dayHeading, groupByDay } from '@/data/activity';
 import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
-import { useStrings } from '@/i18n';
+import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
@@ -81,9 +84,83 @@ function CaptureThumb({ path, size }: { path: string; size: number }) {
   );
 }
 
+/**
+ * One capture as a flat list row, the WhatsApp/GroupCard grammar the rest of the
+ * app speaks: a leading identity glyph (the bill's own thumbnail, or its category
+ * colour), the note over a muted date line, and the amount at the trailing edge.
+ *
+ * The whole row taps to assign — the one thing you do with a capture — so the
+ * screen sheds the full-width button it used to stack under every card. Delete
+ * is the quiet trailing control, kept out of the tap target by its own hitbox.
+ */
+function CaptureListRow({
+  capture,
+  locale,
+  t,
+  onAssign,
+  onDelete,
+}: {
+  capture: CaptureRow;
+  locale: string;
+  t: UiStrings;
+  onAssign: () => void;
+  onDelete: () => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+  // The note names the spend; with none, its category does; with neither, it is
+  // simply still unassigned. The amount always sits at the trailing edge, so the
+  // title never has to carry it.
+  const categoryLabel = capture.category
+    ? (t.categories as Record<string, string>)[capture.category]
+    : undefined;
+  const title = capture.description?.trim() || categoryLabel || t.captures.unassigned;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${t.captures.assign}`}
+      onPress={onAssign}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <Row
+        style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
+      >
+        {capture.photo_path ? (
+          <CaptureThumb path={capture.photo_path} size={46} />
+        ) : (
+          <CategoryBadge category={capture.category} meta={capture.category_meta} size={46} />
+        )}
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="subheading" numberOfLines={1}>
+            {title}
+          </Text>
+          <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
+            <Text variant="micro" tone="muted">
+              {shortDate(capture.expense_date, locale)}
+            </Text>
+            {capture.pending ? <Badge label={t.captures.notSynced} tone="brand" /> : null}
+          </Row>
+        </View>
+
+        <MoneyText
+          amount={BigInt(capture.amount)}
+          currency={capture.currency}
+          locale={locale}
+          variant="subheading"
+        />
+        <IconButton label={t.captures.delete} onPress={onDelete}>
+          <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
+        </IconButton>
+      </Row>
+    </Pressable>
+  );
+}
+
 export default function CapturesScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const pull = usePullRefresh();
   const { profile } = useAuth();
@@ -95,6 +172,9 @@ export default function CapturesScreen() {
 
   // Which capture is being assigned, if any — drives the group-picker sheet.
   const [assigning, setAssigning] = useState<CaptureRow | null>(null);
+  // The picker's own search text, so a long group list stays one tap from any
+  // group. Cleared whenever the sheet opens on a fresh capture.
+  const [query, setQuery] = useState('');
 
   // Only groups the viewer still belongs to belong in the picker. Leaving a
   // group sets `left_at`; it does not remove the group row, so a left (or
@@ -110,13 +190,38 @@ export default function CapturesScreen() {
     [groups.data, summary, profile?.id],
   );
 
+  // Group rows matching the picker's search text, by name. Only worth showing a
+  // search field once the list is long enough to scroll (below); until then the
+  // memo just passes every group through.
+  const visibleGroups = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return assignableGroups;
+    return assignableGroups.filter((group) =>
+      groupLabel(group, summary.membersFor(group.id), profile?.id).toLowerCase().includes(needle),
+    );
+  }, [assignableGroups, query, summary, profile?.id]);
+
+  // Past this many groups the picker earns a search field; a short list is
+  // faster to eyeball than to type through.
+  const showSearch = assignableGroups.length > 6;
+
   const rows = captures.data ?? [];
+
+  const openAssign = (capture: CaptureRow): void => {
+    setQuery('');
+    setAssigning(capture);
+  };
+
+  const closeAssign = (): void => {
+    setAssigning(null);
+    setQuery('');
+  };
 
   // Hand the capture's own values to the add-expense form as prefill, and carry
   // its id so that saving there can close the capture (useAssignCapture). The
   // amount travels as the same minor-unit string the row stores.
   const assignTo = (capture: CaptureRow, group: GroupRow): void => {
-    setAssigning(null);
+    closeAssign();
     router.push({
       pathname: '/group/[id]/add-expense',
       params: {
@@ -135,7 +240,18 @@ export default function CapturesScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+      {/* The glyph-plus-big-title mark the Activity and Inbox screens wear, so
+          this reads as the sibling it is — the tray icon ties it to the Inbox
+          family. Captures is pushed (not a bar destination), so it keeps a back
+          chevron the tab screens don't need; the add stays at the trailing edge. */}
+      <Row
+        style={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.md,
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+        }}
+      >
         <IconButton label={t.common.back} onPress={() => router.back()}>
           <Ionicons
             name={directionalIcon('chevron-back')}
@@ -143,9 +259,10 @@ export default function CapturesScreen() {
             color={theme.color.text}
           />
         </IconButton>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text variant="heading">{t.captures.title}</Text>
-        </View>
+        <Ionicons name="file-tray-full-outline" size={iconSize.xl} color={theme.color.brand} />
+        <Text variant="title" style={{ flex: 1 }}>
+          {t.captures.title}
+        </Text>
         <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture')}>
           <Ionicons name="add" size={iconSize.xxl} color={theme.color.brand} />
         </IconButton>
@@ -183,74 +300,40 @@ export default function CapturesScreen() {
             />
           </View>
         ) : (
-          // Day-grouped, same as the activity feed: a heading per calendar day
-          // then that day's cards, so the inbox reads as one system with the
-          // activity tab rather than a flat pile of receipts.
+          // Day-grouped, same as the activity feed: an uppercase heading per
+          // calendar day, then that day's captures as flat tappable rows — the
+          // WhatsApp/GroupCard grammar the rest of the app uses, not the chunky
+          // action-cards this screen used to stack. The whole row taps to assign
+          // (the primary act on a capture); delete sits as a quiet trailing
+          // control, the way the app carries secondary row actions.
           <View style={{ gap: theme.spacing.lg }}>
             {groupByDay(rows).map((section) => (
-              <View key={section.key} style={{ gap: theme.spacing.md }}>
-                <Text variant="micro" tone="muted" style={{ textTransform: 'uppercase' }}>
+              <View key={section.key}>
+                <Text
+                  variant="micro"
+                  tone="muted"
+                  style={{ textTransform: 'uppercase', marginBottom: theme.spacing.xs }}
+                >
                   {dayHeading(locale, section.entries[0]!.created_at)}
                 </Text>
                 {section.entries.map((capture) => (
-                  <Card key={capture.id} style={{ gap: theme.spacing.md }}>
-                    <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                      {capture.photo_path ? (
-                        <CaptureThumb path={capture.photo_path} size={46} />
-                      ) : (
-                        <CategoryBadge
-                          category={capture.category}
-                          meta={capture.category_meta}
-                          size={46}
-                        />
-                      )}
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <MoneyText
-                          amount={BigInt(capture.amount)}
-                          currency={capture.currency}
-                          locale={locale}
-                          variant="subheading"
-                        />
-                        {capture.description ? (
-                          <Text variant="caption" tone="muted" numberOfLines={1}>
-                            {capture.description}
-                          </Text>
-                        ) : null}
-                        <Text variant="micro" tone="muted">
-                          {shortDate(capture.expense_date, locale)}
-                          {capture.pending ? ` · ${t.captures.notSynced}` : ''}
-                        </Text>
-                      </View>
-                    </Row>
-
-                    <Row style={{ gap: theme.spacing.md }}>
-                      <Button
-                        label={t.captures.assign}
-                        size="sm"
-                        onPress={() => setAssigning(capture)}
-                        style={{ flex: 1 }}
-                      />
-                      <IconButton
-                        label={t.captures.delete}
-                        onPress={() =>
-                          Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
-                            { text: t.common.cancel, style: 'cancel' },
-                            {
-                              text: t.captures.delete,
-                              style: 'destructive',
-                              onPress: () => void deleteCapture.mutateAsync(capture.id),
-                            },
-                          ])
-                        }
-                      >
-                        <Ionicons
-                          name="trash-outline"
-                          size={iconSize.lg}
-                          color={theme.color.textMuted}
-                        />
-                      </IconButton>
-                    </Row>
-                  </Card>
+                  <CaptureListRow
+                    key={capture.id}
+                    capture={capture}
+                    locale={locale}
+                    t={t}
+                    onAssign={() => openAssign(capture)}
+                    onDelete={() =>
+                      Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
+                        { text: t.common.cancel, style: 'cancel' },
+                        {
+                          text: t.captures.delete,
+                          style: 'destructive',
+                          onPress: () => void deleteCapture.mutateAsync(capture.id),
+                        },
+                      ])
+                    }
+                  />
                 ))}
               </View>
             ))}
@@ -260,18 +343,24 @@ export default function CapturesScreen() {
 
       {/* The group picker, as a sheet over the list rather than a screen away —
           assigning is one tap and one choice, and a whole route for it would be
-          a scroll and a back button around a short list. */}
-      {assigning ? (
+          a scroll and a back button around a short list.
+
+          A real Modal, not an absolute overlay: the one bottom bar (`AppTabBar`)
+          is rendered at the root over the whole stack, so an in-tree overlay
+          paints *under* it and the sheet's lower rows hide behind the nav bar.
+          A Modal floats above everything, the way the other sheets do. */}
+      <Modal
+        transparent
+        visible={assigning !== null}
+        animationType="fade"
+        onRequestClose={closeAssign}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t.common.close}
-          onPress={() => setAssigning(null)}
+          onPress={closeAssign}
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            flex: 1,
             backgroundColor: 'rgba(10, 10, 26, 0.55)',
             justifyContent: 'flex-end',
           }}
@@ -279,37 +368,169 @@ export default function CapturesScreen() {
           <Pressable
             // Swallow taps on the sheet itself; only the backdrop dismisses.
             onPress={() => {}}
+            accessibilityViewIsModal
             style={{
               backgroundColor: theme.color.surface,
-              borderTopLeftRadius: theme.radius.lg,
-              borderTopRightRadius: theme.radius.lg,
-              padding: theme.spacing.xl,
+              borderTopLeftRadius: theme.radius.xxl,
+              borderTopRightRadius: theme.radius.xxl,
+              paddingHorizontal: theme.spacing.xl,
+              paddingTop: theme.spacing.md,
+              // Clear the Android gesture/nav bar so the last group row is not
+              // hidden behind it.
+              paddingBottom: theme.spacing.md + insets.bottom,
               gap: theme.spacing.md,
-              maxHeight: '70%',
+              maxHeight: '80%',
+              ...theme.shadow.lifted,
             }}
           >
+            {/* The grab handle — the visual grammar of a sheet you can pull down,
+                the same one every other sheet in the app wears. */}
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: theme.color.border,
+                marginBottom: theme.spacing.xs,
+              }}
+            />
+
             <Text variant="heading">{t.captures.assignTitle}</Text>
+
+            {/* What is being placed, so the sheet stands on its own over the
+                list it hides: the amount and its note beside the capture's own
+                glyph. */}
+            {assigning ? (
+              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                <CategoryBadge
+                  category={assigning.category}
+                  meta={assigning.category_meta}
+                  size={38}
+                />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <MoneyText
+                    amount={BigInt(assigning.amount)}
+                    currency={assigning.currency}
+                    locale={locale}
+                    variant="subheading"
+                  />
+                  {assigning.description ? (
+                    <Text variant="caption" tone="muted" numberOfLines={1}>
+                      {assigning.description}
+                    </Text>
+                  ) : null}
+                </View>
+              </Row>
+            ) : null}
+
             <Text variant="caption" tone="muted">
               {t.captures.assignBody}
             </Text>
 
-            {assignableGroups.length === 0 ? (
-              <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.md }}>
-                {t.captures.noGroups}
-              </Text>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <View style={{ gap: theme.spacing.xs }}>
-                  {assignableGroups.map((group) => (
+            {/* Search only earns its place on a long list (see `showSearch`);
+                a rounded field with a leading glyph, the picker grammar Mobbin
+                shows across Starling/Swarm/Canva. */}
+            {showSearch ? (
+              <Row
+                style={{
+                  gap: theme.spacing.sm,
+                  alignItems: 'center',
+                  backgroundColor: theme.color.surfaceMuted,
+                  borderRadius: theme.radius.md,
+                  paddingHorizontal: theme.spacing.md,
+                }}
+              >
+                <Ionicons name="search" size={iconSize.md} color={theme.color.textFaint} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder={t.captures.assignSearch}
+                  placeholderTextColor={theme.color.textFaint}
+                  accessibilityLabel={t.captures.assignSearch}
+                  autoCorrect={false}
+                  style={{
+                    flex: 1,
+                    fontSize: 16,
+                    color: theme.color.text,
+                    paddingVertical: theme.spacing.md,
+                  }}
+                />
+              </Row>
+            ) : null}
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={{ flexShrink: 1 }}
+            >
+              {/* Start a group and drop this into it — so a capture with no
+                  fitting group is no longer a dead end (it used to only say
+                  "make one first"). Mirrors the "Create group" affordance the
+                  Wise/Starling pickers lead with. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.captures.assignNew}
+                onPress={() => {
+                  closeAssign();
+                  router.push('/new-group');
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.md,
+                  paddingVertical: theme.spacing.md,
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.color.surfaceMuted,
+                    borderWidth: 1,
+                    borderColor: theme.color.border,
+                    borderStyle: 'dashed',
+                  }}
+                >
+                  <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="subheading" numberOfLines={1}>
+                    {t.captures.assignNew}
+                  </Text>
+                  <Text variant="caption" tone="muted" numberOfLines={1}>
+                    {t.captures.assignNewBody}
+                  </Text>
+                </View>
+              </Pressable>
+
+              <View style={{ height: 1, backgroundColor: theme.color.border }} />
+
+              {assignableGroups.length === 0 ? (
+                <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.lg }}>
+                  {t.captures.noGroups}
+                </Text>
+              ) : visibleGroups.length === 0 ? (
+                <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.lg }}>
+                  {t.captures.assignNoMatch}
+                </Text>
+              ) : (
+                visibleGroups.map((group) => {
+                  const label = groupLabel(group, summary.membersFor(group.id), profile?.id);
+                  return (
                     <Pressable
                       key={group.id}
                       accessibilityRole="button"
-                      accessibilityLabel={groupLabel(
-                        group,
-                        summary.membersFor(group.id),
-                        profile?.id,
-                      )}
-                      onPress={() => assignTo(assigning, group)}
+                      accessibilityLabel={label}
+                      onPress={() => {
+                        // The Modal stays mounted through its fade-out, so this
+                        // can fire a frame after the backdrop cleared `assigning`.
+                        if (assigning) assignTo(assigning, group);
+                      }}
                       style={({ pressed }) => ({
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -318,23 +539,35 @@ export default function CapturesScreen() {
                         opacity: pressed ? 0.6 : 1,
                       })}
                     >
-                      <Text variant="subheading">{group.cover_emoji ?? '👥'}</Text>
-                      <Text variant="body" numberOfLines={1} style={{ flex: 1 }}>
-                        {groupLabel(group, summary.membersFor(group.id), profile?.id)}
-                      </Text>
+                      {/* The group's own avatar and colour carry its identity —
+                          the flat-row look the dashboard's GroupCard uses. */}
+                      <Avatar
+                        name={label}
+                        emoji={group.cover_emoji ?? undefined}
+                        size={44}
+                        tint={tintForKey(group.id)}
+                      />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text variant="subheading" numberOfLines={1}>
+                          {label}
+                        </Text>
+                        <Text variant="caption" tone="muted" numberOfLines={1}>
+                          {plural(locale, summary.memberCountFor(group.id), t.memberCount)}
+                        </Text>
+                      </View>
                       <Ionicons
-                        name="chevron-forward"
+                        name={directionalIcon('chevron-forward')}
                         size={iconSize.md}
                         color={theme.color.textFaint}
                       />
                     </Pressable>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
+                  );
+                })
+              )}
+            </ScrollView>
           </Pressable>
         </Pressable>
-      ) : null}
+      </Modal>
     </Screen>
   );
 }

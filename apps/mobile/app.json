@@ -17,7 +17,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.waves.mobile"
+      "bundleIdentifier": "app.waves.mobile",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "app.waves.mobile",
@@ -38,6 +39,7 @@
       "expo-router",
       "expo-localization",
       "expo-sqlite",
+      "expo-apple-authentication",
       "expo-quick-actions",
       [
         "expo-splash-screen",
@@ -74,6 +76,9 @@
         }
       ],
       "./plugins/withShortNativeBuildPath",
+      "./plugins/withWavesWidgets",
+      "./plugins/withWavesWear",
+      "@bacons/apple-targets",
       "expo-secure-store",
       "expo-sharing",
       "@react-native-community/datetimepicker",
