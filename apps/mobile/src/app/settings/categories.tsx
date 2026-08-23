@@ -76,6 +76,12 @@ export default function CategoriesSettingsScreen() {
   // rows are persisted with the other's sort_order; a built-in with no override
   // yet gains one here.
   const move = (index: number, direction: -1 | 1): void => {
+    // Reordering a built-in that has no override row yet mints a fresh id for
+    // it. Two taps fired inside one render frame would mint two rows for the
+    // same built-in, and the second trips the (owner, builtin_id) unique index
+    // at sync. Ignore a move while the previous one is still in flight: the
+    // arrows settle one reorder at a time, so no two rows race for one built-in.
+    if (upsertTag.isPending) return;
     const other = index + direction;
     if (other < 0 || other >= all.length) return;
     const a = all[index]!;
