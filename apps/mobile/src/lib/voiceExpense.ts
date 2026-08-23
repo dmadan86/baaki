@@ -218,8 +218,10 @@ export function parseVoiceExpense(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): ParsedVoiceExpense {
-  const tokens = tokenize(transcript);
-  const amountMajor = extractAmount(transcript);
+  // Spoken numbers become digits first; every pattern below is digit-based.
+  const said = normalizeSpokenNumbers(normalizeDigits(transcript));
+  const tokens = tokenize(said);
+  const amountMajor = extractAmount(said);
   const amountMinor = amountMajor === null ? null : BigInt(Math.round(amountMajor * 100));
   const groupId = matchGroup(tokens, groups);
   const matchedName = groupId ? (groups.find((group) => group.id === groupId)?.name ?? null) : null;
@@ -227,10 +229,10 @@ export function parseVoiceExpense(
   return {
     amountMinor,
     amountMajor,
-    currency: detectCurrency(transcript),
-    note: buildNote(transcript, matchedName),
+    currency: detectCurrency(said),
+    note: buildNote(said, matchedName),
     groupId,
-    splitCount: extractSplitCount(transcript),
+    splitCount: extractSplitCount(said),
   };
 }
 
@@ -340,6 +342,98 @@ export function normalizeDigits(text: string): string {
   });
 }
 
+/** Words for numbers, and the Indian/Western multipliers that scale them. */
+const NUMBER_WORDS: ReadonlyMap<string, number> = new Map([
+  ['zero', 0], ['one', 1], ['two', 2], ['three', 3], ['four', 4], ['five', 5],
+  ['six', 6], ['seven', 7], ['eight', 8], ['nine', 9], ['ten', 10],
+  ['eleven', 11], ['twelve', 12], ['thirteen', 13], ['fourteen', 14],
+  ['fifteen', 15], ['sixteen', 16], ['seventeen', 17], ['eighteen', 18],
+  ['nineteen', 19], ['twenty', 20], ['thirty', 30], ['forty', 40], ['fourty', 40],
+  ['fifty', 50], ['sixty', 60], ['seventy', 70], ['eighty', 80], ['ninety', 90],
+]);
+
+/** Scaling words. `group` ones close off a chunk ("two thousand five hundred"). */
+const NUMBER_MULTIPLIERS: ReadonlyMap<string, { factor: number; group: boolean }> = new Map([
+  ['hundred', { factor: 100, group: false }],
+  ['thousand', { factor: 1_000, group: true }],
+  ['lakh', { factor: 100_000, group: true }],
+  ['lakhs', { factor: 100_000, group: true }],
+  ['lac', { factor: 100_000, group: true }],
+  ['lacs', { factor: 100_000, group: true }],
+  ['crore', { factor: 10_000_000, group: true }],
+  ['crores', { factor: 10_000_000, group: true }],
+  ['million', { factor: 1_000_000, group: true }],
+  ['billion', { factor: 1_000_000_000, group: true }],
+]);
+
+/** Any single word that can appear inside a spoken number. */
+const NUMBER_WORD_RE = [...NUMBER_WORDS.keys(), ...NUMBER_MULTIPLIERS.keys()].join('|');
+
+/** A run of number words, joined by spaces, hyphens or a linking "and". */
+const SPOKEN_NUMBER = new RegExp(
+  `\\b(?:${NUMBER_WORD_RE})(?:[\\s-]+(?:and[\\s-]+)?(?:${NUMBER_WORD_RE}))*\\b`,
+  'gi',
+);
+
+/** A currency word or symbol — the signal that a nearby number is money. */
+const CURRENCY_TOKEN =
+  /(?:₹|\$|€|£|rupees?|rupaye|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)/i;
+
+/** Add up one run of number words: "five hundred and fifty" → 550. */
+function spokenRunToNumber(run: string): number | null {
+  let total = 0;
+  let current = 0;
+  let seen = false;
+  for (const word of run.toLowerCase().split(/[\s-]+/)) {
+    if (!word || word === 'and') continue;
+    const unit = NUMBER_WORDS.get(word);
+    if (unit !== undefined) {
+      current += unit;
+      seen = true;
+      continue;
+    }
+    const mult = NUMBER_MULTIPLIERS.get(word);
+    if (!mult) return null;
+    // A bare "hundred"/"thousand" means one of them.
+    current = (current === 0 ? 1 : current) * mult.factor;
+    if (mult.group) {
+      total += current;
+      current = 0;
+    }
+    seen = true;
+  }
+  const value = total + current;
+  return seen && value > 0 ? value : null;
+}
+
+/**
+ * Rewrite spoken numbers as digits, so the digit-based patterns above see them.
+ *
+ * Dictation hands back what was said, and what people say is "five hundred
+ * rupees", not "500 rupees" — every amount pattern here is `\d`-based, so
+ * without this the sentence parses to no amount at all and the expense is
+ * silently dropped.
+ *
+ * Deliberately conservative: a run is only rewritten when it carries a
+ * multiplier ("five hundred") or sits against a currency word ("twenty rupees").
+ * A bare small number is left alone, because "one of us" and "table for two" are
+ * ordinary speech, and turning them into digits would invent an amount out of a
+ * sentence that never named one.
+ */
+export function normalizeSpokenNumbers(text: string): string {
+  return text.replace(SPOKEN_NUMBER, (run, offset: number, whole: string) => {
+    const words = run.toLowerCase().split(/[\s-]+/).filter((w: string) => w && w !== 'and');
+    const hasMultiplier = words.some((w: string) => NUMBER_MULTIPLIERS.has(w));
+    const after = whole.slice(offset + run.length).trimStart();
+    const before = whole.slice(0, offset).trimEnd();
+    const nextIsCurrency = CURRENCY_TOKEN.test(after.split(/\s+/)[0] ?? '');
+    const prevIsCurrency = CURRENCY_TOKEN.test(before.split(/\s+/).pop() ?? '');
+    if (!hasMultiplier && !nextIsCurrency && !prevIsCurrency) return run;
+    const value = spokenRunToNumber(run);
+    return value === null ? run : String(value);
+  });
+}
+
 /**
  * A spoken "make a group" and the name it gives.
  *
@@ -434,7 +528,7 @@ export function parseVoiceExpenses(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
-  const normalized = normalizeDigits(transcript);
+  const normalized = normalizeSpokenNumbers(normalizeDigits(transcript));
   const created = detectCreateGroup(normalized);
   const body = created ? created.rest : normalized;
 
