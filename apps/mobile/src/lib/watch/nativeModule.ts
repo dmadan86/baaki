@@ -14,7 +14,11 @@ import { encodePhoneToWatch, type PhoneToWatch } from '@waves/core';
 
 interface NativeWatch {
   isReachable(): boolean;
-  sendToWatch(payload: Record<string, unknown>): void;
+  // Android implements this as an Expo `AsyncFunction` — its Wear send has to
+  // await a connected-node lookup off the JS thread — so it hands back a
+  // promise. iOS's is a plain `Function` and returns nothing. Typed as both so
+  // callers cannot forget the promise half.
+  sendToWatch(payload: Record<string, unknown>): void | Promise<void>;
   addListener(
     event: 'onWatchMessage',
     handler: (event: { payload: unknown }) => void,
@@ -40,7 +44,14 @@ export function watchReachable(): boolean {
 /** Send one phone→watch message (stamped with the relay version). No-op if absent. */
 export function sendToWatch(message: PhoneToWatch): void {
   try {
-    native?.sendToWatch(encodePhoneToWatch(message));
+    // The rejection has to be swallowed as well as the throw. On Android this
+    // is an AsyncFunction, and its `Tasks.await(connectedNodes)` fails on any
+    // phone with no paired watch or no working Play Services — the ordinary
+    // case, not an edge one. A bare try/catch only covers the synchronous half,
+    // so those failures surfaced as unhandled promise rejections, which is the
+    // opposite of the safe no-op this module exists to promise. `Promise.resolve`
+    // normalises iOS's undefined return so the same line covers both platforms.
+    void Promise.resolve(native?.sendToWatch(encodePhoneToWatch(message))).catch(() => undefined);
   } catch {
     // The transport went away between the check and the send; nothing to do.
   }
