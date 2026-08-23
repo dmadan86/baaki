@@ -51,9 +51,7 @@ export function sendToWatch(message: PhoneToWatch): void {
     // so those failures surfaced as unhandled promise rejections, which is the
     // opposite of the safe no-op this module exists to promise. `Promise.resolve`
     // normalises iOS's undefined return so the same line covers both platforms.
-    void Promise.resolve(native?.sendToWatch(encodePhoneToWatch(message))).catch(
-      () => undefined,
-    );
+    void Promise.resolve(native?.sendToWatch(encodePhoneToWatch(message))).catch(() => undefined);
   } catch {
     // The transport went away between the check and the send; nothing to do.
   }
