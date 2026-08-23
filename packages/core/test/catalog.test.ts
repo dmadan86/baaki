@@ -13,6 +13,7 @@ import {
   nextSortOrder,
   resolveCategory,
   type CategoryTagRow,
+  type TintName,
 } from '../src/category/catalog.js';
 import { CATEGORIES } from '../src/category/categories.js';
 
@@ -53,7 +54,11 @@ describe('resolveCategory', () => {
   });
 
   it('coerces an unknown tint rather than trusting the payload', () => {
-    const resolved = resolveCategory('x', { label: 'X', icon: 'star', tint: 'chartreuse' });
+    const resolved = resolveCategory('x', {
+      label: 'X',
+      icon: 'star',
+      tint: 'chartreuse' as TintName,
+    });
     expect(resolved.tint).toBe('sky');
   });
 });
