@@ -136,6 +136,27 @@ async function appleNativeCredential(apple: AppleAuthModule): Promise<
   }
 }
 
+/**
+ * Persist the name Apple hands over on the first authorization — the one time
+ * it is ever sent. The `profiles` row is created by a trigger on `auth.users`
+ * that can land a beat after the session (the same lag the profile-load effect
+ * retries around), so a lone `UPDATE` can match zero rows and lose a value that
+ * can never be re-fetched. So: write it to user metadata first — that never
+ * depends on the row — then retry the profile update until a row is affected.
+ */
+async function persistAppleName(userId: string, name: string): Promise<void> {
+  await supabase.auth.updateUser({ data: { display_name: name } }).catch(() => undefined);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ display_name: name })
+      .eq('id', userId)
+      .select('id');
+    if (!error && data && data.length > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+}
+
 export interface Profile {
   id: string;
   display_name: string;
@@ -366,7 +387,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // the profile with it before it is gone for good.
             const name = appleFullName(credential.fullName);
             if (name && data.user) {
-              await supabase.from('profiles').update({ display_name: name }).eq('id', data.user.id);
+              await persistAppleName(data.user.id, name);
             }
             setSession(data.session);
             return;

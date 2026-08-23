@@ -37,10 +37,10 @@ const WIDGETS = [
     className: 'ScanReceiptWidget',
     key: 'scan',
     label: 'Scan receipt',
-    // A static nonce is enough here: the widget always launches the app cold or
-    // to the foreground, where the capture screen's consume-once scan guard
-    // fires cleanly. The live-session re-entry the dashboard button worries
-    // about (a fresh Date.now nonce) cannot happen from a home-screen tap.
+    // A fixed marker, not the real nonce: a widget link is baked at build time
+    // and can't vary per tap. +native-intent.ts rewrites `?scan=<anything>` to a
+    // fresh `Date.now()` on the way in, so every tap re-fires the scanner rather
+    // than being swallowed by the capture screen's consume-once guard.
     link: `${SCHEME}:///capture?scan=1`,
     icon: 'ic_widget_scan',
     requestCode: 2,

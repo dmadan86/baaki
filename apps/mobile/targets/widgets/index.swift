@@ -27,6 +27,10 @@ struct LauncherProvider: TimelineProvider {
     }
 }
 
+// Brand purple. A literal rather than Color("$accent"): apple-targets' $-prefixed
+// colors are Info.plist keys, not asset names SwiftUI's Color(_:) can resolve.
+private let wavesAccent = Color(red: 0.478, green: 0.353, blue: 0.973)
+
 private extension View {
     // containerBackground is required on iOS 17+ for the widget to render on the
     // Home Screen; older systems fall back to a plain background.
@@ -56,7 +60,7 @@ struct LauncherView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .widgetBackground(Color("$accent"))
+        .widgetBackground(wavesAccent)
         .widgetURL(URL(string: url))
     }
 }
@@ -76,6 +80,7 @@ struct QuickExpenseWidget: Widget {
 struct ScanReceiptWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "WavesScanReceipt", provider: LauncherProvider()) { _ in
+            // scan=1 is a marker; +native-intent.ts rewrites it to a fresh nonce per tap.
             LauncherView(systemImage: "doc.viewfinder", title: "Scan receipt", url: "waves:///capture?scan=1")
         }
         .configurationDisplayName("Scan receipt")

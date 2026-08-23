@@ -16,11 +16,9 @@ appId: app.waves.mobile
 # Voice widget → /voice
 - openLink: waves:///voice
 - assertVisible: 'Speak an expense'
-
-# Scan-receipt widget → /capture with the consume-once scan nonce. It opens the
-# capture screen and hands off to the OS document scanner; assert we reached
-# capture (the scanner itself is outside the app and not asserted here).
-- openLink: waves:///capture?scan=1
-- assertVisible:
-    text: 'Capture an expense'
-    optional: true
+# The scan-receipt widget (waves:///capture?scan=1) is deliberately not driven
+# here: it opens the capture screen and immediately hands off to the OS document
+# scanner, which lives outside the app and cannot be driven or asserted by
+# Maestro. A soft (optional) assertion would pass whether or not anything
+# happened, so it is verified manually on a device instead. The other two
+# widgets above are the launcher behaviour this flow can prove end to end.

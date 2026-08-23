@@ -12,7 +12,9 @@
 module.exports = {
   type: 'widget',
   name: 'WavesWidgets',
-  // Brand purple, referenced from index.swift via Color("$accent").
+  // Brand purple. These $-prefixed keys feed the target's Info.plist
+  // (WidgetBackground / accent); the SwiftUI tile paints its own literal of the
+  // same colour (index.swift's wavesAccent), since Color("$…") can't read them.
   colors: {
     $accent: '#7A5AF8',
     $widgetBackground: '#7A5AF8',

@@ -676,12 +676,11 @@ function AuthHero() {
 }
 
 /**
- * The provider way in — Google.
+ * The provider way in — Google and Apple.
  *
- * Apple sign-in used to lead this row on iOS; it has been taken out. If Google
- * stays the only provider, note that App Store guideline 4.8 requires an
- * equivalent (Apple sign-in) alongside it on iOS, so this may need revisiting
- * before an iOS release.
+ * Apple leads on iOS (its guidelines want it at least as prominent as the
+ * others; App Store guideline 4.8 requires it alongside Google there); Google
+ * leads elsewhere, where Apple is the browser fallback.
  *
  * "Sign in with" is reserved for the login screen, where it is true. On the
  * sign-up page — and for a guest attaching a way back into the groups already
