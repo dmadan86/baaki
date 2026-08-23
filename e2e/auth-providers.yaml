@@ -1,0 +1,17 @@
+# The sign-in wall offers both providers.
+#
+# Google and Apple sit side by side on the sign-in screen. This asserts both
+# buttons render with their own wording — the Apple button is the new one
+# (native sheet on iOS, browser fallback on Android). It does not tap through:
+# completing either provider needs a real IdP round-trip, which belongs to a
+# manual/device pass, not a deterministic flow.
+appId: app.waves.mobile
+---
+- launchApp:
+    clearState: true
+
+# /welcome → /sign-in, where the provider row lives above the email option.
+- tapOn: 'Sign in'
+- assertVisible: 'Sign in with Google'
+- assertVisible: 'Sign in with Apple'
+- assertVisible: 'Continue with email'

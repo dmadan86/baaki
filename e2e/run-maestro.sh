@@ -32,6 +32,9 @@ FLOWS=(
   group-photo-paid-gate
   friends-merge-guests
   leave-group
+  widget-deeplinks
+  auth-providers
+  shortcut-preference
 )
 
 status=0

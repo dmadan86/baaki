@@ -1,0 +1,23 @@
+# The quick-shortcut preference — the in-app twin of the widgets.
+#
+# The same three actions the widgets launch (scan / voice / add) are also the
+# choices on the Quick shortcut settings screen, which drives the app-icon
+# long-press and the two-finger double-tap. This asserts the preference screen
+# lists them, lets one be chosen, and exposes the double-tap toggle.
+# Fixture: e2e/seed-e2e.mjs.
+appId: app.waves.mobile
+---
+- runFlow: login.yaml
+
+# Straight to the preference via its route.
+- openLink: waves:///settings/shortcut
+- assertVisible: 'Quick shortcut'
+
+# The three widget actions are the preference's options.
+- assertVisible: 'Scan a receipt'
+- assertVisible: 'Speak an expense'
+- assertVisible: 'Add an expense'
+
+# Choosing one and the double-tap toggle both work.
+- tapOn: 'Speak an expense'
+- assertVisible: 'Two-finger double-tap'
