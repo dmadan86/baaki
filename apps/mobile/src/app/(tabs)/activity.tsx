@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Pressable, RefreshControl, SectionList, View } from 'react-native';
 
 import {
+  Badge,
   Button,
   EmptyState,
   IconButton,
@@ -249,10 +250,50 @@ export default function ActivityScreen() {
                   </Row>
                   {/* The day is the heading's job now, so the row keeps only the
                       clock — "yesterday" printed under a heading that already
-                      said it was noise. */}
-                  <Text variant="micro" tone="muted" style={{ marginTop: 2 }}>
-                    {timeFormat.format(new Date(entry.created_at))}
-                  </Text>
+                      said it was noise. The group the entry belongs to rides
+                      here too: on a cross-group feed the row would otherwise not
+                      say which group it was, and — the point of this line — an
+                      archived group, or one no longer on this device (left or
+                      deleted), gets a badge so it is recognisable without
+                      opening it. */}
+                  <Row
+                    style={{
+                      gap: theme.spacing.sm,
+                      alignItems: 'center',
+                      marginTop: 2,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Text variant="micro" tone="muted">
+                      {timeFormat.format(new Date(entry.created_at))}
+                    </Text>
+                    {(() => {
+                      const g = entry.group;
+                      const label = g
+                        ? [g.cover_emoji, g.name].filter(Boolean).join(' ').trim() ||
+                          t.captures.group
+                        : null;
+                      return (
+                        <>
+                          {label ? (
+                            <Text
+                              variant="micro"
+                              tone="muted"
+                              numberOfLines={1}
+                              style={{ flexShrink: 1 }}
+                            >
+                              {`· ${label}`}
+                            </Text>
+                          ) : null}
+                          {g?.archived_at ? (
+                            <Badge label={t.misc.archivedGroup} tone="neutral" />
+                          ) : !g ? (
+                            <Badge label={t.misc.unavailableGroup} tone="neutral" />
+                          ) : null}
+                        </>
+                      );
+                    })()}
+                  </Row>
                 </View>
               </Row>
             </Pressable>

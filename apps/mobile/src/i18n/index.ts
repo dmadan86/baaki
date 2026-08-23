@@ -1264,6 +1264,10 @@ export interface UiStrings {
     startAGroup: string;
     pickDifferentPeople: string;
     someone: string;
+    /** Badges on a cross-group activity row: its group is archived, or no
+     *  longer on this device (left or deleted). */
+    archivedGroup: string;
+    unavailableGroup: string;
     serverRefused: string;
     offlineSaved: string;
     /** The mark on a row that is saved here but has not reached the server. */
@@ -2792,6 +2796,8 @@ const en: UiStrings = {
     startAGroup: 'Start a group',
     pickDifferentPeople: 'Pick different people',
     someone: 'Someone',
+    archivedGroup: 'Archived',
+    unavailableGroup: 'Unavailable',
     serverRefused: 'The server refused this change.',
     notSentYet: 'Not sent yet',
     offlineWithCount: {
@@ -4433,6 +4439,8 @@ const ta: UiStrings = {
     startAGroup: 'ஒரு குழுவைத் தொடங்கு',
     pickDifferentPeople: 'வேறு ஆட்களைத் தேர்ந்தெடு',
     someone: 'யாரோ',
+    archivedGroup: 'காப்பகம்',
+    unavailableGroup: 'கிடைக்கவில்லை',
     serverRefused: 'இந்த மாற்றத்தை சர்வர் ஏற்கவில்லை.',
     notSentYet: 'இன்னும் அனுப்பப்படவில்லை',
     offlineWithCount: {
@@ -6054,6 +6062,8 @@ const hi: UiStrings = {
     startAGroup: 'समूह शुरू करें',
     pickDifferentPeople: 'दूसरे लोग चुनें',
     someone: 'कोई',
+    archivedGroup: 'संग्रहीत',
+    unavailableGroup: 'अनुपलब्ध',
     serverRefused: 'सर्वर ने यह बदलाव नहीं माना।',
     notSentYet: 'अभी भेजा नहीं गया',
     offlineWithCount: {
@@ -7711,6 +7721,8 @@ const ar: UiStrings = {
     startAGroup: 'ابدأ مجموعة',
     pickDifferentPeople: 'اختر أشخاصًا آخرين',
     someone: 'أحدهم',
+    archivedGroup: 'مؤرشَف',
+    unavailableGroup: 'غير متاح',
     serverRefused: 'رفض الخادم هذا التغيير.',
     notSentYet: 'لم يُرسل بعد',
     offlineWithCount: {

@@ -476,8 +476,18 @@ export function useRecentActivity(): RecentActivityRow[] {
   return useMemo(() => {
     const groups = new Map<string, ActivityGroup>();
     for (const row of rowsFor(mirror, SyncTable.Groups)) {
-      const g = row as unknown as { id: string; name: string | null; cover_emoji: string | null };
-      groups.set(g.id, { id: g.id, name: g.name, cover_emoji: g.cover_emoji });
+      const g = row as unknown as {
+        id: string;
+        name: string | null;
+        cover_emoji: string | null;
+        archived_at: string | null;
+      };
+      groups.set(g.id, {
+        id: g.id,
+        name: g.name,
+        cover_emoji: g.cover_emoji,
+        archived_at: g.archived_at ?? null,
+      });
     }
 
     const actors = new Map<string, ActivityActor>();

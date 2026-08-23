@@ -221,6 +221,10 @@ export interface ActivityGroup {
   id: string;
   name: string | null;
   cover_emoji: string | null;
+  /** Set when the group has been archived — the activity feed shows a badge so a
+   *  row from an archived group is recognisable without opening it. Null on a
+   *  live group. */
+  archived_at: string | null;
 }
 
 export interface ActivityRow {

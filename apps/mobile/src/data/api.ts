@@ -152,7 +152,7 @@ export async function fetchRecentActivity(
       .from('activity_log')
       .select(
         `id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
-         group:groups ( id, name, cover_emoji ),
+         group:groups ( id, name, cover_emoji, archived_at ),
          actor:group_members!activity_log_actor_member_id_fkey (
            id, profile_id, ghost_name, profile:profiles!profile_id ( display_name )
          )`,
