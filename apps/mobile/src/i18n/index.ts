@@ -965,6 +965,18 @@ export interface UiStrings {
     couldNotSave: string;
     save: string;
   };
+  /** Attaching where a spend happened (A43): the opt-in control on the expense
+   *  forms and the tappable place on the expense detail. */
+  location: {
+    label: string;
+    add: string;
+    adding: string;
+    remove: string;
+    blocked: string;
+    unavailable: string;
+    openSettings: string;
+    openMap: string;
+  };
   /** The custom expense-tag catalog (extends TDR §8): the create/edit sheet and
    *  the Settings manager. Built-in category labels stay in `categories`. */
   tags: {
@@ -2496,6 +2508,16 @@ const en: UiStrings = {
     savedOnDevice: 'Saved on this device',
     couldNotSave: "Couldn't save this — please try again in a moment.",
     save: 'Save capture',
+  },
+  location: {
+    label: 'Location',
+    add: 'Add location',
+    adding: 'Getting location…',
+    remove: 'Remove location',
+    blocked: 'Location is off for Waves. Turn it on in Settings to add a place.',
+    unavailable: "Couldn't get a location just now — please try again.",
+    openSettings: 'Open Settings',
+    openMap: 'Open in maps',
   },
   tags: {
     manageTitle: 'Tags & categories',
@@ -4112,6 +4134,16 @@ const ta: UiStrings = {
     savedOnDevice: 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது',
     couldNotSave: 'இதைச் சேமிக்க முடியவில்லை — சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
     save: 'சேமி',
+  },
+  location: {
+    label: 'இடம்',
+    add: 'இடத்தைச் சேர்',
+    adding: 'இடத்தைப் பெறுகிறது…',
+    remove: 'இடத்தை அகற்று',
+    blocked: 'Waves-க்கு இட அணுகல் அணைக்கப்பட்டுள்ளது. இடத்தைச் சேர்க்க அமைப்புகளில் இயக்கவும்.',
+    unavailable: 'இப்போது இடத்தைப் பெற முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+    openSettings: 'அமைப்புகளைத் திற',
+    openMap: 'வரைபடத்தில் திற',
   },
   tags: {
     manageTitle: 'குறிச்சொற்கள் & வகைகள்',
@@ -5738,6 +5770,16 @@ const hi: UiStrings = {
     couldNotSave: 'इसे सहेजा नहीं जा सका — कृपया थोड़ी देर में फिर से कोशिश करें।',
     save: 'सहेजें',
   },
+  location: {
+    label: 'स्थान',
+    add: 'स्थान जोड़ें',
+    adding: 'स्थान लिया जा रहा है…',
+    remove: 'स्थान हटाएँ',
+    blocked: 'Waves के लिए स्थान बंद है। स्थान जोड़ने के लिए सेटिंग में इसे चालू करें।',
+    unavailable: 'अभी स्थान नहीं मिल सका — कृपया फिर से कोशिश करें।',
+    openSettings: 'सेटिंग खोलें',
+    openMap: 'मैप में खोलें',
+  },
   tags: {
     manageTitle: 'टैग और श्रेणियाँ',
     manageSubtitle: 'अपने टैग बनाएँ, और पहले से मौजूद को छिपाएँ या क्रम बदलें।',
@@ -7358,6 +7400,16 @@ const ar: UiStrings = {
     savedOnDevice: 'محفوظ على هذا الجهاز',
     couldNotSave: 'تعذّر حفظ هذا — يُرجى المحاولة مرة أخرى بعد قليل.',
     save: 'حفظ',
+  },
+  location: {
+    label: 'الموقع',
+    add: 'إضافة موقع',
+    adding: 'جارٍ تحديد الموقع…',
+    remove: 'إزالة الموقع',
+    blocked: 'الموقع مُعطّل لتطبيق Waves. فعِّله من الإعدادات لإضافة مكان.',
+    unavailable: 'تعذّر تحديد الموقع الآن — يُرجى المحاولة مرة أخرى.',
+    openSettings: 'فتح الإعدادات',
+    openMap: 'فتح في الخرائط',
   },
   tags: {
     manageTitle: 'الوسوم والفئات',

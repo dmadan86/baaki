@@ -75,6 +75,15 @@
           "cameraPermission": "Waves uses the camera to scan a group's invite QR code, so you can join without typing the link."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Waves uses your location only when you tap to add a place to an expense, so you can remember where you spent. It is never tracked in the background.",
+          "locationWhenInUsePermission": "Waves uses your location only when you tap to add a place to an expense, so you can remember where you spent. It is never tracked in the background.",
+          "isAndroidForegroundServiceEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
       "./plugins/withShortNativeBuildPath",
       "./plugins/withWavesWidgets",
       "./plugins/withWavesWear",

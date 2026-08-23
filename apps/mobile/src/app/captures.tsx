@@ -233,6 +233,8 @@ export default function CapturesScreen() {
         // A custom tag rides along as JSON so the assigned expense keeps it,
         // rather than dropping to a built-in (extends TDR §8).
         ...(capture.category_meta ? { categoryMeta: JSON.stringify(capture.category_meta) } : {}),
+        // The place the capture recorded, so the assigned expense keeps it (A43).
+        ...(capture.location ? { location: JSON.stringify(capture.location) } : {}),
         expenseDate: capture.expense_date,
       },
     });

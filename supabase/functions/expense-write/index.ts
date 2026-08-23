@@ -55,6 +55,9 @@ interface ExpenseWriteRequest {
    * group members can open the bill from the owner's own Drive.
    */
   receiptShareUrl?: string | null;
+  /** Where the spend happened (A43): a {lat, lng, name} snapshot, set only on
+   *  opt-in. Validated to Earth's ranges before it is stored. */
+  location?: { lat: number; lng: number; name?: string | null } | null;
   receiptId?: string | null;
   /**
    * The rate used, when the expense is not in the group's currency (ADR-003).
@@ -63,6 +66,23 @@ interface ExpenseWriteRequest {
    */
   fx?: FxRecord | null;
   clientMutationId: string;
+}
+
+/**
+ * Validate a client-supplied location before it reaches the ledger (A43). Only a
+ * finite {lat, lng} inside Earth's ranges survives; the name is an optional
+ * trimmed label. Anything else becomes null — a snapshot shown to every group
+ * member must never carry a NaN or an out-of-range point.
+ */
+function sanitiseLocation(value: unknown): { lat: number; lng: number; name?: string } | null {
+  if (!value || typeof value !== 'object') return null;
+  const loc = value as Record<string, unknown>;
+  const lat = typeof loc.lat === 'number' ? loc.lat : NaN;
+  const lng = typeof loc.lng === 'number' ? loc.lng : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  const name = typeof loc.name === 'string' ? loc.name.trim().slice(0, 120) : '';
+  return name ? { lat, lng, name } : { lat, lng };
 }
 
 serveWithCors(async (request) => {
@@ -170,6 +190,7 @@ serveWithCors(async (request) => {
       p_fx: body.fx ?? null,
       p_payment_method: body.paymentMethod ?? null,
       p_receipt_share_url: body.receiptShareUrl ?? null,
+      p_location: sanitiseLocation(body.location),
     });
 
     if (applyError) {

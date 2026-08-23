@@ -21,6 +21,7 @@ import {
   guessCategory,
   MutationKind,
   type CategoryMeta,
+  type ExpenseLocation,
   type FxRecord,
   type MemberId,
   type PaymentMethod,
@@ -47,6 +48,7 @@ import {
 import { CategoryPicker } from '@/components/Category';
 import { TagEditorSheet } from '@/components/TagEditorSheet';
 import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
+import { LocationField } from '@/components/LocationField';
 import { friendlyError } from '@/lib/errors';
 import { COMMON_CURRENCIES, CurrencyRate } from '@/components/CurrencyRate';
 import { AmountHeader } from '@/components/expense/AmountHeader';
@@ -103,6 +105,8 @@ interface ExpenseDraft {
   categoryMeta: CategoryMeta | null;
   /** Whether the category above was chosen, rather than guessed. */
   categoryChosen: boolean;
+  /** Where the spend happened (A43), when the person attached one. */
+  location?: ExpenseLocation | null;
 }
 
 /** A saved split's integers, back as the text somebody would have typed. */
@@ -147,6 +151,27 @@ function parseCategoryMetaParam(value: string | undefined): CategoryMeta | null 
   return null;
 }
 
+/**
+ * A capture's location arrives as a JSON route param (A43), the same handoff
+ * `categoryMeta` uses. A malformed or out-of-range value is simply no location —
+ * a prefill is never worth a crash — so the point is validated to Earth's ranges
+ * exactly as the server does before it seeds the form.
+ */
+function parseLocationParam(value: string | undefined): ExpenseLocation | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<ExpenseLocation>;
+    const lat = typeof parsed?.lat === 'number' ? parsed.lat : NaN;
+    const lng = typeof parsed?.lng === 'number' ? parsed.lng : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    const name = typeof parsed.name === 'string' ? parsed.name : null;
+    return { lat, lng, name };
+  } catch {
+    return null;
+  }
+}
+
 export default function AddExpenseScreen() {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -163,6 +188,7 @@ export default function AddExpenseScreen() {
     description: captureDescription,
     category: captureCategory,
     categoryMeta: captureCategoryMeta,
+    location: captureLocation,
     expenseDate: captureExpenseDate,
   } = useLocalSearchParams<{
     id: string;
@@ -178,6 +204,9 @@ export default function AddExpenseScreen() {
     /** A custom tag's {label,icon,tint} snapshot, JSON-encoded, when a capture
      *  tagged with one is being assigned (extends TDR §8). */
     categoryMeta?: string;
+    /** The capture's {lat,lng,name} place, JSON-encoded, carried onto the
+     *  assigned expense (A43). Absent when the capture had no location. */
+    location?: string;
     expenseDate?: string;
   }>();
   const groupId = id ?? '';
@@ -267,6 +296,11 @@ export default function AddExpenseScreen() {
   const [shareWithGroup, setShareWithGroup] = useState(false);
   const [shareEligible, setShareEligible] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+  // Where the spend happened (A43). Optional and opt-in: null until the person
+  // taps "Add location" and grants the permission. Kept in the draft so a crash
+  // mid-entry does not lose it, and seeded from the version when editing.
+  const [location, setLocation] = useState<ExpenseLocation | null>(null);
 
   // The per-group receipt ceiling. A group holds a few receipts for free (the
   // number is an admin knob); past it, scanning is a paid feature. A paid group
@@ -361,6 +395,8 @@ export default function AddExpenseScreen() {
       // built-in. A malformed param is simply no meta (a built-in).
       setCategoryMeta(parseCategoryMetaParam(captureCategoryMeta));
       setCategoryChosen(Boolean(captureCategory));
+      // Carry the capture's place onto the expense it becomes (A43).
+      setLocation(parseLocationParam(captureLocation));
       setPayer(myMemberId);
     } else if (draft) {
       // A draft outranks the saved version: it is what the user was in the
@@ -382,6 +418,7 @@ export default function AddExpenseScreen() {
       setCategory(draft.category ?? null);
       setCategoryMeta(draft.categoryMeta ?? null);
       setCategoryChosen(draft.categoryChosen ?? false);
+      setLocation(draft.location ?? null);
     } else if (version) {
       setAmount(BigInt(version.amount));
       setDescription(version.description);
@@ -402,6 +439,9 @@ export default function AddExpenseScreen() {
       setShareWithGroup(Boolean(version.receipt_share_url));
       setPayer(version.payers[0]?.member_id ?? myMemberId);
       setPaymentMethod((version.payment_method as PaymentMethod | null) ?? 'cash');
+      // A saved place is a decision already made; reopen the edit with it intact
+      // so a save does not silently drop it.
+      setLocation(version.location ?? null);
       setParticipants(version.shares.map((share) => share.member_id));
       setSplitKind(
         version.split_type === 'percent'
@@ -513,6 +553,7 @@ export default function AddExpenseScreen() {
       category,
       categoryMeta,
       categoryChosen,
+      location,
     },
     { enabled: seededFor !== null },
   );
@@ -642,6 +683,7 @@ export default function AddExpenseScreen() {
         participants,
         payers: { [payer]: amount.toString() },
         paymentMethod,
+        location,
         expectedShares: preview
           ? Object.fromEntries([...preview].map(([id, share]) => [id, share.toString()]))
           : undefined,
@@ -1091,6 +1133,9 @@ export default function AddExpenseScreen() {
             </Text>
             <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
           </View>
+
+          {/* Where it happened (A43) — optional, opt-in, never a background track. */}
+          <LocationField value={location} onChange={setLocation} />
 
           {/* The one-line answer to "who pays what", tappable to open the three
             controls that decide it. */}

@@ -18,6 +18,7 @@ import {
   type CurrencyCode,
   type DeviceLimitStatus,
   type DeviceSession,
+  type ExpenseLocation,
   type FxRecord,
   type ParsedReceipt,
   type PaymentMethod,
@@ -560,6 +561,8 @@ export interface WriteExpenseInput {
   paymentMethod?: PaymentMethod | null;
   /** Denormalised custom-tag display (extends TDR §8); null for a built-in. */
   categoryMeta?: CategoryMeta | null;
+  /** Where the spend happened (A43); null unless the person opted in. */
+  location?: ExpenseLocation | null;
   /** A view-only link to the owner's own cloud copy of the receipt (E3). */
   receiptShareUrl?: string | null;
   /** The rate used, when this expense is not in the group's currency. */
@@ -604,6 +607,9 @@ export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpen
       // A view-only link to the owner's own cloud copy of the receipt (E3); the
       // image itself never reaches the server, only this optional URL.
       receiptShareUrl: input.receiptShareUrl ?? null,
+      // Where the spend happened (A43); null unless the person opted in. The
+      // server validates it to Earth's ranges before it is stored.
+      location: input.location ?? null,
       fx: input.fx ?? null,
       // Idempotency key: a retry after a flaky network must not double-post.
       clientMutationId: input.clientMutationId ?? randomUUID(),

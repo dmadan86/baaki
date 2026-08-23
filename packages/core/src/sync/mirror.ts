@@ -28,6 +28,7 @@ import type {
   CaptureDeletePayload,
   ExpenseCreatePayload,
   ExpenseDeletePayload,
+  ExpenseLocation,
   MemberBudgetSetPayload,
   MutationEnvelope,
   PlanItemCreatePayload,
@@ -152,6 +153,7 @@ export interface MirrorExpense extends MirrorRow {
     readonly notes: string | null;
     readonly payment_method: string | null;
     readonly receipt_share_url: string | null;
+    readonly location: ExpenseLocation | null;
     readonly created_at: string;
     readonly payers: readonly { member_id: string; amount: string }[];
     readonly shares: readonly { member_id: string; amount: string }[];
@@ -241,6 +243,7 @@ function applyPending(
           notes: payload.notes ?? null,
           payment_method: payload.paymentMethod ?? null,
           receipt_share_url: payload.receiptShareUrl ?? null,
+          location: payload.location ?? null,
           created_at: mutation.clientCreatedAt,
           payers: Object.entries(payload.payers).map(([member_id, amount]) => ({
             member_id,
@@ -627,6 +630,7 @@ export interface MirrorCapture extends MirrorRow {
   readonly parsed: Record<string, unknown> | null;
   readonly payment_method: string | null;
   readonly target_group_id: string | null;
+  readonly location: ExpenseLocation | null;
   readonly status: 'open' | 'assigned';
   readonly assigned_expense_id: string | null;
   readonly assigned_group_id: string | null;
@@ -690,6 +694,8 @@ export function materialiseCaptures(
             'targetGroupId' in payload
               ? (payload.targetGroupId ?? null)
               : (existing?.target_group_id ?? null),
+          location:
+            'location' in payload ? (payload.location ?? null) : (existing?.location ?? null),
           // An edit never un-assigns; only assignment sets it, below.
           status: existing?.status ?? 'open',
           assigned_expense_id: existing?.assigned_expense_id ?? null,

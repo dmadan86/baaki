@@ -6,7 +6,7 @@
  * columns nobody renders is asking RLS to prove more than it has to.
  */
 
-import type { SplitParams } from '@waves/core';
+import type { ExpenseLocation, SplitParams } from '@waves/core';
 
 export type MemberId = string;
 
@@ -40,6 +40,8 @@ export interface ExpenseVersion {
   amount: string;
   split_type: string;
   split_params: SplitParams;
+  /** Where the spend happened (A43): a {lat, lng, name} snapshot, or null. */
+  location?: ExpenseLocation | null;
   payers: { member_id: MemberId; amount: string }[];
   shares: { member_id: MemberId; amount: string }[];
 }

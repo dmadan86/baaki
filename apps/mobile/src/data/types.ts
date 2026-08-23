@@ -1,4 +1,4 @@
-import type { CategoryMeta, MemberId, SplitParams } from '@waves/core';
+import type { CategoryMeta, ExpenseLocation, MemberId, SplitParams } from '@waves/core';
 
 export enum GroupType {
   Trip = 'trip',
@@ -106,6 +106,8 @@ export interface ExpenseVersionRow {
   payment_method: string | null;
   /** A view-only link to the owner's own cloud copy of the receipt (E3), or null. */
   receipt_share_url: string | null;
+  /** Where the spend happened (A43): a {lat, lng, name} snapshot, or null. */
+  location: ExpenseLocation | null;
   created_at: string;
   payers: { member_id: MemberId; amount: string }[];
   shares: { member_id: MemberId; amount: string }[];
@@ -157,6 +159,8 @@ export interface CaptureRow {
   payment_method: string | null;
   /** Intended destination group, chosen up front; null means decide later. */
   target_group_id: string | null;
+  /** Where the spend happened (A43): a {lat, lng, name} snapshot, or null. */
+  location: ExpenseLocation | null;
   status: CaptureStatus;
   assigned_expense_id: string | null;
   assigned_group_id: string | null;

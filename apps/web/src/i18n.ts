@@ -159,6 +159,17 @@ export interface WebStrings {
     runningSum: string;
     cannotEditSplit: string;
   };
+  /** Attaching where a spend happened (A43). Coordinates only on the web — the
+   *  browser has no on-device reverse-geocoder. */
+  location: {
+    label: string;
+    add: string;
+    adding: string;
+    remove: string;
+    blocked: string;
+    unavailable: string;
+    openMap: string;
+  };
   /** The signed-in web client: shell, sign-in and the overview dashboard. */
   dash: {
     nav: {
@@ -367,6 +378,15 @@ const en: WebStrings = {
     runningSum: '{sum} of {total}',
     cannotEditSplit: 'This bill was split in a way the web cannot edit yet — open it in the app.',
   },
+  location: {
+    label: 'Location',
+    add: 'Add location',
+    adding: 'Getting location…',
+    remove: 'Remove',
+    blocked: 'Location is blocked in your browser. Allow it to add a place.',
+    unavailable: "Couldn't get your location — please try again.",
+    openMap: 'Open in maps',
+  },
   dash: {
     nav: {
       overview: 'Overview',
@@ -572,6 +592,15 @@ const ta: WebStrings = {
     runningSum: '{total} இல் {sum}',
     cannotEditSplit:
       'இந்த பில் இணையம் இன்னும் திருத்த முடியாத வகையில் பிரிக்கப்பட்டது — செயலியில் திறக்கவும்.',
+  },
+  location: {
+    label: 'இடம்',
+    add: 'இடத்தைச் சேர்',
+    adding: 'இடத்தைப் பெறுகிறது…',
+    remove: 'அகற்று',
+    blocked: 'உங்கள் உலாவியில் இடம் தடுக்கப்பட்டுள்ளது. இடத்தைச் சேர்க்க அனுமதிக்கவும்.',
+    unavailable: 'உங்கள் இடத்தைப் பெற முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+    openMap: 'வரைபடத்தில் திற',
   },
   dash: {
     nav: {
@@ -779,6 +808,15 @@ const hi: WebStrings = {
     invalidSplit: 'ये हिस्से अभी पूरे नहीं जुड़ते।',
     runningSum: '{total} में से {sum}',
     cannotEditSplit: 'यह बिल ऐसे बाँटा गया जिसे वेब अभी संपादित नहीं कर सकता — इसे ऐप में खोलें।',
+  },
+  location: {
+    label: 'स्थान',
+    add: 'स्थान जोड़ें',
+    adding: 'स्थान लिया जा रहा है…',
+    remove: 'हटाएँ',
+    blocked: 'आपके ब्राउज़र में स्थान अवरुद्ध है. स्थान जोड़ने के लिए इसे अनुमति दें.',
+    unavailable: 'आपका स्थान नहीं मिल सका — कृपया फिर से कोशिश करें.',
+    openMap: 'मैप में खोलें',
   },
   dash: {
     nav: {
@@ -997,6 +1035,15 @@ const ar: WebStrings = {
     invalidSplit: 'هذه الحصص لا تتوافق بعد.',
     runningSum: '{sum} من {total}',
     cannotEditSplit: 'قُسّمت هذه الفاتورة بطريقة لا يمكن للويب تعديلها بعد — افتحها في التطبيق.',
+  },
+  location: {
+    label: 'الموقع',
+    add: 'إضافة موقع',
+    adding: 'جارٍ تحديد الموقع…',
+    remove: 'إزالة',
+    blocked: 'الموقع محظور في متصفحك. اسمح به لإضافة مكان.',
+    unavailable: 'تعذّر تحديد موقعك — يُرجى المحاولة مرة أخرى.',
+    openMap: 'فتح في الخرائط',
   },
   dash: {
     nav: {

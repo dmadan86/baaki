@@ -93,10 +93,30 @@ export interface ExpenseCreatePayload {
    * a built-in category, which every client resolves from its own list.
    */
   readonly categoryMeta?: CategoryMeta | null;
+  /**
+   * Where the spend happened (A43), set only on explicit opt-in. A {lat, lng,
+   * name} snapshot — the name is reverse-geocoded on the device that captured
+   * it, so a member reading the expense sees a place, not two numbers. Null/
+   * omitted unless the person tapped "Add location"; never a background track,
+   * and never part of the split or a balance.
+   */
+  readonly location?: ExpenseLocation | null;
 }
 
 /** The four ways an expense is paid for; optional everywhere it appears. */
 export type PaymentMethod = 'cash' | 'upi' | 'credit' | 'debit' | 'forex';
+
+/**
+ * Where an expense was incurred (A43). `lat`/`lng` are WGS84 degrees; `name` is
+ * an optional reverse-geocoded label ("Third Wave Coffee, Indiranagar") — absent
+ * when the lookup failed or ran offline, in which case the UI shows the point on
+ * a map instead. A plain snapshot, never part of any ledger maths.
+ */
+export interface ExpenseLocation {
+  readonly lat: number;
+  readonly lng: number;
+  readonly name?: string | null;
+}
 
 export interface ExpenseUpdatePayload extends ExpenseCreatePayload {
   /** Version the client edited, so the server can detect a concurrent edit. */
@@ -150,6 +170,9 @@ export interface CaptureCreatePayload {
   /** Denormalised custom-tag display, carried onto the expense at assignment
    *  (extends TDR §8). Null for a built-in category. */
   readonly categoryMeta?: CategoryMeta | null;
+  /** Where the spend happened (A43), carried onto the expense at assignment.
+   *  Null unless the owner opted in. See {@link ExpenseLocation}. */
+  readonly location?: ExpenseLocation | null;
 }
 
 /**
