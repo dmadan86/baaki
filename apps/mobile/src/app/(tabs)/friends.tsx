@@ -114,6 +114,24 @@ export default function FriendsScreen() {
     rows.filter((row) => row.is_ghost).map((row) => row.person_key),
   ).size;
 
+  // A person unsettled in two currencies shows up as two rows (currencies never
+  // mix — ADR-003/004), which reads as a duplicate when both rows carry the same
+  // "in one group" subtitle. These are the person_keys that appear in more than
+  // one currency, so their rows can name the currency and stop looking like two
+  // different people. Computed once over the whole list, not per section — the
+  // two currencies can land in opposite sections (owed in one, owe in the other).
+  const multiCurrencyKeys = useMemo(() => {
+    const byPerson = new Map<string, Set<string>>();
+    for (const row of rows) {
+      const set = byPerson.get(row.person_key) ?? new Set<string>();
+      set.add(row.currency);
+      byPerson.set(row.person_key, set);
+    }
+    return new Set(
+      [...byPerson.entries()].filter(([, currencies]) => currencies.size > 1).map(([key]) => key),
+    );
+  }, [rows]);
+
   // The sort the whole list obeys. Tapping a key in the menu switches to it;
   // tapping the key already chosen flips its direction — amount and recent
   // activity open biggest/newest first, name A→Z, and either can be reversed.
@@ -262,6 +280,7 @@ export default function FriendsScreen() {
               title={t.tabs.owesYou}
               rows={owedToYou}
               locale={locale}
+              multiCurrencyKeys={multiCurrencyKeys}
               emptyBody={t.tabs.nobodyOwesYou}
               emptyIcon="people-outline"
             />
@@ -269,6 +288,7 @@ export default function FriendsScreen() {
               title={t.tabs.youOweThem}
               rows={youOwe}
               locale={locale}
+              multiCurrencyKeys={multiCurrencyKeys}
               emptyBody={t.tabs.youAreNotBehind}
               emptyIcon="checkmark-circle-outline"
             />
@@ -408,12 +428,15 @@ function FriendsSection({
   title,
   rows,
   locale,
+  multiCurrencyKeys,
   emptyBody,
   emptyIcon,
 }: {
   title: string;
   rows: PersonBalanceRow[];
   locale: string;
+  /** person_keys that appear in more than one currency — their rows name it. */
+  multiCurrencyKeys: ReadonlySet<string>;
   emptyBody: string;
   /** Glyph for the empty card — says "state, not error" before the line is read. */
   emptyIcon: React.ComponentProps<typeof Ionicons>['name'];
@@ -457,7 +480,12 @@ function FriendsSection({
         <View>
           {rows.map((row, index) => (
             <View key={`${row.person_key}-${row.currency}`}>
-              <FriendCard row={row} locale={locale} t={t} />
+              <FriendCard
+                row={row}
+                locale={locale}
+                t={t}
+                showCurrency={multiCurrencyKeys.has(row.person_key)}
+              />
               {index < rows.length - 1 ? (
                 <View style={{ height: 1, backgroundColor: theme.color.border }} />
               ) : null}
@@ -473,10 +501,14 @@ function FriendCard({
   row,
   locale,
   t,
+  showCurrency,
 }: {
   row: PersonBalanceRow;
   locale: string;
   t: ReturnType<typeof useStrings>['t'];
+  /** When this person has balances in more than one currency, name the currency
+      in the subtitle so two rows for them do not read as two different people. */
+  showCurrency: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   const { isBlocked } = useBlockedUsers();
@@ -512,9 +544,15 @@ function FriendCard({
             {shownName}
           </Text>
           <Text variant="caption" tone="muted" numberOfLines={1}>
-            {row.group_count === 1
-              ? t.tabs.inOneGroup
-              : plural(locale, row.group_count, t.tabs.acrossGroups)}
+            {(() => {
+              const groupPart =
+                row.group_count === 1
+                  ? t.tabs.inOneGroup
+                  : plural(locale, row.group_count, t.tabs.acrossGroups);
+              // The currency is what tells this row apart from the same person's
+              // other-currency row; a middot keeps it one glanceable line.
+              return showCurrency ? `${groupPart} · ${row.currency}` : groupPart;
+            })()}
           </Text>
         </View>
       </Row>
