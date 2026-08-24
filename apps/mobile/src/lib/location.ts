@@ -73,6 +73,17 @@ function locationModuleLinked(): boolean {
   return host?.modules?.ExpoLocation != null;
 }
 
+/**
+ * Whether a location can actually be read on this device right now: a native
+ * platform *and* the `ExpoLocation` module linked into this binary. The UI gates
+ * on this (not `locationSupported`) so a stale build shows no add-location
+ * button rather than one that taps to nothing — `captureLocation` would return
+ * `Unsupported`, which the field deliberately swallows.
+ */
+export function locationAvailable(): boolean {
+  return locationSupported && locationModuleLinked();
+}
+
 function loadLocation(): ExpoLocation | null {
   if (!locationSupported || !locationModuleLinked()) return null;
   try {

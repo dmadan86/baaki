@@ -20,7 +20,7 @@ import type { ExpenseLocation } from '@waves/core';
 import { Button, Callout, Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
-import { captureLocation, coordLabel, LocationFailure, locationSupported } from '@/lib/location';
+import { captureLocation, coordLabel, LocationFailure, locationAvailable } from '@/lib/location';
 
 export function LocationField({
   value,
@@ -38,7 +38,7 @@ export function LocationField({
 
   // Web and a build with no location module have nothing to offer — the whole
   // field is absent rather than a button that can only fail.
-  if (!locationSupported) return null;
+  if (!locationAvailable()) return null;
 
   const add = async (): Promise<void> => {
     setFailure(null);
