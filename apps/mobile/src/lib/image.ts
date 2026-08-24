@@ -212,6 +212,43 @@ export async function pickSquarePhoto(maxEdge: number): Promise<PickedImage | nu
 export const pickAvatarPhoto = () => pickSquarePhoto(AVATAR_MAX_EDGE);
 export const pickGroupPhoto = () => pickSquarePhoto(COVER_MAX_EDGE);
 
+/** Longest edge for an album photo — big enough to look good full-screen,
+ *  small enough to stay light in the free-tier storage cap. */
+export const ALBUM_MAX_EDGE = 1600;
+
+/**
+ * A photo for the trip album — from the library, uncropped, any shape.
+ *
+ * Re-encoding through the manipulator is what strips the EXIF metadata (a beach
+ * photo should not carry the GPS of where it was taken into a shared album), so
+ * the resize here is a privacy step as much as a size one. Returns null when the
+ * person cancels or declines access — both ordinary answers, not errors.
+ */
+export async function pickAlbumPhoto(): Promise<PickedImage | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) return null;
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    base64: false,
+  });
+  if (result.canceled) return null;
+
+  const asset = result.assets[0];
+  if (!asset) return null;
+
+  const shrunk =
+    (await shrink({
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      maxEdge: ALBUM_MAX_EDGE,
+      compress: 0.8,
+    })) ?? (await readUnshrunk(asset.uri));
+  return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
+}
+
 /**
  * A receipt, from the camera by default (ADR-008). Not cropped to a square and
  * not compressed as hard: fidelity is worth the bytes when a model has to read

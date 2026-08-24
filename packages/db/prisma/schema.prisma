@@ -249,6 +249,7 @@ model Group {
   usageEvents   UsageEvent[]
   passes        GroupPass[]
   planItems     TripPlanItem[]
+  tripPhotos    TripPhoto[]
   syncMutations SyncMutation[]
   memberClaims   MemberClaim[]
   memberBudgets  TripMemberBudget[]
@@ -300,6 +301,7 @@ model GroupMember {
   settlementsGot    Settlement[]       @relation("SettlementTo")
   itemClaims        ReceiptItemClaim[]
   planItems         TripPlanItem[]
+  tripPhotos        TripPhoto[]
   activity          ActivityLog[]
   disputesRaised    ExpenseDispute[]   @relation("DisputeRaisedBy")
   disputesResolved  ExpenseDispute[]   @relation("DisputeResolvedBy")
@@ -425,6 +427,7 @@ model Expense {
   allocations    SettlementAllocation[]
   disputes       ExpenseDispute[]
   planItems      TripPlanItem[]
+  tripPhotos     TripPhoto[]
 
   @@index([groupId, deletedAt])
   /// The sync pull is "everything in this group since seq N" (TDR §4).
@@ -1242,6 +1245,41 @@ model TripPlanItem {
   @@index([groupId, day, position], map: "trip_plan_items_group_day_idx")
   @@index([groupId, updatedSeq])
   @@map("trip_plan_items")
+  @@schema("public")
+}
+
+/// A photo in the trip's shared album — the memory layer.
+///
+/// A third photo concept, distinct from the group cover photo (one image, the
+/// group's identity, paid) and a receipt (evidence for one bill, OCR'd). Many
+/// per trip, optionally pinned to an expense or a day, free for any member to
+/// add. Not money: it moves no balance, so it rides the offline mirror like the
+/// plan does (`updatedSeq` + soft-delete `deletedAt`). The bytes live in R2
+/// under the `trip-photos` bucket; this row holds only the pointer.
+model TripPhoto {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String    @map("group_id") @db.Uuid
+  /// The expense this belongs to, or NULL for a photo of the trip itself.
+  expenseId   String?   @map("expense_id") @db.Uuid
+  /// The day it belongs to, in the trip's own timezone; NULL for "no day".
+  day         DateTime? @db.Date
+  /// The R2 object key within the `trip-photos` bucket. Never a URL.
+  storagePath String    @map("storage_path")
+  caption     String?
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedSeq  BigInt    @default(0) @map("updated_seq")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  author  GroupMember? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([groupId, day], map: "trip_photos_group_day_idx")
+  @@index([groupId, updatedSeq])
+  @@index([expenseId], map: "trip_photos_expense_idx")
+  @@map("trip_photos")
   @@schema("public")
 }
 

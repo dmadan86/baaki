@@ -87,6 +87,9 @@ function locate(
         ? { groupId: null, ownerSegment: second ?? null }
         : { groupId: first ?? null, ownerSegment: null };
     case 'group-photos':
+    case 'trip-photos':
+      // `<groupId>/<id>` — a group object. Membership (no paid gate for the
+      // album) is enforced by the generic group branch in authorize*.
       return { groupId: first ?? null, ownerSegment: null };
     case 'captures':
     case 'avatars':

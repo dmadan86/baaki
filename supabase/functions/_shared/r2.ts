@@ -13,7 +13,13 @@ import { AwsClient } from 'npm:aws4fetch@1';
 
 import { HttpError, type SupabaseClient } from './auth.ts';
 
-export const LOGICAL_BUCKETS = ['receipts', 'group-photos', 'avatars', 'captures'] as const;
+export const LOGICAL_BUCKETS = [
+  'receipts',
+  'group-photos',
+  'avatars',
+  'captures',
+  'trip-photos',
+] as const;
 export type LogicalBucket = (typeof LOGICAL_BUCKETS)[number];
 
 function requiredEnv(name: string): string {
