@@ -1303,6 +1303,9 @@ export interface UiStrings {
      *  transport error is internal noise). Said on foreground actions like
      *  signing in, where "saved here" does not apply. */
     connectionProblem: string;
+    /** Shown on a 429 from the one-time-code buttons — the request was fine,
+        there were just too many in a short window. */
+    tooManyTries: string;
     syncingCount: PluralForms;
     notAnAmount: string;
     notARate: string;
@@ -2850,6 +2853,7 @@ const en: UiStrings = {
     },
     cantReachServerIdle: "Can't reach the server — everything here is saved",
     connectionProblem: 'Check your connection and try again.',
+    tooManyTries: 'Too many attempts. Wait a minute and try again.',
     syncingCount: { one: 'Sending {n} change…', other: 'Sending {n} changes…' },
     offlineSaved: 'Offline — everything here is saved on this phone',
     notAnAmount: 'That does not look like an amount',
@@ -4507,6 +4511,7 @@ const ta: UiStrings = {
     },
     cantReachServerIdle: 'சர்வரை அடைய முடியவில்லை — எல்லாம் இங்கே சேமிக்கப்பட்டுள்ளது',
     connectionProblem: 'இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    tooManyTries: 'அதிக முயற்சிகள். ஒரு நிமிடம் காத்திருந்து மீண்டும் முயற்சிக்கவும்.',
     syncingCount: {
       one: '{n} மாற்றம் அனுப்பப்படுகிறது…',
       other: '{n} மாற்றங்கள் அனுப்பப்படுகின்றன…',
@@ -6144,6 +6149,7 @@ const hi: UiStrings = {
     },
     cantReachServerIdle: 'सर्वर तक नहीं पहुँच पा रहे — सब कुछ यहीं सेव है',
     connectionProblem: 'अपना कनेक्शन जाँचें और फिर से कोशिश करें।',
+    tooManyTries: 'बहुत ज़्यादा कोशिशें। एक मिनट रुककर फिर से कोशिश करें।',
     syncingCount: { one: '{n} बदलाव भेजा जा रहा है…', other: '{n} बदलाव भेजे जा रहे हैं…' },
     offlineSaved: 'ऑफ़लाइन — यहाँ का सब कुछ इसी फ़ोन पर सेव है',
     notAnAmount: 'यह रकम जैसा नहीं लगता',
@@ -7825,6 +7831,7 @@ const ar: UiStrings = {
     },
     cantReachServerIdle: 'تعذّر الوصول إلى الخادم — كل شيء هنا محفوظ',
     connectionProblem: 'تحقّق من اتصالك وحاول مرة أخرى.',
+    tooManyTries: 'محاولات كثيرة. انتظر دقيقة وحاول مرة أخرى.',
     syncingCount: {
       zero: 'جارٍ الإرسال…',
       one: 'جارٍ إرسال تغيير واحد…',

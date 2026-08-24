@@ -7,20 +7,26 @@
 #
 # Credentials come from the Maestro env, matching the account e2e/seed-e2e.mjs
 # creates:  maestro test --env E2E_EMAIL=… --env E2E_PASSWORD=… e2e/
+#
+# The login screen is a single white sheet now (no "Continue with email" step):
+# tapping "Sign in" on the welcome gateway lands straight on the email +
+# password form. The final tap targets the submit button by its testID
+# (`auth-submit`) because the screen carries the word "Sign in" three times —
+# the heading, the submit button, and the "Sign in with …" providers.
 appId: app.waves.mobile
 ---
 - launchApp:
     clearState: true
 
-# /welcome → /sign-in → the email form
+# /welcome → /sign-in, straight onto the white email + password sheet.
 - tapOn: 'Sign in'
-- tapOn: 'Continue with email'
 - tapOn: 'Email or phone number'
 - inputText: '${E2E_EMAIL}'
 - tapOn: 'Password'
 - inputText: '${E2E_PASSWORD}'
 - hideKeyboard
-- tapOn: 'Sign in'
+- tapOn:
+    id: 'auth-submit'
 
 # The dashboard appears once the first sync has pulled the seeded group. Give it
 # room — a cold sign-in does an auth round-trip and a full cursor pull.

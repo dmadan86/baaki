@@ -1,17 +1,20 @@
-# The sign-in wall offers both providers.
+# The login sheet offers both providers and the passwordless code path.
 #
-# Google and Apple sit side by side on the sign-in screen. This asserts both
-# buttons render with their own wording — the Apple button is the new one
-# (native sheet on iOS, browser fallback on Android). It does not tap through:
-# completing either provider needs a real IdP round-trip, which belongs to a
-# manual/device pass, not a deterministic flow.
+# On the white login sheet, Google and Apple sit at the foot under an "or" seam,
+# and the email one-time-code conveniences sit above them: "Email me a code" on
+# both doors and "Forgot password" on the login door. This asserts all four
+# render with their own wording — it does not tap through a provider (completing
+# either needs a real IdP round-trip, which belongs to a manual/device pass) and
+# it does not send a code (that hits the mail provider — see login-email-code).
 appId: app.waves.mobile
 ---
 - launchApp:
     clearState: true
 
-# /welcome → /sign-in, where the provider row lives above the email option.
+# /welcome → /sign-in, the white sheet.
 - tapOn: 'Sign in'
 - assertVisible: 'Sign in with Google'
 - assertVisible: 'Sign in with Apple'
-- assertVisible: 'Continue with email'
+- assertVisible: 'Email me a code'
+- assertVisible: 'Forgot password'
+- assertVisible: 'Continue with phone'
