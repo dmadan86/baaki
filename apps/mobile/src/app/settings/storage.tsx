@@ -55,7 +55,11 @@ export default function StorageUsageScreen() {
     queryKey: ['is-paid-storage'],
     queryFn: () => canUploadGroupPhoto(null),
   });
-  const isPaid = paid.data;
+  // If the paid-status read fails outright (no cached answer), fall back to
+  // "free" so the screen resolves — otherwise `isPaid` stays undefined forever,
+  // the skeleton never exits, and the usage query below is left disabled. Free is
+  // the safe default: the meter shows, and the cap is enforced server-side anyway.
+  const isPaid = paid.data ?? (paid.isError ? false : undefined);
 
   // The meter only means anything once storage is on R2, where per-user bytes are
   // tracked; before that there is no tally to show. It is also pointless for a
