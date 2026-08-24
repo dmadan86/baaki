@@ -453,11 +453,15 @@ function AuthGate() {
     segments[0] === 'verify-email';
   // The privacy screen is reachable signed-out too, so the Terms & Privacy line
   // on the welcome and guest doorways can open it before anybody has an account.
+  // Its open-source licenses screen is part of that same policy, opened from a
+  // row inside it, so it has to be public as well — otherwise tapping it bounces
+  // a signed-out reader back to /welcome.
   const onPublicRoute =
     onAuth ||
     segments[0] === 'join' ||
     segments[0] === 'language' ||
-    (segments[0] === 'settings' && (segments as string[])[1] === 'privacy');
+    (segments[0] === 'settings' &&
+      ((segments as string[])[1] === 'privacy' || (segments as string[])[1] === 'licenses'));
 
   /**
    * The route we are on disagrees with the session we have, and the effect
