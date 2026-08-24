@@ -1419,8 +1419,11 @@ function HeroBackdrop({
   const theme = useTheme();
   // Reduced-motion users get the current slide's mark held static instead of the
   // scroll-linked crossfade — the same `animated` gate HeroBalance uses, so the
-  // whole hero honours the setting as one.
-  const { animated } = useMotion();
+  // whole hero honours the setting as one. While the preference is still loading
+  // `animated` defaults true, so hold static until it resolves rather than let a
+  // swipe in that window animate for someone who has Reduce Motion on.
+  const { animated, loading: motionLoading } = useMotion();
+  const shouldAnimate = animated && !motionLoading;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {SLIDE_ICONS.map((icon, index) => (
@@ -1430,7 +1433,7 @@ function HeroBackdrop({
             position: 'absolute',
             right: -44,
             bottom: -52,
-            opacity: animated
+            opacity: shouldAnimate
               ? scrollX.interpolate({
                   inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
                   outputRange: [0, 0.16, 0],
