@@ -42,12 +42,15 @@ export function ExpenseComments({
   myMemberId,
   iAmAdmin,
   nameOf,
+  onComposerFocus,
 }: {
   groupId: string;
   expenseId: string;
   myMemberId: string | null;
   iAmAdmin: boolean;
   nameOf: (memberId: string | null) => string;
+  /** Called when the composer focuses — the parent scrolls it above the keyboard. */
+  onComposerFocus?: () => void;
 }): React.JSX.Element {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -216,6 +219,7 @@ export function ExpenseComments({
         <TextInput
           value={draft}
           onChangeText={setDraft}
+          onFocus={onComposerFocus}
           multiline
           placeholder={t.comments.placeholder}
           placeholderTextColor={theme.color.textFaint}
