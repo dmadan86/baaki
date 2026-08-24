@@ -250,6 +250,7 @@ model Group {
   passes        GroupPass[]
   planItems     TripPlanItem[]
   tripPhotos    TripPhoto[]
+  expenseComments ExpenseComment[]
   settlementProofs   SettlementProof[]
   expenseAttachments ExpenseAttachment[]
   syncMutations SyncMutation[]
@@ -306,6 +307,9 @@ model GroupMember {
   tripPhotos        TripPhoto[]
   settlementProofs   SettlementProof[]
   expenseAttachments ExpenseAttachment[]
+  commentsAuthored   ExpenseComment[]   @relation("ExpenseCommentAuthor")
+  commentsFlagged    ExpenseComment[]   @relation("ExpenseCommentFlagger")
+  commentsDeleted    ExpenseComment[]   @relation("ExpenseCommentDeleter")
   activity          ActivityLog[]
   disputesRaised    ExpenseDispute[]   @relation("DisputeRaisedBy")
   disputesResolved  ExpenseDispute[]   @relation("DisputeResolvedBy")
@@ -433,6 +437,7 @@ model Expense {
   planItems      TripPlanItem[]
   tripPhotos     TripPhoto[]
   attachments    ExpenseAttachment[]
+  comments       ExpenseComment[]
 
   @@index([groupId, deletedAt])
   /// The sync pull is "everything in this group since seq N" (TDR §4).
@@ -1286,6 +1291,40 @@ model TripPhoto {
   @@index([groupId, updatedSeq])
   @@index([expenseId], map: "trip_photos_expense_idx")
   @@map("trip_photos")
+  @@schema("public")
+}
+
+/// A comment on one expense, readable by the whole group.
+///
+/// A group-visible thread (unlike a party-only attachment): any member reads and
+/// adds; the author edits and deletes their own; an admin can delete anyone's; a
+/// member may flag/report and an admin resolves. That matrix is enforced in the
+/// RPCs, never here — writes are RPC-only so `author_member_id` is the session's.
+/// Rides the offline mirror (updated_seq + soft-delete tombstone), text only.
+model ExpenseComment {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId        String    @map("group_id") @db.Uuid
+  expenseId      String    @map("expense_id") @db.Uuid
+  authorMemberId String?   @map("author_member_id") @db.Uuid
+  body           String
+  editedAt       DateTime? @map("edited_at") @db.Timestamptz(6)
+  flaggedAt      DateTime? @map("flagged_at") @db.Timestamptz(6)
+  flaggedBy      String?   @map("flagged_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy      String?   @map("deleted_by") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedSeq     BigInt    @default(0) @map("updated_seq")
+
+  group          Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense        Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  author         GroupMember? @relation("ExpenseCommentAuthor", fields: [authorMemberId], references: [id], onDelete: SetNull)
+  flagger        GroupMember? @relation("ExpenseCommentFlagger", fields: [flaggedBy], references: [id], onDelete: SetNull)
+  deleter        GroupMember? @relation("ExpenseCommentDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
+
+  @@index([groupId, updatedSeq])
+  @@index([expenseId, createdAt], map: "expense_comments_expense_idx")
+  @@map("expense_comments")
   @@schema("public")
 }
 

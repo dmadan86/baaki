@@ -381,6 +381,32 @@ export interface UiStrings {
     remove: string;
     removeConfirm: string;
   };
+  /** The comment thread on an expense. */
+  comments: {
+    /** Section label. */
+    title: string;
+    /** Shown when there are no comments yet. */
+    empty: string;
+    /** Composer placeholder. */
+    placeholder: string;
+    /** Send-button accessibility label. */
+    post: string;
+    edit: string;
+    /** Accessibility label for the inline edit field. */
+    editLabel: string;
+    delete: string;
+    deleteConfirm: string;
+    /** Appended after a comment that was changed. */
+    edited: string;
+    /** Flag/report a comment (any member). */
+    report: string;
+    /** Clear a report (admin). */
+    resolve: string;
+    /** Author label for the current user's own comment. */
+    you: string;
+    couldNotPost: string;
+    couldNotDelete: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -2073,6 +2099,22 @@ const en: UiStrings = {
     view: 'View payment proof',
     remove: 'Remove proof',
     removeConfirm: 'Remove this payment proof?',
+  },
+  comments: {
+    title: 'Comments',
+    empty: 'No comments yet. Start the conversation.',
+    placeholder: 'Add a comment…',
+    post: 'Post comment',
+    edit: 'Edit',
+    editLabel: 'Edit your comment',
+    delete: 'Delete',
+    deleteConfirm: 'Delete this comment?',
+    edited: 'edited',
+    report: 'Report',
+    resolve: 'Resolve',
+    you: 'You',
+    couldNotPost: "Couldn't post that — try again.",
+    couldNotDelete: "Couldn't delete that — try again.",
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3780,6 +3822,22 @@ const ta: UiStrings = {
     view: 'கட்டண சான்றைப் பார்',
     remove: 'சான்றை நீக்கு',
     removeConfirm: 'இந்த கட்டண சான்றை நீக்கவா?',
+  },
+  comments: {
+    title: 'கருத்துகள்',
+    empty: 'இன்னும் கருத்துகள் இல்லை. உரையாடலைத் தொடங்குங்கள்.',
+    placeholder: 'ஒரு கருத்தைச் சேர்…',
+    post: 'கருத்தை இடு',
+    edit: 'திருத்து',
+    editLabel: 'உங்கள் கருத்தைத் திருத்து',
+    delete: 'நீக்கு',
+    deleteConfirm: 'இந்தக் கருத்தை நீக்கவா?',
+    edited: 'திருத்தப்பட்டது',
+    report: 'புகார்',
+    resolve: 'தீர்',
+    you: 'நீங்கள்',
+    couldNotPost: 'இட முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+    couldNotDelete: 'நீக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5554,6 +5612,22 @@ const hi: UiStrings = {
     remove: 'प्रमाण हटाएँ',
     removeConfirm: 'यह भुगतान प्रमाण हटाएँ?',
   },
+  comments: {
+    title: 'टिप्पणियाँ',
+    empty: 'अभी कोई टिप्पणी नहीं। बातचीत शुरू करें।',
+    placeholder: 'एक टिप्पणी जोड़ें…',
+    post: 'टिप्पणी भेजें',
+    edit: 'बदलें',
+    editLabel: 'अपनी टिप्पणी बदलें',
+    delete: 'हटाएँ',
+    deleteConfirm: 'यह टिप्पणी हटाएँ?',
+    edited: 'बदली गई',
+    report: 'रिपोर्ट',
+    resolve: 'हल करें',
+    you: 'आप',
+    couldNotPost: 'भेजा नहीं जा सका — फिर कोशिश करें।',
+    couldNotDelete: 'हटाया नहीं जा सका — फिर कोशिश करें।',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -7275,6 +7349,22 @@ const ar: UiStrings = {
     view: 'عرض إثبات الدفع',
     remove: 'إزالة الإثبات',
     removeConfirm: 'إزالة إثبات الدفع هذا؟',
+  },
+  comments: {
+    title: 'التعليقات',
+    empty: 'لا تعليقات بعد. ابدأ المحادثة.',
+    placeholder: 'أضف تعليقًا…',
+    post: 'نشر التعليق',
+    edit: 'تعديل',
+    editLabel: 'عدّل تعليقك',
+    delete: 'حذف',
+    deleteConfirm: 'حذف هذا التعليق؟',
+    edited: 'مُعدّل',
+    report: 'إبلاغ',
+    resolve: 'حل',
+    you: 'أنت',
+    couldNotPost: 'تعذّر النشر — حاول مرة أخرى.',
+    couldNotDelete: 'تعذّر الحذف — حاول مرة أخرى.',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',

@@ -27,6 +27,7 @@ import {
   materialiseMemberBudgets,
   materialiseMembers,
   materialiseExpenseAttachments,
+  materialiseExpenseComments,
   materialisePlanItems,
   materialiseSettlementProof,
   materialiseSettlements,
@@ -1724,6 +1725,110 @@ export function useRemoveExpenseAttachment(expenseId: string) {
       await removeRestrictedImage('expense-attachments', expenseId, input.storagePath).catch(
         () => {},
       );
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
+// ─────────────────────────────────────────────── expense comments (thread) ──
+// A group-visible thread on one expense. The reads ride the mirror (is_group_member
+// RLS decides what the pull returned); the writes are direct SECURITY DEFINER RPCs
+// that enforce the role matrix server-side, each followed by a flush to pull the
+// change back. Text only — no bytes, no R2.
+
+export interface ExpenseCommentRow {
+  id: string;
+  expenseId: string;
+  groupId: string;
+  authorMemberId: string | null;
+  body: string;
+  editedAt: string | null;
+  flaggedAt: string | null;
+  flaggedBy: string | null;
+  createdAt: string | null;
+}
+
+/** The comments on one expense, oldest first. */
+export function useExpenseComments(expenseId: string): LocalRead<ExpenseCommentRow[]> {
+  const { mirror } = useSync();
+  const rows = useMemo(
+    () =>
+      materialiseExpenseComments(mirror, { expenseId }).map((row): ExpenseCommentRow => ({
+        id: row.id,
+        expenseId: row.expense_id,
+        groupId: row.group_id,
+        authorMemberId: row.author_member_id,
+        body: row.body,
+        editedAt: row.edited_at,
+        flaggedAt: row.flagged_at,
+        flaggedBy: row.flagged_by,
+        createdAt: row.created_at,
+      })),
+    [mirror, expenseId],
+  );
+  return useLocalRead(rows);
+}
+
+/** Add a comment (any member). Client-chosen id is the idempotency key. */
+export function useAddExpenseComment(groupId: string, expenseId: string) {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { body: string }) => {
+      const body = input.body.trim();
+      if (body === '') return;
+      const { error } = await supabase.rpc('baaki_add_expense_comment', {
+        p_group_id: groupId,
+        p_expense_id: expenseId,
+        p_comment_id: randomUUID(),
+        p_body: body,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
+/** Edit a comment — the server allows it only for the author. */
+export function useEditExpenseComment() {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { commentId: string; body: string }) => {
+      const body = input.body.trim();
+      if (body === '') return;
+      const { error } = await supabase.rpc('baaki_edit_expense_comment', {
+        p_comment_id: input.commentId,
+        p_body: body,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
+/** Delete a comment — the server allows the author, or an admin for anyone's. */
+export function useDeleteExpenseComment() {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { commentId: string }) => {
+      const { error } = await supabase.rpc('baaki_delete_expense_comment', {
+        p_comment_id: input.commentId,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
+/** Flag (any member reports) or unflag (admin resolves) a comment. */
+export function useFlagExpenseComment() {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { commentId: string; flag: boolean }) => {
+      const { error } = await supabase.rpc('baaki_flag_expense_comment', {
+        p_comment_id: input.commentId,
+        p_flag: input.flag,
+      });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => void flush(),
   });

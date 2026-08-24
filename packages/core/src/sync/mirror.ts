@@ -69,6 +69,7 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.TripPhotos,
   SyncTable.SettlementProofs,
   SyncTable.ExpenseAttachments,
+  SyncTable.ExpenseComments,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -1117,6 +1118,31 @@ export function materialiseExpenseAttachments(
   return (rowsFor(state, SyncTable.ExpenseAttachments) as MirrorExpenseAttachment[])
     .filter((row) => row.expense_id === options.expenseId && row.deleted_at === null)
     .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+}
+
+export interface MirrorExpenseComment extends MirrorRow {
+  readonly id: string;
+  readonly group_id: string;
+  readonly expense_id: string;
+  readonly author_member_id: string | null;
+  readonly body: string;
+  readonly edited_at: string | null;
+  readonly flagged_at: string | null;
+  readonly flagged_by: string | null;
+  readonly created_at: string | null;
+  readonly deleted_at: string | null;
+}
+
+/** The live comments on one expense, oldest first — a thread reads top-down.
+ *  A deleted comment is a tombstone in the mirror; it is filtered out here so a
+ *  removal (by the author or an admin) reaches every device as a disappearance. */
+export function materialiseExpenseComments(
+  state: MirrorState,
+  options: { readonly expenseId: string },
+): MirrorExpenseComment[] {
+  return (rowsFor(state, SyncTable.ExpenseComments) as MirrorExpenseComment[])
+    .filter((row) => row.expense_id === options.expenseId && row.deleted_at === null)
+    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
 }
 
 /** The plan to render: what has not been removed. */
