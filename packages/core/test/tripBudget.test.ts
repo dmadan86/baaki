@@ -7,7 +7,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { budgetProgress, spendByMember, type SharedExpense } from '../src/trip/budget';
+import {
+  budgetProgress,
+  spendByCategory,
+  spendByMember,
+  type CategorisedExpense,
+  type SharedExpense,
+} from '../src/trip/budget';
 
 const expenses: SharedExpense[] = [
   { currency: 'INR', shares: { alice: 2000n, bob: 1000n } },
@@ -26,6 +32,38 @@ describe('spendByMember', () => {
     const spend = spendByMember([{ currency: 'INR', shares: { alice: 0n, bob: 500n } }]);
     expect(spend.has('alice')).toBe(false);
     expect(spend.get('bob')).toEqual({ INR: 500n });
+  });
+});
+
+describe('spendByCategory', () => {
+  const expenses: CategorisedExpense[] = [
+    { category: 'food', currency: 'INR', amountMinor: 4000n },
+    { category: 'food', currency: 'INR', amountMinor: 1500n },
+    { category: 'stays', currency: 'INR', amountMinor: 40000n },
+    { category: 'food', currency: 'THB', amountMinor: 9000n },
+    { category: null, currency: 'INR', amountMinor: 999n },
+  ];
+
+  it('sums the whole amount per category, per currency', () => {
+    const spend = spendByCategory(expenses);
+    // A category cap measures the group's spend, not one share — so it is the
+    // full amount, and rupees never fold into baht.
+    expect(spend.get('food')).toEqual({ INR: 5500n, THB: 9000n });
+    expect(spend.get('stays')).toEqual({ INR: 40000n });
+  });
+
+  it('leaves uncategorised spend out entirely', () => {
+    const spend = spendByCategory(expenses);
+    expect(spend.has('null')).toBe(false);
+    // The null-category ₹999 is not attributed to any category.
+    const totalInrAttributed = [...spend.values()].reduce((sum, row) => sum + (row.INR ?? 0n), 0n);
+    expect(totalInrAttributed).toBe(45500n);
+  });
+
+  it('measures a category cap against only that category’s spend', () => {
+    const spend = spendByCategory(expenses);
+    const p = budgetProgress({ amountMinor: 6000n, currency: 'INR' }, spend.get('food'));
+    expect(p).toMatchObject({ spentMinor: 5500n, remainingMinor: 500n, over: false });
   });
 });
 

@@ -778,6 +778,67 @@ describe('overall trip budget rides the group row', () => {
   });
 });
 
+describe('category budgets ride the group row', () => {
+  const base: SyncChange = {
+    table: SyncTable.Groups,
+    groupId: GROUP,
+    seq: 1,
+    row: {
+      id: GROUP,
+      name: 'Goa',
+      default_currency: 'INR',
+      created_at: AT,
+      archived_at: null,
+      category_budgets: null,
+    },
+  };
+
+  it('sets a category cap optimistically on the group', () => {
+    const mirror = reconcile(emptyMirror(), [base]).state;
+    const set = envelope('c-1', MutationKind.CategoryBudgetSet, {
+      category: 'food',
+      amountMinor: '500000',
+      currency: 'INR',
+    });
+    const [row] = materialiseGroups(mirror, queued(set));
+    expect(row?.category_budgets).toEqual({ food: { amountMinor: '500000', currency: 'INR' } });
+    expect(row?.pending).toBe(true);
+  });
+
+  it('removes one category cap with a null amount, keeping the others', () => {
+    const withCaps = reconcile(emptyMirror(), [
+      {
+        ...base,
+        row: {
+          ...base.row,
+          category_budgets: {
+            food: { amountMinor: '500000', currency: 'INR' },
+            stays: { amountMinor: '900000', currency: 'INR' },
+          },
+        },
+      },
+    ]).state;
+    const clear = envelope('c-2', MutationKind.CategoryBudgetSet, {
+      category: 'food',
+      amountMinor: null,
+    });
+    const [row] = materialiseGroups(withCaps, queued(clear));
+    expect(row?.category_budgets).toEqual({ stays: { amountMinor: '900000', currency: 'INR' } });
+  });
+
+  it('defaults a cap to the group currency when none is given', () => {
+    const mirror = reconcile(emptyMirror(), [base]).state;
+    const set = envelope('c-3', MutationKind.CategoryBudgetSet, {
+      category: 'transport',
+      amountMinor: '100000',
+    });
+    const [row] = materialiseGroups(mirror, queued(set));
+    expect(row?.category_budgets).toEqual({
+      transport: { amountMinor: '100000', currency: 'INR' },
+    });
+  });
+});
+
 describe('category tags', () => {
   const OWNER = 'user-1';
   const SCOPE = categoryTagsScope(OWNER);

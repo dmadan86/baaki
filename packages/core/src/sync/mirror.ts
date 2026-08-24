@@ -496,6 +496,8 @@ export interface MirrorGroup extends MirrorRow {
   readonly archived_at: string | null;
   readonly budget_minor?: string | null;
   readonly budget_currency?: string | null;
+  /** Per-category caps, keyed by category id. Group-visible, admin-set. */
+  readonly category_budgets?: Record<string, { amountMinor: string; currency: string }> | null;
   readonly pending?: boolean;
 }
 
@@ -557,6 +559,30 @@ function buildGroups(state: MirrorState, queue: readonly QueuedMutation[]): Mirr
           budget_currency: payload.amountMinor === null ? null : (payload.currency ?? null),
           pending: true,
         });
+      }
+    }
+
+    // A per-category cap patches the group row's category_budgets map at once; a
+    // null amount removes that category's cap. Same optimistic path as the
+    // overall budget above.
+    if (mutation.kind === 'category_budget.set') {
+      const existing = byId.get(mutation.groupId);
+      if (existing) {
+        const payload = mutation.payload as {
+          category: string;
+          amountMinor: string | null;
+          currency?: string | null;
+        };
+        const map = { ...(existing.category_budgets ?? {}) };
+        if (payload.amountMinor === null) {
+          delete map[payload.category];
+        } else {
+          map[payload.category] = {
+            amountMinor: payload.amountMinor,
+            currency: payload.currency ?? existing.default_currency,
+          };
+        }
+        byId.set(mutation.groupId, { ...existing, category_budgets: map, pending: true });
       }
     }
   }

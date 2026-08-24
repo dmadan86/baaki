@@ -26,6 +26,14 @@ export interface SharedExpense {
   readonly shares: Readonly<Record<string, bigint>>;
 }
 
+/** One expense, reduced to what a category budget needs: its category, currency
+ *  and full amount (a category cap measures the group's spend, not one share). */
+export interface CategorisedExpense {
+  readonly category: string | null;
+  readonly currency: string;
+  readonly amountMinor: bigint;
+}
+
 /** A ceiling: an amount in one currency. */
 export interface Budget {
   readonly amountMinor: bigint;
@@ -65,6 +73,28 @@ export function spendByMember(
       row[currency] = (row[currency] ?? 0n) + share;
       out.set(member, row);
     }
+  }
+  return out;
+}
+
+/**
+ * Group spend per category, per currency (ADR-004: never mixed). Uncategorised
+ * spend (a null category) is left out — a cap is only ever set on a named
+ * category, so folding "Other" in would measure it against nothing.
+ *
+ * Unlike `spendByMember`, this sums the whole expense amount, not a share: a
+ * category cap is the group's ceiling on food/stays/transport, not one person's.
+ */
+export function spendByCategory(
+  expenses: readonly CategorisedExpense[],
+): Map<string, Record<string, bigint>> {
+  const out = new Map<string, Record<string, bigint>>();
+  for (const expense of expenses) {
+    if (!expense.category) continue;
+    const currency = expense.currency.toUpperCase();
+    const row = out.get(expense.category) ?? {};
+    row[currency] = (row[currency] ?? 0n) + expense.amountMinor;
+    out.set(expense.category, row);
   }
   return out;
 }

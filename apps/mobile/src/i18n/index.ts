@@ -340,6 +340,7 @@ export interface UiStrings {
     /** `{n}` expenses. */
     expenseCount: string;
     noneYet: string;
+    categoryBudgets: string;
   };
   /** Trip budgets. */
   budgets: string;
@@ -1979,6 +1980,7 @@ const en: UiStrings = {
     paidMost: 'Fronted the most',
     expenseCount: '{n} expenses',
     noneYet: 'Nothing to recap yet',
+    categoryBudgets: 'Category budgets',
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3635,6 +3637,7 @@ const ta: UiStrings = {
     paidMost: 'அதிகம் செலுத்தியவர்',
     expenseCount: '{n} செலவுகள்',
     noneYet: 'இன்னும் சுருக்க எதுவும் இல்லை',
+    categoryBudgets: 'வகை பட்ஜெட்',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5356,6 +5359,7 @@ const hi: UiStrings = {
     paidMost: 'सबसे ज़्यादा चुकाया',
     expenseCount: '{n} खर्च',
     noneYet: 'अभी सार के लिए कुछ नहीं',
+    categoryBudgets: 'श्रेणी बजट',
   },
   budgets: 'बजट',
   overallBudget: 'कुल',
@@ -7027,6 +7031,7 @@ const ar: UiStrings = {
     paidMost: 'الأكثر دفعًا',
     expenseCount: '{n} مصاريف',
     noneYet: 'لا شيء للتلخيص بعد',
+    categoryBudgets: 'ميزانيات الفئات',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',
