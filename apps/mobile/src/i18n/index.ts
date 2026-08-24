@@ -1247,6 +1247,26 @@ export interface UiStrings {
     scanReadItemsCta: PluralForms;
     descriptionPlaceholder: string;
     howToSplit: string;
+    /** Travel split presets, shown on trip groups. */
+    presets: {
+      title: string;
+      nights: string;
+      car: string;
+      ride: string;
+      treat: string;
+      nightsTitle: string;
+      nightsHint: string;
+      nightUnit: string;
+      carTitle: string;
+      carRiders: string;
+      carFuel: string;
+      carDriver: string;
+      rideTitle: string;
+      rideHint: string;
+      treatTitle: string;
+      treatHint: string;
+      apply: string;
+    };
     equally: string;
     shares: string;
     percent: string;
@@ -2849,6 +2869,25 @@ const en: UiStrings = {
     },
     descriptionPlaceholder: 'Beach shack dinner',
     howToSplit: 'How to split',
+    presets: {
+      title: 'Trip presets',
+      nights: 'By nights',
+      car: 'Car rental',
+      ride: 'This ride',
+      treat: 'My treat',
+      nightsTitle: 'Split by nights',
+      nightsHint: 'How many nights each person stayed',
+      nightUnit: 'nights',
+      carTitle: 'Car rental',
+      carRiders: 'Who shared the car',
+      carFuel: 'Fuel / tolls (optional)',
+      carDriver: 'Driver pays nothing',
+      rideTitle: 'This ride only',
+      rideHint: 'Who was in it',
+      treatTitle: 'My treat',
+      treatHint: 'Who’s covering it',
+      apply: 'Apply',
+    },
     equally: 'Equally',
     shares: 'Shares',
     percent: 'Percent',
@@ -4550,6 +4589,25 @@ const ta: UiStrings = {
     },
     descriptionPlaceholder: 'கடற்கரை உணவகச் சாப்பாடு',
     howToSplit: 'எப்படிப் பிரிப்பது',
+    presets: {
+      title: 'பயண முன்னமைவுகள்',
+      nights: 'இரவுகள் வாரியாக',
+      car: 'கார் வாடகை',
+      ride: 'இந்த பயணம்',
+      treat: 'என் விருந்து',
+      nightsTitle: 'இரவுகள் வாரியாகப் பிரி',
+      nightsHint: 'ஒவ்வொருவரும் தங்கிய இரவுகள்',
+      nightUnit: 'இரவுகள்',
+      carTitle: 'கார் வாடகை',
+      carRiders: 'காரைப் பகிர்ந்தவர்கள்',
+      carFuel: 'எரிபொருள் / சுங்கம் (விருப்பம்)',
+      carDriver: 'ஓட்டுநர் எதுவும் செலுத்தவில்லை',
+      rideTitle: 'இந்தப் பயணம் மட்டும்',
+      rideHint: 'இதில் இருந்தவர்கள்',
+      treatTitle: 'என் விருந்து',
+      treatHint: 'யார் செலுத்துகிறார்',
+      apply: 'பயன்படுத்து',
+    },
     equally: 'சமமாக',
     shares: 'பங்குகள்',
     percent: 'சதவீதம்',
@@ -6231,6 +6289,25 @@ const hi: UiStrings = {
     },
     descriptionPlaceholder: 'बीच शैक का खाना',
     howToSplit: 'कैसे बाँटें',
+    presets: {
+      title: 'ट्रिप प्रीसेट',
+      nights: 'रातों के हिसाब से',
+      car: 'कार किराया',
+      ride: 'यह सवारी',
+      treat: 'मेरी तरफ़ से',
+      nightsTitle: 'रातों के हिसाब से बाँटें',
+      nightsHint: 'हर कोई कितनी रातें रुका',
+      nightUnit: 'रातें',
+      carTitle: 'कार किराया',
+      carRiders: 'कार किसने साझा की',
+      carFuel: 'ईंधन / टोल (वैकल्पिक)',
+      carDriver: 'ड्राइवर कुछ नहीं देगा',
+      rideTitle: 'सिर्फ़ यह सवारी',
+      rideHint: 'इसमें कौन था',
+      treatTitle: 'मेरी तरफ़ से',
+      treatHint: 'कौन दे रहा है',
+      apply: 'लागू करें',
+    },
     equally: 'बराबर',
     shares: 'हिस्से',
     percent: 'प्रतिशत',
@@ -7934,6 +8011,25 @@ const ar: UiStrings = {
     },
     descriptionPlaceholder: 'عشاء على الشاطئ',
     howToSplit: 'طريقة التقسيم',
+    presets: {
+      title: 'إعدادات الرحلة',
+      nights: 'حسب الليالي',
+      car: 'إيجار سيارة',
+      ride: 'هذه الرحلة',
+      treat: 'على حسابي',
+      nightsTitle: 'التقسيم حسب الليالي',
+      nightsHint: 'كم ليلة أقام كل شخص',
+      nightUnit: 'ليالٍ',
+      carTitle: 'إيجار سيارة',
+      carRiders: 'من شارك السيارة',
+      carFuel: 'الوقود / الرسوم (اختياري)',
+      carDriver: 'السائق لا يدفع شيئًا',
+      rideTitle: 'هذه الرحلة فقط',
+      rideHint: 'من كان فيها',
+      treatTitle: 'على حسابي',
+      treatHint: 'من يتكفّل بها',
+      apply: 'تطبيق',
+    },
     equally: 'بالتساوي',
     shares: 'حصص',
     percent: 'نسبة مئوية',
