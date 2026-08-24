@@ -95,29 +95,53 @@ interface ShrinkOptions {
 }
 
 /**
- * Cap the longest edge and re-encode as JPEG.
+ * Cap the longest edge and re-encode, preferring WebP (A44).
  *
  * Constraining width alone would leave a tall portrait photo just as heavy, so
  * which edge gets capped depends on the shape of the image. An image already
  * within budget is re-encoded but not resized — enlarging a small picture to
  * meet a maximum would add bytes to no purpose.
+ *
+ * WebP is the target: at the same visible quality it is materially smaller than
+ * JPEG, which is bytes saved in storage (the free-tier ceiling), on the wire and
+ * in every fetch. But `expo-image-manipulator`'s WebP encoder is Android-solid
+ * and unreliable on some iOS versions, where `saveAsync` throws. So the encode
+ * is tried as WebP and falls back to JPEG on failure — a smaller file where the
+ * platform allows it, a working upload everywhere. The returned `mimeType` says
+ * which one it was, so the object is stored and served as what it actually is.
  */
 async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions): Promise<{
   base64: string;
   uri: string;
+  mimeType: string;
 } | null> {
   const module = await loadManipulator();
   if (!module) return null;
 
-  const context = module.ImageManipulator.manipulate(uri);
+  const render = async () => {
+    // Re-manipulate per attempt: a rendered context is consumed by saveAsync and
+    // cannot be re-saved in another format.
+    const context = module.ImageManipulator.manipulate(uri);
+    const longest = Math.max(width, height);
+    if (longest > maxEdge) {
+      context.resize(width >= height ? { width: maxEdge } : { height: maxEdge });
+    }
+    return context.renderAsync();
+  };
 
-  const longest = Math.max(width, height);
-  if (longest > maxEdge) {
-    context.resize(width >= height ? { width: maxEdge } : { height: maxEdge });
+  const webp = module.SaveFormat.WEBP;
+  if (webp) {
+    try {
+      const saved = await (await render()).saveAsync({ base64: true, compress, format: webp });
+      if (saved.base64) return { base64: saved.base64, uri: saved.uri, mimeType: 'image/webp' };
+    } catch {
+      // iOS without a WebP encoder — fall through to JPEG.
+    }
   }
 
-  const rendered = await context.renderAsync();
-  const saved = await rendered.saveAsync({
+  const saved = await (
+    await render()
+  ).saveAsync({
     base64: true,
     compress,
     format: module.SaveFormat.JPEG,
@@ -126,7 +150,7 @@ async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions):
   // `saveAsync` only omits base64 if it was not asked for; if it is missing
   // anyway there is nothing to upload, and saying so beats uploading nothing.
   if (!saved.base64) throw new Error('Could not read that image.');
-  return { base64: saved.base64, uri: saved.uri };
+  return { base64: saved.base64, uri: saved.uri, mimeType: 'image/jpeg' };
 }
 
 /**
@@ -137,13 +161,17 @@ async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions):
  * limits still reject anything absurd — so the worst case is a rejected upload
  * with a clear message, rather than a screen that will not open.
  */
-async function readUnshrunk(uri: string): Promise<{ base64: string; uri: string }> {
+async function readUnshrunk(
+  uri: string,
+): Promise<{ base64: string; uri: string; mimeType?: string }> {
   // `File.base64()` rather than fetch + FileReader: React Native's fetch does
   // not reliably read a `file://` URI on Android, and a fallback that fails is
   // not a fallback.
   const base64 = await new FileSystem.File(uri).base64();
   if (!base64) throw new Error('Could not read that image.');
-  return { base64, uri };
+  // No manipulator ran, so the format is whatever was picked; the caller falls
+  // back to JPEG for the stored mime, which the bucket normalises anyway.
+  return { base64, uri, mimeType: undefined };
 }
 
 /**
@@ -178,7 +206,7 @@ export async function pickSquarePhoto(maxEdge: number): Promise<PickedImage | nu
       maxEdge,
       compress: 0.7,
     })) ?? (await readUnshrunk(asset.uri));
-  return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
+  return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
 }
 
 export const pickAvatarPhoto = () => pickSquarePhoto(AVATAR_MAX_EDGE);
@@ -214,7 +242,7 @@ export async function pickReceiptPhoto(): Promise<PickedImage | null> {
       maxEdge: RECEIPT_MAX_EDGE,
       compress: 0.9,
     })) ?? (await readUnshrunk(asset.uri));
-  return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
+  return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
 }
 
 /**
@@ -254,7 +282,7 @@ export async function pickReceiptImage(): Promise<PickedImage | null> {
       maxEdge: RECEIPT_MAX_EDGE,
       compress: 0.9,
     })) ?? (await readUnshrunk(asset.uri));
-  return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
+  return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
 }
 
 /**
@@ -296,7 +324,7 @@ export async function captureReceipt(): Promise<PickedImage | null> {
           compress: 0.9,
         })
       : null) ?? (await readUnshrunk(scanned));
-  return { base64: shrunk.base64, mimeType: 'image/jpeg', uri: shrunk.uri };
+  return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
 }
 
 function imageSize(uri: string): Promise<{ width: number; height: number } | null> {

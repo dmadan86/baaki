@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -37,7 +38,7 @@ import { useBlockedUsers } from '@/data/blocked';
 import { displayName, groupLabel, isBlockedMember, isGhost } from '@/data/types';
 import { fill, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { receiptFiles } from '@/lib/receiptStore';
+import { expenseReceiptPath, expenseReceiptUrl } from '@/data/api';
 import { coordLabel, mapsUrl } from '@/lib/location';
 
 function splitLabels(t: UiStrings): Record<string, string> {
@@ -67,6 +68,26 @@ export default function ExpenseDetailScreen() {
   const expense = expenses.rows.find((row) => row.id === expenseId);
   const version = expense?.currentVersion;
   const { blockedIds } = useBlockedUsers();
+
+  // The kept bill (E2), resolved from R2. `expenseReceiptUrl` doubles as the
+  // existence check — it returns null when no bill was ever kept — so a URL here
+  // both proves the receipt exists and gives the thumbnail something to show. A
+  // group receipt in R2 is group-readable, so any member sees it, not just the
+  // author. Absent on web/anonymous where storage does not resolve, which reads
+  // as "no receipt" and simply hides the row.
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const currentExpenseId = expense?.id;
+  useEffect(() => {
+    if (!currentExpenseId) return;
+    let active = true;
+    void (async () => {
+      const url = await expenseReceiptUrl(groupId, currentExpenseId);
+      if (active) setReceiptUri(url);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [groupId, currentExpenseId]);
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
@@ -121,26 +142,14 @@ export default function ExpenseDetailScreen() {
   const currency = version.currency;
   const deleted = Boolean(expense.deleted_at);
 
-  // The bill (E2/E3). The owner has it in the device vault; a member who is not
-  // the owner has no local copy, but may have the owner's Drive link if they
-  // opened it to the group. Either is a way to see the receipt — the local one
-  // opens the in-app zoom viewer, the link opens the owner's own Drive.
-  const localReceipt = receiptFiles(expense.id);
-  const receiptShareUrl = version.receipt_share_url;
   // Where it happened (A43), when the author attached one. A plain snapshot — a
   // tap opens the point in the phone's maps app.
   const location = version.location;
-  const hasReceipt = Boolean(localReceipt) || Boolean(receiptShareUrl);
+  const hasReceipt = Boolean(receiptUri);
   const openReceipt = (): void => {
-    if (localReceipt) {
-      router.push(
-        `/receipt/${expense.id}${
-          receiptShareUrl ? `?shareUrl=${encodeURIComponent(receiptShareUrl)}` : ''
-        }`,
-      );
-    } else if (receiptShareUrl) {
-      void Linking.openURL(receiptShareUrl).catch(() => undefined);
-    }
+    router.push(
+      `/receipt/${expense.id}?path=${encodeURIComponent(expenseReceiptPath(groupId, expense.id))}`,
+    );
   };
   // The hero wears the expense's category colour, not a money colour: this
   // amount is a total that belongs to nobody, shown neutral. Ink from the same
@@ -232,9 +241,9 @@ export default function ExpenseDetailScreen() {
           </Row>
         </TintCard>
 
-        {/* The bill, when there is one to see (E2/E3). A local thumbnail opens
-            the pinch-zoom viewer; a member with only the owner's share link gets
-            a row that opens it. Absent entirely when neither exists. */}
+        {/* The bill, when there is one to see (E2). The thumbnail opens the
+            pinch-zoom viewer; the image is served from R2 to any group member.
+            Absent entirely when no bill was kept. */}
         {hasReceipt ? (
           <Pressable
             accessibilityRole="button"
@@ -243,9 +252,9 @@ export default function ExpenseDetailScreen() {
           >
             <Card style={{ paddingVertical: theme.spacing.md }}>
               <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                {localReceipt ? (
+                {receiptUri ? (
                   <Image
-                    source={{ uri: localReceipt.imageUri }}
+                    source={{ uri: receiptUri }}
                     style={{ width: 52, height: 52, borderRadius: theme.radius.md }}
                     contentFit="cover"
                     transition={150}

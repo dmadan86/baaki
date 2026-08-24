@@ -7,7 +7,6 @@
  * the server must own share computation and authorization (TDR §4).
  */
 
-import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
 
 import {
@@ -28,6 +27,7 @@ import {
 
 import { activeStrings } from '@/i18n';
 import type { DeviceIdentity } from '@/lib/device';
+import { imageUrl, putImage, removeImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import type {
   ActivityGroup,
@@ -61,7 +61,7 @@ const EXPENSE_SELECT = `
   id, group_id, deleted_at, created_at,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
     id, version_no, description, category, expense_date, currency, amount,
-    split_type, split_params, author_member_id, notes, payment_method, receipt_share_url, created_at,
+    split_type, split_params, author_member_id, notes, payment_method, created_at,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
   )
@@ -324,12 +324,15 @@ export async function uploadGroupPhoto(input: {
   mimeType?: string | null;
 }): Promise<string> {
   const mime = normaliseImageMime(input.mimeType);
-  const path = `${input.groupId}/cover.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`;
+  const path = `${input.groupId}/cover.${imageExt(mime)}`;
 
-  const { error } = await supabase.storage
-    .from(PHOTO_BUCKET)
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (error) throw new Error(error.message);
+  await putImage({
+    bucket: PHOTO_BUCKET,
+    path,
+    base64: input.base64,
+    contentType: mime,
+    groupId: input.groupId,
+  });
 
   const { error: linkError } = await supabase
     .from('groups')
@@ -342,14 +345,11 @@ export async function uploadGroupPhoto(input: {
 
 /** Signed because the bucket is private — a group photo is not public data. */
 export async function groupPhotoUrl(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return imageUrl(PHOTO_BUCKET, path);
 }
 
 export async function removeGroupPhoto(groupId: string, path: string | null): Promise<void> {
-  if (path) await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+  await removeImage(PHOTO_BUCKET, path);
   const { error } = await supabase.from('groups').update({ photo_path: null }).eq('id', groupId);
   if (error) throw new Error(error.message);
 }
@@ -390,6 +390,21 @@ export async function canAddReceipt(groupId: string): Promise<boolean> {
   return data === true;
 }
 
+/**
+ * The signed-in caller's own image-storage usage (A44), for the settings meter.
+ *
+ * `used` counts only the bytes that are charged against a ceiling — a paid
+ * account, whose bytes are never counted, reads 0 used — and `cap` is the
+ * current free-tier ceiling. Answered by a `SECURITY DEFINER` RPC scoped hard to
+ * the caller's own profile, so it reveals nobody else's tally.
+ */
+export async function myStorageUsage(): Promise<{ usedBytes: number; capBytes: number }> {
+  const { data, error } = await supabase.rpc('baaki_my_storage_usage');
+  if (error) throw new Error(error.message);
+  const row = (data as { used_bytes: number; cap_bytes: number }[] | null)?.[0];
+  return { usedBytes: Number(row?.used_bytes ?? 0), capBytes: Number(row?.cap_bytes ?? 0) };
+}
+
 /** The bucket accepts three types; anything else is stored as JPEG. */
 function normaliseImageMime(mimeType: string | null | undefined): string {
   if (mimeType === 'image/png' || mimeType === 'image/webp') return mimeType;
@@ -421,21 +436,73 @@ export async function uploadCapturePhoto(input: {
 }): Promise<string> {
   const mime = normaliseImageMime(input.mimeType);
   const path = `${input.ownerUserId}/${input.captureId}.${imageExt(mime)}`;
-  const { error } = await supabase.storage
-    .from(CAPTURE_BUCKET)
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (error) throw new Error(error.message);
+  // No group at capture time (a capture is assigned later, A34), so the bytes
+  // count against the owner's own ceiling.
+  await putImage({ bucket: CAPTURE_BUCKET, path, base64: input.base64, contentType: mime });
   return path;
 }
 
 /** Resolve a capture photo path to a displayable signed URL (private bucket). */
 export async function capturePhotoUrl(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  const { data, error } = await supabase.storage
-    .from(CAPTURE_BUCKET)
-    .createSignedUrl(path, 60 * 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return imageUrl(CAPTURE_BUCKET, path);
+}
+
+// ─────────────────────────────────────── kept expense bills (Storage, E2) ──
+
+const RECEIPT_BUCKET = 'receipts';
+
+/**
+ * The R2 path a group expense's kept bill (E2) lives at: `<groupId>/<expenseId>.jpg`.
+ *
+ * Deterministic on purpose — both the screen that keeps the bill and the screen
+ * that views it later derive the same path from the same two ids, so no column
+ * has to remember where the image went. The group segment is what makes it
+ * group-readable in R2: the `r2-sign` edge authorises a read for anyone in that
+ * group, which is exactly the visibility the old E3 "share with group" toggle
+ * used to arrange by hand.
+ */
+export function expenseReceiptPath(groupId: string, expenseId: string): string {
+  return `${groupId}/${expenseId}.jpg`;
+}
+
+/**
+ * Keep the photographed/attached bill for a group expense (E2) in R2.
+ *
+ * Uploaded to the private `receipts` bucket under {@link expenseReceiptPath}, so
+ * it counts against the group's storage ceiling (ADR-011) and is readable by the
+ * group. Returns the stored path. Reuses the same `putImage` seam every other
+ * uploader uses — the client holds no R2 credential.
+ */
+export async function uploadExpenseReceipt(input: {
+  groupId: string;
+  expenseId: string;
+  base64: string;
+  mimeType?: string | null;
+}): Promise<string> {
+  const path = expenseReceiptPath(input.groupId, input.expenseId);
+  // The path suffix is fixed at `.jpg` so the viewer can find it without knowing
+  // the source format; the real content type still rides so R2 serves it right.
+  await putImage({
+    bucket: RECEIPT_BUCKET,
+    path,
+    base64: input.base64,
+    contentType: normaliseImageMime(input.mimeType),
+    groupId: input.groupId,
+  });
+  return path;
+}
+
+/**
+ * Resolve a group expense's kept bill to a displayable signed URL, or null when
+ * none was ever kept. Doubles as the existence check — the `r2-sign` edge
+ * returns nothing for an object it has no record of, so a null here means "no
+ * receipt", and the affordance simply hides.
+ */
+export async function expenseReceiptUrl(
+  groupId: string,
+  expenseId: string,
+): Promise<string | null> {
+  return imageUrl(RECEIPT_BUCKET, expenseReceiptPath(groupId, expenseId));
 }
 
 // ───────────────────────────────────────── profile photos (Storage) ──
@@ -460,12 +527,9 @@ export async function uploadAvatar(input: {
   mimeType?: string | null;
 }): Promise<string> {
   const mime = normaliseImageMime(input.mimeType);
-  const path = `${input.profileId}/avatar.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`;
+  const path = `${input.profileId}/avatar.${imageExt(mime)}`;
 
-  const { error } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (error) throw new Error(error.message);
+  await putImage({ bucket: AVATAR_BUCKET, path, base64: input.base64, contentType: mime });
 
   const { error: linkError } = await supabase
     .from('profiles')
@@ -487,18 +551,13 @@ export async function uploadAvatar(input: {
 export async function avatarPhotoUrl(value: string | null): Promise<string | null> {
   if (!value) return null;
   if (/^https?:\/\//.test(value)) return value;
-
-  const { data, error } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .createSignedUrl(value, 60 * 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return imageUrl(AVATAR_BUCKET, value);
 }
 
 export async function removeAvatar(profileId: string, value: string | null): Promise<void> {
   // Only ours to delete. A provider URL is not an object in the bucket.
   if (value && !/^https?:\/\//.test(value)) {
-    await supabase.storage.from(AVATAR_BUCKET).remove([value]);
+    await removeImage(AVATAR_BUCKET, value);
   }
   const { error } = await supabase
     .from('profiles')
@@ -563,8 +622,6 @@ export interface WriteExpenseInput {
   categoryMeta?: CategoryMeta | null;
   /** Where the spend happened (A43); null unless the person opted in. */
   location?: ExpenseLocation | null;
-  /** A view-only link to the owner's own cloud copy of the receipt (E3). */
-  receiptShareUrl?: string | null;
   /** The rate used, when this expense is not in the group's currency. */
   fx?: FxRecord | null;
   clientMutationId?: string;
@@ -604,9 +661,6 @@ export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpen
       // Full snapshot, not a patch: an append-only version always carries the
       // field, so an omitted method and an explicit null both mean "none".
       paymentMethod: input.paymentMethod ?? null,
-      // A view-only link to the owner's own cloud copy of the receipt (E3); the
-      // image itself never reaches the server, only this optional URL.
-      receiptShareUrl: input.receiptShareUrl ?? null,
       // Where the spend happened (A43); null unless the person opted in. The
       // server validates it to Earth's ranges before it is stored.
       location: input.location ?? null,
@@ -1227,13 +1281,16 @@ export async function scanReceipt(input: {
   currency?: string;
 }): Promise<ScanResult> {
   const receiptId = randomUUID();
-  const mime = input.mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
-  const path = `${input.groupId}/${receiptId}.${mime === 'image/png' ? 'png' : 'jpg'}`;
+  const mime = normaliseImageMime(input.mimeType);
+  const path = `${input.groupId}/${receiptId}.${imageExt(mime)}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('receipts')
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (uploadError) throw new Error(uploadError.message);
+  await putImage({
+    bucket: 'receipts',
+    path,
+    base64: input.base64,
+    contentType: mime,
+    groupId: input.groupId,
+  });
 
   const { data, error } = await supabase.functions.invoke('receipt-parse', {
     body: {

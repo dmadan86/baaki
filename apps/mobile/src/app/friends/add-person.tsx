@@ -48,12 +48,9 @@ import { GroupType } from '@/data/types';
 import { deviceSupportsUpi, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
-import { useBackup } from '@/lib/cloud/BackupProvider';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { recogniseReceipt } from '@/lib/ocr';
-import { markPending } from '@/lib/receiptIndex';
-import { saveReceipt } from '@/lib/receiptStore';
 
 type Direction = 'theyOwe' | 'iOwe';
 
@@ -118,7 +115,6 @@ export default function AddPersonScreen() {
   const createGroup = useCreateGroup();
   const addGhost = useAddGhostMember(groupId);
   const writeExpense = useWriteExpense(groupId);
-  const backup = useBackup();
 
   const currency = useDefaultCurrency();
   // UPI only where the region has the rail; every other method is universal.
@@ -136,13 +132,12 @@ export default function AddPersonScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // A receipt for the IOU. The photo is read on the phone (A5); the merchant
-  // prefills the note, and the image and its OCR text are kept in the device
-  // vault + your own cloud — never uploaded to Baaki (the receipt-scan privacy
-  // choice). Keyed by an id chosen up front so the vault path is stable.
-  const [receiptId] = useState(() => randomUUID());
+  // A receipt for the IOU. The photo is read on the phone (A5) so the merchant
+  // can prefill the note; the bill image itself is not kept for this 1:1 path —
+  // the group is created through the offline queue and does not exist on the
+  // server yet, so there is no group-scoped R2 destination to authorise the
+  // upload against at save time. Only the amount and note reach the expense.
   const [photo, setPhoto] = useState<PickedImage | null>(null);
-  const [rawText, setRawText] = useState<string | null>(null);
   const [parsed, setParsed] = useState<HeuristicReceipt | null>(null);
   const [scanning, setScanning] = useState(false);
 
@@ -166,12 +161,10 @@ export default function AddPersonScreen() {
     setScanning(true);
     try {
       const recognised = await recogniseReceipt(picked.uri);
-      setRawText(recognised?.text ?? null);
       const receipt = recognised ? parseReceiptText(recognised.text, { currency }) : null;
       setParsed(receipt);
       if (receipt?.merchant && note.trim().length === 0) setNote(receipt.merchant);
     } catch {
-      setRawText(null);
       setParsed(null);
     } finally {
       setScanning(false);
@@ -226,31 +219,6 @@ export default function AddPersonScreen() {
         splitParams: { kind: 'exact', amounts: { [debtorId]: amount, [payerId]: 0n } },
         paymentMethod,
       });
-
-      // Keep the receipt image on the device and, if a personal cloud is
-      // connected, queue it there — it is never uploaded to Baaki. The photo and
-      // its OCR text stay in the vault sidecar; only the amount and note reached
-      // the expense (A5, receipt-scan privacy).
-      if (photo) {
-        const saved = saveReceipt(receiptId, {
-          base64: photo.base64,
-          sidecar: {
-            captureId: receiptId,
-            currency,
-            amountMinor: Number(amount),
-            itemCount: parsed?.items.length ?? 0,
-            items: (parsed?.items ?? []).map((item) => ({ label: item.label, total: item.total })),
-            date: today(),
-            category: null,
-            rawText,
-            createdAt: new Date().toISOString(),
-          },
-        });
-        if (saved) {
-          await markPending(receiptId, saved, new Date().toISOString());
-          void backup.kick();
-        }
-      }
 
       // All three writes went through the offline queue, which updates the mirror
       // synchronously — the now-local Friends list already shows the new person,
@@ -458,9 +426,9 @@ export default function AddPersonScreen() {
           </Row>
         </Card>
 
-        {/* The bill, for when pointing a camera beats typing. The photo is kept
-            on the device (and your own cloud), never on Baaki; its text is read
-            here and rides the expense, and the merchant prefills the note. */}
+        {/* The bill, for when pointing a camera beats typing. The photo is read
+            here on the phone to prefill the note from the merchant; the image
+            itself is not kept for this 1:1 IOU (see the receipt-state note). */}
         <Card style={{ gap: theme.spacing.md }}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="subheading">{t.captures.receipt}</Text>

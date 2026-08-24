@@ -1,0 +1,38 @@
+# Waves R2 image-normalizer worker (A44) — OPTIONAL, scaffold only.
+#
+# The phone already encodes WebP where it can (expo-image-manipulator). This
+# worker is the fallback for the objects it could not: some iOS versions have no
+# WebP encoder, so those uploads land as JPEG. An R2 event notification wakes
+# this worker on every new object; anything that is not already WebP is
+# transcoded in place with the Cloudflare Images binding, so storage and every
+# download settle on WebP regardless of the device that produced them.
+#
+# Nothing here runs until you fill the account id + bucket + secrets and deploy
+# it (`wrangler deploy`). The app works without it — this only shrinks the
+# minority of JPEG-fallback objects.
+
+name = "waves-r2-image-worker"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# The one physical bucket every logical bucket is namespaced inside.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "waves-images"          # <-- your R2 bucket name
+
+# Cloudflare Images binding, used to transcode to WebP. Requires Images on the
+# account (see README). Remove this binding to disable transcoding — the worker
+# then no-ops safely.
+[images]
+binding = "IMAGES"
+
+# The queue R2 event notifications are delivered to. Create it with:
+#   wrangler queues create waves-image-events
+# then wire the bucket's event notifications to it:
+#   wrangler r2 bucket notification create waves-images \
+#     --event-type object-create --queue waves-image-events
+[[queues.consumers]]
+queue = "waves-image-events"
+max_batch_size = 10
+max_retries = 3
+dead_letter_queue = "waves-image-events-dlq"

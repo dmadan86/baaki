@@ -23,6 +23,15 @@ import {
   requireMembership,
 } from '../_shared/auth.ts';
 import { enforceRateLimit } from '../_shared/rateLimit.ts';
+import { readObjectBytes } from '../_shared/r2.ts';
+
+/** The media type Anthropic is told, keyed off the stored object's extension. */
+function mediaTypeForPath(path: string): 'image/png' | 'image/webp' | 'image/jpeg' {
+  const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  return 'image/jpeg';
+}
 
 interface ParseRequest {
   groupId: string;
@@ -212,20 +221,22 @@ serveWithCors(async (request) => {
       if (!body.storagePath.startsWith(`${body.groupId}/`)) {
         throw new HttpError(403, 'FORBIDDEN', 'That image does not belong to this group');
       }
-      // Downloaded with the service role and sent as base64: the model never
-      // gets a URL into our storage, signed or otherwise.
-      const { data: file, error: downloadError } = await service.storage
-        .from('receipts')
-        .download(body.storagePath);
-      if (downloadError || !file) {
-        throw new HttpError(400, 'IMAGE_UNREADABLE', downloadError?.message ?? 'No such image');
+      // Read with the service role from whichever backend holds it (R2 for new
+      // uploads, Supabase Storage for anything from before the cut-over) and
+      // sent as base64: the model never gets a URL into our storage.
+      let bytes: Uint8Array;
+      try {
+        bytes = await readObjectBytes(service, 'receipts', body.storagePath);
+      } catch (readError) {
+        const message = readError instanceof Error ? readError.message : 'No such image';
+        throw new HttpError(400, 'IMAGE_UNREADABLE', message);
       }
       content.push({
         type: 'image',
         source: {
           type: 'base64',
-          media_type: file.type === 'image/png' ? 'image/png' : 'image/jpeg',
-          data: encodeBase64(new Uint8Array(await file.arrayBuffer())),
+          media_type: mediaTypeForPath(body.storagePath),
+          data: encodeBase64(bytes),
         },
       });
     }

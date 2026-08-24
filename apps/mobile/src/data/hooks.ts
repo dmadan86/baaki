@@ -864,7 +864,6 @@ function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<str
     notes: input.notes ?? null,
     paymentMethod: input.paymentMethod ?? null,
     categoryMeta: input.categoryMeta ?? null,
-    receiptShareUrl: input.receiptShareUrl ?? null,
     location: input.location ?? null,
   };
 }
