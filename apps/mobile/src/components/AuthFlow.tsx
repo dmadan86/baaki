@@ -114,7 +114,13 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
       return await action();
     } catch (caught) {
       setError(
-        friendlyError(caught, t.signIn.couldNotSignIn, 'auth.signIn', t.misc.connectionProblem),
+        friendlyError(
+          caught,
+          t.signIn.couldNotSignIn,
+          'auth.signIn',
+          t.misc.connectionProblem,
+          t.misc.tooManyTries,
+        ),
       );
       return undefined;
     } finally {
@@ -292,6 +298,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 </View>
 
                 <Button
+                  testID="auth-submit"
                   label={isGuest ? t.signIn.addToAccount : title}
                   size="lg"
                   fullWidth
@@ -306,6 +313,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                   <View style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
                     {!isSignup ? (
                       <Pressable
+                        testID="auth-forgot"
                         accessibilityRole="button"
                         onPress={mailCode}
                         disabled={busy}
@@ -318,6 +326,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                       </Pressable>
                     ) : null}
                     <Button
+                      testID="auth-email-code"
                       label={t.signIn.emailMeACode}
                       variant="secondary"
                       size="lg"
@@ -339,6 +348,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 </Text>
                 <View style={fieldStyle}>
                   <TextInput
+                    testID="auth-code"
                     value={code}
                     onChangeText={setCode}
                     keyboardType="number-pad"
@@ -356,6 +366,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                   />
                 </View>
                 <Button
+                  testID="auth-verify"
                   label={t.signIn.verify}
                   size="lg"
                   fullWidth
@@ -379,6 +390,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                     </Text>
                   </Pressable>
                   <Pressable
+                    testID="auth-resend"
                     accessibilityRole="button"
                     onPress={mailCode}
                     disabled={busy || resendLeft > 0}

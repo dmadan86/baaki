@@ -1,0 +1,22 @@
+# The sign-up door renders the white sheet with its own affordances.
+#
+# The gateway's "Create account" opens the sign-up sheet (a separate page from
+# login). It carries the same email + password form and provider foot, plus the
+# two things the login door does not: the guest way in ("Continue as guest",
+# ADR-006 — reachable before any form) and no "Forgot password" (there is no
+# password to recover before the account exists). It does not submit — creating
+# an account would need a throwaway address and hit the mail provider.
+appId: app.waves.mobile
+---
+- launchApp:
+    clearState: true
+
+# /welcome → /sign-up, the white sheet.
+- tapOn: 'Create account'
+- assertVisible: 'Email or phone number'
+- assertVisible: 'Password'
+- assertVisible: 'Email me a code'
+- assertVisible: 'Continue as guest'
+- assertNotVisible: 'Forgot password'
+- assertVisible:
+    id: 'auth-submit'

@@ -1,0 +1,40 @@
+# The passwordless email one-time-code path on the login sheet.
+#
+# Types the seeded email, taps "Email me a code", and asserts the sheet turns to
+# its code face — the six-digit field (`auth-code`), the resend control, and the
+# way back to the password form. It stops there: verifying a real code needs the
+# inbox, which is not deterministic in a flow, so this proves the *path* renders
+# and returns, not that a specific code is accepted.
+#
+# Sending the code hits Supabase, so this flow — like login.yaml — needs the
+# seeded staging project and a working Magic Link email template (the one that
+# carries {{ .Token }}). It is part of the gated `e2e (Maestro)` job, not a
+# device-free unit test.
+appId: app.waves.mobile
+---
+- launchApp:
+    clearState: true
+
+# /welcome → /sign-in, the white sheet.
+- tapOn: 'Sign in'
+
+# Enter the address the code is mailed to, then ask for the code.
+- tapOn: 'Email or phone number'
+- inputText: '${E2E_EMAIL}'
+- hideKeyboard
+- tapOn:
+    id: 'auth-email-code'
+
+# The sheet turns to its code face.
+- extendedWaitUntilVisible:
+    element:
+      id: 'auth-code'
+    timeout: 30000
+- assertVisible: 'Use a password instead'
+- assertVisible:
+    id: 'auth-resend'
+
+# The way back to the password form works.
+- tapOn: 'Use a password instead'
+- assertVisible:
+    id: 'auth-submit'

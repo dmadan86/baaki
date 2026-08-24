@@ -17,10 +17,12 @@
 
 import { reportHandled } from '@/lib/observability';
 
-/** The shape supabase-js hands back on a failed rpc. */
+/** The shape supabase-js hands back on a failed rpc or auth call. */
 interface Postgrestish {
   message?: string;
   code?: string;
+  /** supabase-js AuthError carries the HTTP status — 429 on a rate limit. */
+  status?: number;
 }
 
 export function friendlyError(
@@ -28,6 +30,7 @@ export function friendlyError(
   fallback: string,
   where: string,
   offline?: string,
+  tooMany?: string,
 ): string {
   const error = (caught ?? {}) as Postgrestish;
   const message =
@@ -48,6 +51,18 @@ export function friendlyError(
   // Anything the database rejected by name is still not a sentence.
   if (/violates|constraint|permission denied|relation .* does not exist/i.test(message)) {
     return fallback;
+  }
+
+  // Too many requests in too short a window — the one-time-code buttons hit
+  // Supabase's email send-rate limit if tapped repeatedly. "Could not sign in"
+  // reads as a rejected credential here, which is wrong: the request was fine,
+  // there were just too many. Say to wait, not to doubt what they typed.
+  if (
+    error.status === 429 ||
+    /rate limit|too many requests|over_.*_rate_limit/i.test(message) ||
+    /rate.?limit/i.test(typeof error.code === 'string' ? error.code : '')
+  ) {
+    return tooMany ?? fallback;
   }
 
   // A network failure is worth naming — telling somebody their connection
