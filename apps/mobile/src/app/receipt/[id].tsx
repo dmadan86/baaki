@@ -1,55 +1,52 @@
 import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Linking, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { Button, EmptyState, IconButton, iconSize, Screen, useTheme } from '@waves/ui';
+import { EmptyState, IconButton, iconSize, Screen, useTheme } from '@waves/ui';
 
 import { ZoomableImage } from '@/components/ZoomableImage';
-import { fill, useStrings } from '@/i18n';
-import { providerFor } from '@/lib/cloud/providers';
-import { entryFor } from '@/lib/receiptIndex';
-import { receiptFiles } from '@/lib/receiptStore';
+import { useStrings } from '@/i18n';
+import { imageUrl } from '@/lib/storage';
 
 /**
  * See the bill, any time after it was kept (E2).
  *
- * The receipt lives in the on-device vault, keyed by the expense id — never on
- * Waves. This screen reads it from there and shows it full-bleed, pinch to zoom.
- * When the local file is gone (a reinstall, a cleared vault) it does not simply
- * fail: if the receipt was backed up to a personal cloud, it says which one and,
- * when a share link is known, offers to open it; otherwise it explains the bill
- * is on the device it was added from. A missing receipt is a calm message, never
- * a crash.
+ * The receipt lives in R2 under the group + expense id, and is group-readable —
+ * the `r2-sign` edge authorises a read by group membership — so any member can
+ * open it, not just whoever kept it. The storage path is handed in as a route
+ * param; this screen resolves it to a signed URL and shows it full-bleed, pinch
+ * to zoom. A path that resolves to nothing — a bill that was never kept, or has
+ * since been removed — is a calm empty state, never a crash.
  */
 export default function ReceiptViewerScreen(): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
-  const { id, shareUrl } = useLocalSearchParams<{ id: string; shareUrl?: string }>();
-  const receiptId = id ?? '';
+  // `id` is the expense id in the route; the receipt itself is addressed by the
+  // `path` param, which is what actually resolves the image.
+  const { path } = useLocalSearchParams<{ id?: string; path?: string }>();
 
-  // Device-only and synchronous — the vault is a file lookup. Null on web, and
-  // null once the file is gone, which is the fallback path below.
-  const files = receiptFiles(receiptId);
-
-  // Only consulted when the local image is missing, to tell the person where it
-  // went. A backed-up receipt names its provider; anything else is "other
-  // device". Read once on mount.
-  const [cloudLabel, setCloudLabel] = useState<string | null>(null);
+  const [uri, setUri] = useState<string | null>(null);
+  // No path is "empty" from the first frame (the route param never changes over
+  // this screen's life), so the effect only ever has a path to resolve.
+  const [state, setState] = useState<'loading' | 'ready' | 'empty'>(path ? 'loading' : 'empty');
   useEffect(() => {
-    if (files) return;
+    if (!path) return;
     let active = true;
     void (async () => {
-      const entry = await entryFor(receiptId);
+      const resolved = await imageUrl('receipts', path);
       if (!active) return;
-      setCloudLabel(
-        entry?.state === 'synced' && entry.provider ? providerFor(entry.provider).label : null,
-      );
+      if (resolved) {
+        setUri(resolved);
+        setState('ready');
+      } else {
+        setState('empty');
+      }
     })();
     return () => {
       active = false;
     };
-  }, [files, receiptId]);
+  }, [path]);
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -60,28 +57,17 @@ export default function ReceiptViewerScreen(): React.JSX.Element {
           </IconButton>
         </View>
 
-        {files ? (
-          <ZoomableImage uri={files.imageUri} />
+        {state === 'ready' && uri ? (
+          <ZoomableImage uri={uri} />
+        ) : state === 'loading' ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <ActivityIndicator color={theme.color.brand} />
+          </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               title={t.expense.receiptMissingTitle}
-              body={
-                cloudLabel
-                  ? fill(t.expense.receiptMissingCloud, { provider: cloudLabel })
-                  : t.expense.receiptMissingOtherDevice
-              }
-              action={
-                // A share link means the owner opened the bill to the group from
-                // their own Drive (E3) — anyone can open it, even without the
-                // local file.
-                shareUrl ? (
-                  <Button
-                    label={t.expense.viewReceipt}
-                    onPress={() => void Linking.openURL(shareUrl).catch(() => undefined)}
-                  />
-                ) : undefined
-              }
+              body={t.expense.receiptMissingOtherDevice}
             />
           </View>
         )}

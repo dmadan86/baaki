@@ -48,10 +48,8 @@ import { useDefaultCurrency } from '@/lib/currency';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
-import { saveReceipt } from '@/lib/receiptStore';
-import { markPending } from '@/lib/receiptIndex';
+import { uploadCapturePhoto } from '@/data/api';
 import { friendlyError } from '@/lib/errors';
-import { useBackup } from '@/lib/cloud/BackupProvider';
 
 /**
  * An OCR-derived number turned into a safe minor-unit bigint.
@@ -146,7 +144,6 @@ export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const createCapture = useCreateCapture();
-  const backup = useBackup();
   const { scan } = useLocalSearchParams<{ scan?: string }>();
 
   // Chosen here so the photo can be uploaded under it before the row exists —
@@ -301,31 +298,24 @@ export default function CaptureScreen() {
     setError(null);
     setSaving(true);
     try {
-      // The receipt photo is deliberately NOT uploaded to Baaki. It is written
-      // to the on-device vault and, if the person connected a personal cloud,
-      // queued for backup there — the privacy choice behind this feature. Only
-      // the parsed fields (amount, text, itemisation) ride the capture sync, so
-      // `photoPath` on the synced row is always null.
-      if (photo) {
-        const saved = saveReceipt(captureId, {
-          base64: photo.base64,
-          sidecar: {
+      // The bill photo goes to the person's own R2 storage under the capture id
+      // (A44) — the `captures` bucket is keyed by the owner, so no group has to
+      // exist yet. Best-effort: a failed upload (offline, out of storage) must
+      // never cost the capture itself, so on any trouble the photo path stays
+      // null and only the parsed fields (amount, text, itemisation) ride the
+      // sync. The returned path is written onto the capture row so it can be
+      // viewed later from any of the owner's devices.
+      let photoPath: string | null = null;
+      if (photo && profile?.id) {
+        try {
+          photoPath = await uploadCapturePhoto({
+            ownerUserId: profile.id,
             captureId,
-            currency,
-            amountMinor: Number(amount),
-            itemCount: parsed?.items.length ?? 0,
-            items: (parsed?.items ?? []).map((item) => ({ label: item.label, total: item.total })),
-            date,
-            category,
-            rawText,
-            createdAt: new Date().toISOString(),
-          },
-        });
-        if (saved) {
-          await markPending(captureId, saved, new Date().toISOString());
-          // Try to back it up now; the queue itself no-ops when offline, when a
-          // Wi‑Fi-only policy is set on mobile data, or when no provider is set.
-          void backup.kick();
+            base64: photo.base64,
+            mimeType: photo.mimeType,
+          });
+        } catch {
+          photoPath = null;
         }
       }
 
@@ -337,7 +327,7 @@ export default function CaptureScreen() {
         expenseDate: date,
         currency,
         amount,
-        photoPath: null,
+        photoPath,
         rawText,
         parsed: parsed ? (parsed as unknown as Record<string, unknown>) : null,
         paymentMethod,

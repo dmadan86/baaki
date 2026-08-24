@@ -160,12 +160,6 @@ export default function HomeScreen() {
         route: '/settings/archived',
         section: 'data',
       },
-      {
-        icon: 'cloud-done-outline',
-        label: t.backup.title,
-        route: '/settings/backup',
-        section: 'data',
-      },
       { icon: 'language-outline', label: t.language, route: '/settings/language', section: 'app' },
       {
         icon: 'contrast-outline',

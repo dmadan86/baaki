@@ -536,11 +536,6 @@ export default function ItemizeScreen() {
                   label={t.expense.capUpgrade}
                   onPress={() => router.push('/settings/upgrade')}
                 />
-                <Button
-                  label={t.expense.capAddStorage}
-                  variant="secondary"
-                  onPress={() => router.push('/settings/backup')}
-                />
               </Row>
             ) : null}
             {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}

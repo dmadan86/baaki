@@ -61,7 +61,7 @@ const EXPENSE_SELECT = `
   id, group_id, deleted_at, created_at,
   currentVersion:expense_versions!expenses_current_version_id_fkey (
     id, version_no, description, category, expense_date, currency, amount,
-    split_type, split_params, author_member_id, notes, payment_method, receipt_share_url, created_at,
+    split_type, split_params, author_member_id, notes, payment_method, created_at,
     payers:expense_payers ( member_id, amount ),
     shares:expense_shares ( member_id, amount )
   )
@@ -447,6 +447,64 @@ export async function capturePhotoUrl(path: string | null): Promise<string | nul
   return imageUrl(CAPTURE_BUCKET, path);
 }
 
+// ─────────────────────────────────────── kept expense bills (Storage, E2) ──
+
+const RECEIPT_BUCKET = 'receipts';
+
+/**
+ * The R2 path a group expense's kept bill (E2) lives at: `<groupId>/<expenseId>.jpg`.
+ *
+ * Deterministic on purpose — both the screen that keeps the bill and the screen
+ * that views it later derive the same path from the same two ids, so no column
+ * has to remember where the image went. The group segment is what makes it
+ * group-readable in R2: the `r2-sign` edge authorises a read for anyone in that
+ * group, which is exactly the visibility the old E3 "share with group" toggle
+ * used to arrange by hand.
+ */
+export function expenseReceiptPath(groupId: string, expenseId: string): string {
+  return `${groupId}/${expenseId}.jpg`;
+}
+
+/**
+ * Keep the photographed/attached bill for a group expense (E2) in R2.
+ *
+ * Uploaded to the private `receipts` bucket under {@link expenseReceiptPath}, so
+ * it counts against the group's storage ceiling (ADR-011) and is readable by the
+ * group. Returns the stored path. Reuses the same `putImage` seam every other
+ * uploader uses — the client holds no R2 credential.
+ */
+export async function uploadExpenseReceipt(input: {
+  groupId: string;
+  expenseId: string;
+  base64: string;
+  mimeType?: string | null;
+}): Promise<string> {
+  const path = expenseReceiptPath(input.groupId, input.expenseId);
+  // The path suffix is fixed at `.jpg` so the viewer can find it without knowing
+  // the source format; the real content type still rides so R2 serves it right.
+  await putImage({
+    bucket: RECEIPT_BUCKET,
+    path,
+    base64: input.base64,
+    contentType: normaliseImageMime(input.mimeType),
+    groupId: input.groupId,
+  });
+  return path;
+}
+
+/**
+ * Resolve a group expense's kept bill to a displayable signed URL, or null when
+ * none was ever kept. Doubles as the existence check — the `r2-sign` edge
+ * returns nothing for an object it has no record of, so a null here means "no
+ * receipt", and the affordance simply hides.
+ */
+export async function expenseReceiptUrl(
+  groupId: string,
+  expenseId: string,
+): Promise<string | null> {
+  return imageUrl(RECEIPT_BUCKET, expenseReceiptPath(groupId, expenseId));
+}
+
 // ───────────────────────────────────────── profile photos (Storage) ──
 
 const AVATAR_BUCKET = 'avatars';
@@ -564,8 +622,6 @@ export interface WriteExpenseInput {
   categoryMeta?: CategoryMeta | null;
   /** Where the spend happened (A43); null unless the person opted in. */
   location?: ExpenseLocation | null;
-  /** A view-only link to the owner's own cloud copy of the receipt (E3). */
-  receiptShareUrl?: string | null;
   /** The rate used, when this expense is not in the group's currency. */
   fx?: FxRecord | null;
   clientMutationId?: string;
@@ -605,9 +661,6 @@ export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpen
       // Full snapshot, not a patch: an append-only version always carries the
       // field, so an omitted method and an explicit null both mean "none".
       paymentMethod: input.paymentMethod ?? null,
-      // A view-only link to the owner's own cloud copy of the receipt (E3); the
-      // image itself never reaches the server, only this optional URL.
-      receiptShareUrl: input.receiptShareUrl ?? null,
       // Where the spend happened (A43); null unless the person opted in. The
       // server validates it to Earth's ranges before it is stored.
       location: input.location ?? null,

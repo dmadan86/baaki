@@ -143,12 +143,6 @@ function settingsRows(t: UiStrings): SettingsRow[] {
       route: '/settings/import',
     },
     {
-      icon: 'cloud-done-outline',
-      label: t.backup.title,
-      hint: t.backup.subtitle,
-      route: '/settings/backup',
-    },
-    {
       icon: 'chatbubble-ellipses-outline',
       label: t.privacy.feedbackRow,
       hint: t.privacy.feedbackRowHint,
