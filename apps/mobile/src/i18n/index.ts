@@ -1165,6 +1165,8 @@ export interface UiStrings {
     adminNeedsAccount: string;
     you: string;
     memberName: string;
+    /** Member detail: label over their per-currency outlay (currency exposure). */
+    paidAcross: string;
     ghostNote: string;
     upiForGroup: string;
     upiForGroupNote: string;
@@ -2755,6 +2757,7 @@ const en: UiStrings = {
     adminNeedsAccount: 'They have not joined yet. Only a member with an account can be an admin.',
     you: 'you',
     memberName: 'Member name',
+    paidAcross: 'Paid',
     ghostNote: 'This person holds real balances. When they join, they can claim this history.',
     upiForGroup: 'UPI ID for this group',
     upiForGroupNote:
@@ -4444,6 +4447,7 @@ const ta: UiStrings = {
       'இவர் இன்னும் சேரவில்லை. கணக்கு உள்ள உறுப்பினர் மட்டுமே நிர்வாகியாக முடியும்.',
     you: 'நீங்கள்',
     memberName: 'உறுப்பினர் பெயர்',
+    paidAcross: 'செலுத்தியது',
     ghostNote:
       'இவருக்கு உண்மையான இருப்புகள் உள்ளன. அவர்கள் சேரும்போது இந்த வரலாற்றைத் தங்களுடையதாக்கிக் கொள்ளலாம்.',
     upiForGroup: 'இந்தக் குழுவுக்கான UPI ID',
@@ -6120,6 +6124,7 @@ const hi: UiStrings = {
     adminNeedsAccount: 'ये अभी शामिल नहीं हुए हैं. सिर्फ़ अकाउंट वाला सदस्य ही एडमिन बन सकता है.',
     you: 'आप',
     memberName: 'सदस्य का नाम',
+    paidAcross: 'चुकाया',
     ghostNote: 'इस व्यक्ति का असली हिसाब है। जुड़ने पर वे यह इतिहास अपने नाम कर सकते हैं।',
     upiForGroup: 'इस समूह के लिए UPI ID',
     upiForGroupNote:
@@ -7812,6 +7817,7 @@ const ar: UiStrings = {
     adminNeedsAccount: 'لم ينضم بعد. المشرف يجب أن يكون عضوًا لديه حساب.',
     you: 'أنت',
     memberName: 'اسم العضو',
+    paidAcross: 'دفع',
     ghostNote: 'لهذا الشخص أرصدة حقيقية. حين ينضم يمكنه أن يطالب بهذا السجل.',
     upiForGroup: 'معرّف الدفع لهذه المجموعة',
     upiForGroupNote: 'يتجاوز معرّف حسابك هنا فقط — مفيد حين تُسوّى مجموعة إلى حساب مختلف.',
