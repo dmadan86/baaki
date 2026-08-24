@@ -213,6 +213,15 @@ export default function CaptureScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Camera-first: entered from the dashboard camera icon (`?scan`), this screen
+  // opens the camera and shows nothing but a launcher until a photo is taken —
+  // the form is not what the person asked for, the camera is. Seeded false on a
+  // remount whose nonce is already consumed (Android recreates the screen when
+  // it returns from the native camera) so the form is not blocked a second time.
+  const [awaitingScan, setAwaitingScan] = useState<boolean>(() =>
+    scan ? !consumedScans.has(scan) : false,
+  );
+
   // How it was paid and which group it is bound for — both tags that ride the
   // capture and survive until it is assigned. Payment defaults to cash (the most
   // common answer, and one fewer tap for it); the group defaults to "decide
@@ -266,7 +275,7 @@ export default function CaptureScreen() {
    * travel with the capture as `rawText`; there is no group here, so nothing is
    * sent to be parsed — the amount stays the user's to type.
    */
-  const addReceipt = async (): Promise<void> => {
+  const addReceipt = async (opts?: { scanEntry?: boolean }): Promise<void> => {
     setError(null);
 
     // The camera and the document scanner are native, and a native failure —
@@ -280,8 +289,17 @@ export default function CaptureScreen() {
     } catch {
       picked = null;
     }
-    if (!picked) return;
+    if (!picked) {
+      // Cancelled at the camera. On the camera-first entry there is no form to
+      // fall back to — the person asked for the camera, backed out, so leave
+      // rather than stranding them on an empty capture they never opened.
+      if (opts?.scanEntry) router.back();
+      return;
+    }
 
+    // A photo exists now: on the camera-first entry, reveal the form (with the
+    // shot and its OCR) — this is the moment the person confirmed "okay".
+    if (opts?.scanEntry) setAwaitingScan(false);
     setPhoto(picked);
     setScanning(true);
     try {
@@ -316,7 +334,7 @@ export default function CaptureScreen() {
       // Deferred a microtask so the state addReceipt sets on entry does not run
       // synchronously inside the effect body — the same async-callback shape the
       // other effects here use. The camera still opens effectively at once.
-      void Promise.resolve().then(() => addReceipt());
+      void Promise.resolve().then(() => addReceipt({ scanEntry: true }));
     }
     // addReceipt is stable enough for a one-shot; deps intentionally minimal.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -382,6 +400,30 @@ export default function CaptureScreen() {
       setSaving(false);
     }
   };
+
+  // Camera-first entry: nothing but a launcher behind the native camera, so the
+  // form never flashes up before a photo is taken. The scan effect above has
+  // already opened the camera; on "okay" it flips this off and the form below
+  // renders with the shot, on cancel it navigates back.
+  if (awaitingScan) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing.md,
+          }}
+        >
+          <ActivityIndicator color={theme.color.brand} />
+          <Text variant="caption" tone="muted">
+            {t.captures.openingCamera}
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen edges={['top', 'bottom']}>

@@ -1055,6 +1055,7 @@ export interface UiStrings {
     itemizedTitle: string;
     itemCount: PluralForms;
     couldNotRead: string;
+    openingCamera: string;
     savedOnDevice: string;
     couldNotSave: string;
     save: string;
@@ -2715,6 +2716,7 @@ const en: UiStrings = {
       other: '{n} items',
     },
     couldNotRead: "Couldn't read this bill — enter the amount yourself.",
+    openingCamera: 'Opening camera…',
     savedOnDevice: 'Saved on this device',
     couldNotSave: "Couldn't save this — please try again in a moment.",
     save: 'Save draft',
@@ -4446,6 +4448,7 @@ const ta: UiStrings = {
       other: '{n} உருப்படிகள்',
     },
     couldNotRead: 'இந்த ரசீதைப் படிக்க முடியவில்லை — தொகையை நீங்களே உள்ளிடவும்.',
+    openingCamera: 'கேமராவைத் திறக்கிறது…',
     savedOnDevice: 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது',
     couldNotSave: 'இதைச் சேமிக்க முடியவில்லை — சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
     save: 'சேமி',
@@ -6193,6 +6196,7 @@ const hi: UiStrings = {
       other: '{n} वस्तुएँ',
     },
     couldNotRead: 'यह रसीद पढ़ी नहीं जा सकी — राशि स्वयं दर्ज करें।',
+    openingCamera: 'कैमरा खुल रहा है…',
     savedOnDevice: 'इस डिवाइस पर सहेजा गया',
     couldNotSave: 'इसे सहेजा नहीं जा सका — कृपया थोड़ी देर में फिर से कोशिश करें।',
     save: 'सहेजें',
@@ -7933,6 +7937,7 @@ const ar: UiStrings = {
       other: '{n} عنصر',
     },
     couldNotRead: 'تعذّر قراءة هذا الإيصال — أدخل المبلغ بنفسك.',
+    openingCamera: 'جارٍ فتح الكاميرا…',
     savedOnDevice: 'محفوظ على هذا الجهاز',
     couldNotSave: 'تعذّر حفظ هذا — يُرجى المحاولة مرة أخرى بعد قليل.',
     save: 'حفظ',
