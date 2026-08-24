@@ -51,37 +51,37 @@ describe('recap', () => {
   it('carries one block per currency, biggest total first', () => {
     const r = recap({ expenses });
     expect(r.byCurrency.map((b) => b.currency)).toEqual(['INR', 'THB']);
-    expect(r.byCurrency[0].totalMinor).toBe(84000n);
+    expect(r.byCurrency[0]!.totalMinor).toBe(84000n);
     expect(r.expenseCount).toBe(4);
   });
 
   it('ranks the top category by spend, breaking ties by name', () => {
     const r = recap({ expenses });
     // food = 44000, stays = 40000 → food leads.
-    expect(r.byCurrency[0].topCategory).toEqual({ category: 'food', totalMinor: 44000n });
+    expect(r.byCurrency[0]!.topCategory).toEqual({ category: 'food', totalMinor: 44000n });
   });
 
   it('breaks a biggest-expense tie deterministically by id', () => {
     const r = recap({ expenses });
-    expect(r.byCurrency[0].biggestExpense?.id).toBe('e1');
+    expect(r.byCurrency[0]!.biggestExpense?.id).toBe('e1');
   });
 
   it('credits the top payer across every expense they fronted', () => {
     const r = recap({ expenses });
-    expect(r.byCurrency[0].topPayer).toEqual({ member: 'ravi', paidMinor: 80000n });
+    expect(r.byCurrency[0]!.topPayer).toEqual({ member: 'ravi', paidMinor: 80000n });
   });
 
   it('averages over the trip length when given dates, not just active days', () => {
     const r = recap({ expenses, startDate: '2026-03-14', endDate: '2026-03-17' });
     // 84000 over 4 trip days, not 2 days-with-spend.
-    expect(r.byCurrency[0].dayCount).toBe(4);
-    expect(r.byCurrency[0].dailyAverageMinor).toBe(21000n);
+    expect(r.byCurrency[0]!.dayCount).toBe(4);
+    expect(r.byCurrency[0]!.dailyAverageMinor).toBe(21000n);
   });
 
   it('falls back to days-with-spend when the trip has no dates', () => {
     const r = recap({ expenses });
-    expect(r.byCurrency[0].dayCount).toBe(2); // the 14th and 15th
-    expect(r.byCurrency[0].dailyAverageMinor).toBe(42000n);
+    expect(r.byCurrency[0]!.dayCount).toBe(2); // the 14th and 15th
+    expect(r.byCurrency[0]!.dailyAverageMinor).toBe(42000n);
     expect(r.firstDay).toBe('2026-03-14');
     expect(r.lastDay).toBe('2026-03-15');
   });
@@ -100,6 +100,6 @@ describe('recap', () => {
         },
       ],
     });
-    expect(r.byCurrency[0].topCategory).toBeNull();
+    expect(r.byCurrency[0]!.topCategory).toBeNull();
   });
 });

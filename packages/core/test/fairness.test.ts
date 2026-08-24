@@ -31,14 +31,14 @@ describe('fairness', () => {
       { member: 'b', currency: 'INR', paidMinor: 1000n, owedMinor: 2500n },
       { member: 'c', currency: 'INR', paidMinor: 1000n, owedMinor: 2500n },
     ];
-    expect(fairness(four)[0].overpayer).toMatchObject({ member: 'ravi' });
+    expect(fairness(four)[0]!.overpayer).toMatchObject({ member: 'ravi' });
 
     // Two members, even share 50%; a 60/40 split is not a flag (threshold 75%).
     const two: MemberContribution[] = [
       { member: 'ravi', currency: 'INR', paidMinor: 6000n, owedMinor: 5000n },
       { member: 'asha', currency: 'INR', paidMinor: 4000n, owedMinor: 5000n },
     ];
-    expect(fairness(two)[0].overpayer).toBeNull();
+    expect(fairness(two)[0]!.overpayer).toBeNull();
   });
 
   it('picks the furthest-negative net as who pays next, and null when square', () => {
@@ -48,13 +48,13 @@ describe('fairness', () => {
       { member: 'neha', currency: 'INR', paidMinor: 0n, owedMinor: 3000n },
     ];
     // asha and neha both owe 3000 net; tie breaks to the first by id.
-    expect(fairness(lopsided)[0].nextPayer).toBe('asha');
+    expect(fairness(lopsided)[0]!.nextPayer).toBe('asha');
 
     const square: MemberContribution[] = [
       { member: 'ravi', currency: 'INR', paidMinor: 3000n, owedMinor: 3000n },
       { member: 'asha', currency: 'INR', paidMinor: 3000n, owedMinor: 3000n },
     ];
-    expect(fairness(square)[0].nextPayer).toBeNull();
+    expect(fairness(square)[0]!.nextPayer).toBeNull();
   });
 
   it('reports a zero paid-ratio when nobody has fronted anything yet', () => {
@@ -62,7 +62,7 @@ describe('fairness', () => {
       { member: 'ravi', currency: 'INR', paidMinor: 0n, owedMinor: 2000n },
       { member: 'asha', currency: 'INR', paidMinor: 0n, owedMinor: 2000n },
     ];
-    const block = fairness(unpaid)[0];
+    const block = fairness(unpaid)[0]!;
     expect(block.totalPaidMinor).toBe(0n);
     expect(block.members.every((m) => m.paidRatio === 0)).toBe(true);
     expect(block.overpayer).toBeNull();

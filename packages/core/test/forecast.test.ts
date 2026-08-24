@@ -13,11 +13,11 @@ describe('forecast', () => {
 
   it('projects the pace so far across the whole trip', () => {
     // Day 3 of 7, ₹28,000 spent → pace 28000/3, projected 28000×7/3 = 65333.
-    const [f] = forecast({
+    const f = forecast({
       spentByCurrency: { INR: 28000n },
       today: '2026-03-16',
       ...dates,
-    });
+    })[0]!;
     expect(f.elapsedDays).toBe(3);
     expect(f.totalDays).toBe(7);
     expect(f.dailyBurnMinor).toBe(9333n);
@@ -41,23 +41,23 @@ describe('forecast', () => {
   });
 
   it('gives a budgeted-but-unspent currency an on-track row', () => {
-    const [f] = forecast({
+    const f = forecast({
       spentByCurrency: {},
       budget: { amountMinor: 60000n, currency: 'INR' },
       today: '2026-03-16',
       ...dates,
-    });
+    })[0]!;
     expect(f.currency).toBe('INR');
     expect(f.projectedTotalMinor).toBe(0n);
     expect(f.onTrack).toBe(true);
   });
 
   it('freezes the projection to the actual once the trip has ended', () => {
-    const [f] = forecast({
+    const f = forecast({
       spentByCurrency: { INR: 70000n },
       today: '2026-03-25', // past the end
       ...dates,
-    });
+    })[0]!;
     expect(f.ended).toBe(true);
     expect(f.elapsedDays).toBe(7);
     expect(f.projectedTotalMinor).toBe(70000n); // no extrapolation past the end
