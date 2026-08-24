@@ -46,8 +46,11 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   func quickAdd(amountMinor: Int, currency: String, note: String) {
-    lastSendFailed = false
-    send([
+    // Clear the warning only if the payload was actually accepted for delivery.
+    // Clearing up front and then hitting the guard in `send` — session not yet
+    // activated right after launch — dropped the expense and left no warning,
+    // the silent loss this whole change exists to stop.
+    lastSendFailed = !send([
       "t": "quickAdd",
       // A stable id per intent so a transport retry of the same tap is
       // idempotent on the phone rather than creating a duplicate expense.
@@ -59,12 +62,17 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   func voiceAdd(_ transcript: String) {
-    lastSendFailed = false
-    send(["t": "voiceAdd", "id": UUID().uuidString, "transcript": transcript])
+    lastSendFailed = !send(["t": "voiceAdd", "id": UUID().uuidString, "transcript": transcript])
   }
 
-  private func send(_ message: [String: Any]) {
-    guard let session, session.activationState == .activated else { return }
+  /// Hand a message to WatchConnectivity for delivery. Returns whether it was
+  /// accepted: `false` means there was no activated session to take it, so the
+  /// caller (an expense send) must surface that rather than assume it left.
+  /// `requestRecent` ignores the result — a missed recent-list refresh is not a
+  /// lost expense and must not raise the expense-drop warning.
+  @discardableResult
+  private func send(_ message: [String: Any]) -> Bool {
+    guard let session, session.activationState == .activated else { return false }
     var payload = message
     payload["version"] = relayVersion
     if session.isReachable {
@@ -74,6 +82,7 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
     } else {
       session.transferUserInfo(payload)
     }
+    return true
   }
 
   // MARK: WCSessionDelegate
