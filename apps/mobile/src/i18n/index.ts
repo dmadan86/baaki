@@ -395,6 +395,8 @@ export interface UiStrings {
     you: string;
     couldNotPost: string;
     couldNotDelete: string;
+    /** Reveal the previous page of older comments (a count is appended). */
+    showEarlier: string;
   };
   /** Trip budgets. */
   budgets: string;
@@ -2100,6 +2102,7 @@ const en: UiStrings = {
     you: 'You',
     couldNotPost: "Couldn't post that — try again.",
     couldNotDelete: "Couldn't delete that — try again.",
+    showEarlier: 'Show earlier comments',
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3818,6 +3821,7 @@ const ta: UiStrings = {
     you: 'நீங்கள்',
     couldNotPost: 'இட முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     couldNotDelete: 'நீக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+    showEarlier: 'முந்தைய கருத்துகளைக் காட்டு',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5602,6 +5606,7 @@ const hi: UiStrings = {
     you: 'आप',
     couldNotPost: 'भेजा नहीं जा सका — फिर कोशिश करें।',
     couldNotDelete: 'हटाया नहीं जा सका — फिर कोशिश करें।',
+    showEarlier: 'पहले की टिप्पणियाँ दिखाएँ',
   },
   budgets: 'बजट',
   overallBudget: 'कुल',
@@ -7335,6 +7340,7 @@ const ar: UiStrings = {
     you: 'أنت',
     couldNotPost: 'تعذّر النشر — حاول مرة أخرى.',
     couldNotDelete: 'تعذّر الحذف — حاول مرة أخرى.',
+    showEarlier: 'عرض التعليقات السابقة',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',

@@ -44,6 +44,16 @@ function whenLabel(iso: string | null, locale: string): string {
 
 const AVATAR = 32;
 
+/**
+ * How many comments to render at once. A long thread is all on the device
+ * already (it rides the mirror), so this bounds the render cost, not a fetch —
+ * the newest page shows, older pages reveal on demand as the person scrolls up,
+ * the pattern every embedded comment thread uses (Instagram, YouTube). Rendering
+ * a nested FlatList inside the page's ScrollView would trip React Native's
+ * "VirtualizedLists should never be nested" warning, so the window is manual.
+ */
+const PAGE = 20;
+
 export function ExpenseComments({
   groupId,
   expenseId,
@@ -75,10 +85,16 @@ export function ExpenseComments({
   // of waiting on the sync pull that carries it back from the mirror. Each drops
   // out of the merge below the moment the mirror row with the same id arrives.
   const [optimistic, setOptimistic] = useState<ExpenseCommentRow[]>([]);
+  // How many of the newest comments are rendered. Grows a page at a time when
+  // the person taps "show earlier" — the just-posted comment always sits in this
+  // tail window, so an echo never lands out of view.
+  const [visibleCount, setVisibleCount] = useState(PAGE);
 
   const mirrorRows = comments.data;
   const mirrorIds = new Set(mirrorRows.map((r) => r.id));
   const rows = [...mirrorRows, ...optimistic.filter((o) => !mirrorIds.has(o.id))];
+  const shown = rows.length > visibleCount ? rows.slice(rows.length - visibleCount) : rows;
+  const hidden = rows.length - shown.length;
 
   const submit = () => {
     const body = draft.trim();
@@ -197,12 +213,29 @@ export function ExpenseComments({
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
+      {hidden > 0 ? (
+        <Pressable
+          onPress={() => setVisibleCount((c) => c + PAGE)}
+          accessibilityRole="button"
+          accessibilityLabel={`${t.comments.showEarlier} (${hidden})`}
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, alignSelf: 'flex-start' })}
+        >
+          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            <Ionicons name="chevron-up" size={14} color={theme.color.buttonPrimary} />
+            <Text variant="caption" style={{ color: theme.color.buttonPrimary, fontWeight: '600' }}>
+              {`${t.comments.showEarlier} (${hidden})`}
+            </Text>
+          </Row>
+        </Pressable>
+      ) : null}
+
       {rows.length === 0 ? (
         <Text variant="caption" tone="muted">
           {t.comments.empty}
         </Text>
       ) : (
-        rows.map((row) => {
+        shown.map((row) => {
           const mine = myMemberId !== null && row.authorMemberId === myMemberId;
           const flagged = row.flaggedAt !== null;
           const editing = editingId === row.id;
