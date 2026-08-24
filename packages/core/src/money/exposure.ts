@@ -33,6 +33,8 @@ export function currencyExposure(
   }
   return out.sort((a, b) => {
     if (a.amountMinor !== b.amountMinor) return a.amountMinor > b.amountMinor ? -1 : 1;
-    return a.currency.localeCompare(b.currency);
+    // Code-unit order, not localeCompare: the default locale is environment
+    // dependent, and this ordering must be identical on every device.
+    return a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0;
   });
 }
