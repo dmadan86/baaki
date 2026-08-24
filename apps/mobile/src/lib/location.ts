@@ -55,8 +55,37 @@ interface LocationGeocodedAddress {
   region?: string | null;
 }
 
+/**
+ * Whether the `ExpoLocation` native module is linked into this binary.
+ *
+ * Expo modules register on the JSI host object (`globalThis.expo.modules`) as
+ * the app starts. Reading it is a plain property lookup that cannot throw —
+ * unlike `require('expo-location')`, which evaluates ExpoLocation.js and calls
+ * `requireNativeModule('ExpoLocation')`, throwing on a binary that never linked
+ * it (a stale dev client, most often). In dev that throw is surfaced as a redbox
+ * even when caught, so a try around the require is not enough on its own; this
+ * check keeps us from ever requiring the wrapper when the module is not there.
+ * Kept dependency-free (no `expo-modules-core` import) for the same reason the
+ * scanner is: nothing loaded here may fail.
+ */
+function locationModuleLinked(): boolean {
+  const host = (globalThis as { expo?: { modules?: Record<string, unknown> } }).expo;
+  return host?.modules?.ExpoLocation != null;
+}
+
+/**
+ * Whether a location can actually be read on this device right now: a native
+ * platform *and* the `ExpoLocation` module linked into this binary. The UI gates
+ * on this (not `locationSupported`) so a stale build shows no add-location
+ * button rather than one that taps to nothing — `captureLocation` would return
+ * `Unsupported`, which the field deliberately swallows.
+ */
+export function locationAvailable(): boolean {
+  return locationSupported && locationModuleLinked();
+}
+
 function loadLocation(): ExpoLocation | null {
-  if (!locationSupported) return null;
+  if (!locationSupported || !locationModuleLinked()) return null;
   try {
     // Lazy so a build that did not link the module fails soft, not at launch.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
