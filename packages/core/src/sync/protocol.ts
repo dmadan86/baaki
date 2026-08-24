@@ -379,6 +379,16 @@ export enum SyncTable {
   /** Group-scoped, read+write (album). Shared trip photos; not money. A removal
    * is a soft-delete tombstone the pull carries, like the plan. */
   TripPhotos = 'trip_photos',
+  /** Group-scoped but PARTY-filtered by RLS (private attachments). A payment
+   * proof, visible to the settlement's two parties only. Pull-only here: the
+   * write is a direct SECURITY DEFINER RPC (the bytes need an online upload
+   * anyway), so there is no mutation kind — only the read rides the mirror, and
+   * the pull reads as the caller so a non-party never receives the row. */
+  SettlementProofs = 'settlement_proofs',
+  /** Group-scoped, RLS-filtered: a `group` attachment is visible to any member,
+   * a `parties` one only to the expense's payers/author. Pull-only, like the
+   * proofs above. */
+  ExpenseAttachments = 'expense_attachments',
 }
 
 /**

@@ -21,7 +21,24 @@ import { decode } from 'base64-arraybuffer';
 import { supabase } from '@/lib/supabase';
 
 /** The four private buckets. Values match the R2 namespace and the old bucket. */
-export type LogicalBucket = 'receipts' | 'group-photos' | 'avatars' | 'captures' | 'trip-photos';
+export type LogicalBucket =
+  | 'receipts'
+  | 'group-photos'
+  | 'avatars'
+  | 'captures'
+  | 'trip-photos'
+  | 'settlement-proofs'
+  | 'expense-attachments';
+
+/**
+ * Buckets whose objects are party-only. Their read is by SUBJECT id (the server
+ * resolves the key from the party-gated row), their URLs are short-lived, and
+ * they only exist on R2 — so these helpers require R2 to be enabled.
+ */
+const RESTRICTED_BUCKETS: ReadonlySet<LogicalBucket> = new Set([
+  'settlement-proofs',
+  'expense-attachments',
+]);
 
 /**
  * The free-tier storage ceiling was hit. Thrown so a caller can show the upgrade
@@ -73,6 +90,11 @@ export interface PutImageInput {
   contentType: string;
   /** The group the bytes are charged to, for the storage-cap rule. */
   groupId?: string | null;
+  /**
+   * For a restricted bucket, the subject (settlement id / expense id) the object
+   * belongs to. `r2-sign` re-checks the caller is a party to it before signing.
+   */
+  subjectId?: string | null;
 }
 
 /**
@@ -83,6 +105,13 @@ export interface PutImageInput {
  */
 export async function putImage(input: PutImageInput): Promise<string> {
   const bytes = decode(input.base64);
+
+  if (RESTRICTED_BUCKETS.has(input.bucket)) {
+    // Party-only buckets live only on R2 and are brokered by subject, never a
+    // raw path on the old backend. Without R2 there is nowhere safe to put them.
+    if (!r2Enabled()) throw new Error('Private attachments need cloud storage enabled');
+    if (!input.subjectId) throw new Error('A private attachment needs its subject');
+  }
 
   if (!r2Enabled()) {
     const { error } = await supabase.storage
@@ -99,6 +128,7 @@ export async function putImage(input: PutImageInput): Promise<string> {
     contentType: input.contentType,
     contentLength: bytes.byteLength,
     groupId: input.groupId ?? null,
+    subjectId: input.subjectId ?? null,
   });
   if (!url) throw new Error('Could not start the upload');
 
@@ -113,7 +143,12 @@ export async function putImage(input: PutImageInput): Promise<string> {
     // this path's bytes, so release the reservation here too — the same cleanup
     // the non-2xx branch below does — or a network failure leaks cap until the
     // sweep. `release` only clears a pending reservation, never a committed image.
-    await signCall({ action: 'release', bucket: input.bucket, path: input.path }).catch(() => {});
+    await signCall({
+      action: 'release',
+      bucket: input.bucket,
+      path: input.path,
+      subjectId: input.subjectId ?? null,
+    }).catch(() => {});
     throw new Error(`Upload failed: ${cause instanceof Error ? cause.message : 'network error'}`);
   });
   if (!put.ok) {
@@ -122,7 +157,12 @@ export async function putImage(input: PutImageInput): Promise<string> {
     // the 30-minute sweep. `release` (not `delete`) only clears a pending
     // reservation, so a failed *replacement* never touches the committed image
     // that is already there. Best-effort: the sweep is the backstop either way.
-    await signCall({ action: 'release', bucket: input.bucket, path: input.path }).catch(() => {});
+    await signCall({
+      action: 'release',
+      bucket: input.bucket,
+      path: input.path,
+      subjectId: input.subjectId ?? null,
+    }).catch(() => {});
     throw new Error(`Upload failed (${put.status})`);
   }
 
@@ -133,8 +173,41 @@ export async function putImage(input: PutImageInput): Promise<string> {
     path: input.path,
     contentType: input.contentType,
     groupId: input.groupId ?? null,
+    subjectId: input.subjectId ?? null,
   });
   return input.path;
+}
+
+/**
+ * Resolve a restricted object to a short-lived URL — by SUBJECT, never a path.
+ * The server looks up the party-gated row and signs its stored key, so a
+ * non-party (who cannot see the row) gets nothing. Null when not visible or not
+ * yet uploaded — a blank, never a thrown screen.
+ */
+export async function restrictedImageUrl(
+  bucket: LogicalBucket,
+  subjectId: string | null,
+  path: string | null,
+): Promise<string | null> {
+  if (!subjectId || !path || !r2Enabled()) return null;
+  try {
+    const { url } = await signCall({ action: 'get', bucket, subjectId, path });
+    return url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Delete a restricted object. The party check is by subject; the path is the
+ *  key to remove (freeing the bytes early, so a rotated/removed proof's cached
+ *  URL 404s within its 60s TTL). Best-effort. */
+export async function removeRestrictedImage(
+  bucket: LogicalBucket,
+  subjectId: string,
+  path: string,
+): Promise<void> {
+  if (!r2Enabled()) return;
+  await signCall({ action: 'delete', bucket, subjectId, path }).catch(() => {});
 }
 
 /**

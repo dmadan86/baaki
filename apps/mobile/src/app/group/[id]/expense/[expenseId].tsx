@@ -27,6 +27,7 @@ import {
 
 import { CategoryBadge } from '@/components/Category';
 import { TripAlbumStrip } from '@/components/TripAlbum';
+import { ExpenseAttachments } from '@/components/ExpenseAttachments';
 import {
   memberLookup,
   useDeleteExpense,
@@ -100,6 +101,19 @@ export default function ExpenseDetailScreen() {
     };
   });
   const lookup = memberLookup(members.data);
+  // A party to this expense — a payer of the current version, or its author — is
+  // the only one who may attach to it (the RPC enforces this too). Non-parties
+  // still SEE any group-visible attachment; they just cannot add or see a private
+  // one. Computed from the mirror; the server is the real gate.
+  const myMemberId =
+    (members.data ?? []).find((m) => m.profile_id === profile?.id && m.left_at === null)?.id ??
+    null;
+  const isExpenseParty = Boolean(
+    myMemberId &&
+    version &&
+    (version.author_member_id === myMemberId ||
+      version.payers.some((p) => p.member_id === myMemberId)),
+  );
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
     return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
@@ -346,6 +360,11 @@ export default function ExpenseDetailScreen() {
             Distinct from the receipt above: many, free, and browsed for the memory
             rather than the amount. */}
         <TripAlbumStrip groupId={groupId} expenseId={expense.id} />
+
+        {/* Attachments — images at a chosen visibility. `group` is like the
+            receipt; `parties` is hidden to everyone but this bill's payers +
+            author (§3, private attachments). */}
+        <ExpenseAttachments groupId={groupId} expenseId={expense.id} canAttach={isExpenseParty} />
 
         {version.payers.length > 1 ? (
           <View>
