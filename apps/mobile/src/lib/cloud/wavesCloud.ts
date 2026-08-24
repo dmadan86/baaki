@@ -16,13 +16,11 @@
  */
 
 import { File } from 'expo-file-system';
-import { decode } from 'base64-arraybuffer';
 
 import { canUploadGroupPhoto } from '@/data/api';
+import { putImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import type { CloudProvider, CloudTokens, CloudUploadInput, CloudUploadResult } from './types';
-
-const BUCKET = 'receipts';
 
 // A stand-in for the OAuth tokens the queue expects to persist. Waves has no
 // bearer of its own — the Supabase session carries the auth — so a fixed marker
@@ -50,12 +48,20 @@ export const wavesCloud: CloudProvider = {
   ensureValid: (tokens) => Promise.resolve(tokens),
   async upload(_tokens: CloudTokens, input: CloudUploadInput): Promise<CloudUploadResult> {
     const uid = await currentUserId();
-    const path = `personal/${uid}/${input.captureId}.jpg`;
+    // The stored receipt is WebP where the phone could encode it, JPEG otherwise
+    // (A44); keep the object's real type rather than mislabelling it .jpg.
+    const isWebp = input.imageUri.toLowerCase().endsWith('.webp');
+    const path = `personal/${uid}/${input.captureId}.${isWebp ? 'webp' : 'jpg'}`;
     const base64 = await new File(input.imageUri).base64();
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, decode(base64), { contentType: 'image/jpeg', upsert: true });
-    if (error) throw new Error(error.message);
+    // A personal backup has no group, so its bytes count against the owner's own
+    // free ceiling (a paid user, who is the only one offered Waves cloud, is
+    // uncapped anyway).
+    await putImage({
+      bucket: 'receipts',
+      path,
+      base64,
+      contentType: isWebp ? 'image/webp' : 'image/jpeg',
+    });
     return { remoteId: path };
   },
 };

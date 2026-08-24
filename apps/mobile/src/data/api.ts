@@ -7,7 +7,6 @@
  * the server must own share computation and authorization (TDR §4).
  */
 
-import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
 
 import {
@@ -28,6 +27,7 @@ import {
 
 import { activeStrings } from '@/i18n';
 import type { DeviceIdentity } from '@/lib/device';
+import { imageUrl, putImage, removeImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import type {
   ActivityGroup,
@@ -324,12 +324,15 @@ export async function uploadGroupPhoto(input: {
   mimeType?: string | null;
 }): Promise<string> {
   const mime = normaliseImageMime(input.mimeType);
-  const path = `${input.groupId}/cover.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`;
+  const path = `${input.groupId}/cover.${imageExt(mime)}`;
 
-  const { error } = await supabase.storage
-    .from(PHOTO_BUCKET)
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (error) throw new Error(error.message);
+  await putImage({
+    bucket: PHOTO_BUCKET,
+    path,
+    base64: input.base64,
+    contentType: mime,
+    groupId: input.groupId,
+  });
 
   const { error: linkError } = await supabase
     .from('groups')
@@ -342,14 +345,11 @@ export async function uploadGroupPhoto(input: {
 
 /** Signed because the bucket is private — a group photo is not public data. */
 export async function groupPhotoUrl(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return imageUrl(PHOTO_BUCKET, path);
 }
 
 export async function removeGroupPhoto(groupId: string, path: string | null): Promise<void> {
-  if (path) await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+  await removeImage(PHOTO_BUCKET, path);
   const { error } = await supabase.from('groups').update({ photo_path: null }).eq('id', groupId);
   if (error) throw new Error(error.message);
 }
@@ -421,21 +421,15 @@ export async function uploadCapturePhoto(input: {
 }): Promise<string> {
   const mime = normaliseImageMime(input.mimeType);
   const path = `${input.ownerUserId}/${input.captureId}.${imageExt(mime)}`;
-  const { error } = await supabase.storage
-    .from(CAPTURE_BUCKET)
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (error) throw new Error(error.message);
+  // No group at capture time (a capture is assigned later, A34), so the bytes
+  // count against the owner's own ceiling.
+  await putImage({ bucket: CAPTURE_BUCKET, path, base64: input.base64, contentType: mime });
   return path;
 }
 
 /** Resolve a capture photo path to a displayable signed URL (private bucket). */
 export async function capturePhotoUrl(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  const { data, error } = await supabase.storage
-    .from(CAPTURE_BUCKET)
-    .createSignedUrl(path, 60 * 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return imageUrl(CAPTURE_BUCKET, path);
 }
 
 // ───────────────────────────────────────── profile photos (Storage) ──
@@ -460,12 +454,9 @@ export async function uploadAvatar(input: {
   mimeType?: string | null;
 }): Promise<string> {
   const mime = normaliseImageMime(input.mimeType);
-  const path = `${input.profileId}/avatar.${mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'}`;
+  const path = `${input.profileId}/avatar.${imageExt(mime)}`;
 
-  const { error } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (error) throw new Error(error.message);
+  await putImage({ bucket: AVATAR_BUCKET, path, base64: input.base64, contentType: mime });
 
   const { error: linkError } = await supabase
     .from('profiles')
@@ -487,18 +478,13 @@ export async function uploadAvatar(input: {
 export async function avatarPhotoUrl(value: string | null): Promise<string | null> {
   if (!value) return null;
   if (/^https?:\/\//.test(value)) return value;
-
-  const { data, error } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .createSignedUrl(value, 60 * 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return imageUrl(AVATAR_BUCKET, value);
 }
 
 export async function removeAvatar(profileId: string, value: string | null): Promise<void> {
   // Only ours to delete. A provider URL is not an object in the bucket.
   if (value && !/^https?:\/\//.test(value)) {
-    await supabase.storage.from(AVATAR_BUCKET).remove([value]);
+    await removeImage(AVATAR_BUCKET, value);
   }
   const { error } = await supabase
     .from('profiles')
@@ -1227,13 +1213,16 @@ export async function scanReceipt(input: {
   currency?: string;
 }): Promise<ScanResult> {
   const receiptId = randomUUID();
-  const mime = input.mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
-  const path = `${input.groupId}/${receiptId}.${mime === 'image/png' ? 'png' : 'jpg'}`;
+  const mime = normaliseImageMime(input.mimeType);
+  const path = `${input.groupId}/${receiptId}.${imageExt(mime)}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('receipts')
-    .upload(path, decode(input.base64), { contentType: mime, upsert: true });
-  if (uploadError) throw new Error(uploadError.message);
+  await putImage({
+    bucket: 'receipts',
+    path,
+    base64: input.base64,
+    contentType: mime,
+    groupId: input.groupId,
+  });
 
   const { data, error } = await supabase.functions.invoke('receipt-parse', {
     body: {

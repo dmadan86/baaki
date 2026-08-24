@@ -1,0 +1,82 @@
+# Image storage on Cloudflare R2 (A44)
+
+Receipts, group photos, avatars and captures are stored in **Cloudflare R2**,
+reached only through the `r2-sign` edge function. The mobile client never holds
+an R2 credential — it asks the function for a **presigned** PUT/GET and talks to
+R2 directly with that URL. Free accounts have a **10 MB** aggregate image-storage
+ceiling; paid accounts (and any group whose owner is paid) are uncapped.
+
+This is shipped **behind a flag and off by default** — with the flag off, the app
+uses Supabase Storage exactly as before, so nothing breaks until the secrets
+below exist and the flag is turned on.
+
+## What you (the operator) still owe
+
+1. **Create the R2 bucket** in the Cloudflare dashboard (e.g. `waves-images`).
+2. **Create an R2 API token** (S3 credentials) scoped to that bucket — an access
+   key id + secret. This is the credential that lives only on the server.
+3. **Set the edge-function secrets** (below) in Supabase.
+4. **Set `EXPO_PUBLIC_R2_ENABLED=true`** in the mobile build and ship it.
+5. _(Optional)_ deploy the WebP-normalizer worker — see
+   `infra/r2-image-worker/README.md`.
+
+Until step 4, uploads keep landing in Supabase Storage. After it, **new** uploads
+go to R2 and old images keep serving from Supabase (dual-read) — there is no
+backfill.
+
+## Edge-function secrets (Supabase)
+
+Set on the project so both `r2-sign` and `receipt-parse` can reach R2:
+
+```sh
+supabase secrets set \
+  R2_ACCOUNT_ID=<cloudflare-account-id> \
+  R2_BUCKET=waves-images \
+  R2_ACCESS_KEY_ID=<r2-access-key-id> \
+  R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
+```
+
+| Secret                                      | What it is                                                                             |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `R2_ACCOUNT_ID`                             | Cloudflare account id (the R2 S3 endpoint is `https://<id>.r2.cloudflarestorage.com`). |
+| `R2_BUCKET`                                 | The one physical R2 bucket; every image is keyed `<logicalBucket>/<path>` inside it.   |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 API token. **Server only — never in the app bundle.**                            |
+
+Deploy the functions after setting secrets:
+
+```sh
+supabase functions deploy r2-sign
+supabase functions deploy receipt-parse   # now also reads from R2
+```
+
+## Mobile flag
+
+```
+EXPO_PUBLIC_R2_ENABLED=true
+```
+
+Off/absent → direct Supabase Storage (the pre-A44 behaviour). `true` → the storage
+seam brokers everything through `r2-sign`.
+
+## Database
+
+The migration `20260824120000_r2_storage_cap` adds:
+
+- `storage_objects` — the ledger of every R2 object (owner, group, bytes, whether
+  it counts against a cap). Written only by the service role.
+- `app_config.free_storage_cap_bytes` — the 10 MB knob (admin-editable, like the
+  receipt cap). Raise or lower it without a deploy.
+- `baaki_storage_can_upload` / `baaki_storage_record` / `baaki_storage_release` /
+  `baaki_my_storage_usage` / `baaki_storage_counts` / `baaki_profiles_share_group`.
+
+Apply it with the normal migrate deploy.
+
+## The cap rule (A44)
+
+- A **paid** uploader is never capped and never counted.
+- An upload into a group whose **owner is paid** is uncapped for everyone in it.
+- Otherwise the bytes count against the **uploader's** 10 MB ceiling — receipts,
+  group photos and avatars alike; personal images (no group) count too.
+- Enforced at the presign gate **and** at `commit` (the real boundary): an
+  over-cap upload is deleted from R2 and answered `402 STORAGE_CAP`, which the app
+  turns into an upgrade prompt.
