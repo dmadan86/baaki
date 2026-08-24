@@ -132,7 +132,10 @@ export function fairness(
     let nextPayer: string | null = null;
     let worst = 0n;
     for (const row of rows) {
-      if (row.netMinor < worst || (row.netMinor === worst && nextPayer === null && row.netMinor < 0n)) {
+      if (
+        row.netMinor < worst ||
+        (row.netMinor === worst && nextPayer === null && row.netMinor < 0n)
+      ) {
         worst = row.netMinor;
         nextPayer = row.member;
       }
