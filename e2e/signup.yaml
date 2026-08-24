@@ -4,8 +4,11 @@
 # login). It carries the same email + password form and provider foot, plus the
 # two things the login door does not: the guest way in ("Continue as guest",
 # ADR-006 — reachable before any form) and no "Forgot password" (there is no
-# password to recover before the account exists). It does not submit — creating
-# an account would need a throwaway address and hit the mail provider.
+# password to recover before the account exists). It does not submit the email
+# form — creating an account would need a throwaway address and hit the mail
+# provider — but it does exercise the guest way in, which only navigates to the
+# guest doorway (the anonymous session is minted a screen later, on Continue),
+# so it is deterministic and touches nothing on the server.
 appId: app.waves.mobile
 ---
 - launchApp:
@@ -20,3 +23,9 @@ appId: app.waves.mobile
 - assertNotVisible: 'Forgot password'
 - assertVisible:
     id: 'auth-submit'
+
+# The guest way in navigates to the guest doorway (no session yet).
+- tapOn: 'Continue as guest'
+- extendedWaitUntilVisible:
+    element: 'Start splitting with'
+    timeout: 10000
