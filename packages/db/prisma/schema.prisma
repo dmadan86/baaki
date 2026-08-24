@@ -257,6 +257,7 @@ model Group {
   expenseComments ExpenseComment[]
   settlementProofs   SettlementProof[]
   expenseAttachments ExpenseAttachment[]
+  imageEvents        ExpenseImageEvent[]
   syncMutations SyncMutation[]
   memberClaims   MemberClaim[]
   memberBudgets  TripMemberBudget[]
@@ -314,6 +315,7 @@ model GroupMember {
   commentsAuthored   ExpenseComment[]   @relation("ExpenseCommentAuthor")
   commentsFlagged    ExpenseComment[]   @relation("ExpenseCommentFlagger")
   commentsDeleted    ExpenseComment[]   @relation("ExpenseCommentDeleter")
+  imageEvents        ExpenseImageEvent[]
   activity          ActivityLog[]
   disputesRaised    ExpenseDispute[]   @relation("DisputeRaisedBy")
   disputesResolved  ExpenseDispute[]   @relation("DisputeResolvedBy")
@@ -442,6 +444,7 @@ model Expense {
   tripPhotos     TripPhoto[]
   attachments    ExpenseAttachment[]
   comments       ExpenseComment[]
+  imageEvents    ExpenseImageEvent[]
 
   @@index([groupId, deletedAt])
   /// The sync pull is "everything in this group since seq N" (TDR §4).
@@ -1329,6 +1332,43 @@ model ExpenseComment {
   @@index([groupId, updatedSeq])
   @@index([expenseId, createdAt], map: "expense_comments_expense_idx")
   @@map("expense_comments")
+  @@schema("public")
+}
+
+/// An append-only audit line for an expense's images — who added or removed a
+/// receipt or an attachment, and when.
+///
+/// A bill's photo is evidence, and swapping it silently is a way to change what
+/// an expense claims after the fact. This records each add/remove so the group
+/// (ADR-004: every change is kept and visible) can see the image's history the
+/// same way it sees the amount's. Never edited, never deleted — a correction is
+/// another line, not an erasure.
+///
+/// `visibility` inherits the image it describes: a `parties` attachment's events
+/// are party-only too (the SELECT policy embeds `baaki_is_expense_party`), so a
+/// non-party never learns a private attachment existed. Writes are RPC-only, the
+/// actor taken from the session, so the line cannot be forged.
+model ExpenseImageEvent {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId       String   @map("group_id") @db.Uuid
+  expenseId     String   @map("expense_id") @db.Uuid
+  actorMemberId String?  @map("actor_member_id") @db.Uuid
+  /// The image kind: `receipt` (the group-wide bill) or `attachment`.
+  kind          String
+  /// `added` or `removed`.
+  action        String
+  /// `group` or `parties` — mirrors the image's own visibility.
+  visibility    String   @default("group")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedSeq    BigInt   @default(0) @map("updated_seq")
+
+  group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  actor   GroupMember? @relation(fields: [actorMemberId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, updatedSeq])
+  @@index([expenseId, createdAt], map: "expense_image_events_expense_idx")
+  @@map("expense_image_events")
   @@schema("public")
 }
 

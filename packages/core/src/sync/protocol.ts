@@ -366,6 +366,11 @@ export enum SyncTable {
    * enforce the role matrix (author edits/deletes own, admin deletes any, any
    * member flags), so there is no mutation kind; only the read rides the mirror. */
   ExpenseComments = 'expense_comments',
+  /** Group-scoped, append-only image audit: who added/removed a receipt or an
+   * attachment on one expense, and when. Pull-only — the writes are the receipt
+   * log RPC and the attachment RPCs, which stamp the actor from the session; a
+   * `parties` row is RLS-filtered so a non-party never receives it. */
+  ExpenseImageEvents = 'expense_image_events',
 }
 
 /**

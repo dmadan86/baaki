@@ -926,6 +926,11 @@ async function pull(
       // Expense comment threads — group-visible, read as the caller (is_group_member
       // RLS). Tombstones (deleted_at set) ride the pull so a delete propagates.
       ['expense_comments', '*'],
+      // Expense image audit — who added/removed a receipt or attachment. Read AS
+      // THE CALLER: a `parties` row is RLS-filtered exactly like the attachment
+      // it describes, so a non-party never receives the line. Append-only, no
+      // tombstone.
+      ['expense_image_events', '*'],
     ] as const) {
       const { data, error } = await caller
         .from(table)
