@@ -29,7 +29,7 @@ import {
   type TripPhotoRow,
 } from '@/data/hooks';
 import { pickAlbumPhoto } from '@/lib/image';
-import { imageUrl, putImage, StorageCapError } from '@/lib/storage';
+import { imageUrl, putImage, removeImage, StorageCapError } from '@/lib/storage';
 import { useStrings } from '@/i18n';
 
 /**
@@ -135,6 +135,10 @@ export function useAlbumUpload(groupId: string): {
     if (busy.current) return;
     busy.current = true;
     setError(null);
+    // Set once the bytes are committed to R2 — so a failure to queue the row
+    // afterwards can free them again rather than leave a committed object no
+    // trip_photo row references, silently eating the group's storage cap.
+    let committedPath: string | null = null;
     try {
       const picked = await pickAlbumPhoto();
       if (!picked) return; // Cancelled or declined — an ordinary answer.
@@ -148,12 +152,18 @@ export function useAlbumUpload(groupId: string): {
         contentType: picked.mimeType,
         groupId,
       });
+      committedPath = path;
+      // enqueue() persists the mutation before it resolves, so once this returns
+      // the row is durable and the object has an owner. If it throws, the object
+      // is orphaned — the catch below reclaims it.
       await add.mutateAsync({
         storagePath: path,
         expenseId: opts?.expenseId ?? null,
         day: opts?.day ?? null,
       });
+      committedPath = null;
     } catch (caught) {
+      if (committedPath) await removeImage('trip-photos', committedPath).catch(() => {});
       setError(caught instanceof StorageCapError ? 'cap' : 'failed');
     } finally {
       setUploading(false);

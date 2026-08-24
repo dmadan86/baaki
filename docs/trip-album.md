@@ -50,6 +50,12 @@ thing — a group's shared, non-money list that must work offline:
 New capability, not in the current TDR/ADR. Owed: a short addendum to
 `baaki-adr.md` recording the three-photo-concepts split and the album's
 free/membership-only storage rule, and a TDR note that `trip_photos` is a
-group-scoped, mirror-backed, non-money table. Not deployed (prod DB password is
-stale, 28P01): the migration and the `trip_photo.*` sync dispatch need a
-`db:migrate deploy` + `edge:deploy` window, like the category-budgets work.
+group-scoped, mirror-backed, non-money table.
+
+**Release gate.** The mobile album UI uploads to `trip-photos` and queues
+`trip_photo.add`/`trip_photo.delete`; production must have the migration
+`20260824140000_trip_album` **and** the updated `sync` + `r2-sign` functions
+first, or a client add fails to record and a browse shows nothing. Not deployed
+(prod DB password is stale, 28P01): gate the mobile release on a successful
+`pnpm db:migrate` + `pnpm edge:deploy`, the same window the category-budgets
+work needs.

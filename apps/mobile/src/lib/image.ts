@@ -221,8 +221,14 @@ export const ALBUM_MAX_EDGE = 1600;
  *
  * Re-encoding through the manipulator is what strips the EXIF metadata (a beach
  * photo should not carry the GPS of where it was taken into a shared album), so
- * the resize here is a privacy step as much as a size one. Returns null when the
- * person cancels or declines access — both ordinary answers, not errors.
+ * the resize here is a privacy step as much as a size one.
+ *
+ * And unlike a receipt, there is **no `readUnshrunk` fallback**: a receipt's
+ * audience is the group's ledger and losing the resize only costs bytes, but an
+ * album photo is group-visible and uploading the untouched original would ship
+ * its GPS EXIF to everyone. So if the manipulator cannot run (a dev client built
+ * before it existed), the add fails safe — null, no upload — rather than leak a
+ * location. Returns null for a cancel/decline too; both are ordinary answers.
  */
 export async function pickAlbumPhoto(): Promise<PickedImage | null> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -238,14 +244,16 @@ export async function pickAlbumPhoto(): Promise<PickedImage | null> {
   const asset = result.assets[0];
   if (!asset) return null;
 
-  const shrunk =
-    (await shrink({
-      uri: asset.uri,
-      width: asset.width,
-      height: asset.height,
-      maxEdge: ALBUM_MAX_EDGE,
-      compress: 0.8,
-    })) ?? (await readUnshrunk(asset.uri));
+  const shrunk = await shrink({
+    uri: asset.uri,
+    width: asset.width,
+    height: asset.height,
+    maxEdge: ALBUM_MAX_EDGE,
+    compress: 0.8,
+  });
+  // No un-stripped fallback — see the doc comment. A missing manipulator means
+  // "cannot add safely", which reads as a cancel to the caller.
+  if (!shrunk) return null;
   return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
 }
 
