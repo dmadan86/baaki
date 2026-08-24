@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, RefreshControl, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   Avatar,
@@ -13,6 +14,7 @@ import {
   directionalIcon,
   EmptyState,
   Fab,
+  Gradient,
   iconSize,
   ListRow,
   MoneyText,
@@ -20,8 +22,6 @@ import {
   Screen,
   SegmentedTabs,
   Text,
-  TintCard,
-  tintForKey,
   useTheme,
   useScreenClearance,
 } from '@waves/ui';
@@ -218,6 +218,7 @@ type FeedItem =
 
 export default function GroupScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const clearance = useScreenClearance(112);
   const pull = usePullRefresh();
   const { t, locale } = useStrings();
@@ -345,10 +346,16 @@ export default function GroupScreen() {
   }
 
   const currency = group.data.default_currency;
-  // The balance hero wears the group's own colour — the same tint its card
-  // shows on home. Ink for contrast; the sign lives in the label, not the hue.
-  const ink = theme.tint[tintForKey(groupId)].ink;
-  const inkMuted = theme.tint[tintForKey(groupId)].inkMuted;
+  // The hero panel wears its verdict, the same rule the dashboard hero follows:
+  // a blue wash when the group owes you, a red one when you owe it, the brand
+  // indigo when all is settled. Every stop is dark enough to hold the white
+  // balance and its labels; the sign lives in the words, not just the hue.
+  const heroGradient =
+    ledger.myBalance > 0n
+      ? theme.gradient.positive
+      : ledger.myBalance < 0n
+        ? theme.gradient.negative
+        : theme.gradient.brand;
   const visibleExpenses = expenses.rows.filter((expense) => showDeleted || !expense.deleted_at);
   // The show/hide-deleted toggle only earns its place once something has been
   // deleted. On a group whose ledger has never lost a row it is an answer to a
@@ -546,7 +553,7 @@ export default function GroupScreen() {
     );
 
   return (
-    <Screen>
+    <Screen edges={[]}>
       <DetailEnter>
         <FlashList
           data={tab === Tab.Expenses ? feedItems : []}
@@ -567,320 +574,363 @@ export default function GroupScreen() {
             />
           }
           ListHeaderComponent={
-            <View style={{ gap: theme.spacing.xl, marginBottom: theme.spacing.xl }}>
-              <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.sm }}>
-                {/* Just the arrow and its tap target — no chip behind it. */}
-                <Pressable
-                  onPress={() => router.back()}
-                  accessibilityRole="button"
-                  accessibilityLabel={t.common.back}
-                  hitSlop={10}
-                >
-                  <Ionicons
-                    name={directionalIcon('chevron-back')}
-                    size={iconSize.xxl}
-                    color={theme.color.text}
-                  />
-                </Pressable>
-                {/* The photo-and-name cluster is itself the way into settings, the
+            <View style={{ marginBottom: theme.spacing.xl }}>
+              {/* The group hero, built like the dashboard's: one saturated panel
+                  running edge to edge and up under the status bar, carrying the
+                  top controls, the balance, and its two actions on the group's
+                  verdict colour. It breaks out of the list's horizontal padding
+                  with a negative margin, then re-pads itself, and rounds only its
+                  bottom corners so it reads as the top of the screen. */}
+              <Gradient
+                radius={0}
+                colors={heroGradient}
+                style={{
+                  marginHorizontal: -theme.spacing.xl,
+                  paddingTop: insets.top + theme.spacing.md,
+                  paddingHorizontal: theme.spacing.xl,
+                  paddingBottom: theme.spacing.xl,
+                  borderBottomLeftRadius: theme.radius.xxl,
+                  borderBottomRightRadius: theme.radius.xxl,
+                  gap: theme.spacing.xl,
+                }}
+              >
+                <Row style={{ gap: theme.spacing.sm }}>
+                  {/* Just the arrow and its tap target — no chip behind it. */}
+                  <Pressable
+                    onPress={() => router.back()}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.common.back}
+                    hitSlop={10}
+                  >
+                    <Ionicons
+                      name={directionalIcon('chevron-back')}
+                      size={iconSize.xxl}
+                      color={theme.color.onBrand}
+                    />
+                  </Pressable>
+                  {/* The photo-and-name cluster is itself the way into settings, the
               way tapping a chat's title bar opens its info in WhatsApp — so the
               name is a tap target, not just a label above a menu. */}
-                <Pressable
-                  onPress={() => router.push(`/group/${groupId}/settings`)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t.group.settings}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    flexDirection: 'row',
-                    gap: theme.spacing.md,
-                    justifyContent: 'flex-start',
-                    alignItems: 'center',
-                    opacity: pressed ? 0.6 : 1,
-                  })}
-                >
-                  <GroupPhoto
-                    photoPath={group.data.photo_path}
-                    emoji={group.data.cover_emoji}
-                    size={38}
-                  />
-                  <View style={{ flexShrink: 1 }}>
-                    <Text variant="heading" numberOfLines={1}>
-                      {groupLabel(group.data, members.data ?? [], profile?.id)}
-                    </Text>
-                    <Text variant="micro" tone="muted">
-                      {plural(locale, members.data?.length ?? 0, t.memberCount)}
-                    </Text>
-                  </View>
-                </Pressable>
-                {/* The sync state as one glyph, the same control the dashboard header
+                  <Pressable
+                    onPress={() => router.push(`/group/${groupId}/settings`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.group.settings}
+                    style={({ pressed }) => ({
+                      flex: 1,
+                      flexDirection: 'row',
+                      gap: theme.spacing.md,
+                      justifyContent: 'flex-start',
+                      alignItems: 'center',
+                      opacity: pressed ? 0.6 : 1,
+                    })}
+                  >
+                    <GroupPhoto
+                      photoPath={group.data.photo_path}
+                      emoji={group.data.cover_emoji}
+                      size={38}
+                    />
+                    <View style={{ flexShrink: 1 }}>
+                      <Text variant="heading" tone="onBrand" numberOfLines={1}>
+                        {groupLabel(group.data, members.data ?? [], profile?.id)}
+                      </Text>
+                      <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+                        {plural(locale, members.data?.length ?? 0, t.memberCount)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {/* The sync state as one glyph, the same control the dashboard header
               carries: a quiet cloud for unsent changes or no connection, a
               turning arrow mid-sync, a red mark for a refused change — nothing
               when all is well. It replaces the wide banner this screen used to
               stack under the header. */}
-                <SyncStatusIcon />
-                {/* A code to hand the group across the table. The whole invite
+                  <SyncStatusIcon onBrand />
+                  {/* A code to hand the group across the table. The whole invite
               surface — link, share sheet and the QR to point a camera at — lives
               one tap behind this, so it is the fast way to get somebody in
               without typing a thing. */}
-                <Pressable
-                  onPress={() => router.push(`/group/${groupId}/invite`)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t.people.inviteTitle}
-                  hitSlop={10}
-                >
-                  <Ionicons name="qr-code-outline" size={iconSize.xl} color={theme.color.text} />
-                </Pressable>
-                {/* Planner, spending and settings live behind this one menu; planner
+                  <Pressable
+                    onPress={() => router.push(`/group/${groupId}/invite`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.people.inviteTitle}
+                    hitSlop={10}
+                  >
+                    <Ionicons
+                      name="qr-code-outline"
+                      size={iconSize.xl}
+                      color={theme.color.onBrand}
+                    />
+                  </Pressable>
+                  {/* Planner, spending and settings live behind this one menu; planner
               only shows for a trip. Bare icon, no chip, to match the back
               arrow. */}
-                <Pressable
-                  onPress={() => setMenuOpen(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t.group.more}
-                  hitSlop={10}
-                >
-                  <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
-                </Pressable>
-              </Row>
+                  <Pressable
+                    onPress={() => setMenuOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.group.more}
+                    hitSlop={10}
+                  >
+                    <Ionicons
+                      name="ellipsis-vertical"
+                      size={iconSize.xl}
+                      color={theme.color.onBrand}
+                    />
+                  </Pressable>
+                </Row>
 
-              <OverflowMenu
-                visible={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                items={menuItems}
-              />
+                {/* The balance — the group's standing, said as a verdict. A zero is
+                  the good outcome and gets its own words, not "owed ₹0". White on
+                  the wash, the same as the dashboard's hero number. */}
+                <View style={{ gap: theme.spacing.lg }}>
+                  <Row style={{ justifyContent: 'space-between' }}>
+                    <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+                      {ledger.myBalance === 0n
+                        ? t.allSettled
+                        : ledger.myBalance > 0n
+                          ? t.youAreOwed
+                          : t.youOwe}
+                    </Text>
+                    {ledger.pending !== 0n ? (
+                      <Badge label={t.pendingConfirmation} tone="brand" />
+                    ) : null}
+                  </Row>
 
-              {/* Only the refused-change banner survives inline — it carries the
+                  <MoneyText
+                    amount={ledger.myBalance}
+                    currency={currency}
+                    locale={locale}
+                    mode="balance"
+                    variant="display"
+                    tone="default"
+                    style={{ color: theme.color.onBrand }}
+                  />
+
+                  {/* Two actions on the hero: Settle up is the white pill (the one
+                    primary), Simplify a translucent-white pill behind it. Both
+                    hold their label on the wash. */}
+                  <Row style={{ gap: theme.spacing.md }}>
+                    <Pressable
+                      onPress={() => router.push(`/group/${groupId}/settle`)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.settleUp}
+                      style={({ pressed }) => ({
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: theme.spacing.xs,
+                        paddingVertical: theme.spacing.sm + 2,
+                        paddingHorizontal: theme.spacing.md,
+                        borderRadius: theme.radius.pill,
+                        backgroundColor: '#FFFFFF',
+                        opacity: pressed ? 0.85 : 1,
+                      })}
+                    >
+                      <Ionicons name="swap-horizontal" size={iconSize.md} color={heroGradient[0]} />
+                      <Text
+                        variant="subheading"
+                        style={{ color: heroGradient[0] }}
+                        numberOfLines={1}
+                      >
+                        {t.settleUp}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => router.push(`/group/${groupId}/simplify`)}
+                      accessibilityRole="button"
+                      accessibilityLabel={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
+                      style={({ pressed }) => ({
+                        flex: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: theme.spacing.sm + 2,
+                        paddingHorizontal: theme.spacing.md,
+                        borderRadius: theme.radius.pill,
+                        backgroundColor: 'rgba(255, 255, 255, 0.18)',
+                        opacity: pressed ? 0.7 : 1,
+                      })}
+                    >
+                      <Text variant="subheading" tone="onBrand" numberOfLines={1}>
+                        {group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
+                      </Text>
+                    </Pressable>
+                  </Row>
+                </View>
+              </Gradient>
+
+              {/* The white body beneath the hero: alerts, shared receipts, pending
+                  settlements, then the three-face tab bar. */}
+              <View style={{ gap: theme.spacing.xl, marginTop: theme.spacing.xl }}>
+                <OverflowMenu
+                  visible={menuOpen}
+                  onClose={() => setMenuOpen(false)}
+                  items={menuItems}
+                />
+
+                {/* Only the refused-change banner survives inline — it carries the
               retry / discard buttons the header glyph cannot. Offline, queued and
               in-flight now read from the glyph in the header, matching the
               dashboard. */}
-              {refusedHere ? <SyncBanner groupId={groupId} /> : null}
+                {refusedHere ? <SyncBanner groupId={groupId} /> : null}
 
-              {/* If the two independent balance computations ever disagree, say so
+                {/* If the two independent balance computations ever disagree, say so
             rather than showing a number that might be wrong (ADR-004). */}
-              {ledger.mismatch ? (
-                <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}>
-                  <Text variant="subheading" tone="negative">
-                    {t.group.mismatch}
-                  </Text>
-                  <Text variant="caption" tone="muted">
-                    {t.group.mismatchBody}
-                  </Text>
-                </Card>
-              ) : null}
-
-              {/* A bill somebody at this table scanned and shared. Without this the
-            second person has no way to reach it, and the claims CRDT is
-            plumbing with no tap. */}
-              {(openReceipts.data ?? []).map((receipt) => (
-                <Pressable
-                  key={receipt.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={fill(t.expense.splitBillA11y, {
-                    merchant: receipt.parsed?.merchant ?? t.expense.aBill,
-                  })}
-                  onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
-                >
-                  <Card style={{ gap: theme.spacing.sm }}>
-                    <Row style={{ gap: theme.spacing.sm }}>
-                      <Ionicons
-                        name="receipt-outline"
-                        size={iconSize.md}
-                        color={theme.color.brand}
-                      />
-                      <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
-                        {receipt.parsed?.merchant ?? t.expense.aBill}
-                      </Text>
-                      <Ionicons
-                        name={directionalIcon('chevron-forward')}
-                        size={iconSize.md}
-                        color={theme.color.textFaint}
-                      />
-                    </Row>
+                {ledger.mismatch ? (
+                  <Card
+                    style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.sm }}
+                  >
+                    <Text variant="subheading" tone="negative">
+                      {t.group.mismatch}
+                    </Text>
                     <Text variant="caption" tone="muted">
-                      {receipt.claimed === 0
-                        ? plural(locale, receipt.items, t.expense.receiptClaimedNone)
-                        : fill(t.expense.receiptClaimedSome, {
-                            claimed: receipt.claimed,
-                            items: receipt.items,
-                          })}
+                      {t.group.mismatchBody}
                     </Text>
                   </Card>
-                </Pressable>
-              ))}
+                ) : null}
 
-              <TintCard
-                tint={tintForKey(groupId)}
-                style={{
-                  borderRadius: theme.radius.xl,
-                  padding: theme.spacing.xl,
-                  gap: theme.spacing.lg,
-                }}
-              >
-                <Row style={{ justifyContent: 'space-between' }}>
-                  {/* A zero is not "you are owed ₹0" — it is the good outcome, and
-                  it gets said as one. The label carried the sign for every
-                  balance except the one worth celebrating. */}
-                  <Text variant="caption" style={{ color: inkMuted }}>
-                    {ledger.myBalance === 0n
-                      ? t.allSettled
-                      : ledger.myBalance > 0n
-                        ? t.youAreOwed
-                        : t.youOwe}
-                  </Text>
-                  {ledger.pending !== 0n ? (
-                    <Badge label={t.pendingConfirmation} tone="brand" />
-                  ) : null}
-                </Row>
+                {/* A bill somebody at this table scanned and shared. Without this the
+            second person has no way to reach it, and the claims CRDT is
+            plumbing with no tap. */}
+                {(openReceipts.data ?? []).map((receipt) => (
+                  <Pressable
+                    key={receipt.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={fill(t.expense.splitBillA11y, {
+                      merchant: receipt.parsed?.merchant ?? t.expense.aBill,
+                    })}
+                    onPress={() => router.push(`/group/${groupId}/itemize?receipt=${receipt.id}`)}
+                  >
+                    <Card style={{ gap: theme.spacing.sm }}>
+                      <Row style={{ gap: theme.spacing.sm }}>
+                        <Ionicons
+                          name="receipt-outline"
+                          size={iconSize.md}
+                          color={theme.color.brand}
+                        />
+                        <Text variant="subheading" style={{ flex: 1 }} numberOfLines={1}>
+                          {receipt.parsed?.merchant ?? t.expense.aBill}
+                        </Text>
+                        <Ionicons
+                          name={directionalIcon('chevron-forward')}
+                          size={iconSize.md}
+                          color={theme.color.textFaint}
+                        />
+                      </Row>
+                      <Text variant="caption" tone="muted">
+                        {receipt.claimed === 0
+                          ? plural(locale, receipt.items, t.expense.receiptClaimedNone)
+                          : fill(t.expense.receiptClaimedSome, {
+                              claimed: receipt.claimed,
+                              items: receipt.items,
+                            })}
+                      </Text>
+                    </Card>
+                  </Pressable>
+                ))}
 
-                {/* mode="balance" keeps the spoken "You are owed ₹X" label and the
-              absolute value; the colour is overridden to ink for the surface. */}
-                <MoneyText
-                  amount={ledger.myBalance}
-                  currency={currency}
-                  locale={locale}
-                  mode="balance"
-                  variant="display"
-                  tone="default"
-                  style={{ color: ink }}
-                />
-
-                {/* Two equal-width pills on the tinted hero. Settle up is the one
-                filled brand CTA; Simplify is a secondary, so it reads as an
-                outline — transparent with a brand border and brand label. On a
-                pale tint a solid-white pill turned out brighter than the CTA and
-                stole the eye; the outline recedes behind the primary the way a
-                secondary should. Reduced side padding keeps the longer toggle
-                label ("Who pays whom?") on one line at half width. */}
-                <Row style={{ gap: theme.spacing.md }}>
-                  <Button
-                    label={t.settleUp}
-                    onPress={() => router.push(`/group/${groupId}/settle`)}
-                    icon={
-                      <Ionicons
-                        name="swap-horizontal"
-                        size={iconSize.md}
-                        color={theme.color.onBrand}
+                {pendingForMe.map((settlement) => (
+                  <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
+                    <Text variant="subheading">
+                      {fill(t.group.saysTheyPaidYou, { name: nameOf(settlement.from_member_id) })}
+                    </Text>
+                    <Row style={{ gap: theme.spacing.sm }}>
+                      <MoneyText
+                        amount={BigInt(settlement.amount)}
+                        currency={settlement.currency}
+                        locale={locale}
+                        variant="title"
                       />
-                    }
-                    style={{ flex: 1, paddingHorizontal: theme.spacing.md }}
-                  />
-                  <Button
-                    label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                    variant="ghost"
-                    onPress={() => router.push(`/group/${groupId}/simplify`)}
-                    style={{
-                      flex: 1,
-                      paddingHorizontal: theme.spacing.md,
-                      borderWidth: 1,
-                      borderColor: theme.color.brand,
-                    }}
-                  />
-                </Row>
-              </TintCard>
-
-              {pendingForMe.map((settlement) => (
-                <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
-                  <Text variant="subheading">
-                    {fill(t.group.saysTheyPaidYou, { name: nameOf(settlement.from_member_id) })}
-                  </Text>
-                  <Row style={{ gap: theme.spacing.sm }}>
-                    <MoneyText
-                      amount={BigInt(settlement.amount)}
-                      currency={settlement.currency}
-                      locale={locale}
-                      variant="title"
-                    />
-                    {settlement.pending ? <PendingMark size={16} /> : null}
-                  </Row>
-                  {/* The payer's evidence, if they attached any — seen here
+                      {settlement.pending ? <PendingMark size={16} /> : null}
+                    </Row>
+                    {/* The payer's evidence, if they attached any — seen here
                       before confirming, so a confirmation answers proof rather
                       than a bare claim. View-only: this is the other side's. */}
-                  <SettlementProof
-                    groupId={groupId}
-                    settlementId={settlement.id}
-                    canManage={false}
-                  />
-                  <Row style={{ gap: theme.spacing.md }}>
-                    <Button
-                      label={t.group.confirmReceived}
-                      onPress={() => confirmSettlement.mutate(settlement.id)}
-                      disabled={confirmSettlement.isPending}
+                    <SettlementProof
+                      groupId={groupId}
+                      settlementId={settlement.id}
+                      canManage={false}
                     />
-                    <Text variant="micro" tone="muted" style={{ flex: 1 }}>
-                      {t.group.autoConfirms}
-                    </Text>
-                  </Row>
-                </Card>
-              ))}
+                    <Row style={{ gap: theme.spacing.md }}>
+                      <Button
+                        label={t.group.confirmReceived}
+                        onPress={() => confirmSettlement.mutate(settlement.id)}
+                        disabled={confirmSettlement.isPending}
+                      />
+                      <Text variant="micro" tone="muted" style={{ flex: 1 }}>
+                        {t.group.autoConfirms}
+                      </Text>
+                    </Row>
+                  </Card>
+                ))}
 
-              {/* My own recorded payments, waiting on the payee. The place to
+                {/* My own recorded payments, waiting on the payee. The place to
                   back the claim with a screenshot, and an acknowledgement that
                   it is in flight. */}
-              {pendingByMe.map((settlement) => (
-                <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
-                  <Text variant="subheading">
-                    {fill(t.proof.youPaid, { name: nameOf(settlement.to_member_id) })}
-                  </Text>
-                  <Row style={{ gap: theme.spacing.sm }}>
-                    <MoneyText
-                      amount={BigInt(settlement.amount)}
-                      currency={settlement.currency}
-                      locale={locale}
-                      variant="title"
-                    />
-                    {settlement.pending ? <PendingMark size={16} /> : null}
-                  </Row>
-                  <Text variant="micro" tone="muted">
-                    {fill(t.proof.awaiting, { name: nameOf(settlement.to_member_id) })}
-                  </Text>
-                  {/* Manage only once the settlement has reached the server:
+                {pendingByMe.map((settlement) => (
+                  <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
+                    <Text variant="subheading">
+                      {fill(t.proof.youPaid, { name: nameOf(settlement.to_member_id) })}
+                    </Text>
+                    <Row style={{ gap: theme.spacing.sm }}>
+                      <MoneyText
+                        amount={BigInt(settlement.amount)}
+                        currency={settlement.currency}
+                        locale={locale}
+                        variant="title"
+                      />
+                      {settlement.pending ? <PendingMark size={16} /> : null}
+                    </Row>
+                    <Text variant="micro" tone="muted">
+                      {fill(t.proof.awaiting, { name: nameOf(settlement.to_member_id) })}
+                    </Text>
+                    {/* Manage only once the settlement has reached the server:
                       the attach/remove RPCs check party against a real row, and
                       `pending` means it has not synced yet. Until then the card
                       still shows "waiting", just without the attach control. */}
-                  <SettlementProof
-                    groupId={groupId}
-                    settlementId={settlement.id}
-                    canManage={!settlement.pending}
-                  />
-                </Card>
-              ))}
+                    <SettlementProof
+                      groupId={groupId}
+                      settlementId={settlement.id}
+                      canManage={!settlement.pending}
+                    />
+                  </Card>
+                ))}
 
-              {/* The page has three faces — expenses, balances, activity. This is a
+                {/* The page has three faces — expenses, balances, activity. This is a
               tab, not a choice on a form, so it wears the underlined tab look
               rather than the selection pills the rest of the app fills in. */}
-              <SegmentedTabs<Tab>
-                value={tab}
-                onChange={setTab}
-                tabs={[
-                  { value: Tab.Expenses, label: t.expenses },
-                  { value: Tab.Balances, label: t.balances },
-                  { value: Tab.Activity, label: t.activity },
-                ]}
-              />
+                <SegmentedTabs<Tab>
+                  value={tab}
+                  onChange={setTab}
+                  tabs={[
+                    { value: Tab.Expenses, label: t.expenses },
+                    { value: Tab.Balances, label: t.balances },
+                    { value: Tab.Activity, label: t.activity },
+                  ]}
+                />
 
-              {tab === Tab.Expenses && hasDeleted ? (
-                <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
-                  {/* A real button, not a text with an onPress: a screen reader now
+                {tab === Tab.Expenses && hasDeleted ? (
+                  <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
+                    {/* A real button, not a text with an onPress: a screen reader now
                   hears a control, and the 44pt floor plus hitSlop makes the
                   caption a tap target rather than a hairline of text. */}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showDeleted }}
-                    accessibilityLabel={showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-                    onPress={() => setShowDeleted((current) => !current)}
-                    hitSlop={8}
-                    style={({ pressed }) => ({
-                      minHeight: 44,
-                      justifyContent: 'center',
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <Text variant="caption" tone="muted">
-                      {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-                    </Text>
-                  </Pressable>
-                </Row>
-              ) : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: showDeleted }}
+                      accessibilityLabel={showDeleted ? t.group.hideDeleted : t.group.showDeleted}
+                      onPress={() => setShowDeleted((current) => !current)}
+                      hitSlop={8}
+                      style={({ pressed }) => ({
+                        minHeight: 44,
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.6 : 1,
+                      })}
+                    >
+                      <Text variant="caption" tone="muted">
+                        {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
+                      </Text>
+                    </Pressable>
+                  </Row>
+                ) : null}
+              </View>
             </View>
           }
           ListFooterComponent={
