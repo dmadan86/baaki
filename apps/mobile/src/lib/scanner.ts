@@ -39,18 +39,31 @@ export function scannerAvailable(): boolean {
 }
 
 /**
- * Open the scanner and return the cropped page as a local file URI.
+ * How a scan ended. The three cases are deliberately kept apart because the
+ * caller must treat them differently:
  *
- * Null covers every ordinary way this ends without an image: no scanner in
- * this build, and the person backing out of the camera. Neither is an error to
- * report — the caller falls back to the plain camera, or does nothing.
+ *  - `image`       — a cropped page, use it.
+ *  - `cancelled`   — the scanner opened and the person backed out. Do nothing;
+ *                    they did not ask for a different camera.
+ *  - `unavailable` — there is no scanner in this build, or it would not open at
+ *                    all. Falling back to the plain camera is right here.
+ *
+ * Collapsing `cancelled` and `unavailable` into one "no image" was the bug this
+ * type exists to prevent: it made backing out of the scanner silently launch
+ * the OS camera instead.
+ */
+export type ScanResult =
+  { kind: 'image'; uri: string } | { kind: 'cancelled' } | { kind: 'unavailable' };
+
+/**
+ * Open the scanner and report how it ended (see `ScanResult`).
  *
  * One page only. A restaurant bill is one page, and a second image would have
  * to be reconciled against the first before either could become an expense —
  * work with no home in ADR-008's "the model proposes, the person confirms".
  */
-export async function scanDocument(): Promise<string | null> {
-  if (!scannerAvailable()) return null;
+export async function scanDocument(): Promise<ScanResult> {
+  if (!scannerAvailable()) return { kind: 'unavailable' };
 
   let scanner: DocumentScanner;
   try {
@@ -62,7 +75,7 @@ export async function scanDocument(): Promise<string | null> {
     };
     scanner = loaded.default;
   } catch {
-    return null;
+    return { kind: 'unavailable' };
   }
 
   try {
@@ -73,10 +86,13 @@ export async function scanDocument(): Promise<string | null> {
       // strokes that were already marginal.
       croppedImageQuality: 100,
     });
-    return scannedImages?.[0] ?? null;
+    const uri = scannedImages?.[0];
+    // An image means success. No image with no throw is the person backing out
+    // of the scanner — a cancel, not a reason to open another camera.
+    return uri ? { kind: 'image', uri } : { kind: 'cancelled' };
   } catch {
-    // A camera that will not open is a reason to fall back to the picker, not
-    // a reason to put an error in front of somebody holding a bill.
-    return null;
+    // A scanner that will not open at all is a reason to fall back to the plain
+    // camera, not to put an error in front of somebody holding a bill.
+    return { kind: 'unavailable' };
   }
 }

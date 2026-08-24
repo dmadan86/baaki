@@ -270,8 +270,16 @@ export async function pickReceiptImage(): Promise<PickedImage | null> {
  * screen asking for a receipt has no business knowing which one it got.
  */
 export async function captureReceipt(): Promise<PickedImage | null> {
-  const scanned = await scanDocument();
-  if (!scanned) return pickReceiptPhoto();
+  const outcome = await scanDocument();
+  // No scanner in this build (web, or a binary from before it was installed) or
+  // one that would not open: fall through to the plain camera, which is what
+  // every scan used until the scanner existed.
+  if (outcome.kind === 'unavailable') return pickReceiptPhoto();
+  // Backed out of the scanner. That is a cancel, not a request for a different
+  // camera — the old code fell back here and surprised the person with the OS
+  // camera. Do nothing.
+  if (outcome.kind === 'cancelled') return null;
+  const scanned = outcome.uri;
 
   // The scanner reports no dimensions, and `shrink` caps whichever edge is
   // longer. Asking the file is cheap; failing to ask would send a 4000px scan
