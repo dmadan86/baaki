@@ -33,7 +33,25 @@ again at the presign (`r2-sign`), never in the client.
   (#194), not the offline queue.
 - **UI** — a hidden/visible attachment section on the expense detail, with a
   visibility choice at add time and a lock badge on `parties` rows. The
-  settlement-proof UI (§4) reuses the same hooks and is a small follow-up.
+  settlement-proof UI (§4) reuses the same hooks (see below).
+
+## §4 settlement-proof UI — built (follow-up PR)
+
+`SettlementProof` (`apps/mobile/src/components/SettlementProof.tsx`) — a single
+party-only image on a settlement, wired into the group screen:
+
+- **Payer side** — a new `pendingByMe` card on the group screen surfaces the
+  payer's own recorded-but-unconfirmed settlements (which the app never
+  acknowledged before). It carries "You paid {name}", "Waiting for {name} to
+  confirm", and the attach/view/remove control (`canManage`).
+- **Payee side** — the existing `pendingForMe` confirm card now shows the proof
+  **view-only** above "Confirm received", so a confirmation answers evidence
+  rather than a bare claim.
+- **Ordering** — attach and remove are the same direct SECURITY DEFINER RPCs; a
+  proof can only hang off a settlement that has already **synced** (its party
+  check answers about a real row), so the control never appears mid-record. The
+  proof image is picked with `pickAlbumPhoto` (EXIF-stripped re-encode) and
+  resolved through the restricted `r2-sign` branch (60 s TTL, no dual-read).
 
 ## Threat tests
 
