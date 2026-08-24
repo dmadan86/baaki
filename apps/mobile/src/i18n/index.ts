@@ -366,6 +366,21 @@ export interface UiStrings {
     remove: string;
     removeConfirm: string;
   };
+  /** A payment proof on a settlement, visible to its two parties only. */
+  proof: {
+    /** Section label. */
+    title: string;
+    /** Payer's action to attach a proof image. */
+    add: string;
+    /** Payer card heading; {name} is the payee. */
+    youPaid: string;
+    /** Payer card subtitle while the payee has not confirmed; {name} is the payee. */
+    awaiting: string;
+    /** Payee's cue that a proof is attached to view before confirming. */
+    view: string;
+    remove: string;
+    removeConfirm: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -2044,6 +2059,15 @@ const en: UiStrings = {
     payersOnly: 'Only people on this bill',
     remove: 'Remove attachment',
     removeConfirm: 'Remove this attachment?',
+  },
+  proof: {
+    title: 'Payment proof',
+    add: 'Add payment proof',
+    youPaid: 'You paid {name}',
+    awaiting: 'Waiting for {name} to confirm',
+    view: 'View payment proof',
+    remove: 'Remove proof',
+    removeConfirm: 'Remove this payment proof?',
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3739,6 +3763,15 @@ const ta: UiStrings = {
     payersOnly: 'இந்த பில்லில் உள்ளவர்கள் மட்டும்',
     remove: 'இணைப்பை நீக்கு',
     removeConfirm: 'இந்த இணைப்பை நீக்கவா?',
+  },
+  proof: {
+    title: 'கட்டண சான்று',
+    add: 'கட்டண சான்று சேர்',
+    youPaid: '{name} க்கு நீங்கள் கட்டினீர்கள்',
+    awaiting: '{name} உறுதிப்படுத்த காத்திருக்கிறது',
+    view: 'கட்டண சான்றைப் பார்',
+    remove: 'சான்றை நீக்கு',
+    removeConfirm: 'இந்த கட்டண சான்றை நீக்கவா?',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5500,6 +5533,15 @@ const hi: UiStrings = {
     remove: 'अटैचमेंट हटाएँ',
     removeConfirm: 'यह अटैचमेंट हटाएँ?',
   },
+  proof: {
+    title: 'भुगतान प्रमाण',
+    add: 'भुगतान प्रमाण जोड़ें',
+    youPaid: 'आपने {name} को भुगतान किया',
+    awaiting: '{name} की पुष्टि का इंतज़ार',
+    view: 'भुगतान प्रमाण देखें',
+    remove: 'प्रमाण हटाएँ',
+    removeConfirm: 'यह भुगतान प्रमाण हटाएँ?',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -7209,6 +7251,15 @@ const ar: UiStrings = {
     payersOnly: 'أصحاب هذه الفاتورة فقط',
     remove: 'إزالة المرفق',
     removeConfirm: 'إزالة هذا المرفق؟',
+  },
+  proof: {
+    title: 'إثبات الدفع',
+    add: 'إضافة إثبات الدفع',
+    youPaid: 'لقد دفعت إلى {name}',
+    awaiting: 'في انتظار تأكيد {name}',
+    view: 'عرض إثبات الدفع',
+    remove: 'إزالة الإثبات',
+    removeConfirm: 'إزالة إثبات الدفع هذا؟',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',

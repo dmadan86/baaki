@@ -56,6 +56,7 @@ import { CategoryBadge } from '@/components/Category';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { PendingMark } from '@/components/PendingMark';
+import { SettlementProof } from '@/components/SettlementProof';
 import { SyncBanner, SyncStatusIcon } from '@/components/SyncBanner';
 import { useSync } from '@/sync';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -347,6 +348,14 @@ export default function GroupScreen() {
   const pendingForMe = (settlements.data ?? []).filter(
     (settlement) =>
       settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,
+  );
+  // The other side of the same coin: settlements I said I made that the payee
+  // has not yet confirmed. These earn their own card so the payer has somewhere
+  // to attach a payment proof — and simply to be told their claim is in flight,
+  // which the app never acknowledged before.
+  const pendingByMe = (settlements.data ?? []).filter(
+    (settlement) =>
+      settlement.status === 'initiated' && settlement.from_member_id === ledger.myMemberId,
   );
 
   // The overflow: the same three-dot dropdown the dashboard uses, not a bottom
@@ -770,6 +779,14 @@ export default function GroupScreen() {
                     />
                     {settlement.pending ? <PendingMark size={16} /> : null}
                   </Row>
+                  {/* The payer's evidence, if they attached any — seen here
+                      before confirming, so a confirmation answers proof rather
+                      than a bare claim. View-only: this is the other side's. */}
+                  <SettlementProof
+                    groupId={groupId}
+                    settlementId={settlement.id}
+                    canManage={false}
+                  />
                   <Row style={{ gap: theme.spacing.md }}>
                     <Button
                       label={t.group.confirmReceived}
@@ -780,6 +797,38 @@ export default function GroupScreen() {
                       {t.group.autoConfirms}
                     </Text>
                   </Row>
+                </Card>
+              ))}
+
+              {/* My own recorded payments, waiting on the payee. The place to
+                  back the claim with a screenshot, and an acknowledgement that
+                  it is in flight. */}
+              {pendingByMe.map((settlement) => (
+                <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
+                  <Text variant="subheading">
+                    {fill(t.proof.youPaid, { name: nameOf(settlement.to_member_id) })}
+                  </Text>
+                  <Row style={{ gap: theme.spacing.sm }}>
+                    <MoneyText
+                      amount={BigInt(settlement.amount)}
+                      currency={settlement.currency}
+                      locale={locale}
+                      variant="title"
+                    />
+                    {settlement.pending ? <PendingMark size={16} /> : null}
+                  </Row>
+                  <Text variant="micro" tone="muted">
+                    {fill(t.proof.awaiting, { name: nameOf(settlement.to_member_id) })}
+                  </Text>
+                  {/* Manage only once the settlement has reached the server:
+                      the attach/remove RPCs check party against a real row, and
+                      `pending` means it has not synced yet. Until then the card
+                      still shows "waiting", just without the attach control. */}
+                  <SettlementProof
+                    groupId={groupId}
+                    settlementId={settlement.id}
+                    canManage={!settlement.pending}
+                  />
                 </Card>
               ))}
 
