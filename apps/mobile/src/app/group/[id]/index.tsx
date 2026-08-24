@@ -46,6 +46,7 @@ import {
   groupLabel,
   isBlockedMember,
   isGhost,
+  type ActivityActor,
   type ExpenseRow,
   type ExpenseVersionRow,
 } from '@/data/types';
@@ -248,6 +249,19 @@ export default function GroupScreen() {
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
     return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
+  };
+  // The joined actor an activity row would carry on the cross-group feed, rebuilt
+  // from this group's members — so the mirror-backed group feed can name who did
+  // the thing rather than falling back to "someone".
+  const actorFor = (memberId: string | null): ActivityActor | null => {
+    const member = memberId ? lookup.get(memberId) : undefined;
+    if (!member) return null;
+    return {
+      id: member.id,
+      profile_id: member.profile_id,
+      ghost_name: member.ghost_name,
+      profile: member.profile ? { display_name: member.profile.display_name } : null,
+    };
   };
 
   if (group.isLoading) {
@@ -975,7 +989,11 @@ export default function GroupScreen() {
                   <View key={entry.id}>
                     <ListRow
                       title={describeActivity(
-                        entry,
+                        // The group feed rides the mirror, where an activity row
+                        // carries only `actor_member_id` — not the joined actor the
+                        // cross-group feed gets. Resolve the actor from this group's
+                        // members so the row names the person instead of "someone".
+                        entry.actor ? entry : { ...entry, actor: actorFor(entry.actor_member_id) },
                         profile?.id ?? null,
                         blockedIds,
                         t.misc.someone,
