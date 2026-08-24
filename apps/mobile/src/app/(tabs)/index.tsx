@@ -320,9 +320,9 @@ export default function HomeScreen() {
               </Animated.View>
             ))}
 
-            {/* The faint corner rings — the abstract texture the reference cards
-                carry under their content, in place of a literal glyph. */}
-            <HeroBackdrop />
+            {/* The corner watermark — a faint glyph per slide that crossfades
+                as you swipe, off the same scroll value as the colour. */}
+            <HeroBackdrop scrollX={heroScrollX} snap={heroSnap} />
 
             {/* Greeting row: face + "Hi, {name}" over the time of day, then the
                 white controls the reference tucks top-right — sync, a shortcut to
@@ -1159,6 +1159,16 @@ const SLIDE_GRADIENTS = [
   ['#463F86', '#221C46'], // month — indigo
 ] as const;
 
+/**
+ * One watermark glyph per slide, in the same order (net, owed, month). It rides
+ * the corner of the hero as a faint, oversized outline and crossfades on the
+ * same scroll value as the colour, so the mark swaps as you swipe: a wallet for
+ * where you stand, a rising line for what is owed to you, a calendar for the
+ * month's spend. Kept large + low-alpha so it reads as texture behind the
+ * balance, not a literal icon competing with it.
+ */
+const SLIDE_ICONS = ['wallet-outline', 'trending-up-outline', 'calendar-outline'] as const;
+
 /** The first slide's green, reused for the accents that sit on white (the
     add-expense pill's ink) and the badge ring — a fixed brand green, not the
     animated hero colour. */
@@ -1388,35 +1398,35 @@ function HeroBalanceSkeleton() {
 }
 
 /**
-/**
- * The hero's corner decoration: two faint concentric rings bled off the
- * bottom-right, the abstract texture the premium finance cards lean on (Monzo,
- * GoPay, Wise) rather than a literal object glyph — it reads as depth on any of
- * the slide washes without competing with the balance. The hero clips it to the
- * rounded corner (`overflow: 'hidden'`); `pointerEvents none` so it never eats a
- * tap. White strokes at low alpha, so one decoration works on green/teal/indigo.
+ * The hero's corner decoration: one faint watermark glyph per balance slide,
+ * bled off the bottom-right, that crossfades as the carousel navigates. Each
+ * layer peaks in opacity at its own slide's snap point and is zero at its
+ * neighbours — the exact interpolation the colour layers use — off the same
+ * shared `scrollX`, so the mark swaps in lock-step with the colour and the
+ * swipe. Native-driven opacity: smooth at 60fps, free at rest. The hero clips
+ * it to the rounded corner (`overflow: 'hidden'`) and `pointerEvents none` so
+ * it never eats a tap; white at low alpha reads the same on green/teal/indigo.
  */
-function HeroBackdrop() {
-  const rings = [
-    { size: 260, right: -96, bottom: -128, alpha: 0.14 },
-    { size: 180, right: -40, bottom: -84, alpha: 0.1 },
-  ];
+function HeroBackdrop({ scrollX, snap }: { scrollX: Animated.Value; snap: number }) {
+  const theme = useTheme();
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {rings.map((ring) => (
-        <View
-          key={ring.size}
+      {SLIDE_ICONS.map((icon, index) => (
+        <Animated.View
+          key={icon}
           style={{
             position: 'absolute',
-            right: ring.right,
-            bottom: ring.bottom,
-            width: ring.size,
-            height: ring.size,
-            borderRadius: ring.size / 2,
-            borderWidth: 2,
-            borderColor: `rgba(255, 255, 255, ${ring.alpha})`,
+            right: -44,
+            bottom: -52,
+            opacity: scrollX.interpolate({
+              inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
+              outputRange: [0, 0.16, 0],
+              extrapolate: 'clamp',
+            }),
           }}
-        />
+        >
+          <Ionicons name={icon} size={208} color={theme.color.onBrand} />
+        </Animated.View>
       ))}
     </View>
   );
