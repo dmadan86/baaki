@@ -1443,6 +1443,40 @@ export default function AddExpenseScreen() {
               }
             />
           </Card>
+
+          {/* The way out of splitting. Some spend on a trip is nobody else's —
+              a souvenir, a private treat — and forcing it onto the shared ledger
+              (even split 1:1 with yourself) is noise in everyone's balances. This
+              hands the amount and note already typed to the personal captures
+              inbox, which never touches a group balance (plan §5). Only offered
+              on a new expense; converting an existing shared row is a different,
+              destructive act. `replace` so the abandoned split form is not left
+              on the back stack behind the capture. */}
+          {!editing ? (
+            <View style={{ gap: theme.spacing.xs, alignItems: 'flex-start' }}>
+              <Button
+                label={t.expense.justForMe}
+                variant="ghost"
+                onPress={() => {
+                  const params: Record<string, string> = { cur: currency };
+                  if (amount > 0n) params.amount = amount.toString();
+                  const note = description.trim();
+                  if (note) params.desc = note;
+                  router.replace({ pathname: '/capture', params });
+                }}
+                icon={
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={iconSize.md}
+                    color={theme.color.brand}
+                  />
+                }
+              />
+              <Text variant="micro" tone="muted">
+                {t.expense.justForMeBody}
+              </Text>
+            </View>
+          ) : null}
         </ScrollView>
 
         {/* The one action, pinned. The screen is tall — keypad, scan, currency,
