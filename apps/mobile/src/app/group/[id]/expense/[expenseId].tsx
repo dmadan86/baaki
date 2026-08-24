@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 
 import { resolveCategory } from '@waves/core';
@@ -77,17 +77,21 @@ export default function ExpenseDetailScreen() {
   // as "no receipt" and simply hides the row.
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const currentExpenseId = expense?.id;
-  useEffect(() => {
-    if (!currentExpenseId) return;
+  // Re-resolve on focus, not only when the ids change: a bill kept on the edit
+  // screen (which uploads on save) is not in R2 when this screen first mounts, so
+  // resolving again on the way back is what reveals the receipt row.
+  useFocusEffect(() => {
     let active = true;
-    void (async () => {
-      const url = await expenseReceiptUrl(groupId, currentExpenseId);
-      if (active) setReceiptUri(url);
-    })();
+    if (currentExpenseId) {
+      void (async () => {
+        const url = await expenseReceiptUrl(groupId, currentExpenseId);
+        if (active) setReceiptUri(url);
+      })();
+    }
     return () => {
       active = false;
     };
-  }, [groupId, currentExpenseId]);
+  });
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
