@@ -26,6 +26,8 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   @Published var currency: String = "USD"
   @Published var lastAckOk: Bool? = nil
   @Published var reachable: Bool = false
+  /// An expense this watch sent that WatchConnectivity could not deliver.
+  @Published var lastSendFailed: Bool = false
 
   private var session: WCSession? { WCSession.isSupported() ? WCSession.default : nil }
 
@@ -44,7 +46,11 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   func quickAdd(amountMinor: Int, currency: String, note: String) {
-    send([
+    // Clear the warning only if the payload was actually accepted for delivery.
+    // Clearing up front and then hitting the guard in `send` — session not yet
+    // activated right after launch — dropped the expense and left no warning,
+    // the silent loss this whole change exists to stop.
+    lastSendFailed = !send([
       "t": "quickAdd",
       // A stable id per intent so a transport retry of the same tap is
       // idempotent on the phone rather than creating a duplicate expense.
@@ -56,11 +62,17 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   func voiceAdd(_ transcript: String) {
-    send(["t": "voiceAdd", "id": UUID().uuidString, "transcript": transcript])
+    lastSendFailed = !send(["t": "voiceAdd", "id": UUID().uuidString, "transcript": transcript])
   }
 
-  private func send(_ message: [String: Any]) {
-    guard let session, session.activationState == .activated else { return }
+  /// Hand a message to WatchConnectivity for delivery. Returns whether it was
+  /// accepted: `false` means there was no activated session to take it, so the
+  /// caller (an expense send) must surface that rather than assume it left.
+  /// `requestRecent` ignores the result — a missed recent-list refresh is not a
+  /// lost expense and must not raise the expense-drop warning.
+  @discardableResult
+  private func send(_ message: [String: Any]) -> Bool {
+    guard let session, session.activationState == .activated else { return false }
     var payload = message
     payload["version"] = relayVersion
     if session.isReachable {
@@ -70,6 +82,7 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
     } else {
       session.transferUserInfo(payload)
     }
+    return true
   }
 
   // MARK: WCSessionDelegate
@@ -99,6 +112,30 @@ final class WatchRelay: NSObject, ObservableObject, WCSessionDelegate {
 
   func sessionReachabilityDidChange(_ session: WCSession) {
     DispatchQueue.main.async { self.reachable = session.isReachable }
+  }
+
+  /**
+   * The outcome of a `transferUserInfo` — the path every intent takes whenever
+   * the phone is not reachable, which on a wrist is most of the time.
+   *
+   * Without this method WatchConnectivity has nowhere to report a failed
+   * transfer, so an expense spoken or dialled here could disappear between the
+   * watch and the phone with nothing shown: the view dismisses on tap and the
+   * only other signal, `ack`, comes from a phone that never got the message.
+   *
+   * Only the intents that carry an expense raise the warning. A lost
+   * `requestRecent` costs nothing — the list simply stays as it was, which the
+   * Recent screen already shows honestly.
+   */
+  func session(
+    _ session: WCSession,
+    didFinish userInfoTransfer: WCSessionUserInfoTransfer,
+    error: Error?
+  ) {
+    let kind = userInfoTransfer.userInfo["t"] as? String
+    guard kind == "quickAdd" || kind == "voiceAdd" else { return }
+    let failed = error != nil
+    DispatchQueue.main.async { self.lastSendFailed = failed }
   }
 
   private func handle(_ message: [String: Any]) {

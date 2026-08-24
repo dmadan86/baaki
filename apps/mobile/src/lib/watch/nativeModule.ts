@@ -23,6 +23,13 @@ interface NativeWatch {
     event: 'onWatchMessage',
     handler: (event: { payload: unknown }) => void,
   ): { remove(): void };
+  // iOS only: a queued WatchConnectivity transfer that never reached the watch.
+  // Android has no equivalent event — its failures surface as a rejection from
+  // `sendToWatch` above — and both are funnelled into `onWatchSendFailed`.
+  addListener(
+    event: 'onWatchSendFailed',
+    handler: (event: { t?: unknown }) => void,
+  ): { remove(): void };
 }
 
 const native = requireOptionalNativeModule<NativeWatch>('WavesWatch');
@@ -41,14 +48,62 @@ export function watchReachable(): boolean {
   }
 }
 
+type SendFailureHandler = (kind: string | null) => void;
+
+const failureHandlers = new Set<SendFailureHandler>();
+let failureSubscription: { remove(): void } | null = null;
+
+function notifySendFailed(kind: string | null): void {
+  // A copy, so a handler that unsubscribes itself cannot mutate the set mid-loop.
+  for (const handler of [...failureHandlers]) {
+    try {
+      handler(kind);
+    } catch {
+      // One subscriber's failure must not stop the others being told.
+    }
+  }
+}
+
+/**
+ * Learn that a payload never reached the watch.
+ *
+ * Delivery is asynchronous on both platforms, so `sendToWatch` returning true
+ * only means the payload left this side — the loss is reported later or not at
+ * all. Handlers receive the `t` of the lost message where the platform says
+ * which one it was (iOS names it; Android's rejection is per-send, so it is
+ * named from the call), and null when it is unknown.
+ *
+ * A build with no watch module, or one whose native half predates the event,
+ * simply never calls back — the same safe no-op the rest of this module keeps.
+ */
+export function onWatchSendFailed(handler: SendFailureHandler): () => void {
+  failureHandlers.add(handler);
+  if (native && !failureSubscription) {
+    try {
+      failureSubscription = native.addListener('onWatchSendFailed', (event) => {
+        const kind = event.t;
+        notifySendFailed(typeof kind === 'string' && kind !== '' ? kind : null);
+      });
+    } catch {
+      // An older native module without this event; Android's send-promise path
+      // below still reports, so leave the subscription unmade.
+      failureSubscription = null;
+    }
+  }
+  return () => {
+    failureHandlers.delete(handler);
+  };
+}
+
 /**
  * Hand a payload to the native transport. Returns whether the payload was
  * dispatched — false when no watch module is present or the native call threw
  * synchronously — so a caller that dedupes on the last sent payload can hold
  * its state until a send is at least dispatched (see the recent-list relay in
  * bridge.tsx). An asynchronous delivery failure (Android with no paired watch)
- * is swallowed below so it cannot become an unhandled rejection; those cases
- * still return true, since the payload did leave this side.
+ * cannot become an unhandled rejection and still returns true, since the
+ * payload did leave this side; it is reported through `onWatchSendFailed`
+ * instead, which is the only way a caller hears about it.
  */
 export function sendToWatch(message: PhoneToWatch): boolean {
   if (!native) return false;
@@ -60,7 +115,9 @@ export function sendToWatch(message: PhoneToWatch): boolean {
     // so those failures surfaced as unhandled promise rejections, which is the
     // opposite of the safe no-op this module exists to promise. `Promise.resolve`
     // normalises iOS's undefined return so the same line covers both platforms.
-    void Promise.resolve(native.sendToWatch(encodePhoneToWatch(message))).catch(() => undefined);
+    void Promise.resolve(native.sendToWatch(encodePhoneToWatch(message))).catch(() => {
+      notifySendFailed(message.t);
+    });
     return true;
   } catch {
     // The transport went away between the check and the send; nothing to do.

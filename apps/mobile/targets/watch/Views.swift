@@ -21,6 +21,20 @@ struct HomeView: View {
         NavigationLink(destination: RecentView()) {
           Label("Recent", systemImage: "clock.fill")
         }
+
+        // The one place a dropped intent can be seen. Quick-add and Speak both
+        // dismiss the moment they send, and the phone's `ack` never arrives when
+        // the message itself did not, so without this row an expense entered
+        // here could vanish with nothing to show for it.
+        if relay.lastSendFailed {
+          Label {
+            Text("Last expense didn't reach your phone. Open Waves there and try again.")
+              .font(.caption2)
+          } icon: {
+            Image(systemName: "exclamationmark.triangle.fill")
+          }
+          .foregroundStyle(.orange)
+        }
       }
       .tint(accent)
       .navigationTitle("Waves")
