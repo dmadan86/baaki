@@ -195,3 +195,27 @@ Each lands as its own PR with the migration validated on local Postgres
 test:db`), behind a feature flag, and **not** deployed until an ops window
 restores the prod DB password and an `edge:deploy` + `db:migrate` run is
 coordinated.
+
+---
+
+## Status — all built
+
+- **#1 Category budgets** — PR #405 (merged). `category_budgets` on the group,
+  admin-gated via `baaki_guard_group_columns`.
+- **#3 Attachment visibility (`parties`) + RLS/presign** — PR #407 (merged).
+  Security review in `private-attachments-security-review.md`; 16 threat tests.
+- **#4 Settlement proof** — schema/hooks in #407, UI in PR #408 (merged). Payer
+  attaches on a synced settlement, payee views before confirming.
+- **#2 Shared album** — PR #406 (merged). `trip_photos`, `trip-photos` bucket,
+  EXIF-stripped upload, album grid + expense strip.
+- **#5 Private personal spend** — built (this PR), **no schema**. A "Just for me"
+  affordance on the group add-expense screen routes the typed amount/note into
+  the personal captures inbox (`/capture`, `targetGroupId` stays null), which
+  never touches a group balance. No hidden ledger row was invented, per the
+  design tension above — a truly private spend that moves no one else's balance
+  _is_ the existing capture, so the honest change is a contextual doorway to it.
+
+The schema-carrying features (#1–#4) remain **deploy-gated**: their migrations
+(`20260824130000`, `20260824140000`, `20260824150000`) + `sync`/`r2-sign` edge
+await the same ops window (prod `DIRECT_URL` password stale, 28P01). #5 carries
+no migration and no edge change, so it has nothing to deploy.

@@ -65,6 +65,21 @@ function safeMinor(value: number): bigint {
   return Number.isFinite(value) ? BigInt(Math.round(value)) : 0n;
 }
 
+/**
+ * A minor-unit amount carried in as a query param, made safe. It is a string
+ * from the URL, so only a run of digits is trusted; anything else (empty, a
+ * sign, a decimal, junk) becomes zero — the same "type it yourself" fallback the
+ * OCR path uses. No `BigInt()` on unvalidated text, which would throw.
+ */
+function amountFromParam(value: string | undefined): bigint {
+  if (!value || !/^\d+$/.test(value)) return 0n;
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
+  }
+}
+
 /** Today as `YYYY-MM-DD` in the phone's own zone — never midnight UTC. */
 function todayIso(): string {
   const now = new Date();
@@ -145,7 +160,17 @@ export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const createCapture = useCreateCapture();
-  const { scan } = useLocalSearchParams<{ scan?: string }>();
+  // `scan` fires the camera on entry; the rest are an optional prefill when this
+  // screen is reached from a group's "just for me" affordance — the amount, note
+  // and currency already typed there carry over so nothing is entered twice. A
+  // group is never carried: the point of the private route is that this spend
+  // stays personal, off any shared ledger, so `targetGroupId` remains null.
+  const {
+    scan,
+    amount: amountParam,
+    desc: descParam,
+    cur: curParam,
+  } = useLocalSearchParams<{ scan?: string; amount?: string; desc?: string; cur?: string }>();
 
   // Chosen here so the photo can be uploaded under it before the row exists —
   // the storage path keys off the capture id, exactly as add-expense seeds its
@@ -162,12 +187,12 @@ export default function CaptureScreen() {
   // an untouched capture is never saved in the device currency when the account
   // says something else. Their pick then wins and sticks. Derived, not synced in
   // an effect, so there is no setState-in-effect and no first-render snapshot.
-  const [pickedCurrency, setPickedCurrency] = useState<string | null>(null);
+  const [pickedCurrency, setPickedCurrency] = useState<string | null>(() => curParam ?? null);
   const currency = pickedCurrency ?? defaultCurrency;
   const [pickingCurrency, setPickingCurrency] = useState(false);
 
-  const [amount, setAmount] = useState<bigint>(0n);
-  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState<bigint>(() => amountFromParam(amountParam));
+  const [description, setDescription] = useState(() => descParam ?? '');
   // A built-in id or a custom tag's id; `categoryMeta` carries the display of a
   // custom tag so it rides onto the capture (extends TDR §8).
   const [category, setCategory] = useState<string | null>(CategoryId.Food);
@@ -214,7 +239,9 @@ export default function CaptureScreen() {
   // point it stops moving under the user's finger (the same rule add-expense
   // uses). Seeding guessedFrom to the initial empty description means the guess
   // does not fire on mount, so that default survives until the person types.
-  const [guessedFrom, setGuessedFrom] = useState<string | null>('');
+  // Seeded to the carried-in note (or empty) so the category guesser does not
+  // fire on mount and overwrite the Food default before the person types.
+  const [guessedFrom, setGuessedFrom] = useState<string | null>(() => descParam ?? '');
   if (!categoryChosen && description !== guessedFrom) {
     setGuessedFrom(description);
     // Keep the current category when the description matches no bucket:
