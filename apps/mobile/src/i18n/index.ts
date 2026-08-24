@@ -812,6 +812,19 @@ export interface UiStrings {
     continueGuest: string;
     guestFootnote: string;
     memberFootnote: string;
+    /** The passwordless email-code way in, and the recovery link beside the
+        password field. */
+    forgotPassword: string;
+    emailMeACode: string;
+    /** Carries {value} — the address the code was mailed to. */
+    emailCodeSentTo: string;
+    resendCode: string;
+    /** Carries {s} — seconds left on the one-minute resend cool-down. */
+    resendIn: string;
+    usePasswordInstead: string;
+    /** Shown when the email-code or forgot-password link is tapped with no
+        address typed, since both mail to whatever is in the field. */
+    enterEmailFirst: string;
     /** Fallback when a sign-in attempt fails with nothing a person can act on. */
     couldNotSignIn: string;
     restartToMirror: string;
@@ -2376,6 +2389,13 @@ const en: UiStrings = {
       'Everything you have already added stays exactly where it is. This only adds a way to sign back in.',
     memberFootnote:
       'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.',
+    forgotPassword: 'Forgot password',
+    emailMeACode: 'Email me a code',
+    emailCodeSentTo: 'We emailed a code to {value}',
+    resendCode: 'Resend code',
+    resendIn: 'Resend in {s}s',
+    usePasswordInstead: 'Use a password instead',
+    enterEmailFirst: 'Enter your email first',
     couldNotSignIn: 'Could not sign in. Please try again.',
     restartToMirror: 'Close and open Waves once to mirror the layout.',
     restartToUnmirror: 'Close and open Waves once to turn the layout back.',
@@ -4003,6 +4023,13 @@ const ta: UiStrings = {
       'நீங்கள் ஏற்கனவே சேர்த்த அனைத்தும் அப்படியே இருக்கும். இது மீண்டும் உள்நுழைய ஒரு வழியை மட்டுமே சேர்க்கிறது.',
     memberFootnote:
       'உள்நுழைய ஒரு வழியைச் சேர்க்கும் வரை விருந்தினர் கணக்கு அனைத்தையும் இந்தச் சாதனத்திலேயே வைத்திருக்கும். உங்கள் கணக்கு எப்போதும் பணயம் வைக்கப்படுவதில்லை.',
+    forgotPassword: 'கடவுச்சொல் மறந்துவிட்டதா',
+    emailMeACode: 'எனக்கு ஒரு குறியீட்டை மின்னஞ்சல் அனுப்பு',
+    emailCodeSentTo: '{value} க்கு ஒரு குறியீட்டை மின்னஞ்சல் அனுப்பினோம்',
+    resendCode: 'குறியீட்டை மீண்டும் அனுப்பு',
+    resendIn: '{s}வி இல் மீண்டும் அனுப்பு',
+    usePasswordInstead: 'பதிலாக கடவுச்சொல்லைப் பயன்படுத்து',
+    enterEmailFirst: 'முதலில் உங்கள் மின்னஞ்சலை உள்ளிடவும்',
     couldNotSignIn: 'உள்நுழைய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     restartToMirror: 'தளவமைப்பைப் பிரதிபலிக்க பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
     restartToUnmirror: 'தளவமைப்பை மீண்டும் மாற்ற பாக்கியை ஒருமுறை மூடித் திறக்கவும்.',
@@ -5653,6 +5680,13 @@ const hi: UiStrings = {
       'आपने जो जोड़ा है वह जहाँ है वहीं रहेगा। इससे सिर्फ़ दोबारा साइन इन करने का रास्ता जुड़ता है।',
     memberFootnote:
       'जब तक आप साइन इन का कोई तरीका न जोड़ें, मेहमान खाता सब कुछ इसी डिवाइस पर रखता है। आपका हिसाब कभी बंधक नहीं बनाया जाता।',
+    forgotPassword: 'पासवर्ड भूल गए',
+    emailMeACode: 'मुझे एक कोड ईमेल करें',
+    emailCodeSentTo: 'हमने {value} पर एक कोड ईमेल किया है',
+    resendCode: 'कोड फिर से भेजें',
+    resendIn: '{s}से में फिर भेजें',
+    usePasswordInstead: 'इसके बजाय पासवर्ड इस्तेमाल करें',
+    enterEmailFirst: 'पहले अपना ईमेल दर्ज करें',
     couldNotSignIn: 'साइन इन नहीं हो सका। फिर से कोशिश करें।',
     restartToMirror: 'लेआउट की दिशा बदलने के लिए बाकी को एक बार बंद करके खोलें।',
     restartToUnmirror: 'लेआउट वापस पलटने के लिए बाकी को एक बार बंद करके खोलें।',
@@ -7286,6 +7320,13 @@ const ar: UiStrings = {
     guestFootnote: 'كل ما أضفته يبقى كما هو تمامًا. هذا يضيف فقط طريقة للعودة وتسجيل الدخول.',
     memberFootnote:
       'يحتفظ حساب الضيف بكل شيء على هذا الجهاز حتى تضيف طريقة لتسجيل الدخول. دفترك ليس رهينة أبدًا.',
+    forgotPassword: 'نسيت كلمة المرور',
+    emailMeACode: 'أرسل لي رمزًا بالبريد',
+    emailCodeSentTo: 'أرسلنا رمزًا إلى {value}',
+    resendCode: 'إعادة إرسال الرمز',
+    resendIn: 'إعادة الإرسال خلال {s} ث',
+    usePasswordInstead: 'استخدم كلمة مرور بدلاً من ذلك',
+    enterEmailFirst: 'أدخل بريدك الإلكتروني أولاً',
     couldNotSignIn: 'تعذّر تسجيل الدخول. حاول مرة أخرى.',
     restartToMirror: 'أغلق باقي وافتحه مرة واحدة لعكس اتجاه الواجهة.',
     restartToUnmirror: 'أغلق باقي وافتحه مرة واحدة لإعادة اتجاه الواجهة.',

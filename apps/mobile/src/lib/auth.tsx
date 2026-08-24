@@ -193,6 +193,13 @@ interface AuthValue {
   isGuest: boolean;
   sendOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, token: string) => Promise<void>;
+  /**
+   * A one-time code mailed to an address — the passwordless way in, and the
+   * recovery path behind "Forgot password". `createUser` is false on the login
+   * door (a typo must not mint an empty account) and true on sign-up.
+   */
+  sendEmailOtp: (email: string, createUser: boolean) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
   /**
    * Email or phone plus a password. Which Supabase call this makes is decided
@@ -321,6 +328,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       async verifyOtp(phone, token) {
         const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+        if (error) throw error;
+      },
+
+      async sendEmailOtp(email, createUser) {
+        // A one-time code mailed to the address, the passwordless way in. On the
+        // login door `shouldCreateUser` is false so a typo cannot silently mint
+        // a new empty account; on sign-up it is true so the code both makes the
+        // account and lands the session. Supabase mails a six-digit code (not a
+        // magic link) as long as the email template carries `{{ .Token }}`.
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: { shouldCreateUser: createUser },
+        });
+        if (error) throw error;
+      },
+
+      async verifyEmailOtp(email, token) {
+        const { error } = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: token.trim(),
+          type: 'email',
+        });
         if (error) throw error;
       },
 
