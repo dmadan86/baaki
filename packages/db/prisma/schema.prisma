@@ -191,6 +191,10 @@ model Group {
   name            String?
   /// Object path in the private `group-photos` bucket, read via a signed URL.
   photoPath       String?   @map("photo_path")
+  /// The raw token of the group's durable join link (WhatsApp-style), re-showable
+  /// as a QR. Written only by baaki_ensure/reset_group_join_token; a member-only
+  /// bearer credential (the group row is RLS-scoped).
+  joinToken       String?   @map("join_token")
   type            GroupType @default(other)
   /// ISO-3166 alpha-2 — where this group settles, which is not always where its
   /// members live. A Goa trip run from Dubai settles in rupees over UPI, and
