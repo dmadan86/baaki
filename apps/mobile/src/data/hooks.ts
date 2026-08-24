@@ -31,7 +31,6 @@ import {
   materialisePlanItems,
   materialiseSettlementProof,
   materialiseSettlements,
-  materialiseTripPhotos,
   MutationKind,
   nextSortOrder,
   openCaptures,
@@ -89,7 +88,7 @@ import {
   type PersonContribution,
 } from './peopleBalances';
 import { totalsByCurrency } from './totals';
-import { putImage, removeImage, removeRestrictedImage } from '@/lib/storage';
+import { putImage, removeRestrictedImage } from '@/lib/storage';
 import { pickAlbumPhoto } from '@/lib/image';
 import { SettlementStatus } from './types';
 import type {
@@ -1543,91 +1542,6 @@ export function useSetCategoryBudget(groupId: string) {
         amountMinor: input.amountMinor === null ? null : input.amountMinor.toString(),
         currency: input.currency ?? null,
       }),
-  });
-}
-
-// ─────────────────────────────────────────── trip album (shared photos) ──
-
-export interface TripPhotoRow {
-  id: string;
-  groupId: string;
-  expenseId: string | null;
-  day: string | null;
-  storagePath: string;
-  caption: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  /** Still in the queue — uploaded, not yet acknowledged by the server. */
-  pending: boolean;
-}
-
-/**
- * The trip album, read from the mirror so it opens with no connection. Removed
- * photos (tombstones) are filtered out here. `expenseId` narrows to the strip on
- * one expense; omitting it returns the whole album, newest first.
- */
-export function useTripPhotos(
-  groupId: string,
-  opts?: { expenseId?: string },
-): LocalRead<TripPhotoRow[]> {
-  const { mirror, queue } = useSync();
-  const expenseId = opts?.expenseId;
-  const photos = useMemo(() => {
-    return materialiseTripPhotos(mirror, queue, { groupId })
-      .filter((row) => row.deleted_at === null || row.deleted_at === undefined)
-      .filter((row) => (expenseId ? row.expense_id === expenseId : true))
-      .map((row): TripPhotoRow => ({
-        id: row.id,
-        groupId: row.group_id,
-        expenseId: row.expense_id,
-        day: row.day,
-        storagePath: row.storage_path,
-        caption: row.caption,
-        createdBy: row.created_by,
-        createdAt: row.created_at,
-        pending: row.pending === true,
-      }));
-  }, [mirror, queue, groupId, expenseId]);
-  return useLocalRead(photos);
-}
-
-/**
- * Record an album photo, queued. The bytes are uploaded by the caller first
- * (through the storage seam), and its returned path is passed here; the client
- * chooses the id so the overlay and the RPC's replay guard both key on it.
- */
-export function useAddTripPhoto(groupId: string) {
-  const { mutate } = useSync();
-  return useMutation({
-    mutationFn: (input: {
-      storagePath: string;
-      expenseId?: string | null;
-      day?: string | null;
-      caption?: string | null;
-    }) =>
-      mutate(MutationKind.TripPhotoAdd, groupId, {
-        photoId: randomUUID(),
-        storagePath: input.storagePath,
-        expenseId: input.expenseId ?? null,
-        day: input.day ?? null,
-        caption: input.caption ?? null,
-      }),
-  });
-}
-
-/**
- * Remove an album photo, queued. Soft-deletes the row (a tombstone the pull
- * carries to every device) and, best-effort while online, frees the R2 bytes
- * through the storage seam. If offline the bytes stay until the storage sweep
- * reclaims them — the tombstone still propagates either way.
- */
-export function useRemoveTripPhoto(groupId: string) {
-  const { mutate } = useSync();
-  return useMutation({
-    mutationFn: async (input: { photoId: string; storagePath: string }) => {
-      await mutate(MutationKind.TripPhotoDelete, groupId, { photoId: input.photoId });
-      await removeImage('trip-photos', input.storagePath).catch(() => {});
-    },
   });
 }
 

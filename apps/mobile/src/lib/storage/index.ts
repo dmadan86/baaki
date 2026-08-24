@@ -26,7 +26,6 @@ export type LogicalBucket =
   | 'group-photos'
   | 'avatars'
   | 'captures'
-  | 'trip-photos'
   | 'settlement-proofs'
   | 'expense-attachments';
 

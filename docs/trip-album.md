@@ -1,9 +1,25 @@
 # Trip album — the third photo concept
 
-Status: **built** (this PR). A formal addendum to `baaki-adr.md` is owed — see
-_Deviation_ below.
+Status: **REMOVED from the app** (2026-08-24). The product decision was to keep
+only receipts (attach / scan) on an expense, not a separate shared album — so
+the album screen, the expense strip, the group-menu entry, the client hooks and
+component, the `SyncTable.TripPhotos` mirror/edge plumbing, the `trip_photo.*`
+mutations, and the i18n `album` group were all removed.
 
-## Why a new table, not another column
+**The DB is left dormant, not dropped:** the `trip_photos` table, its RPCs
+(`baaki_add_trip_photo` / `baaki_remove_trip_photo`), the Prisma model, and the
+`trip-photos` R2 logical bucket remain in place (migration `20260824140000` is
+append-only history and stays). Dropping a live prod table is destructive and
+would lose any album photos already uploaded; retaining it keeps `db:drift`
+clean and is reversible. A follow-up drop migration can retire it later if
+wanted. The DB test `packages/db/test/trip-album.test.ts` still guards the
+dormant RPCs.
+
+The original design notes are kept below for history.
+
+---
+
+## (historical) Why a new table, not another column
 
 The app already had two photo concepts, and the album is neither:
 

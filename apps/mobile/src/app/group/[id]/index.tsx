@@ -377,7 +377,6 @@ export default function GroupScreen() {
   // a trip to plan; a flatshare has no use for the row.
   const menuItems: OverflowMenuItem[] = [
     { icon: 'pie-chart-outline', label: t.spending, route: `/group/${groupId}/insights` },
-    { icon: 'images-outline', label: t.album.title, route: `/group/${groupId}/album` },
     ...(group.data.type === 'trip'
       ? [
           {

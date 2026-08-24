@@ -343,17 +343,6 @@ export interface UiStrings {
     categoryBudgets: string;
   };
   /** Trip album (shared photos). */
-  album: {
-    title: string;
-    add: string;
-    empty: string;
-    emptyBody: string;
-    remove: string;
-    removeConfirm: string;
-    /** Header of the photo strip on an expense. */
-    photos: string;
-    uploading: string;
-  };
   /** Expense attachments (images on a bill, group- or party-visible). */
   attachments: {
     title: string;
@@ -2078,16 +2067,6 @@ const en: UiStrings = {
     noneYet: 'Nothing to recap yet',
     categoryBudgets: 'Category budgets',
   },
-  album: {
-    title: 'Album',
-    add: 'Add photo',
-    empty: 'No photos yet',
-    emptyBody: 'Photos you add to this trip show up here for everyone.',
-    remove: 'Remove photo',
-    removeConfirm: 'Remove this photo?',
-    photos: 'Photos',
-    uploading: 'Adding…',
-  },
   attachments: {
     title: 'Attachments',
     add: 'Add attachment',
@@ -3805,16 +3784,6 @@ const ta: UiStrings = {
     expenseCount: '{n} செலவுகள்',
     noneYet: 'இன்னும் சுருக்க எதுவும் இல்லை',
     categoryBudgets: 'வகை பட்ஜெட்',
-  },
-  album: {
-    title: 'ஆல்பம்',
-    add: 'படம் சேர்',
-    empty: 'இன்னும் படங்கள் இல்லை',
-    emptyBody: 'இந்த பயணத்திற்கு நீங்கள் சேர்க்கும் படங்கள் அனைவருக்கும் இங்கே தோன்றும்.',
-    remove: 'படத்தை நீக்கு',
-    removeConfirm: 'இந்தப் படத்தை நீக்கவா?',
-    photos: 'படங்கள்',
-    uploading: 'சேர்க்கிறது…',
   },
   attachments: {
     title: 'இணைப்புகள்',
@@ -5600,16 +5569,6 @@ const hi: UiStrings = {
     noneYet: 'अभी सार के लिए कुछ नहीं',
     categoryBudgets: 'श्रेणी बजट',
   },
-  album: {
-    title: 'एल्बम',
-    add: 'फ़ोटो जोड़ें',
-    empty: 'अभी कोई फ़ोटो नहीं',
-    emptyBody: 'इस ट्रिप में आप जो फ़ोटो जोड़ेंगे वे यहाँ सबको दिखेंगी।',
-    remove: 'फ़ोटो हटाएँ',
-    removeConfirm: 'यह फ़ोटो हटाएँ?',
-    photos: 'फ़ोटो',
-    uploading: 'जोड़ रहे हैं…',
-  },
   attachments: {
     title: 'अटैचमेंट',
     add: 'अटैचमेंट जोड़ें',
@@ -7342,16 +7301,6 @@ const ar: UiStrings = {
     expenseCount: '{n} مصاريف',
     noneYet: 'لا شيء للتلخيص بعد',
     categoryBudgets: 'ميزانيات الفئات',
-  },
-  album: {
-    title: 'الألبوم',
-    add: 'إضافة صورة',
-    empty: 'لا توجد صور بعد',
-    emptyBody: 'الصور التي تضيفها لهذه الرحلة تظهر هنا للجميع.',
-    remove: 'إزالة الصورة',
-    removeConfirm: 'إزالة هذه الصورة؟',
-    photos: 'الصور',
-    uploading: 'جارٍ الإضافة…',
   },
   attachments: {
     title: 'المرفقات',
