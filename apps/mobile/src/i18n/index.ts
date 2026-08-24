@@ -394,6 +394,7 @@ export interface UiStrings {
     format: string;
     json: string;
     csv: string;
+    pdf: string;
     whatToExport: string;
     allMyGroups: string;
     preparing: string;
@@ -1994,6 +1995,7 @@ const en: UiStrings = {
     format: 'Format',
     json: 'JSON (lossless)',
     csv: 'CSV (spreadsheet)',
+    pdf: 'PDF (printable)',
     whatToExport: 'What to export',
     allMyGroups: 'All my groups',
     preparing: 'Preparing…',
@@ -3621,6 +3623,7 @@ const ta: UiStrings = {
     format: 'வடிவம்',
     json: 'JSON (முழுமையானது)',
     csv: 'CSV (விரிதாள்)',
+    pdf: 'PDF (அச்சிடக்கூடியது)',
     whatToExport: 'எதை ஏற்றுமதி செய்ய',
     allMyGroups: 'என் குழுக்கள் அனைத்தும்',
     preparing: 'தயாராகிறது…',
@@ -5315,6 +5318,7 @@ const hi: UiStrings = {
     format: 'प्रारूप',
     json: 'JSON (कुछ छूटता नहीं)',
     csv: 'CSV (स्प्रेडशीट)',
+    pdf: 'PDF (प्रिंट करने योग्य)',
     whatToExport: 'क्या निर्यात करें',
     allMyGroups: 'मेरे सभी समूह',
     preparing: 'तैयार हो रहा है…',
@@ -6960,6 +6964,7 @@ const ar: UiStrings = {
     format: 'الصيغة',
     json: 'JSON (بلا فقدان)',
     csv: 'CSV (جدول بيانات)',
+    pdf: 'PDF (قابل للطباعة)',
     whatToExport: 'ما الذي تريد تصديره',
     allMyGroups: 'كل مجموعاتي',
     preparing: 'جارٍ التحضير…',

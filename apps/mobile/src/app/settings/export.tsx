@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { decode } from 'base64-arraybuffer';
 import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -30,7 +31,14 @@ import { useStrings } from '@/i18n';
 enum Format {
   Json = 'json',
   Csv = 'csv',
+  Pdf = 'pdf',
 }
+
+const UTI: Record<Format, string> = {
+  [Format.Json]: 'public.json',
+  [Format.Csv]: 'public.comma-separated-values-text',
+  [Format.Pdf]: 'com.adobe.pdf',
+};
 
 /**
  * ADR-012: your ledger leaves whenever you want it to, in full, for free.
@@ -63,16 +71,26 @@ export default function ExportScreen() {
       const file = new FileSystem.File(FileSystem.Paths.cache, result.filename);
       if (file.exists) file.delete();
       file.create();
-      file.write(result.content);
+
+      // A PDF arrives base64-encoded (binary); text formats are written as-is.
+      let sizeBytes: number;
+      if (result.encoding === 'base64') {
+        const bytes = new Uint8Array(decode(result.content));
+        file.write(bytes);
+        sizeBytes = bytes.byteLength;
+      } else {
+        file.write(result.content);
+        sizeBytes = result.content.length;
+      }
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
           mimeType: result.contentType,
           dialogTitle: t.exportData.shareTitle,
-          UTI: format === Format.Json ? 'public.json' : 'public.comma-separated-values-text',
+          UTI: UTI[format],
         });
       }
-      setDone(`${result.filename} · ${Math.ceil(result.content.length / 1024)} KB`);
+      setDone(`${result.filename} · ${Math.ceil(sizeBytes / 1024)} KB`);
     } catch (caught) {
       setError(friendlyError(caught, t.exportData.exportFailed, 'export.run'));
     } finally {
@@ -124,6 +142,7 @@ export default function ExportScreen() {
             options={[
               { value: Format.Json, label: t.exportData.json },
               { value: Format.Csv, label: t.exportData.csv },
+              { value: Format.Pdf, label: t.exportData.pdf },
             ]}
           />
         </View>

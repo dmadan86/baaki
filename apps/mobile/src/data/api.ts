@@ -1016,11 +1016,13 @@ export interface ExportResult {
   filename: string;
   contentType: string;
   content: string;
+  /** 'base64' when `content` is binary (PDF); text formats omit it. */
+  encoding?: 'utf8' | 'base64';
 }
 
 export async function exportData(input: {
   groupId?: string;
-  format: 'json' | 'csv';
+  format: 'json' | 'csv' | 'pdf';
   csvSeparator?: string;
 }): Promise<ExportResult> {
   const { data, error } = await supabase.functions.invoke('export-data', { body: input });

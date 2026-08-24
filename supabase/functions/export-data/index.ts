@@ -19,11 +19,12 @@ import {
   requireMembership,
 } from '../_shared/auth.ts';
 import { enforceRateLimit } from '../_shared/rateLimit.ts';
+import { formatMinor, PdfBuilder } from '../_shared/core.js';
 
 interface ExportRequest {
   /** Omit to export every group the caller belongs to. */
   groupId?: string;
-  format?: 'json' | 'csv';
+  format?: 'json' | 'csv' | 'pdf';
   /** ';' for locales where ',' is the decimal separator (TDR §8). */
   csvSeparator?: string;
 }
@@ -155,6 +156,123 @@ serveWithCors(async (request) => {
           null,
           2,
         ),
+      });
+    }
+
+    if (format === 'pdf') {
+      const pdf = new PdfBuilder();
+      const today = new Date().toISOString().slice(0, 10);
+      pdf.heading('Baaki — ledger export', 17);
+      pdf.body(`Exported ${today}`, 9);
+
+      for (const entry of exported) {
+        const group = entry.group as Record<string, unknown> | null;
+        const nameOf = (memberId: string | null): string => {
+          const member = entry.members.find(
+            (row: Record<string, unknown>) => row.id === memberId,
+          ) as Record<string, unknown> | undefined;
+          const profile = member?.profile as { display_name?: string } | undefined;
+          return profile?.display_name ?? (member?.ghost_name as string) ?? 'unknown';
+        };
+
+        pdf.spacer(10);
+        pdf.heading((group?.name as string) ?? 'Group', 14);
+        const range =
+          group?.start_date && group?.end_date ? `${group.start_date} → ${group.end_date}` : null;
+        const meta = [range, group?.type as string, group?.default_currency as string]
+          .filter(Boolean)
+          .join('  ·  ');
+        if (meta) pdf.body(meta, 9);
+
+        // Per-currency totals — active expenses only, never summed across
+        // currencies (ADR-004).
+        const totals = new Map<string, bigint>();
+        const activeExpenses: {
+          date: string;
+          description: string;
+          category: string;
+          currency: string;
+          amount: bigint;
+          payers: string;
+        }[] = [];
+
+        for (const expense of entry.expenses) {
+          if (expense.deleted_at) continue;
+          const current = expense.versions?.find(
+            (version: Record<string, unknown>) => version.id === expense.current_version_id,
+          );
+          if (!current) continue;
+          const currency = String(current.currency).toUpperCase();
+          const amount = BigInt(current.amount);
+          totals.set(currency, (totals.get(currency) ?? 0n) + amount);
+          activeExpenses.push({
+            date: String(current.expense_date ?? ''),
+            description: String(current.description ?? ''),
+            category: String(current.category ?? ''),
+            currency,
+            amount,
+            payers: (current.payers ?? [])
+              .map((payer: Record<string, unknown>) => nameOf(payer.member_id as string))
+              .join(' + '),
+          });
+        }
+
+        pdf.subheading('Totals', 11);
+        if (totals.size === 0) {
+          pdf.body('No expenses yet.', 10);
+        } else {
+          for (const [currency, total] of [...totals].sort((a, b) => a[0].localeCompare(b[0]))) {
+            pdf.body(`${formatMinor(total, currency)} ${currency}`, 11);
+          }
+        }
+
+        if (activeExpenses.length > 0) {
+          pdf.subheading('Expenses', 11);
+          pdf.columns(
+            [
+              { text: 'Date', width: 62 },
+              { text: 'Description', width: 168 },
+              { text: 'Category', width: 74 },
+              { text: 'Amount', width: 110 },
+              { text: 'Paid by', width: 90 },
+            ],
+            9,
+          );
+          activeExpenses.sort((a, b) => a.date.localeCompare(b.date));
+          for (const row of activeExpenses) {
+            pdf.columns(
+              [
+                { text: row.date, width: 62 },
+                { text: row.description, width: 168 },
+                { text: row.category, width: 74 },
+                { text: `${formatMinor(row.amount, row.currency)} ${row.currency}`, width: 110 },
+                { text: row.payers, width: 90 },
+              ],
+              9,
+            );
+          }
+        }
+
+        // Settlements — the per-person detail, matching the CSV's fidelity.
+        if (entry.settlements.length > 0) {
+          pdf.subheading('Settlements', 11);
+          for (const settlement of entry.settlements) {
+            pdf.body(
+              `${settlement.initiated_at?.slice(0, 10) ?? ''}  ` +
+                `${nameOf(settlement.from_member_id)} → ${nameOf(settlement.to_member_id)}  ` +
+                `${formatMinor(settlement.amount, settlement.currency)} ` +
+                `${String(settlement.currency).toUpperCase()}  (${settlement.status})`,
+              9,
+            );
+          }
+        }
+      }
+
+      return json({
+        filename: `baaki-export-${today}.pdf`,
+        contentType: 'application/pdf',
+        encoding: 'base64',
+        content: btoa(pdf.build()),
       });
     }
 
