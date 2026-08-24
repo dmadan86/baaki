@@ -820,7 +820,15 @@ export default function GroupScreen() {
                   <Text variant="micro" tone="muted">
                     {fill(t.proof.awaiting, { name: nameOf(settlement.to_member_id) })}
                   </Text>
-                  <SettlementProof groupId={groupId} settlementId={settlement.id} canManage />
+                  {/* Manage only once the settlement has reached the server:
+                      the attach/remove RPCs check party against a real row, and
+                      `pending` means it has not synced yet. Until then the card
+                      still shows "waiting", just without the attach control. */}
+                  <SettlementProof
+                    groupId={groupId}
+                    settlementId={settlement.id}
+                    canManage={!settlement.pending}
+                  />
                 </Card>
               ))}
 
