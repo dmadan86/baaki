@@ -414,6 +414,27 @@ export interface UiStrings {
     removeReceiptConfirm: string;
     couldNotRemove: string;
   };
+  /** The unified receipts gallery on an expense (multiple images, per-image privacy). */
+  receipts: {
+    /** Section label + generic image a11y. */
+    title: string;
+    /** The add tile / add sheet title. */
+    add: string;
+    /** Add-source choices. */
+    scan: string;
+    choosePhoto: string;
+    /** Visibility sheet. */
+    chooseVisibility: string;
+    everyone: string;
+    payersOnly: string;
+    /** Lock-badge label on a private image. */
+    privateTag: string;
+    remove: string;
+    removeConfirm: string;
+    couldNotAdd: string;
+    /** Viewer counter, e.g. "2 of 5" — `{index}` and `{total}`. */
+    counter: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -2130,6 +2151,20 @@ const en: UiStrings = {
     removeReceipt: 'Remove receipt',
     removeReceiptConfirm: 'Remove this receipt? The change is recorded.',
     couldNotRemove: "Couldn't remove that — try again.",
+  },
+  receipts: {
+    title: 'Receipts',
+    add: 'Add receipt',
+    scan: 'Scan',
+    choosePhoto: 'Choose photo',
+    chooseVisibility: 'Who can see this receipt?',
+    everyone: 'Everyone in the group',
+    payersOnly: 'Only the payers',
+    privateTag: 'Private',
+    remove: 'Remove',
+    removeConfirm: 'Remove this receipt? The change is recorded.',
+    couldNotAdd: "Couldn't add that — try again.",
+    counter: '{index} of {total}',
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3860,6 +3895,20 @@ const ta: UiStrings = {
     removeReceipt: 'ரசீதை அகற்று',
     removeReceiptConfirm: 'இந்த ரசீதை அகற்றவா? இந்த மாற்றம் பதிவு செய்யப்படும்.',
     couldNotRemove: 'அகற்ற முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+  },
+  receipts: {
+    title: 'ரசீதுகள்',
+    add: 'ரசீது சேர்',
+    scan: 'ஸ்கேன்',
+    choosePhoto: 'படத்தைத் தேர்ந்தெடு',
+    chooseVisibility: 'இந்த ரசீதை யார் பார்க்கலாம்?',
+    everyone: 'குழுவில் உள்ள அனைவரும்',
+    payersOnly: 'செலுத்தியவர்கள் மட்டும்',
+    privateTag: 'தனிப்பட்டது',
+    remove: 'அகற்று',
+    removeConfirm: 'இந்த ரசீதை அகற்றவா? இந்த மாற்றம் பதிவு செய்யப்படும்.',
+    couldNotAdd: 'சேர்க்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+    counter: '{total} இல் {index}',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5657,6 +5706,20 @@ const hi: UiStrings = {
     removeReceiptConfirm: 'यह रसीद हटाएँ? यह बदलाव दर्ज किया जाएगा।',
     couldNotRemove: 'हटाया नहीं जा सका — फिर कोशिश करें।',
   },
+  receipts: {
+    title: 'रसीदें',
+    add: 'रसीद जोड़ें',
+    scan: 'स्कैन',
+    choosePhoto: 'फ़ोटो चुनें',
+    chooseVisibility: 'यह रसीद कौन देख सकता है?',
+    everyone: 'ग्रुप में सभी',
+    payersOnly: 'केवल भुगतानकर्ता',
+    privateTag: 'निजी',
+    remove: 'हटाएँ',
+    removeConfirm: 'यह रसीद हटाएँ? यह बदलाव दर्ज किया जाएगा।',
+    couldNotAdd: 'जोड़ा नहीं जा सका — फिर कोशिश करें।',
+    counter: '{total} में से {index}',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -7401,6 +7464,20 @@ const ar: UiStrings = {
     removeReceipt: 'إزالة الإيصال',
     removeReceiptConfirm: 'إزالة هذا الإيصال؟ سيُسجَّل هذا التغيير.',
     couldNotRemove: 'تعذّرت الإزالة — حاول مرة أخرى.',
+  },
+  receipts: {
+    title: 'الإيصالات',
+    add: 'إضافة إيصال',
+    scan: 'مسح ضوئي',
+    choosePhoto: 'اختيار صورة',
+    chooseVisibility: 'من يمكنه رؤية هذا الإيصال؟',
+    everyone: 'كل أعضاء المجموعة',
+    payersOnly: 'الدافعون فقط',
+    privateTag: 'خاص',
+    remove: 'إزالة',
+    removeConfirm: 'إزالة هذا الإيصال؟ سيُسجَّل هذا التغيير.',
+    couldNotAdd: 'تعذّرت الإضافة — حاول مرة أخرى.',
+    counter: '{index} من {total}',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',
