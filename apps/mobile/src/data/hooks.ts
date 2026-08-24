@@ -1652,6 +1652,53 @@ export function useAttachExpenseAttachment(groupId: string, expenseId: string) {
   });
 }
 
+/**
+ * Replace an attachment's image with an adjusted (rotated/cropped) one: upload
+ * the new bytes to a fresh key, repoint the row (which also clears any markup,
+ * since the pixels moved), then free the old object best-effort. A party only,
+ * server-enforced.
+ */
+export function useReplaceExpenseAttachmentImage(groupId: string, expenseId: string) {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: {
+      attachmentId: string;
+      oldStoragePath: string;
+      picked: PickedImage;
+    }) => {
+      const ext = input.picked.mimeType === 'image/webp' ? 'webp' : 'jpg';
+      const path = `${expenseId}/${randomUUID()}.${ext}`;
+      let committed: string | null = null;
+      try {
+        await putImage({
+          bucket: 'expense-attachments',
+          path,
+          base64: input.picked.base64,
+          contentType: input.picked.mimeType,
+          groupId,
+          subjectId: expenseId,
+        });
+        committed = path;
+        const { error } = await supabase.rpc('baaki_replace_expense_attachment_image', {
+          p_attachment_id: input.attachmentId,
+          p_new_path: path,
+        });
+        if (error) throw new Error(error.message);
+        committed = null;
+        // The row now points at the new key; free the old bytes best-effort.
+        await removeRestrictedImage('expense-attachments', expenseId, input.oldStoragePath).catch(
+          () => {},
+        );
+      } catch (caught) {
+        if (committed)
+          await removeRestrictedImage('expense-attachments', expenseId, committed).catch(() => {});
+        throw caught;
+      }
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
 /** Remove an expense attachment: soft-delete via RPC, then free the R2 bytes. */
 export function useRemoveExpenseAttachment(expenseId: string) {
   const { flush } = useSync();

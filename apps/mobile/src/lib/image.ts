@@ -372,6 +372,53 @@ export async function captureReceipt(): Promise<PickedImage | null> {
   return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
 }
 
+/**
+ * Rotate and/or crop a receipt image, baking new pixels (A46, adjust). Rotation
+ * is degrees clockwise; the crop is a pixel rectangle on the *rotated* image.
+ * Re-encodes WebP-preferred with a JPEG fallback, the same rule as {@link shrink},
+ * so an adjusted receipt is stored as the format the platform could produce.
+ * Returns null when the native manipulator is missing (nothing to bake with).
+ */
+export async function transformReceipt(
+  uri: string,
+  ops: {
+    rotate?: number;
+    crop?: { originX: number; originY: number; width: number; height: number };
+  },
+): Promise<PickedImage | null> {
+  const module = await loadManipulator();
+  if (!module) return null;
+
+  const render = async () => {
+    // Rebuilt per attempt: a rendered context is consumed by saveAsync and
+    // cannot be re-saved in another format.
+    let context = module.ImageManipulator.manipulate(uri);
+    if (ops.rotate) context = context.rotate(ops.rotate);
+    if (ops.crop) context = context.crop(ops.crop);
+    return context.renderAsync();
+  };
+
+  const webp = module.SaveFormat.WEBP;
+  if (webp) {
+    try {
+      const saved = await (await render()).saveAsync({ base64: true, compress: 0.9, format: webp });
+      if (saved.base64) return { base64: saved.base64, uri: saved.uri, mimeType: 'image/webp' };
+    } catch {
+      // iOS without a WebP encoder — fall through to JPEG.
+    }
+  }
+
+  const saved = await (
+    await render()
+  ).saveAsync({
+    base64: true,
+    compress: 0.9,
+    format: module.SaveFormat.JPEG,
+  });
+  if (!saved.base64) throw new Error('Could not read that image.');
+  return { base64: saved.base64, uri: saved.uri, mimeType: 'image/jpeg' };
+}
+
 function imageSize(uri: string): Promise<{ width: number; height: number } | null> {
   return new Promise((resolve) => {
     Image.getSize(
