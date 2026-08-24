@@ -102,8 +102,11 @@ export default function StorageUsageScreen() {
       );
     }
 
-    // A failed read must not sit as a skeleton forever — offer a retry.
-    if (usage.isError) {
+    // A failed read must not sit as a skeleton forever — offer a retry. But a
+    // refetch that fails while an earlier read still holds data keeps showing the
+    // (stale) meter rather than blanking it: only a failure with nothing cached
+    // becomes the error card.
+    if (usage.isError && !usage.data) {
       return (
         <Card style={{ gap: theme.spacing.sm }}>
           <Text variant="subheading">{t.loadError}</Text>

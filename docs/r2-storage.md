@@ -49,8 +49,9 @@ Deploy the functions after setting secrets:
 
 ```sh
 supabase functions deploy r2-sign
-supabase functions deploy receipt-parse   # now also reads from R2
-supabase functions deploy storage-sweep   # reclaims stranded R2 objects
+supabase functions deploy receipt-parse    # now also reads from R2
+supabase functions deploy storage-sweep    # reclaims stranded R2 objects
+supabase functions deploy storage-recount  # only if the WebP worker runs
 ```
 
 ### Schedule the sweep (reclaims stranded R2 bytes)
@@ -64,22 +65,29 @@ credential, so it lives in the `storage-sweep` edge function. Schedule it wherev
 you run periodic jobs — e.g. a Supabase scheduled function, or `pg_cron` +
 `pg_net` posting to the function with the service-role key.
 
-First store the service-role key where the job can read it without hard-coding it
-(a Postgres GUC, set once by a superuser — or Supabase Vault):
+First store the service-role key in **Supabase Vault**, which keeps it encrypted
+at rest — never in a plain database GUC or setting, which any `anon`/`authenticated`
+role could read back with `current_setting` and use to bypass RLS:
 
 ```sql
-alter database postgres set app.service_role_key = '<service-role-key>';
+select vault.create_secret('<service-role-key>', 'service_role_key');
 ```
 
 Then schedule the POST to the function's canonical URL
-(`https://<project-ref>.supabase.co/functions/v1/storage-sweep`):
+(`https://<project-ref>.supabase.co/functions/v1/storage-sweep`), reading the key
+from the Vault at run time:
 
 ```sql
 select cron.schedule(
   'waves-storage-sweep', '*/30 * * * *',
   $$ select net.http_post(
        url     := 'https://<project-ref>.supabase.co/functions/v1/storage-sweep',
-       headers := jsonb_build_object('Authorization', 'Bearer ' || current_setting('app.service_role_key'))
+       headers := jsonb_build_object(
+         'Authorization',
+         'Bearer ' || (select decrypted_secret
+                         from vault.decrypted_secrets
+                        where name = 'service_role_key')
+       )
      ) $$
 );
 ```
@@ -111,9 +119,10 @@ The migration `20260824120000_r2_storage_cap` adds:
 - `app_config.free_storage_cap_bytes` — the 10 MB knob (admin-editable, like the
   receipt cap). Raise or lower it without a deploy.
 - `baaki_storage_reserve` (presign gate) / `baaki_storage_record` (commit) /
-  `baaki_storage_release` / `baaki_storage_expire_pending` / `baaki_storage_orphans`
-  / `baaki_storage_orphan_clear` / `baaki_my_storage_usage` /
-  `baaki_storage_counts` / `baaki_profiles_share_group`.
+  `baaki_storage_release` / `baaki_storage_release_reservation` (failure cleanup)
+  / `baaki_storage_recount` (worker size reconcile) / `baaki_storage_expire_pending`
+  / `baaki_storage_orphans` / `baaki_storage_orphan_clear` / `baaki_my_storage_usage`
+  / `baaki_storage_counts` / `baaki_profiles_share_group`.
 - a `pg_cron` job `baaki-storage-expire-pending` (every 15 min) that frees the cap
   held by abandoned reservations.
 

@@ -288,6 +288,9 @@ export default function AddExpenseScreen() {
   // after a capture, and the signed R2 URL once reloaded.
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptPath, setReceiptPath] = useState<string | null>(null);
+  // The picked bill, held until the expense is saved. Uploading on save (not on
+  // pick) means an add that is abandoned never leaves an orphaned object in R2.
+  const [pendingReceipt, setPendingReceipt] = useState<PickedImage | null>(null);
 
   // Where the spend happened (A43). Optional and opt-in: null until the person
   // taps "Add location" and grants the permission. Kept in the draft so a crash
@@ -652,6 +655,28 @@ export default function AddExpenseScreen() {
       if (captureId) {
         await assignCapture.mutateAsync({ captureId, groupId, expenseId: targetExpenseId });
       }
+
+      // Only now — the expense is saved — does the kept bill go to R2, so an
+      // abandoned add never orphans an object. The upload is best-effort and
+      // never un-saves the money: on failure the person is told why (an over-cap
+      // refusal points at the upgrade) and left on the screen, where saving again
+      // re-attempts the upload (the money write is idempotent by expense id),
+      // rather than being navigated away with the bill silently lost.
+      if (pendingReceipt) {
+        try {
+          await uploadExpenseReceipt({
+            groupId,
+            expenseId: targetExpenseId,
+            base64: pendingReceipt.base64,
+            mimeType: pendingReceipt.mimeType,
+          });
+          setPendingReceipt(null);
+        } catch (uploadError) {
+          setScanNote(uploadError instanceof StorageCapError ? t.storage.full : t.couldNotSave);
+          return;
+        }
+      }
+
       router.back();
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotSave, 'expense.save'));
@@ -688,29 +713,14 @@ export default function AddExpenseScreen() {
    * to arrange by hand. The image counts against the group's storage ceiling
    * (ADR-011); only the money rides the expense sync.
    *
-   * Best-effort by design: the local image is shown as the thumbnail at once,
-   * and a failed upload (offline, out of storage) must never cost the scan or
-   * the attach that produced it — so it swallows its own trouble.
+   * The local image is shown as the thumbnail at once; the bytes are held and
+   * only uploaded to R2 once the expense is saved ({@link submit}), so an add the
+   * person abandons never leaves an orphaned object behind.
    */
-  const persistReceipt = async (picked: PickedImage): Promise<void> => {
-    // Show the just-taken image immediately; the upload catches up behind it.
+  const stageReceipt = (picked: PickedImage): void => {
     setReceiptUri(picked.uri);
     setReceiptPath(expenseReceiptPath(groupId, targetExpenseId));
-    try {
-      await uploadExpenseReceipt({
-        groupId,
-        expenseId: targetExpenseId,
-        base64: picked.base64,
-        mimeType: picked.mimeType,
-      });
-    } catch (uploadError) {
-      // A receipt that would not upload is not a reason to lose the expense — the
-      // money still saves — but the person must know the picture did not, so it
-      // is not silently dropped. An over-cap refusal points at the upgrade.
-      setReceiptUri(null);
-      setReceiptPath(null);
-      setScanNote(uploadError instanceof StorageCapError ? t.storage.full : t.couldNotSave);
-    }
+    setPendingReceipt(picked);
   };
 
   /**
@@ -734,7 +744,7 @@ export default function AddExpenseScreen() {
       picked = null;
     }
     if (!picked) return;
-    void persistReceipt(picked);
+    stageReceipt(picked);
   };
 
   /**
@@ -786,7 +796,7 @@ export default function AddExpenseScreen() {
       // Keep the photographed bill too (E2): upload it to the group's R2 storage
       // so the owner and every member can view it later. The scan's own server
       // receipt is a separate thing (the metered parse); this is the kept copy.
-      void persistReceipt(picked);
+      stageReceipt(picked);
 
       // Kept for the itemize screen in case they want it. Nobody should have to
       // photograph the same bill twice, and a scan is metered (ADR-011).

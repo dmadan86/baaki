@@ -25,6 +25,11 @@ interface Env {
       };
     };
   };
+  // Optional: where to reconcile the storage ledger after a transcode shrinks an
+  // object. Absent → the worker skips reconciliation (and must only run where the
+  // storage cap is not enforced — see below).
+  SUPABASE_URL?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
 }
 
 interface R2EventRecord {
@@ -74,17 +79,51 @@ async function normalize(record: R2EventRecord, env: Env): Promise<void> {
   const body = result.response().body;
   if (!body) return;
 
-  await env.BUCKET.put(key, body, {
+  // Write only if the object has not changed since we read it. A newer upload
+  // could have replaced `key` between the `get` and this `put`; without the
+  // guard we would clobber those newer bytes with our stale transcode. A failed
+  // conditional write returns null — bail and let the newer event process the
+  // current object.
+  const written = await env.BUCKET.put(key, body, {
     httpMetadata: { contentType: ALREADY_WEBP },
     customMetadata: { ...object.customMetadata, normalized: 'webp' },
+    onlyIf: { etagMatches: object.etag },
   });
+  if (!written) return;
 
-  // ⚠️ LEDGER RECONCILIATION REQUIRED BEFORE PRODUCTION USE.
-  // Transcoding rewrites the object smaller, but `storage_objects.bytes` still
-  // holds the pre-transcode size, so the free-tier cap would over-count until the
-  // next re-upload. This scaffold does NOT yet update the ledger — wiring a
-  // service-role callback (e.g. an r2-sign `recount` action that HEADs the new
-  // size and rewrites the row) is a prerequisite for enabling the worker on a
-  // capped deployment. Until then, keep `IMAGES` unbound (the worker no-ops) or
-  // run it only where the cap is not enforced. See docs/r2-storage.md.
+  // Reconcile the storage ledger: the transcode shrank the object, but the ledger
+  // still holds the pre-transcode size, so the free-tier cap would over-count
+  // until the next re-upload. `storage-recount` HEADs the new size and rewrites
+  // the row. If the callback is not configured the worker MUST only run where the
+  // cap is not enforced (see docs/r2-storage.md).
+  await reconcileLedger(key, env);
+}
+
+/**
+ * Tell the backend the object's size changed, via the service-gated
+ * `storage-recount` edge function. Best-effort and idempotent: a miss is retried
+ * on the next normalization of the same key, and recount only ever corrects a
+ * committed row's size.
+ */
+async function reconcileLedger(key: string, env: Env): Promise<void> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return;
+
+  // The R2 key is `<logicalBucket>/<path>`; split off the first segment.
+  const slash = key.indexOf('/');
+  if (slash <= 0) return;
+  const bucket = key.slice(0, slash);
+  const path = key.slice(slash + 1);
+
+  const response = await fetch(`${env.SUPABASE_URL}/functions/v1/storage-recount`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify({ bucket, path }),
+  });
+  if (!response.ok) {
+    // Surface for retry rather than silently drifting the cap.
+    throw new Error(`storage-recount failed (${response.status})`);
+  }
 }

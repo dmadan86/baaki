@@ -274,6 +274,48 @@ $$;
 REVOKE ALL ON FUNCTION public.baaki_storage_release_reservation(text, text) FROM public;
 GRANT EXECUTE ON FUNCTION public.baaki_storage_release_reservation(text, text) TO service_role;
 
+/**
+ * Correct a committed object's recorded size in place (A44).
+ *
+ * The optional R2 image worker transcodes an object to WebP after it lands,
+ * changing its byte size; without this the ledger would keep the pre-transcode
+ * size and the cap would over-count until the next re-upload. The worker calls
+ * this (through the `storage-recount` edge function) with the object's new true
+ * size. It touches only an already-committed row — never a pending reservation,
+ * and never a path the ledger does not know — and recomputes `counted` from the
+ * owner/group already on the row. It never enforces the cap: it is recording a
+ * size the object already has, not admitting a new one.
+ */
+CREATE OR REPLACE FUNCTION public.baaki_storage_recount(
+  p_logical_bucket text,
+  p_path           text,
+  p_bytes          bigint,
+  p_content_type   text DEFAULT 'image/webp'
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF p_bytes IS NULL OR p_bytes < 0 THEN
+    RAISE EXCEPTION 'STORAGE_BAD_INPUT' USING ERRCODE = 'check_violation';
+  END IF;
+
+  UPDATE public.storage_objects
+     SET bytes        = p_bytes,
+         content_type = p_content_type,
+         counted      = public.baaki_storage_counts(owner_profile_id, group_id),
+         updated_at   = now()
+   WHERE logical_bucket = p_logical_bucket
+     AND path = p_path
+     AND NOT pending;
+END
+$$;
+
+REVOKE ALL ON FUNCTION public.baaki_storage_recount(text, text, bigint, text) FROM public;
+GRANT EXECUTE ON FUNCTION public.baaki_storage_recount(text, text, bigint, text) TO service_role;
+
 -- ──────────────────────────────── the write, and the boundary ──
 
 /**
@@ -324,7 +366,19 @@ BEGIN
        AND counted
        AND NOT (logical_bucket = p_logical_bucket AND path = p_path);
 
-    IF v_used + p_bytes > public.baaki_free_storage_cap() THEN
+    -- Reject only a *new* object over the ceiling. A replacement of an object
+    -- already committed at this path is recorded honestly even if its true size
+    -- lands over the cap: the reserve gate already checked its declared size, the
+    -- bytes are already sitting at the stable key, and counting them (the tally
+    -- may then sit over the cap, which blocks any *further* upload) is safer than
+    -- rejecting — which would leave a readable object the cap cannot see. A
+    -- replacement adds no new object, so this cannot be a fill vector.
+    IF v_used + p_bytes > public.baaki_free_storage_cap()
+       AND NOT EXISTS (
+         SELECT 1 FROM public.storage_objects
+          WHERE logical_bucket = p_logical_bucket AND path = p_path AND NOT pending
+       )
+    THEN
       RAISE EXCEPTION 'STORAGE_CAP'
         USING ERRCODE = 'check_violation',
               HINT = 'You have reached your free storage limit; upgrade to add more.';

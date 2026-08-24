@@ -325,6 +325,61 @@ describe('a failed replacement never destroys the committed image', () => {
   });
 });
 
+describe('a replacement records the truth rather than orphaning uncounted bytes', () => {
+  it('records an over-cap replacement instead of rejecting it', async () => {
+    const p = await makeProfile();
+    await record(p, null, 'avatars', `${p}/a.webp`, 6 * MB); // committed
+    await record(p, null, 'avatars', `${p}/b.webp`, 3 * MB); // committed, used = 9 MB
+
+    // Replace b (3 MB) with 5 MB. Excluding b, used is 6 MB; 6 + 5 = 11 > 10 cap —
+    // but b is already committed, so this is a replacement and is recorded, not
+    // refused. The alternative would leave 5 MB readable but uncounted.
+    await expect(record(p, null, 'avatars', `${p}/b.webp`, 5 * MB)).resolves.toBeUndefined();
+    expect(await countedSum(p)).toBe(BigInt(11 * MB)); // honest, even over cap
+  });
+
+  it('still rejects a brand-new object over the cap', async () => {
+    const p = await makeProfile();
+    await record(p, null, 'avatars', `${p}/a.webp`, 6 * MB);
+    // A new object (no prior committed row) over the ceiling is refused.
+    await expect(record(p, null, 'avatars', `${p}/new.webp`, 5 * MB)).rejects.toThrow(
+      /STORAGE_CAP/,
+    );
+  });
+});
+
+describe('recount reconciles a size changed out of band', () => {
+  it('rewrites a committed object’s size and recomputes counted', async () => {
+    const p = await makeProfile();
+    await record(p, null, 'avatars', `${p}/a.webp`, 5 * MB);
+    await client.query(`SELECT public.baaki_storage_recount('avatars', $1, $2, 'image/webp')`, [
+      `${p}/a.webp`,
+      2 * MB,
+    ]);
+    expect(await countedSum(p)).toBe(BigInt(2 * MB));
+  });
+
+  it('never touches a pending reservation or an unknown path', async () => {
+    const p = await makeProfile();
+    await reserve(p, null, 'avatars', `${p}/pending.webp`, 3 * MB); // pending
+    await client.query(`SELECT public.baaki_storage_recount('avatars', $1, $2, 'image/webp')`, [
+      `${p}/pending.webp`,
+      1 * MB,
+    ]);
+    const { rows } = await client.query(`SELECT bytes FROM storage_objects WHERE path = $1`, [
+      `${p}/pending.webp`,
+    ]);
+    expect(big(rows[0].bytes)).toBe(BigInt(3 * MB)); // untouched
+
+    // An unknown path is simply a no-op (no row updated, no error).
+    await expect(
+      client.query(
+        `SELECT public.baaki_storage_recount('avatars', 'nope/x.webp', 1, 'image/webp')`,
+      ),
+    ).resolves.toBeTruthy();
+  });
+});
+
 describe('the caller-scoped usage RPC', () => {
   it('reveals only the caller’s own tally', async () => {
     const me = await makeProfile();
