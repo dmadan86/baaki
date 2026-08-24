@@ -91,7 +91,7 @@ import {
 } from './peopleBalances';
 import { totalsByCurrency } from './totals';
 import { putImage, removeRestrictedImage } from '@/lib/storage';
-import { pickAlbumPhoto } from '@/lib/image';
+import { pickAlbumPhoto, type PickedImage } from '@/lib/image';
 import { SettlementStatus } from './types';
 import type {
   ActivityActor,
@@ -1587,17 +1587,17 @@ export function useExpenseAttachments(expenseId: string): LocalRead<ExpenseAttac
 }
 
 /**
- * Attach an image to an expense at a chosen visibility. Upload → RPC → flush.
- * Resolves on success or a plain cancel (nothing picked); throws on a real
- * failure, and cleans up the R2 object if the RPC rejected after the upload
+ * Attach an already-picked image to an expense at a chosen visibility. The
+ * caller does the picking (scan or library), so one hook serves every entry
+ * point and the gallery can offer both. Upload → RPC → flush; throws on a real
+ * failure and cleans up the R2 object if the RPC rejected after the upload
  * committed. The caller surfaces the throw.
  */
 export function useAttachExpenseAttachment(groupId: string, expenseId: string) {
   const { flush } = useSync();
   return useMutation({
-    mutationFn: async (input: { visibility: 'group' | 'parties' }) => {
-      const picked = await pickAlbumPhoto();
-      if (!picked) return; // Cancelled/declined, or no EXIF-safe encoder.
+    mutationFn: async (input: { picked: PickedImage; visibility: 'group' | 'parties' }) => {
+      const { picked, visibility } = input;
       const ext = picked.mimeType === 'image/webp' ? 'webp' : 'jpg';
       const path = `${expenseId}/${randomUUID()}.${ext}`;
       let committed: string | null = null;
@@ -1614,7 +1614,7 @@ export function useAttachExpenseAttachment(groupId: string, expenseId: string) {
         const { error } = await supabase.rpc('baaki_attach_expense_attachment', {
           p_expense_id: expenseId,
           p_storage_path: path,
-          p_visibility: input.visibility,
+          p_visibility: visibility,
           p_attachment_id: randomUUID(),
         });
         if (error) throw new Error(error.message);

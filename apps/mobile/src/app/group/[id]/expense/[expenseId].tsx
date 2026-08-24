@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import type { ScrollView as RNScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +26,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
-import { ExpenseAttachments } from '@/components/ExpenseAttachments';
+import { ExpenseReceipts } from '@/components/ExpenseReceipts';
 import { ExpenseComments } from '@/components/ExpenseComments';
 import {
   memberLookup,
@@ -35,7 +34,6 @@ import {
   useExpenseImageEvents,
   useExpenseVersions,
   useGroup,
-  useRemoveExpenseReceipt,
   useRestoreExpense,
   type ExpenseImageEventRow,
 } from '@/data/hooks';
@@ -104,7 +102,6 @@ export default function ExpenseDetailScreen() {
   const { group, members, expenses } = useGroup(groupId);
   const versions = useExpenseVersions(expenseId ?? '');
   const imageEvents = useExpenseImageEvents(expenseId ?? '');
-  const removeReceipt = useRemoveExpenseReceipt(groupId, expenseId ?? '');
   const scrollRef = useRef<RNScrollView>(null);
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
@@ -217,30 +214,6 @@ export default function ExpenseDetailScreen() {
   // Where it happened (A43), when the author attached one. A plain snapshot — a
   // tap opens the point in the phone's maps app.
   const location = version.location;
-  const hasReceipt = Boolean(receiptUri);
-  const openReceipt = (): void => {
-    router.push(
-      `/receipt/${expense.id}?path=${encodeURIComponent(expenseReceiptPath(groupId, expense.id))}`,
-    );
-  };
-  // Only a party to the expense (a payer or the author) — or an admin — may
-  // remove the kept bill, since the bill is evidence for the amount. The removal
-  // is recorded in the image audit below, so a swap is never silent.
-  const canManageReceipt = isExpenseParty || iAmAdmin;
-  const confirmRemoveReceipt = (): void => {
-    Alert.alert(t.imageAudit.removeReceiptConfirm, undefined, [
-      { text: t.common.cancel, style: 'cancel' },
-      {
-        text: t.imageAudit.removeReceipt,
-        style: 'destructive',
-        onPress: () =>
-          removeReceipt.mutate(undefined, {
-            onSuccess: () => setReceiptUri(null),
-            onError: () => Alert.alert(t.imageAudit.couldNotRemove),
-          }),
-      },
-    ]);
-  };
   // The hero is the dashboard/group panel: one saturated wash running edge to
   // edge under the status bar, white controls and amount on it. The expense
   // amount is a total that belongs to nobody — it is not owed or owned — so the
@@ -354,80 +327,16 @@ export default function ExpenseDetailScreen() {
           </View>
         </Gradient>
 
-        {/* The bill, when there is one to see (E2). The thumbnail opens the
-            pinch-zoom viewer; the image is served from R2 to any group member.
-            Absent entirely when no bill was kept. */}
-        {hasReceipt ? (
-          <Card style={{ paddingVertical: theme.spacing.md }}>
-            <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-              {/* The view tap is its own Pressable so the remove button beside it
-                  is not swallowed by it (no nested-Pressable ambiguity). */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.expense.viewReceipt}
-                onPress={openReceipt}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.md,
-                  minWidth: 0,
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                {receiptUri ? (
-                  <Image
-                    source={{ uri: receiptUri }}
-                    style={{ width: 52, height: 52, borderRadius: theme.radius.md }}
-                    contentFit="cover"
-                    transition={150}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: theme.radius.md,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: theme.color.bg,
-                    }}
-                  >
-                    <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.brand} />
-                  </View>
-                )}
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text variant="subheading" numberOfLines={1}>
-                    {t.expense.viewReceipt}
-                  </Text>
-                  <Text variant="micro" tone="muted" numberOfLines={1}>
-                    {t.expense.receiptTitle}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
-                />
-              </Pressable>
-              {canManageReceipt ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t.imageAudit.removeReceipt}
-                  onPress={confirmRemoveReceipt}
-                  disabled={removeReceipt.isPending}
-                  hitSlop={10}
-                  style={({ pressed }) => ({
-                    padding: theme.spacing.xs,
-                    opacity: removeReceipt.isPending ? 0.4 : pressed ? 0.5 : 1,
-                  })}
-                >
-                  <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
-                </Pressable>
-              ) : null}
-            </Row>
-          </Card>
-        ) : null}
+        {/* Receipts — one gallery, many images, each group-visible or private.
+            Folds in the legacy single bill (E2) as its first item. A party can
+            add (scan or library) and remove; anyone sees the group images. */}
+        <ExpenseReceipts
+          groupId={groupId}
+          expenseId={expense.id}
+          canManage={isExpenseParty}
+          legacyReceiptPath={receiptUri ? expenseReceiptPath(groupId, expense.id) : null}
+          onLegacyRemoved={() => setReceiptUri(null)}
+        />
 
         {/* Where it happened (A43). A tap opens the point in the phone's maps
             app; absent when the author attached no location. */}
@@ -468,11 +377,6 @@ export default function ExpenseDetailScreen() {
             </Card>
           </Pressable>
         ) : null}
-
-        {/* Attachments — images at a chosen visibility. `group` is like the
-            receipt; `parties` is hidden to everyone but this bill's payers +
-            author (§3, private attachments). */}
-        <ExpenseAttachments groupId={groupId} expenseId={expense.id} canAttach={isExpenseParty} />
 
         {version.payers.length > 1 ? (
           <View>

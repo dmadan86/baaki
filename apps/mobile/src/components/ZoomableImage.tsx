@@ -1,7 +1,12 @@
 import { Image } from 'expo-image';
 import { useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -16,7 +21,15 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
  * Shared by the saved-receipt viewer and the capture screen's pre-save preview,
  * so a bill looks and behaves the same before and after the row exists.
  */
-export function ZoomableImage({ uri }: { uri: string }): React.JSX.Element {
+export function ZoomableImage({
+  uri,
+  onZoomChange,
+}: {
+  uri: string;
+  /** Fires when the image crosses between fit (1×) and zoomed (>1×). A pager uses
+   *  it to stop swiping between pages while a page is zoomed in. */
+  onZoomChange?: (zoomed: boolean) => void;
+}): React.JSX.Element {
   const { width, height } = useWindowDimensions();
 
   const scale = useSharedValue(1);
@@ -25,6 +38,8 @@ export function ZoomableImage({ uri }: { uri: string }): React.JSX.Element {
   const translateY = useSharedValue(0);
   const savedX = useSharedValue(0);
   const savedY = useSharedValue(0);
+
+  const reportZoom = (zoomed: boolean) => onZoomChange?.(zoomed);
 
   const pinch = Gesture.Pinch()
     .onUpdate((event) => {
@@ -39,6 +54,9 @@ export function ZoomableImage({ uri }: { uri: string }): React.JSX.Element {
         translateY.set(withTiming(0));
         savedX.set(0);
         savedY.set(0);
+        runOnJS(reportZoom)(false);
+      } else {
+        runOnJS(reportZoom)(true);
       }
     });
 
@@ -63,6 +81,7 @@ export function ZoomableImage({ uri }: { uri: string }): React.JSX.Element {
       translateY.set(withTiming(0));
       savedX.set(0);
       savedY.set(0);
+      runOnJS(reportZoom)(false);
     });
 
   const composed = Gesture.Simultaneous(pinch, pan, doubleTap);
