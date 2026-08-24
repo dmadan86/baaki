@@ -10,14 +10,14 @@ Scope: the `parties`-visibility attachment primitive (§3, attachment scope only
 and the settlement proof image (§4) that reuses it. The "private personal spend"
 half of §3 is out of scope by design — the plan routes it to the existing
 `Capture` inbox with **no ledger row and no migration**, so it has no new
-authorization surface. This review covers only the restricted *attachment*.
+authorization surface. This review covers only the restricted _attachment_.
 
 ---
 
 ## 0. TL;DR — the three highest-risk findings
 
 1. **A restricted path must never be a column on a group-visible row.**
-   Postgres RLS is *row*-level, not column-level. The sync pull
+   Postgres RLS is _row_-level, not column-level. The sync pull
    (`supabase/functions/sync/index.ts`) reads `settlements` and
    `expense_versions` **as the caller** and returns the whole row to every group
    member (`SETTLEMENT_SELECT`, `EXPENSE_SELECT`). So a `Settlement.proof_path`
@@ -52,13 +52,13 @@ authorization surface. This review covers only the restricted *attachment*.
 
 ### 1.1 What is sensitive
 
-| Asset | Bucket (logical) | Sensitivity | Who may see |
-| --- | --- | --- | --- |
-| Settlement proof image (payment screenshot: UPI ref, bank app, card last-4) | `settlement-proofs` (new) | **High** — payment instrument + real-name identity | Payer + payee **only** (the two settlement parties) |
-| Hidden expense receipt (personal bill the payer does not want the group to see) | `receipts` under a restricted prefix, or `expense-attachments` (new) | **High** — itemised personal spend | Expense **parties** (payer set) only |
-| Group receipt (today's behaviour) | `receipts` | Group-shared | Any group member (unchanged) |
-| Group photo / cover (today) | `group-photos` | Group-shared | Any group member (unchanged) |
-| Trip album photo (§2, out of scope here) | `trip-photos` | Group-shared, but EXIF risk | Any group member |
+| Asset                                                                           | Bucket (logical)                                                     | Sensitivity                                        | Who may see                                         |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------- |
+| Settlement proof image (payment screenshot: UPI ref, bank app, card last-4)     | `settlement-proofs` (new)                                            | **High** — payment instrument + real-name identity | Payer + payee **only** (the two settlement parties) |
+| Hidden expense receipt (personal bill the payer does not want the group to see) | `receipts` under a restricted prefix, or `expense-attachments` (new) | **High** — itemised personal spend                 | Expense **parties** (payer set) only                |
+| Group receipt (today's behaviour)                                               | `receipts`                                                           | Group-shared                                       | Any group member (unchanged)                        |
+| Group photo / cover (today)                                                     | `group-photos`                                                       | Group-shared                                       | Any group member (unchanged)                        |
+| Trip album photo (§2, out of scope here)                                        | `trip-photos`                                                        | Group-shared, but EXIF risk                        | Any group member                                    |
 
 The new tier is **`parties`** visibility: a strict subset of the group. Precedent
 exists — `TripMemberBudget.visibility ∈ {'private','group'}` already hides an
@@ -84,13 +84,13 @@ ambiguous — pin it down):
 `caller_member` is the caller's own `group_members.id` for that group, derived
 server-side via `baaki_my_member_id(group_id)` — never taken from the client.
 
-| Operation | Predicate (enforced at DB **and** presign) |
-| --- | --- |
-| Read attachment **row** (path, meta) | `is_group_member(group_id)` AND (`visibility='group'` OR `caller is a party`) |
-| Read attachment **bytes** (presigned GET) | same predicate, re-evaluated at presign time, short TTL |
-| Write/replace attachment (presigned PUT + row insert) | `caller is a party` (uploader must be a party; membership alone is insufficient) |
-| Set/lower `visibility` | only a party (the uploader) may set it; a non-party can neither create nor downgrade |
-| Delete attachment | a party (uploader), or group admin, per existing delete conventions |
+| Operation                                             | Predicate (enforced at DB **and** presign)                                           |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Read attachment **row** (path, meta)                  | `is_group_member(group_id)` AND (`visibility='group'` OR `caller is a party`)        |
+| Read attachment **bytes** (presigned GET)             | same predicate, re-evaluated at presign time, short TTL                              |
+| Write/replace attachment (presigned PUT + row insert) | `caller is a party` (uploader must be a party; membership alone is insufficient)     |
+| Set/lower `visibility`                                | only a party (the uploader) may set it; a non-party can neither create nor downgrade |
+| Delete attachment                                     | a party (uploader), or group admin, per existing delete conventions                  |
 
 ---
 
@@ -113,7 +113,7 @@ party predicate** (SQL in §3). A non-party's PostgREST read returns **zero
 rows**. Remove `proof_path` from `SETTLEMENT_SELECT` and never add a restricted
 path to `EXPENSE_SELECT`.
 
-### (b) A member who *was* a settlement party then leaves the group
+### (b) A member who _was_ a settlement party then leaves the group
 
 **Attack.** A leaves the group after being a payee; A still holds an app session
 and re-queries the proof, or replays a cached presigned URL.
@@ -132,11 +132,12 @@ is downgraded to nobody, or the uploader deletes it; the attacker replays the
 still-valid URL. R2 presigns are self-authenticating and **cannot be revoked**.
 
 **Mitigations (layered):**
+
 1. **Short TTL for restricted objects** — 60 s instead of 3600 s. The window an
    un-revocable URL survives is the TTL; cut it to seconds. (`r2-sign` must pick
    the TTL by bucket: restricted → `RESTRICTED_URL_TTL_SECONDS = 60`.)
-2. **Re-check the party predicate on *every* issue** — the presign is minted only
-   after `baaki_is_settlement_party` passes *now*, not from a cached grant.
+2. **Re-check the party predicate on _every_ issue** — the presign is minted only
+   after `baaki_is_settlement_party` passes _now_, not from a cached grant.
 3. **Rotate the object key on downgrade/party-removal** — store the R2 key with a
    random UUID segment; a visibility change writes a **new** key and orphans the
    old one (into `storage_orphans`, swept), so every previously-minted URL 404s.
@@ -152,6 +153,7 @@ bytes' locator lands in their local mirror even if the UI hides it — the same
 "filter at render, not at source" mistake called out in the plan.
 
 **Mitigations.**
+
 1. Restricted rows are pulled **as the caller** (existing pattern, `pull()` reads
    every table with the caller client) so party-only RLS filters non-parties at
    the sync boundary — they never receive the row.
@@ -173,6 +175,7 @@ counterparty (or, for the album feature, the whole group) reads the uploader's
 home coordinates out of the image metadata.
 
 **Mitigations.**
+
 1. Client strips GPS/orientation before upload (the plan's stance). But a
    modified client is untrusted, so this is a nicety, not a control.
 2. The A44 pipeline already transcodes to WebP on device before upload; ensure
@@ -190,17 +193,18 @@ knows or guesses a settlement id crafts the key and asks `r2-sign get` for it, o
 brute-forces the presign.
 
 **Mitigations.**
+
 1. **Unguessable keys** — every restricted object key includes a **random UUID**
    segment stored on the row (`settlement-proofs/<settlementId>/<randomUuid>.webp`).
    Knowing the settlement id is not enough.
 2. `readPath` already rejects traversal (`..`, empty, leading slash); keep it.
 3. The `get` presign authorizes against the **attachment row**, not the raw path:
    the caller names the `settlement_id`/`expense_id`, the server looks up the row
-   (RLS-filtered), reads *its* stored key, and signs that — the client never
+   (RLS-filtered), reads _its_ stored key, and signs that — the client never
    supplies the key it wants signed for restricted buckets. This removes path
    forgery entirely.
 4. `storage_objects` stays **service-role only** (`REVOKE ALL ... FROM anon,
-   authenticated`, `r2_storage_cap` line 103), so the ledger cannot be scraped
+authenticated`, `r2_storage_cap` line 103), so the ledger cannot be scraped
    for keys.
 
 ---
@@ -366,11 +370,15 @@ photo-gate server enforcement.
 ```ts
 // _shared/r2.ts — register the new buckets and mark which are "restricted".
 export const LOGICAL_BUCKETS = [
-  'receipts', 'group-photos', 'avatars', 'captures',
-  'settlement-proofs', 'expense-attachments',
+  'receipts',
+  'group-photos',
+  'avatars',
+  'captures',
+  'settlement-proofs',
+  'expense-attachments',
 ] as const;
 const RESTRICTED_BUCKETS = new Set(['settlement-proofs', 'expense-attachments']);
-const RESTRICTED_URL_TTL_SECONDS = 60;   // threat (c): short-lived, un-revocable
+const RESTRICTED_URL_TTL_SECONDS = 60; // threat (c): short-lived, un-revocable
 ```
 
 ```ts
@@ -379,8 +387,7 @@ const RESTRICTED_URL_TTL_SECONDS = 60;   // threat (c): short-lived, un-revocabl
 // (threat (f)); the server looks up the row under RLS and signs its stored key.
 async function authorizeRestrictedRead(caller, service, bucket, subjectId) {
   // Read the attachment row AS THE CALLER so RLS applies the party predicate.
-  const table = bucket === 'settlement-proofs' ? 'settlement_proofs'
-                                                : 'expense_attachments';
+  const table = bucket === 'settlement-proofs' ? 'settlement_proofs' : 'expense_attachments';
   const subjectCol = bucket === 'settlement-proofs' ? 'settlement_id' : 'expense_id';
   const { data: row } = await caller
     .from(table)
@@ -389,7 +396,7 @@ async function authorizeRestrictedRead(caller, service, bucket, subjectId) {
     .is('deleted_at', null)
     .maybeSingle();
   if (!row) throw new HttpError(403, 'NOT_VISIBLE', 'Not visible to you');
-  return row.storage_path;   // the real key to sign
+  return row.storage_path; // the real key to sign
 }
 ```
 
@@ -409,13 +416,15 @@ if (RESTRICTED_BUCKETS.has(bucket)) {
 ```ts
 // authorizeWrite — restricted PUT/commit: party-only, not membership-only.
 if (RESTRICTED_BUCKETS.has(bucket)) {
-  const subjectId = requireSubject(body);           // settlementId / expenseId
-  const groupId   = await groupOfSubject(service, bucket, subjectId);
+  const subjectId = requireSubject(body); // settlementId / expenseId
+  const groupId = await groupOfSubject(service, bucket, subjectId);
   await requireMembership(caller, groupId);
-  const isParty = bucket === 'settlement-proofs'
-    ? await caller.rpc('baaki_is_settlement_party', { p_settlement_id: subjectId })
-    : await caller.rpc('baaki_is_expense_party',     { p_expense_id: subjectId });
-  if (isParty.data !== true) throw new HttpError(403, 'NOT_A_PARTY', 'Only a party may attach proof');
+  const isParty =
+    bucket === 'settlement-proofs'
+      ? await caller.rpc('baaki_is_settlement_party', { p_settlement_id: subjectId })
+      : await caller.rpc('baaki_is_expense_party', { p_expense_id: subjectId });
+  if (isParty.data !== true)
+    throw new HttpError(403, 'NOT_A_PARTY', 'Only a party may attach proof');
   return { groupId };
 }
 ```
@@ -441,7 +450,7 @@ render layer (plan §3, threat (d)).
 2. **Add two new pull tables, read as the caller.** In `pull()` add
    `settlement_proofs` and `expense_attachments` to the per-group table loop
    (same shape as `trip_member_budgets`), each `.eq('group_id', groupId)
-   .gt('updated_seq', since)`. Because the pull uses the **caller** client, the
+.gt('updated_seq', since)`. Because the pull uses the **caller** client, the
    party RLS filters non-parties automatically — a non-party's response simply
    omits the rows. Requires an `updated_seq` bump path (a trigger like the other
    synced tables) so the cursor advances.
@@ -461,7 +470,7 @@ render layer (plan §3, threat (d)).
 
 5. **Cursor-existence caveat (documented, low risk).** The group's global
    `updated_seq` advances when a restricted row is written, so a non-party can
-   infer *that something changed*, but never *what* — no row, no path, no bytes
+   infer _that something changed_, but never _what_ — no row, no path, no bytes
    reach them. Acceptable.
 
 ---
