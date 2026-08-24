@@ -28,7 +28,7 @@ is no `deleted_at` tombstone here):
 - `updated_seq` + the shared `baaki_stamp_seq` trigger, so the `/sync` pull
   carries it like every other group table.
 - RLS SELECT: `is_group_member(group_id) AND (visibility = 'group' OR
-  baaki_is_expense_party(expense_id))`. `REVOKE ALL … GRANT SELECT`; writes are
+baaki_is_expense_party(expense_id))`. `REVOKE ALL … GRANT SELECT`; writes are
   RPC-only.
 
 ## Who writes a line
