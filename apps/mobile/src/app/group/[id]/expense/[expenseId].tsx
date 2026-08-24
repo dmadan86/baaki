@@ -4,8 +4,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { resolveCategory } from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -17,11 +17,11 @@ import {
   iconSize,
   ListRow,
   MoneyText,
+  Gradient,
   Row,
   Screen,
   SectionHeader,
   Text,
-  TintCard,
   useTheme,
   useScreenClearance,
 } from '@waves/ui';
@@ -71,8 +71,30 @@ function imageAuditLine(t: UiStrings, event: ExpenseImageEventRow, name: string)
   return fill(template, { name });
 }
 
+/** A small translucent-white pill for the meta tags on the hero wash (split
+ *  type, "edited N times") — the on-panel equivalent of a Badge, legible on the
+ *  saturated colour where a filled Badge would blend. */
+function HeroTag({ label }: { label: string }): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        paddingVertical: 3,
+        paddingHorizontal: theme.spacing.sm,
+        borderRadius: theme.radius.pill,
+        backgroundColor: 'rgba(255, 255, 255, 0.18)',
+      }}
+    >
+      <Text variant="micro" tone="onBrand">
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function ExpenseDetailScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const { id, expenseId } = useLocalSearchParams<{ id: string; expenseId: string }>();
@@ -219,12 +241,11 @@ export default function ExpenseDetailScreen() {
       },
     ]);
   };
-  // The hero wears the expense's category colour, not a money colour: this
-  // amount is a total that belongs to nobody, shown neutral. Ink from the same
-  // pair keeps it legible on the tint.
-  const heroTint = resolveCategory(version.category, version.category_meta).tint;
-  const heroInk = theme.tint[heroTint].ink;
-  const heroInkMuted = theme.tint[heroTint].inkMuted;
+  // The hero is the dashboard/group panel: one saturated wash running edge to
+  // edge under the status bar, white controls and amount on it. The expense
+  // amount is a total that belongs to nobody — it is not owed or owned — so the
+  // wash is the neutral brand indigo, never a money verdict. The category keeps
+  // its own colour as the badge chip on the wash.
 
   // Bring the comment composer above the keyboard when it focuses: the thread is
   // the last thing on a long page, so without this the input opens under the
@@ -247,7 +268,7 @@ export default function ExpenseDetailScreen() {
   };
 
   return (
-    <Screen>
+    <Screen edges={[]}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={{
@@ -261,65 +282,77 @@ export default function ExpenseDetailScreen() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading" numberOfLines={1}>
-              {expenseTitle(version.description, version.category, t, version.category_meta)}
-            </Text>
-            <Text variant="micro" tone="muted">
-              {groupLabel(group.data, members.data ?? [])}
-            </Text>
-          </View>
-          <IconButton
-            label={t.common.edit}
-            onPress={() => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`)}
-          >
-            <Ionicons name="create-outline" size={iconSize.md} color={theme.color.text} />
-          </IconButton>
-        </Row>
-
-        <TintCard
-          tint={heroTint}
+        {/* The expense hero, built like the group and dashboard panels: one
+            saturated wash edge to edge and up under the status bar, carrying the
+            back/edit controls, the category badge, the amount and its "paid by"
+            line — all in white. Neutral brand indigo, never a money colour: the
+            amount is a total that is nobody's balance. Breaks out of the
+            scroll's padding, then re-pads and rounds only its bottom corners. */}
+        <Gradient
+          radius={0}
+          colors={theme.gradient.brand}
           style={{
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            borderRadius: theme.radius.xl,
-            padding: theme.spacing.xl,
+            marginHorizontal: -theme.spacing.xl,
+            paddingTop: insets.top + theme.spacing.md,
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: theme.spacing.xl,
+            borderBottomLeftRadius: theme.radius.xxl,
+            borderBottomRightRadius: theme.radius.xxl,
+            gap: theme.spacing.lg,
           }}
         >
-          <CategoryBadge category={version.category} meta={version.category_meta} size={48} />
-          <MoneyText
-            amount={BigInt(version.amount)}
-            currency={currency}
-            locale={locale}
-            variant="display"
-            style={{ color: heroInk }}
-          />
-          <Text variant="caption" style={{ color: heroInkMuted }}>
-            {`${fill(t.expense.paidByName, {
-              name: nameOf(version.payers[0]?.member_id ?? null),
-            })} · ${new Intl.DateTimeFormat(locale, {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              timeZone: 'UTC',
-            }).format(new Date(version.expense_date))}`}
-          </Text>
-          <Row style={{ gap: theme.spacing.sm }}>
-            <Badge label={splitLabels(t)[version.split_type] ?? version.split_type} tone="brand" />
-            {version.version_no > 1 ? (
-              <Badge label={plural(locale, version.version_no - 1, t.expense.editedTimes)} />
-            ) : null}
-            {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
+          <Row>
+            <IconButton label={t.common.back} onPress={() => router.back()}>
+              <Ionicons
+                name={directionalIcon('chevron-back')}
+                size={iconSize.lg}
+                color={theme.color.onBrand}
+              />
+            </IconButton>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text variant="heading" tone="onBrand" numberOfLines={1}>
+                {expenseTitle(version.description, version.category, t, version.category_meta)}
+              </Text>
+              <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+                {groupLabel(group.data, members.data ?? [])}
+              </Text>
+            </View>
+            <IconButton
+              label={t.common.edit}
+              onPress={() => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`)}
+            >
+              <Ionicons name="create-outline" size={iconSize.md} color={theme.color.onBrand} />
+            </IconButton>
           </Row>
-        </TintCard>
+
+          <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+            <CategoryBadge category={version.category} meta={version.category_meta} size={48} />
+            <MoneyText
+              amount={BigInt(version.amount)}
+              currency={currency}
+              locale={locale}
+              variant="display"
+              style={{ color: theme.color.onBrand }}
+            />
+            <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+              {`${fill(t.expense.paidByName, {
+                name: nameOf(version.payers[0]?.member_id ?? null),
+              })} · ${new Intl.DateTimeFormat(locale, {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+              }).format(new Date(version.expense_date))}`}
+            </Text>
+            <Row style={{ gap: theme.spacing.sm }}>
+              <HeroTag label={splitLabels(t)[version.split_type] ?? version.split_type} />
+              {version.version_no > 1 ? (
+                <HeroTag label={plural(locale, version.version_no - 1, t.expense.editedTimes)} />
+              ) : null}
+              {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
+            </Row>
+          </View>
+        </Gradient>
 
         {/* The bill, when there is one to see (E2). The thumbnail opens the
             pinch-zoom viewer; the image is served from R2 to any group member.
