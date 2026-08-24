@@ -32,9 +32,12 @@ import { ExpenseComments } from '@/components/ExpenseComments';
 import {
   memberLookup,
   useDeleteExpense,
+  useExpenseImageEvents,
   useExpenseVersions,
   useGroup,
+  useRemoveExpenseReceipt,
   useRestoreExpense,
+  type ExpenseImageEventRow,
 } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';
 import { useBlockedUsers } from '@/data/blocked';
@@ -55,6 +58,19 @@ function splitLabels(t: UiStrings): Record<string, string> {
   };
 }
 
+/** One line of the image audit — "{name} added the receipt", etc. */
+function imageAuditLine(t: UiStrings, event: ExpenseImageEventRow, name: string): string {
+  const template =
+    event.kind === 'receipt'
+      ? event.action === 'added'
+        ? t.imageAudit.receiptAdded
+        : t.imageAudit.receiptRemoved
+      : event.action === 'added'
+        ? t.imageAudit.attachmentAdded
+        : t.imageAudit.attachmentRemoved;
+  return fill(template, { name });
+}
+
 export default function ExpenseDetailScreen() {
   const theme = useTheme();
   const clearance = useScreenClearance();
@@ -65,6 +81,8 @@ export default function ExpenseDetailScreen() {
 
   const { group, members, expenses } = useGroup(groupId);
   const versions = useExpenseVersions(expenseId ?? '');
+  const imageEvents = useExpenseImageEvents(expenseId ?? '');
+  const removeReceipt = useRemoveExpenseReceipt(groupId, expenseId ?? '');
   const scrollRef = useRef<RNScrollView>(null);
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
@@ -183,6 +201,24 @@ export default function ExpenseDetailScreen() {
       `/receipt/${expense.id}?path=${encodeURIComponent(expenseReceiptPath(groupId, expense.id))}`,
     );
   };
+  // Only a party to the expense (a payer or the author) — or an admin — may
+  // remove the kept bill, since the bill is evidence for the amount. The removal
+  // is recorded in the image audit below, so a swap is never silent.
+  const canManageReceipt = isExpenseParty || iAmAdmin;
+  const confirmRemoveReceipt = (): void => {
+    Alert.alert(t.imageAudit.removeReceiptConfirm, undefined, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.imageAudit.removeReceipt,
+        style: 'destructive',
+        onPress: () =>
+          removeReceipt.mutate(undefined, {
+            onSuccess: () => setReceiptUri(null),
+            onError: () => Alert.alert(t.imageAudit.couldNotRemove),
+          }),
+      },
+    ]);
+  };
   // The hero wears the expense's category colour, not a money colour: this
   // amount is a total that belongs to nobody, shown neutral. Ink from the same
   // pair keeps it legible on the tint.
@@ -289,13 +325,23 @@ export default function ExpenseDetailScreen() {
             pinch-zoom viewer; the image is served from R2 to any group member.
             Absent entirely when no bill was kept. */}
         {hasReceipt ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.expense.viewReceipt}
-            onPress={openReceipt}
-          >
-            <Card style={{ paddingVertical: theme.spacing.md }}>
-              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+          <Card style={{ paddingVertical: theme.spacing.md }}>
+            <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+              {/* The view tap is its own Pressable so the remove button beside it
+                  is not swallowed by it (no nested-Pressable ambiguity). */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.expense.viewReceipt}
+                onPress={openReceipt}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.md,
+                  minWidth: 0,
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
                 {receiptUri ? (
                   <Image
                     source={{ uri: receiptUri }}
@@ -330,9 +376,24 @@ export default function ExpenseDetailScreen() {
                   size={iconSize.md}
                   color={theme.color.textFaint}
                 />
-              </Row>
-            </Card>
-          </Pressable>
+              </Pressable>
+              {canManageReceipt ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.imageAudit.removeReceipt}
+                  onPress={confirmRemoveReceipt}
+                  disabled={removeReceipt.isPending}
+                  hitSlop={10}
+                  style={({ pressed }) => ({
+                    padding: theme.spacing.xs,
+                    opacity: removeReceipt.isPending ? 0.4 : pressed ? 0.5 : 1,
+                  })}
+                >
+                  <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
+                </Pressable>
+              ) : null}
+            </Row>
+          </Card>
         ) : null}
 
         {/* Where it happened (A43). A tap opens the point in the phone's maps
@@ -492,6 +553,50 @@ export default function ExpenseDetailScreen() {
             ))}
           </Card>
         </View>
+
+        {/* The image audit (A46): who added or removed a receipt or an attachment,
+            oldest first. A `parties` line only reaches a party's device (RLS on
+            the pull), so anyone who sees a line here was allowed to. Absent until
+            something happens to an image. */}
+        {(imageEvents.data ?? []).length > 0 ? (
+          <View>
+            <SectionHeader title={t.imageAudit.title} />
+            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+              {(imageEvents.data ?? []).map((event, index, arr) => (
+                <View key={event.id}>
+                  <ListRow
+                    title={imageAuditLine(t, event, nameOf(event.actorMemberId))}
+                    subtitle={
+                      event.createdAt
+                        ? new Intl.DateTimeFormat(locale, {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          }).format(new Date(event.createdAt))
+                        : undefined
+                    }
+                    leading={
+                      <Avatar
+                        name={nameOf(event.actorMemberId)}
+                        emoji={event.action === 'added' ? '📎' : '🗑️'}
+                        size={38}
+                      />
+                    }
+                    trailing={
+                      event.visibility === 'parties' ? (
+                        <Badge label={t.imageAudit.partyOnly} tone="neutral" />
+                      ) : undefined
+                    }
+                  />
+                  {index < arr.length - 1 ? (
+                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                  ) : null}
+                </View>
+              ))}
+            </Card>
+          </View>
+        ) : null}
 
         {/* The thread on this bill. Any member reads and adds; the author edits
             and deletes their own; an admin deletes anyone's and resolves reports.

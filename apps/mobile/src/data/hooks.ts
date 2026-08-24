@@ -28,6 +28,7 @@ import {
   materialiseMembers,
   materialiseExpenseAttachments,
   materialiseExpenseComments,
+  materialiseExpenseImageEvents,
   materialisePlanItems,
   materialiseSettlementProof,
   materialiseSettlements,
@@ -79,6 +80,7 @@ import {
   updateMember,
   setMemberRole,
   withdrawDispute,
+  removeExpenseReceipt,
   type PersonBalanceRow,
   type WriteExpenseInput,
 } from './api';
@@ -1681,6 +1683,53 @@ export function useExpenseComments(expenseId: string): LocalRead<ExpenseCommentR
     [mirror, expenseId],
   );
   return useLocalRead(rows);
+}
+
+// ────────────────────────────────────────────── expense image audit (A46) ──
+// An append-only trail of who added/removed a receipt or attachment on one
+// expense. Reads ride the mirror (the pull's RLS decides whether a `parties`
+// line reached this device at all); the writes are the receipt log RPC and the
+// attachment RPCs, which stamp the actor server-side.
+
+export interface ExpenseImageEventRow {
+  id: string;
+  expenseId: string;
+  groupId: string;
+  actorMemberId: string | null;
+  kind: 'receipt' | 'attachment';
+  action: 'added' | 'removed';
+  visibility: 'group' | 'parties';
+  createdAt: string | null;
+}
+
+/** The image audit for one expense, oldest first. */
+export function useExpenseImageEvents(expenseId: string): LocalRead<ExpenseImageEventRow[]> {
+  const { mirror } = useSync();
+  const rows = useMemo(
+    () =>
+      materialiseExpenseImageEvents(mirror, { expenseId }).map((row): ExpenseImageEventRow => ({
+        id: row.id,
+        expenseId: row.expense_id,
+        groupId: row.group_id,
+        actorMemberId: row.actor_member_id,
+        kind: row.kind === 'attachment' ? 'attachment' : 'receipt',
+        action: row.action === 'removed' ? 'removed' : 'added',
+        visibility: row.visibility === 'parties' ? 'parties' : 'group',
+        createdAt: row.created_at,
+      })),
+    [mirror, expenseId],
+  );
+  return useLocalRead(rows);
+}
+
+/** Remove the kept bill (E2) and record the removal in the image audit, then
+ *  flush so the new line pulls back. */
+export function useRemoveExpenseReceipt(groupId: string, expenseId: string) {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: () => removeExpenseReceipt(groupId, expenseId),
+    onSuccess: () => void flush(),
+  });
 }
 
 /**

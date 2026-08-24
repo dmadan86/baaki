@@ -398,6 +398,22 @@ export interface UiStrings {
     /** Reveal the previous page of older comments (a count is appended). */
     showEarlier: string;
   };
+  /** The image audit on an expense — who added/removed a receipt or attachment. */
+  imageAudit: {
+    /** Section header. */
+    title: string;
+    /** One line per event; `{name}` is the actor (or "someone"). */
+    receiptAdded: string;
+    receiptRemoved: string;
+    attachmentAdded: string;
+    attachmentRemoved: string;
+    /** A tag on a party-only attachment's line. */
+    partyOnly: string;
+    /** Remove-the-kept-bill control + its confirm and failure. */
+    removeReceipt: string;
+    removeReceiptConfirm: string;
+    couldNotRemove: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -2103,6 +2119,17 @@ const en: UiStrings = {
     couldNotPost: "Couldn't post that — try again.",
     couldNotDelete: "Couldn't delete that — try again.",
     showEarlier: 'Show earlier comments',
+  },
+  imageAudit: {
+    title: 'Image history',
+    receiptAdded: '{name} added the receipt',
+    receiptRemoved: '{name} removed the receipt',
+    attachmentAdded: '{name} added an attachment',
+    attachmentRemoved: '{name} removed an attachment',
+    partyOnly: 'Private',
+    removeReceipt: 'Remove receipt',
+    removeReceiptConfirm: 'Remove this receipt? The change is recorded.',
+    couldNotRemove: "Couldn't remove that — try again.",
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3822,6 +3849,17 @@ const ta: UiStrings = {
     couldNotPost: 'இட முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     couldNotDelete: 'நீக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     showEarlier: 'முந்தைய கருத்துகளைக் காட்டு',
+  },
+  imageAudit: {
+    title: 'படத்தின் வரலாறு',
+    receiptAdded: 'ரசீதை {name} சேர்த்தார்',
+    receiptRemoved: 'ரசீதை {name} அகற்றினார்',
+    attachmentAdded: 'இணைப்பை {name} சேர்த்தார்',
+    attachmentRemoved: 'இணைப்பை {name} அகற்றினார்',
+    partyOnly: 'தனிப்பட்டது',
+    removeReceipt: 'ரசீதை அகற்று',
+    removeReceiptConfirm: 'இந்த ரசீதை அகற்றவா? இந்த மாற்றம் பதிவு செய்யப்படும்.',
+    couldNotRemove: 'அகற்ற முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5608,6 +5646,17 @@ const hi: UiStrings = {
     couldNotDelete: 'हटाया नहीं जा सका — फिर कोशिश करें।',
     showEarlier: 'पहले की टिप्पणियाँ दिखाएँ',
   },
+  imageAudit: {
+    title: 'छवि इतिहास',
+    receiptAdded: '{name} ने रसीद जोड़ी',
+    receiptRemoved: '{name} ने रसीद हटाई',
+    attachmentAdded: '{name} ने एक अटैचमेंट जोड़ा',
+    attachmentRemoved: '{name} ने एक अटैचमेंट हटाया',
+    partyOnly: 'निजी',
+    removeReceipt: 'रसीद हटाएँ',
+    removeReceiptConfirm: 'यह रसीद हटाएँ? यह बदलाव दर्ज किया जाएगा।',
+    couldNotRemove: 'हटाया नहीं जा सका — फिर कोशिश करें।',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -7341,6 +7390,17 @@ const ar: UiStrings = {
     couldNotPost: 'تعذّر النشر — حاول مرة أخرى.',
     couldNotDelete: 'تعذّر الحذف — حاول مرة أخرى.',
     showEarlier: 'عرض التعليقات السابقة',
+  },
+  imageAudit: {
+    title: 'سجل الصور',
+    receiptAdded: 'أضاف {name} الإيصال',
+    receiptRemoved: 'أزال {name} الإيصال',
+    attachmentAdded: 'أضاف {name} مرفقًا',
+    attachmentRemoved: 'أزال {name} مرفقًا',
+    partyOnly: 'خاص',
+    removeReceipt: 'إزالة الإيصال',
+    removeReceiptConfirm: 'إزالة هذا الإيصال؟ سيُسجَّل هذا التغيير.',
+    couldNotRemove: 'تعذّرت الإزالة — حاول مرة أخرى.',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',

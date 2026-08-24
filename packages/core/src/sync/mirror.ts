@@ -67,6 +67,7 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.SettlementProofs,
   SyncTable.ExpenseAttachments,
   SyncTable.ExpenseComments,
+  SyncTable.ExpenseImageEvents,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -1058,6 +1059,31 @@ export function materialiseExpenseComments(
 ): MirrorExpenseComment[] {
   return (rowsFor(state, SyncTable.ExpenseComments) as MirrorExpenseComment[])
     .filter((row) => row.expense_id === options.expenseId && row.deleted_at === null)
+    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+}
+
+export interface MirrorExpenseImageEvent extends MirrorRow {
+  readonly id: string;
+  readonly group_id: string;
+  readonly expense_id: string;
+  readonly actor_member_id: string | null;
+  readonly kind: string;
+  readonly action: string;
+  readonly visibility: string;
+  readonly created_at: string | null;
+}
+
+/** The image audit for one expense — who added/removed a receipt or attachment,
+ *  oldest first, so the trail reads top-down like the version history beside it.
+ *  Append-only: there is no tombstone to filter (a correction is another line).
+ *  A `parties` row only reaches a device the pull deemed a party, so nothing to
+ *  hide here. */
+export function materialiseExpenseImageEvents(
+  state: MirrorState,
+  options: { readonly expenseId: string },
+): MirrorExpenseImageEvent[] {
+  return (rowsFor(state, SyncTable.ExpenseImageEvents) as MirrorExpenseImageEvent[])
+    .filter((row) => row.expense_id === options.expenseId)
     .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
 }
 

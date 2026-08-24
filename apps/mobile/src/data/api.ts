@@ -489,7 +489,43 @@ export async function uploadExpenseReceipt(input: {
     contentType: normaliseImageMime(input.mimeType),
     groupId: input.groupId,
   });
+  // Record the add in the image audit (A46). Best-effort: the bill is kept even
+  // if the line fails to write — the trail is evidence, not a gate.
+  await logReceiptEvent(input.groupId, input.expenseId, 'added');
   return path;
+}
+
+/**
+ * The kept bill has no DB row — its history lives in `expense_image_events`.
+ * The upload/remove goes straight to R2, so the client writes the audit line
+ * through this RPC, which stamps the actor from the session. The event id is
+ * client-chosen so a retry is idempotent. Swallows failure: a missing audit
+ * line must never break keeping or removing a bill.
+ */
+async function logReceiptEvent(
+  groupId: string,
+  expenseId: string,
+  action: 'added' | 'removed',
+): Promise<void> {
+  const { error } = await supabase.rpc('baaki_log_receipt_event', {
+    p_event_id: randomUUID(),
+    p_group_id: groupId,
+    p_expense_id: expenseId,
+    p_action: action,
+  });
+  if (error) {
+    console.warn('receipt audit log failed', error.message);
+  }
+}
+
+/**
+ * Remove a group expense's kept bill (E2) from R2 and record the removal in the
+ * image audit. Best-effort on the bytes (the sweep is the backstop); the audit
+ * line is what the group reads later.
+ */
+export async function removeExpenseReceipt(groupId: string, expenseId: string): Promise<void> {
+  await removeImage(RECEIPT_BUCKET, expenseReceiptPath(groupId, expenseId));
+  await logReceiptEvent(groupId, expenseId, 'removed');
 }
 
 /**
