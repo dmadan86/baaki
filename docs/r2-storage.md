@@ -47,7 +47,31 @@ Deploy the functions after setting secrets:
 ```sh
 supabase functions deploy r2-sign
 supabase functions deploy receipt-parse   # now also reads from R2
+supabase functions deploy storage-sweep   # reclaims stranded R2 objects
 ```
+
+### Schedule the sweep (reclaims stranded R2 bytes)
+
+The database frees the **cap** on its own — a `pg_cron` job runs
+`baaki_storage_expire_pending()` every 15 minutes to drop reservations nobody
+committed, so an abandoned upload stops holding a person's ceiling without any R2
+credential. Reclaiming the actual R2 **bytes** (expired reservations, deleted
+objects, and objects orphaned when a profile or group is deleted) needs an R2
+credential, so it lives in the `storage-sweep` edge function. Schedule it wherever
+you run periodic jobs — e.g. a Supabase scheduled function, or `pg_cron` +
+`pg_net` posting to the function with the service-role key:
+
+```sql
+select cron.schedule(
+  'waves-storage-sweep', '*/30 * * * *',
+  $$ select net.http_post(
+       url     := 'https://<project-ref>.functions.supabase.co/storage-sweep',
+       headers := jsonb_build_object('Authorization', 'Bearer ' || current_setting('app.service_role_key'))
+     ) $$
+);
+```
+
+If it never runs, the cap stays correct; only reclaimable R2 space accumulates.
 
 ## Mobile flag
 
@@ -63,11 +87,18 @@ seam brokers everything through `r2-sign`.
 The migration `20260824120000_r2_storage_cap` adds:
 
 - `storage_objects` — the ledger of every R2 object (owner, group, bytes, whether
-  it counts against a cap). Written only by the service role.
+  it counts against a cap, and whether it is still a `pending` reservation).
+  Written only by the service role.
+- `storage_orphans` — a queue of R2 keys whose ledger row is gone (deleted,
+  expired, or cascaded away) and which the sweep still has to remove from R2.
 - `app_config.free_storage_cap_bytes` — the 10 MB knob (admin-editable, like the
   receipt cap). Raise or lower it without a deploy.
-- `baaki_storage_can_upload` / `baaki_storage_record` / `baaki_storage_release` /
-  `baaki_my_storage_usage` / `baaki_storage_counts` / `baaki_profiles_share_group`.
+- `baaki_storage_reserve` (presign gate) / `baaki_storage_record` (commit) /
+  `baaki_storage_release` / `baaki_storage_expire_pending` / `baaki_storage_orphans`
+  / `baaki_storage_orphan_clear` / `baaki_my_storage_usage` /
+  `baaki_storage_counts` / `baaki_profiles_share_group`.
+- a `pg_cron` job `baaki-storage-expire-pending` (every 15 min) that frees the cap
+  held by abandoned reservations.
 
 Apply it with the normal migrate deploy.
 
@@ -77,6 +108,11 @@ Apply it with the normal migrate deploy.
 - An upload into a group whose **owner is paid** is uncapped for everyone in it.
 - Otherwise the bytes count against the **uploader's** 10 MB ceiling — receipts,
   group photos and avatars alike; personal images (no group) count too.
-- Enforced at the presign gate **and** at `commit` (the real boundary): an
-  over-cap upload is deleted from R2 and answered `402 STORAGE_CAP`, which the app
-  turns into an upgrade prompt.
+- Reserved at the **presign** (so a presign the client never commits still counts,
+  and cannot fill R2 for free) and re-checked at **commit** against the object's
+  true HEADed size (the real boundary): an over-cap upload is deleted from R2 and
+  answered `402 STORAGE_CAP`, which the app turns into an upgrade prompt.
+- Every reserve/commit for one account is **serialised by a per-owner advisory
+  lock**, so two uploads racing the ceiling cannot both slip under it.
+- An account may hold at most **8 uncommitted reservations** at once; abandoned
+  ones are swept after 30 minutes, freeing the cap they held.

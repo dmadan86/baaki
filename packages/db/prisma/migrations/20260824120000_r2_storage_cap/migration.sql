@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS public.storage_objects (
   bytes            bigint      NOT NULL CHECK (bytes >= 0),
   content_type     text        NOT NULL DEFAULT 'image/webp',
   counted          boolean     NOT NULL,
+  -- A reservation, not yet a stored object. `put` writes the row `pending` so its
+  -- bytes count against the ceiling the moment the URL is minted — otherwise a
+  -- client could presign endlessly and never `commit`, filling R2 while the cap,
+  -- which only saw committed rows, measured nothing. `commit` clears it; a
+  -- reservation nobody commits is swept after `baaki_storage_expire_pending`.
+  pending          boolean     NOT NULL DEFAULT false,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (logical_bucket, path)
@@ -122,71 +128,126 @@ $$;
 REVOKE ALL ON FUNCTION public.baaki_storage_counts(uuid, uuid) FROM public;
 GRANT EXECUTE ON FUNCTION public.baaki_storage_counts(uuid, uuid) TO service_role;
 
--- ──────────────────────────────── may the caller store more ──
+-- The cap is enforced in exactly one place — `baaki_storage_reserve` at the
+-- presign, re-checked in `baaki_storage_record` at the commit — so there is no
+-- separate "can I upload" predicate to keep in step with it. A client that wants
+-- to grey out an upload before trying reads `baaki_my_storage_usage` and does the
+-- arithmetic itself; it is never the authority.
+
+-- ──────────────────────────────── reserve before the PUT ──
 
 /**
- * May `p_profile_id` store `p_bytes` more at (bucket, path)?
- *
- *   * upload does not count (paid uploader, or paid group) → always yes;
- *   * otherwise yes while (already-counted bytes, excluding this same object)
- *     plus the new bytes stays within the ceiling.
- *
- * Excluding the object at (p_logical_bucket, p_path) makes a re-upload measure
- * the *delta*, not double-count: replacing a 2 MB cover with a 2 MB cover must
- * not spend 4 MB of the ceiling.
- *
- * The affordance the client draws and the gate the edge function checks before
- * it mints a PUT URL. `baaki_storage_record` re-checks at the write, so a
- * client that ignores this still cannot exceed the ceiling.
+ * The most concurrent reservations one account may hold at once. A reservation
+ * is only released by `commit`, `delete`, or the 30-minute sweep, so this bounds
+ * how much a client that presigns-and-abandons can strand in R2 between sweeps —
+ * without it, "reserve 1 byte, upload a lot, never commit" repeats forever. Eight
+ * is far above any real burst (a receipt scan, an avatar) yet a hard ceiling on
+ * abuse.
  */
-CREATE OR REPLACE FUNCTION public.baaki_storage_can_upload(
+-- (kept inline in baaki_storage_reserve; documented here for the "why 8".)
+
+/**
+ * Reserve space for an upload that is about to happen, enforcing the ceiling as
+ * it does (A44). Called by `r2-sign` *before* it mints a presigned PUT, so the
+ * bytes are charged the instant the URL exists rather than at `commit` — a
+ * presign the client never commits still holds cap until it is swept, which is
+ * what stops the "presign forever, commit never" hole from filling R2 for free.
+ *
+ * A per-owner advisory lock makes the read-the-sum-then-write two-step atomic:
+ * two uploads racing can no longer both read the old total and both slip under
+ * the ceiling (the TOCTOU the plain check had). `commit` takes the same lock.
+ *
+ * Raises `STORAGE_CAP` over the ceiling and `STORAGE_TOO_MANY_PENDING` when the
+ * account is sitting on too many un-committed reservations.
+ */
+CREATE OR REPLACE FUNCTION public.baaki_storage_reserve(
   p_profile_id     uuid,
   p_group_id       uuid,
   p_logical_bucket text,
   p_path           text,
-  p_bytes          bigint
+  p_bytes          bigint,
+  p_content_type   text DEFAULT 'image/webp'
 )
-RETURNS boolean
+RETURNS void
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-  v_used bigint;
+  v_counted       boolean;
+  v_used          bigint;
+  v_pending_count integer;
 BEGIN
   IF p_profile_id IS NULL OR p_bytes IS NULL OR p_bytes < 0 THEN
-    RETURN false;
+    RAISE EXCEPTION 'STORAGE_BAD_INPUT' USING ERRCODE = 'check_violation';
   END IF;
 
-  IF NOT public.baaki_storage_counts(p_profile_id, p_group_id) THEN
-    RETURN true;
+  -- Serialise every reserve/commit for this owner so the cap check and the write
+  -- are one indivisible step.
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_profile_id::text, 0));
+
+  v_counted := public.baaki_storage_counts(p_profile_id, p_group_id);
+
+  IF v_counted THEN
+    -- Bound abandoned reservations (see the note above). A re-reservation of the
+    -- same object is a replacement, not a new pending, so it is excluded.
+    SELECT count(*) INTO v_pending_count
+      FROM public.storage_objects
+     WHERE owner_profile_id = p_profile_id
+       AND pending
+       AND NOT (logical_bucket = p_logical_bucket AND path = p_path);
+    IF v_pending_count >= 8 THEN
+      RAISE EXCEPTION 'STORAGE_TOO_MANY_PENDING'
+        USING ERRCODE = 'check_violation',
+              HINT = 'Too many uploads in flight; finish or wait a moment.';
+    END IF;
+
+    SELECT COALESCE(SUM(bytes), 0) INTO v_used
+      FROM public.storage_objects
+     WHERE owner_profile_id = p_profile_id
+       AND counted
+       AND NOT (logical_bucket = p_logical_bucket AND path = p_path);
+
+    IF v_used + p_bytes > public.baaki_free_storage_cap() THEN
+      RAISE EXCEPTION 'STORAGE_CAP'
+        USING ERRCODE = 'check_violation',
+              HINT = 'You have reached your free storage limit; upgrade to add more.';
+    END IF;
   END IF;
 
-  SELECT COALESCE(SUM(bytes), 0) INTO v_used
-    FROM public.storage_objects
-   WHERE owner_profile_id = p_profile_id
-     AND counted
-     AND NOT (logical_bucket = p_logical_bucket AND path = p_path);
-
-  RETURN v_used + p_bytes <= public.baaki_free_storage_cap();
+  INSERT INTO public.storage_objects
+    (logical_bucket, path, owner_profile_id, group_id, bytes, content_type, counted, pending)
+  VALUES
+    (p_logical_bucket, p_path, p_profile_id, p_group_id, p_bytes, p_content_type, v_counted, true)
+  ON CONFLICT (logical_bucket, path) DO UPDATE
+    SET owner_profile_id = excluded.owner_profile_id,
+        group_id         = excluded.group_id,
+        bytes            = excluded.bytes,
+        content_type     = excluded.content_type,
+        counted          = excluded.counted,
+        pending          = true,
+        updated_at       = now();
 END
 $$;
 
-REVOKE ALL ON FUNCTION public.baaki_storage_can_upload(uuid, uuid, text, text, bigint) FROM public;
-GRANT EXECUTE ON FUNCTION public.baaki_storage_can_upload(uuid, uuid, text, text, bigint) TO service_role;
+REVOKE ALL ON FUNCTION public.baaki_storage_reserve(uuid, uuid, text, text, bigint, text) FROM public;
+GRANT EXECUTE ON FUNCTION public.baaki_storage_reserve(uuid, uuid, text, text, bigint, text) TO service_role;
 
 -- ──────────────────────────────── the write, and the boundary ──
 
 /**
- * Record (or refresh) a stored object, enforcing the ceiling as it does.
+ * Confirm a reserved object once its PUT to R2 has landed, clearing `pending`
+ * and correcting its declared size to the true one the edge HEADed.
  *
  * Called by the r2-sign edge function after the client's PUT to R2 succeeds.
- * The ceiling is checked here too — this is the real boundary, the presign gate
- * is only the affordance — and a violation raises `STORAGE_CAP` so the edge
- * function can delete the just-uploaded object and answer 402. `counted` is
- * (re)computed from current entitlement on every record, so a re-upload after a
- * group turned paid stops counting without a backfill.
+ * The ceiling is re-checked here under the same per-owner advisory lock the
+ * reservation took — this is the real boundary, the presign gate is only the
+ * affordance. It matters because the reservation trusted the client's *declared*
+ * length; if the object actually landed larger (a client that low-balled the
+ * size to slip past the cap), the true bytes are measured here and a violation
+ * raises `STORAGE_CAP` so the edge function deletes the object and answers 402.
+ * `counted` is (re)computed from current entitlement on every record, so a
+ * re-upload after a group turned paid stops counting without a backfill.
  */
 CREATE OR REPLACE FUNCTION public.baaki_storage_record(
   p_profile_id     uuid,
@@ -202,32 +263,44 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-  v_counted boolean := public.baaki_storage_counts(p_profile_id, p_group_id);
+  v_counted boolean;
+  v_used    bigint;
 BEGIN
   IF p_profile_id IS NULL OR p_bytes IS NULL OR p_bytes < 0 THEN
     RAISE EXCEPTION 'STORAGE_BAD_INPUT' USING ERRCODE = 'check_violation';
   END IF;
 
-  IF v_counted
-     AND NOT public.baaki_storage_can_upload(
-       p_profile_id, p_group_id, p_logical_bucket, p_path, p_bytes
-     )
-  THEN
-    RAISE EXCEPTION 'STORAGE_CAP'
-      USING ERRCODE = 'check_violation',
-            HINT = 'You have reached your free storage limit; upgrade to add more.';
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_profile_id::text, 0));
+
+  v_counted := public.baaki_storage_counts(p_profile_id, p_group_id);
+
+  IF v_counted THEN
+    -- The true-size cap check, excluding this same object so a replacement
+    -- measures the delta, not double.
+    SELECT COALESCE(SUM(bytes), 0) INTO v_used
+      FROM public.storage_objects
+     WHERE owner_profile_id = p_profile_id
+       AND counted
+       AND NOT (logical_bucket = p_logical_bucket AND path = p_path);
+
+    IF v_used + p_bytes > public.baaki_free_storage_cap() THEN
+      RAISE EXCEPTION 'STORAGE_CAP'
+        USING ERRCODE = 'check_violation',
+              HINT = 'You have reached your free storage limit; upgrade to add more.';
+    END IF;
   END IF;
 
   INSERT INTO public.storage_objects
-    (logical_bucket, path, owner_profile_id, group_id, bytes, content_type, counted)
+    (logical_bucket, path, owner_profile_id, group_id, bytes, content_type, counted, pending)
   VALUES
-    (p_logical_bucket, p_path, p_profile_id, p_group_id, p_bytes, p_content_type, v_counted)
+    (p_logical_bucket, p_path, p_profile_id, p_group_id, p_bytes, p_content_type, v_counted, false)
   ON CONFLICT (logical_bucket, path) DO UPDATE
     SET owner_profile_id = excluded.owner_profile_id,
         group_id         = excluded.group_id,
         bytes            = excluded.bytes,
         content_type     = excluded.content_type,
         counted          = excluded.counted,
+        pending          = false,
         updated_at       = now();
 END
 $$;
@@ -254,6 +327,140 @@ $$;
 
 REVOKE ALL ON FUNCTION public.baaki_storage_release(text, text) FROM public;
 GRANT EXECUTE ON FUNCTION public.baaki_storage_release(text, text) TO service_role;
+
+-- ──────────────────────────────── reclaiming stranded R2 bytes ──
+
+/**
+ * Objects that still exist in R2 but no longer have a ledger row — the R2 key
+ * has to be deleted, but only the edge function holds an R2 credential, so the
+ * database cannot do it inline. Every removal of a `storage_objects` row drops
+ * its key here for the `storage-sweep` edge function to delete out-of-band.
+ *
+ * This is the one place that catches an object a cascade orphaned: deleting a
+ * profile or a group cascades its `storage_objects` rows away, and without this
+ * the R2 bytes would be stranded with nothing left pointing at them. The trigger
+ * fires for that cascade exactly as it does for an explicit release.
+ */
+CREATE TABLE IF NOT EXISTS public.storage_orphans (
+  logical_bucket text        NOT NULL,
+  path           text        NOT NULL,
+  enqueued_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (logical_bucket, path)
+);
+
+ALTER TABLE public.storage_orphans ENABLE ROW LEVEL SECURITY;
+-- Service-role only, like the ledger itself.
+REVOKE ALL ON public.storage_orphans FROM anon, authenticated;
+
+/**
+ * On any delete of a ledger row — explicit release, pending expiry, or a cascade
+ * from a deleted profile/group — remember the R2 key so the sweep can reclaim it.
+ * Idempotent: a key already queued (e.g. the explicit delete path already asked
+ * R2 to remove it) simply stays queued, and the sweep's R2 DELETE is itself a
+ * no-op on a missing key.
+ */
+CREATE OR REPLACE FUNCTION public.baaki_storage_enqueue_orphan()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  INSERT INTO public.storage_orphans (logical_bucket, path)
+  VALUES (OLD.logical_bucket, OLD.path)
+  ON CONFLICT (logical_bucket, path) DO NOTHING;
+  RETURN OLD;
+END
+$$;
+
+DROP TRIGGER IF EXISTS storage_objects_enqueue_orphan ON public.storage_objects;
+CREATE TRIGGER storage_objects_enqueue_orphan
+  BEFORE DELETE ON public.storage_objects
+  FOR EACH ROW EXECUTE FUNCTION public.baaki_storage_enqueue_orphan();
+
+/**
+ * Drop reservations nobody committed. A `pending` row older than the grace
+ * window is an upload that was presigned and then abandoned; deleting the row
+ * frees the cap it was holding and, via the trigger above, queues its R2 key for
+ * reclamation. Idempotent and safe to run on any schedule.
+ */
+CREATE OR REPLACE FUNCTION public.baaki_storage_expire_pending(
+  p_age interval DEFAULT interval '30 minutes'
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  WITH gone AS (
+    DELETE FROM public.storage_objects
+     WHERE pending AND updated_at <= now() - p_age
+    RETURNING 1
+  )
+  SELECT count(*) INTO v_count FROM gone;
+  RETURN v_count;
+END
+$$;
+
+REVOKE ALL ON FUNCTION public.baaki_storage_expire_pending(interval) FROM public;
+GRANT EXECUTE ON FUNCTION public.baaki_storage_expire_pending(interval) TO service_role;
+
+/** A batch of queued R2 keys for the sweep edge function to delete. */
+CREATE OR REPLACE FUNCTION public.baaki_storage_orphans(p_limit integer DEFAULT 100)
+RETURNS TABLE (logical_bucket text, path text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT logical_bucket, path
+    FROM public.storage_orphans
+   ORDER BY enqueued_at
+   LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 100), 1000));
+$$;
+
+REVOKE ALL ON FUNCTION public.baaki_storage_orphans(integer) FROM public;
+GRANT EXECUTE ON FUNCTION public.baaki_storage_orphans(integer) TO service_role;
+
+/** Forget a queued key once the sweep has deleted it from R2. */
+CREATE OR REPLACE FUNCTION public.baaki_storage_orphan_clear(
+  p_logical_bucket text,
+  p_path           text
+)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  DELETE FROM public.storage_orphans
+   WHERE logical_bucket = p_logical_bucket AND path = p_path;
+$$;
+
+REVOKE ALL ON FUNCTION public.baaki_storage_orphan_clear(text, text) FROM public;
+GRANT EXECUTE ON FUNCTION public.baaki_storage_orphan_clear(text, text) TO service_role;
+
+-- Expire abandoned reservations often, so the cap they hold is freed promptly
+-- and the ceiling stays honest without any R2 credential (pure SQL). Reclaiming
+-- the R2 *bytes* is the separate `storage-sweep` edge function's job; the
+-- operator schedules that where the R2 secret lives (docs/r2-storage.md).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_cron') THEN
+    CREATE EXTENSION IF NOT EXISTS pg_cron;
+    PERFORM cron.unschedule('baaki-storage-expire-pending')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'baaki-storage-expire-pending');
+    PERFORM cron.schedule(
+      'baaki-storage-expire-pending', '*/15 * * * *',
+      'SELECT public.baaki_storage_expire_pending()'
+    );
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_cron not scheduled: %', SQLERRM;
+END
+$$;
 
 -- ──────────────────────────────── avatar read visibility ──
 

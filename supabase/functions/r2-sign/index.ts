@@ -213,23 +213,39 @@ serveWithCors(async (request) => {
         throw new HttpError(413, 'TOO_LARGE', 'That image is too large');
       }
 
-      const { data: allowed, error } = await service.rpc('baaki_storage_can_upload', {
+      const contentType = typeof body.contentType === 'string' ? body.contentType : 'image/webp';
+
+      // Reserve the space *now*, before the URL exists — a presign the client
+      // never commits still holds cap until it is swept, which is what stops
+      // "presign forever, commit never" from filling R2 for free. Charges the
+      // client's declared length; `commit` corrects it to the true size.
+      const { error } = await service.rpc('baaki_storage_reserve', {
         p_profile_id: uid,
         p_group_id: groupId,
         p_logical_bucket: bucket,
         p_path: path,
         p_bytes: declared,
+        p_content_type: contentType,
       });
-      if (error) throw new HttpError(500, 'INTERNAL', error.message);
-      if (allowed !== true) {
-        throw new HttpError(
-          402,
-          'STORAGE_CAP',
-          'You have reached your free storage limit; upgrade to add more.',
-        );
+      if (error) {
+        const message = error.message ?? '';
+        if (message.includes('STORAGE_CAP')) {
+          throw new HttpError(
+            402,
+            'STORAGE_CAP',
+            'You have reached your free storage limit; upgrade to add more.',
+          );
+        }
+        if (message.includes('STORAGE_TOO_MANY_PENDING')) {
+          throw new HttpError(
+            429,
+            'TOO_MANY_PENDING',
+            'Too many uploads in flight; finish one and try again.',
+          );
+        }
+        throw new HttpError(500, 'INTERNAL', message);
       }
 
-      const contentType = typeof body.contentType === 'string' ? body.contentType : 'image/webp';
       const signed = await r2().client.sign(
         new Request(objectUrl(bucket, path), { method: 'PUT' }),
         { aws: { signQuery: true, allHeaders: true }, headers: { 'content-type': contentType } },
@@ -259,8 +275,15 @@ serveWithCors(async (request) => {
         p_content_type: contentType,
       });
       if (error) {
-        // The cap boundary. Drop the object we just took and refuse.
+        // The cap boundary — the reservation trusted a declared size, the object
+        // landed larger. Drop what we just took, release the reservation it still
+        // holds (so its bytes stop counting against the cap), and refuse.
         await r2().client.fetch(objectUrl(bucket, path), { method: 'DELETE' });
+        try {
+          await service.rpc('baaki_storage_release', { p_logical_bucket: bucket, p_path: path });
+        } catch {
+          // Best-effort — the pending row is swept even if this release misses.
+        }
         if (error.message.includes('STORAGE_CAP')) {
           throw new HttpError(
             402,

@@ -108,8 +108,16 @@ export async function putImage(input: PutImageInput): Promise<string> {
     method: 'PUT',
     headers: { 'content-type': input.contentType },
     body: bytes,
+  }).catch((cause) => {
+    throw new Error(`Upload failed: ${cause instanceof Error ? cause.message : 'network error'}`);
   });
-  if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+  if (!put.ok) {
+    // `put` already reserved this path's bytes against the cap. The upload did
+    // not land, so release the reservation rather than leave it holding cap until
+    // the 30-minute sweep. Best-effort: the sweep is the backstop either way.
+    await signCall({ action: 'delete', bucket: input.bucket, path: input.path }).catch(() => {});
+    throw new Error(`Upload failed (${put.status})`);
+  }
 
   // Record it — and hit the real cap boundary, which can still refuse here.
   await signCall({
