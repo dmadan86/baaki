@@ -38,6 +38,10 @@ export interface GroupRow {
   cover_emoji: string | null;
   /** Object path in the private `group-photos` bucket, or null. */
   photo_path: string | null;
+  /** Raw token of the group's durable join link (re-showable as a QR), or null
+   *  until first created. Member-only (the group row is RLS-scoped). Optional
+   *  because the narrow REST selects omit it; the `*` mirror pull carries it. */
+  join_token?: string | null;
   /** ISO dates, both ends inclusive. Null on a group that is not a trip. */
   start_date: string | null;
   end_date: string | null;

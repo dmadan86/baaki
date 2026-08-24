@@ -1255,6 +1255,12 @@ export interface UiStrings {
     shareAnotherWay: string;
     copyLink: string;
     createLink: string;
+    /** Body under "anyone with the link" — the durable-link explainer. */
+    durableLinkBody: string;
+    /** Admin action to rotate the durable link. */
+    resetLink: string;
+    /** Confirm body before rotating. */
+    resetLinkBody: string;
     linkCopied: string;
     expires: string;
     usesBadge: string;
@@ -2924,6 +2930,11 @@ const en: UiStrings = {
     shareAnotherWay: 'Share another way',
     copyLink: 'Copy link',
     createLink: 'Create an invite link',
+    durableLinkBody:
+      'Anyone with this link or QR can join. It stays the same every time — reset it if it spreads too far.',
+    resetLink: 'Reset link',
+    resetLinkBody:
+      'The current link and QR stop working. Everyone you already invited is unaffected.',
     linkCopied: 'Link copied',
     expires: 'expires {when}',
     usesBadge: '{count} uses',
@@ -4689,6 +4700,11 @@ const ta: UiStrings = {
     shareAnotherWay: 'வேறு வழியில் பகிர்',
     copyLink: 'இணைப்பை நகலெடு',
     createLink: 'அழைப்பு இணைப்பை உருவாக்கு',
+    durableLinkBody:
+      'இந்த இணைப்பு அல்லது QR உள்ள யாரும் சேரலாம். இது எப்போதும் ஒரே மாதிரியாக இருக்கும் — அதிகம் பரவினால் மீட்டமை.',
+    resetLink: 'இணைப்பை மீட்டமை',
+    resetLinkBody:
+      'தற்போதைய இணைப்பும் QR-ம் வேலை செய்யாது. நீங்கள் ஏற்கனவே அழைத்தவர்கள் பாதிக்கப்பட மாட்டார்கள்.',
     linkCopied: 'இணைப்பு நகலெடுக்கப்பட்டது',
     expires: '{when} க்கு காலாவதி',
     usesBadge: '{count} பயன்பாடுகள்',
@@ -6440,6 +6456,11 @@ const hi: UiStrings = {
     shareAnotherWay: 'किसी और तरीके से साझा करें',
     copyLink: 'लिंक कॉपी करें',
     createLink: 'निमंत्रण लिंक बनाएँ',
+    durableLinkBody:
+      'इस लिंक या QR वाला कोई भी जुड़ सकता है। यह हर बार एक जैसा रहता है — ज़्यादा फैल जाए तो रीसेट करें।',
+    resetLink: 'लिंक रीसेट करें',
+    resetLinkBody:
+      'मौजूदा लिंक और QR काम करना बंद कर देंगे। जिन्हें आपने पहले बुलाया है वे प्रभावित नहीं होंगे।',
     linkCopied: 'लिंक कॉपी हो गया',
     expires: '{when} को खत्म',
     usesBadge: '{count} उपयोग',
@@ -8205,6 +8226,10 @@ const ar: UiStrings = {
     shareAnotherWay: 'شارك بطريقة أخرى',
     copyLink: 'نسخ الرابط',
     createLink: 'أنشئ رابط دعوة',
+    durableLinkBody:
+      'يمكن لأي شخص لديه هذا الرابط أو رمز QR الانضمام. يبقى كما هو في كل مرة — أعِد تعيينه إذا انتشر كثيرًا.',
+    resetLink: 'إعادة تعيين الرابط',
+    resetLinkBody: 'يتوقف الرابط ورمز QR الحاليان عن العمل. لن يتأثر من دعوتهم من قبل.',
     linkCopied: 'تم نسخ الرابط',
     expires: 'ينتهي {when}',
     usesBadge: '{count} استخدامات',

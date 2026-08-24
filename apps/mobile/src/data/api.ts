@@ -1010,6 +1010,28 @@ export async function revokeInvite(inviteId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * The group's durable join link (WhatsApp-style): a stable, re-showable token,
+ * made on first use. Any member may fetch it; it is the same token on every call
+ * while it is live, so the QR is stable across opens and devices.
+ */
+export async function ensureGroupJoinToken(groupId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('baaki_ensure_group_join_token', {
+    p_group_id: groupId,
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/** Rotate the durable link (admin only) — the old QR and every shared copy die. */
+export async function resetGroupJoinToken(groupId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('baaki_reset_group_join_token', {
+    p_group_id: groupId,
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
 // ──────────────────────────────────────── export (ADR-012) ──
 
 export interface ExportResult {
