@@ -8,7 +8,14 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { formatMinor, PdfBuilder, winAnsi } from '../src/export/pdf';
+import {
+  CONTENT_WIDTH,
+  columnsMaxWidth,
+  formatMinor,
+  LEDGER_TABLE_COLUMNS,
+  PdfBuilder,
+  winAnsi,
+} from '../src/export/pdf';
 
 describe('formatMinor', () => {
   it('uses each currency’s own decimal places', () => {
@@ -58,5 +65,20 @@ describe('PdfBuilder', () => {
     const pdf = new PdfBuilder().build();
     expect(pdf).toContain('/Type /Page');
     expect(pdf.trimEnd().endsWith('%%EOF')).toBe(true);
+  });
+
+  it('keeps the ledger table within the printable page width', () => {
+    // The last column is cut off if the row is wider than the page; this is the
+    // guard that the export's chosen widths clear it.
+    const widths = LEDGER_TABLE_COLUMNS.map((column) => column.width);
+    expect(columnsMaxWidth(widths, 9)).toBeLessThanOrEqual(CONTENT_WIDTH);
+  });
+
+  it('truncates an overflowing cell with an ASCII marker, never a ? ellipsis', () => {
+    const pdf = new PdfBuilder()
+      .columns([{ text: 'x'.repeat(400), width: LEDGER_TABLE_COLUMNS[1].width }])
+      .build();
+    expect(pdf).toContain('...'); // ASCII, draws correctly in WinAnsi
+    expect(pdf).not.toContain('…'); // U+2026 would render as '?'
   });
 });

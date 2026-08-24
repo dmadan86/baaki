@@ -41,7 +41,41 @@ const PAGE_HEIGHT = 842;
 const MARGIN = 44;
 const BOTTOM = MARGIN;
 
+/** The printable width of one line, in points, once both margins are taken. */
+export const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2; // 507
+
 type FontId = 'F1' | 'F2' | 'F3'; // Helvetica, Helvetica-Bold, Courier
+
+/** Points per Courier glyph at a given size (Courier is a true monospace). */
+const COURIER_EM = 0.6;
+
+/**
+ * The upper-bound rendered width, in points, of a `columns()` row with these
+ * point widths — before the trailing gap is trimmed. Each column is floored to
+ * a whole number of Courier glyphs and padded with one separator glyph, exactly
+ * as `columns()` lays it out, so a row that clears CONTENT_WIDTH here is
+ * guaranteed not to be clipped when the page is drawn.
+ */
+export function columnsMaxWidth(widths: readonly number[], size = 9): number {
+  const perChar = size * COURIER_EM;
+  let chars = 0;
+  for (const width of widths) chars += Math.max(1, Math.floor(width / perChar)) + 1;
+  return chars * perChar;
+}
+
+/**
+ * The expenses table's columns, in points, sized so the whole row clears
+ * CONTENT_WIDTH at 9pt Courier (guarded by a test). Shared with the export
+ * function so the widths that lay out the header are the widths that lay out
+ * every row — and the same widths a test measures against the page.
+ */
+export const LEDGER_TABLE_COLUMNS = [
+  { key: 'date', width: 56 },
+  { key: 'description', width: 160 },
+  { key: 'category', width: 68 },
+  { key: 'amount', width: 98 },
+  { key: 'paidBy', width: 78 },
+] as const;
 
 interface Line {
   readonly text: string;
@@ -75,18 +109,26 @@ function pdfString(input: string): string {
 }
 
 /** Rough width of a base-14 string at a size, for truncation only. */
-function approxWidth(text: string, font: FontId, size: number): number {
-  // Courier is a true monospace at 0.6em; Helvetica averages ~0.5em.
-  const em = font === 'F3' ? 0.6 : 0.5;
-  return text.length * size * em;
+function emOf(font: FontId): number {
+  // Courier is a true monospace; Helvetica averages ~0.5em.
+  return font === 'F3' ? COURIER_EM : 0.5;
 }
 
-/** Truncate with an ellipsis so a long cell never runs off the page. */
+function approxWidth(text: string, font: FontId, size: number): number {
+  return text.length * size * emOf(font);
+}
+
+/**
+ * Truncate a cell that would run off the page. The marker is an ASCII '...',
+ * not '…' (U+2026), because the base-14 WinAnsi encoding has no ellipsis glyph
+ * and would draw it as '?'. Three dots cost two extra glyphs, so we make room
+ * for them.
+ */
 function clip(text: string, font: FontId, size: number, maxWidth: number): string {
   if (approxWidth(text, font, size) <= maxWidth) return text;
-  const perChar = (font === 'F3' ? 0.6 : 0.5) * size;
-  const room = Math.max(1, Math.floor(maxWidth / perChar) - 1);
-  return `${text.slice(0, room)}…`;
+  const perChar = emOf(font) * size;
+  const room = Math.max(1, Math.floor(maxWidth / perChar) - 3);
+  return `${text.slice(0, room)}...`;
 }
 
 export class PdfBuilder {
@@ -124,7 +166,7 @@ export class PdfBuilder {
   columns(cells: readonly { text: string; width: number }[], size = 9): this {
     let line = '';
     for (const cell of cells) {
-      const chars = Math.max(1, Math.floor(cell.width / (size * 0.6)));
+      const chars = Math.max(1, Math.floor(cell.width / (size * COURIER_EM)));
       const text = clip(cell.text, 'F3', size, cell.width);
       line += text.padEnd(chars + 1, ' ');
     }
@@ -133,7 +175,7 @@ export class PdfBuilder {
 
   /** Lay the lines out into paginated content streams. */
   private paginate(): string[] {
-    const usableWidth = PAGE_WIDTH - MARGIN * 2;
+    const usableWidth = CONTENT_WIDTH;
     const pages: string[] = [];
     let stream = '';
     let y = PAGE_HEIGHT - MARGIN;
