@@ -96,12 +96,14 @@ export function carRentalSplit(input: CarRentalInput): CarRentalSplit {
         `A fuel/toll extra cannot be negative (${amount} for ${member})`,
       );
     }
-    // An extra for the excused driver would put them back in the split; that is
-    // a contradiction, so refuse it rather than silently re-including them.
-    if (member === input.exemptDriver) {
+    // The extra must name someone actually sharing the car — which excludes
+    // the excused driver (already filtered out) and anyone who was never a
+    // rider. Otherwise computeShares would later reject it as an unknown
+    // member; catching it here names the real mistake.
+    if (!participants.includes(member)) {
       throw new SplitError(
         SplitErrorCode.UnknownMember,
-        'The exempt driver cannot also carry a fuel/toll extra',
+        `A fuel/toll extra names "${member}", who is not sharing the car`,
       );
     }
     adjustments[member] = amount;
