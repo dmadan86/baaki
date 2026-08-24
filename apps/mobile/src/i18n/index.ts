@@ -303,10 +303,9 @@ export interface UiStrings {
    */
   onboarding: readonly { title: string; body: string }[];
   plan: string;
-  /** Trip map: expense pins, with a places-list fallback when no map module. */
+  /** Trip places: a list of located expenses that hands off to the OS maps app. */
   tripMap: {
     title: string;
-    places: string;
     empty: string;
     emptyBody: string;
     openInMaps: string;
@@ -1926,10 +1925,9 @@ const en: UiStrings = {
   },
   plan: 'Plan',
   tripMap: {
-    title: 'Map',
-    places: 'Places',
+    title: 'Places',
     empty: 'No places yet',
-    emptyBody: 'Add a location to an expense to see it on the map.',
+    emptyBody: 'Add a location to an expense to see it here.',
     openInMaps: 'Open in Maps',
   },
   dayNumber: 'day {n}',
@@ -3563,10 +3561,9 @@ const ta: UiStrings = {
   },
   plan: 'திட்டம்',
   tripMap: {
-    title: 'வரைபடம்',
-    places: 'இடங்கள்',
+    title: 'இடங்கள்',
     empty: 'இன்னும் இடங்கள் இல்லை',
-    emptyBody: 'ஒரு செலவுக்கு இடத்தைச் சேர்த்தால் அது வரைபடத்தில் தெரியும்.',
+    emptyBody: 'ஒரு செலவுக்கு இடத்தைச் சேர்த்தால் அது இங்கே தெரியும்.',
     openInMaps: 'வரைபடத்தில் திற',
   },
   dayNumber: 'நாள் {n}',
@@ -5265,10 +5262,9 @@ const hi: UiStrings = {
   },
   plan: 'योजना',
   tripMap: {
-    title: 'नक्शा',
-    places: 'जगहें',
+    title: 'जगहें',
     empty: 'अभी कोई जगह नहीं',
-    emptyBody: 'किसी खर्च में जगह जोड़ें, वह नक्शे पर दिखेगी.',
+    emptyBody: 'किसी खर्च में जगह जोड़ें, वह यहाँ दिखेगी.',
     openInMaps: 'नक्शे में खोलें',
   },
   dayNumber: 'दिन {n}',
@@ -6917,10 +6913,9 @@ const ar: UiStrings = {
   },
   plan: 'الخطة',
   tripMap: {
-    title: 'الخريطة',
-    places: 'الأماكن',
+    title: 'الأماكن',
     empty: 'لا أماكن بعد',
-    emptyBody: 'أضف موقعًا إلى مصروف لتراه على الخريطة.',
+    emptyBody: 'أضف موقعًا إلى مصروف لتراه هنا.',
     openInMaps: 'افتح في الخرائط',
   },
   dayNumber: 'اليوم {n}',

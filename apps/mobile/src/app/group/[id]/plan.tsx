@@ -389,7 +389,7 @@ export default function PlanScreen() {
               label={t.tripMap.title}
               onPress={() => router.push(`/group/${groupId}/map`)}
             >
-              <Ionicons name="map-outline" size={iconSize.lg} color={theme.color.text} />
+              <Ionicons name="location-outline" size={iconSize.lg} color={theme.color.text} />
             </IconButton>
           ) : null}
         </Row>
