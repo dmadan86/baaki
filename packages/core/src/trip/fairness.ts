@@ -115,7 +115,7 @@ export function fairness(
         netMinor: paid - owed,
         paidRatio: ratioOf(paid, totalPaid),
       }))
-      .sort((a, b) => b.paidRatio - a.paidRatio || a.member.localeCompare(b.member));
+      .sort((a, b) => b.paidRatio - a.paidRatio || compareId(a.member, b.member));
 
     // The fair share of the *fronting* is 1/n; the flag trips past a multiple of
     // it. n counts members who took any part in this currency.
@@ -127,14 +127,18 @@ export function fairness(
         ? { member: leader.member, paidRatio: leader.paidRatio }
         : null;
 
-    // Who should pay next: the furthest-negative net. Null when nobody has
-    // underpaid (everyone is square or a creditor) — there is no one to nudge.
+    // Who should pay next: the furthest-negative net. Only underpayers are
+    // candidates; null when nobody has underpaid (everyone is square or a
+    // creditor). Ties break by member id so every device agrees on who — the
+    // paidRatio order the rows are in is not a stable enough tiebreak.
     let nextPayer: string | null = null;
-    let worst = 0n;
+    let worst: bigint | null = null;
     for (const row of rows) {
+      if (row.netMinor >= 0n) continue;
       if (
+        worst === null ||
         row.netMinor < worst ||
-        (row.netMinor === worst && nextPayer === null && row.netMinor < 0n)
+        (row.netMinor === worst && row.member < nextPayer!)
       ) {
         worst = row.netMinor;
         nextPayer = row.member;
@@ -144,5 +148,11 @@ export function fairness(
     out.push({ currency, totalPaidMinor: totalPaid, members: rows, overpayer, nextPayer });
   }
 
-  return out.sort((a, b) => a.currency.localeCompare(b.currency));
+  return out.sort((a, b) => compareId(a.currency, b.currency));
+}
+
+/** Deterministic string order by code unit — locale-independent, so every
+ * device sorts identically (localeCompare's default locale is not). */
+function compareId(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }

@@ -654,7 +654,7 @@ export default function PlanScreen() {
               >
                 <View>
                   <Text variant="caption" tone="muted">
-                    {t.tripInsights.projectedTotal}
+                    {f.ended ? t.tripInsights.total : t.tripInsights.projectedTotal}
                   </Text>
                   <MoneyText
                     amount={f.projectedTotalMinor}

@@ -69,8 +69,15 @@ export function forecast(input: ForecastInput): Forecast[] {
 
   const budgetCurrency = input.budget ? input.budget.currency.toUpperCase() : null;
 
-  const currencies = new Set<string>();
-  for (const key of Object.keys(input.spentByCurrency)) currencies.add(key.toUpperCase());
+  // Normalise the spend map up front so a lowercase-keyed input still matches
+  // the uppercased currency the forecast is keyed on.
+  const spentByCurrency: Record<string, bigint> = {};
+  for (const [key, value] of Object.entries(input.spentByCurrency)) {
+    const code = key.toUpperCase();
+    spentByCurrency[code] = (spentByCurrency[code] ?? 0n) + value;
+  }
+
+  const currencies = new Set<string>(Object.keys(spentByCurrency));
   if (budgetCurrency) currencies.add(budgetCurrency);
 
   const elapsed = BigInt(elapsedDays);
@@ -78,7 +85,7 @@ export function forecast(input: ForecastInput): Forecast[] {
 
   const out: Forecast[] = [];
   for (const currency of currencies) {
-    const spent = input.spentByCurrency[currency] ?? 0n;
+    const spent = spentByCurrency[currency] ?? 0n;
     const projected = (spent * total) / elapsed; // bigint, truncating
     const capMinor = budgetCurrency === currency ? (input.budget?.amountMinor ?? null) : null;
 
@@ -96,5 +103,5 @@ export function forecast(input: ForecastInput): Forecast[] {
     });
   }
 
-  return out.sort((a, b) => a.currency.localeCompare(b.currency));
+  return out.sort((a, b) => (a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0));
 }

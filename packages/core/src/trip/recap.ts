@@ -80,10 +80,6 @@ export interface RecapInput {
   readonly endDate?: string | null;
 }
 
-function max(a: bigint, b: bigint): bigint {
-  return a > b ? a : b;
-}
-
 /**
  * Reduce a ledger to its recap. Deterministic: ties (equal category totals,
  * equal payer totals) break by name/id so the same trip recaps the same way on
@@ -179,9 +175,11 @@ export function recap(input: RecapInput): Recap {
       }
     }
 
-    // Prefer the trip's real length so a two-day trip with spend on one day
-    // still averages over two. Never divide by zero.
-    const dayCount = max(BigInt(tripDays), BigInt(block.days.size)) || 1n;
+    // The trip's real length is the honest denominator when it's known — a
+    // two-day trip with spend on one day still averages over two. Only when the
+    // trip has no dates does the average fall back to days that had spend.
+    // Never divide by zero.
+    const dayCount = (tripDays > 0 ? BigInt(tripDays) : BigInt(block.days.size)) || 1n;
 
     return {
       currency,
@@ -197,7 +195,7 @@ export function recap(input: RecapInput): Recap {
 
   byCurrency.sort((a, b) => {
     if (a.totalMinor !== b.totalMinor) return a.totalMinor > b.totalMinor ? -1 : 1;
-    return a.currency.localeCompare(b.currency);
+    return a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0;
   });
 
   return {
