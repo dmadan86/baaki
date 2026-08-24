@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, ScrollView, TextInput, View } from 'react-native';
 
-import { isValidVpa } from '@waves/core';
+import { currencyExposure, isValidVpa } from '@waves/core';
 import {
   Avatar,
   Badge,
@@ -109,6 +109,21 @@ export default function MemberScreen() {
     expense.currentVersion?.shares.some((share) => share.member_id === member.id),
   );
 
+  // What this person actually fronted, per currency (ADR-004: never summed into
+  // one). "You paid ₹12,400, €90 and ฿2,100" — the honest answer on a trip that
+  // touched more than one currency, drawn from the payments the ledger stored.
+  const paidExposure = currencyExposure(
+    expenses.rows.reduce<Record<string, bigint>>((acc, expense) => {
+      const version = expense.currentVersion;
+      if (!version || expense.deleted_at) return acc;
+      for (const payer of version.payers) {
+        if (payer.member_id !== member.id) continue;
+        acc[version.currency] = (acc[version.currency] ?? 0n) + BigInt(payer.amount);
+      }
+      return acc;
+    }, {}),
+  );
+
   const save = (patch: { ghost_name?: string; vpa?: string | null }): void => {
     setStatus(null);
     updateMember.mutate(
@@ -177,6 +192,33 @@ export default function MemberScreen() {
             <Button label={t.settleUp} onPress={() => router.push(`/group/${groupId}/settle`)} />
           ) : null}
         </TintCard>
+
+        {paidExposure.length > 0 ? (
+          <Card style={{ gap: theme.spacing.sm }}>
+            <Text variant="caption" tone="muted">
+              {t.people.paidAcross}
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: theme.spacing.md,
+              }}
+            >
+              {paidExposure.map((entry) => (
+                <MoneyText
+                  key={entry.currency}
+                  amount={entry.amountMinor}
+                  currency={entry.currency}
+                  locale={locale}
+                  variant="subheading"
+                  mode="plain"
+                />
+              ))}
+            </View>
+          </Card>
+        ) : null}
 
         {ghost ? (
           <Card style={{ gap: theme.spacing.md }}>
