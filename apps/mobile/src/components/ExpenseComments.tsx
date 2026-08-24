@@ -63,17 +63,44 @@ export function ExpenseComments({
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState('');
+  // Just-posted comments, shown at once so a text comment feels instant instead
+  // of waiting on the sync pull that carries it back from the mirror. Each drops
+  // out of the merge below the moment the mirror row with the same id arrives.
+  const [optimistic, setOptimistic] = useState<ExpenseCommentRow[]>([]);
 
-  const rows = comments.data;
+  const mirrorRows = comments.data;
+  const mirrorIds = new Set(mirrorRows.map((r) => r.id));
+  const rows = [...mirrorRows, ...optimistic.filter((o) => !mirrorIds.has(o.id))];
 
   const submit = () => {
     const body = draft.trim();
     if (body === '') return;
+    setDraft('');
     add.mutate(
       { body },
       {
-        onSuccess: () => setDraft(''),
-        onError: () => Alert.alert(t.comments.couldNotPost),
+        onSuccess: (result) => {
+          if (result) {
+            setOptimistic((current) => [
+              ...current,
+              {
+                id: result.id,
+                expenseId,
+                groupId,
+                authorMemberId: myMemberId,
+                body: result.body,
+                editedAt: null,
+                flaggedAt: null,
+                flaggedBy: null,
+                createdAt: new Date().toISOString(),
+              },
+            ]);
+          }
+        },
+        onError: () => {
+          setDraft(body);
+          Alert.alert(t.comments.couldNotPost);
+        },
       },
     );
   };

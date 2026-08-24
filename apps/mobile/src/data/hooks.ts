@@ -1769,20 +1769,26 @@ export function useExpenseComments(expenseId: string): LocalRead<ExpenseCommentR
   return useLocalRead(rows);
 }
 
-/** Add a comment (any member). Client-chosen id is the idempotency key. */
+/**
+ * Add a comment (any member). Client-chosen id is the idempotency key, and it is
+ * returned so the caller can echo the comment optimistically — a text comment
+ * should feel instant, not wait on the pull that brings it back from the mirror.
+ */
 export function useAddExpenseComment(groupId: string, expenseId: string) {
   const { flush } = useSync();
   return useMutation({
-    mutationFn: async (input: { body: string }) => {
+    mutationFn: async (input: { body: string }): Promise<{ id: string; body: string } | null> => {
       const body = input.body.trim();
-      if (body === '') return;
+      if (body === '') return null;
+      const id = randomUUID();
       const { error } = await supabase.rpc('baaki_add_expense_comment', {
         p_group_id: groupId,
         p_expense_id: expenseId,
-        p_comment_id: randomUUID(),
+        p_comment_id: id,
         p_body: body,
       });
       if (error) throw new Error(error.message);
+      return { id, body };
     },
     onSuccess: () => void flush(),
   });
