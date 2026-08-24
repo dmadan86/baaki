@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import * as Clipboard from 'expo-clipboard';
@@ -72,6 +72,20 @@ export default function InviteScreen() {
       setBusy(false);
     }
   };
+
+  // The QR is the point of this screen, so it should be here when the screen
+  // opens — not behind a "create link" tap. Mint once on open so the code is
+  // ready to scan straight away; a failure drops to a retry button below, and
+  // sharing/copying just reuse the link this produced. Runs once per visit
+  // (a ref guard), the same volume the manual button produced.
+  const minted = useRef(false);
+  useEffect(() => {
+    if (minted.current || groupId === '') return;
+    minted.current = true;
+    void mint();
+    // mint closes over groupId; a one-shot on open, deps intentionally minimal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId]);
 
   const label = groupLabel(group.data, members.data ?? [], profile?.id);
   const message = t.people.shareMessage.replace('{group}', label).replace('{link}', link ?? '');
@@ -338,17 +352,27 @@ export default function InviteScreen() {
               {t.people.mintMistakeNote}
             </Text>
           </>
+        ) : busy ? (
+          // The auto-mint is in flight: hold the QR's place with a spinner so the
+          // screen reads as "your code is coming", not as an empty form.
+          <Card
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: theme.spacing.xxxl,
+              gap: theme.spacing.md,
+            }}
+          >
+            <ActivityIndicator color={theme.color.brand} />
+            <Text variant="caption" tone="muted">
+              {t.common.loading}
+            </Text>
+          </Card>
         ) : (
-          <Button
-            label={t.people.createLink}
-            size="lg"
-            fullWidth
-            disabled={busy}
-            onPress={() => void mint()}
-          />
+          // Only reached when the auto-mint failed — a retry, not a first step.
+          <Button label={t.people.createLink} size="lg" fullWidth onPress={() => void mint()} />
         )}
 
-        {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
         {error ? <Callout tone="negative">{error}</Callout> : null}
       </ScrollView>
     </Screen>
