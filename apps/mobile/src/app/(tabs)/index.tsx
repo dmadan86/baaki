@@ -322,7 +322,7 @@ export default function HomeScreen() {
 
             {/* The corner watermark — a faint glyph per slide that crossfades
                 as you swipe, off the same scroll value as the colour. */}
-            <HeroBackdrop scrollX={heroScrollX} snap={heroSnap} />
+            <HeroBackdrop scrollX={heroScrollX} snap={heroSnap} page={heroPage} />
 
             {/* Greeting row: face + "Hi, {name}" over the time of day, then the
                 white controls the reference tucks top-right — sync, a shortcut to
@@ -1407,8 +1407,20 @@ function HeroBalanceSkeleton() {
  * it to the rounded corner (`overflow: 'hidden'`) and `pointerEvents none` so
  * it never eats a tap; white at low alpha reads the same on green/teal/indigo.
  */
-function HeroBackdrop({ scrollX, snap }: { scrollX: Animated.Value; snap: number }) {
+function HeroBackdrop({
+  scrollX,
+  snap,
+  page,
+}: {
+  scrollX: Animated.Value;
+  snap: number;
+  page: number;
+}) {
   const theme = useTheme();
+  // Reduced-motion users get the current slide's mark held static instead of the
+  // scroll-linked crossfade — the same `animated` gate HeroBalance uses, so the
+  // whole hero honours the setting as one.
+  const { animated } = useMotion();
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {SLIDE_ICONS.map((icon, index) => (
@@ -1418,11 +1430,15 @@ function HeroBackdrop({ scrollX, snap }: { scrollX: Animated.Value; snap: number
             position: 'absolute',
             right: -44,
             bottom: -52,
-            opacity: scrollX.interpolate({
-              inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
-              outputRange: [0, 0.16, 0],
-              extrapolate: 'clamp',
-            }),
+            opacity: animated
+              ? scrollX.interpolate({
+                  inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
+                  outputRange: [0, 0.16, 0],
+                  extrapolate: 'clamp',
+                })
+              : index === page
+                ? 0.16
+                : 0,
           }}
         >
           <Ionicons name={icon} size={208} color={theme.color.onBrand} />
