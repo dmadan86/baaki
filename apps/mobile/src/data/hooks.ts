@@ -1671,7 +1671,9 @@ export function useExpenseAttachments(expenseId: string): LocalRead<ExpenseAttac
 
 /**
  * Attach an image to an expense at a chosen visibility. Upload → RPC → flush.
- * Returns 'cap' | 'failed' on error, null on success or a plain cancel.
+ * Resolves on success or a plain cancel (nothing picked); throws on a real
+ * failure, and cleans up the R2 object if the RPC rejected after the upload
+ * committed. The caller surfaces the throw.
  */
 export function useAttachExpenseAttachment(groupId: string, expenseId: string) {
   const { flush } = useSync();

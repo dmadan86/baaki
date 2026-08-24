@@ -194,13 +194,17 @@ BEGIN
     RAISE EXCEPTION 'INVALID_PATH: a proof needs a stored image' USING ERRCODE = 'check_violation';
   END IF;
 
-  IF p_proof_id IS NOT NULL THEN
-    SELECT id INTO v_id FROM public.settlement_proofs WHERE id = p_proof_id;
-    IF v_id IS NOT NULL THEN
-      RETURN v_id;
-    END IF;
+  -- The object key MUST be scoped to this subject: `<settlementId>/…`. This is
+  -- the canonical contract the client and r2-sign both hold, and it stops a party
+  -- to one settlement recording a path under another's prefix.
+  IF p_storage_path NOT LIKE p_settlement_id::text || '/%' THEN
+    RAISE EXCEPTION 'INVALID_PATH: the key must be scoped to its settlement'
+      USING ERRCODE = 'check_violation';
   END IF;
 
+  -- Authorise BEFORE resolving the client-supplied id. Resolving first would let
+  -- a non-party who guesses an existing id short-circuit to a success (an
+  -- existence oracle), and skip the party check entirely.
   SELECT group_id INTO v_group_id FROM public.settlements WHERE id = p_settlement_id;
   IF v_group_id IS NULL THEN
     RAISE EXCEPTION 'NOT_FOUND: no such settlement' USING ERRCODE = 'no_data_found';
@@ -209,6 +213,17 @@ BEGIN
   IF NOT public.baaki_is_settlement_party(p_settlement_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only the payer or payee may attach a proof'
       USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- Replay: the SAME id for the SAME settlement returns the existing row. Bound
+  -- to the subject so a reused id against a different settlement cannot pass.
+  IF p_proof_id IS NOT NULL THEN
+    SELECT id INTO v_id
+    FROM public.settlement_proofs
+    WHERE id = p_proof_id AND settlement_id = p_settlement_id;
+    IF v_id IS NOT NULL THEN
+      RETURN v_id;
+    END IF;
   END IF;
 
   -- One live proof per settlement. A replay reuses the same id (caught above);
@@ -295,13 +310,13 @@ BEGIN
     RAISE EXCEPTION 'INVALID_VISIBILITY: group or parties' USING ERRCODE = 'check_violation';
   END IF;
 
-  IF p_attachment_id IS NOT NULL THEN
-    SELECT id INTO v_id FROM public.expense_attachments WHERE id = p_attachment_id;
-    IF v_id IS NOT NULL THEN
-      RETURN v_id;
-    END IF;
+  -- The key MUST be scoped to this expense: `<expenseId>/…` (see the proof RPC).
+  IF p_storage_path NOT LIKE p_expense_id::text || '/%' THEN
+    RAISE EXCEPTION 'INVALID_PATH: the key must be scoped to its expense'
+      USING ERRCODE = 'check_violation';
   END IF;
 
+  -- Authorise before resolving the client id (an existence oracle otherwise).
   SELECT group_id INTO v_group_id FROM public.expenses WHERE id = p_expense_id;
   IF v_group_id IS NULL THEN
     RAISE EXCEPTION 'NOT_FOUND: no such expense' USING ERRCODE = 'no_data_found';
@@ -310,6 +325,16 @@ BEGIN
   IF NOT public.baaki_is_expense_party(p_expense_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only a payer or the author may attach to this expense'
       USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- Replay bound to the subject: same id + same expense returns the existing row.
+  IF p_attachment_id IS NOT NULL THEN
+    SELECT id INTO v_id
+    FROM public.expense_attachments
+    WHERE id = p_attachment_id AND expense_id = p_expense_id;
+    IF v_id IS NOT NULL THEN
+      RETURN v_id;
+    END IF;
   END IF;
 
   v_member := public.baaki_my_member_id(v_group_id);

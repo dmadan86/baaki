@@ -28,7 +28,16 @@ import { useStrings } from '@/i18n';
 
 const THUMB = 96;
 
-function useRestrictedUrl(expenseId: string, path: string | null): string | null {
+/**
+ * Resolve a restricted key to a URL, distinguishing "still resolving" from
+ * "resolved to nothing" — otherwise a signing failure or a disabled backend
+ * spins a thumbnail forever. `resolved` flips true once the async settles, even
+ * when the URL came back null, so a caller can show a fallback instead.
+ */
+function useRestrictedUrl(
+  expenseId: string,
+  path: string | null,
+): { url: string | null; resolved: boolean } {
   // The async resolve is the only writer, keyed by the path it was for — so a
   // quick switch to another attachment never shows the previous one's URL, and
   // no setState runs synchronously in the effect (that cascades renders).
@@ -44,7 +53,9 @@ function useRestrictedUrl(expenseId: string, path: string | null): string | null
       active = false;
     };
   }, [expenseId, path]);
-  return path && fetched && fetched.path === path ? fetched.url : null;
+  if (!path) return { url: null, resolved: true };
+  if (fetched && fetched.path === path) return { url: fetched.url, resolved: true };
+  return { url: null, resolved: false };
 }
 
 function AttachmentThumb({
@@ -57,10 +68,17 @@ function AttachmentThumb({
   onPress: () => void;
 }): React.JSX.Element {
   const theme = useTheme();
-  const url = useRestrictedUrl(expenseId, row.storagePath);
+  const { t } = useStrings();
+  const { url, resolved } = useRestrictedUrl(expenseId, row.storagePath);
+  const label =
+    row.visibility === 'parties'
+      ? `${t.attachments.title} — ${t.attachments.payersOnly}`
+      : t.attachments.title;
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       style={{
         width: THUMB,
         height: THUMB,
@@ -73,7 +91,11 @@ function AttachmentThumb({
         <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
       ) : (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={theme.color.textFaint} />
+          {resolved ? (
+            <Ionicons name="image-outline" size={iconSize.lg} color={theme.color.textFaint} />
+          ) : (
+            <ActivityIndicator color={theme.color.textFaint} />
+          )}
         </View>
       )}
       {row.visibility === 'parties' ? (
@@ -109,7 +131,10 @@ export function ExpenseAttachments({
   const attach = useAttachExpenseAttachment(groupId, expenseId);
   const remove = useRemoveExpenseAttachment(expenseId);
   const [viewing, setViewing] = useState<ExpenseAttachmentRow | null>(null);
-  const viewingUrl = useRestrictedUrl(expenseId, viewing?.storagePath ?? null);
+  const { url: viewingUrl, resolved: viewingResolved } = useRestrictedUrl(
+    expenseId,
+    viewing?.storagePath ?? null,
+  );
 
   const rows = attachments.data;
 
@@ -220,7 +245,11 @@ export function ExpenseAttachments({
             <ZoomableImage uri={viewingUrl} />
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator color={theme.color.brand} />
+              {viewingResolved ? (
+                <Ionicons name="image-outline" size={iconSize.xl} color={theme.color.textFaint} />
+              ) : (
+                <ActivityIndicator color={theme.color.brand} />
+              )}
             </View>
           )}
         </View>

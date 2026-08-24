@@ -138,6 +138,29 @@ describe('settlement proofs', () => {
     });
   });
 
+  it('T15 — a key not scoped to the subject is refused', async () => {
+    await as(g.profileIds[0] as string, async () => {
+      const message = await expectDenied(attachProof(settlementId, `not-the-subject/x.webp`));
+      expect(message).toMatch(/INVALID_PATH/);
+    });
+  });
+
+  it('T16 — a non-party replaying an existing id is denied, not handed the row', async () => {
+    // The replay short-circuit must not run before the party check, or a
+    // non-party who supplies a real id gets a success — an existence oracle.
+    const proofId = await as(g.profileIds[0] as string, () =>
+      attachProof(settlementId, `${settlementId}/${randomUUID()}.webp`).then((r) =>
+        String(r.rows[0].id),
+      ),
+    );
+    await as(g.profileIds[2] as string, async () => {
+      const message = await expectDenied(
+        attachProof(settlementId, `${settlementId}/${randomUUID()}.webp`, proofId),
+      );
+      expect(message).toMatch(/NOT_A_PARTY/);
+    });
+  });
+
   it('T9/T11-write — the table is not writable directly (uploader cannot be forged)', async () => {
     await as(g.profileIds[0] as string, async () => {
       const message = await expectDenied(
@@ -183,7 +206,7 @@ describe('settlement proofs', () => {
 describe('expense attachments', () => {
   it('T3 — a group-visible attachment is seen by every member', async () => {
     await as(g.profileIds[0] as string, () =>
-      attachExpense(expenseId, `${g.groupId}/${randomUUID()}.webp`, 'group'),
+      attachExpense(expenseId, `${expenseId}/${randomUUID()}.webp`, 'group'),
     );
     for (const pid of g.profileIds) {
       expect(await as(pid, () => countAttachments(expenseId))).toBe(1);
@@ -192,7 +215,7 @@ describe('expense attachments', () => {
 
   it('T4 — a parties-visible attachment is seen only by a party', async () => {
     await as(g.profileIds[0] as string, () =>
-      attachExpense(expenseId, `${g.groupId}/${randomUUID()}.webp`, 'parties'),
+      attachExpense(expenseId, `${expenseId}/${randomUUID()}.webp`, 'parties'),
     );
     expect(await as(g.profileIds[0] as string, () => countAttachments(expenseId))).toBe(1); // party
     expect(await as(g.profileIds[1] as string, () => countAttachments(expenseId))).toBe(0); // member, not party
@@ -202,7 +225,7 @@ describe('expense attachments', () => {
   it('T8 — a non-party cannot attach', async () => {
     await as(g.profileIds[1] as string, async () => {
       const message = await expectDenied(
-        attachExpense(expenseId, `${g.groupId}/x.webp`, 'parties'),
+        attachExpense(expenseId, `${expenseId}/x.webp`, 'parties'),
       );
       expect(message).toMatch(/NOT_A_PARTY/);
     });
@@ -251,7 +274,7 @@ describe('the outer gates', () => {
       amount: 3000n,
     });
     await as(grp.profileIds[0] as string, () =>
-      attachExpense(eid, `${grp.groupId}/${randomUUID()}.webp`, 'parties'),
+      attachExpense(eid, `${eid}/${randomUUID()}.webp`, 'parties'),
     );
     expect(await as(grp.profileIds[1] as string, () => countAttachments(eid))).toBe(1);
 

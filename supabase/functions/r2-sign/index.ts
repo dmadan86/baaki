@@ -216,6 +216,14 @@ async function authorizeWrite(
   // alone is insufficient — that is the whole point of the tier.
   if (RESTRICTED_BUCKETS.has(bucket)) {
     if (!subjectId) throw new HttpError(400, 'BAD_SUBJECT', 'A restricted write needs a subject');
+    // The object key MUST be scoped to its subject: `<subjectId>/…`. Without this
+    // a party to one subject could name a path under another's prefix and
+    // overwrite or delete that object — the byte-door twin of the DB's own
+    // `storage_path LIKE '<subjectId>/%'` check. One canonical contract, enforced
+    // at both doors.
+    if (path.split('/')[0] !== subjectId) {
+      throw new HttpError(400, 'BAD_PATH', 'The key must be scoped to its subject');
+    }
     const groupId = await groupOfSubject(service, bucket, subjectId);
     await requireMembership(caller, groupId);
     await requireRestrictedParty(caller, bucket, subjectId);
