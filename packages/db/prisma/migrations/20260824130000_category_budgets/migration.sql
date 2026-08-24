@@ -94,3 +94,68 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.baaki_set_category_budget(uuid, text, bigint, character)
   TO authenticated, anon;
+
+-- ──────────────────────────────────────────────────────── write boundary ──
+--
+-- `groups` still carries the broad row-scoped UPDATE policy, so a signed-in
+-- client can `PATCH /groups?id=eq.<X>` under its own JWT and set any column the
+-- column guard does not pin (20260815120000). Left open, a NON-admin member
+-- could write `category_budgets` directly — bypassing the admin check in the
+-- RPC above — and could store a malformed shape that breaks every reader's
+-- `BigInt(amountMinor)`. Pin the column: a client may never write it. The only
+-- writer is `baaki_set_category_budget`, SECURITY DEFINER, which runs as the
+-- function owner and so clears the `current_user` gate below untouched.
+--
+-- Re-declared in full (CREATE OR REPLACE) from 20260815180000 so the existing
+-- updated_seq / created_by / id / created_at / photo_path guards are preserved;
+-- only the category_budgets block is added.
+CREATE OR REPLACE FUNCTION public.baaki_guard_group_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF current_user NOT IN ('anon', 'authenticated') THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.updated_seq IS DISTINCT FROM OLD.updated_seq THEN
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: updated_seq is set by the server, not the client'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.created_by IS DISTINCT FROM OLD.created_by THEN
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: a group''s creator is not yours to change'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.id IS DISTINCT FROM OLD.id THEN
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: a group''s id is not yours to change'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: a group''s creation time is not yours to change'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- A group photo is a paid feature (ADR-011 addendum). Only gate setting one;
+  -- clearing it back to NULL is free and always allowed.
+  IF NEW.photo_path IS DISTINCT FROM OLD.photo_path
+     AND NEW.photo_path IS NOT NULL
+     AND NOT public.baaki_can_upload_group_photo(NEW.id) THEN
+    RAISE EXCEPTION 'PHOTO_GATE: a group photo is a paid feature'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- Category caps are the group's, admin-set, and written only through
+  -- `baaki_set_category_budget` (owner-run, exempt above). A signed-in client
+  -- never writes this column directly — that is where the admin check and the
+  -- shape live.
+  IF NEW.category_budgets IS DISTINCT FROM OLD.category_budgets THEN
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: category budgets are set through baaki_set_category_budget, not a direct write'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  RETURN NEW;
+END
+$$;
