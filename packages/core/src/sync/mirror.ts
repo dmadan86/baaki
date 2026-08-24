@@ -67,6 +67,8 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.TripPlanItems,
   SyncTable.TripMemberBudgets,
   SyncTable.TripPhotos,
+  SyncTable.SettlementProofs,
+  SyncTable.ExpenseAttachments,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -1060,6 +1062,61 @@ export function materialiseTripPhotos(
     }
     return String(b.id).localeCompare(String(a.id));
   });
+}
+
+// ───────────────────────────────────── private / party-only attachments ──
+//
+// Pull-only: the write is a direct RPC (the bytes need an online upload anyway),
+// so there is no queue overlay — the mirror holds exactly what the party-scoped
+// pull returned. The pull reads as the caller, so a non-party never receives
+// these rows in the first place; a live read here just drops tombstones.
+
+/** A settlement's payment proof, as the mirror holds it (party-filtered rows). */
+export interface MirrorSettlementProof extends MirrorRow {
+  readonly id: string;
+  readonly settlement_id: string;
+  readonly group_id: string;
+  readonly storage_path: string;
+  readonly uploader_member_id: string;
+  readonly created_at: string | null;
+  readonly deleted_at: string | null;
+}
+
+/** The live proof for a settlement, or null. One proof per settlement (v1). */
+export function materialiseSettlementProof(
+  state: MirrorState,
+  options: { readonly settlementId: string },
+): MirrorSettlementProof | null {
+  for (const row of rowsFor(state, SyncTable.SettlementProofs) as MirrorSettlementProof[]) {
+    if (row.settlement_id === options.settlementId && row.deleted_at === null) {
+      return row;
+    }
+  }
+  return null;
+}
+
+/** An image attached to an expense (group- or party-visible). */
+export interface MirrorExpenseAttachment extends MirrorRow {
+  readonly id: string;
+  readonly expense_id: string;
+  readonly group_id: string;
+  readonly storage_path: string;
+  readonly visibility: string;
+  readonly uploader_member_id: string;
+  readonly created_at: string | null;
+  readonly deleted_at: string | null;
+}
+
+/** The live attachments for one expense, newest first. Whatever the pull
+ *  returned is already RLS-filtered — a `parties` row a non-party cannot see
+ *  never reached the mirror. */
+export function materialiseExpenseAttachments(
+  state: MirrorState,
+  options: { readonly expenseId: string },
+): MirrorExpenseAttachment[] {
+  return (rowsFor(state, SyncTable.ExpenseAttachments) as MirrorExpenseAttachment[])
+    .filter((row) => row.expense_id === options.expenseId && row.deleted_at === null)
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
 }
 
 /** The plan to render: what has not been removed. */

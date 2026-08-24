@@ -936,6 +936,13 @@ async function pull(
       // Trip album (shared photos). Flat rows, no embeds; a removal arrives as a
       // deleted_at tombstone the client mirror filters out.
       ['trip_photos', '*'],
+      // Private attachments (party-only). Read AS THE CALLER, so the party RLS
+      // filters non-parties at the sync boundary — a non-party's response simply
+      // omits these rows, and the bytes are never in any row (only a path, itself
+      // gated a second time at r2-sign). No restricted path is ever added to
+      // SETTLEMENT_SELECT / EXPENSE_SELECT — that would ship the key to everyone.
+      ['settlement_proofs', '*'],
+      ['expense_attachments', '*'],
     ] as const) {
       const { data, error } = await caller
         .from(table)

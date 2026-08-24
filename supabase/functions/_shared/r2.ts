@@ -19,8 +19,26 @@ export const LOGICAL_BUCKETS = [
   'avatars',
   'captures',
   'trip-photos',
+  'settlement-proofs',
+  'expense-attachments',
 ] as const;
 export type LogicalBucket = (typeof LOGICAL_BUCKETS)[number];
+
+/**
+ * Buckets whose objects are visible to a strict sub-group (the "parties"), not
+ * the whole group. They are brokered differently by `r2-sign`: the party check
+ * is repeated at presign time, the read is authorised by SUBJECT id (not a
+ * client-supplied key), there is NO Supabase-Storage dual-read fallback (they are
+ * new, every object is in R2), and their presigned URLs are short-lived —
+ * because an R2 presign cannot be revoked, so the TTL is the exposure window.
+ */
+export const RESTRICTED_BUCKETS = new Set<LogicalBucket>([
+  'settlement-proofs',
+  'expense-attachments',
+]);
+
+/** 60 s, not the usual hour: the window an un-revocable restricted URL survives. */
+export const RESTRICTED_URL_TTL_SECONDS = 60;
 
 function requiredEnv(name: string): string {
   const value = Deno.env.get(name);

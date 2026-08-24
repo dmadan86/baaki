@@ -26,7 +26,9 @@ import {
   materialiseGroups,
   materialiseMemberBudgets,
   materialiseMembers,
+  materialiseExpenseAttachments,
   materialisePlanItems,
+  materialiseSettlementProof,
   materialiseSettlements,
   materialiseTripPhotos,
   MutationKind,
@@ -86,7 +88,8 @@ import {
   type PersonContribution,
 } from './peopleBalances';
 import { totalsByCurrency } from './totals';
-import { removeImage } from '@/lib/storage';
+import { putImage, removeImage, removeRestrictedImage } from '@/lib/storage';
+import { pickAlbumPhoto } from '@/lib/image';
 import { SettlementStatus } from './types';
 import type {
   ActivityActor,
@@ -1624,6 +1627,184 @@ export function useRemoveTripPhoto(groupId: string) {
       await mutate(MutationKind.TripPhotoDelete, groupId, { photoId: input.photoId });
       await removeImage('trip-photos', input.storagePath).catch(() => {});
     },
+  });
+}
+
+// ──────────────────────────── private / party-only attachments (§3) ──
+//
+// Reads ride the mirror (the pull is party-filtered by RLS, so a non-party never
+// receives these rows). Writes are a direct SECURITY DEFINER RPC — the bytes need
+// an online upload anyway — followed by a flush to pull the new row back. The
+// image is picked through `pickAlbumPhoto`, which strips EXIF and has no
+// un-stripped fallback.
+
+export interface ExpenseAttachmentRow {
+  id: string;
+  expenseId: string;
+  groupId: string;
+  storagePath: string;
+  visibility: 'group' | 'parties';
+  uploaderMemberId: string;
+  createdAt: string | null;
+}
+
+/** The attachments visible to the caller for one expense. RLS already decided
+ *  what the pull returned — a `parties` row a non-party cannot see never reached
+ *  the mirror, so nothing here can leak. */
+export function useExpenseAttachments(expenseId: string): LocalRead<ExpenseAttachmentRow[]> {
+  const { mirror } = useSync();
+  const rows = useMemo(
+    () =>
+      materialiseExpenseAttachments(mirror, { expenseId }).map((row): ExpenseAttachmentRow => ({
+        id: row.id,
+        expenseId: row.expense_id,
+        groupId: row.group_id,
+        storagePath: row.storage_path,
+        visibility: row.visibility === 'parties' ? 'parties' : 'group',
+        uploaderMemberId: row.uploader_member_id,
+        createdAt: row.created_at,
+      })),
+    [mirror, expenseId],
+  );
+  return useLocalRead(rows);
+}
+
+/**
+ * Attach an image to an expense at a chosen visibility. Upload → RPC → flush.
+ * Returns 'cap' | 'failed' on error, null on success or a plain cancel.
+ */
+export function useAttachExpenseAttachment(groupId: string, expenseId: string) {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { visibility: 'group' | 'parties' }) => {
+      const picked = await pickAlbumPhoto();
+      if (!picked) return; // Cancelled/declined, or no EXIF-safe encoder.
+      const ext = picked.mimeType === 'image/webp' ? 'webp' : 'jpg';
+      const path = `${expenseId}/${randomUUID()}.${ext}`;
+      let committed: string | null = null;
+      try {
+        await putImage({
+          bucket: 'expense-attachments',
+          path,
+          base64: picked.base64,
+          contentType: picked.mimeType,
+          groupId,
+          subjectId: expenseId,
+        });
+        committed = path;
+        const { error } = await supabase.rpc('baaki_attach_expense_attachment', {
+          p_expense_id: expenseId,
+          p_storage_path: path,
+          p_visibility: input.visibility,
+          p_attachment_id: randomUUID(),
+        });
+        if (error) throw new Error(error.message);
+        committed = null;
+      } catch (caught) {
+        if (committed)
+          await removeRestrictedImage('expense-attachments', expenseId, committed).catch(() => {});
+        throw caught;
+      }
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
+/** Remove an expense attachment: soft-delete via RPC, then free the R2 bytes. */
+export function useRemoveExpenseAttachment(expenseId: string) {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { attachmentId: string; storagePath: string }) => {
+      const { error } = await supabase.rpc('baaki_remove_expense_attachment', {
+        p_attachment_id: input.attachmentId,
+      });
+      if (error) throw new Error(error.message);
+      await removeRestrictedImage('expense-attachments', expenseId, input.storagePath).catch(
+        () => {},
+      );
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
+export interface SettlementProofRow {
+  id: string;
+  settlementId: string;
+  groupId: string;
+  storagePath: string;
+  uploaderMemberId: string;
+  createdAt: string | null;
+}
+
+/** The payment proof on a settlement, visible to its two parties only, or null. */
+export function useSettlementProof(settlementId: string): LocalRead<SettlementProofRow | null> {
+  const { mirror } = useSync();
+  const proof = useMemo(() => {
+    const row = materialiseSettlementProof(mirror, { settlementId });
+    if (!row) return null;
+    return {
+      id: row.id,
+      settlementId: row.settlement_id,
+      groupId: row.group_id,
+      storagePath: row.storage_path,
+      uploaderMemberId: row.uploader_member_id,
+      createdAt: row.created_at,
+    } as SettlementProofRow;
+  }, [mirror, settlementId]);
+  return useLocalRead(proof);
+}
+
+/** Attach a payment proof to a settlement (party-only). Upload → RPC → flush. */
+export function useAttachSettlementProof(groupId: string, settlementId: string) {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async () => {
+      const picked = await pickAlbumPhoto();
+      if (!picked) return;
+      const ext = picked.mimeType === 'image/webp' ? 'webp' : 'jpg';
+      const path = `${settlementId}/${randomUUID()}.${ext}`;
+      let committed: string | null = null;
+      try {
+        await putImage({
+          bucket: 'settlement-proofs',
+          path,
+          base64: picked.base64,
+          contentType: picked.mimeType,
+          groupId,
+          subjectId: settlementId,
+        });
+        committed = path;
+        const { error } = await supabase.rpc('baaki_attach_settlement_proof', {
+          p_settlement_id: settlementId,
+          p_storage_path: path,
+          p_proof_id: randomUUID(),
+        });
+        if (error) throw new Error(error.message);
+        committed = null;
+      } catch (caught) {
+        if (committed)
+          await removeRestrictedImage('settlement-proofs', settlementId, committed).catch(() => {});
+        throw caught;
+      }
+    },
+    onSuccess: () => void flush(),
+  });
+}
+
+/** Remove a settlement proof: soft-delete via RPC, then free the R2 bytes. */
+export function useRemoveSettlementProof(settlementId: string) {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { proofId: string; storagePath: string }) => {
+      const { error } = await supabase.rpc('baaki_remove_settlement_proof', {
+        p_proof_id: input.proofId,
+      });
+      if (error) throw new Error(error.message);
+      await removeRestrictedImage('settlement-proofs', settlementId, input.storagePath).catch(
+        () => {},
+      );
+    },
+    onSuccess: () => void flush(),
   });
 }
 

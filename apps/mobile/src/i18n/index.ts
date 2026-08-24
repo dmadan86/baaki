@@ -354,6 +354,18 @@ export interface UiStrings {
     photos: string;
     uploading: string;
   };
+  /** Expense attachments (images on a bill, group- or party-visible). */
+  attachments: {
+    title: string;
+    add: string;
+    chooseVisibility: string;
+    /** Group-visible option label. */
+    everyone: string;
+    /** Party-only option label. */
+    payersOnly: string;
+    remove: string;
+    removeConfirm: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -2023,6 +2035,15 @@ const en: UiStrings = {
     removeConfirm: 'Remove this photo?',
     photos: 'Photos',
     uploading: 'Adding…',
+  },
+  attachments: {
+    title: 'Attachments',
+    add: 'Add attachment',
+    chooseVisibility: 'Who can see this?',
+    everyone: 'Everyone in the group',
+    payersOnly: 'Payers only',
+    remove: 'Remove attachment',
+    removeConfirm: 'Remove this attachment?',
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3709,6 +3730,15 @@ const ta: UiStrings = {
     removeConfirm: 'இந்தப் படத்தை நீக்கவா?',
     photos: 'படங்கள்',
     uploading: 'சேர்க்கிறது…',
+  },
+  attachments: {
+    title: 'இணைப்புகள்',
+    add: 'இணைப்பு சேர்',
+    chooseVisibility: 'இதை யார் பார்க்கலாம்?',
+    everyone: 'குழுவில் அனைவரும்',
+    payersOnly: 'செலுத்தியவர்கள் மட்டும்',
+    remove: 'இணைப்பை நீக்கு',
+    removeConfirm: 'இந்த இணைப்பை நீக்கவா?',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5461,6 +5491,15 @@ const hi: UiStrings = {
     photos: 'फ़ोटो',
     uploading: 'जोड़ रहे हैं…',
   },
+  attachments: {
+    title: 'अटैचमेंट',
+    add: 'अटैचमेंट जोड़ें',
+    chooseVisibility: 'इसे कौन देख सकता है?',
+    everyone: 'ग्रुप में सभी',
+    payersOnly: 'सिर्फ़ भुगतानकर्ता',
+    remove: 'अटैचमेंट हटाएँ',
+    removeConfirm: 'यह अटैचमेंट हटाएँ?',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -7161,6 +7200,15 @@ const ar: UiStrings = {
     removeConfirm: 'إزالة هذه الصورة؟',
     photos: 'الصور',
     uploading: 'جارٍ الإضافة…',
+  },
+  attachments: {
+    title: 'المرفقات',
+    add: 'إضافة مرفق',
+    chooseVisibility: 'من يمكنه رؤية هذا؟',
+    everyone: 'الجميع في المجموعة',
+    payersOnly: 'الدافعون فقط',
+    remove: 'إزالة المرفق',
+    removeConfirm: 'إزالة هذا المرفق؟',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',

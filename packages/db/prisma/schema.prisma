@@ -250,6 +250,8 @@ model Group {
   passes        GroupPass[]
   planItems     TripPlanItem[]
   tripPhotos    TripPhoto[]
+  settlementProofs   SettlementProof[]
+  expenseAttachments ExpenseAttachment[]
   syncMutations SyncMutation[]
   memberClaims   MemberClaim[]
   memberBudgets  TripMemberBudget[]
@@ -302,6 +304,8 @@ model GroupMember {
   itemClaims        ReceiptItemClaim[]
   planItems         TripPlanItem[]
   tripPhotos        TripPhoto[]
+  settlementProofs   SettlementProof[]
+  expenseAttachments ExpenseAttachment[]
   activity          ActivityLog[]
   disputesRaised    ExpenseDispute[]   @relation("DisputeRaisedBy")
   disputesResolved  ExpenseDispute[]   @relation("DisputeResolvedBy")
@@ -428,6 +432,7 @@ model Expense {
   disputes       ExpenseDispute[]
   planItems      TripPlanItem[]
   tripPhotos     TripPhoto[]
+  attachments    ExpenseAttachment[]
 
   @@index([groupId, deletedAt])
   /// The sync pull is "everything in this group since seq N" (TDR §4).
@@ -625,6 +630,7 @@ model Settlement {
   fromMember  GroupMember            @relation("SettlementFrom", fields: [fromMemberId], references: [id], onDelete: Cascade)
   toMember    GroupMember            @relation("SettlementTo", fields: [toMemberId], references: [id], onDelete: Cascade)
   allocations SettlementAllocation[]
+  proofs      SettlementProof[]
 
   @@index([groupId, status])
   @@index([groupId, updatedSeq])
@@ -1280,6 +1286,66 @@ model TripPhoto {
   @@index([groupId, updatedSeq])
   @@index([expenseId], map: "trip_photos_expense_idx")
   @@map("trip_photos")
+  @@schema("public")
+}
+
+/// A payment-proof image on a settlement — visible to the two parties only.
+///
+/// Party-only (below the group, ADR-006 addendum): a payment screenshot carries
+/// a real-name identity and a payment instrument, so it must not be group-wide.
+/// The path lives here — never a column on the group-visible `settlements` row —
+/// with a SELECT policy that embeds the party predicate, so a non-party's read
+/// returns zero rows. Writes are RPC-only (uploader from the session). Bytes are
+/// in R2 (`settlement-proofs`), fetched through r2-sign with a party re-check and
+/// a 60s URL. Immutable: replace = remove + re-attach with a fresh key.
+model SettlementProof {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settlementId     String    @map("settlement_id") @db.Uuid
+  groupId          String    @map("group_id") @db.Uuid
+  uploaderMemberId String    @map("uploader_member_id") @db.Uuid
+  storagePath      String    @map("storage_path")
+  visibility       String    @default("parties")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedSeq       BigInt    @default(0) @map("updated_seq")
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  settlement Settlement  @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  group      Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploader   GroupMember @relation(fields: [uploaderMemberId], references: [id], onDelete: Cascade)
+
+  @@index([settlementId], map: "settlement_proofs_settlement_idx")
+  @@index([groupId, updatedSeq])
+  @@map("settlement_proofs")
+  @@schema("public")
+}
+
+/// An image attached to an expense at a chosen visibility.
+///
+/// `group` behaves like today's receipt — any member sees it. `parties` hides it
+/// to the expense's payers + author (a personal bill the payer does not want the
+/// group to read); the amount stays shared so balances are honest, only the
+/// image is restricted. Enforced at RLS + presign, never the client. Writes are
+/// RPC-only (uploader from the session).
+model ExpenseAttachment {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId        String    @map("expense_id") @db.Uuid
+  groupId          String    @map("group_id") @db.Uuid
+  uploaderMemberId String    @map("uploader_member_id") @db.Uuid
+  storagePath      String    @map("storage_path")
+  visibility       String    @default("group")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedSeq       BigInt    @default(0) @map("updated_seq")
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  expense  Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  group    Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploader GroupMember @relation(fields: [uploaderMemberId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId], map: "expense_attachments_expense_idx")
+  @@index([groupId, updatedSeq])
+  @@map("expense_attachments")
   @@schema("public")
 }
 

@@ -29,7 +29,14 @@ import {
   requireMembership,
   type SupabaseClient,
 } from '../_shared/auth.ts';
-import { LOGICAL_BUCKETS, type LogicalBucket, objectUrl, r2 } from '../_shared/r2.ts';
+import {
+  LOGICAL_BUCKETS,
+  type LogicalBucket,
+  objectUrl,
+  r2,
+  RESTRICTED_BUCKETS,
+  RESTRICTED_URL_TTL_SECONDS,
+} from '../_shared/r2.ts';
 
 /** Presigned URLs live an hour, exactly like the Supabase signed URLs they replace. */
 const URL_TTL_SECONDS = 60 * 60;
@@ -49,6 +56,13 @@ interface Body {
   contentType?: unknown;
   contentLength?: unknown;
   groupId?: unknown;
+  /**
+   * For a restricted bucket, the SUBJECT the object belongs to — a settlement id
+   * or an expense id — never a raw object key. The server resolves the key from
+   * the party-gated row, so a caller cannot ask for a key it should not have
+   * (security review threat (f)).
+   */
+  subjectId?: unknown;
 }
 
 function readBucket(value: unknown): LogicalBucket {
@@ -95,7 +109,79 @@ function locate(
     case 'avatars':
       // `<ownerId>/…` — owner is the first segment for both.
       return { groupId: null, ownerSegment: first ?? null };
+    case 'settlement-proofs':
+    case 'expense-attachments':
+      // Restricted buckets are never authorised by path — the caller names a
+      // subject id and the server resolves the key from the party-gated row.
+      // These cases exist only so the switch stays exhaustive.
+      return { groupId: null, ownerSegment: null };
   }
+}
+
+/** The group a restricted subject (settlement / expense) belongs to. */
+async function groupOfSubject(
+  service: SupabaseClient,
+  bucket: LogicalBucket,
+  subjectId: string,
+): Promise<string> {
+  const table = bucket === 'settlement-proofs' ? 'settlements' : 'expenses';
+  const { data, error } = await service
+    .from(table)
+    .select('group_id')
+    .eq('id', subjectId)
+    .maybeSingle();
+  if (error) throw new HttpError(500, 'INTERNAL', error.message);
+  if (!data) throw new HttpError(404, 'NOT_FOUND', 'No such subject');
+  return (data as { group_id: string }).group_id;
+}
+
+/** The caller must be a party to the subject — repeated here even though the DB
+ *  RLS enforces it, so the byte door and the row door are both party-gated. */
+async function requireRestrictedParty(
+  caller: SupabaseClient,
+  bucket: LogicalBucket,
+  subjectId: string,
+): Promise<void> {
+  const rpc =
+    bucket === 'settlement-proofs' ? 'baaki_is_settlement_party' : 'baaki_is_expense_party';
+  const arg =
+    bucket === 'settlement-proofs' ? { p_settlement_id: subjectId } : { p_expense_id: subjectId };
+  const { data, error } = await caller.rpc(rpc, arg);
+  if (error) throw new HttpError(500, 'INTERNAL', error.message);
+  if (data !== true) throw new HttpError(403, 'NOT_A_PARTY', 'Not a party to this');
+}
+
+/**
+ * Verify — AS THE CALLER, so party RLS applies — that a party-visible row exists
+ * for this (subject, path). The caller names both because an expense may carry
+ * several attachments; a non-party sees no matching row and is refused. This is
+ * forgery-proof (threat (f)): a crafted path that no party-visible row references
+ * matches nothing, and a non-party sees no rows at all.
+ */
+async function assertRestrictedPath(
+  caller: SupabaseClient,
+  bucket: LogicalBucket,
+  subjectId: string,
+  path: string,
+): Promise<void> {
+  const table = bucket === 'settlement-proofs' ? 'settlement_proofs' : 'expense_attachments';
+  const subjectCol = bucket === 'settlement-proofs' ? 'settlement_id' : 'expense_id';
+  const { data, error } = await caller
+    .from(table)
+    .select('id')
+    .eq(subjectCol, subjectId)
+    .eq('storage_path', path)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (error) throw new HttpError(500, 'INTERNAL', error.message);
+  if (!data) throw new HttpError(403, 'NOT_VISIBLE', 'Not visible to you');
+}
+
+function readSubject(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new HttpError(400, 'BAD_SUBJECT', 'Missing subject id');
+  }
+  return value;
 }
 
 async function callerUserId(caller: SupabaseClient): Promise<string> {
@@ -119,10 +205,23 @@ async function sharesGroup(service: SupabaseClient, a: string, b: string): Promi
  */
 async function authorizeWrite(
   caller: SupabaseClient,
+  service: SupabaseClient,
   uid: string,
   bucket: LogicalBucket,
   path: string,
+  subjectId: string | null,
 ): Promise<{ groupId: string | null }> {
+  // A restricted object is authorised by its subject, not its path: the caller
+  // must be a live member of the subject's group AND a party to it. Membership
+  // alone is insufficient — that is the whole point of the tier.
+  if (RESTRICTED_BUCKETS.has(bucket)) {
+    if (!subjectId) throw new HttpError(400, 'BAD_SUBJECT', 'A restricted write needs a subject');
+    const groupId = await groupOfSubject(service, bucket, subjectId);
+    await requireMembership(caller, groupId);
+    await requireRestrictedParty(caller, bucket, subjectId);
+    return { groupId };
+  }
+
   const { groupId, ownerSegment } = locate(bucket, path);
 
   if (bucket === 'group-photos') {
@@ -202,11 +301,26 @@ serveWithCors(async (request) => {
     const body = (await request.json().catch(() => ({}))) as Body;
     const action = body.action;
     const bucket = readBucket(body.bucket);
+    const restricted = RESTRICTED_BUCKETS.has(bucket);
+    const subjectId = restricted ? readSubject(body.subjectId) : null;
     const path = readPath(body.path);
+
+    // A restricted read is authorised by (SUBJECT, path): the server confirms a
+    // party-visible row references that path before signing it, so a non-party
+    // (who sees no row) is refused and a crafted path matches nothing (threat
+    // (f)). Short TTL, and no Supabase-Storage dual-read fallback — these buckets
+    // are new, so a missing object is simply gone, not "on the old backend".
+    if (action === 'get' && restricted) {
+      await assertRestrictedPath(caller, bucket, subjectId as string, path);
+      const getUrl = new URL(objectUrl(bucket, path));
+      getUrl.searchParams.set('X-Amz-Expires', String(RESTRICTED_URL_TTL_SECONDS));
+      const signed = await r2().client.sign(new Request(getUrl), { aws: { signQuery: true } });
+      return json({ url: signed.url });
+    }
 
     // ── mint a presigned PUT ──────────────────────────────────────────────
     if (action === 'put') {
-      const { groupId } = await authorizeWrite(caller, uid, bucket, path);
+      const { groupId } = await authorizeWrite(caller, service, uid, bucket, path, subjectId);
 
       const declared = Number(body.contentLength);
       if (!Number.isFinite(declared) || declared <= 0) {
@@ -260,7 +374,7 @@ serveWithCors(async (request) => {
 
     // ── record the object once the PUT has landed ─────────────────────────
     if (action === 'commit') {
-      const { groupId } = await authorizeWrite(caller, uid, bucket, path);
+      const { groupId } = await authorizeWrite(caller, service, uid, bucket, path, subjectId);
       const contentType = typeof body.contentType === 'string' ? body.contentType : 'image/webp';
 
       const head = await r2().client.fetch(objectUrl(bucket, path), { method: 'HEAD' });
@@ -348,7 +462,7 @@ serveWithCors(async (request) => {
     // was actually removed — so a failed *replacement*, which never held a
     // pending row, cannot take the committed image down with it.
     if (action === 'release') {
-      await authorizeWrite(caller, uid, bucket, path);
+      await authorizeWrite(caller, service, uid, bucket, path, subjectId);
       const { data: removed, error } = await service.rpc('baaki_storage_release_reservation', {
         p_logical_bucket: bucket,
         p_path: path,
@@ -362,7 +476,7 @@ serveWithCors(async (request) => {
 
     // ── delete an object and forget it ────────────────────────────────────
     if (action === 'delete') {
-      await authorizeWrite(caller, uid, bucket, path);
+      await authorizeWrite(caller, service, uid, bucket, path, subjectId);
       await r2().client.fetch(objectUrl(bucket, path), { method: 'DELETE' });
       // A legacy object may still live on Supabase Storage (dual-read); remove it
       // there too, or the fallback read would keep serving a deleted image.
