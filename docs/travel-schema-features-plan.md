@@ -41,7 +41,7 @@ model TripCategoryBudget {
 ```
 
 **RLS:** identical to `trip_member_budgets` — a group member reads/writes rows
-for their group; only an admin sets a *group-wide* category cap (mirror the
+for their group; only an admin sets a _group-wide_ category cap (mirror the
 overall-budget admin gate already in `plan.tsx`). No per-member visibility knob
 (category caps are a group signal, not personal).
 
@@ -114,16 +114,16 @@ surfaces + EXIF strip).
 see; hide a payment screenshot to payer/payee only. **Highest risk — this is a
 privacy boundary, and a leak is a real-world harm.** Do this one slowest.
 
-**Design tension:** the whole ledger is built on *shared* balances. A truly
+**Design tension:** the whole ledger is built on _shared_ balances. A truly
 private expense that moves **no one else's balance** is really the existing
 `Capture` inbox (personal, un-assigned) — recommend routing "just mine" there
 rather than inventing a hidden ledger row that the balance math must then learn
-to skip. A hidden row that *does* affect balances cannot be truly private
+to skip. A hidden row that _does_ affect balances cannot be truly private
 (others can back it out from the totals), so the honest scope is:
 
 - **Private personal spend** → surface the existing personal `Capture`/own-cloud
   path in the trip context; no new hidden ledger row. **No migration.**
-- **Hidden attachment** → a `visibility` flag on the *attachment*, not the
+- **Hidden attachment** → a `visibility` flag on the _attachment_, not the
   expense: the expense and its amount stay shared (balances are honest), only
   the image is restricted.
 
@@ -135,6 +135,7 @@ visibility  String  @default("group")   // 'group' | 'parties'  (payer+payee)
 ```
 
 **Security (must-haves):**
+
 - Enforce at **RLS + presign**, never in the client. A `parties`-visibility
   attachment's `get` presign is authorized only if the caller is the payer or a
   settlement counterparty — mirror the server-side photo-gate enforcement
@@ -143,7 +144,7 @@ visibility  String  @default("group")   // 'group' | 'parties'  (payer+payee)
 - The mirror must **not** replicate a restricted attachment's bytes/URL to
   members who cannot see it — filter at the sync boundary, not the render layer.
 - Threat cases to test: non-party member reads the row directly via PostgREST;
-  a member who *was* a party then left; a presigned URL reused after visibility
+  a member who _was_ a party then left; a presigned URL reused after visibility
   changes (short TTL + re-check on issue).
 
 **Deviation:** touches ADR-006/privacy + the RLS model — needs an ADR addendum
@@ -187,7 +188,7 @@ Effort: **S–M**, but **depends on #3's party-visibility + presign enforcement*
    only) — the security primitive the others reuse; security-review gated.
 3. **Settlement proof** (#4) — reuses #3.
 4. **Shared album** (#2) — independent of #3/#4; needs EXIF strip + bucket.
-5. Private *personal* spend → route to existing Capture, no schema.
+5. Private _personal_ spend → route to existing Capture, no schema.
 
 Each lands as its own PR with the migration validated on local Postgres
 (`pnpm db:pg:up` → `pnpm db:migrate:dev` → `pnpm db:drift` clean → `pnpm
