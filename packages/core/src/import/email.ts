@@ -84,6 +84,16 @@ const DEBIT_WORDS = /\b(debited|\bDr\b|spent|paid|purchase|charged|withdrawn)\b/
 const NON_TRANSACTION =
   /\b(opening|closing|available|avl|outstanding|total\s+due|minimum\s+due|min\s+due|statement|balance\s+(?:b\/f|c\/f|forward)|page\s+\d)\b/i;
 
+/**
+ * The component lines of a single itemised bill — a subtotal, a tax, a tip, a
+ * fee. They break down a total; they are not expenses on their own. Deliberately
+ * excludes the total itself ("Total", "Amount payable") so the total survives as
+ * the one candidate. Applied only to lines with no date of their own, so a dated
+ * card-statement fee row is untouched.
+ */
+const BREAKDOWN_LABEL =
+  /\b(sub[-\s]?total|taxes?|gst|vat|service\s*charge|service\s*fee|tip|gratuity|convenience\s*fee|booking\s*fee|processing\s*fee|surcharge|discount|fees?)\b/i;
+
 const DATE_NUMERIC = /\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/;
 const DATE_NAMED = /\b(\d{1,2})[-\s]([A-Za-z]{3})[-\s](\d{2,4})\b/;
 const NAMED_DATE_FIRST = /\b([A-Za-z]{3})\s+(\d{1,2}),?\s+(\d{4})\b/; // "Aug 14, 2026"
@@ -277,14 +287,22 @@ export function proposeFromEmail(
     const amount = detectAmount(line);
     if (!amount) continue;
 
-    // Money in is not an expense. A credit word wins over a debit word: a
-    // "refund credited" line is income even though it also says "refund".
-    if (CREDIT_WORDS.test(line) && !DEBIT_WORDS.test(line)) continue;
+    // Money in is not an expense. A credit/refund word disqualifies the line
+    // even when it also carries debit vocabulary — "REFUND processed, debited
+    // back" is income; a real spend has no reason to say "refund" at all.
+    if (CREDIT_WORDS.test(line)) continue;
 
     const lineDate = detectDate(line);
     const occurredAt = lineDate ?? documentDate;
     const at = occurredAt ?? options.receivedAt ?? null;
     if (!at) continue; // nothing to file it under; drop rather than invent a day
+
+    // A confirmation itemises one bill — "Subtotal … Tax … Total". Those parts
+    // are not separate expenses; only the total is. A breakdown line that
+    // carries no date of its own is such a part and is dropped, leaving the
+    // total as the single candidate. A *statement* fee row carries its own
+    // date, so it keeps that date and is not mistaken for a breakdown part.
+    if (BREAKDOWN_LABEL.test(line) && lineDate === null) continue;
 
     const stamp = Date.parse(startOfDay(at));
     if (Number.isNaN(stamp)) continue;

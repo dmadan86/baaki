@@ -68,6 +68,35 @@ describe('proposeFromEmail', () => {
     expect(out[0]!.at).toBe('2026-03-14T00:00:00.000Z');
   });
 
+  it('collapses an itemised confirmation to the total, not its parts', () => {
+    const email = [
+      'Booking confirmed — Aug 14, 2026',
+      'Stay at Taj Goa',
+      'Subtotal: INR 5,000.00',
+      'GST: INR 900.00',
+      'Total: INR 5,900.00',
+    ].join('\n');
+
+    const out = proposeFromEmail(email);
+    expect(out).toHaveLength(1); // subtotal and GST are parts of the bill, not expenses
+    expect(out[0]!.amount).toEqual({ minor: 590000n, currency: 'INR' });
+    expect(out[0]!.category).toBe(CategoryId.Stay);
+  });
+
+  it('keeps a dated statement fee row (only undated breakdown parts collapse)', () => {
+    const email = [
+      '14/03/2026 SWIGGY BANGALORE INR 420.00 Dr',
+      '14/03/2026 SERVICE CHARGE   INR 20.00 Dr',
+    ].join('\n');
+    // Both rows carry their own date → a real statement, so the fee stays.
+    expect(proposeFromEmail(email)).toHaveLength(2);
+  });
+
+  it('excludes a refund line even when it also carries debit vocabulary', () => {
+    const email = '16/03/2026 REFUND AMAZON reversed INR 300.00 debited back Dr';
+    expect(proposeFromEmail(email)).toEqual([]);
+  });
+
   it('returns nothing for a note with no transactions', () => {
     expect(proposeFromEmail('Hey, are we still on for the trip next week?')).toEqual([]);
     expect(proposeFromEmail('')).toEqual([]);
