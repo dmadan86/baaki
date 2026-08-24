@@ -389,6 +389,11 @@ export enum SyncTable {
    * a `parties` one only to the expense's payers/author. Pull-only, like the
    * proofs above. */
   ExpenseAttachments = 'expense_attachments',
+  /** Group-scoped, group-visible: a comment thread on one expense. Pull-only —
+   * the writes (add/edit/delete/flag) are direct SECURITY DEFINER RPCs that
+   * enforce the role matrix (author edits/deletes own, admin deletes any, any
+   * member flags), so there is no mutation kind; only the read rides the mirror. */
+  ExpenseComments = 'expense_comments',
 }
 
 /**

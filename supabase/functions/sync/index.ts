@@ -943,6 +943,9 @@ async function pull(
       // SETTLEMENT_SELECT / EXPENSE_SELECT — that would ship the key to everyone.
       ['settlement_proofs', '*'],
       ['expense_attachments', '*'],
+      // Expense comment threads — group-visible, read as the caller (is_group_member
+      // RLS). Tombstones (deleted_at set) ride the pull so a delete propagates.
+      ['expense_comments', '*'],
     ] as const) {
       const { data, error } = await caller
         .from(table)

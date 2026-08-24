@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { ScrollView as RNScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -28,6 +29,7 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { TripAlbumStrip } from '@/components/TripAlbum';
 import { ExpenseAttachments } from '@/components/ExpenseAttachments';
+import { ExpenseComments } from '@/components/ExpenseComments';
 import {
   memberLookup,
   useDeleteExpense,
@@ -64,6 +66,7 @@ export default function ExpenseDetailScreen() {
 
   const { group, members, expenses } = useGroup(groupId);
   const versions = useExpenseVersions(expenseId ?? '');
+  const scrollRef = useRef<RNScrollView>(null);
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
 
@@ -114,6 +117,11 @@ export default function ExpenseDetailScreen() {
     (version.author_member_id === myMemberId ||
       version.payers.some((p) => p.member_id === myMemberId)),
   );
+  // Admin of this group — the moderation lever on the comment thread (delete
+  // anyone's, resolve a report). The server re-checks; this only shows controls.
+  const iAmAdmin =
+    (members.data ?? []).find((m) => m.profile_id === profile?.id && m.left_at === null)?.role ===
+    'admin';
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
     return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
@@ -183,6 +191,13 @@ export default function ExpenseDetailScreen() {
   const heroInk = theme.tint[heroTint].ink;
   const heroInkMuted = theme.tint[heroTint].inkMuted;
 
+  // Bring the comment composer above the keyboard when it focuses: the thread is
+  // the last thing on a long page, so without this the input opens under the
+  // keyboard. A short delay lets the resized layout settle before scrolling.
+  const scrollToComposer = (): void => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+  };
+
   const confirmDelete = (): void => {
     Alert.alert(t.expense.deleteQuestion, t.expense.deleteBody, [
       { text: t.common.cancel, style: 'cancel' },
@@ -199,12 +214,17 @@ export default function ExpenseDetailScreen() {
   return (
     <Screen>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
+        // The comment composer lives at the very bottom; keep tapping its actions
+        // working while the keyboard is up, and let iOS inset for the keyboard.
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
           <IconButton label={t.common.back} onPress={() => router.back()}>
@@ -476,6 +496,23 @@ export default function ExpenseDetailScreen() {
                 ) : null}
               </View>
             ))}
+          </Card>
+        </View>
+
+        {/* The thread on this bill. Any member reads and adds; the author edits
+            and deletes their own; an admin deletes anyone's and resolves reports.
+            The controls the component offers mirror what the RPCs allow. */}
+        <View>
+          <SectionHeader title={t.comments.title} />
+          <Card>
+            <ExpenseComments
+              groupId={groupId}
+              expenseId={expense.id}
+              myMemberId={myMemberId}
+              iAmAdmin={iAmAdmin}
+              nameOf={nameOf}
+              onComposerFocus={scrollToComposer}
+            />
           </Card>
         </View>
 
