@@ -22,12 +22,14 @@ import { IconButton, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { ZoomableGallery, type GalleryPage } from '@/components/ZoomableGallery';
 import { ReceiptAnnotator } from '@/components/ReceiptAnnotator';
+import { ReceiptCropper } from '@/components/ReceiptCropper';
 import {
   useAnnotateExpenseAttachment,
   useAttachExpenseAttachment,
   useExpenseAttachments,
   useRemoveExpenseAttachment,
   useRemoveExpenseReceipt,
+  useReplaceExpenseAttachmentImage,
   type ExpenseAttachmentRow,
 } from '@/data/hooks';
 import { captureReceipt, pickReceiptImage } from '@/lib/image';
@@ -166,6 +168,7 @@ export function ExpenseReceipts({
   const removeAttachment = useRemoveExpenseAttachment(expenseId);
   const removeLegacy = useRemoveExpenseReceipt(groupId, expenseId);
   const annotate = useAnnotateExpenseAttachment();
+  const replace = useReplaceExpenseAttachmentImage(groupId, expenseId);
 
   const items = useMemo<GalleryItem[]>(() => {
     const list: GalleryItem[] = [];
@@ -184,6 +187,11 @@ export function ExpenseReceipts({
     attachmentId: string;
     uri: string;
     initial: Annotations;
+  } | null>(null);
+  const [adjusting, setAdjusting] = useState<{
+    attachmentId: string;
+    uri: string;
+    oldStoragePath: string;
   } | null>(null);
 
   const pages = useMemo<GalleryPage[]>(
@@ -361,6 +369,23 @@ export function ExpenseReceipts({
                 <Row style={{ gap: theme.spacing.xs }}>
                   {showEdit ? (
                     <IconButton
+                      label={t.adjust.title}
+                      onPress={() => {
+                        const url = urls[viewerIndex];
+                        if (viewing?.kind === 'attachment' && url) {
+                          setAdjusting({
+                            attachmentId: viewing.row.id,
+                            uri: url,
+                            oldStoragePath: viewing.row.storagePath,
+                          });
+                        }
+                      }}
+                    >
+                      <Ionicons name="crop" size={iconSize.md} color={theme.color.text} />
+                    </IconButton>
+                  ) : null}
+                  {showEdit ? (
+                    <IconButton
                       label={t.annotate.title}
                       onPress={() => {
                         const url = urls[viewerIndex];
@@ -418,6 +443,27 @@ export function ExpenseReceipts({
               {
                 onSuccess: () => setEditing(null),
                 onError: () => Alert.alert(t.annotate.couldNotSave),
+              },
+            )
+          }
+        />
+      ) : null}
+
+      {adjusting ? (
+        <ReceiptCropper
+          uri={adjusting.uri}
+          saving={replace.isPending}
+          onCancel={() => setAdjusting(null)}
+          onSave={(picked) =>
+            replace.mutate(
+              {
+                attachmentId: adjusting.attachmentId,
+                oldStoragePath: adjusting.oldStoragePath,
+                picked,
+              },
+              {
+                onSuccess: () => setAdjusting(null),
+                onError: () => Alert.alert(t.adjust.couldNotSave),
               },
             )
           }

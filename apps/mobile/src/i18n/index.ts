@@ -445,6 +445,14 @@ export interface UiStrings {
     textPlaceholder: string;
     couldNotSave: string;
   };
+  /** The receipt adjust editor (rotate + crop, bakes new pixels). */
+  adjust: {
+    title: string;
+    rotateLeft: string;
+    rotateRight: string;
+    reset: string;
+    couldNotSave: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -2184,6 +2192,13 @@ const en: UiStrings = {
     clear: 'Clear',
     textPlaceholder: 'Add a note',
     couldNotSave: "Couldn't save the markup — try again.",
+  },
+  adjust: {
+    title: 'Adjust',
+    rotateLeft: 'Rotate left',
+    rotateRight: 'Rotate right',
+    reset: 'Reset crop',
+    couldNotSave: "Couldn't save the change — try again.",
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3937,6 +3952,13 @@ const ta: UiStrings = {
     clear: 'அழி',
     textPlaceholder: 'குறிப்பு சேர்',
     couldNotSave: 'குறிப்புகளைச் சேமிக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+  },
+  adjust: {
+    title: 'சரிசெய்',
+    rotateLeft: 'இடதுபுறம் சுழற்று',
+    rotateRight: 'வலதுபுறம் சுழற்று',
+    reset: 'வெட்டலை மீட்டமை',
+    couldNotSave: 'மாற்றத்தைச் சேமிக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5757,6 +5779,13 @@ const hi: UiStrings = {
     textPlaceholder: 'एक नोट जोड़ें',
     couldNotSave: 'मार्कअप सहेजा नहीं जा सका — फिर कोशिश करें।',
   },
+  adjust: {
+    title: 'समायोजित करें',
+    rotateLeft: 'बाएँ घुमाएँ',
+    rotateRight: 'दाएँ घुमाएँ',
+    reset: 'क्रॉप रीसेट करें',
+    couldNotSave: 'बदलाव सहेजा नहीं जा सका — फिर कोशिश करें।',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -7524,6 +7553,13 @@ const ar: UiStrings = {
     clear: 'مسح',
     textPlaceholder: 'أضف ملاحظة',
     couldNotSave: 'تعذّر حفظ التوصيف — حاول مرة أخرى.',
+  },
+  adjust: {
+    title: 'تعديل',
+    rotateLeft: 'تدوير لليسار',
+    rotateRight: 'تدوير لليمين',
+    reset: 'إعادة ضبط القص',
+    couldNotSave: 'تعذّر حفظ التغيير — حاول مرة أخرى.',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',
