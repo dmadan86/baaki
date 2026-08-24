@@ -8,12 +8,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { CategoryId } from '../src/category/categories';
-import { categoriseMerchant, normaliseMerchant, merchantTokens } from '../src/category/merchant';
+import {
+  categoriseMerchant,
+  normaliseMerchantName,
+  merchantTokens,
+} from '../src/category/merchant';
 
-describe('normaliseMerchant', () => {
+describe('normaliseMerchantName', () => {
   it('strips gateway noise and pure-digit runs', () => {
-    expect(normaliseMerchant('POS UPI SWIGGY*ORDER 8842')).toBe('swiggy order');
-    expect(normaliseMerchant('IB/NEFT/AGODA COM PTE LTD')).toBe('agoda pte');
+    expect(normaliseMerchantName('POS UPI SWIGGY*ORDER 8842')).toBe('swiggy order');
+    expect(normaliseMerchantName('IB/NEFT/AGODA COM PTE LTD')).toBe('agoda pte');
   });
 
   it('drops store numbers but keeps alphanumeric names', () => {

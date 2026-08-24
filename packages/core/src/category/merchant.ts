@@ -14,7 +14,7 @@
  *     here, weighted toward the brands a *traveller* meets — airlines, OTAs,
  *     hotels, ride-hail, fuel — and is consulted first;
  *   * it carries gateway noise — "POS ", "UPI-", "IB/", trailing store numbers,
- *     "*ORDER1234". `normaliseMerchant` strips that so the brand underneath is
+ *     "*ORDER1234". `normaliseMerchantName` strips that so the brand underneath is
  *     what gets matched.
  *
  * When the brand table has nothing, it falls back to `guessCategory` over the
@@ -175,7 +175,7 @@ export function merchantTokens(raw: string): string[] {
  * single spaces. Useful both for matching and for showing the person a tidier
  * name than "POS UPI SWIGGY*ORDER 8842".
  */
-export function normaliseMerchant(raw: string): string {
+export function normaliseMerchantName(raw: string): string {
   return merchantTokens(raw).join(' ');
 }
 
