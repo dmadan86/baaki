@@ -28,6 +28,7 @@ import { isRtlLanguage, LANGUAGE_NAMES, plural, useStrings, type UiStrings } fro
 import { useLanguage } from '@/i18n/language';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
+import { r2Enabled } from '@/lib/storage';
 import { describeGrace, useLock } from '@/lib/lock';
 import { useMotion } from '@/lib/motion';
 import { useFlagEnabled } from '@/lib/flags';
@@ -470,6 +471,18 @@ function ProfileForm() {
               hint: t.account.upgradeHint,
               route: '/settings/upgrade',
             },
+            // Only once storage is on R2 is there a per-user byte tally to meter;
+            // before that the row would open a screen with nothing to show.
+            ...(r2Enabled()
+              ? [
+                  {
+                    icon: 'cloud-outline' as const,
+                    label: t.storage.row,
+                    hint: t.storage.rowHint,
+                    route: '/settings/storage',
+                  },
+                ]
+              : []),
           ]}
         />
 

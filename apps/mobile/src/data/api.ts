@@ -390,6 +390,21 @@ export async function canAddReceipt(groupId: string): Promise<boolean> {
   return data === true;
 }
 
+/**
+ * The signed-in caller's own image-storage usage (A44), for the settings meter.
+ *
+ * `used` counts only the bytes that are charged against a ceiling — a paid
+ * account, whose bytes are never counted, reads 0 used — and `cap` is the
+ * current free-tier ceiling. Answered by a `SECURITY DEFINER` RPC scoped hard to
+ * the caller's own profile, so it reveals nobody else's tally.
+ */
+export async function myStorageUsage(): Promise<{ usedBytes: number; capBytes: number }> {
+  const { data, error } = await supabase.rpc('baaki_my_storage_usage');
+  if (error) throw new Error(error.message);
+  const row = (data as { used_bytes: number; cap_bytes: number }[] | null)?.[0];
+  return { usedBytes: Number(row?.used_bytes ?? 0), capBytes: Number(row?.cap_bytes ?? 0) };
+}
+
 /** The bucket accepts three types; anything else is stored as JPEG. */
 function normaliseImageMime(mimeType: string | null | undefined): string {
   if (mimeType === 'image/png' || mimeType === 'image/webp') return mimeType;
