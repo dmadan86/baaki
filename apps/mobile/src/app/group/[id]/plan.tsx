@@ -23,8 +23,11 @@ import {
   budgetVariance,
   buildTimeline,
   dayNumber,
+  fairness,
+  forecast,
   spendByMember,
   type BudgetProgress,
+  type MemberContribution,
   type PlanItem,
   type TimelineExpense,
 } from '@waves/core';
@@ -299,6 +302,68 @@ export default function PlanScreen() {
   };
 
   const isTrip = group.data?.type === 'trip';
+
+  const nameOf = (memberId: string): string => {
+    const member = (members.data ?? []).find((m) => m.id === memberId);
+    return member ? displayName(member, myProfileId) : '—';
+  };
+
+  // Burn-rate: the pace so far, projected across the whole trip, per currency
+  // and against the overall cap in its own currency (ADR-004). Empty until the
+  // trip has both dates and a day of spend to read a pace from.
+  const forecasts = useMemo(
+    () =>
+      isTrip
+        ? forecast({
+            spentByCurrency: timeline.spentByCurrency,
+            budget:
+              groupBudget.data?.amountMinor != null
+                ? {
+                    amountMinor: groupBudget.data.amountMinor,
+                    currency: groupBudget.data.currency ?? currency,
+                  }
+                : null,
+            today,
+            startDate: group.data?.start_date?.slice(0, 10) ?? null,
+            endDate: group.data?.end_date?.slice(0, 10) ?? null,
+          })
+        : [],
+    [
+      isTrip,
+      timeline.spentByCurrency,
+      groupBudget.data,
+      today,
+      group.data?.start_date,
+      group.data?.end_date,
+      currency,
+    ],
+  );
+
+  // Fairness: who has fronted a lopsided share, and who could pick up the next
+  // bill. Paid comes from the payers, owed from the shares — both already on the
+  // mirrored ledger, never re-divided here.
+  const fairnessSignals = useMemo(() => {
+    if (!isTrip) return [];
+    const byKey = new Map<string, MemberContribution & { paidMinor: bigint; owedMinor: bigint }>();
+    const touch = (member: string, cur: string) => {
+      const key = `${member}|${cur}`;
+      let row = byKey.get(key);
+      if (!row) {
+        row = { member, currency: cur, paidMinor: 0n, owedMinor: 0n };
+        byKey.set(key, row);
+      }
+      return row;
+    };
+    for (const expense of expenses.rows) {
+      const version = expense.currentVersion;
+      if (!version || expense.deleted_at) continue;
+      for (const payer of version.payers)
+        touch(payer.member_id, version.currency).paidMinor += BigInt(payer.amount);
+      for (const share of version.shares)
+        touch(share.member_id, version.currency).owedMinor += BigInt(share.amount);
+    }
+    return fairness([...byKey.values()]).filter((block) => block.overpayer || block.nextPayer);
+  }, [isTrip, expenses.rows]);
 
   // `busy` is async state, so a double-tap can fire two submits in the same tick
   // before it re-renders — each mints a fresh itemId, so both post. A synchronous
@@ -577,6 +642,94 @@ export default function PlanScreen() {
                 />
               ))}
           </Card>
+        ) : null}
+
+        {isTrip && forecasts.length > 0 ? (
+          <Card style={{ gap: theme.spacing.sm }}>
+            <Text variant="subheading">{t.tripInsights.forecast}</Text>
+            {forecasts.map((f) => (
+              <Row
+                key={f.currency}
+                style={{ justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <View>
+                  <Text variant="caption" tone="muted">
+                    {f.ended ? t.tripInsights.total : t.tripInsights.projectedTotal}
+                  </Text>
+                  <MoneyText
+                    amount={f.projectedTotalMinor}
+                    currency={f.currency}
+                    locale={locale}
+                    variant="subheading"
+                    mode="plain"
+                  />
+                </View>
+                {f.capMinor !== null ? (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text variant="caption" tone={f.onTrack ? 'muted' : 'negative'}>
+                      {f.onTrack ? t.tripInsights.onTrack : t.overBudget}
+                    </Text>
+                    {!f.onTrack && f.projectedOverrunMinor !== null ? (
+                      <MoneyText
+                        amount={
+                          f.projectedOverrunMinor < 0n
+                            ? -f.projectedOverrunMinor
+                            : f.projectedOverrunMinor
+                        }
+                        currency={f.currency}
+                        locale={locale}
+                        variant="caption"
+                        mode="plain"
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
+              </Row>
+            ))}
+          </Card>
+        ) : null}
+
+        {isTrip && fairnessSignals.length > 0 ? (
+          <Card style={{ gap: theme.spacing.sm }}>
+            <Text variant="subheading">{t.tripInsights.fairness}</Text>
+            {fairnessSignals.map((block) => (
+              <View key={block.currency} style={{ gap: theme.spacing.xs }}>
+                {block.overpayer ? (
+                  <Text variant="caption">
+                    {fill(t.tripInsights.paidShare, {
+                      name: nameOf(block.overpayer.member),
+                      percent: String(Math.round(block.overpayer.paidRatio * 100)),
+                    })}
+                  </Text>
+                ) : null}
+                {block.nextPayer ? (
+                  <Text variant="caption" tone="brand">
+                    {fill(t.tripInsights.nextUp, { name: nameOf(block.nextPayer) })}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </Card>
+        ) : null}
+
+        {isTrip ? (
+          <Pressable
+            onPress={() => router.push(`/group/${groupId}/recap`)}
+            accessibilityRole="button"
+            accessibilityLabel={t.tripInsights.recap}
+            style={{ paddingVertical: theme.spacing.xs }}
+          >
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text variant="caption" tone="brand">
+                {t.tripInsights.recap}
+              </Text>
+              <Ionicons
+                name={directionalIcon('chevron-forward')}
+                size={iconSize.sm}
+                color={theme.color.brand}
+              />
+            </Row>
+          </Pressable>
         ) : null}
 
         {timeline.days.length === 0 ? (

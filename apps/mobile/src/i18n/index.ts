@@ -311,6 +311,29 @@ export interface UiStrings {
   spent: string;
   overBudget: string;
   underBudget: string;
+  /** Trip insights: burn-rate forecast, fairness nudges, post-trip recap. */
+  tripInsights: {
+    forecast: string;
+    /** Projected end-of-trip total. */
+    projectedTotal: string;
+    onTrack: string;
+    fairness: string;
+    /** `{name}` has fronted `{percent}`% of the trip. */
+    paidShare: string;
+    evenlyMatched: string;
+    /** Suggest `{name}` picks up the next bill. */
+    nextUp: string;
+    recap: string;
+    recapSubtitle: string;
+    total: string;
+    perDay: string;
+    biggestBill: string;
+    mostSpentOn: string;
+    paidMost: string;
+    /** `{n}` expenses. */
+    expenseCount: string;
+    noneYet: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -1142,6 +1165,8 @@ export interface UiStrings {
     adminNeedsAccount: string;
     you: string;
     memberName: string;
+    /** Member detail: label over their per-currency outlay (currency exposure). */
+    paidAcross: string;
     ghostNote: string;
     upiForGroup: string;
     upiForGroupNote: string;
@@ -1923,6 +1948,24 @@ const en: UiStrings = {
   spent: 'Spent',
   overBudget: 'over',
   underBudget: 'under',
+  tripInsights: {
+    forecast: 'On this pace',
+    projectedTotal: 'Projected total',
+    onTrack: 'On track',
+    fairness: 'Fairness',
+    paidShare: '{name} has fronted {percent}% of the trip',
+    evenlyMatched: 'Everyone’s chipping in evenly',
+    nextUp: '{name} could pick up the next one',
+    recap: 'Trip recap',
+    recapSubtitle: 'How the trip added up',
+    total: 'Total',
+    perDay: 'Per day',
+    biggestBill: 'Biggest bill',
+    mostSpentOn: 'Most spent on',
+    paidMost: 'Fronted the most',
+    expenseCount: '{n} expenses',
+    noneYet: 'Nothing to recap yet',
+  },
   budgets: 'Budgets',
   overallBudget: 'Overall',
   myBudget: 'My budget',
@@ -2714,6 +2757,7 @@ const en: UiStrings = {
     adminNeedsAccount: 'They have not joined yet. Only a member with an account can be an admin.',
     you: 'you',
     memberName: 'Member name',
+    paidAcross: 'Paid',
     ghostNote: 'This person holds real balances. When they join, they can claim this history.',
     upiForGroup: 'UPI ID for this group',
     upiForGroupNote:
@@ -3553,6 +3597,24 @@ const ta: UiStrings = {
   spent: 'செலவானது',
   overBudget: 'அதிகம்',
   underBudget: 'குறைவு',
+  tripInsights: {
+    forecast: 'இந்த வேகத்தில்',
+    projectedTotal: 'எதிர்பார்க்கும் மொத்தம்',
+    onTrack: 'சரியான பாதையில்',
+    fairness: 'நியாயம்',
+    paidShare: '{name} பயணத்தில் {percent}% செலுத்தியுள்ளார்',
+    evenlyMatched: 'அனைவரும் சமமாக பங்களிக்கிறார்கள்',
+    nextUp: 'அடுத்த பில்லை {name} எடுக்கலாம்',
+    recap: 'பயண சுருக்கம்',
+    recapSubtitle: 'பயணம் எப்படி கூடியது',
+    total: 'மொத்தம்',
+    perDay: 'நாள் ஒன்றுக்கு',
+    biggestBill: 'மிகப்பெரிய பில்',
+    mostSpentOn: 'அதிகம் செலவழித்தது',
+    paidMost: 'அதிகம் செலுத்தியவர்',
+    expenseCount: '{n} செலவுகள்',
+    noneYet: 'இன்னும் சுருக்க எதுவும் இல்லை',
+  },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
   myBudget: 'என் பட்ஜெட்',
@@ -4385,6 +4447,7 @@ const ta: UiStrings = {
       'இவர் இன்னும் சேரவில்லை. கணக்கு உள்ள உறுப்பினர் மட்டுமே நிர்வாகியாக முடியும்.',
     you: 'நீங்கள்',
     memberName: 'உறுப்பினர் பெயர்',
+    paidAcross: 'செலுத்தியது',
     ghostNote:
       'இவருக்கு உண்மையான இருப்புகள் உள்ளன. அவர்கள் சேரும்போது இந்த வரலாற்றைத் தங்களுடையதாக்கிக் கொள்ளலாம்.',
     upiForGroup: 'இந்தக் குழுவுக்கான UPI ID',
@@ -5248,6 +5311,24 @@ const hi: UiStrings = {
   spent: 'खर्च हुआ',
   overBudget: 'ज़्यादा',
   underBudget: 'कम',
+  tripInsights: {
+    forecast: 'इस रफ़्तार पर',
+    projectedTotal: 'अनुमानित कुल',
+    onTrack: 'सही राह पर',
+    fairness: 'बराबरी',
+    paidShare: '{name} ने ट्रिप का {percent}% चुकाया है',
+    evenlyMatched: 'सब बराबर योगदान दे रहे हैं',
+    nextUp: 'अगला बिल {name} ले सकते हैं',
+    recap: 'ट्रिप का सार',
+    recapSubtitle: 'ट्रिप का हिसाब कैसे बना',
+    total: 'कुल',
+    perDay: 'प्रति दिन',
+    biggestBill: 'सबसे बड़ा बिल',
+    mostSpentOn: 'सबसे ज़्यादा खर्च',
+    paidMost: 'सबसे ज़्यादा चुकाया',
+    expenseCount: '{n} खर्च',
+    noneYet: 'अभी सार के लिए कुछ नहीं',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -6043,6 +6124,7 @@ const hi: UiStrings = {
     adminNeedsAccount: 'ये अभी शामिल नहीं हुए हैं. सिर्फ़ अकाउंट वाला सदस्य ही एडमिन बन सकता है.',
     you: 'आप',
     memberName: 'सदस्य का नाम',
+    paidAcross: 'चुकाया',
     ghostNote: 'इस व्यक्ति का असली हिसाब है। जुड़ने पर वे यह इतिहास अपने नाम कर सकते हैं।',
     upiForGroup: 'इस समूह के लिए UPI ID',
     upiForGroupNote:
@@ -6893,6 +6975,24 @@ const ar: UiStrings = {
   spent: 'المصروف',
   overBudget: 'زيادة',
   underBudget: 'أقل',
+  tripInsights: {
+    forecast: 'بهذه الوتيرة',
+    projectedTotal: 'الإجمالي المتوقع',
+    onTrack: 'على المسار',
+    fairness: 'الإنصاف',
+    paidShare: 'دفع {name} ‏{percent}٪ من الرحلة',
+    evenlyMatched: 'الجميع يساهمون بالتساوي',
+    nextUp: 'يمكن أن يدفع {name} الفاتورة التالية',
+    recap: 'ملخص الرحلة',
+    recapSubtitle: 'كيف تجمّعت مصاريف الرحلة',
+    total: 'الإجمالي',
+    perDay: 'لكل يوم',
+    biggestBill: 'أكبر فاتورة',
+    mostSpentOn: 'الأكثر إنفاقًا',
+    paidMost: 'الأكثر دفعًا',
+    expenseCount: '{n} مصاريف',
+    noneYet: 'لا شيء للتلخيص بعد',
+  },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',
   myBudget: 'ميزانيتي',
@@ -7717,6 +7817,7 @@ const ar: UiStrings = {
     adminNeedsAccount: 'لم ينضم بعد. المشرف يجب أن يكون عضوًا لديه حساب.',
     you: 'أنت',
     memberName: 'اسم العضو',
+    paidAcross: 'دفع',
     ghostNote: 'لهذا الشخص أرصدة حقيقية. حين ينضم يمكنه أن يطالب بهذا السجل.',
     upiForGroup: 'معرّف الدفع لهذه المجموعة',
     upiForGroupNote: 'يتجاوز معرّف حسابك هنا فقط — مفيد حين تُسوّى مجموعة إلى حساب مختلف.',
