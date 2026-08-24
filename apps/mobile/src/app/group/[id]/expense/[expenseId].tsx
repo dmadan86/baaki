@@ -27,7 +27,6 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
-import { TripAlbumStrip } from '@/components/TripAlbum';
 import { ExpenseAttachments } from '@/components/ExpenseAttachments';
 import { ExpenseComments } from '@/components/ExpenseComments';
 import {
@@ -375,11 +374,6 @@ export default function ExpenseDetailScreen() {
             </Card>
           </Pressable>
         ) : null}
-
-        {/* The album strip for this bill — photos of the meal, the room, the view.
-            Distinct from the receipt above: many, free, and browsed for the memory
-            rather than the amount. */}
-        <TripAlbumStrip groupId={groupId} expenseId={expense.id} />
 
         {/* Attachments — images at a chosen visibility. `group` is like the
             receipt; `parties` is hidden to everyone but this bill's payers +

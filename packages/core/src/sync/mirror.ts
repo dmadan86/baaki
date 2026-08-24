@@ -37,8 +37,6 @@ import type {
   SyncChange,
   TagDeletePayload,
   TagUpsertPayload,
-  TripPhotoAddPayload,
-  TripPhotoDeletePayload,
 } from './protocol';
 import type { QueuedMutation } from './queue';
 
@@ -66,7 +64,6 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.CategoryTags,
   SyncTable.TripPlanItems,
   SyncTable.TripMemberBudgets,
-  SyncTable.TripPhotos,
   SyncTable.SettlementProofs,
   SyncTable.ExpenseAttachments,
   SyncTable.ExpenseComments,
@@ -981,87 +978,6 @@ export function materialisePlanItems(
       return a.pending_rank - b.pending_rank;
     }
     return String(a.id).localeCompare(String(b.id));
-  });
-}
-
-/** One album photo as the mirror holds it (server row shape + optimistic flags). */
-export interface MirrorTripPhoto extends MirrorRow {
-  readonly id: string;
-  readonly group_id: string;
-  readonly expense_id: string | null;
-  readonly day: string | null;
-  readonly storage_path: string;
-  readonly caption: string | null;
-  readonly created_by: string | null;
-  readonly created_at: string | null;
-  readonly deleted_at: string | null;
-  readonly pending?: boolean;
-  /** Queue order for a pending add, so newest-first stays the typed order. */
-  readonly pending_rank?: number;
-}
-
-/**
- * The album of one group: server rows with queued add/delete on top. Tombstones
- * (`deleted_at`) are kept in the returned list, exactly like the plan — the
- * caller filters them, which lets a screen that wants to show "removed" do so.
- * Newest first (a gallery reads most-recent-first); a pending add, which has no
- * server `created_at` yet, sorts to the very top by its queue order.
- */
-export function materialiseTripPhotos(
-  state: MirrorState,
-  queue: readonly QueuedMutation[],
-  options: { readonly groupId: string },
-): MirrorTripPhoto[] {
-  const byId = new Map<string, MirrorTripPhoto>();
-  for (const row of rowsFor(state, SyncTable.TripPhotos, options.groupId) as MirrorTripPhoto[]) {
-    byId.set(row.id, row);
-  }
-
-  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
-    if (mutation.groupId !== options.groupId) continue;
-
-    switch (mutation.kind) {
-      case 'trip_photo.add': {
-        const payload = mutation.payload as TripPhotoAddPayload;
-        if (byId.has(payload.photoId)) break;
-        byId.set(payload.photoId, {
-          id: payload.photoId,
-          group_id: mutation.groupId,
-          expense_id: payload.expenseId ?? null,
-          day: payload.day ?? null,
-          storage_path: payload.storagePath,
-          caption: payload.caption ?? null,
-          created_by: null,
-          created_at: mutation.clientCreatedAt,
-          deleted_at: null,
-          pending: true,
-          pending_rank: mutation.seq,
-        });
-        break;
-      }
-      case 'trip_photo.delete': {
-        const { photoId } = mutation.payload as TripPhotoDeletePayload;
-        const existing = byId.get(photoId);
-        if (existing) {
-          byId.set(photoId, { ...existing, deleted_at: mutation.clientCreatedAt, pending: true });
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  }
-
-  return [...byId.values()].sort((a, b) => {
-    // Newest first. A pending add (no server timestamp yet) sorts above all
-    // committed rows, tie-broken by queue order so two quick adds keep order.
-    const at = a.created_at ?? '';
-    const bt = b.created_at ?? '';
-    if (at !== bt) return bt.localeCompare(at);
-    if (a.pending_rank !== undefined && b.pending_rank !== undefined) {
-      return b.pending_rank - a.pending_rank;
-    }
-    return String(b.id).localeCompare(String(a.id));
   });
 }
 

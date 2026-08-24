@@ -74,10 +74,7 @@ type MutationKind =
   | 'member_budget.set'
   | 'member_budget.clear'
   | 'group_budget.set'
-  | 'category_budget.set'
-  // Trip album (shared photos) — group-scoped, authorised by membership.
-  | 'trip_photo.add'
-  | 'trip_photo.delete';
+  | 'category_budget.set';
 
 /** True for the kinds whose scope is a user, not a group. */
 function isPersonalKind(kind: MutationKind): boolean {
@@ -476,22 +473,6 @@ class SyncSession {
           p_category: mutation.payload.category as string,
           p_amount_minor: (mutation.payload.amountMinor as string | null) ?? null,
           p_currency: (mutation.payload.currency as string | undefined) ?? null,
-        });
-      case 'trip_photo.add':
-        // Membership-gated inside the RPC. The bytes were already PUT to R2 via
-        // r2-sign; this only records the pointer. Client-chosen id dedupes a
-        // replay. An expense link is validated against this same group in the RPC.
-        return await this.rpcAsCaller('baaki_add_trip_photo', {
-          p_group_id: mutation.groupId,
-          p_storage_path: requireString(mutation.payload.storagePath, 'storagePath'),
-          p_photo_id: requireString(mutation.payload.photoId, 'photoId'),
-          p_expense_id: (mutation.payload.expenseId as string | undefined) ?? null,
-          p_day: (mutation.payload.day as string | undefined) ?? null,
-          p_caption: (mutation.payload.caption as string | undefined) ?? null,
-        });
-      case 'trip_photo.delete':
-        return await this.rpcAsCaller('baaki_remove_trip_photo', {
-          p_photo_id: requireString(mutation.payload.photoId, 'photoId'),
         });
       default:
         throw new HttpError(
@@ -935,7 +916,6 @@ async function pull(
       ['trip_member_budgets', '*'],
       // Trip album (shared photos). Flat rows, no embeds; a removal arrives as a
       // deleted_at tombstone the client mirror filters out.
-      ['trip_photos', '*'],
       // Private attachments (party-only). Read AS THE CALLER, so the party RLS
       // filters non-parties at the sync boundary — a non-party's response simply
       // omits these rows, and the bytes are never in any row (only a path, itself
