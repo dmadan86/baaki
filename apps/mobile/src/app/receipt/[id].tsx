@@ -65,10 +65,7 @@ export default function ReceiptViewerScreen(): React.JSX.Element {
           </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState
-              title={t.expense.receiptMissingTitle}
-              body={t.expense.receiptMissingOtherDevice}
-            />
+            <EmptyState title={t.loadError} body={t.loadErrorBody} />
           </View>
         )}
       </View>

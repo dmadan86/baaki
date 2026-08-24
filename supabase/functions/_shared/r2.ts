@@ -72,12 +72,15 @@ export async function readObjectBytes(
   path: string,
 ): Promise<Uint8Array> {
   if (r2Configured()) {
-    const { data } = await service
+    const { data, error } = await service
       .from('storage_objects')
       .select('path')
       .eq('logical_bucket', logicalBucket)
       .eq('path', path)
       .maybeSingle();
+    // A lookup failure is not "the object is on the old backend" — falling through
+    // on error would fetch the wrong place or 404 a live R2 object. Surface it.
+    if (error) throw new HttpError(500, 'LEDGER_LOOKUP_FAILED', error.message);
     if (data) {
       const response = await r2().client.fetch(objectUrl(logicalBucket, path));
       if (!response.ok) throw new HttpError(404, 'NOT_FOUND', 'Object not found in R2');

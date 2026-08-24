@@ -114,8 +114,10 @@ export async function putImage(input: PutImageInput): Promise<string> {
   if (!put.ok) {
     // `put` already reserved this path's bytes against the cap. The upload did
     // not land, so release the reservation rather than leave it holding cap until
-    // the 30-minute sweep. Best-effort: the sweep is the backstop either way.
-    await signCall({ action: 'delete', bucket: input.bucket, path: input.path }).catch(() => {});
+    // the 30-minute sweep. `release` (not `delete`) only clears a pending
+    // reservation, so a failed *replacement* never touches the committed image
+    // that is already there. Best-effort: the sweep is the backstop either way.
+    await signCall({ action: 'release', bucket: input.bucket, path: input.path }).catch(() => {});
     throw new Error(`Upload failed (${put.status})`);
   }
 

@@ -102,6 +102,19 @@ export default function StorageUsageScreen() {
       );
     }
 
+    // A failed read must not sit as a skeleton forever — offer a retry.
+    if (usage.isError) {
+      return (
+        <Card style={{ gap: theme.spacing.sm }}>
+          <Text variant="subheading">{t.loadError}</Text>
+          <Text variant="body" tone="muted">
+            {t.loadErrorBody}
+          </Text>
+          <Button label={t.retry} fullWidth onPress={() => usage.refetch()} />
+        </Card>
+      );
+    }
+
     if (usage.isLoading || !usage.data) return <SkeletonList rows={2} />;
 
     const { usedBytes, capBytes } = usage.data;

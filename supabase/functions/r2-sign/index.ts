@@ -246,10 +246,12 @@ serveWithCors(async (request) => {
         throw new HttpError(500, 'INTERNAL', message);
       }
 
-      const signed = await r2().client.sign(
-        new Request(objectUrl(bucket, path), { method: 'PUT' }),
-        { aws: { signQuery: true, allHeaders: true }, headers: { 'content-type': contentType } },
-      );
+      const putUrl = new URL(objectUrl(bucket, path));
+      putUrl.searchParams.set('X-Amz-Expires', String(URL_TTL_SECONDS));
+      const signed = await r2().client.sign(new Request(putUrl, { method: 'PUT' }), {
+        aws: { signQuery: true, allHeaders: true },
+        headers: { 'content-type': contentType },
+      });
       return json({ url: signed.url, method: 'PUT', headers: { 'content-type': contentType } });
     }
 
@@ -276,13 +278,23 @@ serveWithCors(async (request) => {
       });
       if (error) {
         // The cap boundary — the reservation trusted a declared size, the object
-        // landed larger. Drop what we just took, release the reservation it still
-        // holds (so its bytes stop counting against the cap), and refuse.
-        await r2().client.fetch(objectUrl(bucket, path), { method: 'DELETE' });
+        // landed larger. Release the reservation this upload holds and, only when
+        // that actually removed a pending row (a brand-new upload, not a
+        // replacement of an existing committed image), delete the object we just
+        // wrote. A refused *replacement* leaves the committed row and its image
+        // untouched — never destroy the good copy that is already there.
+        let removedReservation = false;
         try {
-          await service.rpc('baaki_storage_release', { p_logical_bucket: bucket, p_path: path });
+          const { data } = await service.rpc('baaki_storage_release_reservation', {
+            p_logical_bucket: bucket,
+            p_path: path,
+          });
+          removedReservation = data === true;
         } catch {
-          // Best-effort — the pending row is swept even if this release misses.
+          // Best-effort — a stale pending row is swept by the expiry job anyway.
+        }
+        if (removedReservation) {
+          await r2().client.fetch(objectUrl(bucket, path), { method: 'DELETE' });
         }
         if (error.message.includes('STORAGE_CAP')) {
           throw new HttpError(
@@ -309,7 +321,9 @@ serveWithCors(async (request) => {
       if (lookupError) throw new HttpError(500, 'INTERNAL', lookupError.message);
 
       if (known) {
-        const signed = await r2().client.sign(new Request(objectUrl(bucket, path)), {
+        const getUrl = new URL(objectUrl(bucket, path));
+        getUrl.searchParams.set('X-Amz-Expires', String(URL_TTL_SECONDS));
+        const signed = await r2().client.sign(new Request(getUrl), {
           aws: { signQuery: true },
         });
         return json({ url: signed.url });
@@ -324,10 +338,35 @@ serveWithCors(async (request) => {
       return json({ url: data.signedUrl });
     }
 
+    // ── release a failed upload's reservation ─────────────────────────────
+    // The client calls this when its PUT to R2 did not land. It is the safe
+    // counterpart to `delete`: it removes the row only while it is still a
+    // pending reservation, and deletes the R2 object only if that reservation
+    // was actually removed — so a failed *replacement*, which never held a
+    // pending row, cannot take the committed image down with it.
+    if (action === 'release') {
+      await authorizeWrite(caller, uid, bucket, path);
+      const { data: removed, error } = await service.rpc('baaki_storage_release_reservation', {
+        p_logical_bucket: bucket,
+        p_path: path,
+      });
+      if (error) throw new HttpError(500, 'INTERNAL', error.message);
+      if (removed === true) {
+        await r2().client.fetch(objectUrl(bucket, path), { method: 'DELETE' });
+      }
+      return json({ ok: true });
+    }
+
     // ── delete an object and forget it ────────────────────────────────────
     if (action === 'delete') {
       await authorizeWrite(caller, uid, bucket, path);
       await r2().client.fetch(objectUrl(bucket, path), { method: 'DELETE' });
+      // A legacy object may still live on Supabase Storage (dual-read); remove it
+      // there too, or the fallback read would keep serving a deleted image.
+      await service.storage
+        .from(bucket)
+        .remove([path])
+        .catch(() => {});
       const { error } = await service.rpc('baaki_storage_release', {
         p_logical_bucket: bucket,
         p_path: path,

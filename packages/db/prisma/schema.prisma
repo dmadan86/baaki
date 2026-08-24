@@ -176,6 +176,7 @@ model Profile {
   memberClaims        MemberClaim[]
   deviceSessions      DeviceSession[]
   ghostMerges         GhostMerge[]
+  storageObjects      StorageObject[]
 
   @@map("profiles")
   @@schema("public")
@@ -243,8 +244,9 @@ model Group {
   passes        GroupPass[]
   planItems     TripPlanItem[]
   syncMutations SyncMutation[]
-  memberClaims  MemberClaim[]
-  memberBudgets TripMemberBudget[]
+  memberClaims   MemberClaim[]
+  memberBudgets  TripMemberBudget[]
+  storageObjects StorageObject[]
 
   @@index([archivedAt])
   /// The nudge job only ever looks at groups that have said when they are
@@ -1330,6 +1332,47 @@ model AppConfig {
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("app_config")
+  @@schema("public")
+}
+
+/// The ledger of every image object written to Cloudflare R2 (A44). R2 is opaque
+/// to Postgres, so ownership and size — which Supabase Storage held for free —
+/// are recorded here at write time, and the free-tier byte cap is measured
+/// against it. `pending` marks a reservation whose PUT has not yet been
+/// committed; it still counts against the cap. Written only by the service role
+/// through the `baaki_storage_*` functions (RLS + REVOKE live in the migration).
+model StorageObject {
+  logicalBucket  String   @map("logical_bucket")
+  path           String
+  ownerProfileId String   @map("owner_profile_id") @db.Uuid
+  groupId        String?  @map("group_id") @db.Uuid
+  bytes          BigInt
+  contentType    String   @default("image/webp") @map("content_type")
+  counted        Boolean
+  pending        Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner Profile @relation(fields: [ownerProfileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  group Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([logicalBucket, path])
+  @@index([ownerProfileId, counted], map: "storage_objects_owner_counted_idx")
+  @@map("storage_objects")
+  @@schema("public")
+}
+
+/// R2 keys whose ledger row is gone — deleted, expired, or cascaded away when a
+/// profile or group was removed — and which the `storage-sweep` edge function
+/// still has to delete from R2. Populated by a BEFORE DELETE trigger on
+/// `storage_objects` (see the migration); service role only.
+model StorageOrphan {
+  logicalBucket String   @map("logical_bucket")
+  path          String
+  enqueuedAt    DateTime @default(now()) @map("enqueued_at") @db.Timestamptz(6)
+
+  @@id([logicalBucket, path])
+  @@map("storage_orphans")
   @@schema("public")
 }
 

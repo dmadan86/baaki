@@ -281,6 +281,50 @@ describe('reclaiming stranded R2 bytes', () => {
   });
 });
 
+describe('a failed replacement never destroys the committed image', () => {
+  it('reserve does not flip a committed row to pending', async () => {
+    const p = await makeProfile();
+    await record(p, null, 'avatars', `${p}/a.webp`, 2 * MB); // committed
+
+    // A replacement reserves the same path; the committed row must stay committed.
+    await reserve(p, null, 'avatars', `${p}/a.webp`, 3 * MB);
+    const { rows } = await client.query(
+      `SELECT bytes, pending FROM storage_objects WHERE path = $1`,
+      [`${p}/a.webp`],
+    );
+    expect(rows[0].pending).toBe(false); // untouched — not downgraded
+    expect(big(rows[0].bytes)).toBe(BigInt(2 * MB)); // still the good size
+  });
+
+  it('release_reservation leaves a committed row but clears a pending one', async () => {
+    const p = await makeProfile();
+    await record(p, null, 'avatars', `${p}/committed.webp`, 2 * MB);
+    await reserve(p, null, 'avatars', `${p}/fresh.webp`, 1 * MB); // pending
+
+    // A committed path: nothing removed, row survives.
+    const kept = await client.query(
+      `SELECT public.baaki_storage_release_reservation('avatars', $1) AS removed`,
+      [`${p}/committed.webp`],
+    );
+    expect(kept.rows[0].removed).toBe(false);
+    const stillThere = await client.query(`SELECT 1 FROM storage_objects WHERE path = $1`, [
+      `${p}/committed.webp`,
+    ]);
+    expect(stillThere.rowCount).toBe(1);
+
+    // A pending path: removed, returns true.
+    const dropped = await client.query(
+      `SELECT public.baaki_storage_release_reservation('avatars', $1) AS removed`,
+      [`${p}/fresh.webp`],
+    );
+    expect(dropped.rows[0].removed).toBe(true);
+    const gone = await client.query(`SELECT 1 FROM storage_objects WHERE path = $1`, [
+      `${p}/fresh.webp`,
+    ]);
+    expect(gone.rowCount).toBe(0);
+  });
+});
+
 describe('the caller-scoped usage RPC', () => {
   it('reveals only the caller’s own tally', async () => {
     const me = await makeProfile();

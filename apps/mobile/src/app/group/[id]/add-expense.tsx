@@ -63,6 +63,7 @@ import {
   uploadExpenseReceipt,
 } from '@/data/api';
 import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
+import { StorageCapError } from '@/lib/storage';
 import { useAssignCapture, useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
@@ -702,8 +703,13 @@ export default function AddExpenseScreen() {
         base64: picked.base64,
         mimeType: picked.mimeType,
       });
-    } catch {
-      // A receipt that would not upload is not a reason to lose the expense.
+    } catch (uploadError) {
+      // A receipt that would not upload is not a reason to lose the expense — the
+      // money still saves — but the person must know the picture did not, so it
+      // is not silently dropped. An over-cap refusal points at the upgrade.
+      setReceiptUri(null);
+      setReceiptPath(null);
+      setScanNote(uploadError instanceof StorageCapError ? t.storage.full : t.couldNotSave);
     }
   };
 

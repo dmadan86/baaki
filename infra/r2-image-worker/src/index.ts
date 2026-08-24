@@ -21,7 +21,7 @@ interface Env {
   IMAGES?: {
     input: (stream: ReadableStream) => {
       transform: (opts: { format: string }) => {
-        output: (opts: { format: string }) => Promise<{ image: () => ReadableStream }>;
+        output: (opts: { format: string }) => Promise<{ response: () => Response }>;
       };
     };
   };
@@ -69,8 +69,22 @@ async function normalize(record: R2EventRecord, env: Env): Promise<void> {
     .transform({ format: 'webp' })
     .output({ format: 'image/webp' });
 
-  await env.BUCKET.put(key, result.image(), {
+  // `.response().body` is the transformed bytes as a stream — the shape R2's
+  // `put` wants — without buffering the whole image in memory.
+  const body = result.response().body;
+  if (!body) return;
+
+  await env.BUCKET.put(key, body, {
     httpMetadata: { contentType: ALREADY_WEBP },
     customMetadata: { ...object.customMetadata, normalized: 'webp' },
   });
+
+  // ⚠️ LEDGER RECONCILIATION REQUIRED BEFORE PRODUCTION USE.
+  // Transcoding rewrites the object smaller, but `storage_objects.bytes` still
+  // holds the pre-transcode size, so the free-tier cap would over-count until the
+  // next re-upload. This scaffold does NOT yet update the ledger — wiring a
+  // service-role callback (e.g. an r2-sign `recount` action that HEADs the new
+  // size and rewrites the row) is a prerequisite for enabling the worker on a
+  // capped deployment. Until then, keep `IMAGES` unbound (the worker no-ops) or
+  // run it only where the cap is not enforced. See docs/r2-storage.md.
 }

@@ -89,10 +89,11 @@ CREATE TABLE IF NOT EXISTS public.storage_objects (
   PRIMARY KEY (logical_bucket, path)
 );
 
--- The cap query is "SUM(bytes) for this owner where counted"; index exactly that.
+-- The cap query is "SUM(bytes) for this owner where counted". A plain composite
+-- index (owner, counted) serves it and, unlike a partial `WHERE counted` index,
+-- is expressible in the Prisma schema so the drift check stays green.
 CREATE INDEX IF NOT EXISTS storage_objects_owner_counted_idx
-  ON public.storage_objects (owner_profile_id)
-  WHERE counted;
+  ON public.storage_objects (owner_profile_id, counted);
 
 ALTER TABLE public.storage_objects ENABLE ROW LEVEL SECURITY;
 
@@ -226,12 +227,52 @@ BEGIN
         content_type     = excluded.content_type,
         counted          = excluded.counted,
         pending          = true,
-        updated_at       = now();
+        updated_at       = now()
+    -- Only ever refresh an existing *reservation*. A committed object at this
+    -- path (a replacement) is left exactly as it is: its row must not flip to
+    -- pending, because if this upload is then abandoned or refused the failure
+    -- cleanup would delete the row and strand — or destroy — the good image that
+    -- is already there. The cap check above already excludes this same path, so a
+    -- replacement is still measured as a delta; only the write is withheld.
+    WHERE storage_objects.pending;
 END
 $$;
 
 REVOKE ALL ON FUNCTION public.baaki_storage_reserve(uuid, uuid, text, text, bigint, text) FROM public;
 GRANT EXECUTE ON FUNCTION public.baaki_storage_reserve(uuid, uuid, text, text, bigint, text) TO service_role;
+
+/**
+ * Release a *reservation* — the failure-cleanup counterpart to `baaki_storage_release`.
+ *
+ * `baaki_storage_release` removes any row (it backs the user's explicit delete);
+ * this one removes a row only while it is still `pending`, and returns whether it
+ * did. The edge function and the client call it when an upload fails, so a failed
+ * *replacement* — where reserve deliberately left the committed row untouched —
+ * removes nothing and the committed image survives. A brand-new upload, whose row
+ * is pending, is cleaned up as normal, and the boolean lets the caller know it may
+ * now delete the (only-just-written) R2 object.
+ */
+CREATE OR REPLACE FUNCTION public.baaki_storage_release_reservation(
+  p_logical_bucket text,
+  p_path           text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.storage_objects
+   WHERE logical_bucket = p_logical_bucket AND path = p_path AND pending;
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted > 0;
+END
+$$;
+
+REVOKE ALL ON FUNCTION public.baaki_storage_release_reservation(text, text) FROM public;
+GRANT EXECUTE ON FUNCTION public.baaki_storage_release_reservation(text, text) TO service_role;
 
 -- ──────────────────────────────── the write, and the boundary ──
 

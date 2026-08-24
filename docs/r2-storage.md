@@ -1,10 +1,13 @@
 # Image storage on Cloudflare R2 (A44)
 
-Receipts, group photos, avatars and captures are stored in **Cloudflare R2**,
-reached only through the `r2-sign` edge function. The mobile client never holds
-an R2 credential — it asks the function for a **presigned** PUT/GET and talks to
-R2 directly with that URL. Free accounts have a **10 MB** aggregate image-storage
-ceiling; paid accounts (and any group whose owner is paid) are uncapped.
+Receipts, group photos, avatars and captures are stored in **Cloudflare R2**.
+The **mobile client** reaches R2 only through the `r2-sign` edge function — it
+never holds an R2 credential, so it asks the function for a **presigned** PUT/GET
+and talks to R2 directly with that URL. **Server-side** code (`receipt-parse`,
+the `storage-sweep` job, `_shared/r2.ts`) uses the R2 S3 credentials directly, as
+it must to read bytes back and reclaim objects. Free accounts have a **10 MB**
+aggregate image-storage ceiling; paid accounts (and any group whose owner is
+paid) are uncapped.
 
 This is shipped **behind a flag and off by default** — with the flag off, the app
 uses Supabase Storage exactly as before, so nothing breaks until the secrets
@@ -59,23 +62,37 @@ credential. Reclaiming the actual R2 **bytes** (expired reservations, deleted
 objects, and objects orphaned when a profile or group is deleted) needs an R2
 credential, so it lives in the `storage-sweep` edge function. Schedule it wherever
 you run periodic jobs — e.g. a Supabase scheduled function, or `pg_cron` +
-`pg_net` posting to the function with the service-role key:
+`pg_net` posting to the function with the service-role key.
+
+First store the service-role key where the job can read it without hard-coding it
+(a Postgres GUC, set once by a superuser — or Supabase Vault):
+
+```sql
+alter database postgres set app.service_role_key = '<service-role-key>';
+```
+
+Then schedule the POST to the function's canonical URL
+(`https://<project-ref>.supabase.co/functions/v1/storage-sweep`):
 
 ```sql
 select cron.schedule(
   'waves-storage-sweep', '*/30 * * * *',
   $$ select net.http_post(
-       url     := 'https://<project-ref>.functions.supabase.co/storage-sweep',
+       url     := 'https://<project-ref>.supabase.co/functions/v1/storage-sweep',
        headers := jsonb_build_object('Authorization', 'Bearer ' || current_setting('app.service_role_key'))
      ) $$
 );
 ```
 
-If it never runs, the cap stays correct; only reclaimable R2 space accumulates.
+The two jobs do different things: the **`baaki-storage-expire-pending`** DB cron
+(installed by the migration) frees the **cap** held by abandoned reservations,
+needing no R2 credential; **`storage-sweep`** deletes the actual **R2 objects**
+(expired reservations, deleted images, cascade orphans). If `storage-sweep` never
+runs, the cap stays exactly correct — only reclaimable R2 storage accumulates.
 
 ## Mobile flag
 
-```
+```dotenv
 EXPO_PUBLIC_R2_ENABLED=true
 ```
 
