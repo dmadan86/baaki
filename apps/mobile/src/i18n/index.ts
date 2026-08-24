@@ -303,6 +303,13 @@ export interface UiStrings {
    */
   onboarding: readonly { title: string; body: string }[];
   plan: string;
+  /** Trip places: a list of located expenses that hands off to the OS maps app. */
+  tripMap: {
+    title: string;
+    empty: string;
+    emptyBody: string;
+    openInMaps: string;
+  };
   /** The plan header's "day N" section marker. `{n}` is the current day. */
   dayNumber: string;
   /** Trip carousel card: which day of the trip today is. `{day}`/`{total}`. */
@@ -1943,6 +1950,12 @@ const en: UiStrings = {
     other: 'Other',
   },
   plan: 'Plan',
+  tripMap: {
+    title: 'Places',
+    empty: 'No places yet',
+    emptyBody: 'Add a location to an expense to see it here.',
+    openInMaps: 'Open in Maps',
+  },
   dayNumber: 'day {n}',
   tripDay: 'Day {day} of {total}',
   planned: 'Planned',
@@ -3593,6 +3606,12 @@ const ta: UiStrings = {
     other: 'மற்றவை',
   },
   plan: 'திட்டம்',
+  tripMap: {
+    title: 'இடங்கள்',
+    empty: 'இன்னும் இடங்கள் இல்லை',
+    emptyBody: 'ஒரு செலவுக்கு இடத்தைச் சேர்த்தால் அது இங்கே தெரியும்.',
+    openInMaps: 'வரைபடத்தில் திற',
+  },
   dayNumber: 'நாள் {n}',
   tripDay: 'நாள் {day}/{total}',
   planned: 'திட்டமிட்டது',
@@ -5308,6 +5327,12 @@ const hi: UiStrings = {
     other: 'अन्य',
   },
   plan: 'योजना',
+  tripMap: {
+    title: 'जगहें',
+    empty: 'अभी कोई जगह नहीं',
+    emptyBody: 'किसी खर्च में जगह जोड़ें, वह यहाँ दिखेगी.',
+    openInMaps: 'नक्शे में खोलें',
+  },
   dayNumber: 'दिन {n}',
   tripDay: 'दिन {day}/{total}',
   planned: 'तय किया',
@@ -6973,6 +6998,12 @@ const ar: UiStrings = {
     other: 'أخرى',
   },
   plan: 'الخطة',
+  tripMap: {
+    title: 'الأماكن',
+    empty: 'لا أماكن بعد',
+    emptyBody: 'أضف موقعًا إلى مصروف لتراه هنا.',
+    openInMaps: 'افتح في الخرائط',
+  },
   dayNumber: 'اليوم {n}',
   tripDay: 'اليوم {day} من {total}',
   planned: 'المخطط',

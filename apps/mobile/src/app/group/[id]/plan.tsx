@@ -448,6 +448,15 @@ export default function PlanScreen() {
             />
           </IconButton>
           <Text variant="heading">{t.plan}</Text>
+          <View style={{ flex: 1 }} />
+          {group.data?.type === 'trip' ? (
+            <IconButton
+              label={t.tripMap.title}
+              onPress={() => router.push(`/group/${groupId}/map`)}
+            >
+              <Ionicons name="location-outline" size={iconSize.lg} color={theme.color.text} />
+            </IconButton>
+          ) : null}
         </Row>
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
