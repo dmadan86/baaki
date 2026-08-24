@@ -232,12 +232,18 @@ export async function imageUrl(bucket: LogicalBucket, path: string | null): Prom
   }
 }
 
-/** Delete an object from whichever backend holds it. */
+/**
+ * Delete an object from whichever backend holds it. Throws when the delete
+ * fails, so a caller does not record a removal (or clear its UI) for bytes that
+ * are still there — the R2 path already threw; this makes the Supabase path
+ * match instead of swallowing the error.
+ */
 export async function removeImage(bucket: LogicalBucket, path: string | null): Promise<void> {
   if (!path) return;
 
   if (!r2Enabled()) {
-    await supabase.storage.from(bucket).remove([path]);
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+    if (error) throw new Error(error.message);
     return;
   }
   await signCall({ action: 'delete', bucket, path });

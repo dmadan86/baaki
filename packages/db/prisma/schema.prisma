@@ -1417,6 +1417,10 @@ model ExpenseAttachment {
   uploaderMemberId String    @map("uploader_member_id") @db.Uuid
   storagePath      String    @map("storage_path")
   visibility       String    @default("group")
+  /// Non-destructive pen/text markup drawn over the image, in normalised (0..1)
+  /// image coordinates so it renders at any size. Null when the image is not
+  /// marked up. Edited by a party through an RPC; the bytes are never touched.
+  annotations      Json?
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   updatedSeq       BigInt    @default(0) @map("updated_seq")

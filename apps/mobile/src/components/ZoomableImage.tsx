@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
-import { useWindowDimensions } from 'react-native';
+import { Image as RNImage, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -7,6 +8,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+
+import { AnnotationOverlay } from '@/components/AnnotationOverlay';
+import { containRect, type Annotations } from '@/lib/annotations';
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -24,13 +28,35 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 export function ZoomableImage({
   uri,
   onZoomChange,
+  annotations,
 }: {
   uri: string;
   /** Fires when the image crosses between fit (1×) and zoomed (>1×). A pager uses
    *  it to stop swiping between pages while a page is zoomed in. */
   onZoomChange?: (zoomed: boolean) => void;
+  /** Pen/text markup to draw over the image, tracking it through zoom/pan. When
+   *  present the image is sized to its exact fit rectangle so the overlay lines
+   *  up with the pixels; without it the plain full-box behaviour is unchanged. */
+  annotations?: Annotations;
 }): React.JSX.Element {
   const { width, height } = useWindowDimensions();
+  const boxHeight = height * 0.8;
+
+  // The image's natural size, only needed to place an overlay on its exact fit
+  // rectangle. Resolved once per uri; until then the rect falls back to the box.
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!annotations) return;
+    let active = true;
+    RNImage.getSize(
+      uri,
+      (w, h) => active && setNatural({ w, h }),
+      () => active && setNatural(null),
+    );
+    return () => {
+      active = false;
+    };
+  }, [uri, annotations]);
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -94,15 +120,41 @@ export function ZoomableImage({
     ],
   }));
 
+  // Without an overlay: the original, unchanged full-box image. With one: size
+  // the image to its fit rectangle and lay the overlay over the same rectangle,
+  // both inside the zoom transform so they magnify together.
+  if (!annotations) {
+    return (
+      <GestureDetector gesture={composed}>
+        <Animated.View style={{ flex: 1, justifyContent: 'center' }} collapsable={false}>
+          <AnimatedImage
+            source={{ uri }}
+            style={[{ width, height: boxHeight }, animatedStyle]}
+            contentFit="contain"
+            transition={150}
+          />
+        </Animated.View>
+      </GestureDetector>
+    );
+  }
+
+  const rect = containRect({ w: width, h: boxHeight }, natural ?? { w: 0, h: 0 });
+
   return (
     <GestureDetector gesture={composed}>
-      <Animated.View style={{ flex: 1, justifyContent: 'center' }} collapsable={false}>
-        <AnimatedImage
-          source={{ uri }}
-          style={[{ width, height: height * 0.8 }, animatedStyle]}
-          contentFit="contain"
-          transition={150}
-        />
+      <Animated.View
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        collapsable={false}
+      >
+        <Animated.View style={[{ width: rect.w, height: rect.h }, animatedStyle]}>
+          <Image
+            source={{ uri }}
+            style={{ width: rect.w, height: rect.h }}
+            contentFit="contain"
+            transition={150}
+          />
+          <AnnotationOverlay annotations={annotations} width={rect.w} height={rect.h} />
+        </Animated.View>
       </Animated.View>
     </GestureDetector>
   );

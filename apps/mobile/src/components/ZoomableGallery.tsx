@@ -2,6 +2,13 @@ import { useRef, useState } from 'react';
 import { FlatList, useWindowDimensions, View, type ListRenderItemInfo } from 'react-native';
 
 import { ZoomableImage } from '@/components/ZoomableImage';
+import type { Annotations } from '@/lib/annotations';
+
+/** One gallery page: its resolved URL (null while resolving) and any markup. */
+export interface GalleryPage {
+  url: string | null;
+  annotations?: Annotations;
+}
 
 /**
  * A full-screen, swipeable gallery: one {@link ZoomableImage} per page, paged
@@ -14,29 +21,31 @@ import { ZoomableImage } from '@/components/ZoomableImage';
  * draws them; a still-resolving page shows nothing rather than a broken frame.
  */
 export function ZoomableGallery({
-  uris,
+  pages,
   index,
   onIndexChange,
 }: {
-  /** One resolved image URL per page, in order. A null page is still resolving. */
-  uris: readonly (string | null)[];
+  /** One page per image, in order. A page's null url is still resolving. */
+  pages: readonly GalleryPage[];
   index: number;
   onIndexChange: (index: number) => void;
 }): React.JSX.Element {
   const { width } = useWindowDimensions();
   const [zoomed, setZoomed] = useState(false);
-  const listRef = useRef<FlatList<string | null>>(null);
+  const listRef = useRef<FlatList<GalleryPage>>(null);
 
-  const renderItem = ({ item }: ListRenderItemInfo<string | null>) => (
+  const renderItem = ({ item }: ListRenderItemInfo<GalleryPage>) => (
     <View style={{ width, flex: 1, justifyContent: 'center' }}>
-      {item ? <ZoomableImage uri={item} onZoomChange={setZoomed} /> : null}
+      {item.url ? (
+        <ZoomableImage uri={item.url} onZoomChange={setZoomed} annotations={item.annotations} />
+      ) : null}
     </View>
   );
 
   return (
     <FlatList
       ref={listRef}
-      data={uris as (string | null)[]}
+      data={pages as GalleryPage[]}
       keyExtractor={(_, i) => String(i)}
       renderItem={renderItem}
       horizontal

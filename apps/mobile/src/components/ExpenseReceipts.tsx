@@ -20,8 +20,10 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, View } from 're
 
 import { IconButton, iconSize, Row, Text, useTheme } from '@waves/ui';
 
-import { ZoomableGallery } from '@/components/ZoomableGallery';
+import { ZoomableGallery, type GalleryPage } from '@/components/ZoomableGallery';
+import { ReceiptAnnotator } from '@/components/ReceiptAnnotator';
 import {
+  useAnnotateExpenseAttachment,
   useAttachExpenseAttachment,
   useExpenseAttachments,
   useRemoveExpenseAttachment,
@@ -29,6 +31,7 @@ import {
   type ExpenseAttachmentRow,
 } from '@/data/hooks';
 import { captureReceipt, pickReceiptImage } from '@/lib/image';
+import { EMPTY_ANNOTATIONS, isEmptyAnnotations, type Annotations } from '@/lib/annotations';
 import { imageUrl, restrictedImageUrl } from '@/lib/storage';
 import { fill, useStrings } from '@/i18n';
 
@@ -135,13 +138,22 @@ export function ExpenseReceipts({
   groupId,
   expenseId,
   canManage,
+  canRemoveLegacy,
   legacyReceiptPath,
   onLegacyRemoved,
 }: {
   groupId: string;
   expenseId: string;
-  /** Whether the viewer may add/remove — a party to the expense (payer/author). */
+  /** Whether the viewer may add and manage attachments — a party to the expense
+   *  (payer/author). This never widens to admins: the attach/remove/annotate
+   *  RPCs are party-only, so an admin who is not a party gets no attachment
+   *  controls. */
   canManage: boolean;
+  /** Whether the viewer may remove the legacy kept bill — a party OR a group
+   *  admin (moderation of a group-visible image), matching the pre-gallery rule.
+   *  The legacy bill lives in the group-readable `receipts` bucket, not the
+   *  party-gated attachment table, so an admin removal is server-allowed. */
+  canRemoveLegacy: boolean;
   /** The fixed key of the legacy kept bill, when one exists; null otherwise. */
   legacyReceiptPath: string | null;
   /** Called after the legacy bill is removed, so the parent can hide its item. */
@@ -153,6 +165,7 @@ export function ExpenseReceipts({
   const attach = useAttachExpenseAttachment(groupId, expenseId);
   const removeAttachment = useRemoveExpenseAttachment(expenseId);
   const removeLegacy = useRemoveExpenseReceipt(groupId, expenseId);
+  const annotate = useAnnotateExpenseAttachment();
 
   const items = useMemo<GalleryItem[]>(() => {
     const list: GalleryItem[] = [];
@@ -167,6 +180,20 @@ export function ExpenseReceipts({
 
   const urls = useResolvedUrls(expenseId, items);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [editing, setEditing] = useState<{
+    attachmentId: string;
+    uri: string;
+    initial: Annotations;
+  } | null>(null);
+
+  const pages = useMemo<GalleryPage[]>(
+    () =>
+      items.map((it, i) => ({
+        url: urls[i] ?? null,
+        annotations: it.kind === 'attachment' ? (it.row.annotations ?? undefined) : undefined,
+      })),
+    [items, urls],
+  );
 
   // Nothing to show and cannot add → render nothing, so a non-party's bill is
   // not cluttered with an empty section.
@@ -216,10 +243,16 @@ export function ExpenseReceipts({
         style: 'destructive',
         onPress: () => {
           setViewerIndex(null);
+          const onError = () => Alert.alert(t.imageAudit.couldNotRemove);
           if (it.kind === 'legacy') {
-            removeLegacy.mutate(undefined, { onSuccess: () => onLegacyRemoved?.() });
+            // Only clear the parent's receipt state on a confirmed delete — if the
+            // byte removal throws, the bill is still there and must keep showing.
+            removeLegacy.mutate(undefined, { onSuccess: () => onLegacyRemoved?.(), onError });
           } else {
-            removeAttachment.mutate({ attachmentId: it.row.id, storagePath: it.row.storagePath });
+            removeAttachment.mutate(
+              { attachmentId: it.row.id, storagePath: it.row.storagePath },
+              { onError },
+            );
           }
         },
       },
@@ -310,26 +343,86 @@ export function ExpenseReceipts({
                 </Row>
               ) : null}
             </View>
-            {canManage && viewerIndex !== null ? (
-              <IconButton
-                label={t.receipts.remove}
-                onPress={() => {
-                  if (!removeAttachment.isPending && !removeLegacy.isPending) removeAt(viewerIndex);
-                }}
-              >
-                <Ionicons name="trash-outline" size={iconSize.lg} color={theme.color.negative} />
-              </IconButton>
-            ) : (
-              <View style={{ width: 44 }} />
-            )}
+            {(() => {
+              // An attachment's edit/remove is party-only (`canManage`); the
+              // legacy bill's remove also allows a group admin (`canRemoveLegacy`)
+              // — the same split the RPCs enforce. Nothing to offer → a spacer,
+              // so the counter stays centred.
+              const showEdit =
+                canManage && viewing?.kind === 'attachment' && viewerIndex !== null
+                  ? urls[viewerIndex]
+                  : null;
+              const showRemove =
+                viewing !== null && (viewing.kind === 'legacy' ? canRemoveLegacy : canManage);
+              if (viewerIndex === null || (!showEdit && !showRemove)) {
+                return <View style={{ width: 44 }} />;
+              }
+              return (
+                <Row style={{ gap: theme.spacing.xs }}>
+                  {showEdit ? (
+                    <IconButton
+                      label={t.annotate.title}
+                      onPress={() => {
+                        const url = urls[viewerIndex];
+                        if (viewing?.kind === 'attachment' && url) {
+                          setEditing({
+                            attachmentId: viewing.row.id,
+                            uri: url,
+                            initial: viewing.row.annotations ?? EMPTY_ANNOTATIONS,
+                          });
+                        }
+                      }}
+                    >
+                      <Ionicons name="pencil" size={iconSize.md} color={theme.color.text} />
+                    </IconButton>
+                  ) : null}
+                  {showRemove ? (
+                    <IconButton
+                      label={t.receipts.remove}
+                      onPress={() => {
+                        if (!removeAttachment.isPending && !removeLegacy.isPending)
+                          removeAt(viewerIndex);
+                      }}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={iconSize.lg}
+                        color={theme.color.negative}
+                      />
+                    </IconButton>
+                  ) : null}
+                </Row>
+              );
+            })()}
           </Row>
           <ZoomableGallery
-            uris={urls.map((u) => u ?? null)}
+            pages={pages}
             index={viewerIndex ?? 0}
             onIndexChange={(i) => setViewerIndex(i)}
           />
         </View>
       </Modal>
+
+      {editing ? (
+        <ReceiptAnnotator
+          uri={editing.uri}
+          initial={editing.initial}
+          saving={annotate.isPending}
+          onCancel={() => setEditing(null)}
+          onSave={(next) =>
+            annotate.mutate(
+              {
+                attachmentId: editing.attachmentId,
+                annotations: isEmptyAnnotations(next) ? null : next,
+              },
+              {
+                onSuccess: () => setEditing(null),
+                onError: () => Alert.alert(t.annotate.couldNotSave),
+              },
+            )
+          }
+        />
+      ) : null}
     </View>
   );
 }

@@ -1021,6 +1021,8 @@ export interface MirrorExpenseAttachment extends MirrorRow {
   readonly storage_path: string;
   readonly visibility: string;
   readonly uploader_member_id: string;
+  /** Non-destructive pen/text markup (jsonb), or null. Shape parsed at the UI. */
+  readonly annotations: unknown;
   readonly created_at: string | null;
   readonly deleted_at: string | null;
 }

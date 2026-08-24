@@ -30,11 +30,22 @@ import { SyncStatus, useSync } from '@/sync';
  * is nothing to report — online, idle, nothing queued — it renders nothing, so
  * the header is not carrying a permanent "all good" badge nobody asked for.
  */
-export function SyncStatusIcon({ onBrand = false }: { onBrand?: boolean } = {}) {
+export function SyncStatusIcon({
+  onBrand = false,
+  groupId,
+}: { onBrand?: boolean; groupId?: string } = {}) {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const { animated } = useMotion();
   const { status, queue, rejected } = useSync();
+
+  // On a group screen, scope the queued/refused counts to this group — the same
+  // predicate the inline SyncBanner uses — so the header glyph reflects THIS
+  // group's state, not another group's refused change. Omitted (the dashboard)
+  // keeps the whole-account view. Connection status (offline/syncing) stays
+  // global, since the network is not per-group.
+  const refused = groupId ? rejected.filter((item) => item.groupId === groupId) : rejected;
+  const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
 
   const spin = useState(() => new Animated.Value(0))[0];
   const spinning = status === SyncStatus.Syncing && animated;
@@ -65,7 +76,7 @@ export function SyncStatusIcon({ onBrand = false }: { onBrand?: boolean } = {}) 
   // as an alert whatever it sits on.
   const neutral = onBrand ? theme.color.onBrand : theme.color.text;
   const state =
-    rejected.length > 0
+    refused.length > 0
       ? {
           icon: 'alert-circle' as const,
           color: theme.color.negative,
@@ -81,11 +92,11 @@ export function SyncStatusIcon({ onBrand = false }: { onBrand?: boolean } = {}) 
             }
           : status === SyncStatus.Metered
             ? { icon: 'cloud-offline-outline' as const, color: neutral, label: t.sync.waitingWifi }
-            : status === SyncStatus.Syncing || queue.length > 0
+            : status === SyncStatus.Syncing || pending.length > 0
               ? {
                   icon: 'sync-outline' as const,
                   color: neutral,
-                  label: plural(locale, queue.length, t.misc.syncingCount),
+                  label: plural(locale, pending.length, t.misc.syncingCount),
                 }
               : null;
 
