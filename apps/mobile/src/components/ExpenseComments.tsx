@@ -5,7 +5,13 @@
  * offers the controls a person is allowed to use, so the UI and the server
  * agree: any member adds and reads; the author edits and deletes their own; an
  * admin can delete anyone's and resolve a report; any member can flag/report a
- * comment for an admin to look at. A denied action still fails safe at the DB.
+ * comment. A denied action still fails safe at the DB.
+ *
+ * The layout follows the comment-thread pattern every social app converges on
+ * (Substack, Beli, Digg, Meta): avatar on the left, name and time on one line,
+ * the body aligned under the name, and the per-comment actions folded behind a
+ * "···" so the row stays clean. The composer is a pinned pill — your avatar, a
+ * rounded field, a round send button.
  */
 
 import { useState } from 'react';
@@ -36,6 +42,8 @@ function whenLabel(iso: string | null, locale: string): string {
   });
 }
 
+const AVATAR = 32;
+
 export function ExpenseComments({
   groupId,
   expenseId,
@@ -63,17 +71,44 @@ export function ExpenseComments({
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState('');
+  // Just-posted comments, shown at once so a text comment feels instant instead
+  // of waiting on the sync pull that carries it back from the mirror. Each drops
+  // out of the merge below the moment the mirror row with the same id arrives.
+  const [optimistic, setOptimistic] = useState<ExpenseCommentRow[]>([]);
 
-  const rows = comments.data;
+  const mirrorRows = comments.data;
+  const mirrorIds = new Set(mirrorRows.map((r) => r.id));
+  const rows = [...mirrorRows, ...optimistic.filter((o) => !mirrorIds.has(o.id))];
 
   const submit = () => {
     const body = draft.trim();
     if (body === '') return;
+    setDraft('');
     add.mutate(
       { body },
       {
-        onSuccess: () => setDraft(''),
-        onError: () => Alert.alert(t.comments.couldNotPost),
+        onSuccess: (result) => {
+          if (result) {
+            setOptimistic((current) => [
+              ...current,
+              {
+                id: result.id,
+                expenseId,
+                groupId,
+                authorMemberId: myMemberId,
+                body: result.body,
+                editedAt: null,
+                flaggedAt: null,
+                flaggedBy: null,
+                createdAt: new Date().toISOString(),
+              },
+            ]);
+          }
+        },
+        onError: () => {
+          setDraft(body);
+          Alert.alert(t.comments.couldNotPost);
+        },
       },
     );
   };
@@ -105,19 +140,63 @@ export function ExpenseComments({
     ]);
   };
 
-  const inputStyle = {
+  // The "···" sheet: only the actions this person may take on this comment, so
+  // it mirrors the RPC matrix. Nothing to offer → the dots are not shown.
+  const openActions = (row: ExpenseCommentRow) => {
+    const mine = myMemberId !== null && row.authorMemberId === myMemberId;
+    const flagged = row.flaggedAt !== null;
+    const options: { text: string; style?: 'destructive' | 'cancel'; onPress?: () => void }[] = [];
+    if (mine) {
+      options.push({
+        text: t.comments.edit,
+        onPress: () => {
+          setEditingId(row.id);
+          setEditingBody(row.body);
+        },
+      });
+    }
+    if (mine || iAmAdmin) {
+      options.push({
+        text: t.comments.delete,
+        style: 'destructive',
+        onPress: () => confirmDelete(row),
+      });
+    }
+    if (!mine && !flagged) {
+      options.push({
+        text: t.comments.report,
+        onPress: () => flag.mutate({ commentId: row.id, flag: true }),
+      });
+    }
+    if (flagged && iAmAdmin) {
+      options.push({
+        text: t.comments.resolve,
+        onPress: () => flag.mutate({ commentId: row.id, flag: false }),
+      });
+    }
+    if (options.length === 0) return;
+    options.push({ text: t.common.cancel, style: 'cancel' });
+    Alert.alert(t.comments.title, undefined, options);
+  };
+
+  const hasActions = (row: ExpenseCommentRow): boolean => {
+    const mine = myMemberId !== null && row.authorMemberId === myMemberId;
+    return mine || iAmAdmin || row.flaggedAt === null;
+  };
+
+  const fieldStyle = {
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.pill,
     backgroundColor: theme.color.surfaceMuted,
     color: theme.color.text,
   } as const;
 
   return (
-    <View style={{ gap: theme.spacing.md }}>
+    <View style={{ gap: theme.spacing.lg }}>
       {rows.length === 0 ? (
         <Text variant="caption" tone="muted">
           {t.comments.empty}
@@ -125,97 +204,80 @@ export function ExpenseComments({
       ) : (
         rows.map((row) => {
           const mine = myMemberId !== null && row.authorMemberId === myMemberId;
-          const canDelete = mine || iAmAdmin;
           const flagged = row.flaggedAt !== null;
           const editing = editingId === row.id;
           return (
-            <View key={row.id} style={{ gap: theme.spacing.xs }}>
-              <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                <Avatar name={nameOf(row.authorMemberId)} size={28} />
-                <Text variant="caption" style={{ flex: 1 }} numberOfLines={1}>
-                  {mine ? t.comments.you : nameOf(row.authorMemberId)}
-                </Text>
-                <Text variant="micro" tone="muted">
-                  {whenLabel(row.createdAt, locale)}
-                  {row.editedAt ? ` · ${t.comments.edited}` : ''}
-                </Text>
-                {/* A report is visible to admins (who resolve it); the flagger
-                    sees it reflected too. It never names who reported. */}
-                {flagged && iAmAdmin ? (
-                  <Ionicons name="flag" size={12} color={theme.color.negative} />
-                ) : null}
-              </Row>
-
-              {editing ? (
-                <View style={{ gap: theme.spacing.xs }}>
-                  <TextInput
-                    value={editingBody}
-                    onChangeText={setEditingBody}
-                    multiline
-                    style={inputStyle}
-                    accessibilityLabel={t.comments.editLabel}
-                  />
-                  <Row style={{ gap: theme.spacing.sm, justifyContent: 'flex-end' }}>
-                    <Button
-                      label={t.common.cancel}
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => setEditingId(null)}
-                    />
-                    <Button
-                      label={t.common.save}
-                      size="sm"
-                      disabled={edit.isPending || editingBody.trim() === ''}
-                      onPress={() => saveEdit(row.id)}
-                    />
-                  </Row>
-                </View>
-              ) : (
-                <>
-                  <Text variant="body" style={{ marginStart: 36 }}>
-                    {row.body}
+            <Row key={row.id} style={{ gap: 10, alignItems: 'flex-start' }}>
+              <Avatar name={nameOf(row.authorMemberId)} size={AVATAR} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+                  <Text variant="caption" style={{ fontWeight: '600' }} numberOfLines={1}>
+                    {mine ? t.comments.you : nameOf(row.authorMemberId)}
                   </Text>
-                  <Row style={{ gap: theme.spacing.lg, marginStart: 36 }}>
-                    {mine ? (
-                      <CommentAction
-                        label={t.comments.edit}
-                        onPress={() => {
-                          setEditingId(row.id);
-                          setEditingBody(row.body);
-                        }}
+                  <Text variant="micro" tone="muted">
+                    {whenLabel(row.createdAt, locale)}
+                    {row.editedAt ? ` · ${t.comments.edited}` : ''}
+                  </Text>
+                  {/* A report shows to admins (who resolve it); it never names who
+                      reported. */}
+                  {flagged && iAmAdmin ? (
+                    <Ionicons name="flag" size={11} color={theme.color.negative} />
+                  ) : null}
+                  <View style={{ flex: 1 }} />
+                  {!editing && hasActions(row) ? (
+                    <Pressable
+                      onPress={() => openActions(row)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.comments.title}
+                      hitSlop={10}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 2 })}
+                    >
+                      <Ionicons
+                        name="ellipsis-horizontal"
+                        size={16}
+                        color={theme.color.textMuted}
                       />
-                    ) : null}
-                    {canDelete ? (
-                      <CommentAction
-                        label={t.comments.delete}
-                        tone="negative"
-                        onPress={() => confirmDelete(row)}
+                    </Pressable>
+                  ) : null}
+                </Row>
+
+                {editing ? (
+                  <View style={{ gap: theme.spacing.xs, paddingTop: theme.spacing.xs }}>
+                    <TextInput
+                      value={editingBody}
+                      onChangeText={setEditingBody}
+                      multiline
+                      autoFocus
+                      style={fieldStyle}
+                      accessibilityLabel={t.comments.editLabel}
+                    />
+                    <Row style={{ gap: theme.spacing.sm, justifyContent: 'flex-end' }}>
+                      <Button
+                        label={t.common.cancel}
+                        variant="ghost"
+                        size="sm"
+                        onPress={() => setEditingId(null)}
                       />
-                    ) : null}
-                    {/* Reporting is for someone else's comment; an admin can also
-                        resolve a standing report. */}
-                    {!mine && !flagged ? (
-                      <CommentAction
-                        label={t.comments.report}
-                        onPress={() => flag.mutate({ commentId: row.id, flag: true })}
+                      <Button
+                        label={t.common.save}
+                        size="sm"
+                        disabled={edit.isPending || editingBody.trim() === ''}
+                        onPress={() => saveEdit(row.id)}
                       />
-                    ) : null}
-                    {flagged && iAmAdmin ? (
-                      <CommentAction
-                        label={t.comments.resolve}
-                        onPress={() => flag.mutate({ commentId: row.id, flag: false })}
-                      />
-                    ) : null}
-                  </Row>
-                </>
-              )}
-            </View>
+                    </Row>
+                  </View>
+                ) : (
+                  <Text variant="body">{row.body}</Text>
+                )}
+              </View>
+            </Row>
           );
         })
       )}
 
-      {/* Composer — any member can add. */}
-      <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-end' }}>
+      {/* Composer — a pinned pill: your avatar, a rounded field, a round send. */}
+      <Row style={{ gap: 10, alignItems: 'flex-end', paddingTop: theme.spacing.xs }}>
+        <Avatar name={nameOf(myMemberId)} size={AVATAR} />
         <TextInput
           value={draft}
           onChangeText={setDraft}
@@ -223,7 +285,7 @@ export function ExpenseComments({
           multiline
           placeholder={t.comments.placeholder}
           placeholderTextColor={theme.color.textFaint}
-          style={inputStyle}
+          style={fieldStyle}
           accessibilityLabel={t.comments.placeholder}
         />
         <Pressable
@@ -234,7 +296,7 @@ export function ExpenseComments({
           style={{
             width: 40,
             height: 40,
-            borderRadius: theme.radius.md,
+            borderRadius: 20,
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor:
@@ -245,7 +307,7 @@ export function ExpenseComments({
             <ActivityIndicator color={theme.color.onBrand} />
           ) : (
             <Ionicons
-              name="send"
+              name="arrow-up"
               size={iconSize.md}
               color={draft.trim() === '' ? theme.color.textFaint : theme.color.onBrand}
             />
@@ -253,27 +315,5 @@ export function ExpenseComments({
         </Pressable>
       </Row>
     </View>
-  );
-}
-
-function CommentAction({
-  label,
-  onPress,
-  tone,
-}: {
-  label: string;
-  onPress: () => void;
-  tone?: 'negative';
-}): React.JSX.Element {
-  const theme = useTheme();
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={8}>
-      <Text
-        variant="micro"
-        style={{ color: tone === 'negative' ? theme.color.negative : theme.color.brand }}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }
