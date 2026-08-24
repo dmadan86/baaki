@@ -19,6 +19,7 @@ import {
 } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
+import { useAuth } from '@/lib/auth';
 import { clarityConfigured } from '@/lib/clarity';
 import { sessionReplayConsent, setSessionReplayConsent } from '@/lib/sessionReplay';
 
@@ -36,6 +37,13 @@ export default function PrivacyScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t } = useStrings();
+  // This same screen is the app's privacy *policy*, reached from the legal line
+  // on the signed-out welcome/sign-up gate as well as from Settings. The policy
+  // text is for everyone; the account data-controls below (block list, export,
+  // delete) act on an account that a signed-out reader does not have yet, so
+  // they are shown only once there is a session (a guest counts — they have
+  // data to manage).
+  const { session } = useAuth();
 
   // The session-replay opt-in, mirrored from storage. Only meaningful when a
   // Clarity project is configured; on a build without one the switch is hidden
@@ -183,64 +191,68 @@ export default function PrivacyScreen() {
 
         {/* The controls the "choices" card promises, made tappable rather than
             described — export a copy, or close the account, both routes that
-            already exist. Delete wears the negative tone: it ends something. */}
-        <View style={{ gap: theme.spacing.sm }}>
-          <SectionHeader title={t.privacy.dataControlsSection} />
-          <Card style={{ paddingVertical: theme.spacing.xs }}>
-            <ListRow
-              title={t.blocked.row}
-              subtitle={t.blocked.rowHint}
-              onPress={() => router.push('/settings/blocked')}
-              leading={
-                <Ionicons
-                  name="person-remove-outline"
-                  size={iconSize.md}
-                  color={theme.color.brand}
-                />
-              }
-              trailing={
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
-                />
-              }
-            />
-            <View style={{ height: 1, backgroundColor: theme.color.border }} />
-            <ListRow
-              title={t.privacy.exportRow}
-              subtitle={t.privacy.exportRowHint}
-              onPress={() => router.push('/settings/export')}
-              leading={
-                <Ionicons name="download-outline" size={iconSize.md} color={theme.color.brand} />
-              }
-              trailing={
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
-                />
-              }
-            />
-            <View style={{ height: 1, backgroundColor: theme.color.border }} />
-            <ListRow
-              title={t.privacy.deleteRow}
-              subtitle={t.privacy.deleteRowHint}
-              destructive
-              onPress={() => router.push('/settings/delete-account')}
-              leading={
-                <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
-              }
-              trailing={
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
-                />
-              }
-            />
-          </Card>
-        </View>
+            already exist. Delete wears the negative tone: it ends something.
+            Hidden when signed out: opened as the policy from the login gate,
+            these would act on an account the reader does not have. */}
+        {session ? (
+          <View style={{ gap: theme.spacing.sm }}>
+            <SectionHeader title={t.privacy.dataControlsSection} />
+            <Card style={{ paddingVertical: theme.spacing.xs }}>
+              <ListRow
+                title={t.blocked.row}
+                subtitle={t.blocked.rowHint}
+                onPress={() => router.push('/settings/blocked')}
+                leading={
+                  <Ionicons
+                    name="person-remove-outline"
+                    size={iconSize.md}
+                    color={theme.color.brand}
+                  />
+                }
+                trailing={
+                  <Ionicons
+                    name={directionalIcon('chevron-forward')}
+                    size={iconSize.md}
+                    color={theme.color.textFaint}
+                  />
+                }
+              />
+              <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              <ListRow
+                title={t.privacy.exportRow}
+                subtitle={t.privacy.exportRowHint}
+                onPress={() => router.push('/settings/export')}
+                leading={
+                  <Ionicons name="download-outline" size={iconSize.md} color={theme.color.brand} />
+                }
+                trailing={
+                  <Ionicons
+                    name={directionalIcon('chevron-forward')}
+                    size={iconSize.md}
+                    color={theme.color.textFaint}
+                  />
+                }
+              />
+              <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              <ListRow
+                title={t.privacy.deleteRow}
+                subtitle={t.privacy.deleteRowHint}
+                destructive
+                onPress={() => router.push('/settings/delete-account')}
+                leading={
+                  <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
+                }
+                trailing={
+                  <Ionicons
+                    name={directionalIcon('chevron-forward')}
+                    size={iconSize.md}
+                    color={theme.color.textFaint}
+                  />
+                }
+              />
+            </Card>
+          </View>
+        ) : null}
 
         <View style={{ gap: theme.spacing.sm }}>
           <SectionHeader title={t.privacy.legalSection} />
