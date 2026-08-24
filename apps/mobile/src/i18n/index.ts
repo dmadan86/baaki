@@ -738,7 +738,6 @@ export interface UiStrings {
     agreeTerms: string;
     termsWord: string;
     privacyWord: string;
-    troubleSigningIn: string;
     notifyTitle: string;
     notifyBody: string;
     notifyEnable: string;
@@ -2306,7 +2305,6 @@ const en: UiStrings = {
     agreeTerms: 'By continuing you agree to our {terms} and {privacy}.',
     termsWord: 'Terms',
     privacyWord: 'Privacy Policy',
-    troubleSigningIn: 'Trouble signing in?',
     notifyTitle: 'Turn on notifications',
     notifyBody:
       "We'll let you know when someone adds an expense, settles up, or invites you to a group. No spam.",
@@ -3930,7 +3928,6 @@ const ta: UiStrings = {
     agreeTerms: 'தொடர்வதன் மூலம் எங்கள் {terms} மற்றும் {privacy}யை ஏற்கிறீர்கள்.',
     termsWord: 'விதிமுறைகள்',
     privacyWord: 'தனியுரிமைக் கொள்கை',
-    troubleSigningIn: 'உள்நுழைவதில் சிக்கலா?',
     notifyTitle: 'அறிவிப்புகளை இயக்கவும்',
     notifyBody:
       'யாராவது செலவைச் சேர்க்கும்போது, தீர்த்துக்கொள்ளும்போது, அல்லது ஒரு குழுவிற்கு உங்களை அழைக்கும்போது தெரிவிப்போம். ஸ்பேம் இல்லை.',
@@ -5585,7 +5582,6 @@ const hi: UiStrings = {
     agreeTerms: 'जारी रखकर आप हमारी {terms} और {privacy} से सहमत होते हैं।',
     termsWord: 'शर्तें',
     privacyWord: 'गोपनीयता नीति',
-    troubleSigningIn: 'साइन इन में परेशानी?',
     notifyTitle: 'सूचनाएँ चालू करें',
     notifyBody:
       'जब कोई खर्च जोड़े, हिसाब चुकाए, या आपको समूह में आमंत्रित करे तो हम आपको बताएँगे। कोई स्पैम नहीं।',
@@ -7222,7 +7218,6 @@ const ar: UiStrings = {
     agreeTerms: 'بالمتابعة فإنك توافق على {terms} و{privacy}.',
     termsWord: 'الشروط',
     privacyWord: 'سياسة الخصوصية',
-    troubleSigningIn: 'تواجه مشكلة في تسجيل الدخول؟',
     notifyTitle: 'تفعيل الإشعارات',
     notifyBody:
       'سنُعلمك عندما يضيف أحدهم مصروفًا، أو يسوّي حسابًا، أو يدعوك إلى مجموعة. بلا إزعاج.',

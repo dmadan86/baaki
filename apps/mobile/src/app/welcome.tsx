@@ -7,10 +7,6 @@
  * `sign-in`), which carry the actual ways in (Google, phone, email). This
  * screen only asks which errand you are on, the way Tinder, Bumble and Hinge
  * all open — brand first, one decision, nothing to read past the terms.
- *
- * NOTE — "Trouble signing in?" points at the sign-in door for now, not a
- * dedicated recovery flow; that is a follow-up. The copy is translated (see
- * `t.entry`).
  */
 
 import { useEffect } from 'react';
@@ -128,9 +124,8 @@ export default function WelcomeScreen() {
           </View>
           <View style={{ flex: 1.3 }} />
 
-          {/* The legal line and the choices are anchored to the bottom, lifted
-              off the safe-area edge so "Trouble signing in?" does not sit flush
-              against the very bottom. */}
+          {/* The legal line and the two gateway choices are anchored to the
+              bottom, lifted off the safe-area edge. */}
           <View
             style={{
               paddingHorizontal: theme.spacing.xl,
@@ -158,21 +153,6 @@ export default function WelcomeScreen() {
               label={t.signIn.signInAction}
               onPress={() => router.push('/sign-in')}
             />
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push('/sign-in')}
-              hitSlop={8}
-              style={({ pressed }) => ({
-                alignSelf: 'center',
-                paddingVertical: theme.spacing.md,
-                opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <Text style={{ color: theme.color.onBrand, fontWeight: '800' }}>
-                {t.entry.troubleSigningIn}
-              </Text>
-            </Pressable>
           </View>
         </SafeAreaView>
       </LinearGradient>
