@@ -65,6 +65,7 @@ import { displayName } from '@/data/types';
 import { friendlyError } from '@/lib/errors';
 import { useAuth } from '@/lib/auth';
 import { SkeletonList } from '@/components/Skeletons';
+import { CategoryBudgets } from '@/components/CategoryBudgets';
 import { fill, useStrings, type UiStrings } from '@/i18n';
 
 /** Today where the trip is, not where the server is. */
@@ -651,6 +652,15 @@ export default function PlanScreen() {
                 />
               ))}
           </Card>
+        ) : null}
+
+        {isTrip ? (
+          <CategoryBudgets
+            groupId={groupId}
+            currency={currency}
+            isAdmin={isAdmin}
+            expenses={spend}
+          />
         ) : null}
 
         {isTrip && forecasts.length > 0 ? (

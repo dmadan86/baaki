@@ -1498,6 +1498,48 @@ export function useSetGroupBudget(groupId: string) {
   });
 }
 
+export interface CategoryBudgetRow {
+  category: string;
+  amountMinor: bigint;
+  currency: string;
+}
+
+/** The trip's per-category caps, read off the mirrored group row (ADR-005). */
+export function useCategoryBudgets(groupId: string): LocalRead<CategoryBudgetRow[]> {
+  const { mirror, queue } = useSync();
+  const rows = useMemo(() => {
+    const group = materialiseGroup(mirror, queue, groupId);
+    const map = group?.category_budgets ?? null;
+    if (!map) return [];
+    return Object.entries(map)
+      .map(([category, value]) => ({
+        category,
+        amountMinor: BigInt(value.amountMinor),
+        currency: value.currency,
+      }))
+      .sort((a, b) => (a.category < b.category ? -1 : a.category > b.category ? 1 : 0));
+  }, [mirror, queue, groupId]);
+  return useLocalRead(rows);
+}
+
+/** Set (or clear, with a null amount) one category's cap, queued. Admin-only,
+ *  enforced by the RPC. */
+export function useSetCategoryBudget(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (input: {
+      category: string;
+      amountMinor: bigint | null;
+      currency?: string | null;
+    }) =>
+      mutate(MutationKind.CategoryBudgetSet, groupId, {
+        category: input.category,
+        amountMinor: input.amountMinor === null ? null : input.amountMinor.toString(),
+        currency: input.currency ?? null,
+      }),
+  });
+}
+
 // ────────────────────────── somebody asking to be somebody (ADR-006) ──
 
 /**

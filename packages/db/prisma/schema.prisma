@@ -209,6 +209,12 @@ model Group {
   /// where privacy lives — this one never is private.
   budgetMinor    BigInt? @map("budget_minor")
   budgetCurrency String? @map("budget_currency") @db.Char(3)
+  /// Per-category caps as a JSON map `{ "<category>": { amountMinor, currency } }`.
+  /// Group-visible and admin-set like the overall budget — a category cap is a
+  /// group signal, never private, so it lives on the group row, not its own
+  /// table. NULL / absent is "no category caps". Written only via
+  /// `baaki_set_category_budget`.
+  categoryBudgets Json? @map("category_budgets")
 
   /// When the trip is. Both ends inclusive — the last day of a trip is the one
   /// with the most unrecorded spending on it.

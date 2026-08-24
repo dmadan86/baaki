@@ -73,7 +73,8 @@ type MutationKind =
   | 'plan_item.delete'
   | 'member_budget.set'
   | 'member_budget.clear'
-  | 'group_budget.set';
+  | 'group_budget.set'
+  | 'category_budget.set';
 
 /** True for the kinds whose scope is a user, not a group. */
 function isPersonalKind(kind: MutationKind): boolean {
@@ -461,6 +462,15 @@ class SyncSession {
         // group.update, so any member cannot move the overall ceiling.
         return await this.rpcAsCaller('baaki_set_group_budget', {
           p_group_id: mutation.groupId,
+          p_amount_minor: (mutation.payload.amountMinor as string | null) ?? null,
+          p_currency: (mutation.payload.currency as string | undefined) ?? null,
+        });
+      case 'category_budget.set':
+        // Admin-gated inside the RPC, same as the overall budget; a null amount
+        // clears that category's cap.
+        return await this.rpcAsCaller('baaki_set_category_budget', {
+          p_group_id: mutation.groupId,
+          p_category: mutation.payload.category as string,
           p_amount_minor: (mutation.payload.amountMinor as string | null) ?? null,
           p_currency: (mutation.payload.currency as string | undefined) ?? null,
         });

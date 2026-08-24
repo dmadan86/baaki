@@ -53,6 +53,7 @@ export enum MutationKind {
   MemberBudgetSet = 'member_budget.set',
   MemberBudgetClear = 'member_budget.clear',
   GroupBudgetSet = 'group_budget.set',
+  CategoryBudgetSet = 'category_budget.set',
 }
 
 export interface MutationEnvelope<K extends MutationKind = MutationKind, P = unknown> {
@@ -267,6 +268,18 @@ export type MemberBudgetClearPayload = Record<string, never>;
 
 /** The overall trip budget on the group row; null amount clears it. Admin-only. */
 export interface GroupBudgetSetPayload {
+  readonly amountMinor: string | null;
+  readonly currency?: CurrencyCode | null;
+}
+
+/**
+ * A per-category cap in the group row's `category_budgets` map, keyed by the
+ * category id (a built-in key or a custom tag id). A null amount removes that
+ * category's cap. Admin-only, like the overall budget — a category cap is a
+ * group signal, never private.
+ */
+export interface CategoryBudgetSetPayload {
+  readonly category: string;
   readonly amountMinor: string | null;
   readonly currency?: CurrencyCode | null;
 }
