@@ -80,14 +80,20 @@ export default function ExpenseDetailScreen() {
   // Re-resolve on focus, not only when the ids change: a bill kept on the edit
   // screen (which uploads on save) is not in R2 when this screen first mounts, so
   // resolving again on the way back is what reveals the receipt row.
+  // Inline, not wrapped in useCallback: this app compiles with React Compiler
+  // (`reactCompiler: true`), which auto-memoises the callback — and actively
+  // rejects a hand-written useCallback here ("existing memoization could not be
+  // preserved"). So the focus effect does not re-run every render.
   useFocusEffect(() => {
+    if (!currentExpenseId) return undefined;
     let active = true;
-    if (currentExpenseId) {
-      void (async () => {
-        const url = await expenseReceiptUrl(groupId, currentExpenseId);
-        if (active) setReceiptUri(url);
-      })();
-    }
+    // Keep the last good URL on a failed refresh: `expenseReceiptUrl` returns
+    // null for both "no receipt" and a transient signing failure, and a receipt
+    // that was showing should not vanish just because one refresh could not sign
+    // it. A first resolve starts from null, so a real absence still reads as none.
+    expenseReceiptUrl(groupId, currentExpenseId).then((url) => {
+      if (active) setReceiptUri((prev) => url ?? prev);
+    });
     return () => {
       active = false;
     };
