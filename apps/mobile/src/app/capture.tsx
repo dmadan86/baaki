@@ -49,6 +49,7 @@ import { plural, useStrings, type UiStrings } from '@/i18n';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
 import { uploadCapturePhoto } from '@/data/api';
+import { StorageCapError } from '@/lib/storage';
 import { friendlyError } from '@/lib/errors';
 
 /**
@@ -306,6 +307,7 @@ export default function CaptureScreen() {
       // sync. The returned path is written onto the capture row so it can be
       // viewed later from any of the owner's devices.
       let photoPath: string | null = null;
+      let photoError: unknown = null;
       if (photo && profile?.id) {
         try {
           photoPath = await uploadCapturePhoto({
@@ -314,8 +316,9 @@ export default function CaptureScreen() {
             base64: photo.base64,
             mimeType: photo.mimeType,
           });
-        } catch {
+        } catch (caught) {
           photoPath = null;
+          photoError = caught;
         }
       }
 
@@ -334,6 +337,17 @@ export default function CaptureScreen() {
         targetGroupId,
         location,
       });
+
+      // The capture is saved — its fields are the point. If the bill *photo*
+      // could not be stored because the account is out of room, say so and stay:
+      // an over-cap refusal is the one photo failure the person can act on, and
+      // the fields are already safe (createCapture is idempotent on a retry). An
+      // offline failure stays best-effort silent — the photo is optional and R2
+      // has no offline path, so the parsed fields sync now and the photo does not.
+      if (photoError instanceof StorageCapError) {
+        setError(t.storage.full);
+        return;
+      }
       router.back();
     } catch (caught) {
       setError(friendlyError(caught, t.captures.couldNotSave, 'capture.save'));

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { EmptyState, IconButton, iconSize, Screen, useTheme } from '@waves/ui';
+import { Button, EmptyState, IconButton, iconSize, Screen, useTheme } from '@waves/ui';
 
 import { ZoomableImage } from '@/components/ZoomableImage';
 import { useStrings } from '@/i18n';
@@ -28,20 +28,38 @@ export default function ReceiptViewerScreen(): React.JSX.Element {
 
   const [uri, setUri] = useState<string | null>(null);
   // No path is "empty" from the first frame (the route param never changes over
-  // this screen's life), so the effect only ever has a path to resolve.
+  // this screen's life), so the resolve only ever has a path to work with.
   const [state, setState] = useState<'loading' | 'ready' | 'empty'>(path ? 'loading' : 'empty');
+
+  // Resolve the path to a signed URL. Extracted so the empty state's retry can
+  // run it again — a resolve can fail transiently (offline, a signing hiccup),
+  // and a bill that is really there should not be one blank screen away.
+  const load = useCallback(async () => {
+    if (!path) {
+      setState('empty');
+      return;
+    }
+    setState('loading');
+    const resolved = await imageUrl('receipts', path);
+    if (resolved) {
+      setUri(resolved);
+      setState('ready');
+    } else {
+      setState('empty');
+    }
+  }, [path]);
+
+  // The mount resolve does not go through `load` (which flips to 'loading'
+  // first): setting state synchronously inside an effect cascades renders, and
+  // the screen already starts in 'loading'. `load` is the retry path.
   useEffect(() => {
-    if (!path) return;
     let active = true;
     void (async () => {
+      if (!path) return;
       const resolved = await imageUrl('receipts', path);
       if (!active) return;
-      if (resolved) {
-        setUri(resolved);
-        setState('ready');
-      } else {
-        setState('empty');
-      }
+      setUri(resolved);
+      setState(resolved ? 'ready' : 'empty');
     })();
     return () => {
       active = false;
@@ -64,8 +82,17 @@ export default function ReceiptViewerScreen(): React.JSX.Element {
             <ActivityIndicator color={theme.color.brand} />
           </View>
         ) : (
-          <View style={{ flex: 1, justifyContent: 'center' }}>
+          <View
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: theme.spacing.xl,
+              gap: theme.spacing.lg,
+            }}
+          >
             <EmptyState title={t.loadError} body={t.loadErrorBody} />
+            <Button label={t.retry} onPress={() => void load()} />
           </View>
         )}
       </View>

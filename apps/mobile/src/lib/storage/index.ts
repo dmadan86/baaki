@@ -108,7 +108,12 @@ export async function putImage(input: PutImageInput): Promise<string> {
     method: 'PUT',
     headers: { 'content-type': input.contentType },
     body: bytes,
-  }).catch((cause) => {
+  }).catch(async (cause) => {
+    // The PUT never reached R2 (offline, DNS, aborted). `put` already reserved
+    // this path's bytes, so release the reservation here too — the same cleanup
+    // the non-2xx branch below does — or a network failure leaks cap until the
+    // sweep. `release` only clears a pending reservation, never a committed image.
+    await signCall({ action: 'release', bucket: input.bucket, path: input.path }).catch(() => {});
     throw new Error(`Upload failed: ${cause instanceof Error ? cause.message : 'network error'}`);
   });
   if (!put.ok) {
