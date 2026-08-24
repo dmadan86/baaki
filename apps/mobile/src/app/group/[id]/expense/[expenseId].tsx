@@ -26,6 +26,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { TripAlbumStrip } from '@/components/TripAlbum';
 import {
   memberLookup,
   useDeleteExpense,
@@ -340,6 +341,11 @@ export default function ExpenseDetailScreen() {
             </Card>
           </Pressable>
         ) : null}
+
+        {/* The album strip for this bill — photos of the meal, the room, the view.
+            Distinct from the receipt above: many, free, and browsed for the memory
+            rather than the amount. */}
+        <TripAlbumStrip groupId={groupId} expenseId={expense.id} />
 
         {version.payers.length > 1 ? (
           <View>

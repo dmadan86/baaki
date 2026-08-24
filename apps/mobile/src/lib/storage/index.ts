@@ -21,7 +21,7 @@ import { decode } from 'base64-arraybuffer';
 import { supabase } from '@/lib/supabase';
 
 /** The four private buckets. Values match the R2 namespace and the old bucket. */
-export type LogicalBucket = 'receipts' | 'group-photos' | 'avatars' | 'captures';
+export type LogicalBucket = 'receipts' | 'group-photos' | 'avatars' | 'captures' | 'trip-photos';
 
 /**
  * The free-tier storage ceiling was hit. Thrown so a caller can show the upgrade

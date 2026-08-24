@@ -54,6 +54,12 @@ export enum MutationKind {
   MemberBudgetClear = 'member_budget.clear',
   GroupBudgetSet = 'group_budget.set',
   CategoryBudgetSet = 'category_budget.set',
+  // Trip album (shared photos) — group-scoped, authorised by membership, so also
+  // not personal. Add carries the R2 path of an already-uploaded image plus an
+  // optional expense/day link; delete is a soft tombstone so a removal reaches
+  // every device. No update: a photo is not edited, only added or removed.
+  TripPhotoAdd = 'trip_photo.add',
+  TripPhotoDelete = 'trip_photo.delete',
 }
 
 export interface MutationEnvelope<K extends MutationKind = MutationKind, P = unknown> {
@@ -284,6 +290,25 @@ export interface CategoryBudgetSetPayload {
   readonly currency?: CurrencyCode | null;
 }
 
+/**
+ * A photo added to the trip album. `photoId` is client-chosen and the
+ * idempotency key. `storagePath` is the R2 object key the client already
+ * uploaded to (the `trip-photos` bucket) — the bytes are not on the wire.
+ * `expenseId` pins it to one bill (else it is a photo of the trip itself);
+ * `day` is the trip day it belongs to. Both optional.
+ */
+export interface TripPhotoAddPayload {
+  readonly photoId: string;
+  readonly storagePath: string;
+  readonly expenseId?: string | null;
+  readonly day?: string | null;
+  readonly caption?: string | null;
+}
+
+export interface TripPhotoDeletePayload {
+  readonly photoId: string;
+}
+
 export interface SyncRequest {
   readonly deviceId: string;
   readonly mutations: readonly MutationEnvelope[];
@@ -351,6 +376,9 @@ export enum SyncTable {
   /** Group-scoped, read+write. A member's personal spend ceiling for a trip;
    * a `private` one is only ever pulled to its owner (RLS). */
   TripMemberBudgets = 'trip_member_budgets',
+  /** Group-scoped, read+write (album). Shared trip photos; not money. A removal
+   * is a soft-delete tombstone the pull carries, like the plan. */
+  TripPhotos = 'trip_photos',
 }
 
 /**
