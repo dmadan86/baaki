@@ -435,6 +435,16 @@ export interface UiStrings {
     /** Viewer counter, e.g. "2 of 5" — `{index}` and `{total}`. */
     counter: string;
   };
+  /** The receipt markup editor (pen + text over an image). */
+  annotate: {
+    title: string;
+    pen: string;
+    addText: string;
+    undo: string;
+    clear: string;
+    textPlaceholder: string;
+    couldNotSave: string;
+  };
   /** Trip budgets. */
   budgets: string;
   overallBudget: string;
@@ -2165,6 +2175,15 @@ const en: UiStrings = {
     removeConfirm: 'Remove this receipt? The change is recorded.',
     couldNotAdd: "Couldn't add that — try again.",
     counter: '{index} of {total}',
+  },
+  annotate: {
+    title: 'Markup',
+    pen: 'Pen',
+    addText: 'Add text',
+    undo: 'Undo',
+    clear: 'Clear',
+    textPlaceholder: 'Add a note',
+    couldNotSave: "Couldn't save the markup — try again.",
   },
   budgets: 'Budgets',
   overallBudget: 'Overall',
@@ -3909,6 +3928,15 @@ const ta: UiStrings = {
     removeConfirm: 'இந்த ரசீதை அகற்றவா? இந்த மாற்றம் பதிவு செய்யப்படும்.',
     couldNotAdd: 'சேர்க்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     counter: '{total} இல் {index}',
+  },
+  annotate: {
+    title: 'குறிப்புகள்',
+    pen: 'பேனா',
+    addText: 'உரை சேர்',
+    undo: 'செயல்தவிர்',
+    clear: 'அழி',
+    textPlaceholder: 'குறிப்பு சேர்',
+    couldNotSave: 'குறிப்புகளைச் சேமிக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
   },
   budgets: 'பட்ஜெட்',
   overallBudget: 'மொத்தம்',
@@ -5720,6 +5748,15 @@ const hi: UiStrings = {
     couldNotAdd: 'जोड़ा नहीं जा सका — फिर कोशिश करें।',
     counter: '{total} में से {index}',
   },
+  annotate: {
+    title: 'मार्कअप',
+    pen: 'पेन',
+    addText: 'टेक्स्ट जोड़ें',
+    undo: 'पूर्ववत करें',
+    clear: 'साफ़ करें',
+    textPlaceholder: 'एक नोट जोड़ें',
+    couldNotSave: 'मार्कअप सहेजा नहीं जा सका — फिर कोशिश करें।',
+  },
   budgets: 'बजट',
   overallBudget: 'कुल',
   myBudget: 'मेरा बजट',
@@ -7478,6 +7515,15 @@ const ar: UiStrings = {
     removeConfirm: 'إزالة هذا الإيصال؟ سيُسجَّل هذا التغيير.',
     couldNotAdd: 'تعذّرت الإضافة — حاول مرة أخرى.',
     counter: '{index} من {total}',
+  },
+  annotate: {
+    title: 'توصيف',
+    pen: 'قلم',
+    addText: 'إضافة نص',
+    undo: 'تراجع',
+    clear: 'مسح',
+    textPlaceholder: 'أضف ملاحظة',
+    couldNotSave: 'تعذّر حفظ التوصيف — حاول مرة أخرى.',
   },
   budgets: 'الميزانية',
   overallBudget: 'الإجمالي',

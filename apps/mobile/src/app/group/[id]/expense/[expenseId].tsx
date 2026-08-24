@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import {
   Avatar,
@@ -242,6 +243,9 @@ export default function ExpenseDetailScreen() {
 
   return (
     <Screen edges={[]}>
+      {/* The hero runs dark under the status bar, so its icons must be light —
+          overriding the app's theme-driven default for this route. */}
+      <StatusBar style="light" />
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={{
@@ -317,7 +321,7 @@ export default function ExpenseDetailScreen() {
                 timeZone: 'UTC',
               }).format(new Date(version.expense_date))}`}
             </Text>
-            <Row style={{ gap: theme.spacing.sm }}>
+            <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'center' }}>
               <HeroTag label={splitLabels(t)[version.split_type] ?? version.split_type} />
               {version.version_no > 1 ? (
                 <HeroTag label={plural(locale, version.version_no - 1, t.expense.editedTimes)} />
@@ -334,6 +338,7 @@ export default function ExpenseDetailScreen() {
           groupId={groupId}
           expenseId={expense.id}
           canManage={isExpenseParty}
+          canRemoveLegacy={isExpenseParty || iAmAdmin}
           legacyReceiptPath={receiptUri ? expenseReceiptPath(groupId, expense.id) : null}
           onLegacyRemoved={() => setReceiptUri(null)}
         />

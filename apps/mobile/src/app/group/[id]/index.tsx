@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, RefreshControl, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import {
   Avatar,
@@ -554,6 +555,8 @@ export default function GroupScreen() {
 
   return (
     <Screen edges={[]}>
+      {/* The hero runs dark under the status bar; force light icons for it. */}
+      <StatusBar style="light" />
       <DetailEnter>
         <FlashList
           data={tab === Tab.Expenses ? feedItems : []}
@@ -643,7 +646,7 @@ export default function GroupScreen() {
               turning arrow mid-sync, a red mark for a refused change — nothing
               when all is well. It replaces the wide banner this screen used to
               stack under the header. */}
-                  <SyncStatusIcon onBrand />
+                  <SyncStatusIcon onBrand groupId={groupId} />
                   {/* A code to hand the group across the table. The whole invite
               surface — link, share sheet and the QR to point a camera at — lives
               one tap behind this, so it is the fast way to get somebody in

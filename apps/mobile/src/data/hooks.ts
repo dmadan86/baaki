@@ -92,6 +92,7 @@ import {
 import { totalsByCurrency } from './totals';
 import { putImage, removeRestrictedImage } from '@/lib/storage';
 import { pickAlbumPhoto, type PickedImage } from '@/lib/image';
+import { parseAnnotations, type Annotations } from '@/lib/annotations';
 import { SettlementStatus } from './types';
 import type {
   ActivityActor,
@@ -1562,6 +1563,8 @@ export interface ExpenseAttachmentRow {
   storagePath: string;
   visibility: 'group' | 'parties';
   uploaderMemberId: string;
+  /** Parsed pen/text markup over the image, or null when unmarked. */
+  annotations: Annotations | null;
   createdAt: string | null;
 }
 
@@ -1579,11 +1582,31 @@ export function useExpenseAttachments(expenseId: string): LocalRead<ExpenseAttac
         storagePath: row.storage_path,
         visibility: row.visibility === 'parties' ? 'parties' : 'group',
         uploaderMemberId: row.uploader_member_id,
+        annotations: row.annotations == null ? null : parseAnnotations(row.annotations),
         createdAt: row.created_at,
       })),
     [mirror, expenseId],
   );
   return useLocalRead(rows);
+}
+
+/**
+ * Set or clear the pen/text markup on an attachment (a party only, server-
+ * enforced). `null` clears it. Direct RPC → flush, the same shape as the other
+ * attachment writes; the overlay is data on the row, the bytes are untouched.
+ */
+export function useAnnotateExpenseAttachment() {
+  const { flush } = useSync();
+  return useMutation({
+    mutationFn: async (input: { attachmentId: string; annotations: Annotations | null }) => {
+      const { error } = await supabase.rpc('baaki_annotate_expense_attachment', {
+        p_attachment_id: input.attachmentId,
+        p_annotations: input.annotations,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => void flush(),
+  });
 }
 
 /**
