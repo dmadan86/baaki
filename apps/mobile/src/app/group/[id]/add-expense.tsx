@@ -1366,6 +1366,11 @@ export default function AddExpenseScreen() {
                           currency={currency}
                           locale={locale}
                           variant="caption"
+                          // This person's share = money owed toward the bill, so it
+                          // wears the owe colour, matching the who-owes-what list and
+                          // the balances elsewhere. Forced red: a positive share
+                          // would read as "owed to you" under sign-derived colour.
+                          tone="negative"
                         />
                       ) : null}
                     </View>
