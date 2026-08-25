@@ -14,14 +14,33 @@
  * and the group are cheap and certain here, and everyone gets them.
  */
 
+import { isCurrencyCode, minorUnitScale } from '@waves/core';
+
 /** The minimum a group needs to be matched by name. */
 export interface VoiceGroupRef {
   id: string;
   name: string | null;
 }
 
+/**
+ * A spoken major amount to its currency's minor units. A flat ×100 inflated a
+ * zero-decimal currency (¥3000 → 300000 = ¥300000) and truncated a three-decimal
+ * one; scaling by the currency's real exponent fixes both. Falls back to the
+ * common two-decimal scale when the currency is unknown or unheard, which keeps
+ * every existing INR/USD case identical.
+ */
+function toMinorUnits(amountMajor: number, currency: string | null): bigint {
+  const scale = currency && isCurrencyCode(currency) ? Number(minorUnitScale(currency)) : 100;
+  return BigInt(Math.round(amountMajor * scale));
+}
+
 export interface ParsedVoiceExpense {
-  /** The amount in minor units (a two-decimal assumption), or null if none was heard. */
+  /**
+   * The amount in minor units, scaled by the currency's own exponent when a
+   * valid ISO code was heard (so JPY is not inflated ×100, KWD not truncated),
+   * falling back to a two-decimal scale when the currency is unknown or invalid.
+   * Null if no amount was heard.
+   */
   amountMinor: bigint | null;
   /** The amount as spoken, in major units, or null. */
   amountMajor: number | null;
@@ -335,14 +354,15 @@ export function parseVoiceExpense(
   const said = normalizeSpokenNumbers(normalizeDigits(transcript));
   const tokens = tokenize(said);
   const amountMajor = extractAmount(said);
-  const amountMinor = amountMajor === null ? null : BigInt(Math.round(amountMajor * 100));
+  const currency = detectCurrency(said);
+  const amountMinor = amountMajor === null ? null : toMinorUnits(amountMajor, currency);
   const groupId = matchGroup(tokens, groups);
   const matchedName = groupId ? (groups.find((group) => group.id === groupId)?.name ?? null) : null;
 
   return {
     amountMinor,
     amountMajor,
-    currency: detectCurrency(said),
+    currency,
     note: buildNote(said, matchedName),
     groupId,
     splitCount: extractSplitCount(said),
@@ -549,6 +569,19 @@ const CURRENCY_TOKEN = new RegExp(
   'i',
 );
 
+/**
+ * A currency word or symbol *immediately* after a number — anchored at the start
+ * of the following text. Whole-name (CURRENCY_WORD_ALT is longest-first), so a
+ * three-word name like "sri lankan rupees" or "new zealand dollars" is caught
+ * where a fixed two-word window would clip it and miss the currency signal. The
+ * anchor keeps it to true adjacency, so a currency word later in the sentence
+ * ("five hundred for dinner, 20 rupees") does not make the earlier run money.
+ */
+const CURRENCY_AT_START = new RegExp(
+  `^(?:[${CURRENCY_SYMBOL_CLASS}]|(?:${CURRENCY_WORD_ALT})\\b)`,
+  'i',
+);
+
 /** Split-phrase context — a number here is a people count, still worth digitising. */
 const SPLIT_BEFORE_WORD = /^(?:among|amongst|between)$/i;
 const SPLIT_AFTER_WORD = /^(?:people|persons?|ppl|ways?|folks?|heads?)\b/i;
@@ -685,9 +718,11 @@ export function normalizeSpokenNumbers(text: string): string {
     const after = whole.slice(offset + run.length).trimStart();
     const before = whole.slice(0, offset).trimEnd();
     const prevWord = before.split(/\s+/).pop() ?? '';
-    // The first two words after the run, so a qualified name ("canadian
-    // dollars") still reads as currency where a single-word check would miss it.
-    const nextIsCurrency = CURRENCY_TOKEN.test(after.split(/\s+/).slice(0, 2).join(' '));
+    // Whole currency name right after the run, so a three-word qualified name
+    // ("sri lankan rupees", "new zealand dollars") reads as currency where a
+    // fixed two-word window clipped it and let the spoken amount slip through
+    // unconverted. Anchored, so only true adjacency counts.
+    const nextIsCurrency = CURRENCY_AT_START.test(after);
     const prevIsCurrency = CURRENCY_TOKEN.test(prevWord);
     const nextIsMinor = MINOR_UNIT_AFTER.test(after);
     const splitContext = SPLIT_BEFORE_WORD.test(prevWord) || SPLIT_AFTER_WORD.test(after);
@@ -825,7 +860,7 @@ export function parseVoiceExpenses(
     if (currency) carriedCurrency = currency;
     items.push({
       amountMajor,
-      amountMinor: BigInt(Math.round(amountMajor * 100)),
+      amountMinor: toMinorUnits(amountMajor, currency),
       currency,
       note: buildNote(segment, matchedName),
     });

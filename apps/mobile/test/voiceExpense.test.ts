@@ -48,6 +48,29 @@ describe('parseVoiceExpense', () => {
     expect(parsed.currency).toBe('USD');
   });
 
+  it('scales minor units by the currency exponent, not a flat 100', () => {
+    // JPY is zero-decimal: ¥3000 is 3000 minor units, not 300000.
+    const jpy = parseVoiceExpense('¥3000 ramen', groups);
+    expect(jpy.currency).toBe('JPY');
+    expect(jpy.amountMajor).toBe(3000);
+    expect(jpy.amountMinor).toBe(3000n);
+    // Two-decimal currencies are unchanged.
+    expect(parseVoiceExpense('500 rupees', groups).amountMinor).toBe(50000n);
+  });
+
+  it('reads a spoken amount before a three-word currency name', () => {
+    const cases: [string, number, string][] = [
+      ['five hundred sri lankan rupees tea', 500, 'LKR'],
+      ['six hundred new zealand dollars tour', 600, 'NZD'],
+      ['three hundred hong kong dollars dinner', 300, 'HKD'],
+    ];
+    for (const [sentence, major, code] of cases) {
+      const parsed = parseVoiceExpense(sentence, groups);
+      expect(parsed.amountMajor).toBe(major);
+      expect(parsed.currency).toBe(code);
+    }
+  });
+
   it('recognises currencies beyond rupees and dollars', () => {
     const cases: [string, string][] = [
       ['2000 yen for sushi', 'JPY'],
