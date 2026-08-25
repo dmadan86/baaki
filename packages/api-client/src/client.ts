@@ -20,10 +20,14 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 
 import {
   AuthMethod,
+  buildExpenseWriteBody,
   checkPassword,
   planAuth,
   readIdentifier,
+  type CategoryMeta,
   type ExpenseLocation,
+  type FxRecord,
+  type PaymentMethod,
   type Viewer,
 } from '@waves/core';
 
@@ -101,7 +105,10 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     return (data ?? []) as T[];
   }
 
-  async function callFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  // `object`, not `Record<string, unknown>`, so a typed request-shape (e.g. the
+  // shared `ExpenseWriteBody` from @waves/core) is accepted without an index
+  // signature; `invoke` serialises it to JSON either way.
+  async function callFunction<T>(name: string, body: object): Promise<T> {
     const { data, error } = await supabase.functions.invoke(name, { body });
     if (error) throw await describeFunctionError(error);
     return data as T;
@@ -557,31 +564,38 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
      * browser.
      */
     writeExpense(input: WriteExpenseInput): Promise<WriteExpenseResult> {
-      return callFunction<WriteExpenseResult>('expense-write', {
-        groupId: input.groupId,
-        expenseId: input.expenseId,
-        description: input.description,
-        category: input.category ?? null,
-        expenseDate: input.expenseDate,
-        currency: input.currency,
-        amount: input.amount.toString(),
-        splitParams: input.splitParams,
-        participants: input.participants,
-        payers: Object.fromEntries(
-          Object.entries(input.payers).map(([id, value]) => [id, value.toString()]),
-        ),
-        expectedShares: input.expectedShares
-          ? Object.fromEntries(
-              Object.entries(input.expectedShares).map(([id, value]) => [id, value.toString()]),
-            )
-          : undefined,
-        notes: input.notes ?? null,
-        // Where the spend happened (A43); null unless the person opted in.
-        location: input.location ?? null,
-        // The idempotency key. A guest on a flaky phone browser is exactly who
-        // double-taps Save, and this is what makes the second one harmless.
-        clientMutationId: input.clientMutationId,
-      });
+      // One shared body builder (`buildExpenseWriteBody` in @waves/core), the
+      // same one the mobile client and — via the edge — `/sync` use, so a write
+      // from the browser carries every field the others do. It used to drop
+      // paymentMethod, categoryMeta, fx and baseVersionNo even when a caller
+      // supplied them; the split params arrive already in wire form here.
+      return callFunction<WriteExpenseResult>(
+        'expense-write',
+        buildExpenseWriteBody({
+          groupId: input.groupId,
+          expenseId: input.expenseId,
+          description: input.description,
+          category: input.category ?? null,
+          expenseDate: input.expenseDate,
+          currency: input.currency,
+          amount: input.amount,
+          splitParams: input.splitParams,
+          participants: input.participants,
+          payers: input.payers,
+          expectedShares: input.expectedShares,
+          notes: input.notes ?? null,
+          paymentMethod: input.paymentMethod ?? null,
+          categoryMeta: input.categoryMeta ?? null,
+          location: input.location ?? null,
+          receiptShareUrl: input.receiptShareUrl ?? null,
+          receiptId: input.receiptId ?? null,
+          fx: input.fx ?? null,
+          baseVersionNo: input.baseVersionNo ?? null,
+          // The idempotency key. A guest on a flaky phone browser is exactly who
+          // double-taps Save, and this is what makes the second one harmless.
+          clientMutationId: input.clientMutationId,
+        }),
+      );
     },
   };
 }
@@ -602,9 +616,22 @@ export interface WriteExpenseInput {
   payers: Record<string, bigint>;
   expectedShares?: Record<string, bigint>;
   notes?: string | null;
+  /** How the money moved: cash | upi | credit | debit | forex. */
+  paymentMethod?: PaymentMethod | null;
+  /** Denormalised custom-tag display (extends TDR §8); null for a built-in. */
+  categoryMeta?: CategoryMeta | null;
   /** Where the spend happened (A43); null unless the person opted in. The edge
    *  function validates it to Earth's ranges before it is stored. */
   location?: ExpenseLocation | null;
+  /** A view-only link to the owner's own cloud copy of the receipt (E3). */
+  receiptShareUrl?: string | null;
+  /** Links a scanned receipt (ADR-008) to this expense; null when none. */
+  receiptId?: string | null;
+  /** The rate used when the expense is not in the group's currency (ADR-003). */
+  fx?: FxRecord | null;
+  /** The version this edit is based on (ADR-004 / TDR §4.4); set only for an
+   *  edit, so the server can detect a concurrent edit instead of overwriting. */
+  baseVersionNo?: number | null;
   clientMutationId: string;
 }
 
