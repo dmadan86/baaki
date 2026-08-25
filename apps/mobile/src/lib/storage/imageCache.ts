@@ -24,6 +24,14 @@ import type { LogicalBucket } from './index';
 /** Subdirectory under the OS cache dir that holds every cached receipt image. */
 const CACHE_DIR = 'receipt-image-cache';
 
+/** Downloads already in flight, keyed by the stable local cache identity. */
+const inFlightDownloads = new Map<string, Promise<string | null>>();
+
+function usablePath(path: string | null): string | null {
+  if (!path || path.trim().length === 0) return null;
+  return path;
+}
+
 /**
  * Write bytes to the cache atomically: to a unique temp sibling first, then move
  * it onto the final path. A direct `file.write` can leave a truncated file if
@@ -50,12 +58,12 @@ function writeAtomic(dir: Directory, file: File, bytes: Uint8Array): void {
 
 /**
  * A deterministic, filesystem-safe filename for a stored object. The bucket and
- * path together are unique, and every character a path can carry (slashes, the
- * uuid dots) is flattened to `_` so it is one flat filename rather than a nested
- * tree — the lookup only needs identity, not the original shape.
+ * path together are unique. They are URI-encoded as one string rather than
+ * lossy-flattened, so distinct storage paths like `a/b` and `a_b` cannot map to
+ * the same local file.
  */
 function fileFor(bucket: LogicalBucket, path: string): File {
-  const name = `${bucket}__${path}`.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const name = encodeURIComponent(`${bucket}\u0000${path}`);
   return new File(Paths.cache, CACHE_DIR, name);
 }
 
@@ -65,9 +73,10 @@ function fileFor(bucket: LogicalBucket, path: string): File {
  * reaching for the network.
  */
 export function cachedImageUri(bucket: LogicalBucket, path: string | null): string | null {
-  if (!path) return null;
+  const key = usablePath(path);
+  if (!key) return null;
   try {
-    const file = fileFor(bucket, path);
+    const file = fileFor(bucket, key);
     return file.exists ? file.uri : null;
   } catch {
     return null;
@@ -85,16 +94,32 @@ export async function cacheImage(
   path: string | null,
   remoteUrl: string,
 ): Promise<string | null> {
-  if (!path) return null;
+  const key = usablePath(path);
+  if (!key) return null;
   try {
-    const file = fileFor(bucket, path);
+    const file = fileFor(bucket, key);
     if (file.exists) return file.uri;
 
-    const response = await expoFetch(remoteUrl);
-    if (!response.ok) return null;
-    const bytes = await response.bytes();
-    writeAtomic(new Directory(Paths.cache, CACHE_DIR), file, bytes);
-    return file.uri;
+    const inFlightKey = file.uri;
+    const existing = inFlightDownloads.get(inFlightKey);
+    if (existing) return await existing;
+
+    const download = (async () => {
+      try {
+        const response = await expoFetch(remoteUrl);
+        if (!response.ok) return null;
+        const bytes = await response.bytes();
+        if (bytes.byteLength === 0) return null;
+        writeAtomic(new Directory(Paths.cache, CACHE_DIR), file, bytes);
+        return file.uri;
+      } catch {
+        return null;
+      } finally {
+        inFlightDownloads.delete(inFlightKey);
+      }
+    })();
+    inFlightDownloads.set(inFlightKey, download);
+    return await download;
   } catch {
     return null;
   }
@@ -111,8 +136,10 @@ export function cacheImageBytes(
   path: string,
   bytes: Uint8Array,
 ): string | null {
+  const key = usablePath(path);
+  if (!key || bytes.byteLength === 0) return null;
   try {
-    const file = fileFor(bucket, path);
+    const file = fileFor(bucket, key);
     writeAtomic(new Directory(Paths.cache, CACHE_DIR), file, bytes);
     return file.uri;
   } catch {
@@ -125,9 +152,10 @@ export function cacheImageBytes(
  * stale copy cannot outlive the real one. Best-effort.
  */
 export function evictImage(bucket: LogicalBucket, path: string | null): void {
-  if (!path) return;
+  const key = usablePath(path);
+  if (!key) return;
   try {
-    const file = fileFor(bucket, path);
+    const file = fileFor(bucket, key);
     if (file.exists) file.delete();
   } catch {
     // Already gone, or unreadable — nothing to do.

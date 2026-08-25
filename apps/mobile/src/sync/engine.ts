@@ -130,6 +130,16 @@ function sameQueue(a: readonly QueuedMutation[], b: readonly QueuedMutation[]): 
   return true;
 }
 
+function appendRejected(
+  existing: readonly RejectedMutation[],
+  incoming: readonly RejectedMutation[],
+): RejectedMutation[] {
+  if (incoming.length === 0) return [...existing];
+  const byId = new Map(existing.map((item) => [item.clientMutationId, item]));
+  for (const item of incoming) byId.set(item.clientMutationId, item);
+  return [...byId.values()];
+}
+
 export class SyncEngine {
   private store: LocalStore = createLocalStore();
   private state: SyncState = {
@@ -441,6 +451,8 @@ export class SyncEngine {
         folded.rejected.length === 0 && sameQueue(this.state.queue, folded.queue)
           ? this.state.queue
           : folded.queue;
+      const madeProgress =
+        changes.length > 0 || !sameCursors(this.state.mirror.cursors, nextCursors);
 
       await this.persist(changes, mirror, queue);
 
@@ -448,7 +460,7 @@ export class SyncEngine {
         status: SyncStatus.Idle,
         mirror,
         queue,
-        rejected: [...this.state.rejected, ...rejected],
+        rejected: appendRejected(this.state.rejected, rejected),
         lastSyncedAt: response.serverTime ?? new Date().toISOString(),
         lastError: null,
       });
@@ -459,7 +471,7 @@ export class SyncEngine {
       // joining a big group) catches up in a burst instead of a page every half
       // minute. Scheduled after this flush settles, since flush() is single-
       // in-flight; guarded by the cursor moving, so it cannot spin forever.
-      if (response.hasMore) {
+      if (response.hasMore && madeProgress) {
         setTimeout(() => void this.flush(), 0);
       }
 

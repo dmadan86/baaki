@@ -27,6 +27,7 @@ import { materialiseGroups, type MirrorState, type QueuedMutation } from '@waves
 // "disk" every `createLocalStore()` reads and writes.
 const h = vi.hoisted(() => ({
   net: vi.fn(),
+  syncPreference: vi.fn(),
   invoke: vi.fn(),
   disk: {
     rows: new Map<
@@ -38,11 +39,19 @@ const h = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('expo-network', () => ({ getNetworkStateAsync: h.net }));
+vi.mock('expo-network', () => ({
+  getNetworkStateAsync: h.net,
+  NetworkStateType: { WIFI: 'wifi', CELLULAR: 'cellular' },
+}));
 
 vi.mock('@/lib/backend', () => ({
   backend: { functions: { invoke: h.invoke } },
   backendConfigured: true,
+}));
+
+vi.mock('@/lib/syncNetwork', () => ({
+  SyncNetworkPreference: { Wifi: 'wifi', Cellular: 'cellular', Both: 'both' },
+  loadSyncNetworkPreference: h.syncPreference,
 }));
 
 // Keep Sentry out of a unit test; the engine only ever calls `reportHandled`.
@@ -124,6 +133,7 @@ const groupIds = (mirror: MirrorState, queue: QueuedMutation[] = []) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.syncPreference.mockResolvedValue('both');
   h.disk.rows.clear();
   h.disk.cursors = {};
   h.disk.queue = [];
@@ -337,5 +347,256 @@ describe('leaving a group forgets it locally', () => {
     const relaunched = new SyncEngine();
     await relaunched.hydrate();
     expect(groupIds(relaunched.getState().mirror)).toEqual([]);
+  });
+});
+
+describe('network gates and failure handling', () => {
+  it('holds the queue on a metered connection the user has not allowed', async () => {
+    h.syncPreference.mockResolvedValue('wifi');
+    h.net.mockResolvedValue({ isInternetReachable: true, type: 'cellular' });
+    const engine = new SyncEngine();
+
+    await engine.enqueue({
+      clientMutationId: 'metered-edit',
+      kind: 'group.update' as never,
+      groupId: 'g-goa',
+      clientCreatedAt: '2026-08-09T00:00:00.000Z',
+      payload: { name: 'No mobile data' },
+    });
+    await engine.flush();
+
+    expect(h.invoke).not.toHaveBeenCalled();
+    expect(engine.getState().status).toBe('metered');
+    expect(engine.getState().queue.map((m) => m.clientMutationId)).toEqual(['metered-edit']);
+    expect(h.disk.queue.map((m) => m.clientMutationId)).toEqual(['metered-edit']);
+  });
+
+  it('marks the queued batch failed and keeps that reason durable when sync errors', async () => {
+    online();
+    h.invoke.mockResolvedValue({
+      data: null,
+      error: { context: { json: async () => ({ code: 'BAD_GATEWAY', message: 'Try later' }) } },
+    });
+    const engine = new SyncEngine();
+
+    await engine.enqueue({
+      clientMutationId: 'will-fail',
+      kind: 'group.update' as never,
+      groupId: 'g-goa',
+      clientCreatedAt: '2026-08-09T00:00:00.000Z',
+      payload: { name: 'fail' },
+    });
+    await engine.flush();
+
+    expect(engine.getState().status).toBe('error');
+    expect(engine.getState().lastError).toBe('BAD_GATEWAY: Try later');
+    expect(engine.getState().queue[0]?.attempts).toBeGreaterThan(0);
+    expect(engine.getState().queue[0]?.lastError).toBe('BAD_GATEWAY: Try later');
+    expect(h.disk.queue[0]?.lastError).toBe('BAD_GATEWAY: Try later');
+  });
+});
+
+describe('background poll performance', () => {
+  it('keeps mirror and queue references stable when a poll applies no changes', async () => {
+    online();
+    h.disk.rows.set('groups:g-goa', {
+      table: 'groups',
+      id: 'g-goa',
+      groupId: 'g-goa',
+      seq: 1,
+      row: {
+        id: 'g-goa',
+        name: 'Goa Trip',
+        default_currency: 'INR',
+        created_at: '2026-08-01T00:00:00.000Z',
+        archived_at: null,
+      },
+    });
+    h.disk.cursors = { 'g-goa': 2 };
+    h.invoke.mockResolvedValue({
+      data: { outcomes: [], changes: [], cursors: { 'g-goa': 2 }, serverTime: 'poll' },
+      error: null,
+    });
+    const engine = new SyncEngine();
+    await engine.hydrate();
+    const before = engine.getState();
+
+    await engine.flush();
+
+    expect(engine.getState().mirror).toBe(before.mirror);
+    expect(engine.getState().queue).toBe(before.queue);
+    expect(engine.getState().lastSyncedAt).toBe('poll');
+  });
+
+  it('schedules an immediate follow-up pull when the server says more rows are waiting', async () => {
+    vi.useFakeTimers();
+    try {
+      online();
+      h.invoke
+        .mockResolvedValueOnce({ data: { ...discoveryResponse(), hasMore: true }, error: null })
+        .mockResolvedValue({
+          data: { outcomes: [], changes: [], cursors: { 'g-goa': 2 }, serverTime: 'drained' },
+          error: null,
+        });
+      const engine = new SyncEngine();
+
+      await engine.flush();
+      expect(h.invoke).toHaveBeenCalledTimes(1);
+
+      await vi.runOnlyPendingTimersAsync();
+      expect(h.invoke).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not spin forever when hasMore arrives without cursor or row progress', async () => {
+    vi.useFakeTimers();
+    try {
+      online();
+      h.disk.cursors = { 'g-goa': 2 };
+      h.invoke.mockResolvedValue({
+        data: {
+          outcomes: [],
+          changes: [],
+          cursors: { 'g-goa': 2 },
+          serverTime: 'stalled-page',
+          hasMore: true,
+        },
+        error: null,
+      });
+      const engine = new SyncEngine();
+      await engine.hydrate();
+
+      await engine.flush();
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(h.invoke).toHaveBeenCalledTimes(1);
+      expect(engine.getState().lastSyncedAt).toBe('stalled-page');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('queue and draft controls', () => {
+  it('retry clears a rejected banner after the server removed that mutation from the queue', async () => {
+    online();
+    h.invoke.mockResolvedValue({
+      data: {
+        outcomes: [
+          {
+            clientMutationId: 'bad-edit',
+            status: 'rejected',
+            code: 'VALIDATION_FAILED',
+            message: 'Nope',
+          },
+        ],
+        changes: [],
+        cursors: {},
+        serverTime: 'reject',
+      },
+      error: null,
+    });
+    const engine = new SyncEngine();
+    await engine.enqueue({
+      clientMutationId: 'bad-edit',
+      kind: 'group.update' as never,
+      groupId: 'g-goa',
+      clientCreatedAt: '2026-08-09T00:00:00.000Z',
+      payload: { name: '' },
+    });
+    await engine.flush();
+    expect(engine.getState().queue).toEqual([]);
+    expect(engine.getState().rejected.map((item) => item.clientMutationId)).toEqual(['bad-edit']);
+
+    await engine.retry('bad-edit');
+    expect(engine.getState().rejected).toEqual([]);
+    expect(h.disk.queue).toEqual([]);
+  });
+
+  it('discard removes a still-queued failed mutation from memory and disk', async () => {
+    online();
+    h.invoke.mockResolvedValue({ data: null, error: new Error('network down') });
+    const engine = new SyncEngine();
+    await engine.enqueue({
+      clientMutationId: 'queued-edit',
+      kind: 'group.update' as never,
+      groupId: 'g-goa',
+      clientCreatedAt: '2026-08-09T00:00:00.000Z',
+      payload: { name: 'retry later' },
+    });
+    await engine.flush();
+    expect(engine.getState().queue.map((item) => item.clientMutationId)).toEqual(['queued-edit']);
+
+    await engine.discard('queued-edit');
+    expect(engine.getState().queue).toEqual([]);
+    expect(h.disk.queue).toEqual([]);
+  });
+
+  it('replaces repeated rejection banners for the same mutation id', async () => {
+    online();
+    h.invoke.mockResolvedValueOnce({
+      data: {
+        outcomes: [
+          {
+            clientMutationId: 'bad-edit',
+            status: 'rejected',
+            code: 'VALIDATION_FAILED',
+            message: 'First reason',
+          },
+        ],
+        changes: [],
+        cursors: {},
+        serverTime: 'first',
+      },
+      error: null,
+    });
+    const engine = new SyncEngine();
+    await engine.enqueue({
+      clientMutationId: 'bad-edit',
+      kind: 'group.update' as never,
+      groupId: 'g-goa',
+      clientCreatedAt: '2026-08-09T00:00:00.000Z',
+      payload: { name: '' },
+    });
+    await engine.flush();
+    expect(engine.getState().rejected.map((item) => item.message)).toEqual(['First reason']);
+
+    h.invoke.mockResolvedValueOnce({
+      data: {
+        outcomes: [
+          {
+            clientMutationId: 'bad-edit',
+            status: 'rejected',
+            code: 'VALIDATION_FAILED',
+            message: 'Second reason',
+          },
+        ],
+        changes: [],
+        cursors: {},
+        serverTime: 'second',
+      },
+      error: null,
+    });
+    await engine.enqueue({
+      clientMutationId: 'bad-edit',
+      kind: 'group.update' as never,
+      groupId: 'g-goa',
+      clientCreatedAt: '2026-08-09T00:00:01.000Z',
+      payload: { name: '' },
+    });
+    await engine.flush();
+
+    expect(engine.getState().rejected.map((item) => item.message)).toEqual(['Second reason']);
+  });
+
+  it('delegates draft saves, reads, listing and clearing to the local store', async () => {
+    const engine = new SyncEngine();
+
+    await engine.saveDraft('expense:new', { amount: 123 });
+    await expect(engine.readDraft('expense:new')).resolves.toBeNull();
+    await expect(engine.listDrafts()).resolves.toEqual([]);
+    await expect(engine.clearDraft('expense:new')).resolves.toBeUndefined();
   });
 });
