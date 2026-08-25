@@ -579,6 +579,7 @@ function AuthGate() {
           {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
           <Stack.Screen name="capture" options={modal} />
           <Stack.Screen name="captures" />
+          <Stack.Screen name="groups" options={slide} />
           <Stack.Screen name="group/[id]/index" options={slide} />
           <Stack.Screen name="group/[id]/add-expense" options={slide} />
           <Stack.Screen name="group/[id]/settle" options={modal} />

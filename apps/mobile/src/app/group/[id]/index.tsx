@@ -14,7 +14,6 @@ import {
   Card,
   directionalIcon,
   EmptyState,
-  Fab,
   Gradient,
   iconSize,
   MoneyText,
@@ -75,6 +74,41 @@ enum Tab {
  * same manner: once tapped it stops offering, and a rate limit reads as "already
  * nudged today" rather than as an error. Nobody should be told off for asking.
  */
+/**
+ * One round translucent action on the group hero — a white glyph on a dim
+ * white disc, the same on-panel circle the dashboard hero uses. Icon-only;
+ * its name rides on the accessibility label.
+ */
+function HeroActionCircle({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.18)',
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.xl} color={theme.color.onBrand} />
+    </Pressable>
+  );
+}
+
 function RemindChip({
   groupId,
   memberId,
@@ -708,55 +742,46 @@ export default function GroupScreen() {
                     style={{ color: theme.color.onBrand }}
                   />
 
-                  {/* Two actions on the hero: Settle up is the white pill (the one
-                    primary), Simplify a translucent-white pill behind it. Both
-                    hold their label on the wash. */}
-                  <Row style={{ gap: theme.spacing.md }}>
+                  {/* Three actions on the hero, like the dashboard: a white
+                    "add expense" pill leads (the one primary), then two
+                    translucent circles — settle up and who-pays-whom. */}
+                  <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
                     <Pressable
-                      onPress={() => router.push(`/group/${groupId}/settle`)}
+                      onPress={() => router.push(`/group/${groupId}/add-expense`)}
                       accessibilityRole="button"
-                      accessibilityLabel={t.settleUp}
+                      accessibilityLabel={t.addExpense}
                       style={({ pressed }) => ({
-                        flex: 1,
                         flexDirection: 'row',
                         alignItems: 'center',
-                        justifyContent: 'center',
                         gap: theme.spacing.xs,
                         paddingVertical: theme.spacing.sm + 2,
-                        paddingHorizontal: theme.spacing.md,
+                        paddingHorizontal: theme.spacing.lg,
                         borderRadius: theme.radius.pill,
                         backgroundColor: '#FFFFFF',
                         opacity: pressed ? 0.85 : 1,
                       })}
                     >
-                      <Ionicons name="swap-horizontal" size={iconSize.md} color={heroGradient[0]} />
+                      <Ionicons name="add" size={iconSize.lg} color={heroGradient[0]} />
                       <Text
                         variant="subheading"
                         style={{ color: heroGradient[0] }}
                         numberOfLines={1}
                       >
-                        {t.settleUp}
+                        {t.addExpense}
                       </Text>
                     </Pressable>
-                    <Pressable
-                      onPress={() => router.push(`/group/${groupId}/simplify`)}
-                      accessibilityRole="button"
-                      accessibilityLabel={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                      style={({ pressed }) => ({
-                        flex: 1,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        paddingVertical: theme.spacing.sm + 2,
-                        paddingHorizontal: theme.spacing.md,
-                        borderRadius: theme.radius.pill,
-                        backgroundColor: 'rgba(255, 255, 255, 0.18)',
-                        opacity: pressed ? 0.7 : 1,
-                      })}
-                    >
-                      <Text variant="subheading" tone="onBrand" numberOfLines={1}>
-                        {group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                      </Text>
-                    </Pressable>
+                    <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
+                      <HeroActionCircle
+                        icon="swap-horizontal"
+                        label={t.settleUp}
+                        onPress={() => router.push(`/group/${groupId}/settle`)}
+                      />
+                      <HeroActionCircle
+                        icon="git-compare-outline"
+                        label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
+                        onPress={() => router.push(`/group/${groupId}/simplify`)}
+                      />
+                    </Row>
                   </Row>
                 </View>
               </Gradient>
@@ -1116,16 +1141,9 @@ export default function GroupScreen() {
           }
         />
 
-        {/* The empty state carries its own Add expense button, and two of the
-            same button on one screen is a screen that cannot decide. The FAB
-            stands down for exactly that case. */}
-        {tab === Tab.Expenses && visibleExpenses.length === 0 ? null : (
-          <Fab
-            label={t.addExpense}
-            onPress={() => router.push(`/group/${groupId}/add-expense`)}
-            icon={<Ionicons name="add" size={iconSize.lg} color={theme.color.onBrand} />}
-          />
-        )}
+        {/* No FAB: adding an expense now lives on the hero's white pill, the
+            same as the dashboard, so a floating button would be a second door
+            to the same room. */}
       </DetailEnter>
     </Screen>
   );
