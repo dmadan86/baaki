@@ -105,9 +105,12 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     return (data ?? []) as T[];
   }
 
-  // `object`, not `Record<string, unknown>`, so a typed request-shape (e.g. the
-  // shared `ExpenseWriteBody` from @waves/core) is accepted without an index
-  // signature; `invoke` serialises it to JSON either way.
+  /**
+   * Invoke an edge function with a JSON body. Typed as `object`, not
+   * `Record<string, unknown>`, so a typed request-shape (e.g. the shared
+   * `ExpenseWriteBody` from @waves/core) is accepted without an index signature;
+   * `invoke` serialises it to JSON either way.
+   */
   async function callFunction<T>(name: string, body: object): Promise<T> {
     const { data, error } = await supabase.functions.invoke(name, { body });
     if (error) throw await describeFunctionError(error);

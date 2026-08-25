@@ -48,6 +48,7 @@ const APPLY_EXPENSE_KEYS = [
   'p_location',
 ].sort();
 
+/** A representative custom-tag snapshot reused across the cases. */
 const meta: CategoryMeta = { label: 'Chai', icon: 'cup', tint: 'peach' };
 
 /** The normalised pieces an edge has after it has validated and computed. */

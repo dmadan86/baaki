@@ -90,6 +90,7 @@ const halves = (a: string, b: string, amount: bigint) => ({
   ],
 });
 
+/** Read the stored `category_meta` snapshot for one version of an expense. */
 async function categoryMetaOfVersion(expenseId: string, versionNo: number): Promise<unknown> {
   const { rows } = await client.query(
     `SELECT category_meta FROM expense_versions WHERE expense_id = $1 AND version_no = $2`,

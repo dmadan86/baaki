@@ -704,6 +704,12 @@ export interface WriteExpenseResult {
   replayed?: boolean;
 }
 
+/**
+ * Write an expense through the `expense-write` edge function (the direct,
+ * online path). The server recomputes every share and owns authorization
+ * (TDR §4); the body is built by the one shared serializer the web client and
+ * `/sync` also use, so a direct write carries the same fields as a queued one.
+ */
 export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpenseResult> {
   const { data, error } = await backend.functions.invoke('expense-write', {
     // One shared body builder (`buildExpenseWriteBody` in @waves/core), so this
