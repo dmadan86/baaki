@@ -9,6 +9,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
+  I18nManager,
   Platform,
   Text as RNText,
   useWindowDimensions,
@@ -30,6 +31,7 @@ import {
 import { Onboarding } from '@/components/Onboarding';
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { AppTabBar } from '@/components/AppTabBar';
+import { TransferProgressBar } from '@/components/TransferProgressBar';
 import { CampaignPopup } from '@/components/CampaignPopup';
 import { NotificationPrompt } from '@/components/NotificationPrompt';
 import { TourOverlay } from '@/components/TourOverlay';
@@ -421,6 +423,16 @@ function AuthGate() {
    */
   const push = 'none' as const;
   const modal = { presentation: 'modal' as const, animation: 'slide_from_bottom' as const };
+  // A normal forward page: a plain horizontal translate (and back out the way it
+  // came) rather than rising like a modal — the "went to a page", not "on top of"
+  // feel. A bare translate is the cheapest native transition on the UI thread, so
+  // it stays smooth where the platform 'default' (which drags an elevation/shadow
+  // across) can stutter in a dev build. The edge follows the writing direction —
+  // from the right in LTR, from the left in RTL (Arabic) — so it never slides the
+  // wrong way.
+  const slide = {
+    animation: I18nManager.isRTL ? ('slide_from_left' as const) : ('slide_from_right' as const),
+  };
 
   // The two auth doors and the invite-accept screen are the only routes a
   // signed-out person is allowed to sit on. `onAuth` covers both doors so a
@@ -568,7 +580,7 @@ function AuthGate() {
           <Stack.Screen name="capture" options={modal} />
           <Stack.Screen name="captures" />
           <Stack.Screen name="group/[id]/index" />
-          <Stack.Screen name="group/[id]/add-expense" options={modal} />
+          <Stack.Screen name="group/[id]/add-expense" options={slide} />
           <Stack.Screen name="group/[id]/settle" options={modal} />
           <Stack.Screen name="group/[id]/simplify" />
           <Stack.Screen name="group/[id]/settings" />
@@ -605,6 +617,10 @@ function AuthGate() {
         {/* One bar over the whole stack, so every screen keeps it — it hides
           itself on the modals and the camera. */}
         <AppTabBar />
+        {/* A slim upload/download progress bar across the very top, over every
+          screen — behind the `upload_progress` flag, so it renders nothing until
+          the flag is on. */}
+        <TransferProgressBar />
       </View>
     </ShortcutGesture>
   );

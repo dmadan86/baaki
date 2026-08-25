@@ -15,7 +15,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
-import { IconButton, iconSize, Row, Text, useTheme } from '@waves/ui';
+import { directionalIcon, IconButton, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -23,18 +23,32 @@ export function ExpenseHeader({
   title,
   subtitle,
   right,
+  leading = 'close',
 }: {
   title: string;
   subtitle?: string;
   /** A trailing action; a 44pt spacer keeps the title centred when omitted. */
   right?: ReactNode;
+  /**
+   * The leading affordance. A modal (capture) dismisses with an X; a pushed
+   * page (add-expense) goes back with a direction-aware chevron, so the glyph
+   * matches how the screen was opened.
+   */
+  leading?: 'close' | 'back';
 }): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
   return (
     <Row style={{ paddingTop: theme.spacing.md }}>
-      <IconButton label={t.common.close} onPress={() => router.back()}>
-        <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+      <IconButton
+        label={leading === 'back' ? t.common.back : t.common.close}
+        onPress={() => router.back()}
+      >
+        <Ionicons
+          name={leading === 'back' ? directionalIcon('chevron-back') : 'close'}
+          size={iconSize.lg}
+          color={theme.color.text}
+        />
       </IconButton>
       <View style={{ flex: 1, alignItems: 'center' }}>
         <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>

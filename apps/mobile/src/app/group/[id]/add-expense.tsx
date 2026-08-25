@@ -1010,6 +1010,7 @@ export default function AddExpenseScreen() {
           showsVerticalScrollIndicator={false}
         >
           <ExpenseHeader
+            leading="back"
             title={editing ? t.expense.edit : t.addExpense}
             subtitle={groupLabel(group.data, members.data ?? [], profile?.id)}
             right={
