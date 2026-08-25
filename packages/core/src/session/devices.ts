@@ -17,6 +17,17 @@
 
 import type { PlanTier } from '../billing/plans';
 
+/**
+ * The default caps, and only the defaults. As of the device-cap A/B work the
+ * real numbers live server-side: the `device_cap_free` / `device_cap_plus`
+ * knobs in `app_config`, overridden per account by the `device_cap_free_ab` /
+ * `device_cap_plus_ab` experiments, all resolved by `baaki_device_cap` and
+ * handed back in the registration `status`. These constants are the floor the
+ * database itself falls back to, and the value `deviceLimitFor` returns for a
+ * caller that has no server status — never the source of truth for the gate,
+ * which reads `status.overLimit`. They match the seeded knob defaults so the
+ * fallback and the baseline agree.
+ */
 /** Two at a time on the house. */
 export const FREE_DEVICE_LIMIT = 2;
 /** Paid is not "unlimited" — an account signed in on many phones is a shared
