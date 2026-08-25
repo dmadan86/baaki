@@ -1089,7 +1089,20 @@ function sanitiseLocation(value: unknown): { lat: number; lng: number; name?: st
 function classify(error: unknown): { code: string; message: string } {
   if (error instanceof HttpError) return { code: error.code, message: error.message };
 
-  const message = error instanceof Error ? error.message : String(error);
+  // A raw PostgrestError / RPC failure is a plain object ({ message, code,
+  // details, hint }), not an Error — so `String(error)` flattens it to the
+  // literal "[object Object]", which then reached the banner as the reason and
+  // told the user nothing. Read the object's own `message` before falling back,
+  // so the DB's own words (RAISE EXCEPTION text, RLS 42501, SHARE_MISMATCH …)
+  // survive to the screen and to Sentry.
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' &&
+          error !== null &&
+          typeof (error as { message?: unknown }).message === 'string'
+        ? (error as { message: string }).message
+        : String(error);
   // The database raises 'UNKNOWN_MEMBER: ...', 'NOT_A_MEMBER: ...' and friends;
   // keep its own word for what went wrong rather than flattening to INTERNAL.
   const raised = /^([A-Z_]+):/.exec(message)?.[1];
