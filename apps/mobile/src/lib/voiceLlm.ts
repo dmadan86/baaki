@@ -51,10 +51,26 @@ export interface VoiceLlmContext {
 }
 
 /** How long we will wait on the provider before giving up and falling back. */
-const REQUEST_TIMEOUT_MS = 8000;
+export const REQUEST_TIMEOUT_MS = 8000;
 
 /** A ceiling on the answer — a handful of expenses is plenty; runaway output is a bug. */
 const MAX_TOKENS = 500;
+
+/**
+ * Prompt-size ceilings. The transcript, the group list, and each group name are
+ * all model- or speaker-influenced free text; without a bound, a reader with
+ * hundreds of groups, a pathologically long name, or a runaway transcript would
+ * inflate the request (and its token cost) without limit. These clamp each input
+ * before it is sent — the request stays a predictable size no matter what comes
+ * in. Truncation is for the wire only: the real group names are untouched, so
+ * name-matching in {@link mapGroup} still runs against the full stored name.
+ */
+/** At most this many of the reader's groups are listed in the prompt. */
+export const MAX_GROUPS_IN_PROMPT = 100;
+/** A group name is truncated to this many chars in the prompt, and a created name is capped to it. */
+export const MAX_GROUP_NAME_CHARS = 80;
+/** The transcript is truncated to this many chars before it is sent. */
+export const MAX_TRANSCRIPT_CHARS = 1000;
 
 /**
  * The JSON the model is asked to return, before we trust any of it. Every field
@@ -107,7 +123,15 @@ function systemPrompt(ctx: VoiceLlmContext): string {
 function userPrompt(transcript: string, ctx: VoiceLlmContext): string {
   const names = ctx.groups
     .map((group) => group.name)
-    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+    // Offer at most a bounded number of groups. VoiceGroupRef carries no recency
+    // or usage signal to rank by, so input order is preserved and simply capped.
+    .slice(0, MAX_GROUPS_IN_PROMPT)
+    // Truncate each name for the PROMPT only — the stored name is untouched, so a
+    // match in mapGroup still runs against the true, full name.
+    .map((name) =>
+      name.length > MAX_GROUP_NAME_CHARS ? name.slice(0, MAX_GROUP_NAME_CHARS) : name,
+    );
   const groupList = names.length > 0 ? names.map((name) => `- ${name}`).join('\n') : '(none)';
   return `Existing groups:\n${groupList}\n\nSentence:\n${transcript}`;
 }
@@ -188,10 +212,57 @@ async function callOpenAiCompatible(
 }
 
 /**
+ * The single tool Anthropic is forced to call, so it answers with a structured
+ * object rather than free text. This is Anthropic's equivalent of OpenAI's
+ * `response_format: json_object`: the input_schema mirrors the shape the mapping
+ * downstream expects, and `tool_choice` below makes the model fill it in. The
+ * schema is a nudge, not a fence — the mapping still validates every field — but
+ * it removes the prose/fence risk that a plain text answer carries.
+ */
+const VOICE_RESULT_TOOL = {
+  name: 'record_expenses',
+  description: "Record the expenses extracted from the sentence, in the app's schema.",
+  input_schema: {
+    type: 'object',
+    properties: {
+      items: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            amount: { type: 'number', description: 'Positive amount in MAJOR units.' },
+            currency: {
+              type: ['string', 'null'],
+              description: 'ISO 4217 code, or null to use the app default.',
+            },
+            note: { type: 'string', description: 'Short description of the expense.' },
+          },
+          required: ['amount'],
+        },
+      },
+      group: {
+        type: ['object', 'null'],
+        properties: {
+          type: { type: 'string', enum: ['existing', 'create'] },
+          name: { type: 'string' },
+        },
+      },
+    },
+    required: ['items'],
+  },
+} as const;
+
+/**
  * Ask Anthropic, whose Messages API takes a top-level `system` and returns a
  * content-block array rather than a single string. The dangerous-direct-browser
  * header is required because this runs inside a React Native / webview runtime
  * that Anthropic treats as a browser origin.
+ *
+ * We force {@link VOICE_RESULT_TOOL} so the answer arrives as a structured
+ * `tool_use` block — parity with the OpenAI JSON-mode path. We stringify that
+ * block back into `text` so the shared parse-and-map tail (which runs
+ * parseJsonLoosely) is identical for both providers. A drifting provider that
+ * returns a plain text block instead is still rescued via that fallback.
  */
 async function callAnthropic(
   headers: Record<string, string>,
@@ -214,24 +285,39 @@ async function callAnthropic(
       temperature: 0,
       system: systemPrompt(ctx),
       messages: [{ role: 'user', content: userPrompt(transcript, ctx) }],
+      tools: [VOICE_RESULT_TOOL],
+      // Make the model answer through the tool rather than as prose.
+      tool_choice: { type: 'tool', name: VOICE_RESULT_TOOL.name },
     }),
   });
   if (!response.ok) return null;
 
   const json = (await response.json()) as {
-    content?: { type?: string; text?: unknown }[];
+    content?: { type?: string; text?: unknown; name?: unknown; input?: unknown }[];
     usage?: { input_tokens?: unknown; output_tokens?: unknown };
   };
-  // The first text block is the answer; Anthropic can interleave other block
-  // types, so we pick the text one rather than assuming index 0.
-  const block = json.content?.find((part) => part?.type === 'text');
-  if (!block || typeof block.text !== 'string') return null;
 
-  const input = json.usage?.input_tokens;
-  const output = json.usage?.output_tokens;
+  const inputTokens = json.usage?.input_tokens;
+  const outputTokens = json.usage?.output_tokens;
   const totalTokens =
-    (typeof input === 'number' ? input : 0) + (typeof output === 'number' ? output : 0);
-  return { text: block.text, totalTokens };
+    (typeof inputTokens === 'number' ? inputTokens : 0) +
+    (typeof outputTokens === 'number' ? outputTokens : 0);
+
+  // Preferred: the forced tool call carries the answer as a structured object.
+  // Stringify it so the shared JSON tail handles both providers the same way.
+  const toolBlock = json.content?.find(
+    (part) => part?.type === 'tool_use' && part?.name === VOICE_RESULT_TOOL.name,
+  );
+  if (toolBlock && toolBlock.input && typeof toolBlock.input === 'object') {
+    return { text: JSON.stringify(toolBlock.input), totalTokens };
+  }
+
+  // Fallback for provider drift: a plain text block parseJsonLoosely can rescue.
+  const textBlock = json.content?.find((part) => part?.type === 'text');
+  if (textBlock && typeof textBlock.text === 'string') {
+    return { text: textBlock.text, totalTokens };
+  }
+  return null;
 }
 
 /**
@@ -239,7 +325,7 @@ async function callAnthropic(
  * We ask for bare JSON, but models fence it anyway often enough that not handling
  * it would throw away otherwise-good answers. Returns null on anything unparseable.
  */
-function parseJsonLoosely(text: string): RawLlmResult | null {
+export function parseJsonLoosely(text: string): RawLlmResult | null {
   const trimmed = text.trim();
   // Peel a leading/trailing code fence (```json … ``` or plain ``` … ```).
   const unfenced = trimmed
@@ -248,7 +334,12 @@ function parseJsonLoosely(text: string): RawLlmResult | null {
     .trim();
   try {
     const parsed = JSON.parse(unfenced) as unknown;
-    if (parsed && typeof parsed === 'object') return parsed as RawLlmResult;
+    // The result is an object with items/group — a bare array (or any non-object
+    // JSON: a number, a string, null) is not the shape we asked for, so reject it
+    // rather than let an array slip through the `typeof === 'object'` gap.
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as RawLlmResult;
+    }
     return null;
   } catch {
     return null;
@@ -288,20 +379,32 @@ function mapItems(rawItems: unknown): VoiceExpenseItem[] {
  * lands in the capture inbox rather than in the wrong group. A "create" needs a
  * non-empty trimmed name. Everything else is null.
  */
-function mapGroup(rawGroup: unknown, groups: readonly VoiceGroupRef[]): VoiceGroupTarget {
+export function mapGroup(rawGroup: unknown, groups: readonly VoiceGroupRef[]): VoiceGroupTarget {
   if (!rawGroup || typeof rawGroup !== 'object') return null;
   const group = rawGroup as RawLlmGroup;
 
   if (group.type === 'existing' && typeof group.name === 'string') {
     const wanted = group.name.trim().toLowerCase();
-    const match = groups.find(
-      (candidate) => candidate.name && candidate.name.trim().toLowerCase() === wanted,
-    );
+    const normalized = (name: string) => name.trim().toLowerCase();
+    // The prompt only ever shows a group name truncated to MAX_GROUP_NAME_CHARS
+    // (see userPrompt), so a model told to answer with "one of the provided
+    // names" will echo the truncated form for a long name. Match the full stored
+    // name first, then fall back to matching that same truncated prefix — without
+    // the fallback a long-named group could never be resolved by voice.
+    const match =
+      groups.find((candidate) => candidate.name && normalized(candidate.name) === wanted) ??
+      groups.find(
+        (candidate) =>
+          candidate.name && normalized(candidate.name.slice(0, MAX_GROUP_NAME_CHARS)) === wanted,
+      );
     return match ? { kind: 'existing', groupId: match.id } : null;
   }
 
   if (group.type === 'create' && typeof group.name === 'string') {
-    const name = group.name.trim();
+    // Cap a model-supplied new-group name so a runaway answer can't create a
+    // group with an absurd name; truncate rather than reject so a merely verbose
+    // one still works. Same ceiling the prompt truncates existing names to.
+    const name = group.name.trim().slice(0, MAX_GROUP_NAME_CHARS);
     return name.length > 0 ? { kind: 'create', name } : null;
   }
 
@@ -336,31 +439,45 @@ export async function interpretVoiceExpenses(
   transcript: string,
   ctx: VoiceLlmContext,
 ): Promise<VoiceParseResult | null> {
-  const text = transcript.trim();
-  if (text.length === 0) return null;
+  const trimmed = transcript.trim();
+  if (trimmed.length === 0) return null;
+  // Bound the transcript before it leaves the device — a runaway body must not
+  // inflate the request or its token cost.
+  const text =
+    trimmed.length > MAX_TRANSCRIPT_CHARS ? trimmed.slice(0, MAX_TRANSCRIPT_CHARS) : trimmed;
 
   const active = await getActiveAiKey();
   // No key means this whole tier is off — the heuristic is the only parser.
   if (!active) return null;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const provider = aiProvider(active.id);
     const headers = provider.authHeaders(active.key);
+    // Resolve settings/model (and any pre-flight async) BEFORE arming the abort
+    // timer, so the timeout budget covers only the network round-trip — slow local
+    // settings resolution must not eat into "the provider took too long".
     const model = await resolveModel(active.id);
 
-    const reply =
-      active.id === 'anthropic'
-        ? await callAnthropic(headers, model, ctx, text, controller.signal)
-        : await callOpenAiCompatible(
-            CHAT_URLS[active.id],
-            headers,
-            model,
-            ctx,
-            text,
-            controller.signal,
-          );
+    // Arm the timeout immediately before the call so it clocks only the fetch, and
+    // clear it on every path out of the call (success, non-200, throw, abort).
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let reply: ProviderReply | null;
+    try {
+      reply =
+        active.id === 'anthropic'
+          ? await callAnthropic(headers, model, ctx, text, controller.signal)
+          : await callOpenAiCompatible(
+              CHAT_URLS[active.id],
+              headers,
+              model,
+              ctx,
+              text,
+              controller.signal,
+            );
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!reply) return null;
 
     const parsed = parseJsonLoosely(reply.text);
@@ -383,7 +500,5 @@ export async function interpretVoiceExpenses(
     // not travel with it.
     reportHandled(caught, 'voice.llm');
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
