@@ -45,6 +45,7 @@ import {
 } from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
+import { normaliseContactPhone } from '@/lib/phone';
 import { SkeletonList } from '@/components/Skeletons';
 
 export interface PickedContact {
@@ -752,13 +753,23 @@ function keyOf(contact: PickedContact): string {
 }
 
 /**
- * A contact card writes a number however the owner typed it. Keep only digits
- * and a leading plus; a number with no country code is returned as-is and the
- * server refuses it, rather than this guessing +91 for somebody's friend
- * abroad — a trip is exactly when foreign numbers turn up.
+ * A contact card writes a number however the owner typed it.
+ *
+ * A bare local number is read in the device's own region — the WhatsApp-style
+ * default every messaging app on the phone already uses — so the address the
+ * picker shows matches the E.164 the server keeps, and a contact already in the
+ * group greys out instead of looking new. This is best-effort and never throws:
+ * if there is no region to read it in, or the result is not a valid number, the
+ * cleaned digits are kept so the person is still invitable (the add path
+ * normalises once more, with the group's region, before anything is queued).
  */
 function normalisePhone(raw: string | null): string | null {
   if (!raw) return null;
   const cleaned = raw.replace(/[^0-9+]/g, '');
-  return cleaned.length >= 8 ? cleaned : null;
+  if (cleaned.length < 8) return null;
+  try {
+    return normaliseContactPhone(cleaned) ?? cleaned;
+  } catch {
+    return cleaned;
+  }
 }

@@ -15,6 +15,7 @@ import { Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
 
+import { isPhoneCountryError } from '@/lib/phone';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { SyncStatus, useSync } from '@/sync';
 
@@ -145,8 +146,15 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
             {t.extras.oneChangeFailed}
           </Text>
         </Row>
+        {/* Never the raw server string. `first.message` arrives as an internal
+            code like "PHONE_NEEDS_COUNTRY_CODE: 9535621101 has no country code";
+            a bare uncoded number gets the one friendly, localized sentence that
+            actually helps, and anything else the neutral "refused" line. The raw
+            reason still travels to Sentry via the sync engine. */}
         <Text variant="caption" tone="muted">
-          {first?.message ?? t.misc.serverRefused}
+          {first && isPhoneCountryError(first)
+            ? t.people.phoneNeedsCountryCode
+            : t.misc.serverRefused}
         </Text>
         {/* The two recovery actions for a refused change — the buttons a person
             most needs to hit. A caption Text alone left the tap area ~18pt tall;

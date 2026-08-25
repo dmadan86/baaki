@@ -27,6 +27,7 @@ import {
 
 import { activeStrings } from '@/i18n';
 import type { DeviceIdentity } from '@/lib/device';
+import { normaliseContactPhone } from '@/lib/phone';
 import { imageUrl, putImage, removeImage } from '@/lib/storage';
 import { backend } from '@/lib/backend';
 import type {
@@ -624,20 +625,33 @@ export async function addGhostMember(
   groupId: string,
   name: string,
   contact: { email?: string | null; phone?: string | null } = {},
+  accountCountry?: string | null,
 ): Promise<string> {
+  // Read a bare local number in the caller's region before it ever reaches the
+  // server, which refuses an uncoded number by design (the `member_contact_hints`
+  // guard stays in place as defence in depth). No region and no country code is
+  // the one case we genuinely cannot complete — a friendly ask, never raw.
+  let phone: string | null;
+  try {
+    phone = normaliseContactPhone(contact.phone, accountCountry);
+  } catch {
+    throw new Error(activeStrings().people.phoneNeedsCountryCode);
+  }
   const { data, error } = await backend.rpc('baaki_add_ghost_member', {
     p_group_id: groupId,
     p_name: name.trim() || null,
     p_member_id: null,
     p_email: contact.email?.trim() || null,
-    p_phone: contact.phone?.trim() || null,
+    p_phone: phone,
   });
   if (error) {
-    // The database speaks in codes; surface them rather than a raw SQL string.
+    // The database speaks in codes; surface a sentence rather than a raw SQL
+    // string. The phone guard should be unreachable now that entry normalises,
+    // but keep the friendly line for defence in depth.
     const code = /^([A-Z_]+):/.exec(error.message)?.[1];
     throw new Error(
       code === 'PHONE_NEEDS_COUNTRY_CODE'
-        ? 'That number needs a country code, like +91'
+        ? activeStrings().people.phoneNeedsCountryCode
         : code === 'NOTHING_TO_ADD'
           ? 'Give a name, an email or a number'
           : error.message,

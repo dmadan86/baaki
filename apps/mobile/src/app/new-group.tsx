@@ -31,6 +31,7 @@ import {
 
 import { GroupPhoto } from '@/components/GroupPhoto';
 import { friendlyError } from '@/lib/errors';
+import { isPhoneCountryError, normaliseContactPhone } from '@/lib/phone';
 import { type PickedContact } from '@/components/ContactPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
@@ -401,7 +402,10 @@ export default function NewGroupScreen() {
           memberId: randomUUID(),
           name: ghost.name,
           email: ghost.email,
-          phone: ghost.phone,
+          // Read a bare local number in this group's region before queueing it —
+          // the country chosen for the group above, else the account/device — so
+          // the server is never handed an unroutable number to refuse.
+          phone: normaliseContactPhone(ghost.phone, country),
         });
       }
 
@@ -431,7 +435,11 @@ export default function NewGroupScreen() {
 
       router.replace(`/group/${groupId}`);
     } catch (caught) {
-      setError(friendlyError(caught, t.couldNotSave, 'newGroup.create'));
+      setError(
+        isPhoneCountryError(caught)
+          ? t.people.phoneNeedsCountryCode
+          : friendlyError(caught, t.couldNotSave, 'newGroup.create'),
+      );
     }
   };
 

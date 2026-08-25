@@ -157,6 +157,44 @@ export function normalisePhone(raw: string): string {
   return cleaned;
 }
 
+/**
+ * The same E.164 number, but a bare national one is read in a known region.
+ *
+ * `normalisePhone` refuses a number with no country code on purpose — a silent
+ * `+91` on a friend's foreign number sends the invite to a stranger. That
+ * refusal is right for a sign-in field, where the person is typing their *own*
+ * number and can be asked to add the code. It is wrong for the everyday act of
+ * adding a friend by their local number, which is how every messaging app on
+ * the phone already works: the number is read in *your* region, not guessed.
+ *
+ * So this takes the region as an explicit argument — the device, account or
+ * group country turned into a dialing code by the caller — rather than assuming
+ * one. The no-blind-default property is preserved: with no region to borrow
+ * (`defaultDialCode` null), it falls straight back to the same refusal. The
+ * region is the whole point; a caller that cannot name one gets no number.
+ *
+ *  - `+91 98765 43210`      → `+919876543210` (already coded; region ignored)
+ *  - `9535621101`, `+91`    → `+919535621101` (bare national, read in region)
+ *  - `09535621101`, `+91`   → `+919535621101` (trunk 0 dropped first)
+ *  - `9535621101`, null     → throws PHONE_NEEDS_COUNTRY_CODE (no region)
+ *
+ * Pure and deterministic: same inputs, same output or same throw, no clock, no
+ * device, no network.
+ */
+export function normalisePhoneInRegion(raw: string, defaultDialCode: string | null): string {
+  const cleaned = raw.replace(/[^\d+]/g, '');
+  // Already carries a country code: the region default is irrelevant and the
+  // ordinary rule applies unchanged.
+  if (cleaned.startsWith('+')) return normalisePhone(cleaned);
+  // No code and no region to lend one — the same honest refusal as before.
+  if (!defaultDialCode) return normalisePhone(cleaned);
+  // A bare national number, read in the caller's own region: drop the single
+  // trunk "0" some countries write before a local number (09876… → 9876…),
+  // prepend the region's dialing code, and validate as any other E.164 number.
+  const national = cleaned.replace(/^0/, '');
+  return normalisePhone(`${defaultDialCode}${national}`);
+}
+
 /** Lowercased and trimmed, because a login that is case-sensitive is a bug report. */
 export function normaliseEmail(raw: string): string {
   const cleaned = raw.trim().toLowerCase();

@@ -53,6 +53,7 @@ import {
 } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
+import { normaliseContactPhone } from '@/lib/phone';
 import { backend } from '@/lib/backend';
 import { syncEngine, useSync } from '@/sync';
 import {
@@ -1294,11 +1295,20 @@ export function useResolveDispute(groupId: string) {
 
 export function useAddGhostMember(groupId: string) {
   const { mutate } = useSync();
+  const { profile } = useAuth();
   return useMutation({
     mutationFn: async (
       input: string | { name: string; email?: string | null; phone?: string | null },
     ) => {
       const person = typeof input === 'string' ? { name: input } : input;
+      // A bare local number ("9535621101") is read in the member's own region
+      // before it is ever queued — the account country, else the device's — so
+      // the server never sees an unroutable number to refuse. No blind default:
+      // with no region and no country code this throws PHONE_NEEDS_COUNTRY_CODE,
+      // which the screen turns into a friendly ask rather than a background
+      // banner (far better to catch it here, at the keystroke, than after sync).
+      const phone =
+        'phone' in person ? normaliseContactPhone(person.phone, profile?.country_code) : null;
       // Chosen here so the expenses queued behind this member can already name
       // them. Adding somebody and immediately splitting a bill with them is one
       // action to a person, and offline it has to work like one.
@@ -1307,7 +1317,7 @@ export function useAddGhostMember(groupId: string) {
         memberId,
         name: person.name,
         email: 'email' in person ? (person.email ?? null) : null,
-        phone: 'phone' in person ? (person.phone ?? null) : null,
+        phone,
       });
       return memberId;
     },
