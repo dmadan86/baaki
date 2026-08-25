@@ -44,7 +44,7 @@ import {
   useExpenseComments,
   type ExpenseCommentRow,
 } from '@/data/hooks';
-import { MAX_COMMENT_LENGTH } from '@/lib/commentMarkdown';
+import { MAX_COMMENT_LENGTH, sanitizeCommentMarkdown } from '@/lib/commentMarkdown';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { CommentMarkdown } from '@/components/CommentMarkdown';
 import { useStrings } from '@/i18n';
@@ -164,11 +164,16 @@ export function ExpenseComments({
   const closeEditor = () => setEditorOpen(false);
 
   const send = () => {
-    const body = editorBody.trim();
+    // Sanitize here, not just trim: the mutations sanitize too and resolve
+    // without calling the RPC when the result is empty, so a body that is only
+    // image markdown or HTML-shaped tags (`![x](y)`, `<b></b>`) would pass a
+    // bare trim, sanitize to '', and silently close the sheet with the text
+    // lost. Validate against the same sanitizer and keep the sheet open on empty.
+    const body = sanitizeCommentMarkdown(editorBody);
     if (body === '') return;
     if (editorCommentId === null) {
       add.mutate(
-        { body: editorBody },
+        { body },
         {
           onSuccess: (result) => {
             setEditorOpen(false);
@@ -195,7 +200,7 @@ export function ExpenseComments({
       );
     } else {
       edit.mutate(
-        { commentId: editorCommentId, body: editorBody },
+        { commentId: editorCommentId, body },
         {
           onSuccess: () => setEditorOpen(false),
           onError: () => Alert.alert(t.comments.couldNotPost),
