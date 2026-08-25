@@ -240,6 +240,10 @@ export function ContactPicker({
   }, [matches]);
 
   const listRef = useRef<FlashListRef<Entry>>(null);
+  // Tapping the search row (the magnifier or its padding, not just the input's
+  // own text) should put the caret in the field — a bare Ionicons is inert, so
+  // the icon looked tappable but did nothing.
+  const searchRef = useRef<TextInput>(null);
 
   /**
    * Back to the top whenever the search changes. Without this the list keeps
@@ -312,7 +316,10 @@ export function ContactPicker({
 
   return (
     <View style={{ gap: theme.spacing.md, flex: 1 }}>
-      <View
+      <Pressable
+        onPress={() => searchRef.current?.focus()}
+        accessibilityRole="search"
+        accessibilityLabel={t.pickers.searchContacts}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -325,6 +332,7 @@ export function ContactPicker({
       >
         <Ionicons name="search" size={iconSize.md} color={theme.color.textFaint} />
         <TextInput
+          ref={searchRef}
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
@@ -346,7 +354,7 @@ export function ContactPicker({
             <Ionicons name="close-circle" size={iconSize.md} color={theme.color.textFaint} />
           </Pressable>
         ) : null}
-      </View>
+      </Pressable>
 
       {!single && chosen.length > 0 ? <PickedStrip chosen={chosen} onRemove={toggle} /> : null}
 
