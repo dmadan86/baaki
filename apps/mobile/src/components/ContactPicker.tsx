@@ -318,8 +318,12 @@ export function ContactPicker({
     <View style={{ gap: theme.spacing.md, flex: 1 }}>
       <Pressable
         onPress={() => searchRef.current?.focus()}
-        accessibilityRole="search"
-        accessibilityLabel={t.pickers.searchContacts}
+        // Purely a tap target that forwards focus to the field. Kept out of the
+        // accessibility tree (accessible={false}, no role/label) so it can't
+        // absorb the TextInput and clear button under it — on iOS VoiceOver an
+        // accessible wrapper groups its descendants and they stop being reachable
+        // on their own. The role lives on the TextInput instead.
+        accessible={false}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -336,6 +340,7 @@ export function ContactPicker({
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
+          accessibilityRole="search"
           accessibilityLabel={t.pickers.searchContacts}
           // The phone's own contacts app puts the count here rather than the
           // word "search", and it answers the first question somebody has when
