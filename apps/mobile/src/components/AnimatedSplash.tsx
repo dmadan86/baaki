@@ -14,10 +14,6 @@
  * full-screen overlay sitting over the app for a second would only get in the
  * way of the layout checks the web build exists for — so it renders nothing.
  *
- * Motion is the app's own preference, not just the OS setting: someone who
- * turned motion down inside Baaki gets a brief static hold and a fade, no
- * logo animation.
- *
  * To rebrand: set `GRADIENT`/`SPLASH_BG` to the brand wash and `WORDMARK` (or
  * swap the wordmark <Text> for a logo <Image>). Keep `SPLASH_BG` identical to
  * the `backgroundColor` in `app.json` — the native splash is a solid field, so
@@ -38,8 +34,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { useMotion } from '@/lib/motion';
-
 /** The mid stop of the field. Kept identical to `expo-splash-screen`'s
     `backgroundColor` in `app.json` so the native splash (a solid field) and the
     middle of this gradient are the same colour — the handoff shifts as little as
@@ -57,13 +51,12 @@ const GRADIENT = ['#6C4EE3', SPLASH_BG, '#4326A6'] as const;
 const WORDMARK = 'waves';
 
 export function AnimatedSplash() {
-  const { animated } = useMotion();
   const [done, setDone] = useState(false);
 
   // The whole field, and the logo riding on it.
   const fieldOpacity = useSharedValue(1);
-  const logoOpacity = useSharedValue(animated ? 0 : 1);
-  const logoScale = useSharedValue(animated ? 0.82 : 1);
+  const logoOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(0.82);
 
   const finish = useCallback(() => setDone(true), []);
 
@@ -73,17 +66,6 @@ export function AnimatedSplash() {
     // Hand off from the native splash to this one. This paints an identical
     // field, so hiding the native splash reveals no gap.
     SplashScreen.hideAsync().catch(() => {});
-
-    if (!animated) {
-      // Reduced motion: hold the field a moment, then fade it out. No logo move.
-      fieldOpacity.value = withDelay(
-        550,
-        withTiming(0, { duration: 220 }, (finished) => {
-          if (finished) runOnJS(finish)();
-        }),
-      );
-      return;
-    }
 
     logoOpacity.value = withTiming(1, { duration: 460, easing: Easing.out(Easing.cubic) });
     logoScale.value = withSequence(
@@ -101,7 +83,7 @@ export function AnimatedSplash() {
     // stay up at zero opacity, eating every touch.
     const guard = setTimeout(finish, 2000);
     return () => clearTimeout(guard);
-  }, [animated, finish, fieldOpacity, logoOpacity, logoScale]);
+  }, [finish, fieldOpacity, logoOpacity, logoScale]);
 
   const fieldStyle = useAnimatedStyle(() => ({ opacity: fieldOpacity.value }));
   const logoStyle = useAnimatedStyle(() => ({

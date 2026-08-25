@@ -13,9 +13,7 @@
  * launch, where the whole shell is empty, and for the screens that genuinely
  * wait on the network: the inbox, spending, plan and receipt screens.
  *
- * Motion comes from the app's own preference, not the OS setting alone, because
- * somebody can turn motion off inside Baaki on a phone that never asked. The
- * `Skeleton` primitive itself knows nothing about that; it is told.
+ * The `Skeleton` primitive pulses on its own — that is its default.
  */
 
 import type { ReactNode } from 'react';
@@ -24,7 +22,6 @@ import { View, type ViewStyle } from 'react-native';
 import { Card, Row, Screen, Skeleton, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
-import { useMotion } from '@/lib/motion';
 
 /** Marks a subtree as one loading region a screen reader announces once, not row by row. */
 function LoadingRegion({ children, style }: { children: ReactNode; style?: ViewStyle }) {
@@ -44,15 +41,14 @@ function LoadingRegion({ children, style }: { children: ReactNode; style?: ViewS
 /** One list row: a round avatar, a title line, a shorter subtitle, an amount on the end. */
 export function SkeletonRow({ trailing = true }: { trailing?: boolean }) {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <Row style={{ gap: theme.spacing.md, paddingVertical: theme.spacing.md }}>
-      <Skeleton width={44} height={44} radius={theme.radius.pill} animated={animated} />
+      <Skeleton width={44} height={44} radius={theme.radius.pill} />
       <View style={{ flex: 1, gap: theme.spacing.sm }}>
-        <Skeleton width="55%" height={15} animated={animated} />
-        <Skeleton width="32%" height={12} animated={animated} />
+        <Skeleton width="55%" height={15} />
+        <Skeleton width="32%" height={12} />
       </View>
-      {trailing ? <Skeleton width={64} height={18} animated={animated} /> : null}
+      {trailing ? <Skeleton width={64} height={18} /> : null}
     </Row>
   );
 }
@@ -77,15 +73,14 @@ export function SkeletonList({ rows = 4, trailing = true }: { rows?: number; tra
 /** Header block used by the tabs: an avatar, a greeting line, a name. */
 function SkeletonHeader() {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.md }}>
-      <Skeleton width={46} height={46} radius={theme.radius.pill} animated={animated} />
+      <Skeleton width={46} height={46} radius={theme.radius.pill} />
       <View style={{ flex: 1, gap: theme.spacing.sm }}>
-        <Skeleton width="30%" height={12} animated={animated} />
-        <Skeleton width="50%" height={18} animated={animated} />
+        <Skeleton width="30%" height={12} />
+        <Skeleton width="50%" height={18} />
       </View>
-      <Skeleton width={40} height={40} radius={theme.radius.pill} animated={animated} />
+      <Skeleton width={40} height={40} radius={theme.radius.pill} />
     </Row>
   );
 }
@@ -93,7 +88,6 @@ function SkeletonHeader() {
 /** The home tab: header, the big balance panel, a groups list. */
 export function HomeSkeleton() {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <Screen>
       <LoadingRegion
@@ -104,9 +98,9 @@ export function HomeSkeleton() {
         }}
       >
         <SkeletonHeader />
-        <Skeleton width="100%" height={196} radius={theme.radius.md} animated={animated} />
+        <Skeleton width="100%" height={196} radius={theme.radius.md} />
         <View style={{ gap: theme.spacing.md }}>
-          <Skeleton width="40%" height={18} animated={animated} />
+          <Skeleton width="40%" height={18} />
           <SkeletonList rows={3} />
         </View>
       </LoadingRegion>
@@ -117,7 +111,6 @@ export function HomeSkeleton() {
 /** A group: header, balance card, and the expense list. */
 export function GroupSkeleton() {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <Screen>
       <LoadingRegion
@@ -128,10 +121,10 @@ export function GroupSkeleton() {
         }}
       >
         <SkeletonHeader />
-        <Skeleton width="100%" height={150} radius={theme.radius.md} animated={animated} />
+        <Skeleton width="100%" height={150} radius={theme.radius.md} />
         <Row style={{ gap: theme.spacing.sm }}>
-          <Skeleton width={110} height={40} radius={theme.radius.pill} animated={animated} />
-          <Skeleton width={110} height={40} radius={theme.radius.pill} animated={animated} />
+          <Skeleton width={110} height={40} radius={theme.radius.pill} />
+          <Skeleton width={110} height={40} radius={theme.radius.pill} />
         </Row>
         <SkeletonList rows={4} />
       </LoadingRegion>
@@ -151,7 +144,6 @@ export function ListScreenSkeleton({
   trailing?: boolean;
 }) {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <Screen>
       <LoadingRegion
@@ -162,14 +154,14 @@ export function ListScreenSkeleton({
         }}
       >
         <Row style={{ paddingTop: theme.spacing.md }}>
-          <Skeleton width={40} height={40} radius={theme.radius.pill} animated={animated} />
+          <Skeleton width={40} height={40} radius={theme.radius.pill} />
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Skeleton width="40%" height={18} animated={animated} />
+            <Skeleton width="40%" height={18} />
           </View>
           <View style={{ width: 40 }} />
         </Row>
         <View style={{ gap: theme.spacing.md }}>
-          <Skeleton width="35%" height={16} animated={animated} />
+          <Skeleton width="35%" height={16} />
           <SkeletonList rows={rows} trailing={trailing} />
         </View>
       </LoadingRegion>
@@ -193,7 +185,6 @@ export function ListScreenSkeleton({
  */
 export function PeopleSkeleton() {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <LoadingRegion style={{ gap: theme.spacing.xl }}>
       {[0, 1].map((section) => (
@@ -201,12 +192,7 @@ export function PeopleSkeleton() {
           {/* The section heading: the same 19px height as `SectionHeader`'s
               `heading` text, and its `marginBottom` too, so the gap down to the
               first row is identical and the list does not lift on load. */}
-          <Skeleton
-            width="35%"
-            height={19}
-            animated={animated}
-            style={{ marginBottom: theme.spacing.md }}
-          />
+          <Skeleton width="35%" height={19} style={{ marginBottom: theme.spacing.md }} />
           {/* Bare rows on the screen with a hairline between — exactly how
               `FriendsSection` draws the loaded list. No Card. */}
           <View>
@@ -223,13 +209,7 @@ export function PeopleSkeleton() {
       ))}
       {/* The per-currency footnote holds its spot so nothing shifts up under it
           when the real note arrives. */}
-      <Skeleton
-        width="70%"
-        height={11}
-        radius={theme.radius.sm}
-        animated={animated}
-        style={{ alignSelf: 'center' }}
-      />
+      <Skeleton width="70%" height={11} radius={theme.radius.sm} style={{ alignSelf: 'center' }} />
     </LoadingRegion>
   );
 }
@@ -247,7 +227,6 @@ export function PeopleSkeleton() {
  */
 export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <LoadingRegion>
       {Array.from({ length: rows }, (_, index) => {
@@ -257,7 +236,7 @@ export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
             {/* The rail: the node circle, then the connector running down to the
                 next node — dropped on the last row so it stops, not dangles. */}
             <View style={{ width: 38, alignItems: 'center' }}>
-              <Skeleton width={38} height={38} radius={theme.radius.pill} animated={animated} />
+              <Skeleton width={38} height={38} radius={theme.radius.pill} />
               {!isLast ? (
                 <View
                   style={{
@@ -281,13 +260,13 @@ export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
                 {/* Two lines standing in for the wrapped sentence, and the
                     amount that rides at its end. */}
                 <View style={{ flex: 1, gap: theme.spacing.sm }}>
-                  <Skeleton width="92%" height={15} animated={animated} />
-                  <Skeleton width="58%" height={15} animated={animated} />
+                  <Skeleton width="92%" height={15} />
+                  <Skeleton width="58%" height={15} />
                 </View>
-                <Skeleton width={56} height={16} animated={animated} />
+                <Skeleton width={56} height={16} />
               </Row>
               {/* The relative time, at its 11px height and the same 2px drop. */}
-              <Skeleton width="26%" height={11} animated={animated} style={{ marginTop: 2 }} />
+              <Skeleton width="26%" height={11} style={{ marginTop: 2 }} />
             </View>
           </Row>
         );
@@ -314,39 +293,27 @@ export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
  */
 export function InboxSkeleton() {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <LoadingRegion style={{ gap: theme.spacing.lg }}>
       {[0, 1].map((section) => (
         <View key={section} style={{ gap: theme.spacing.md }}>
-          <Skeleton
-            width="28%"
-            height={11}
-            animated={animated}
-            style={{ marginBottom: theme.spacing.xs }}
-          />
+          <Skeleton width="28%" height={11} style={{ marginBottom: theme.spacing.xs }} />
           {[0, 1].map((card) => (
             <Card key={card} style={{ gap: theme.spacing.md }}>
               <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                <Skeleton width={46} height={46} radius={theme.radius.sm} animated={animated} />
+                <Skeleton width={46} height={46} radius={theme.radius.sm} />
                 <View style={{ flex: 1, gap: theme.spacing.sm }}>
-                  <Skeleton width="45%" height={16} animated={animated} />
-                  <Skeleton width="65%" height={13} animated={animated} />
-                  <Skeleton width="30%" height={11} animated={animated} />
+                  <Skeleton width="45%" height={16} />
+                  <Skeleton width="65%" height={13} />
+                  <Skeleton width="30%" height={11} />
                 </View>
               </Row>
               <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                <Skeleton
-                  width="100%"
-                  height={38}
-                  radius={theme.radius.pill}
-                  animated={animated}
-                  style={{ flex: 1 }}
-                />
+                <Skeleton width="100%" height={38} radius={theme.radius.pill} style={{ flex: 1 }} />
                 <View
                   style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Skeleton width={22} height={22} radius={theme.radius.sm} animated={animated} />
+                  <Skeleton width={22} height={22} radius={theme.radius.sm} />
                 </View>
               </Row>
             </Card>
@@ -360,11 +327,10 @@ export function InboxSkeleton() {
 /** Insights: a heading and a couple of chart-sized blocks. */
 export function InsightsSkeleton() {
   const theme = useTheme();
-  const { animated } = useMotion();
   return (
     <LoadingRegion style={{ gap: theme.spacing.xl }}>
-      <Skeleton width="45%" height={18} animated={animated} />
-      <Skeleton width="100%" height={180} radius={theme.radius.md} animated={animated} />
+      <Skeleton width="45%" height={18} />
+      <Skeleton width="100%" height={180} radius={theme.radius.md} />
       <SkeletonList rows={4} />
     </LoadingRegion>
   );

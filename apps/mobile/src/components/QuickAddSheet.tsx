@@ -19,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { iconSize, Text, tintForKey, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
-import { useMotion } from '@/lib/motion';
 
 export interface QuickAddAction {
   icon: keyof typeof Ionicons.glyphMap;
@@ -71,7 +70,6 @@ export function QuickAddSheet({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useStrings();
-  const { animated } = useMotion();
 
   const activate = (action: QuickAddAction): void => {
     onClose();
@@ -79,12 +77,7 @@ export function QuickAddSheet({
   };
 
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType={animated ? 'fade' : 'none'}
-      onRequestClose={onClose}
-    >
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       {/* Tap the scrim to dismiss; the inner press is swallowed so tapping the
           sheet itself does not close it. */}
       <Pressable

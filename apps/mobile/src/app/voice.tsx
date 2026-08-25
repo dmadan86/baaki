@@ -53,7 +53,6 @@ import { groupLabel, GroupType, type GroupRow } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
-import { useMotion } from '@/lib/motion';
 import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
@@ -94,7 +93,6 @@ export default function VoiceScreen() {
   const clearance = useScreenClearance();
   const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
-  const { animated } = useMotion();
   const { profile } = useAuth();
   const dc = useDefaultCurrency();
   const access = useAiAccess();
@@ -507,14 +505,12 @@ export default function VoiceScreen() {
         </View>
       ) : null}
 
-      {/* The destination picker, as a dismissible bottom sheet. The fade is
-          decoration, not meaning — reduced motion drops it to an instant
-          present/dismiss (TDR §11 treats the setting as an input, not a hint),
-          matching the overflow menu. */}
+      {/* The destination picker, as a dismissible bottom sheet, matching the
+          overflow menu. */}
       <Modal
         transparent
         visible={pickerOpen}
-        animationType={animated ? 'fade' : 'none'}
+        animationType="fade"
         onRequestClose={() => setPickerOpen(false)}
       >
         <Pressable

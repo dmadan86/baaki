@@ -43,7 +43,7 @@ import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
-import { MotionProvider, TRANSITION_MS, useMotion } from '@/lib/motion';
+import { TRANSITION_MS } from '@/lib/anim';
 import { RecentCountProvider } from '@/lib/recentCount';
 import { ShortcutProvider } from '@/lib/shortcut';
 import { WatchBridgeProvider } from '@/lib/watch/bridge';
@@ -198,63 +198,61 @@ function RootLayout() {
               <LocaleSync />
               <SyncProvider>
                 <LockProvider>
-                  <MotionProvider>
-                    <SyncNetworkProvider>
-                      <UpdateProvider>
-                        <ThemePreferenceProvider>
-                          <TourProvider>
-                            <PromptQueueProvider>
-                              <ShortcutProvider>
-                                <RecentCountProvider>
-                                  <ThemedRoot>
-                                    <ThemedStatusBar />
-                                    {/* Outside the lock and the auth gate on purpose: a build
+                  <SyncNetworkProvider>
+                    <UpdateProvider>
+                      <ThemePreferenceProvider>
+                        <TourProvider>
+                          <PromptQueueProvider>
+                            <ShortcutProvider>
+                              <RecentCountProvider>
+                                <ThemedRoot>
+                                  <ThemedStatusBar />
+                                  {/* Outside the lock and the auth gate on purpose: a build
                             we have stopped trusting should not be unlocking a
                             ledger or signing anybody in either. */}
-                                    <UpdateGate>
-                                      <PushRouting />
-                                      <LockGate>
-                                        {/* Below the lock and update gates so the watch
+                                  <UpdateGate>
+                                    <PushRouting />
+                                    <LockGate>
+                                      {/* Below the lock and update gates so the watch
                                 bridge never turns a wrist tap into a capture
                                 while the app is locked or on a build we have
                                 stopped trusting. */}
-                                        <WatchBridgeProvider />
-                                        {/* Inside the lock so the two-device gate never
+                                      <WatchBridgeProvider />
+                                      {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
-                                        <DeviceSessionProvider>
-                                          <AuthGate />
-                                          {/* Inside the lock on purpose: a promotion is not a
+                                      <DeviceSessionProvider>
+                                        <AuthGate />
+                                        {/* Inside the lock on purpose: a promotion is not a
                                   reason to show somebody's phone anything before
                                   they have unlocked it. */}
-                                          <CampaignPopup />
-                                          {/* The soft ask for push, once, to a
+                                        <CampaignPopup />
+                                        {/* The soft ask for push, once, to a
                                         signed-in person whose permission is
                                         still undetermined. */}
-                                          <NotificationPrompt />
-                                        </DeviceSessionProvider>
-                                      </LockGate>
-                                      {/* The coach-mark tour, over the whole app but
+                                        <NotificationPrompt />
+                                      </DeviceSessionProvider>
+                                    </LockGate>
+                                    {/* The coach-mark tour, over the whole app but
                                     only ever started from Home. Above the gate
                                     so its scrim covers the screen. */}
-                                      <TourOverlay />
-                                      {/* Last, so it paints over the screen rather than
+                                    <TourOverlay />
+                                    {/* Last, so it paints over the screen rather than
                               under it. */}
-                                      <UpdateBanner />
-                                    </UpdateGate>
-                                    {/* Topmost of all: the launch field, painting over
+                                    <UpdateBanner />
+                                  </UpdateGate>
+                                  {/* Topmost of all: the launch field, painting over
                                   the whole app until it fades itself out. Native
                                   only; renders nothing on web. */}
-                                    <AnimatedSplash />
-                                  </ThemedRoot>
-                                </RecentCountProvider>
-                              </ShortcutProvider>
-                            </PromptQueueProvider>
-                          </TourProvider>
-                        </ThemePreferenceProvider>
-                      </UpdateProvider>
-                    </SyncNetworkProvider>
-                  </MotionProvider>
+                                  <AnimatedSplash />
+                                </ThemedRoot>
+                              </RecentCountProvider>
+                            </ShortcutProvider>
+                          </PromptQueueProvider>
+                        </TourProvider>
+                      </ThemePreferenceProvider>
+                    </UpdateProvider>
+                  </SyncNetworkProvider>
                 </LockProvider>
               </SyncProvider>
             </AuthProvider>
@@ -409,7 +407,6 @@ function AuthGate() {
   const segments = useSegments();
   const router = useRouter();
   const theme = useTheme();
-  const { animated } = useMotion();
   // The paywall is an unwired placeholder (no store products, no purchase
   // handling), so its route is registered only where a flag turns it on —
   // otherwise a deep link cannot reach a screen that would only mislead.
@@ -420,11 +417,10 @@ function AuthGate() {
    * the most visible transition and the one that read as slow, so a push now
    * lands instantly; "back" is still carried by the header and the swipe gesture.
    * A modal still rises from the bottom, because that rise is what says "on top
-   * of" rather than "gone to", and it is cheap; with motion off it too is `none`.
+   * of" rather than "gone to", and it is cheap.
    */
   const push = 'none' as const;
-  const sheet = animated ? ('slide_from_bottom' as const) : ('none' as const);
-  const modal = { presentation: 'modal' as const, animation: sheet };
+  const modal = { presentation: 'modal' as const, animation: 'slide_from_bottom' as const };
 
   // The two auth doors and the invite-accept screen are the only routes a
   // signed-out person is allowed to sit on. `onAuth` covers both doors so a
@@ -551,9 +547,7 @@ function AuthGate() {
             contentStyle: { backgroundColor: 'transparent' },
             animation: push,
             animationDuration: TRANSITION_MS,
-            // Swiping back is the same journey as the animation, so it belongs to
-            // the same switch: with motion off there is nothing to drag.
-            gestureEnabled: animated,
+            gestureEnabled: true,
           }}
         >
           {/* Signing in and out replaces the whole tree; sliding it would suggest a
@@ -592,7 +586,6 @@ function AuthGate() {
           <Stack.Screen name="settings/import" />
           <Stack.Screen name="settings/lock" />
           <Stack.Screen name="settings/devices" />
-          <Stack.Screen name="settings/motion" />
           <Stack.Screen name="settings/shortcut" />
           <Stack.Screen name="settings/recent" />
           <Stack.Screen name="settings/sync" />

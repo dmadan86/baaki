@@ -29,7 +29,6 @@ import { directionalIcon, iconSize, Text, useTheme } from '@waves/ui';
 
 import { LegalLine } from '@/components/LegalLine';
 import { useStrings } from '@/i18n';
-import { useMotion } from '@/lib/motion';
 
 /** The gateway's green wash — a light stop into the base green (#65B63E) into a
     darker one, top to bottom, matching the splash. A local screen colour, not a
@@ -198,7 +197,6 @@ function wavePath(width: number, amplitude: number, midY: number, bottom: number
 
 function GatewayBackdrop() {
   const { width, height } = useWindowDimensions();
-  const { animated } = useMotion();
 
   return (
     <View pointerEvents="none" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -211,7 +209,6 @@ function GatewayBackdrop() {
           baseline={wave.baseline * height}
           color={wave.color}
           durationMs={wave.seconds * 1000}
-          animate={animated}
         />
       ))}
     </View>
@@ -225,7 +222,6 @@ function Wave({
   baseline,
   color,
   durationMs,
-  animate,
 }: {
   width: number;
   height: number;
@@ -233,24 +229,19 @@ function Wave({
   baseline: number;
   color: string;
   durationMs: number;
-  animate: boolean;
 }) {
   // 0 → 1 mapped to a slide of one screen width. Linear and repeated, so the
   // seam where the path repeats passes without a pause.
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    if (!animate) {
-      progress.value = 0;
-      return;
-    }
     progress.value = withRepeat(
       withTiming(1, { duration: durationMs, easing: Easing.linear }),
       -1,
       false,
     );
     return () => cancelAnimation(progress);
-  }, [animate, durationMs, progress]);
+  }, [durationMs, progress]);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateX: -width * progress.value }],

@@ -546,7 +546,6 @@ export interface UiStrings {
     shareTitle: string;
     importInstead: string;
   };
-  /** The motion switch, and the phone setting it defers to. */
   shortcut: {
     title: string;
     intro: string;
@@ -566,20 +565,6 @@ export interface UiStrings {
     /** `{count}` interpolated with the chosen size. */
     countOption: string;
     watchHint: string;
-  };
-  motion: {
-    title: string;
-    animateBetweenScreens: string;
-    animateExplain: string;
-    thisPhone: string;
-    reduceMotionOn: string;
-    reduceMotionOff: string;
-    setYourselfOn: string;
-    setYourselfOff: string;
-    followingReduced: string;
-    following: string;
-    followPhone: string;
-    footnote: string;
   };
   /** Light, dark, or follow the phone. */
   theme: {
@@ -697,7 +682,6 @@ export interface UiStrings {
     exportHint: string;
     importSplitwise: string;
     importHint: string;
-    motionRow: string;
     themeRow: string;
     languageFollowingPhone: string;
     languageRestartHint: string;
@@ -714,10 +698,6 @@ export interface UiStrings {
     lockOff: string;
     signOutGuestHint: string;
     signOutHint: string;
-    motionOn: string;
-    motionOff: string;
-    motionFollowingOn: string;
-    motionFollowingOff: string;
     footnote: string;
   };
   /** Bring your own model key — held on the device, used on your own account. */
@@ -2301,22 +2281,6 @@ const en: UiStrings = {
     countOption: '{count} expenses',
     watchHint: 'This applies to the Apple Watch and Wear OS apps.',
   },
-  motion: {
-    title: 'Motion',
-    animateBetweenScreens: 'Animate between screens',
-    animateExplain:
-      'Screens slide in from the right, and sheets rise from the bottom — which is how a screen tells you whether you have gone somewhere or opened something on top of where you were.',
-    thisPhone: 'This phone',
-    reduceMotionOn: 'Reduce motion is on',
-    reduceMotionOff: 'Reduce motion is off',
-    setYourselfOn: 'You have set this yourself, so it stays on whatever the phone says.',
-    setYourselfOff: 'You have set this yourself, so it stays off whatever the phone says.',
-    followingReduced: 'Following your accessibility settings, which ask for less movement.',
-    following: 'Following your accessibility settings.',
-    followPhone: "Follow my phone's setting",
-    footnote:
-      'Turning motion off does not shorten the animations — it removes them. A faster animation is still an animation to somebody who cannot watch one.',
-  },
   theme: {
     title: 'Appearance',
     light: 'Light',
@@ -2434,7 +2398,6 @@ const en: UiStrings = {
     exportHint: 'JSON + CSV, lossless, free',
     importSplitwise: 'Import from Splitwise',
     importHint: 'Bring a group across from a CSV export',
-    motionRow: 'Motion',
     themeRow: 'Appearance',
     languageFollowingPhone: 'Following your phone — {language}',
     languageRestartHint: '{language} · reopen Waves to mirror it',
@@ -2454,10 +2417,6 @@ const en: UiStrings = {
     lockOff: 'Off — anyone holding your phone can read the ledger',
     signOutGuestHint: 'This guest account lives on this device only',
     signOutHint: 'Nothing is deleted; sign back in whenever',
-    motionOn: 'Screen animations on',
-    motionOff: 'Screen animations off',
-    motionFollowingOn: 'Following your phone — animations on',
-    motionFollowingOff: 'Following your phone — animations off',
     footnote: 'Waves · the ledger is free forever. We only ever charge for convenience.',
   },
   aiKeys: {
@@ -4059,24 +4018,6 @@ const ta: UiStrings = {
     countOption: '{count} செலவுகள்',
     watchHint: 'இது Apple Watch மற்றும் Wear OS செயலிகளுக்குப் பொருந்தும்.',
   },
-  motion: {
-    title: 'அசைவு',
-    animateBetweenScreens: 'திரைகளுக்கு இடையே அசைவு',
-    animateExplain:
-      'திரைகள் வலமிருந்து நுழையும், தாள்கள் கீழிருந்து எழும் — நீங்கள் வேறு இடத்திற்குச் சென்றீர்களா அல்லது இருந்த இடத்தின் மேல் ஒன்றைத் திறந்தீர்களா என்பதை திரை இப்படித்தான் சொல்கிறது.',
-    thisPhone: 'இந்த ஃபோன்',
-    reduceMotionOn: 'அசைவைக் குறை இயக்கத்தில்',
-    reduceMotionOff: 'அசைவைக் குறை நிறுத்தத்தில்',
-    setYourselfOn:
-      'இதை நீங்களே அமைத்துள்ளீர்கள், எனவே ஃபோன் என்ன சொன்னாலும் இயக்கத்திலேயே இருக்கும்.',
-    setYourselfOff:
-      'இதை நீங்களே அமைத்துள்ளீர்கள், எனவே ஃபோன் என்ன சொன்னாலும் நிறுத்தத்திலேயே இருக்கும்.',
-    followingReduced: 'குறைவான அசைவைக் கேட்கும் உங்கள் அணுகல் அமைப்புகளைப் பின்பற்றுகிறது.',
-    following: 'உங்கள் அணுகல் அமைப்புகளைப் பின்பற்றுகிறது.',
-    followPhone: 'என் ஃபோனின் அமைப்பைப் பின்பற்று',
-    footnote:
-      'அசைவை நிறுத்துவது அசைவுகளைக் குறைப்பதில்லை — அவற்றை நீக்குகிறது. பார்க்க முடியாதவருக்கு வேகமான அசைவும் அசைவுதான்.',
-  },
   theme: {
     title: 'தோற்றம்',
     light: 'வெளிச்சம்',
@@ -4199,7 +4140,6 @@ const ta: UiStrings = {
     exportHint: 'JSON + CSV, முழுமையானது, இலவசம்',
     importSplitwise: 'Splitwise இலிருந்து இறக்குமதி',
     importHint: 'CSV ஏற்றுமதியிலிருந்து ஒரு குழுவைக் கொண்டுவா',
-    motionRow: 'அசைவு',
     themeRow: 'தோற்றம்',
     languageFollowingPhone: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — {language}',
     languageRestartHint: '{language} · பிரதிபலிக்க பாக்கியை மீண்டும் திற',
@@ -4219,10 +4159,6 @@ const ta: UiStrings = {
     lockOff: 'நிறுத்தத்தில் — உங்கள் ஃபோனை வைத்திருப்பவர் யாரும் கணக்கைப் படிக்கலாம்',
     signOutGuestHint: 'இந்த விருந்தினர் கணக்கு இந்தச் சாதனத்தில் மட்டுமே உள்ளது',
     signOutHint: 'எதுவும் அழிக்கப்படாது; எப்போது வேண்டுமானாலும் மீண்டும் உள்நுழையலாம்',
-    motionOn: 'திரை அசைவுகள் இயக்கத்தில்',
-    motionOff: 'திரை அசைவுகள் நிறுத்தத்தில்',
-    motionFollowingOn: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — அசைவுகள் இயக்கத்தில்',
-    motionFollowingOff: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — அசைவுகள் நிறுத்தத்தில்',
     footnote: 'பாக்கி · கணக்கு எப்போதும் இலவசம். வசதிக்கு மட்டுமே நாங்கள் கட்டணம் வாங்குவோம்.',
   },
   aiKeys: {
@@ -5884,22 +5820,6 @@ const hi: UiStrings = {
     countOption: '{count} खर्च',
     watchHint: 'यह Apple Watch और Wear OS ऐप पर लागू होता है।',
   },
-  motion: {
-    title: 'गति',
-    animateBetweenScreens: 'स्क्रीनों के बीच एनिमेशन',
-    animateExplain:
-      'स्क्रीन दाईं ओर से आती हैं और शीट नीचे से उठती हैं — स्क्रीन इसी तरह बताती है कि आप कहीं गए हैं या जहाँ थे उसी के ऊपर कुछ खोला है।',
-    thisPhone: 'यह फ़ोन',
-    reduceMotionOn: 'गति कम करना चालू है',
-    reduceMotionOff: 'गति कम करना बंद है',
-    setYourselfOn: 'यह आपने खुद तय किया है, इसलिए फ़ोन कुछ भी कहे यह चालू ही रहेगा।',
-    setYourselfOff: 'यह आपने खुद तय किया है, इसलिए फ़ोन कुछ भी कहे यह बंद ही रहेगा।',
-    followingReduced: 'आपकी सुगम्यता सेटिंग्स के अनुसार, जो कम हलचल माँगती हैं।',
-    following: 'आपकी सुगम्यता सेटिंग्स के अनुसार।',
-    followPhone: 'मेरे फ़ोन की सेटिंग मानें',
-    footnote:
-      'गति बंद करने से एनिमेशन छोटे नहीं होते — वे हट जाते हैं। जो उन्हें देख नहीं सकता, उसके लिए तेज़ एनिमेशन भी एनिमेशन ही है।',
-  },
   theme: {
     title: 'रूप-रंग',
     light: 'हल्का',
@@ -6018,7 +5938,6 @@ const hi: UiStrings = {
     exportHint: 'JSON + CSV, कुछ छूटता नहीं, मुफ़्त',
     importSplitwise: 'Splitwise से आयात',
     importHint: 'CSV निर्यात से कोई समूह ले आएँ',
-    motionRow: 'गति',
     themeRow: 'रूप-रंग',
     languageFollowingPhone: 'आपके फ़ोन के अनुसार — {language}',
     languageRestartHint: '{language} · दिशा बदलने के लिए बाकी दोबारा खोलें',
@@ -6038,10 +5957,6 @@ const hi: UiStrings = {
     lockOff: 'बंद — आपका फ़ोन पकड़े कोई भी हिसाब पढ़ सकता है',
     signOutGuestHint: 'यह मेहमान खाता सिर्फ़ इसी डिवाइस पर है',
     signOutHint: 'कुछ मिटता नहीं; जब चाहें दोबारा साइन इन करें',
-    motionOn: 'स्क्रीन एनिमेशन चालू',
-    motionOff: 'स्क्रीन एनिमेशन बंद',
-    motionFollowingOn: 'आपके फ़ोन के अनुसार — एनिमेशन चालू',
-    motionFollowingOff: 'आपके फ़ोन के अनुसार — एनिमेशन बंद',
     footnote: 'बाकी · हिसाब हमेशा मुफ़्त है। हम सिर्फ़ सुविधा के पैसे लेते हैं।',
   },
   aiKeys: {
@@ -7658,22 +7573,6 @@ const ar: UiStrings = {
     countOption: '{count} مصروفات',
     watchHint: 'ينطبق هذا على تطبيقي Apple Watch وWear OS.',
   },
-  motion: {
-    title: 'الحركة',
-    animateBetweenScreens: 'حركة بين الشاشات',
-    animateExplain:
-      'تنزلق الشاشات من الجانب، وترتفع الأوراق من الأسفل — وهكذا تخبرك الشاشة إن كنت قد انتقلت إلى مكان آخر أم فتحت شيئًا فوق ما كنت فيه.',
-    thisPhone: 'هذا الهاتف',
-    reduceMotionOn: 'تقليل الحركة مفعّل',
-    reduceMotionOff: 'تقليل الحركة غير مفعّل',
-    setYourselfOn: 'لقد ضبطت هذا بنفسك، فسيبقى مفعّلًا مهما قال الهاتف.',
-    setYourselfOff: 'لقد ضبطت هذا بنفسك، فسيبقى متوقفًا مهما قال الهاتف.',
-    followingReduced: 'يتبع إعدادات تسهيل الوصول لديك، وهي تطلب حركة أقل.',
-    following: 'يتبع إعدادات تسهيل الوصول لديك.',
-    followPhone: 'اتبع إعداد هاتفي',
-    footnote:
-      'إيقاف الحركة لا يجعل الحركات أقصر — بل يزيلها. الحركة السريعة تظل حركة لمن لا يستطيع مشاهدتها.',
-  },
   theme: {
     title: 'المظهر',
     light: 'فاتح',
@@ -7815,7 +7714,6 @@ const ar: UiStrings = {
     exportHint: 'JSON + CSV، بلا فقدان، مجانًا',
     importSplitwise: 'استيراد من Splitwise',
     importHint: 'أحضر مجموعة من ملف CSV مُصدَّر',
-    motionRow: 'الحركة',
     themeRow: 'المظهر',
     languageFollowingPhone: 'يتبع هاتفك — {language}',
     languageRestartHint: '{language} · أعد فتح باقي لعكس الاتجاه',
@@ -7835,10 +7733,6 @@ const ar: UiStrings = {
     lockOff: 'متوقف — أي شخص يمسك هاتفك يمكنه قراءة الدفتر',
     signOutGuestHint: 'حساب الضيف هذا موجود على هذا الجهاز فقط',
     signOutHint: 'لا يُحذف شيء؛ سجّل الدخول متى شئت',
-    motionOn: 'حركات الشاشة مفعّلة',
-    motionOff: 'حركات الشاشة متوقفة',
-    motionFollowingOn: 'يتبع هاتفك — الحركات مفعّلة',
-    motionFollowingOff: 'يتبع هاتفك — الحركات متوقفة',
     footnote: 'باقي · الدفتر مجاني إلى الأبد. لا نتقاضى إلا مقابل الراحة.',
   },
   aiKeys: {
