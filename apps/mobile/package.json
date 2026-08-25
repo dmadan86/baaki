@@ -92,7 +92,9 @@
     "build:prod": "eas build --profile production --platform all",
     "build:local": "eas build --profile preview --platform android --local",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "coverage:watches": "vitest run --coverage --config vitest.watch.config.ts"
   },
   "private": true,
   "expo": {

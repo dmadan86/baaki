@@ -21,7 +21,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "esbuild src/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=dist/core.js",
-    "build:edge": "esbuild src/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=../../supabase/functions/_shared/core.js"
+    "build:edge": "esbuild src/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=../../supabase/functions/_shared/core.js",
+    "coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "fast-check": "^4.1.1",

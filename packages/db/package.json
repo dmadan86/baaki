@@ -16,7 +16,8 @@
     "seed": "node ./scripts/seed-demo.mjs",
     "seed:purge": "node ./scripts/seed-demo.mjs --purge",
     "typecheck": "prisma generate --no-hints && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@prisma/client": "7.9.1",
