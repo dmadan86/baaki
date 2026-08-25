@@ -58,6 +58,15 @@ services:
     ports:
       - '${KONG_HTTP_PORT:-8000}:8000/tcp'
       - '${KONG_HTTPS_PORT:-8443}:8443/tcp'
+    # Kong 2.8's db-less declarative parser does NOT expand ${VARS} inside the
+    # config file, so the anon/service keys cannot be referenced there directly.
+    # Render the file at start-up instead — the same trick the hosted Supabase
+    # compose uses: `eval "echo"` expands the $SUPABASE_* shell vars in the
+    # mounted template into the real kong.yml, then Kong starts on the result.
+    entrypoint:
+      - bash
+      - -c
+      - 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
     environment:
       KONG_DATABASE: 'off'
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -68,7 +77,8 @@ services:
       SUPABASE_ANON_KEY: ${ANON_KEY:?set ANON_KEY in .env}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:?set SERVICE_ROLE_KEY in .env}
     volumes:
-      - ./volumes/api/kong.yml:/home/kong/kong.yml:ro
+      # Mounted as a TEMPLATE; the entrypoint renders it to /home/kong/kong.yml.
+      - ./volumes/api/kong.yml:/home/kong/temp.yml:ro
     depends_on:
       - auth
       - rest
