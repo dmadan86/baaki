@@ -487,10 +487,10 @@ describe('background poll performance', () => {
         table: 'groups',
         id: 'g-goa',
         groupId: 'g-goa',
-        seq: 1,
+        seq: 2,
         row: {
           id: 'g-goa',
-          name: 'Goa Trip',
+          name: 'New durable name',
           default_currency: 'INR',
           created_at: '2026-08-01T00:00:00.000Z',
           archived_at: null,
@@ -506,7 +506,7 @@ describe('background poll performance', () => {
               seq: 1,
               row: {
                 id: 'g-goa',
-                name: 'Goa Trip',
+                name: 'Stale server replay',
                 default_currency: 'INR',
                 created_at: '2026-08-01T00:00:00.000Z',
                 archived_at: null,
@@ -528,7 +528,17 @@ describe('background poll performance', () => {
 
       expect(h.invoke).toHaveBeenCalledTimes(1);
       expect(engine.getState().mirror).toBe(before);
+      expect(groupIds(engine.getState().mirror)).toEqual(['g-goa']);
+      expect(engine.getState().mirror.tables.groups['g-goa']).toMatchObject({
+        name: 'New durable name',
+      });
       expect(engine.getState().lastSyncedAt).toBe('stale-row-page');
+
+      const relaunched = new SyncEngine();
+      await relaunched.hydrate();
+      expect(relaunched.getState().mirror.tables.groups['g-goa']).toMatchObject({
+        name: 'New durable name',
+      });
     } finally {
       vi.useRealTimers();
     }

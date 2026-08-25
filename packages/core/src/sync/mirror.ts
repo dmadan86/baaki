@@ -78,6 +78,8 @@ export function emptyMirror(): MirrorState {
 
 export interface ReconcileResult {
   readonly state: MirrorState;
+  /** Changes that actually advanced the mirror after stale rows were ignored. */
+  readonly applied: readonly SyncChange[];
   /** Changes ignored because we already had them — surfaced so tests can assert replay is free. */
   readonly skipped: number;
 }
@@ -98,6 +100,7 @@ export function reconcile(state: MirrorState, changes: readonly SyncChange[]): R
   // Track the winning seq per row so a batch containing two versions of the
   // same row resolves the same way regardless of the order it arrived in.
   const winningSeq = new Map<string, number>();
+  const applied: SyncChange[] = [];
   let skipped = 0;
 
   for (const change of [...changes].sort((a, b) => a.seq - b.seq)) {
@@ -120,9 +123,10 @@ export function reconcile(state: MirrorState, changes: readonly SyncChange[]): R
       tables[change.table][id] = change.row;
     }
     cursors[change.groupId] = Math.max(cursors[change.groupId] ?? 0, change.seq);
+    applied.push(change);
   }
 
-  return { state: { cursors, tables }, skipped };
+  return { state: { cursors, tables }, applied, skipped };
 }
 
 function idOf(row: MirrorRow): string | undefined {
