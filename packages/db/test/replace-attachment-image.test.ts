@@ -113,4 +113,33 @@ describe('replace attachment image', () => {
   it('an unknown attachment id is a silent no-op', async () => {
     await replace(P(0), randomUUID(), `${expenseId}/${randomUUID()}.webp`);
   });
+
+  // TODO(integrity): the RPC only checks that the new path is scoped to the
+  // expense (`<expenseId>/…`) — it never checks that a committed row for that
+  // path exists in `storage_objects`. A party can repoint an attachment at
+  // bytes that were never uploaded (a typo'd path, a path from a different
+  // logical bucket, or one that was only ever `pending`/released and never
+  // committed), and the RPC clears the markup and succeeds anyway, leaving the
+  // row pointing at nothing. This matches the sibling
+  // `baaki_attach_expense_attachment` (20260824150000 / 20260825130000), which
+  // has the exact same gap — it is not unique to replace, so this is
+  // documented rather than fixed here: fixing one without the other would be
+  // an inconsistent half-measure, and fixing both is a wider change (every
+  // other DB test that attaches with a made-up path — expense-image-events,
+  // receipt-annotations — would need a real `storage_objects` row too).
+  it('TODO(integrity): a syntactically valid but never-committed path is accepted', async () => {
+    // Scoped correctly, never went through r2-sign's `put`/`commit` — no row
+    // for it in storage_objects.
+    const neverUploaded = `${expenseId}/${randomUUID()}.webp`;
+    const orphaned = await client
+      .query(`SELECT count(*)::int AS n FROM storage_objects WHERE path = $1`, [neverUploaded])
+      .then((r) => r.rows[0].n as number);
+    expect(orphaned).toBe(0);
+
+    await replace(P(0), attachmentId, neverUploaded);
+
+    const r = await row(attachmentId);
+    expect(r.storage_path).toBe(neverUploaded);
+    expect(r.annotations).toBeNull();
+  });
 });
