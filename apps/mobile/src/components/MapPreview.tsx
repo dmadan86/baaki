@@ -8,9 +8,10 @@
  * the images simply do not appear and the neutral map-coloured background shows
  * through, so a blocked network degrades to an empty frame, never a crash.
  *
- * The tile source is `EXPO_PUBLIC_MAP_TILE_URL` when set, else OpenStreetMap's
- * public tiles (keyless, attributed below). A production build under real load
- * should point that at a self-hosted or keyed provider.
+ * The tile source is `EXPO_PUBLIC_MAP_TILE_URL` when set, else CARTO's keyless
+ * basemap (attributed below) — not OSM's public server, which refuses app
+ * traffic. A production build under real load should point that at a
+ * self-hosted or keyed provider.
  */
 
 import { useState } from 'react';
@@ -21,7 +22,15 @@ import { type LayoutChangeEvent, Pressable, View } from 'react-native';
 import type { ExpenseLocation } from '@waves/core';
 import { iconSize, Text, useTheme } from '@waves/ui';
 
-import { DEFAULT_TILE_URL, DEFAULT_ZOOM, TILE_SIZE, tileGrid, tileUrl } from '@/lib/mapTiles';
+import {
+  DEFAULT_TILE_URL,
+  DEFAULT_ZOOM,
+  TILE_ATTRIBUTION,
+  TILE_HEADERS,
+  TILE_SIZE,
+  tileGrid,
+  tileUrl,
+} from '@/lib/mapTiles';
 
 const TILE_URL = process.env.EXPO_PUBLIC_MAP_TILE_URL || DEFAULT_TILE_URL;
 
@@ -62,7 +71,7 @@ export function MapPreview({
       {tiles.map((tile) => (
         <Image
           key={`${tile.x}-${tile.y}-${tile.left}`}
-          source={{ uri: tileUrl(TILE_URL, tile.x, tile.y, zoom) }}
+          source={{ uri: tileUrl(TILE_URL, tile.x, tile.y, zoom), headers: TILE_HEADERS }}
           style={{
             position: 'absolute',
             left: tile.left,
@@ -99,8 +108,8 @@ export function MapPreview({
         />
       </View>
 
-      {/* Attribution — required by the OpenStreetMap tile licence. Not translated:
-          it is a fixed credit, like a copyright line. */}
+      {/* Attribution — required by the tile licence (OSM data, CARTO tiles).
+          Not translated: it is a fixed credit, like a copyright line. */}
       <View
         pointerEvents="none"
         style={{
@@ -114,7 +123,7 @@ export function MapPreview({
         }}
       >
         <Text variant="micro" style={{ color: '#333', fontSize: 9 }}>
-          © OpenStreetMap
+          {TILE_ATTRIBUTION}
         </Text>
       </View>
     </View>

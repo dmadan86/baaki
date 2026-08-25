@@ -18,6 +18,7 @@ import {
   project,
   tileGrid,
   tileUrl,
+  TILE_ATTRIBUTION,
   TILE_SIZE,
   unproject,
   wrapLng,
@@ -117,6 +118,27 @@ describe('tileGrid', () => {
 
 describe('tileUrl', () => {
   it('fills the z/x/y template', () => {
-    expect(tileUrl(DEFAULT_TILE_URL, 3, 5, 15)).toBe('https://tile.openstreetmap.org/15/3/5.png');
+    // A literal template, not DEFAULT_TILE_URL: this test is about the
+    // substitution, not about which provider the default happens to be.
+    expect(tileUrl('https://tiles.example/{z}/{x}/{y}.png', 3, 5, 15)).toBe(
+      'https://tiles.example/15/3/5.png',
+    );
+  });
+
+  it('defaults to the keyless CARTO basemap when no override is set', () => {
+    // A development default; production sets EXPO_PUBLIC_MAP_TILE_URL. With no
+    // override in the test env it must resolve to the CARTO template.
+    expect(DEFAULT_TILE_URL).toContain('basemaps.cartocdn.com');
+    expect(DEFAULT_TILE_URL).not.toContain('tile.openstreetmap.org');
+    expect(tileUrl(DEFAULT_TILE_URL, 3, 5, 15)).toBe(
+      'https://basemaps.cartocdn.com/light_all/15/3/5.png',
+    );
+  });
+
+  it('credits OSM data + CARTO tiles by default, and the credit is env-overridable', () => {
+    // The attribution follows the tile URL so it can never be wrong for the
+    // tiles actually served (EXPO_PUBLIC_MAP_TILE_ATTRIBUTION overrides it).
+    expect(TILE_ATTRIBUTION).toContain('OpenStreetMap');
+    expect(TILE_ATTRIBUTION).toContain('CARTO');
   });
 });
