@@ -13,7 +13,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts'],
-    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'lcov'],

@@ -9,7 +9,7 @@
     "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "coverage": "vitest run --coverage --passWithNoTests"
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
