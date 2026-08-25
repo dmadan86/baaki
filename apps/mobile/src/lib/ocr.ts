@@ -50,7 +50,7 @@ export async function recogniseReceipt(uri: string): Promise<OcrResult | null> {
     const result = await TextRecognition.recognize(uri);
 
     const text = (result.blocks ?? [])
-      .map((block) => (typeof block.text === 'string' ? block.text.trim() : ''))
+      .map((block) => (block && typeof block.text === 'string' ? block.text.trim() : ''))
       .filter((line) => line.length > 0)
       .join('\n');
 

@@ -65,6 +65,8 @@ describe('recogniseReceipt', () => {
     native.recognize.mockResolvedValue({
       blocks: [
         { text: 'Cafe Baaki' },
+        null,
+        undefined,
         { text: null },
         {},
         { text: 'A receipt line that is long enough to pass the OCR threshold' },
@@ -74,7 +76,7 @@ describe('recogniseReceipt', () => {
 
     const result = await recogniseReceipt('file://receipt.jpg');
 
-    expect(result?.lines).toBe(5);
+    expect(result?.lines).toBe(7);
     expect(result?.text).toContain('Cafe Baaki');
     expect(result?.text).toContain('Total 123.45');
   });
