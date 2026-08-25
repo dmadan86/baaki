@@ -13,7 +13,13 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { addEqualSplitExpense, connect, expectDenied, seedGroup } from './helpers';
+import {
+  addEqualSplitExpense,
+  connect,
+  expectDenied,
+  seedCommittedObject,
+  seedGroup,
+} from './helpers';
 
 let client: Client;
 
@@ -79,16 +85,24 @@ const logReceipt = (profileId: string, action: string, id = randomUUID()) =>
   );
 
 const attach = (profileId: string, visibility: string, id = randomUUID()) =>
-  as(profileId, () =>
-    client
+  as(profileId, async () => {
+    const path = `${expenseId}/${randomUUID()}.webp`;
+    // The attach RPC now requires a committed object at the key; seed it (the
+    // real client uploads via r2-sign's put + commit before attaching).
+    await seedCommittedObject(client, {
+      bucket: 'expense-attachments',
+      path,
+      ownerProfileId: profileId,
+    });
+    return client
       .query(`SELECT baaki_attach_expense_attachment($1, $2, $3, $4) AS id`, [
         expenseId,
-        `${expenseId}/${randomUUID()}.webp`,
+        path,
         visibility,
         id,
       ])
-      .then((r) => r.rows[0].id as string),
-  );
+      .then((r) => r.rows[0].id as string);
+  });
 
 const remove = (profileId: string, attachmentId: string) =>
   as(profileId, () => client.query(`SELECT baaki_remove_expense_attachment($1)`, [attachmentId]));

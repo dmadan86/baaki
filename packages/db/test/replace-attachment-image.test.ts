@@ -9,7 +9,13 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { addEqualSplitExpense, connect, expectDenied, seedGroup } from './helpers';
+import {
+  addEqualSplitExpense,
+  connect,
+  expectDenied,
+  seedCommittedObject,
+  seedGroup,
+} from './helpers';
 
 let client: Client;
 
@@ -60,10 +66,18 @@ const P = (i: number) => g.profileIds[i] as string;
 beforeEach(async () => {
   await client.query(`DELETE FROM expense_attachments WHERE group_id = $1`, [g.groupId]);
   attachmentId = randomUUID();
+  const initialPath = `${expenseId}/${randomUUID()}.webp`;
+  // The attach RPC now requires a committed object at the key; the real client
+  // uploads (put + commit) before attaching, so seed that committed row.
+  await seedCommittedObject(client, {
+    bucket: 'expense-attachments',
+    path: initialPath,
+    ownerProfileId: P(0),
+  });
   await as(P(0), () =>
     client.query(`SELECT baaki_attach_expense_attachment($1, $2, 'group', $3)`, [
       expenseId,
-      `${expenseId}/${randomUUID()}.webp`,
+      initialPath,
       attachmentId,
     ]),
   );
@@ -92,6 +106,12 @@ const row = (id: string) =>
 describe('replace attachment image', () => {
   it('a party repoints the row and the markup is cleared', async () => {
     const newPath = `${expenseId}/${randomUUID()}.webp`;
+    // The rotate/crop bytes were uploaded to the fresh key first.
+    await seedCommittedObject(client, {
+      bucket: 'expense-attachments',
+      path: newPath,
+      ownerProfileId: P(0),
+    });
     await replace(P(0), attachmentId, newPath);
     const r = await row(attachmentId);
     expect(r.storage_path).toBe(newPath);
@@ -114,20 +134,12 @@ describe('replace attachment image', () => {
     await replace(P(0), randomUUID(), `${expenseId}/${randomUUID()}.webp`);
   });
 
-  // TODO(integrity): the RPC only checks that the new path is scoped to the
-  // expense (`<expenseId>/…`) — it never checks that a committed row for that
-  // path exists in `storage_objects`. A party can repoint an attachment at
-  // bytes that were never uploaded (a typo'd path, a path from a different
-  // logical bucket, or one that was only ever `pending`/released and never
-  // committed), and the RPC clears the markup and succeeds anyway, leaving the
-  // row pointing at nothing. This matches the sibling
-  // `baaki_attach_expense_attachment` (20260824150000 / 20260825130000), which
-  // has the exact same gap — it is not unique to replace, so this is
-  // documented rather than fixed here: fixing one without the other would be
-  // an inconsistent half-measure, and fixing both is a wider change (every
-  // other DB test that attaches with a made-up path — expense-image-events,
-  // receipt-annotations — would need a real `storage_objects` row too).
-  it('TODO(integrity): a syntactically valid but never-committed path is accepted', async () => {
+  // Integrity (20260825240000): the RPC now checks that a committed object for
+  // the new path exists in `storage_objects`. A party can no longer repoint an
+  // attachment at bytes that were never uploaded (a typo'd path, a path from a
+  // different logical bucket, or one that was only ever `pending`/released and
+  // never committed) — the row can never end up pointing at nothing.
+  it('rejects a syntactically valid but never-committed path, and leaves the row untouched', async () => {
     // Scoped correctly, never went through r2-sign's `put`/`commit` — no row
     // for it in storage_objects.
     const neverUploaded = `${expenseId}/${randomUUID()}.webp`;
@@ -136,10 +148,38 @@ describe('replace attachment image', () => {
       .then((r) => r.rows[0].n as number);
     expect(orphaned).toBe(0);
 
-    await replace(P(0), attachmentId, neverUploaded);
+    const before = await row(attachmentId);
+    const message = await expectDenied(replace(P(0), attachmentId, neverUploaded));
+    expect(message).toMatch(/OBJECT_NOT_COMMITTED/);
 
-    const r = await row(attachmentId);
-    expect(r.storage_path).toBe(neverUploaded);
-    expect(r.annotations).toBeNull();
+    // The row is unchanged: still the old path, and the failed replace did NOT
+    // clear the markup.
+    const after = await row(attachmentId);
+    expect(after.storage_path).toBe(before.storage_path);
+    expect(after.annotations).not.toBeNull();
+  });
+
+  it('rejects a path that is only a pending reservation (uploaded but never committed)', async () => {
+    const reservedOnly = `${expenseId}/${randomUUID()}.webp`;
+    await seedCommittedObject(client, {
+      bucket: 'expense-attachments',
+      path: reservedOnly,
+      ownerProfileId: P(0),
+      pending: true,
+    });
+    const message = await expectDenied(replace(P(0), attachmentId, reservedOnly));
+    expect(message).toMatch(/OBJECT_NOT_COMMITTED/);
+  });
+
+  it('rejects a committed object that lives in the wrong logical bucket', async () => {
+    const wrongBucket = `${expenseId}/${randomUUID()}.webp`;
+    // Committed, but under `receipts`, not `expense-attachments`.
+    await seedCommittedObject(client, {
+      bucket: 'receipts',
+      path: wrongBucket,
+      ownerProfileId: P(0),
+    });
+    const message = await expectDenied(replace(P(0), attachmentId, wrongBucket));
+    expect(message).toMatch(/OBJECT_NOT_COMMITTED/);
   });
 });
