@@ -73,6 +73,9 @@ interface SyncResponseBody {
   changes: SyncChange[];
   cursors: Record<string, number>;
   serverTime: string;
+  /** The server truncated at least one table's page; more rows are waiting.
+   *  Absent on older servers, so treated as false. */
+  hasMore?: boolean;
 }
 
 /** While the app is open and online, catch anything Realtime missed. */
@@ -423,6 +426,16 @@ export class SyncEngine {
         lastSyncedAt: response.serverTime ?? new Date().toISOString(),
         lastError: null,
       });
+
+      // The server capped a table at MAX_ROWS_PER_TABLE and left the cursor
+      // below its high-water; the rest is still on the server. Drain it now
+      // rather than waiting out the 30s poll, so a large backlog (a fresh device
+      // joining a big group) catches up in a burst instead of a page every half
+      // minute. Scheduled after this flush settles, since flush() is single-
+      // in-flight; guarded by the cursor moving, so it cannot spin forever.
+      if (response.hasMore) {
+        setTimeout(() => void this.flush(), 0);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const queue = markFailed(this.state.queue, batch, message, now);
