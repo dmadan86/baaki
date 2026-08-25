@@ -152,6 +152,15 @@ BEGIN
     END IF;
   END IF;
 
+  -- Serialize the count-then-insert against other attaches to THIS expense: a
+  -- transaction-scoped advisory lock keyed on the expense id. Without it two
+  -- concurrent adds could both read a live count below the cap and both insert,
+  -- landing one over (the same race the ghost-merge path guards). Only other
+  -- attach calls take this key, so it never blocks unrelated writers, and it is
+  -- released at commit. Taken before the count so a paid group pays only a
+  -- trivial, uncontended lock and nothing else.
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_expense_id::text, 0));
+
   -- The per-expense ceiling, enforced at the one insert path. A paid group is
   -- exempt; only live (non-deleted) attachments count, so removing one frees a
   -- slot.
