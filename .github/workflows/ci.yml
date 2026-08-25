@@ -62,8 +62,15 @@ jobs:
   edge:
     name: edge function tests
     runs-on: ubuntu-latest
+    # This job only reads the repo and runs tests — it never writes back, so it
+    # takes a read-only token and drops the checkout credentials rather than
+    # leaving a write-capable GITHUB_TOKEN in the Git config for later steps.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:

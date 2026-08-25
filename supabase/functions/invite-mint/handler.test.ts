@@ -24,6 +24,7 @@ import { handleInviteMint, type InviteMintDeps } from './handler.ts';
  */
 function serviceMock(options: {
   liveCount?: number | null;
+  countError?: { message: string } | null;
   insert?: { data: { id: string } | null; error: { message: string } | null };
   groupName?: string | null;
 }) {
@@ -33,9 +34,9 @@ function serviceMock(options: {
     eq: () => invites,
     is: () => invites,
     gt: () => invites,
-    // Awaiting the count chain yields `{ count }`.
-    then: (resolve: (v: { count: number | null }) => unknown) =>
-      resolve({ count: options.liveCount ?? 0 }),
+    // Awaiting the count chain yields `{ count, error }`.
+    then: (resolve: (v: { count: number | null; error: { message: string } | null }) => unknown) =>
+      resolve({ count: options.liveCount ?? 0, error: options.countError ?? null }),
     insert: (row: unknown) => {
       insertSpy(row);
       return {
@@ -66,6 +67,7 @@ interface HarnessOptions {
   member?: boolean;
   rateLimited?: boolean;
   liveCount?: number | null;
+  countError?: { message: string } | null;
   insert?: { data: { id: string } | null; error: { message: string } | null };
   groupName?: string | null;
 }
@@ -120,9 +122,34 @@ describe('request gates', () => {
   it('turns a malformed JSON body into a 4xx, never a 500', async () => {
     const { deps } = harness();
     const response = await handleInviteMint(mint('{ not json'), deps);
-    // Empty body → no groupId → the membership check refuses it as a 403.
-    expect(response.status).toBeGreaterThanOrEqual(400);
-    expect(response.status).toBeLessThan(500);
+    // Empty body → no groupId → refused as a 400 before any membership/db call.
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('BAD_GROUP');
+  });
+
+  it('400s a null JSON body instead of throwing a 500', async () => {
+    const { deps, requireMembership } = harness();
+    const response = await handleInviteMint(mint('null'), deps);
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('BAD_GROUP');
+    // Refused before touching membership or the database.
+    expect(requireMembership).not.toHaveBeenCalled();
+  });
+
+  it('400s a non-string groupId', async () => {
+    const { deps } = harness();
+    const response = await handleInviteMint(mint({ groupId: 12345 }), deps);
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('BAD_GROUP');
+  });
+
+  it('500s (fail-closed) when the live-invite count query itself errors', async () => {
+    const { deps, insertSpy } = harness({ countError: { message: 'count boom' } });
+    const response = await handleInviteMint(mint({ groupId: 'group-1' }), deps);
+    expect(response.status).toBe(500);
+    expect((await response.json()).code).toBe('INTERNAL');
+    // The cap could not be checked, so nothing is minted.
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it('403s an authenticated outsider', async () => {
@@ -215,6 +242,23 @@ describe('minting a link', () => {
       await handleInviteMint(mint({ groupId: 'group-1' }), withoutName.deps)
     ).json();
     expect(anon.groupName).toBe('a group');
+  });
+
+  it('ignores non-numeric option types and falls back to the defaults (no 500)', async () => {
+    const { deps, insertSpy } = harness({ liveCount: 0 });
+    const response = await handleInviteMint(
+      // A string expiresInDays would clamp to NaN and blow up `toISOString()`.
+      mint({ groupId: 'group-1', expiresInDays: 'soon', maxUses: null }),
+      deps,
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.maxUses).toBe(25); // default
+    const inserted = insertSpy.mock.calls[0][0] as { expires_at: string; max_uses: number };
+    expect(Number.isNaN(new Date(inserted.expires_at).getTime())).toBe(false);
+    const days = (new Date(inserted.expires_at).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
   });
 
   it('500s when the insert itself fails', async () => {

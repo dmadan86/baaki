@@ -46,29 +46,56 @@ async function sha256Hex(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+/** A `groupId` is required and must be a non-empty string — not whatever the JSON happened to hold. */
+function readGroupId(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new HttpError(400, 'BAD_GROUP', 'A groupId is required');
+  }
+  return value;
+}
+
+/**
+ * A finite numeric option or the default. A client can send `null`, a string or
+ * `NaN`; left unchecked, `NaN` flows through the clamp into `new Date(...)` and
+ * `toISOString()` throws a RangeError that escapes as a 500. Coerce here so a bad
+ * option is simply ignored in favour of the default.
+ */
+function finiteOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 export async function handleInviteMint(request: Request, deps: InviteMintDeps): Promise<Response> {
   try {
     if (request.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST');
 
     // A malformed body is a client error, not a crash: fall back to an empty
-    // object so the missing `groupId` is refused as a 4xx by the membership
-    // check below, rather than a `SyntaxError` escaping as a 500 (which `/sync`
-    // and friends would treat as retryable).
-    const body = (await request.json().catch(() => ({}))) as MintRequest;
+    // object so the missing `groupId` is refused as a defined 400 by
+    // `readGroupId` below, rather than a `SyntaxError` escaping as a 500 (which
+    // `/sync` and friends would treat as retryable).
+    const parsed = await request.json().catch(() => ({}));
+    // A `null` body is valid JSON but not an object; reading `.groupId` off it
+    // would throw a TypeError that escapes as a 500. Normalise to an empty object
+    // so the field validators below produce a defined 4xx instead.
+    const body: MintRequest =
+      parsed && typeof parsed === 'object' ? (parsed as MintRequest) : ({} as MintRequest);
+    const groupId = readGroupId(body.groupId);
     const caller = deps.asCaller(request);
-    const { profileId } = await deps.requireMembership(caller, body.groupId);
+    const { profileId } = await deps.requireMembership(caller, groupId);
     const service = deps.asService();
 
     // The live-link cap below is per group, so somebody in many groups can mint
     // as fast as they like across all of them. This is per person.
     await deps.enforceRateLimit(service, request, 'invite-mint', profileId);
 
-    const { count } = await service
+    const { count, error: countError } = await service
       .from('invites')
       .select('id', { count: 'exact', head: true })
-      .eq('group_id', body.groupId)
+      .eq('group_id', groupId)
       .is('revoked_at', null)
       .gt('expires_at', new Date().toISOString());
+    // Fail closed: a failed count must not read as zero and wave the insert past
+    // the cap. Refuse rather than mint an unbounded link.
+    if (countError) throw new HttpError(500, 'INTERNAL', countError.message);
     if ((count ?? 0) >= MAX_LIVE_INVITES) {
       throw new HttpError(
         429,
@@ -77,8 +104,8 @@ export async function handleInviteMint(request: Request, deps: InviteMintDeps): 
       );
     }
 
-    const days = Math.min(Math.max(body.expiresInDays ?? 7, 1), MAX_EXPIRY_DAYS);
-    const maxUses = Math.min(Math.max(body.maxUses ?? 25, 1), MAX_USES_LIMIT);
+    const days = Math.min(Math.max(finiteOr(body.expiresInDays, 7), 1), MAX_EXPIRY_DAYS);
+    const maxUses = Math.min(Math.max(finiteOr(body.maxUses, 25), 1), MAX_USES_LIMIT);
 
     // 32 bytes of entropy, url-safe. Never stored anywhere in this form.
     const token = [...crypto.getRandomValues(new Uint8Array(32))]
@@ -91,7 +118,7 @@ export async function handleInviteMint(request: Request, deps: InviteMintDeps): 
     const { data: invite, error } = await service
       .from('invites')
       .insert({
-        group_id: body.groupId,
+        group_id: groupId,
         token_hash: await sha256Hex(token),
         created_by: profileId,
         expires_at: expiresAt,
@@ -101,11 +128,7 @@ export async function handleInviteMint(request: Request, deps: InviteMintDeps): 
       .single();
     if (error) throw new HttpError(500, 'INTERNAL', error.message);
 
-    const { data: group } = await service
-      .from('groups')
-      .select('name')
-      .eq('id', body.groupId)
-      .single();
+    const { data: group } = await service.from('groups').select('name').eq('id', groupId).single();
 
     return json({
       inviteId: invite.id,
