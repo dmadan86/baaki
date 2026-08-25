@@ -50,10 +50,9 @@ export async function recogniseReceipt(uri: string): Promise<OcrResult | null> {
     const result = await TextRecognition.recognize(uri);
 
     const text = (result.blocks ?? [])
-      .map((block) => block.text)
-      .join('\n')
-      .replace(/[ \t]+\n/g, '\n')
-      .trim();
+      .map((block) => (typeof block.text === 'string' ? block.text.trim() : ''))
+      .filter((line) => line.length > 0)
+      .join('\n');
 
     if (text.length < ENOUGH_TEXT || !LOOKS_LIKE_A_BILL.test(text)) return null;
     return { text, lines: result.blocks?.length ?? 0 };

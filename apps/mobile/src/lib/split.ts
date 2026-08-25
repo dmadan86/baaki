@@ -25,7 +25,7 @@ export type SplitEntries = Record<string, string>;
 const TOTAL_BASIS_POINTS = 10000;
 
 /** Up to three digits, then at most two decimal places. */
-const PERCENT = /^\d{0,3}(\.\d{0,2})?$/;
+const PERCENT = /^(?:\d{1,3}|\d{0,3}\.\d{1,2})$/;
 
 /** Whole numbers only, and not so many digits that the field stops being one. */
 const WEIGHT = /^\d{1,9}$/;
@@ -136,7 +136,7 @@ export function fillEntries(
   participants: readonly string[],
 ): SplitEntries | null {
   const missing = participants.filter((id) => entries[id] === undefined);
-  if (missing.length === 0) return null;
+  if (missing.length === 0 || participants.length === 0) return null;
 
   if (kind === 'shares') {
     return { ...entries, ...Object.fromEntries(missing.map((id) => [id, '1'])) };
