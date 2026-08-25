@@ -1,0 +1,4 @@
+.env
+functions.env
+out/
+volumes/storage/
