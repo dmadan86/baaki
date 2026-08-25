@@ -20,7 +20,11 @@ let other: string;
 beforeAll(async () => {
   client = await connect();
   const group = await seedGroup(client, { memberCount: 3 });
-  [free, paid, other] = group.profileIds;
+  const [f, p, o] = group.profileIds;
+  if (!f || !p || !o) throw new Error('seedGroup should return three member profile ids');
+  free = f;
+  paid = p;
+  other = o;
 });
 
 afterAll(async () => {

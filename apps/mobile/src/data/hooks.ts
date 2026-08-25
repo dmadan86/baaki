@@ -2059,13 +2059,19 @@ export function useOpenReceipts(groupId: string) {
  * every real STT call.
  */
 export function useVoiceAccess() {
+  // Key on the signed-in profile: baaki_my_voice_access resolves the caller from
+  // the JWT, and the QueryClient is persisted across sign-outs, so a bare
+  // ['voiceAccess'] key would let a second person on the same device read the
+  // first person's cached entitlement for up to staleTime.
+  const { profile } = useAuth();
   return useQuery({
-    queryKey: ['voiceAccess'],
+    queryKey: ['voiceAccess', profile?.id ?? null],
     queryFn: async (): Promise<VoiceAccess> => {
       const { data, error } = await backend.rpc('baaki_my_voice_access');
       if (error) throw new Error(error.message);
       return data as VoiceAccess;
     },
+    enabled: !!profile?.id,
     staleTime: 60_000,
   });
 }

@@ -41,16 +41,17 @@ This is the one rule that departs from every other paid gate in the app. Today,
 member is subscribed (group photo, receipt cap, attachment cap all use it). Voice
 STT is **the person's own capability** and must **not** leak across a group.
 
-- New definer helper **`baaki_user_is_paid(p_profile uuid) → boolean`**: true iff
-  that profile has an `active` subscription (or an unexpired pass **owned by that
-  profile**, not a group pass). Deliberately independent of `baaki_group_is_paid`.
+- Reuse the existing definer helper **`baaki_profile_is_paid(p_profile uuid) →
+boolean`**: true iff that profile has an `active` subscription (or an unexpired
+  pass **owned by that profile**, not a group pass). Deliberately independent of
+  `baaki_group_is_paid`.
 - A paid person gets **unlimited** cloud STT. A free person is metered.
 - Group membership is irrelevant. A free user in a group with a paid member is
   **still metered** — the paid member's benefit does not extend to them.
 
 ```
 access(profile) =
-  baaki_user_is_paid(profile) ? 'unlimited'
+  baaki_profile_is_paid(profile) ? 'unlimited'
   : remaining_free_seconds(profile) > 0 ? 'metered'
   : 'exhausted'   // → on-device fallback
 ```
@@ -70,6 +71,7 @@ cannot hold).
 | `voice_stt_free_seconds`     | int  | `app_config`           | Free talk-time per month, in seconds        | `300` (5 min)    |
 | `voice_stt_max_clip_seconds` | int  | `app_config`           | Hard cap on a single request's audio length | `60`             |
 | `voice_stt_enabled`          | flag | `feature_flags`        | Master on/off for cloud STT                 | off              |
+| `voice_llm_enabled`          | flag | `feature_flags`        | Master on/off for managed LLM structuring   | off              |
 | `voice_stt_provider`         | text | `service_config` (new) | `deepgram` \| `gemini`                      | `deepgram`       |
 | `voice_stt_model`            | text | `service_config`       | Provider model id (e.g. `nova-2`)           | provider default |
 | `voice_llm_provider`         | text | `service_config`       | Managed structuring provider                | (chosen)         |
@@ -143,20 +145,35 @@ Refusals (so the client can fall back cleanly, never a raw error):
 
 1. Resolve the caller's profile from the JWT.
 2. If `!voice_stt_enabled` → `STT_DISABLED`.
-3. `paid = baaki_user_is_paid(profile)`.
-4. If not paid: read `voice_stt_free_seconds` and this month's usage.
-   - If `durationSeconds` would exceed the remaining allowance → `STT_QUOTA_EXHAUSTED`
-     (the client falls back to on-device; **no partial charge**).
-5. Enforce `voice_stt_max_clip_seconds`.
+3. `paid = baaki_profile_is_paid(profile)`.
+4. **Derive the duration server-side.** Decode the uploaded audio and read its
+   real length; the client's `durationSeconds` is a hint only and is never
+   trusted for admission (a client could send full audio with
+   `durationSeconds: 0` and slip past the check). Reject a non-finite or
+   non-positive duration. Enforce `voice_stt_max_clip_seconds` against the
+   decoded length → `STT_CLIP_TOO_LONG`.
+5. **If not paid, reserve atomically before the provider call.** A single
+   conditional statement adds `ceil(decodedSeconds)` to this month's usage _only
+   if_ it stays within `voice_stt_free_seconds`, and reports whether it
+   succeeded — so two concurrent requests cannot both pass on the same balance
+   (e.g. two 200 s clips against 300 s remaining). If the reservation fails →
+   `STT_QUOTA_EXHAUSTED` (client falls back to on-device; **no charge**). The
+   request carries an **idempotency key**, so a replay reserves once, not twice.
 6. Call the **provider adapter** (`deepgram` first) with the server-side key and
    `voice_stt_model`.
-7. On success **and** not paid: `voice_stt_usage.seconds += ceil(billedSeconds)`
-   for the current period (atomic upsert). Paid users are **not** metered.
+7. **Reconcile the reservation.** On provider failure, **release** the reserved
+   seconds (delete/subtract under the same idempotency key) and surface a clean
+   refusal. On success, reconcile the reservation to the **provider-reported**
+   `billedSeconds` (the meter of record) rather than the decoded estimate. Paid
+   users skip both reserve and reconcile — they are **never** metered.
 8. Return the transcript + `remainingFreeSeconds`.
 
-**Metering integrity:** we bill the **provider-reported** audio seconds, not the
-client's claimed `durationSeconds`, so a client cannot under-report to stretch the
-free tier. The clip cap bounds a single abusive request before the provider call.
+**Metering integrity:** admission is gated on a **server-decoded** duration, and
+the final charge is the **provider-reported** seconds — the client's claimed
+`durationSeconds` is trusted for neither, so it cannot be under-reported to
+stretch the free tier. Reservation-before-call plus an idempotency key makes
+concurrent and replayed requests safe; the clip cap bounds a single abusive
+request before the provider is ever called.
 
 ### 4.3 Provider seam
 
@@ -183,7 +200,11 @@ Which adapter runs is read from `voice_stt_provider` at request time.
 ## 5. Managed LLM structuring (`voice-structure` edge function)
 
 Separate function so STT and structuring scale and fail independently, and either
-can be turned off alone.
+can be turned off alone — STT by `voice_stt_enabled`, structuring by its own
+`voice_llm_enabled` flag. When `voice_llm_enabled` is off (or no
+`voice_llm_provider` is configured) the function returns `STRUCTURE_UNAVAILABLE`
+and the client falls back to the on-device heuristic parser, exactly as it does
+on a provider error.
 
 `POST /functions/v1/voice-structure` (authenticated)
 
@@ -268,14 +289,21 @@ transcript → structure:
 
 ## 8. Phasing
 
-- **Phase 1 — entitlement & config plumbing (no external calls).**
-  `baaki_user_is_paid`, `voice_stt_usage`, `service_config`, the `app_config`
-  knobs, `remaining_free_seconds`, admin config UI, `feature_flags:voice_stt_enabled`.
-  Fully testable with DB tests; ships dark.
-- **Phase 2 — `voice-stt` edge function + Deepgram adapter + client wiring**
-  (metered proxy, fallback). Needs the Deepgram key in edge env.
-- **Phase 3 — `voice-structure` edge function + managed LLM + versioned contract**
-  - client tier selection. Needs the LLM key in edge env.
+- **Phase 1 — entitlement & config plumbing (no external calls).** Reuse
+  `baaki_profile_is_paid`; `voice_stt_usage`, `service_config`, the `app_config`
+  knobs, `baaki_voice_stt_remaining_seconds`, `baaki_voice_stt_record`
+  (service-role), and the client-facing `baaki_my_voice_access`. On the client:
+  the `useVoiceAccess` hook that reads it and the pure `pickVoiceMode(access,
+{online, cloudEnabled})` selector — both land here so the tier decision is
+  unit-tested before any network tier exists. Fully testable with DB + unit
+  tests; ships dark (`feature_flags:voice_stt_enabled` off, no provider keys, and
+  no caller invokes the cloud tier yet).
+- **Phase 2 — `voice-stt` edge function + Deepgram adapter + wiring it in**
+  (metered proxy, fallback): the client starts _calling_ `voice-stt` and routing
+  on the `pickVoiceMode` decision that shipped in Phase 1. Needs the Deepgram key
+  in edge env.
+- **Phase 3 — `voice-structure` edge function + managed LLM + versioned contract.**
+  Needs the LLM key in edge env.
 - **Phase 4 — usage surfacing** ("free voice left"), admin dashboards, and a
   second STT provider adapter (Gemini) to prove the seam.
 

@@ -28,7 +28,7 @@ ON CONFLICT (key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS public.service_config (
   key         text PRIMARY KEY,
   value       text,
-  description text,
+  description text NOT NULL DEFAULT '',
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
@@ -56,7 +56,7 @@ ON CONFLICT (key) DO NOTHING;
 -- edge function), so usage cannot be forged from a client; a person may read
 -- their own row to see how much free talk-time is left.
 CREATE TABLE IF NOT EXISTS public.voice_stt_usage (
-  profile_id uuid    NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  profile_id uuid    NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
   period     text    NOT NULL,                       -- 'YYYY-MM' (UTC)
   seconds    integer NOT NULL DEFAULT 0,
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -116,9 +116,15 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.baaki_voice_stt_remaining_seconds(uuid) FROM public;
-GRANT EXECUTE ON FUNCTION public.baaki_voice_stt_remaining_seconds(uuid)
-  TO authenticated, service_role;
+-- Service-role only: this takes an ARBITRARY profile id, so exposing it to
+-- authenticated callers would let anyone infer another person's paid status and
+-- remaining allowance. Clients read their own entitlement through the
+-- JWT-scoped baaki_my_voice_access() below, which takes no argument. The
+-- explicit anon/authenticated revoke is needed because a default-privilege
+-- EXECUTE grant to those roles survives a plain REVOKE FROM public.
+REVOKE ALL ON FUNCTION public.baaki_voice_stt_remaining_seconds(uuid)
+  FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.baaki_voice_stt_remaining_seconds(uuid) TO service_role;
 
 -- Record used seconds for a profile in the current month, returning the new
 -- monthly total. Service-role only: this is called by the metering edge
