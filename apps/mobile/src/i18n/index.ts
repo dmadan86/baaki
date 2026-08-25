@@ -189,6 +189,7 @@ export interface UiStrings {
   youOwe: string;
   allSettled: string;
   yourGroups: string;
+  allGroups: string;
   /** The "show every category" chip at the head of the group filter strip. */
   filterAll: string;
   /** A small tag on a just-created group row. */
@@ -1980,6 +1981,7 @@ const en: UiStrings = {
   youOwe: 'You owe',
   allSettled: 'All settled',
   yourGroups: 'Your groups',
+  allGroups: 'All groups',
   filterAll: 'All',
   tagNew: 'New',
   tagOnTrip: 'On trip',
@@ -3718,6 +3720,7 @@ const ta: UiStrings = {
   youOwe: 'நீங்கள் தர வேண்டியது',
   allSettled: 'எல்லாம் சரி',
   yourGroups: 'உங்கள் குழுக்கள்',
+  allGroups: 'அனைத்து குழுக்கள்',
   filterAll: 'அனைத்தும்',
   tagNew: 'புதியது',
   tagOnTrip: 'பயணத்தில்',
@@ -5524,6 +5527,7 @@ const hi: UiStrings = {
   youOwe: 'आपको देने हैं',
   allSettled: 'सब बराबर',
   yourGroups: 'आपके समूह',
+  allGroups: 'सभी समूह',
   filterAll: 'सभी',
   tagNew: 'नया',
   tagOnTrip: 'यात्रा जारी',
@@ -7272,6 +7276,7 @@ const ar: UiStrings = {
   youOwe: 'عليك',
   allSettled: 'تمت التسوية',
   yourGroups: 'مجموعاتك',
+  allGroups: 'كل المجموعات',
   filterAll: 'الكل',
   tagNew: 'جديد',
   tagOnTrip: 'في رحلة',

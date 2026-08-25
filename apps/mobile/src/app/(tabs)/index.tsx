@@ -19,6 +19,7 @@ import { dayNumber, daysBetween, type GuestGate } from '@waves/core';
 import {
   Avatar,
   Button,
+  directionalIcon,
   EmptyState,
   Gradient,
   iconSize,
@@ -451,10 +452,36 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              <Text variant="subheading">{t.yourGroups}</Text>
+              {/* The heading carries the door to the full list: the card below is
+                  a capped preview, "All groups" opens the whole roster. */}
+              <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text variant="subheading">{t.yourGroups}</Text>
+                <Pressable
+                  onPress={() => router.push('/groups')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.allGroups}
+                  hitSlop={8}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 2,
+                    opacity: pressed ? 0.5 : 1,
+                  })}
+                >
+                  <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
+                    {t.allGroups}
+                  </Text>
+                  <Ionicons
+                    name={directionalIcon('chevron-forward')}
+                    size={iconSize.md}
+                    color={theme.color.brand}
+                  />
+                </Pressable>
+              </Row>
               {/* The groups as one clean list on a single card — an emoji chip, the
                   name and its standing, the balance to the right — the banking-app
-                  "recent" list the reference leans on, hairline-divided. */}
+                  "recent" list the reference leans on, hairline-divided. Capped to
+                  a preview; the full list lives behind "All groups". */}
               <View
                 style={{
                   backgroundColor: theme.color.surface,
@@ -464,7 +491,7 @@ export default function HomeScreen() {
                   overflow: 'hidden',
                 }}
               >
-                {list.map((group, index) => {
+                {list.slice(0, GROUPS_PREVIEW).map((group, index) => {
                   const members = summary.membersFor(group.id);
                   const balance = summary.balanceFor(group.id);
                   // A running trip earns a live "on trip" tag; failing that, a
@@ -759,6 +786,11 @@ function HeroIconButton({
 
 /** How long after creation a group still counts as "New" — 48 hours. */
 const NEW_GROUP_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+/** How many groups the dashboard shows inline before deferring to the full
+    "All groups" screen — enough to cover most people's active set without the
+    home list growing without bound. */
+const GROUPS_PREVIEW = 5;
 
 /** The AsyncStorage key holding the day the guest last closed the prompt. */
 const GUEST_PROMPT_DISMISS_KEY = 'guestPrompt:dismissedOn';
