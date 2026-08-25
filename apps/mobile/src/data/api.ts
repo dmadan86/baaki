@@ -389,6 +389,20 @@ export async function canAddReceipt(groupId: string): Promise<boolean> {
 }
 
 /**
+ * May the caller add one more gallery receipt to THIS expense? The per-expense
+ * twin of `canAddReceipt` (A46): a free group holds a small number of gallery
+ * images per expense, paid lifts it. The affordance, not the boundary —
+ * `baaki_attach_expense_attachment` enforces the same ceiling server-side.
+ */
+export async function canAddExpenseAttachment(expenseId: string): Promise<boolean> {
+  const { data, error } = await backend.rpc('baaki_can_add_expense_attachment', {
+    p_expense_id: expenseId,
+  });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
+/**
  * The signed-in caller's own image-storage usage (A44), for the settings meter.
  *
  * `used` counts only the bytes that are charged against a ceiling — a paid

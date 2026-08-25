@@ -16,9 +16,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, View } from 'react-native';
 
 import { IconButton, iconSize, Row, Text, useTheme } from '@waves/ui';
+
+import { canAddExpenseAttachment } from '@/data/api';
+import { receiptCapStatus } from '@/lib/receiptCapGate';
 
 import { ZoomableGallery, type GalleryPage } from '@/components/ZoomableGallery';
 import { ReceiptAnnotator } from '@/components/ReceiptAnnotator';
@@ -169,6 +174,20 @@ export function ExpenseReceipts({
   const removeLegacy = useRemoveExpenseReceipt(groupId, expenseId);
   const annotate = useAnnotateExpenseAttachment();
   const replace = useReplaceExpenseAttachmentImage(groupId, expenseId);
+  const queryClient = useQueryClient();
+
+  // The per-expense receipt ceiling (A46): a free group keeps a small number of
+  // gallery images per expense; paid lifts it. This is the affordance — the
+  // attach RPC enforces the same limit — so a failed fetch defaults to "allowed"
+  // and lets the server be the boundary, the same stance as the scan cap.
+  const cap = useQuery({
+    queryKey: ['attachmentCap', expenseId],
+    queryFn: () => canAddExpenseAttachment(expenseId),
+    staleTime: 30_000,
+  });
+  const capLocked = !cap.isError && receiptCapStatus(cap.data, cap.isLoading) === 'locked';
+  const refreshCap = () =>
+    void queryClient.invalidateQueries({ queryKey: ['attachmentCap', expenseId] });
 
   const items = useMemo<GalleryItem[]>(() => {
     const list: GalleryItem[] = [];
@@ -210,6 +229,29 @@ export function ExpenseReceipts({
   const isPrivate = (it: GalleryItem) =>
     it.kind === 'attachment' && it.row.visibility === 'parties';
 
+  // The free per-expense limit is reached (and the group is not paid): point the
+  // person at the upgrade rather than open the add sheet. Reuses the scan cap's
+  // strings and upgrade route so both ceilings read and route the same.
+  const showCapUpsell = () => {
+    Alert.alert(t.expense.capReachedTitle, t.expense.capReachedBody, [
+      { text: t.common.cancel, style: 'cancel' },
+      { text: t.expense.capUpgrade, onPress: () => router.push('/settings/upgrade') },
+    ]);
+  };
+
+  // The server may still refuse over the cap even when the local gate allowed it
+  // (another party filled the last slot from another device); surface that as the
+  // upgrade prompt, not a generic failure. Anything else is the generic message.
+  const onAddError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('ATTACHMENT_CAP')) {
+      showCapUpsell();
+      refreshCap();
+    } else {
+      Alert.alert(t.receipts.couldNotAdd);
+    }
+  };
+
   const add = (picked: Awaited<ReturnType<typeof captureReceipt>>) => {
     if (!picked) return; // Cancelled/declined.
     Alert.alert(t.receipts.chooseVisibility, undefined, [
@@ -218,7 +260,7 @@ export function ExpenseReceipts({
         onPress: () =>
           attach.mutate(
             { picked, visibility: 'group' },
-            { onError: () => Alert.alert(t.receipts.couldNotAdd) },
+            { onError: onAddError, onSuccess: refreshCap },
           ),
       },
       {
@@ -226,7 +268,7 @@ export function ExpenseReceipts({
         onPress: () =>
           attach.mutate(
             { picked, visibility: 'parties' },
-            { onError: () => Alert.alert(t.receipts.couldNotAdd) },
+            { onError: onAddError, onSuccess: refreshCap },
           ),
       },
       { text: t.common.cancel, style: 'cancel' },
@@ -239,6 +281,12 @@ export function ExpenseReceipts({
       { text: t.receipts.choosePhoto, onPress: () => void pickReceiptImage().then(add) },
       { text: t.common.cancel, style: 'cancel' },
     ]);
+  };
+
+  // The add affordance's tap: locked → upsell, otherwise the scan/choose sheet.
+  const handleAddPress = () => {
+    if (capLocked) showCapUpsell();
+    else startAdd();
   };
 
   const removeAt = (index: number) => {
@@ -259,7 +307,8 @@ export function ExpenseReceipts({
           } else {
             removeAttachment.mutate(
               { attachmentId: it.row.id, storagePath: it.row.storagePath },
-              { onError },
+              // Removing a live attachment frees a slot, so re-ask the cap gate.
+              { onError, onSuccess: refreshCap },
             );
           }
         },
@@ -279,7 +328,7 @@ export function ExpenseReceipts({
         // lone 96px tile left a wide empty band under it; a full-width row that
         // reads "Add receipt" fills the space and makes the affordance obvious.
         <Pressable
-          onPress={startAdd}
+          onPress={handleAddPress}
           disabled={attach.isPending}
           accessibilityRole="button"
           accessibilityLabel={t.receipts.add}
@@ -329,7 +378,7 @@ export function ExpenseReceipts({
         >
           {canManage ? (
             <Pressable
-              onPress={startAdd}
+              onPress={handleAddPress}
               disabled={attach.isPending}
               accessibilityRole="button"
               accessibilityLabel={t.receipts.add}
