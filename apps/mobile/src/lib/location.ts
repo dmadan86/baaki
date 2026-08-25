@@ -193,6 +193,57 @@ export async function captureLocation(): Promise<LocationResult> {
   }
 }
 
+/**
+ * Read a fix *only if permission was already granted* — never prompting.
+ *
+ * This is what lets add-expense stamp the current place automatically: opening
+ * the form must never throw up a system location prompt (the anti-pattern this
+ * module exists to avoid), so a fix is read only when the person has already
+ * said yes on an earlier explicit "Add location". Undetermined, denied, no
+ * module, or no GPS lock all come back as `null`, and the expense saves with no
+ * place exactly as before. Reverse-geocoding stays best-effort.
+ */
+export async function captureLocationIfGranted(): Promise<ExpenseLocation | null> {
+  const Location = loadLocation();
+  if (!Location) return null;
+  try {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== 'granted') return null; // deliberately never requests here
+    const fix = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    const lat = fix.coords.latitude;
+    const lng = fix.coords.longitude;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    let name: string | null = null;
+    try {
+      const addresses = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      name = placeName(addresses[0]);
+    } catch {
+      name = null;
+    }
+    return { lat, lng, name };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Name an arbitrary point picked on the map — best-effort, `null` when the
+ * lookup fails, runs offline, or the module is absent (the caller keeps the
+ * coordinates and shows the point). Unlike {@link captureLocation} this reads no
+ * GPS and asks for no permission: reverse geocoding a chosen coordinate does not
+ * reveal where the person is.
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  const Location = loadLocation();
+  if (!Location) return null;
+  try {
+    const addresses = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+    return placeName(addresses[0]);
+  } catch {
+    return null;
+  }
+}
+
 /** A deep link that opens the point in whatever maps app the phone prefers. */
 export function mapsUrl(location: ExpenseLocation): string {
   const query = `${location.lat},${location.lng}`;

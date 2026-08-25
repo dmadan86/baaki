@@ -1135,6 +1135,21 @@ export interface UiStrings {
     unavailable: string;
     openSettings: string;
     openMap: string;
+    /** Open the map picker to nudge an existing pin. */
+    adjust: string;
+    /** Choose a spot on the map by hand (when you are not there). */
+    pick: string;
+    /** The map picker's header. */
+    pickerTitle: string;
+    /** How to use the picker — tap to move the pin. */
+    pickerHint: string;
+    /** Snap the picker to the device's current position (asks permission). */
+    useCurrentLocation: string;
+    /** Confirm the picked point. */
+    usePlace: string;
+    /** Accessibility labels for the picker's zoom controls. */
+    zoomIn: string;
+    zoomOut: string;
   };
   /** The custom expense-tag catalog (extends TDR §8): the create/edit sheet and
    *  the Settings manager. Built-in category labels stay in `categories`. */
@@ -1425,6 +1440,9 @@ export interface UiStrings {
     itemized: string;
     /** The two faces of the expense page: its breakdown, and its edit history. */
     detailsTab: string;
+    /** "Note" — the full typed description on the detail screen, shown when the
+     *  one-line hero heading could not have conveyed all of it. */
+    note: string;
     /** "Created by Asha" / "Edited by Ravi" — the head of one audit entry. */
     createdByName: string;
     editedByName: string;
@@ -2855,6 +2873,14 @@ const en: UiStrings = {
     unavailable: "Couldn't get a location just now — please try again.",
     openSettings: 'Open Settings',
     openMap: 'Open in maps',
+    adjust: 'Adjust on map',
+    pick: 'Pick on map',
+    pickerTitle: 'Choose location',
+    pickerHint: 'Tap the map to move the pin',
+    useCurrentLocation: 'Use my current location',
+    usePlace: 'Use this place',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
   },
   tags: {
     manageTitle: 'Tags & categories',
@@ -3127,6 +3153,7 @@ const en: UiStrings = {
     withAdjustments: 'With adjustments',
     itemized: 'Itemized',
     detailsTab: 'Details',
+    note: 'Note',
     createdByName: 'Created by {name}',
     editedByName: 'Edited by {name}',
     noChanges: 'No tracked fields changed',
@@ -4640,6 +4667,14 @@ const ta: UiStrings = {
     unavailable: 'இப்போது இடத்தைப் பெற முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     openSettings: 'அமைப்புகளைத் திற',
     openMap: 'வரைபடத்தில் திற',
+    adjust: 'வரைபடத்தில் சரிசெய்',
+    pick: 'வரைபடத்தில் தேர்ந்தெடு',
+    pickerTitle: 'இடத்தைத் தேர்ந்தெடு',
+    pickerHint: 'ஊசியை நகர்த்த வரைபடத்தைத் தட்டவும்',
+    useCurrentLocation: 'என் தற்போதைய இடத்தைப் பயன்படுத்து',
+    usePlace: 'இந்த இடத்தைப் பயன்படுத்து',
+    zoomIn: 'பெரிதாக்கு',
+    zoomOut: 'சிறிதாக்கு',
   },
   tags: {
     manageTitle: 'குறிச்சொற்கள் & வகைகள்',
@@ -4933,6 +4968,7 @@ const ta: UiStrings = {
     withAdjustments: 'சரிசெய்தலுடன்',
     itemized: 'பொருள் வாரியாக',
     detailsTab: 'விவரங்கள்',
+    note: 'குறிப்பு',
     createdByName: '{name} உருவாக்கியது',
     editedByName: '{name} திருத்தியது',
     noChanges: 'கண்காணிக்கப்படும் புலங்கள் மாறவில்லை',
@@ -6443,6 +6479,14 @@ const hi: UiStrings = {
     unavailable: 'अभी स्थान नहीं मिल सका — कृपया फिर से कोशिश करें।',
     openSettings: 'सेटिंग खोलें',
     openMap: 'मैप में खोलें',
+    adjust: 'मैप पर समायोजित करें',
+    pick: 'मैप पर चुनें',
+    pickerTitle: 'स्थान चुनें',
+    pickerHint: 'पिन हिलाने के लिए मैप पर टैप करें',
+    useCurrentLocation: 'मेरा मौजूदा स्थान इस्तेमाल करें',
+    usePlace: 'यह स्थान इस्तेमाल करें',
+    zoomIn: 'ज़ूम इन',
+    zoomOut: 'ज़ूम आउट',
   },
   tags: {
     manageTitle: 'टैग और श्रेणियाँ',
@@ -6720,6 +6764,7 @@ const hi: UiStrings = {
     withAdjustments: 'समायोजन के साथ',
     itemized: 'चीज़-वार',
     detailsTab: 'विवरण',
+    note: 'नोट',
     createdByName: '{name} ने बनाया',
     editedByName: '{name} ने बदला',
     noChanges: 'कोई ट्रैक किया गया फ़ील्ड नहीं बदला',
@@ -8239,6 +8284,14 @@ const ar: UiStrings = {
     unavailable: 'تعذّر تحديد الموقع الآن — يُرجى المحاولة مرة أخرى.',
     openSettings: 'فتح الإعدادات',
     openMap: 'فتح في الخرائط',
+    adjust: 'ضبط على الخريطة',
+    pick: 'اختيار على الخريطة',
+    pickerTitle: 'اختر الموقع',
+    pickerHint: 'انقر على الخريطة لتحريك الدبوس',
+    useCurrentLocation: 'استخدام موقعي الحالي',
+    usePlace: 'استخدام هذا المكان',
+    zoomIn: 'تكبير',
+    zoomOut: 'تصغير',
   },
   tags: {
     manageTitle: 'الوسوم والفئات',
@@ -8542,6 +8595,7 @@ const ar: UiStrings = {
     withAdjustments: 'مع تعديلات',
     itemized: 'حسب الأصناف',
     detailsTab: 'التفاصيل',
+    note: 'ملاحظة',
     createdByName: 'أنشأها {name}',
     editedByName: 'عدّلها {name}',
     noChanges: 'لم تتغيّر أي حقول متتبَّعة',

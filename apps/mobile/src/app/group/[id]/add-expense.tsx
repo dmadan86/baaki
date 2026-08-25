@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
@@ -53,6 +53,7 @@ import { CategoryPicker } from '@/components/Category';
 import { TagEditorSheet } from '@/components/TagEditorSheet';
 import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
 import { LocationField } from '@/components/LocationField';
+import { captureLocationIfGranted } from '@/lib/location';
 import { friendlyError } from '@/lib/errors';
 import { COMMON_CURRENCIES, CurrencyRate } from '@/components/CurrencyRate';
 import { AmountHeader } from '@/components/expense/AmountHeader';
@@ -322,6 +323,10 @@ export default function AddExpenseScreen() {
   // taps "Add location" and grants the permission. Kept in the draft so a crash
   // mid-entry does not lose it, and seeded from the version when editing.
   const [location, setLocation] = useState<ExpenseLocation | null>(null);
+  // Whether the one-shot auto-capture below has run for this screen. A ref, not
+  // state: it guards the attempt to a single run without itself forcing a render
+  // (and without a synchronous setState inside the effect).
+  const autoLocatedRef = useRef(false);
 
   // The per-group receipt ceiling. A group holds a few receipts for free (the
   // number is an admin knob); past it, scanning is a paid feature. A paid group
@@ -581,6 +586,32 @@ export default function AddExpenseScreen() {
     },
     { enabled: seededFor !== null },
   );
+
+  // Auto-stamp the current place on a brand-new expense (A43 follow-up), but
+  // only ever when the person already granted location on an earlier explicit
+  // "Add location" — opening this form must never raise a system prompt (the
+  // deferred-permission stance `lib/location` is built around). It runs once,
+  // never on an edit (that expense's place is a decision already made, and it
+  // may have happened elsewhere), never over a capture/voice/draft that already
+  // carried a place, and never over a pin set (or cleared) by hand: the
+  // functional set below drops the fix if a value appeared meanwhile. A denied
+  // or unavailable fix is simply no location, exactly as before.
+  useEffect(() => {
+    if (autoLocatedRef.current || seededFor === null) return;
+    if (editing || captureId || voice) return;
+    // One attempt, whatever the outcome — clearing the pin by hand is never
+    // undone, and a draft/seed that already placed it (checked next) is left be.
+    autoLocatedRef.current = true;
+    if (location) return;
+    let active = true;
+    void captureLocationIfGranted().then((loc) => {
+      // Never override a place set in the meantime — only fill an empty pin.
+      if (active && loc) setLocation((current) => current ?? loc);
+    });
+    return () => {
+      active = false;
+    };
+  }, [seededFor, editing, captureId, voice, location]);
 
   const splitParams: SplitParams = useMemo(() => {
     // "My treat" owes the whole current amount to the host — recomputed live so

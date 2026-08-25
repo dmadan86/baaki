@@ -28,6 +28,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { MapPreview } from '@/components/MapPreview';
 import { ExpenseReceipts } from '@/components/ExpenseReceipts';
 import { ExpenseComments } from '@/components/ExpenseComments';
 import { ExpenseHistory } from '@/components/ExpenseHistory';
@@ -208,6 +209,15 @@ export default function ExpenseDetailScreen() {
   // Where it happened (A43), when the author attached one. A plain snapshot — a
   // tap opens the point in the phone's maps app.
   const location = version.location;
+  // The typed note. It also names the expense in the hero, but that heading is
+  // clamped to a single line while the field is multiline — so a long or
+  // multi-line note is only half-shown up top. Render the full text as a "Note"
+  // row whenever the hero cannot have conveyed all of it (more than one line, or
+  // longer than one fits), so nothing the author typed is lost on this screen.
+  const note = (version.description ?? '').trim();
+  // Roughly one line of the hero heading on a phone; past this the clamp bites.
+  const HERO_TITLE_CLAMP = 30;
+  const showNote = note !== '' && (note.includes('\n') || note.length > HERO_TITLE_CLAMP);
   // The hero is the dashboard/group panel: one saturated wash running edge to
   // edge under the status bar, white controls and amount on it. The expense
   // amount is a total that belongs to nobody — it is not owed or owned — so the
@@ -397,28 +407,31 @@ export default function ExpenseDetailScreen() {
               onLegacyRemoved={() => setReceiptUri(null)}
             />
 
-            {/* Where it happened (A43). A tap opens the point in the phone's maps
-            app; absent when the author attached no location. */}
+            {/* The full note, when the clamped hero heading could not have shown
+            all of it — a multi-line or long description is only half-visible up
+            top, so it gets its own readable, wrapping row here. */}
+            {showNote ? (
+              <View>
+                <SectionHeader title={t.expense.note} />
+                <Card>
+                  <Text variant="body">{note}</Text>
+                </Card>
+              </View>
+            ) : null}
+
+            {/* Where it happened (A43): a little map of the point, and a tap
+            anywhere on the card opens it in the phone's maps app. Absent when
+            the author attached no location. */}
             {location ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t.location.openMap}
                 onPress={() => void Linking.openURL(mapsUrl(location)).catch(() => undefined)}
               >
-                <Card style={{ paddingVertical: theme.spacing.md }}>
+                <Card style={{ gap: theme.spacing.sm, padding: theme.spacing.sm }}>
+                  <MapPreview location={location} accessibilityLabel={t.location.openMap} />
                   <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                    <View
-                      style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: theme.radius.md,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: theme.color.bg,
-                      }}
-                    >
-                      <Ionicons name="location" size={iconSize.lg} color={theme.color.brand} />
-                    </View>
+                    <Ionicons name="location" size={iconSize.md} color={theme.color.brand} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text variant="subheading" numberOfLines={1}>
                         {location.name?.trim() || coordLabel(location)}
