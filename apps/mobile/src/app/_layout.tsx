@@ -579,14 +579,14 @@ function AuthGate() {
           {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
           <Stack.Screen name="capture" options={modal} />
           <Stack.Screen name="captures" />
-          <Stack.Screen name="group/[id]/index" />
+          <Stack.Screen name="group/[id]/index" options={slide} />
           <Stack.Screen name="group/[id]/add-expense" options={slide} />
           <Stack.Screen name="group/[id]/settle" options={modal} />
           <Stack.Screen name="group/[id]/simplify" />
           <Stack.Screen name="group/[id]/settings" />
           <Stack.Screen name="group/[id]/members" />
           <Stack.Screen name="group/[id]/member/[memberId]" />
-          <Stack.Screen name="group/[id]/expense/[expenseId]" />
+          <Stack.Screen name="group/[id]/expense/[expenseId]" options={slide} />
           <Stack.Screen name="group/[id]/invite" options={modal} />
           <Stack.Screen name="group/[id]/itemize" options={modal} />
           <Stack.Screen name="receipt/[id]" options={modal} />
