@@ -38,6 +38,29 @@ export interface GuestGuard {
   blockWrite: () => boolean;
 }
 
+export function createGuestGuard(
+  gate: GuestGate | null,
+  send: (reason: GuestBlock) => void,
+): GuestGuard {
+  const blockAddGroup = (): boolean => {
+    if (!gate) return false;
+    const reason = guestGroupBlock(gate);
+    if (!reason) return false;
+    send(reason);
+    return true;
+  };
+
+  const blockWrite = (): boolean => {
+    if (!gate) return false;
+    const reason = guestWriteBlock(gate);
+    if (!reason) return false;
+    send(reason);
+    return true;
+  };
+
+  return { gate, blockAddGroup, blockWrite };
+}
+
 export function useGuestGuard(): GuestGuard {
   const { isGuest, session } = useAuth();
   const groups = useGroups();
@@ -53,21 +76,5 @@ export function useGuestGuard(): GuestGuard {
     router.push(`/settings/account?reason=${reason}`);
   }, []);
 
-  const blockAddGroup = useCallback((): boolean => {
-    if (!gate) return false;
-    const reason = guestGroupBlock(gate);
-    if (!reason) return false;
-    send(reason);
-    return true;
-  }, [gate, send]);
-
-  const blockWrite = useCallback((): boolean => {
-    if (!gate) return false;
-    const reason = guestWriteBlock(gate);
-    if (!reason) return false;
-    send(reason);
-    return true;
-  }, [gate, send]);
-
-  return { gate, blockAddGroup, blockWrite };
+  return useMemo(() => createGuestGuard(gate, send), [gate, send]);
 }

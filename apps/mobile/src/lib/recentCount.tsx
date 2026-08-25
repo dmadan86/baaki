@@ -23,6 +23,15 @@ import { coerceRecentCount, DEFAULT_RECENT_COUNT, type RecentCount } from '@wave
 
 const KEY = 'recent.count';
 
+export async function loadStoredRecentCount(): Promise<RecentCount> {
+  const saved = await AsyncStorage.getItem(KEY).catch(() => null);
+  return coerceRecentCount(saved);
+}
+
+export async function saveStoredRecentCount(next: RecentCount): Promise<void> {
+  await AsyncStorage.setItem(KEY, String(next)).catch(() => undefined);
+}
+
 interface RecentCountValue {
   /** The chosen size; the default until the stored value loads. */
   count: RecentCount;
@@ -42,9 +51,9 @@ export function RecentCountProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const saved = await AsyncStorage.getItem(KEY).catch(() => null);
+      const saved = await loadStoredRecentCount();
       if (!active) return;
-      if (!dirty.current && saved !== null) setCountState(coerceRecentCount(saved));
+      if (!dirty.current) setCountState(saved);
       setLoading(false);
     })();
     return () => {
@@ -55,7 +64,7 @@ export function RecentCountProvider({ children }: { children: ReactNode }) {
   const setCount = useCallback(async (next: RecentCount) => {
     dirty.current = true;
     setCountState(next);
-    await AsyncStorage.setItem(KEY, String(next)).catch(() => undefined);
+    await saveStoredRecentCount(next);
   }, []);
 
   const value = useMemo<RecentCountValue>(

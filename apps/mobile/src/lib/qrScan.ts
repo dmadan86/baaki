@@ -55,9 +55,11 @@ export function tokenFromScan(data: string): string | null {
   if (scheme === 'https') {
     if (parsed.hostname.toLowerCase() !== INVITE_HOST || path !== '/join') return null;
   } else if (INVITE_SCHEMES.has(scheme)) {
-    // `waves://join?token=…` parses with `join` as the host and an empty path.
+    // `waves://join?token=…` parses with `join` as the host and an empty path;
+    // `waves:///join?token=…` parses with an empty host and `/join` as the path.
+    // Do not accept arbitrary hosts just because their path is `/join`.
     const host = parsed.hostname.toLowerCase();
-    if (host !== 'join' && path !== '/join') return null;
+    if (!((host === 'join' && path === '/') || (host === '' && path === '/join'))) return null;
   } else {
     return null;
   }
@@ -66,10 +68,12 @@ export function tokenFromScan(data: string): string | null {
   // is patchy in the React Native URL polyfill. The fragment is already gone, so
   // the capture cannot run past the query.
   const match = parsed.search.match(/[?&]token=([^&]+)/);
-  if (!match || !match[1]) return null;
+  const rawToken = match?.[1]?.trim();
+  if (!rawToken) return null;
   try {
-    return decodeURIComponent(match[1]);
+    const token = decodeURIComponent(rawToken).trim();
+    return token.length > 0 ? token : null;
   } catch {
-    return match[1];
+    return rawToken;
   }
 }
