@@ -8,11 +8,12 @@
     "start": "next start --port 3100",
     "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage": "vitest run --coverage --passWithNoTests"
   },
   "dependencies": {
-    "@waves/core": "workspace:*",
     "@supabase/supabase-js": "^2.112.3",
+    "@waves/core": "workspace:*",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
     "next": "^16.3.0",

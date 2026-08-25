@@ -9,7 +9,8 @@
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run",
     "e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@waves/api-client": "workspace:*",
