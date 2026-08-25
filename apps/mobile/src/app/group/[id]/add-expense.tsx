@@ -627,7 +627,7 @@ export default function AddExpenseScreen() {
     return (
       <Screen edges={['top', 'bottom']}>
         <View style={{ paddingHorizontal: theme.spacing.xl }}>
-          <ExpenseHeader title={editing ? t.expense.edit : t.addExpense} />
+          <ExpenseHeader leading="back" title={editing ? t.expense.edit : t.addExpense} />
           <View style={{ paddingTop: theme.spacing.xxxl, alignItems: 'center' }}>
             <ActivityIndicator color={theme.color.brand} />
           </View>

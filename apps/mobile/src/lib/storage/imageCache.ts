@@ -15,6 +15,7 @@
  * receipt view.
  */
 
+import { randomUUID } from 'expo-crypto';
 import { fetch as expoFetch } from 'expo/fetch';
 import { Directory, File, Paths } from 'expo-file-system';
 
@@ -22,6 +23,30 @@ import type { LogicalBucket } from './index';
 
 /** Subdirectory under the OS cache dir that holds every cached receipt image. */
 const CACHE_DIR = 'receipt-image-cache';
+
+/**
+ * Write bytes to the cache atomically: to a unique temp sibling first, then move
+ * it onto the final path. A direct `file.write` can leave a truncated file if
+ * the process is killed mid-write, and `cachedImageUri` accepts any existing
+ * file — so a later read would hand back half an image. The move is the last,
+ * near-atomic step, so a reader only ever sees the whole file or none. The temp
+ * name is random so two writers to the same key never collide.
+ */
+function writeAtomic(dir: Directory, file: File, bytes: Uint8Array): void {
+  if (!dir.exists) dir.create({ intermediates: true });
+  const temp = new File(dir, `.${randomUUID()}.tmp`);
+  try {
+    temp.write(bytes);
+    temp.moveSync(file, { overwrite: true });
+  } catch (err) {
+    try {
+      if (temp.exists) temp.delete();
+    } catch {
+      // Best-effort cleanup; a stray temp is reclaimed with the cache dir.
+    }
+    throw err;
+  }
+}
 
 /**
  * A deterministic, filesystem-safe filename for a stored object. The bucket and
@@ -65,13 +90,10 @@ export async function cacheImage(
     const file = fileFor(bucket, path);
     if (file.exists) return file.uri;
 
-    const dir = new Directory(Paths.cache, CACHE_DIR);
-    if (!dir.exists) dir.create({ intermediates: true });
-
     const response = await expoFetch(remoteUrl);
     if (!response.ok) return null;
     const bytes = await response.bytes();
-    file.write(bytes);
+    writeAtomic(new Directory(Paths.cache, CACHE_DIR), file, bytes);
     return file.uri;
   } catch {
     return null;
@@ -91,9 +113,7 @@ export function cacheImageBytes(
 ): string | null {
   try {
     const file = fileFor(bucket, path);
-    const dir = new Directory(Paths.cache, CACHE_DIR);
-    if (!dir.exists) dir.create({ intermediates: true });
-    file.write(bytes);
+    writeAtomic(new Directory(Paths.cache, CACHE_DIR), file, bytes);
     return file.uri;
   } catch {
     return null;

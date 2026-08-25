@@ -181,7 +181,21 @@ export interface FlushResult {
  * the entry to retry; a permanent one (cap, not a party) is dropped with its
  * reason surfaced, so it does not loop forever.
  */
-export async function flushReceiptQueue(): Promise<FlushResult> {
+let inFlight: Promise<FlushResult> | null = null;
+
+export function flushReceiptQueue(): Promise<FlushResult> {
+  // Single-flight: two concurrent flushes would upload the same entries twice,
+  // share one FLUSH_TRANSFER_ID (the first endTransfer clearing the bar mid-way
+  // through the second), and race their write-backs. Callers reconnect and mount
+  // independently, so overlap is real — coalesce them onto one run.
+  if (inFlight) return inFlight;
+  inFlight = runFlush().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runFlush(): Promise<FlushResult> {
   const queue = await readQueue();
   if (queue.length === 0) return { uploadedExpenseIds: [], hadPermanentFailure: false };
   if (!(await isOnline())) return { uploadedExpenseIds: [], hadPermanentFailure: false };
@@ -197,62 +211,75 @@ export async function flushReceiptQueue(): Promise<FlushResult> {
   startTransfer(FLUSH_TRANSFER_ID, queue.length);
   let handled = 0;
 
-  for (const entry of queue) {
-    const file = pendingFile(entry);
-    if (!file.exists) {
-      // The bytes are gone (a wipe, a failed write) — nothing to send; drop it.
-      handled += 1;
-      setTransferProgress(FLUSH_TRANSFER_ID, handled);
-      continue;
-    }
-
-    try {
-      const base64 = await file.base64();
-      await putImage({
-        bucket: 'expense-attachments',
-        path: entry.storagePath,
-        base64,
-        contentType: entry.contentType,
-        groupId: entry.groupId,
-        subjectId: entry.expenseId,
-      });
-      const { error } = await backend.rpc('baaki_attach_expense_attachment', {
-        p_expense_id: entry.expenseId,
-        p_storage_path: entry.storagePath,
-        p_visibility: entry.visibility,
-        p_attachment_id: entry.attachmentId,
-      });
-      if (error) throw new Error(error.message);
-
-      // Uploaded and recorded. Keep it viewable offline by moving the bytes into
-      // the view cache, then delete the pending file.
-      cacheImageBytes('expense-attachments', entry.storagePath, new Uint8Array(decode(base64)));
-      try {
-        file.delete();
-      } catch {
-        // Best-effort; a lingering file is reclaimed with the app's document dir.
+  // The loop sits in try/finally so a throw from pendingFile/file.exists (which
+  // run outside the per-entry try) still ends the transfer — otherwise the bar
+  // sticks on screen at done < total until some later flush completes.
+  try {
+    for (const entry of queue) {
+      const file = pendingFile(entry);
+      if (!file.exists) {
+        // The bytes are gone (a wipe, a failed write) — nothing to send; drop it.
+        handled += 1;
+        setTransferProgress(FLUSH_TRANSFER_ID, handled);
+        continue;
       }
-      uploaded.add(entry.expenseId);
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : String(caught);
-      if (isPermanent(message)) {
-        hadPermanentFailure = true;
+
+      try {
+        const base64 = await file.base64();
+        await putImage({
+          bucket: 'expense-attachments',
+          path: entry.storagePath,
+          base64,
+          contentType: entry.contentType,
+          groupId: entry.groupId,
+          subjectId: entry.expenseId,
+        });
+        const { error } = await backend.rpc('baaki_attach_expense_attachment', {
+          p_expense_id: entry.expenseId,
+          p_storage_path: entry.storagePath,
+          p_visibility: entry.visibility,
+          p_attachment_id: entry.attachmentId,
+        });
+        if (error) throw new Error(error.message);
+
+        // Uploaded and recorded. Keep it viewable offline by moving the bytes into
+        // the view cache, then delete the pending file.
+        cacheImageBytes('expense-attachments', entry.storagePath, new Uint8Array(decode(base64)));
         try {
           file.delete();
         } catch {
-          /* ignore */
+          // Best-effort; a lingering file is reclaimed with the app's document dir.
         }
-        continue; // Drop — a retry would only fail the same way.
+        uploaded.add(entry.expenseId);
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : String(caught);
+        if (isPermanent(message)) {
+          hadPermanentFailure = true;
+          try {
+            file.delete();
+          } catch {
+            /* ignore */
+          }
+          continue; // Drop — a retry would only fail the same way.
+        }
+        // Transient (offline mid-flush, a 5xx): keep it to try again later.
+        remaining.push({ ...entry, attempts: entry.attempts + 1, lastError: message });
+      } finally {
+        handled += 1;
+        setTransferProgress(FLUSH_TRANSFER_ID, handled);
       }
-      // Transient (offline mid-flush, a 5xx): keep it to try again later.
-      remaining.push({ ...entry, attempts: entry.attempts + 1, lastError: message });
-    } finally {
-      handled += 1;
-      setTransferProgress(FLUSH_TRANSFER_ID, handled);
     }
+  } finally {
+    endTransfer(FLUSH_TRANSFER_ID);
   }
 
-  endTransfer(FLUSH_TRANSFER_ID);
-  await writeQueue(remaining);
+  // Re-read before writing back: enqueueReceipt may have appended during the
+  // uploads above, and writing `remaining` alone would silently drop it (its
+  // bytes then orphaned under PENDING_DIR). Keep only the entries this run
+  // handled out of the write, and carry any that arrived meanwhile.
+  const handledIds = new Set(queue.map((entry) => entry.attachmentId));
+  const current = await readQueue();
+  const arrivedDuringFlush = current.filter((entry) => !handledIds.has(entry.attachmentId));
+  await writeQueue([...remaining, ...arrivedDuringFlush]);
   return { uploadedExpenseIds: [...uploaded], hadPermanentFailure };
 }
