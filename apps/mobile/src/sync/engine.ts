@@ -13,7 +13,6 @@
  */
 
 import * as Network from 'expo-network';
-import { randomUUID } from 'expo-crypto';
 import {
   applyOutcomes,
   dialingCodeForCountry,
@@ -33,7 +32,6 @@ import {
   type SyncRejectionCode,
 } from '@waves/core';
 
-import { deviceCountry } from '@/i18n';
 import { reportHandled } from '@/lib/observability';
 import { backend } from '@/lib/backend';
 import { loadSyncNetworkPreference, SyncNetworkPreference } from '@/lib/syncNetwork';
@@ -489,11 +487,17 @@ export class SyncEngine {
   // ─────────────────────────────────────────────── phone healing ──
   // A bare local number ("9535621101") has no country code, and the server
   // refuses it by design (a silent +91 would misroute an invite to a stranger).
-  // Rather than let that surface as a raw banner, the number is read in a known
-  // region — the group's own country first, then the device's — the same
-  // WhatsApp-style default every messaging app on the phone already uses. There
-  // is no blind default: with no region to read it in, the healers do nothing
-  // and the refusal becomes a friendly ask for the country code.
+  // Rather than let that surface as a raw banner, the number is read in the
+  // group's own region — the same WhatsApp-style default every messaging app on
+  // the phone already uses. There is no blind default: with the group carrying
+  // no country the healers do nothing and the refusal becomes a friendly ask.
+  //
+  // The region is deliberately the *group's* country and nothing else: it keeps
+  // this module free of any import that reaches react-native (its `deviceCountry`
+  // lives behind expo-localization + RN's I18nManager, which cannot be parsed by
+  // the pure vitest suite that imports this engine). The device/account fallback
+  // stays where it belongs — the entry-point normalisers in the RN components,
+  // which import react-native legitimately — so nothing here drags it in.
 
   /** The dialing code to read this group's bare numbers in, or null. */
   private regionDialCodeForGroup(groupId: string): string | null {
@@ -501,7 +505,7 @@ export class SyncEngine {
       Record<string, MirrorRow> | undefined;
     const group = groups?.[groupId] as { country_code?: unknown } | undefined;
     const groupCountry = typeof group?.country_code === 'string' ? group.country_code : null;
-    return dialingCodeForCountry(groupCountry ?? deviceCountry());
+    return dialingCodeForCountry(groupCountry);
   }
 
   /**
@@ -528,7 +532,13 @@ export class SyncEngine {
    * A corrected envelope for a refused "add member" whose number only lacked a
    * country code, or null when it cannot (or need not) be healed — a different
    * kind, a different refusal, no region, an already-coded or invalid number.
-   * A fresh id, so the server treats it as the new attempt it is.
+   *
+   * The new client mutation id is derived from the rejected one (`…:healed`)
+   * rather than freshly minted: the server never accepted the original, so this
+   * is genuinely a new attempt (a different id, not a duplicate), while staying
+   * deterministic and free of any UUID source that would reach react-native. The
+   * `memberId` in the payload is carried through unchanged, so the healed add
+   * still lands on the same member the caller chose.
    */
   private healRejectedGhostPhone(entry: {
     mutation: QueuedMutation;
@@ -552,7 +562,7 @@ export class SyncEngine {
     // not re-queue it, or a still-refused number would loop forever.
     if (healed === phone) return null;
     return {
-      clientMutationId: randomUUID(),
+      clientMutationId: `${entry.mutation.clientMutationId}:healed`,
       kind: MutationKind.MemberAddGhost,
       groupId: entry.mutation.groupId,
       clientCreatedAt: new Date().toISOString(),
