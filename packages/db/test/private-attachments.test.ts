@@ -232,6 +232,68 @@ describe('expense attachments', () => {
   });
 });
 
+describe('T17 — the per-expense gallery cap (A46)', () => {
+  const addOne = (eid: string) => attachExpense(eid, `${eid}/${randomUUID()}.webp`, 'group');
+
+  it('a free group is capped at two gallery attachments per expense', async () => {
+    // `g` is an unpaid group; `expenseId` is paid by m0, so m0 is the party.
+    // beforeEach cleared any attachment, so the count starts at zero.
+    await as(g.profileIds[0] as string, () => addOne(expenseId));
+    await as(g.profileIds[0] as string, () => addOne(expenseId));
+    expect(await countAttachments(expenseId)).toBe(2);
+
+    const message = await as(g.profileIds[0] as string, () => expectDenied(addOne(expenseId)));
+    expect(message).toMatch(/ATTACHMENT_CAP/);
+    expect(await countAttachments(expenseId)).toBe(2);
+  });
+
+  it('removing one frees a slot', async () => {
+    await as(g.profileIds[0] as string, () => addOne(expenseId));
+    const { rows } = await as(g.profileIds[0] as string, () => addOne(expenseId));
+    const secondId = rows[0].id as string;
+    // At the cap; a third is refused.
+    expect(await as(g.profileIds[0] as string, () => expectDenied(addOne(expenseId)))).toMatch(
+      /ATTACHMENT_CAP/,
+    );
+    // Remove one → a live count of 1 → the next add is allowed again.
+    await as(g.profileIds[0] as string, () =>
+      client.query(`SELECT baaki_remove_expense_attachment($1)`, [secondId]),
+    );
+    await as(g.profileIds[0] as string, () => addOne(expenseId));
+    // Two live (the first and the re-add); the soft-deleted one is not counted.
+    const live = await client
+      .query(
+        `SELECT count(*)::int AS n FROM expense_attachments
+          WHERE expense_id = $1 AND deleted_at IS NULL`,
+        [expenseId],
+      )
+      .then((r) => r.rows[0].n as number);
+    expect(live).toBe(2);
+  });
+
+  it('a paid group has no attachment cap', async () => {
+    const grp = await seedGroup(client, { memberCount: 1, name: 'PaidGallery' });
+    const { expenseId: eid } = await addEqualSplitExpense(client, {
+      groupId: grp.groupId,
+      payers: { [grp.memberIds[0] as string]: 1000n },
+      participants: grp.memberIds,
+      amount: 1000n,
+    });
+    // One member holds an active subscription → the whole group is paid, so the
+    // cap does not apply (baaki_group_is_paid).
+    await client.query(
+      `INSERT INTO subscriptions (profile_id, tier, period, status, current_period_end, store)
+       VALUES ($1, 'plus', 'monthly', 'active', now() + interval '30 days', 'play')`,
+      [grp.profileIds[0]],
+    );
+
+    for (let i = 0; i < 4; i += 1) {
+      await as(grp.profileIds[0] as string, () => addOne(eid));
+    }
+    expect(await countAttachments(eid)).toBe(4);
+  });
+});
+
 describe('the outer gates', () => {
   it('T6 — anon sees no restricted rows', async () => {
     await as(g.profileIds[0] as string, () =>
