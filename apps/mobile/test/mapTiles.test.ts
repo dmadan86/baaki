@@ -117,6 +117,19 @@ describe('tileGrid', () => {
 
 describe('tileUrl', () => {
   it('fills the z/x/y template', () => {
-    expect(tileUrl(DEFAULT_TILE_URL, 3, 5, 15)).toBe('https://tile.openstreetmap.org/15/3/5.png');
+    // A literal template, not DEFAULT_TILE_URL: this test is about the
+    // substitution, not about which provider the default happens to be.
+    expect(tileUrl('https://tiles.example/{z}/{x}/{y}.png', 3, 5, 15)).toBe(
+      'https://tiles.example/15/3/5.png',
+    );
+  });
+
+  it('defaults to a keyless CARTO basemap, not OSM public tiles (app policy)', () => {
+    // OSM's public server refuses app traffic; the default must not point there.
+    expect(DEFAULT_TILE_URL).toContain('basemaps.cartocdn.com');
+    expect(DEFAULT_TILE_URL).not.toContain('tile.openstreetmap.org');
+    expect(tileUrl(DEFAULT_TILE_URL, 3, 5, 15)).toBe(
+      'https://basemaps.cartocdn.com/light_all/15/3/5.png',
+    );
   });
 });

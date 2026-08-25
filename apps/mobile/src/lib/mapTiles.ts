@@ -9,18 +9,41 @@
  * (no React Native, no network) so the projection round-trips can be tested,
  * and so importing it never drags React Native into the vitest graph.
  *
- * The tile source is swappable: {@link tileUrl} takes a URL template, defaulting
- * to OpenStreetMap's public tiles. That server is keyless but its usage policy
- * discourages heavy app traffic, so a production build should point
- * `EXPO_PUBLIC_MAP_TILE_URL` at a self-hosted or keyed provider — a config step,
- * not a code change.
+ * The tile source is swappable: {@link tileUrl} takes a URL template. The
+ * default is CARTO's keyless raster basemap, which — unlike OpenStreetMap's
+ * public tile server — permits use inside an app without prior arrangement.
+ * OSM's own tiles (tile.openstreetmap.org) are explicitly NOT for apps: its
+ * usage policy bans bulk/app traffic and blocks callers that do not send an
+ * identifying User-Agent, which surfaced in the app as "access blocked — not
+ * following the tile usage policy of OpenStreetMap". CARTO's CDN avoids that.
+ * A production build with real volume should still point
+ * `EXPO_PUBLIC_MAP_TILE_URL` at a self-hosted or keyed provider — a config
+ * step, not a code change — and {@link TILE_HEADERS} is sent on every request
+ * so whichever provider is configured sees a real, identifying User-Agent.
  */
 
 /** Every raster tile is 256×256 device-independent pixels. */
 export const TILE_SIZE = 256;
 
-/** OpenStreetMap's public tiles: keyless, attributed "© OpenStreetMap". */
-export const DEFAULT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+/**
+ * CARTO's keyless "positron" (light) basemap: a CDN that tolerates app traffic,
+ * built from OpenStreetMap data. Keep {@link TILE_ATTRIBUTION} shown alongside.
+ */
+export const DEFAULT_TILE_URL = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+
+/** Credit required by the tile licence: OSM for the data, CARTO for the tiles. */
+export const TILE_ATTRIBUTION = '© OpenStreetMap © CARTO';
+
+/**
+ * Headers sent with every tile request. A real, identifying User-Agent is
+ * required by OpenStreetMap's tile policy and is good citizenship with any
+ * provider — the default `okhttp`/blank UA a bare `<Image>` sends is exactly
+ * what OSM's server refuses. Referenced by both map surfaces so the two never
+ * drift.
+ */
+export const TILE_HEADERS: Record<string, string> = {
+  'User-Agent': 'WavesApp/1.0 (+https://waves.app; expense location map)',
+};
 
 /** The latitudes Web Mercator can represent; beyond this the projection blows up. */
 export const MAX_MERCATOR_LAT = 85.05112878;

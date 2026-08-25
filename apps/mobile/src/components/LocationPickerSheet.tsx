@@ -35,6 +35,8 @@ import {
   DEFAULT_ZOOM,
   type LatLng,
   offsetLatLng,
+  TILE_ATTRIBUTION,
+  TILE_HEADERS,
   TILE_SIZE,
   tileGrid,
   tileUrl,
@@ -185,7 +187,7 @@ export function LocationPickerSheet({
             {tiles.map((tile) => (
               <Image
                 key={`${tile.x}-${tile.y}-${tile.left}`}
-                source={{ uri: tileUrl(TILE_URL, tile.x, tile.y, zoom) }}
+                source={{ uri: tileUrl(TILE_URL, tile.x, tile.y, zoom), headers: TILE_HEADERS }}
                 style={{
                   position: 'absolute',
                   left: tile.left,
@@ -256,7 +258,7 @@ export function LocationPickerSheet({
             ))}
           </View>
 
-          {/* Attribution — required by the OpenStreetMap tile licence. */}
+          {/* Attribution — required by the tile licence (OSM data, CARTO tiles). */}
           <View
             pointerEvents="none"
             style={{
@@ -270,7 +272,7 @@ export function LocationPickerSheet({
             }}
           >
             <Text variant="micro" style={{ color: '#333', fontSize: 9 }}>
-              © OpenStreetMap
+              {TILE_ATTRIBUTION}
             </Text>
           </View>
         </View>
