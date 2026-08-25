@@ -304,7 +304,8 @@ export default function ExpenseDetailScreen() {
             marginHorizontal: -theme.spacing.xl,
             paddingTop: insets.top + theme.spacing.md,
             paddingHorizontal: theme.spacing.xl,
-            paddingBottom: theme.spacing.xl,
+            // Match the dashboard/group hero height: lg bottom padding, not xl.
+            paddingBottom: theme.spacing.lg,
             borderBottomLeftRadius: theme.radius.xxl,
             borderBottomRightRadius: theme.radius.xxl,
             gap: theme.spacing.lg,

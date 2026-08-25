@@ -590,7 +590,9 @@ export default function GroupScreen() {
                   marginHorizontal: -theme.spacing.xl,
                   paddingTop: insets.top + theme.spacing.md,
                   paddingHorizontal: theme.spacing.xl,
-                  paddingBottom: theme.spacing.xl,
+                  // Match the dashboard hero's bottom padding so the three heroes
+                  // are the same height (dashboard is lg, not xl).
+                  paddingBottom: theme.spacing.lg,
                   borderBottomLeftRadius: theme.radius.xxl,
                   borderBottomRightRadius: theme.radius.xxl,
                   gap: theme.spacing.xl,
