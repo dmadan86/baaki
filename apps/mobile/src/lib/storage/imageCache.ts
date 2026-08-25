@@ -67,6 +67,23 @@ function fileFor(bucket: LogicalBucket, path: string): File {
   return new File(Paths.cache, CACHE_DIR, name);
 }
 
+function fileSize(file: File): number {
+  const size = (file as unknown as { size?: unknown }).size;
+  return typeof size === 'number' ? size : 0;
+}
+
+function isNonEmptyFile(file: File): boolean {
+  return file.exists && fileSize(file) > 0;
+}
+
+function deleteIfExists(file: File): void {
+  try {
+    if (file.exists) file.delete();
+  } catch {
+    // Best-effort cache cleanup.
+  }
+}
+
 /**
  * The local `file://` for a cached object, or null when it is not on disk. Sync
  * and cheap (a stat), so a resolver can check it first on every render before
@@ -77,7 +94,7 @@ export function cachedImageUri(bucket: LogicalBucket, path: string | null): stri
   if (!key) return null;
   try {
     const file = fileFor(bucket, key);
-    return file.exists ? file.uri : null;
+    return isNonEmptyFile(file) ? file.uri : null;
   } catch {
     return null;
   }
@@ -98,7 +115,8 @@ export async function cacheImage(
   if (!key) return null;
   try {
     const file = fileFor(bucket, key);
-    if (file.exists) return file.uri;
+    if (isNonEmptyFile(file)) return file.uri;
+    if (file.exists) deleteIfExists(file);
 
     const inFlightKey = file.uri;
     const existing = inFlightDownloads.get(inFlightKey);

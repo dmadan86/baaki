@@ -442,17 +442,17 @@ export class SyncEngine {
       // those memos stay put. When changes did land — or the cursors or queue
       // actually moved — this is exactly the old path: a new mirror, the folded
       // queue.
-      const nothingApplied = changes.length === 0;
+      const mirrorChanged = changes.length > merged.skipped;
+      const cursorsChanged = !sameCursors(this.state.mirror.cursors, nextCursors);
       const mirror: MirrorState =
-        nothingApplied && sameCursors(this.state.mirror.cursors, nextCursors)
+        !mirrorChanged && !cursorsChanged
           ? this.state.mirror
           : { cursors: nextCursors, tables: merged.state.tables };
       const queue =
         folded.rejected.length === 0 && sameQueue(this.state.queue, folded.queue)
           ? this.state.queue
           : folded.queue;
-      const madeProgress =
-        changes.length > 0 || !sameCursors(this.state.mirror.cursors, nextCursors);
+      const madeProgress = mirrorChanged || cursorsChanged;
 
       await this.persist(changes, mirror, queue);
 

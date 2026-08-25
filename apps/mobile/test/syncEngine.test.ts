@@ -477,6 +477,62 @@ describe('background poll performance', () => {
       vi.useRealTimers();
     }
   });
+
+  it('does not schedule another immediate pull for a nonempty stale hasMore page', async () => {
+    vi.useFakeTimers();
+    try {
+      online();
+      h.disk.cursors = { 'g-goa': 2 };
+      h.disk.rows.set('groups:g-goa', {
+        table: 'groups',
+        id: 'g-goa',
+        groupId: 'g-goa',
+        seq: 1,
+        row: {
+          id: 'g-goa',
+          name: 'Goa Trip',
+          default_currency: 'INR',
+          created_at: '2026-08-01T00:00:00.000Z',
+          archived_at: null,
+        },
+      });
+      h.invoke.mockResolvedValue({
+        data: {
+          outcomes: [],
+          changes: [
+            {
+              table: 'groups',
+              groupId: 'g-goa',
+              seq: 1,
+              row: {
+                id: 'g-goa',
+                name: 'Goa Trip',
+                default_currency: 'INR',
+                created_at: '2026-08-01T00:00:00.000Z',
+                archived_at: null,
+              },
+            },
+          ],
+          cursors: { 'g-goa': 2 },
+          serverTime: 'stale-row-page',
+          hasMore: true,
+        },
+        error: null,
+      });
+      const engine = new SyncEngine();
+      await engine.hydrate();
+      const before = engine.getState().mirror;
+
+      await engine.flush();
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(h.invoke).toHaveBeenCalledTimes(1);
+      expect(engine.getState().mirror).toBe(before);
+      expect(engine.getState().lastSyncedAt).toBe('stale-row-page');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('queue and draft controls', () => {

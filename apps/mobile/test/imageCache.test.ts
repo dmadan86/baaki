@@ -41,6 +41,10 @@ class FakeFile {
     return fs.files.has(this.uri);
   }
 
+  get size(): number {
+    return fs.files.get(this.uri)?.byteLength ?? 0;
+  }
+
   write(bytes: Uint8Array): void {
     if (fs.failWrite) throw new Error('write failed');
     fs.files.set(this.uri, new Uint8Array(bytes));
@@ -133,6 +137,19 @@ describe('image cache', () => {
     expect(second).toBe(first);
     expect(fs.fetch).toHaveBeenCalledTimes(1);
     expect([...fs.files.keys()].filter((key) => key.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('treats an existing empty cache file as a miss and replaces it', async () => {
+    fs.files.set(cachedPath('g1/empty-existing.png'), new Uint8Array([]));
+    fs.fetch.mockResolvedValue({ ok: true, bytes: async () => new Uint8Array([4, 5, 6]) });
+
+    expect(cachedImageUri('expense-attachments', 'g1/empty-existing.png')).toBeNull();
+    await expect(
+      cacheImage('expense-attachments', 'g1/empty-existing.png', 'https://signed.example/retry'),
+    ).resolves.toBe(cachedPath('g1/empty-existing.png'));
+
+    expect(fs.fetch).toHaveBeenCalledTimes(1);
+    expect(Array.from(fs.files.get(cachedPath('g1/empty-existing.png')) ?? [])).toEqual([4, 5, 6]);
   });
 
   it('dedupes concurrent downloads for the same cache key', async () => {
