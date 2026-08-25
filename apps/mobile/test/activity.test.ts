@@ -14,7 +14,15 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { dayHeading, dayKey, describeActivity, relativeTime, verbIcon } from '@/data/activity';
+import {
+  activityDateSpan,
+  dayHeading,
+  dayKey,
+  describeActivity,
+  filterByDayRange,
+  relativeTime,
+  verbIcon,
+} from '@/data/activity';
 import type { ActivityActor, ActivityRow } from '@/data/types';
 
 const RAVI: ActivityActor = {
@@ -286,5 +294,77 @@ describe('dayHeading', () => {
   it('keys entries by local calendar day', () => {
     expect(dayKey('2026-08-15T00:10:00')).toBe(dayKey('2026-08-15T23:50:00'));
     expect(dayKey('2026-08-14T23:50:00')).not.toBe(dayKey('2026-08-15T00:10:00'));
+  });
+});
+
+/**
+ * The date filter over the feed.
+ *
+ * The two properties that must hold are the picker clamp — the selectable span
+ * is exactly the feed's own start and end — and the cut agreeing with the day
+ * headings: a row is kept by its calendar day, so its time of day never trims
+ * it, and a range picked end-first still works.
+ */
+describe('activityDateSpan', () => {
+  const at = (iso: string) => ({ created_at: iso });
+
+  it('returns the earliest and latest calendar day in the feed', () => {
+    const span = activityDateSpan([
+      at('2026-08-10T09:00:00'),
+      at('2026-08-06T23:00:00'),
+      at('2026-08-14T01:00:00'),
+    ]);
+    expect(span).not.toBeNull();
+    // Anchored at local noon on the first and last day present.
+    expect(span?.earliest.getFullYear()).toBe(2026);
+    expect(span?.earliest.getMonth()).toBe(7); // August (0-based)
+    expect(span?.earliest.getDate()).toBe(6);
+    expect(span?.earliest.getHours()).toBe(12);
+    expect(span?.latest.getDate()).toBe(14);
+    expect(span?.latest.getHours()).toBe(12);
+  });
+
+  it('is null for an empty feed — nothing to clamp', () => {
+    expect(activityDateSpan([])).toBeNull();
+  });
+
+  it('skips unparseable timestamps', () => {
+    const span = activityDateSpan([at('not-a-date'), at('2026-08-09T10:00:00')]);
+    expect(span?.earliest.getDate()).toBe(9);
+    expect(span?.latest.getDate()).toBe(9);
+  });
+});
+
+describe('filterByDayRange', () => {
+  const at = (id: string, iso: string) => ({ id, created_at: iso });
+  const day = (iso: string) => new Date(`${iso}T12:00:00`);
+
+  const feed = [
+    at('a', '2026-08-05T08:00:00'),
+    at('b', '2026-08-08T23:30:00'),
+    at('c', '2026-08-10T00:10:00'),
+    at('d', '2026-08-14T15:00:00'),
+  ];
+
+  it('keeps only the rows whose day is inside the range, inclusive', () => {
+    const kept = filterByDayRange(feed, day('2026-08-08'), day('2026-08-10')).map((r) => r.id);
+    expect(kept).toEqual(['b', 'c']);
+  });
+
+  it('treats a single day as a one-day range regardless of the time of day', () => {
+    // Row c is at 00:10 — still kept when the picked day is 2026-08-10.
+    const kept = filterByDayRange(feed, day('2026-08-10'), day('2026-08-10')).map((r) => r.id);
+    expect(kept).toEqual(['c']);
+  });
+
+  it('orders the ends defensively — an end-first range works the same', () => {
+    const forward = filterByDayRange(feed, day('2026-08-05'), day('2026-08-08')).map((r) => r.id);
+    const backward = filterByDayRange(feed, day('2026-08-08'), day('2026-08-05')).map((r) => r.id);
+    expect(backward).toEqual(forward);
+    expect(forward).toEqual(['a', 'b']);
+  });
+
+  it('returns nothing when the range misses every row', () => {
+    expect(filterByDayRange(feed, day('2026-08-11'), day('2026-08-13'))).toEqual([]);
   });
 });

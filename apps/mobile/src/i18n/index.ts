@@ -1780,6 +1780,24 @@ export interface UiStrings {
     remindZoneNote: string;
     useMyTimezone: string;
   };
+  /** The Activity feed's date-range filter — narrowing a long feed to a span. */
+  activityFilter: {
+    /** Icon-button accessibility label and the range sheet's title. */
+    open: string;
+    /** The start-of-range field. */
+    from: string;
+    /** The end-of-range field. */
+    to: string;
+    /** Commits the picked range and closes the sheet. */
+    apply: string;
+    /** Drops the range and restores the full feed. */
+    clear: string;
+    /** Accessibility label on the active-range chip's ✕. */
+    clearFilter: string;
+    /** Empty state when a range is active but nothing falls in it. */
+    noneTitle: string;
+    noneBody: string;
+  };
   /** Somebody saying an expense is wrong, and the answer to it. */
   dispute: {
     yourReply: string;
@@ -3518,6 +3536,16 @@ const en: UiStrings = {
     removeName: 'Remove {name}',
     remindZoneNote: 'Asked in {zone} — where the trip is, not where each person is.',
     useMyTimezone: 'Use my timezone ({zone})',
+  },
+  activityFilter: {
+    open: 'Filter by date',
+    from: 'From',
+    to: 'To',
+    apply: 'Show results',
+    clear: 'Clear',
+    clearFilter: 'Clear date filter',
+    noneTitle: 'Nothing in this range',
+    noneBody: 'No activity falls on the dates you picked. Try a wider range or clear the filter.',
   },
   dispute: {
     yourReply: 'Your reply',
@@ -5349,6 +5377,17 @@ const ta: UiStrings = {
       '{zone} இல் கேட்கப்படுகிறது — பயணம் இருக்கும் இடம், ஒவ்வொருவரும் இருக்கும் இடம் அல்ல.',
     useMyTimezone: 'என் நேர மண்டலத்தைப் பயன்படுத்து ({zone})',
   },
+  activityFilter: {
+    open: 'தேதி வாரியாக வடிகட்டு',
+    from: 'முதல்',
+    to: 'வரை',
+    apply: 'முடிவுகளைக் காட்டு',
+    clear: 'அழி',
+    clearFilter: 'தேதி வடிப்பானை அழி',
+    noneTitle: 'இந்த வரம்பில் ஒன்றுமில்லை',
+    noneBody:
+      'நீங்கள் தேர்ந்தெடுத்த தேதிகளில் எந்தச் செயல்பாடும் இல்லை. பரந்த வரம்பை முயற்சிக்கவும் அல்லது வடிப்பானை அழிக்கவும்.',
+  },
   dispute: {
     yourReply: 'உங்கள் பதில்',
     replyPlaceholder: 'விருப்பம் — உண்மையில் என்ன நடந்தது',
@@ -7117,6 +7156,16 @@ const hi: UiStrings = {
     removeName: '{name} को हटाएँ',
     remindZoneNote: '{zone} में पूछा जाता है — जहाँ यात्रा है, न कि जहाँ हर कोई है।',
     useMyTimezone: 'मेरा टाइमज़ोन इस्तेमाल करें ({zone})',
+  },
+  activityFilter: {
+    open: 'तारीख़ से छाँटें',
+    from: 'से',
+    to: 'तक',
+    apply: 'नतीजे दिखाएँ',
+    clear: 'हटाएँ',
+    clearFilter: 'तारीख़ फ़िल्टर हटाएँ',
+    noneTitle: 'इस दायरे में कुछ नहीं',
+    noneBody: 'आपकी चुनी तारीख़ों में कोई गतिविधि नहीं है. बड़ा दायरा चुनें या फ़िल्टर हटाएँ.',
   },
   dispute: {
     yourReply: 'आपका जवाब',
@@ -9058,6 +9107,16 @@ const ar: UiStrings = {
     removeName: 'إزالة {name}',
     remindZoneNote: 'يُسأل بتوقيت {zone} — حيث الرحلة، لا حيث كل شخص.',
     useMyTimezone: 'استخدم منطقتي الزمنية ({zone})',
+  },
+  activityFilter: {
+    open: 'التصفية حسب التاريخ',
+    from: 'من',
+    to: 'إلى',
+    apply: 'عرض النتائج',
+    clear: 'مسح',
+    clearFilter: 'مسح تصفية التاريخ',
+    noneTitle: 'لا شيء في هذا النطاق',
+    noneBody: 'لا يوجد نشاط في التواريخ التي اخترتها. جرّب نطاقًا أوسع أو امسح التصفية.',
   },
   dispute: {
     yourReply: 'ردّك',

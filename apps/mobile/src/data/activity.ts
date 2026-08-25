@@ -273,6 +273,64 @@ export function groupByDay<T extends { created_at: string }>(
   return sections;
 }
 
+/**
+ * The earliest and latest calendar day present in a feed, each as a local Date
+ * anchored at noon (a date-only value a picker is happy to seed from). Null for
+ * an empty feed.
+ *
+ * This is what the Activity filter clamps its range picker to: the selectable
+ * span is exactly the feed's own start and end, so a day before the first event
+ * or after the last cannot be picked. The bounds come from the rows'
+ * `created_at` read in the phone's own timezone — the same convention
+ * `groupByDay`/`dayHeading` bucket by — so the picker and the day headings
+ * agree on which day a timestamp belongs to. Noon, not midnight, so the anchor
+ * can never slip to the neighbouring day when the picker re-reads it locally.
+ */
+export function activityDateSpan(
+  entries: readonly { created_at: string }[],
+): { earliest: Date; latest: Date } | null {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const entry of entries) {
+    const parsed = Date.parse(entry.created_at);
+    if (!Number.isFinite(parsed)) continue;
+    if (parsed < min) min = parsed;
+    if (parsed > max) max = parsed;
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  const noon = (ms: number): Date => {
+    const d = new Date(ms);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+  };
+  return { earliest: noon(min), latest: noon(max) };
+}
+
+/**
+ * The rows whose calendar day falls within `[start, end]` inclusive, compared
+ * in the phone's own timezone so the cut agrees with the day headings above it.
+ * The bounds are taken at day granularity — a row's time of day never trims it —
+ * and the two ends are ordered defensively, so a range picked end-first still
+ * yields the same window. A pure cut on the already-loaded feed: no fetch, the
+ * whole history is on the phone (the mirror).
+ */
+export function filterByDayRange<T extends { created_at: string }>(
+  entries: readonly T[],
+  start: Date,
+  end: Date,
+): T[] {
+  const midnight = (d: Date): number =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const lo = Math.min(midnight(start), midnight(end));
+  const hi = Math.max(midnight(start), midnight(end));
+  return entries.filter((entry) => {
+    const parsed = Date.parse(entry.created_at);
+    if (!Number.isFinite(parsed)) return false;
+    const when = new Date(parsed);
+    const day = new Date(when.getFullYear(), when.getMonth(), when.getDate()).getTime();
+    return day >= lo && day <= hi;
+  });
+}
+
 export function relativeTime(locale: string, iso: string, now: number = Date.now()): string {
   const parsed = Date.parse(iso);
   if (!Number.isFinite(parsed)) return iso;
