@@ -24,8 +24,39 @@ import { Platform } from 'react-native';
  */
 const ENOUGH_TEXT = 40;
 
-/** At least a few numbers, or this is not a bill. */
-const LOOKS_LIKE_A_BILL = /\d[\d.,]*\s*$|\d+\.\d{2}/m;
+/**
+ * Bound the text sent to the parser. A corrupted OCR result can otherwise build
+ * a huge string on the JS thread and, later, burn cloud-parser tokens.
+ */
+const MAX_OCR_CHARS = 20_000;
+
+const RECEIPT_KEYWORD =
+  /\b(total|grand total|subtotal|amount due|net payable|tax|gst|vat|balance|paid)\b/i;
+const CURRENCY_AMOUNT = /(?:₹|rs\.?|inr|\$|usd|€|eur|£|gbp|aed|د\.إ)\s*\d[\d,]*(?:\.\d{1,2})?/i;
+const DECIMAL_AMOUNT = /\b\d{1,3}(?:,\d{2,3})*(?:\.\d{2})\b/;
+const INTEGER_AMOUNT_LINE = /\b\d{1,3}(?:,\d{2,3})+\b/;
+
+function normaliseBlockText(value: unknown): string {
+  return typeof value === 'string'
+    ? value
+        .normalize('NFKC')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .trim()
+    : '';
+}
+
+function looksLikeReceipt(text: string, lines: readonly string[]): boolean {
+  const amountLines = lines.filter(
+    (line) =>
+      CURRENCY_AMOUNT.test(line) || DECIMAL_AMOUNT.test(line) || INTEGER_AMOUNT_LINE.test(line),
+  ).length;
+  return (
+    CURRENCY_AMOUNT.test(text) ||
+    (RECEIPT_KEYWORD.test(text) && amountLines >= 1) ||
+    amountLines >= 3
+  );
+}
 
 export interface OcrResult {
   readonly text: string;
@@ -49,13 +80,19 @@ export async function recogniseReceipt(uri: string): Promise<OcrResult | null> {
     const { default: TextRecognition } = await import('@react-native-ml-kit/text-recognition');
     const result = await TextRecognition.recognize(uri);
 
-    const text = (result.blocks ?? [])
-      .map((block) => (block && typeof block.text === 'string' ? block.text.trim() : ''))
-      .filter((line) => line.length > 0)
-      .join('\n');
+    const lines = (result.blocks ?? [])
+      .map((block) => normaliseBlockText(block?.text))
+      .filter((line) => line.length > 0);
+    const text = lines.join('\n');
 
-    if (text.length < ENOUGH_TEXT || !LOOKS_LIKE_A_BILL.test(text)) return null;
-    return { text, lines: result.blocks?.length ?? 0 };
+    if (
+      text.length < ENOUGH_TEXT ||
+      text.length > MAX_OCR_CHARS ||
+      !looksLikeReceipt(text, lines)
+    ) {
+      return null;
+    }
+    return { text, lines: lines.length };
   } catch {
     // No native module in this build, an unsupported script, a corrupt file —
     // all of them mean the same thing here: use the image.
