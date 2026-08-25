@@ -9,16 +9,22 @@ _transform: true
 #   /functions/v1/*  -> Edge runtime
 #
 # The two consumers below carry the anon and service_role JWTs. key-auth reads
-# the `apikey` header supabase-js sends; the acl plugin then scopes which routes
-# each key may reach. These keys are swapped in by `docker compose` from .env.
+# the apikey header supabase-js sends; the acl plugin then scopes which routes
+# each key may reach. Kong 2.8 does not expand variables in a declarative file,
+# so this file is a TEMPLATE: the kong service entrypoint renders it at start
+# and substitutes the two SUPABASE keys below before Kong reads it.
+#
+# Because that rendering step evaluates the whole file, keep it free of any
+# backtick, double-quote or stray dollar sign outside the two key lines below,
+# or the render will choke on them.
 
 consumers:
   - username: anon
     keyauth_credentials:
-      - key: ${ANON_KEY}
+      - key: $SUPABASE_ANON_KEY
   - username: service_role
     keyauth_credentials:
-      - key: ${SERVICE_ROLE_KEY}
+      - key: $SUPABASE_SERVICE_KEY
 
 acls:
   - consumer: anon
