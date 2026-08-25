@@ -213,6 +213,47 @@ export function ExpenseComments({
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
+      {/* Composer first: writing a comment is what you came here to do, so the
+          field leads and the thread you're replying to sits beneath it. */}
+      <Row style={{ gap: 10, alignItems: 'flex-end' }}>
+        <Avatar name={nameOf(myMemberId)} size={AVATAR} />
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onFocus={onComposerFocus}
+          multiline
+          placeholder={t.comments.placeholder}
+          placeholderTextColor={theme.color.textFaint}
+          style={fieldStyle}
+          accessibilityLabel={t.comments.placeholder}
+        />
+        <Pressable
+          onPress={submit}
+          disabled={add.isPending || draft.trim() === ''}
+          accessibilityRole="button"
+          accessibilityLabel={t.comments.post}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor:
+              draft.trim() === '' ? theme.color.surfaceMuted : theme.color.buttonPrimary,
+          }}
+        >
+          {add.isPending ? (
+            <ActivityIndicator color={theme.color.onBrand} />
+          ) : (
+            <Ionicons
+              name="arrow-up"
+              size={iconSize.md}
+              color={draft.trim() === '' ? theme.color.textFaint : theme.color.onBrand}
+            />
+          )}
+        </Pressable>
+      </Row>
+
       {hidden > 0 ? (
         <Pressable
           onPress={() => setVisibleCount((c) => c + PAGE)}
@@ -231,9 +272,29 @@ export function ExpenseComments({
       ) : null}
 
       {rows.length === 0 ? (
-        <Text variant="caption" tone="muted">
-          {t.comments.empty}
-        </Text>
+        // A centred icon-over-title-over-subtitle empty state (the pattern most
+        // comment threads use), so a bill with no discussion reads as an
+        // invitation, not a bare line of grey text.
+        <View
+          style={{ alignItems: 'center', gap: theme.spacing.sm, paddingVertical: theme.spacing.xl }}
+        >
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.color.surfaceMuted,
+            }}
+          >
+            <Ionicons name="chatbubbles-outline" size={26} color={theme.color.textMuted} />
+          </View>
+          <Text variant="heading">{t.comments.emptyTitle}</Text>
+          <Text variant="caption" tone="muted">
+            {t.comments.empty}
+          </Text>
+        </View>
       ) : (
         shown.map((row) => {
           const mine = myMemberId !== null && row.authorMemberId === myMemberId;
@@ -307,46 +368,6 @@ export function ExpenseComments({
           );
         })
       )}
-
-      {/* Composer — a pinned pill: your avatar, a rounded field, a round send. */}
-      <Row style={{ gap: 10, alignItems: 'flex-end', paddingTop: theme.spacing.xs }}>
-        <Avatar name={nameOf(myMemberId)} size={AVATAR} />
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          onFocus={onComposerFocus}
-          multiline
-          placeholder={t.comments.placeholder}
-          placeholderTextColor={theme.color.textFaint}
-          style={fieldStyle}
-          accessibilityLabel={t.comments.placeholder}
-        />
-        <Pressable
-          onPress={submit}
-          disabled={add.isPending || draft.trim() === ''}
-          accessibilityRole="button"
-          accessibilityLabel={t.comments.post}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor:
-              draft.trim() === '' ? theme.color.surfaceMuted : theme.color.buttonPrimary,
-          }}
-        >
-          {add.isPending ? (
-            <ActivityIndicator color={theme.color.onBrand} />
-          ) : (
-            <Ionicons
-              name="arrow-up"
-              size={iconSize.md}
-              color={draft.trim() === '' ? theme.color.textFaint : theme.color.onBrand}
-            />
-          )}
-        </Pressable>
-      </Row>
     </View>
   );
 }
