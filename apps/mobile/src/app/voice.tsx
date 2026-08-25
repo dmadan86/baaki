@@ -57,6 +57,7 @@ import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
 import { LocationField } from '@/components/LocationField';
+import { captureLocation, locationAvailable } from '@/lib/location';
 import { parseVoiceExpenses, type VoiceGroupRef, type VoiceParseResult } from '@/lib/voiceExpense';
 import { interpretVoiceExpenses } from '@/lib/voiceLlm';
 
@@ -139,6 +140,12 @@ export default function VoiceScreen() {
   // over navigation — so the leave-guard below stands aside instead of writing
   // the captures a second time.
   const committed = useRef(false);
+  // The review reads the current location once, on its own, so the batch is
+  // filed where it happened without the reader having to ask for it — a spoken
+  // expense is nearly always logged on the spot. Latched so the read fires once
+  // per batch (not on every render, and not again after the reader clears or
+  // adjusts the pin); reset when a fresh parse opens a new review.
+  const autoLocated = useRef(false);
 
   const navigation = useNavigation();
 
@@ -167,8 +174,10 @@ export default function VoiceScreen() {
         currency: item.currency,
       })),
     );
-    // A fresh parse is a fresh group to create.
+    // A fresh parse is a fresh group to create, and a fresh location to read.
     groupCreated.current = false;
+    autoLocated.current = false;
+    setLocation(null);
     // Default the destination to what was heard: a new group to make, an
     // existing group named, else the capture inbox.
     if (result.group?.kind === 'create') {
@@ -209,6 +218,7 @@ export default function VoiceScreen() {
     setError(null);
     setRequested(null);
     groupCreated.current = false;
+    autoLocated.current = false;
     setPhase('listening');
     setAttempt((current) => current + 1);
   };
@@ -296,6 +306,22 @@ export default function VoiceScreen() {
     t.couldNotSave,
     t.voice.draftNeedsAmounts,
   ]);
+
+  // On opening the review, read the current location once and pin the batch to
+  // it — so the map shows and the place is saved by default, no tap needed. It
+  // asks for permission just-in-time; a refusal or an unavailable fix leaves the
+  // field on its manual "Add location" / "Pick on map" buttons rather than
+  // failing loudly. Never overrides a pin the reader has since set or cleared:
+  // the latch runs it exactly once per parsed batch.
+  useEffect(() => {
+    if (phase !== 'review' || autoLocated.current) return;
+    autoLocated.current = true;
+    if (!locationAvailable()) return;
+    void (async () => {
+      const result = await captureLocation();
+      if (result.ok) setLocation(result.location);
+    })();
+  }, [phase]);
 
   const save = async (): Promise<void> => {
     setError(null);
