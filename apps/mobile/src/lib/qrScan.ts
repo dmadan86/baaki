@@ -68,11 +68,12 @@ export function tokenFromScan(data: string): string | null {
   // is patchy in the React Native URL polyfill. The fragment is already gone, so
   // the capture cannot run past the query.
   const match = parsed.search.match(/[?&]token=([^&]+)/);
-  if (!match || !match[1]) return null;
+  const rawToken = match?.[1]?.trim();
+  if (!rawToken) return null;
   try {
-    const token = decodeURIComponent(match[1]).trim();
+    const token = decodeURIComponent(rawToken).trim();
     return token.length > 0 ? token : null;
   } catch {
-    return match[1].trim().length > 0 ? match[1] : null;
+    return rawToken;
   }
 }

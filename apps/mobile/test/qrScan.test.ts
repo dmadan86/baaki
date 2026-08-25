@@ -66,8 +66,9 @@ describe('tokenFromScan', () => {
     expect(tokenFromScan('https://baaki.app/join?other=1&token=abc#frag')).toBe('abc');
   });
 
-  it('keeps malformed percent-encoding as the raw non-empty token', () => {
+  it('keeps malformed percent-encoding as the trimmed raw non-empty token', () => {
     expect(tokenFromScan('https://baaki.app/join?token=%E0%A4%A')).toBe('%E0%A4%A');
+    expect(tokenFromScan('https://baaki.app/join?token=%E0%A4%A%20')).toBe('%E0%A4%A%20');
   });
 
   it('rejects non-invite QR payloads quickly even in a large scan batch', () => {
