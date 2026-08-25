@@ -10,7 +10,13 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { addEqualSplitExpense, connect, expectDenied, seedGroup } from './helpers';
+import {
+  addEqualSplitExpense,
+  connect,
+  expectDenied,
+  seedCommittedObject,
+  seedGroup,
+} from './helpers';
 
 let client: Client;
 
@@ -85,16 +91,37 @@ beforeEach(async () => {
   await client.query(`DELETE FROM expense_attachments WHERE group_id = $1`, [g.groupId]);
 });
 
-const attachProof = (sid: string, path: string, id: string | null = null) =>
-  client.query(`SELECT baaki_attach_settlement_proof($1, $2, $3) AS id`, [sid, path, id]);
+// The attach RPCs now require a committed `storage_objects` row at the key (the
+// real client uploads via r2-sign's put + commit first). Seed that row before
+// each attach; a call meant to fail earlier (non-party, bad path) simply never
+// reaches the committed-object check, so seeding is harmless there.
+const attachProof = async (sid: string, path: string, id: string | null = null) => {
+  await seedCommittedObject(client, {
+    bucket: 'settlement-proofs',
+    path,
+    ownerProfileId: g.profileIds[0] as string,
+  });
+  return client.query(`SELECT baaki_attach_settlement_proof($1, $2, $3) AS id`, [sid, path, id]);
+};
 
-const attachExpense = (eid: string, path: string, visibility: string, id: string | null = null) =>
-  client.query(`SELECT baaki_attach_expense_attachment($1, $2, $3, $4) AS id`, [
+const attachExpense = async (
+  eid: string,
+  path: string,
+  visibility: string,
+  id: string | null = null,
+) => {
+  await seedCommittedObject(client, {
+    bucket: 'expense-attachments',
+    path,
+    ownerProfileId: g.profileIds[0] as string,
+  });
+  return client.query(`SELECT baaki_attach_expense_attachment($1, $2, $3, $4) AS id`, [
     eid,
     path,
     visibility,
     id,
   ]);
+};
 
 describe('T13 — party predicates', () => {
   it('answer true for a party and false for a non-party', async () => {

@@ -8,7 +8,13 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { addEqualSplitExpense, connect, expectDenied, seedGroup } from './helpers';
+import {
+  addEqualSplitExpense,
+  connect,
+  expectDenied,
+  seedCommittedObject,
+  seedGroup,
+} from './helpers';
 
 let client: Client;
 
@@ -59,12 +65,19 @@ const P = (i: number) => g.profileIds[i] as string;
 
 beforeEach(async () => {
   await client.query(`DELETE FROM expense_attachments WHERE group_id = $1`, [g.groupId]);
-  // A fresh group-visible attachment owned by the party each test.
+  // A fresh group-visible attachment owned by the party each test. The attach
+  // RPC now requires a committed object at the key, so seed one first.
   attachmentId = randomUUID();
+  const path = `${expenseId}/${randomUUID()}.webp`;
+  await seedCommittedObject(client, {
+    bucket: 'expense-attachments',
+    path,
+    ownerProfileId: P(0),
+  });
   await as(P(0), () =>
     client.query(`SELECT baaki_attach_expense_attachment($1, $2, 'group', $3)`, [
       expenseId,
-      `${expenseId}/${randomUUID()}.webp`,
+      path,
       attachmentId,
     ]),
   );

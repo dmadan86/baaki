@@ -224,6 +224,59 @@ export async function asRole<T>(
   }
 }
 
+/**
+ * Seed a `storage_objects` row so an attach / replace RPC — which now requires a
+ * committed object at the key (20260825240000) — accepts the metadata. In real
+ * life `r2-sign`'s put+commit writes this; a test that attaches a made-up path
+ * must stand one in first.
+ *
+ * `storage_objects` is service-role-only (REVOKE ALL from anon/authenticated), and
+ * a caller may be inside a `SET ROLE` block, so the insert runs as the DB
+ * superuser and the prior role is restored afterwards. `counted` is irrelevant to
+ * the committed-object check, so it is always false; `owner_profile_id` only has
+ * to be a real profile (the check ignores it), and `group_id` may be null.
+ */
+export async function seedCommittedObject(
+  client: Client,
+  options: {
+    bucket: string;
+    path: string;
+    ownerProfileId: string;
+    groupId?: string | null;
+    pending?: boolean;
+    bytes?: number;
+    contentType?: string;
+  },
+): Promise<void> {
+  const {
+    bucket,
+    path,
+    ownerProfileId,
+    groupId = null,
+    pending = false,
+    bytes = 1024,
+    contentType = 'image/webp',
+  } = options;
+
+  const prev = (await client.query(`SELECT current_setting('role') AS role`)).rows[0]
+    .role as string;
+  await client.query('RESET ROLE');
+  try {
+    await client.query(
+      `INSERT INTO storage_objects
+         (logical_bucket, path, owner_profile_id, group_id, bytes, content_type, counted, pending)
+       VALUES ($1, $2, $3, $4, $5, $6, false, $7)
+       ON CONFLICT (logical_bucket, path) DO UPDATE
+         SET pending = excluded.pending, bytes = excluded.bytes`,
+      [bucket, path, ownerProfileId, groupId, bytes, contentType, pending],
+    );
+  } finally {
+    if (prev && prev !== 'none') {
+      await client.query(`SET ROLE ${prev}`);
+    }
+  }
+}
+
 export async function expectDenied(promise: Promise<unknown>): Promise<string> {
   try {
     await promise;
