@@ -67,7 +67,13 @@ BEGIN
 END
 $$;
 
-REVOKE ALL ON FUNCTION public.baaki_require_committed_object(text, text) FROM public;
+-- Supabase's default privileges grant EXECUTE on every new public function to
+-- anon + authenticated DIRECTLY (see 20260806200000), so a bare
+-- `REVOKE ... FROM public` would leave clients able to call this and use it as
+-- an existence oracle over the service-role-only `storage_objects` ledger. Revoke
+-- from the client roles explicitly; only the definer RPCs (and service_role) call it.
+REVOKE ALL ON FUNCTION public.baaki_require_committed_object(text, text)
+  FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.baaki_require_committed_object(text, text) TO service_role;
 
 -- ─────────────────────────────── attach a receipt attachment ──

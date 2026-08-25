@@ -182,3 +182,19 @@ describe('baaki_attach_settlement_proof requires a committed object', () => {
     expect(await countProofs()).toBe(1);
   });
 });
+
+describe('the committed-object guard is not a client-callable oracle', () => {
+  it('a client cannot execute baaki_require_committed_object directly', async () => {
+    // Supabase grants EXECUTE on new public functions to anon/authenticated by
+    // default; the migration must revoke it, or a client could probe whether any
+    // (bucket, path) is committed in the service-role-only ledger.
+    const message = await as(P(0), () =>
+      expectDenied(
+        client.query(`SELECT baaki_require_committed_object('avatars', $1)`, [
+          `${randomUUID()}/a.webp`,
+        ]),
+      ),
+    );
+    expect(message).toMatch(/permission denied/i);
+  });
+});
