@@ -1,0 +1,148 @@
+_format_version: '2.1'
+_transform: true
+
+# Reproduces the hosted Supabase URL layout so supabase-js works unchanged:
+#   /auth/v1/*       -> GoTrue
+#   /rest/v1/*       -> PostgREST
+#   /realtime/v1/*   -> Realtime
+#   /storage/v1/*    -> Storage
+#   /functions/v1/*  -> Edge runtime
+#
+# The two consumers below carry the anon and service_role JWTs. key-auth reads
+# the `apikey` header supabase-js sends; the acl plugin then scopes which routes
+# each key may reach. These keys are swapped in by `docker compose` from .env.
+
+consumers:
+  - username: anon
+    keyauth_credentials:
+      - key: ${ANON_KEY}
+  - username: service_role
+    keyauth_credentials:
+      - key: ${SERVICE_ROLE_KEY}
+
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin
+
+plugins:
+  - name: cors
+
+services:
+  # ── GoTrue ──────────────────────────────────────────────────────────────
+  - name: auth-v1-open
+    url: http://auth:9999/verify
+    routes:
+      - name: auth-v1-open
+        strip_path: true
+        paths: ['/auth/v1/verify']
+    plugins:
+      - name: cors
+  - name: auth-v1-open-callback
+    url: http://auth:9999/callback
+    routes:
+      - name: auth-v1-open-callback
+        strip_path: true
+        paths: ['/auth/v1/callback']
+    plugins:
+      - name: cors
+  - name: auth-v1-open-authorize
+    url: http://auth:9999/authorize
+    routes:
+      - name: auth-v1-open-authorize
+        strip_path: true
+        paths: ['/auth/v1/authorize']
+    plugins:
+      - name: cors
+  - name: auth-v1
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths: ['/auth/v1/']
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: ['admin', 'anon']
+
+  # ── PostgREST ───────────────────────────────────────────────────────────
+  - name: rest-v1
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths: ['/rest/v1/']
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: true
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: ['admin', 'anon']
+
+  # ── GraphQL (pg_graphql via PostgREST) ──────────────────────────────────
+  - name: graphql-v1
+    url: http://rest:3000/rpc/graphql
+    routes:
+      - name: graphql-v1-all
+        strip_path: true
+        paths: ['/graphql/v1']
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: true
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - Content-Profile:graphql_public
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: ['admin', 'anon']
+
+  # ── Realtime ────────────────────────────────────────────────────────────
+  - name: realtime-v1
+    url: http://realtime:4000/socket/
+    routes:
+      - name: realtime-v1-all
+        strip_path: true
+        paths: ['/realtime/v1/']
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: ['admin', 'anon']
+
+  # ── Storage ─────────────────────────────────────────────────────────────
+  - name: storage-v1
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths: ['/storage/v1/']
+    plugins:
+      - name: cors
+
+  # ── Edge Functions ──────────────────────────────────────────────────────
+  - name: functions-v1
+    url: http://functions:9000/
+    routes:
+      - name: functions-v1-all
+        strip_path: true
+        paths: ['/functions/v1/']
+    plugins:
+      - name: cors

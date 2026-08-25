@@ -1,0 +1,276 @@
+# Waves — self-hosted Supabase stack (the "escape hatch").
+#
+# This boots the SAME open-source components Waves already runs on Supabase's
+# cloud — Postgres, GoTrue (auth), PostgREST, Storage, Realtime, the Edge
+# runtime — behind a Kong gateway that reproduces the exact hosted routing
+# (/auth/v1, /rest/v1, /storage/v1, /functions/v1, /realtime/v1). So the mobile
+# and web apps point one env var (EXPO_PUBLIC_SUPABASE_URL) at this gateway and
+# run UNCHANGED. Nothing about the app is Supabase-the-company specific; this
+# proves it.
+#
+# Runs on any Docker host: a laptop, an EC2 / GCE / Azure VM, or a bare VPS.
+# `docker compose up -d`, then see README.md for the smoke test.
+#
+# Image tags mirror the official self-host stack (supabase/supabase/docker) as
+# of 2026-08. Postgres 17.6 matches supabase/config.toml major_version = 17.
+# Bump deliberately; do not float to :latest.
+#
+# NOT a production hardening reference. TLS, backups, secret management and
+# resource limits are your host's job — see README.md § Going to production.
+
+name: waves-selfhost
+
+services:
+  # ── Postgres ──────────────────────────────────────────────────────────────
+  # The supabase/postgres image, NOT stock postgres: it ships the extensions
+  # Waves migrations require — pg_cron (auto-archive, settlement auto-confirm,
+  # storage sweep) and pg_net (push fan-out over HTTP from the DB), plus pgjwt,
+  # pgcrypto, uuid-ossp. Stock RDS/Cloud SQL lacks pg_net — see MIGRATION.md.
+  db:
+    image: supabase/postgres:17.6.1.136
+    restart: unless-stopped
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Runs once on an empty data volume. Creates the roles GoTrue/PostgREST/
+      # Storage authenticate as, and the auth/storage schemas.
+      - ./volumes/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Kong API gateway ──────────────────────────────────────────────────────
+  # The single public entrypoint. Declarative config in volumes/api/kong.yml
+  # maps the hosted URL layout onto the internal services, so the app's
+  # supabase-js client cannot tell this apart from the cloud.
+  kong:
+    image: kong:2.8.1
+    restart: unless-stopped
+    ports:
+      - '${KONG_HTTP_PORT:-8000}:8000/tcp'
+      - '${KONG_HTTPS_PORT:-8443}:8443/tcp'
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${ANON_KEY:?set ANON_KEY in .env}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:?set SERVICE_ROLE_KEY in .env}
+    volumes:
+      - ./volumes/api/kong.yml:/home/kong/kong.yml:ro
+    depends_on:
+      - auth
+      - rest
+      - storage
+
+  # ── GoTrue (auth) ─────────────────────────────────────────────────────────
+  # The stickiest piece to leave (anonymous guests + in-place upgrade are
+  # GoTrue features — MIGRATION.md § Auth). Self-hosting it means ZERO app
+  # change: same JWTs, same anon flow, same OAuth.
+  auth:
+    image: supabase/gotrue:v2.189.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8000}
+
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
+
+      GOTRUE_SITE_URL: ${SITE_URL:-waves://}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-waves://,waves://auth,baaki://,baaki://auth,http://localhost:3000}
+      GOTRUE_DISABLE_SIGNUP: 'false'
+
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+
+      # ADR-006: a guest is a real anonymous account, upgraded in place.
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'true'
+
+      GOTRUE_MAILER_AUTOCONFIRM: ${MAILER_AUTOCONFIRM:-false}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-Waves}
+
+      # OAuth. Fill in .env to enable; left blank = provider off.
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED:-false}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET:-}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL:-http://localhost:8000}/auth/v1/callback
+      GOTRUE_EXTERNAL_APPLE_ENABLED: ${APPLE_ENABLED:-false}
+      GOTRUE_EXTERNAL_APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_APPLE_SECRET: ${APPLE_SECRET:-}
+      GOTRUE_EXTERNAL_APPLE_REDIRECT_URI: ${API_EXTERNAL_URL:-http://localhost:8000}/auth/v1/callback
+
+  # ── PostgREST ─────────────────────────────────────────────────────────────
+  # Serves every read the app does (the .from().select() calls). Open source,
+  # runs on any Postgres — this is why the app's read layer is portable as-is.
+  rest:
+    image: postgrest/postgrest:v14.12
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,graphql_public}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: 'false'
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    command: ['postgrest']
+
+  # ── Realtime ──────────────────────────────────────────────────────────────
+  realtime:
+    image: supabase/realtime:v2.102.3
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_ENC_KEY: ${REALTIME_ENC_KEY:-supabaserealtime}
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${REALTIME_SECRET_KEY_BASE:?set REALTIME_SECRET_KEY_BASE in .env}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: '10000'
+      APP_NAME: realtime
+      SEED_SELF_HOST: 'true'
+      RUN_JANITOR: 'true'
+
+  # ── Storage + imgproxy ────────────────────────────────────────────────────
+  # Waves has already moved new image I/O to Cloudflare R2 (lib/storage). This
+  # exists to serve pre-R2 objects during a migration window and to keep the
+  # /storage/v1 route alive so nothing 404s. STORAGE_BACKEND=s3 can point
+  # straight at R2 instead of local disk — see .env.example.
+  storage:
+    image: supabase/storage-api:v1.60.4
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
+      FILE_SIZE_LIMIT: 10485760
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-file}
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: ${STORAGE_S3_REGION:-auto}
+      GLOBAL_S3_BUCKET: ${STORAGE_S3_BUCKET:-}
+      GLOBAL_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
+      GLOBAL_S3_FORCE_PATH_STYLE: 'true'
+      AWS_ACCESS_KEY_ID: ${STORAGE_S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_S3_SECRET_KEY:-}
+      ENABLE_IMAGE_TRANSFORMATION: 'true'
+      IMGPROXY_URL: http://imgproxy:5001
+    volumes:
+      - storage-data:/var/lib/storage
+
+  imgproxy:
+    image: darthsim/imgproxy:v3.30.1
+    restart: unless-stopped
+    environment:
+      IMGPROXY_BIND: ':5001'
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_USE_ETAG: 'true'
+      IMGPROXY_ENABLE_WEBP_DETECTION: 'true'
+    volumes:
+      - storage-data:/var/lib/storage:ro
+
+  # ── Edge Functions (Deno runtime) ─────────────────────────────────────────
+  # Runs the 15 functions in supabase/functions/* unchanged. Same Deno runtime
+  # as the cloud, so expense-write / invite-accept / r2-sign / notify-fanout
+  # behave identically. Secrets come from ./functions.env.
+  functions:
+    image: supabase/edge-runtime:v1.74.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_DB_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
+      VERIFY_JWT: '${FUNCTIONS_VERIFY_JWT:-false}'
+    volumes:
+      # Mounts the repo's real functions — no copy, no drift.
+      - ../../supabase/functions:/home/deno/functions:ro
+      - ./functions.env:/home/deno/functions/.env:ro
+    command:
+      - start
+      - --main-service
+      - /home/deno/functions
+
+  # ── Postgres-meta + Studio (optional admin UI) ────────────────────────────
+  meta:
+    image: supabase/postgres-meta:v0.96.6
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+  studio:
+    image: supabase/studio:2026.08.03-sha-022b374
+    restart: unless-stopped
+    profiles: ['studio'] # only starts with: docker compose --profile studio up -d
+    depends_on:
+      - meta
+    ports:
+      - '${STUDIO_PORT:-8100}:3000'
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${API_EXTERNAL_URL:-http://localhost:8000}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DEFAULT_ORGANIZATION_NAME: Waves
+      DEFAULT_PROJECT_NAME: Waves (self-host)
+
+volumes:
+  db-data:
+  storage-data:
