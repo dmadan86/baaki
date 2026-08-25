@@ -35,7 +35,12 @@ function toMinorUnits(amountMajor: number, currency: string | null): bigint {
 }
 
 export interface ParsedVoiceExpense {
-  /** The amount in minor units (a two-decimal assumption), or null if none was heard. */
+  /**
+   * The amount in minor units, scaled by the currency's own exponent when a
+   * valid ISO code was heard (so JPY is not inflated ×100, KWD not truncated),
+   * falling back to a two-decimal scale when the currency is unknown or invalid.
+   * Null if no amount was heard.
+   */
   amountMinor: bigint | null;
   /** The amount as spoken, in major units, or null. */
   amountMajor: number | null;
