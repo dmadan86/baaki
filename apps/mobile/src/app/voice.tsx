@@ -255,10 +255,22 @@ export default function VoiceScreen() {
     const unsub = navigation.addListener('beforeRemove', (event) => {
       if (committed.current) return;
       if (phase !== 'review' || dest.kind !== 'unassigned') return;
-      const hasSavable = drafts.some(
+      if (drafts.length === 0) return;
+      // A draft is only kept if the whole batch is savable. Persisting only the
+      // valid rows would silently drop the rest; leaving with an all-invalid
+      // batch would lose it entirely. So if any row lacks a real amount, hold
+      // the reader on the review with the batch intact and say why — they fix
+      // the amount or remove the row (dropping to an empty batch, which leaves
+      // freely). This mirrors the Save button, which is disabled on the same
+      // condition.
+      const allSavable = drafts.every(
         (draft) => toMinor(draft.amount, draft.currency ?? dc) !== null,
       );
-      if (!hasSavable) return;
+      if (!allSavable) {
+        event.preventDefault();
+        setError(t.voice.draftNeedsAmounts);
+        return;
+      }
       event.preventDefault();
       committed.current = true;
       void (async () => {
@@ -274,7 +286,16 @@ export default function VoiceScreen() {
       })();
     });
     return unsub;
-  }, [navigation, phase, dest, drafts, dc, persistDraftsToInbox, t.couldNotSave]);
+  }, [
+    navigation,
+    phase,
+    dest,
+    drafts,
+    dc,
+    persistDraftsToInbox,
+    t.couldNotSave,
+    t.voice.draftNeedsAmounts,
+  ]);
 
   const save = async (): Promise<void> => {
     setError(null);

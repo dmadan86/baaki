@@ -791,6 +791,9 @@ export interface UiStrings {
     /** The Save button when no group is chosen: the batch is kept as a draft
         (the capture inbox) rather than written into a group. */
     saveDraft: string;
+    /** Shown when the reader tries to leave the review with a draft whose rows
+        do not all carry an amount — the batch is held rather than part-saved. */
+    draftNeedsAmounts: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -2563,6 +2566,7 @@ const en: UiStrings = {
     thinking: 'Making sense of that…',
     save: { one: 'Save {n} expense', other: 'Save {n} expenses' },
     saveDraft: 'Save as draft',
+    draftNeedsAmounts: 'Enter an amount for each expense, or remove it, to keep this draft.',
   },
   notifications: {
     title: 'Notifications',
@@ -4355,6 +4359,8 @@ const ta: UiStrings = {
     thinking: 'புரிந்துகொள்கிறது…',
     save: { one: '{n} செலவைச் சேமி', other: '{n} செலவுகளைச் சேமி' },
     saveDraft: 'வரைவாகச் சேமி',
+    draftNeedsAmounts:
+      'இந்த வரைவைச் சேமிக்க ஒவ்வொரு செலவுக்கும் தொகையை உள்ளிடவும், அல்லது அதை நீக்கவும்.',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -6199,6 +6205,7 @@ const hi: UiStrings = {
     thinking: 'समझा जा रहा है…',
     save: { one: '{n} खर्च सहेजें', other: '{n} खर्च सहेजें' },
     saveDraft: 'ड्राफ़्ट के रूप में सहेजें',
+    draftNeedsAmounts: 'यह ड्राफ़्ट रखने के लिए हर खर्च में राशि भरें, या उसे हटाएँ।',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -8021,6 +8028,7 @@ const ar: UiStrings = {
     thinking: 'جارٍ الفهم…',
     save: { one: 'حفظ مصروف', other: 'حفظ {n} مصاريف' },
     saveDraft: 'حفظ كمسودة',
+    draftNeedsAmounts: 'أدخل مبلغًا لكل مصروف، أو احذفه، للاحتفاظ بهذه المسودة.',
   },
   notifications: {
     title: 'الإشعارات',
