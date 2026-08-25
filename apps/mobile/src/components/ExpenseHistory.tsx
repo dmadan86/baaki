@@ -93,7 +93,8 @@ type Change =
       kind: 'money';
       oldAmount: bigint;
       newAmount: bigint;
-      currency: string;
+      oldCurrency: string;
+      newCurrency: string;
     }
   | { key: string; label: string; kind: 'text'; oldText: string; newText: string };
 
@@ -113,7 +114,8 @@ function diffVersions(
       kind: 'money',
       oldAmount: BigInt(prev.amount),
       newAmount: BigInt(cur.amount),
-      currency: cur.currency,
+      oldCurrency: prev.currency,
+      newCurrency: cur.currency,
     });
   }
   if ((prev.description ?? '').trim() !== (cur.description ?? '').trim()) {
@@ -175,15 +177,18 @@ function diffVersions(
       newText: cur.payers.map((p) => nameOf(p.member_id)).join(', ') || t.expense.audit.none,
     });
   }
-  // Participants: the count of people splitting the bill, which is what "3 → 2"
-  // means. Amount-only edits keep the same set, so they never show here.
+  // Participants: who is splitting the bill, by name — the same treatment as
+  // payers. Named rather than counted, so replacing one person with another
+  // (the set changes but the count does not) reads as a real change instead of
+  // an identical "3 → 3". Amount-only edits keep the same set, so they never
+  // show here.
   if (memberKey(prev.shares) !== memberKey(cur.shares)) {
     changes.push({
       key: 'participants',
       label: t.expense.audit.participants,
       kind: 'text',
-      oldText: String(prev.shares.length),
-      newText: String(cur.shares.length),
+      oldText: prev.shares.map((s) => nameOf(s.member_id)).join(', ') || t.expense.audit.none,
+      newText: cur.shares.map((s) => nameOf(s.member_id)).join(', ') || t.expense.audit.none,
     });
   }
 
@@ -204,7 +209,7 @@ function ChangeLine({ change, locale }: { change: Change; locale: string }) {
         {change.kind === 'money' ? (
           <MoneyText
             amount={change.oldAmount}
-            currency={change.currency as never}
+            currency={change.oldCurrency as never}
             locale={locale}
             variant="caption"
             tone="muted"
@@ -227,7 +232,7 @@ function ChangeLine({ change, locale }: { change: Change; locale: string }) {
         {change.kind === 'money' ? (
           <MoneyText
             amount={change.newAmount}
-            currency={change.currency as never}
+            currency={change.newCurrency as never}
             locale={locale}
             variant="caption"
           />
