@@ -114,11 +114,41 @@ const { error: badToken } = await outsider.functions.invoke('invite-accept', {
 check('an invalid token is refused', !!badToken, await describe(badToken));
 
 // ── joining by claiming the ghost ──────────────────────────────────────────
+// invite-accept no longer hands the ghost over on the spot (ADR-006's
+// organiser-confirms step, "asking is not taking"): claiming a ghost files a
+// pending `member_claims` row and returns { pending, claimId }. Nothing about
+// membership or balances moves until an admin decides.
 const { data: joined, error: joinError } = await outsider.functions.invoke('invite-accept', {
   body: { token: invite.token, mode: 'join', claimMemberId: ghostMember, displayName: 'Rahul' },
 });
-check('guest joins by claiming the ghost', !joinError && joined?.claimed === true, await describe(joinError));
-check('the claimed membership is the same row', joined?.memberId === ghostMember, `${joined?.memberId}`);
+check(
+  'claiming the ghost files a pending request, not an immediate join',
+  !joinError && joined?.pending === true && !!joined?.claimId,
+  await describe(joinError),
+);
+
+const { data: stillGhost } = await service
+  .from('group_members')
+  .select('profile_id, ghost_name')
+  .eq('id', ghostMember)
+  .single();
+check(
+  'the ghost is untouched while the claim is pending',
+  stillGhost?.profile_id === null && stillGhost?.ghost_name === 'Rahul',
+  JSON.stringify(stillGhost),
+);
+
+// The organiser is the group's admin — approve it the way the app's admin
+// screen would, through the same RPC invite-accept used to run inline.
+const { data: decision, error: decisionError } = await organiser.rpc('baaki_decide_member_claim', {
+  p_claim_id: joined.claimId,
+  p_approve: true,
+});
+check(
+  'the organiser approves the claim',
+  !decisionError && decision?.ok === true && decision?.status === 'approved',
+  decisionError?.message ?? JSON.stringify(decision),
+);
 
 const afterClaim = await balancesOf();
 check(

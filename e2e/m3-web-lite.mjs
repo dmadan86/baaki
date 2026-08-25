@@ -119,10 +119,27 @@ check('the guest account is anonymous', guestSession?.user?.is_anonymous === tru
 const { data: accepted, error: acceptError } = await guest.functions.invoke('invite-accept', {
   body: { token, mode: 'join', claimMemberId: ghostId },
 });
+// invite-accept no longer hands the ghost over on the spot (ADR-006's
+// organiser-confirms step, "asking is not taking"): claiming files a pending
+// `member_claims` row and returns { pending, claimId } — the guest is not a
+// member yet.
 check(
-  'guest joins and claims Ravi',
-  !acceptError && accepted?.claimed === true && accepted?.memberId === ghostId,
+  'guest claims Ravi and it files a pending request',
+  !acceptError && accepted?.pending === true && !!accepted?.claimId,
   await describeError(acceptError),
+);
+
+// The host is the group's only admin — approve it the way the app's admin
+// screen would, so everything below (reading the group, writing an expense)
+// exercises a real member exactly as this scenario always intended.
+const { data: decision, error: decisionError } = await host.rpc('baaki_decide_member_claim', {
+  p_claim_id: accepted.claimId,
+  p_approve: true,
+});
+check(
+  'host approves the claim',
+  !decisionError && decision?.ok === true && decision?.status === 'approved',
+  decisionError?.message ?? JSON.stringify(decision),
 );
 
 // 3. Reading the group — what apps/web-lite/src/app/g/[groupId] does.
