@@ -13,7 +13,7 @@
  * orphaned; new images are all attachment rows.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -40,14 +40,27 @@ import {
 import { captureReceipt, pickReceiptImage } from '@/lib/image';
 import { EMPTY_ANNOTATIONS, isEmptyAnnotations, type Annotations } from '@/lib/annotations';
 import { imageUrl, restrictedImageUrl } from '@/lib/storage';
+import { cacheImage, cachedImageUri, evictImage } from '@/lib/storage/imageCache';
+import {
+  discardPendingReceipt,
+  enqueueReceipt,
+  flushReceiptQueue,
+  isOnline,
+  listPendingReceipts,
+  pendingReceiptUri,
+  type PendingReceipt,
+} from '@/lib/receiptQueue';
+import { SyncStatus, useSync } from '@/sync';
 import { fill, useStrings } from '@/i18n';
 
 const THUMB = 96;
 
-/** One gallery entry: the legacy kept bill, or an attachment row. */
+/** One gallery entry: the legacy kept bill, an uploaded attachment, or a capture
+ *  that was taken offline and is still waiting to upload. */
 type GalleryItem =
   | { kind: 'legacy'; key: string; path: string; visibility: 'group' }
-  | { kind: 'attachment'; key: string; row: ExpenseAttachmentRow };
+  | { kind: 'attachment'; key: string; row: ExpenseAttachmentRow }
+  | { kind: 'pending'; key: string; entry: PendingReceipt };
 
 /**
  * Resolve every item to a displayable URL, each through its own backend (the
@@ -67,12 +80,39 @@ function useResolvedUrls(
     void (async () => {
       for (const it of items) {
         if (urls[it.key] !== undefined) continue;
+
+        // A still-unsent capture is already a local file — show it straight from
+        // there, no network and no cache round-trip.
+        if (it.kind === 'pending') {
+          if (!active) return;
+          setUrls((prev) => ({ ...prev, [it.key]: pendingReceiptUri(it.entry) }));
+          continue;
+        }
+
+        const bucket = it.kind === 'legacy' ? 'receipts' : 'expense-attachments';
+        const path = it.kind === 'legacy' ? it.path : it.row.storagePath;
+
+        // A bill seen before is on disk under its stable path — show it straight
+        // away, so an already-opened receipt renders with no network (ADR-005).
+        const cached = cachedImageUri(bucket, path);
+        if (cached) {
+          if (!active) return;
+          setUrls((prev) => ({ ...prev, [it.key]: cached }));
+          continue;
+        }
+
+        // Not cached: resolve the short-lived signed URL. Offline this is null
+        // and the tile stays a blank placeholder, exactly as before.
         const url =
           it.kind === 'legacy'
-            ? await imageUrl('receipts', it.path)
-            : await restrictedImageUrl('expense-attachments', expenseId, it.row.storagePath);
+            ? await imageUrl('receipts', path)
+            : await restrictedImageUrl('expense-attachments', expenseId, path);
         if (!active) return;
         setUrls((prev) => ({ ...prev, [it.key]: url }));
+        // Show it now over the network, and quietly save the bytes so the next
+        // view — including offline — reads the local copy. Fire-and-forget: a
+        // failed cache write never blocks or breaks the on-screen image.
+        if (url) void cacheImage(bucket, path, url);
       }
     })();
     return () => {
@@ -89,12 +129,15 @@ function Thumb({
   url,
   resolved,
   isPrivate,
+  pending,
   onPress,
   label,
 }: {
   url: string | null;
   resolved: boolean;
   isPrivate: boolean;
+  /** A capture not yet uploaded — wears an upload glyph so the wait is visible. */
+  pending?: boolean;
   onPress: () => void;
   label: string;
 }): React.JSX.Element {
@@ -137,6 +180,21 @@ function Thumb({
           <Ionicons name="lock-closed" size={12} color={theme.color.text} />
         </View>
       ) : null}
+      {pending ? (
+        // A soft scrim plus a cloud-upload glyph, so an unsent capture reads as
+        // "saved, waiting to send" rather than a finished receipt.
+        <View
+          style={{
+            position: 'absolute',
+            inset: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(10, 10, 26, 0.35)',
+          }}
+        >
+          <Ionicons name="cloud-upload-outline" size={iconSize.lg} color="#FFFFFF" />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -175,6 +233,21 @@ export function ExpenseReceipts({
   const annotate = useAnnotateExpenseAttachment();
   const replace = useReplaceExpenseAttachmentImage(groupId, expenseId);
   const queryClient = useQueryClient();
+  const { status, flush } = useSync();
+
+  // Captures taken while offline (or when an upload could not reach R2), held on
+  // the device until they can be sent. They show in the gallery straight away
+  // from their local file, and a flush uploads them the moment there is network.
+  const [pending, setPending] = useState<PendingReceipt[]>([]);
+  const refreshPending = useCallback(async () => {
+    setPending(await listPendingReceipts(expenseId));
+  }, [expenseId]);
+  useEffect(() => {
+    // An async load from AsyncStorage — the setState lands after an await, not
+    // synchronously, so the cascading-render rule does not apply here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshPending();
+  }, [refreshPending]);
 
   // The per-expense receipt ceiling (A46): a free group keeps a small number of
   // gallery images per expense; paid lifts it. This is the affordance — the
@@ -189,6 +262,28 @@ export function ExpenseReceipts({
   const refreshCap = () =>
     void queryClient.invalidateQueries({ queryKey: ['attachmentCap', expenseId] });
 
+  // Try to send any parked captures when there is a usable network — on mount
+  // and whenever the connection comes back. A success pulls the freshly-recorded
+  // rows into the mirror (so the optimistic tile becomes the real attachment) and
+  // re-asks the cap; a permanent refusal (cap reached, not a party) just clears
+  // the stuck entry. All best-effort — a flush never throws into the screen.
+  useEffect(() => {
+    if (status === SyncStatus.Offline || status === SyncStatus.Metered) return;
+    void (async () => {
+      const result = await flushReceiptQueue();
+      if (result.uploadedExpenseIds.length > 0) {
+        await refreshPending();
+        await flush();
+        refreshCap();
+      } else if (result.hadPermanentFailure) {
+        await refreshPending();
+        refreshCap();
+      }
+    })();
+    // Re-run when the connection state flips; refreshers are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   const items = useMemo<GalleryItem[]>(() => {
     const list: GalleryItem[] = [];
     if (legacyReceiptPath) {
@@ -197,8 +292,17 @@ export function ExpenseReceipts({
     for (const row of attachments.data) {
       list.push({ kind: 'attachment', key: row.id, row });
     }
+    // Show a parked capture only until its real row lands — once the upload has
+    // been pulled into the mirror, the entry shares that row's id, so drop it
+    // here to avoid a duplicate tile for the same receipt.
+    const uploaded = new Set(attachments.data.map((row) => row.id));
+    for (const entry of pending) {
+      if (!uploaded.has(entry.attachmentId)) {
+        list.push({ kind: 'pending', key: `pending-${entry.attachmentId}`, entry });
+      }
+    }
     return list;
-  }, [legacyReceiptPath, attachments.data]);
+  }, [legacyReceiptPath, attachments.data, pending]);
 
   const urls = useResolvedUrls(expenseId, items);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -227,7 +331,8 @@ export function ExpenseReceipts({
   if (items.length === 0 && !canManage) return null;
 
   const isPrivate = (it: GalleryItem) =>
-    it.kind === 'attachment' && it.row.visibility === 'parties';
+    (it.kind === 'attachment' && it.row.visibility === 'parties') ||
+    (it.kind === 'pending' && it.entry.visibility === 'parties');
 
   // The free per-expense limit is reached (and the group is not paid): point the
   // person at the upgrade rather than open the add sheet. Reuses the scan cap's
@@ -252,25 +357,47 @@ export function ExpenseReceipts({
     }
   };
 
+  // Add at a chosen visibility. Online it uploads now; offline (or if the upload
+  // cannot reach R2) the capture is parked on the device and shown at once, to
+  // be sent automatically on reconnect — the receipt equivalent of ADR-005's
+  // offline writes.
+  const commitAdd = (
+    picked: NonNullable<Awaited<ReturnType<typeof captureReceipt>>>,
+    visibility: 'group' | 'parties',
+  ) => {
+    const contentType = picked.mimeType ?? 'image/jpeg';
+    const park = async () => {
+      await enqueueReceipt({ expenseId, groupId, visibility, base64: picked.base64, contentType });
+      await refreshPending();
+    };
+    void (async () => {
+      if (!(await isOnline())) {
+        await park();
+        return;
+      }
+      attach.mutate(
+        { picked, visibility },
+        {
+          onSuccess: refreshCap,
+          onError: (error) =>
+            void (async () => {
+              // The connection dropped mid-upload → park it rather than fail.
+              if (!(await isOnline())) {
+                await park();
+                return;
+              }
+              onAddError(error);
+            })(),
+        },
+      );
+    })();
+  };
+
   const add = (picked: Awaited<ReturnType<typeof captureReceipt>>) => {
     if (!picked) return; // Cancelled/declined.
     Alert.alert(t.receipts.chooseVisibility, undefined, [
-      {
-        text: t.receipts.everyone,
-        onPress: () =>
-          attach.mutate(
-            { picked, visibility: 'group' },
-            { onError: onAddError, onSuccess: refreshCap },
-          ),
-      },
-      {
-        text: t.receipts.payersOnly,
-        onPress: () =>
-          attach.mutate(
-            { picked, visibility: 'parties' },
-            { onError: onAddError, onSuccess: refreshCap },
-          ),
-      },
+      { text: t.receipts.everyone, onPress: () => commitAdd(picked, 'group') },
+      { text: t.receipts.payersOnly, onPress: () => commitAdd(picked, 'parties') },
       { text: t.common.cancel, style: 'cancel' },
     ]);
   };
@@ -300,15 +427,31 @@ export function ExpenseReceipts({
         onPress: () => {
           setViewerIndex(null);
           const onError = () => Alert.alert(t.imageAudit.couldNotRemove);
-          if (it.kind === 'legacy') {
+          if (it.kind === 'pending') {
+            // Not uploaded yet: just drop the parked capture and its local bytes.
+            void discardPendingReceipt(it.entry.attachmentId).then(refreshPending);
+          } else if (it.kind === 'legacy') {
             // Only clear the parent's receipt state on a confirmed delete — if the
             // byte removal throws, the bill is still there and must keep showing.
-            removeLegacy.mutate(undefined, { onSuccess: () => onLegacyRemoved?.(), onError });
+            removeLegacy.mutate(undefined, {
+              onSuccess: () => {
+                evictImage('receipts', it.path);
+                onLegacyRemoved?.();
+              },
+              onError,
+            });
           } else {
+            const storagePath = it.row.storagePath;
             removeAttachment.mutate(
-              { attachmentId: it.row.id, storagePath: it.row.storagePath },
+              { attachmentId: it.row.id, storagePath },
               // Removing a live attachment frees a slot, so re-ask the cap gate.
-              { onError, onSuccess: refreshCap },
+              {
+                onError,
+                onSuccess: () => {
+                  evictImage('expense-attachments', storagePath);
+                  refreshCap();
+                },
+              },
             );
           }
         },
@@ -407,6 +550,7 @@ export function ExpenseReceipts({
               url={urls[index] ?? null}
               resolved={urls[index] !== undefined}
               isPrivate={isPrivate(it)}
+              pending={it.kind === 'pending'}
               label={
                 isPrivate(it) ? `${t.receipts.title} — ${t.receipts.privateTag}` : t.receipts.title
               }
@@ -560,7 +704,12 @@ export function ExpenseReceipts({
                 picked,
               },
               {
-                onSuccess: () => setAdjusting(null),
+                onSuccess: () => {
+                  // The row now points at fresh bytes under a new path; drop the
+                  // old cached copy so a later view fetches the replacement.
+                  evictImage('expense-attachments', adjusting.oldStoragePath);
+                  setAdjusting(null);
+                },
                 onError: () => Alert.alert(t.adjust.couldNotSave),
               },
             )
