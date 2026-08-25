@@ -244,7 +244,11 @@ export default function ActivityScreen() {
                         currency={money.currency}
                         locale={locale}
                         variant="subheading"
-                        tone="default"
+                        // The feed amount is money spent/owed on the entry, so it
+                        // wears the same owe colour as the shares and balances
+                        // elsewhere — one money colour across every screen. Forced
+                        // (the payload amount is unsigned), not sign-derived.
+                        tone="negative"
                       />
                     ) : null}
                   </Row>
