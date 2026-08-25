@@ -136,19 +136,6 @@ serveWithCors(async (request) => {
       }
     }
 
-    // Reserve a use atomically before creating anything. A plain read-then-write
-    // let two redemptions of the same link race past `max_uses`; this conditional
-    // increment lets exactly one of them win the last slot (and re-checks
-    // revocation/expiry under the row lock). Placed after the already-a-member
-    // and guest-ceiling short-circuits so those never burn a use.
-    const { data: consumed, error: consumeError } = await service.rpc('baaki_consume_invite', {
-      p_invite_id: invite.id,
-    });
-    if (consumeError) throw new HttpError(500, 'INTERNAL', consumeError.message);
-    if (consumed !== true) {
-      throw new HttpError(404, 'INVITE_INVALID', 'This invite link is no longer valid');
-    }
-
     let memberId: string;
 
     if (body.claimMemberId) {
@@ -167,13 +154,26 @@ serveWithCors(async (request) => {
       // Nobody joins here. The claim is decided by an admin through
       // `baaki_decide_member_claim`, and that function — not this one — is
       // where "who may approve this" lives, next to the table it guards.
+      //
+      // The invite use is NOT reserved here. This function used to call
+      // `baaki_consume_invite` before this branch, which burned a `max_uses`
+      // slot the instant a claim was tapped — every tap, whether or not an admin
+      // ever agreed, so one link could be emptied by repeated ghost-claims with
+      // nobody joining. The reservation now lives inside `baaki_request_member_claim`
+      // (with the invite id passed below): it spends exactly one use for a
+      // genuinely-new claim, and nothing for a repeat (already-pending) or a
+      // doomed one — atomically, in the same transaction as the claim row.
       const { data: verdict, error: claimError } = await service.rpc('baaki_request_member_claim', {
         p_group_id: invite.group_id,
         p_member_id: ghost.id,
         p_profile_id: profileId,
         p_name: body.displayName ?? null,
+        p_invite_id: invite.id,
       });
       if (claimError) throw new HttpError(500, 'CLAIM_FAILED', claimError.message);
+      if (verdict?.reason === 'INVITE_INVALID') {
+        throw new HttpError(404, 'INVITE_INVALID', 'This invite link is no longer valid');
+      }
       if (!verdict?.ok) {
         throw new HttpError(
           409,
@@ -192,6 +192,20 @@ serveWithCors(async (request) => {
         alreadyPending: verdict.already_pending === true,
       });
     } else {
+      // A direct join, and the one place a use is spent up front: reserve it
+      // atomically before creating the membership. A plain read-then-write let
+      // two redemptions of the same link race past `max_uses`; this conditional
+      // increment lets exactly one of them win the last slot (and re-checks
+      // revocation/expiry under the row lock). Placed after the already-a-member
+      // and guest-ceiling short-circuits so those never burn a use.
+      const { data: consumed, error: consumeError } = await service.rpc('baaki_consume_invite', {
+        p_invite_id: invite.id,
+      });
+      if (consumeError) throw new HttpError(500, 'INTERNAL', consumeError.message);
+      if (consumed !== true) {
+        throw new HttpError(404, 'INVITE_INVALID', 'This invite link is no longer valid');
+      }
+
       const { data: inserted, error: insertError } = await service
         .from('group_members')
         .insert({ group_id: invite.group_id, profile_id: profileId, joined_via: 'invite_link' })
