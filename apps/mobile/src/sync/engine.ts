@@ -130,6 +130,16 @@ function sameQueue(a: readonly QueuedMutation[], b: readonly QueuedMutation[]): 
   return true;
 }
 
+function appendRejected(
+  existing: readonly RejectedMutation[],
+  incoming: readonly RejectedMutation[],
+): RejectedMutation[] {
+  if (incoming.length === 0) return [...existing];
+  const byId = new Map(existing.map((item) => [item.clientMutationId, item]));
+  for (const item of incoming) byId.set(item.clientMutationId, item);
+  return [...byId.values()];
+}
+
 export class SyncEngine {
   private store: LocalStore = createLocalStore();
   private state: SyncState = {
@@ -432,23 +442,26 @@ export class SyncEngine {
       // those memos stay put. When changes did land — or the cursors or queue
       // actually moved — this is exactly the old path: a new mirror, the folded
       // queue.
-      const nothingApplied = changes.length === 0;
+      const appliedChanges = merged.applied;
+      const mirrorChanged = appliedChanges.length > 0;
+      const cursorsChanged = !sameCursors(this.state.mirror.cursors, nextCursors);
       const mirror: MirrorState =
-        nothingApplied && sameCursors(this.state.mirror.cursors, nextCursors)
+        !mirrorChanged && !cursorsChanged
           ? this.state.mirror
           : { cursors: nextCursors, tables: merged.state.tables };
       const queue =
         folded.rejected.length === 0 && sameQueue(this.state.queue, folded.queue)
           ? this.state.queue
           : folded.queue;
+      const madeProgress = mirrorChanged || cursorsChanged;
 
-      await this.persist(changes, mirror, queue);
+      await this.persist(appliedChanges, mirror, queue);
 
       this.set({
         status: SyncStatus.Idle,
         mirror,
         queue,
-        rejected: [...this.state.rejected, ...rejected],
+        rejected: appendRejected(this.state.rejected, rejected),
         lastSyncedAt: response.serverTime ?? new Date().toISOString(),
         lastError: null,
       });
@@ -459,7 +472,7 @@ export class SyncEngine {
       // joining a big group) catches up in a burst instead of a page every half
       // minute. Scheduled after this flush settles, since flush() is single-
       // in-flight; guarded by the cursor moving, so it cannot spin forever.
-      if (response.hasMore) {
+      if (response.hasMore && madeProgress) {
         setTimeout(() => void this.flush(), 0);
       }
 

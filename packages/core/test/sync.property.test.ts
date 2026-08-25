@@ -318,7 +318,9 @@ describe('reconciliation', () => {
     const once = reconcile(emptyMirror(), changes);
     const twice = reconcile(once.state, changes);
 
+    expect(once.applied).toEqual(changes);
     expect(twice.state).toEqual(once.state);
+    expect(twice.applied).toEqual([]);
     expect(twice.skipped).toBe(2);
     expect(once.state.cursors[GROUP]).toBe(2);
   });
