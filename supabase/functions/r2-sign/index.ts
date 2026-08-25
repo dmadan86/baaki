@@ -49,6 +49,22 @@ const URL_TTL_SECONDS = 60 * 60;
  */
 const MAX_OBJECT_BYTES = 12 * 1024 * 1024;
 
+/**
+ * The only content types a client may reserve. Every upload the app makes is an
+ * image (the shrink pipeline emits webp/jpeg; the picker may hand up png/heic),
+ * so this rejects a direct caller trying to park `text/html` or `image/svg+xml`
+ * in an image bucket — bytes that, served back under their own content type,
+ * would be a stored-XSS vector rather than a receipt. No PDF: nothing in the app
+ * uploads one, so allowing it would only widen the surface.
+ */
+const ALLOWED_CONTENT_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+]);
+
 interface Body {
   action?: unknown;
   bucket?: unknown;
@@ -339,6 +355,9 @@ serveWithCors(async (request) => {
       }
 
       const contentType = typeof body.contentType === 'string' ? body.contentType : 'image/webp';
+      if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+        throw new HttpError(415, 'BAD_CONTENT_TYPE', 'Only image uploads are allowed');
+      }
 
       // Reserve the space *now*, before the URL exists — a presign the client
       // never commits still holds cap until it is swept, which is what stops
@@ -384,6 +403,9 @@ serveWithCors(async (request) => {
     if (action === 'commit') {
       const { groupId } = await authorizeWrite(caller, service, uid, bucket, path, subjectId);
       const contentType = typeof body.contentType === 'string' ? body.contentType : 'image/webp';
+      if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+        throw new HttpError(415, 'BAD_CONTENT_TYPE', 'Only image uploads are allowed');
+      }
 
       const head = await r2().client.fetch(objectUrl(bucket, path), { method: 'HEAD' });
       if (!head.ok) throw new HttpError(404, 'NOT_UPLOADED', 'Object was not uploaded');
@@ -485,6 +507,15 @@ serveWithCors(async (request) => {
     // ── delete an object and forget it ────────────────────────────────────
     if (action === 'delete') {
       await authorizeWrite(caller, service, uid, bucket, path, subjectId);
+      // authorizeWrite proves party + subject-scoped path, but not that this
+      // exact object is a live attachment/proof the caller may take down. For a
+      // restricted bucket, require a live row that references this path (the same
+      // check a `get` makes): otherwise any party to the subject could delete a
+      // co-party's bytes out of band — the row and audit trail left pointing at
+      // nothing — bypassing the author/admin-only delete matrix in the DB RPCs.
+      if (restricted) {
+        await assertRestrictedPath(caller, bucket, subjectId as string, path);
+      }
       await r2().client.fetch(objectUrl(bucket, path), { method: 'DELETE' });
       // A legacy object may still live on Supabase Storage (dual-read); remove it
       // there too, or the fallback read would keep serving a deleted image.

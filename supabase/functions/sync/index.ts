@@ -244,12 +244,17 @@ serveWithCors(async (request) => {
       ...session.touchedGroups,
       ...(mine.data ?? []).map((row) => row.group_id as string),
     ]);
-    const { changes, cursors: nextCursors } = await pull(caller, groupIds, cursors, profileId);
+    const {
+      changes,
+      cursors: nextCursors,
+      hasMore,
+    } = await pull(caller, groupIds, cursors, profileId);
 
     return json({
       outcomes,
       changes,
       cursors: nextCursors,
+      hasMore,
       serverTime: new Date().toISOString(),
     });
   } catch (error) {
@@ -859,9 +864,13 @@ async function pull(
   groupIds: Set<string>,
   cursors: Record<string, number>,
   profileId: string,
-): Promise<{ changes: SyncChange[]; cursors: Record<string, number> }> {
+): Promise<{ changes: SyncChange[]; cursors: Record<string, number>; hasMore: boolean }> {
   const changes: SyncChange[] = [];
   const nextCursors: Record<string, number> = {};
+  // Set whenever any table returned a full page, so at least one scope's cursor
+  // was pinned below its high-water and more rows remain. The client drains them
+  // by re-syncing promptly instead of waiting out the poll interval.
+  let hasMore = false;
 
   // The personal scope is keyed by the caller's own user id (A34). It rides the
   // same cursor map as the groups, but it is not a group — drop it here so the
@@ -893,7 +902,16 @@ async function pull(
     if (!group) continue;
 
     const highWater = Number(group.updated_seq ?? 0);
-    nextCursors[groupId] = highWater;
+
+    // The group's cursor covers every child table below, and may only advance to
+    // a seq under which ALL of them have been fully delivered. A table capped at
+    // MAX_ROWS_PER_TABLE has more rows past its last delivered seq, so it pins the
+    // cursor there and the next pull resumes from it. Previously the cursor jumped
+    // straight to `highWater`, so a table with more than a page of changes since
+    // `since` had its overflow skipped for good — worst case, a fresh device
+    // joining a group with >500 expenses synced only the first page and lost the
+    // rest. Starts at highWater and is dragged down by any truncated table.
+    let groupCursor = highWater;
 
     if (highWater > since) {
       changes.push({ table: 'groups', groupId, seq: highWater, row: group });
@@ -944,11 +962,22 @@ async function pull(
       // client silently ends up with half a ledger.
       if (error) throw new HttpError(500, 'PULL_FAILED', `${table}: ${error.message}`);
 
-      for (const row of data ?? []) {
+      const rows = data ?? [];
+      for (const row of rows) {
         const record = row as Record<string, unknown>;
         changes.push({ table, groupId, seq: Number(record.updated_seq ?? 0), row: record });
       }
+      if (rows.length === MAX_ROWS_PER_TABLE) {
+        // Truncated page: rows ordered by ascending updated_seq, so the last one
+        // is the highest we delivered. Pin the group cursor there — nothing past
+        // it in this table has been sent yet.
+        const lastSeq = Number((rows[rows.length - 1] as Record<string, unknown>).updated_seq ?? 0);
+        if (lastSeq < groupCursor) groupCursor = lastSeq;
+        hasMore = true;
+      }
     }
+
+    nextCursors[groupId] = groupCursor;
   }
 
   // Personal scope (A34): the caller's own captures, keyed by their user id.
@@ -973,6 +1002,7 @@ async function pull(
     if (seq > capturesHighWater) capturesHighWater = seq;
   }
   nextCursors[profileId] = capturesHighWater;
+  if ((captures ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
 
   // Personal scope (A38): the caller's own ghost merges, pull-only. Read as the
   // caller so owner-only RLS (`ghost_merges_select_own`) already guarantees they
@@ -1002,6 +1032,7 @@ async function pull(
     if (seq > gmHighWater) gmHighWater = seq;
   }
   nextCursors[gmScope] = gmHighWater;
+  if ((merges ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
 
   // Personal scope (extends TDR §8): the caller's own category-tag catalog, its
   // own suffixed cursor. Read as the caller so owner-only RLS guarantees they
@@ -1024,8 +1055,9 @@ async function pull(
     if (seq > tagsHighWater) tagsHighWater = seq;
   }
   nextCursors[tagScope] = tagsHighWater;
+  if ((tags ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
 
-  return { changes, cursors: nextCursors };
+  return { changes, cursors: nextCursors, hasMore };
 }
 
 function requireString(value: unknown, field: string): string {

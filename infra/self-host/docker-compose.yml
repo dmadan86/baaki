@@ -30,7 +30,11 @@ services:
     image: supabase/postgres:17.6.1.136
     restart: unless-stopped
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      # Bound to loopback by default: Kong is the intended public entrypoint, and
+      # publishing 0.0.0.0:5432 puts the primary database straight on the internet
+      # on any VPS unless the host firewall is perfect. Override POSTGRES_BIND to
+      # 0.0.0.0 only for a deliberately reachable DB behind its own firewall.
+      - '${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432'
     environment:
       POSTGRES_HOST: /var/run/postgresql
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
