@@ -15,6 +15,7 @@
     "test:app": "pnpm --filter @waves/mobile run test",
     "test:api": "pnpm --filter @waves/api-client run test",
     "test:web": "pnpm --filter @waves/web run test",
+    "test:edge": "vitest run --config supabase/functions/vitest.config.ts",
     "web": "pnpm --filter @waves/web run dev",
     "admin": "pnpm --filter @waves/admin run dev",
     "db:generate": "pnpm --filter @waves/db run generate",
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "prettier": "^3.4.2",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.10"
   }
 }

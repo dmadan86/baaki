@@ -59,6 +59,25 @@ jobs:
       # every net position, FX is reproducible.
       - run: pnpm test:core
 
+  edge:
+    name: edge function tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The Supabase edge functions (Deno source) had no unit coverage. These
+      # tests run each targeted handler as a pure function over injected
+      # dependencies, on Node via vitest — auth parsing (401/403), malformed-body
+      # handling, CORS, and r2-sign's reserve/commit/release lifecycle. A Deno
+      # shim and stubs for the `npm:` specifiers live in
+      # supabase/functions/_shared/test (see supabase/functions/vitest.config.ts).
+      - run: pnpm test:edge
+
   # Each app (and the browser client it shares) is its own test job, so a
   # failure names the app that broke and one app's suite never hides another's.
   # All run on every push regardless of which files changed: a change in a shared
