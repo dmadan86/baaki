@@ -146,6 +146,12 @@ export default function VoiceScreen() {
   // per batch (not on every render, and not again after the reader clears or
   // adjusts the pin); reset when a fresh parse opens a new review.
   const autoLocated = useRef(false);
+  // Guards the async auto-read from clobbering a later truth. `locationGen`
+  // ticks once per parsed batch, so a fix that arrives after a new utterance is
+  // dropped; `locationTouched` flips the moment the reader sets or clears the
+  // pin by hand, so an in-flight auto-read never overrides their choice.
+  const locationGen = useRef(0);
+  const locationTouched = useRef(false);
 
   const navigation = useNavigation();
 
@@ -177,6 +183,8 @@ export default function VoiceScreen() {
     // A fresh parse is a fresh group to create, and a fresh location to read.
     groupCreated.current = false;
     autoLocated.current = false;
+    locationGen.current += 1;
+    locationTouched.current = false;
     setLocation(null);
     // Default the destination to what was heard: a new group to make, an
     // existing group named, else the capture inbox.
@@ -219,6 +227,8 @@ export default function VoiceScreen() {
     setRequested(null);
     groupCreated.current = false;
     autoLocated.current = false;
+    locationGen.current += 1;
+    locationTouched.current = false;
     setPhase('listening');
     setAttempt((current) => current + 1);
   };
@@ -230,6 +240,13 @@ export default function VoiceScreen() {
   };
   const removeDraft = (key: string): void => {
     setDrafts((current) => current.filter((draft) => draft.key !== key));
+  };
+
+  // The reader set or cleared the pin by hand. Latch it so a still-pending
+  // auto-read cannot come back and overwrite their choice.
+  const handleLocationChange = (next: ExpenseLocation | null): void => {
+    locationTouched.current = true;
+    setLocation(next);
   };
 
   // Write the heard expenses into the capture inbox — the app's draft holding
@@ -317,9 +334,14 @@ export default function VoiceScreen() {
     if (phase !== 'review' || autoLocated.current) return;
     autoLocated.current = true;
     if (!locationAvailable()) return;
+    const gen = locationGen.current;
     void (async () => {
       const result = await captureLocation();
-      if (result.ok) setLocation(result.location);
+      if (!result.ok) return;
+      // Drop a fix that lost its race: the reader has since set or cleared the
+      // pin by hand, or a fresh utterance moved on to a new batch.
+      if (locationGen.current !== gen || locationTouched.current) return;
+      setLocation(result.location);
     })();
   }, [phase]);
 
@@ -565,7 +587,7 @@ export default function VoiceScreen() {
 
             {/* One place for the whole batch (A43) — opt-in, never a background
                 track. It rides onto every expense saved from this review. */}
-            <LocationField value={location} onChange={setLocation} />
+            <LocationField value={location} onChange={handleLocationChange} />
           </View>
         ) : (
           // Listening.
