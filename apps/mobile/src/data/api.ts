@@ -10,6 +10,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import {
+  buildExpenseWriteBody,
   normaliseEmail,
   normalisePhone,
   serialiseSplitParams,
@@ -681,8 +682,18 @@ export interface WriteExpenseInput {
   categoryMeta?: CategoryMeta | null;
   /** Where the spend happened (A43); null unless the person opted in. */
   location?: ExpenseLocation | null;
+  /** A view-only link to the owner's own cloud copy of the receipt (E3). */
+  receiptShareUrl?: string | null;
+  /** Links a scanned receipt (ADR-008) to this expense; null when none. */
+  receiptId?: string | null;
   /** The rate used, when this expense is not in the group's currency. */
   fx?: FxRecord | null;
+  /**
+   * The version this edit is based on (ADR-004 / TDR §4.4). Set only for an
+   * edit; lets the server turn a concurrent edit into a logged conflict instead
+   * of a silent overwrite. Omitted for a create.
+   */
+  baseVersionNo?: number | null;
   clientMutationId?: string;
 }
 
@@ -693,40 +704,44 @@ export interface WriteExpenseResult {
   replayed?: boolean;
 }
 
+/**
+ * Write an expense through the `expense-write` edge function (the direct,
+ * online path). The server recomputes every share and owns authorization
+ * (TDR §4); the body is built by the one shared serializer the web client and
+ * `/sync` also use, so a direct write carries the same fields as a queued one.
+ */
 export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpenseResult> {
   const { data, error } = await backend.functions.invoke('expense-write', {
-    body: {
+    // One shared body builder (`buildExpenseWriteBody` in @waves/core), so this
+    // direct write, the web client's direct write and the `/sync` queued write
+    // all carry the same fields — including `categoryMeta` and `baseVersionNo`,
+    // which this path used to drop (a direct edit lost the custom-tag display and
+    // skipped the concurrent-edit conflict check). Exact/adjustment/itemized
+    // splits hold minor units and JSON has no bigint, so the split is stringified
+    // here before the builder passes it through.
+    body: buildExpenseWriteBody({
       groupId: input.groupId,
       expenseId: input.expenseId,
       description: input.description,
       category: input.category ?? null,
       expenseDate: input.expenseDate,
       currency: input.currency,
-      amount: input.amount.toString(),
-      // Exact, adjustment and itemized splits hold minor units, and JSON has
-      // no bigint — stringify throws on one rather than rounding it. Without
-      // this an itemized bill could not be saved at all.
+      amount: input.amount,
       splitParams: serialiseSplitParams(input.splitParams),
       participants: input.participants,
-      payers: Object.fromEntries(
-        Object.entries(input.payers).map(([id, value]) => [id, value.toString()]),
-      ),
-      expectedShares: input.expectedShares
-        ? Object.fromEntries(
-            Object.entries(input.expectedShares).map(([id, value]) => [id, value.toString()]),
-          )
-        : undefined,
+      payers: input.payers,
+      expectedShares: input.expectedShares,
       notes: input.notes ?? null,
-      // Full snapshot, not a patch: an append-only version always carries the
-      // field, so an omitted method and an explicit null both mean "none".
       paymentMethod: input.paymentMethod ?? null,
-      // Where the spend happened (A43); null unless the person opted in. The
-      // server validates it to Earth's ranges before it is stored.
+      categoryMeta: input.categoryMeta ?? null,
       location: input.location ?? null,
+      receiptShareUrl: input.receiptShareUrl ?? null,
+      receiptId: input.receiptId ?? null,
       fx: input.fx ?? null,
+      baseVersionNo: input.baseVersionNo ?? null,
       // Idempotency key: a retry after a flaky network must not double-post.
       clientMutationId: input.clientMutationId ?? randomUUID(),
-    },
+    }),
   });
 
   if (error) {

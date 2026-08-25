@@ -25,10 +25,12 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import {
+  buildApplyExpenseArgs,
   computeShares,
   GUEST_TRIAL_DAYS,
   parseSplitParams,
-  serialiseSplitParams,
+  sanitiseCategoryMeta,
+  sanitiseExpenseLocation,
   verifyClientShares,
   type FxRecord,
   type SplitParams,
@@ -566,37 +568,36 @@ class SyncSession {
       throw new HttpError(409, 'SHARE_MISMATCH', (mismatch as Error).message);
     }
 
-    const { data, error } = await this.service.rpc('baaki_apply_expense', {
-      p_group_id: mutation.groupId,
-      p_expense_id: expenseId,
-      p_author_member_id: memberId,
-      p_description: payload.description,
-      p_category: payload.category ?? null,
-      p_expense_date: payload.expenseDate,
-      p_currency: payload.currency.toUpperCase(),
-      p_amount: amount.toString(),
-      p_split_type: splitParams.kind,
-      p_split_params: serialiseSplitParams(splitParams),
-      p_payers: payers.map(([id, value]) => ({ memberId: id, amount: value.toString() })),
-      p_shares: [...shares].map(([id, value]) => ({ memberId: id, amount: value.toString() })),
-      p_client_mutation_id: mutation.clientMutationId,
-      p_notes: payload.notes ?? null,
-      p_receipt_id: payload.receiptId ?? null,
-      // Set only for edits, and only by a client that had actually seen a
-      // version — this is what turns a concurrent edit into a logged conflict
-      // instead of a silent overwrite (TDR §4.4).
-      p_base_version_no: payload.baseVersionNo ?? null,
-      p_fx: payload.fx ?? null,
-      p_payment_method: payload.paymentMethod ?? null,
-      p_receipt_share_url: payload.receiptShareUrl ?? null,
-      // Denormalised custom-tag display, so a member without the author's catalog
-      // still renders the tag (extends TDR §8). Null for a built-in category.
-      p_category_meta: sanitiseCategoryMeta(payload.categoryMeta),
-      // Where the spend happened (A43), validated so a client can never write a
-      // NaN or an out-of-range point onto a row every member reads. Null unless
-      // the author opted in.
-      p_location: sanitiseLocation(payload.location),
-    });
+    // The one shared builder the direct `expense-write` path uses too
+    // (`buildApplyExpenseArgs` in @waves/core), so a queued write and a direct
+    // write reach `baaki_apply_expense` with an identical set of fields. It
+    // carries `p_base_version_no` (edit conflict, TDR §4.4) and the sanitised
+    // `p_category_meta`/`p_location` snapshots every group member reads.
+    const { data, error } = await this.service.rpc(
+      'baaki_apply_expense',
+      buildApplyExpenseArgs({
+        groupId: mutation.groupId,
+        expenseId,
+        authorMemberId: memberId,
+        description: payload.description,
+        category: payload.category ?? null,
+        expenseDate: payload.expenseDate,
+        currency: payload.currency,
+        amount,
+        splitParams,
+        payers,
+        shares,
+        clientMutationId: mutation.clientMutationId,
+        notes: payload.notes ?? null,
+        receiptId: payload.receiptId ?? null,
+        baseVersionNo: payload.baseVersionNo ?? null,
+        fx: payload.fx ?? null,
+        paymentMethod: payload.paymentMethod ?? null,
+        receiptShareUrl: payload.receiptShareUrl ?? null,
+        categoryMeta: payload.categoryMeta,
+        location: payload.location,
+      }),
+    );
     if (error) throw error;
     return data;
   }
@@ -684,7 +685,7 @@ class SyncSession {
       // at assignment. Constrained to the known set on the client.
       payment_method: normalisePaymentMethod(payload.paymentMethod),
       target_group_id: payload.targetGroupId ?? null,
-      location: sanitiseLocation(payload.location),
+      location: sanitiseExpenseLocation(payload.location),
       status: 'open',
     });
     if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
@@ -724,7 +725,7 @@ class SyncSession {
       patch.category_meta = sanitiseCategoryMeta(patch.category_meta);
     }
     if (Object.prototype.hasOwnProperty.call(patch, 'location')) {
-      patch.location = sanitiseLocation(patch.location);
+      patch.location = sanitiseExpenseLocation(patch.location);
     }
     if (typeof patch.amount === 'string') {
       const amount = parseMinor(patch.amount, 'amount');
@@ -1079,43 +1080,10 @@ function normalisePaymentMethod(value: unknown): string | null {
 }
 
 /** The six design-system tints a custom tag may carry (kept in step with the
- *  client's `TINTS`); anything else is coerced to a safe default. */
+ *  client's `TINTS`); anything else is coerced to a safe default. Used to
+ *  validate a tag's own tint in `upsertTag`; the denormalised category snapshot
+ *  is validated by `sanitiseCategoryMeta` in @waves/core. */
 const TAG_TINTS = new Set(['lilac', 'pink', 'mint', 'peach', 'sky', 'coral']);
-
-/**
- * Validate the denormalised custom-tag display before it lands on a ledger row.
- * Anything not a proper {label, icon, tint} object becomes null (a built-in),
- * and an unknown tint is coerced rather than trusted — the payload is client
- * text, and this snapshot is shown to every group member.
- */
-function sanitiseCategoryMeta(
-  value: unknown,
-): { label: string; icon: string; tint: string } | null {
-  if (!value || typeof value !== 'object') return null;
-  const meta = value as Record<string, unknown>;
-  const label = typeof meta.label === 'string' ? meta.label.trim() : '';
-  const icon = typeof meta.icon === 'string' ? meta.icon.trim() : '';
-  if (!label || !icon) return null;
-  const tint = typeof meta.tint === 'string' && TAG_TINTS.has(meta.tint) ? meta.tint : 'sky';
-  return { label: label.slice(0, 40), icon: icon.slice(0, 64), tint };
-}
-
-/**
- * Validate a client-supplied location before it lands on a ledger row (A43).
- * Only a proper {lat, lng} inside Earth's ranges survives; a name is an optional
- * trimmed label. Anything else — junk, NaN, an out-of-range point — becomes
- * null, so a snapshot every group member sees can never carry garbage.
- */
-function sanitiseLocation(value: unknown): { lat: number; lng: number; name?: string } | null {
-  if (!value || typeof value !== 'object') return null;
-  const loc = value as Record<string, unknown>;
-  const lat = typeof loc.lat === 'number' ? loc.lat : NaN;
-  const lng = typeof loc.lng === 'number' ? loc.lng : NaN;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  const name = typeof loc.name === 'string' ? loc.name.trim().slice(0, 120) : '';
-  return name ? { lat, lng, name } : { lat, lng };
-}
 
 /** Turn a thrown error into the vocabulary the client's queue understands. */
 function classify(error: unknown): { code: string; message: string } {

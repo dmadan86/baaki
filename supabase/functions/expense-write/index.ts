@@ -11,10 +11,12 @@
  */
 
 import {
+  buildApplyExpenseArgs,
   computeShares,
   parseSplitParams,
-  serialiseSplitParams,
   verifyClientShares,
+  type CategoryMeta,
+  type ExpenseLocation,
   type FxRecord,
   type SplitParams,
 } from '../_shared/core.js';
@@ -57,7 +59,13 @@ interface ExpenseWriteRequest {
   receiptShareUrl?: string | null;
   /** Where the spend happened (A43): a {lat, lng, name} snapshot, set only on
    *  opt-in. Validated to Earth's ranges before it is stored. */
-  location?: { lat: number; lng: number; name?: string | null } | null;
+  location?: ExpenseLocation | null;
+  /**
+   * Denormalised custom-tag display (extends TDR §8), so a member without the
+   * author's catalog still renders the tag. Null/omitted for a built-in. Was
+   * missing here — a direct write silently lost it while `/sync` kept it.
+   */
+  categoryMeta?: CategoryMeta | null;
   receiptId?: string | null;
   /**
    * The rate used, when the expense is not in the group's currency (ADR-003).
@@ -65,24 +73,14 @@ interface ExpenseWriteRequest {
    * later. The server checks its direction; it does not invent one.
    */
   fx?: FxRecord | null;
+  /**
+   * The version the client edited (ADR-004 / TDR §4.4). Set only for an edit;
+   * lets the server turn a concurrent edit into a logged conflict rather than a
+   * silent overwrite. Was missing here — the direct edit path skipped the very
+   * conflict check `/sync` performs.
+   */
+  baseVersionNo?: number | null;
   clientMutationId: string;
-}
-
-/**
- * Validate a client-supplied location before it reaches the ledger (A43). Only a
- * finite {lat, lng} inside Earth's ranges survives; the name is an optional
- * trimmed label. Anything else becomes null — a snapshot shown to every group
- * member must never carry a NaN or an out-of-range point.
- */
-function sanitiseLocation(value: unknown): { lat: number; lng: number; name?: string } | null {
-  if (!value || typeof value !== 'object') return null;
-  const loc = value as Record<string, unknown>;
-  const lat = typeof loc.lat === 'number' ? loc.lat : NaN;
-  const lng = typeof loc.lng === 'number' ? loc.lng : NaN;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  const name = typeof loc.name === 'string' ? loc.name.trim().slice(0, 120) : '';
-  return name ? { lat, lng, name } : { lat, lng };
 }
 
 serveWithCors(async (request) => {
@@ -169,29 +167,37 @@ serveWithCors(async (request) => {
     // as separate PostgREST calls would let the Σpayers = Σshares = amount
     // trigger fire against a half-written expense — and a crash in between
     // would leave a version with no shares in the ledger.
-    const { data: applied, error: applyError } = await service.rpc('baaki_apply_expense', {
-      p_group_id: body.groupId,
-      p_expense_id: body.expenseId ?? expenseId,
-      p_author_member_id: memberId,
-      p_description: body.description,
-      p_category: body.category ?? null,
-      p_expense_date: body.expenseDate,
-      p_currency: body.currency.toUpperCase(),
-      p_amount: amount.toString(),
-      p_split_type: splitParams.kind,
-      // Stored in the canonical wire form: minor units as strings, whatever
-      // the client happened to send. A number in jsonb is a double.
-      p_split_params: serialiseSplitParams(splitParams),
-      p_payers: payers.map(([id, value]) => ({ memberId: id, amount: value.toString() })),
-      p_shares: [...shares].map(([id, value]) => ({ memberId: id, amount: value.toString() })),
-      p_client_mutation_id: body.clientMutationId,
-      p_notes: body.notes ?? null,
-      p_receipt_id: body.receiptId ?? null,
-      p_fx: body.fx ?? null,
-      p_payment_method: body.paymentMethod ?? null,
-      p_receipt_share_url: body.receiptShareUrl ?? null,
-      p_location: sanitiseLocation(body.location),
-    });
+    //
+    // The argument object is built by the one shared builder `/sync` uses too
+    // (`buildApplyExpenseArgs` in @waves/core), so a direct write and a queued
+    // write reach `baaki_apply_expense` with an identical set of fields —
+    // including `p_category_meta` and `p_base_version_no`, which this path used
+    // to drop. Its sanitisers validate the category snapshot and the location.
+    const { data: applied, error: applyError } = await service.rpc(
+      'baaki_apply_expense',
+      buildApplyExpenseArgs({
+        groupId: body.groupId,
+        expenseId: body.expenseId ?? expenseId,
+        authorMemberId: memberId,
+        description: body.description,
+        category: body.category ?? null,
+        expenseDate: body.expenseDate,
+        currency: body.currency,
+        amount,
+        splitParams,
+        payers,
+        shares,
+        clientMutationId: body.clientMutationId,
+        notes: body.notes ?? null,
+        receiptId: body.receiptId ?? null,
+        baseVersionNo: body.baseVersionNo ?? null,
+        fx: body.fx ?? null,
+        paymentMethod: body.paymentMethod ?? null,
+        receiptShareUrl: body.receiptShareUrl ?? null,
+        categoryMeta: body.categoryMeta,
+        location: body.location,
+      }),
+    );
 
     if (applyError) {
       // Surface the database's own vocabulary — UNKNOWN_MEMBER, WRONG_GROUP,
