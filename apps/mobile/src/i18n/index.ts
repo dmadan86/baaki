@@ -1414,6 +1414,26 @@ export interface UiStrings {
     byShares: string;
     withAdjustments: string;
     itemized: string;
+    /** The two faces of the expense page: its breakdown, and its edit history. */
+    detailsTab: string;
+    /** "Created by Asha" / "Edited by Ravi" — the head of one audit entry. */
+    createdByName: string;
+    editedByName: string;
+    /** Shown on an edit that touched nothing this audit tracks. */
+    noChanges: string;
+    /** Field names on the edit-history audit, each shown as old → new. */
+    audit: {
+      amount: string;
+      description: string;
+      category: string;
+      split: string;
+      date: string;
+      location: string;
+      payers: string;
+      participants: string;
+      /** Placeholder for a field that was empty on one side (e.g. no location). */
+      none: string;
+    };
   };
   /** Starting a group, joining one by link, and the odds and ends around both. */
   misc: {
@@ -3091,6 +3111,21 @@ const en: UiStrings = {
     byShares: 'By shares',
     withAdjustments: 'With adjustments',
     itemized: 'Itemized',
+    detailsTab: 'Details',
+    createdByName: 'Created by {name}',
+    editedByName: 'Edited by {name}',
+    noChanges: 'No tracked fields changed',
+    audit: {
+      amount: 'Amount',
+      description: 'Description',
+      category: 'Category',
+      split: 'Split',
+      date: 'Date',
+      location: 'Location',
+      payers: 'Who paid',
+      participants: 'People',
+      none: 'None',
+    },
   },
   misc: {
     couldNotAddGeneric: 'Could not add everyone. Please try again.',
@@ -4876,6 +4911,21 @@ const ta: UiStrings = {
     byShares: 'பங்குகளின்படி',
     withAdjustments: 'சரிசெய்தலுடன்',
     itemized: 'பொருள் வாரியாக',
+    detailsTab: 'விவரங்கள்',
+    createdByName: '{name} உருவாக்கியது',
+    editedByName: '{name} திருத்தியது',
+    noChanges: 'கண்காணிக்கப்படும் புலங்கள் மாறவில்லை',
+    audit: {
+      amount: 'தொகை',
+      description: 'விவரம்',
+      category: 'வகை',
+      split: 'பிரிப்பு',
+      date: 'தேதி',
+      location: 'இடம்',
+      payers: 'செலுத்தியவர்',
+      participants: 'நபர்கள்',
+      none: 'இல்லை',
+    },
   },
   misc: {
     couldNotAddGeneric: 'எல்லாரையும் சேர்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
@@ -6642,6 +6692,21 @@ const hi: UiStrings = {
     byShares: 'हिस्सों से',
     withAdjustments: 'समायोजन के साथ',
     itemized: 'चीज़-वार',
+    detailsTab: 'विवरण',
+    createdByName: '{name} ने बनाया',
+    editedByName: '{name} ने बदला',
+    noChanges: 'कोई ट्रैक किया गया फ़ील्ड नहीं बदला',
+    audit: {
+      amount: 'राशि',
+      description: 'विवरण',
+      category: 'श्रेणी',
+      split: 'बँटवारा',
+      date: 'तारीख़',
+      location: 'स्थान',
+      payers: 'किसने चुकाया',
+      participants: 'लोग',
+      none: 'कोई नहीं',
+    },
   },
   misc: {
     couldNotAddGeneric: 'सभी को नहीं जोड़ा जा सका। कृपया फिर कोशिश करें।',
@@ -8443,6 +8508,21 @@ const ar: UiStrings = {
     byShares: 'بالحصص',
     withAdjustments: 'مع تعديلات',
     itemized: 'حسب الأصناف',
+    detailsTab: 'التفاصيل',
+    createdByName: 'أنشأها {name}',
+    editedByName: 'عدّلها {name}',
+    noChanges: 'لم تتغيّر أي حقول متتبَّعة',
+    audit: {
+      amount: 'المبلغ',
+      description: 'الوصف',
+      category: 'الفئة',
+      split: 'التقسيم',
+      date: 'التاريخ',
+      location: 'الموقع',
+      payers: 'من دفع',
+      participants: 'الأشخاص',
+      none: 'لا شيء',
+    },
   },
   misc: {
     couldNotAddGeneric: 'تعذّرت إضافة الجميع. حاول مرة أخرى.',

@@ -762,16 +762,43 @@ export async function restoreExpense(expenseId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function fetchExpenseVersions(expenseId: string) {
+/**
+ * One historical version of an expense, rich enough to diff against its
+ * neighbour for the edit-history audit: the scalar fields plus the payer and
+ * share rows, so "what changed" can name a field and show old → new.
+ */
+export interface ExpenseVersionAudit {
+  id: string;
+  version_no: number;
+  description: string;
+  /** Total, in minor units, as a string (bigint over the wire). */
+  amount: string;
+  currency: string;
+  created_at: string;
+  author_member_id: string | null;
+  split_type: string;
+  category: string | null;
+  /** The custom tag snapshot when the category is a user tag; carries its label. */
+  category_meta: { label?: string } | null;
+  expense_date: string;
+  location: ExpenseLocation | null;
+  payers: { member_id: string; amount: string }[];
+  shares: { member_id: string; amount: string }[];
+}
+
+export async function fetchExpenseVersions(expenseId: string): Promise<ExpenseVersionAudit[]> {
   return unwrap(
     await backend
       .from('expense_versions')
       .select(
-        'id, version_no, description, amount, currency, created_at, author_member_id, split_type',
+        'id, version_no, description, amount, currency, created_at, author_member_id, split_type, ' +
+          'category, category_meta, expense_date, location, ' +
+          'payers:expense_payers ( member_id, amount ), ' +
+          'shares:expense_shares ( member_id, amount )',
       )
       .eq('expense_id', expenseId)
       .order('version_no', { ascending: false }),
-  );
+  ) as unknown as ExpenseVersionAudit[];
 }
 
 export async function recordSettlement(input: {
