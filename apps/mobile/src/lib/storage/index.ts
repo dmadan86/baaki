@@ -1,7 +1,7 @@
 /**
  * One seam for every image the app stores (A44).
  *
- * Historically each uploader called `supabase.storage.from(bucket)…` inline.
+ * Historically each uploader called `backend.storage.from(bucket)…` inline.
  * Storage now has two backends — Cloudflare R2 for everything uploaded since the
  * cut-over, Supabase Storage for anything before it — and the client must not
  * care which. Every read, write and delete goes through here.
@@ -18,7 +18,7 @@
 
 import { decode } from 'base64-arraybuffer';
 
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 
 /** The four private buckets. Values match the R2 namespace and the old bucket. */
 export type LogicalBucket =
@@ -76,7 +76,7 @@ async function asStorageError(error: unknown): Promise<Error> {
 }
 
 async function signCall(body: Record<string, unknown>): Promise<{ url?: string }> {
-  const { data, error } = await supabase.functions.invoke('r2-sign', { body });
+  const { data, error } = await backend.functions.invoke('r2-sign', { body });
   if (error) throw await asStorageError(error);
   return (data ?? {}) as { url?: string };
 }
@@ -113,7 +113,7 @@ export async function putImage(input: PutImageInput): Promise<string> {
   }
 
   if (!r2Enabled()) {
-    const { error } = await supabase.storage
+    const { error } = await backend.storage
       .from(input.bucket)
       .upload(input.path, bytes, { contentType: input.contentType, upsert: true });
     if (error) throw new Error(error.message);
@@ -217,7 +217,7 @@ export async function imageUrl(bucket: LogicalBucket, path: string | null): Prom
   if (!path) return null;
 
   if (!r2Enabled()) {
-    const { data, error } = await supabase.storage
+    const { data, error } = await backend.storage
       .from(bucket)
       .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
     if (error) return null;
@@ -242,7 +242,7 @@ export async function removeImage(bucket: LogicalBucket, path: string | null): P
   if (!path) return;
 
   if (!r2Enabled()) {
-    const { error } = await supabase.storage.from(bucket).remove([path]);
+    const { error } = await backend.storage.from(bucket).remove([path]);
     if (error) throw new Error(error.message);
     return;
   }

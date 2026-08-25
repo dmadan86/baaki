@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { variantFor, type FeatureFlag } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 
 interface FlagRow {
   key: string;
@@ -28,7 +28,7 @@ interface FlagRow {
 }
 
 async function fetchFlags(): Promise<FeatureFlag[]> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('feature_flags')
     .select('key, enabled, rollout_percent, variants');
 

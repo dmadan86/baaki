@@ -28,7 +28,7 @@ import { OtpInput, OTP_LEN } from '@/components/OtpInput';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 
 /** Seconds to wait before resend lights up, and how many times it may be used. */
 const RESEND_SECONDS = 60;
@@ -77,7 +77,7 @@ export default function VerifyEmailScreen() {
           await continueAsGuest();
           return;
         }
-        const { error: verifyError } = await supabase.auth.verifyOtp({
+        const { error: verifyError } = await backend.auth.verifyOtp({
           email,
           token: code,
           type: 'signup',
@@ -100,7 +100,7 @@ export default function VerifyEmailScreen() {
       setBusy(true);
       setError(null);
       try {
-        const { error: resendError } = await supabase.auth.resend({ type: 'signup', email });
+        const { error: resendError } = await backend.auth.resend({ type: 'signup', email });
         if (resendError) throw resendError;
         setResends((r) => r + 1);
         setSeconds(RESEND_SECONDS);

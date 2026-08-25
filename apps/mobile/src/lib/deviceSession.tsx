@@ -36,7 +36,7 @@ import { useStrings } from '@/i18n';
 import { registerDevice, signOutOtherDevices } from '@/data/api';
 import { deviceIdentity } from '@/lib/device';
 import { useAuth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 
 /** How stale a registration may get before a foreground refreshes it. */
 const HEARTBEAT_MS = 60 * 60 * 1000;
@@ -137,7 +137,7 @@ export function DeviceSessionProvider({ children }: { children: ReactNode }) {
       // signOut resolves with `{ error }` rather than throwing, so a revocation
       // failure has to be read off the result and re-thrown; otherwise the gate
       // below would dismiss on a sign-out that never happened.
-      const { error } = await supabase.auth.signOut({ scope: 'others' });
+      const { error } = await backend.auth.signOut({ scope: 'others' });
       if (error) throw error;
     } catch (caught) {
       await register();

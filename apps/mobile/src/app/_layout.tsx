@@ -36,7 +36,7 @@ import { TourOverlay } from '@/components/TourOverlay';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { supabaseConfigured } from '@/lib/supabase';
+import { backendConfigured } from '@/lib/backend';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
 import { useFlagEnabled } from '@/lib/flags';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
@@ -152,7 +152,7 @@ function DirectionRoot({ children }: { children: React.ReactNode }) {
  *
  * Deliberately self-contained — plain `react-native`, no theme, no i18n, no
  * providers — because the reason it renders is that the app's foundations are
- * not set up (see `supabaseConfigured`). Its copy is in English because there is
+ * not set up (see `backendConfigured`). Its copy is in English because there is
  * no working string table to translate it, and the only audience is whoever
  * installed a build whose keys were never baked in.
  */
@@ -182,8 +182,8 @@ function RootLayout() {
   // A build shipped without its Supabase keys can do nothing useful, and must
   // not mount the auth/sync tree below — that tree would poke an unreachable
   // client. Show a plain notice instead of the crash the module-load throw used
-  // to cause (see supabase.ts).
-  if (!supabaseConfigured) return <MisconfiguredBuild />;
+  // to cause (see backend.ts).
+  if (!backendConfigured) return <MisconfiguredBuild />;
   return (
     // Outermost, above even the gesture root: every string in the app below it
     // reads from here, and the root view's own direction is one of them.

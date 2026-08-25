@@ -40,8 +40,9 @@ const h = vi.hoisted(() => ({
 
 vi.mock('expo-network', () => ({ getNetworkStateAsync: h.net }));
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: { functions: { invoke: h.invoke } },
+vi.mock('@/lib/backend', () => ({
+  backend: { functions: { invoke: h.invoke } },
+  backendConfigured: true,
 }));
 
 // Keep Sentry out of a unit test; the engine only ever calls `reportHandled`.

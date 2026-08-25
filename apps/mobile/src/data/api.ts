@@ -28,7 +28,7 @@ import {
 import { activeStrings } from '@/i18n';
 import type { DeviceIdentity } from '@/lib/device';
 import { imageUrl, putImage, removeImage } from '@/lib/storage';
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 import type {
   ActivityGroup,
   ActivityRow,
@@ -77,7 +77,7 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
 
 export async function fetchGroups(): Promise<GroupRow[]> {
   return unwrap(
-    await supabase
+    await backend
       .from('groups')
       .select(GROUP_SELECT)
       .is('archived_at', null)
@@ -86,12 +86,12 @@ export async function fetchGroups(): Promise<GroupRow[]> {
 }
 
 export async function fetchGroup(groupId: string): Promise<GroupRow> {
-  return unwrap(await supabase.from('groups').select(GROUP_SELECT).eq('id', groupId).single());
+  return unwrap(await backend.from('groups').select(GROUP_SELECT).eq('id', groupId).single());
 }
 
 export async function fetchMembers(groupId: string): Promise<MemberRow[]> {
   return unwrap(
-    await supabase
+    await backend
       .from('group_members')
       .select(MEMBER_SELECT)
       .eq('group_id', groupId)
@@ -104,7 +104,7 @@ export async function fetchExpenses(
   groupId: string,
   options: { includeDeleted?: boolean } = {},
 ): Promise<ExpenseRow[]> {
-  let query = supabase
+  let query = backend
     .from('expenses')
     .select(EXPENSE_SELECT)
     .eq('group_id', groupId)
@@ -115,7 +115,7 @@ export async function fetchExpenses(
 
 export async function fetchSettlements(groupId: string): Promise<SettlementRow[]> {
   return unwrap(
-    await supabase
+    await backend
       .from('settlements')
       .select(
         `id, group_id, from_member_id, to_member_id, currency, amount, method, status, note,
@@ -129,7 +129,7 @@ export async function fetchSettlements(groupId: string): Promise<SettlementRow[]
 
 export async function fetchActivity(groupId: string, limit = 50): Promise<ActivityRow[]> {
   return unwrap(
-    await supabase
+    await backend
       .from('activity_log')
       .select(
         `id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
@@ -148,7 +148,7 @@ export async function fetchRecentActivity(
   limit = 60,
 ): Promise<(ActivityRow & { group: ActivityGroup | null })[]> {
   return unwrap(
-    await supabase
+    await backend
       .from('activity_log')
       .select(
         `id, group_id, actor_member_id, verb, object_type, object_id, payload, created_at,
@@ -169,7 +169,7 @@ export async function fetchRecentActivity(
  */
 export async function fetchBalances(groupId: string): Promise<BalanceRow[]> {
   return unwrap(
-    await supabase
+    await backend
       .from('group_balances')
       .select('group_id, member_id, currency, balance')
       .eq('group_id', groupId),
@@ -178,14 +178,14 @@ export async function fetchBalances(groupId: string): Promise<BalanceRow[]> {
 
 export async function fetchAllBalances(): Promise<BalanceRow[]> {
   return unwrap(
-    await supabase.from('group_balances').select('group_id, member_id, currency, balance'),
+    await backend.from('group_balances').select('group_id, member_id, currency, balance'),
   );
 }
 
 /** Just my own balance in each group — one query for the home screen. */
 export async function fetchMyBalances(profileId: string): Promise<BalanceRow[]> {
   const rows = unwrap(
-    await supabase
+    await backend
       .from('group_balances')
       .select('group_id, member_id, currency, balance, member:group_members!inner ( profile_id )')
       .eq('member.profile_id', profileId),
@@ -195,9 +195,7 @@ export async function fetchMyBalances(profileId: string): Promise<BalanceRow[]> 
 
 /** Groups with a settlement still waiting on someone to confirm (ADR-007). */
 export async function fetchPendingSettlements(): Promise<{ group_id: string; id: string }[]> {
-  return unwrap(
-    await supabase.from('settlements').select('id, group_id').eq('status', 'initiated'),
-  );
+  return unwrap(await backend.from('settlements').select('id, group_id').eq('status', 'initiated'));
 }
 
 /**
@@ -217,7 +215,7 @@ export async function fetchPendingSettlements(): Promise<{ group_id: string; id:
  */
 export async function fetchSettledTotals(profileId: string): Promise<Map<CurrencyCode, bigint>> {
   const rows = unwrap(
-    await supabase
+    await backend
       .from('settlements')
       .select(
         `currency, amount,
@@ -249,7 +247,7 @@ export async function fetchSettledTotals(profileId: string): Promise<Map<Currenc
  */
 export async function fetchMembersByGroup(): Promise<Map<string, MemberRow[]>> {
   const rows = unwrap(
-    await supabase
+    await backend
       .from('group_members')
       .select(
         'id, group_id, profile_id, ghost_name, role, vpa, left_at, invite_email, invite_phone, profile:profiles!profile_id ( id, display_name, avatar_url, default_vpa )',
@@ -291,7 +289,7 @@ export async function createGroup(input: {
    */
   creatorMemberId?: string;
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('baaki_create_group', {
+  const { data, error } = await backend.rpc('baaki_create_group', {
     p_name: input.name?.trim() || null,
     p_type: input.type,
     p_currency: input.currency,
@@ -334,7 +332,7 @@ export async function uploadGroupPhoto(input: {
     groupId: input.groupId,
   });
 
-  const { error: linkError } = await supabase
+  const { error: linkError } = await backend
     .from('groups')
     .update({ photo_path: path })
     .eq('id', input.groupId);
@@ -350,7 +348,7 @@ export async function groupPhotoUrl(path: string | null): Promise<string | null>
 
 export async function removeGroupPhoto(groupId: string, path: string | null): Promise<void> {
   await removeImage(PHOTO_BUCKET, path);
-  const { error } = await supabase.from('groups').update({ photo_path: null }).eq('id', groupId);
+  const { error } = await backend.from('groups').update({ photo_path: null }).eq('id', groupId);
   if (error) throw new Error(error.message);
 }
 
@@ -365,7 +363,7 @@ export async function removeGroupPhoto(groupId: string, path: string | null): Pr
  * whose subscription it was. Pass `null` for the new-group case.
  */
 export async function canUploadGroupPhoto(groupId: string | null): Promise<boolean> {
-  const { data, error } = await supabase.rpc('baaki_can_upload_group_photo', {
+  const { data, error } = await backend.rpc('baaki_can_upload_group_photo', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -383,7 +381,7 @@ export async function canUploadGroupPhoto(groupId: string | null): Promise<boole
  * this is the affordance, not the boundary.
  */
 export async function canAddReceipt(groupId: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('baaki_can_add_receipt', {
+  const { data, error } = await backend.rpc('baaki_can_add_receipt', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -399,7 +397,7 @@ export async function canAddReceipt(groupId: string): Promise<boolean> {
  * the caller's own profile, so it reveals nobody else's tally.
  */
 export async function myStorageUsage(): Promise<{ usedBytes: number; capBytes: number }> {
-  const { data, error } = await supabase.rpc('baaki_my_storage_usage');
+  const { data, error } = await backend.rpc('baaki_my_storage_usage');
   if (error) throw new Error(error.message);
   const row = (data as { used_bytes: number; cap_bytes: number }[] | null)?.[0];
   return { usedBytes: Number(row?.used_bytes ?? 0), capBytes: Number(row?.cap_bytes ?? 0) };
@@ -507,7 +505,7 @@ async function logReceiptEvent(
   expenseId: string,
   action: 'added' | 'removed',
 ): Promise<void> {
-  const { error } = await supabase.rpc('baaki_log_receipt_event', {
+  const { error } = await backend.rpc('baaki_log_receipt_event', {
     p_event_id: randomUUID(),
     p_group_id: groupId,
     p_expense_id: expenseId,
@@ -567,7 +565,7 @@ export async function uploadAvatar(input: {
 
   await putImage({ bucket: AVATAR_BUCKET, path, base64: input.base64, contentType: mime });
 
-  const { error: linkError } = await supabase
+  const { error: linkError } = await backend
     .from('profiles')
     .update({ avatar_url: path })
     .eq('id', input.profileId);
@@ -595,10 +593,7 @@ export async function removeAvatar(profileId: string, value: string | null): Pro
   if (value && !/^https?:\/\//.test(value)) {
     await removeImage(AVATAR_BUCKET, value);
   }
-  const { error } = await supabase
-    .from('profiles')
-    .update({ avatar_url: null })
-    .eq('id', profileId);
+  const { error } = await backend.from('profiles').update({ avatar_url: null }).eq('id', profileId);
   if (error) throw new Error(error.message);
 }
 
@@ -616,7 +611,7 @@ export async function addGhostMember(
   name: string,
   contact: { email?: string | null; phone?: string | null } = {},
 ): Promise<string> {
-  const { data, error } = await supabase.rpc('baaki_add_ghost_member', {
+  const { data, error } = await backend.rpc('baaki_add_ghost_member', {
     p_group_id: groupId,
     p_name: name.trim() || null,
     p_member_id: null,
@@ -671,7 +666,7 @@ export interface WriteExpenseResult {
 }
 
 export async function writeExpense(input: WriteExpenseInput): Promise<WriteExpenseResult> {
-  const { data, error } = await supabase.functions.invoke('expense-write', {
+  const { data, error } = await backend.functions.invoke('expense-write', {
     body: {
       groupId: input.groupId,
       expenseId: input.expenseId,
@@ -744,18 +739,18 @@ async function readFunctionError(error: unknown): Promise<string> {
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
-  const { error } = await supabase.rpc('baaki_delete_expense', { p_expense_id: expenseId });
+  const { error } = await backend.rpc('baaki_delete_expense', { p_expense_id: expenseId });
   if (error) throw new Error(error.message);
 }
 
 export async function restoreExpense(expenseId: string): Promise<void> {
-  const { error } = await supabase.rpc('baaki_restore_expense', { p_expense_id: expenseId });
+  const { error } = await backend.rpc('baaki_restore_expense', { p_expense_id: expenseId });
   if (error) throw new Error(error.message);
 }
 
 export async function fetchExpenseVersions(expenseId: string) {
   return unwrap(
-    await supabase
+    await backend
       .from('expense_versions')
       .select(
         'id, version_no, description, amount, currency, created_at, author_member_id, split_type',
@@ -781,7 +776,7 @@ export async function recordSettlement(input: {
   allocations?: { expenseId: string; amount: bigint }[];
   clientMutationId?: string;
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('baaki_record_settlement', {
+  const { data, error } = await backend.rpc('baaki_record_settlement', {
     p_group_id: input.groupId,
     p_from_member_id: input.fromMemberId,
     p_to_member_id: input.toMemberId,
@@ -805,7 +800,7 @@ export async function recordSettlement(input: {
 }
 
 export async function confirmSettlement(settlementId: string): Promise<void> {
-  const { error } = await supabase.rpc('baaki_confirm_settlement', {
+  const { error } = await backend.rpc('baaki_confirm_settlement', {
     p_settlement_id: settlementId,
   });
   if (error) throw new Error(error.message);
@@ -831,7 +826,7 @@ export async function updateGroup(
     remind_evening_at: string;
   }>,
 ): Promise<void> {
-  const { error } = await supabase.from('groups').update(patch).eq('id', groupId);
+  const { error } = await backend.from('groups').update(patch).eq('id', groupId);
   if (error) throw new Error(error.message);
 }
 
@@ -843,7 +838,7 @@ export async function updateGroup(
 
 export async function fetchDisputes(groupId: string): Promise<DisputeRow[]> {
   return unwrap(
-    await supabase
+    await backend
       .from('expense_disputes')
       .select(
         'id, expense_id, member_id, reason, status, resolved_by_member_id, resolution_note, created_at, resolved_at, expense:expenses!inner ( group_id )',
@@ -857,7 +852,7 @@ export async function disputeExpense(input: {
   expenseId: string;
   reason?: string | null;
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('baaki_dispute_expense', {
+  const { data, error } = await backend.rpc('baaki_dispute_expense', {
     p_expense_id: input.expenseId,
     p_reason: input.reason?.trim() || null,
   });
@@ -866,7 +861,7 @@ export async function disputeExpense(input: {
 }
 
 export async function withdrawDispute(expenseId: string): Promise<void> {
-  const { error } = await supabase.rpc('baaki_withdraw_dispute', { p_expense_id: expenseId });
+  const { error } = await backend.rpc('baaki_withdraw_dispute', { p_expense_id: expenseId });
   if (error) throw new Error(error.message);
 }
 
@@ -875,7 +870,7 @@ export async function resolveDispute(input: {
   accept: boolean;
   note?: string | null;
 }): Promise<void> {
-  const { error } = await supabase.rpc('baaki_resolve_dispute', {
+  const { error } = await backend.rpc('baaki_resolve_dispute', {
     p_dispute_id: input.disputeId,
     p_accept: input.accept,
     p_note: input.note?.trim() || null,
@@ -888,7 +883,7 @@ export async function updateMember(
   memberId: string,
   patch: Partial<{ ghost_name: string; vpa: string | null }>,
 ): Promise<void> {
-  const { error } = await supabase.from('group_members').update(patch).eq('id', memberId);
+  const { error } = await backend.from('group_members').update(patch).eq('id', memberId);
   if (error) throw new Error(error.message);
 }
 
@@ -898,7 +893,7 @@ export async function updateMember(
  * cannot go through `updateMember` (a trigger would reject it).
  */
 export async function setMemberRole(memberId: string, role: 'admin' | 'member'): Promise<void> {
-  const { error } = await supabase.rpc('baaki_set_member_role', {
+  const { error } = await backend.rpc('baaki_set_member_role', {
     p_member_id: memberId,
     p_role: role,
   });
@@ -907,7 +902,7 @@ export async function setMemberRole(memberId: string, role: 'admin' | 'member'):
 
 /** Leaving is a soft exit: history stays, the person stops accruing new shares. */
 export async function leaveGroup(memberId: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await backend
     .from('group_members')
     .update({ left_at: new Date().toISOString() })
     .eq('id', memberId);
@@ -925,7 +920,7 @@ export interface MintedInvite {
 }
 
 export async function mintInvite(groupId: string, expiresInDays = 7): Promise<MintedInvite> {
-  const { data, error } = await supabase.functions.invoke('invite-mint', {
+  const { data, error } = await backend.functions.invoke('invite-mint', {
     body: { groupId, expiresInDays },
   });
   if (error) throw new Error(await readFunctionError(error));
@@ -939,7 +934,7 @@ export interface InvitePreview {
 }
 
 export async function previewInvite(token: string): Promise<InvitePreview> {
-  const { data, error } = await supabase.functions.invoke('invite-accept', {
+  const { data, error } = await backend.functions.invoke('invite-accept', {
     body: { token, mode: 'preview' },
   });
   if (error) throw new Error(await readFunctionError(error));
@@ -969,7 +964,7 @@ export async function acceptInvite(input: {
   claimMemberId?: string | null;
   displayName?: string | null;
 }): Promise<AcceptedInvite> {
-  const { data, error } = await supabase.functions.invoke('invite-accept', {
+  const { data, error } = await backend.functions.invoke('invite-accept', {
     body: { ...input, mode: 'join' },
   });
   if (error) throw new Error(await readFunctionError(error));
@@ -989,7 +984,7 @@ export interface PendingClaim {
 
 /** What an admin of this group has been asked. Empty for everybody else. */
 export async function fetchMemberClaims(groupId: string): Promise<PendingClaim[]> {
-  const { data, error } = await supabase.rpc('baaki_group_member_claims', { p_group_id: groupId });
+  const { data, error } = await backend.rpc('baaki_group_member_claims', { p_group_id: groupId });
   if (error) throw new Error(error.message);
   return (data ?? []) as PendingClaim[];
 }
@@ -1003,7 +998,7 @@ export async function decideMemberClaim(
   claimId: string,
   approve: boolean,
 ): Promise<{ ok: boolean; reason?: string; status?: string }> {
-  const { data, error } = await supabase.rpc('baaki_decide_member_claim', {
+  const { data, error } = await backend.rpc('baaki_decide_member_claim', {
     p_claim_id: claimId,
     p_approve: approve,
   });
@@ -1023,14 +1018,14 @@ export interface MyClaim {
 
 /** Carries the group's name: somebody still waiting cannot read the group. */
 export async function fetchMyClaims(): Promise<MyClaim[]> {
-  const { data, error } = await supabase.rpc('baaki_my_member_claims');
+  const { data, error } = await backend.rpc('baaki_my_member_claims');
   if (error) throw new Error(error.message);
   return (data ?? []) as MyClaim[];
 }
 
 /** The way out of waiting on an admin who never opens the app. */
 export async function withdrawMemberClaim(claimId: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('baaki_withdraw_member_claim', {
+  const { data, error } = await backend.rpc('baaki_withdraw_member_claim', {
     p_claim_id: claimId,
   });
   if (error) throw new Error(error.message);
@@ -1039,7 +1034,7 @@ export async function withdrawMemberClaim(claimId: string): Promise<boolean> {
 
 /** Links are revocable at any time (ADR-006). */
 export async function revokeInvite(inviteId: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await backend
     .from('invites')
     .update({ revoked_at: new Date().toISOString() })
     .eq('id', inviteId);
@@ -1052,7 +1047,7 @@ export async function revokeInvite(inviteId: string): Promise<void> {
  * while it is live, so the QR is stable across opens and devices.
  */
 export async function ensureGroupJoinToken(groupId: string): Promise<string> {
-  const { data, error } = await supabase.rpc('baaki_ensure_group_join_token', {
+  const { data, error } = await backend.rpc('baaki_ensure_group_join_token', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -1061,7 +1056,7 @@ export async function ensureGroupJoinToken(groupId: string): Promise<string> {
 
 /** Rotate the durable link (admin only) — the old QR and every shared copy die. */
 export async function resetGroupJoinToken(groupId: string): Promise<string> {
-  const { data, error } = await supabase.rpc('baaki_reset_group_join_token', {
+  const { data, error } = await backend.rpc('baaki_reset_group_join_token', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -1083,7 +1078,7 @@ export async function exportData(input: {
   format: 'json' | 'csv' | 'pdf';
   csvSeparator?: string;
 }): Promise<ExportResult> {
-  const { data, error } = await supabase.functions.invoke('export-data', { body: input });
+  const { data, error } = await backend.functions.invoke('export-data', { body: input });
   if (error) throw new Error(await readFunctionError(error));
   return data as ExportResult;
 }
@@ -1150,7 +1145,7 @@ export async function importLedger(input: {
   settlements?: ImportSettlement[];
   origin?: 'splitwise' | 'baaki';
 }): Promise<ImportResult> {
-  const { data, error } = await supabase.rpc('baaki_import_ledger', {
+  const { data, error } = await backend.rpc('baaki_import_ledger', {
     p_group_id: input.groupId,
     p_people: input.people,
     p_origin: input.origin ?? 'splitwise',
@@ -1216,7 +1211,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
 };
 
 export async function fetchNotificationPrefs(profileId: string): Promise<NotificationPrefs> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('profiles')
     .select('notification_prefs')
     .eq('id', profileId)
@@ -1235,7 +1230,7 @@ export async function fetchNotifications(limit = 50): Promise<NotificationRow[]>
   // decides whose inbox this is, and adding a second, weaker check in the
   // client would only invite disagreement about which one is authoritative.
   return unwrap(
-    await supabase
+    await backend
       .from('notifications')
       .select('id, group_id, kind, title, body, deep_link, payload, read_at, created_at')
       .order('created_at', { ascending: false })
@@ -1245,7 +1240,7 @@ export async function fetchNotifications(limit = 50): Promise<NotificationRow[]>
 
 export async function markNotificationsRead(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
-  const { data, error } = await supabase.rpc('baaki_mark_notifications_read', { p_ids: ids });
+  const { data, error } = await backend.rpc('baaki_mark_notifications_read', { p_ids: ids });
   if (error) throw new Error(error.message);
   return Number(data ?? 0);
 }
@@ -1254,7 +1249,7 @@ export async function saveNotificationPrefs(
   profileId: string,
   prefs: NotificationPrefs,
 ): Promise<void> {
-  const { error } = await supabase
+  const { error } = await backend
     .from('profiles')
     .update({ notification_prefs: prefs })
     .eq('id', profileId);
@@ -1283,8 +1278,8 @@ export async function startAddingContact(channel: ContactChannel, value: string)
   const normalised = channel === 'email' ? normaliseEmail(value) : normalisePhone(value);
   const { error } =
     channel === 'email'
-      ? await supabase.auth.updateUser({ email: normalised })
-      : await supabase.auth.updateUser({ phone: normalised });
+      ? await backend.auth.updateUser({ email: normalised })
+      : await backend.auth.updateUser({ phone: normalised });
   if (error) throw new Error(describeAuthError(error.message, channel));
 }
 
@@ -1294,7 +1289,7 @@ export async function confirmContact(
   token: string,
 ): Promise<void> {
   const normalised = channel === 'email' ? normaliseEmail(value) : normalisePhone(value);
-  const { error } = await supabase.auth.verifyOtp(
+  const { error } = await backend.auth.verifyOtp(
     channel === 'email'
       ? { email: normalised, token: token.trim(), type: 'email_change' }
       : { phone: normalised, token: token.trim(), type: 'phone_change' },
@@ -1352,7 +1347,7 @@ export async function scanReceipt(input: {
     groupId: input.groupId,
   });
 
-  const { data, error } = await supabase.functions.invoke('receipt-parse', {
+  const { data, error } = await backend.functions.invoke('receipt-parse', {
     body: {
       groupId: input.groupId,
       receiptId,
@@ -1377,7 +1372,7 @@ export async function scanReceiptText(input: {
    */
   source?: 'camera' | 'gallery' | 'text_paste';
 }): Promise<ScanResult> {
-  const { data, error } = await supabase.functions.invoke('receipt-parse', {
+  const { data, error } = await backend.functions.invoke('receipt-parse', {
     body: {
       groupId: input.groupId,
       rawText: input.rawText,
@@ -1394,7 +1389,7 @@ export async function fetchScanQuota(): Promise<{
   limit: number;
   remaining: number;
 }> {
-  const { data, error } = await supabase.rpc('baaki_receipt_scan_quota');
+  const { data, error } = await backend.rpc('baaki_receipt_scan_quota');
   if (error) throw new Error(error.message);
   return data as { used: number; limit: number; remaining: number };
 }
@@ -1411,7 +1406,7 @@ export async function fetchScanQuota(): Promise<{
  * includes a markup no reference rate will ever match.
  */
 export async function fetchFxRate(from: string, to: string): Promise<FxRecord> {
-  const { data, error } = await supabase.functions.invoke(
+  const { data, error } = await backend.functions.invoke(
     `fx-rate?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
     { method: 'GET' },
   );
@@ -1445,7 +1440,7 @@ export interface PersonBalanceRow {
  * is not proof that two records are one human.
  */
 export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
-  const { data, error } = await supabase.rpc('baaki_people_i_owe');
+  const { data, error } = await backend.rpc('baaki_people_i_owe');
   if (error) throw new Error(error.message);
   return (data ?? []) as PersonBalanceRow[];
 }
@@ -1471,7 +1466,7 @@ export interface PersonGroupBalanceRow {
 export async function fetchPersonGroupBalances(
   personKey: string,
 ): Promise<PersonGroupBalanceRow[]> {
-  const { data, error } = await supabase.rpc('baaki_person_group_balances', {
+  const { data, error } = await backend.rpc('baaki_person_group_balances', {
     p_person_key: personKey,
   });
   if (error) throw new Error(error.message);
@@ -1490,7 +1485,7 @@ export async function fetchPersonGroupBalances(
  * `mergeErrorMessage`).
  */
 export async function mergeGhosts(memberIds: string[], name: string): Promise<void> {
-  const { error } = await supabase.rpc('baaki_merge_ghosts', {
+  const { error } = await backend.rpc('baaki_merge_ghosts', {
     p_member_ids: memberIds,
     p_name: name,
   });
@@ -1512,7 +1507,7 @@ export async function nudgeToSettle(input: {
   toMemberId: string;
   currency: string;
 }): Promise<void> {
-  const { error } = await supabase.rpc('baaki_nudge_to_settle', {
+  const { error } = await backend.rpc('baaki_nudge_to_settle', {
     p_group_id: input.groupId,
     p_to_member_id: input.toMemberId,
     p_currency: input.currency,
@@ -1546,7 +1541,7 @@ export interface SpendingRow {
  * and "what did I spend", and the second cannot be recovered from the first.
  */
 export async function fetchGroupSpending(groupId: string): Promise<SpendingRow[]> {
-  const { data, error } = await supabase.rpc('baaki_group_spending', { p_group_id: groupId });
+  const { data, error } = await backend.rpc('baaki_group_spending', { p_group_id: groupId });
   if (error) throw new Error(error.message);
   return (data ?? []) as SpendingRow[];
 }
@@ -1568,7 +1563,7 @@ export interface ReleaseRow {
  * a client too old to be trusted with the ledger is too old to sign in to it.
  */
 export async function fetchReleasePolicy(platform: 'ios' | 'android'): Promise<ReleaseRow | null> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('app_releases')
     .select('platform, latest_version, minimum_version, store_url, message')
     .eq('platform', platform)
@@ -1595,7 +1590,7 @@ export interface PlanItemRow {
 }
 
 export async function fetchPlanItems(groupId: string): Promise<PlanItemRow[]> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('trip_plan_items')
     .select(
       'id, group_id, day, starts_at, title, note, category, planned_minor, currency, done_at, expense_id, position',
@@ -1621,7 +1616,7 @@ export async function addPlanItem(input: {
   /** Chosen here so a retry after a dropped connection replays (ADR-005). */
   itemId?: string;
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('baaki_add_plan_item', {
+  const { data, error } = await backend.rpc('baaki_add_plan_item', {
     p_group_id: input.groupId,
     p_day: input.day,
     p_title: input.title,
@@ -1637,7 +1632,7 @@ export async function addPlanItem(input: {
 }
 
 export async function setPlanItemDone(itemId: string, done: boolean): Promise<void> {
-  const { error } = await supabase.rpc('baaki_update_plan_item', {
+  const { error } = await backend.rpc('baaki_update_plan_item', {
     p_item_id: itemId,
     p_done: done,
   });
@@ -1645,7 +1640,7 @@ export async function setPlanItemDone(itemId: string, done: boolean): Promise<vo
 }
 
 export async function removePlanItem(itemId: string): Promise<void> {
-  const { error } = await supabase.rpc('baaki_remove_plan_item', { p_item_id: itemId });
+  const { error } = await backend.rpc('baaki_remove_plan_item', { p_item_id: itemId });
   if (error) throw new Error(error.message);
 }
 
@@ -1667,7 +1662,7 @@ export interface MemberBudgetRow {
 }
 
 export async function fetchMemberBudgets(groupId: string): Promise<MemberBudgetRow[]> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('trip_member_budgets')
     .select('id, group_id, member_id, amount_minor, currency, visibility')
     .eq('group_id', groupId)
@@ -1684,7 +1679,7 @@ export interface GroupBudget {
 }
 
 export async function fetchGroupBudget(groupId: string): Promise<GroupBudget> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('groups')
     .select('budget_minor, budget_currency')
     .eq('id', groupId)
@@ -1703,7 +1698,7 @@ export async function setMyTripBudget(input: {
   currency?: string | null;
   visibility: 'private' | 'group';
 }): Promise<void> {
-  const { error } = await supabase.rpc('baaki_set_my_trip_budget', {
+  const { error } = await backend.rpc('baaki_set_my_trip_budget', {
     p_group_id: input.groupId,
     p_amount_minor: input.amountMinor.toString(),
     p_currency: input.currency ?? null,
@@ -1713,7 +1708,7 @@ export async function setMyTripBudget(input: {
 }
 
 export async function clearMyTripBudget(groupId: string): Promise<void> {
-  const { error } = await supabase.rpc('baaki_clear_my_trip_budget', { p_group_id: groupId });
+  const { error } = await backend.rpc('baaki_clear_my_trip_budget', { p_group_id: groupId });
   if (error) throw new Error(error.message);
 }
 
@@ -1723,7 +1718,7 @@ export async function setGroupBudget(input: {
   amountMinor: bigint | null;
   currency?: string | null;
 }): Promise<void> {
-  const { error } = await supabase.rpc('baaki_set_group_budget', {
+  const { error } = await backend.rpc('baaki_set_group_budget', {
     p_group_id: input.groupId,
     p_amount_minor: input.amountMinor == null ? null : input.amountMinor.toString(),
     p_currency: input.currency ?? null,
@@ -1747,7 +1742,7 @@ export interface ItemClaimRow {
  * the difference even though the screen does not.
  */
 export async function fetchItemClaims(receiptId: string): Promise<ItemClaimRow[]> {
-  const { data, error } = await supabase.rpc('baaki_item_claims', { p_receipt_id: receiptId });
+  const { data, error } = await backend.rpc('baaki_item_claims', { p_receipt_id: receiptId });
   if (error) throw new Error(error.message);
   return (data ?? []) as ItemClaimRow[];
 }
@@ -1765,7 +1760,7 @@ export async function setItemClaim(input: {
   claimed: boolean;
   forMemberId?: string | null;
 }): Promise<void> {
-  const { error } = await supabase.rpc('baaki_set_item_claim', {
+  const { error } = await backend.rpc('baaki_set_item_claim', {
     p_receipt_id: input.receiptId,
     p_item_index: input.itemIndex,
     p_claimed: input.claimed,
@@ -1784,7 +1779,7 @@ export interface OpenReceiptRow {
 
 /** The bills scanned in this group that nobody has turned into an expense yet. */
 export async function fetchOpenReceipts(groupId: string): Promise<OpenReceiptRow[]> {
-  const { data, error } = await supabase.rpc('baaki_open_receipts', { p_group_id: groupId });
+  const { data, error } = await backend.rpc('baaki_open_receipts', { p_group_id: groupId });
   if (error) throw new Error(error.message);
   return (data ?? []) as OpenReceiptRow[];
 }
@@ -1793,7 +1788,7 @@ export async function fetchOpenReceipts(groupId: string): Promise<OpenReceiptRow
 export async function fetchReceipt(
   receiptId: string,
 ): Promise<{ id: string; group_id: string; parsed: ParsedReceipt | null } | null> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('receipts')
     .select('id, group_id, parsed')
     .eq('id', receiptId)
@@ -1812,7 +1807,7 @@ export async function publishReceiptItems(
   receiptId: string,
   items: { label: string; total: number }[],
 ): Promise<void> {
-  const { error } = await supabase.rpc('baaki_publish_receipt_items', {
+  const { error } = await backend.rpc('baaki_publish_receipt_items', {
     p_receipt_id: receiptId,
     p_items: items,
   });
@@ -1841,7 +1836,7 @@ export type PromoOutcome =
  * into is a paywall with a door in the back.
  */
 export async function redeemPromoCode(code: string): Promise<PromoOutcome> {
-  const { data, error } = await supabase.rpc('baaki_redeem_promo', { p_code: code });
+  const { data, error } = await backend.rpc('baaki_redeem_promo', { p_code: code });
   if (error) throw new Error(error.message);
   return data as PromoOutcome;
 }
@@ -1859,7 +1854,7 @@ export async function submitFeedback(input: {
   appVersion: string | null;
   platform: string;
 }): Promise<void> {
-  const { error } = await supabase.rpc('baaki_submit_feedback', {
+  const { error } = await backend.rpc('baaki_submit_feedback', {
     p_message: input.message,
     p_kind: input.kind,
     p_rating: input.rating,
@@ -1878,7 +1873,7 @@ export interface ErasurePreview {
 
 /** What erasure would leave behind, so the screen can say so before the button. */
 export async function erasurePreview(): Promise<ErasurePreview | null> {
-  const { data, error } = await supabase.rpc('baaki_my_erasure_preview');
+  const { data, error } = await backend.rpc('baaki_my_erasure_preview');
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as ErasurePreview[];
   return rows[0] ?? null;
@@ -1898,7 +1893,7 @@ export async function erasurePreview(): Promise<ErasurePreview | null> {
 export async function deleteMyAccount(
   reason: string | null,
 ): Promise<{ memberships_anonymised?: number }> {
-  const { data, error } = await supabase.functions.invoke('account-delete', {
+  const { data, error } = await backend.functions.invoke('account-delete', {
     body: { reason },
   });
   if (error) throw new Error(await readFunctionError(error));
@@ -1913,7 +1908,7 @@ export async function deleteMyAccount(
  * only reports the answer back up (`overLimit` drives the gate).
  */
 export async function registerDevice(identity: DeviceIdentity): Promise<DeviceLimitStatus> {
-  const { data, error } = await supabase.rpc('baaki_register_device', {
+  const { data, error } = await backend.rpc('baaki_register_device', {
     p_device_id: identity.deviceId,
     p_label: identity.label,
     p_platform: identity.platform,
@@ -1925,18 +1920,18 @@ export async function registerDevice(identity: DeviceIdentity): Promise<DeviceLi
 
 /** The caller's devices seen in the last three months, newest first. */
 export async function fetchDevices(): Promise<DeviceSession[]> {
-  const { data, error } = await supabase.rpc('baaki_list_devices');
+  const { data, error } = await backend.rpc('baaki_list_devices');
   if (error) throw new Error(error.message);
   return (data ?? []) as DeviceSession[];
 }
 
 /**
  * Mark every other device revoked in the table. The caller pairs this with
- * `supabase.auth.signOut({ scope: 'others' })`, which tears down the actual
+ * `backend.auth.signOut({ scope: 'others' })`, which tears down the actual
  * sessions; doing both keeps the devices list honest about what just happened.
  */
 export async function signOutOtherDevices(currentDeviceId: string): Promise<number> {
-  const { data, error } = await supabase.rpc('baaki_sign_out_other_devices', {
+  const { data, error } = await backend.rpc('baaki_sign_out_other_devices', {
     p_device_id: currentDeviceId,
   });
   if (error) throw new Error(error.message);
@@ -1953,7 +1948,7 @@ export async function signOutOtherDevices(currentDeviceId: string): Promise<numb
  * a first-run project or an offline phone is never locked out of phone sign-in.
  */
 export async function disabledCountries(): Promise<string[]> {
-  const { data, error } = await supabase
+  const { data, error } = await backend
     .from('country_settings')
     .select('code')
     .eq('enabled', false);

@@ -30,7 +30,7 @@ import {
 } from '@waves/core';
 
 import { reportHandled } from '@/lib/observability';
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 import { loadSyncNetworkPreference, SyncNetworkPreference } from '@/lib/syncNetwork';
 
 import { createLocalStore, type LocalStore, type StoredRow } from './store';
@@ -340,7 +340,7 @@ export class SyncEngine {
 
     try {
       const { data, error } = await withTimeout(
-        supabase.functions.invoke('sync', {
+        backend.functions.invoke('sync', {
           body: {
             deviceId: 'mobile',
             mutations: batch.map((item) => ({
