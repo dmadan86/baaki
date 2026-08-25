@@ -19,9 +19,9 @@ import type { PlanTier } from '../billing/plans';
 
 /** Two at a time on the house. */
 export const FREE_DEVICE_LIMIT = 2;
-/** Paid is not "unlimited" — an account signed in on ten phones is a shared
- *  password, not a subscriber — but it is generous enough never to nag. */
-export const PLUS_DEVICE_LIMIT = 10;
+/** Paid is not "unlimited" — an account signed in on many phones is a shared
+ *  password, not a subscriber. Three covers a phone, a tablet, and a spare. */
+export const PLUS_DEVICE_LIMIT = 3;
 /** A device silent longer than this has given its slot back. */
 export const DEVICE_ACTIVE_WINDOW_DAYS = 14;
 /** The devices view looks back a quarter and no further (the request was three
