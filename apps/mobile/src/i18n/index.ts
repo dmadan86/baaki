@@ -446,6 +446,10 @@ export interface UiStrings {
     couldNotAdd: string;
     /** Viewer counter, e.g. "2 of 5" — `{index}` and `{total}`. */
     counter: string;
+    /** Save-to-device action + outcomes. */
+    download: string;
+    saved: string;
+    couldNotSave: string;
   };
   /** The receipt markup editor (pen + text over an image). */
   annotate: {
@@ -784,6 +788,12 @@ export interface UiStrings {
     thinking: string;
     /** '{n}' is how many expenses will be saved. */
     save: PluralForms;
+    /** The Save button when no group is chosen: the batch is kept as a draft
+        (the capture inbox) rather than written into a group. */
+    saveDraft: string;
+    /** Shown when the reader tries to leave the review with a draft whose rows
+        do not all carry an amount — the batch is held rather than part-saved. */
+    draftNeedsAmounts: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -2242,6 +2252,9 @@ const en: UiStrings = {
     removeConfirm: 'Remove this receipt? The change is recorded.',
     couldNotAdd: "Couldn't add that — try again.",
     counter: '{index} of {total}',
+    download: 'Save to device',
+    saved: 'Saved to your device.',
+    couldNotSave: "Couldn't save the image — try again.",
   },
   annotate: {
     title: 'Markup',
@@ -2552,6 +2565,8 @@ const en: UiStrings = {
     newGroupNamed: 'New group “{name}”',
     thinking: 'Making sense of that…',
     save: { one: 'Save {n} expense', other: 'Save {n} expenses' },
+    saveDraft: 'Save as draft',
+    draftNeedsAmounts: 'Enter an amount for each expense, or remove it, to keep this draft.',
   },
   notifications: {
     title: 'Notifications',
@@ -4024,6 +4039,9 @@ const ta: UiStrings = {
     removeConfirm: 'இந்த ரசீதை அகற்றவா? இந்த மாற்றம் பதிவு செய்யப்படும்.',
     couldNotAdd: 'சேர்க்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     counter: '{total} இல் {index}',
+    download: 'சாதனத்தில் சேமி',
+    saved: 'உங்கள் சாதனத்தில் சேமிக்கப்பட்டது.',
+    couldNotSave: 'படத்தைச் சேமிக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
   },
   annotate: {
     title: 'குறிப்புகள்',
@@ -4340,6 +4358,9 @@ const ta: UiStrings = {
     newGroupNamed: 'புதிய குழு “{name}”',
     thinking: 'புரிந்துகொள்கிறது…',
     save: { one: '{n} செலவைச் சேமி', other: '{n} செலவுகளைச் சேமி' },
+    saveDraft: 'வரைவாகச் சேமி',
+    draftNeedsAmounts:
+      'இந்த வரைவைச் சேமிக்க ஒவ்வொரு செலவுக்கும் தொகையை உள்ளிடவும், அல்லது அதை நீக்கவும்.',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -5871,6 +5892,9 @@ const hi: UiStrings = {
     removeConfirm: 'यह रसीद हटाएँ? यह बदलाव दर्ज किया जाएगा।',
     couldNotAdd: 'जोड़ा नहीं जा सका — फिर कोशिश करें।',
     counter: '{total} में से {index}',
+    download: 'डिवाइस पर सहेजें',
+    saved: 'आपके डिवाइस पर सहेज लिया गया।',
+    couldNotSave: 'छवि सहेजी नहीं जा सकी — फिर कोशिश करें।',
   },
   annotate: {
     title: 'मार्कअप',
@@ -6180,6 +6204,8 @@ const hi: UiStrings = {
     newGroupNamed: 'नया समूह “{name}”',
     thinking: 'समझा जा रहा है…',
     save: { one: '{n} खर्च सहेजें', other: '{n} खर्च सहेजें' },
+    saveDraft: 'ड्राफ़्ट के रूप में सहेजें',
+    draftNeedsAmounts: 'यह ड्राफ़्ट रखने के लिए हर खर्च में राशि भरें, या उसे हटाएँ।',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -7668,6 +7694,9 @@ const ar: UiStrings = {
     removeConfirm: 'إزالة هذا الإيصال؟ سيُسجَّل هذا التغيير.',
     couldNotAdd: 'تعذّرت الإضافة — حاول مرة أخرى.',
     counter: '{index} من {total}',
+    download: 'حفظ على الجهاز',
+    saved: 'تم الحفظ على جهازك.',
+    couldNotSave: 'تعذّر حفظ الصورة — حاول مرة أخرى.',
   },
   annotate: {
     title: 'توصيف',
@@ -7998,6 +8027,8 @@ const ar: UiStrings = {
     newGroupNamed: 'مجموعة جديدة «{name}»',
     thinking: 'جارٍ الفهم…',
     save: { one: 'حفظ مصروف', other: 'حفظ {n} مصاريف' },
+    saveDraft: 'حفظ كمسودة',
+    draftNeedsAmounts: 'أدخل مبلغًا لكل مصروف، أو احذفه، للاحتفاظ بهذه المسودة.',
   },
   notifications: {
     title: 'الإشعارات',
