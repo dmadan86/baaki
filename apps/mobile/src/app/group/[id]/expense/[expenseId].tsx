@@ -214,13 +214,6 @@ export default function ExpenseDetailScreen() {
   // wash is the neutral brand indigo, never a money verdict. The category keeps
   // its own colour as the badge chip on the wash.
 
-  // Bring the comment composer above the keyboard when it focuses: the thread is
-  // the last thing on a long page, so without this the input opens under the
-  // keyboard. A short delay lets the resized layout settle before scrolling.
-  const scrollToComposer = (): void => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
-  };
-
   const confirmDelete = (): void => {
     Alert.alert(t.expense.deleteQuestion, t.expense.deleteBody, [
       { text: t.common.cancel, style: 'cancel' },
@@ -541,7 +534,10 @@ export default function ExpenseDetailScreen() {
                   myMemberId={myMemberId}
                   iAmAdmin={iAmAdmin}
                   nameOf={nameOf}
-                  onComposerFocus={scrollToComposer}
+                  avatarNameOf={avatarNameOf}
+                  photoOf={(memberId) =>
+                    memberId ? (lookup.get(memberId)?.profile?.avatar_url ?? null) : null
+                  }
                 />
               </Card>
             </View>

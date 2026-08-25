@@ -93,6 +93,7 @@ import { totalsByCurrency } from './totals';
 import { putImage, removeRestrictedImage } from '@/lib/storage';
 import { pickAlbumPhoto, type PickedImage } from '@/lib/image';
 import { parseAnnotations, type Annotations } from '@/lib/annotations';
+import { sanitizeCommentMarkdown } from '@/lib/commentMarkdown';
 import type { VoiceAccess } from '@/lib/voiceAccess';
 import { SettlementStatus } from './types';
 import type {
@@ -1812,7 +1813,9 @@ export function useAddExpenseComment(groupId: string, expenseId: string) {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { body: string }): Promise<{ id: string; body: string } | null> => {
-      const body = input.body.trim();
+      // Sanitise before it leaves the device: the stored value is Markdown but
+      // only ever the safe subset the renderer understands (no HTML, no images).
+      const body = sanitizeCommentMarkdown(input.body);
       if (body === '') return null;
       const id = randomUUID();
       const { error } = await backend.rpc('baaki_add_expense_comment', {
@@ -1833,7 +1836,7 @@ export function useEditExpenseComment() {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { commentId: string; body: string }) => {
-      const body = input.body.trim();
+      const body = sanitizeCommentMarkdown(input.body);
       if (body === '') return;
       const { error } = await backend.rpc('baaki_edit_expense_comment', {
         p_comment_id: input.commentId,

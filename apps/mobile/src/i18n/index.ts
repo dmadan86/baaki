@@ -400,6 +400,15 @@ export interface UiStrings {
     couldNotDelete: string;
     /** Reveal the previous page of older comments (a count is appended). */
     showEarlier: string;
+    /** Launcher button (a "+") that opens the comment editor sheet. */
+    addComment: string;
+    /** Title of the editor bottom sheet when writing a new comment. */
+    editorTitle: string;
+    /** Formatting-toolbar accessibility labels. */
+    bold: string;
+    italic: string;
+    strike: string;
+    bulletList: string;
   };
   /** The image audit on an expense — who added/removed a receipt or attachment. */
   imageAudit: {
@@ -2163,6 +2172,12 @@ const en: UiStrings = {
     couldNotPost: "Couldn't post that — try again.",
     couldNotDelete: "Couldn't delete that — try again.",
     showEarlier: 'Show earlier comments',
+    addComment: 'Add a comment',
+    editorTitle: 'Write a comment',
+    bold: 'Bold',
+    italic: 'Italic',
+    strike: 'Strikethrough',
+    bulletList: 'Bullet list',
   },
   imageAudit: {
     title: 'Image history',
@@ -3919,6 +3934,12 @@ const ta: UiStrings = {
     couldNotPost: 'இட முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     couldNotDelete: 'நீக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
     showEarlier: 'முந்தைய கருத்துகளைக் காட்டு',
+    addComment: 'ஒரு கருத்தைச் சேர்',
+    editorTitle: 'ஒரு கருத்தை எழுது',
+    bold: 'தடிமன்',
+    italic: 'சாய்வு',
+    strike: 'குறுக்குக் கோடு',
+    bulletList: 'புள்ளிப் பட்டியல்',
   },
   imageAudit: {
     title: 'படத்தின் வரலாறு',
@@ -5739,6 +5760,12 @@ const hi: UiStrings = {
     couldNotPost: 'भेजा नहीं जा सका — फिर कोशिश करें।',
     couldNotDelete: 'हटाया नहीं जा सका — फिर कोशिश करें।',
     showEarlier: 'पहले की टिप्पणियाँ दिखाएँ',
+    addComment: 'टिप्पणी जोड़ें',
+    editorTitle: 'टिप्पणी लिखें',
+    bold: 'बोल्ड',
+    italic: 'इटैलिक',
+    strike: 'स्ट्राइकथ्रू',
+    bulletList: 'बुलेट सूची',
   },
   imageAudit: {
     title: 'छवि इतिहास',
@@ -7510,6 +7537,12 @@ const ar: UiStrings = {
     couldNotPost: 'تعذّر النشر — حاول مرة أخرى.',
     couldNotDelete: 'تعذّر الحذف — حاول مرة أخرى.',
     showEarlier: 'عرض التعليقات السابقة',
+    addComment: 'إضافة تعليق',
+    editorTitle: 'اكتب تعليقًا',
+    bold: 'عريض',
+    italic: 'مائل',
+    strike: 'يتوسطه خط',
+    bulletList: 'قائمة نقطية',
   },
   imageAudit: {
     title: 'سجل الصور',

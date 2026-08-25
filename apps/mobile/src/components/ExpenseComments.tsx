@@ -10,13 +10,29 @@
  * The layout follows the comment-thread pattern every social app converges on
  * (Substack, Beli, Digg, Meta): avatar on the left, name and time on one line,
  * the body aligned under the name, and the per-comment actions folded behind a
- * "···" so the row stays clean. The composer is a pinned pill — your avatar, a
- * rounded field, a round send button.
+ * "···" so the row stays clean.
+ *
+ * Comments are **rich text stored as Markdown** — a deliberately small subset:
+ * bold, italic, strikethrough and bullet lists (see `CommentMarkdown` for the
+ * render and `sanitizeCommentMarkdown` for the write side). No images, ever.
+ * Instead of a live field, a "+" launcher opens a bottom-sheet editor carrying a
+ * formatting toolbar, so the formatting controls have somewhere to live and the
+ * thread stays uncluttered.
  */
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { ActivityIndicator, Alert, Pressable, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, Button, iconSize, Row, Text, useTheme } from '@waves/ui';
 
@@ -28,6 +44,9 @@ import {
   useExpenseComments,
   type ExpenseCommentRow,
 } from '@/data/hooks';
+import { MAX_COMMENT_LENGTH, sanitizeCommentMarkdown } from '@/lib/commentMarkdown';
+import { useAvatarUrl } from '@/components/ProfileAvatar';
+import { CommentMarkdown } from '@/components/CommentMarkdown';
 import { useStrings } from '@/i18n';
 
 function whenLabel(iso: string | null, locale: string): string {
@@ -54,23 +73,40 @@ const AVATAR = 32;
  */
 const PAGE = 20;
 
+type Selection = { start: number; end: number };
+
+/**
+ * One author's avatar. `useAvatarUrl` signs the private-bucket path so the real
+ * picture can load; it's a hook, so it lives in its own component instance —
+ * one per row — rather than being called inside a `.map`. Falls back to initials
+ * when the person has no picture.
+ */
+function CommentAvatar({ name, photo }: { name: string; photo: string | null }): React.JSX.Element {
+  const url = useAvatarUrl(photo);
+  return <Avatar name={name} size={AVATAR} photoUrl={url} />;
+}
+
 export function ExpenseComments({
   groupId,
   expenseId,
   myMemberId,
   iAmAdmin,
   nameOf,
-  onComposerFocus,
+  avatarNameOf,
+  photoOf,
 }: {
   groupId: string;
   expenseId: string;
   myMemberId: string | null;
   iAmAdmin: boolean;
   nameOf: (memberId: string | null) => string;
-  /** Called when the composer focuses — the parent scrolls it above the keyboard. */
-  onComposerFocus?: () => void;
+  /** The real name to seed an avatar's initial/colour (not the "You" label). */
+  avatarNameOf?: (memberId: string | null) => string;
+  /** The author's raw (unsigned) avatar path, if any, for their picture. */
+  photoOf?: (memberId: string | null) => string | null;
 }): React.JSX.Element {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const comments = useExpenseComments(expenseId);
   const add = useAddExpenseComment(groupId, expenseId);
@@ -78,9 +114,19 @@ export function ExpenseComments({
   const remove = useDeleteExpenseComment();
   const flag = useFlagExpenseComment();
 
-  const [draft, setDraft] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingBody, setEditingBody] = useState('');
+  const avatarName = (memberId: string | null): string => (avatarNameOf ?? nameOf)(memberId);
+  const photo = (memberId: string | null): string | null => photoOf?.(memberId) ?? null;
+
+  // The editor bottom sheet. `commentId === null` means a new comment; otherwise
+  // it edits that comment. `forcedSel`, when set, is handed to the TextInput's
+  // `selection` for exactly one render after a toolbar action moves the caret,
+  // then cleared by the next selection change so the person can move freely.
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorCommentId, setEditorCommentId] = useState<string | null>(null);
+  const [editorBody, setEditorBody] = useState('');
+  const [sel, setSel] = useState<Selection>({ start: 0, end: 0 });
+  const [forcedSel, setForcedSel] = useState<Selection | null>(null);
+
   // Just-posted comments, shown at once so a text comment feels instant instead
   // of waiting on the sync pull that carries it back from the mirror. Each drops
   // out of the merge below the moment the mirror row with the same id arrives.
@@ -96,49 +142,101 @@ export function ExpenseComments({
   const shown = rows.length > visibleCount ? rows.slice(rows.length - visibleCount) : rows;
   const hidden = rows.length - shown.length;
 
-  const submit = () => {
-    const body = draft.trim();
-    if (body === '') return;
-    setDraft('');
-    add.mutate(
-      { body },
-      {
-        onSuccess: (result) => {
-          if (result) {
-            setOptimistic((current) => [
-              ...current,
-              {
-                id: result.id,
-                expenseId,
-                groupId,
-                authorMemberId: myMemberId,
-                body: result.body,
-                editedAt: null,
-                flaggedAt: null,
-                flaggedBy: null,
-                createdAt: new Date().toISOString(),
-              },
-            ]);
-          }
-        },
-        onError: () => {
-          setDraft(body);
-          Alert.alert(t.comments.couldNotPost);
-        },
-      },
-    );
+  const busy = add.isPending || edit.isPending;
+
+  const openNew = () => {
+    setEditorCommentId(null);
+    setEditorBody('');
+    setSel({ start: 0, end: 0 });
+    setForcedSel({ start: 0, end: 0 });
+    setEditorOpen(true);
   };
 
-  const saveEdit = (commentId: string) => {
-    const body = editingBody.trim();
+  const openEdit = (row: ExpenseCommentRow) => {
+    setEditorCommentId(row.id);
+    setEditorBody(row.body);
+    const end = row.body.length;
+    setSel({ start: end, end });
+    setForcedSel({ start: end, end });
+    setEditorOpen(true);
+  };
+
+  const closeEditor = () => setEditorOpen(false);
+
+  const send = () => {
+    // Sanitize here, not just trim: the mutations sanitize too and resolve
+    // without calling the RPC when the result is empty, so a body that is only
+    // image markdown or HTML-shaped tags (`![x](y)`, `<b></b>`) would pass a
+    // bare trim, sanitize to '', and silently close the sheet with the text
+    // lost. Validate against the same sanitizer and keep the sheet open on empty.
+    const body = sanitizeCommentMarkdown(editorBody);
     if (body === '') return;
-    edit.mutate(
-      { commentId, body },
-      {
-        onSuccess: () => setEditingId(null),
-        onError: () => Alert.alert(t.comments.couldNotPost),
-      },
-    );
+    if (editorCommentId === null) {
+      add.mutate(
+        { body },
+        {
+          onSuccess: (result) => {
+            setEditorOpen(false);
+            setEditorBody('');
+            if (result) {
+              setOptimistic((current) => [
+                ...current,
+                {
+                  id: result.id,
+                  expenseId,
+                  groupId,
+                  authorMemberId: myMemberId,
+                  body: result.body,
+                  editedAt: null,
+                  flaggedAt: null,
+                  flaggedBy: null,
+                  createdAt: new Date().toISOString(),
+                },
+              ]);
+            }
+          },
+          onError: () => Alert.alert(t.comments.couldNotPost),
+        },
+      );
+    } else {
+      edit.mutate(
+        { commentId: editorCommentId, body },
+        {
+          onSuccess: () => setEditorOpen(false),
+          onError: () => Alert.alert(t.comments.couldNotPost),
+        },
+      );
+    }
+  };
+
+  // Wrap the current selection (or drop an empty pair at the caret) with an
+  // inline marker. Bold/italic/strike all share this; only the delimiter differs.
+  const wrapInline = (marker: string) => {
+    const { start, end } = sel;
+    const selected = editorBody.slice(start, end);
+    const next = editorBody.slice(0, start) + marker + selected + marker + editorBody.slice(end);
+    const caret =
+      selected === ''
+        ? { start: start + marker.length, end: start + marker.length }
+        : {
+            start: start + marker.length + selected.length + marker.length,
+            end: start + marker.length + selected.length + marker.length,
+          };
+    setEditorBody(next);
+    setSel(caret);
+    setForcedSel(caret);
+  };
+
+  // Prefix the caret's line with a bullet marker, unless it already has one.
+  const toggleBullet = () => {
+    const { start } = sel;
+    const lineStart = editorBody.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+    if (editorBody.slice(lineStart, lineStart + 2) === '- ') return;
+    const next = editorBody.slice(0, lineStart) + '- ' + editorBody.slice(lineStart);
+    const caret = { start: start + 2, end: start + 2 };
+    setEditorBody(next);
+    setSel(caret);
+    setForcedSel(caret);
   };
 
   const confirmDelete = (row: ExpenseCommentRow) => {
@@ -163,13 +261,7 @@ export function ExpenseComments({
     const flagged = row.flaggedAt !== null;
     const options: { text: string; style?: 'destructive' | 'cancel'; onPress?: () => void }[] = [];
     if (mine) {
-      options.push({
-        text: t.comments.edit,
-        onPress: () => {
-          setEditingId(row.id);
-          setEditingBody(row.body);
-        },
-      });
+      options.push({ text: t.comments.edit, onPress: () => openEdit(row) });
     }
     if (mine || iAmAdmin) {
       options.push({
@@ -200,57 +292,62 @@ export function ExpenseComments({
     return mine || iAmAdmin || row.flaggedAt === null;
   };
 
-  const fieldStyle = {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 120,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.color.surfaceMuted,
-    color: theme.color.text,
-  } as const;
+  // Ionicons has no bold/italic/strike glyph, so those three read as a styled
+  // letter (the toolbar convention every editor uses); the bullet is an icon.
+  const glyph = (letter: string, style: object) => (
+    <Text variant="subheading" style={{ color: theme.color.text, ...style }}>
+      {letter}
+    </Text>
+  );
+  const toolbar: { label: string; node: React.ReactNode; onPress: () => void }[] = [
+    {
+      label: t.comments.bold,
+      node: glyph('B', { fontWeight: '800' }),
+      onPress: () => wrapInline('**'),
+    },
+    {
+      label: t.comments.italic,
+      node: glyph('I', { fontStyle: 'italic' }),
+      onPress: () => wrapInline('_'),
+    },
+    {
+      label: t.comments.strike,
+      node: glyph('S', { textDecorationLine: 'line-through' }),
+      onPress: () => wrapInline('~~'),
+    },
+    {
+      label: t.comments.bulletList,
+      node: <Ionicons name="list-outline" size={iconSize.md} color={theme.color.text} />,
+      onPress: toggleBullet,
+    },
+  ];
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
-      {/* Composer first: writing a comment is what you came here to do, so the
-          field leads and the thread you're replying to sits beneath it. */}
-      <Row style={{ gap: 10, alignItems: 'flex-end' }}>
-        <Avatar name={nameOf(myMemberId)} size={AVATAR} />
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          onFocus={onComposerFocus}
-          multiline
-          placeholder={t.comments.placeholder}
-          placeholderTextColor={theme.color.textFaint}
-          style={fieldStyle}
-          accessibilityLabel={t.comments.placeholder}
-        />
+      {/* The launcher: a "+" pill in place of a live field. Tapping it raises the
+          editor sheet, where the formatting controls live. */}
+      <Row style={{ gap: 10, alignItems: 'center' }}>
+        <CommentAvatar name={avatarName(myMemberId)} photo={photo(myMemberId)} />
         <Pressable
-          onPress={submit}
-          disabled={add.isPending || draft.trim() === ''}
+          onPress={openNew}
           accessibilityRole="button"
-          accessibilityLabel={t.comments.post}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
+          accessibilityLabel={t.comments.addComment}
+          style={({ pressed }) => ({
+            flex: 1,
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor:
-              draft.trim() === '' ? theme.color.surfaceMuted : theme.color.buttonPrimary,
-          }}
+            gap: theme.spacing.xs,
+            minHeight: 40,
+            paddingHorizontal: theme.spacing.md,
+            borderRadius: theme.radius.pill,
+            backgroundColor: theme.color.surfaceMuted,
+            opacity: pressed ? 0.7 : 1,
+          })}
         >
-          {add.isPending ? (
-            <ActivityIndicator color={theme.color.onBrand} />
-          ) : (
-            <Ionicons
-              name="arrow-up"
-              size={iconSize.md}
-              color={draft.trim() === '' ? theme.color.textFaint : theme.color.onBrand}
-            />
-          )}
+          <Ionicons name="add" size={iconSize.md} color={theme.color.textMuted} />
+          <Text variant="body" style={{ color: theme.color.textFaint }}>
+            {t.comments.addComment}
+          </Text>
         </Pressable>
       </Row>
 
@@ -299,10 +396,12 @@ export function ExpenseComments({
         shown.map((row) => {
           const mine = myMemberId !== null && row.authorMemberId === myMemberId;
           const flagged = row.flaggedAt !== null;
-          const editing = editingId === row.id;
           return (
             <Row key={row.id} style={{ gap: 10, alignItems: 'flex-start' }}>
-              <Avatar name={nameOf(row.authorMemberId)} size={AVATAR} />
+              <CommentAvatar
+                name={avatarName(row.authorMemberId)}
+                photo={photo(row.authorMemberId)}
+              />
               <View style={{ flex: 1, gap: 2 }}>
                 <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
                   <Text variant="caption" style={{ fontWeight: '600' }} numberOfLines={1}>
@@ -318,7 +417,7 @@ export function ExpenseComments({
                     <Ionicons name="flag" size={11} color={theme.color.negative} />
                   ) : null}
                   <View style={{ flex: 1 }} />
-                  {!editing && hasActions(row) ? (
+                  {hasActions(row) ? (
                     <Pressable
                       onPress={() => openActions(row)}
                       accessibilityRole="button"
@@ -335,39 +434,101 @@ export function ExpenseComments({
                   ) : null}
                 </Row>
 
-                {editing ? (
-                  <View style={{ gap: theme.spacing.xs, paddingTop: theme.spacing.xs }}>
-                    <TextInput
-                      value={editingBody}
-                      onChangeText={setEditingBody}
-                      multiline
-                      autoFocus
-                      style={fieldStyle}
-                      accessibilityLabel={t.comments.editLabel}
-                    />
-                    <Row style={{ gap: theme.spacing.sm, justifyContent: 'flex-end' }}>
-                      <Button
-                        label={t.common.cancel}
-                        variant="ghost"
-                        size="sm"
-                        onPress={() => setEditingId(null)}
-                      />
-                      <Button
-                        label={t.common.save}
-                        size="sm"
-                        disabled={edit.isPending || editingBody.trim() === ''}
-                        onPress={() => saveEdit(row.id)}
-                      />
-                    </Row>
-                  </View>
-                ) : (
-                  <Text variant="body">{row.body}</Text>
-                )}
+                <CommentMarkdown source={row.body} />
               </View>
             </Row>
           );
         })
       )}
+
+      {/* The editor sheet — always mounted, driven by `visible`, the same shape
+          as the dashboard's tip sheet (a Modal toggled after mount presents
+          reliably on Android only when it stays mounted). A formatting toolbar,
+          the field, and Send. Text only: no image control lives here. */}
+      <Modal transparent animationType="fade" visible={editorOpen} onRequestClose={closeEditor}>
+        <Pressable
+          onPress={closeEditor}
+          accessibilityLabel={t.common.close}
+          style={{ flex: 1, backgroundColor: 'rgba(10, 10, 26, 0.55)', justifyContent: 'flex-end' }}
+        >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            {/* Swallow taps so pressing the sheet does not dismiss it. */}
+            <Pressable
+              onPress={() => {}}
+              style={{
+                backgroundColor: theme.color.surface,
+                borderTopLeftRadius: theme.radius.xxl,
+                borderTopRightRadius: theme.radius.xxl,
+                paddingHorizontal: theme.spacing.xl,
+                paddingTop: theme.spacing.lg,
+                paddingBottom: theme.spacing.lg + insets.bottom,
+                gap: theme.spacing.md,
+              }}
+            >
+              <Text variant="heading">
+                {editorCommentId === null ? t.comments.editorTitle : t.comments.editLabel}
+              </Text>
+
+              <TextInput
+                value={editorBody}
+                onChangeText={setEditorBody}
+                onSelectionChange={(e) => {
+                  setSel(e.nativeEvent.selection);
+                  setForcedSel(null);
+                }}
+                selection={forcedSel ?? undefined}
+                multiline
+                autoFocus
+                maxLength={MAX_COMMENT_LENGTH}
+                placeholder={t.comments.placeholder}
+                placeholderTextColor={theme.color.textFaint}
+                style={{
+                  minHeight: 96,
+                  maxHeight: 200,
+                  paddingHorizontal: theme.spacing.md,
+                  paddingVertical: theme.spacing.sm,
+                  borderRadius: theme.radius.lg,
+                  backgroundColor: theme.color.surfaceMuted,
+                  color: theme.color.text,
+                  textAlignVertical: 'top',
+                }}
+                accessibilityLabel={t.comments.placeholder}
+              />
+
+              <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+                {toolbar.map((tool) => (
+                  <Pressable
+                    key={tool.label}
+                    onPress={tool.onPress}
+                    accessibilityRole="button"
+                    accessibilityLabel={tool.label}
+                    hitSlop={6}
+                    style={({ pressed }) => ({
+                      width: 38,
+                      height: 38,
+                      borderRadius: theme.radius.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.surfaceMuted,
+                      opacity: pressed ? 0.6 : 1,
+                    })}
+                  >
+                    {tool.node}
+                  </Pressable>
+                ))}
+                <View style={{ flex: 1 }} />
+                <Button
+                  label={t.comments.post}
+                  size="sm"
+                  disabled={busy || editorBody.trim() === ''}
+                  onPress={send}
+                />
+                {busy ? <ActivityIndicator color={theme.color.buttonPrimary} /> : null}
+              </Row>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
