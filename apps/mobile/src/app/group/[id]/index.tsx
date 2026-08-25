@@ -51,7 +51,6 @@ import {
 } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { DetailEnter } from '@/lib/anim';
 import { CategoryBadge } from '@/components/Category';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -590,7 +589,9 @@ export default function GroupScreen() {
     <Screen edges={[]}>
       {/* The hero runs dark under the status bar; force light icons for it. */}
       <StatusBar style="light" />
-      <DetailEnter>
+      {/* No entrance re-animation: the screen already slides in natively, and a
+          second scale-up on top of that read as an unwanted zoom. */}
+      <View style={{ flex: 1 }}>
         <FlashList
           data={tab === Tab.Expenses ? feedItems : []}
           extraData={`${tab}|${showDeleted}|${locale}`}
@@ -777,7 +778,7 @@ export default function GroupScreen() {
                         onPress={() => router.push(`/group/${groupId}/settle`)}
                       />
                       <HeroActionCircle
-                        icon="git-compare-outline"
+                        icon="git-network-outline"
                         label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
                         onPress={() => router.push(`/group/${groupId}/simplify`)}
                       />
@@ -1144,7 +1145,7 @@ export default function GroupScreen() {
         {/* No FAB: adding an expense now lives on the hero's white pill, the
             same as the dashboard, so a floating button would be a second door
             to the same room. */}
-      </DetailEnter>
+      </View>
     </Screen>
   );
 }

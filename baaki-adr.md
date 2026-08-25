@@ -1,7 +1,8 @@
 # Baaki — Architecture Decision Records (ADR)
 
-**Product:** Baaki (பாக்கி — "balance / what's still owed") — expense-splitting app.
-**Positioning (from competitive analysis):** unlimited free core ledger · link-based guest joining · UPI-native settlement with partial/per-expense payments · free AI receipt itemization · monetize convenience, never the ledger.
+**Product:** Baaki (பாக்கி — "balance / what's still owed") — an expense-splitting app for a **global audience**, launching India-first.
+**Positioning (from competitive analysis):** unlimited free core ledger · link-based guest joining · multi-currency from day one · deep-link settlement with partial/per-expense payments (UPI first, PayPal/PayID and more worldwide) · AI receipt itemization free within a monthly scan quota (ADR-008) · monetize convenience, never the ledger.
+**Reach.** India is the first market, not the only one: it sets the launch rails (UPI), the receipt scripts and the entry price tier, but the ledger, currency and sync are market-neutral. A new country is a settlement rail plus a price tier (ADR-007, ADR-011 pricing), never a schema change.
 **Status legend:** Accepted = build to this. Each ADR: Context → Decision → Consequences.
 
 ---
@@ -10,7 +11,7 @@
 
 **Status:** Accepted
 
-**Context.** India-first (Android-heavy) but iOS must not lag; small team; fast iteration; need push notifications, camera (receipts), deep links (UPI intents), and OTA updates.
+**Context.** Global audience, launching India-first (Android-heavy) — every market matters and iOS must not lag; small team; fast iteration; need push notifications, camera (receipts), deep links (settlement intents), and OTA updates.
 
 **Decision.** React Native with **Expo (managed workflow, latest SDK)**, TypeScript strict mode. Expo Router for navigation. EAS Build for store binaries, EAS Update for OTA JS updates. Eject only if a native module forces it.
 
@@ -118,7 +119,7 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 
 **Status:** Accepted
 
-**Context.** Top structural gap in the market: India has no Splitwise-class app with real UPI settlement. Holding/moving money requires PSP licensing; deep links don't.
+**Context.** Top structural gap in the launch market: India has no Splitwise-class app with real UPI settlement. Holding/moving money requires PSP licensing; deep links don't. The deep-link-and-confirm pattern is not India-specific — it is the rail for every market (see A27: PayID, PayPal), UPI is simply the one the first market ships on.
 
 **Decision.**
 
@@ -126,7 +127,7 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 - Baaki records the settlement with a two-step state machine: `initiated → confirmed` (payee taps "received" or payer marks paid and payee gets a confirm nudge; auto-confirm after 7 days with notification). We do **not** attempt callback verification of UPI success in v1 (intent flow offers none reliably).
 - **Partial and per-expense settlement is first-class** (the 985-vote gap): a settlement row can carry `allocations[] = {expense_id, amount}`; unallocated amounts apply to overall balance oldest-first. Cash/bank settlements use the same flow minus the deep link.
 
-**Consequences.** No license, no float, no custody risk; works with every UPI app on day one. Trade-off: confirmation is social, not cryptographic — mitigated by the confirm/nudge flow and activity log. International rails later (Venmo/PayPal links, SEPA) plug into the same settlement state machine.
+**Consequences.** No license, no float, no custody risk; works with every UPI app on day one. Trade-off: confirmation is social, not cryptographic — mitigated by the confirm/nudge flow and activity log. International rails plug into the same settlement state machine: the rails are a **data registry** (`RailId` in `packages/core`; `settlements.rail` is a `text` column, not a hardcoded union), already spanning many markets' instant rails and consumer apps — Pix, PayNow, PromptPay, QRIS, Aani, PayID, Zelle, Venmo, Cash App, Interac, Wise, Revolut, PayPal (A27). SEPA-style bank transfers ride the generic `bank` rail rather than a named one. Opening a market is a registry entry, not type surgery.
 
 ---
 
@@ -134,7 +135,7 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 
 **Status:** Accepted
 
-**Context.** 2026 table stakes; must handle Indian receipts (Tamil/Hindi/regional scripts), photos from gallery, and pasted text bills (Swiggy/Zomato/WhatsApp) — all things Splitwise fails at. API keys must never ship in the client.
+**Context.** 2026 table stakes; must handle receipts in any script or language a global user photographs — Indian scripts (Tamil/Hindi/regional) in the first market, plus Latin, CJK, Arabic, Cyrillic elsewhere — photos from gallery, and pasted text bills (Swiggy/Zomato/WhatsApp and their equivalents in each market) — all things Splitwise fails at. API keys must never ship in the client.
 
 **Decision.**
 
@@ -142,7 +143,7 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 - Itemized claiming: each participant taps their items on their own phone (Tab-style, realtime via Supabase Realtime); shared items split equally among claimers; **tax/tip/service prorated proportionally** to each person's item subtotal (deterministic rounding per ADR-009).
 - Free tier: generous scan quota (e.g., 20/month); metered because each scan has real API cost — consistent with ADR-011 (convenience is monetizable, ledger is not).
 
-**Consequences.** Best-in-class scan UX incl. regional scripts and text bills; per-scan cost is a COGS line to monitor; provider is swappable behind one Edge Function interface.
+**Consequences.** Best-in-class scan UX incl. regional scripts and text bills; per-scan cost is a COGS line to monitor; provider is swappable behind one Edge Function interface. The vision LLM reads any script the photo carries — that any-script claim is the LLM's, not the **on-device heuristic fallback** (`packages/core/src/receipt/heuristic.ts`), which is best-effort and today biased to Latin, Indic and Arabic word detection with English total/charge labels (`TOTAL`/`TAX`/`SERVICE`). Localizing that fallback's word detection and total-label matching for CJK and Cyrillic — with per-script, non-INR receipt fixtures asserting labels, amounts, detected currency and reconciliation — is a tracked follow-up, not shipped here; until then a non-Latin receipt that misses the network falls back to a low-confidence, user-editable result rather than a wrong one.
 
 ---
 
@@ -180,7 +181,7 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 
 **Context.** Splitwise's daily cap on the core loop is the category's biggest churn engine. Baaki's positioning depends on never repeating it.
 
-**Decision.** Constitutional rules enforced in code review: **(1)** manual expense entry, groups, split types, balances, settlement recording, and export are unlimited and free, forever — no daily caps, no interstitial ads, ever. **(2)** Monetize convenience: AI scan volume beyond free quota, analytics/charts depth, auto-import (future), group/trip passes (Settle Up-style shareable premium), themes. **(3)** India pricing in INR at local purchasing power (~₹49–99/mo tier), regional pricing elsewhere. **(4)** No third-party ads in any money flow.
+**Decision.** Constitutional rules enforced in code review: **(1)** manual expense entry, groups, split types, balances, settlement recording, and export are unlimited and free, forever — no daily caps, no interstitial ads, ever. **(2)** Monetize convenience: AI scan volume beyond free quota, analytics/charts depth, auto-import (future), group/trip passes (Settle Up-style shareable premium), themes. **(3)** Regional pricing at local purchasing power in every market — never one USD price that prices out most of the world; the first market is India in INR (~₹49–99/mo tier), each new market gets its own tier. **(4)** No third-party ads in any money flow.
 
 **Consequences.** Slower revenue early; durable trust moat and the marketing wedge ("the ledger is free forever") that the entire alternatives market currently wins with.
 
