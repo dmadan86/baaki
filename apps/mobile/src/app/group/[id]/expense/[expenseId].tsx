@@ -481,6 +481,12 @@ export default function ExpenseDetailScreen() {
                         currency={currency}
                         locale={locale}
                         variant="caption"
+                        // A share is money owed toward this bill, so it wears the
+                        // same owe colour the balances do across the app — not the
+                        // neutral ink of a total. Forced (not sign-derived): every
+                        // share is a positive owe, so mode="balance" would read it
+                        // as "owed to you" (green) instead.
+                        tone="negative"
                       />
                     }
                   />
