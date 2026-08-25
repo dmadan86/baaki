@@ -19,10 +19,10 @@
  * shows a message instead of crashing.
  */
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -135,6 +135,12 @@ export default function VoiceScreen() {
   // A new group is created once, not again on a save retry after a partial
   // failure. Flipped true after the create lands; reset when a fresh parse comes.
   const groupCreated = useRef(false);
+  // A Save (or a close that persists the batch as a draft) has already taken
+  // over navigation — so the leave-guard below stands aside instead of writing
+  // the captures a second time.
+  const committed = useRef(false);
+
+  const navigation = useNavigation();
 
   const groupRows = groups.data ?? [];
   const groupRefs: VoiceGroupRef[] = groupRows.map((group) => ({ id: group.id, name: group.name }));
@@ -216,6 +222,60 @@ export default function VoiceScreen() {
     setDrafts((current) => current.filter((draft) => draft.key !== key));
   };
 
+  // Write the heard expenses into the capture inbox — the app's draft holding
+  // area. Each draft's own id is the capture id, so a retry (or the leave-guard
+  // firing after a Save that half-finished) re-uses it rather than minting a
+  // duplicate. Shared by the "Save as draft" button and the close-intercept, so
+  // the two land the same rows.
+  const persistDraftsToInbox = useCallback(async (): Promise<void> => {
+    const date = today();
+    const fallback = t.voice.anExpense;
+    for (const draft of drafts) {
+      const currency = draft.currency ?? dc;
+      const amount = toMinor(draft.amount, currency);
+      if (amount === null) continue;
+      await createCapture.mutateAsync({
+        captureId: draft.key,
+        description: draft.note.trim() || fallback,
+        expenseDate: date,
+        currency,
+        amount,
+        location,
+      });
+    }
+  }, [drafts, dc, location, t.voice.anExpense, createCapture]);
+
+  // Leaving the review with a draft batch and no group chosen must not throw the
+  // expenses away — an unassigned batch is a draft, and a draft survives a close
+  // (the user's rule). So intercept every way off the screen (the ✕, the OS back
+  // gesture, the hardware back key) and file the batch in the inbox first. A
+  // group destination is left to the explicit Save; closing it discards, as
+  // before. `committed` stands the guard down once a Save is already navigating.
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove', (event) => {
+      if (committed.current) return;
+      if (phase !== 'review' || dest.kind !== 'unassigned') return;
+      const hasSavable = drafts.some(
+        (draft) => toMinor(draft.amount, draft.currency ?? dc) !== null,
+      );
+      if (!hasSavable) return;
+      event.preventDefault();
+      committed.current = true;
+      void (async () => {
+        try {
+          await persistDraftsToInbox();
+          navigation.dispatch(event.data.action);
+        } catch (caught) {
+          // Keep the reader on the review with their batch intact rather than
+          // navigating away having lost it.
+          committed.current = false;
+          setError(friendlyError(caught, t.couldNotSave, 'voice.persistDraft'));
+        }
+      })();
+    });
+    return unsub;
+  }, [navigation, phase, dest, drafts, dc, persistDraftsToInbox, t.couldNotSave]);
+
   const save = async (): Promise<void> => {
     setError(null);
     setSaving(true);
@@ -224,21 +284,9 @@ export default function VoiceScreen() {
       const fallback = t.voice.anExpense;
 
       if (dest.kind === 'unassigned') {
-        for (const draft of drafts) {
-          const currency = draft.currency ?? dc;
-          const amount = toMinor(draft.amount, currency);
-          if (amount === null) continue;
-          // The draft's own id is the capture id, so a save retried after a
-          // partial failure re-uses it rather than minting a second capture.
-          await createCapture.mutateAsync({
-            captureId: draft.key,
-            description: draft.note.trim() || fallback,
-            expenseDate: date,
-            currency,
-            amount,
-            location,
-          });
-        }
+        // No group chosen: keep the batch as a draft in the capture inbox.
+        await persistDraftsToInbox();
+        committed.current = true;
         router.replace('/captures');
         return;
       }
@@ -303,6 +351,7 @@ export default function VoiceScreen() {
           location,
         });
       }
+      committed.current = true;
       router.replace({ pathname: '/group/[id]', params: { id: dest.groupId } });
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotSave, 'voice.save'));
@@ -341,6 +390,12 @@ export default function VoiceScreen() {
   const singleTotal = draftTotals.size === 1 ? [...draftTotals.entries()][0] : null;
 
   const current = describeDest(dest, groupRows, t);
+
+  // With no group chosen the batch is a draft (it lands in the capture inbox),
+  // so the button says so; once a group is picked it writes real expenses and
+  // the label counts them.
+  const isDraft = dest.kind === 'unassigned';
+  const saveLabel = isDraft ? t.voice.saveDraft : plural(locale, drafts.length, t.voice.save);
 
   return (
     <Screen>
@@ -383,23 +438,33 @@ export default function VoiceScreen() {
           </View>
         ) : phase === 'review' ? (
           <View style={{ gap: theme.spacing.xl }}>
-            {/* The expenses are the hero: the receipt cards sit at the top, so
-                the first thing on the review is what you actually said, not a
-                column of destinations. */}
-            <View style={{ gap: theme.spacing.md }}>
-              {drafts.map((draft) => (
-                <DraftRow
-                  key={draft.key}
-                  draft={draft}
-                  onEdit={editDraft}
-                  onRemove={removeDraft}
-                  removeLabel={t.captures.delete}
-                  amountLabel={t.captures.amount}
-                  noteLabel={t.captures.description}
-                  notePlaceholder={t.captures.descriptionPlaceholder}
-                  theme={theme}
-                />
-              ))}
+            {/* The expenses are the hero, laid out the way the Activity feed
+                lays out its events: a soft tinted rounded-square node on the
+                left, the line beside it, hairlines between rows in one grouped
+                card — not a stack of separate cards. The tint is `sky`, the same
+                the feed gives a newly-added expense, so a draft here reads as the
+                same thing it will become once saved. */}
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                {t.voice.review.toUpperCase()}
+              </Text>
+              <Card padded={false} flat style={{ overflow: 'hidden' }}>
+                {drafts.map((draft, index) => (
+                  <View key={draft.key}>
+                    <DraftRow
+                      draft={draft}
+                      onEdit={editDraft}
+                      onRemove={removeDraft}
+                      removeLabel={t.captures.delete}
+                      amountLabel={t.captures.amount}
+                      noteLabel={t.captures.description}
+                      notePlaceholder={t.captures.descriptionPlaceholder}
+                      theme={theme}
+                    />
+                    {index < drafts.length - 1 ? <Divider /> : null}
+                  </View>
+                ))}
+              </Card>
             </View>
 
             {/* Destination folded to one selector row — the whole group list
@@ -506,11 +571,7 @@ export default function VoiceScreen() {
               <Text variant="subheading">{plural(locale, drafts.length, t.voice.save)}</Text>
             )}
           </View>
-          <Button
-            label={plural(locale, drafts.length, t.voice.save)}
-            onPress={() => void save()}
-            disabled={!canSave}
-          />
+          <Button label={saveLabel} onPress={() => void save()} disabled={!canSave} />
         </View>
       ) : null}
 
@@ -776,61 +837,68 @@ function DraftRow({
   notePlaceholder: string;
   theme: ReturnType<typeof useTheme>;
 }) {
+  // The Activity feed's row shape: a soft rounded-square tile (radius md, not a
+  // full circle) in the `sky` tint the feed gives an added expense, the line
+  // beside it, a quiet trailing control. Here the line is editable — the amount
+  // is the hero with its currency, the note the muted line beneath — but the
+  // frame is the feed's, so review and activity read as one design.
+  const tile = theme.tint.sky;
   return (
-    // A receipt-glyph node (the same one the feeds use), the amount as the hero
-    // with its currency, and the note on the line beneath — a card that reads as
-    // one expense at a glance (Copilot / Expensify review rows), editable in
-    // place. Remove is a quiet trailing control, not a heavy grey disc.
-    <Card>
-      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: theme.color.buttonPrimary,
-          }}
-        >
-          <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.onBrand} />
-        </View>
+    <Row
+      style={{
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+      }}
+    >
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: theme.radius.md,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: tile.bg,
+        }}
+      >
+        <Ionicons name="receipt-outline" size={iconSize.lg} color={tile.ink} />
+      </View>
 
-        <View style={{ flex: 1, gap: theme.spacing.xs }}>
-          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-            {draft.currency ? (
-              <Text variant="caption" tone="muted" style={{ fontWeight: '600' }}>
-                {draft.currency}
-              </Text>
-            ) : null}
-            <TextInput
-              value={draft.amount}
-              onChangeText={(value) => onEdit(draft.key, { amount: value })}
-              keyboardType="decimal-pad"
-              accessibilityLabel={amountLabel}
-              style={{
-                flex: 1,
-                fontSize: 24,
-                fontWeight: '700',
-                color: theme.color.text,
-                paddingVertical: 0,
-              }}
-            />
-          </Row>
+      <View style={{ flex: 1, gap: theme.spacing.xs }}>
+        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+          {draft.currency ? (
+            <Text variant="caption" tone="muted" style={{ fontWeight: '600' }}>
+              {draft.currency}
+            </Text>
+          ) : null}
           <TextInput
-            value={draft.note}
-            onChangeText={(value) => onEdit(draft.key, { note: value })}
-            placeholder={notePlaceholder}
-            placeholderTextColor={theme.color.textFaint}
-            accessibilityLabel={noteLabel}
-            style={{ fontSize: 15, color: theme.color.textMuted, paddingVertical: 0 }}
+            value={draft.amount}
+            onChangeText={(value) => onEdit(draft.key, { amount: value })}
+            keyboardType="decimal-pad"
+            accessibilityLabel={amountLabel}
+            style={{
+              flex: 1,
+              fontSize: 24,
+              fontWeight: '700',
+              color: theme.color.text,
+              paddingVertical: 0,
+            }}
           />
-        </View>
+        </Row>
+        <TextInput
+          value={draft.note}
+          onChangeText={(value) => onEdit(draft.key, { note: value })}
+          placeholder={notePlaceholder}
+          placeholderTextColor={theme.color.textFaint}
+          accessibilityLabel={noteLabel}
+          style={{ fontSize: 15, color: theme.color.textMuted, paddingVertical: 0 }}
+        />
+      </View>
 
-        <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>
-          <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
-        </IconButton>
-      </Row>
-    </Card>
+      <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>
+        <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+      </IconButton>
+    </Row>
   );
 }
