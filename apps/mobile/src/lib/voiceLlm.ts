@@ -385,9 +385,18 @@ export function mapGroup(rawGroup: unknown, groups: readonly VoiceGroupRef[]): V
 
   if (group.type === 'existing' && typeof group.name === 'string') {
     const wanted = group.name.trim().toLowerCase();
-    const match = groups.find(
-      (candidate) => candidate.name && candidate.name.trim().toLowerCase() === wanted,
-    );
+    const normalized = (name: string) => name.trim().toLowerCase();
+    // The prompt only ever shows a group name truncated to MAX_GROUP_NAME_CHARS
+    // (see userPrompt), so a model told to answer with "one of the provided
+    // names" will echo the truncated form for a long name. Match the full stored
+    // name first, then fall back to matching that same truncated prefix — without
+    // the fallback a long-named group could never be resolved by voice.
+    const match =
+      groups.find((candidate) => candidate.name && normalized(candidate.name) === wanted) ??
+      groups.find(
+        (candidate) =>
+          candidate.name && normalized(candidate.name.slice(0, MAX_GROUP_NAME_CHARS)) === wanted,
+      );
     return match ? { kind: 'existing', groupId: match.id } : null;
   }
 

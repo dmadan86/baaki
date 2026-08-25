@@ -194,6 +194,16 @@ describe('mapGroup', () => {
     expect(mapGroup({ type: 'existing', name: 'Nowhere' }, groups)).toBeNull();
   });
 
+  it('matches on the truncated prefix the prompt actually showed the model', () => {
+    const longName = 'Weekend in ' + 'Coorg '.repeat(30); // well over MAX_GROUP_NAME_CHARS
+    const withLong: VoiceGroupRef[] = [...groups, { id: 'g-long', name: longName }];
+    const truncated = longName.slice(0, MAX_GROUP_NAME_CHARS);
+    expect(mapGroup({ type: 'existing', name: truncated }, withLong)).toEqual({
+      kind: 'existing',
+      groupId: 'g-long',
+    });
+  });
+
   it('creates a group with a trimmed name', () => {
     expect(mapGroup({ type: 'create', name: '  Weekend  ' }, groups)).toEqual({
       kind: 'create',
@@ -520,11 +530,39 @@ describe('interpretVoiceExpenses — prompt-size caps', () => {
     expect(listed[MAX_GROUPS_IN_PROMPT - 1]).toBe(`- Group ${MAX_GROUPS_IN_PROMPT - 1}`);
   });
 
-  it('truncates a long group name in the prompt but still matches its true name', async () => {
+  it('truncates a long group name in the prompt, and still matches when the model echoes that truncated form', async () => {
+    getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
+    const longName = 'Trip ' + 'x'.repeat(MAX_GROUP_NAME_CHARS + 40);
+    const truncated = longName.slice(0, MAX_GROUP_NAME_CHARS);
+    const localGroups: VoiceGroupRef[] = [{ id: 'g-long', name: longName }];
+    // The model can only ever see the truncated name in the prompt, so it echoes
+    // the truncated form — the real-world case the prompt truncation creates.
+    const fetchMock = vi.fn(async () =>
+      openAiReply(
+        JSON.stringify({
+          items: [{ amount: 1, note: 'x' }],
+          group: { type: 'existing', name: truncated },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await interpretVoiceExpenses('1 x', { ...ctx, groups: localGroups });
+
+    // The prompt shows only the truncated name, never the full one...
+    const sent = userContent(firstRequestBody(fetchMock));
+    expect(sent).toContain('- ' + truncated);
+    expect(sent).not.toContain(longName);
+    // ...and the truncated echo still resolves to the real group via the prefix fallback.
+    expect(result?.group).toEqual({ kind: 'existing', groupId: 'g-long' });
+  });
+
+  it('still matches a long group name when the model echoes the full stored name', async () => {
     getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
     const longName = 'Trip ' + 'x'.repeat(MAX_GROUP_NAME_CHARS + 40);
     const localGroups: VoiceGroupRef[] = [{ id: 'g-long', name: longName }];
-    // The model, having seen the full name in the real world, answers with it.
+    // A model that happens to know the full name (e.g. from the transcript) still
+    // matches via the exact full-name path.
     const fetchMock = vi.fn(async () =>
       openAiReply(
         JSON.stringify({
@@ -536,12 +574,6 @@ describe('interpretVoiceExpenses — prompt-size caps', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await interpretVoiceExpenses('1 x', { ...ctx, groups: localGroups });
-
-    // The prompt shows only the truncated name, never the full one...
-    const sent = userContent(firstRequestBody(fetchMock));
-    expect(sent).toContain('- ' + longName.slice(0, MAX_GROUP_NAME_CHARS));
-    expect(sent).not.toContain(longName);
-    // ...but matching runs against the true stored name, so it resolves.
     expect(result?.group).toEqual({ kind: 'existing', groupId: 'g-long' });
   });
 });
