@@ -93,6 +93,7 @@ import { totalsByCurrency } from './totals';
 import { putImage, removeRestrictedImage } from '@/lib/storage';
 import { pickAlbumPhoto, type PickedImage } from '@/lib/image';
 import { parseAnnotations, type Annotations } from '@/lib/annotations';
+import type { VoiceAccess } from '@/lib/voiceAccess';
 import { SettlementStatus } from './types';
 import type {
   ActivityActor,
@@ -2047,5 +2048,24 @@ export function useOpenReceipts(groupId: string) {
     queryKey: ['open-receipts', groupId],
     queryFn: () => fetchOpenReceipts(groupId),
     enabled: groupId !== '',
+  });
+}
+
+/**
+ * The reader's cloud-STT entitlement (A48): paid → unlimited, free → a monthly
+ * allowance, resolved per person by `baaki_my_voice_access`. The UI uses it to
+ * show remaining free talk-time and to pick the cloud vs on-device tier
+ * (`pickVoiceMode`). A minute of staleness is harmless — the server re-meters on
+ * every real STT call.
+ */
+export function useVoiceAccess() {
+  return useQuery({
+    queryKey: ['voiceAccess'],
+    queryFn: async (): Promise<VoiceAccess> => {
+      const { data, error } = await backend.rpc('baaki_my_voice_access');
+      if (error) throw new Error(error.message);
+      return data as VoiceAccess;
+    },
+    staleTime: 60_000,
   });
 }

@@ -177,6 +177,7 @@ model Profile {
   deviceSessions      DeviceSession[]
   ghostMerges         GhostMerge[]
   storageObjects      StorageObject[]
+  voiceSttUsage       VoiceSttUsage[]
 
   @@map("profiles")
   @@schema("public")
@@ -211,14 +212,14 @@ model Group {
   /// Group-visible by design: everyone sees the overall budget; only an admin
   /// sets it. Personal per-member caps live in `trip_member_budgets`, which is
   /// where privacy lives — this one never is private.
-  budgetMinor    BigInt? @map("budget_minor")
-  budgetCurrency String? @map("budget_currency") @db.Char(3)
+  budgetMinor     BigInt? @map("budget_minor")
+  budgetCurrency  String? @map("budget_currency") @db.Char(3)
   /// Per-category caps as a JSON map `{ "<category>": { amountMinor, currency } }`.
   /// Group-visible and admin-set like the overall budget — a category cap is a
   /// group signal, never private, so it lives on the group row, not its own
   /// table. NULL / absent is "no category caps". Written only via
   /// `baaki_set_category_budget`.
-  categoryBudgets Json? @map("category_budgets")
+  categoryBudgets Json?   @map("category_budgets")
 
   /// When the trip is. Both ends inclusive — the last day of a trip is the one
   /// with the most unrecorded spending on it.
@@ -240,28 +241,28 @@ model Group {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  members       GroupMember[]
-  invites       Invite[]
-  expenses      Expense[]
-  receipts      Receipt[]
-  settlements   Settlement[]
-  activity      ActivityLog[]
-  reminders     Reminder[]
-  balances      GroupBalance[]
-  pairwise      PairwiseBalance[]
-  notifications Notification[]
-  usageEvents   UsageEvent[]
-  passes        GroupPass[]
-  planItems     TripPlanItem[]
-  tripPhotos    TripPhoto[]
-  expenseComments ExpenseComment[]
+  members            GroupMember[]
+  invites            Invite[]
+  expenses           Expense[]
+  receipts           Receipt[]
+  settlements        Settlement[]
+  activity           ActivityLog[]
+  reminders          Reminder[]
+  balances           GroupBalance[]
+  pairwise           PairwiseBalance[]
+  notifications      Notification[]
+  usageEvents        UsageEvent[]
+  passes             GroupPass[]
+  planItems          TripPlanItem[]
+  tripPhotos         TripPhoto[]
+  expenseComments    ExpenseComment[]
   settlementProofs   SettlementProof[]
   expenseAttachments ExpenseAttachment[]
   imageEvents        ExpenseImageEvent[]
-  syncMutations SyncMutation[]
-  memberClaims   MemberClaim[]
-  memberBudgets  TripMemberBudget[]
-  storageObjects StorageObject[]
+  syncMutations      SyncMutation[]
+  memberClaims       MemberClaim[]
+  memberBudgets      TripMemberBudget[]
+  storageObjects     StorageObject[]
 
   @@index([archivedAt])
   /// The nudge job only ever looks at groups that have said when they are
@@ -302,34 +303,34 @@ model GroupMember {
   group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   profile Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
-  authoredVersions  ExpenseVersion[]   @relation("VersionAuthor")
-  paidFor           ExpensePayer[]
-  owes              ExpenseShare[]
-  settlementsSent   Settlement[]       @relation("SettlementFrom")
-  settlementsGot    Settlement[]       @relation("SettlementTo")
-  itemClaims        ReceiptItemClaim[]
-  planItems         TripPlanItem[]
-  tripPhotos        TripPhoto[]
+  authoredVersions   ExpenseVersion[]    @relation("VersionAuthor")
+  paidFor            ExpensePayer[]
+  owes               ExpenseShare[]
+  settlementsSent    Settlement[]        @relation("SettlementFrom")
+  settlementsGot     Settlement[]        @relation("SettlementTo")
+  itemClaims         ReceiptItemClaim[]
+  planItems          TripPlanItem[]
+  tripPhotos         TripPhoto[]
   settlementProofs   SettlementProof[]
   expenseAttachments ExpenseAttachment[]
-  commentsAuthored   ExpenseComment[]   @relation("ExpenseCommentAuthor")
-  commentsFlagged    ExpenseComment[]   @relation("ExpenseCommentFlagger")
-  commentsDeleted    ExpenseComment[]   @relation("ExpenseCommentDeleter")
+  commentsAuthored   ExpenseComment[]    @relation("ExpenseCommentAuthor")
+  commentsFlagged    ExpenseComment[]    @relation("ExpenseCommentFlagger")
+  commentsDeleted    ExpenseComment[]    @relation("ExpenseCommentDeleter")
   imageEvents        ExpenseImageEvent[]
-  activity          ActivityLog[]
-  disputesRaised    ExpenseDispute[]   @relation("DisputeRaisedBy")
-  disputesResolved  ExpenseDispute[]   @relation("DisputeResolvedBy")
-  remindersSent     Reminder[]         @relation("ReminderFrom")
-  remindersGot      Reminder[]         @relation("ReminderTo")
-  balances          GroupBalance[]
-  pairwiseFrom      PairwiseBalance[]  @relation("PairwiseFrom")
-  pairwiseTo        PairwiseBalance[]  @relation("PairwiseTo")
-  createdExpenses   Expense[]          @relation("ExpenseCreatedBy")
-  deletedExpenses   Expense[]          @relation("ExpenseDeletedBy")
-  claimsOnThisPlace MemberClaim[]      @relation("ClaimTarget")
-  claimsDecided     MemberClaim[]      @relation("ClaimDecider")
-  tripBudget        TripMemberBudget?
-  ghostMerges       GhostMerge[]
+  activity           ActivityLog[]
+  disputesRaised     ExpenseDispute[]    @relation("DisputeRaisedBy")
+  disputesResolved   ExpenseDispute[]    @relation("DisputeResolvedBy")
+  remindersSent      Reminder[]          @relation("ReminderFrom")
+  remindersGot       Reminder[]          @relation("ReminderTo")
+  balances           GroupBalance[]
+  pairwiseFrom       PairwiseBalance[]   @relation("PairwiseFrom")
+  pairwiseTo         PairwiseBalance[]   @relation("PairwiseTo")
+  createdExpenses    Expense[]           @relation("ExpenseCreatedBy")
+  deletedExpenses    Expense[]           @relation("ExpenseDeletedBy")
+  claimsOnThisPlace  MemberClaim[]       @relation("ClaimTarget")
+  claimsDecided      MemberClaim[]       @relation("ClaimDecider")
+  tripBudget         TripMemberBudget?
+  ghostMerges        GhostMerge[]
 
   @@unique([groupId, profileId])
   @@index([groupId])
@@ -1323,11 +1324,11 @@ model ExpenseComment {
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   updatedSeq     BigInt    @default(0) @map("updated_seq")
 
-  group          Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  expense        Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  author         GroupMember? @relation("ExpenseCommentAuthor", fields: [authorMemberId], references: [id], onDelete: SetNull)
-  flagger        GroupMember? @relation("ExpenseCommentFlagger", fields: [flaggedBy], references: [id], onDelete: SetNull)
-  deleter        GroupMember? @relation("ExpenseCommentDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
+  group   Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  author  GroupMember? @relation("ExpenseCommentAuthor", fields: [authorMemberId], references: [id], onDelete: SetNull)
+  flagger GroupMember? @relation("ExpenseCommentFlagger", fields: [flaggedBy], references: [id], onDelete: SetNull)
+  deleter GroupMember? @relation("ExpenseCommentDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
 
   @@index([groupId, updatedSeq])
   @@index([expenseId, createdAt], map: "expense_comments_expense_idx")
@@ -1529,6 +1530,38 @@ model AppConfig {
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("app_config")
+  @@schema("public")
+}
+
+/// Admin/API-tunable TEXT config (provider and model names) — app_config holds
+/// only integers. Same trust shape: names are non-secret and readable, writes
+/// are service-role only (RLS in the migration). Secrets never live here; the
+/// provider API keys sit in edge-function env. Introduced with voice cloud STT
+/// (A48).
+model ServiceConfig {
+  key         String   @id
+  value       String?
+  description String   @default("")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("service_config")
+  @@schema("public")
+}
+
+/// Per-person monthly cloud-STT usage meter (A48). One row per (profile, YYYY-MM
+/// calendar month); a new month is a new period key, so the free allowance
+/// resets with no cron. Written only by the service role through
+/// `baaki_voice_stt_record`; a person may read their own row.
+model VoiceSttUsage {
+  profileId String   @map("profile_id") @db.Uuid
+  period    String
+  seconds   Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, period])
+  @@map("voice_stt_usage")
   @@schema("public")
 }
 
