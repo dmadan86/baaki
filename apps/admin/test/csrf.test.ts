@@ -69,6 +69,22 @@ describe('assertSameOrigin', () => {
     headerStore.set('origin', 'https://baaki-admin.vercel.app');
     await expect(assertSameOrigin()).rejects.toThrow(/another site/);
   });
+
+  it('rejects an http Origin for a pinned https ADMIN_ALLOWED_ORIGIN', async () => {
+    process.env.ADMIN_ALLOWED_ORIGIN = `https://${HOST}`;
+    headerStore.set('host', HOST);
+    headerStore.set('origin', `http://${HOST}`);
+    await expect(assertSameOrigin()).rejects.toThrow(/another site/);
+  });
+
+  it('rejects a plain-http Origin in production when deriving from Host', async () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    headerStore.set('host', HOST);
+    headerStore.set('origin', `http://${HOST}`);
+    await expect(assertSameOrigin()).rejects.toThrow(/another site/);
+    process.env.NODE_ENV = prev;
+  });
 });
 
 describe('CSRF token', () => {

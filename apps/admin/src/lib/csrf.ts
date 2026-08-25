@@ -37,13 +37,17 @@ export class RequestRejected extends Error {
 const CSRF_FIELD = '_csrf';
 
 /**
- * Rejects a request whose `Origin` is missing or is not this host.
+ * Rejects a request whose `Origin` is missing or is not this site.
  *
- * The expected host is the request's own `Host` header — the value the browser
- * set to reach us, not anything in the request body — unless `ADMIN_ALLOWED_ORIGIN`
- * pins it explicitly, which is the belt for a deployment that terminates TLS
- * somewhere that rewrites `Host`. A cross-site form POST carries the attacker's
- * `Origin`, which will not match; a same-origin submit carries ours, which will.
+ * When `ADMIN_ALLOWED_ORIGIN` pins the origin — the belt for a deployment that
+ * terminates TLS somewhere that rewrites `Host` — the whole origin is compared:
+ * scheme, host and port, so an `http://` Origin cannot pass for an `https://`
+ * deployment. Otherwise the expected host is the request's own `Host` header
+ * (the value the browser set to reach us, not anything in the body), and in
+ * production the Origin must additionally be `https:` — a plain-HTTP Origin on a
+ * TLS-served tier is a downgrade, and `Host` carries no scheme of its own to
+ * catch it. A cross-site form POST carries the attacker's `Origin`, which will
+ * not match; a same-origin submit carries ours, which will.
  */
 export async function assertSameOrigin(): Promise<void> {
   const h = await headers();
@@ -52,18 +56,26 @@ export async function assertSameOrigin(): Promise<void> {
     throw new RequestRejected('This request arrived without an Origin and was refused.');
   }
 
-  let originHost: string;
+  let originUrl: URL;
   try {
-    originHost = new URL(origin).host;
+    originUrl = new URL(origin);
   } catch {
     throw new RequestRejected('This request carried a malformed Origin and was refused.');
   }
 
+  const rejected = new RequestRejected('This request came from another site and was refused.');
+
   const configured = process.env.ADMIN_ALLOWED_ORIGIN;
-  const expectedHost = configured ? new URL(configured).host : (h.get('host') ?? '');
-  if (!expectedHost || originHost !== expectedHost) {
-    throw new RequestRejected('This request came from another site and was refused.');
+  if (configured) {
+    // `URL.origin` normalises scheme + host + port, so the compare includes the
+    // scheme rather than accepting http for a configured https origin.
+    if (originUrl.origin !== new URL(configured).origin) throw rejected;
+    return;
   }
+
+  const host = h.get('host') ?? '';
+  if (!host || originUrl.host !== host) throw rejected;
+  if (process.env.NODE_ENV === 'production' && originUrl.protocol !== 'https:') throw rejected;
 }
 
 /**
