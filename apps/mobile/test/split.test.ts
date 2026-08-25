@@ -23,11 +23,17 @@ describe('parseEntry', () => {
     expect(parseEntry('shares', 'two')).toBeNull();
   });
 
+  it('rejects share weights too large for the input field contract', () => {
+    expect(parseEntry('shares', '999999999')).toBe(999999999);
+    expect(parseEntry('shares', '1000000000')).toBeNull();
+  });
+
   it('reads percentages as basis points', () => {
     expect(parseEntry('percent', '25')).toBe(2500);
     expect(parseEntry('percent', '33.33')).toBe(3333);
     expect(parseEntry('percent', '33.3')).toBe(3330);
     expect(parseEntry('percent', '100')).toBe(10000);
+    expect(parseEntry('percent', '.5')).toBe(50);
   });
 
   it('converts in decimal, not in floating point', () => {
@@ -36,8 +42,10 @@ describe('parseEntry', () => {
     expect(parseEntry('percent', '8.11')).toBe(811);
   });
 
-  it('refuses a third decimal place and anything over 100', () => {
+  it('refuses a third decimal place, trailing decimal ambiguity, negatives and anything over 100', () => {
     expect(parseEntry('percent', '33.333')).toBeNull();
+    expect(parseEntry('percent', '33.')).toBeNull();
+    expect(parseEntry('percent', '-1')).toBeNull();
     expect(parseEntry('percent', '101')).toBeNull();
   });
 
@@ -91,6 +99,18 @@ describe('splitProblem', () => {
   it('ignores members who are not in the split', () => {
     expect(splitProblem(SplitKind.Percent, { a: '50', b: '50', c: '80' }, ['a', 'b'])).toBeNull();
   });
+
+  it('treats an empty participant list as not ready, not broken', () => {
+    expect(splitProblem(SplitKind.Shares, { outsider: 'abc' }, [])).toBeNull();
+    expect(splitProblem(SplitKind.Percent, { outsider: '150' }, [])).toBeNull();
+  });
+
+  it('maps invalid participant fields to zero only after splitProblem has flagged them', () => {
+    expect(splitProblem(SplitKind.Shares, { a: 'abc', b: '2' }, ['a', 'b'])).toBe(
+      'Shares must be whole numbers.',
+    );
+    expect(entryValues('shares', { a: 'abc', b: '2' }, ['a', 'b'])).toEqual({ a: 0, b: 2 });
+  });
 });
 
 describe('fillEntries', () => {
@@ -112,6 +132,21 @@ describe('fillEntries', () => {
 
   it('returns null when there is nothing to fill, so render does not loop', () => {
     expect(fillEntries('shares', { a: '1', b: '1', c: '1' }, people)).toBeNull();
+  });
+
+  it('returns null for a fresh percent split with nobody selected', () => {
+    expect(fillEntries('percent', {}, [])).toBeNull();
+  });
+
+  it('fills a large fresh percent split once and still sums to exactly 100%', () => {
+    const many = Array.from({ length: 128 }, (_, index) => `m${index}`);
+    const filled = fillEntries('percent', {}, many);
+
+    expect(filled).not.toBeNull();
+    expect(splitProblem(SplitKind.Percent, filled ?? {}, many)).toBeNull();
+    expect(
+      Object.values(entryValues('percent', filled ?? {}, many)).reduce((a, b) => a + b, 0),
+    ).toBe(10000);
   });
 });
 
@@ -158,5 +193,20 @@ describe('what the screen hands to the money engine', () => {
         seed: 'expense-1',
       }),
     ).toThrow();
+  });
+
+  it('handles a large shares split without dropping participants or minor units', () => {
+    const many = Array.from({ length: 256 }, (_, index) => `m${index}`);
+    const entries = Object.fromEntries(many.map((id, index) => [id, String((index % 5) + 1)]));
+    const shares = computeShares({
+      amount: 123456789n,
+      currency: 'INR',
+      params: { kind: 'shares', weights: entryValues('shares', entries, many) },
+      participants: many,
+      seed: 'large-expense',
+    });
+
+    expect(shares.size).toBe(many.length);
+    expect([...shares.values()].reduce((sum, share) => sum + share, 0n)).toBe(123456789n);
   });
 });
