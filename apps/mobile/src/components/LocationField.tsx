@@ -19,6 +19,8 @@ import { Linking, Pressable, View } from 'react-native';
 import type { ExpenseLocation } from '@waves/core';
 import { Button, Callout, Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
+import { LocationPickerSheet } from '@/components/LocationPickerSheet';
+import { MapPreview } from '@/components/MapPreview';
 import { useStrings } from '@/i18n';
 import { captureLocation, coordLabel, LocationFailure, locationAvailable } from '@/lib/location';
 
@@ -35,6 +37,9 @@ export function LocationField({
   // 'denied' offers Settings; 'unavailable' just invites another try. Cleared
   // the moment a fresh attempt starts.
   const [failure, setFailure] = useState<LocationFailure | null>(null);
+  // The full-screen map: opened to adjust an existing pin, or to pick a spot
+  // by hand when the person is not standing where the money was spent.
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Web and a build with no location module have nothing to offer — the whole
   // field is absent rather than a button that can only fail.
@@ -64,12 +69,27 @@ export function LocationField({
       </Text>
 
       {value ? (
-        <Card style={{ paddingVertical: theme.spacing.md }}>
+        <Card style={{ gap: theme.spacing.sm, padding: theme.spacing.sm }}>
+          {/* A little map of the point — tap it to open the picker and adjust. */}
+          <MapPreview
+            location={value}
+            onPress={() => setPickerOpen(true)}
+            accessibilityLabel={t.location.adjust}
+          />
           <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
             <Ionicons name="location" size={iconSize.md} color={theme.color.brand} />
             <Text variant="subheading" numberOfLines={1} style={{ flex: 1 }}>
               {label}
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.location.adjust}
+              onPress={() => setPickerOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Ionicons name="create-outline" size={iconSize.md} color={theme.color.brand} />
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t.location.remove}
@@ -82,15 +102,36 @@ export function LocationField({
           </Row>
         </Card>
       ) : (
-        <Button
-          label={busy ? t.location.adding : t.location.add}
-          variant="secondary"
-          size="sm"
-          disabled={busy}
-          onPress={() => void add()}
-          icon={<Ionicons name="location-outline" size={iconSize.md} color={theme.color.brand} />}
-        />
+        <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+          <Button
+            label={busy ? t.location.adding : t.location.add}
+            variant="secondary"
+            size="sm"
+            disabled={busy}
+            onPress={() => void add()}
+            icon={<Ionicons name="location-outline" size={iconSize.md} color={theme.color.brand} />}
+          />
+          {/* The manual path: choose a spot on the map when you are not there. */}
+          <Button
+            label={t.location.pick}
+            variant="secondary"
+            size="sm"
+            disabled={busy}
+            onPress={() => setPickerOpen(true)}
+            icon={<Ionicons name="map-outline" size={iconSize.md} color={theme.color.brand} />}
+          />
+        </Row>
       )}
+
+      <LocationPickerSheet
+        visible={pickerOpen}
+        initial={value}
+        onClose={() => setPickerOpen(false)}
+        onConfirm={(picked) => {
+          onChange(picked);
+          setPickerOpen(false);
+        }}
+      />
 
       {failure === LocationFailure.Denied ? (
         <View style={{ gap: theme.spacing.sm }}>
