@@ -1,7 +1,7 @@
 # Baaki — Architecture Decision Records (ADR)
 
 **Product:** Baaki (பாக்கி — "balance / what's still owed") — an expense-splitting app for a **global audience**, launching India-first.
-**Positioning (from competitive analysis):** unlimited free core ledger · link-based guest joining · multi-currency from day one · deep-link settlement with partial/per-expense payments (UPI first, PayPal/PayID and more worldwide) · free AI receipt itemization · monetize convenience, never the ledger.
+**Positioning (from competitive analysis):** unlimited free core ledger · link-based guest joining · multi-currency from day one · deep-link settlement with partial/per-expense payments (UPI first, PayPal/PayID and more worldwide) · AI receipt itemization free within a monthly scan quota (ADR-008) · monetize convenience, never the ledger.
 **Reach.** India is the first market, not the only one: it sets the launch rails (UPI), the receipt scripts and the entry price tier, but the ledger, currency and sync are market-neutral. A new country is a settlement rail plus a price tier (ADR-007, ADR-011 pricing), never a schema change.
 **Status legend:** Accepted = build to this. Each ADR: Context → Decision → Consequences.
 
@@ -127,7 +127,7 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 - Baaki records the settlement with a two-step state machine: `initiated → confirmed` (payee taps "received" or payer marks paid and payee gets a confirm nudge; auto-confirm after 7 days with notification). We do **not** attempt callback verification of UPI success in v1 (intent flow offers none reliably).
 - **Partial and per-expense settlement is first-class** (the 985-vote gap): a settlement row can carry `allocations[] = {expense_id, amount}`; unallocated amounts apply to overall balance oldest-first. Cash/bank settlements use the same flow minus the deep link.
 
-**Consequences.** No license, no float, no custody risk; works with every UPI app on day one. Trade-off: confirmation is social, not cryptographic — mitigated by the confirm/nudge flow and activity log. International rails (PayID, PayPal links, Venmo, SEPA) plug into the same settlement state machine — the method is named in a CHECK constraint, not an enum (A27), so opening a market is one rail, no type surgery.
+**Consequences.** No license, no float, no custody risk; works with every UPI app on day one. Trade-off: confirmation is social, not cryptographic — mitigated by the confirm/nudge flow and activity log. International rails plug into the same settlement state machine: the rails are a **data registry** (`RailId` in `packages/core`; `settlements.rail` is a `text` column, not a hardcoded union), already spanning many markets' instant rails and consumer apps — Pix, PayNow, PromptPay, QRIS, Aani, PayID, Zelle, Venmo, Cash App, Interac, Wise, Revolut, PayPal (A27). SEPA-style bank transfers ride the generic `bank` rail rather than a named one. Opening a market is a registry entry, not type surgery.
 
 ---
 
@@ -143,7 +143,7 @@ This is an **authority-model addition, not a change to any trust boundary**: eve
 - Itemized claiming: each participant taps their items on their own phone (Tab-style, realtime via Supabase Realtime); shared items split equally among claimers; **tax/tip/service prorated proportionally** to each person's item subtotal (deterministic rounding per ADR-009).
 - Free tier: generous scan quota (e.g., 20/month); metered because each scan has real API cost — consistent with ADR-011 (convenience is monetizable, ledger is not).
 
-**Consequences.** Best-in-class scan UX incl. regional scripts and text bills; per-scan cost is a COGS line to monitor; provider is swappable behind one Edge Function interface.
+**Consequences.** Best-in-class scan UX incl. regional scripts and text bills; per-scan cost is a COGS line to monitor; provider is swappable behind one Edge Function interface. The vision LLM reads any script the photo carries — that any-script claim is the LLM's, not the **on-device heuristic fallback** (`packages/core/src/receipt/heuristic.ts`), which is best-effort and today biased to Latin, Indic and Arabic word detection with English total/charge labels (`TOTAL`/`TAX`/`SERVICE`). Localizing that fallback's word detection and total-label matching for CJK and Cyrillic — with per-script, non-INR receipt fixtures asserting labels, amounts, detected currency and reconciliation — is a tracked follow-up, not shipped here; until then a non-Latin receipt that misses the network falls back to a low-confidence, user-editable result rather than a wrong one.
 
 ---
 

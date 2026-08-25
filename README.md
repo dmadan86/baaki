@@ -3,8 +3,9 @@
 **பாக்கி — "balance / what's still owed".** An expense-splitting app for people
 everywhere: unlimited free ledger, link-based guest joining, multi-currency from
 the first expense, deep-link settlement with partial and per-expense payments
-(UPI in India, PayPal / PayID and more worldwide), and free AI receipt
-itemization.
+(UPI in India, PayPal / PayID and more worldwide), and AI receipt itemization
+that is free within a monthly scan quota (metered beyond it, since each scan has
+a real API cost — see ADR-008).
 
 **Built for a global audience.** India is the first launch market — so the
 settlement rails, receipt scripts and pricing lead there — but nothing in the
