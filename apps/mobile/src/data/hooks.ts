@@ -53,7 +53,7 @@ import {
 } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 import { syncEngine, useSync } from '@/sync';
 import {
   createGroup,
@@ -773,7 +773,7 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
 /**
  * A monotonic suffix so each realtime subscription gets its own channel topic.
  *
- * `supabase.channel(topic)` returns an *existing* channel when one with that
+ * `backend.channel(topic)` returns an *existing* channel when one with that
  * topic is still registered, and `removeChannel()` is async and fire-and-forget.
  * So a fast unmount → remount — which is exactly what React does when it freezes
  * a navigated-away screen and reconnects its effects on return — can hand the
@@ -799,7 +799,7 @@ export function useGroupRealtime(groupId: string): void {
   useEffect(() => {
     if (!groupId) return;
 
-    const channel = supabase
+    const channel = backend
       .channel(`group:${groupId}:${++realtimeChannelSeq}`)
       .on(
         'postgres_changes',
@@ -826,7 +826,7 @@ export function useGroupRealtime(groupId: string): void {
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void backend.removeChannel(channel);
     };
   }, [groupId, queryClient]);
 }
@@ -1599,7 +1599,7 @@ export function useAnnotateExpenseAttachment() {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { attachmentId: string; annotations: Annotations | null }) => {
-      const { error } = await supabase.rpc('baaki_annotate_expense_attachment', {
+      const { error } = await backend.rpc('baaki_annotate_expense_attachment', {
         p_attachment_id: input.attachmentId,
         p_annotations: input.annotations,
       });
@@ -1634,7 +1634,7 @@ export function useAttachExpenseAttachment(groupId: string, expenseId: string) {
           subjectId: expenseId,
         });
         committed = path;
-        const { error } = await supabase.rpc('baaki_attach_expense_attachment', {
+        const { error } = await backend.rpc('baaki_attach_expense_attachment', {
           p_expense_id: expenseId,
           p_storage_path: path,
           p_visibility: visibility,
@@ -1679,7 +1679,7 @@ export function useReplaceExpenseAttachmentImage(groupId: string, expenseId: str
           subjectId: expenseId,
         });
         committed = path;
-        const { error } = await supabase.rpc('baaki_replace_expense_attachment_image', {
+        const { error } = await backend.rpc('baaki_replace_expense_attachment_image', {
           p_attachment_id: input.attachmentId,
           p_new_path: path,
         });
@@ -1704,7 +1704,7 @@ export function useRemoveExpenseAttachment(expenseId: string) {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { attachmentId: string; storagePath: string }) => {
-      const { error } = await supabase.rpc('baaki_remove_expense_attachment', {
+      const { error } = await backend.rpc('baaki_remove_expense_attachment', {
         p_attachment_id: input.attachmentId,
       });
       if (error) throw new Error(error.message);
@@ -1814,7 +1814,7 @@ export function useAddExpenseComment(groupId: string, expenseId: string) {
       const body = input.body.trim();
       if (body === '') return null;
       const id = randomUUID();
-      const { error } = await supabase.rpc('baaki_add_expense_comment', {
+      const { error } = await backend.rpc('baaki_add_expense_comment', {
         p_group_id: groupId,
         p_expense_id: expenseId,
         p_comment_id: id,
@@ -1834,7 +1834,7 @@ export function useEditExpenseComment() {
     mutationFn: async (input: { commentId: string; body: string }) => {
       const body = input.body.trim();
       if (body === '') return;
-      const { error } = await supabase.rpc('baaki_edit_expense_comment', {
+      const { error } = await backend.rpc('baaki_edit_expense_comment', {
         p_comment_id: input.commentId,
         p_body: body,
       });
@@ -1849,7 +1849,7 @@ export function useDeleteExpenseComment() {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { commentId: string }) => {
-      const { error } = await supabase.rpc('baaki_delete_expense_comment', {
+      const { error } = await backend.rpc('baaki_delete_expense_comment', {
         p_comment_id: input.commentId,
       });
       if (error) throw new Error(error.message);
@@ -1863,7 +1863,7 @@ export function useFlagExpenseComment() {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { commentId: string; flag: boolean }) => {
-      const { error } = await supabase.rpc('baaki_flag_expense_comment', {
+      const { error } = await backend.rpc('baaki_flag_expense_comment', {
         p_comment_id: input.commentId,
         p_flag: input.flag,
       });
@@ -1920,7 +1920,7 @@ export function useAttachSettlementProof(groupId: string, settlementId: string) 
           subjectId: settlementId,
         });
         committed = path;
-        const { error } = await supabase.rpc('baaki_attach_settlement_proof', {
+        const { error } = await backend.rpc('baaki_attach_settlement_proof', {
           p_settlement_id: settlementId,
           p_storage_path: path,
           p_proof_id: randomUUID(),
@@ -1942,7 +1942,7 @@ export function useRemoveSettlementProof(settlementId: string) {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { proofId: string; storagePath: string }) => {
-      const { error } = await supabase.rpc('baaki_remove_settlement_proof', {
+      const { error } = await backend.rpc('baaki_remove_settlement_proof', {
         p_proof_id: input.proofId,
       });
       if (error) throw new Error(error.message);
@@ -2006,7 +2006,7 @@ export function useItemClaims(receiptId: string | null) {
 
   useEffect(() => {
     if (!receiptId) return;
-    const channel = supabase
+    const channel = backend
       .channel(`receipt:${receiptId}:${++realtimeChannelSeq}`)
       .on(
         'postgres_changes',
@@ -2021,7 +2021,7 @@ export function useItemClaims(receiptId: string | null) {
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void backend.removeChannel(channel);
     };
   }, [receiptId, queryClient]);
 

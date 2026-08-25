@@ -23,7 +23,7 @@ import { Button, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { backend } from '@/lib/backend';
 
 interface Campaign {
   id: string;
@@ -35,7 +35,7 @@ interface Campaign {
 }
 
 async function fetchCampaign(): Promise<Campaign | null> {
-  const { data, error } = await supabase.rpc('baaki_my_campaign');
+  const { data, error } = await backend.rpc('baaki_my_campaign');
   // An announcement is never worth an error state on somebody's expense screen.
   if (error) return null;
   const rows = (data ?? []) as Campaign[];
@@ -62,7 +62,7 @@ export function CampaignPopup() {
 
   const seen = useMutation({
     mutationFn: async ({ id, acted }: { id: string; acted: boolean }) => {
-      await supabase.rpc('baaki_campaign_seen', { p_campaign_id: id, p_acted: acted });
+      await backend.rpc('baaki_campaign_seen', { p_campaign_id: id, p_acted: acted });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['campaign'] }),
   });

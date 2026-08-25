@@ -31,7 +31,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { supabase } from './supabase';
+import { backend } from './backend';
 
 /**
  * Whether this platform has push at all.
@@ -133,7 +133,7 @@ export async function refreshPushToken(): Promise<PushResult> {
   const id = projectId();
   if (!id) return { ok: false, why: PushFailure.NotConfigured };
 
-  const { data: session } = await supabase.auth.getSession();
+  const { data: session } = await backend.auth.getSession();
   const profileId = session.session?.user?.id;
   if (!profileId) return { ok: false, why: PushFailure.NotSignedIn };
 
@@ -150,7 +150,7 @@ export async function refreshPushToken(): Promise<PushResult> {
     return { ok: false, why: PushFailure.NotConfigured };
   }
 
-  const { error } = await supabase.from('push_tokens').upsert(
+  const { error } = await backend.from('push_tokens').upsert(
     {
       profile_id: profileId,
       expo_push_token: token,
@@ -172,7 +172,7 @@ export async function revokePushToken(): Promise<void> {
   if (!id) return;
   try {
     const token = (await Notifications.getExpoPushTokenAsync({ projectId: id })).data;
-    await supabase
+    await backend
       .from('push_tokens')
       .update({ revoked_at: new Date().toISOString() })
       .eq('expo_push_token', token);

@@ -28,4 +28,39 @@ module.exports = [
   {
     ignores: ['dist/*', '.expo/*', 'expo-env.d.ts'],
   },
+  // Keep the backend seam intact: everything talks to the `Backend` port
+  // (`@/lib/backend`); only the adapter is allowed to name the vendor. A stray
+  // `import { supabase }` re-couples the app and must fail here, not in review.
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@supabase/supabase-js',
+              message:
+                'Import through the backend port (`@/lib/backend`). Only lib/supabase.ts (the adapter) may name the vendor.',
+            },
+            {
+              name: '@/lib/supabase',
+              message: 'Import `backend` from `@/lib/backend`, not the Supabase client directly.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/lib/supabase'],
+              message: 'Import through the backend port (`@/lib/backend`).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // The adapter and the port are the two places the vendor is allowed.
+    files: ['**/lib/supabase.ts', '**/lib/backend/index.ts'],
+    rules: { 'no-restricted-imports': 'off' },
+  },
 ];

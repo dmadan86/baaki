@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
-import type { Session } from '@supabase/supabase-js';
+import type { Session } from '@/lib/backend';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -16,7 +16,7 @@ import {
 
 import { identifyForReporting, reportHandled } from './observability';
 import { refreshPushToken, revokePushToken } from './push';
-import { supabase } from './supabase';
+import { backend } from './backend';
 
 /**
  * What @waves/core needs to know to pick the right call. The distinction that
@@ -50,11 +50,11 @@ async function oauthThroughBrowser(
   // Both calls return a URL rather than opening it: the browser has to be the
   // in-app one, or the session comes back to a tab the app cannot see.
   const { data, error } = link
-    ? await supabase.auth.linkIdentity({
+    ? await backend.auth.linkIdentity({
         provider,
         options: { redirectTo, skipBrowserRedirect: true },
       })
-    : await supabase.auth.signInWithOAuth({
+    : await backend.auth.signInWithOAuth({
         provider,
         options: { redirectTo, skipBrowserRedirect: true },
       });
@@ -72,11 +72,11 @@ async function oauthThroughBrowser(
   if (!access_token || !refresh_token) {
     // A link, rather than a sign-in, returns no tokens — the session it just
     // added an identity to is the one already held.
-    const { data: current } = await supabase.auth.getSession();
+    const { data: current } = await backend.auth.getSession();
     return current.session;
   }
 
-  const { data: signedIn, error: sessionError } = await supabase.auth.setSession({
+  const { data: signedIn, error: sessionError } = await backend.auth.setSession({
     access_token,
     refresh_token,
   });
@@ -145,9 +145,9 @@ async function appleNativeCredential(apple: AppleAuthModule): Promise<
  * depends on the row — then retry the profile update until a row is affected.
  */
 async function persistAppleName(userId: string, name: string): Promise<void> {
-  await supabase.auth.updateUser({ data: { display_name: name } }).catch(() => undefined);
+  await backend.auth.updateUser({ data: { display_name: name } }).catch(() => undefined);
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from('profiles')
       .update({ display_name: name })
       .eq('id', userId)
@@ -239,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ran on the happy path. A failure to read a session is a signed-out
     // launch, not a dead one: clear it and let the auth gate send them to
     // sign-in.
-    supabase.auth
+    backend.auth
       .getSession()
       .then(({ data }) => {
         if (!active) return;
@@ -252,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) setLoading(false);
       });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: subscription } = backend.auth.onAuthStateChange((_event, next) => {
       setSession(next);
     });
 
@@ -294,7 +294,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The profile row is created by a trigger on auth.users, so it may land a
       // beat after the session does on a brand-new account.
       for (let attempt = 0; attempt < 5; attempt += 1) {
-        const { data } = await supabase
+        const { data } = await backend
           .from('profiles')
           .select(
             'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, address, default_currency, locale',
@@ -322,12 +322,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isGuest: session?.user?.is_anonymous === true,
 
       async sendOtp(phone) {
-        const { error } = await supabase.auth.signInWithOtp({ phone });
+        const { error } = await backend.auth.signInWithOtp({ phone });
         if (error) throw error;
       },
 
       async verifyOtp(phone, token) {
-        const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+        const { error } = await backend.auth.verifyOtp({ phone, token, type: 'sms' });
         if (error) throw error;
       },
 
@@ -337,7 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // a new empty account; on sign-up it is true so the code both makes the
         // account and lands the session. Supabase mails a six-digit code (not a
         // magic link) as long as the email template carries `{{ .Token }}`.
-        const { error } = await supabase.auth.signInWithOtp({
+        const { error } = await backend.auth.signInWithOtp({
           email: email.trim(),
           options: { shouldCreateUser: createUser },
         });
@@ -345,7 +345,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       async verifyEmailOtp(email, token) {
-        const { error } = await supabase.auth.verifyOtp({
+        const { error } = await backend.auth.verifyOtp({
           email: email.trim(),
           token: token.trim(),
           type: 'email',
@@ -354,7 +354,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       async continueAsGuest() {
-        const { error } = await supabase.auth.signInAnonymously();
+        const { error } = await backend.auth.signInAnonymously();
         if (error) throw error;
       },
 
@@ -368,17 +368,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (action.call === 'updateUser') {
           // The upgrade. Same user id, so the groups, the expenses and the
           // money owed all stay where they are (ADR-006).
-          const { error } = await supabase.auth.updateUser({ ...credential, password });
+          const { error } = await backend.auth.updateUser({ ...credential, password });
           if (error) throw error;
-          const { data } = await supabase.auth.getSession();
+          const { data } = await backend.auth.getSession();
           setSession(data.session);
           return {};
         }
 
         const result =
           action.call === 'signUp'
-            ? await supabase.auth.signUp({ ...credential, password })
-            : await supabase.auth.signInWithPassword({ ...credential, password });
+            ? await backend.auth.signUp({ ...credential, password })
+            : await backend.auth.signInWithPassword({ ...credential, password });
         if (result.error) throw result.error;
 
         // A fresh email account, with confirmations turned on, comes back with
@@ -407,7 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (apple) {
             const credential = await appleNativeCredential(apple);
             if (credential === undefined) return; // sheet dismissed
-            const { data, error } = await supabase.auth.signInWithIdToken({
+            const { data, error } = await backend.auth.signInWithIdToken({
               provider: 'apple',
               token: credential.identityToken,
             });
@@ -429,7 +429,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       async updateProfile(patch) {
         if (!session?.user) throw new Error('Not signed in');
-        const { data, error } = await supabase
+        const { data, error } = await backend
           .from('profiles')
           .update(patch)
           .eq('id', session.user.id)
@@ -442,7 +442,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       async refresh() {
-        const { data } = await supabase.auth.getSession();
+        const { data } = await backend.auth.getSession();
         setSession(data.session);
       },
 
@@ -451,7 +451,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // the revocation to, and the token would keep receiving notifications
         // for an account nobody is signed in on.
         await revokePushToken();
-        await supabase.auth.signOut();
+        await backend.auth.signOut();
       },
     }),
     [session, profile, loading],

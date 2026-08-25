@@ -36,7 +36,7 @@ import {
 } from '@waves/core';
 
 // ── shared handles the module mocks below close over ────────────────────────
-// `h.invoke` is every engine's `supabase.functions.invoke`; both devices' calls
+// `h.invoke` is every engine's `backend.functions.invoke`; both devices' calls
 // land on the one `server`. `h.disks` is the pool of independent "phones" — the
 // store factory hands out the next one per `new SyncEngine()`, so device A and
 // device B read and write genuinely separate storage.
@@ -60,7 +60,10 @@ const h = vi.hoisted(() => ({
 const freshDisk = (): Disk => ({ rows: new Map(), cursors: {}, queue: [] });
 
 vi.mock('expo-network', () => ({ getNetworkStateAsync: h.net }));
-vi.mock('@/lib/supabase', () => ({ supabase: { functions: { invoke: h.invoke } } }));
+vi.mock('@/lib/backend', () => ({
+  backend: { functions: { invoke: h.invoke } },
+  backendConfigured: true,
+}));
 vi.mock('@/lib/observability', () => ({ reportHandled: () => {} }));
 
 // The store factory pops the next disk off the pool. `new SyncEngine()` calls
