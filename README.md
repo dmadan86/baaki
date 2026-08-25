@@ -1,8 +1,16 @@
 # Baaki
 
-**பாக்கி — "balance / what's still owed".** An expense-splitting app for India:
-unlimited free ledger, link-based guest joining, UPI-native settlement with
-partial and per-expense payments, and free AI receipt itemization.
+**பாக்கி — "balance / what's still owed".** An expense-splitting app for people
+everywhere: unlimited free ledger, link-based guest joining, multi-currency from
+the first expense, deep-link settlement with partial and per-expense payments
+(UPI in India, PayPal / PayID and more worldwide), and free AI receipt
+itemization.
+
+**Built for a global audience.** India is the first launch market — so the
+settlement rails, receipt scripts and pricing lead there — but nothing in the
+ledger, currency handling or growth loop is India-only. Every amount is stored
+in ISO-4217 minor units from M0, and opening a new market is a settlement rail
+and a price tier, not a rewrite.
 
 The two binding specs live in this repo: [`baaki-adr.md`](./baaki-adr.md) (14
 accepted architecture decisions) and [`baaki-tdr.md`](./baaki-tdr.md) (how to

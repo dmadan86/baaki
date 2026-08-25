@@ -414,15 +414,12 @@ function AuthGate() {
   // otherwise a deep link cannot reach a screen that would only mislead.
   const paywallEnabled = useFlagEnabled('paywall');
 
-  /**
-   * Pushes cut straight to the destination — no slide. The slide-from-right was
-   * the most visible transition and the one that read as slow, so a push now
-   * lands instantly; "back" is still carried by the header and the swipe gesture.
-   * A modal still rises from the bottom, because that rise is what says "on top
-   * of" rather than "gone to", and it is cheap.
-   */
-  const push = 'none' as const;
-  const modal = { presentation: 'modal' as const, animation: 'slide_from_bottom' as const };
+  // Every forward screen slides in from the leading edge — one consistent
+  // motion across the whole app (right in LTR, left in RTL). The only screens
+  // that opt out are the auth and tab roots below, which replace the whole tree
+  // and mark themselves `animation: 'none'`. Screens that once rose as bottom
+  // modals now slide too, so navigation reads the same everywhere.
+  const push = I18nManager.isRTL ? ('slide_from_left' as const) : ('slide_from_right' as const);
   // A normal forward page: a plain horizontal translate (and back out the way it
   // came) rather than rising like a modal — the "went to a page", not "on top of"
   // feel. A bare translate is the cheapest native transition on the UI thread, so
@@ -574,26 +571,26 @@ function AuthGate() {
           <Stack.Screen name="verify-email" />
           <Stack.Screen name="guest-welcome" />
           <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
-          <Stack.Screen name="new-group" options={modal} />
-          <Stack.Screen name="clone-group" options={modal} />
-          {paywallEnabled ? <Stack.Screen name="paywall" options={modal} /> : null}
-          <Stack.Screen name="capture" options={modal} />
+          <Stack.Screen name="new-group" options={slide} />
+          <Stack.Screen name="clone-group" options={slide} />
+          {paywallEnabled ? <Stack.Screen name="paywall" options={slide} /> : null}
+          <Stack.Screen name="capture" options={slide} />
           <Stack.Screen name="captures" />
           <Stack.Screen name="groups" options={slide} />
           <Stack.Screen name="group/[id]/index" options={slide} />
           <Stack.Screen name="group/[id]/add-expense" options={slide} />
-          <Stack.Screen name="group/[id]/settle" options={modal} />
+          <Stack.Screen name="group/[id]/settle" options={slide} />
           <Stack.Screen name="group/[id]/simplify" />
           <Stack.Screen name="group/[id]/settings" />
           <Stack.Screen name="group/[id]/members" />
           <Stack.Screen name="group/[id]/member/[memberId]" />
           <Stack.Screen name="group/[id]/expense/[expenseId]" options={slide} />
-          <Stack.Screen name="group/[id]/invite" options={modal} />
-          <Stack.Screen name="group/[id]/itemize" options={modal} />
-          <Stack.Screen name="receipt/[id]" options={modal} />
+          <Stack.Screen name="group/[id]/invite" options={slide} />
+          <Stack.Screen name="group/[id]/itemize" options={slide} />
+          <Stack.Screen name="receipt/[id]" options={slide} />
           <Stack.Screen name="friends/contacts" />
-          <Stack.Screen name="contact-picker" options={modal} />
-          <Stack.Screen name="scan" options={modal} />
+          <Stack.Screen name="contact-picker" options={slide} />
+          <Stack.Screen name="scan" options={slide} />
           <Stack.Screen name="settings/notifications" />
           <Stack.Screen name="settings/export" />
           <Stack.Screen name="settings/import" />
@@ -613,7 +610,7 @@ function AuthGate() {
           <Stack.Screen name="settings/delete-account" />
           <Stack.Screen name="join" />
           <Stack.Screen name="inbox" />
-          <Stack.Screen name="voice" options={modal} />
+          <Stack.Screen name="voice" options={slide} />
         </Stack>
         {/* One bar over the whole stack, so every screen keeps it — it hides
           itself on the modals and the camera. */}
