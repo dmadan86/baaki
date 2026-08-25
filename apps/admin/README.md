@@ -68,9 +68,23 @@ because most of it is not obvious from the app's own config.
 3. **`.vercelignore` at the repo root is load-bearing.** Without it the upload
    includes `node_modules`, the Android build tree and a 165MB APK, and aborts
    partway through 2.9GB.
-4. Add the four environment variables from `.env.example` for **Production**.
-   Generate a fresh `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`; do not reuse
-   the local ones.
+4. Add the environment variables from `.env.example` for **Production**, plus
+   the two this hardening added:
+   - `ADMIN_ORIGIN_SECRET` — a long random string. It is the shared secret
+     Cloudflare Access injects as a header and `src/proxy.ts` requires; see
+     "The custom domain took that door away" below. **In production, if this is
+     unset the proxy refuses every request** (fail-closed), so set it and the
+     Cloudflare Transform Rule together.
+   - `ADMIN_ALLOWED_ORIGIN` — optional, e.g. `https://baaki.dmadan.com`. Pins
+     the origin the CSRF check compares against; leave it unset to derive the
+     expected origin from the request `Host`, which is correct for a normal
+     single-domain deployment.
+
+   Generate a fresh `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` and
+   `ADMIN_ORIGIN_SECRET`; do not reuse the local ones. See "Rotate after
+   hardening" below — anything that was live before this change should be
+   rotated once, because it lived on a publicly reachable hostname.
+
 5. Confirm **Deployment Protection → Vercel Authentication** covers Preview and
    Production. It was already on by default here — check rather than assume,
    with `vercel project protection`.
@@ -128,8 +142,61 @@ Two things that must be true together, or neither is worth doing:
    requires — a host check alone does not do it, because the host is exactly
    what an attacker sets.
 
-Until both hold, treat `ADMIN_PASSWORD` as the only control on a public
-hostname, and size it accordingly.
+**This is now enforced in the app.** `src/proxy.ts` refuses any request —
+the login form included — that does not carry the header
+`x-admin-origin-secret: <ADMIN_ORIGIN_SECRET>`. A valid session cookie is not
+enough on its own: that is the whole point, because the cookie is the thing an
+attacker on the open origin could obtain or replay. The compare is constant-time.
+
+Ops steps to make it hold, in Cloudflare's dashboard:
+
+1. **Zero Trust → Access → Applications**: add a self-hosted application for
+   `baaki.dmadan.com` with a one-time-PIN (or stricter) policy for your email.
+2. **Rules → Transform Rules → Modify Request Header**: on requests to
+   `baaki.dmadan.com`, _set_ `x-admin-origin-secret` to the same value you put
+   in the `ADMIN_ORIGIN_SECRET` env var. Set (not add), so a value a client
+   tried to send cannot survive.
+3. Set `ADMIN_ORIGIN_SECRET` in Vercel Production to that value and redeploy.
+
+Fail-safe: if `ADMIN_ORIGIN_SECRET` is unset **in production** the proxy denies
+everything rather than silently falling back to cookie-only — so a deploy that
+forgets it is visibly broken, not quietly open. Off production (localhost dev)
+an unset secret skips the check so the console still opens.
+
+Until Access + the Transform Rule are live, treat `ADMIN_PASSWORD` as the only
+control on a public hostname, and size it accordingly.
+
+### Login throttling
+
+`src/lib/loginThrottle.ts` caps failed password attempts per client address
+(ten per fifteen minutes) using the same Postgres limiter the edge functions use
+(`baaki_rate_limit`), so it works across Vercel's many short-lived isolates
+where an in-memory counter would not. A lockout logs a line prefixed
+`[ALERT] admin-login lockout` for log-based alerting to key on. It fails open: a
+database blip lets the one operator in rather than locking them out. No
+migration is needed — the bucket carries its own limit.
+
+### CSRF / Origin on mutations
+
+Every mutating server action calls `guardMutation` (`src/lib/csrf.ts`) first,
+which requires two independent things: an `Origin` header matching this host
+(or `ADMIN_ALLOWED_ORIGIN`), and a per-session CSRF token — derived from the
+session cookie under `ADMIN_SESSION_SECRET`, carried by `<CsrfField />` in each
+form. `SameSite=Lax` on the session cookie stays as one more layer, not the only
+one. The login form has no session yet, so it enforces the Origin check alone.
+
+### Rotate after hardening
+
+`ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` and `ADMIN_ORIGIN_SECRET` must be
+rotated **after** this is deployed, because until now the console answered on a
+public hostname with only the password in front of it:
+
+- **`ADMIN_PASSWORD`** — generate a new one; the old one may have been exposed to
+  brute force on the open origin.
+- **`ADMIN_SESSION_SECRET`** — rotating it invalidates every existing session
+  cookie _and_ every CSRF token derived from one, forcing a fresh sign-in.
+- **`ADMIN_ORIGIN_SECRET`** — set it for the first time here; rotate it (env +
+  Cloudflare Transform Rule together) on any suspicion it leaked.
 
 ## Notes for whoever changes this next
 

@@ -8,6 +8,8 @@ import {
   setRateLimitEnabled,
   type RateLimitRuleRow,
 } from '@/lib/data';
+import { guardMutation } from '@/lib/csrf';
+import { CsrfField } from '@/components/CsrfField';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +32,7 @@ export default async function RateLimits({
     'use server';
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       await setRateLimitEnabled(formData.get('enabled') === 'on');
     } catch (caught) {
       failure = caught instanceof Error ? caught.message : String(caught);
@@ -43,6 +46,7 @@ export default async function RateLimits({
     'use server';
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       await saveRateLimitRule({
         bucket: String(formData.get('bucket') ?? '').trim(),
         enabled: formData.get('enabled') === 'on',
@@ -78,6 +82,7 @@ export default async function RateLimits({
       <h2>Master switch</h2>
       <section>
         <form action={toggleMaster} className="flag">
+          <CsrfField />
           <label className="inline">
             <input type="checkbox" name="enabled" defaultChecked={enabled} />
             <span>Rate limiting enabled</span>
@@ -115,6 +120,7 @@ export default async function RateLimits({
             </span>
           </h3>
           <form action={saveRule} className="flag">
+            <CsrfField />
             <input type="hidden" name="bucket" value={rule.bucket} />
             <label className="inline">
               <input type="checkbox" name="enabled" defaultChecked={rule.enabled} />
@@ -141,6 +147,7 @@ export default async function RateLimits({
       <h2>Add a bucket</h2>
       <section>
         <form action={saveRule} className="flag">
+          <CsrfField />
           <label>
             <span>Bucket</span>
             <input type="text" name="bucket" placeholder="expense-write" required />

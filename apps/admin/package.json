@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --port 3100",
     "lint": "eslint src --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@waves/core": "workspace:*",
@@ -24,6 +25,7 @@
     "@types/react-dom": "~19.2.2",
     "eslint": "^9.37.0",
     "eslint-config-next": "^16.3.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.10"
   }
 }

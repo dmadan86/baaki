@@ -1,7 +1,9 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { checkPassword, issueToken } from '@/lib/session';
+import { clientAddress, recordLoginAttempt } from '@/lib/loginThrottle';
+import { assertSameOrigin, RequestRejected } from '@/lib/csrf';
 
 export default async function Login({
   searchParams,
@@ -12,6 +14,25 @@ export default async function Login({
 
   async function signIn(formData: FormData) {
     'use server';
+
+    // Reject a cross-site POST at the login form too — a forged login is a way
+    // to fixate a session on somebody. There is no session-bound token yet, so
+    // this leans on the Origin check alone.
+    try {
+      await assertSameOrigin();
+    } catch (caught) {
+      if (caught instanceof RequestRejected) redirect('/login?error=1');
+      throw caught;
+    }
+
+    // Throttle next, on the address, so a locked source cannot even test a
+    // guess. Counts this attempt whether or not the password is right — the
+    // operator logs in a handful of times a day and never meets the limit.
+    const address = clientAddress((await headers()).get('x-forwarded-for'));
+    const gate = await recordLoginAttempt(address);
+    if (!gate.allowed) {
+      redirect('/login?error=locked');
+    }
 
     const password = String(formData.get('password') ?? '');
     if (!(await checkPassword(password))) {
@@ -49,7 +70,11 @@ export default async function Login({
           autoComplete="current-password"
         />
         <button type="submit">Sign in</button>
-        {error ? <p className="error">That did not work.</p> : null}
+        {error === 'locked' ? (
+          <p className="error">Too many attempts. Wait a few minutes and try again.</p>
+        ) : error ? (
+          <p className="error">That did not work.</p>
+        ) : null}
       </form>
     </main>
   );

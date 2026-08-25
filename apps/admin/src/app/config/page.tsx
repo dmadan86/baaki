@@ -2,6 +2,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { appConfig, saveAppConfig } from '@/lib/data';
+import { guardMutation } from '@/lib/csrf';
+import { CsrfField } from '@/components/CsrfField';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +25,7 @@ export default async function Config({
 
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       const rawValue = String(formData.get('value') ?? '').trim();
       if (rawValue === '') {
         throw new Error('A limit is a whole number, zero or more.');
@@ -69,6 +72,7 @@ export default async function Config({
           <h2>{row.key}</h2>
           <section>
             <form action={save} className="flag">
+              <CsrfField />
               <input type="hidden" name="key" value={row.key} />
               {row.description ? <p className="note">{row.description}</p> : null}
               <label>

@@ -15,6 +15,8 @@ import {
   type CampaignRevenueRow,
   type FunnelRow,
 } from '@/lib/data';
+import { guardMutation } from '@/lib/csrf';
+import { CsrfField } from '@/components/CsrfField';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +95,7 @@ export default async function Campaigns({
 
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       await createCampaign({
         name: String(formData.get('name') ?? ''),
         title: String(formData.get('title') ?? ''),
@@ -118,6 +121,7 @@ export default async function Campaigns({
     const id = String(formData.get('id') ?? '');
     let message: string;
     try {
+      await guardMutation(formData);
       const result = await broadcastCampaign(id);
       // The holdout is never in this count — it is the control group, and mailing
       // it is the one thing the whole design forbids.
@@ -283,6 +287,7 @@ export default async function Campaigns({
                 </p>
                 {live ? (
                   <form action={broadcast}>
+                    <CsrfField />
                     <input type="hidden" name="id" value={campaign.id} />
                     <button type="submit">Send email to targeted cohort</button>
                   </form>
@@ -300,6 +305,7 @@ export default async function Campaigns({
       <h2>New campaign</h2>
       <section>
         <form action={create} className="flag">
+          <CsrfField />
           <label>
             <span>Name (internal)</span>
             <input type="text" name="name" placeholder="Diwali 2026" />

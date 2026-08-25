@@ -103,3 +103,63 @@ export async function isValidToken(token: string | undefined): Promise<boolean> 
 }
 
 export const SESSION_COOKIE = COOKIE;
+
+/**
+ * The second door: proof the request arrived through the trusted proxy.
+ *
+ * The custom domain (`baaki.dmadan.com`) is on Vercel Hobby, whose Deployment
+ * Protection does not cover custom domains, and the `*.vercel.app` origin stays
+ * reachable directly — so a valid session cookie alone does not prove a request
+ * came through Cloudflare Access. Cloudflare injects a shared secret header (a
+ * Transform Rule) that only it and this app know; a request that lacks it did
+ * not pass through the front door and is refused, cookie or no cookie. A host
+ * check would not do: the Host header is exactly what an attacker sets when
+ * sending a request straight to the `.vercel.app` origin.
+ *
+ * The compare is constant-time (HMAC-then-`===`, as everywhere else here) so the
+ * secret cannot be recovered a byte at a time from response timing.
+ */
+export const ORIGIN_SECRET_HEADER = 'x-admin-origin-secret';
+
+/**
+ * A constant-time string compare, exposed for the CSRF check next door. Same
+ * HMAC-then-`===` shape the rest of this file uses, so a token cannot be
+ * recovered a byte at a time from how long the comparison took.
+ */
+export async function constantTimeEquals(a: string, b: string): Promise<boolean> {
+  return equals(a, b);
+}
+
+/**
+ * A CSRF token bound to one session.
+ *
+ * Derived from the session cookie's value under the same secret, so it needs no
+ * second cookie to set (server components cannot set one during render anyway)
+ * and no server-side store. A cross-site attacker cannot read the victim's
+ * httpOnly session cookie, so cannot compute this, so cannot forge a form that
+ * carries it. The `csrf.` prefix keeps this HMAC from ever colliding with the
+ * session signature, which is the same input under the same key.
+ */
+export async function csrfTokenFor(sessionValue: string): Promise<string> {
+  return hmac(`csrf.${sessionValue}`, required('ADMIN_SESSION_SECRET'));
+}
+
+/**
+ * Fail-safe when `ADMIN_ORIGIN_SECRET` is unset.
+ *
+ * In production an unset secret means the second door was never wired up, and
+ * the safe answer to that is to refuse everything rather than silently fall back
+ * to cookie-only on a publicly reachable hostname — so this returns `false`,
+ * i.e. no request is trusted until the secret is configured. In development
+ * there is no Cloudflare in front of `localhost`, so an unset secret skips the
+ * check (returns `true`) and the console still opens on a dev machine.
+ */
+export async function hasTrustedOrigin(headerValue: string | null | undefined): Promise<boolean> {
+  const secret = process.env.ADMIN_ORIGIN_SECRET;
+  if (!secret) {
+    // Secure default: closed in production, open only off it.
+    return process.env.NODE_ENV !== 'production';
+  }
+  if (!headerValue) return false;
+  return equals(headerValue, secret);
+}
