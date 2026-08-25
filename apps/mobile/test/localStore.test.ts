@@ -28,6 +28,16 @@ class FakeDatabase {
   /** How deep the nesting got. More than one means the lock is not working. */
   concurrent = 0;
   private live = 0;
+  readonly mirrorRows = new Map<
+    string,
+    { table_name: string; id: string; group_id: string; seq: number; json: string }
+  >();
+  readonly pendingMutations = new Map<
+    string,
+    { client_mutation_id: string; seq: number; json: string }
+  >();
+  readonly cursors = new Map<string, number>();
+  readonly drafts = new Map<string, { key: string; json: string; saved_at: string }>();
 
   private async enter<T>(run: () => Promise<T>): Promise<T> {
     this.live += 1;
@@ -58,26 +68,109 @@ class FakeDatabase {
     });
   }
 
-  async runAsync(source: string): Promise<void> {
+  async runAsync(source: string, params: unknown[] = []): Promise<void> {
     await this.enter(async () => {
       await tick();
       // Three tokens, so `INSERT INTO drafts` and `INSERT INTO
       // pending_mutations` stay tellable apart — the whole point of one test.
-      this.statements.push(source.trim().split(/\s+/).slice(0, 3).join(' '));
+      const statement = source.trim().split(/\s+/).slice(0, 3).join(' ');
+      this.statements.push(statement);
+
+      if (statement === 'INSERT INTO mirror_rows') {
+        const [tableName, id, groupId, seq, json] = params as [
+          string,
+          string,
+          string,
+          number,
+          string,
+        ];
+        this.mirrorRows.set(`${tableName}:${id}`, {
+          table_name: tableName,
+          id,
+          group_id: groupId,
+          seq,
+          json,
+        });
+        return;
+      }
+      if (statement === 'DELETE FROM mirror_rows') {
+        if (source.includes('group_id = ?')) {
+          const [groupId] = params as [string];
+          for (const [key, row] of [...this.mirrorRows]) {
+            if (row.group_id === groupId) this.mirrorRows.delete(key);
+          }
+        } else {
+          this.mirrorRows.clear();
+        }
+        return;
+      }
+      if (statement === 'INSERT INTO pending_mutations') {
+        const [clientMutationId, seq, json] = params as [string, number, string];
+        this.pendingMutations.set(clientMutationId, {
+          client_mutation_id: clientMutationId,
+          seq,
+          json,
+        });
+        return;
+      }
+      if (statement === 'DELETE FROM pending_mutations') {
+        this.pendingMutations.clear();
+        return;
+      }
+      if (statement === 'INSERT INTO sync_cursors') {
+        const [groupId, seq] = params as [string, number];
+        this.cursors.set(groupId, seq);
+        return;
+      }
+      if (statement === 'DELETE FROM sync_cursors') {
+        if (source.includes('group_id = ?')) {
+          const [groupId] = params as [string];
+          this.cursors.delete(groupId);
+        } else {
+          this.cursors.clear();
+        }
+        return;
+      }
+      if (statement === 'INSERT INTO drafts') {
+        const [key, json, savedAt] = params as [string, string, string];
+        this.drafts.set(key, { key, json, saved_at: savedAt });
+        return;
+      }
+      if (statement === 'DELETE FROM drafts') {
+        if (source.includes('key = ?')) {
+          const [key] = params as [string];
+          this.drafts.delete(key);
+        } else {
+          this.drafts.clear();
+        }
+      }
     });
   }
 
-  async getAllAsync<T>(): Promise<T[]> {
+  async getAllAsync<T>(source = ''): Promise<T[]> {
     return this.enter(async () => {
       await tick();
+      if (source.includes('FROM mirror_rows')) return [...this.mirrorRows.values()] as T[];
+      if (source.includes('FROM sync_cursors')) {
+        return [...this.cursors].map(([group_id, seq]) => ({ group_id, seq })) as T[];
+      }
+      if (source.includes('FROM pending_mutations')) {
+        return [...this.pendingMutations.values()].sort((a, b) => a.seq - b.seq) as T[];
+      }
+      if (source.includes('FROM drafts')) {
+        return [...this.drafts.values()].sort((a, b) =>
+          b.saved_at.localeCompare(a.saved_at),
+        ) as T[];
+      }
       return [];
     });
   }
 
-  async getFirstAsync<T>(): Promise<T | null> {
+  async getFirstAsync<T>(_source = '', params: unknown[] = []): Promise<T | null> {
     return this.enter(async () => {
       await tick();
-      return null;
+      const [key] = params as [string];
+      return (this.drafts.get(key) as T | undefined) ?? null;
     });
   }
 
@@ -201,5 +294,84 @@ describe('an open that fails', () => {
     const store = createLocalStore();
     await Promise.all([store.readQueue(), store.readRows(), store.readCursors()]);
     expect(openCalls).toBe(1);
+  });
+});
+
+describe('native local store lifecycle', () => {
+  it('round-trips rows, cursors, queue and drafts through SQLite', async () => {
+    const store = createLocalStore();
+
+    await store.ready();
+    await store.putRows([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1', amount: '100' } },
+      { table: 'expenses', id: 'e2', groupId: 'g2', seq: 2, row: { id: 'e2', amount: '200' } },
+    ] as never);
+    await store.putRows([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 3, row: { id: 'e1', amount: '300' } },
+    ] as never);
+    await store.writeCursors({ g1: 3, g2: 2 });
+    await store.writeQueue([mutation('b'), mutation('a')]);
+    await store.writeDraft('later', { amount: 200 });
+    await store.writeDraft('earlier', { amount: 100 });
+
+    expect(await store.readRows()).toEqual([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 3, row: { id: 'e1', amount: '300' } },
+      { table: 'expenses', id: 'e2', groupId: 'g2', seq: 2, row: { id: 'e2', amount: '200' } },
+    ]);
+    expect(await store.readCursors()).toEqual({ g1: 3, g2: 2 });
+    expect((await store.readQueue()).map((entry) => entry.clientMutationId)).toEqual(['b', 'a']);
+    expect(await store.readDraft('later')).toEqual({ amount: 200 });
+    expect((await store.listDrafts()).map((draft) => draft.key).sort()).toEqual([
+      'earlier',
+      'later',
+    ]);
+  });
+
+  it('forgets one group, its cursor, and replaces the queue in one transaction', async () => {
+    const store = createLocalStore();
+    await store.putRows([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1' } },
+      { table: 'expenses', id: 'e2', groupId: 'g2', seq: 2, row: { id: 'e2' } },
+    ] as never);
+    await store.writeCursors({ g1: 1, g2: 2 });
+    await store.writeQueue([mutation('a'), mutation('b')]);
+
+    await store.forgetGroup('g1', [mutation('b')]);
+
+    expect(await store.readRows()).toEqual([
+      { table: 'expenses', id: 'e2', groupId: 'g2', seq: 2, row: { id: 'e2' } },
+    ]);
+    expect(await store.readCursors()).toEqual({ g2: 2 });
+    expect((await store.readQueue()).map((entry) => entry.clientMutationId)).toEqual(['b']);
+  });
+
+  it('clears drafts and resets all persisted tables', async () => {
+    const store = createLocalStore();
+    await store.putRows([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1' } },
+    ] as never);
+    await store.writeCursors({ g1: 1 });
+    await store.writeQueue([mutation('a')]);
+    await store.writeDraft('expense:new', { amount: 100 });
+
+    await store.clearDraft('expense:new');
+    expect(await store.readDraft('expense:new')).toBeNull();
+
+    await store.writeDraft('expense:new', { amount: 100 });
+    await store.reset();
+
+    expect(await store.readRows()).toEqual([]);
+    expect(await store.readCursors()).toEqual({});
+    expect(await store.readQueue()).toEqual([]);
+    expect(await store.listDrafts()).toEqual([]);
+  });
+
+  it('does not open SQLite when asked to persist no rows', async () => {
+    const store = createLocalStore();
+
+    await store.putRows([]);
+
+    expect(openCalls).toBe(0);
+    expect(database.statements).toEqual([]);
   });
 });
