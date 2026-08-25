@@ -19,7 +19,9 @@ IN="${1:-./out}"
 [ -f "$IN/public.sql" ] || { echo "missing $IN/public.sql"; exit 1; }
 
 echo "==> auth users + identities (UUIDs preserved)"
-psql "$TARGET_DB_URL" -v ON_ERROR_STOP=1 -f "$IN/auth.sql"
+# --single-transaction: all-or-nothing here too, so a mid-load failure leaves
+# no half-populated auth schema for the public restore below to build FKs onto.
+psql "$TARGET_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f "$IN/auth.sql"
 
 echo "==> public data"
 # --single-transaction: all-or-nothing, so a mid-load failure leaves no
