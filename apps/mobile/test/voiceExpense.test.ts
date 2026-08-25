@@ -331,6 +331,99 @@ describe('parseVoiceExpenses (several in one breath)', () => {
   });
 });
 
+// An Indian-English speaker often dictates an amount digit-by-digit, and speech-
+// to-text renders the spoken zero as "oh"/"naught"/"nought" — and, mangled, as
+// "not". "two oh five rupees" means ₹205, not 2 + 0 + 5.
+describe('a spoken digit-by-digit amount', () => {
+  it('reads "two oh five rupees" as 205', () => {
+    const parsed = parseVoiceExpense('two oh five rupees', groups);
+    expect(parsed.amountMajor).toBe(205);
+    expect(parsed.currency).toBe('INR');
+    // Still scales to minor units the currency-aware way.
+    expect(parsed.amountMinor).toBe(20500n);
+  });
+
+  it('reads "naught" and "nought" as the spoken zero', () => {
+    expect(parseVoiceExpense('two naught five rupees', groups).amountMajor).toBe(205);
+    expect(parseVoiceExpense('two nought five rupees', groups).amountMajor).toBe(205);
+  });
+
+  it('reads a "not" the STT wrote for a spoken zero, inside a money run', () => {
+    expect(parseVoiceExpense('two not five rupees', groups).amountMajor).toBe(205);
+  });
+
+  it('reads a bare two-digit spelling as concatenated digits', () => {
+    // A pure single-digit run has no tens word, so "two five" is 25 by digits.
+    expect(parseVoiceExpense('two five rupees', groups).amountMajor).toBe(25);
+    expect(parseVoiceExpense('one two three four rupees', groups).amountMajor).toBe(1234);
+  });
+
+  it('keeps the compositional readings unchanged', () => {
+    // A tens word or a multiplier means arithmetic, not a digit string.
+    expect(parseVoiceExpense('twenty five rupees', groups).amountMajor).toBe(25);
+    expect(parseVoiceExpense('two hundred five rupees', groups).amountMajor).toBe(205);
+    expect(parseVoiceExpense('five hundred rupees', groups).amountMajor).toBe(500);
+    expect(parseVoiceExpense('two rupees', groups).amountMajor).toBe(2);
+  });
+
+  // "not" is an ordinary negation; it must never become a number on its own.
+  it('never turns a plain negation into an amount', () => {
+    // The real amount (500) still comes through, and no phantom 0 is folded in.
+    expect(parseVoiceExpense('i did not pay five hundred rupees', groups).amountMajor).toBe(500);
+    // A standalone "not" beside money does not merge with the amount.
+    expect(parseVoiceExpense('not sure, dinner 200 rupees', groups).amountMajor).toBe(200);
+    // No number at all stays null.
+    expect(parseVoiceExpense('i did not pay for this', groups).amountMajor).toBeNull();
+  });
+});
+
+// Amounts chained with "plus" (or "+") are one expense whose amount is the sum,
+// not several expenses. A comma continues an already-started plus run of bare
+// amounts.
+describe('spoken addition ("plus")', () => {
+  it('sums a plus-joined run into one expense', () => {
+    const result = parseVoiceExpenses('twenty rupees plus fifty rupees plus five rupees', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(75);
+    expect(result.items[0].currency).toBe('INR');
+  });
+
+  it('lets a comma continue the plus run', () => {
+    const result = parseVoiceExpenses(
+      'twenty rupees plus fifty rupees plus five rupees, sixty, seventy',
+      groups,
+    );
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(205);
+  });
+
+  it('sums decimals and minor units to the right total', () => {
+    const result = parseVoiceExpenses('ten rupees plus five rupees fifty paise', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(15.5);
+    expect(result.items[0].amountMinor).toBe(1550n);
+  });
+
+  it('reads the "+" symbol form', () => {
+    expect(parseVoiceExpense('20 + 50 + 5', groups).amountMajor).toBe(75);
+  });
+
+  it('composes with the digit-sequence reading', () => {
+    const result = parseVoiceExpenses('two oh five plus twenty rupees', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(225);
+  });
+
+  it('does NOT sum plain comma-separated items with their own descriptions', () => {
+    const result = parseVoiceExpenses('5 rupees for snacks, 10 for tea', groups);
+    expect(result.items.map((item) => item.amountMajor)).toEqual([5, 10]);
+  });
+
+  it('does NOT read the compositional "and" as an addition', () => {
+    expect(parseVoiceExpense('five hundred and fifty rupees', groups).amountMajor).toBe(550);
+  });
+});
+
 describe('detectCreateGroup', () => {
   it('lifts the name and returns the rest', () => {
     expect(detectCreateGroup('create a group named Goa Trip and add 100')).toEqual({

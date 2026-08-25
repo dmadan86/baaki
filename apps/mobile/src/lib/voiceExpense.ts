@@ -350,8 +350,9 @@ export function parseVoiceExpense(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): ParsedVoiceExpense {
-  // Spoken numbers become digits first; every pattern below is digit-based.
-  const said = normalizeSpokenNumbers(normalizeDigits(transcript));
+  // Spoken numbers become digits first; every pattern below is digit-based. A
+  // "plus"-joined run of amounts is summed into one before that.
+  const said = normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript)));
   const tokens = tokenize(said);
   const amountMajor = extractAmount(said);
   const currency = detectCurrency(said);
@@ -522,8 +523,33 @@ const NUMBER_MULTIPLIERS: ReadonlyMap<string, { factor: number; group: boolean }
   ['billion', { factor: 1_000_000_000, group: true }],
 ]);
 
-/** Any single word that can appear inside a spoken number. */
-const NUMBER_WORD_RE = [...NUMBER_WORDS.keys(), ...NUMBER_MULTIPLIERS.keys()].join('|');
+/**
+ * Spoken zero-fillers a person says inside a digit-by-digit amount: "two oh
+ * five" (₹205), "two naught five". Speech-to-text often writes the spoken
+ * "naught" as "not", so that spelling is handled too — but only inside a run,
+ * never as a standalone word (see {@link spokenDigitSequence}); "not" is an
+ * ordinary negation and must never mint a number on its own. Kept apart from
+ * {@link NUMBER_WORDS} so the compositional adder never sums them as a value.
+ */
+const SPOKEN_ZERO: ReadonlyMap<string, number> = new Map([
+  ['naught', 0],
+  ['nought', 0],
+  ['oh', 0],
+  ['o', 0],
+]);
+
+/**
+ * Any single word that can appear inside a spoken number. The zero-fillers and
+ * "not" are included so a digit-by-digit run stays whole ("two oh five", "two
+ * not five") for the callback to read; the callback, not the regex, decides
+ * whether "not" is really a zero.
+ */
+const NUMBER_WORD_RE = [
+  ...NUMBER_WORDS.keys(),
+  ...NUMBER_MULTIPLIERS.keys(),
+  ...SPOKEN_ZERO.keys(),
+  'not',
+].join('|');
 
 /** A digit group inside a spoken run: "3", "3,000", "3.5". */
 const DIGIT_VALUE_RE = String.raw`\d[\d,]*(?:\.\d+)?`;
@@ -632,6 +658,12 @@ function spokenRunToNumber(run: string): number | null {
   for (const word of run.toLowerCase().split(/[\s-]+/)) {
     if (!word || word === 'and') continue;
 
+    // A stray zero-filler or a spoken-zero "not" that reached the compositional
+    // path (a run with a tens word or a multiplier, so it is not a pure digit
+    // string) is ignored rather than nulling the whole run — "not five hundred"
+    // still reads 500, as it did before "not" was allowed to hold a run together.
+    if (word === 'not' || SPOKEN_ZERO.has(word)) continue;
+
     if (word === 'point' || word === 'dot' || word === 'decimal') {
       // Close the whole-number part; everything after is fraction digits.
       total += current;
@@ -685,6 +717,55 @@ function spokenRunToNumber(run: string): number | null {
   return seen && value > 0 ? value : null;
 }
 
+/** A word that can be one digit of a spoken digit-string: a 0–9 word or a zero-filler. */
+function isSingleDigitWord(word: string): boolean {
+  const unit = NUMBER_WORDS.get(word);
+  if (unit !== undefined) return unit <= 9;
+  return SPOKEN_ZERO.has(word);
+}
+
+/**
+ * Read a run as a string of individual digits, the way an Indian-English speaker
+ * dictates an amount: "two oh five" → "205", "two five" → "25". This is the
+ * digit-sequence reading, distinct from the compositional arithmetic in
+ * {@link spokenRunToNumber} ("twenty five" → 25, "two hundred five" → 205).
+ *
+ * It applies only when every word is a single digit (0–9), a spoken zero ("oh",
+ * "naught"), or a "not" that speech-to-text wrote for a spoken zero. A tens word
+ * (twenty…ninety), a multiplier (hundred, lakh…), a decimal or a bare digit
+ * token all mean the run is compositional, so this returns null and the caller
+ * falls back to {@link spokenRunToNumber}.
+ *
+ * "not" is the dangerous one — an ordinary negation, not a number. It is read as
+ * a zero only when it sits *inside* the run, flanked on both sides by number
+ * words, and only when the run is money-adjacent (`moneyAdjacent`), so a plain
+ * "I did not pay 500" can never fold a phantom 0 into an amount.
+ */
+function spokenDigitSequence(words: readonly string[], moneyAdjacent: boolean): string | null {
+  let digits = '';
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i];
+    const unit = NUMBER_WORDS.get(word);
+    if (unit !== undefined) {
+      if (unit > 9) return null; // a tens/teens word — this run is compositional
+      digits += String(unit);
+      continue;
+    }
+    if (SPOKEN_ZERO.has(word)) {
+      digits += '0';
+      continue;
+    }
+    if (word === 'not') {
+      const flanked = digits.length > 0 && i + 1 < words.length && isSingleDigitWord(words[i + 1]);
+      if (!flanked || !moneyAdjacent) return null;
+      digits += '0';
+      continue;
+    }
+    return null; // a digit token, multiplier or decimal word — not a pure digit run
+  }
+  return digits.length > 0 ? digits : null;
+}
+
 /**
  * Rewrite spoken numbers as digits, so the digit-based patterns above see them.
  *
@@ -729,12 +810,129 @@ export function normalizeSpokenNumbers(text: string): string {
     if (!hasMultiplier && !nextIsCurrency && !prevIsCurrency && !splitContext && !nextIsMinor) {
       return run;
     }
+    // A money-adjacent run of only single digits ("two oh five", "two not five")
+    // is a digit-string an Indian-English speaker spelled out — read it as the
+    // concatenated digits, not the sum {@link spokenRunToNumber} would give.
+    // "not" is treated as a spoken zero only against currency, never a split count.
+    const moneyForNot = nextIsCurrency || prevIsCurrency || nextIsMinor;
+    const digitSeq = spokenDigitSequence(words, moneyForNot);
+    if (digitSeq !== null) return digitSeq;
     const value = spokenRunToNumber(run);
     return value === null ? run : String(value);
   });
   // Now that both parts are digits, fold a spoken minor amount ("… 50 paise")
   // into the major one.
   return foldMinorUnits(digitised);
+}
+
+/** A minor-unit word, for reading "… fifty paise" as part of an addition term. */
+const MINOR_UNIT_WORD_RE = '(?:paise|paisa|cents?|pence|fils)';
+
+/**
+ * One amount in an addition run: a spoken/written number (with an optional
+ * decimal tail), an optional currency word, and an optional spoken minor tail
+ * ("five rupees fifty paise"). Deliberately stops at description words, so a
+ * term is only ever an amount — "for tea" is never swallowed.
+ */
+const ADDITION_TERM_RE =
+  `${NUMBER_VALUE_RE}(?:[\\s-]+(?:and[\\s-]+)?${NUMBER_VALUE_RE})*${DECIMAL_TAIL_RE}?` +
+  `(?:[\\s-]+(?:${CURRENCY_WORD_ALT})\\b)?` +
+  `(?:[\\s-]+(?:and[\\s-]+)?${NUMBER_VALUE_RE}[\\s-]+${MINOR_UNIT_WORD_RE}\\b)?`;
+
+/** The explicit "add these up" signal between two amounts: the word "plus" or a "+". */
+const ADDITION_CONNECTIVE_RE = String.raw`\s*(?:\bplus\b|\+)\s*`;
+
+/**
+ * A run of amounts to sum into one: a first amount, one or more "plus"/"+"-joined
+ * amounts, then any number of comma-continued *bare* amounts. The comma tail only
+ * extends the sum while each piece is a bare amount followed by another comma, a
+ * "plus", or the end — a comma piece that carries a description ("… , 10 for tea")
+ * is left for the ordinary multi-expense split, so distinct items stay distinct.
+ */
+const ADDITION_RUN_RE = new RegExp(
+  `\\b(?:${ADDITION_TERM_RE})(?:${ADDITION_CONNECTIVE_RE}(?:${ADDITION_TERM_RE}))+` +
+    `(?:\\s*,\\s*(?:${ADDITION_TERM_RE})(?=\\s*(?:,|\\+|\\bplus\\b|$)))*`,
+  'gi',
+);
+
+/** Split an addition run into its terms, on "plus"/"+" or a comma. */
+const ADDITION_SPLIT_RE = /\s*(?:\bplus\b|\+)\s*|\s*,\s*/i;
+
+/** Any currency symbol or word — to find a run's primary currency and re-emit it. */
+const CURRENCY_ANY_RE = new RegExp(
+  `[${CURRENCY_SYMBOL_CLASS}]|\\b(?:${CURRENCY_WORD_ALT})\\b`,
+  'i',
+);
+
+/** A minor-unit total back to a major string, exact for the currency's own scale. */
+function minorToMajorString(minor: bigint, scale: number): string {
+  if (scale <= 1) return minor.toString();
+  const scaleBig = BigInt(Math.round(scale));
+  const whole = minor / scaleBig;
+  const rem = minor % scaleBig;
+  if (rem === 0n) return whole.toString();
+  const fracDigits = String(scale).length - 1;
+  return `${whole}.${rem.toString().padStart(fracDigits, '0')}`;
+}
+
+/**
+ * Add up one "plus"-joined run into a single amount, or null to leave it be.
+ *
+ * The sum is done in minor units, currency-aware (so JPY is not inflated and a
+ * paise/cents tail lands in the right place), to avoid float drift. A run's
+ * primary currency is the first one it names; every term is read in that
+ * currency, and a term that carries a *different* currency makes the whole run
+ * bail (no cross-currency conversion is invented) — the sentence then keeps its
+ * existing, well-tested multi-expense behaviour. The primary currency word is
+ * re-emitted so downstream currency detection still reads it.
+ */
+function sumAdditionRun(run: string): string | null {
+  const terms = run
+    .split(ADDITION_SPLIT_RE)
+    .map((term) => term.trim())
+    .filter(Boolean);
+  if (terms.length < 2) return null;
+
+  let primaryText: string | null = null;
+  for (const term of terms) {
+    const match = term.match(CURRENCY_ANY_RE);
+    if (match) {
+      primaryText = match[0];
+      break;
+    }
+  }
+  const primaryCode = primaryText ? detectCurrency(primaryText) : null;
+
+  let totalMinor = 0n;
+  for (const term of terms) {
+    // A term that names its own currency must match the run's; a differing one
+    // means this is not a single-currency sum, so leave the run untouched.
+    const ownCode = detectCurrency(term);
+    if (ownCode && primaryCode && ownCode !== primaryCode) return null;
+    // A bare term ("sixty") is read in the run's currency, so its decimals and
+    // minor units scale the same as the terms that named one.
+    const hasOwnCurrency = CURRENCY_ANY_RE.test(term);
+    const forNorm = hasOwnCurrency || !primaryText ? term : `${term} ${primaryText}`;
+    const major = extractAmount(normalizeSpokenNumbers(forNorm));
+    if (major === null) return null;
+    totalMinor += toMinorUnits(major, primaryCode);
+  }
+
+  const scale =
+    primaryCode && isCurrencyCode(primaryCode) ? Number(minorUnitScale(primaryCode)) : 100;
+  const major = minorToMajorString(totalMinor, scale);
+  return primaryText ? `${major} ${primaryText}` : major;
+}
+
+/**
+ * Collapse every "plus"/"+"-joined run of amounts into one summed amount, so a
+ * dictated "twenty rupees plus fifty rupees plus five rupees" becomes one
+ * ₹75 expense rather than three. Runs with no "plus" are untouched, so ordinary
+ * comma/"and"-separated items ("5 for snacks, 10 for tea") stay separate
+ * expenses, and the compositional "and" ("five hundred and fifty") is unaffected.
+ */
+export function collapseAdditionRuns(text: string): string {
+  return text.replace(ADDITION_RUN_RE, (match) => sumAdditionRun(match) ?? match);
 }
 
 /**
@@ -831,7 +1029,7 @@ export function parseVoiceExpenses(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
-  const normalized = normalizeSpokenNumbers(normalizeDigits(transcript));
+  const normalized = normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript)));
   const created = detectCreateGroup(normalized);
   const body = created ? created.rest : normalized;
 
