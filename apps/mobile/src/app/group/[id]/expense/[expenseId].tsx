@@ -310,14 +310,22 @@ export default function ExpenseDetailScreen() {
             gap: theme.spacing.lg,
           }}
         >
-          <Row>
-            <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Row style={{ alignItems: 'center' }}>
+            {/* Back and overflow match the dashboard/group hero: a chip-less xxl
+                white glyph, not the smaller boxed IconButton. */}
+            <Pressable
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.back}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+            >
               <Ionicons
                 name={directionalIcon('chevron-back')}
-                size={iconSize.lg}
+                size={iconSize.xxl}
                 color={theme.color.onBrand}
               />
-            </IconButton>
+            </Pressable>
             <View style={{ flex: 1, alignItems: 'flex-start' }}>
               <Text variant="heading" tone="onBrand" numberOfLines={1}>
                 {expenseTitle(version.description, version.category, t, version.category_meta)}
@@ -330,9 +338,15 @@ export default function ExpenseDetailScreen() {
                 trailing control the group and dashboard headers carry — Edit and
                 Delete (or Restore) instead of a full-width button stacked at the
                 bottom of a long scroll. */}
-            <IconButton label={t.group.more} onPress={() => setMenuOpen(true)}>
-              <Ionicons name="ellipsis-vertical" size={iconSize.lg} color={theme.color.onBrand} />
-            </IconButton>
+            <Pressable
+              onPress={() => setMenuOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t.group.more}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+            >
+              <Ionicons name="ellipsis-vertical" size={iconSize.xxl} color={theme.color.onBrand} />
+            </Pressable>
           </Row>
 
           <View style={{ alignItems: 'flex-start', gap: theme.spacing.sm }}>
