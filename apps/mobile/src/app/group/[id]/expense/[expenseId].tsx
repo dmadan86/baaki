@@ -21,6 +21,7 @@ import {
   Row,
   Screen,
   SectionHeader,
+  SegmentedTabs,
   Text,
   useTheme,
   useScreenClearance,
@@ -29,6 +30,7 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { ExpenseReceipts } from '@/components/ExpenseReceipts';
 import { ExpenseComments } from '@/components/ExpenseComments';
+import { ExpenseHistory } from '@/components/ExpenseHistory';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import {
   memberLookup,
@@ -37,7 +39,6 @@ import {
   useExpenseVersions,
   useGroup,
   useRestoreExpense,
-  type ExpenseImageEventRow,
 } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';
 import { useBlockedUsers } from '@/data/blocked';
@@ -56,19 +57,6 @@ function splitLabels(t: UiStrings): Record<string, string> {
     adjustment: t.expense.withAdjustments,
     itemized: t.expense.itemized,
   };
-}
-
-/** One line of the image audit — "{name} added the receipt", etc. */
-function imageAuditLine(t: UiStrings, event: ExpenseImageEventRow, name: string): string {
-  const template =
-    event.kind === 'receipt'
-      ? event.action === 'added'
-        ? t.imageAudit.receiptAdded
-        : t.imageAudit.receiptRemoved
-      : event.action === 'added'
-        ? t.imageAudit.attachmentAdded
-        : t.imageAudit.attachmentRemoved;
-  return fill(template, { name });
 }
 
 /** A small translucent-white pill for the meta tags on the hero wash (split
@@ -106,6 +94,9 @@ export default function ExpenseDetailScreen() {
   const imageEvents = useExpenseImageEvents(expenseId ?? '');
   const scrollRef = useRef<RNScrollView>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // The page has two faces: its breakdown, and its edit history. The hero stays
+  // above both; only the body below the tab bar swaps.
+  const [tab, setTab] = useState<'details' | 'history'>('details');
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
 
@@ -379,243 +370,189 @@ export default function ExpenseDetailScreen() {
           </View>
         </Gradient>
 
-        {/* Receipts — one gallery, many images, each group-visible or private.
-            Folds in the legacy single bill (E2) as its first item. A party can
-            add (scan or library) and remove; anyone sees the group images. */}
-        <ExpenseReceipts
-          groupId={groupId}
-          expenseId={expense.id}
-          canManage={isExpenseParty}
-          canRemoveLegacy={isExpenseParty || iAmAdmin}
-          legacyReceiptPath={receiptUri ? expenseReceiptPath(groupId, expense.id) : null}
-          onLegacyRemoved={() => setReceiptUri(null)}
+        {/* The two faces of the page — its breakdown and its edit history —
+            sectioned so the audit is its own place rather than the tail of a
+            long scroll. */}
+        <SegmentedTabs
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: 'details', label: t.expense.detailsTab },
+            { value: 'history', label: t.expense.history },
+          ]}
         />
 
-        {/* Where it happened (A43). A tap opens the point in the phone's maps
-            app; absent when the author attached no location. */}
-        {location ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.location.openMap}
-            onPress={() => void Linking.openURL(mapsUrl(location)).catch(() => undefined)}
-          >
-            <Card style={{ paddingVertical: theme.spacing.md }}>
-              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                <View
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: theme.radius.md,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: theme.color.bg,
-                  }}
-                >
-                  <Ionicons name="location" size={iconSize.lg} color={theme.color.brand} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text variant="subheading" numberOfLines={1}>
-                    {location.name?.trim() || coordLabel(location)}
-                  </Text>
-                  <Text variant="micro" tone="muted" numberOfLines={1}>
-                    {t.location.openMap}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.md}
-                  color={theme.color.textFaint}
-                />
-              </Row>
-            </Card>
-          </Pressable>
-        ) : null}
-
-        {version.payers.length > 1 ? (
-          <View>
-            <SectionHeader title={t.paidBy} />
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {version.payers.map((payer, index) => {
-                const payerMember = lookup.get(payer.member_id);
-                return (
-                  <View key={payer.member_id}>
-                    <ListRow
-                      title={nameOf(payer.member_id)}
-                      leading={
-                        <Avatar
-                          name={avatarNameOf(payer.member_id)}
-                          ghost={
-                            payerMember
-                              ? isGhost(payerMember) || isBlockedMember(payerMember, blockedIds)
-                              : false
-                          }
-                          size={38}
-                        />
-                      }
-                      trailing={
-                        <MoneyText
-                          amount={BigInt(payer.amount)}
-                          currency={currency}
-                          locale={locale}
-                          variant="caption"
-                        />
-                      }
-                    />
-                    {index < version.payers.length - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </Card>
-          </View>
-        ) : null}
-
-        <View>
-          <SectionHeader title={t.expense.whoOwesWhat} />
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {version.shares.map((share, index) => {
-              const member = lookup.get(share.member_id);
-              return (
-                <View key={share.member_id}>
-                  <ListRow
-                    title={nameOf(share.member_id)}
-                    subtitle={member && isGhost(member) ? t.notJoinedYet : undefined}
-                    leading={
-                      <Avatar
-                        name={avatarNameOf(share.member_id)}
-                        ghost={
-                          member ? isGhost(member) || isBlockedMember(member, blockedIds) : false
-                        }
-                        size={38}
-                      />
-                    }
-                    trailing={
-                      <MoneyText
-                        amount={BigInt(share.amount)}
-                        currency={currency}
-                        locale={locale}
-                        variant="caption"
-                        // A share is money owed toward this bill, so it wears the
-                        // same owe colour the balances do across the app — not the
-                        // neutral ink of a total. Forced (not sign-derived): every
-                        // share is a positive owe, so mode="balance" would read it
-                        // as "owed to you" (green) instead.
-                        tone="negative"
-                      />
-                    }
-                  />
-                  {index < version.shares.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
-                </View>
-              );
-            })}
-          </Card>
-        </View>
-
-        {/* ADR-004: every edit is kept, and the group can see what changed. */}
-        <View>
-          <SectionHeader title={t.expense.history} />
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {(versions.data ?? []).map((entry, index) => (
-              <View key={entry.id}>
-                <ListRow
-                  title={entry.description}
-                  subtitle={`v${entry.version_no} · ${nameOf(entry.author_member_id)} · ${new Intl.DateTimeFormat(
-                    locale,
-                    { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' },
-                  ).format(new Date(entry.created_at))}`}
-                  leading={
-                    <Avatar
-                      name={`v${entry.version_no}`}
-                      emoji={entry.version_no === 1 ? '🧾' : '✏️'}
-                      size={38}
-                    />
-                  }
-                  trailing={
-                    <MoneyText
-                      amount={BigInt(entry.amount)}
-                      currency={entry.currency}
-                      locale={locale}
-                      variant="caption"
-                    />
-                  }
-                />
-                {index < (versions.data?.length ?? 0) - 1 ? (
-                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                ) : null}
-              </View>
-            ))}
-          </Card>
-        </View>
-
-        {/* The image audit (A46): who added or removed a receipt or an attachment,
-            oldest first. A `parties` line only reaches a party's device (RLS on
-            the pull), so anyone who sees a line here was allowed to. Absent until
-            something happens to an image. */}
-        {(imageEvents.data ?? []).length > 0 ? (
-          <View>
-            <SectionHeader title={t.imageAudit.title} />
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {(imageEvents.data ?? []).map((event, index, arr) => (
-                <View key={event.id}>
-                  <ListRow
-                    title={imageAuditLine(t, event, nameOf(event.actorMemberId))}
-                    subtitle={
-                      event.createdAt
-                        ? new Intl.DateTimeFormat(locale, {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          }).format(new Date(event.createdAt))
-                        : undefined
-                    }
-                    leading={
-                      <Avatar
-                        name={nameOf(event.actorMemberId)}
-                        emoji={event.action === 'added' ? '📎' : '🗑️'}
-                        size={38}
-                      />
-                    }
-                    trailing={
-                      event.visibility === 'parties' ? (
-                        <Badge label={t.imageAudit.partyOnly} tone="neutral" />
-                      ) : undefined
-                    }
-                  />
-                  {index < arr.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
-                </View>
-              ))}
-            </Card>
-          </View>
-        ) : null}
-
-        {/* The thread on this bill. Any member reads and adds; the author edits
-            and deletes their own; an admin deletes anyone's and resolves reports.
-            The controls the component offers mirror what the RPCs allow. */}
-        <View>
-          <SectionHeader title={t.comments.title} />
-          <Card>
-            <ExpenseComments
+        {tab === 'history' ? (
+          <ExpenseHistory
+            versions={versions.data ?? []}
+            imageEvents={imageEvents.data ?? []}
+            nameOf={nameOf}
+            t={t}
+            locale={locale}
+          />
+        ) : (
+          <>
+            {/* Receipts — one gallery, many images, each group-visible or private.
+            Folds in the legacy single bill (E2) as its first item. A party can
+            add (scan or library) and remove; anyone sees the group images. */}
+            <ExpenseReceipts
               groupId={groupId}
               expenseId={expense.id}
-              myMemberId={myMemberId}
-              iAmAdmin={iAmAdmin}
-              nameOf={nameOf}
-              onComposerFocus={scrollToComposer}
+              canManage={isExpenseParty}
+              canRemoveLegacy={isExpenseParty || iAmAdmin}
+              legacyReceiptPath={receiptUri ? expenseReceiptPath(groupId, expense.id) : null}
+              onLegacyRemoved={() => setReceiptUri(null)}
             />
-          </Card>
-        </View>
 
-        {/* Edit and Delete moved up into the header's three-dot menu; the only
+            {/* Where it happened (A43). A tap opens the point in the phone's maps
+            app; absent when the author attached no location. */}
+            {location ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.location.openMap}
+                onPress={() => void Linking.openURL(mapsUrl(location)).catch(() => undefined)}
+              >
+                <Card style={{ paddingVertical: theme.spacing.md }}>
+                  <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                    <View
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: theme.radius.md,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: theme.color.bg,
+                      }}
+                    >
+                      <Ionicons name="location" size={iconSize.lg} color={theme.color.brand} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text variant="subheading" numberOfLines={1}>
+                        {location.name?.trim() || coordLabel(location)}
+                      </Text>
+                      <Text variant="micro" tone="muted" numberOfLines={1}>
+                        {t.location.openMap}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={directionalIcon('chevron-forward')}
+                      size={iconSize.md}
+                      color={theme.color.textFaint}
+                    />
+                  </Row>
+                </Card>
+              </Pressable>
+            ) : null}
+
+            {version.payers.length > 1 ? (
+              <View>
+                <SectionHeader title={t.paidBy} />
+                <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                  {version.payers.map((payer, index) => {
+                    const payerMember = lookup.get(payer.member_id);
+                    return (
+                      <View key={payer.member_id}>
+                        <ListRow
+                          title={nameOf(payer.member_id)}
+                          leading={
+                            <Avatar
+                              name={avatarNameOf(payer.member_id)}
+                              ghost={
+                                payerMember
+                                  ? isGhost(payerMember) || isBlockedMember(payerMember, blockedIds)
+                                  : false
+                              }
+                              size={38}
+                            />
+                          }
+                          trailing={
+                            <MoneyText
+                              amount={BigInt(payer.amount)}
+                              currency={currency}
+                              locale={locale}
+                              variant="caption"
+                            />
+                          }
+                        />
+                        {index < version.payers.length - 1 ? (
+                          <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </Card>
+              </View>
+            ) : null}
+
+            <View>
+              <SectionHeader title={t.expense.whoOwesWhat} />
+              <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                {version.shares.map((share, index) => {
+                  const member = lookup.get(share.member_id);
+                  return (
+                    <View key={share.member_id}>
+                      <ListRow
+                        title={nameOf(share.member_id)}
+                        subtitle={member && isGhost(member) ? t.notJoinedYet : undefined}
+                        leading={
+                          <Avatar
+                            name={avatarNameOf(share.member_id)}
+                            ghost={
+                              member
+                                ? isGhost(member) || isBlockedMember(member, blockedIds)
+                                : false
+                            }
+                            size={38}
+                          />
+                        }
+                        trailing={
+                          <MoneyText
+                            amount={BigInt(share.amount)}
+                            currency={currency}
+                            locale={locale}
+                            variant="caption"
+                            // A share is money owed toward this bill, so it wears the
+                            // same owe colour the balances do across the app — not the
+                            // neutral ink of a total. Forced (not sign-derived): every
+                            // share is a positive owe, so mode="balance" would read it
+                            // as "owed to you" (green) instead.
+                            tone="negative"
+                          />
+                        }
+                      />
+                      {index < version.shares.length - 1 ? (
+                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </Card>
+            </View>
+
+            {/* The thread on this bill. Any member reads and adds; the author edits
+            and deletes their own; an admin deletes anyone's and resolves reports.
+            The controls the component offers mirror what the RPCs allow. */}
+            <View>
+              <SectionHeader title={t.comments.title} />
+              <Card>
+                <ExpenseComments
+                  groupId={groupId}
+                  expenseId={expense.id}
+                  myMemberId={myMemberId}
+                  iAmAdmin={iAmAdmin}
+                  nameOf={nameOf}
+                  onComposerFocus={scrollToComposer}
+                />
+              </Card>
+            </View>
+
+            {/* Edit and Delete moved up into the header's three-dot menu; the only
             note left here is the reassurance that an edit keeps every version. */}
-        <Text variant="micro" tone="muted" align="center">
-          {t.extras.nothingOverwritten}
-        </Text>
+            <Text variant="micro" tone="muted" align="center">
+              {t.extras.nothingOverwritten}
+            </Text>
+          </>
+        )}
       </ScrollView>
 
       <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
