@@ -2,6 +2,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { flagResults, flags, saveFlag, type FlagResultRow } from '@/lib/data';
+import { guardMutation } from '@/lib/csrf';
+import { CsrfField } from '@/components/CsrfField';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +39,7 @@ export default async function Flags({
     // a catch around it would swallow the navigation.
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       await saveFlag({
         key: String(formData.get('key') ?? '').trim(),
         description: String(formData.get('description') ?? '').trim(),
@@ -88,6 +91,7 @@ export default async function Flags({
             <h2>{flag.key}</h2>
             <section>
               <form action={save} className="flag">
+                <CsrfField />
                 <input type="hidden" name="key" value={flag.key} />
                 <label>
                   <span>Description</span>
@@ -172,6 +176,7 @@ export default async function Flags({
       <h2>New flag</h2>
       <section>
         <form action={save} className="flag">
+          <CsrfField />
           <label>
             <span>Key</span>
             <input type="text" name="key" placeholder="itemized_receipts" required />

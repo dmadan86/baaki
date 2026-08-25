@@ -2,6 +2,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { confirmUserEmail, listUsers, upgradeUser, type AdminUserListRow } from '@/lib/data';
+import { assertSameOrigin, guardMutation } from '@/lib/csrf';
+import { CsrfField } from '@/components/CsrfField';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +56,8 @@ export default async function Users({
 
   async function filter(formData: FormData) {
     'use server';
+    // Navigation only, so no CSRF token — but still refuse a cross-site POST.
+    await assertSameOrigin();
     const p = new URLSearchParams();
     const n = String(formData.get('name') ?? '').trim();
     const c = String(formData.get('country') ?? '')
@@ -71,6 +75,7 @@ export default async function Users({
     const to = String(formData.get('back') ?? '/users');
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       await confirmUserEmail(id);
     } catch (caught) {
       failure = caught instanceof Error ? caught.message : String(caught);
@@ -89,6 +94,7 @@ export default async function Users({
     let message: string | null = null;
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       message = await upgradeUser(id, days);
     } catch (caught) {
       failure = caught instanceof Error ? caught.message : String(caught);
@@ -194,6 +200,7 @@ export default async function Users({
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                         {u.email_confirmed || !u.email ? null : (
                           <form action={confirm}>
+                            <CsrfField />
                             <input type="hidden" name="id" value={u.id} />
                             <input type="hidden" name="back" value={back} />
                             <button type="submit" title="Confirm this email by hand">
@@ -205,6 +212,7 @@ export default async function Users({
                           action={upgrade}
                           style={{ display: 'flex', gap: 4, alignItems: 'center' }}
                         >
+                          <CsrfField />
                           <input type="hidden" name="id" value={u.id} />
                           <input type="hidden" name="back" value={back} />
                           <input

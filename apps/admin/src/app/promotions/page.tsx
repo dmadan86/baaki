@@ -2,6 +2,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { createPromoCode, grantPromo, promoCodes } from '@/lib/data';
+import { guardMutation } from '@/lib/csrf';
+import { CsrfField } from '@/components/CsrfField';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +23,7 @@ export default async function Promotions({
 
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       await createPromoCode({
         code: String(formData.get('code') ?? ''),
         days: Number(formData.get('days') ?? 30),
@@ -42,6 +45,7 @@ export default async function Promotions({
     let failure: string | null = null;
     let message = '';
     try {
+      await guardMutation(formData);
       message = await grantPromo(
         String(formData.get('profile') ?? ''),
         Number(formData.get('days') ?? 30),
@@ -74,6 +78,7 @@ export default async function Promotions({
       <h2>Comp an account</h2>
       <section>
         <form action={grant} className="flag">
+          <CsrfField />
           <label>
             <span>Profile id</span>
             <input type="text" name="profile" placeholder="uuid" required size={38} />
@@ -132,6 +137,7 @@ export default async function Promotions({
       <h2>New code</h2>
       <section>
         <form action={create} className="flag">
+          <CsrfField />
           <label>
             <span>Code</span>
             <input type="text" name="code" placeholder="DIWALI25" required />

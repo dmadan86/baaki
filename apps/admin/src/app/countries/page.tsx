@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { COUNTRIES, countryFlag, dialingCodeForCountry } from '@waves/core';
 
 import { countrySettings, saveCountrySettings } from '@/lib/data';
+import { guardMutation } from '@/lib/csrf';
+import { CsrfField } from '@/components/CsrfField';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +32,7 @@ export default async function Countries({
 
     let failure: string | null = null;
     try {
+      await guardMutation(formData);
       // An unticked box submits nothing, so its absence is "off". Every country
       // is written, so the table always mirrors the console's last full choice.
       await saveCountrySettings(
@@ -64,6 +67,7 @@ export default async function Countries({
 
       <section style={{ marginTop: 20 }}>
         <form action={save} className="flag">
+          <CsrfField />
           <div className="country-grid">
             {DIALABLE.map((country) => (
               <label key={country.code} className="country-row">
