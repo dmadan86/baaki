@@ -129,6 +129,15 @@ check(
   await describeError(acceptError),
 );
 
+// No claimId means there is nothing to approve, and everything below assumes a
+// real member — pressing on would throw on `accepted.claimId`. Fail loudly and
+// stop rather than crash with a bare TypeError.
+if (!accepted?.claimId) {
+  check('invite-accept returned a claimId to approve', false, JSON.stringify(accepted ?? null));
+  console.error('\nCannot approve a claim without a claimId — stopping.');
+  process.exit(1);
+}
+
 // The host is the group's only admin — approve it the way the app's admin
 // screen would, so everything below (reading the group, writing an expense)
 // exercises a real member exactly as this scenario always intended.

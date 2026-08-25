@@ -42,7 +42,10 @@ const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
 // ── the organiser sets up a group with a ghost who owes money ───────────────
 const organiser = client(ANON);
 await organiser.auth.signInAnonymously();
-await organiser.from('profiles').update({ display_name: 'Asha' }).eq('id', (await organiser.auth.getUser()).data.user.id);
+await organiser
+  .from('profiles')
+  .update({ display_name: 'Asha' })
+  .eq('id', (await organiser.auth.getUser()).data.user.id);
 
 const { data: groupId } = await organiser.rpc('baaki_create_group', {
   p_name: 'Hostel mess',
@@ -52,8 +55,13 @@ const { data: groupId } = await organiser.rpc('baaki_create_group', {
   p_simplify: false,
 });
 
-await organiser.from('group_members').insert({ group_id: groupId, ghost_name: 'Rahul', joined_via: 'ghost' });
-const { data: members } = await organiser.from('group_members').select('id, profile_id, ghost_name').eq('group_id', groupId);
+await organiser
+  .from('group_members')
+  .insert({ group_id: groupId, ghost_name: 'Rahul', joined_via: 'ghost' });
+const { data: members } = await organiser
+  .from('group_members')
+  .select('id, profile_id, ghost_name')
+  .eq('group_id', groupId);
 const organiserMember = members.find((m) => m.profile_id).id;
 const ghostMember = members.find((m) => m.ghost_name === 'Rahul').id;
 
@@ -73,11 +81,18 @@ const { error: expenseError } = await organiser.functions.invoke('expense-write'
 check('set up an expense the ghost owes a share of', !expenseError, await describe(expenseError));
 
 const balancesOf = async () => {
-  const { data } = await service.from('group_balances').select('member_id, balance').eq('group_id', groupId);
+  const { data } = await service
+    .from('group_balances')
+    .select('member_id, balance')
+    .eq('group_id', groupId);
   return new Map((data ?? []).map((row) => [row.member_id, BigInt(row.balance)]));
 };
 const beforeClaim = await balancesOf();
-check('the ghost owes half the bill', (beforeClaim.get(ghostMember) ?? 0n) === -120000n, `${beforeClaim.get(ghostMember)}`);
+check(
+  'the ghost owes half the bill',
+  (beforeClaim.get(ghostMember) ?? 0n) === -120000n,
+  `${beforeClaim.get(ghostMember)}`,
+);
 
 // ── minting ────────────────────────────────────────────────────────────────
 const { data: invite, error: mintError } = await organiser.functions.invoke('invite-mint', {
@@ -85,7 +100,10 @@ const { data: invite, error: mintError } = await organiser.functions.invoke('inv
 });
 check('member can mint an invite link', !mintError && !!invite?.token, await describe(mintError));
 
-const { data: storedInvites } = await service.from('invites').select('token_hash').eq('group_id', groupId);
+const { data: storedInvites } = await service
+  .from('invites')
+  .select('token_hash')
+  .eq('group_id', groupId);
 check(
   'only a hash of the token is stored (TDR §2)',
   (storedInvites ?? []).every((row) => row.token_hash !== invite.token),
@@ -101,8 +119,16 @@ check('nobody can read the invites table, not even a member', (leaked ?? []).len
 const { data: preview, error: previewError } = await outsider.functions.invoke('invite-accept', {
   body: { token: invite.token, mode: 'preview' },
 });
-check('link shows a preview before asking for anything', !previewError && preview?.group?.id === groupId, await describe(previewError));
-check('preview offers the ghost as claimable', preview?.claimable?.some((c) => c.memberId === ghostMember), JSON.stringify(preview?.claimable));
+check(
+  'link shows a preview before asking for anything',
+  !previewError && preview?.group?.id === groupId,
+  await describe(previewError),
+);
+check(
+  'preview offers the ghost as claimable',
+  preview?.claimable?.some((c) => c.memberId === ghostMember),
+  JSON.stringify(preview?.claimable),
+);
 
 const { data: stillHidden } = await outsider.from('expenses').select('id').eq('group_id', groupId);
 check('previewing does not grant access to the ledger', (stillHidden ?? []).length === 0);
@@ -138,6 +164,15 @@ check(
   JSON.stringify(stillGhost),
 );
 
+// Without a well-formed { pending, claimId } response there is nothing to
+// approve — pressing on would throw a raw TypeError on `joined.claimId` and
+// bury the real cause. Fail loudly and stop the scenario here instead.
+if (!joined?.claimId) {
+  check('invite-accept returned a claimId to approve', false, JSON.stringify(joined ?? null));
+  console.error('\nCannot approve a claim without a claimId — stopping.');
+  process.exit(1);
+}
+
 // The organiser is the group's admin — approve it the way the app's admin
 // screen would, through the same RPC invite-accept used to run inline.
 const { data: decision, error: decisionError } = await organiser.rpc('baaki_decide_member_claim', {
@@ -165,10 +200,21 @@ const { data: claimedRow } = await service
   .select('profile_id, ghost_name, joined_via')
   .eq('id', ghostMember)
   .single();
-check('the ghost is now a real member, not a duplicate', claimedRow?.profile_id !== null && claimedRow?.ghost_name === null, claimedRow?.joined_via);
+check(
+  'the ghost is now a real member, not a duplicate',
+  claimedRow?.profile_id !== null && claimedRow?.ghost_name === null,
+  claimedRow?.joined_via,
+);
 
-const { data: memberCount } = await service.from('group_members').select('id').eq('group_id', groupId);
-check('claiming did not create an extra member', (memberCount ?? []).length === 2, `${memberCount?.length}`);
+const { data: memberCount } = await service
+  .from('group_members')
+  .select('id')
+  .eq('group_id', groupId);
+check(
+  'claiming did not create an extra member',
+  (memberCount ?? []).length === 2,
+  `${memberCount?.length}`,
+);
 
 // ── the same ghost cannot be claimed twice ─────────────────────────────────
 const secondComer = client(ANON);
@@ -182,11 +228,22 @@ check('a claimed ghost cannot be claimed again', !!doubleClaim, await describe(d
 const { data: freshJoin, error: freshError } = await secondComer.functions.invoke('invite-accept', {
   body: { token: invite.token, mode: 'join' },
 });
-check('a new person can join without claiming anyone', !freshError && !!freshJoin?.memberId, await describe(freshError));
+check(
+  'a new person can join without claiming anyone',
+  !freshError && !!freshJoin?.memberId,
+  await describe(freshError),
+);
 
 // ── revocation ─────────────────────────────────────────────────────────────
-const { data: inviteRow } = await service.from('invites').select('id').eq('group_id', groupId).single();
-await service.from('invites').update({ revoked_at: new Date().toISOString() }).eq('id', inviteRow.id);
+const { data: inviteRow } = await service
+  .from('invites')
+  .select('id')
+  .eq('group_id', groupId)
+  .single();
+await service
+  .from('invites')
+  .update({ revoked_at: new Date().toISOString() })
+  .eq('id', inviteRow.id);
 
 const lateComer = client(ANON);
 await lateComer.auth.signInAnonymously();
@@ -203,21 +260,29 @@ check('balances still sum to zero after the claim', total === 0n, `${total}`);
 
 const { data: rows } = await service
   .from('expenses')
-  .select(`id, deleted_at,
+  .select(
+    `id, deleted_at,
     currentVersion:expense_versions!expenses_current_version_id_fkey (
       currency, amount, expense_date,
       payers:expense_payers ( member_id, amount ),
-      shares:expense_shares ( member_id, amount ))`)
+      shares:expense_shares ( member_id, amount ))`,
+  )
   .eq('group_id', groupId);
-const snapshots = (rows ?? []).filter((r) => r.currentVersion).map((row) => ({
-  id: row.id,
-  currency: row.currentVersion.currency,
-  amount: BigInt(row.currentVersion.amount),
-  payers: Object.fromEntries(row.currentVersion.payers.map((p) => [p.member_id, BigInt(p.amount)])),
-  shares: Object.fromEntries(row.currentVersion.shares.map((s) => [s.member_id, BigInt(s.amount)])),
-  date: row.currentVersion.expense_date,
-  deletedAt: row.deleted_at,
-}));
+const snapshots = (rows ?? [])
+  .filter((r) => r.currentVersion)
+  .map((row) => ({
+    id: row.id,
+    currency: row.currentVersion.currency,
+    amount: BigInt(row.currentVersion.amount),
+    payers: Object.fromEntries(
+      row.currentVersion.payers.map((p) => [p.member_id, BigInt(p.amount)]),
+    ),
+    shares: Object.fromEntries(
+      row.currentVersion.shares.map((s) => [s.member_id, BigInt(s.amount)]),
+    ),
+    date: row.currentVersion.expense_date,
+    deletedAt: row.deleted_at,
+  }));
 const recomputed = computeNetBalances(snapshots, []).get('INR') ?? new Map();
 const agree = [...new Set([...recomputed.keys(), ...finalBalances.keys()])].every(
   (member) => (recomputed.get(member) ?? 0n) === (finalBalances.get(member) ?? 0n),

@@ -9,7 +9,7 @@
  * edit dropped the `.catch`.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ invoke: vi.fn() }));
 
@@ -25,6 +25,13 @@ const ORIGINAL_R2_ENABLED = process.env.EXPO_PUBLIC_R2_ENABLED;
 beforeEach(() => {
   h.invoke.mockReset();
   process.env.EXPO_PUBLIC_R2_ENABLED = 'true';
+});
+
+afterEach(() => {
+  // Restore whatever the process started with, so a test that flips the flag
+  // never leaks it into a later file.
+  if (ORIGINAL_R2_ENABLED === undefined) delete process.env.EXPO_PUBLIC_R2_ENABLED;
+  else process.env.EXPO_PUBLIC_R2_ENABLED = ORIGINAL_R2_ENABLED;
 });
 
 describe('removeRestrictedImage — best-effort delete', () => {
@@ -65,7 +72,7 @@ describe('removeRestrictedImage — best-effort delete', () => {
   });
 
   it('is a no-op — never calls r2-sign at all — when R2 is disabled', async () => {
-    process.env.EXPO_PUBLIC_R2_ENABLED = ORIGINAL_R2_ENABLED;
+    process.env.EXPO_PUBLIC_R2_ENABLED = 'false';
 
     await expect(
       removeRestrictedImage('expense-attachments', 'expense-3', 'expense-3/photo.webp'),
