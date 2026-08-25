@@ -29,6 +29,9 @@ export interface OverflowMenuItem {
   // whose `section` differs; items with no `section` never draw one, so a menu
   // that omits it (the group header) stays a flat, undivided list.
   section?: string;
+  // A destructive row (Delete) paints its icon and label in the negative colour,
+  // the WhatsApp/Vipps convention that a delete reads red before it is tapped.
+  tone?: 'default' | 'danger';
 }
 
 export function OverflowMenu({
@@ -138,8 +141,14 @@ export function OverflowMenu({
                       backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
                     })}
                   >
-                    <Ionicons name={item.icon} size={iconSize.lg} color={theme.color.textMuted} />
-                    <Text variant="body">{item.label}</Text>
+                    <Ionicons
+                      name={item.icon}
+                      size={iconSize.lg}
+                      color={item.tone === 'danger' ? theme.color.negative : theme.color.textMuted}
+                    />
+                    <Text variant="body" tone={item.tone === 'danger' ? 'negative' : undefined}>
+                      {item.label}
+                    </Text>
                   </Pressable>
                 </View>
               );

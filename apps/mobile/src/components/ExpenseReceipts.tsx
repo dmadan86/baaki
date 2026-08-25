@@ -274,49 +274,98 @@ export function ExpenseReceipts({
       <Text variant="caption" tone="muted">
         {t.receipts.title}
       </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: theme.spacing.sm }}
-      >
-        {canManage ? (
-          <Pressable
-            onPress={startAdd}
-            disabled={attach.isPending}
-            accessibilityRole="button"
-            accessibilityLabel={t.receipts.add}
+      {items.length === 0 ? (
+        // No receipt yet (and, per the guard above, the viewer may add one). A
+        // lone 96px tile left a wide empty band under it; a full-width row that
+        // reads "Add receipt" fills the space and makes the affordance obvious.
+        <Pressable
+          onPress={startAdd}
+          disabled={attach.isPending}
+          accessibilityRole="button"
+          accessibilityLabel={t.receipts.add}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.md,
+            paddingVertical: theme.spacing.md,
+            paddingHorizontal: theme.spacing.lg,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.color.border,
+            borderStyle: 'dashed',
+            backgroundColor: theme.color.surfaceMuted,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <View
             style={{
-              width: THUMB,
-              height: THUMB,
+              width: 40,
+              height: 40,
               borderRadius: theme.radius.md,
-              borderWidth: 1,
-              borderColor: theme.color.border,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: theme.color.surfaceMuted,
+              backgroundColor: theme.color.surface,
             }}
           >
             {attach.isPending ? (
               <ActivityIndicator color={theme.color.brand} />
             ) : (
-              <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
+              <Ionicons name="camera-outline" size={iconSize.lg} color={theme.color.brand} />
             )}
-          </Pressable>
-        ) : null}
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text variant="subheading">{t.receipts.add}</Text>
+            <Text variant="micro" tone="muted">
+              {`${t.receipts.scan} · ${t.receipts.choosePhoto}`}
+            </Text>
+          </View>
+          <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
+        </Pressable>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: theme.spacing.sm }}
+        >
+          {canManage ? (
+            <Pressable
+              onPress={startAdd}
+              disabled={attach.isPending}
+              accessibilityRole="button"
+              accessibilityLabel={t.receipts.add}
+              style={{
+                width: THUMB,
+                height: THUMB,
+                borderRadius: theme.radius.md,
+                borderWidth: 1,
+                borderColor: theme.color.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.color.surfaceMuted,
+              }}
+            >
+              {attach.isPending ? (
+                <ActivityIndicator color={theme.color.brand} />
+              ) : (
+                <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
+              )}
+            </Pressable>
+          ) : null}
 
-        {items.map((it, index) => (
-          <Thumb
-            key={it.key}
-            url={urls[index] ?? null}
-            resolved={urls[index] !== undefined}
-            isPrivate={isPrivate(it)}
-            label={
-              isPrivate(it) ? `${t.receipts.title} — ${t.receipts.privateTag}` : t.receipts.title
-            }
-            onPress={() => setViewerIndex(index)}
-          />
-        ))}
-      </ScrollView>
+          {items.map((it, index) => (
+            <Thumb
+              key={it.key}
+              url={urls[index] ?? null}
+              resolved={urls[index] !== undefined}
+              isPrivate={isPrivate(it)}
+              label={
+                isPrivate(it) ? `${t.receipts.title} — ${t.receipts.privateTag}` : t.receipts.title
+              }
+              onPress={() => setViewerIndex(index)}
+            />
+          ))}
+        </ScrollView>
+      )}
 
       <Modal
         visible={viewing !== null}

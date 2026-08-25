@@ -29,6 +29,7 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { ExpenseReceipts } from '@/components/ExpenseReceipts';
 import { ExpenseComments } from '@/components/ExpenseComments';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import {
   memberLookup,
   useDeleteExpense,
@@ -104,6 +105,7 @@ export default function ExpenseDetailScreen() {
   const versions = useExpenseVersions(expenseId ?? '');
   const imageEvents = useExpenseImageEvents(expenseId ?? '');
   const scrollRef = useRef<RNScrollView>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
 
@@ -241,6 +243,36 @@ export default function ExpenseDetailScreen() {
     ]);
   };
 
+  // The bill's actions, gathered into the header's three-dot menu. A live bill
+  // offers Edit and a red Delete; a deleted one offers only Restore, matching
+  // Splitwise's deleted-transaction header. The mutations' pending flags disable
+  // the row so a double-tap cannot fire twice.
+  const menuItems: OverflowMenuItem[] = deleted
+    ? [
+        {
+          icon: 'refresh',
+          label: t.expense.restore,
+          onPress: () => {
+            if (!restoreExpense.isPending) restoreExpense.mutate(expense.id);
+          },
+        },
+      ]
+    : [
+        {
+          icon: 'create-outline',
+          label: t.common.edit,
+          onPress: () => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`),
+        },
+        {
+          icon: 'trash-outline',
+          label: t.expense.deleteAction,
+          tone: 'danger',
+          onPress: () => {
+            if (!deleteExpense.isPending) confirmDelete();
+          },
+        },
+      ];
+
   return (
     <Screen edges={[]}>
       {/* The hero runs dark under the status bar, so its icons must be light —
@@ -286,7 +318,7 @@ export default function ExpenseDetailScreen() {
                 color={theme.color.onBrand}
               />
             </IconButton>
-            <View style={{ flex: 1, alignItems: 'center' }}>
+            <View style={{ flex: 1, alignItems: 'flex-start' }}>
               <Text variant="heading" tone="onBrand" numberOfLines={1}>
                 {expenseTitle(version.description, version.category, t, version.category_meta)}
               </Text>
@@ -294,15 +326,16 @@ export default function ExpenseDetailScreen() {
                 {groupLabel(group.data, members.data ?? [])}
               </Text>
             </View>
-            <IconButton
-              label={t.common.edit}
-              onPress={() => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`)}
-            >
-              <Ionicons name="create-outline" size={iconSize.md} color={theme.color.onBrand} />
+            {/* Every action on this bill lives behind one three-dot menu, the same
+                trailing control the group and dashboard headers carry — Edit and
+                Delete (or Restore) instead of a full-width button stacked at the
+                bottom of a long scroll. */}
+            <IconButton label={t.group.more} onPress={() => setMenuOpen(true)}>
+              <Ionicons name="ellipsis-vertical" size={iconSize.lg} color={theme.color.onBrand} />
             </IconButton>
           </Row>
 
-          <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+          <View style={{ alignItems: 'flex-start', gap: theme.spacing.sm }}>
             <CategoryBadge category={version.category} meta={version.category_meta} size={48} />
             <MoneyText
               amount={BigInt(version.amount)}
@@ -321,7 +354,7 @@ export default function ExpenseDetailScreen() {
                 timeZone: 'UTC',
               }).format(new Date(version.expense_date))}`}
             </Text>
-            <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
               <HeroTag label={splitLabels(t)[version.split_type] ?? version.split_type} />
               {version.version_no > 1 ? (
                 <HeroTag label={plural(locale, version.version_no - 1, t.expense.editedTimes)} />
@@ -557,29 +590,14 @@ export default function ExpenseDetailScreen() {
           </Card>
         </View>
 
-        {deleted ? (
-          <Button
-            label={t.expense.restore}
-            size="lg"
-            fullWidth
-            disabled={restoreExpense.isPending}
-            onPress={() => restoreExpense.mutate(expense.id)}
-          />
-        ) : (
-          <Button
-            label={t.expense.deleteAction}
-            variant="ghost"
-            size="lg"
-            fullWidth
-            disabled={deleteExpense.isPending}
-            onPress={confirmDelete}
-          />
-        )}
-
+        {/* Edit and Delete moved up into the header's three-dot menu; the only
+            note left here is the reassurance that an edit keeps every version. */}
         <Text variant="micro" tone="muted" align="center">
           {t.extras.nothingOverwritten}
         </Text>
       </ScrollView>
+
+      <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
     </Screen>
   );
 }
