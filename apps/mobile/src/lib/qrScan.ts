@@ -55,9 +55,11 @@ export function tokenFromScan(data: string): string | null {
   if (scheme === 'https') {
     if (parsed.hostname.toLowerCase() !== INVITE_HOST || path !== '/join') return null;
   } else if (INVITE_SCHEMES.has(scheme)) {
-    // `waves://join?token=…` parses with `join` as the host and an empty path.
+    // `waves://join?token=…` parses with `join` as the host and an empty path;
+    // `waves:///join?token=…` parses with an empty host and `/join` as the path.
+    // Do not accept arbitrary hosts just because their path is `/join`.
     const host = parsed.hostname.toLowerCase();
-    if (host !== 'join' && path !== '/join') return null;
+    if (!((host === 'join' && path === '/') || (host === '' && path === '/join'))) return null;
   } else {
     return null;
   }
@@ -68,8 +70,9 @@ export function tokenFromScan(data: string): string | null {
   const match = parsed.search.match(/[?&]token=([^&]+)/);
   if (!match || !match[1]) return null;
   try {
-    return decodeURIComponent(match[1]);
+    const token = decodeURIComponent(match[1]).trim();
+    return token.length > 0 ? token : null;
   } catch {
-    return match[1];
+    return match[1].trim().length > 0 ? match[1] : null;
   }
 }
