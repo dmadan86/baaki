@@ -118,7 +118,10 @@ const useCountOf = (inviteId: string): Promise<{ use_count: number; max_uses: nu
 
 const pendingClaimCount = (groupId: string): Promise<number> =>
   client
-    .query(`SELECT count(*)::int AS n FROM member_claims WHERE group_id = $1`, [groupId])
+    .query(
+      `SELECT count(*)::int AS n FROM member_claims WHERE group_id = $1 AND status = 'pending'`,
+      [groupId],
+    )
     .then((r) => r.rows[0].n as number);
 
 describe('a pending claim reserves exactly one use, idempotently', () => {
@@ -153,6 +156,22 @@ describe('a pending claim reserves exactly one use, idempotently', () => {
       .then((r) => r.rows[0]);
     expect(ghost.profile_id).toBeNull();
     expect(ghost.ghost_name).toBe('Ghost 1');
+  });
+
+  it('spends no use when the caller passes no invite (internal / 4-arg callers)', async () => {
+    // baaki_request_member_claim(..., p_invite_id => NULL) files the claim but
+    // touches no link — the path that keeps memberClaims.test.ts's 4-arg calls
+    // working. A link that happens to exist for the group must be left alone.
+    const { groupId, memberIds } = await seedGroup(client, { memberCount: 1, ghostCount: 1 });
+    const ghostId = memberIds[1] as string;
+    const arrival = await newcomer();
+
+    const inviteId = await mintInvite(groupId, 1);
+    const verdict = await claim(client, groupId, ghostId, arrival, null, 'Ravi');
+    expect(verdict).toMatchObject({ ok: true, already_pending: false });
+
+    expect(await pendingClaimCount(groupId)).toBe(1);
+    expect(await useCountOf(inviteId)).toMatchObject({ use_count: 0, max_uses: 1 });
   });
 
   it('lets a bogus claim spend nothing, so it cannot exhaust the link', async () => {
@@ -277,7 +296,7 @@ describe('concurrent redemption of the last slot', () => {
     const losers = results.filter((r) => !r.ok);
     expect(winners).toHaveLength(1);
     expect(losers).toHaveLength(1);
-    expect(losers[0].reason).toBe('INVITE_INVALID');
+    expect(losers[0]?.reason).toBe('INVITE_INVALID');
 
     // Exactly one slot spent, exactly one pending claim filed.
     expect(await useCountOf(inviteId)).toMatchObject({ use_count: 1, max_uses: 1 });
