@@ -366,6 +366,25 @@ describe('native local store lifecycle', () => {
     expect(await store.listDrafts()).toEqual([]);
   });
 
+  it('hydrates a large mirror without dropping rows on the chunked parse path', async () => {
+    const store = createLocalStore();
+    const rows = Array.from({ length: 1_025 }, (_, index) => ({
+      table: 'expenses',
+      id: `e${index}`,
+      groupId: `g${index % 3}`,
+      seq: index + 1,
+      row: { id: `e${index}`, amount: String(index) },
+    }));
+
+    await store.putRows(rows as never);
+
+    const hydrated = await store.readRows();
+    expect(hydrated).toHaveLength(rows.length);
+    expect(hydrated[0]).toEqual(rows[0]);
+    expect(hydrated[512]).toEqual(rows[512]);
+    expect(hydrated[1024]).toEqual(rows[1024]);
+  });
+
   it('does not open SQLite when asked to persist no rows', async () => {
     const store = createLocalStore();
 
