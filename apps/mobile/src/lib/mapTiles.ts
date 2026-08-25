@@ -9,30 +9,52 @@
  * (no React Native, no network) so the projection round-trips can be tested,
  * and so importing it never drags React Native into the vitest graph.
  *
- * The tile source is swappable: {@link tileUrl} takes a URL template. The
- * default is CARTO's keyless raster basemap, which — unlike OpenStreetMap's
- * public tile server — permits use inside an app without prior arrangement.
- * OSM's own tiles (tile.openstreetmap.org) are explicitly NOT for apps: its
- * usage policy bans bulk/app traffic and blocks callers that do not send an
- * identifying User-Agent, which surfaced in the app as "access blocked — not
- * following the tile usage policy of OpenStreetMap". CARTO's CDN avoids that.
- * A production build with real volume should still point
- * `EXPO_PUBLIC_MAP_TILE_URL` at a self-hosted or keyed provider — a config
- * step, not a code change — and {@link TILE_HEADERS} is sent on every request
- * so whichever provider is configured sees a real, identifying User-Agent.
+ * The tile source is swappable: {@link tileUrl} takes a URL template, and both
+ * the URL ({@link DEFAULT_TILE_URL}) and its credit ({@link TILE_ATTRIBUTION})
+ * can be overridden from the environment so a deployment can point at its own
+ * provider without a code change.
+ *
+ * On the defaults, and why neither built-in is a production tile source:
+ *   - OpenStreetMap's public server (tile.openstreetmap.org) *does* permit
+ *     normal interactive app viewing, but only under strict conditions: a
+ *     stable, identifying `User-Agent` (library-default UAs like okhttp are
+ *     blocked — that is the "access blocked, not following the tile usage
+ *     policy" we hit), fetching just the current viewport, honouring cache
+ *     headers, and no bulk/offline pre-fetching. It is community infrastructure,
+ *     not a hosting service.
+ *   - CARTO's `basemaps.cartocdn.com` is used here as the built-in default
+ *     because it tolerates this kind of light interactive traffic keylessly,
+ *     but CARTO's terms expect a plan for production/commercial use — an
+ *     unkeyed endpoint may start returning a watermarked or refused tile.
+ *
+ * So both built-ins are development conveniences. A production build MUST point
+ * `EXPO_PUBLIC_MAP_TILE_URL` at a keyed or self-hosted provider (and set
+ * `EXPO_PUBLIC_MAP_TILE_ATTRIBUTION` to that provider's required credit).
+ * {@link TILE_HEADERS} sends a real, identifying User-Agent to whichever
+ * provider is configured, satisfying OSM-style policies either way.
  */
 
 /** Every raster tile is 256×256 device-independent pixels. */
 export const TILE_SIZE = 256;
 
 /**
- * CARTO's keyless "positron" (light) basemap: a CDN that tolerates app traffic,
- * built from OpenStreetMap data. Keep {@link TILE_ATTRIBUTION} shown alongside.
+ * The built-in tile URL template: CARTO's keyless "positron" (light) basemap, a
+ * CDN that tolerates light interactive traffic, built from OpenStreetMap data.
+ * A development default only — override with `EXPO_PUBLIC_MAP_TILE_URL` for
+ * production (see the file header). Keep {@link TILE_ATTRIBUTION} shown alongside.
  */
-export const DEFAULT_TILE_URL = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+export const DEFAULT_TILE_URL =
+  process.env.EXPO_PUBLIC_MAP_TILE_URL || 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
 
-/** Credit required by the tile licence: OSM for the data, CARTO for the tiles. */
-export const TILE_ATTRIBUTION = '© OpenStreetMap © CARTO';
+/**
+ * The credit shown over the map. It follows the tile URL: when a deployment
+ * overrides `EXPO_PUBLIC_MAP_TILE_URL` it should also set
+ * `EXPO_PUBLIC_MAP_TILE_ATTRIBUTION` to that provider's required credit, so the
+ * attribution can never be wrong for the tiles actually being served. The
+ * default credits OSM (the data) and CARTO (the default tiles).
+ */
+export const TILE_ATTRIBUTION =
+  process.env.EXPO_PUBLIC_MAP_TILE_ATTRIBUTION || '© OpenStreetMap © CARTO';
 
 /**
  * Headers sent with every tile request. A real, identifying User-Agent is
