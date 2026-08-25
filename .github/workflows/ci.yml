@@ -37,6 +37,13 @@ jobs:
       # swept them in. Nothing type-checks a filename, so nothing complained.
       - name: No files from a mis-quoted shell command
         run: bash scripts/check-filenames.sh
+      # A SECURITY DEFINER function runs with the owner's rights and bypasses
+      # RLS, yet Supabase + Postgres grant EXECUTE on it to anon and PUBLIC by
+      # default. Every new one must state its caller model (a GRANT/REVOKE in the
+      # same migration) so an over-grant to the unauthenticated key fails here,
+      # not in production (audit 20260825240000).
+      - name: SECURITY DEFINER functions declare their caller model
+        run: node scripts/check-definer-grants.mjs
       # The edge functions import a bundled copy of @waves/core; build it first
       # so a broken bundle fails here rather than at deploy time.
       - run: pnpm edge:build
