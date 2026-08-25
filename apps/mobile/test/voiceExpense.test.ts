@@ -62,6 +62,8 @@ describe('parseVoiceExpense', () => {
       ['500 canadian dollars flight', 'CAD'],
       ['600 australian dollars tour', 'AUD'],
       ['sri lankan rupees 400 tea', 'LKR'],
+      // Cents folded in must not demote the qualified name to a bare-dollar USD
+      ['twenty canadian dollars ninety nine cents', 'CAD'],
     ];
     for (const [sentence, code] of cases) {
       expect(parseVoiceExpense(sentence, groups).currency).toBe(code);
@@ -154,6 +156,8 @@ describe('parseVoiceExpense', () => {
       ['hundred rupees fifty paise milk', 100.5],
       ['hundred rupees and fifty paise milk', 100.5],
       ['twenty dollars ninety nine cents', 20.99],
+      // A qualified name must fold its cents too, not drop them
+      ['twenty canadian dollars ninety nine cents', 20.99],
       ['five rupees five paise', 5.05],
       // Written digits with separators and decimals
       ['1,299.50 dollars', 1299.5],

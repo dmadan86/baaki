@@ -564,11 +564,13 @@ const MINOR_UNIT_AFTER = /^(?:paise|paisa|cents?|pence|fils)\b/i;
  * kept so {@link detectCurrency} still reads it.
  */
 function foldMinorUnits(text: string): string {
-  const majorCurrency =
-    '(rupees?|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)';
+  // The shared currency alternation, so a qualified name ("Canadian dollars")
+  // folds its cents too — a hand-kept subset here dropped the qualifier and lost
+  // the 0.99 on "20 Canadian dollars 99 cents". The whole phrase is captured and
+  // kept so detectCurrency still reads CAD, not a bare USD "dollars".
   const minorWord = '(?:paise|paisa|cents?|pence|fils)';
   const pattern = new RegExp(
-    `(\\d[\\d,]*)\\s+${majorCurrency}\\s+(?:and\\s+)?(\\d{1,2})\\s+${minorWord}\\b`,
+    `(\\d[\\d,]*)\\s+(${CURRENCY_WORD_ALT})\\s+(?:and\\s+)?(\\d{1,2})\\s+${minorWord}\\b`,
     'gi',
   );
   return text.replace(
