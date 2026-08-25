@@ -374,7 +374,9 @@ export interface UiStrings {
   comments: {
     /** Section label. */
     title: string;
-    /** Shown when there are no comments yet. */
+    /** Bold title of the empty state ("No comments yet"). */
+    emptyTitle: string;
+    /** Subtitle under the empty-state title, inviting the first comment. */
     empty: string;
     /** Composer placeholder. */
     placeholder: string;
@@ -2124,7 +2126,8 @@ const en: UiStrings = {
   },
   comments: {
     title: 'Comments',
-    empty: 'No comments yet. Start the conversation.',
+    emptyTitle: 'No comments yet',
+    empty: 'Start the conversation.',
     placeholder: 'Add a comment…',
     post: 'Post comment',
     edit: 'Edit',
@@ -3863,7 +3866,8 @@ const ta: UiStrings = {
   },
   comments: {
     title: 'கருத்துகள்',
-    empty: 'இன்னும் கருத்துகள் இல்லை. உரையாடலைத் தொடங்குங்கள்.',
+    emptyTitle: 'இன்னும் கருத்துகள் இல்லை',
+    empty: 'உரையாடலைத் தொடங்குங்கள்.',
     placeholder: 'ஒரு கருத்தைச் சேர்…',
     post: 'கருத்தை இடு',
     edit: 'திருத்து',
@@ -5666,7 +5670,8 @@ const hi: UiStrings = {
   },
   comments: {
     title: 'टिप्पणियाँ',
-    empty: 'अभी कोई टिप्पणी नहीं। बातचीत शुरू करें।',
+    emptyTitle: 'अभी कोई टिप्पणी नहीं',
+    empty: 'बातचीत शुरू करें।',
     placeholder: 'एक टिप्पणी जोड़ें…',
     post: 'टिप्पणी भेजें',
     edit: 'बदलें',
@@ -7420,7 +7425,8 @@ const ar: UiStrings = {
   },
   comments: {
     title: 'التعليقات',
-    empty: 'لا تعليقات بعد. ابدأ المحادثة.',
+    emptyTitle: 'لا تعليقات بعد',
+    empty: 'ابدأ المحادثة.',
     placeholder: 'أضف تعليقًا…',
     post: 'نشر التعليق',
     edit: 'تعديل',
