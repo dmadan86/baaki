@@ -27,7 +27,6 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { Button, iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
-import { useMotion } from '@/lib/motion';
 import { TOUR_STEPS, useTour } from '@/lib/tour';
 
 /** The reference's tour accent — a violet, held apart from the app's green so
@@ -46,7 +45,6 @@ const SCRIM = '#000000B3';
 export function TourOverlay() {
   const theme = useTheme();
   const { t } = useStrings();
-  const { animated } = useMotion();
   const insets = useSafeAreaInsets();
   const { active, step, total, rectFor, next, prev, finish } = useTour();
   const { width: screenW, height: screenH } = useWindowDimensions();
@@ -61,26 +59,18 @@ export function TourOverlay() {
 
   useEffect(() => {
     if (!active) return;
-    if (!animated) {
-      appear.value = 1;
-      return;
-    }
     appear.value = withTiming(1, { duration: 220 });
     // Reset when the tour ends so a replay fades in again.
     return () => {
       appear.value = 0;
     };
-  }, [active, animated, appear]);
+  }, [active, appear]);
 
   useEffect(() => {
     if (!active) return;
-    if (!animated) {
-      cardEnter.value = 1;
-      return;
-    }
     cardEnter.value = 0;
     cardEnter.value = withTiming(1, { duration: 220 });
-  }, [active, step, animated, cardEnter]);
+  }, [active, step, cardEnter]);
 
   // Hardware back ends the tour rather than driving the Stack behind the scrim.
   useEffect(() => {

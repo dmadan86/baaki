@@ -20,12 +20,10 @@ import { iconSize, PillTabBar, type PillTabItem } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { useMotion } from '@/lib/motion';
 import { resolveTabBar } from '@/lib/tabBar';
 
 export function AppTabBar() {
   const { t } = useStrings();
-  const { animated } = useMotion();
   const { session } = useAuth();
   // `useSegments` is typed as a union of fixed-length route tuples, so indexing
   // past the first element trips the tuple bounds check under the CI tsconfig.
@@ -89,12 +87,6 @@ export function AppTabBar() {
   };
 
   return (
-    <PillTabBar
-      items={items}
-      activeKey={activeKey}
-      onSelect={go}
-      animated={animated}
-      centerAction={voice}
-    />
+    <PillTabBar items={items} activeKey={activeKey} onSelect={go} animated centerAction={voice} />
   );
 }

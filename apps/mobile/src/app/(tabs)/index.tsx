@@ -31,7 +31,6 @@ import {
 
 import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
 import { CountUpMoney } from '@/lib/anim';
-import { useMotion } from '@/lib/motion';
 import { useFlagEnabled } from '@/lib/flags';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -316,7 +315,7 @@ export default function HomeScreen() {
 
             {/* The corner watermark — a faint glyph per slide that crossfades
                 as you swipe, off the same scroll value as the colour. */}
-            <HeroBackdrop scrollX={heroScrollX} snap={heroSnap} page={heroPage} />
+            <HeroBackdrop scrollX={heroScrollX} snap={heroSnap} />
 
             {/* Greeting row: face + "Hi, {name}" over the time of day, then the
                 white controls the reference tucks top-right — sync, a shortcut to
@@ -835,23 +834,22 @@ function GuestPopup({
   onAction: () => void;
 }) {
   const theme = useTheme();
-  const { animated } = useMotion();
   const { hidden, ready, dismiss } = useDailyDismiss(GUEST_PROMPT_DISMISS_KEY);
   const visible = ready && !hidden;
 
   // A gentle scale-and-fade in, the way the reference presents this card. RN
   // Animated (not reanimated) since this file already drives its counters with
-  // it; motion off starts it settled. Held in state (lazy init) rather than a
-  // ref so the value is not read through `.current` during render.
-  const [opacity] = useState(() => new Animated.Value(animated ? 0 : 1));
-  const [scale] = useState(() => new Animated.Value(animated ? 0.92 : 1));
+  // it. Held in state (lazy init) rather than a ref so the value is not read
+  // through `.current` during render.
+  const [opacity] = useState(() => new Animated.Value(0));
+  const [scale] = useState(() => new Animated.Value(0.92));
   useEffect(() => {
-    if (!visible || !animated) return;
+    if (!visible) return;
     Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.spring(scale, { toValue: 1, friction: 7, useNativeDriver: true }),
     ]).start();
-  }, [visible, animated, opacity, scale]);
+  }, [visible, opacity, scale]);
 
   if (!visible) return null;
 
@@ -863,7 +861,7 @@ function GuestPopup({
       : t.tabs.guestBannerBody;
 
   return (
-    <Modal visible transparent animationType={animated ? 'fade' : 'none'} onRequestClose={dismiss}>
+    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
       <View
         style={{
           flex: 1,
@@ -1215,8 +1213,6 @@ function HeroBalance({
    *  action buttons, so it owns the page. */
   onPageChange: (page: number) => void;
 }) {
-  const { animated } = useMotion();
-
   // The three balance views the dashboard leads with, one per swipe: where you
   // stand overall (net), what is owed to you, and what you have spent this month
   // — all in your primary currency, which is the one the headline is already in
@@ -1309,25 +1305,21 @@ function HeroBalance({
             width: cardWidth,
             // The centred slide sits at full size; the one being dragged in
             // grows and brightens into focus as it reaches centre. Transform +
-            // opacity only, both native-driven. Motion off leaves it flat.
-            ...(animated
-              ? {
-                  opacity: scrollX.interpolate({
-                    inputRange: rangeFor(index),
-                    outputRange: [0.75, 1, 0.75],
-                    extrapolate: 'clamp',
-                  }),
-                  transform: [
-                    {
-                      scale: scrollX.interpolate({
-                        inputRange: rangeFor(index),
-                        outputRange: [0.94, 1, 0.94],
-                        extrapolate: 'clamp',
-                      }),
-                    },
-                  ],
-                }
-              : null),
+            // opacity only, both native-driven.
+            opacity: scrollX.interpolate({
+              inputRange: rangeFor(index),
+              outputRange: [0.75, 1, 0.75],
+              extrapolate: 'clamp',
+            }),
+            transform: [
+              {
+                scale: scrollX.interpolate({
+                  inputRange: rangeFor(index),
+                  outputRange: [0.94, 1, 0.94],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
           }}
         >
           {slide.node}
@@ -1401,23 +1393,8 @@ function HeroBalanceSkeleton() {
  * it to the rounded corner (`overflow: 'hidden'`) and `pointerEvents none` so
  * it never eats a tap; white at low alpha reads the same on green/teal/indigo.
  */
-function HeroBackdrop({
-  scrollX,
-  snap,
-  page,
-}: {
-  scrollX: Animated.Value;
-  snap: number;
-  page: number;
-}) {
+function HeroBackdrop({ scrollX, snap }: { scrollX: Animated.Value; snap: number }) {
   const theme = useTheme();
-  // Reduced-motion users get the current slide's mark held static instead of the
-  // scroll-linked crossfade — the same `animated` gate HeroBalance uses, so the
-  // whole hero honours the setting as one. While the preference is still loading
-  // `animated` defaults true, so hold static until it resolves rather than let a
-  // swipe in that window animate for someone who has Reduce Motion on.
-  const { animated, loading: motionLoading } = useMotion();
-  const shouldAnimate = animated && !motionLoading;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {SLIDE_ICONS.map((icon, index) => (
@@ -1427,15 +1404,11 @@ function HeroBackdrop({
             position: 'absolute',
             right: -44,
             bottom: -52,
-            opacity: shouldAnimate
-              ? scrollX.interpolate({
-                  inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
-                  outputRange: [0, 0.16, 0],
-                  extrapolate: 'clamp',
-                })
-              : index === page
-                ? 0.16
-                : 0,
+            opacity: scrollX.interpolate({
+              inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
+              outputRange: [0, 0.16, 0],
+              extrapolate: 'clamp',
+            }),
           }}
         >
           <Ionicons name={icon} size={208} color={theme.color.onBrand} />

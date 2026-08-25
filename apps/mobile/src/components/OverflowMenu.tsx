@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
-import { useMotion } from '@/lib/motion';
 
 export interface OverflowMenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -46,9 +45,6 @@ export function OverflowMenu({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useStrings();
-  // The fade is decoration, not meaning — reduced motion drops it to an instant
-  // present/dismiss (TDR §11 treats the setting as an input, not a hint).
-  const { animated } = useMotion();
 
   const activate = (item: OverflowMenuItem): void => {
     onClose();
@@ -57,12 +53,7 @@ export function OverflowMenu({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType={animated ? 'fade' : 'none'}
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* The scrim: a full-screen catcher so a tap anywhere off the card closes
           the menu. Kept barely tinted — the point is to dismiss, not to dim. It
           carries a label so a screen reader announces "Close" rather than a bare

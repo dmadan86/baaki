@@ -30,7 +30,6 @@ import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { r2Enabled } from '@/lib/storage';
 import { describeGrace, useLock } from '@/lib/lock';
-import { useMotion } from '@/lib/motion';
 import { useFlagEnabled } from '@/lib/flags';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { useThemePreference } from '@/lib/theme';
@@ -270,7 +269,6 @@ function ProfileForm() {
   const { profile, isGuest, updateProfile, signOut } = useAuth();
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
-  const { animated, overridden: motionOverridden } = useMotion();
   const { preference: syncNetwork } = useSyncNetwork();
   const { preference: themePreference, overridden: themeOverridden } = useThemePreference();
   const { language, stored: languageChosen, restartNeeded } = useLanguage();
@@ -360,14 +358,6 @@ function ProfileForm() {
       : syncNetwork === SyncNetworkPreference.Both
         ? t.sync.both
         : t.sync.wifi;
-
-  const motionSummary = motionOverridden
-    ? animated
-      ? t.account.motionOn
-      : t.account.motionOff
-    : animated
-      ? t.account.motionFollowingOn
-      : t.account.motionFollowingOff;
 
   const lockSummary = !lockSupported
     ? t.account.lockNoBiometrics
@@ -517,12 +507,6 @@ function ProfileForm() {
               label: t.account.themeRow,
               hint: themeSummary,
               route: '/settings/theme',
-            },
-            {
-              icon: 'sparkles-outline',
-              label: t.account.motionRow,
-              hint: motionSummary,
-              route: '/settings/motion',
             },
             {
               icon: 'flash-outline',

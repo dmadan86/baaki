@@ -29,7 +29,6 @@ import { directionalIcon, iconSize, isRtlLayout, Text, type TintName, useTheme }
 
 import { useStrings } from '@/i18n';
 import { pageForSlide, pageOrder, slideForPage } from '@/lib/carousel';
-import { useMotion } from '@/lib/motion';
 
 interface Slide {
   readonly tint: TintName;
@@ -52,7 +51,6 @@ const SLIDES: readonly Slide[] = [
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { animated } = useMotion();
   const { t } = useStrings();
   const { width, height } = useWindowDimensions();
   const scroller = useRef<ScrollView>(null);
@@ -66,7 +64,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       return;
     }
     setIndex(next);
-    scroller.current?.scrollTo({ x: pageForSlide(next, SLIDES.length, rtl) * width, animated });
+    scroller.current?.scrollTo({
+      x: pageForSlide(next, SLIDES.length, rtl) * width,
+      animated: true,
+    });
   };
 
   // The page under the thumb decides the index, so a drag and a tap on the

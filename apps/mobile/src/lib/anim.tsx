@@ -1,11 +1,9 @@
 /**
- * The app's motion, in one place and behind one switch.
+ * The app's motion, in one place.
  *
- * Every primitive here reads `useMotion()` and does nothing when it says off —
- * so a phone with reduce-motion set, or somebody who turned animation off in
- * settings, gets the same still screens they asked for and none of this runs.
- * Motion is a response, not a scene (see `lib/motion`): entrances are short,
- * the count keeps to well under a second, and a press answers under the finger.
+ * Motion is a response, not a scene: entrances are short, the count keeps to
+ * well under a second, and a press answers under the finger. The animations
+ * always play — there is no preference gating them off.
  *
  * The pure maths lives at the bottom, exported, because a count that lands on
  * the wrong number or a stagger that never stops is a bug you want to catch in
@@ -25,15 +23,13 @@ import Animated, {
 
 import { MoneyText, type MoneyTextProps } from '@waves/ui';
 
-import { useMotion } from './motion';
 import { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';
 
 export { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';
 
-/** Whether motion should play at all. The one gate every primitive here reads. */
-export function useMotionEnabled(): boolean {
-  return useMotion().animated;
-}
+/** How long a screen transition runs. Short enough to feel like a response,
+    not a scene — used by the navigator's `animationDuration`. */
+export const TRANSITION_MS = 260;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -52,8 +48,6 @@ const PRESS_SPRING = { damping: 18, stiffness: 280, mass: 0.5 } as const;
  * same keys does not remount, so the list does not re-stagger every pull.
  */
 export function Stagger({ index = 0, children }: { index?: number; children: ReactNode }) {
-  const enabled = useMotionEnabled();
-  if (!enabled) return <>{children}</>;
   return (
     <Animated.View entering={FadeInDown.duration(340).delay(staggerDelay(index))}>
       {children}
@@ -65,9 +59,7 @@ export function Stagger({ index = 0, children }: { index?: number; children: Rea
  * A pressable that dips under the finger.
  *
  * Replaces the flat opacity blink with a spring scale, which is the difference
- * between a card that registers a tap and one that feels like a button. With
- * motion off it falls back to the same opacity feedback the rest of the app
- * uses, so nothing loses its "I heard you" — only the movement goes.
+ * between a card that registers a tap and one that feels like a button.
  */
 export function PressableScale({
   children,
@@ -76,25 +68,11 @@ export function PressableScale({
   onPressOut,
   ...rest
 }: Omit<PressableProps, 'style'> & { children: ReactNode; style?: ViewStyle }) {
-  const enabled = useMotionEnabled();
   // `.get()`/`.set()` rather than `.value`: the same shared value, through the
   // method API Reanimated 4 added — a call, not an assignment to a property the
   // React compiler treats as immutable and refuses inside a handler.
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
-
-  if (!enabled) {
-    return (
-      <Pressable
-        style={({ pressed }) => [style, { opacity: pressed ? 0.9 : 1 }]}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        {...rest}
-      >
-        {children}
-      </Pressable>
-    );
-  }
 
   return (
     <AnimatedPressable
@@ -124,9 +102,8 @@ export function PressableScale({
  * launched it, the tap and the arrival belong to each other.
  */
 export function DetailEnter({ children, style }: { children: ReactNode; style?: ViewStyle }) {
-  const enabled = useMotionEnabled();
   return (
-    <Animated.View style={[{ flex: 1 }, style]} entering={enabled ? detailEntering : undefined}>
+    <Animated.View style={[{ flex: 1 }, style]} entering={detailEntering}>
       {children}
     </Animated.View>
   );
@@ -156,12 +133,10 @@ const detailEntering: EntryExitAnimationFunction = () => {
  * Wraps `MoneyText` and animates the amount from where it was to where it is,
  * so a balance counts up on first load and slides to the new number when it
  * changes. Everything else — the currency, the faded paise, the spoken label —
- * is `MoneyText`'s, unchanged; this only feeds it a moving `amount`. Motion off
- * means it renders the final figure and never moves.
+ * is `MoneyText`'s, unchanged; this only feeds it a moving `amount`.
  */
 export function CountUpMoney(props: MoneyTextProps): ReactNode {
-  const enabled = useMotionEnabled();
-  const shown = useCountUp(props.amount, enabled);
+  const shown = useCountUp(props.amount);
   return <MoneyText {...props} amount={shown} />;
 }
 
@@ -171,23 +146,21 @@ const COUNT_MS = 650;
 /**
  * Tween a bigint towards `target`, easing out, on the JS thread.
  *
- * Off, or a figure too large to hold in a Number without losing paise, snaps
- * straight to the target — a wrong number is worse than a still one. Otherwise
- * it animates from whatever is on screen now, so a mid-flight change redirects
- * smoothly rather than jumping back to zero.
+ * A figure too large to hold in a Number without losing paise snaps straight to
+ * the target — a wrong number is worse than a still one. Otherwise it animates
+ * from whatever is on screen now, so a mid-flight change redirects smoothly
+ * rather than jumping back to zero.
  */
-export function useCountUp(target: bigint, enabled: boolean): bigint {
-  // The start figure is decided here rather than in the effect: motion off, or a
-  // number too large to tween as a Number, begins on the target and never moves.
-  const [value, setValue] = useState<bigint>(() =>
-    enabled && !tooLargeToTween(target) ? 0n : target,
-  );
+export function useCountUp(target: bigint): bigint {
+  // The start figure is decided here rather than in the effect: a number too
+  // large to tween as a Number begins on the target and never moves.
+  const [value, setValue] = useState<bigint>(() => (tooLargeToTween(target) ? target : 0n));
   const frame = useRef<number | null>(null);
 
   useEffect(() => {
     // Snapping is a state change too, so it goes through a frame rather than
     // running synchronously in the effect body — the same reason the tween does.
-    if (!enabled || tooLargeToTween(target)) {
+    if (tooLargeToTween(target)) {
       frame.current = requestAnimationFrame(() => setValue(target));
       return () => {
         if (frame.current !== null) cancelAnimationFrame(frame.current);
@@ -213,7 +186,7 @@ export function useCountUp(target: bigint, enabled: boolean): bigint {
     return () => {
       if (frame.current !== null) cancelAnimationFrame(frame.current);
     };
-  }, [target, enabled]);
+  }, [target]);
 
   return value;
 }

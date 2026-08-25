@@ -22,7 +22,6 @@ import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
 import { LANGUAGES, LANGUAGE_NAMES, useStrings, type Language } from '@/i18n';
 import { dictationError, speechLocale } from '@/lib/dictation';
-import { useMotion } from '@/lib/motion';
 
 const MIC_SIZE = 104;
 
@@ -30,15 +29,13 @@ const MIC_SIZE = 104;
  * A soft halo that breathes behind the mic while it listens — a slow, low-opacity
  * swell that makes the button read as a live orb rather than a flat disc. It is
  * the calm base layer under the sharper expanding rings; the two together are the
- * modern voice-assistant look (Siri, Google Assistant). With motion off it holds
- * a single gentle glow so the depth is still there without anything moving.
+ * modern voice-assistant look (Siri, Google Assistant).
  */
 function Halo({ active, theme }: { active: boolean; theme: Theme }) {
-  const { animated } = useMotion();
   const [pulse] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
-    if (!active || !animated) return;
+    if (!active) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -60,7 +57,7 @@ function Halo({ active, theme }: { active: boolean; theme: Theme }) {
       loop.stop();
       pulse.setValue(0);
     };
-  }, [active, animated, pulse]);
+  }, [active, pulse]);
 
   if (!active) return null;
   const size = MIC_SIZE * 1.7;
@@ -73,16 +70,8 @@ function Halo({ active, theme }: { active: boolean; theme: Theme }) {
         height: size,
         borderRadius: size / 2,
         backgroundColor: theme.color.brand,
-        opacity: animated
-          ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.22] })
-          : 0.14,
-        transform: [
-          {
-            scale: animated
-              ? pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] })
-              : 1.05,
-          },
-        ],
+        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.22] }),
+        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }],
       }}
     />
   );
@@ -93,19 +82,16 @@ function Halo({ active, theme }: { active: boolean; theme: Theme }) {
  * "I am hearing you" of a voice screen (Siri, Google Assistant, Meta AI). Three
  * staggered *outline* rings expand and fade on a loop: a thin stroke reads as
  * cleaner and more modern than a filling disc, and layered over the halo it
- * gives the surface real depth rather than a single blunt pulse. With motion off
- * they do not render at all — the reduced-motion setting is an input, not a hint
- * (TDR §11); the still halo alone carries the idle state.
+ * gives the surface real depth rather than a single blunt pulse.
  */
 function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
-  const { animated } = useMotion();
   // Held in state (not a ref) so the render below may read them — the values are
   // created once by the lazy initialiser and never replaced, so this never
   // re-renders on its own.
   const [rings] = useState(() => [0, 1, 2].map(() => new Animated.Value(0)));
 
   useEffect(() => {
-    if (!active || !animated) return;
+    if (!active) return;
     const loops = rings.map((value, index) =>
       Animated.loop(
         Animated.sequence([
@@ -124,9 +110,9 @@ function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
       loops.forEach((loop) => loop.stop());
       rings.forEach((value) => value.setValue(0));
     };
-  }, [active, animated, rings]);
+  }, [active, rings]);
 
-  if (!active || !animated) return null;
+  if (!active) return null;
   return (
     <>
       {rings.map((value, index) => (
@@ -169,16 +155,13 @@ function barPeak(index: number): number {
 /**
  * A live sound wave under the status while listening — nine bars rising and
  * falling out of step, centre-weighted into a crest, the shorthand for "audio is
- * coming in". Rounded and tinted a touch lighter at the edges for depth. With
- * motion off it holds a still crest silhouette so the shape still reads as a
- * waveform without anything moving.
+ * coming in". Rounded and tinted a touch lighter at the edges for depth.
  */
 function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
-  const { animated } = useMotion();
   const [bars] = useState(() => Array.from({ length: WAVE_BARS }, () => new Animated.Value(0.3)));
 
   useEffect(() => {
-    if (!active || !animated) return;
+    if (!active) return;
     const loops = bars.map((value, index) =>
       Animated.loop(
         Animated.sequence([
@@ -200,7 +183,7 @@ function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
     );
     loops.forEach((loop) => loop.start());
     return () => loops.forEach((loop) => loop.stop());
-  }, [active, animated, bars]);
+  }, [active, bars]);
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 36 }}>
@@ -217,9 +200,7 @@ function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
               borderRadius: 2,
               backgroundColor: theme.color.brand,
               opacity,
-              height: animated
-                ? value.interpolate({ inputRange: [0, 1], outputRange: [WAVE_MIN, peak] })
-                : (WAVE_MIN + peak) / 2,
+              height: value.interpolate({ inputRange: [0, 1], outputRange: [WAVE_MIN, peak] }),
             }}
           />
         );

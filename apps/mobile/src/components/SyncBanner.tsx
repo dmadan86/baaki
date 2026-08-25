@@ -15,7 +15,6 @@ import { Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
 
-import { useMotion } from '@/lib/motion';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { SyncStatus, useSync } from '@/sync';
 
@@ -36,7 +35,6 @@ export function SyncStatusIcon({
 }: { onBrand?: boolean; groupId?: string } = {}) {
   const theme = useTheme();
   const { t, locale } = useStrings();
-  const { animated } = useMotion();
   const { status, queue, rejected } = useSync();
 
   // On a group screen, scope the queued/refused counts to this group — the same
@@ -48,7 +46,7 @@ export function SyncStatusIcon({
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
 
   const spin = useState(() => new Animated.Value(0))[0];
-  const spinning = status === SyncStatus.Syncing && animated;
+  const spinning = status === SyncStatus.Syncing;
   useEffect(() => {
     if (!spinning) return;
     const loop = Animated.loop(

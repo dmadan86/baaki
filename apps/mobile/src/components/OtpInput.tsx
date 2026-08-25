@@ -5,8 +5,8 @@
  * `TextInput` does the actual work — it holds the digits, raises the number pad
  * and receives the SMS/email autofill — and the boxes are only a drawing of its
  * value. Tapping anywhere on the row focuses it. Each empty cell shows a faint
- * `0` as a placeholder; the cell about to be typed carries a blinking caret
- * (still, with motion off). The row is pinned left-to-right so the digits keep
+ * `0` as a placeholder; the cell about to be typed carries a blinking caret.
+ * The row is pinned left-to-right so the digits keep
  * their order under an RTL layout, where a code is still read the same way.
  */
 
@@ -22,8 +22,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Text, useTheme } from '@waves/ui';
-
-import { useMotion } from '@/lib/motion';
 
 /** Both the phone and email codes are six digits. */
 export const OTP_LEN = 6;
@@ -42,20 +40,15 @@ export function OtpInput({
   autoFocus?: boolean;
 }) {
   const theme = useTheme();
-  const { animated } = useMotion();
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
 
-  // The caret blinks on its own; with motion off it simply stays lit.
+  // The caret blinks on its own.
   const blink = useSharedValue(1);
   useEffect(() => {
-    if (!animated) {
-      blink.value = 1;
-      return;
-    }
     blink.value = withRepeat(withTiming(0, { duration: 550, easing: Easing.ease }), -1, true);
     return () => cancelAnimation(blink);
-  }, [animated, blink]);
+  }, [blink]);
   const caretStyle = useAnimatedStyle(() => ({ opacity: blink.value }));
 
   const focus = useCallback(() => inputRef.current?.focus(), []);
