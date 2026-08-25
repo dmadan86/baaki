@@ -40,14 +40,114 @@ export interface ParsedVoiceExpense {
   splitCount: number | null;
 }
 
-/** Currency words to ISO codes. Indian-first, then the common cross-border ones. */
-const CURRENCY_WORDS: readonly (readonly [RegExp, string])[] = [
-  [/\b(rupees?|rupaye|rs|inr)\b|₹/i, 'INR'],
-  [/\b(dollars?|usd|bucks?)\b|\$/i, 'USD'],
-  [/\b(euros?|eur)\b|€/i, 'EUR'],
-  [/\b(pounds?|quid|gbp)\b|£/i, 'GBP'],
-  [/\b(dirhams?|aed)\b/i, 'AED'],
+/**
+ * Currency signals — a spoken word, an ISO code, or a symbol — to an ISO-4217
+ * code. Indian-first, then the corridors this app's people actually use, then
+ * the common cross-border ones. Order matters: a qualified name ("canadian
+ * dollars", "sri lankan rupees") and every symbol must come before the bare
+ * word it contains ("dollars", "rupees"), because {@link detectCurrency} takes
+ * the first that fits.
+ *
+ * Deliberately left out: bare "lira"/"try" (TRY) — "try" is an ordinary English
+ * verb and would mint a false currency on "I'll try the …". A code is only read
+ * when it stands as its own word.
+ */
+const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
+  // Symbols — unambiguous, so they lead.
+  [/₹/, 'INR'],
+  [/\$/, 'USD'],
+  [/€/, 'EUR'],
+  [/£/, 'GBP'],
+  [/¥/, 'JPY'],
+  [/₩/, 'KRW'],
+  [/₫/, 'VND'],
+  [/฿/, 'THB'],
+  [/₦/, 'NGN'],
+  // Qualified rupee and dollar names, before the bare words below.
+  [/\bsri[\s-]?lankan\s+rupees?\b|\blkr\b/i, 'LKR'],
+  [/\bnepali\s+rupees?\b|\bnpr\b/i, 'NPR'],
+  [/\bpakistani\s+rupees?\b|\bpkr\b/i, 'PKR'],
+  [/\bcanadian\s+dollars?\b|\bcad\b/i, 'CAD'],
+  [/\baustralian\s+dollars?\b|\baud\b/i, 'AUD'],
+  [/\bsingapore(?:an)?\s+dollars?\b|\bsgd\b/i, 'SGD'],
+  [/\bnew\s+zealand\s+dollars?\b|\bnzd\b/i, 'NZD'],
+  [/\bhong\s+kong\s+dollars?\b|\bhkd\b/i, 'HKD'],
+  // Bare words.
+  [/\b(?:rupees?|rupaye|rupya|rs|inr)\b/i, 'INR'],
+  [/\b(?:dollars?|usd|bucks?)\b/i, 'USD'],
+  [/\b(?:euros?|eur)\b/i, 'EUR'],
+  [/\b(?:pounds?|quid|gbp)\b/i, 'GBP'],
+  [/\b(?:dirhams?|aed)\b/i, 'AED'],
+  [/\b(?:yen|jpy)\b/i, 'JPY'],
+  [/\b(?:won|krw)\b/i, 'KRW'],
+  [/\b(?:yuan|renminbi|rmb|cny)\b/i, 'CNY'],
+  [/\b(?:ringgit|myr)\b/i, 'MYR'],
+  [/\b(?:baht|thb)\b/i, 'THB'],
+  [/\b(?:dong|vnd)\b/i, 'VND'],
+  [/\b(?:francs?|chf)\b/i, 'CHF'],
+  [/\b(?:naira|ngn)\b/i, 'NGN'],
 ];
+
+/**
+ * Every alphabetic currency word and code, longest phrases first, as one
+ * alternation — the shared source for the amount-adjacency, spoken-number and
+ * note-stripping patterns, so a currency added above is understood everywhere
+ * at once instead of drifting between four hand-kept lists.
+ */
+const CURRENCY_WORD_ALT = [
+  'sri[\\s-]?lankan\\s+rupees?',
+  'nepali\\s+rupees?',
+  'pakistani\\s+rupees?',
+  'canadian\\s+dollars?',
+  'australian\\s+dollars?',
+  'singapore(?:an)?\\s+dollars?',
+  'new\\s+zealand\\s+dollars?',
+  'hong\\s+kong\\s+dollars?',
+  'rupees?',
+  'rupaye',
+  'rupya',
+  'rs',
+  'inr',
+  'dollars?',
+  'usd',
+  'bucks?',
+  'euros?',
+  'eur',
+  'pounds?',
+  'quid',
+  'gbp',
+  'dirhams?',
+  'aed',
+  'yen',
+  'jpy',
+  'won',
+  'krw',
+  'yuan',
+  'renminbi',
+  'rmb',
+  'cny',
+  'ringgit',
+  'myr',
+  'baht',
+  'thb',
+  'dong',
+  'vnd',
+  'francs?',
+  'chf',
+  'naira',
+  'ngn',
+  'lkr',
+  'npr',
+  'pkr',
+  'cad',
+  'aud',
+  'sgd',
+  'nzd',
+  'hkd',
+].join('|');
+
+/** The currency symbols, as a character-class body. */
+const CURRENCY_SYMBOL_CLASS = '₹$€£¥₩₫฿₦';
 
 /** Words that carry no meaning for matching or for the note. */
 const STOPWORDS: ReadonlySet<string> = new Set([
@@ -90,11 +190,25 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'us',
   'with',
   'by',
+  // Decimal and minor-unit words — normalisation turns "point five" and "fifty
+  // paise" into digits, but any that slip through (a fraction with no currency
+  // beside it) must not survive into a description or a group match.
+  'point',
+  'dot',
+  'decimal',
+  'paise',
+  'paisa',
+  'cent',
+  'cents',
+  'pence',
+  'fils',
 ]);
 
 /** A number sitting next to a currency word or symbol — the amount, said plainly. */
-const CURRENCY_ADJACENT =
-  /(?:₹|\$|€|£)\s*(\d[\d,]*(?:\.\d+)?)|(\d[\d,]*(?:\.\d+)?)\s*(?:rupees?|rupaye|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)\b/i;
+const CURRENCY_ADJACENT = new RegExp(
+  `(?:[${CURRENCY_SYMBOL_CLASS}])\\s*(\\d[\\d,]*(?:\\.\\d+)?)|(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:${CURRENCY_WORD_ALT})\\b`,
+  'i',
+);
 
 /**
  * A count of people to split among: "among 3", "between 4", "3 people", "3 ways".
@@ -145,9 +259,9 @@ function extractAmount(text: string): number | null {
   return toAmount(first?.[0]);
 }
 
-/** Which currency, if any, the sentence names. */
+/** Which currency, if any, the sentence names. First signal that fits wins. */
 function detectCurrency(text: string): string | null {
-  for (const [pattern, code] of CURRENCY_WORDS) {
+  for (const [pattern, code] of CURRENCY_SIGNALS) {
     if (pattern.test(text)) return code;
   }
   return null;
@@ -191,12 +305,11 @@ function matchGroup(tokens: readonly string[], groups: readonly VoiceGroupRef[])
  */
 function buildNote(transcript: string, matchedGroupName: string | null): string {
   const nameTokens = new Set(matchedGroupName ? tokenize(matchedGroupName) : []);
-  const currencyWord =
-    /\b(rupees?|rupaye|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)\b/gi;
+  const currencyWord = new RegExp(`\\b(?:${CURRENCY_WORD_ALT})\\b`, 'gi');
 
   return transcript
     .replace(currencyWord, ' ')
-    .replace(/[₹$€£]/g, ' ')
+    .replace(new RegExp(`[${CURRENCY_SYMBOL_CLASS}]`, 'g'), ' ')
     .replace(/\d[\d,]*(?:\.\d+)?/g, ' ')
     .split(/\s+/)
     .filter((word) => {
@@ -392,9 +505,35 @@ const NUMBER_MULTIPLIERS: ReadonlyMap<string, { factor: number; group: boolean }
 /** Any single word that can appear inside a spoken number. */
 const NUMBER_WORD_RE = [...NUMBER_WORDS.keys(), ...NUMBER_MULTIPLIERS.keys()].join('|');
 
-/** A run of number words, joined by spaces, hyphens or a linking "and". */
+/** A digit group inside a spoken run: "3", "3,000", "3.5". */
+const DIGIT_VALUE_RE = String.raw`\d[\d,]*(?:\.\d+)?`;
+
+/** One value in a run — a digit group or a number word — so "3 thousand" reads as one. */
+const NUMBER_VALUE_RE = `(?:${DIGIT_VALUE_RE}|${NUMBER_WORD_RE})`;
+
+/** Test for a lone digit token (used to tell "3 thousand" from bare "5 10"). */
+const DIGIT_TOKEN = new RegExp(`^${DIGIT_VALUE_RE}$`);
+
+/** Words that introduce a decimal fraction in speech: "point five", "dot five". */
+const DECIMAL_WORD_RE = 'point|dot|decimal';
+
+/** A spoken decimal tail — the "point five zero" after a whole number. */
+const DECIMAL_TAIL_RE = `(?:[\\s-]+(?:${DECIMAL_WORD_RE})(?:[\\s-]+${NUMBER_VALUE_RE})+)`;
+
+/** True when a run carries a spoken decimal marker. */
+const HAS_DECIMAL = new RegExp(`\\b(?:${DECIMAL_WORD_RE})\\b`, 'i');
+
+/**
+ * A run of numbers, joined by spaces, hyphens or a linking "and", with an
+ * optional spoken decimal tail ("hundred point five"). Digits are allowed
+ * alongside words because dictation mixes them — "3 thousand", "5 lakh" — and
+ * those must fold to one amount, not split into two. The second alternative
+ * catches a bare fraction with no whole part ("point five"), which the callback
+ * only rewrites when it sits against money.
+ */
 const SPOKEN_NUMBER = new RegExp(
-  `\\b(?:${NUMBER_WORD_RE})(?:[\\s-]+(?:and[\\s-]+)?(?:${NUMBER_WORD_RE}))*\\b`,
+  `\\b${NUMBER_VALUE_RE}(?:[\\s-]+(?:and[\\s-]+)?${NUMBER_VALUE_RE})*${DECIMAL_TAIL_RE}?\\b` +
+    `|\\b(?:${DECIMAL_WORD_RE})(?:[\\s-]+${NUMBER_VALUE_RE})+\\b`,
   'gi',
 );
 
@@ -405,20 +544,92 @@ const SPOKEN_NUMBER = new RegExp(
  * match inside an ordinary word ("person" → "pe-rs-on"): without them "one
  * person paid" would read "rs" as currency and mint a false amount.
  */
-const CURRENCY_TOKEN =
-  /(?:₹|\$|€|£|\b(?:rupees?|rupaye|rs|inr|dollars?|usd|bucks?|euros?|eur|pounds?|quid|gbp|dirhams?|aed)\b)/i;
+const CURRENCY_TOKEN = new RegExp(
+  `(?:[${CURRENCY_SYMBOL_CLASS}]|\\b(?:${CURRENCY_WORD_ALT})\\b)`,
+  'i',
+);
 
 /** Split-phrase context — a number here is a people count, still worth digitising. */
 const SPLIT_BEFORE_WORD = /^(?:among|amongst|between)$/i;
 const SPLIT_AFTER_WORD = /^(?:people|persons?|ppl|ways?|folks?|heads?)\b/i;
 
-/** Add up one run of number words: "five hundred and fifty" → 550. */
+/** A minor-unit word ("fifty paise", "ninety nine cents") — the number before it is money. */
+const MINOR_UNIT_AFTER = /^(?:paise|paisa|cents?|pence|fils)\b/i;
+
+/**
+ * Fold a spoken minor amount into the major one: "100 rupees 50 paise" →
+ * "100.50 rupees", "20 dollars 99 cents" → "20.99 dollars". Runs after the
+ * spoken numbers are digits, so both parts are already numeric. The minor part
+ * is padded to two places ("5 paise" is 0.05, not 0.5) and the currency word is
+ * kept so {@link detectCurrency} still reads it.
+ */
+function foldMinorUnits(text: string): string {
+  // The shared currency alternation, so a qualified name ("Canadian dollars")
+  // folds its cents too — a hand-kept subset here dropped the qualifier and lost
+  // the 0.99 on "20 Canadian dollars 99 cents". The whole phrase is captured and
+  // kept so detectCurrency still reads CAD, not a bare USD "dollars".
+  const minorWord = '(?:paise|paisa|cents?|pence|fils)';
+  const pattern = new RegExp(
+    `(\\d[\\d,]*)\\s+(${CURRENCY_WORD_ALT})\\s+(?:and\\s+)?(\\d{1,2})\\s+${minorWord}\\b`,
+    'gi',
+  );
+  return text.replace(
+    pattern,
+    (_match, major: string, currency: string, minor: string) =>
+      `${major.replace(/,/g, '')}.${minor.padStart(2, '0')} ${currency}`,
+  );
+}
+
+/**
+ * Add up one run of number words: "five hundred and fifty" → 550, "hundred
+ * point five" → 100.5.
+ *
+ * Two modes, split by a spoken decimal word. Before it, the ordinary
+ * whole-number arithmetic (units add, a multiplier scales the current chunk, a
+ * "group" multiplier like thousand banks it). After it, every value is read as
+ * its own fraction digit — "point five zero" is ".50", not ".fifty" — because
+ * that is how people speak the part after a decimal.
+ */
 function spokenRunToNumber(run: string): number | null {
   let total = 0;
   let current = 0;
   let seen = false;
+  let fraction: string | null = null; // non-null once a decimal word is passed
+
   for (const word of run.toLowerCase().split(/[\s-]+/)) {
     if (!word || word === 'and') continue;
+
+    if (word === 'point' || word === 'dot' || word === 'decimal') {
+      // Close the whole-number part; everything after is fraction digits.
+      total += current;
+      current = 0;
+      fraction = '';
+      seen = true;
+      continue;
+    }
+
+    if (fraction !== null) {
+      // Fraction digits, each value contributing its own digit(s). A multiplier
+      // here ("point five hundred") is not real speech — bail so the run is left
+      // as spoken rather than turned into a wrong number.
+      if (DIGIT_TOKEN.test(word)) {
+        fraction += String(Number.parseInt(word.replace(/,/g, ''), 10));
+      } else {
+        const unit = NUMBER_WORDS.get(word);
+        if (unit === undefined) return null;
+        fraction += String(unit);
+      }
+      seen = true;
+      continue;
+    }
+
+    // A spoken digit ("3" in "3 thousand") counts as the current chunk, so the
+    // multiplier that follows scales it.
+    if (DIGIT_TOKEN.test(word)) {
+      current += Number.parseFloat(word.replace(/,/g, ''));
+      seen = true;
+      continue;
+    }
     const unit = NUMBER_WORDS.get(word);
     if (unit !== undefined) {
       current += unit;
@@ -435,7 +646,9 @@ function spokenRunToNumber(run: string): number | null {
     }
     seen = true;
   }
-  const value = total + current;
+
+  let value = total + current;
+  if (fraction) value += Number.parseFloat(`0.${fraction}`);
   return seen && value > 0 ? value : null;
 }
 
@@ -456,22 +669,37 @@ function spokenRunToNumber(run: string): number | null {
  * into digits would invent an amount out of a sentence that never named one.
  */
 export function normalizeSpokenNumbers(text: string): string {
-  return text.replace(SPOKEN_NUMBER, (run, offset: number, whole: string) => {
+  const digitised = text.replace(SPOKEN_NUMBER, (run, offset: number, whole: string) => {
     const words = run
       .toLowerCase()
       .split(/[\s-]+/)
       .filter((w: string) => w && w !== 'and');
     const hasMultiplier = words.some((w: string) => NUMBER_MULTIPLIERS.has(w));
+    const hasDigit = words.some((w: string) => DIGIT_TOKEN.test(w));
+    const hasDecimal = HAS_DECIMAL.test(run);
+    // A run that already carries a bare digit but no scale word and no decimal is
+    // left exactly as spoken: "5 10" is two amounts (two expenses), not fifteen,
+    // and a lone "3000" is already a number. Only a digit joined to a scale word
+    // ("3 thousand", "5 lakh") or a spoken decimal ("100 point five") is folded.
+    if (hasDigit && !hasMultiplier && !hasDecimal) return run;
     const after = whole.slice(offset + run.length).trimStart();
     const before = whole.slice(0, offset).trimEnd();
     const prevWord = before.split(/\s+/).pop() ?? '';
-    const nextIsCurrency = CURRENCY_TOKEN.test(after.split(/\s+/)[0] ?? '');
+    // The first two words after the run, so a qualified name ("canadian
+    // dollars") still reads as currency where a single-word check would miss it.
+    const nextIsCurrency = CURRENCY_TOKEN.test(after.split(/\s+/).slice(0, 2).join(' '));
     const prevIsCurrency = CURRENCY_TOKEN.test(prevWord);
+    const nextIsMinor = MINOR_UNIT_AFTER.test(after);
     const splitContext = SPLIT_BEFORE_WORD.test(prevWord) || SPLIT_AFTER_WORD.test(after);
-    if (!hasMultiplier && !nextIsCurrency && !prevIsCurrency && !splitContext) return run;
+    if (!hasMultiplier && !nextIsCurrency && !prevIsCurrency && !splitContext && !nextIsMinor) {
+      return run;
+    }
     const value = spokenRunToNumber(run);
     return value === null ? run : String(value);
   });
+  // Now that both parts are digits, fold a spoken minor amount ("… 50 paise")
+  // into the major one.
+  return foldMinorUnits(digitised);
 }
 
 /**
