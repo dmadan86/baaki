@@ -13,12 +13,16 @@
  */
 
 import * as Network from 'expo-network';
+import { randomUUID } from 'expo-crypto';
 import {
   applyOutcomes,
+  dialingCodeForCountry,
   emptyMirror,
   enqueue as enqueueMutation,
   markFailed,
+  MutationKind,
   nextBatch,
+  normalisePhoneInRegion,
   reconcile,
   SyncTable,
   type MirrorRow,
@@ -29,6 +33,7 @@ import {
   type SyncRejectionCode,
 } from '@waves/core';
 
+import { deviceCountry } from '@/i18n';
 import { reportHandled } from '@/lib/observability';
 import { backend } from '@/lib/backend';
 import { loadSyncNetworkPreference, SyncNetworkPreference } from '@/lib/syncNetwork';
@@ -351,7 +356,13 @@ export class SyncEngine {
               kind: item.kind,
               groupId: item.groupId,
               clientCreatedAt: item.clientCreatedAt,
-              payload: item.payload,
+              // Heal a bare "add member" phone right before it is (re)sent: read
+              // it in the group's own region, so an old build's queued number —
+              // or anything that slipped past entry normalisation — syncs
+              // instead of being refused. The stored payload is left as-is; a
+              // healthy send removes it from the queue anyway, and a failed one
+              // is healed again next round.
+              payload: this.healGhostPhonePayload(item.kind, item.groupId, item.payload),
             })),
             cursors,
           },
@@ -378,7 +389,24 @@ export class SyncEngine {
         ),
       );
 
-      const rejected: RejectedMutation[] = folded.rejected.map((entry) => ({
+      // Auto-heal a refused "add member" whose only fault was a bare, uncoded
+      // phone: re-queue it with the number read in the group's region rather
+      // than surfacing a banner the user has to act on. Anything we cannot heal
+      // — no region, a genuinely invalid number, or a rejection for some other
+      // reason — falls through to `rejected` and is shown as a friendly line.
+      const requeue: MutationEnvelope[] = [];
+      const stillRejected: {
+        mutation: QueuedMutation;
+        code: SyncRejectionCode;
+        message: string;
+      }[] = [];
+      for (const entry of folded.rejected) {
+        const healed = this.healRejectedGhostPhone(entry);
+        if (healed) requeue.push(healed);
+        else stillRejected.push(entry);
+      }
+
+      const rejected: RejectedMutation[] = stillRejected.map((entry) => ({
         clientMutationId: entry.mutation.clientMutationId,
         kind: entry.mutation.kind,
         groupId: entry.mutation.groupId,
@@ -436,6 +464,15 @@ export class SyncEngine {
       if (response.hasMore) {
         setTimeout(() => void this.flush(), 0);
       }
+
+      // Persist and send the healed re-queues. enqueue writes each to disk (so a
+      // force-kill still keeps the correction) and its own flush is deduped
+      // behind this in-flight one; a fresh flush once this settles pushes the
+      // corrected member now rather than waiting out the 30s poll.
+      if (requeue.length > 0) {
+        for (const envelope of requeue) await this.enqueue(envelope);
+        setTimeout(() => void this.flush(), 0);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const queue = markFailed(this.state.queue, batch, message, now);
@@ -447,6 +484,80 @@ export class SyncEngine {
         reportHandled(writeError, 'sync.markFailed');
       });
     }
+  }
+
+  // ─────────────────────────────────────────────── phone healing ──
+  // A bare local number ("9535621101") has no country code, and the server
+  // refuses it by design (a silent +91 would misroute an invite to a stranger).
+  // Rather than let that surface as a raw banner, the number is read in a known
+  // region — the group's own country first, then the device's — the same
+  // WhatsApp-style default every messaging app on the phone already uses. There
+  // is no blind default: with no region to read it in, the healers do nothing
+  // and the refusal becomes a friendly ask for the country code.
+
+  /** The dialing code to read this group's bare numbers in, or null. */
+  private regionDialCodeForGroup(groupId: string): string | null {
+    const groups = this.state.mirror.tables[SyncTable.Groups] as
+      Record<string, MirrorRow> | undefined;
+    const group = groups?.[groupId] as { country_code?: unknown } | undefined;
+    const groupCountry = typeof group?.country_code === 'string' ? group.country_code : null;
+    return dialingCodeForCountry(groupCountry ?? deviceCountry());
+  }
+
+  /**
+   * The outbound payload for a mutation, with a bare "add member" phone read in
+   * the group's region. Anything else is returned untouched. Best-effort: an
+   * uncodeable or invalid number is left exactly as it was for the server to
+   * answer, so this can never throw inside the flush.
+   */
+  private healGhostPhonePayload(kind: MutationKind, groupId: string, payload: unknown): unknown {
+    if (kind !== MutationKind.MemberAddGhost) return payload;
+    if (typeof payload !== 'object' || payload === null) return payload;
+    const record = payload as Record<string, unknown>;
+    const phone = typeof record.phone === 'string' ? record.phone : null;
+    if (!phone || phone.trim().startsWith('+')) return payload;
+    try {
+      const healed = normalisePhoneInRegion(phone, this.regionDialCodeForGroup(groupId));
+      return healed === phone ? payload : { ...record, phone: healed };
+    } catch {
+      return payload;
+    }
+  }
+
+  /**
+   * A corrected envelope for a refused "add member" whose number only lacked a
+   * country code, or null when it cannot (or need not) be healed — a different
+   * kind, a different refusal, no region, an already-coded or invalid number.
+   * A fresh id, so the server treats it as the new attempt it is.
+   */
+  private healRejectedGhostPhone(entry: {
+    mutation: QueuedMutation;
+    code: SyncRejectionCode | string;
+    message: string;
+  }): MutationEnvelope | null {
+    if (entry.mutation.kind !== MutationKind.MemberAddGhost) return null;
+    if (!/PHONE_NEEDS_COUNTRY_CODE|PHONE_NOT_VALID/.test(`${entry.code} ${entry.message}`)) {
+      return null;
+    }
+    const payload = entry.mutation.payload as Record<string, unknown>;
+    const phone = typeof payload.phone === 'string' ? payload.phone : null;
+    if (!phone) return null;
+    let healed: string;
+    try {
+      healed = normalisePhoneInRegion(phone, this.regionDialCodeForGroup(entry.mutation.groupId));
+    } catch {
+      return null;
+    }
+    // No change means the number already had a code (or none we can add) — do
+    // not re-queue it, or a still-refused number would loop forever.
+    if (healed === phone) return null;
+    return {
+      clientMutationId: randomUUID(),
+      kind: MutationKind.MemberAddGhost,
+      groupId: entry.mutation.groupId,
+      clientCreatedAt: new Date().toISOString(),
+      payload: { ...payload, phone: healed },
+    };
   }
 
   private async persist(

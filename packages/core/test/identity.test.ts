@@ -18,6 +18,7 @@ import {
   IdentityError,
   normaliseEmail,
   normalisePhone,
+  normalisePhoneInRegion,
   planAuth,
   readIdentifier,
   AuthMethod,
@@ -162,6 +163,41 @@ describe('phone numbers', () => {
   it('takes a number from anywhere, not only India', () => {
     expect(normalisePhone('+1 415 555 2671')).toBe('+14155552671');
     expect(normalisePhone('+44 20 7946 0958')).toBe('+442079460958');
+  });
+});
+
+describe('a bare national number, read in a known region', () => {
+  // The everyday case the sign-in refusal got wrong: adding a friend by their
+  // local number, the way every messaging app on the phone already does it.
+  it('reads a bare number in the region it was handed', () => {
+    // The exact number from the bug report: it just works, in India's region.
+    expect(normalisePhoneInRegion('9535621101', '+91')).toBe('+919535621101');
+    expect(normalisePhoneInRegion('98765 43210', '+91')).toBe('+919876543210');
+    expect(normalisePhoneInRegion('415 555 2671', '+1')).toBe('+14155552671');
+  });
+
+  it('drops the trunk 0 a local number is often written with', () => {
+    // 09876… is how the same number is written to dial it locally; the 0 is a
+    // trunk prefix, not part of the international number.
+    expect(normalisePhoneInRegion('09535621101', '+91')).toBe('+919535621101');
+  });
+
+  it('leaves a number that already has its own country code alone', () => {
+    // Someone pasted a full international number; the region is irrelevant and
+    // must not be prepended a second time.
+    expect(normalisePhoneInRegion('+14155552671', '+91')).toBe('+14155552671');
+    expect(normalisePhoneInRegion('+44 20 7946 0958', '+91')).toBe('+442079460958');
+  });
+
+  it('still refuses a bare number when there is no region to read it in', () => {
+    // The no-blind-default property, preserved: with no region the honest
+    // refusal is the only safe answer — better than guessing a country.
+    expect(() => normalisePhoneInRegion('9535621101', null)).toThrow(IdentityError);
+    expect(() => normalisePhoneInRegion('9535621101', null)).toThrow(/country code/);
+  });
+
+  it('rejects a region-completed number that still is not a phone number', () => {
+    expect(() => normalisePhoneInRegion('12', '+91')).toThrow(/phone number/);
   });
 });
 

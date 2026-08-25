@@ -1266,6 +1266,9 @@ export interface UiStrings {
     addSomeone: string;
     namePlaceholder: string;
     contactPlaceholder: string;
+    /** Shown when a number was typed with no country code and none can be read
+     *  from the region — the one friendly ask, never a raw internal code. */
+    phoneNeedsCountryCode: string;
     yetToJoin: PluralForms;
     sendInviteLink: string;
     memberNotFound: string;
@@ -2980,6 +2983,7 @@ const en: UiStrings = {
     addSomeone: 'Add someone',
     namePlaceholder: 'Rahul',
     contactPlaceholder: 'Email or phone, if you want to send them the link',
+    phoneNeedsCountryCode: 'Add the country code to that number, like +91.',
     yetToJoin: { one: '{n} yet to join', other: '{n} yet to join' },
     sendInviteLink: 'Send an invite link',
     memberNotFound: 'Member not found',
@@ -4779,6 +4783,7 @@ const ta: UiStrings = {
     addSomeone: 'ஒருவரைச் சேர்',
     namePlaceholder: 'ராகுல்',
     contactPlaceholder: 'இணைப்பை அனுப்ப விரும்பினால் மின்னஞ்சல் அல்லது தொலைபேசி',
+    phoneNeedsCountryCode: 'அந்த எண்ணுடன் நாட்டுக் குறியீட்டைச் சேர்க்கவும், எடுத்துக்காட்டாக +91.',
     yetToJoin: { one: '{n} பேர் இன்னும் சேரவில்லை', other: '{n} பேர் இன்னும் சேரவில்லை' },
     sendInviteLink: 'அழைப்பு இணைப்பை அனுப்பு',
     memberNotFound: 'உறுப்பினர் கிடைக்கவில்லை',
@@ -6572,6 +6577,7 @@ const hi: UiStrings = {
     addSomeone: 'किसी को जोड़ें',
     namePlaceholder: 'राहुल',
     contactPlaceholder: 'ईमेल या फ़ोन, अगर उन्हें लिंक भेजना हो',
+    phoneNeedsCountryCode: 'उस नंबर में देश का कोड जोड़ें, जैसे +91।',
     yetToJoin: { one: '{n} अभी जुड़ना बाकी', other: '{n} अभी जुड़ना बाकी' },
     sendInviteLink: 'निमंत्रण लिंक भेजें',
     memberNotFound: 'सदस्य नहीं मिला',
@@ -8371,6 +8377,7 @@ const ar: UiStrings = {
     addSomeone: 'أضف شخصًا',
     namePlaceholder: 'راكيش',
     contactPlaceholder: 'بريد أو هاتف، إن أردت إرسال الرابط إليه',
+    phoneNeedsCountryCode: 'أضِف رمز الدولة إلى هذا الرقم أولًا.',
     yetToJoin: {
       zero: '{n} لم ينضموا بعد',
       one: 'واحد لم ينضم بعد',

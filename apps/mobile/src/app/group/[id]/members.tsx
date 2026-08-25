@@ -35,6 +35,7 @@ import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { requestContacts } from '@/lib/contactPickerBridge';
 import { friendlyError } from '@/lib/errors';
+import { isPhoneCountryError } from '@/lib/phone';
 
 export default function MembersScreen() {
   const theme = useTheme();
@@ -115,7 +116,11 @@ export default function MembersScreen() {
           setGhostContact('');
         },
         onError: (caught) =>
-          setError(friendlyError(caught, t.misc.couldNotAddGeneric, 'members.addGhost')),
+          setError(
+            isPhoneCountryError(caught)
+              ? t.people.phoneNeedsCountryCode
+              : friendlyError(caught, t.misc.couldNotAddGeneric, 'members.addGhost'),
+          ),
       },
     );
   };
@@ -149,7 +154,9 @@ export default function MembersScreen() {
         // Report every refusal (friendlyError's side effect sends each to
         // Sentry); keep only the first one's words for the UI, so the message
         // can say why rather than only which names did not make it.
-        const message = friendlyError(caught, t.misc.tryAgainMoment, 'members.addPicked');
+        const message = isPhoneCountryError(caught)
+          ? t.people.phoneNeedsCountryCode
+          : friendlyError(caught, t.misc.tryAgainMoment, 'members.addPicked');
         if (!reason) reason = message;
       }
     }
