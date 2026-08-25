@@ -267,6 +267,82 @@ describe('expense comments — permission matrix', () => {
     expect(msg).toMatch(/EMPTY_COMMENT/);
   });
 
+  it('T17 a comment id from another group is not a replay — it is a conflict', async () => {
+    const other = await seedGroup(client, { memberCount: 2, name: 'Cross-scope A' });
+    const { expenseId: otherExpense } = await addEqualSplitExpense(client, {
+      groupId: other.groupId,
+      payers: { [other.memberIds[0] as string]: 1000n },
+      participants: other.memberIds,
+      amount: 1000n,
+    });
+    const id = randomUUID();
+    // A genuine comment in `other`, owned by other.profileIds[0].
+    await as(other.profileIds[0] as string, () =>
+      client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        other.groupId,
+        otherExpense,
+        id,
+        'belongs to the other group',
+      ]),
+    );
+    // A member of `g` reuses that same id, targeting g's own group/expense.
+    // Before the fix this silently returned `id` (an existence oracle) with
+    // no row inserted into g; now it is a clean conflict.
+    const msg = await expectDenied(
+      as(P(1), () =>
+        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+          g.groupId,
+          expenseId,
+          id,
+          'trying to reuse a foreign id',
+        ]),
+      ),
+    );
+    expect(msg).toMatch(/COMMENT_ID_CONFLICT/);
+    // And the original, untouched.
+    const row = await rowById(id);
+    expect(String(row.author_member_id)).toBe(other.memberIds[0]);
+  });
+
+  it('T18 a comment id already used on a different expense in the same group is a conflict', async () => {
+    const { expenseId: secondExpense } = await addEqualSplitExpense(client, {
+      groupId: g.groupId,
+      payers: { [g.memberIds[0] as string]: 1000n },
+      participants: g.memberIds,
+      amount: 1000n,
+      description: 'A second bill',
+    });
+    const id = await addComment(P(1), 'on the first expense');
+    const msg = await expectDenied(
+      as(P(1), () =>
+        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+          g.groupId,
+          secondExpense,
+          id,
+          'same group, different expense',
+        ]),
+      ),
+    );
+    expect(msg).toMatch(/COMMENT_ID_CONFLICT/);
+  });
+
+  it('T19 a comment id already used by a different author on the same expense is a conflict', async () => {
+    const id = await addComment(P(1), "P1's comment");
+    const msg = await expectDenied(
+      as(P(2), () =>
+        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+          g.groupId,
+          expenseId,
+          id,
+          'P2 tries to reuse it',
+        ]),
+      ),
+    );
+    expect(msg).toMatch(/COMMENT_ID_CONFLICT/);
+    const row = await rowById(id);
+    expect(String(row.author_member_id)).toBe(g.memberIds[1]);
+  });
+
   it('T16 the table is not directly writable — RPCs are the only way in', async () => {
     const id = await addComment(P(1), 'legit');
     // Direct INSERT forging an author.
