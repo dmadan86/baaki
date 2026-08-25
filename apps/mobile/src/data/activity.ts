@@ -150,6 +150,42 @@ export function verbIcon(verb: string): React.ComponentProps<typeof Ionicons>['n
   }
 }
 
+/** The pastel tint keys an activity tile can wear (a subset of the app's tint family). */
+export type ActivityTint = 'mint' | 'coral' | 'sky' | 'lilac';
+
+/**
+ * The soft tile colour for an activity verb, so the feed is skimmable by hue:
+ * mint for money arriving and for confirmations, coral for a delete or a
+ * dispute, sky for something added or someone joining, lilac (the brand-leaning
+ * neutral) for edits, creation and anything a newer build introduces. Shared by
+ * both feeds — the group Activity tab and the cross-group one — so an event
+ * wears the same colour wherever it is shown. The caller maps the key through
+ * `theme.tint[...]`, keeping this free of the UI theme.
+ */
+export function verbTint(verb: string): ActivityTint {
+  switch (verb) {
+    case 'settled':
+    case 'confirmed':
+    case 'auto_confirmed':
+    case 'accepted_dispute':
+    case 'restored':
+    case 'withdrew_dispute':
+      return 'mint';
+    case 'deleted':
+    case 'disputed':
+    case 'rejected_dispute':
+      return 'coral';
+    case 'added':
+    case 'joined':
+      return 'sky';
+    case 'edited':
+    case 'superseded':
+    case 'created':
+    default:
+      return 'lilac';
+  }
+}
+
 /**
  * "19m ago", "yesterday" — a localized relative time for a timeline entry.
  *

@@ -17,7 +17,6 @@ import {
   Fab,
   Gradient,
   iconSize,
-  ListRow,
   MoneyText,
   Row,
   Screen,
@@ -36,7 +35,7 @@ import {
   useGroupRealtime,
   useOpenReceipts,
 } from '@/data/hooks';
-import { describeActivity, parseMoney, verbIcon } from '@/data/activity';
+import { describeActivity, parseMoney, relativeTime, verbIcon, verbTint } from '@/data/activity';
 import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
@@ -1034,65 +1033,82 @@ export default function GroupScreen() {
                 icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
               />
             ) : (
-              // Flat like the Expenses and Balances tabs — bare rows and
-              // hairlines, not a boxed Card, so all three tabs read alike.
+              // The same row shape as the Expenses tab, so the three tabs read as
+              // one screen: a soft tinted tile on the left, the sentence and a
+              // relative time beside it, the amount on the right, hairlines
+              // between. The event wears a rounded-square tile (not the expense's
+              // circle, not a bare timeline node or a bold filled disc) in a tint
+              // that leans with the verb — mint for money in and confirmations,
+              // coral for a delete or a dispute — so the feed is skimmable by
+              // colour at a glance without a connector line drawing the eye down.
               <View>
-                {(activity.data ?? []).map((entry, index) => (
-                  <View key={entry.id}>
-                    <ListRow
-                      title={describeActivity(
-                        // The group feed rides the mirror, where an activity row
-                        // carries only `actor_member_id` — not the joined actor the
-                        // cross-group feed gets. Resolve the actor from this group's
-                        // members so the row names the person instead of "someone".
-                        entry.actor ? entry : { ...entry, actor: actorFor(entry.actor_member_id) },
-                        profile?.id ?? null,
-                        blockedIds,
-                        t.misc.someone,
-                      )}
-                      subtitle={new Intl.DateTimeFormat(locale, {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      }).format(new Date(entry.created_at))}
-                      leading={
-                        // Same node as the Activity tab and the dashboard: the
-                        // verb as a line glyph in a soft-brand circle, one accent.
+                {(activity.data ?? []).map((entry, index) => {
+                  const isLast = index === (activity.data?.length ?? 0) - 1;
+                  const money = parseMoney(entry.payload, currency);
+                  const tint = theme.tint[verbTint(entry.verb)];
+                  return (
+                    <View key={entry.id}>
+                      <Row
+                        style={{
+                          gap: theme.spacing.md,
+                          alignItems: 'center',
+                          paddingVertical: theme.spacing.md,
+                        }}
+                      >
                         <View
                           style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 19,
+                            width: 40,
+                            height: 40,
+                            borderRadius: theme.radius.md,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: theme.color.buttonPrimary,
+                            backgroundColor: tint.bg,
                           }}
                         >
                           <Ionicons
                             name={verbIcon(entry.verb)}
                             size={iconSize.lg}
-                            color={theme.color.onBrand}
+                            color={tint.ink}
                           />
                         </View>
-                      }
-                      trailing={(() => {
-                        const money = parseMoney(entry.payload, currency);
-                        return money ? (
+                        <View style={{ flex: 1 }}>
+                          <Text variant="body" numberOfLines={2}>
+                            {describeActivity(
+                              // The group feed rides the mirror, where an activity
+                              // row carries only `actor_member_id` — not the joined
+                              // actor the cross-group feed gets. Resolve the actor
+                              // from this group's members so the row names the
+                              // person instead of "someone".
+                              entry.actor
+                                ? entry
+                                : { ...entry, actor: actorFor(entry.actor_member_id) },
+                              profile?.id ?? null,
+                              blockedIds,
+                              t.misc.someone,
+                            )}
+                          </Text>
+                          <Text variant="caption" tone="muted" numberOfLines={1}>
+                            {relativeTime(locale, entry.created_at)}
+                          </Text>
+                        </View>
+                        {money ? (
                           <MoneyText
                             amount={money.amount}
                             currency={money.currency}
                             locale={locale}
-                            variant="caption"
+                            variant="subheading"
+                            // Same owe colour as the shares, balances and the
+                            // global feed — one money colour across every screen.
+                            tone="negative"
                           />
-                        ) : null;
-                      })()}
-                    />
-                    {index < (activity.data?.length ?? 0) - 1 ? (
-                      <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                    ) : null}
-                  </View>
-                ))}
+                        ) : null}
+                      </Row>
+                      {!isLast ? (
+                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                      ) : null}
+                    </View>
+                  );
+                })}
               </View>
             )
           }
