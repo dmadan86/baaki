@@ -48,6 +48,37 @@ describe('parseVoiceExpense', () => {
     expect(parsed.currency).toBe('USD');
   });
 
+  it('recognises currencies beyond rupees and dollars', () => {
+    const cases: [string, string][] = [
+      ['2000 yen for sushi', 'JPY'],
+      ['50 euros hotel', 'EUR'],
+      ['100 pounds tickets', 'GBP'],
+      ['300 dirhams taxi', 'AED'],
+      ['5000 won lunch', 'KRW'],
+      ['1000 ringgit shopping', 'MYR'],
+      ['200 baht food', 'THB'],
+      ['500 dong snacks', 'VND'],
+      ['80 francs cab', 'CHF'],
+      ['500 canadian dollars flight', 'CAD'],
+      ['600 australian dollars tour', 'AUD'],
+      ['sri lankan rupees 400 tea', 'LKR'],
+    ];
+    for (const [sentence, code] of cases) {
+      expect(parseVoiceExpense(sentence, groups).currency).toBe(code);
+    }
+  });
+
+  it('reads currency symbols', () => {
+    expect(parseVoiceExpense('¥3000 ramen', groups).currency).toBe('JPY');
+    expect(parseVoiceExpense('$25 coffee', groups).currency).toBe('USD');
+    expect(parseVoiceExpense('€15 museum', groups).currency).toBe('EUR');
+    expect(parseVoiceExpense('₹500 chai', groups).currency).toBe('INR');
+  });
+
+  it('does not mint a currency from the ordinary word "try"', () => {
+    expect(parseVoiceExpense("I'll try the new place, 500 rupees", groups).currency).toBe('INR');
+  });
+
   it('returns nulls for a sentence with no number', () => {
     const parsed = parseVoiceExpense('groceries for the flat', groups);
     expect(parsed.amountMinor).toBeNull();
@@ -93,6 +124,69 @@ describe('parseVoiceExpense', () => {
 
   it('leaves the count null when no split is said', () => {
     expect(parseVoiceExpense('add 500 for dinner', groups).splitCount).toBeNull();
+  });
+
+  // How real people actually say amounts out loud — proper English and not —
+  // captured as one table so a phrasing that regresses is obvious. Each row is
+  // [sentence, expected major amount].
+  describe('the many ways a person speaks an amount', () => {
+    const amountCases: [string, number][] = [
+      // Whole numbers in words
+      ['hundred rupees for coffee', 100],
+      ['one hundred rupees coffee', 100],
+      ['five hundred and fifty rupees', 550],
+      ['thousand rupees petrol', 1000],
+      ['fifteen hundred rupees hotel', 1500],
+      ['twenty five hundred rupees flight', 2500],
+      ['thousand five hundred rupees', 1500],
+      ['lakh rupees rent', 100000],
+      // Digit joined to a spoken scale word (common dictation output)
+      ['3 thousand rupees petrol', 3000],
+      ['5 lakh for the car', 500000],
+      ['2 crore rupees flat', 20000000],
+      // Spoken decimals — "point" and, less often, "dot"
+      ['hundred point five rupees snacks', 100.5],
+      ['hundred dot five rupees snacks', 100.5],
+      ['ninety nine point nine nine rupees', 99.99],
+      ['one hundred point five zero dollars', 100.5],
+      ['point five zero rupees tip', 0.5],
+      // Minor units spoken out — paise and cents
+      ['hundred rupees fifty paise milk', 100.5],
+      ['hundred rupees and fifty paise milk', 100.5],
+      ['twenty dollars ninety nine cents', 20.99],
+      ['five rupees five paise', 5.05],
+      // Written digits with separators and decimals
+      ['1,299.50 dollars', 1299.5],
+      ['99.99 dollars', 99.99],
+      // Currency named before the amount
+      ['rupees hundred for auto', 100],
+      ['$40 for lunch', 40],
+      // Not-so-proper English word order — the amount still comes through
+      ['petrol 100 rupees', 100],
+      ['i paid 500 rupees for dinner', 500],
+      ['dinner 250 rupees me and two friends', 250],
+    ];
+    for (const [sentence, expected] of amountCases) {
+      it(`hears "${sentence}" as ${expected}`, () => {
+        expect(parseVoiceExpense(sentence, groups).amountMajor).toBe(expected);
+      });
+    }
+  });
+
+  // The flip side: phrasings a person did NOT mean as an amount must stay null,
+  // so the screen asks rather than inventing money out of ordinary speech.
+  describe('phrasings that must NOT become an amount', () => {
+    const noAmount = [
+      'groceries for the flat',
+      'table for two please',
+      'split it between us',
+      'one of us will pay later',
+    ];
+    for (const sentence of noAmount) {
+      it(`hears no amount in "${sentence}"`, () => {
+        expect(parseVoiceExpense(sentence, groups).amountMajor).toBeNull();
+      });
+    }
   });
 });
 
@@ -156,6 +250,57 @@ describe('parseVoiceExpenses (several in one breath)', () => {
   it('drops segments that carry no amount', () => {
     const result = parseVoiceExpenses('hello, 50 for coffee, um', groups);
     expect(result.items.map((item) => item.amountMajor)).toEqual([50]);
+  });
+
+  // Dictation often hands back a digit glued to a spoken scale word — "3
+  // thousand", "5 lakh", "2 crore" — rather than the fully-spelled words or the
+  // finished digits. These must fold to one amount, not split into a phantom
+  // "₹3" expense plus a "₹1000" one (the bug that made "three thousand rupees
+  // for petrol" save as ₹3 with no description).
+  it('folds a digit joined to a scale word into one amount', () => {
+    const result = parseVoiceExpenses('3 thousand rupees for petrol', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(3000);
+    expect(result.items[0].note).toBe('petrol');
+    expect(result.items[0].currency).toBe('INR');
+  });
+
+  it('folds Indian scale words (lakh, crore) onto a leading digit', () => {
+    expect(parseVoiceExpenses('5 lakh for car', groups).items[0].amountMajor).toBe(500000);
+    expect(parseVoiceExpenses('2 crore rupees', groups).items[0].amountMajor).toBe(20000000);
+  });
+
+  it('folds a fully-spoken scale amount too', () => {
+    const result = parseVoiceExpenses('three thousand rupees for petrol', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(3000);
+    expect(result.items[0].note).toBe('petrol');
+  });
+
+  it('still splits a bare run of digits into separate expenses (5 10 ≠ 15)', () => {
+    const result = parseVoiceExpenses('5 rupees snacks 10 rupees tea', groups);
+    expect(result.items.map((item) => item.amountMajor)).toEqual([5, 10]);
+  });
+
+  it('assigns the named group even with "split equally" phrasing', () => {
+    const result = parseVoiceExpenses('split equally for the Goa trip 3000 rupees', groups);
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(3000);
+    expect(result.items[0].currency).toBe('INR');
+  });
+
+  it('assigns the group and reads a people-count in one breath', () => {
+    const result = parseVoiceExpenses('1000 rupees groceries on Goa trip split among 4', groups);
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+    expect(result.splitCount).toBe(4);
+    expect(result.items[0].amountMajor).toBe(1000);
+  });
+
+  it('carries non-rupee currencies through the multi-expense path', () => {
+    const result = parseVoiceExpenses('20 euros coffee, 15 euros cake', groups);
+    expect(result.items.map((item) => item.currency)).toEqual(['EUR', 'EUR']);
+    expect(result.items.map((item) => item.amountMajor)).toEqual([20, 15]);
   });
 });
 

@@ -26,7 +26,7 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { computeShares, type ExpenseLocation, type SplitParams } from '@waves/core';
+import { computeShares, minorUnitScale, type ExpenseLocation, type SplitParams } from '@waves/core';
 import {
   Button,
   Callout,
@@ -81,11 +81,17 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** A major-unit amount string to minor units, or null when it is not a number. */
-function toMinor(amount: string): bigint | null {
+/**
+ * A major-unit amount string to minor units in the given currency, or null when
+ * it is not a number. The scale is the currency's own — 100 for rupees and
+ * dollars, but 1 for yen and 1000 for dinar — so a "¥3000" expense is ¥3000, not
+ * a hundredfold ¥300000. (Was a flat ×100, which only held for two-decimal
+ * currencies.)
+ */
+function toMinor(amount: string, currency: string): bigint | null {
   const value = Number.parseFloat(amount.replace(/,/g, ''));
   if (!Number.isFinite(value) || value <= 0) return null;
-  return BigInt(Math.round(value * 100));
+  return BigInt(Math.round(value * Number(minorUnitScale(currency))));
 }
 
 export default function VoiceScreen() {
@@ -219,7 +225,8 @@ export default function VoiceScreen() {
 
       if (dest.kind === 'unassigned') {
         for (const draft of drafts) {
-          const amount = toMinor(draft.amount);
+          const currency = draft.currency ?? dc;
+          const amount = toMinor(draft.amount, currency);
           if (amount === null) continue;
           // The draft's own id is the capture id, so a save retried after a
           // partial failure re-uses it rather than minting a second capture.
@@ -227,7 +234,7 @@ export default function VoiceScreen() {
             captureId: draft.key,
             description: draft.note.trim() || fallback,
             expenseDate: date,
-            currency: draft.currency ?? dc,
+            currency,
             amount,
             location,
           });
@@ -266,7 +273,7 @@ export default function VoiceScreen() {
       if (participants.length === 0 || !payer) throw new Error('no members to split among');
 
       for (const draft of drafts) {
-        const amount = toMinor(draft.amount);
+        const amount = toMinor(draft.amount, groupCurrency);
         if (amount === null) continue;
         // Every spoken expense is "I paid, split it equally" — the group's own
         // currency, everyone in, me as payer. The reader can refine any of it on
@@ -308,7 +315,9 @@ export default function VoiceScreen() {
   // otherwise be silently skipped, and a screenful of them would "save" nothing
   // while still navigating away.
   const canSave =
-    drafts.length > 0 && !saving && drafts.every((draft) => toMinor(draft.amount) !== null);
+    drafts.length > 0 &&
+    !saving &&
+    drafts.every((draft) => toMinor(draft.amount, draft.currency ?? dc) !== null);
 
   // The footer total must read in the same currency the Save will persist, or
   // it lies about what lands. A group save writes every expense in the group's
@@ -324,9 +333,9 @@ export default function VoiceScreen() {
         : (target.group.data?.default_currency ?? dc);
   const draftTotals = new Map<string, bigint>();
   for (const draft of drafts) {
-    const minor = toMinor(draft.amount);
-    if (minor === null) continue;
     const currency = destCurrency ?? draft.currency ?? dc;
+    const minor = toMinor(draft.amount, currency);
+    if (minor === null) continue;
     draftTotals.set(currency, (draftTotals.get(currency) ?? 0n) + minor);
   }
   const singleTotal = draftTotals.size === 1 ? [...draftTotals.entries()][0] : null;
