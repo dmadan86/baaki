@@ -184,7 +184,13 @@ export default function ImportScreen() {
       setFileGroupIndex(0);
       setParsed(null);
 
-      const text = new FileSystem.File(asset.uri).textSync();
+      const pickedFile = new FileSystem.File(asset.uri);
+      const text = pickedFile.textSync();
+      try {
+        if (pickedFile.exists) pickedFile.delete();
+      } catch {
+        // Best-effort privacy cleanup; parsing has already copied the content into memory.
+      }
       setFile(asset.name);
 
       // Asked of the contents, not the extension: a file saved from a browser

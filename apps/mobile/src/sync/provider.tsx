@@ -24,6 +24,8 @@ import type { MutationEnvelope, MutationKind } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
 import { reportHandled } from '@/lib/observability';
+import { clearReceiptQueue } from '@/lib/receiptQueue';
+import { clearImageCache } from '@/lib/storage/imageCache';
 
 import { syncEngine, type SyncState } from './engine';
 
@@ -46,11 +48,28 @@ interface SyncContextValue extends SyncState {
 
 const SyncContext = createContext<SyncContextValue | null>(null);
 
+async function clearLocalPrivateData(): Promise<void> {
+  const failures: unknown[] = [];
+  await syncEngine.clear().catch((error: unknown) => failures.push(error));
+  await clearReceiptQueue().catch((error: unknown) => failures.push(error));
+  try {
+    clearImageCache();
+  } catch (error) {
+    failures.push(error);
+  }
+  if (failures.length > 0) throw failures[0];
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const [state, setState] = useState<SyncState>(() => syncEngine.getState());
   const signedIn = Boolean(session);
   const wasSignedIn = useRef(signedIn);
+  // The in-flight sign-out cleanup, if any. Sign-out does not block on it, but
+  // the next sign-in must: the receipt queue and image cache are device-global,
+  // so a cleanup still deleting when a new account signs in would wipe the new
+  // session's freshly-hydrated data. Awaiting it first serialises the two.
+  const pendingCleanup = useRef<Promise<void> | null>(null);
 
   useEffect(() => syncEngine.subscribe(setState), []);
 
@@ -59,9 +78,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       // Signing out wipes the mirror: the next person to use this phone must
       // not find the previous account's ledger in it. Worth reporting rather
       // than swallowing — a wipe that failed is a privacy problem, not a
-      // cosmetic one — but not worth throwing at a screen mid-sign-out.
+      // cosmetic one — but not worth throwing at a screen mid-sign-out. The
+      // promise is kept (never rejects — the catch resolves it) so the next
+      // sign-in can await its completion before hydrating.
       if (wasSignedIn.current) {
-        void syncEngine.clear().catch((error: unknown) => reportHandled(error, 'sync.clear'));
+        pendingCleanup.current = clearLocalPrivateData().catch((error: unknown) =>
+          reportHandled(error, 'sync.clearPrivateData'),
+        );
       }
       wasSignedIn.current = false;
       syncEngine.stop();
@@ -71,6 +94,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     wasSignedIn.current = true;
     let cancelled = false;
     void (async () => {
+      // A prior sign-out's cleanup may still be deleting the device-global
+      // receipt queue / image cache. Let it finish before this session hydrates,
+      // or it would delete data the new account just wrote.
+      const priorCleanup = pendingCleanup.current;
+      if (priorCleanup) {
+        await priorCleanup;
+        pendingCleanup.current = null;
+        if (cancelled) return;
+      }
       // Nothing awaits this, so anything thrown here would surface as an
       // uncaught promise rejection over whatever screen happens to be up.
       // `flush` hydrates too, and records the failure where the banner can

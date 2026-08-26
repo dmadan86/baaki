@@ -26,6 +26,14 @@ class FakeDirectory {
     if (fs.failCreate) throw new Error('mkdir failed');
     fs.dirs.add(this.uri);
   }
+
+  delete(): void {
+    if (fs.failDelete) throw new Error('delete failed');
+    fs.dirs.delete(this.uri);
+    for (const key of [...fs.files.keys()]) {
+      if (key.startsWith(`${this.uri}/`)) fs.files.delete(key);
+    }
+  }
 }
 
 class FakeFile {
@@ -72,7 +80,7 @@ vi.mock('expo-file-system', () => ({
   Paths: { cache: 'cache-root' },
 }));
 
-const { cacheImage, cachedImageUri, cacheImageBytes, evictImage } =
+const { cacheImage, cachedImageUri, cacheImageBytes, evictImage, clearImageCache } =
   await import('../src/lib/storage/imageCache');
 
 const cachedPath = (path: string) =>
@@ -214,6 +222,43 @@ describe('image cache', () => {
     fs.failDelete = true;
     expect(() => evictImage('expense-attachments', 'g1/e1.png')).not.toThrow();
     expect(() => evictImage('expense-attachments', null)).not.toThrow();
+  });
+
+  it('clears the entire cache directory for sign-out privacy cleanup', () => {
+    cacheImageBytes('expense-attachments', 'g1/e1.png', new Uint8Array([5]));
+    cacheImageBytes('avatars', 'avatars/a1.png', new Uint8Array([6]));
+
+    clearImageCache();
+
+    expect(cachedImageUri('expense-attachments', 'g1/e1.png')).toBeNull();
+    expect(cachedImageUri('avatars', 'avatars/a1.png')).toBeNull();
+    expect([...fs.files.keys()].filter((key) => key.includes('receipt-image-cache'))).toEqual([]);
+
+    // Re-seed so the directory exists again — otherwise the delete is skipped and
+    // the failure path is never exercised — then make delete fail: the cleanup
+    // must still swallow it (best-effort) rather than throw.
+    cacheImageBytes('expense-attachments', 'g1/e2.png', new Uint8Array([7]));
+    fs.failDelete = true;
+    expect(() => clearImageCache()).not.toThrow();
+  });
+
+  it('drops an in-flight download that resolves after the cache is cleared', async () => {
+    // A download is in flight when the account signs out. It must not write its
+    // private bytes back into the cache the sign-out just erased.
+    let release!: (value: unknown) => void;
+    fs.fetch.mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    const pending = cacheImage('expense-attachments', 'g1/late.png', 'https://signed.example/late');
+
+    clearImageCache(); // sign-out, mid-download
+
+    release({ ok: true, bytes: async () => new Uint8Array([9]) });
+    await expect(pending).resolves.toBeNull();
+    expect(cachedImageUri('expense-attachments', 'g1/late.png')).toBeNull();
+    expect([...fs.files.keys()].filter((key) => key.includes('receipt-image-cache'))).toEqual([]);
   });
 
   it('keeps the latest complete byte set when two writes target the same cache key', () => {

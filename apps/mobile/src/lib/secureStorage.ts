@@ -22,6 +22,9 @@ const countKey = (key: string) => `${key}.pn`;
 const partKey = (key: string, i: number) => `${key}.p${i}`;
 
 const isWeb = Platform.OS === 'web';
+const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
 
 // Keys whose legacy plaintext has been cleared this process. If the removal
 // fails, the key is left out so a later read retries — otherwise the marker is
@@ -68,9 +71,13 @@ async function setItem(key: string, value: string): Promise<void> {
 
   const prev = Number(await SecureStore.getItemAsync(countKey(key))) || 0;
   const count = Math.max(1, Math.ceil(value.length / CHUNK));
-  await SecureStore.setItemAsync(countKey(key), String(count));
+  await SecureStore.setItemAsync(countKey(key), String(count), SECURE_OPTIONS);
   for (let i = 0; i < count; i++) {
-    await SecureStore.setItemAsync(partKey(key, i), value.slice(i * CHUNK, (i + 1) * CHUNK));
+    await SecureStore.setItemAsync(
+      partKey(key, i),
+      value.slice(i * CHUNK, (i + 1) * CHUNK),
+      SECURE_OPTIONS,
+    );
   }
   // A shorter new value leaves orphan chunks from the old one; clear them.
   for (let i = count; i < prev; i++) {

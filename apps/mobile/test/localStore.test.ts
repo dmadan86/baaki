@@ -261,6 +261,7 @@ vi.mock('expo-sqlite', () => ({
 }));
 
 const { createLocalStore } = await import('../src/sync/driver');
+const { destroyKey } = await import('../src/sync/rowCipher');
 
 const mutation = (id: string): QueuedMutation =>
   ({
@@ -511,6 +512,31 @@ describe('at-rest encryption', () => {
       { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1', amount: '100' } },
     ]);
     expect(await store.readDraft('d1')).toEqual({ note: 'legacy' });
+  });
+
+  it('wipes unreadable encrypted local data and returns empty state', async () => {
+    const DEK = 'waves.mirror.dek.v1';
+    const store = createLocalStore();
+    await store.putRows([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1' } },
+    ] as never);
+    await store.writeCursors({ g1: 1 });
+    await store.writeQueue([mutation('a')]);
+    await store.writeDraft('d1', { secret: 'draft' });
+
+    // Simulate restore/key loss: the DB traveled, but the device-only DEK did not.
+    await destroyKey();
+    const deletesBefore = secure.deletes.filter((key) => key === DEK).length;
+
+    expect(await store.readRows()).toEqual([]);
+    expect(await store.readCursors()).toEqual({});
+    expect(await store.readQueue()).toEqual([]);
+    expect(await store.readDraft('d1')).toBeNull();
+    expect(database.mirrorRows.size).toBe(0);
+    expect(database.pendingMutations.size).toBe(0);
+    expect(database.cursors.size).toBe(0);
+    expect(database.drafts.size).toBe(0);
+    expect(secure.deletes.filter((key) => key === DEK).length).toBe(deletesBefore + 1);
   });
 
   it('destroys the key on reset (crypto-erase)', async () => {

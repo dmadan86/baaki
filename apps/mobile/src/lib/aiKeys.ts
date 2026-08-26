@@ -107,6 +107,9 @@ export function aiProvider(id: AiProviderId): AiProvider {
 }
 
 const isWeb = Platform.OS === 'web';
+const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
 
 /**
  * The one keystore entry the whole vault is: a single JSON record naming the
@@ -173,7 +176,11 @@ export async function getAiKey(id: AiProviderId): Promise<string | null> {
  */
 export async function setActiveAiKey(id: AiProviderId, key: string): Promise<void> {
   if (isWeb) throw new Error('secure storage is unavailable on web');
-  await SecureStore.setItemAsync(STORE_KEY, JSON.stringify({ id, key: key.trim() }));
+  await SecureStore.setItemAsync(
+    STORE_KEY,
+    JSON.stringify({ id, key: key.trim() }),
+    SECURE_OPTIONS,
+  );
   // A newly connected key is a fresh slate — on, no model override, no ceiling,
   // zero usage — so nothing from a previous key or account carries over.
   await resetAiSettings();
