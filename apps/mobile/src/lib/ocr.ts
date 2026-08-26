@@ -58,6 +58,22 @@ function looksLikeReceipt(text: string, lines: readonly string[]): boolean {
   );
 }
 
+function blockLines(block: unknown): string[] {
+  if (!block || typeof block !== 'object') return [];
+  const candidate = block as { lines?: unknown; text?: unknown };
+  if (Array.isArray(candidate.lines)) {
+    return candidate.lines
+      .map((line) =>
+        line && typeof line === 'object'
+          ? normaliseBlockText((line as { text?: unknown }).text)
+          : '',
+      )
+      .filter((line) => line.length > 0);
+  }
+  const text = normaliseBlockText(candidate.text);
+  return text.length > 0 ? [text] : [];
+}
+
 export interface OcrResult {
   readonly text: string;
   /** How many lines the recogniser found. Useful for telling the user why. */
@@ -80,9 +96,7 @@ export async function recogniseReceipt(uri: string): Promise<OcrResult | null> {
     const { default: TextRecognition } = await import('@react-native-ml-kit/text-recognition');
     const result = await TextRecognition.recognize(uri);
 
-    const lines = (result.blocks ?? [])
-      .map((block) => normaliseBlockText(block?.text))
-      .filter((line) => line.length > 0);
+    const lines = (result.blocks ?? []).flatMap(blockLines);
     const text = lines.join('\n');
 
     if (

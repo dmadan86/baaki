@@ -94,6 +94,27 @@ describe('recogniseReceipt', () => {
     });
   });
 
+  it('flattens native OCR block lines before receipt detection', async () => {
+    native.recognize.mockResolvedValue({
+      blocks: [
+        {
+          text: 'Fallback block text that should not be used when lines exist',
+          lines: [
+            { text: 'Cafe Baaki' },
+            { text: 'Idli 80.00' },
+            { text: 'Coffee 40.00' },
+            { text: 'Total 120.00' },
+          ],
+        },
+      ],
+    });
+
+    await expect(recogniseReceipt('file://multi-line-receipt.jpg')).resolves.toEqual({
+      text: ['Cafe Baaki', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
+      lines: 4,
+    });
+  });
+
   it('handles a large OCR result in one linear pass', async () => {
     const blocks = Array.from({ length: 1_000 }, (_, index) => ({
       text: `Item ${index} ${index}.00`,
