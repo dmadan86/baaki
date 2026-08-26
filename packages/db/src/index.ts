@@ -8,6 +8,9 @@
 
 export type { PrismaClient } from '../generated/client/index.js';
 
+/** Splitwise CSV → Waves group importer (parser + write path). */
+export * from './import/splitwise';
+
 /** Statuses that move the ledger — mirrors @waves/core `isSettled`. */
 export const SETTLED_STATUSES = ['confirmed', 'auto_confirmed'] as const;
 
