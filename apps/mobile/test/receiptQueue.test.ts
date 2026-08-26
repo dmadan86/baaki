@@ -39,6 +39,12 @@ class FakeDirectory {
       if (key.startsWith(`${this.uri}/`)) fs.files.delete(key);
     }
   }
+
+  list(): FakeFile[] {
+    return [...fs.files.keys()]
+      .filter((key) => key.startsWith(`${this.uri}/`))
+      .map((key) => new FakeFile(key));
+  }
 }
 
 class FakeFile {
@@ -48,6 +54,10 @@ class FakeFile {
     this.uri = parts
       .map((part) => (part instanceof FakeDirectory ? part.uri : String(part)))
       .join('/');
+  }
+
+  get name(): string {
+    return this.uri.split('/').pop() ?? this.uri;
   }
 
   get exists(): boolean {
@@ -168,5 +178,29 @@ describe('receipt queue local privacy cleanup', () => {
     expect(storage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
     expect(await listPendingReceipts()).toEqual([]);
     expect(pendingReceiptUri(entry)).toBe(pendingPath('a1.jpg'));
+  });
+
+  it('removes orphan pending files when pending receipts are listed', async () => {
+    const entry = {
+      attachmentId: 'a1',
+      expenseId: 'e1',
+      groupId: 'g1',
+      visibility: 'group' as const,
+      storagePath: 'e1/a1.jpg',
+      contentType: 'image/jpeg',
+      fileName: 'a1.jpg',
+      createdAt: '2026-01-01T00:00:00Z',
+      attempts: 0,
+      lastError: null,
+    };
+    storage.data.set(QUEUE_KEY, JSON.stringify([entry]));
+    fs.dirs.add('document-root/pending-receipts');
+    fs.files.set(pendingPath('a1.jpg'), new Uint8Array([1]));
+    fs.files.set(pendingPath('orphan.jpg'), new Uint8Array([9]));
+
+    await expect(listPendingReceipts()).resolves.toEqual([entry]);
+
+    expect(fs.files.has(pendingPath('a1.jpg'))).toBe(true);
+    expect(fs.files.has(pendingPath('orphan.jpg'))).toBe(false);
   });
 });

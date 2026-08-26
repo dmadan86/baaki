@@ -1,0 +1,16 @@
+# Dev/e2e-only audit of local private-data cleanup. This verifies aggregate
+# device-local state after sign-out through a route that exposes counts only.
+appId: app.waves.mobile
+---
+- runFlow: sign-out-privacy.yaml
+
+# Open the debug audit screen directly; the screen is disabled outside dev builds.
+- openLink: waves:///dev/local-privacy
+- extendedWaitUntilVisible:
+    element:
+      id: 'local-privacy-audit-ready'
+    timeout: 10000
+- assertVisible: 'mirrorKeyPresent:false'
+- assertVisible: 'receiptQueuePresent:false'
+- assertVisible: 'pendingReceiptFiles:0'
+- assertVisible: 'cachedImageFiles:0'

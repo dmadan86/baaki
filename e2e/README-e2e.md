@@ -61,7 +61,7 @@ node e2e/seed-e2e.mjs
 #    each flow on its own, reseeding first, because the flows mutate the backend:
 for flow in home-to-add-expense edit-expense delete-restore-expense \
             change-logo capture-assign custom-tags locale-switch \
-            rename-archive-group sign-out-privacy clone-group \
+            rename-archive-group sign-out-privacy local-privacy-audit clone-group \
             group-photo-paid-gate friends-merge-guests leave-group; do
   node e2e/seed-e2e.mjs
   maestro test --env E2E_EMAIL="$E2E_EMAIL" --env E2E_PASSWORD="$E2E_PASSWORD" "e2e/$flow.yaml"
@@ -85,6 +85,7 @@ In CI this loop lives in `e2e/run-maestro.sh`.
 | `custom-tags.yaml`            | make a tag in Settings → tag an expense with it → the tag names the ledger row (A42) |
 | `locale-switch.yaml`          | Account → Language → switch to Hindi → strings re-render live (no restart)           |
 | `sign-out-privacy.yaml`       | sign out → back at the gateway, the ledger off screen                                |
+| `local-privacy-audit.yaml`    | dev-only route checks aggregate local private-data cleanup after sign-out            |
 | `clone-group.yaml`            | Duplicate → prefilled New Group → drop a member → Create → copy made, original kept  |
 | `group-photo-paid-gate.yaml`  | group photo is paid, cover emoji is free                                             |
 | `friends-merge-guests.yaml`   | merge the two seeded "Reeya" ghosts, with the irreversible-warning gate              |
