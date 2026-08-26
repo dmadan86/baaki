@@ -21,6 +21,7 @@ import {
   Avatar,
   Button,
   directionalIcon,
+  Divider,
   EmptyState,
   IconButton,
   iconSize,
@@ -234,7 +235,19 @@ function BatchGroupCard({
     names.slice(0, 2).join(' · ') + (names.length > 2 ? ` · +${names.length - 2}` : '');
 
   return (
-    <View>
+    // One rounded, bordered card so the header and its items read as a single
+    // grouped unit, set apart from the flush standalone rows around it — the
+    // grouped-transactions grammar (Monarch, PayPal, Commons).
+    <View
+      style={{
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        borderColor: theme.color.border,
+        backgroundColor: theme.color.surface,
+        overflow: 'hidden',
+        marginVertical: theme.spacing.xs,
+      }}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
@@ -247,6 +260,7 @@ function BatchGroupCard({
             gap: theme.spacing.md,
             alignItems: 'center',
             paddingVertical: theme.spacing.md,
+            paddingHorizontal: theme.spacing.md,
           }}
         >
           <View
@@ -278,6 +292,9 @@ function BatchGroupCard({
             ) : null}
           </View>
 
+          {/* Total then the expander, both trailing — the chevron is the standard
+              reveal affordance (down closed, up open), sitting just past the
+              amount rather than a plus crammed at the edge. */}
           {total !== null ? (
             <MoneyText amount={total} currency={currency} locale={locale} variant="subheading" />
           ) : (
@@ -286,31 +303,27 @@ function BatchGroupCard({
             </Text>
           )}
           <Ionicons
-            name={open ? 'chevron-up' : 'add'}
-            size={iconSize.lg}
-            color={theme.color.brand}
+            name={open ? 'chevron-up' : 'chevron-down'}
+            size={iconSize.md}
+            color={theme.color.textMuted}
           />
         </Row>
       </Pressable>
 
       {open ? (
-        <View
-          style={{
-            marginLeft: theme.spacing.lg,
-            paddingLeft: theme.spacing.md,
-            borderLeftWidth: 2,
-            borderLeftColor: theme.color.border,
-          }}
-        >
-          {items.map((capture) => (
-            <CaptureListRow
-              key={capture.id}
-              capture={capture}
-              locale={locale}
-              t={t}
-              onAssign={() => onAssign(capture)}
-              onDelete={() => onDelete(capture)}
-            />
+        <View style={{ paddingHorizontal: theme.spacing.md }}>
+          {items.map((capture, index) => (
+            <View key={capture.id}>
+              <Divider />
+              <CaptureListRow
+                capture={capture}
+                locale={locale}
+                t={t}
+                onAssign={() => onAssign(capture)}
+                onDelete={() => onDelete(capture)}
+              />
+              {index === items.length - 1 ? <View style={{ height: theme.spacing.xs }} /> : null}
+            </View>
           ))}
         </View>
       ) : null}
