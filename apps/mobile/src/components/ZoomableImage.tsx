@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { Image as RNImage, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -55,6 +55,14 @@ export function ZoomableImage({
 
   const reportZoom = (zoomed: boolean) => onZoomChange?.(zoomed);
 
+  // Hold the latest callback so the uri-reset effect can report the return to
+  // fit without depending on onZoomChange (that would reset zoom whenever the
+  // caller re-creates the callback).
+  const onZoomChangeRef = useRef(onZoomChange);
+  useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
+
   useEffect(() => {
     let active = true;
     scale.set(1);
@@ -63,6 +71,9 @@ export function ZoomableImage({
     translateY.set(0);
     savedX.set(0);
     savedY.set(0);
+    // A reused page (the gallery keys pages by index) can swap uri while still
+    // zoomed; tell the pager we are back at fit so it re-enables paging.
+    onZoomChangeRef.current?.(false);
     RNImage.getSize(
       uri,
       (w, h) => active && setNatural({ uri, size: { w, h } }),
