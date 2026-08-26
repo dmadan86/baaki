@@ -11,7 +11,7 @@ import Animated, {
 
 import { AnnotationOverlay } from '@/components/AnnotationOverlay';
 import { containRect, type Annotations } from '@/lib/annotations';
-import { clampZoomPoint } from '@/lib/zoomMath';
+import { clampZoomPoint, naturalSizeForUri, type NaturalImageSize } from '@/lib/zoomMath';
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -45,21 +45,7 @@ export function ZoomableImage({
 
   // The image's natural size anchors both pan bounds and, when present, overlay
   // placement. Resolved once per uri; until then the rect falls back to the box.
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
-  useEffect(() => {
-    let active = true;
-    RNImage.getSize(
-      uri,
-      (w, h) => active && setNatural({ w, h }),
-      () => active && setNatural(null),
-    );
-    return () => {
-      active = false;
-    };
-  }, [uri]);
-
-  const rect = containRect({ w: width, h: boxHeight }, natural ?? { w: 0, h: 0 });
-
+  const [natural, setNatural] = useState<NaturalImageSize | null>(null);
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -68,6 +54,28 @@ export function ZoomableImage({
   const savedY = useSharedValue(0);
 
   const reportZoom = (zoomed: boolean) => onZoomChange?.(zoomed);
+
+  useEffect(() => {
+    let active = true;
+    scale.set(1);
+    savedScale.set(1);
+    translateX.set(0);
+    translateY.set(0);
+    savedX.set(0);
+    savedY.set(0);
+    onZoomChange?.(false);
+    RNImage.getSize(
+      uri,
+      (w, h) => active && setNatural({ uri, size: { w, h } }),
+      () => active && setNatural(null),
+    );
+    return () => {
+      active = false;
+    };
+  }, [onZoomChange, savedScale, savedX, savedY, scale, translateX, translateY, uri]);
+
+  const naturalSize = naturalSizeForUri(natural, uri);
+  const rect = containRect({ w: width, h: boxHeight }, naturalSize ?? { w: 0, h: 0 });
 
   const pinch = Gesture.Pinch()
     .onUpdate((event) => {

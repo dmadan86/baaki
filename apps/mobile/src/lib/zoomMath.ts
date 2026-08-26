@@ -3,6 +3,19 @@ export interface Size {
   readonly height: number;
 }
 
+export interface NaturalImageSize {
+  readonly uri: string;
+  readonly size: { readonly w: number; readonly h: number };
+}
+
+/** Selects dimensions only for the currently rendered image URI. */
+export function naturalSizeForUri(
+  natural: NaturalImageSize | null,
+  uri: string,
+): { w: number; h: number } | null {
+  return natural?.uri === uri ? natural.size : null;
+}
+
 /** Keeps one zoomed axis inside the visible viewport without assuming the image fills it. */
 export function clampZoomPan(
   value: number,

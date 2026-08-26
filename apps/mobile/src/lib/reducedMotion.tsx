@@ -18,13 +18,13 @@ export function ReducedMotionProvider({ children }: { children: ReactNode }): Re
   useEffect(() => {
     let mounted = true;
     let receivedEvent = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (shouldApplyInitialReducedMotionPreference(mounted, receivedEvent))
-        setReduceMotion(enabled);
-    });
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
       receivedEvent = true;
       setReduceMotion(enabled);
+    });
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (shouldApplyInitialReducedMotionPreference(mounted, receivedEvent))
+        setReduceMotion(enabled);
     });
     return () => {
       mounted = false;

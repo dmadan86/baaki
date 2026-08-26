@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { clampZoomPan, clampZoomPoint } from '../src/lib/zoomMath';
+import { clampZoomPan, clampZoomPoint, naturalSizeForUri } from '../src/lib/zoomMath';
+
+describe('naturalSizeForUri', () => {
+  it('ignores stale dimensions from a previously rendered image uri', () => {
+    const previous = { uri: 'file://old.jpg', size: { w: 1000, h: 500 } };
+
+    expect(naturalSizeForUri(previous, 'file://new.jpg')).toBeNull();
+    expect(naturalSizeForUri(previous, 'file://old.jpg')).toEqual({ w: 1000, h: 500 });
+  });
+});
 
 describe('clampZoomPan', () => {
   it('keeps fit-scale images centered', () => {
