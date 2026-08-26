@@ -98,16 +98,36 @@ export function ZoomableImage({
       savedY.set(translateY.get());
     });
 
+  // Double-tap toggles zoom: from fit it magnifies to a fixed level centred on
+  // the point tapped (so a tap on a total zooms to that total, the Photos/Maps
+  // behaviour), and from any zoomed state it returns to fit. Translate lives in
+  // screen space (it is the outermost transform), so keeping the tapped point
+  // still means shifting by -(target-1) × its offset from the view centre.
+  const DOUBLE_TAP_SCALE = 2.5;
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
-    .onEnd(() => {
-      scale.set(withTiming(1));
-      savedScale.set(1);
-      translateX.set(withTiming(0));
-      translateY.set(withTiming(0));
-      savedX.set(0);
-      savedY.set(0);
-      runOnJS(reportZoom)(false);
+    .onEnd((event) => {
+      if (scale.get() > 1) {
+        scale.set(withTiming(1));
+        savedScale.set(1);
+        translateX.set(withTiming(0));
+        translateY.set(withTiming(0));
+        savedX.set(0);
+        savedY.set(0);
+        runOnJS(reportZoom)(false);
+        return;
+      }
+      const dx = event.x - width / 2;
+      const dy = event.y - height / 2;
+      const tx = -(DOUBLE_TAP_SCALE - 1) * dx;
+      const ty = -(DOUBLE_TAP_SCALE - 1) * dy;
+      scale.set(withTiming(DOUBLE_TAP_SCALE));
+      savedScale.set(DOUBLE_TAP_SCALE);
+      translateX.set(withTiming(tx));
+      translateY.set(withTiming(ty));
+      savedX.set(tx);
+      savedY.set(ty);
+      runOnJS(reportZoom)(true);
     });
 
   const composed = Gesture.Simultaneous(pinch, pan, doubleTap);

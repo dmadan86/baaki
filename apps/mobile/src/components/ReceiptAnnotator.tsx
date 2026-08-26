@@ -23,13 +23,16 @@ import {
   Image as RNImage,
   Modal,
   Pressable,
+  StatusBar,
   TextInput,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { IconButton, iconSize, Row, Text, useTheme } from '@waves/ui';
+import { iconSize, Row, Text, useTheme } from '@waves/ui';
 
+import { ViewerButton } from '@/components/ViewerButton';
 import { AnnotationOverlay } from '@/components/AnnotationOverlay';
 import {
   ANNOT_COLORS,
@@ -62,6 +65,7 @@ export function ReceiptAnnotator({
   onSave: (annotations: Annotations) => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useStrings();
 
   const [history, setHistory] = useState<Action[]>(() => [
@@ -166,32 +170,10 @@ export function ReceiptAnnotator({
   return (
     <Modal visible animationType="slide" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
-        {/* Top bar: cancel / mode label / save. */}
-        <Row
-          style={{
-            justifyContent: 'space-between',
-            paddingHorizontal: theme.spacing.xl,
-            paddingTop: theme.spacing.xxl,
-            paddingBottom: theme.spacing.sm,
-          }}
-        >
-          <IconButton label={t.common.cancel} onPress={onCancel}>
-            <Ionicons name="close" size={iconSize.lg} color="#FFFFFF" />
-          </IconButton>
-          <Text variant="subheading" style={{ color: '#FFFFFF' }}>
-            {t.annotate.title}
-          </Text>
-          <IconButton label={t.common.save} onPress={save}>
-            {saving ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Ionicons name="checkmark" size={iconSize.lg} color="#FFFFFF" />
-            )}
-          </IconButton>
-        </Row>
+        <StatusBar barStyle="light-content" />
 
-        {/* The canvas: the image, the overlay, and the input layer over its
-            drawn rectangle. */}
+        {/* The canvas fills the screen; the chrome floats over it (the Apple
+            Photos markup pattern), so the bill gets the whole frame. */}
         <View style={{ flex: 1 }} onLayout={onBoxLayout}>
           <ExpoImage source={{ uri }} style={{ flex: 1 }} contentFit="contain" transition={100} />
           <View
@@ -217,54 +199,104 @@ export function ReceiptAnnotator({
           </View>
         </View>
 
-        {/* Toolbar: pen/text, colour swatches, undo, clear. */}
+        {/* Top chrome: close on the left; undo / clear / save grouped on the
+            right, save as a filled accent circle so the commit reads as primary. */}
         <Row
           style={{
+            position: 'absolute',
+            top: insets.top + theme.spacing.sm,
+            left: theme.spacing.xl,
+            right: theme.spacing.xl,
             justifyContent: 'space-between',
             alignItems: 'center',
-            paddingHorizontal: theme.spacing.xl,
-            paddingVertical: theme.spacing.md,
-            gap: theme.spacing.md,
           }}
         >
-          <Row style={{ gap: theme.spacing.sm }}>
-            <ToolButton
-              icon="pencil"
-              active={mode === 'pen'}
-              label={t.annotate.pen}
-              onPress={() => setMode('pen')}
-            />
-            <ToolButton
-              icon="text"
-              active={mode === 'text'}
-              label={t.annotate.addText}
-              onPress={() => setMode('text')}
-            />
-          </Row>
-          <Row style={{ gap: theme.spacing.sm, flex: 1, justifyContent: 'center' }}>
-            {ANNOT_COLORS.map((c) => (
-              <Pressable
-                key={c}
-                onPress={() => setColor(c)}
-                accessibilityRole="button"
-                accessibilityLabel={c}
-                accessibilityState={{ selected: color === c }}
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: 13,
-                  backgroundColor: c,
-                  borderWidth: color === c ? 3 : 1,
-                  borderColor: color === c ? '#FFFFFF' : 'rgba(255,255,255,0.4)',
-                }}
-              />
-            ))}
-          </Row>
-          <Row style={{ gap: theme.spacing.sm }}>
-            <ToolButton icon="arrow-undo" label={t.annotate.undo} onPress={undo} />
-            <ToolButton icon="trash-outline" label={t.annotate.clear} onPress={clear} />
+          <ViewerButton icon="close" label={t.common.cancel} onPress={onCancel} />
+          <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+            <ViewerButton icon="arrow-undo" label={t.annotate.undo} onPress={undo} />
+            <ViewerButton icon="trash-outline" label={t.annotate.clear} onPress={clear} />
+            <Pressable
+              onPress={save}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.save}
+              hitSlop={6}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.color.buttonPrimary,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              {saving ? (
+                <ActivityIndicator color={theme.color.onButtonPrimary} />
+              ) : (
+                <Ionicons name="checkmark" size={iconSize.md} color={theme.color.onButtonPrimary} />
+              )}
+            </Pressable>
           </Row>
         </Row>
+
+        {/* Bottom tray: a floating rounded toolbar — pen/text toggle, then the
+            colour swatches — the shape every markup editor lands on. */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: insets.bottom + theme.spacing.md,
+            left: theme.spacing.xl,
+            right: theme.spacing.xl,
+            alignItems: 'center',
+          }}
+        >
+          <Row
+            style={{
+              alignItems: 'center',
+              gap: theme.spacing.md,
+              paddingHorizontal: theme.spacing.lg,
+              paddingVertical: theme.spacing.sm,
+              borderRadius: theme.radius.pill,
+              backgroundColor: 'rgba(20, 20, 30, 0.7)',
+            }}
+          >
+            <Row style={{ gap: theme.spacing.xs }}>
+              <ToolButton
+                icon="pencil"
+                active={mode === 'pen'}
+                label={t.annotate.pen}
+                onPress={() => setMode('pen')}
+              />
+              <ToolButton
+                icon="text"
+                active={mode === 'text'}
+                label={t.annotate.addText}
+                onPress={() => setMode('text')}
+              />
+            </Row>
+            <View style={{ width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+            <Row style={{ gap: theme.spacing.sm }}>
+              {ANNOT_COLORS.map((c) => (
+                <Pressable
+                  key={c}
+                  onPress={() => setColor(c)}
+                  accessibilityRole="button"
+                  accessibilityLabel={c}
+                  accessibilityState={{ selected: color === c }}
+                  hitSlop={4}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 13,
+                    backgroundColor: c,
+                    borderWidth: color === c ? 3 : 1,
+                    borderColor: color === c ? '#FFFFFF' : 'rgba(255,255,255,0.4)',
+                  }}
+                />
+              ))}
+            </Row>
+          </Row>
+        </View>
 
         {/* Text entry for a dropped note. */}
         <Modal
