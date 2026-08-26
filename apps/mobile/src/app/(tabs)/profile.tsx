@@ -266,7 +266,16 @@ function ProfileForm() {
   const { t, locale } = useStrings();
   // Gate the bring-your-own AI-key vault behind a flag until it ships.
   const aiKeysEnabled = useFlagEnabled('ai_keys');
-  const { profile, isGuest, updateProfile, signOut } = useAuth();
+  const { session, profile, isGuest, updateProfile, signOut } = useAuth();
+  // A Google/Apple sign-in carries a photo in the session's user metadata, but
+  // the profile row only holds one if a trigger copied it across — older
+  // accounts have a null `avatar_url` and so showed initials here. Fall back to
+  // the provider photo (an https URL that resolves straight through) so the
+  // account page shows your face whether or not the column was ever filled.
+  const oauthAvatar =
+    (session?.user?.user_metadata?.avatar_url as string | undefined) ??
+    (session?.user?.user_metadata?.picture as string | undefined) ??
+    null;
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
   const { preference: syncNetwork } = useSyncNetwork();
@@ -413,7 +422,7 @@ function ProfileForm() {
         <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
           <ProfileAvatar
             name={profile?.display_name ?? t.account.you}
-            avatarUrl={profile?.avatar_url}
+            avatarUrl={profile?.avatar_url ?? oauthAvatar}
             size={92}
             onPress={profile ? photoOptions : undefined}
             busy={photoBusy}
