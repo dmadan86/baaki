@@ -68,6 +68,8 @@
 
 **Consequences.** App is fully usable offline (add/edit/view); no lost entries on crash; sync code is the hardest part of the client — it gets the deepest test suite (ADR-014).
 
+**Addendum (at-rest encryption).** The mirror was originally a plaintext SQLite file. Its `json` payload columns are now sealed with an application-layer AEAD keyed from the OS keystore, so a rooted device or a file-level backup no longer exposes the ledger; sign-out is a crypto-erase (see TDR A48). The choice was application-layer over SQLCipher because the sensitive content lives only in `json` columns that are never filtered or sorted on, so no native SQLite swap is needed.
+
 ---
 
 ## ADR-006: Guest access via invite links + claimable ghost members
