@@ -17,6 +17,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { Animated, Easing, Linking, Pressable, View } from 'react-native';
+import Reanimated, {
+  cancelAnimation,
+  Easing as ReEasing,
+  useAnimatedProps,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 
 import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
@@ -137,75 +147,98 @@ function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
   );
 }
 
-/** How many bars in the waveform, and the tallest each may reach. */
-const WAVE_BARS = 9;
-const WAVE_MIN = 6;
+/** The waveform's drawing box. Fixed and centred — the status area centres it. */
+const WAVE_W = 260;
+const WAVE_H = 76;
 
 /**
- * The peak height a bar may reach, weighted toward the centre so the row reads as
- * a rounded wave crest rather than a flat block — the centre bars tower, the
- * edges stay short (the equaliser shape every voice UI settled on).
+ * The colours of the listening wave, back to front: teal → green → blue → violet
+ * → magenta → pink, the spectrum a modern voice assistant paints while it hears
+ * you. Each layer is one translucent sine ribbon; overlapped and blended they
+ * read as a single flowing, colourful wave rather than a stack of separate lines.
+ * The layers differ in phase, wavelength (`cycles`), height (`amp`), stroke and
+ * opacity so the overlaps shift and shimmer instead of moving as one.
  */
-function barPeak(index: number): number {
-  const middle = (WAVE_BARS - 1) / 2;
-  const distance = Math.abs(index - middle) / middle;
-  return 34 - distance * 18;
+const WAVE_LAYERS = [
+  { color: '#22D3B7', phase: 0.0, amp: 0.72, width: 9, opacity: 0.55, cycles: 1.4 },
+  { color: '#34D399', phase: 0.9, amp: 0.88, width: 8, opacity: 0.5, cycles: 1.7 },
+  { color: '#3B82F6', phase: 1.8, amp: 1.0, width: 11, opacity: 0.55, cycles: 1.2 },
+  { color: '#8B5CF6', phase: 2.7, amp: 0.8, width: 9, opacity: 0.5, cycles: 1.9 },
+  { color: '#C026D3', phase: 3.6, amp: 0.94, width: 10, opacity: 0.5, cycles: 1.5 },
+  { color: '#EC4899', phase: 4.5, amp: 0.66, width: 8, opacity: 0.5, cycles: 2.1 },
+] as const;
+
+type WaveLayerSpec = (typeof WAVE_LAYERS)[number];
+
+const AnimatedPath = Reanimated.createAnimatedComponent(Path);
+
+/**
+ * One layer's path for the current phase. A centre-weighted Gaussian envelope
+ * gives the crest in the middle that tapers to nothing at the edges (the shape in
+ * the reference); a slow breath on the amplitude keeps it alive when the sound is
+ * steady. Runs on the UI thread — it is the body of a `useAnimatedProps` worklet.
+ */
+function wavePath(phase: number, layer: WaveLayerSpec): string {
+  'worklet';
+  const points = 40;
+  const cy = WAVE_H / 2;
+  const breath = 0.82 + 0.18 * Math.sin(phase * 2 + layer.phase);
+  const maxAmp = (WAVE_H / 2 - layer.width / 2 - 1) * layer.amp * breath;
+  let d = '';
+  for (let i = 0; i <= points; i++) {
+    const frac = i / points;
+    const x = frac * WAVE_W;
+    const env = Math.exp(-Math.pow((frac - 0.5) / 0.32, 2));
+    const y = cy + Math.sin(frac * layer.cycles * Math.PI * 2 + phase + layer.phase) * maxAmp * env;
+    d += `${i === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)} `;
+  }
+  return d;
+}
+
+/** One translucent coloured ribbon, its path recomputed each frame from `phase`. */
+function WaveLayer({ phase, layer }: { phase: SharedValue<number>; layer: WaveLayerSpec }) {
+  const animatedProps = useAnimatedProps(() => ({ d: wavePath(phase.value, layer) }));
+  return (
+    <AnimatedPath
+      animatedProps={animatedProps}
+      stroke={layer.color}
+      strokeWidth={layer.width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+      opacity={layer.opacity}
+    />
+  );
 }
 
 /**
- * A live sound wave under the status while listening — nine bars rising and
- * falling out of step, centre-weighted into a crest, the shorthand for "audio is
- * coming in". Rounded and tinted a touch lighter at the edges for depth.
+ * The live sound wave under the status while listening — layered colourful sine
+ * ribbons flowing across a centre crest, the "I am hearing you" of a modern voice
+ * screen. One shared phase drives every layer on the UI thread; the layers differ
+ * in wavelength and phase so they slide over each other rather than in lockstep.
+ * Only mounted while listening, so the loop is torn down the moment it stops.
  */
-function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
-  const [bars] = useState(() => Array.from({ length: WAVE_BARS }, () => new Animated.Value(0.3)));
+function Waveform({ active }: { active: boolean }) {
+  const phase = useSharedValue(0);
 
   useEffect(() => {
     if (!active) return;
-    const loops = bars.map((value, index) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(index * 70),
-          Animated.timing(value, {
-            toValue: 1,
-            duration: 300 + (index % 3) * 60,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(value, {
-            toValue: 0.28,
-            duration: 300 + (index % 3) * 60,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-        ]),
-      ),
+    phase.value = 0;
+    // 0 → 2π on a loop. The wave term is 2π-periodic, so the seam is invisible.
+    phase.value = withRepeat(
+      withTiming(Math.PI * 2, { duration: 2200, easing: ReEasing.linear }),
+      -1,
+      false,
     );
-    loops.forEach((loop) => loop.start());
-    return () => loops.forEach((loop) => loop.stop());
-  }, [active, bars]);
+    return () => cancelAnimation(phase);
+  }, [active, phase]);
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 36 }}>
-      {bars.map((value, index) => {
-        const peak = barPeak(index);
-        // Edge bars a touch translucent so the crest has depth, not a flat wall.
-        const middle = (WAVE_BARS - 1) / 2;
-        const opacity = 1 - (Math.abs(index - middle) / middle) * 0.35;
-        return (
-          <Animated.View
-            key={index}
-            style={{
-              width: 4,
-              borderRadius: 2,
-              backgroundColor: theme.color.brand,
-              opacity,
-              height: value.interpolate({ inputRange: [0, 1], outputRange: [WAVE_MIN, peak] }),
-            }}
-          />
-        );
-      })}
-    </View>
+    <Svg width={WAVE_W} height={WAVE_H}>
+      {WAVE_LAYERS.map((layer) => (
+        <WaveLayer key={layer.color} phase={phase} layer={layer} />
+      ))}
+    </Svg>
   );
 }
 
@@ -481,7 +514,7 @@ export function VoiceCapture({
           {listening ? t.misc.listening : showMiss ? t.voice.tapToRetry : t.voice.tapToSpeak}
         </Text>
         {listening ? (
-          <Waveform active={listening} theme={theme} />
+          <Waveform active={listening} />
         ) : showMiss ? (
           <Text variant="caption" tone="faint" align="center">
             {t.voice.missHint}
