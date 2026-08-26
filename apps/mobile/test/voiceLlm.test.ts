@@ -396,8 +396,10 @@ describe('interpretVoiceExpenses', () => {
 
     for (const sentence of [
       "don't add 500 rupees",
+      'don’t add 500 rupees',
       'I did not pay 500 rupees',
       "I didn't pay 500 rupees",
+      'I didn’t pay 500 rupees',
       'Ravi paid me back 500 rupees',
       'Ravi repaid 500 rupees',
       'Ravi repayment 500 rupees',

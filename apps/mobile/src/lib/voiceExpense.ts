@@ -24,7 +24,7 @@ export const MAX_VOICE_NOTE_CHARS = 160;
 
 /** Unsupported intent words that must not be converted into normal expenses. */
 const UNSUPPORTED_EXPENSE_INTENT =
-  /\b(?:do\s+not|don't|dont|did\s+not\s+pay|didn't\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back|not\s+an\s+expense)\b/i;
+  /\b(?:do\s+not|don['’]t|dont|did\s+not\s+pay|didn['’]t\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back|not\s+an\s+expense)\b/i;
 
 export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
   return UNSUPPORTED_EXPENSE_INTENT.test(text);

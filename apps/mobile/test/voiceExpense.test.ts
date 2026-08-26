@@ -236,11 +236,13 @@ describe('parseVoiceExpense', () => {
   it('does not create an expense from unsupported negative, repayment, or refund intents', () => {
     for (const sentence of [
       "don't add 500 rupees for dinner",
+      'don’t add 500 rupees for dinner',
       'cancel 500 rupees dinner',
       'refund 200 rupees hotel',
       'Ravi paid me back 500 rupees',
       'I did not pay 500 rupees for dinner',
       "I didn't pay 500 rupees for dinner",
+      'I didn’t pay 500 rupees for dinner',
       'Ravi repaid 500 rupees',
       'Ravi repayment 500 rupees',
       'Ravi reimbursed me 500 rupees',
@@ -497,11 +499,13 @@ describe('parseVoiceExpenses (several in one breath)', () => {
   it('does not create items from unsupported negative, repayment, or refund intents', () => {
     for (const sentence of [
       "don't add 500 rupees for dinner",
+      'don’t add 500 rupees for dinner',
       'delete 500 rupees dinner',
       'refund 200 rupees hotel',
       'Ravi paid me back 500 rupees',
       'I did not pay 500 rupees for dinner',
       "I didn't pay 500 rupees for dinner",
+      'I didn’t pay 500 rupees for dinner',
       'Ravi repaid 500 rupees',
       'Ravi repayment 500 rupees',
       'Ravi reimbursed me 500 rupees',
