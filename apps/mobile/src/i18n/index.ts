@@ -794,6 +794,11 @@ export interface UiStrings {
     /** Shown when the reader tries to leave the review with a draft whose rows
         do not all carry an amount — the batch is held rather than part-saved. */
     draftNeedsAmounts: string;
+    /** The destination-picker section for assigning to an individual person. */
+    people: string;
+    /** The row that adds a brand-new person (a 1:1 IOU) by name. */
+    addPerson: string;
+    addPersonPlaceholder: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -2567,6 +2572,9 @@ const en: UiStrings = {
     save: { one: 'Save {n} expense', other: 'Save {n} expenses' },
     saveDraft: 'Save as draft',
     draftNeedsAmounts: 'Enter an amount for each expense, or remove it, to keep this draft.',
+    people: 'People',
+    addPerson: 'Add a person',
+    addPersonPlaceholder: 'Their name',
   },
   notifications: {
     title: 'Notifications',
@@ -4361,6 +4369,9 @@ const ta: UiStrings = {
     saveDraft: 'வரைவாகச் சேமி',
     draftNeedsAmounts:
       'இந்த வரைவைச் சேமிக்க ஒவ்வொரு செலவுக்கும் தொகையை உள்ளிடவும், அல்லது அதை நீக்கவும்.',
+    people: 'நபர்கள்',
+    addPerson: 'ஒரு நபரைச் சேர்',
+    addPersonPlaceholder: 'அவர்களின் பெயர்',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -6206,6 +6217,9 @@ const hi: UiStrings = {
     save: { one: '{n} खर्च सहेजें', other: '{n} खर्च सहेजें' },
     saveDraft: 'ड्राफ़्ट के रूप में सहेजें',
     draftNeedsAmounts: 'यह ड्राफ़्ट रखने के लिए हर खर्च में राशि भरें, या उसे हटाएँ।',
+    people: 'लोग',
+    addPerson: 'व्यक्ति जोड़ें',
+    addPersonPlaceholder: 'उनका नाम',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -8029,6 +8043,9 @@ const ar: UiStrings = {
     save: { one: 'حفظ مصروف', other: 'حفظ {n} مصاريف' },
     saveDraft: 'حفظ كمسودة',
     draftNeedsAmounts: 'أدخل مبلغًا لكل مصروف، أو احذفه، للاحتفاظ بهذه المسودة.',
+    people: 'الأشخاص',
+    addPerson: 'إضافة شخص',
+    addPersonPlaceholder: 'اسمه',
   },
   notifications: {
     title: 'الإشعارات',
