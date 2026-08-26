@@ -12,10 +12,10 @@
  * stored English as the fallback for a kind this build has never heard of.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, SectionList, View } from 'react-native';
 
 import { renderNotification } from '@waves/core';
 import {
@@ -29,29 +29,14 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { dayHeading, dayKey } from '@/data/activity';
+import { dayHeading } from '@/data/activity';
 import { useCaptures, useMarkNotificationsRead, useNotifications } from '@/data/hooks';
+import { groupNotificationsByDay } from '@/data/inbox';
 import { SkeletonList } from '@/components/Skeletons';
 import { UnassignedCapturesCard } from '@/components/UnassignedCapturesCard';
 import type { NotificationRow } from '@/data/types';
 import { useStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
-
-/**
- * The inbox cut into calendar days, newest first — the same day-heading grouping
- * the Activity feed uses, so the two screens that sit together read the same way.
- * The query already returns rows sorted; this only draws the lines between days.
- */
-function groupByDay(rows: readonly NotificationRow[]): { key: string; rows: NotificationRow[] }[] {
-  const sections: { key: string; rows: NotificationRow[] }[] = [];
-  for (const row of rows) {
-    const key = dayKey(row.created_at);
-    const last = sections[sections.length - 1];
-    if (last && last.key === key) last.rows.push(row);
-    else sections.push({ key, rows: [row] });
-  }
-  return sections;
-}
 
 // Outline glyphs, to speak the same icon language as the Activity feed and the
 // dashboard — the two screens sit together, so they carry one set of marks.
@@ -81,6 +66,8 @@ function factsOf(row: NotificationRow): Record<string, string | undefined> {
   };
 }
 
+const EMPTY_NOTIFICATIONS: readonly NotificationRow[] = [];
+
 export default function InboxScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
@@ -93,8 +80,9 @@ export default function InboxScreen() {
   // "nothing but the capture waiting above".
   const captureCount = useCaptures().data?.length ?? 0;
 
-  const rows = notifications.data ?? [];
+  const rows = notifications.data ?? EMPTY_NOTIFICATIONS;
   const unread = rows.filter((row) => row.read_at === null);
+  const sections = useMemo(() => groupNotificationsByDay(rows), [rows]);
 
   // Opening the inbox is reading it. Leaving a badge up after somebody has
   // looked is how a badge stops meaning anything.
@@ -106,47 +94,50 @@ export default function InboxScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications.isSuccess]);
 
+  const header = (
+    <View style={{ gap: theme.spacing.xl }}>
+      {/* The same glyph-plus-big-title mark the Activity feed wears — the two
+          screens sit together, so the inbox reads as the sibling it is. No
+          back chevron: the title sits at the left edge exactly like Activity,
+          and the bottom bar carries the way back. */}
+      <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center', gap: theme.spacing.sm }}>
+        <Ionicons name="notifications-outline" size={iconSize.xl} color={theme.color.brand} />
+        <Text variant="title">{t.inbox.title}</Text>
+      </Row>
+
+      {/* A capture with no group yet is something waiting for you, so it
+          belongs here as much as on the dashboard — the two "anything for me?"
+          screens. It renders nothing when there is none. */}
+      <UnassignedCapturesCard />
+    </View>
+  );
+
   return (
     <Screen>
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance,
-          gap: theme.spacing.xl,
-          // So the empty and error states take the room the list is not using
-          // and sit in the middle of it, the way Friends does. No effect once a
-          // list is present.
-          flexGrow: 1,
-        }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={pull.refreshing}
-            onRefresh={pull.onRefresh}
-            tintColor={theme.color.brand}
-          />
-        }
-      >
-        {/* The same glyph-plus-big-title mark the Activity feed wears — the two
-            screens sit together, so the inbox reads as the sibling it is. No
-            back chevron: the title sits at the left edge exactly like Activity,
-            and the bottom bar carries the way back. */}
-        <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center', gap: theme.spacing.sm }}>
-          <Ionicons name="notifications-outline" size={iconSize.xl} color={theme.color.brand} />
-          <Text variant="title">{t.inbox.title}</Text>
-        </Row>
-
-        {/* A capture with no group yet is something waiting for you, so it
-            belongs here as much as on the dashboard — the two "anything for me?"
-            screens. It renders nothing when there is none. */}
-        <UnassignedCapturesCard />
-
-        {notifications.isLoading ? (
-          // Until the fetch answers, `rows` is empty — which is not the same as
-          // "you have no notifications". Showing the empty state here told people
-          // their inbox was empty while it was still loading.
+      {notifications.isLoading ? (
+        <View
+          style={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: clearance,
+            gap: theme.spacing.xl,
+          }}
+        >
+          {header}
+          {/* Until the fetch answers, `rows` is empty — which is not the same as
+              "you have no notifications". Showing the empty state here told people
+              their inbox was empty while it was still loading. */}
           <SkeletonList rows={6} trailing={false} />
-        ) : notifications.isError ? (
+        </View>
+      ) : notifications.isError ? (
+        <View
+          style={{
+            flex: 1,
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: clearance,
+            gap: theme.spacing.xl,
+          }}
+        >
+          {header}
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               title={t.loadError}
@@ -167,11 +158,29 @@ export default function InboxScreen() {
               }
             />
           </View>
-        ) : rows.length === 0 && captureCount === 0 ? (
-          // Centred, with a glyph — the "all square" treatment Friends uses, so an
-          // empty inbox reads as a state and not a screen that failed to load.
-          // A waiting capture counts as content, so the empty state stands down
-          // when the card above is showing.
+        </View>
+      ) : rows.length === 0 && captureCount === 0 ? (
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: clearance,
+            gap: theme.spacing.xl,
+          }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={pull.refreshing}
+              onRefresh={pull.onRefresh}
+              tintColor={theme.color.brand}
+            />
+          }
+        >
+          {header}
+          {/* Centred, with a glyph — the "all square" treatment Friends uses, so an
+              empty inbox reads as a state and not a screen that failed to load.
+              A waiting capture counts as content, so the empty state stands down
+              when the card above is showing. */}
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               title={t.nothingYet}
@@ -185,111 +194,126 @@ export default function InboxScreen() {
               }
             />
           </View>
-        ) : (
-          // Grouped by day, newest first. An unread row is a soft brand-tinted
-          // card, not a lone dot — the whole row carries the "new" signal, the
-          // way Luma and Superlist mark an unread update. A read one drops back
-          // to a flat transparent row, so the eye lands on what arrived since.
-          <View style={{ gap: theme.spacing.xl }}>
-            <View style={{ gap: theme.spacing.lg }}>
-              {groupByDay(rows).map((section) => (
-                <View key={section.key} style={{ gap: theme.spacing.xs }}>
-                  <Text
-                    variant="micro"
-                    tone="muted"
+        </ScrollView>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(row) => row.id}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          removeClippedSubviews
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          // No `gap` here on purpose: on a VirtualizedList it would stack on top
+          // of the Section/Item separators below and double the spacing. The
+          // separators own the space between rows and sections; the header gets
+          // its own bottom padding so it does not butt against the first section.
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: clearance,
+            flexGrow: 1,
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={pull.refreshing}
+              onRefresh={pull.onRefresh}
+              tintColor={theme.color.brand}
+            />
+          }
+          ListHeaderComponent={<View style={{ paddingBottom: theme.spacing.lg }}>{header}</View>}
+          renderSectionHeader={({ section }) => (
+            <Text
+              variant="micro"
+              tone="muted"
+              style={{
+                textTransform: 'uppercase',
+                marginBottom: theme.spacing.xs,
+                paddingHorizontal: theme.spacing.sm,
+              }}
+            >
+              {dayHeading(locale, section.first.created_at)}
+            </Text>
+          )}
+          SectionSeparatorComponent={() => <View style={{ height: theme.spacing.lg }} />}
+          ItemSeparatorComponent={() => <View style={{ height: theme.spacing.xs }} />}
+          renderItem={({ item: row }) => {
+            const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
+              title: row.title,
+              body: row.body,
+            });
+            const unreadRow = row.read_at === null;
+            return (
+              <Pressable
+                accessibilityRole={row.group_id ? 'button' : undefined}
+                accessibilityLabel={title}
+                onPress={
+                  row.group_id ? () => router.push(`/group/${row.group_id}` as never) : undefined
+                }
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.6 : 1,
+                  borderRadius: theme.radius.lg,
+                  backgroundColor: unreadRow ? theme.color.brandSoft : 'transparent',
+                  paddingHorizontal: theme.spacing.sm,
+                  paddingVertical: theme.spacing.md,
+                })}
+              >
+                <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
+                  <View
                     style={{
-                      textTransform: 'uppercase',
-                      marginBottom: theme.spacing.xs,
-                      paddingHorizontal: theme.spacing.sm,
+                      width: 40,
+                      height: 40,
+                      borderRadius: theme.radius.pill,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.buttonPrimary,
                     }}
                   >
-                    {dayHeading(locale, section.rows[0]!.created_at)}
-                  </Text>
-                  {section.rows.map((row) => {
-                    const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
-                      title: row.title,
-                      body: row.body,
-                    });
-                    const unreadRow = row.read_at === null;
-                    return (
-                      <Pressable
-                        key={row.id}
-                        accessibilityRole={row.group_id ? 'button' : undefined}
-                        accessibilityLabel={title}
-                        onPress={
-                          row.group_id
-                            ? () => router.push(`/group/${row.group_id}` as never)
-                            : undefined
-                        }
-                        style={({ pressed }) => ({
-                          opacity: pressed ? 0.6 : 1,
-                          borderRadius: theme.radius.lg,
-                          backgroundColor: unreadRow ? theme.color.brandSoft : 'transparent',
-                          paddingHorizontal: theme.spacing.sm,
-                          paddingVertical: theme.spacing.md,
-                        })}
-                      >
-                        <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
-                          <View
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: theme.radius.pill,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: theme.color.buttonPrimary,
-                            }}
-                          >
-                            <Ionicons
-                              name={ICONS[row.kind] ?? 'notifications-outline'}
-                              size={iconSize.lg}
-                              color={theme.color.onBrand}
-                            />
-                          </View>
-                          <View style={{ flex: 1, gap: 2 }}>
-                            <Text variant="subheading" numberOfLines={2}>
-                              {title}
-                            </Text>
-                            <Text variant="caption" tone="muted" numberOfLines={2}>
-                              {body}
-                            </Text>
-                          </View>
-                          {/* The clock lives on the right, the day is the heading's
-                            job — the row says when within the day, not which day. */}
-                          <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                            <Text variant="micro" tone="muted">
-                              {new Intl.DateTimeFormat(locale, {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              }).format(new Date(row.created_at))}
-                            </Text>
-                            {unreadRow ? (
-                              <View
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: 4,
-                                  backgroundColor: theme.color.brand,
-                                }}
-                              />
-                            ) : null}
-                          </View>
-                        </Row>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-
-            {/* The delivery footnote belongs with the list, not under an empty
-                or loading screen where it read as the only thing on the page. */}
+                    <Ionicons
+                      name={ICONS[row.kind] ?? 'notifications-outline'}
+                      size={iconSize.lg}
+                      color={theme.color.onBrand}
+                    />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="subheading" numberOfLines={2}>
+                      {title}
+                    </Text>
+                    <Text variant="caption" tone="muted" numberOfLines={2}>
+                      {body}
+                    </Text>
+                  </View>
+                  {/* The clock lives on the right, the day is the heading's
+                      job — the row says when within the day, not which day. */}
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <Text variant="micro" tone="muted">
+                      {new Intl.DateTimeFormat(locale, {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      }).format(new Date(row.created_at))}
+                    </Text>
+                    {unreadRow ? (
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: theme.color.brand,
+                        }}
+                      />
+                    ) : null}
+                  </View>
+                </Row>
+              </Pressable>
+            );
+          }}
+          ListFooterComponent={
             <Text variant="micro" tone="muted" align="center">
               {t.extras.deliveryComesLater}
             </Text>
-          </View>
-        )}
-      </ScrollView>
+          }
+        />
+      )}
     </Screen>
   );
 }
