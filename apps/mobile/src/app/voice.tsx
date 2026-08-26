@@ -96,6 +96,17 @@ interface PersonChoice {
   groupId: string;
 }
 
+/**
+ * What a returning transcript does — the mic is reused for three jobs, and the
+ * job is fixed the moment the mic is opened, not read off the transcript.
+ *  - 'replace'   the opening capture: the heard batch becomes the review list.
+ *  - 'append'    "+ Add more": the heard expenses are pushed onto the current
+ *                list, keeping the existing items and the chosen destination.
+ *  - redescribe  a single row's mic: only that row's description is re-dictated;
+ *                the amounts and every other row stay put.
+ */
+type MicMode = 'replace' | 'append' | { kind: 'redescribe'; key: string };
+
 const EQUAL: SplitParams = { kind: 'equal' };
 
 /** Today as `YYYY-MM-DD` — the expense date a spoken expense is filed under. */
@@ -166,6 +177,9 @@ export default function VoiceScreen() {
   // 'listening' → the mic; 'thinking' → the model is reading; 'review' → the
   // heard expenses, editable, awaiting a destination and a Save.
   const [phase, setPhase] = useState<'listening' | 'thinking' | 'review'>('listening');
+  // What the next transcript does — set the moment the mic is opened (opening
+  // capture, "add more", or a single row's re-dictation), read when it returns.
+  const [micMode, setMicMode] = useState<MicMode>('replace');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   // One place for the whole spoken batch — a run of "coffee, then the taxi" all
   // happened where you are standing (A43). Optional and opt-in; null until the
@@ -233,6 +247,15 @@ export default function VoiceScreen() {
       if (group && !picks.some((pick) => pick.group.id === group.id)) picks.push({ group, reason });
     };
 
+    // A person's 1:1 group is a *person* chip, never a trip chip. Without this
+    // exclusion the same 1:1 group surfaced in both rows; since a trip chip and a
+    // person chip each key their selected state on `dest.groupId`, choosing one
+    // lit up the other (a group appeared to select a person, and vice versa).
+    const personGroupIds = new Set<string>();
+    for (const row of people.data ?? []) {
+      if (row.only_group_id) personGroupIds.add(row.only_group_id);
+    }
+
     let recent: GroupRow | null = null;
     let recentAt = '';
     let frequent: GroupRow | null = null;
@@ -240,6 +263,7 @@ export default function VoiceScreen() {
     let fresh: GroupRow | null = null;
     let freshAt = '';
     for (const group of groupRows) {
+      if (personGroupIds.has(group.id)) continue;
       const use = usage.get(group.id);
       if (use?.lastAt && use.lastAt > recentAt) {
         recentAt = use.lastAt;
@@ -258,7 +282,7 @@ export default function VoiceScreen() {
     if (frequentCount > 0) add(frequent, 'frequent');
     add(fresh, 'new');
     return picks.slice(0, 3);
-  }, [groupRows, usage, nowMs]);
+  }, [groupRows, usage, nowMs, people.data]);
 
   // People: the two most recently added, by the age of their 1:1 group.
   const quickPeople = useMemo(
@@ -332,12 +356,11 @@ export default function VoiceScreen() {
     setPhase('review');
   };
 
-  const handleTranscript = (transcript: string): void => {
-    setPhase('thinking');
-    void (async () => {
-      // With a key, let the model read it (several expenses, other languages, a
-      // spoken new group). It self-guards on the key and returns null when there
-      // is none or the call fails — then the pure heuristic takes over.
+  // The heard batch, read the same way whichever job it is for: with a key the
+  // model reads it (several expenses, other languages, a spoken new group); with
+  // none, or on a failure, the pure heuristic takes over.
+  const interpret = useCallback(
+    async (transcript: string): Promise<VoiceParseResult> => {
       let result: VoiceParseResult | null = null;
       if (aiEnabled(access)) {
         result = await interpretVoiceExpenses(transcript, {
@@ -346,9 +369,21 @@ export default function VoiceScreen() {
           defaultCurrency: dc,
         }).catch(() => null);
       }
-      applyResult(result ?? parseVoiceExpenses(transcript, groupRefs));
-    })();
-  };
+      return result ?? parseVoiceExpenses(transcript, groupRefs);
+    },
+    [access, groupRefs, locale, dc],
+  );
+
+  // Drafts minted from heard expenses — the shared shape for the opening batch
+  // and the appended ones, so an added expense reads and saves exactly like an
+  // original (same category-less default, same batch folding at save time).
+  const toDrafts = (result: VoiceParseResult): Draft[] =>
+    result.items.map((item) => ({
+      key: randomUUID(),
+      amount: String(item.amountMajor),
+      note: item.note,
+      currency: item.currency,
+    }));
 
   const editDraft = (key: string, patch: Partial<Draft>): void => {
     setDrafts((current) =>
@@ -357,6 +392,46 @@ export default function VoiceScreen() {
   };
   const removeDraft = (key: string): void => {
     setDrafts((current) => current.filter((draft) => draft.key !== key));
+  };
+
+  // "+ Add more": the heard expenses are pushed onto the current list, keeping
+  // every existing row and the chosen destination. A miss (nothing with an
+  // amount) drops back to the mic in the same append mode, so the retry still
+  // appends rather than silently replacing the batch.
+  const appendResult = (result: VoiceParseResult): void => {
+    if (result.items.length === 0) {
+      setNoAmount(true);
+      setAttempt((current) => current + 1);
+      setPhase('listening');
+      return;
+    }
+    setDrafts((current) => [...current, ...toDrafts(result)]);
+    setNoAmount(false);
+    setMicMode('replace');
+    setPhase('review');
+  };
+
+  const handleTranscript = (transcript: string): void => {
+    const mode = micMode;
+    // A single row's re-dictation replaces only that description — no thinking
+    // phase, no destination change; the amounts and the other rows stand.
+    if (typeof mode === 'object') {
+      const parsed = parseVoiceExpenses(transcript, groupRefs);
+      // Prefer the cleaned note (amount/currency/group words stripped); fall back
+      // to the raw sentence when nothing parsed out of it.
+      const note = parsed.items[0]?.note.trim() || transcript.trim();
+      if (note) editDraft(mode.key, { note });
+      setNoAmount(false);
+      setMicMode('replace');
+      setPhase('review');
+      return;
+    }
+    setPhase('thinking');
+    void (async () => {
+      const parsed = await interpret(transcript);
+      if (mode === 'append') appendResult(parsed);
+      else applyResult(parsed);
+    })();
   };
 
   // The reader set or cleared the pin by hand. Latch it so a still-pending
@@ -373,6 +448,37 @@ export default function VoiceScreen() {
     groupCreated.current = false;
     ghostMemberId.current = null;
     setDest({ kind: 'existing', groupId });
+  };
+
+  // "+ Add more" — reopen the mic to speak another expense (or several). The
+  // returning batch is appended, not replaced; the destination is untouched.
+  const startAddMore = (): void => {
+    setMicMode('append');
+    setNoAmount(false);
+    setAttempt((current) => current + 1);
+    setPhase('listening');
+  };
+
+  // The per-row mic — reopen to re-dictate just this expense's description.
+  const startRedescribe = (key: string): void => {
+    setMicMode({ kind: 'redescribe', key });
+    setNoAmount(false);
+    setAttempt((current) => current + 1);
+    setPhase('listening');
+  };
+
+  // The ✕. A sub-capture (add more, or a row re-dictation) opened over a review
+  // that already has a batch — backing out of it returns to the review with the
+  // batch intact, rather than leaving the screen. Otherwise it leaves as before
+  // (the leave-guard below still files an unassigned batch as a draft on the way).
+  const dismiss = (): void => {
+    if (phase === 'listening' && drafts.length > 0) {
+      setNoAmount(false);
+      setMicMode('replace');
+      setPhase('review');
+      return;
+    }
+    router.back();
   };
 
   // Write the heard expenses into the capture inbox — the app's draft holding
@@ -413,6 +519,15 @@ export default function VoiceScreen() {
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove', (event) => {
       if (committed.current) return;
+      // Backing out of a sub-capture (add more / re-dictate a row) — the OS back
+      // gesture, not only the ✕ — returns to the review with the batch intact.
+      if (phase === 'listening' && drafts.length > 0) {
+        event.preventDefault();
+        setNoAmount(false);
+        setMicMode('replace');
+        setPhase('review');
+        return;
+      }
       if (phase !== 'review' || dest.kind !== 'unassigned') return;
       if (drafts.length === 0) return;
       // A draft is only kept if the whole batch is savable. Persisting only the
@@ -637,13 +752,14 @@ export default function VoiceScreen() {
             alignItems: 'center',
           }}
         >
-          {/* The heading wears a receipt glyph in ink — the review is an expense
-              draft to check over, not the mic that started it. */}
+          {/* The Activity screen's header shape — a left-aligned brand glyph and a
+              big bold title — so the review reads as the same family of screen.
+              Here the glyph is the mic that started the capture. */}
           <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-            <Ionicons name="receipt-outline" size={iconSize.lg} color={theme.color.buttonPrimary} />
-            <Text variant="heading">{phase === 'review' ? t.voice.review : t.voice.title}</Text>
+            <Ionicons name="mic" size={iconSize.xl} color={theme.color.brand} />
+            <Text variant="title">{phase === 'review' ? t.voice.review : t.voice.title}</Text>
           </Row>
-          <IconButton label={t.common.close} onPress={() => router.back()}>
+          <IconButton label={t.common.close} onPress={dismiss}>
             <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
           </IconButton>
         </Row>
@@ -666,9 +782,6 @@ export default function VoiceScreen() {
                 the feed gives a newly-added expense, so a draft here reads as the
                 same thing it will become once saved. */}
             <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-                {t.voice.review.toUpperCase()}
-              </Text>
               <Card padded={false} flat style={{ overflow: 'hidden' }}>
                 {drafts.map((draft, index) => (
                   <View key={draft.key}>
@@ -676,7 +789,9 @@ export default function VoiceScreen() {
                       draft={draft}
                       onEdit={editDraft}
                       onRemove={removeDraft}
+                      onRedescribe={startRedescribe}
                       removeLabel={t.captures.delete}
+                      redescribeLabel={t.voice.redescribe}
                       amountLabel={t.captures.amount}
                       noteLabel={t.captures.description}
                       notePlaceholder={t.captures.descriptionPlaceholder}
@@ -686,15 +801,71 @@ export default function VoiceScreen() {
                   </View>
                 ))}
               </Card>
+
+              {/* Speak again and append — another expense (or several) onto the
+                  batch, keeping the ones already here and the chosen destination. */}
+              <Pressable
+                onPress={startAddMore}
+                accessibilityRole="button"
+                accessibilityLabel={t.voice.addMore}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: theme.spacing.xs,
+                  paddingVertical: theme.spacing.md,
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Ionicons name="add-circle-outline" size={iconSize.md} color={theme.color.brand} />
+                <Text variant="caption" style={{ color: theme.color.brand, fontWeight: '600' }}>
+                  {t.voice.addMore}
+                </Text>
+              </Pressable>
             </View>
 
-            {/* Destination folded to one selector row — the whole group list
-                would otherwise dwarf the expenses. Tapping opens the picker as
-                a sheet. */}
+            {/* "Save to": the label, the one-tap tags directly beneath it, then the
+                folded picker trigger below the tags. Trip and person chips are
+                shaped and tinted apart, so a glance tells them apart. */}
             <View style={{ gap: theme.spacing.sm }}>
               <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
                 {t.voice.saveTo.toUpperCase()}
               </Text>
+
+              {quickTrips.length > 0 || quickPeople.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
+                >
+                  {quickTrips.map(({ group }) => (
+                    <QuickChip
+                      key={`trip-${group.id}`}
+                      kind="trip"
+                      label={groupLabel(group)}
+                      emoji={group.cover_emoji}
+                      icon={GROUP_TYPE_ICON[group.type] ?? 'people-outline'}
+                      selected={dest.kind === 'existing' && dest.groupId === group.id}
+                      onPress={() => chooseExistingDest(group.id)}
+                      theme={theme}
+                    />
+                  ))}
+                  {quickPeople.map((person) => (
+                    <QuickChip
+                      key={`person-${person.groupId}`}
+                      kind="person"
+                      label={person.name}
+                      selected={dest.kind === 'existing' && dest.groupId === person.groupId}
+                      onPress={() => chooseExistingDest(person.groupId)}
+                      theme={theme}
+                    />
+                  ))}
+                </ScrollView>
+              ) : null}
+
+              {/* The full destination list folded to one row — tapping opens the
+                  picker as a sheet. Sits below the tags. */}
               <Card padded={false} style={{ overflow: 'hidden' }}>
                 <Pressable
                   onPress={() => setPickerOpen(true)}
@@ -736,46 +907,6 @@ export default function VoiceScreen() {
                 </Pressable>
               </Card>
             </View>
-
-            {/* One-tap destinations, under the selector: the trips worth reaching
-                for first, then the two most recently added people. Trip and person
-                chips are shaped and tinted apart, so a glance tells them apart. */}
-            {quickTrips.length > 0 || quickPeople.length > 0 ? (
-              <View style={{ gap: theme.spacing.sm }}>
-                <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-                  {t.voice.quickPick.toUpperCase()}
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
-                >
-                  {quickTrips.map(({ group }) => (
-                    <QuickChip
-                      key={`trip-${group.id}`}
-                      kind="trip"
-                      label={groupLabel(group)}
-                      emoji={group.cover_emoji}
-                      icon={GROUP_TYPE_ICON[group.type] ?? 'people-outline'}
-                      selected={dest.kind === 'existing' && dest.groupId === group.id}
-                      onPress={() => chooseExistingDest(group.id)}
-                      theme={theme}
-                    />
-                  ))}
-                  {quickPeople.map((person) => (
-                    <QuickChip
-                      key={`person-${person.groupId}`}
-                      kind="person"
-                      label={person.name}
-                      selected={dest.kind === 'existing' && dest.groupId === person.groupId}
-                      onPress={() => chooseExistingDest(person.groupId)}
-                      theme={theme}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
 
             {/* One place for the whole batch (A43) — opt-in, never a background
                 track. It rides onto every expense saved from this review. */}
@@ -1357,7 +1488,9 @@ function DraftRow({
   draft,
   onEdit,
   onRemove,
+  onRedescribe,
   removeLabel,
+  redescribeLabel,
   amountLabel,
   noteLabel,
   notePlaceholder,
@@ -1366,7 +1499,9 @@ function DraftRow({
   draft: Draft;
   onEdit: (key: string, patch: Partial<Draft>) => void;
   onRemove: (key: string) => void;
+  onRedescribe: (key: string) => void;
   removeLabel: string;
+  redescribeLabel: string;
   amountLabel: string;
   noteLabel: string;
   notePlaceholder: string;
@@ -1421,14 +1556,27 @@ function DraftRow({
             }}
           />
         </Row>
-        <TextInput
-          value={draft.note}
-          onChangeText={(value) => onEdit(draft.key, { note: value })}
-          placeholder={notePlaceholder}
-          placeholderTextColor={theme.color.textFaint}
-          accessibilityLabel={noteLabel}
-          style={{ fontSize: 15, color: theme.color.textMuted, paddingVertical: 0 }}
-        />
+        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+          <TextInput
+            value={draft.note}
+            onChangeText={(value) => onEdit(draft.key, { note: value })}
+            placeholder={notePlaceholder}
+            placeholderTextColor={theme.color.textFaint}
+            accessibilityLabel={noteLabel}
+            style={{ flex: 1, fontSize: 15, color: theme.color.textMuted, paddingVertical: 0 }}
+          />
+          {/* Re-dictate just this description: reopens the mic and rewrites only
+              this row's note, leaving its amount and the other rows untouched. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={redescribeLabel}
+            onPress={() => onRedescribe(draft.key)}
+            hitSlop={8}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          >
+            <Ionicons name="mic-outline" size={iconSize.md} color={theme.color.brand} />
+          </Pressable>
+        </Row>
       </View>
 
       <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>
