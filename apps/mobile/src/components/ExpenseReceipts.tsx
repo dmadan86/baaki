@@ -18,13 +18,24 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { IconButton, iconSize, Row, Text, useTheme } from '@waves/ui';
+import { iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { canAddExpenseAttachment } from '@/data/api';
 import { receiptCapStatus } from '@/lib/receiptCapGate';
+import { saveImageToDevice } from '@/lib/saveImage';
 
+import { ViewerButton } from '@/components/ViewerButton';
 import { ZoomableGallery, type GalleryPage } from '@/components/ZoomableGallery';
 import { ReceiptAnnotator } from '@/components/ReceiptAnnotator';
 import { ReceiptCropper } from '@/components/ReceiptCropper';
@@ -225,6 +236,7 @@ export function ExpenseReceipts({
   onLegacyRemoved?: () => void;
 }): React.JSX.Element | null {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useStrings();
   const attachments = useExpenseAttachments(expenseId);
   const attach = useAttachExpenseAttachment(groupId, expenseId);
@@ -306,6 +318,7 @@ export function ExpenseReceipts({
 
   const urls = useResolvedUrls(expenseId, items);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<{
     attachmentId: string;
     uri: string;
@@ -461,6 +474,18 @@ export function ExpenseReceipts({
 
   const viewing = viewerIndex !== null ? items[viewerIndex] : null;
 
+  // Save the open receipt off the device via the OS share/save sheet.
+  const saveViewed = () => {
+    if (viewerIndex === null || saving) return;
+    const url = urls[viewerIndex];
+    if (!url) return;
+    setSaving(true);
+    void saveImageToDevice(url).then((result) => {
+      setSaving(false);
+      if (result === 'error') Alert.alert(t.receipts.couldNotSave);
+    });
+  };
+
   return (
     <View style={{ gap: theme.spacing.sm }}>
       <Text variant="caption" tone="muted">
@@ -565,108 +590,134 @@ export function ExpenseReceipts({
         animationType="fade"
         onRequestClose={() => setViewerIndex(null)}
       >
-        <View style={{ flex: 1, backgroundColor: theme.color.bg }}>
-          <Row
-            style={{
-              justifyContent: 'space-between',
-              paddingHorizontal: theme.spacing.xl,
-              paddingTop: theme.spacing.xxl,
-              paddingBottom: theme.spacing.sm,
-            }}
-          >
-            <IconButton label={t.common.close} onPress={() => setViewerIndex(null)}>
-              <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-            </IconButton>
-            <View style={{ alignItems: 'center' }}>
-              <Text variant="caption" tone="muted">
-                {fill(t.receipts.counter, {
-                  index: (viewerIndex ?? 0) + 1,
-                  total: items.length,
-                })}
-              </Text>
-              {viewing && isPrivate(viewing) ? (
-                <Row style={{ gap: 4, alignItems: 'center' }}>
-                  <Ionicons name="lock-closed" size={11} color={theme.color.textMuted} />
-                  <Text variant="micro" tone="muted">
-                    {t.receipts.privateTag}
-                  </Text>
-                </Row>
-              ) : null}
-            </View>
-            {(() => {
-              // An attachment's edit/remove is party-only (`canManage`); the
-              // legacy bill's remove also allows a group admin (`canRemoveLegacy`)
-              // — the same split the RPCs enforce. Nothing to offer → a spacer,
-              // so the counter stays centred.
-              const showEdit =
-                canManage && viewing?.kind === 'attachment' && viewerIndex !== null
-                  ? urls[viewerIndex]
-                  : null;
-              const showRemove =
-                viewing !== null && (viewing.kind === 'legacy' ? canRemoveLegacy : canManage);
-              if (viewerIndex === null || (!showEdit && !showRemove)) {
-                return <View style={{ width: 44 }} />;
-              }
-              return (
-                <Row style={{ gap: theme.spacing.xs }}>
-                  {showEdit ? (
-                    <IconButton
-                      label={t.adjust.title}
-                      onPress={() => {
-                        const url = urls[viewerIndex];
-                        if (viewing?.kind === 'attachment' && url) {
-                          setAdjusting({
-                            attachmentId: viewing.row.id,
-                            uri: url,
-                            oldStoragePath: viewing.row.storagePath,
-                          });
-                        }
-                      }}
-                    >
-                      <Ionicons name="crop" size={iconSize.md} color={theme.color.text} />
-                    </IconButton>
-                  ) : null}
-                  {showEdit ? (
-                    <IconButton
-                      label={t.annotate.title}
-                      onPress={() => {
-                        const url = urls[viewerIndex];
-                        if (viewing?.kind === 'attachment' && url) {
-                          setEditing({
-                            attachmentId: viewing.row.id,
-                            uri: url,
-                            initial: viewing.row.annotations ?? EMPTY_ANNOTATIONS,
-                          });
-                        }
-                      }}
-                    >
-                      <Ionicons name="pencil" size={iconSize.md} color={theme.color.text} />
-                    </IconButton>
-                  ) : null}
-                  {showRemove ? (
-                    <IconButton
-                      label={t.receipts.remove}
-                      onPress={() => {
-                        if (!removeAttachment.isPending && !removeLegacy.isPending)
-                          removeAt(viewerIndex);
-                      }}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={iconSize.lg}
-                        color={theme.color.negative}
-                      />
-                    </IconButton>
-                  ) : null}
-                </Row>
-              );
-            })()}
-          </Row>
+        {/* A dark, immersive viewer (the Photos/ChatGPT pattern): the image fills
+            the screen and every control floats over it, so nothing squeezes the
+            pixels. Save, adjust, annotate and remove sit as translucent circular
+            buttons; the counter is a pill at the foot. */}
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <StatusBar barStyle="light-content" />
+
           <ZoomableGallery
             pages={pages}
             index={viewerIndex ?? 0}
             onIndexChange={(i) => setViewerIndex(i)}
           />
+
+          <Row
+            style={{
+              position: 'absolute',
+              top: insets.top + theme.spacing.sm,
+              left: theme.spacing.xl,
+              right: theme.spacing.xl,
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+            }}
+          >
+            <ViewerButton
+              icon="close"
+              label={t.common.close}
+              onPress={() => setViewerIndex(null)}
+            />
+            <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {viewerIndex !== null && urls[viewerIndex] ? (
+                <ViewerButton
+                  icon="download-outline"
+                  label={t.receipts.download}
+                  onPress={saveViewed}
+                  busy={saving}
+                />
+              ) : null}
+              {(() => {
+                if (viewerIndex === null) return null;
+                // An attachment's edit/remove is party-only (`canManage`); the
+                // legacy bill's remove also allows a group admin
+                // (`canRemoveLegacy`) — the same split the RPCs enforce.
+                const showEdit =
+                  canManage && viewing?.kind === 'attachment' ? urls[viewerIndex] : null;
+                const showRemove =
+                  viewing !== null && (viewing.kind === 'legacy' ? canRemoveLegacy : canManage);
+                return (
+                  <>
+                    {showEdit ? (
+                      <ViewerButton
+                        icon="crop"
+                        label={t.adjust.title}
+                        onPress={() => {
+                          const url = urls[viewerIndex];
+                          if (viewing?.kind === 'attachment' && url) {
+                            setAdjusting({
+                              attachmentId: viewing.row.id,
+                              uri: url,
+                              oldStoragePath: viewing.row.storagePath,
+                            });
+                          }
+                        }}
+                      />
+                    ) : null}
+                    {showEdit ? (
+                      <ViewerButton
+                        icon="pencil"
+                        label={t.annotate.title}
+                        onPress={() => {
+                          const url = urls[viewerIndex];
+                          if (viewing?.kind === 'attachment' && url) {
+                            setEditing({
+                              attachmentId: viewing.row.id,
+                              uri: url,
+                              initial: viewing.row.annotations ?? EMPTY_ANNOTATIONS,
+                            });
+                          }
+                        }}
+                      />
+                    ) : null}
+                    {showRemove ? (
+                      <ViewerButton
+                        icon="trash-outline"
+                        label={t.receipts.remove}
+                        tint={theme.color.negative}
+                        onPress={() => {
+                          if (!removeAttachment.isPending && !removeLegacy.isPending)
+                            removeAt(viewerIndex);
+                        }}
+                      />
+                    ) : null}
+                  </>
+                );
+              })()}
+            </Row>
+          </Row>
+
+          {/* Page counter + private tag, a floating pill at the foot. */}
+          <View
+            style={{
+              position: 'absolute',
+              bottom: insets.bottom + theme.spacing.xl,
+              left: 0,
+              right: 0,
+              alignItems: 'center',
+            }}
+          >
+            <Row
+              style={{
+                gap: theme.spacing.xs,
+                alignItems: 'center',
+                paddingHorizontal: theme.spacing.md,
+                paddingVertical: 6,
+                borderRadius: theme.radius.pill,
+                backgroundColor: 'rgba(20, 20, 30, 0.55)',
+              }}
+            >
+              {viewing && isPrivate(viewing) ? (
+                <Ionicons name="lock-closed" size={11} color="#FFFFFF" />
+              ) : null}
+              <Text variant="caption" style={{ color: '#FFFFFF' }}>
+                {fill(t.receipts.counter, {
+                  index: (viewerIndex ?? 0) + 1,
+                  total: items.length,
+                })}
+              </Text>
+            </Row>
+          </View>
         </View>
       </Modal>
 
