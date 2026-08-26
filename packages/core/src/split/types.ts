@@ -89,6 +89,7 @@ export enum SplitErrorCode {
   DuplicateParticipant = 'DUPLICATE_PARTICIPANT',
   UnknownMember = 'UNKNOWN_MEMBER',
   NegativeTotal = 'NEGATIVE_TOTAL',
+  NegativeShare = 'NEGATIVE_SHARE',
   ExactSumMismatch = 'EXACT_SUM_MISMATCH',
   PercentSumMismatch = 'PERCENT_SUM_MISMATCH',
   InvalidWeight = 'INVALID_WEIGHT',

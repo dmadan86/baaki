@@ -25,6 +25,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { computeShares, sumShares } from '../src/split/computeShares.js';
+import { distributeRemainder } from '../src/split/remainder.js';
 import { verifyClientShares } from '../src/split/verify.js';
 import { SplitError, SplitErrorCode, type MemberId, type ShareMap } from '../src/split/types.js';
 
@@ -379,16 +380,18 @@ describe('fixed value splits — exact amounts per person', () => {
     expect(shares.get('m3')).toBe(0n);
   });
 
-  it('allows a negative share only as part of a set that still sums correctly', () => {
-    // Someone was credited back — the total is still the total.
-    const shares = computeShares({
-      amount: 1000n,
-      currency: INR,
-      params: { kind: 'exact', amounts: { m1: 1200n, m2: -200n } },
-      participants: members(2),
-      seed: SEED,
-    });
-    expect(sumShares(shares)).toBe(1000n);
+  it('rejects a negative share even when the exact amounts sum correctly', () => {
+    expectSplitError(
+      () =>
+        computeShares({
+          amount: 1000n,
+          currency: INR,
+          params: { kind: 'exact', amounts: { m1: 1200n, m2: -200n } },
+          participants: members(2),
+          seed: SEED,
+        }),
+      SplitErrorCode.NegativeShare,
+    );
   });
 });
 
@@ -495,6 +498,20 @@ describe('rules that apply to every split type', () => {
       for (const [member, share] of shares) if (share === 334n) absorbers.add(member);
     }
     expect(absorbers.size).toBe(3);
+  });
+});
+
+describe('remainder distribution helper', () => {
+  it('handles large direct remainders by full rounds plus rotated leftovers', () => {
+    const shares = new Map<MemberId, bigint>([
+      ['a', 0n],
+      ['b', 0n],
+      ['c', 0n],
+    ]);
+    distributeRemainder(shares, 1_000_000_000_001n, ['a', 'b', 'c'], 1);
+    expect(shares.get('a')).toBe(333_333_333_333n);
+    expect(shares.get('b')).toBe(333_333_333_334n);
+    expect(shares.get('c')).toBe(333_333_333_334n);
   });
 });
 

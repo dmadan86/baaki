@@ -29,8 +29,10 @@ export function rotationOffset(seed: string, count: number): number {
 }
 
 /**
- * Hand out `remainder` minor units (may be negative) across `order`, one unit
- * per member per pass, starting at `offset`.
+ * Hand out `remainder` minor units (may be negative) across `order`, starting at
+ * `offset`. Normal split callers pass a remainder smaller than `order.length`,
+ * but this helper is exported for tests and SQL parity, so large direct inputs
+ * are handled in O(n) by applying full rounds before the rotated leftovers.
  */
 export function distributeRemainder(
   shares: Map<MemberId, bigint>,
@@ -39,14 +41,23 @@ export function distributeRemainder(
   offset: number,
 ): void {
   if (remainder === 0n || order.length === 0) return;
-  const step = remainder > 0n ? 1n : -1n;
-  let left = remainder > 0n ? remainder : -remainder;
+  const sign = remainder > 0n ? 1n : -1n;
+  const magnitude = remainder > 0n ? remainder : -remainder;
+  const count = BigInt(order.length);
+  const fullRounds = magnitude / count;
+  const leftovers = Number(magnitude % count);
+
+  if (fullRounds !== 0n) {
+    for (const member of order) {
+      shares.set(member, (shares.get(member) ?? 0n) + sign * fullRounds);
+    }
+  }
+
   let index = offset % order.length;
-  while (left > 0n) {
+  for (let left = 0; left < leftovers; left += 1) {
     const member = order[index] as MemberId;
-    shares.set(member, (shares.get(member) ?? 0n) + step);
+    shares.set(member, (shares.get(member) ?? 0n) + sign);
     index = (index + 1) % order.length;
-    left -= 1n;
   }
 }
 

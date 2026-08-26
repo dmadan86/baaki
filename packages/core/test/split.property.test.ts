@@ -104,7 +104,7 @@ describe('computeShares — Σ shares === amount', () => {
       fc.property(
         memberIds().chain((members) =>
           fc
-            .array(fc.bigInt({ min: -50_000n, max: 50_000n }), {
+            .array(fc.bigInt({ min: 0n, max: 50_000n }), {
               minLength: members.length,
               maxLength: members.length,
             })
@@ -116,17 +116,21 @@ describe('computeShares — Σ shares === amount', () => {
               return { members, adjustments };
             }),
         ),
-        amounts(),
+        amounts(1_000_000_000n),
         seeds(),
         ({ members, adjustments }, amount, seed) => {
+          const adjustmentTotal = Object.values(adjustments).reduce(
+            (sum, value) => sum + value,
+            0n,
+          );
           const shares = computeShares({
-            amount,
+            amount: amount + adjustmentTotal,
             currency: INR,
             params: { kind: 'adjustment', adjustments },
             participants: members,
             seed,
           });
-          expect(sumShares(shares)).toBe(amount);
+          expect(sumShares(shares)).toBe(amount + adjustmentTotal);
         },
       ),
     );
@@ -282,6 +286,67 @@ describe('computeShares — rejections', () => {
         seed: 'x',
       }),
     ).toThrowError(/total/i);
+  });
+
+  it('rejects duplicate itemized claimers before the line total can be lost', () => {
+    expect(() =>
+      computeShares({
+        amount: 100n,
+        currency: INR,
+        params: { kind: 'itemized', items: [{ total: 100n }], claims: { 0: ['a', 'a'] } },
+        participants: ['a', 'b'],
+        seed: 'x',
+      }),
+    ).toThrowError(/claiming it more than once/i);
+  });
+
+  it('rejects itemized claims for lines that do not exist', () => {
+    expect(() =>
+      computeShares({
+        amount: 100n,
+        currency: INR,
+        params: { kind: 'itemized', items: [{ total: 100n }], claims: { 0: ['a'], 1: ['b'] } },
+        participants: ['a', 'b'],
+        seed: 'x',
+      }),
+    ).toThrowError(/does not exist/i);
+  });
+
+  it('rejects negative itemized tax, service, tip and discount fields', () => {
+    const base = { kind: 'itemized' as const, items: [{ total: 100n }], claims: { 0: ['a'] } };
+    for (const field of ['taxes', 'serviceCharge', 'tip', 'discounts'] as const) {
+      expect(() =>
+        computeShares({
+          amount: 100n,
+          currency: INR,
+          params: { ...base, [field]: -1n },
+          participants: ['a'],
+          seed: 'x',
+        }),
+      ).toThrowError(/cannot be negative/i);
+    }
+  });
+
+  it('rejects negative final shares from exact and adjustment splits', () => {
+    expect(() =>
+      computeShares({
+        amount: 1000n,
+        currency: INR,
+        params: { kind: 'exact', amounts: { a: 1200n, b: -200n } },
+        participants: ['a', 'b'],
+        seed: 'x',
+      }),
+    ).toThrowError(/negative/i);
+
+    expect(() =>
+      computeShares({
+        amount: 1000n,
+        currency: INR,
+        params: { kind: 'adjustment', adjustments: { a: -2000n } },
+        participants: ['a', 'b'],
+        seed: 'x',
+      }),
+    ).toThrowError(/negative/i);
   });
 
   it('rejects unknown members and empty participant lists', () => {

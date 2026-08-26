@@ -31,11 +31,12 @@ export function splitTypeOf(params: SplitParams): SplitType {
 
 export function computeShares(input: ComputeSharesInput): ShareMap {
   const participants = validateParticipants(input.participants);
+  const participantSet = new Set<MemberId>(participants);
   if (input.amount < 0n) {
     throw new SplitError(SplitErrorCode.NegativeTotal, 'Expense total cannot be negative');
   }
 
-  const shares = computeByType(input, participants);
+  const shares = computeByType(input, participants, participantSet);
 
   // Every participant appears, even with a zero share, so the UI and the
   // expense_shares table agree on the row set.
@@ -47,7 +48,11 @@ export function computeShares(input: ComputeSharesInput): ShareMap {
   return shares;
 }
 
-function computeByType(input: ComputeSharesInput, participants: readonly MemberId[]): ShareMap {
+function computeByType(
+  input: ComputeSharesInput,
+  participants: readonly MemberId[],
+  participantSet: ReadonlySet<MemberId>,
+): ShareMap {
   switch (input.params.kind) {
     case 'equal':
       return splitEqually(input.amount, participants, input.seed);
@@ -56,7 +61,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
       const shares = new Map<MemberId, bigint>();
       let total = 0n;
       for (const [member, amount] of Object.entries(input.params.amounts)) {
-        requireParticipant(member, participants);
+        requireParticipant(member, participantSet);
         shares.set(member, amount);
         total += amount;
       }
@@ -73,7 +78,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
       const weights = new Map<MemberId, bigint>();
       let total = 0;
       for (const [member, basisPoints] of Object.entries(input.params.basisPoints)) {
-        requireParticipant(member, participants);
+        requireParticipant(member, participantSet);
         if (!Number.isInteger(basisPoints) || basisPoints < 0) {
           throw new SplitError(
             SplitErrorCode.InvalidWeight,
@@ -96,7 +101,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
       const weights = new Map<MemberId, bigint>();
       let positive = false;
       for (const [member, weight] of Object.entries(input.params.weights)) {
-        requireParticipant(member, participants);
+        requireParticipant(member, participantSet);
         if (!Number.isInteger(weight) || weight < 0) {
           throw new SplitError(
             SplitErrorCode.InvalidWeight,
@@ -119,7 +124,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
       let adjustmentTotal = 0n;
       const adjustments = new Map<MemberId, bigint>();
       for (const [member, adjustment] of Object.entries(input.params.adjustments)) {
-        requireParticipant(member, participants);
+        requireParticipant(member, participantSet);
         adjustments.set(member, adjustment);
         adjustmentTotal += adjustment;
       }
@@ -132,7 +137,7 @@ function computeByType(input: ComputeSharesInput, participants: readonly MemberI
     }
 
     case 'itemized':
-      return splitItemized(input.amount, input.params, participants, input.seed);
+      return splitItemized(input.amount, input.params, participants, participantSet, input.seed);
   }
 }
 
@@ -158,6 +163,7 @@ function splitItemized(
   amount: bigint,
   params: ItemizedParams,
   participants: readonly MemberId[],
+  participantSet: ReadonlySet<MemberId>,
   seed: string,
 ): ShareMap {
   if (params.items.length === 0) {
@@ -165,6 +171,16 @@ function splitItemized(
       SplitErrorCode.InvalidItem,
       'An itemized split needs at least one line item',
     );
+  }
+
+  for (const key of Object.keys(params.claims)) {
+    const index = Number(key);
+    if (!Number.isSafeInteger(index) || index < 0 || index >= params.items.length) {
+      throw new SplitError(
+        SplitErrorCode.InvalidItem,
+        `Claims include line ${key}, which does not exist`,
+      );
+    }
   }
 
   const subtotals = new Map<MemberId, bigint>();
@@ -184,7 +200,14 @@ function splitItemized(
         `Line ${index} ("${item.label ?? ''}") is unclaimed`,
       );
     }
-    for (const claimer of claimers) requireParticipant(claimer, participants);
+    const uniqueClaimers = new Set(claimers);
+    if (uniqueClaimers.size !== claimers.length) {
+      throw new SplitError(
+        SplitErrorCode.InvalidItem,
+        `Line ${index} has the same member claiming it more than once`,
+      );
+    }
+    for (const claimer of claimers) requireParticipant(claimer, participantSet);
 
     const lineShares = splitEqually(item.total, claimers, `${seed}:item:${index}`);
     for (const [member, share] of lineShares) {
@@ -193,11 +216,11 @@ function splitItemized(
     itemsTotal += item.total;
   });
 
-  const extras =
-    (params.taxes ?? 0n) +
-    (params.serviceCharge ?? 0n) +
-    (params.tip ?? 0n) -
-    (params.discounts ?? 0n);
+  const taxes = requireNonNegativeExtra('taxes', params.taxes);
+  const serviceCharge = requireNonNegativeExtra('serviceCharge', params.serviceCharge);
+  const tip = requireNonNegativeExtra('tip', params.tip);
+  const discounts = requireNonNegativeExtra('discounts', params.discounts);
+  const extras = taxes + serviceCharge + tip - discounts;
 
   if (itemsTotal + extras !== amount) {
     throw new SplitError(
@@ -222,6 +245,17 @@ function splitItemized(
   return shares;
 }
 
+function requireNonNegativeExtra(
+  field: 'taxes' | 'serviceCharge' | 'tip' | 'discounts',
+  value: bigint | undefined,
+): bigint {
+  if (value === undefined) return 0n;
+  if (value < 0n) {
+    throw new SplitError(SplitErrorCode.InvalidItem, `${field} cannot be negative`);
+  }
+  return value;
+}
+
 function validateParticipants(participants: readonly MemberId[]): MemberId[] {
   if (participants.length === 0) {
     throw new SplitError(
@@ -236,8 +270,8 @@ function validateParticipants(participants: readonly MemberId[]): MemberId[] {
   return [...participants];
 }
 
-function requireParticipant(member: MemberId, participants: readonly MemberId[]): void {
-  if (!participants.includes(member)) {
+function requireParticipant(member: MemberId, participants: ReadonlySet<MemberId>): void {
+  if (!participants.has(member)) {
     throw new SplitError(
       SplitErrorCode.UnknownMember,
       `"${member}" is not a participant in this expense`,
@@ -252,6 +286,15 @@ export function sumShares(shares: ShareMap): bigint {
 }
 
 function assertSumsTo(shares: ShareMap, amount: bigint): void {
+  for (const [member, share] of shares) {
+    if (share < 0n) {
+      throw new SplitError(
+        SplitErrorCode.NegativeShare,
+        `Computed share for ${member} is negative (${share})`,
+      );
+    }
+  }
+
   const total = sumShares(shares);
   if (total !== amount) {
     throw new SplitError(

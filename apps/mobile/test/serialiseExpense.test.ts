@@ -60,6 +60,47 @@ describe('serialiseExpense', () => {
     expect(out.expectedShares).toEqual({ m1: '1000', m2: '1000' });
   });
 
+  it('serialises bigint-bearing split params before the JSON queue sees them', () => {
+    const out = serialiseExpense({
+      ...base,
+      amount: 3200n,
+      splitParams: {
+        kind: 'itemized',
+        items: [{ label: 'Room', total: 3000n }],
+        claims: { 0: ['m1', 'm2'] },
+        taxes: 200n,
+      },
+      expectedShares: { m1: 1600n, m2: 1600n },
+    });
+
+    expect(out.splitParams).toEqual({
+      kind: 'itemized',
+      items: [{ label: 'Room', total: '3000' }],
+      claims: { 0: ['m1', 'm2'] },
+      taxes: '200',
+    });
+    expect(() => JSON.stringify(out)).not.toThrow();
+  });
+
+  it('serialises exact and adjustment split params for offline travel presets', () => {
+    const exact = serialiseExpense({
+      ...base,
+      splitParams: { kind: 'exact', amounts: { m1: 2000n, m2: 0n } },
+    });
+    const adjustment = serialiseExpense({
+      ...base,
+      splitParams: { kind: 'adjustment', adjustments: { m1: 300n, m2: 0n } },
+    });
+
+    expect(exact.splitParams).toEqual({ kind: 'exact', amounts: { m1: '2000', m2: '0' } });
+    expect(adjustment.splitParams).toEqual({
+      kind: 'adjustment',
+      adjustments: { m1: '300', m2: '0' },
+    });
+    expect(() => JSON.stringify(exact)).not.toThrow();
+    expect(() => JSON.stringify(adjustment)).not.toThrow();
+  });
+
   it('trims the description and leaves expectedShares undefined when not given', () => {
     const out = serialiseExpense(base);
     expect(out.description).toBe('Dinner');
