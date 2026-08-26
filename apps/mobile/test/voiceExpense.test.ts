@@ -110,14 +110,25 @@ describe('parseVoiceExpense', () => {
   it('recognises currencies beyond rupees and dollars', () => {
     const cases: [string, string][] = [
       ['2000 yen for sushi', 'JPY'],
+      ['2000 JPY for sushi', 'JPY'],
+      ['50 euro hotel', 'EUR'],
       ['50 euros hotel', 'EUR'],
+      ['50 EUR hotel', 'EUR'],
       ['100 pounds tickets', 'GBP'],
+      ['100 sterling tickets', 'GBP'],
+      ['100 quid tickets', 'GBP'],
       ['100 GBP tickets', 'GBP'],
       ['300 dirhams taxi', 'AED'],
       ['300 dirham taxi', 'AED'],
       ['300 AED taxi', 'AED'],
       ['5000 won lunch', 'KRW'],
+      ['5000 KRW lunch', 'KRW'],
+      ['100 yuan noodles', 'CNY'],
+      ['100 renminbi noodles', 'CNY'],
+      ['100 RMB noodles', 'CNY'],
+      ['100 CNY noodles', 'CNY'],
       ['1000 ringgit shopping', 'MYR'],
+      ['1000 MYR shopping', 'MYR'],
       ['200 baht food', 'THB'],
       ['200 THB food', 'THB'],
       ['500 dong snacks', 'VND'],
@@ -131,10 +142,46 @@ describe('parseVoiceExpense', () => {
       ['Rp100000 dinner', 'IDR'],
       ['IDR100000 dinner', 'IDR'],
       ['80 francs cab', 'CHF'],
+      ['80 CHF cab', 'CHF'],
       ['500 canadian dollars flight', 'CAD'],
+      ['500 CAD flight', 'CAD'],
       ['600 australian dollars tour', 'AUD'],
       ['600 AUD tour', 'AUD'],
       ['sri lankan rupees 400 tea', 'LKR'],
+      ['400 LKR tea', 'LKR'],
+      ['400 nepali rupees tea', 'NPR'],
+      ['400 NPR tea', 'NPR'],
+      ['400 pakistani rupees tea', 'PKR'],
+      ['400 PKR tea', 'PKR'],
+      ['50 singapore dollars snacks', 'SGD'],
+      ['50 SGD snacks', 'SGD'],
+      ['60 new zealand dollars tour', 'NZD'],
+      ['60 NZD tour', 'NZD'],
+      ['70 hong kong dollars dinner', 'HKD'],
+      ['70 HKD dinner', 'HKD'],
+      ['90 mexican pesos tacos', 'MXN'],
+      ['90 pesos tacos', 'MXN'],
+      ['90 MXN tacos', 'MXN'],
+      ['120 philippine pesos ferry', 'PHP'],
+      ['120 PHP ferry', 'PHP'],
+      ['30 saudi riyals coffee', 'SAR'],
+      ['30 riyal coffee', 'SAR'],
+      ['30 SAR coffee', 'SAR'],
+      ['40 south african rand taxi', 'ZAR'],
+      ['40 rands taxi', 'ZAR'],
+      ['40 ZAR taxi', 'ZAR'],
+      ['500 bangladeshi taka lunch', 'BDT'],
+      ['500 takas lunch', 'BDT'],
+      ['500 BDT lunch', 'BDT'],
+      ['25 brazilian reais dinner', 'BRL'],
+      ['25 reals dinner', 'BRL'],
+      ['25 BRL dinner', 'BRL'],
+      ['10 turkish lira coffee', 'TRY'],
+      ['10 Turkish liras coffee', 'TRY'],
+      ['10 TRY coffee', 'TRY'],
+      ['700 rubles train', 'RUB'],
+      ['700 roubles train', 'RUB'],
+      ['700 RUB train', 'RUB'],
       // Cents folded in must not demote the qualified name to a bare-dollar USD
       ['twenty canadian dollars ninety nine cents', 'CAD'],
     ];
@@ -144,10 +191,33 @@ describe('parseVoiceExpense', () => {
   });
 
   it('reads currency symbols', () => {
-    expect(parseVoiceExpense('¥3000 ramen', groups).currency).toBe('JPY');
-    expect(parseVoiceExpense('$25 coffee', groups).currency).toBe('USD');
-    expect(parseVoiceExpense('€15 museum', groups).currency).toBe('EUR');
-    expect(parseVoiceExpense('₹500 chai', groups).currency).toBe('INR');
+    const cases: [string, string, number][] = [
+      ['¥3000 ramen', 'JPY', 3000],
+      ['$25 coffee', 'USD', 2500],
+      ['€15 museum', 'EUR', 1500],
+      ['£12 tickets', 'GBP', 1200],
+      ['₹500 chai', 'INR', 50000],
+      ['₺10 coffee', 'TRY', 1000],
+      ['₩5000 lunch', 'KRW', 5000],
+      ['₫20000 snacks', 'VND', 20000],
+      ['฿200 food', 'THB', 20000],
+      ['₦1200 cab', 'NGN', 120000],
+      ['₱120 ferry', 'PHP', 12000],
+      ['₽700 train', 'RUB', 70000],
+      ['R$25 dinner', 'BRL', 2500],
+    ];
+    for (const [sentence, code, minor] of cases) {
+      const parsed = parseVoiceExpense(sentence, groups);
+      expect(parsed.currency, sentence).toBe(code);
+      expect(parsed.amountMinor, sentence).toBe(BigInt(minor));
+    }
+  });
+
+  it('strips expanded currency words and symbols out of the note', () => {
+    expect(parseVoiceExpense('100 sterling tickets', groups).note).toBe('tickets');
+    expect(parseVoiceExpense('100 yuan noodles', groups).note).toBe('noodles');
+    expect(parseVoiceExpense('R$25 dinner', groups).note).toBe('dinner');
+    expect(parseVoiceExpense('30 saudi riyals coffee', groups).note).toBe('coffee');
   });
 
   it('does not mint a currency from the ordinary word "try"', () => {

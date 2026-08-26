@@ -92,6 +92,8 @@ export interface ParsedVoiceExpense {
 export const VOICE_SUPPORTED_CURRENCY_CODES = new Set([
   'AED',
   'AUD',
+  'BDT',
+  'BRL',
   'CAD',
   'CHF',
   'CNY',
@@ -103,28 +105,38 @@ export const VOICE_SUPPORTED_CURRENCY_CODES = new Set([
   'JPY',
   'KRW',
   'LKR',
+  'MXN',
   'MYR',
   'NGN',
   'NPR',
   'NZD',
+  'PHP',
   'PKR',
+  'RUB',
+  'SAR',
   'SGD',
   'THB',
+  'TRY',
   'USD',
   'VND',
+  'ZAR',
 ]);
 
 const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   // Symbols — unambiguous, so they lead.
+  [/R\$/i, 'BRL'],
   [/₹/, 'INR'],
   [/\$/, 'USD'],
   [/€/, 'EUR'],
   [/£/, 'GBP'],
   [/¥/, 'JPY'],
+  [/₺/, 'TRY'],
   [/₩/, 'KRW'],
   [/₫/, 'VND'],
   [/฿/, 'THB'],
   [/₦/, 'NGN'],
+  [/₱/, 'PHP'],
+  [/₽/, 'RUB'],
   // Qualified rupee and dollar names, before the bare words below.
   [/\bsri[\s-]?lankan\s+rupees?\b|\blkr\b/i, 'LKR'],
   [/\bnepali\s+rupees?\b|\bnpr\b/i, 'NPR'],
@@ -134,12 +146,20 @@ const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   [/\bsingapore(?:an)?\s+dollars?\b|\bsgd\b/i, 'SGD'],
   [/\bnew\s+zealand\s+dollars?\b|\bnzd\b/i, 'NZD'],
   [/\bhong\s+kong\s+dollars?\b|\bhkd\b/i, 'HKD'],
+  [/\bmexican\s+pesos?\b|\bmxn\b/i, 'MXN'],
+  [/\bphilippine\s+pesos?\b|\bphp\b/i, 'PHP'],
+  [/\bsaudi\s+riyals?\b|\bsar\b/i, 'SAR'],
+  [/\bsouth\s+african\s+rands?\b|\bzar\b/i, 'ZAR'],
+  [/\bbangladeshi\s+takas?\b|\bbdt\b/i, 'BDT'],
+  [/\bbrazilian\s+reais\b|\bbrazilian\s+reals?\b|\bbrl\b/i, 'BRL'],
+  [/\bturkish\s+liras?\b/i, 'TRY'],
+  [/\bTRY\b/, 'TRY'],
   [/\b(?:indonesian\s+)?rupiahs?\b|\bidr\b|\brp\b/i, 'IDR'],
   // Bare words.
   [/\b(?:rupees?|rupaye|rupya|rs|inr)\b/i, 'INR'],
   [/\b(?:dollars?|usd|bucks?)\b/i, 'USD'],
   [/\b(?:euros?|eur)\b/i, 'EUR'],
-  [/\b(?:pounds?|quid|gbp)\b/i, 'GBP'],
+  [/\b(?:pounds?|sterling|quid|gbp)\b/i, 'GBP'],
   [/\b(?:dirhams?|aed)\b/i, 'AED'],
   [/\b(?:yen|jpy)\b/i, 'JPY'],
   [/\b(?:won|krw)\b/i, 'KRW'],
@@ -149,6 +169,12 @@ const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   [/\b(?:dong|vnd)\b/i, 'VND'],
   [/\b(?:francs?|chf)\b/i, 'CHF'],
   [/\b(?:naira|ngn)\b/i, 'NGN'],
+  [/\b(?:pesos?|mxn)\b/i, 'MXN'],
+  [/\b(?:riyals?|sar)\b/i, 'SAR'],
+  [/\b(?:rands?|zar)\b/i, 'ZAR'],
+  [/\b(?:takas?|bdt)\b/i, 'BDT'],
+  [/\b(?:reais|reals?|brl)\b/i, 'BRL'],
+  [/\b(?:rubles?|roubles?|rub)\b/i, 'RUB'],
 ];
 
 /**
@@ -166,6 +192,14 @@ const CURRENCY_WORD_ALT = [
   'singapore(?:an)?\\s+dollars?',
   'new\\s+zealand\\s+dollars?',
   'hong\\s+kong\\s+dollars?',
+  'mexican\\s+pesos?',
+  'philippine\\s+pesos?',
+  'saudi\\s+riyals?',
+  'south\\s+african\\s+rands?',
+  'bangladeshi\\s+takas?',
+  'brazilian\\s+reais',
+  'brazilian\\s+reals?',
+  'turkish\\s+liras?',
   'indonesian\\s+rupiahs?',
   'rupiahs?',
   'idr',
@@ -181,6 +215,7 @@ const CURRENCY_WORD_ALT = [
   'euros?',
   'eur',
   'pounds?',
+  'sterling',
   'quid',
   'gbp',
   'dirhams?',
@@ -203,6 +238,21 @@ const CURRENCY_WORD_ALT = [
   'chf',
   'naira',
   'ngn',
+  'pesos?',
+  'mxn',
+  'riyals?',
+  'sar',
+  'rands?',
+  'zar',
+  'takas?',
+  'bdt',
+  'reais',
+  'reals?',
+  'brl',
+  'rubles?',
+  'roubles?',
+  'rub',
+  'turkish\\s+liras?',
   'lkr',
   'npr',
   'pkr',
@@ -214,7 +264,8 @@ const CURRENCY_WORD_ALT = [
 ].join('|');
 
 /** The currency symbols, as a character-class body. */
-const CURRENCY_SYMBOL_CLASS = '₹$€£¥₩₫฿₦';
+const CURRENCY_SYMBOL_CLASS = '₹$€£¥₺₩₫฿₦₱₽';
+const CURRENCY_SYMBOL_RE = `(?:R\\$|[${CURRENCY_SYMBOL_CLASS}])`;
 
 /** Words that carry no meaning for matching or for the note. */
 const STOPWORDS: ReadonlySet<string> = new Set([
@@ -273,7 +324,7 @@ const STOPWORDS: ReadonlySet<string> = new Set([
 
 /** A number sitting next to a currency word or symbol — the amount, said plainly. */
 const CURRENCY_ADJACENT = new RegExp(
-  `(?:[${CURRENCY_SYMBOL_CLASS}])\\s*(\\d[\\d,]*(?:\\.\\d+)?)|(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:${CURRENCY_WORD_ALT})\\b`,
+  `${CURRENCY_SYMBOL_RE}\\s*(\\d[\\d,]*(?:\\.\\d+)?)|(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:${CURRENCY_WORD_ALT})\\b`,
   'i',
 );
 
@@ -377,7 +428,7 @@ function buildNote(transcript: string, matchedGroupName: string | null): string 
 
   return transcript
     .replace(currencyWord, ' ')
-    .replace(new RegExp(`[${CURRENCY_SYMBOL_CLASS}]`, 'g'), ' ')
+    .replace(new RegExp(CURRENCY_SYMBOL_RE, 'g'), ' ')
     .replace(/\d[\d,]*(?:\.\d+)?/g, ' ')
     .split(/\s+/)
     .filter((word) => {
@@ -679,10 +730,7 @@ const SPOKEN_NUMBER = new RegExp(
  * match inside an ordinary word ("person" → "pe-rs-on"): without them "one
  * person paid" would read "rs" as currency and mint a false amount.
  */
-const CURRENCY_TOKEN = new RegExp(
-  `(?:[${CURRENCY_SYMBOL_CLASS}]|\\b(?:${CURRENCY_WORD_ALT})\\b)`,
-  'i',
-);
+const CURRENCY_TOKEN = new RegExp(`(?:${CURRENCY_SYMBOL_RE}|\\b(?:${CURRENCY_WORD_ALT})\\b)`, 'i');
 
 /**
  * A currency word or symbol *immediately* after a number — anchored at the start
@@ -692,10 +740,7 @@ const CURRENCY_TOKEN = new RegExp(
  * anchor keeps it to true adjacency, so a currency word later in the sentence
  * ("five hundred for dinner, 20 rupees") does not make the earlier run money.
  */
-const CURRENCY_AT_START = new RegExp(
-  `^(?:[${CURRENCY_SYMBOL_CLASS}]|(?:${CURRENCY_WORD_ALT})\\b)`,
-  'i',
-);
+const CURRENCY_AT_START = new RegExp(`^(?:${CURRENCY_SYMBOL_RE}|(?:${CURRENCY_WORD_ALT})\\b)`, 'i');
 
 /** Split-phrase context — a number here is a people count, still worth digitising. */
 const SPLIT_BEFORE_WORD = /^(?:among|amongst|between)$/i;
@@ -948,10 +993,7 @@ const ADDITION_RUN_RE = new RegExp(
 const ADDITION_SPLIT_RE = /\s*(?:\bplus\b|\+)\s*|\s*,\s*/i;
 
 /** Any currency symbol or word — to find a run's primary currency and re-emit it. */
-const CURRENCY_ANY_RE = new RegExp(
-  `[${CURRENCY_SYMBOL_CLASS}]|\\b(?:${CURRENCY_WORD_ALT})\\b`,
-  'i',
-);
+const CURRENCY_ANY_RE = new RegExp(`${CURRENCY_SYMBOL_RE}|\\b(?:${CURRENCY_WORD_ALT})\\b`, 'i');
 
 /** A minor-unit total back to a major string, exact for the currency's own scale. */
 function minorToMajorString(minor: bigint, scale: number): string {
