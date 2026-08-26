@@ -161,15 +161,20 @@ function CaptureListRow({
           locale={locale}
           variant="subheading"
         />
-        {/* Edit the draft's own fields — the pencil beside the trash, so a row
-            offers both "fix it" and "bin it" without stealing the whole-row tap
-            (which still assigns it to a group). */}
-        <IconButton label={t.captures.edit} onPress={onEdit}>
-          <Ionicons name="create-outline" size={iconSize.md} color={theme.color.textFaint} />
-        </IconButton>
-        <IconButton label={t.captures.delete} onPress={onDelete}>
-          <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
-        </IconButton>
+        {/* The two row actions kept together as their own group with a tight
+            gap, set off from the amount by the parent Row's spacing — so they
+            read as a pair of buttons, not two glyphs crowding the number. Edit
+            is a neutral muted mark; delete is red before it is tapped (the
+            WhatsApp/Vipps convention), so "bin it" never hides among the greys.
+            The whole row still taps to assign; both icons keep their own hitbox. */}
+        <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+          <IconButton label={t.captures.edit} onPress={onEdit}>
+            <Ionicons name="create-outline" size={iconSize.md} color={theme.color.textMuted} />
+          </IconButton>
+          <IconButton label={t.captures.delete} onPress={onDelete}>
+            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
+          </IconButton>
+        </Row>
       </Row>
     </Pressable>
   );
@@ -310,7 +315,7 @@ function BatchGroupCard({
               carry, here removing every expense in the group at once. A nested
               press, so it deletes rather than toggling the card. */}
           <IconButton label={t.captures.deleteBatch} onPress={onDeleteBatch}>
-            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
+            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
           </IconButton>
           <Ionicons
             name={open ? 'chevron-up' : 'chevron-down'}
@@ -503,16 +508,17 @@ export default function CapturesScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      {/* The glyph-plus-big-title mark the Activity and Inbox screens wear, so
-          this reads as the sibling it is — the tray icon ties it to the Inbox
-          family. Captures is pushed (not a bar destination), so it keeps a back
-          chevron the tab screens don't need; the add stays at the trailing edge. */}
+      {/* The plain back-plus-centred-title bar every pushed screen wears
+          (Friends person, Merge, …), so Drafts reads as one of the family
+          rather than its own thing: a back chevron on the left, the title
+          optically centred, and a 44pt spacer on the right to balance the back
+          button. No leading glyph and no trailing add — starting a capture
+          lives on the dashboard, not here. */}
       <Row
         style={{
           paddingHorizontal: theme.spacing.xl,
           paddingTop: theme.spacing.md,
           alignItems: 'center',
-          gap: theme.spacing.sm,
         }}
       >
         <IconButton label={t.common.back} onPress={() => router.back()}>
@@ -522,13 +528,12 @@ export default function CapturesScreen() {
             color={theme.color.text}
           />
         </IconButton>
-        <Ionicons name="file-tray-full-outline" size={iconSize.xl} color={theme.color.brand} />
-        <Text variant="title" style={{ flex: 1 }}>
-          {t.captures.title}
-        </Text>
-        <IconButton label={t.captures.captureCta} onPress={() => router.push('/capture')}>
-          <Ionicons name="add" size={iconSize.xxl} color={theme.color.brand} />
-        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading" numberOfLines={1}>
+            {t.captures.title}
+          </Text>
+        </View>
+        <View style={{ width: 44 }} />
       </Row>
 
       {/* One scroll region for every state, the way `ActivityScreen` does it —
