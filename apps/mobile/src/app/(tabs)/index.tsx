@@ -23,6 +23,7 @@ import {
   EmptyState,
   Gradient,
   iconSize,
+  MoneyText,
   Row,
   Screen,
   Text,
@@ -31,7 +32,6 @@ import {
 } from '@waves/ui';
 
 import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
-import { CountUpMoney } from '@/lib/anim';
 import { useFlagEnabled } from '@/lib/flags';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -92,9 +92,6 @@ export default function HomeScreen() {
   const heroInner = width - theme.spacing.xl * 2;
   const heroGap = theme.spacing.md;
   const heroSnap = heroInner + heroGap;
-  // Which balance slide is centred — owned here so the dot pager can sit below
-  // the action buttons rather than under the balance.
-  const [heroPage, setHeroPage] = useState(0);
   // The time-of-day line under the name. The *bucket* is sampled once on mount
   // (lazy init, never a bare Date in render — the React Compiler lints that),
   // then the localised word is read at render so it follows a language change.
@@ -382,7 +379,6 @@ export default function HomeScreen() {
                 cardWidth={heroInner}
                 gap={heroGap}
                 snap={heroSnap}
-                onPageChange={setHeroPage}
                 // The mirror hydrates instantly, so the balance shows at once.
                 // Until this session's first sync settles it is provisional —
                 // "updating" rather than an owe/owed verdict, so the sub line
@@ -426,7 +422,7 @@ export default function HomeScreen() {
               </Row>
 
               {/* The swipe pager, right under the buttons. */}
-              <HeroDots count={SLIDE_GRADIENTS.length} page={heroPage} />
+              <HeroDots count={SLIDE_GRADIENTS.length} scrollX={heroScrollX} snap={heroSnap} />
             </View>
           </View>
         </TourTarget>
@@ -1225,7 +1221,6 @@ function HeroBalance({
   cardWidth,
   gap,
   snap,
-  onPageChange,
 }: {
   primary: CurrencyTotal;
   /** My share of this month's spend, per currency (from useHomeSummary). */
@@ -1244,9 +1239,6 @@ function HeroBalance({
   cardWidth: number;
   gap: number;
   snap: number;
-  /** Which slide is now centred — the screen renders the dot pager below the
-   *  action buttons, so it owns the page. */
-  onPageChange: (page: number) => void;
 }) {
   // The three balance views the dashboard leads with, one per swipe: where you
   // stand overall (net), what is owed to you, and what you have spent this month
@@ -1325,9 +1317,6 @@ function HeroBalance({
       decelerationRate="fast"
       disableIntervalMomentum
       scrollEventThrottle={16}
-      onMomentumScrollEnd={(event) =>
-        onPageChange(Math.round(event.nativeEvent.contentOffset.x / snap))
-      }
       contentContainerStyle={{ gap }}
       onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
         useNativeDriver: true,
@@ -1366,24 +1355,74 @@ function HeroBalance({
 
 /**
  * The dot pager — the "swipe me" signal, rendered by the screen below the action
- * buttons rather than under the balance. The active dot is solid white and wider;
- * the rest sit faint white so they read against any of the slide washes.
+ * buttons rather than under the balance. A wide white pill marks the active slide
+ * over a row of faint dots that read against any of the slide washes.
+ *
+ * The pill slides off the carousel's live `scrollX`, native-driven, so it tracks
+ * the finger at 60fps exactly like the hero colour crossfade — not off a React
+ * state that only lands at `onMomentumScrollEnd`, which is what made the dots lag
+ * a beat behind the swipe. Native driver animates transform/opacity only (never
+ * width or colour), so the active mark is a fixed-width pill that *translates*
+ * across static dots rather than one dot growing and the row reflowing.
  */
-function HeroDots({ count, page }: { count: number; page: number }) {
+const DOT_SIZE = 6;
+const DOT_ACTIVE_WIDTH = 18;
+
+function HeroDots({
+  count,
+  scrollX,
+  snap,
+}: {
+  count: number;
+  scrollX: Animated.Value;
+  snap: number;
+}) {
   const theme = useTheme();
+  const gap = theme.spacing.xs;
+  const step = DOT_SIZE + gap; // centre-to-centre distance between dots
+  const trackWidth = count * DOT_SIZE + Math.max(0, count - 1) * gap;
+  // Map scroll offset (0, snap, 2·snap, …) to the pill's position over each dot.
+  // interpolate needs ≥2 strictly-ascending inputs, so a lone slide is a static
+  // pill with no interpolation.
+  const translateX =
+    count > 1
+      ? scrollX.interpolate({
+          inputRange: Array.from({ length: count }, (_, i) => i * snap),
+          outputRange: Array.from({ length: count }, (_, i) => i * step),
+          extrapolate: 'clamp',
+        })
+      : 0;
   return (
-    <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
-      {Array.from({ length: count }, (_, index) => (
-        <View
-          key={index}
+    <Row style={{ justifyContent: 'center' }}>
+      <View style={{ width: trackWidth, height: DOT_SIZE }}>
+        <Row style={{ position: 'absolute', left: 0, top: 0, gap }}>
+          {Array.from({ length: count }, (_, index) => (
+            <View
+              key={index}
+              style={{
+                width: DOT_SIZE,
+                height: DOT_SIZE,
+                borderRadius: DOT_SIZE / 2,
+                backgroundColor: 'rgba(255, 255, 255, 0.35)',
+              }}
+            />
+          ))}
+        </Row>
+        <Animated.View
           style={{
-            width: index === page ? 18 : 6,
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: index === page ? '#FFFFFF' : 'rgba(255, 255, 255, 0.35)',
+            position: 'absolute',
+            top: 0,
+            // Seat the wide pill centred on the first dot; the translate then
+            // carries that centre from dot to dot.
+            left: (DOT_SIZE - DOT_ACTIVE_WIDTH) / 2,
+            width: DOT_ACTIVE_WIDTH,
+            height: DOT_SIZE,
+            borderRadius: DOT_SIZE / 2,
+            backgroundColor: '#FFFFFF',
+            transform: [{ translateX }],
           }}
         />
-      ))}
+      </View>
     </Row>
   );
 }
@@ -1505,7 +1544,7 @@ function MetricSlide({
             {'••••••'}
           </Text>
         ) : (
-          <CountUpMoney
+          <MoneyText
             amount={amount}
             currency={currency as never}
             locale={locale}
@@ -1616,7 +1655,7 @@ function GroupRow({
           {pendingLabel ?? `${memberLabel} · ${statusLabel}`}
         </Text>
       </View>
-      <CountUpMoney
+      <MoneyText
         amount={balance < 0n ? -balance : balance}
         currency={currency as never}
         locale={locale}

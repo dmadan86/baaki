@@ -10,7 +10,7 @@
  * a test rather than by watching the screen.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Pressable, type PressableProps, type ViewStyle } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -21,11 +21,8 @@ import Animated, {
   type EntryExitAnimationFunction,
 } from 'react-native-reanimated';
 
-import { minorUnitScale } from '@waves/core';
-import { MoneyText, type MoneyTextProps } from '@waves/ui';
-
 import { useReducedMotion } from './reducedMotion';
-import { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';
+import { staggerDelay } from './motionMath';
 
 export { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';
 
@@ -136,81 +133,3 @@ const detailEntering: EntryExitAnimationFunction = () => {
     },
   };
 };
-
-/**
- * A money value that rolls up to its figure instead of printing at once.
- *
- * Wraps `MoneyText` and animates the amount from where it was to where it is,
- * so a balance counts up on first load and slides to the new number when it
- * changes. Everything else — the currency, the faded paise, the spoken label —
- * is `MoneyText`'s, unchanged; this only feeds it a moving `amount`.
- */
-export function CountUpMoney(props: MoneyTextProps): ReactNode {
-  const reduceMotion = useReducedMotion();
-  const shown = useCountUp(props.amount, reduceMotion);
-  // While the figure is still rolling, drop the fractional units — the paise
-  // digits spinning past two at a time read as noise, not motion. The tween
-  // always lands on the exact target on its last frame, so the settled number
-  // keeps its decimals; only the in-flight frames are rounded to whole units.
-  const rolling = shown !== props.amount;
-  const display = rolling ? shown - (shown % minorUnitScale(props.currency)) : shown;
-  return <MoneyText {...props} amount={display} />;
-}
-
-/** Roughly the length of a screen transition — long enough to read, short enough to trust. */
-const COUNT_MS = 650;
-
-/**
- * Tween a bigint towards `target`, easing out, on the JS thread.
- *
- * A figure too large to hold in a Number without losing paise snaps straight to
- * the target — a wrong number is worse than a still one. Otherwise it animates
- * from whatever is on screen now, so a mid-flight change redirects smoothly
- * rather than jumping back to zero.
- */
-export function useCountUp(target: bigint, reduceMotion = false): bigint {
-  // The start figure is decided here rather than in the effect: a number too
-  // large to tween as a Number begins on the target and never moves.
-  const [value, setValue] = useState<bigint>(() =>
-    reduceMotion || tooLargeToTween(target) ? target : 0n,
-  );
-  const frame = useRef<number | null>(null);
-
-  useEffect(() => {
-    // Snapping is a state change too, so it goes through a frame rather than
-    // running synchronously in the effect body — the same reason the tween does.
-    if (reduceMotion || tooLargeToTween(target)) {
-      frame.current = requestAnimationFrame(() => setValue(target));
-      return () => {
-        if (frame.current !== null) cancelAnimationFrame(frame.current);
-      };
-    }
-
-    const started = Date.now();
-    // The figure on screen when this frame first fires is where the tween starts,
-    // read through the updater so a mid-flight target change redirects from the
-    // current number rather than jumping back to zero — and without a ref written
-    // during render to carry it.
-    let from: bigint | null = null;
-    const step = (): void => {
-      const progress = Math.min(1, (Date.now() - started) / COUNT_MS);
-      setValue((current) => {
-        if (from === null) from = current;
-        return lerpBig(from, target, easeOutCubic(progress));
-      });
-      if (progress < 1) frame.current = requestAnimationFrame(step);
-    };
-    frame.current = requestAnimationFrame(step);
-
-    return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-    };
-  }, [target, reduceMotion]);
-
-  return value;
-}
-
-/** A magnitude past the Number safe-integer ceiling would lose paise mid-tween. */
-function tooLargeToTween(target: bigint): boolean {
-  return (target < 0n ? -target : target) > MAX_SAFE_MINOR;
-}

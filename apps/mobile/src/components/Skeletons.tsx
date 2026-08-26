@@ -215,60 +215,49 @@ export function PeopleSkeleton() {
 }
 
 /**
- * The activity tab: the vertical timeline — a tinted node on a connector line
- * running down the left, the sentence and its amount beside it, the relative
- * time beneath. Shaped to the real feed to the pixel so the swap is a fill, not
- * a jump: an earlier version drew day headings over full-width rounded cards, a
- * layout the feed no longer has, so the whole shape lurched when the timeline
- * arrived. The rail node, the 2px connector, the `md` gap to the text and the
- * `xl` drop between rows all match `ActivityScreen`'s timeline. Shown in place
- * of the "nothing yet" empty state, which is a verdict the query has not
- * returned yet.
+ * The activity tab, shaped to the real feed so the swap is a fill, not a jump.
+ * The feed is now a flat list of rows under day headings — a 40×40 tinted tile,
+ * the sentence and its trailing amount beside it, the relative time beneath —
+ * with hairline separators between rows. No timeline rail (an earlier design had
+ * one; drawing it here made the whole shape lurch when the railless feed
+ * arrived). The leading day-heading bar, the tile size, the `md` vertical
+ * padding and the hairline all match `ActivityScreen`'s row so nothing moves
+ * when the query returns. Shown in place of the "nothing yet" empty state, which
+ * is a verdict the query has not returned yet.
  */
-export function FeedSkeleton({ rows = 5 }: { rows?: number }) {
+export function FeedSkeleton({ rows = 6 }: { rows?: number }) {
   const theme = useTheme();
   return (
     <LoadingRegion>
+      {/* Stands in for the uppercase day heading the first section renders, at
+          its 11px height and the same lg/md margins — so the first real heading
+          does not push the rows down. */}
+      <Skeleton
+        width="28%"
+        height={11}
+        style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.md }}
+      />
       {Array.from({ length: rows }, (_, index) => {
         const isLast = index === rows - 1;
         return (
-          <Row key={index} style={{ alignItems: 'stretch' }}>
-            {/* The rail: the node circle, then the connector running down to the
-                next node — dropped on the last row so it stops, not dangles. */}
-            <View style={{ width: 38, alignItems: 'center' }}>
-              <Skeleton width={38} height={38} radius={theme.radius.pill} />
-              {!isLast ? (
-                <View
-                  style={{
-                    flex: 1,
-                    width: 2,
-                    marginVertical: 2,
-                    backgroundColor: theme.color.border,
-                  }}
-                />
-              ) : null}
-            </View>
-
-            <View
+          <View key={index}>
+            <Row
               style={{
-                flex: 1,
-                paddingStart: theme.spacing.md,
-                paddingBottom: isLast ? 0 : theme.spacing.xl,
+                gap: theme.spacing.md,
+                alignItems: 'center',
+                paddingVertical: theme.spacing.md,
               }}
             >
-              <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
-                {/* Two lines standing in for the wrapped sentence, and the
-                    amount that rides at its end. */}
-                <View style={{ flex: 1, gap: theme.spacing.sm }}>
-                  <Skeleton width="92%" height={15} />
-                  <Skeleton width="58%" height={15} />
-                </View>
-                <Skeleton width={56} height={16} />
-              </Row>
-              {/* The relative time, at its 11px height and the same 2px drop. */}
-              <Skeleton width="26%" height={11} style={{ marginTop: 2 }} />
-            </View>
-          </Row>
+              <Skeleton width={40} height={40} radius={theme.radius.md} />
+              <View style={{ flex: 1, gap: theme.spacing.sm }}>
+                {/* The sentence line, then the smaller relative-time line. */}
+                <Skeleton width="86%" height={15} />
+                <Skeleton width="34%" height={11} />
+              </View>
+              <Skeleton width={56} height={16} />
+            </Row>
+            {!isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
+          </View>
         );
       })}
     </LoadingRegion>

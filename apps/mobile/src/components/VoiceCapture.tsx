@@ -186,12 +186,16 @@ const AnimatedPath = Reanimated.createAnimatedComponent(Path);
  * hairline between them, tapering to a point at both ends like the reference.
  * Runs on the UI thread — the body of a `useAnimatedProps` worklet.
  */
-function wavePath(phase: number, layer: WaveLayerSpec): string {
+function wavePath(phase: number, level: number, layer: WaveLayerSpec): string {
   'worklet';
   const points = 72;
   const cy = WAVE_H / 2;
   const breath = 0.85 + 0.15 * Math.sin(phase * 2 + layer.phase);
-  const reach = (WAVE_H / 2 - 1) * layer.amp * breath;
+  // Loudness drives the height: a quiet mic keeps a low idling ribbon (40%), a
+  // loud voice pushes it to full. `level` is the eased 0…1 metering; when the
+  // platform sends no volume events it stays 0 and the wave simply idles.
+  const loud = 0.4 + 0.6 * level;
+  const reach = (WAVE_H / 2 - 1) * layer.amp * breath * loud;
   let top = '';
   let bottom = '';
   for (let i = 0; i <= points; i++) {
@@ -209,9 +213,18 @@ function wavePath(phase: number, layer: WaveLayerSpec): string {
   return `${top}${bottom}Z`;
 }
 
-/** One translucent filled ribbon, its path recomputed each frame from `phase`. */
-function WaveLayer({ phase, layer }: { phase: SharedValue<number>; layer: WaveLayerSpec }) {
-  const animatedProps = useAnimatedProps(() => ({ d: wavePath(phase.value, layer) }));
+/** One translucent filled ribbon, its path recomputed each frame from `phase`
+ *  and the live loudness `level`. */
+function WaveLayer({
+  phase,
+  level,
+  layer,
+}: {
+  phase: SharedValue<number>;
+  level: SharedValue<number>;
+  layer: WaveLayerSpec;
+}) {
+  const animatedProps = useAnimatedProps(() => ({ d: wavePath(phase.value, level.value, layer) }));
   return <AnimatedPath animatedProps={animatedProps} fill={layer.fill} opacity={layer.opacity} />;
 }
 
@@ -223,7 +236,7 @@ function WaveLayer({ phase, layer }: { phase: SharedValue<number>; layer: WaveLa
  * the wave reads as one living body. Only mounted while listening, so the loop is
  * torn down the moment it stops.
  */
-function Waveform({ active }: { active: boolean }) {
+function Waveform({ active, level }: { active: boolean; level: SharedValue<number> }) {
   const phase = useSharedValue(0);
 
   useEffect(() => {
@@ -254,7 +267,7 @@ function Waveform({ active }: { active: boolean }) {
         </LinearGradient>
       </Defs>
       {WAVE_LAYERS.map((layer) => (
-        <WaveLayer key={layer.id} phase={phase} layer={layer} />
+        <WaveLayer key={layer.id} phase={phase} level={level} layer={layer} />
       ))}
     </Svg>
   );
@@ -357,6 +370,11 @@ export function VoiceCapture({
   // read as one calm state rather than two different dead ends.
   const [emptyMiss, setEmptyMiss] = useState(false);
 
+  // Live input loudness, 0…1, eased from the recogniser's volume events. The
+  // waveform rides this so it answers the actual voice instead of looping on a
+  // fixed clock; it stays 0 when the mic is shut.
+  const level = useSharedValue(0);
+
   // The latest transcript, kept in a ref so the 'end' handler reads the final
   // one without waiting on a state update.
   const latest = useRef('');
@@ -370,14 +388,26 @@ export function VoiceCapture({
     setLive(transcript);
   });
 
+  // The recogniser's own metering (enabled via volumeChangeEventOptions in
+  // start). `value` runs −2…10, where below 0 is inaudible; normalise to 0…1 and
+  // ease so the wave tracks loudness without twitching on every packet.
+  useSpeechRecognitionEvent('volumechange', (event) => {
+    const norm = Math.max(0, Math.min(1, event.value / 10));
+    // `.set()`, not `.value =`: Reanimated 4's method API, the one the React
+    // compiler allows off the UI thread (see PressableScale in lib/anim).
+    level.set(withTiming(norm, { duration: 90 }));
+  });
+
   useSpeechRecognitionEvent('error', (event) => {
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
     setListening(false);
+    level.set(withTiming(0, { duration: 150 }));
   });
 
   useSpeechRecognitionEvent('end', () => {
     setListening(false);
+    level.set(withTiming(0, { duration: 150 }));
     const said = latest.current.trim();
     if (said) onDone(said);
     // Heard nothing usable — surface the same calm recovery a parsed miss shows,
@@ -394,6 +424,7 @@ export function VoiceCapture({
     onListen?.();
     latest.current = '';
     setLive('');
+    level.set(0);
 
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!mounted.current) return;
@@ -421,6 +452,9 @@ export function VoiceCapture({
         continuous: false,
         requiresOnDeviceRecognition: onDevice,
         addsPunctuation: onDevice,
+        // Meter the input so the waveform can ride real loudness (~10 Hz is
+        // plenty for a smooth wave and cheap to ease over).
+        volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
         contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
         iosTaskHint: 'dictation',
         // People start with a greeting and a beat of thought — "hello… uh… add
@@ -439,7 +473,7 @@ export function VoiceCapture({
       setListening(false);
       setError(t.misc.dictationFailed);
     }
-  }, [hints, locale, onListen, t]);
+  }, [hints, level, locale, onListen, t]);
 
   const stop = useCallback((): void => {
     ExpoSpeechRecognitionModule.stop();
@@ -535,21 +569,18 @@ export function VoiceCapture({
         </Pressable>
       </View>
 
-      {/* Listening: the status word over a live waveform. Recovering: the mic is
-          the retry, so the line invites the tap and a worked example sits under it
-          to fix the phrasing. At rest: the same example under a plain prompt. One
-          line and one supporting line — never a third. */}
+      {/* Listening: the status word over a live waveform. Recovering: the title
+          already says what was missed, so the mic just invites the tap — no
+          second warning under it. At rest: a worked example under the prompt.
+          The miss is stated once (the title), never a warning stacked on a
+          warning. */}
       <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
         <Text tone={listening || showMiss ? 'brand' : 'muted'}>
           {listening ? t.misc.listening : showMiss ? t.voice.tapToRetry : t.voice.tapToSpeak}
         </Text>
         {listening && !reduceMotion ? (
-          <Waveform active={listening} />
-        ) : showMiss ? (
-          <Text variant="caption" tone="faint" align="center">
-            {t.voice.missHint}
-          </Text>
-        ) : !live ? (
+          <Waveform active={listening} level={level} />
+        ) : !listening && !showMiss && !live ? (
           <Text variant="caption" tone="faint" align="center">
             {t.voice.example}
           </Text>
