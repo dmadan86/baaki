@@ -774,7 +774,6 @@ export interface UiStrings {
     noAmount: string;
     /** Miss recovery headline: nothing intelligible was heard at all. */
     missedNothing: string;
-    /** The one supporting line under a miss — a concrete sentence to copy. */
     /** The status line under the mic on a miss: the mic itself is the retry. */
     tapToRetry: string;
     tryAgain: string;
