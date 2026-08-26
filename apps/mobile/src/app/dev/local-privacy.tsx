@@ -28,23 +28,32 @@ export default function LocalPrivacyAuditScreen() {
     );
   }
 
+  if (!audit) {
+    return (
+      <Screen>
+        <Card>
+          <Text testID="local-privacy-audit-loading">Checking local privacy state…</Text>
+        </Card>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.md }}>
         <Text variant="heading">Local privacy audit</Text>
         <Card style={{ gap: theme.spacing.sm }}>
+          <Text testID="local-privacy-audit-ready">Audit complete</Text>
           <Text testID="local-privacy-mirror-key">
-            mirrorKeyPresent:{audit?.mirrorKeyPresent ? 'true' : 'false'}
+            mirrorKeyPresent:{audit.mirrorKeyPresent ? 'true' : 'false'}
           </Text>
           <Text testID="local-privacy-receipt-queue">
-            receiptQueuePresent:{audit?.receiptQueuePresent ? 'true' : 'false'}
+            receiptQueuePresent:{audit.receiptQueuePresent ? 'true' : 'false'}
           </Text>
           <Text testID="local-privacy-pending-files">
-            pendingReceiptFiles:{audit?.pendingReceiptFiles ?? 0}
+            pendingReceiptFiles:{audit.pendingReceiptFiles}
           </Text>
-          <Text testID="local-privacy-cached-files">
-            cachedImageFiles:{audit?.cachedImageFiles ?? 0}
-          </Text>
+          <Text testID="local-privacy-cached-files">cachedImageFiles:{audit.cachedImageFiles}</Text>
         </Card>
       </ScrollView>
     </Screen>

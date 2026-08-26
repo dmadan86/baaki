@@ -8,7 +8,7 @@ appId: app.waves.mobile
 - openLink: waves:///dev/local-privacy
 - extendedWaitUntilVisible:
     element:
-      id: 'local-privacy-mirror-key'
+      id: 'local-privacy-audit-ready'
     timeout: 10000
 - assertVisible: 'mirrorKeyPresent:false'
 - assertVisible: 'receiptQueuePresent:false'
