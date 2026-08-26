@@ -27,6 +27,15 @@ const CACHE_DIR = 'receipt-image-cache';
 /** Downloads already in flight, keyed by the stable local cache identity. */
 const inFlightDownloads = new Map<string, Promise<string | null>>();
 
+/**
+ * Bumped by {@link clearImageCache}. A download started before a sign-out
+ * captures this value and refuses to write its bytes if it has changed by the
+ * time the response lands — otherwise a fetch still in flight when the account
+ * signs out would recreate the just-deleted cache and leave a private image on
+ * disk, defeating the whole point of the cleanup.
+ */
+let cacheGeneration = 0;
+
 function usablePath(path: string | null): string | null {
   if (!path || path.trim().length === 0) return null;
   return path;
@@ -122,12 +131,17 @@ export async function cacheImage(
     const existing = inFlightDownloads.get(inFlightKey);
     if (existing) return await existing;
 
+    // Snapshot the cache generation now: if a sign-out clears the cache while
+    // this fetch is in flight, the generation moves and we drop the bytes rather
+    // than writing them back into a cache the user just erased.
+    const generation = cacheGeneration;
     const download = (async () => {
       try {
         const response = await expoFetch(remoteUrl);
         if (!response.ok) return null;
         const bytes = await response.bytes();
         if (bytes.byteLength === 0) return null;
+        if (generation !== cacheGeneration) return null;
         writeAtomic(new Directory(Paths.cache, CACHE_DIR), file, bytes);
         return file.uri;
       } catch {
@@ -182,6 +196,9 @@ export function evictImage(bucket: LogicalBucket, path: string | null): void {
 
 /** Sign-out/privacy cleanup: remove every cached receipt/proof/attachment image. */
 export function clearImageCache(): void {
+  // Move the generation first, so any download already awaiting a response sees
+  // the change and skips its write even if it resolves after this returns.
+  cacheGeneration += 1;
   try {
     const dir = new Directory(Paths.cache, CACHE_DIR);
     if (dir.exists) dir.delete();
