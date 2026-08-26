@@ -806,8 +806,10 @@ export interface UiStrings {
     /** The row that adds a brand-new person (a 1:1 IOU) by name. */
     addPerson: string;
     addPersonPlaceholder: string;
-    /** Section label above the one-tap destination chips on the review. */
-    quickPick: string;
+    /** The affordance under the review items to speak and append more expenses. */
+    addMore: string;
+    /** The per-item mic that re-dictates just that expense's description. */
+    redescribe: string;
     /** The two destination tabs in the "Save to" picker. */
     groupsTab: string;
     peopleTab: string;
@@ -2604,7 +2606,8 @@ const en: UiStrings = {
     people: 'People',
     addPerson: 'Add a person',
     addPersonPlaceholder: 'Their name',
-    quickPick: 'Quick pick',
+    addMore: 'Add more',
+    redescribe: 'Say the description again',
     groupsTab: 'Groups',
     peopleTab: 'People',
     badgeNew: 'New',
@@ -4420,7 +4423,8 @@ const ta: UiStrings = {
     people: 'நபர்கள்',
     addPerson: 'ஒரு நபரைச் சேர்',
     addPersonPlaceholder: 'அவர்களின் பெயர்',
-    quickPick: 'விரைவுத் தேர்வு',
+    addMore: 'மேலும் சேர்',
+    redescribe: 'விளக்கத்தை மீண்டும் பேசு',
     groupsTab: 'குழுக்கள்',
     peopleTab: 'நபர்கள்',
     badgeNew: 'புதியது',
@@ -6287,7 +6291,8 @@ const hi: UiStrings = {
     people: 'लोग',
     addPerson: 'व्यक्ति जोड़ें',
     addPersonPlaceholder: 'उनका नाम',
-    quickPick: 'क्विक चुनें',
+    addMore: 'और जोड़ें',
+    redescribe: 'विवरण दोबारा बोलें',
     groupsTab: 'ग्रुप',
     peopleTab: 'लोग',
     badgeNew: 'नया',
@@ -8129,7 +8134,8 @@ const ar: UiStrings = {
     people: 'الأشخاص',
     addPerson: 'إضافة شخص',
     addPersonPlaceholder: 'اسمه',
-    quickPick: 'اختيار سريع',
+    addMore: 'أضف المزيد',
+    redescribe: 'انطق الوصف مرة أخرى',
     groupsTab: 'المجموعات',
     peopleTab: 'الأشخاص',
     badgeNew: 'جديد',
