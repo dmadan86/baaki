@@ -283,19 +283,6 @@ export default function VoiceScreen() {
     })();
   };
 
-  const retry = (): void => {
-    setNoAmount(false);
-    setError(null);
-    setRequested(null);
-    groupCreated.current = false;
-    ghostMemberId.current = null;
-    autoLocated.current = false;
-    locationGen.current += 1;
-    locationTouched.current = false;
-    setPhase('listening');
-    setAttempt((current) => current + 1);
-  };
-
   const editDraft = (key: string, patch: Partial<Draft>): void => {
     setDrafts((current) =>
       current.map((draft) => (draft.key === key ? { ...draft, ...patch } : draft)),
@@ -661,18 +648,19 @@ export default function VoiceScreen() {
             <LocationField value={location} onChange={handleLocationChange} />
           </View>
         ) : (
-          // Listening.
+          // Listening — the mic panel owns the whole capture surface, the miss
+          // included. A heard-but-amountless try comes back as `missed`; the mic
+          // is the retry, and tapping it (via `onListen`) clears the miss. No
+          // warning banner and no separate button stacked around it.
           <View style={{ gap: theme.spacing.lg, paddingTop: theme.spacing.xxl }}>
-            {noAmount ? <Callout tone="warning">{t.voice.noAmount}</Callout> : null}
-            <VoiceMicPanel key={attempt} onDone={handleTranscript} hints={hints} />
-            {noAmount ? (
-              <Button
-                label={t.voice.tryAgain}
-                variant="secondary"
-                onPress={retry}
-                style={{ alignSelf: 'center' }}
-              />
-            ) : null}
+            <VoiceMicPanel
+              key={attempt}
+              onDone={handleTranscript}
+              hints={hints}
+              missed={noAmount}
+              autoStart={!noAmount}
+              onListen={() => setNoAmount(false)}
+            />
           </View>
         )}
       </ScrollView>

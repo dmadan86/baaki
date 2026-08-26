@@ -771,7 +771,14 @@ export interface UiStrings {
     prompt: string;
     example: string;
     tapToSpeak: string;
+    /** Miss recovery headline: heard, but no amount landed. */
     noAmount: string;
+    /** Miss recovery headline: nothing intelligible was heard at all. */
+    missedNothing: string;
+    /** The one supporting line under a miss — a concrete sentence to copy. */
+    missHint: string;
+    /** The status line under the mic on a miss: the mic itself is the retry. */
+    tapToRetry: string;
     tryAgain: string;
     chooseGroup: string;
     /** '{note}' is the spoken description. */
@@ -2557,7 +2564,10 @@ const en: UiStrings = {
     prompt: 'Say what you spent',
     example: 'e.g. “add 500 to Goa trip”',
     tapToSpeak: 'Tap to speak',
-    noAmount: 'Didn’t catch an amount. Try again.',
+    noAmount: 'Didn’t catch an amount',
+    missedNothing: 'Didn’t catch that',
+    missHint: 'Try saying an amount, like “add 500 to Goa trip”',
+    tapToRetry: 'Tap to try again',
     tryAgain: 'Try again',
     chooseGroup: 'Which group?',
     heard: 'Heard: {note}',
@@ -4353,7 +4363,10 @@ const ta: UiStrings = {
     prompt: 'நீங்கள் என்ன செலவழித்தீர்கள் என்று சொல்',
     example: 'உ.தா. “கோவா டிரிப்பில் 500 சேர்”',
     tapToSpeak: 'பேச தட்டு',
-    noAmount: 'தொகை புரியவில்லை. மீண்டும் முயற்சி செய்.',
+    noAmount: 'தொகை புரியவில்லை',
+    missedNothing: 'புரியவில்லை',
+    missHint: 'ஒரு தொகையைச் சொல்லுங்கள், உ.தா. “கோவா டிரிப்பில் 500 சேர்”',
+    tapToRetry: 'மீண்டும் முயற்சிக்க தட்டு',
     tryAgain: 'மீண்டும் முயற்சி செய்',
     chooseGroup: 'எந்த குழு?',
     heard: 'கேட்டது: {note}',
@@ -6202,7 +6215,10 @@ const hi: UiStrings = {
     prompt: 'बताएँ आपने क्या खर्च किया',
     example: 'जैसे “गोवा ट्रिप में 500 जोड़ें”',
     tapToSpeak: 'बोलने के लिए टैप करें',
-    noAmount: 'रकम समझ नहीं आई। फिर कोशिश करें।',
+    noAmount: 'रकम समझ नहीं आई',
+    missedNothing: 'समझ नहीं आया',
+    missHint: 'रकम बोलें, जैसे “गोवा ट्रिप में 500 जोड़ें”',
+    tapToRetry: 'दोबारा कोशिश के लिए टैप करें',
     tryAgain: 'फिर कोशिश करें',
     chooseGroup: 'कौन सा ग्रुप?',
     heard: 'सुना: {note}',
@@ -8028,7 +8044,10 @@ const ar: UiStrings = {
     prompt: 'قل ماذا أنفقت',
     example: 'مثل: «أضف 500 إلى رحلة جوا»',
     tapToSpeak: 'انقر للتحدث',
-    noAmount: 'لم أفهم المبلغ. أعد المحاولة.',
+    noAmount: 'لم أفهم المبلغ',
+    missedNothing: 'لم أفهم ذلك',
+    missHint: 'قل مبلغًا، مثل «أضف 500 إلى رحلة جوا»',
+    tapToRetry: 'انقر لإعادة المحاولة',
     tryAgain: 'أعد المحاولة',
     chooseGroup: 'أي مجموعة؟',
     heard: 'سُمع: {note}',

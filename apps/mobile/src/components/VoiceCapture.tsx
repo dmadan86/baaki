@@ -20,7 +20,7 @@ import { Animated, Easing, Linking, Pressable, View } from 'react-native';
 
 import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
-import { LANGUAGES, LANGUAGE_NAMES, useStrings, type Language } from '@/i18n';
+import { Language, useStrings } from '@/i18n';
 import { dictationError, speechLocale } from '@/lib/dictation';
 
 const MIC_SIZE = 104;
@@ -214,6 +214,25 @@ export interface VoiceCaptureProps {
   onDone: (transcript: string) => void;
   /** Names to bias the recogniser towards — group and member names. */
   hints?: readonly string[];
+  /**
+   * The last utterance was heard but carried no amount — the screen parsed it
+   * and came back empty. The panel shows a calm "didn't catch an amount" recovery
+   * with the mic as the only way forward, rather than a separate warning and
+   * button stacked around it.
+   */
+  missed?: boolean;
+  /**
+   * Fired the moment a fresh utterance begins, so the screen can clear a prior
+   * `missed`. The mic is the retry: tapping it is what dismisses the miss state.
+   */
+  onListen?: () => void;
+  /**
+   * Open the mic on mount. True for the first attempt (the reader tapped a mic to
+   * get here, so opening it saves a tap); false when arriving on a miss, where the
+   * recovery copy should sit and wait for a deliberate tap rather than reopening
+   * the mic under a message the reader has not read yet.
+   */
+  autoStart?: boolean;
 }
 
 function recognitionAvailable(): boolean {
@@ -224,56 +243,25 @@ function recognitionAvailable(): boolean {
   }
 }
 
-/**
- * The subset of the app's languages this phone's recogniser can actually listen
- * in. A chip for a language the device cannot recognise only leads to a red "not
- * supported" after the tap, so a language that is not supported is not shown.
- *
- * `getSupportedLocales` returns an empty list on Android 12 and below (and can
- * throw when the service package is missing): there we cannot tell what is
- * supported, so we return `null` and every chip is shown rather than hiding them
- * all. A non-empty device list that matched none of ours is treated the same
- * way — more likely a normalisation miss than a phone that speaks nothing we
- * offer.
- */
-async function loadSupportedLanguages(): Promise<Language[] | null> {
-  try {
-    let androidRecognitionServicePackage: string | undefined;
-    try {
-      const pkg = ExpoSpeechRecognitionModule.getDefaultRecognitionService?.().packageName;
-      if (pkg) androidRecognitionServicePackage = pkg;
-    } catch {
-      // iOS / older builds have no Android service concept — query without one.
-    }
-    const { locales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
-      androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {},
-    );
-    if (!locales || locales.length === 0) return null;
-    const base = new Set(
-      locales.map((tag) => tag.trim().split(/[-_]/)[0]?.toLowerCase()).filter(Boolean),
-    );
-    const supported = LANGUAGES.filter((lang) => base.has(lang));
-    return supported.length > 0 ? supported : null;
-  } catch {
-    return null;
-  }
-}
-
-export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
+export function VoiceCapture({
+  onDone,
+  hints,
+  missed,
+  onListen,
+  autoStart = true,
+}: VoiceCaptureProps) {
   const theme = useTheme();
-  const { t, language, locale } = useStrings();
+  const { t, locale } = useStrings();
 
   const [available] = useState(recognitionAvailable);
-  // Which language the recogniser listens in this session. Defaults to the app
-  // language, but a speaker whose phone is in one language and mouth in another
-  // can switch it here without changing the whole app — on-device recognition
-  // targets one locale per session, so this is a per-utterance choice.
-  const [spokenLang, setSpokenLang] = useState<Language | null>(null);
-  // Which languages this phone can recognise (null until asked / when unknown).
-  const [supportedLangs, setSupportedLangs] = useState<Language[] | null>(null);
   const [listening, setListening] = useState(false);
   const [live, setLive] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // The mic ran but heard nothing intelligible. Local to the panel — the screen
+  // never saw a transcript to parse — and drives the same recovery copy a parsed
+  // miss (`missed`) does, so "didn't catch that" and "didn't catch an amount"
+  // read as one calm state rather than two different dead ends.
+  const [emptyMiss, setEmptyMiss] = useState(false);
 
   // The latest transcript, kept in a ref so the 'end' handler reads the final
   // one without waiting on a state update.
@@ -298,90 +286,71 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
     setListening(false);
     const said = latest.current.trim();
     if (said) onDone(said);
+    // Heard nothing usable — surface the same calm recovery a parsed miss shows,
+    // rather than silently dropping back to the opening prompt as if nothing had
+    // been tried.
+    else setEmptyMiss(true);
   });
 
-  const start = useCallback(
-    async (langOverride?: Language): Promise<void> => {
-      setError(null);
-      latest.current = '';
-      setLive('');
+  const start = useCallback(async (): Promise<void> => {
+    setError(null);
+    // Speaking again is the retry: clear both miss states as the mic opens, and
+    // let the screen drop any parsed miss it is still holding.
+    setEmptyMiss(false);
+    onListen?.();
+    latest.current = '';
+    setLive('');
 
-      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!mounted.current) return;
-      if (!permission.granted) {
-        setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
-        return;
-      }
+    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!mounted.current) return;
+    if (!permission.granted) {
+      setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
+      return;
+    }
 
-      let onDevice = false;
-      try {
-        onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
-      } catch {
-        onDevice = false;
-      }
+    let onDevice = false;
+    try {
+      onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+    } catch {
+      onDevice = false;
+    }
 
-      setListening(true);
-      try {
-        ExpoSpeechRecognitionModule.start({
-          // The explicit override (a language just tapped) wins over the session
-          // choice, which wins over the app language — the tap must take effect
-          // now, before its `setState` has landed.
-          lang: speechLocale(langOverride ?? spokenLang ?? language, locale),
-          interimResults: true,
-          maxAlternatives: 1,
-          // One sentence, then it settles — the same shape a note dictation uses.
-          continuous: false,
-          requiresOnDeviceRecognition: onDevice,
-          addsPunctuation: onDevice,
-          contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
-          iosTaskHint: 'dictation',
-        });
-      } catch {
-        setListening(false);
-        setError(t.misc.dictationFailed);
-      }
-    },
-    [hints, spokenLang, language, locale, t],
-  );
-
-  // Pick the language to listen in. If the mic is already open, restart it at
-  // once in the new language; otherwise the choice applies on the next tap.
-  const chooseLang = useCallback(
-    (lang: Language): void => {
-      setSpokenLang(lang);
-      if (listening) {
-        ExpoSpeechRecognitionModule.abort();
-        void start(lang);
-      }
-    },
-    [listening, start],
-  );
+    setListening(true);
+    try {
+      ExpoSpeechRecognitionModule.start({
+        // Recognition is English-only — the surface each speaker reads is still
+        // localised, but the mic listens in English (device region where it can,
+        // else en-IN), so there is one locale to get right and no chip to miss.
+        lang: speechLocale(Language.En, locale),
+        interimResults: true,
+        maxAlternatives: 1,
+        // One sentence, then it settles — the same shape a note dictation uses.
+        continuous: false,
+        requiresOnDeviceRecognition: onDevice,
+        addsPunctuation: onDevice,
+        contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
+        iosTaskHint: 'dictation',
+      });
+    } catch {
+      setListening(false);
+      setError(t.misc.dictationFailed);
+    }
+  }, [hints, locale, onListen, t]);
 
   const stop = useCallback((): void => {
     ExpoSpeechRecognitionModule.stop();
   }, []);
 
-  // Ask the recogniser which languages it can hear, once, so the chips only
-  // offer the ones that will actually work on this phone.
-  useEffect(() => {
-    if (!available) return;
-    let alive = true;
-    void loadSupportedLanguages().then((langs) => {
-      if (alive) setSupportedLangs(langs);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [available]);
-
   // Open the mic as the screen appears — the reader tapped a mic to get here, so
-  // making them tap a second one to start would be a step too many.
+  // making them tap a second one to start would be a step too many. Suppressed
+  // when arriving on a miss (`autoStart` false): the recovery copy should be read
+  // before the mic reopens, and the mic itself is the retry.
   useEffect(() => {
-    if (!available || started.current) return;
+    if (!available || !autoStart || started.current) return;
     started.current = true;
     void start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [available]);
+  }, [available, autoStart]);
 
   // Leaving mid-sentence must not leave the microphone open.
   useEffect(() => {
@@ -399,12 +368,19 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
     );
   }
 
+  // The recovery state, once, whatever caused it: an utterance that carried no
+  // amount (`missed`, parsed by the screen) or one that carried no words at all
+  // (`emptyMiss`, seen here). Only while the mic is at rest — a new try clears it.
+  const showMiss = !listening && (missed || emptyMiss);
+  const missHeadline = missed ? t.voice.noAmount : t.voice.missedNothing;
+
   return (
     <View style={{ alignItems: 'center', gap: theme.spacing.xl }}>
-      {/* The live transcript as it forms, or the prompt before a word is heard —
-          the sentence the person is building is the headline of the screen. */}
+      {/* One headline, whatever most needs saying: the sentence forming while
+          listening, a calm recovery line after a miss, or the opening prompt at
+          rest. Never a warning stacked on top of it. */}
       <Text variant="title" align="center">
-        {live || t.voice.prompt}
+        {showMiss ? missHeadline : live || t.voice.prompt}
       </Text>
 
       {/* The mic sits inside a fixed square so the pulse rings expanding behind it
@@ -421,7 +397,9 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
         <PulseRings active={listening} theme={theme} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={listening ? t.misc.stopDictating : t.voice.tapToSpeak}
+          accessibilityLabel={
+            listening ? t.misc.stopDictating : showMiss ? t.voice.tapToRetry : t.voice.tapToSpeak
+          }
           accessibilityState={{ busy: listening }}
           onPress={() => (listening ? stop() : void start())}
           hitSlop={8}
@@ -453,77 +431,26 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
         </Pressable>
       </View>
 
-      {/* Listening: the status word over a live waveform. Idle: the same status
-          line, with a worked example under it so a first-timer knows the shape of
-          a sentence the parser understands. */}
+      {/* Listening: the status word over a live waveform. Recovering: the mic is
+          the retry, so the line invites the tap and a worked example sits under it
+          to fix the phrasing. At rest: the same example under a plain prompt. One
+          line and one supporting line — never a third. */}
       <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
-        <Text tone={listening ? 'brand' : 'muted'}>
-          {listening ? t.misc.listening : t.voice.tapToSpeak}
+        <Text tone={listening || showMiss ? 'brand' : 'muted'}>
+          {listening ? t.misc.listening : showMiss ? t.voice.tapToRetry : t.voice.tapToSpeak}
         </Text>
         {listening ? (
           <Waveform active={listening} theme={theme} />
+        ) : showMiss ? (
+          <Text variant="caption" tone="faint" align="center">
+            {t.voice.missHint}
+          </Text>
         ) : !live ? (
           <Text variant="caption" tone="faint" align="center">
             {t.voice.example}
           </Text>
         ) : null}
       </View>
-
-      {/* Which language to listen in — the recogniser targets one locale per
-          session, so a speaker whose phone is in one language and mouth in
-          another picks it here. The chip shows each language in its own script,
-          so it is found by the name its speaker knows. Only languages this phone
-          can actually recognise are offered; with just one, there is nothing to
-          choose and the row is hidden. */}
-      {(supportedLangs ?? LANGUAGES).length > 1 ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-          }}
-        >
-          <Ionicons name="globe-outline" size={iconSize.sm} color={theme.color.textMuted} />
-          {(supportedLangs ?? LANGUAGES).map((lang) => {
-            const selected = (spokenLang ?? language) === lang;
-            return (
-              <Pressable
-                key={lang}
-                onPress={() => chooseLang(lang)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                accessibilityLabel={LANGUAGE_NAMES[lang].english}
-                hitSlop={8}
-                style={({ pressed }) => ({
-                  // A 44pt floor plus hitSlop: on `xs` padding alone the chip was
-                  // ~26pt, the smallest target on the screen and the one that
-                  // switches the recognition language. Centre the label so the
-                  // taller box does not push it off-centre.
-                  minHeight: 44,
-                  justifyContent: 'center',
-                  paddingVertical: theme.spacing.xs,
-                  paddingHorizontal: theme.spacing.md,
-                  borderRadius: theme.radius.pill,
-                  backgroundColor: selected ? theme.color.brandSoft : theme.color.surfaceMuted,
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <Text
-                  variant="caption"
-                  style={{
-                    color: selected ? theme.color.brand : theme.color.textMuted,
-                    fontWeight: selected ? '600' : '400',
-                  }}
-                >
-                  {LANGUAGE_NAMES[lang].own}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
 
       {error ? (
         <Pressable onPress={() => void Linking.openSettings()} accessibilityRole="button">
