@@ -19,7 +19,7 @@
  * shows a message instead of crashing.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -50,6 +50,7 @@ import {
   useCreateGroup,
   useDestinationUsage,
   useGroup,
+  useGroupCreatedAt,
   useGroups,
   usePeopleBalances,
   useWriteExpense,
@@ -127,6 +128,9 @@ export default function VoiceScreen() {
   // How often and how recently each destination has been used — the picker's
   // "recent"/"frequent" badges. Read once from the mirror, keyed by group id.
   const usage = useDestinationUsage();
+  // Every group's creation time (people's 1:1 groups included), for the "newly
+  // created" trip chip and the "recently added" person chips.
+  const groupCreatedAt = useGroupCreatedAt();
   // "Now" captured once so the "new"/"recent" windows do not shift mid-render
   // (a bare Date.now() in render trips the React Compiler lint).
   const [nowMs] = useState(() => Date.now());
@@ -213,9 +217,59 @@ export default function VoiceScreen() {
 
   const navigation = useNavigation();
 
-  const groupRows = groups.data ?? [];
+  const groupRows = useMemo(() => groups.data ?? [], [groups.data]);
   const groupRefs: VoiceGroupRef[] = groupRows.map((group) => ({ id: group.id, name: group.name }));
   const hints = groupRows.map((group) => group.name ?? '').filter(Boolean);
+
+  // One-tap destination chips shown under the "Save to" selector on the review:
+  // the trips worth reaching for first, then the two people most recently added.
+  //
+  // Trips: the most recently used, the most used, and a just-created one — each
+  // added once, deduped, capped at three, in that order. Empty when nothing has
+  // been used and nothing is new.
+  const quickTrips = useMemo(() => {
+    const picks: { group: GroupRow; reason: 'recent' | 'frequent' | 'new' }[] = [];
+    const add = (group: GroupRow | null, reason: 'recent' | 'frequent' | 'new'): void => {
+      if (group && !picks.some((pick) => pick.group.id === group.id)) picks.push({ group, reason });
+    };
+
+    let recent: GroupRow | null = null;
+    let recentAt = '';
+    let frequent: GroupRow | null = null;
+    let frequentCount = 0;
+    let fresh: GroupRow | null = null;
+    let freshAt = '';
+    for (const group of groupRows) {
+      const use = usage.get(group.id);
+      if (use?.lastAt && use.lastAt > recentAt) {
+        recentAt = use.lastAt;
+        recent = group;
+      }
+      if (use && use.count > frequentCount) {
+        frequentCount = use.count;
+        frequent = group;
+      }
+      if (nowMs - Date.parse(group.created_at) < NEW_WINDOW_MS && group.created_at > freshAt) {
+        freshAt = group.created_at;
+        fresh = group;
+      }
+    }
+    add(recent, 'recent');
+    if (frequentCount > 0) add(frequent, 'frequent');
+    add(fresh, 'new');
+    return picks.slice(0, 3);
+  }, [groupRows, usage, nowMs]);
+
+  // People: the two most recently added, by the age of their 1:1 group.
+  const quickPeople = useMemo(
+    () =>
+      [...peopleChoices]
+        .map((person) => ({ person, at: groupCreatedAt.get(person.groupId) ?? '' }))
+        .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+        .slice(0, 2)
+        .map((entry) => entry.person),
+    [peopleChoices, groupCreatedAt],
+  );
 
   // Members and currency of the chosen group, read from the local mirror. Empty
   // id (the unassigned/create cases) reads nothing, which is what we want.
@@ -310,6 +364,15 @@ export default function VoiceScreen() {
   const handleLocationChange = (next: ExpenseLocation | null): void => {
     locationTouched.current = true;
     setLocation(next);
+  };
+
+  // Point the batch at an existing group (a trip, or a person's 1:1 group) — the
+  // one-tap path the quick chips and the picker share. A change of destination is
+  // a change of group/ghost to make, so drop the once-only latches for the new one.
+  const chooseExistingDest = (groupId: string): void => {
+    groupCreated.current = false;
+    ghostMemberId.current = null;
+    setDest({ kind: 'existing', groupId });
   };
 
   // Write the heard expenses into the capture inbox — the app's draft holding
@@ -663,6 +726,46 @@ export default function VoiceScreen() {
               </Card>
             </View>
 
+            {/* One-tap destinations, under the selector: the trips worth reaching
+                for first, then the two most recently added people. Trip and person
+                chips are shaped and tinted apart, so a glance tells them apart. */}
+            {quickTrips.length > 0 || quickPeople.length > 0 ? (
+              <View style={{ gap: theme.spacing.sm }}>
+                <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                  {t.voice.quickPick.toUpperCase()}
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
+                >
+                  {quickTrips.map(({ group }) => (
+                    <QuickChip
+                      key={`trip-${group.id}`}
+                      kind="trip"
+                      label={groupLabel(group)}
+                      emoji={group.cover_emoji}
+                      icon={GROUP_TYPE_ICON[group.type] ?? 'people-outline'}
+                      selected={dest.kind === 'existing' && dest.groupId === group.id}
+                      onPress={() => chooseExistingDest(group.id)}
+                      theme={theme}
+                    />
+                  ))}
+                  {quickPeople.map((person) => (
+                    <QuickChip
+                      key={`person-${person.groupId}`}
+                      kind="person"
+                      label={person.name}
+                      selected={dest.kind === 'existing' && dest.groupId === person.groupId}
+                      onPress={() => chooseExistingDest(person.groupId)}
+                      theme={theme}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
             {/* One place for the whole batch (A43) — opt-in, never a background
                 track. It rides onto every expense saved from this review. */}
             <LocationField value={location} onChange={handleLocationChange} busy={locating} />
@@ -829,6 +932,86 @@ function describeDest(
     emoji: group.cover_emoji,
     icon: GROUP_TYPE_ICON[group.type] ?? 'people-outline',
   };
+}
+
+/**
+ * A one-tap destination chip on the review — deliberately different for a trip
+ * and a person so a glance tells them apart. A trip reads as a place: a
+ * violet-tinted rounded card wearing the group's own cover emoji (or a type
+ * glyph). A person reads as a contact: a cooler pill led by a round avatar mark.
+ * Shape, leading mark and tint all differ, not just the label.
+ */
+function QuickChip({
+  kind,
+  label,
+  emoji,
+  icon,
+  selected,
+  onPress,
+  theme,
+}: {
+  kind: 'trip' | 'person';
+  label: string;
+  emoji?: string | null;
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
+  selected: boolean;
+  onPress: () => void;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  const isPerson = kind === 'person';
+  const restFill = isPerson ? theme.color.surfaceMuted : theme.color.brandSoft;
+  const restInk = isPerson ? theme.color.text : theme.color.brand;
+  const fill = selected ? (isPerson ? theme.color.buttonPrimary : theme.color.brand) : restFill;
+  const ink = selected ? (isPerson ? theme.color.onButtonPrimary : theme.color.onBrand) : restInk;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        height: 40,
+        paddingLeft: isPerson ? 4 : theme.spacing.md,
+        paddingRight: theme.spacing.md,
+        borderRadius: isPerson ? theme.radius.pill : theme.radius.lg,
+        backgroundColor: fill,
+        opacity: pressed ? 0.75 : 1,
+      })}
+    >
+      {isPerson ? (
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: selected ? theme.color.onButtonPrimary : theme.color.surface,
+          }}
+        >
+          <Ionicons
+            name="person"
+            size={iconSize.sm}
+            color={selected ? theme.color.buttonPrimary : theme.color.textMuted}
+          />
+        </View>
+      ) : emoji ? (
+        <Text style={{ fontSize: 16 }}>{emoji}</Text>
+      ) : (
+        <Ionicons name={icon ?? 'people-outline'} size={iconSize.sm} color={ink} />
+      )}
+      <Text
+        variant="caption"
+        numberOfLines={1}
+        style={{ color: ink, fontWeight: '600', maxWidth: 150 }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 /** One Ionicon per group type, the fallback when a group has no cover emoji —

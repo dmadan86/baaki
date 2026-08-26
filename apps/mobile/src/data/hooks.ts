@@ -630,6 +630,24 @@ export function useDestinationUsage(): Map<string, DestinationUsage> {
 }
 
 /**
+ * Every group's creation timestamp, keyed by id — including the 1:1 groups behind
+ * individual people, which the group list does not surface. Lets the review offer
+ * a "recently added" person by the age of their 1:1 group, the same way a group's
+ * own `created_at` marks a newly made trip.
+ */
+export function useGroupCreatedAt(): Map<string, string> {
+  const { mirror } = useSync();
+  return useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const row of rowsFor(mirror, SyncTable.Groups)) {
+      const g = row as unknown as { id: string; created_at: string };
+      if (g.id && g.created_at) byId.set(g.id, g.created_at);
+    }
+    return byId;
+  }, [mirror]);
+}
+
+/**
  * One group, entirely from the mirror.
  *
  * `balances` is the exception and stays a network read — it is the server's

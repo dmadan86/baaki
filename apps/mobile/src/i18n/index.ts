@@ -806,6 +806,8 @@ export interface UiStrings {
     /** The row that adds a brand-new person (a 1:1 IOU) by name. */
     addPerson: string;
     addPersonPlaceholder: string;
+    /** Section label above the one-tap destination chips on the review. */
+    quickPick: string;
     /** The two destination tabs in the "Save to" picker. */
     groupsTab: string;
     peopleTab: string;
@@ -2592,6 +2594,7 @@ const en: UiStrings = {
     people: 'People',
     addPerson: 'Add a person',
     addPersonPlaceholder: 'Their name',
+    quickPick: 'Quick pick',
     groupsTab: 'Groups',
     peopleTab: 'People',
     badgeNew: 'New',
@@ -4397,6 +4400,7 @@ const ta: UiStrings = {
     people: 'நபர்கள்',
     addPerson: 'ஒரு நபரைச் சேர்',
     addPersonPlaceholder: 'அவர்களின் பெயர்',
+    quickPick: 'விரைவுத் தேர்வு',
     groupsTab: 'குழுக்கள்',
     peopleTab: 'நபர்கள்',
     badgeNew: 'புதியது',
@@ -6253,6 +6257,7 @@ const hi: UiStrings = {
     people: 'लोग',
     addPerson: 'व्यक्ति जोड़ें',
     addPersonPlaceholder: 'उनका नाम',
+    quickPick: 'क्विक चुनें',
     groupsTab: 'ग्रुप',
     peopleTab: 'लोग',
     badgeNew: 'नया',
@@ -8087,6 +8092,7 @@ const ar: UiStrings = {
     people: 'الأشخاص',
     addPerson: 'إضافة شخص',
     addPersonPlaceholder: 'اسمه',
+    quickPick: 'اختيار سريع',
     groupsTab: 'المجموعات',
     peopleTab: 'الأشخاص',
     badgeNew: 'جديد',
