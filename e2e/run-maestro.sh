@@ -29,6 +29,7 @@ FLOWS=(
   custom-tags
   locale-switch
   sign-out-privacy
+  local-privacy-audit
   clone-group
   group-photo-paid-gate
   friends-merge-guests
