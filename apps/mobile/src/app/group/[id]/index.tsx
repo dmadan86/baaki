@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -273,30 +273,40 @@ export default function GroupScreen() {
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const disputes = useDisputes(groupId);
   const openReceipts = useOpenReceipts(groupId);
-  const openDisputes = new Set(
-    (disputes.data ?? []).filter((row) => row.status === 'open').map((row) => row.expense_id),
+  const openDisputes = useMemo(
+    () =>
+      new Set(
+        (disputes.data ?? []).filter((row) => row.status === 'open').map((row) => row.expense_id),
+      ),
+    [disputes.data],
   );
   const confirmSettlement = useConfirmSettlement(groupId);
 
   const { blockedIds } = useBlockedUsers();
-  const lookup = memberLookup(members.data);
-  const nameOf = (memberId: string | null): string => {
-    const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
-  };
+  const lookup = useMemo(() => memberLookup(members.data), [members.data]);
+  const nameOf = useCallback(
+    (memberId: string | null): string => {
+      const member = memberId ? lookup.get(memberId) : undefined;
+      return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
+    },
+    [blockedIds, lookup, profile?.id, t.misc.someone],
+  );
   // The joined actor an activity row would carry on the cross-group feed, rebuilt
   // from this group's members — so the mirror-backed group feed can name who did
   // the thing rather than falling back to "someone".
-  const actorFor = (memberId: string | null): ActivityActor | null => {
-    const member = memberId ? lookup.get(memberId) : undefined;
-    if (!member) return null;
-    return {
-      id: member.id,
-      profile_id: member.profile_id,
-      ghost_name: member.ghost_name,
-      profile: member.profile ? { display_name: member.profile.display_name } : null,
-    };
-  };
+  const actorFor = useCallback(
+    (memberId: string | null): ActivityActor | null => {
+      const member = memberId ? lookup.get(memberId) : undefined;
+      if (!member) return null;
+      return {
+        id: member.id,
+        profile_id: member.profile_id,
+        ghost_name: member.ghost_name,
+        profile: member.profile ? { display_name: member.profile.display_name } : null,
+      };
+    },
+    [lookup],
+  );
 
   if (group.isLoading) {
     return <GroupSkeleton />;
@@ -378,7 +388,8 @@ export default function GroupScreen() {
     );
   }
 
-  const currency = group.data.default_currency;
+  const groupData = group.data;
+  const currency = groupData.default_currency;
   // The hero panel wears its verdict, the same rule the dashboard hero follows:
   // a blue wash when the group owes you, a red one when you owe it, the brand
   // indigo when all is settled. Every stop is dark enough to hold the white
@@ -417,7 +428,7 @@ export default function GroupScreen() {
   // a trip to plan; a flatshare has no use for the row.
   const menuItems: OverflowMenuItem[] = [
     { icon: 'pie-chart-outline', label: t.spending, route: `/group/${groupId}/insights` },
-    ...(group.data.type === 'trip'
+    ...(groupData.type === 'trip'
       ? [
           {
             icon: 'map-outline',

@@ -11,6 +11,7 @@ import Animated, {
 
 import { AnnotationOverlay } from '@/components/AnnotationOverlay';
 import { containRect, type Annotations } from '@/lib/annotations';
+import { clampZoomPoint } from '@/lib/zoomMath';
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -82,6 +83,15 @@ export function ZoomableImage({
         savedY.set(0);
         runOnJS(reportZoom)(false);
       } else {
+        const clamped = clampZoomPoint(
+          { x: translateX.get(), y: translateY.get() },
+          { width, height: boxHeight },
+          scale.get(),
+        );
+        translateX.set(withTiming(clamped.x));
+        translateY.set(withTiming(clamped.y));
+        savedX.set(clamped.x);
+        savedY.set(clamped.y);
         runOnJS(reportZoom)(true);
       }
     });
@@ -90,12 +100,24 @@ export function ZoomableImage({
     .onUpdate((event) => {
       // Panning only makes sense once zoomed in; at fit it stays put.
       if (scale.get() <= 1) return;
-      translateX.set(savedX.get() + event.translationX);
-      translateY.set(savedY.get() + event.translationY);
+      const clamped = clampZoomPoint(
+        { x: savedX.get() + event.translationX, y: savedY.get() + event.translationY },
+        { width, height: boxHeight },
+        scale.get(),
+      );
+      translateX.set(clamped.x);
+      translateY.set(clamped.y);
     })
     .onEnd(() => {
-      savedX.set(translateX.get());
-      savedY.set(translateY.get());
+      const clamped = clampZoomPoint(
+        { x: translateX.get(), y: translateY.get() },
+        { width, height: boxHeight },
+        scale.get(),
+      );
+      translateX.set(withTiming(clamped.x));
+      translateY.set(withTiming(clamped.y));
+      savedX.set(clamped.x);
+      savedY.set(clamped.y);
     });
 
   // Double-tap toggles zoom: from fit it magnifies to a fixed level centred on
@@ -119,14 +141,17 @@ export function ZoomableImage({
       }
       const dx = event.x - width / 2;
       const dy = event.y - height / 2;
-      const tx = -(DOUBLE_TAP_SCALE - 1) * dx;
-      const ty = -(DOUBLE_TAP_SCALE - 1) * dy;
+      const target = clampZoomPoint(
+        { x: -(DOUBLE_TAP_SCALE - 1) * dx, y: -(DOUBLE_TAP_SCALE - 1) * dy },
+        { width, height: boxHeight },
+        DOUBLE_TAP_SCALE,
+      );
       scale.set(withTiming(DOUBLE_TAP_SCALE));
       savedScale.set(DOUBLE_TAP_SCALE);
-      translateX.set(withTiming(tx));
-      translateY.set(withTiming(ty));
-      savedX.set(tx);
-      savedY.set(ty);
+      translateX.set(withTiming(target.x));
+      translateY.set(withTiming(target.y));
+      savedX.set(target.x);
+      savedY.set(target.y);
       runOnJS(reportZoom)(true);
     });
 

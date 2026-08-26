@@ -16,6 +16,7 @@ import { Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 import { plural, useStrings } from '@/i18n';
 
 import { isPhoneCountryError } from '@/lib/phone';
+import { useReducedMotion } from '@/lib/reducedMotion';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { SyncStatus, useSync } from '@/sync';
 
@@ -35,6 +36,7 @@ export function SyncStatusIcon({
   groupId,
 }: { onBrand?: boolean; groupId?: string } = {}) {
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
   const { t, locale } = useStrings();
   const { status, queue, rejected } = useSync();
 
@@ -47,7 +49,7 @@ export function SyncStatusIcon({
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
 
   const spin = useState(() => new Animated.Value(0))[0];
-  const spinning = status === SyncStatus.Syncing;
+  const spinning = status === SyncStatus.Syncing && !reduceMotion;
   useEffect(() => {
     if (!spinning) return;
     const loop = Animated.loop(
@@ -110,7 +112,7 @@ export function SyncStatusIcon({
       accessibilityLabel={state.label}
       style={{ padding: theme.spacing.xs }}
     >
-      {status === SyncStatus.Syncing ? (
+      {spinning ? (
         <Animated.View
           style={{
             transform: [

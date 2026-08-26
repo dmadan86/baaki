@@ -163,18 +163,19 @@ export function ContactPicker({
     }
     if (cancelled.current) return;
 
-    setContacts(
-      rows
-        .map((row) => ({
-          name: (row.fullName ?? [row.givenName, row.familyName].filter(Boolean).join(' ')).trim(),
-          email: row.emails?.[0]?.address?.trim().toLowerCase() ?? null,
-          phone: normalisePhone(row.phones?.[0]?.number ?? null),
-        }))
-        // Somebody with neither an email nor a number cannot be invited, so
-        // showing them would only be an invitation to tap and be refused.
-        .filter((contact) => contact.name && (contact.email || contact.phone))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    );
+    const unique = new Map<string, PickedContact>();
+    for (const contact of rows
+      .map((row) => ({
+        name: (row.fullName ?? [row.givenName, row.familyName].filter(Boolean).join(' ')).trim(),
+        email: row.emails?.[0]?.address?.trim().toLowerCase() ?? null,
+        phone: normalisePhone(row.phones?.[0]?.number ?? null),
+      }))
+      // Somebody with neither an email nor a number cannot be invited, so
+      // showing them would only be an invitation to tap and be refused.
+      .filter((contact) => contact.name && (contact.email || contact.phone))) {
+      unique.set(keyOf(contact), contact);
+    }
+    setContacts([...unique.values()].sort((a, b) => a.name.localeCompare(b.name)));
     setAccess(Access.Granted);
   }, []);
 
@@ -399,9 +400,7 @@ export function ContactPicker({
               // lets it recycle each against its own kind instead of throwing
               // away a row every time a letter goes by.
               getItemType={(entry) => (isHeading(entry) ? 'heading' : 'person')}
-              keyExtractor={(entry, index) =>
-                isHeading(entry) ? `letter-${entry.letter}` : `${keyOf(entry)}-${index}`
-              }
+              keyExtractor={(entry) => (isHeading(entry) ? `letter-${entry.letter}` : keyOf(entry))}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 if (isHeading(item)) return <Heading letter={item.letter} />;
@@ -693,10 +692,21 @@ function IndexRail({
       shown.length - 1,
       Math.max(0, Math.floor((y - top) / RAIL_LETTER_HEIGHT)),
     );
+    seekToIndex(index);
+  };
+
+  const seekToIndex = (index: number): void => {
     const letter = shown[index];
     if (letter === undefined || letter === active) return;
     setActive(letter);
     onSeek(letter);
+  };
+
+  const seekByStep = (step: -1 | 1): void => {
+    if (shown.length === 0) return;
+    const current = active ? shown.indexOf(active) : -1;
+    const next = Math.min(shown.length - 1, Math.max(0, current + step));
+    seekToIndex(next);
   };
 
   return (
@@ -714,6 +724,12 @@ function IndexRail({
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel={t.pickers.jumpToLetter}
+      accessibilityValue={active ? { text: active } : undefined}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'increment') seekByStep(1);
+        if (event.nativeEvent.actionName === 'decrement') seekByStep(-1);
+      }}
       style={{
         width: RAIL_WIDTH,
         justifyContent: 'center',

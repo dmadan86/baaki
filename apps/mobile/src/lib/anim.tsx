@@ -24,6 +24,7 @@ import Animated, {
 import { minorUnitScale } from '@waves/core';
 import { MoneyText, type MoneyTextProps } from '@waves/ui';
 
+import { useReducedMotion } from './reducedMotion';
 import { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';
 
 export { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';
@@ -49,8 +50,11 @@ const PRESS_SPRING = { damping: 18, stiffness: 280, mass: 0.5 } as const;
  * same keys does not remount, so the list does not re-stagger every pull.
  */
 export function Stagger({ index = 0, children }: { index?: number; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
   return (
-    <Animated.View entering={FadeInDown.duration(340).delay(staggerDelay(index))}>
+    <Animated.View
+      entering={reduceMotion ? undefined : FadeInDown.duration(340).delay(staggerDelay(index))}
+    >
       {children}
     </Animated.View>
   );
@@ -69,6 +73,7 @@ export function PressableScale({
   onPressOut,
   ...rest
 }: Omit<PressableProps, 'style'> & { children: ReactNode; style?: ViewStyle }) {
+  const reduceMotion = useReducedMotion();
   // `.get()`/`.set()` rather than `.value`: the same shared value, through the
   // method API Reanimated 4 added — a call, not an assignment to a property the
   // React compiler treats as immutable and refuses inside a handler.
@@ -79,11 +84,11 @@ export function PressableScale({
     <AnimatedPressable
       style={[animatedStyle, style]}
       onPressIn={(event) => {
-        scale.set(withSpring(0.96, PRESS_SPRING));
+        if (!reduceMotion) scale.set(withSpring(0.96, PRESS_SPRING));
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
-        scale.set(withSpring(1, PRESS_SPRING));
+        if (!reduceMotion) scale.set(withSpring(1, PRESS_SPRING));
         onPressOut?.(event);
       }}
       {...rest}
@@ -103,8 +108,12 @@ export function PressableScale({
  * launched it, the tap and the arrival belong to each other.
  */
 export function DetailEnter({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  const reduceMotion = useReducedMotion();
   return (
-    <Animated.View style={[{ flex: 1 }, style]} entering={detailEntering}>
+    <Animated.View
+      style={[{ flex: 1 }, style]}
+      entering={reduceMotion ? undefined : detailEntering}
+    >
       {children}
     </Animated.View>
   );
@@ -137,7 +146,8 @@ const detailEntering: EntryExitAnimationFunction = () => {
  * is `MoneyText`'s, unchanged; this only feeds it a moving `amount`.
  */
 export function CountUpMoney(props: MoneyTextProps): ReactNode {
-  const shown = useCountUp(props.amount);
+  const reduceMotion = useReducedMotion();
+  const shown = useCountUp(props.amount, reduceMotion);
   // While the figure is still rolling, drop the fractional units — the paise
   // digits spinning past two at a time read as noise, not motion. The tween
   // always lands on the exact target on its last frame, so the settled number
@@ -158,16 +168,18 @@ const COUNT_MS = 650;
  * from whatever is on screen now, so a mid-flight change redirects smoothly
  * rather than jumping back to zero.
  */
-export function useCountUp(target: bigint): bigint {
+export function useCountUp(target: bigint, reduceMotion = false): bigint {
   // The start figure is decided here rather than in the effect: a number too
   // large to tween as a Number begins on the target and never moves.
-  const [value, setValue] = useState<bigint>(() => (tooLargeToTween(target) ? target : 0n));
+  const [value, setValue] = useState<bigint>(() =>
+    reduceMotion || tooLargeToTween(target) ? target : 0n,
+  );
   const frame = useRef<number | null>(null);
 
   useEffect(() => {
     // Snapping is a state change too, so it goes through a frame rather than
     // running synchronously in the effect body — the same reason the tween does.
-    if (tooLargeToTween(target)) {
+    if (reduceMotion || tooLargeToTween(target)) {
       frame.current = requestAnimationFrame(() => setValue(target));
       return () => {
         if (frame.current !== null) cancelAnimationFrame(frame.current);
@@ -193,7 +205,7 @@ export function useCountUp(target: bigint): bigint {
     return () => {
       if (frame.current !== null) cancelAnimationFrame(frame.current);
     };
-  }, [target]);
+  }, [target, reduceMotion]);
 
   return value;
 }
