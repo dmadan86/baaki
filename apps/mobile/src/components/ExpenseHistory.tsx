@@ -1,21 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 
-import {
-  Avatar,
-  Badge,
-  Card,
-  directionalIcon,
-  iconSize,
-  MoneyText,
-  Row,
-  SectionHeader,
-  Text,
-  useTheme,
-} from '@waves/ui';
+import { Badge, directionalIcon, iconSize, MoneyText, Row, Text, useTheme } from '@waves/ui';
 
 import type { ExpenseVersionAudit } from '@/data/api';
 import type { ExpenseImageEventRow } from '@/data/hooks';
+import { type ActivityTint, dayHeading, groupByDay, relativeTime } from '@/data/activity';
 import { coordLabel } from '@/lib/location';
 import { fill, type UiStrings } from '@/i18n';
 
@@ -65,16 +55,6 @@ function dateLabel(locale: string, iso: string): string {
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(new Date(iso));
-}
-
-/** A wall-clock timestamp (when the edit was saved). */
-function stampLabel(locale: string, iso: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
   }).format(new Date(iso));
 }
 
@@ -259,6 +239,24 @@ function imageAuditLine(t: UiStrings, event: ExpenseImageEventRow, name: string)
   return fill(template, { name });
 }
 
+/** One node on the expense's timeline — a version edit or an image event, in the
+ *  same shape so both render as one activity-style feed. */
+interface HistoryEvent {
+  id: string;
+  created_at: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  tint: ActivityTint;
+  title: string;
+  /** Version amount, when the node is a version. */
+  money?: { amount: bigint; currency: string };
+  /** The field-level diff of an edit; empty for the "created" node. */
+  changes?: Change[];
+  /** True for the very first version (a creation, no diff to show). */
+  created?: boolean;
+  /** A party-only image event wears a badge. */
+  partyOnly?: boolean;
+}
+
 export function ExpenseHistory({
   versions,
   imageEvents,
@@ -277,99 +275,134 @@ export function ExpenseHistory({
 
   // Ascending, so each version can look one step back for its diff.
   const ascending = [...versions].sort((a, b) => a.version_no - b.version_no);
-  const entries = ascending.map((version, index) => ({
-    version,
-    changes: index === 0 ? [] : diffVersions(t, locale, nameOf, ascending[index - 1]!, version),
-    created: index === 0,
+  // A fallback timestamp for the rare image event with no recorded time, so it
+  // still buckets into a day rather than an invalid heading.
+  const fallbackIso = ascending[ascending.length - 1]?.created_at ?? '';
+
+  const versionEvents: HistoryEvent[] = ascending.map((version, index) => {
+    const created = index === 0;
+    return {
+      id: `v-${version.id}`,
+      created_at: version.created_at,
+      icon: created ? 'receipt-outline' : 'create-outline',
+      tint: created ? 'mint' : 'sky',
+      title: fill(created ? t.expense.createdByName : t.expense.editedByName, {
+        name: nameOf(version.author_member_id),
+      }),
+      money: { amount: BigInt(version.amount), currency: version.currency },
+      changes: created ? [] : diffVersions(t, locale, nameOf, ascending[index - 1]!, version),
+      created,
+    };
+  });
+
+  // The image audit (A46): who added or removed a receipt or attachment. A
+  // `parties` line only reaches a party's device (RLS on the pull). Folded into
+  // the same timeline so history reads as one feed.
+  const imageAuditEvents: HistoryEvent[] = imageEvents.map((event) => ({
+    id: `i-${event.id}`,
+    created_at: event.createdAt ?? fallbackIso,
+    icon: event.action === 'added' ? 'attach-outline' : 'trash-outline',
+    tint: event.action === 'added' ? 'lilac' : 'coral',
+    title: imageAuditLine(t, event, nameOf(event.actorMemberId)),
+    partyOnly: event.visibility === 'parties',
   }));
-  // Newest first for display.
-  entries.reverse();
+
+  // Merge, drop anything with an unreadable timestamp, and sort newest-first so
+  // the day buckets come out latest-day-first (like the Activity feed).
+  const events = [...versionEvents, ...imageAuditEvents]
+    .filter((event) => Number.isFinite(Date.parse(event.created_at)))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  const sections = groupByDay(events);
 
   return (
-    <View style={{ gap: theme.spacing.xl }}>
-      <View>
-        <SectionHeader title={t.expense.history} />
-        <View style={{ gap: theme.spacing.md }}>
-          {entries.map(({ version, changes, created }) => (
-            <Card key={version.id} style={{ gap: theme.spacing.md }}>
-              <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                <Avatar name={`v${version.version_no}`} emoji={created ? '🧾' : '✏️'} size={38} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text variant="subheading" numberOfLines={1}>
-                    {fill(created ? t.expense.createdByName : t.expense.editedByName, {
-                      name: nameOf(version.author_member_id),
-                    })}
-                  </Text>
-                  <Text variant="micro" tone="muted" numberOfLines={1}>
-                    {stampLabel(locale, version.created_at)}
-                  </Text>
-                </View>
-                <MoneyText
-                  amount={BigInt(version.amount)}
-                  currency={version.currency as never}
-                  locale={locale}
-                  variant="caption"
-                />
-              </Row>
-              {created ? null : changes.length === 0 ? (
-                <Text variant="caption" tone="muted">
-                  {t.expense.noChanges}
-                </Text>
-              ) : (
-                <View style={{ gap: theme.spacing.sm, paddingLeft: 38 + theme.spacing.md }}>
-                  {changes.map((change) => (
-                    <ChangeLine key={change.key} change={change} locale={locale} />
-                  ))}
-                </View>
-              )}
-            </Card>
-          ))}
-        </View>
-      </View>
+    <View>
+      {sections.map((section) => (
+        <View key={section.key}>
+          {/* Day heading — the split that makes a long history skimmable, the
+              same uppercase micro label the Activity feed uses. */}
+          <Text
+            variant="micro"
+            tone="muted"
+            style={{
+              textTransform: 'uppercase',
+              marginTop: theme.spacing.lg,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            {dayHeading(locale, section.entries[0]!.created_at)}
+          </Text>
 
-      {/* The image audit (A46): who added or removed a receipt or attachment,
-          oldest first. A `parties` line only reaches a party's device (RLS on
-          the pull). Absent until something happens to an image. */}
-      {imageEvents.length > 0 ? (
-        <View>
-          <SectionHeader title={t.imageAudit.title} />
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-            {imageEvents.map((event, index) => (
+          {section.entries.map((event, index) => {
+            const tint = theme.tint[event.tint];
+            return (
               <View key={event.id}>
                 <Row
                   style={{
-                    alignItems: 'center',
                     gap: theme.spacing.md,
+                    alignItems: 'flex-start',
                     paddingVertical: theme.spacing.md,
                   }}
                 >
-                  <Avatar
-                    name={nameOf(event.actorMemberId)}
-                    emoji={event.action === 'added' ? '📎' : '🗑️'}
-                    size={38}
-                  />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text variant="body" numberOfLines={2}>
-                      {imageAuditLine(t, event, nameOf(event.actorMemberId))}
+                  {/* The soft rounded-square icon tile — the same row shape the
+                      Activity and group feeds use, so history reads one way. */}
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: theme.radius.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: tint.bg,
+                    }}
+                  >
+                    <Ionicons name={event.icon} size={iconSize.lg} color={tint.ink} />
+                  </View>
+
+                  <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                    <Row style={{ gap: theme.spacing.sm, alignItems: 'flex-start' }}>
+                      <Text variant="body" numberOfLines={2} style={{ flex: 1 }}>
+                        {event.title}
+                      </Text>
+                      {event.money ? (
+                        <MoneyText
+                          amount={event.money.amount}
+                          currency={event.money.currency as never}
+                          locale={locale}
+                          variant="caption"
+                        />
+                      ) : event.partyOnly ? (
+                        <Badge label={t.imageAudit.partyOnly} tone="neutral" />
+                      ) : null}
+                    </Row>
+                    <Text variant="micro" tone="muted" numberOfLines={1}>
+                      {relativeTime(locale, event.created_at)}
                     </Text>
-                    {event.createdAt ? (
-                      <Text variant="micro" tone="muted" numberOfLines={1}>
-                        {stampLabel(locale, event.createdAt)}
+
+                    {/* An edit spells out what changed, aligned under its
+                        sentence. A "created" node has no diff; an edit with no
+                        detected field change says so plainly. */}
+                    {event.created ? null : event.changes && event.changes.length > 0 ? (
+                      <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+                        {event.changes.map((change) => (
+                          <ChangeLine key={change.key} change={change} locale={locale} />
+                        ))}
+                      </View>
+                    ) : event.money ? (
+                      <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
+                        {t.expense.noChanges}
                       </Text>
                     ) : null}
                   </View>
-                  {event.visibility === 'parties' ? (
-                    <Badge label={t.imageAudit.partyOnly} tone="neutral" />
-                  ) : null}
                 </Row>
-                {index < imageEvents.length - 1 ? (
+
+                {index < section.entries.length - 1 ? (
                   <View style={{ height: 1, backgroundColor: theme.color.border }} />
                 ) : null}
               </View>
-            ))}
-          </Card>
+            );
+          })}
         </View>
-      ) : null}
+      ))}
     </View>
   );
 }
