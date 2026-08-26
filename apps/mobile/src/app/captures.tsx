@@ -18,7 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   Avatar,
-  Badge,
   Button,
   directionalIcon,
   EmptyState,
@@ -34,6 +33,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { PendingMark } from '@/components/PendingMark';
 import { InboxSkeleton } from '@/components/Skeletons';
 import { capturePhotoUrl } from '@/data/api';
 import { useSignedUrl } from '@/lib/useSignedUrl';
@@ -139,7 +139,7 @@ function CaptureListRow({
             <Text variant="micro" tone="muted">
               {shortDate(capture.expense_date, locale)}
             </Text>
-            {capture.pending ? <Badge label={t.captures.notSynced} tone="brand" /> : null}
+            {capture.pending ? <PendingMark /> : null}
           </Row>
         </View>
 
