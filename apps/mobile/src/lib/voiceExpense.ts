@@ -16,6 +16,24 @@
 
 import { isCurrencyCode, minorUnitScale } from '@waves/core';
 
+/** Above this, a voice parse is more likely corrupted or misheard than safe to book. */
+export const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
+
+/** Bound model-supplied notes before they reach the review UI. */
+export const MAX_VOICE_NOTE_CHARS = 160;
+
+/** Unsupported intent words that must not be converted into normal expenses. */
+const UNSUPPORTED_EXPENSE_INTENT =
+  /\b(?:do\s+not|don['’]t|dont|did\s+not\s+pay|didn['’]t\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back|not\s+an\s+expense)\b/i;
+
+export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
+  return UNSUPPORTED_EXPENSE_INTENT.test(text);
+}
+
+export function isSafeVoiceAmount(amountMajor: number): boolean {
+  return Number.isFinite(amountMajor) && amountMajor > 0 && amountMajor <= MAX_VOICE_AMOUNT_MAJOR;
+}
+
 /** The minimum a group needs to be matched by name. */
 export interface VoiceGroupRef {
   id: string;
@@ -29,7 +47,7 @@ export interface VoiceGroupRef {
  * common two-decimal scale when the currency is unknown or unheard, which keeps
  * every existing INR/USD case identical.
  */
-function toMinorUnits(amountMajor: number, currency: string | null): bigint {
+export function toVoiceMinorUnits(amountMajor: number, currency: string | null): bigint {
   const scale = currency && isCurrencyCode(currency) ? Number(minorUnitScale(currency)) : 100;
   return BigInt(Math.round(amountMajor * scale));
 }
@@ -71,17 +89,54 @@ export interface ParsedVoiceExpense {
  * verb and would mint a false currency on "I'll try the …". A code is only read
  * when it stands as its own word.
  */
+export const VOICE_SUPPORTED_CURRENCY_CODES = new Set([
+  'AED',
+  'AUD',
+  'BDT',
+  'BRL',
+  'CAD',
+  'CHF',
+  'CNY',
+  'EUR',
+  'GBP',
+  'HKD',
+  'IDR',
+  'INR',
+  'JPY',
+  'KRW',
+  'LKR',
+  'MXN',
+  'MYR',
+  'NGN',
+  'NPR',
+  'NZD',
+  'PHP',
+  'PKR',
+  'RUB',
+  'SAR',
+  'SGD',
+  'THB',
+  'TRY',
+  'USD',
+  'VND',
+  'ZAR',
+]);
+
 const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   // Symbols — unambiguous, so they lead.
+  [/R\$/i, 'BRL'],
   [/₹/, 'INR'],
   [/\$/, 'USD'],
   [/€/, 'EUR'],
   [/£/, 'GBP'],
   [/¥/, 'JPY'],
+  [/₺/, 'TRY'],
   [/₩/, 'KRW'],
   [/₫/, 'VND'],
   [/฿/, 'THB'],
   [/₦/, 'NGN'],
+  [/₱/, 'PHP'],
+  [/₽/, 'RUB'],
   // Qualified rupee and dollar names, before the bare words below.
   [/\bsri[\s-]?lankan\s+rupees?\b|\blkr\b/i, 'LKR'],
   [/\bnepali\s+rupees?\b|\bnpr\b/i, 'NPR'],
@@ -91,11 +146,20 @@ const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   [/\bsingapore(?:an)?\s+dollars?\b|\bsgd\b/i, 'SGD'],
   [/\bnew\s+zealand\s+dollars?\b|\bnzd\b/i, 'NZD'],
   [/\bhong\s+kong\s+dollars?\b|\bhkd\b/i, 'HKD'],
+  [/\bmexican\s+pesos?\b|\bmxn\b/i, 'MXN'],
+  [/\bphilippine\s+pesos?\b|\bphp\b/i, 'PHP'],
+  [/\bsaudi\s+riyals?\b|\bsar\b/i, 'SAR'],
+  [/\bsouth\s+african\s+rands?\b|\bzar\b/i, 'ZAR'],
+  [/\bbangladeshi\s+takas?\b|\bbdt\b/i, 'BDT'],
+  [/\bbrazilian\s+reais\b|\bbrazilian\s+reals?\b|\bbrl\b/i, 'BRL'],
+  [/\bturkish\s+liras?\b/i, 'TRY'],
+  [/\bTRY\b/, 'TRY'],
+  [/\b(?:indonesian\s+)?rupiahs?\b|\bidr\b|\brp\b/i, 'IDR'],
   // Bare words.
   [/\b(?:rupees?|rupaye|rupya|rs|inr)\b/i, 'INR'],
   [/\b(?:dollars?|usd|bucks?)\b/i, 'USD'],
   [/\b(?:euros?|eur)\b/i, 'EUR'],
-  [/\b(?:pounds?|quid|gbp)\b/i, 'GBP'],
+  [/\b(?:pounds?|sterling|quid|gbp)\b/i, 'GBP'],
   [/\b(?:dirhams?|aed)\b/i, 'AED'],
   [/\b(?:yen|jpy)\b/i, 'JPY'],
   [/\b(?:won|krw)\b/i, 'KRW'],
@@ -105,6 +169,12 @@ const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   [/\b(?:dong|vnd)\b/i, 'VND'],
   [/\b(?:francs?|chf)\b/i, 'CHF'],
   [/\b(?:naira|ngn)\b/i, 'NGN'],
+  [/\b(?:pesos?|mxn)\b/i, 'MXN'],
+  [/\b(?:riyals?|sar)\b/i, 'SAR'],
+  [/\b(?:rands?|zar)\b/i, 'ZAR'],
+  [/\b(?:takas?|bdt)\b/i, 'BDT'],
+  [/\b(?:reais|reals?|brl)\b/i, 'BRL'],
+  [/\b(?:rubles?|roubles?|rub)\b/i, 'RUB'],
 ];
 
 /**
@@ -122,6 +192,18 @@ const CURRENCY_WORD_ALT = [
   'singapore(?:an)?\\s+dollars?',
   'new\\s+zealand\\s+dollars?',
   'hong\\s+kong\\s+dollars?',
+  'mexican\\s+pesos?',
+  'philippine\\s+pesos?',
+  'saudi\\s+riyals?',
+  'south\\s+african\\s+rands?',
+  'bangladeshi\\s+takas?',
+  'brazilian\\s+reais',
+  'brazilian\\s+reals?',
+  'turkish\\s+liras?',
+  'indonesian\\s+rupiahs?',
+  'rupiahs?',
+  'idr',
+  'rp',
   'rupees?',
   'rupaye',
   'rupya',
@@ -133,6 +215,7 @@ const CURRENCY_WORD_ALT = [
   'euros?',
   'eur',
   'pounds?',
+  'sterling',
   'quid',
   'gbp',
   'dirhams?',
@@ -155,6 +238,22 @@ const CURRENCY_WORD_ALT = [
   'chf',
   'naira',
   'ngn',
+  'pesos?',
+  'mxn',
+  'php',
+  'riyals?',
+  'sar',
+  'rands?',
+  'zar',
+  'takas?',
+  'bdt',
+  'reais',
+  'reals?',
+  'brl',
+  'rubles?',
+  'roubles?',
+  'rub',
+  'turkish\\s+liras?',
   'lkr',
   'npr',
   'pkr',
@@ -166,7 +265,8 @@ const CURRENCY_WORD_ALT = [
 ].join('|');
 
 /** The currency symbols, as a character-class body. */
-const CURRENCY_SYMBOL_CLASS = '₹$€£¥₩₫฿₦';
+const CURRENCY_SYMBOL_CLASS = '₹$€£¥₺₩₫฿₦₱₽';
+const CURRENCY_SYMBOL_RE = `(?:R\\$|[${CURRENCY_SYMBOL_CLASS}])`;
 
 /** Words that carry no meaning for matching or for the note. */
 const STOPWORDS: ReadonlySet<string> = new Set([
@@ -223,9 +323,12 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'fils',
 ]);
 
+/** A signed number; validation below accepts only positive values. */
+const SIGNED_AMOUNT_RE = String.raw`[+-]?\s*\d[\d,]*(?:\.\d+)?`;
+
 /** A number sitting next to a currency word or symbol — the amount, said plainly. */
 const CURRENCY_ADJACENT = new RegExp(
-  `(?:[${CURRENCY_SYMBOL_CLASS}])\\s*(\\d[\\d,]*(?:\\.\\d+)?)|(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:${CURRENCY_WORD_ALT})\\b`,
+  `${CURRENCY_SYMBOL_RE}\\s*(${SIGNED_AMOUNT_RE})|(${SIGNED_AMOUNT_RE})\\s*(?:${CURRENCY_WORD_ALT})\\b`,
   'i',
 );
 
@@ -237,20 +340,21 @@ const CURRENCY_ADJACENT = new RegExp(
 const SPLIT_COUNT =
   /\b(?:among|amongst|between)\s+(\d+)\b|\b(\d+)\s*(?:people|persons?|ppl|ways?|folks?|heads?)\b/i;
 
-/** Lowercase word tokens, punctuation and symbols stripped. */
+/** Lowercase word tokens, Unicode-normalized, punctuation and symbols stripped. */
 function tokenize(text: string): string[] {
   return text
+    .normalize('NFKC')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
     .filter(Boolean);
 }
 
-/** A matched numeric string to a positive number, commas removed — or null. */
+/** A matched numeric string to a positive, safe amount, commas removed — or null. */
 function toAmount(raw: string | undefined): number | null {
   if (!raw) return null;
-  const value = Number.parseFloat(raw.replace(/,/g, ''));
-  return Number.isFinite(value) && value > 0 ? value : null;
+  const value = Number.parseFloat(raw.replace(/,/g, '').replace(/\s+/g, ''));
+  return Number.isFinite(value) && value > 0 && value <= MAX_VOICE_AMOUNT_MAJOR ? value : null;
 }
 
 /** How many people to split among, if the sentence says — else null. */
@@ -274,7 +378,7 @@ function extractAmount(text: string): number | null {
   if (adjacent) return toAmount(adjacent[1] ?? adjacent[2]);
 
   const withoutCount = text.replace(SPLIT_COUNT, ' ');
-  const first = withoutCount.match(/\d[\d,]*(?:\.\d+)?/);
+  const first = withoutCount.match(new RegExp(SIGNED_AMOUNT_RE));
   return toAmount(first?.[0]);
 }
 
@@ -328,11 +432,14 @@ function buildNote(transcript: string, matchedGroupName: string | null): string 
 
   return transcript
     .replace(currencyWord, ' ')
-    .replace(new RegExp(`[${CURRENCY_SYMBOL_CLASS}]`, 'g'), ' ')
+    .replace(new RegExp(CURRENCY_SYMBOL_RE, 'g'), ' ')
     .replace(/\d[\d,]*(?:\.\d+)?/g, ' ')
     .split(/\s+/)
     .filter((word) => {
-      const token = word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+      const token = word
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]/gu, '');
       if (!token) return false;
       if (STOPWORDS.has(token)) return false;
       if (nameTokens.has(token)) return false;
@@ -371,15 +478,28 @@ export function parseVoiceExpense(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): ParsedVoiceExpense {
+  if (UNSUPPORTED_EXPENSE_INTENT.test(transcript)) {
+    return {
+      amountMinor: null,
+      amountMajor: null,
+      currency: null,
+      note: '',
+      groupId: null,
+      splitCount: null,
+    };
+  }
+
   // Spoken numbers become digits first; every pattern below is digit-based. A
   // "plus"-joined run of amounts is summed into one before that.
   const said = stripAssignmentLeadIn(
-    normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript))),
+    normalizeSpokenNumbers(
+      collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
+    ),
   );
   const tokens = tokenize(said);
   const amountMajor = extractAmount(said);
   const currency = detectCurrency(said);
-  const amountMinor = amountMajor === null ? null : toMinorUnits(amountMajor, currency);
+  const amountMinor = amountMajor === null ? null : toVoiceMinorUnits(amountMajor, currency);
   const groupId = matchGroup(tokens, groups);
   const matchedName = groupId ? (groups.find((group) => group.id === groupId)?.name ?? null) : null;
 
@@ -499,6 +619,10 @@ export function normalizeDigits(text: string): string {
   });
 }
 
+function normalizeCurrencyPrefixes(text: string): string {
+  return text.replace(/\b(rp|idr)\.?\s*(?=\d)/gi, '$1 ');
+}
+
 /** Words for numbers, and the Indian/Western multipliers that scale them. */
 const NUMBER_WORDS: ReadonlyMap<string, number> = new Map([
   ['zero', 0],
@@ -613,10 +737,7 @@ const SPOKEN_NUMBER = new RegExp(
  * match inside an ordinary word ("person" → "pe-rs-on"): without them "one
  * person paid" would read "rs" as currency and mint a false amount.
  */
-const CURRENCY_TOKEN = new RegExp(
-  `(?:[${CURRENCY_SYMBOL_CLASS}]|\\b(?:${CURRENCY_WORD_ALT})\\b)`,
-  'i',
-);
+const CURRENCY_TOKEN = new RegExp(`(?:${CURRENCY_SYMBOL_RE}|\\b(?:${CURRENCY_WORD_ALT})\\b)`, 'i');
 
 /**
  * A currency word or symbol *immediately* after a number — anchored at the start
@@ -626,10 +747,7 @@ const CURRENCY_TOKEN = new RegExp(
  * anchor keeps it to true adjacency, so a currency word later in the sentence
  * ("five hundred for dinner, 20 rupees") does not make the earlier run money.
  */
-const CURRENCY_AT_START = new RegExp(
-  `^(?:[${CURRENCY_SYMBOL_CLASS}]|(?:${CURRENCY_WORD_ALT})\\b)`,
-  'i',
-);
+const CURRENCY_AT_START = new RegExp(`^(?:${CURRENCY_SYMBOL_RE}|(?:${CURRENCY_WORD_ALT})\\b)`, 'i');
 
 /** Split-phrase context — a number here is a people count, still worth digitising. */
 const SPLIT_BEFORE_WORD = /^(?:among|amongst|between)$/i;
@@ -882,10 +1000,7 @@ const ADDITION_RUN_RE = new RegExp(
 const ADDITION_SPLIT_RE = /\s*(?:\bplus\b|\+)\s*|\s*,\s*/i;
 
 /** Any currency symbol or word — to find a run's primary currency and re-emit it. */
-const CURRENCY_ANY_RE = new RegExp(
-  `[${CURRENCY_SYMBOL_CLASS}]|\\b(?:${CURRENCY_WORD_ALT})\\b`,
-  'i',
-);
+const CURRENCY_ANY_RE = new RegExp(`${CURRENCY_SYMBOL_RE}|\\b(?:${CURRENCY_WORD_ALT})\\b`, 'i');
 
 /** A minor-unit total back to a major string, exact for the currency's own scale. */
 function minorToMajorString(minor: bigint, scale: number): string {
@@ -938,7 +1053,7 @@ function sumAdditionRun(run: string): string | null {
     const forNorm = hasOwnCurrency || !primaryText ? term : `${term} ${primaryText}`;
     const major = extractAmount(normalizeSpokenNumbers(forNorm));
     if (major === null) return null;
-    totalMinor += toMinorUnits(major, primaryCode);
+    totalMinor += toVoiceMinorUnits(major, primaryCode);
   }
 
   const scale =
@@ -1052,7 +1167,12 @@ export function parseVoiceExpenses(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
-  const normalized = normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript)));
+  if (UNSUPPORTED_EXPENSE_INTENT.test(transcript))
+    return { items: [], group: null, splitCount: null };
+
+  const normalized = normalizeSpokenNumbers(
+    collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
+  );
   const created = detectCreateGroup(normalized);
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
@@ -1084,7 +1204,7 @@ export function parseVoiceExpenses(
     if (currency) carriedCurrency = currency;
     items.push({
       amountMajor,
-      amountMinor: toMinorUnits(amountMajor, currency),
+      amountMinor: toVoiceMinorUnits(amountMajor, currency),
       currency,
       note: buildNote(segment, matchedName),
     });

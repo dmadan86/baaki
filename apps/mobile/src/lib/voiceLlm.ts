@@ -26,14 +26,22 @@
  * not.
  */
 
+import { isCurrencyCode } from '@waves/core';
+
 import { getActiveAiKey, aiProvider, defaultAiModel, type AiProviderId } from '@/lib/aiKeys';
 import { addAiTokensUsed, getAiSettings } from '@/lib/aiSettings';
 import { reportHandled } from '@/lib/observability';
-import type {
-  VoiceExpenseItem,
-  VoiceGroupRef,
-  VoiceGroupTarget,
-  VoiceParseResult,
+import {
+  isSafeVoiceAmount,
+  isUnsupportedVoiceExpenseIntent,
+  MAX_VOICE_NOTE_CHARS,
+  parseVoiceExpenses,
+  toVoiceMinorUnits,
+  VOICE_SUPPORTED_CURRENCY_CODES,
+  type VoiceExpenseItem,
+  type VoiceGroupRef,
+  type VoiceGroupTarget,
+  type VoiceParseResult,
 } from '@/lib/voiceExpense';
 
 /**
@@ -112,6 +120,7 @@ function systemPrompt(ctx: VoiceLlmContext): string {
     'Amounts are positive numbers in MAJOR units: "5 rupees" is amount 5 with currency "INR", not 500.',
     `If a line names no currency, set its currency to null — the app fills the default (${ctx.defaultCurrency}).`,
     'A note is a short human description of what the money was for, with the amount and currency words removed.',
+    'If the sentence asks not to add, cancel, delete, ignore, refund, reimburse, or record money paid back, return {"items":[],"group":null}.',
     'If the sentence asks to create a new group (e.g. "make a group called Goa"), set group to',
     '{"type":"create","name":"Goa"}. If it names one of the existing groups listed below, set group to',
     '{"type":"existing","name":"<that exact name>"}. Otherwise set group to null.',
@@ -356,17 +365,23 @@ function mapItems(rawItems: unknown): VoiceExpenseItem[] {
   const items: VoiceExpenseItem[] = [];
   for (const entry of rawItems as RawLlmItem[]) {
     const amountMajor = Number(entry?.amount);
-    if (!Number.isFinite(amountMajor) || amountMajor <= 0) continue;
-    // Only a three-letter code is a currency: the model sometimes answers with a
-    // word ("rupees", "Rs"), which is not one — take it as "no currency named"
-    // and let the screen fill the default rather than store a bad code.
-    const rawCurrency = typeof entry?.currency === 'string' ? entry.currency.trim() : '';
-    const currency = /^[a-z]{3}$/i.test(rawCurrency) ? rawCurrency.toUpperCase() : null;
+    if (!isSafeVoiceAmount(amountMajor)) continue;
+    // Only a real ISO-4217 code is a currency: the model sometimes answers with a
+    // word ("rupees", "Rs") or an invented three-letter token; take that as "no
+    // currency named" and let the screen fill the default rather than store bad data.
+    const rawCurrency =
+      typeof entry?.currency === 'string' ? entry.currency.trim().toUpperCase() : '';
+    const currency =
+      rawCurrency && isCurrencyCode(rawCurrency) && VOICE_SUPPORTED_CURRENCY_CODES.has(rawCurrency)
+        ? rawCurrency
+        : null;
     items.push({
       amountMajor,
-      amountMinor: BigInt(Math.round(amountMajor * 100)),
+      amountMinor: toVoiceMinorUnits(amountMajor, currency),
       currency,
-      note: String(entry?.note ?? '').trim(),
+      note: String(entry?.note ?? '')
+        .trim()
+        .slice(0, MAX_VOICE_NOTE_CHARS),
     });
   }
   return items;
@@ -441,6 +456,7 @@ export async function interpretVoiceExpenses(
 ): Promise<VoiceParseResult | null> {
   const trimmed = transcript.trim();
   if (trimmed.length === 0) return null;
+  if (isUnsupportedVoiceExpenseIntent(trimmed)) return null;
   // Bound the transcript before it leaves the device — a runaway body must not
   // inflate the request or its token cost.
   const text =
@@ -491,9 +507,7 @@ export async function interpretVoiceExpenses(
     // The call earned its cost only once we know it produced something usable.
     await noteUsage(reply.totalTokens);
 
-    // The model schema carries no split count; the screen matches spoken names
-    // itself (see matchMemberNames), so null here is right, not a gap.
-    return { items, group, splitCount: null };
+    return { items, group, splitCount: parseVoiceExpenses(trimmed, ctx.groups).splitCount };
   } catch (caught) {
     // Network error, abort/timeout, malformed body — all of it is a fallback, not
     // a crash. The raw error (scrubbed) goes to Sentry; the key and transcript do

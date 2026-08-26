@@ -110,17 +110,78 @@ describe('parseVoiceExpense', () => {
   it('recognises currencies beyond rupees and dollars', () => {
     const cases: [string, string][] = [
       ['2000 yen for sushi', 'JPY'],
+      ['2000 JPY for sushi', 'JPY'],
+      ['50 euro hotel', 'EUR'],
       ['50 euros hotel', 'EUR'],
+      ['50 EUR hotel', 'EUR'],
       ['100 pounds tickets', 'GBP'],
+      ['100 sterling tickets', 'GBP'],
+      ['100 quid tickets', 'GBP'],
+      ['100 GBP tickets', 'GBP'],
       ['300 dirhams taxi', 'AED'],
+      ['300 dirham taxi', 'AED'],
+      ['300 AED taxi', 'AED'],
       ['5000 won lunch', 'KRW'],
+      ['5000 KRW lunch', 'KRW'],
+      ['100 yuan noodles', 'CNY'],
+      ['100 renminbi noodles', 'CNY'],
+      ['100 RMB noodles', 'CNY'],
+      ['100 CNY noodles', 'CNY'],
       ['1000 ringgit shopping', 'MYR'],
+      ['1000 MYR shopping', 'MYR'],
       ['200 baht food', 'THB'],
+      ['200 THB food', 'THB'],
       ['500 dong snacks', 'VND'],
+      ['500 VND snacks', 'VND'],
+      ['100000 rupiah dinner', 'IDR'],
+      ['100000 rupiahs dinner', 'IDR'],
+      ['100000 Indonesian rupiahs dinner', 'IDR'],
+      ['100000 IDR dinner', 'IDR'],
+      ['Rp 100000 dinner', 'IDR'],
+      ['Rp. 100000 dinner', 'IDR'],
+      ['Rp100000 dinner', 'IDR'],
+      ['IDR100000 dinner', 'IDR'],
       ['80 francs cab', 'CHF'],
+      ['80 CHF cab', 'CHF'],
       ['500 canadian dollars flight', 'CAD'],
+      ['500 CAD flight', 'CAD'],
       ['600 australian dollars tour', 'AUD'],
+      ['600 AUD tour', 'AUD'],
       ['sri lankan rupees 400 tea', 'LKR'],
+      ['400 LKR tea', 'LKR'],
+      ['400 nepali rupees tea', 'NPR'],
+      ['400 NPR tea', 'NPR'],
+      ['400 pakistani rupees tea', 'PKR'],
+      ['400 PKR tea', 'PKR'],
+      ['50 singapore dollars snacks', 'SGD'],
+      ['50 SGD snacks', 'SGD'],
+      ['60 new zealand dollars tour', 'NZD'],
+      ['60 NZD tour', 'NZD'],
+      ['70 hong kong dollars dinner', 'HKD'],
+      ['70 HKD dinner', 'HKD'],
+      ['90 mexican pesos tacos', 'MXN'],
+      ['90 pesos tacos', 'MXN'],
+      ['90 MXN tacos', 'MXN'],
+      ['120 philippine pesos ferry', 'PHP'],
+      ['120 PHP ferry', 'PHP'],
+      ['30 saudi riyals coffee', 'SAR'],
+      ['30 riyal coffee', 'SAR'],
+      ['30 SAR coffee', 'SAR'],
+      ['40 south african rand taxi', 'ZAR'],
+      ['40 rands taxi', 'ZAR'],
+      ['40 ZAR taxi', 'ZAR'],
+      ['500 bangladeshi taka lunch', 'BDT'],
+      ['500 takas lunch', 'BDT'],
+      ['500 BDT lunch', 'BDT'],
+      ['25 brazilian reais dinner', 'BRL'],
+      ['25 reals dinner', 'BRL'],
+      ['25 BRL dinner', 'BRL'],
+      ['10 turkish lira coffee', 'TRY'],
+      ['10 Turkish liras coffee', 'TRY'],
+      ['10 TRY coffee', 'TRY'],
+      ['700 rubles train', 'RUB'],
+      ['700 roubles train', 'RUB'],
+      ['700 RUB train', 'RUB'],
       // Cents folded in must not demote the qualified name to a bare-dollar USD
       ['twenty canadian dollars ninety nine cents', 'CAD'],
     ];
@@ -130,10 +191,34 @@ describe('parseVoiceExpense', () => {
   });
 
   it('reads currency symbols', () => {
-    expect(parseVoiceExpense('¥3000 ramen', groups).currency).toBe('JPY');
-    expect(parseVoiceExpense('$25 coffee', groups).currency).toBe('USD');
-    expect(parseVoiceExpense('€15 museum', groups).currency).toBe('EUR');
-    expect(parseVoiceExpense('₹500 chai', groups).currency).toBe('INR');
+    const cases: [string, string, number][] = [
+      ['¥3000 ramen', 'JPY', 3000],
+      ['$25 coffee', 'USD', 2500],
+      ['€15 museum', 'EUR', 1500],
+      ['£12 tickets', 'GBP', 1200],
+      ['₹500 chai', 'INR', 50000],
+      ['₺10 coffee', 'TRY', 1000],
+      ['₩5000 lunch', 'KRW', 5000],
+      ['₫20000 snacks', 'VND', 20000],
+      ['฿200 food', 'THB', 20000],
+      ['₦1200 cab', 'NGN', 120000],
+      ['₱120 ferry', 'PHP', 12000],
+      ['₽700 train', 'RUB', 70000],
+      ['R$25 dinner', 'BRL', 2500],
+    ];
+    for (const [sentence, code, minor] of cases) {
+      const parsed = parseVoiceExpense(sentence, groups);
+      expect(parsed.currency, sentence).toBe(code);
+      expect(parsed.amountMinor, sentence).toBe(BigInt(minor));
+    }
+  });
+
+  it('strips expanded currency words and symbols out of the note', () => {
+    expect(parseVoiceExpense('100 sterling tickets', groups).note).toBe('tickets');
+    expect(parseVoiceExpense('100 yuan noodles', groups).note).toBe('noodles');
+    expect(parseVoiceExpense('120 PHP ferry', groups).note).toBe('ferry');
+    expect(parseVoiceExpense('R$25 dinner', groups).note).toBe('dinner');
+    expect(parseVoiceExpense('30 saudi riyals coffee', groups).note).toBe('coffee');
   });
 
   it('does not mint a currency from the ordinary word "try"', () => {
@@ -146,6 +231,51 @@ describe('parseVoiceExpense', () => {
     expect(parsed.amountMajor).toBeNull();
     expect(parsed.groupId).toBe('g-flat');
     expect(parsed.note).toBe('groceries');
+  });
+
+  it('does not create an expense from unsupported negative, repayment, or refund intents', () => {
+    for (const sentence of [
+      "don't add 500 rupees for dinner",
+      'don’t add 500 rupees for dinner',
+      'cancel 500 rupees dinner',
+      'refund 200 rupees hotel',
+      'Ravi paid me back 500 rupees',
+      'I did not pay 500 rupees for dinner',
+      "I didn't pay 500 rupees for dinner",
+      'I didn’t pay 500 rupees for dinner',
+      'Ravi repaid 500 rupees',
+      'Ravi repayment 500 rupees',
+      'Ravi reimbursed me 500 rupees',
+      'got paid back 500 rupees',
+      'received money back 500 rupees',
+    ]) {
+      const parsed = parseVoiceExpense(sentence, groups);
+      expect(parsed.amountMajor, sentence).toBeNull();
+      expect(parsed.amountMinor, sentence).toBeNull();
+      expect(parsed.note, sentence).toBe('');
+    }
+  });
+
+  it('rejects negative signed amounts in currency-adjacent and fallback positions', () => {
+    for (const sentence of ['-500 rupees dinner', '₹-500 dinner', 'minus -500 dinner']) {
+      const parsed = parseVoiceExpense(sentence, groups);
+      expect(parsed.amountMajor, sentence).toBeNull();
+      expect(parsed.amountMinor, sentence).toBeNull();
+    }
+    expect(parseVoiceExpense('+500 rupees dinner', groups).amountMajor).toBe(500);
+  });
+
+  it('rejects unsafe huge amounts instead of converting them to imprecise minor units', () => {
+    const parsed = parseVoiceExpense('999999999999999999 rupees', groups);
+    expect(parsed.amountMajor).toBeNull();
+    expect(parsed.amountMinor).toBeNull();
+  });
+
+  it('normalizes Unicode group names before matching and note cleanup', () => {
+    const accented: VoiceGroupRef[] = [{ id: 'g-cafe', name: 'Café Trip' }];
+    const parsed = parseVoiceExpense('add 500 to Café Trip', accented);
+    expect(parsed.groupId).toBe('g-cafe');
+    expect(parsed.note).toBe('');
   });
 
   it('reads a currency symbol', () => {
@@ -365,6 +495,40 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items.map((item) => item.currency)).toEqual(['EUR', 'EUR']);
     expect(result.items.map((item) => item.amountMajor)).toEqual([20, 15]);
   });
+
+  it('does not create items from unsupported negative, repayment, or refund intents', () => {
+    for (const sentence of [
+      "don't add 500 rupees for dinner",
+      'don’t add 500 rupees for dinner',
+      'delete 500 rupees dinner',
+      'refund 200 rupees hotel',
+      'Ravi paid me back 500 rupees',
+      'I did not pay 500 rupees for dinner',
+      "I didn't pay 500 rupees for dinner",
+      'I didn’t pay 500 rupees for dinner',
+      'Ravi repaid 500 rupees',
+      'Ravi repayment 500 rupees',
+      'Ravi reimbursed me 500 rupees',
+      'got paid back 500 rupees',
+      'received money back 500 rupees',
+    ]) {
+      expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
+    }
+  });
+
+  it('does not create items from signed negative amounts', () => {
+    for (const sentence of ['-500 rupees dinner', '₹-500 dinner', 'minus -500 dinner']) {
+      expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
+    }
+    expect(parseVoiceExpenses('+500 rupees dinner', groups).items[0]?.amountMajor).toBe(500);
+  });
+
+  it('does not sum mixed-currency plus runs into one cross-currency amount', () => {
+    const result = parseVoiceExpenses('20 dollars plus 50 rupees', groups);
+    expect(result.items).toHaveLength(2);
+    expect(result.items.map((item) => item.amountMajor)).toEqual([20, 50]);
+    expect(result.items.map((item) => item.currency)).toEqual(['USD', 'INR']);
+  });
 });
 
 // An Indian-English speaker often dictates an amount digit-by-digit, and speech-
@@ -404,8 +568,8 @@ describe('a spoken digit-by-digit amount', () => {
 
   // "not" is an ordinary negation; it must never become a number on its own.
   it('never turns a plain negation into an amount', () => {
-    // The real amount (500) still comes through, and no phantom 0 is folded in.
-    expect(parseVoiceExpense('i did not pay five hundred rupees', groups).amountMajor).toBe(500);
+    // Explicit did-not-pay wording is a rejected payment intent, not an expense.
+    expect(parseVoiceExpense('i did not pay five hundred rupees', groups).amountMajor).toBeNull();
     // A standalone "not" beside money does not merge with the amount.
     expect(parseVoiceExpense('not sure, dinner 200 rupees', groups).amountMajor).toBe(200);
     // No number at all stays null.
