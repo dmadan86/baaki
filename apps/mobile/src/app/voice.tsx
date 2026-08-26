@@ -73,6 +73,7 @@ import { LocationField } from '@/components/LocationField';
 import { captureLocation, locationAvailable } from '@/lib/location';
 import { parseVoiceExpenses, type VoiceGroupRef, type VoiceParseResult } from '@/lib/voiceExpense';
 import { interpretVoiceExpenses } from '@/lib/voiceLlm';
+import { logVoiceAttempt } from '@/lib/voiceLog';
 
 /** One editable line on the review screen. */
 interface Draft {
@@ -380,7 +381,16 @@ export default function VoiceScreen() {
           defaultCurrency: dc,
         }).catch(() => null);
       }
-      return result ?? parseVoiceExpenses(transcript, groupRefs);
+      const final = result ?? parseVoiceExpenses(transcript, groupRefs);
+      // Keep a local note of what was heard and whether it produced anything, so
+      // a real miss can be revisited from Settings and the parser improved
+      // against it. Best-effort and device-only (see lib/voiceLog).
+      void logVoiceAttempt({
+        transcript,
+        itemCount: final.items.length,
+        usedModel: result !== null,
+      });
+      return final;
     },
     [access, groupRefs, locale, dc],
   );

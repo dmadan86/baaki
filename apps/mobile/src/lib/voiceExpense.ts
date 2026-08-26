@@ -315,6 +315,28 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'okay',
   'please',
   'kindly',
+  // Polite-request framing people wrap a command in — "can you please add 500
+  // for tea shop". None of these describe an expense or name a group, so they
+  // must not survive into the note ("can you tea shop") or tip a group match.
+  // Left out on purpose: words that can be real names or descriptions.
+  'can',
+  'could',
+  'would',
+  'should',
+  'will',
+  'shall',
+  'may',
+  'you',
+  'your',
+  'i',
+  'me',
+  'want',
+  'wanted',
+  'wants',
+  'need',
+  'needs',
+  'let',
+  'lets',
   // Split phrasing — not part of a description or a group name.
   'split',
   'splits',
