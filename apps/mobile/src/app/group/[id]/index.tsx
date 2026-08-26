@@ -609,6 +609,10 @@ export default function GroupScreen() {
           keyExtractor={(item) => item.key}
           getItemType={(item) => item.kind}
           renderItem={renderFeedItem}
+          // Render well beyond the viewport so a fast fling down a long ledger
+          // never outruns recycling and flashes blank rows (default is 250px,
+          // which a hard fling clears in a frame). ~800px ≈ a dozen rows ahead.
+          drawDistance={800}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: clearance,
