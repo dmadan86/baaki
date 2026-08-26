@@ -216,6 +216,7 @@ describe('parseVoiceExpense', () => {
   it('strips expanded currency words and symbols out of the note', () => {
     expect(parseVoiceExpense('100 sterling tickets', groups).note).toBe('tickets');
     expect(parseVoiceExpense('100 yuan noodles', groups).note).toBe('noodles');
+    expect(parseVoiceExpense('120 PHP ferry', groups).note).toBe('ferry');
     expect(parseVoiceExpense('R$25 dinner', groups).note).toBe('dinner');
     expect(parseVoiceExpense('30 saudi riyals coffee', groups).note).toBe('coffee');
   });

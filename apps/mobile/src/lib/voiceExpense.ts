@@ -240,6 +240,7 @@ const CURRENCY_WORD_ALT = [
   'ngn',
   'pesos?',
   'mxn',
+  'php',
   'riyals?',
   'sar',
   'rands?',
