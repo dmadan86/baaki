@@ -157,8 +157,17 @@ export default function ExpenseDetailScreen() {
   // on purpose — being the author but not a party still reads as not involved.
   const myPaidHere = version?.payers.find((p) => p.member_id === myMemberId)?.amount;
   const myShareHere = version?.shares.find((s) => s.member_id === myMemberId)?.amount;
+  // Only classify once we know who the viewer is. An unresolved `myMemberId` (the
+  // members mirror still hydrating, or a viewer with no membership row yet) would
+  // otherwise read as zero-paid/zero-share and flash the "not involved" banner
+  // over a bill the viewer may well be in. Null → leave it involved (no banner)
+  // until resolution; a resolved member genuinely not in the split still gets the
+  // zero-stake treatment.
   const notInvolved =
-    Boolean(version) && BigInt(myPaidHere ?? 0) === 0n && BigInt(myShareHere ?? 0) === 0n;
+    Boolean(version) &&
+    myMemberId !== null &&
+    BigInt(myPaidHere ?? 0) === 0n &&
+    BigInt(myShareHere ?? 0) === 0n;
   // Admin of this group — the moderation lever on the comment thread (delete
   // anyone's, resolve a report). The server re-checks; this only shows controls.
   const iAmAdmin =
