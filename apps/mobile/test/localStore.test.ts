@@ -38,6 +38,10 @@ class FakeDatabase {
   >();
   readonly cursors = new Map<string, number>();
   readonly drafts = new Map<string, { key: string; json: string; saved_at: string }>();
+  // Defaults to the current schema version so the one-time encryption migration
+  // (driver.migrate) is a no-op for these tests; the migration is exercised on
+  // its own below by seeding a fresh DB at version 0.
+  userVersion = 1;
 
   private async enter<T>(run: () => Promise<T>): Promise<T> {
     this.live += 1;
@@ -64,6 +68,8 @@ class FakeDatabase {
         }
         this.inTransaction = false;
       }
+      const setVersion = source.trim().match(/^PRAGMA\s+user_version\s*=\s*(\d+)/i);
+      if (setVersion) this.userVersion = Number(setVersion[1]);
       this.statements.push(source.trim());
     });
   }
@@ -143,6 +149,25 @@ class FakeDatabase {
         } else {
           this.drafts.clear();
         }
+        return;
+      }
+      // Used only by the one-time encryption migration.
+      if (statement === 'UPDATE mirror_rows SET') {
+        const [json, tableName, id] = params as [string, string, string];
+        const rec = this.mirrorRows.get(`${tableName}:${id}`);
+        if (rec) rec.json = json;
+        return;
+      }
+      if (statement === 'UPDATE pending_mutations SET') {
+        const [json, clientMutationId] = params as [string, string];
+        const rec = this.pendingMutations.get(clientMutationId);
+        if (rec) rec.json = json;
+        return;
+      }
+      if (statement === 'UPDATE drafts SET') {
+        const [json, key] = params as [string, string];
+        const rec = this.drafts.get(key);
+        if (rec) rec.json = json;
       }
     });
   }
@@ -166,9 +191,10 @@ class FakeDatabase {
     });
   }
 
-  async getFirstAsync<T>(_source = '', params: unknown[] = []): Promise<T | null> {
+  async getFirstAsync<T>(source = '', params: unknown[] = []): Promise<T | null> {
     return this.enter(async () => {
       await tick();
+      if (source.includes('user_version')) return { user_version: this.userVersion } as T;
       const [key] = params as [string];
       return (this.drafts.get(key) as T | undefined) ?? null;
     });
@@ -191,6 +217,32 @@ class FakeDatabase {
 let database: FakeDatabase;
 let openCalls = 0;
 let failNextOpen = false;
+
+// The store now seals every json payload (see rowCipher.ts), which pulls in the
+// keystore and the RNG. In-memory stand-ins: a Map for SecureStore, Node's own
+// CSPRNG for expo-crypto. The crypto itself (@noble/ciphers) is pure JS and runs
+// for real, so these tests exercise the true encrypt/decrypt round-trip.
+vi.mock('expo-secure-store', () => {
+  const keystore = new Map<string, string>();
+  return {
+    AFTER_FIRST_UNLOCK: 'after-first-unlock',
+    getItemAsync: async (key: string) => keystore.get(key) ?? null,
+    setItemAsync: async (key: string, value: string) => {
+      keystore.set(key, value);
+    },
+    deleteItemAsync: async (key: string) => {
+      keystore.delete(key);
+    },
+  };
+});
+
+vi.mock('expo-crypto', () => ({
+  getRandomBytes: (length: number) => {
+    const bytes = new Uint8Array(length);
+    globalThis.crypto.getRandomValues(bytes);
+    return bytes;
+  },
+}));
 
 vi.mock('expo-sqlite', () => ({
   openDatabaseAsync: async () => {
@@ -383,7 +435,9 @@ describe('native local store lifecycle', () => {
     expect(hydrated[0]).toEqual(rows[0]);
     expect(hydrated[512]).toEqual(rows[512]);
     expect(hydrated[1024]).toEqual(rows[1024]);
-  });
+    // Generous timeout: 1k fake statements each yield a macrotask, plus a real
+    // encrypt/decrypt per row — slow on a loaded Windows timer, not a defect.
+  }, 20000);
 
   it('does not open SQLite when asked to persist no rows', async () => {
     const store = createLocalStore();
@@ -392,5 +446,84 @@ describe('native local store lifecycle', () => {
 
     expect(openCalls).toBe(0);
     expect(database.statements).toEqual([]);
+  });
+});
+
+describe('at-rest encryption', () => {
+  it('stores json as ciphertext, not plaintext', async () => {
+    const store = createLocalStore();
+    await store.putRows([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1', amount: '100' } },
+    ] as never);
+    await store.writeQueue([mutation('a')]);
+    await store.writeDraft('d1', { secret: 'lunch with Sam' });
+
+    const rowJson = database.mirrorRows.get('expenses:e1')?.json ?? '';
+    const queueJson = database.pendingMutations.get('a')?.json ?? '';
+    const draftJson = database.drafts.get('d1')?.json ?? '';
+
+    // Sealed (versioned) and free of the underlying plaintext.
+    for (const stored of [rowJson, queueJson, draftJson]) {
+      expect(stored.startsWith('v1:')).toBe(true);
+    }
+    expect(rowJson).not.toContain('100');
+    expect(draftJson).not.toContain('lunch with Sam');
+
+    // ...and still reads back to the original values.
+    expect(await store.readRows()).toEqual([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1', amount: '100' } },
+    ]);
+    expect(await store.readDraft('d1')).toEqual({ secret: 'lunch with Sam' });
+  });
+
+  it('seals pre-encryption plaintext once, on open', async () => {
+    // A database written before encryption existed: rows are plain JSON and the
+    // schema version is behind.
+    database.userVersion = 0;
+    database.mirrorRows.set('expenses:e1', {
+      table_name: 'expenses',
+      id: 'e1',
+      group_id: 'g1',
+      seq: 1,
+      json: JSON.stringify({ id: 'e1', amount: '100' }),
+    });
+    database.drafts.set('d1', {
+      key: 'd1',
+      json: JSON.stringify({ note: 'legacy' }),
+      saved_at: '2026-01-01T00:00:00.000Z',
+    });
+
+    const store = createLocalStore();
+    await store.ready();
+
+    // Migrated in place: now sealed, version bumped, WAL flushed.
+    expect(database.mirrorRows.get('expenses:e1')?.json.startsWith('v1:')).toBe(true);
+    expect(database.drafts.get('d1')?.json.startsWith('v1:')).toBe(true);
+    expect(database.userVersion).toBe(1);
+    expect(database.statements).toContain('PRAGMA wal_checkpoint(TRUNCATE)');
+
+    // And the seeded plaintext still reads correctly through the decrypt path.
+    expect(await store.readRows()).toEqual([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1', amount: '100' } },
+    ]);
+    expect(await store.readDraft('d1')).toEqual({ note: 'legacy' });
+  });
+
+  it('destroys the key on reset (crypto-erase)', async () => {
+    const store = createLocalStore();
+    await store.putRows([
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1' } },
+    ] as never);
+
+    await store.reset();
+
+    // A fresh write after reset still works — the store transparently mints a
+    // new key — and the data is gone.
+    await store.putRows([
+      { table: 'expenses', id: 'e2', groupId: 'g1', seq: 1, row: { id: 'e2' } },
+    ] as never);
+    expect(await store.readRows()).toEqual([
+      { table: 'expenses', id: 'e2', groupId: 'g1', seq: 1, row: { id: 'e2' } },
+    ]);
   });
 });

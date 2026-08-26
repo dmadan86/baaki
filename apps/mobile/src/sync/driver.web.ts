@@ -6,6 +6,18 @@
  * neither the dev server nor a plain static export sends. A guest opening an
  * invite link (ADR-006) should not meet a blank screen over that, so web gets
  * AsyncStorage instead. Same interface, same engine, same tests.
+ *
+ * Unlike the native store (`driver.ts`), the payloads here are NOT encrypted at
+ * rest, on purpose. At-rest encryption relies on a key the attacker cannot also
+ * read — on device that is the OS keystore. A browser has no such vault: any key
+ * this code could reach would sit in the same localStorage/IndexedDB origin as
+ * the data, so anyone who can read the data can read the key, and the encryption
+ * would protect nothing while adding cost. The browser's own protections (the
+ * same-origin sandbox, and OS-level disk encryption of the user's profile) are
+ * the layer that applies to web. Web is guest/invite-lite by design; a full,
+ * long-lived web client that warranted more would move this to IndexedDB behind
+ * the WebCrypto SubtleCrypto non-extractable-key API, which is the browser
+ * equivalent of the keystore — a deliberate future step, not this store.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
