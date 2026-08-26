@@ -61,6 +61,8 @@ export default function AllGroupsScreen() {
       <FlashList
         data={list}
         keyExtractor={(group) => group.id}
+        // Render ahead of the viewport so a fast fling doesn't flash blank rows.
+        drawDistance={800}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
