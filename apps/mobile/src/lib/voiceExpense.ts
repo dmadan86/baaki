@@ -17,11 +17,22 @@
 import { isCurrencyCode, minorUnitScale } from '@waves/core';
 
 /** Above this, a voice parse is more likely corrupted or misheard than safe to book. */
-const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
+export const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
+
+/** Bound model-supplied notes before they reach the review UI. */
+export const MAX_VOICE_NOTE_CHARS = 160;
 
 /** Unsupported intent words that must not be converted into normal expenses. */
 const UNSUPPORTED_EXPENSE_INTENT =
   /\b(?:do\s+not|don't|dont|cancel|remove|delete|ignore|refund|refunded|reimburse(?:d|ment)?|paid\s+me\s+back|got\s+back|not\s+an\s+expense)\b/i;
+
+export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
+  return UNSUPPORTED_EXPENSE_INTENT.test(text);
+}
+
+export function isSafeVoiceAmount(amountMajor: number): boolean {
+  return Number.isFinite(amountMajor) && amountMajor > 0 && amountMajor <= MAX_VOICE_AMOUNT_MAJOR;
+}
 
 /** The minimum a group needs to be matched by name. */
 export interface VoiceGroupRef {
@@ -36,7 +47,7 @@ export interface VoiceGroupRef {
  * common two-decimal scale when the currency is unknown or unheard, which keeps
  * every existing INR/USD case identical.
  */
-function toMinorUnits(amountMajor: number, currency: string | null): bigint {
+export function toVoiceMinorUnits(amountMajor: number, currency: string | null): bigint {
   const scale = currency && isCurrencyCode(currency) ? Number(minorUnitScale(currency)) : 100;
   return BigInt(Math.round(amountMajor * scale));
 }
@@ -78,6 +89,31 @@ export interface ParsedVoiceExpense {
  * verb and would mint a false currency on "I'll try the …". A code is only read
  * when it stands as its own word.
  */
+export const VOICE_SUPPORTED_CURRENCY_CODES = new Set([
+  'AED',
+  'AUD',
+  'CAD',
+  'CHF',
+  'CNY',
+  'EUR',
+  'GBP',
+  'HKD',
+  'IDR',
+  'INR',
+  'JPY',
+  'KRW',
+  'LKR',
+  'MYR',
+  'NGN',
+  'NPR',
+  'NZD',
+  'PKR',
+  'SGD',
+  'THB',
+  'USD',
+  'VND',
+]);
+
 const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   // Symbols — unambiguous, so they lead.
   [/₹/, 'INR'],
@@ -398,12 +434,14 @@ export function parseVoiceExpense(
   // Spoken numbers become digits first; every pattern below is digit-based. A
   // "plus"-joined run of amounts is summed into one before that.
   const said = stripAssignmentLeadIn(
-    normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript))),
+    normalizeSpokenNumbers(
+      collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
+    ),
   );
   const tokens = tokenize(said);
   const amountMajor = extractAmount(said);
   const currency = detectCurrency(said);
-  const amountMinor = amountMajor === null ? null : toMinorUnits(amountMajor, currency);
+  const amountMinor = amountMajor === null ? null : toVoiceMinorUnits(amountMajor, currency);
   const groupId = matchGroup(tokens, groups);
   const matchedName = groupId ? (groups.find((group) => group.id === groupId)?.name ?? null) : null;
 
@@ -521,6 +559,10 @@ export function normalizeDigits(text: string): string {
     }
     return ch;
   });
+}
+
+function normalizeCurrencyPrefixes(text: string): string {
+  return text.replace(/\b(rp|idr)\.?\s*(?=\d)/gi, '$1 ');
 }
 
 /** Words for numbers, and the Indian/Western multipliers that scale them. */
@@ -962,7 +1004,7 @@ function sumAdditionRun(run: string): string | null {
     const forNorm = hasOwnCurrency || !primaryText ? term : `${term} ${primaryText}`;
     const major = extractAmount(normalizeSpokenNumbers(forNorm));
     if (major === null) return null;
-    totalMinor += toMinorUnits(major, primaryCode);
+    totalMinor += toVoiceMinorUnits(major, primaryCode);
   }
 
   const scale =
@@ -1079,7 +1121,9 @@ export function parseVoiceExpenses(
   if (UNSUPPORTED_EXPENSE_INTENT.test(transcript))
     return { items: [], group: null, splitCount: null };
 
-  const normalized = normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript)));
+  const normalized = normalizeSpokenNumbers(
+    collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
+  );
   const created = detectCreateGroup(normalized);
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
@@ -1111,7 +1155,7 @@ export function parseVoiceExpenses(
     if (currency) carriedCurrency = currency;
     items.push({
       amountMajor,
-      amountMinor: toMinorUnits(amountMajor, currency),
+      amountMinor: toVoiceMinorUnits(amountMajor, currency),
       currency,
       note: buildNote(segment, matchedName),
     });

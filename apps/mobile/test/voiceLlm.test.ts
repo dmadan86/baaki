@@ -316,12 +316,13 @@ describe('interpretVoiceExpenses', () => {
     });
   });
 
-  it('drops items with a non-positive or non-numeric amount', async () => {
+  it('drops items with a non-positive, non-numeric, or unsafe huge amount', async () => {
     getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
     const content = JSON.stringify({
       items: [
         { amount: 0, note: 'free' },
         { amount: 'abc', note: 'junk' },
+        { amount: 1_000_000_001, currency: 'INR', note: 'too large' },
         { amount: 12.5, currency: 'usd', note: 'snack' },
       ],
       group: null,
@@ -335,6 +336,68 @@ describe('interpretVoiceExpenses', () => {
     expect(result?.items).toEqual([
       { amountMajor: 12.5, amountMinor: 1250n, currency: 'USD', note: 'snack' },
     ]);
+  });
+
+  it('uses real currency validation and currency-specific minor units for model items', async () => {
+    getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
+    const content = JSON.stringify({
+      items: [
+        { amount: 3000, currency: 'JPY', note: 'ramen' },
+        { amount: 100000, currency: 'IDR', note: 'dinner' },
+        { amount: 9, currency: 'ZZZ', note: 'unknown code' },
+      ],
+      group: null,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiReply(content)),
+    );
+
+    const result = await interpretVoiceExpenses('3000 yen ramen, 100000 rupiah dinner', ctx);
+    expect(result?.items).toEqual([
+      { amountMajor: 3000, amountMinor: 3000n, currency: 'JPY', note: 'ramen' },
+      { amountMajor: 100000, amountMinor: 10000000n, currency: 'IDR', note: 'dinner' },
+      { amountMajor: 9, amountMinor: 900n, currency: null, note: 'unknown code' },
+    ]);
+  });
+
+  it('caps model-supplied notes before returning them to the review UI', async () => {
+    getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
+    const longNote = 'x'.repeat(200);
+    const content = JSON.stringify({ items: [{ amount: 5, note: longNote }], group: null });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiReply(content)),
+    );
+
+    const result = await interpretVoiceExpenses('5 for a long note', ctx);
+    expect(result?.items[0]?.note).toBe('x'.repeat(160));
+  });
+
+  it('keeps heuristic split-count information when the model returns usable items', async () => {
+    getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
+    const content = JSON.stringify({
+      items: [{ amount: 1000, currency: 'INR', note: 'dinner' }],
+      group: null,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiReply(content)),
+    );
+
+    const result = await interpretVoiceExpenses('split 1000 rupees among 4 people for dinner', ctx);
+    expect(result?.splitCount).toBe(4);
+  });
+
+  it('rejects unsupported negative or refund intents before key lookup or network calls', async () => {
+    getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(interpretVoiceExpenses("don't add 500 rupees", ctx)).resolves.toBeNull();
+    await expect(interpretVoiceExpenses('Ravi paid me back 500 rupees', ctx)).resolves.toBeNull();
+    expect(getActiveAiKeyMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('strips a code fence around the JSON before parsing', async () => {
