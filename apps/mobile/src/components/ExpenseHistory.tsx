@@ -276,8 +276,13 @@ export function ExpenseHistory({
   // Ascending, so each version can look one step back for its diff.
   const ascending = [...versions].sort((a, b) => a.version_no - b.version_no);
   // A fallback timestamp for the rare image event with no recorded time, so it
-  // still buckets into a day rather than an invalid heading.
-  const fallbackIso = ascending[ascending.length - 1]?.created_at ?? '';
+  // still buckets into a day rather than an invalid heading. Fall back to the
+  // oldest version stamp (so an undated event sorts to the tail, not the top),
+  // and to an image event's own stamp when there is no version at all — without
+  // that second step an all-image, version-less history would drop every undated
+  // event outright.
+  const fallbackIso =
+    ascending[0]?.created_at ?? imageEvents.find((event) => event.createdAt)?.createdAt ?? '';
 
   const versionEvents: HistoryEvent[] = ascending.map((version, index) => {
     const created = index === 0;
