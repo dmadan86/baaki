@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["sin1"]
+  "regions": ["sin1"],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ':/apps/web' ':/packages' ':/pnpm-lock.yaml' ':/package.json'"
 }
