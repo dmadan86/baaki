@@ -566,7 +566,11 @@ function AuthGate() {
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: 'transparent' },
+            // Paint the app background on the sliding card. A transparent card
+            // lets the bare window (white) show through mid-transition, which
+            // read as a white flash while a screen slid in. The heroes still
+            // paint their own gradient over this, so nothing else changes.
+            contentStyle: { backgroundColor: theme.color.bg },
             animation: push,
             animationDuration: reduceMotion ? 0 : TRANSITION_MS,
             gestureEnabled: true,
