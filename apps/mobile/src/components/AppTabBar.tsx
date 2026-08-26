@@ -14,7 +14,7 @@
  */
 
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useSegments } from 'expo-router';
+import { router, useGlobalSearchParams, useSegments } from 'expo-router';
 
 import { iconSize, PillTabBar, type PillTabItem } from '@waves/ui';
 
@@ -29,6 +29,12 @@ export function AppTabBar() {
   // past the first element trips the tuple bounds check under the CI tsconfig.
   // We only ever read positions generically, so widen to a plain string array.
   const segments = useSegments() as readonly string[];
+  // When the bar is showing over a group's own screens, the mic should speak
+  // *into that group*, not the unassigned inbox. `useSegments` gives the route
+  // shape (`group/[id]/…`); the id's value comes from the focused route's
+  // params. Any non-group screen leaves this null and the mic opens plain.
+  const params = useGlobalSearchParams<{ id?: string }>();
+  const groupId = segments[0] === 'group' && typeof params.id === 'string' ? params.id : null;
 
   // No session means no bar anywhere — the privacy page opened from the login
   // legal line is the one place it used to leak onto a signed-out screen.
@@ -82,7 +88,8 @@ export function AppTabBar() {
   // bar hands it.
   const voice = {
     accessibilityLabel: t.voice.speakExpense,
-    onPress: () => router.push('/voice'),
+    onPress: () =>
+      router.push(groupId ? { pathname: '/voice', params: { group: groupId } } : '/voice'),
     icon: (color: string) => <Ionicons name="mic" size={iconSize.lg} color={color} />,
   };
 
