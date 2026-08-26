@@ -205,10 +205,13 @@ export default function InboxScreen() {
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
+          // No `gap` here on purpose: on a VirtualizedList it would stack on top
+          // of the Section/Item separators below and double the spacing. The
+          // separators own the space between rows and sections; the header gets
+          // its own bottom padding so it does not butt against the first section.
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: clearance,
-            gap: theme.spacing.xl,
             flexGrow: 1,
           }}
           refreshControl={
@@ -218,7 +221,7 @@ export default function InboxScreen() {
               tintColor={theme.color.brand}
             />
           }
-          ListHeaderComponent={header}
+          ListHeaderComponent={<View style={{ paddingBottom: theme.spacing.lg }}>{header}</View>}
           renderSectionHeader={({ section }) => (
             <Text
               variant="micro"

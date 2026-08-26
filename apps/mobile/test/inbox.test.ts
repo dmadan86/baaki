@@ -19,6 +19,10 @@ function row(id: string, createdAt: string): NotificationRow {
 
 describe('groupNotificationsByDay', () => {
   it('keeps notification order while grouping consecutive rows by local day', () => {
+    // Timestamps are local-naive (no trailing Z/offset) and sit around midday,
+    // so `dayKey`'s local-time getters read back the same calendar date on any
+    // machine — the grouping cannot drift across a date boundary at an extreme
+    // timezone offset the way a UTC instant near midnight could.
     const sections = groupNotificationsByDay([
       row('newer-1', '2026-08-26T12:00:00'),
       row('newer-2', '2026-08-26T11:00:00'),
