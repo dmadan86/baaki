@@ -261,6 +261,19 @@ describe('image cache', () => {
     expect([...fs.files.keys()].filter((key) => key.includes('receipt-image-cache'))).toEqual([]);
   });
 
+  it('clears many cached images in one directory sweep', () => {
+    for (let index = 0; index < 500; index += 1) {
+      cacheImageBytes('expense-attachments', `g1/e${index}.png`, new Uint8Array([index % 255]));
+    }
+    expect([...fs.files.keys()].filter((key) => key.includes('receipt-image-cache')).length).toBe(
+      500,
+    );
+
+    clearImageCache();
+
+    expect([...fs.files.keys()].filter((key) => key.includes('receipt-image-cache'))).toEqual([]);
+  });
+
   it('keeps the latest complete byte set when two writes target the same cache key', () => {
     fs.uuid.mockReturnValueOnce('first').mockReturnValueOnce('second');
 

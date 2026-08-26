@@ -168,10 +168,54 @@ describe('parsing what an older or stranger client sent', () => {
   });
 
   it('keeps a negative adjustment negative', () => {
-    // Adjustments go both ways: Ravi had the extra beer, Asha skipped dessert.
+    // Adjustments go both ways at the wire boundary; computeShares rejects a
+    // final negative owed share if the credit would make spending nonsensical.
     expect(
       parseSplitParams({ kind: 'adjustment', adjustments: { ravi: '12000', asha: '-4000' } }),
     ).toEqual({ kind: 'adjustment', adjustments: { ravi: 12000n, asha: -4000n } });
+  });
+
+  it('refuses unsafe integer weights before a double can round them', () => {
+    expect(() =>
+      parseSplitParams({ kind: 'shares', weights: { asha: '9007199254740993' } }),
+    ).toThrow(/safe integer/);
+    expect(() =>
+      parseSplitParams({ kind: 'percent', basisPoints: { asha: '9007199254740993' } }),
+    ).toThrow(/safe integer/);
+  });
+
+  it('refuses negative wire weights before computeShares sees them', () => {
+    expect(() => parseSplitParams({ kind: 'shares', weights: { asha: '-1' } })).toThrow(
+      /safe integer/,
+    );
+    expect(() => parseSplitParams({ kind: 'percent', basisPoints: { asha: '-1' } })).toThrow(
+      /safe integer/,
+    );
+  });
+
+  it('refuses null itemized optionals instead of treating them as absent', () => {
+    expect(() =>
+      parseSplitParams({
+        kind: 'itemized',
+        items: [{ total: '100' }],
+        claims: { 0: ['asha'] },
+        tip: null,
+      }),
+    ).toThrow(SplitWireError);
+  });
+
+  it('validates itemized claims before computeShares uses them', () => {
+    const base = { kind: 'itemized', items: [{ total: '100' }] };
+    expect(() => parseSplitParams({ ...base, claims: { 0: 'asha' } })).toThrow(/list/);
+    expect(() => parseSplitParams({ ...base, claims: { 0: [123] } })).toThrow(/member ids/);
+    expect(() => parseSplitParams({ ...base, claims: { 0: ['asha', 'asha'] } })).toThrow(/repeats/);
+    expect(() => parseSplitParams({ ...base, claims: { 1: ['asha'] } })).toThrow(
+      /does not name an item/,
+    );
+    expect(() => parseSplitParams({ ...base, claims: { '-1': ['asha'] } })).toThrow(/line index/);
+    expect(() => parseSplitParams({ ...base, claims: { 0: ['asha'], '00': ['ravi'] } })).toThrow(
+      /repeats an item index/,
+    );
   });
 });
 

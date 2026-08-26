@@ -457,11 +457,16 @@ function AuthGate() {
   // on the welcome and guest doorways can open it before anybody has an account.
   // Its open-source licenses screen is part of that same policy, opened from a
   // row inside it, so it has to be public as well — otherwise tapping it bounces
-  // a signed-out reader back to /welcome.
+  // a signed-out reader back to /welcome. The local privacy audit is dev-only
+  // and must stay reachable after sign-out so e2e can verify private local state
+  // was removed, but production builds must never expose that route signed-out.
   const onPublicRoute =
     onAuth ||
     segments[0] === 'join' ||
     segments[0] === 'language' ||
+    (__DEV__ &&
+      (segments as string[])[0] === 'dev' &&
+      (segments as string[])[1] === 'local-privacy') ||
     (segments[0] === 'settings' &&
       ((segments as string[])[1] === 'privacy' || (segments as string[])[1] === 'licenses'));
 
@@ -608,6 +613,7 @@ function AuthGate() {
           <Stack.Screen name="settings/feedback" />
           <Stack.Screen name="settings/privacy" />
           <Stack.Screen name="settings/delete-account" />
+          <Stack.Screen name="dev/local-privacy" />
           <Stack.Screen name="join" />
           <Stack.Screen name="inbox" />
           <Stack.Screen name="voice" options={slide} />
