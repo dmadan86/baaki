@@ -178,22 +178,29 @@ export default function ImportScreen() {
     setMembers([]);
   };
 
-  const choose = async (): Promise<void> => {
+  const choose = async (source: 'splitwise' | 'other' = 'other'): Promise<void> => {
     setError(null);
     setDone(null);
     setBusy(true);
     try {
+      // The format is decided by sniffing the file contents (isBaakiExport),
+      // never the picker — so both sources funnel through here. The `source`
+      // only narrows what the picker offers: a Splitwise export is a CSV, so
+      // that option leads with CSV; "other data" (a Waves JSON, or anything
+      // else) leads with JSON. Both keep the text/octet-stream fallbacks, since
+      // some Android providers mislabel a .csv as `application/octet-stream`.
+      const type =
+        source === 'splitwise'
+          ? ['text/csv', 'text/comma-separated-values', 'text/plain', 'application/octet-stream']
+          : [
+              'application/json',
+              'text/csv',
+              'text/comma-separated-values',
+              'text/plain',
+              'application/octet-stream',
+            ];
       const picked = await DocumentPicker.getDocumentAsync({
-        // Some Android file providers hand back `application/octet-stream` for a
-        // .csv, so text/* is allowed too rather than hiding the file the person
-        // came here to select.
-        type: [
-          'text/csv',
-          'text/comma-separated-values',
-          'text/plain',
-          'application/json',
-          'application/octet-stream',
-        ],
+        type,
         copyToCacheDirectory: true,
       });
       if (picked.canceled) return;
@@ -431,21 +438,38 @@ export default function ImportScreen() {
           </Text>
         </Card>
 
-        <Button
-          label={file ? t.importLedger.chooseDifferentFile : t.importLedger.chooseFile}
-          size="lg"
-          fullWidth
-          variant={file ? 'secondary' : 'primary'}
-          disabled={busy}
-          onPress={() => void choose()}
-          icon={
-            <Ionicons
-              name="document-attach-outline"
-              size={iconSize.md}
-              color={file ? theme.color.brand : theme.color.onBrand}
-            />
-          }
-        />
+        {/* Two ways in, one flow: the file's contents decide the format either
+            way (see choose()), so these only set the picker's expectation and
+            the wording the person reads. Once a file is loaded, the block below
+            takes over; the buttons stay as the way to pick a different one. */}
+        <View style={{ gap: theme.spacing.md }}>
+          <Button
+            label={t.importLedger.fromSplitwise}
+            size="lg"
+            fullWidth
+            variant="primary"
+            disabled={busy}
+            onPress={() => void choose('splitwise')}
+            icon={
+              <Ionicons
+                name="document-attach-outline"
+                size={iconSize.md}
+                color={theme.color.onBrand}
+              />
+            }
+          />
+          <Button
+            label={t.importLedger.fromOther}
+            size="lg"
+            fullWidth
+            variant="secondary"
+            disabled={busy}
+            onPress={() => void choose('other')}
+            icon={
+              <Ionicons name="folder-open-outline" size={iconSize.md} color={theme.color.brand} />
+            }
+          />
+        </View>
 
         {stage === 'reading' || stage === 'parsing' ? (
           <View style={{ gap: theme.spacing.sm }}>

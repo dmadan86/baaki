@@ -577,10 +577,6 @@ function ProfileForm() {
             },
           ]}
         />
-
-        <Text variant="micro" tone="muted" align="center">
-          {t.account.footnote}
-        </Text>
       </ScrollView>
     </Screen>
   );

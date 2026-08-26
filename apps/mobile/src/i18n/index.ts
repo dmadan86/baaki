@@ -714,7 +714,6 @@ export interface UiStrings {
     lockOff: string;
     signOutGuestHint: string;
     signOutHint: string;
-    footnote: string;
   };
   /** Bring your own model key — held on the device, used on your own account. */
   aiKeys: {
@@ -776,7 +775,6 @@ export interface UiStrings {
     /** Miss recovery headline: nothing intelligible was heard at all. */
     missedNothing: string;
     /** The one supporting line under a miss — a concrete sentence to copy. */
-    missHint: string;
     /** The status line under the mic on a miss: the mic itself is the retry. */
     tapToRetry: string;
     tryAgain: string;
@@ -1762,6 +1760,9 @@ export interface UiStrings {
     free: string;
     ledgerHowTo: string;
     chooseFile: string;
+    /** Source-picker options on the import screen. */
+    fromSplitwise: string;
+    fromOther: string;
     chosenFile: string;
     chooseDifferentFile: string;
     whichGroup: string;
@@ -2529,8 +2530,8 @@ const en: UiStrings = {
     notificationsHint: 'Only what involves me',
     exportDataRow: 'Export data',
     exportHint: 'JSON + CSV, lossless, free',
-    importSplitwise: 'Import from Splitwise',
-    importHint: 'Bring a group across from a CSV export',
+    importSplitwise: 'Import your data',
+    importHint: 'Bring your history across from another app',
     themeRow: 'Appearance',
     languageFollowingPhone: 'Following your phone — {language}',
     languageRestartHint: '{language} · reopen Waves to mirror it',
@@ -2550,7 +2551,6 @@ const en: UiStrings = {
     lockOff: 'Off — anyone holding your phone can read the ledger',
     signOutGuestHint: 'This guest account lives on this device only',
     signOutHint: 'Nothing is deleted; sign back in whenever',
-    footnote: 'Waves · the ledger is free forever. We only ever charge for convenience.',
   },
   aiKeys: {
     title: 'Bring your own key',
@@ -2595,7 +2595,6 @@ const en: UiStrings = {
     tapToSpeak: 'Tap to speak',
     noAmount: 'Didn’t catch an amount',
     missedNothing: 'Didn’t catch that',
-    missHint: 'Try saying an amount, like “add 500 to Goa trip”',
     tapToRetry: 'Tap to try again',
     tryAgain: 'Try again',
     chooseGroup: 'Which group?',
@@ -3552,6 +3551,8 @@ const en: UiStrings = {
     ledgerHowTo:
       'From Splitwise: open a group → the ⚙ menu → Export as spreadsheet, and choose that CSV here. From Waves: choose a JSON file you exported from Settings. Everyone named in it becomes a member of the group — they do not need the app, and they can claim their history whenever they join.',
     chooseFile: 'Choose a file',
+    fromSplitwise: 'Import from Splitwise',
+    fromOther: 'Import from other data',
     chosenFile: 'Chosen: {name}',
     chooseDifferentFile: 'Choose a different file',
     whichGroup: 'Which group',
@@ -4346,8 +4347,8 @@ const ta: UiStrings = {
     notificationsHint: 'என்னைச் சார்ந்தவை மட்டும்',
     exportDataRow: 'தரவை ஏற்றுமதி செய்',
     exportHint: 'JSON + CSV, முழுமையானது, இலவசம்',
-    importSplitwise: 'Splitwise இலிருந்து இறக்குமதி',
-    importHint: 'CSV ஏற்றுமதியிலிருந்து ஒரு குழுவைக் கொண்டுவா',
+    importSplitwise: 'உங்கள் தரவை இறக்குமதி செய்',
+    importHint: 'மற்றொரு செயலியிலிருந்து உங்கள் வரலாற்றைக் கொண்டுவா',
     themeRow: 'தோற்றம்',
     languageFollowingPhone: 'உங்கள் ஃபோனைப் பின்பற்றுகிறது — {language}',
     languageRestartHint: '{language} · பிரதிபலிக்க பாக்கியை மீண்டும் திற',
@@ -4367,7 +4368,6 @@ const ta: UiStrings = {
     lockOff: 'நிறுத்தத்தில் — உங்கள் ஃபோனை வைத்திருப்பவர் யாரும் கணக்கைப் படிக்கலாம்',
     signOutGuestHint: 'இந்த விருந்தினர் கணக்கு இந்தச் சாதனத்தில் மட்டுமே உள்ளது',
     signOutHint: 'எதுவும் அழிக்கப்படாது; எப்போது வேண்டுமானாலும் மீண்டும் உள்நுழையலாம்',
-    footnote: 'பாக்கி · கணக்கு எப்போதும் இலவசம். வசதிக்கு மட்டுமே நாங்கள் கட்டணம் வாங்குவோம்.',
   },
   aiKeys: {
     title: 'உங்கள் சொந்த விசையைச் சேர்',
@@ -4415,7 +4415,6 @@ const ta: UiStrings = {
     tapToSpeak: 'பேச தட்டு',
     noAmount: 'தொகை புரியவில்லை',
     missedNothing: 'புரியவில்லை',
-    missHint: 'ஒரு தொகையைச் சொல்லுங்கள் (ஆங்கிலத்தில்), உ.தா. “add 500 to Goa trip”',
     tapToRetry: 'மீண்டும் முயற்சிக்க தட்டு',
     tryAgain: 'மீண்டும் முயற்சி செய்',
     chooseGroup: 'எந்த குழு?',
@@ -5428,6 +5427,8 @@ const ta: UiStrings = {
     ledgerHowTo:
       'Splitwise இலிருந்து: குழுவைத் திறந்து → ⚙ மெனு → Export as spreadsheet, அந்த CSV ஐ இங்கே தேர்வு செய்யுங்கள். பாக்கியிலிருந்து: அமைப்புகளிலிருந்து ஏற்றுமதி செய்த JSON கோப்பைத் தேர்வு செய்யுங்கள். அதில் பெயர் உள்ள அனைவரும் குழுவின் உறுப்பினராகிவிடுவார்கள் — அவர்களுக்குச் செயலி தேவையில்லை, சேரும்போது தங்கள் வரலாற்றைக் கோரலாம்.',
     chooseFile: 'ஒரு கோப்பைத் தேர்வு செய்',
+    fromSplitwise: 'Splitwise இலிருந்து இறக்குமதி',
+    fromOther: 'மற்ற தரவிலிருந்து இறக்குமதி',
     chosenFile: 'தேர்ந்தெடுத்தது: {name}',
     chooseDifferentFile: 'வேறு கோப்பைத் தேர்வு செய்',
     whichGroup: 'எந்தக் குழு',
@@ -6224,8 +6225,8 @@ const hi: UiStrings = {
     notificationsHint: 'सिर्फ़ वही जिनसे मेरा वास्ता है',
     exportDataRow: 'डेटा निर्यात',
     exportHint: 'JSON + CSV, कुछ छूटता नहीं, मुफ़्त',
-    importSplitwise: 'Splitwise से आयात',
-    importHint: 'CSV निर्यात से कोई समूह ले आएँ',
+    importSplitwise: 'अपना डेटा आयात करें',
+    importHint: 'किसी दूसरे ऐप से अपना इतिहास ले आएँ',
     themeRow: 'रूप-रंग',
     languageFollowingPhone: 'आपके फ़ोन के अनुसार — {language}',
     languageRestartHint: '{language} · दिशा बदलने के लिए बाकी दोबारा खोलें',
@@ -6245,7 +6246,6 @@ const hi: UiStrings = {
     lockOff: 'बंद — आपका फ़ोन पकड़े कोई भी हिसाब पढ़ सकता है',
     signOutGuestHint: 'यह मेहमान खाता सिर्फ़ इसी डिवाइस पर है',
     signOutHint: 'कुछ मिटता नहीं; जब चाहें दोबारा साइन इन करें',
-    footnote: 'बाकी · हिसाब हमेशा मुफ़्त है। हम सिर्फ़ सुविधा के पैसे लेते हैं।',
   },
   aiKeys: {
     title: 'अपनी कुंजी लाएँ',
@@ -6291,7 +6291,6 @@ const hi: UiStrings = {
     tapToSpeak: 'बोलने के लिए टैप करें',
     noAmount: 'रकम समझ नहीं आई',
     missedNothing: 'समझ नहीं आया',
-    missHint: 'रकम बोलें (अंग्रेज़ी में), जैसे “add 500 to Goa trip”',
     tapToRetry: 'दोबारा कोशिश के लिए टैप करें',
     tryAgain: 'फिर कोशिश करें',
     chooseGroup: 'कौन सा ग्रुप?',
@@ -7253,6 +7252,8 @@ const hi: UiStrings = {
     ledgerHowTo:
       'Splitwise से: समूह खोलें → ⚙ मेनू → Export as spreadsheet, और वही CSV यहाँ चुनें। बाकी से: सेटिंग्स से निर्यात की गई JSON फ़ाइल चुनें। उसमें जिनका नाम है वे सब समूह के सदस्य बन जाते हैं — उन्हें ऐप की ज़रूरत नहीं, और जब वे जुड़ेंगे तब अपना इतिहास ले सकते हैं।',
     chooseFile: 'फ़ाइल चुनें',
+    fromSplitwise: 'Splitwise से आयात',
+    fromOther: 'दूसरे डेटा से आयात',
     chosenFile: 'चुनी गई: {name}',
     chooseDifferentFile: 'दूसरी फ़ाइल चुनें',
     whichGroup: 'कौन-सा समूह',
@@ -8072,8 +8073,8 @@ const ar: UiStrings = {
     notificationsHint: 'ما يخصّني فقط',
     exportDataRow: 'تصدير البيانات',
     exportHint: 'JSON + CSV، بلا فقدان، مجانًا',
-    importSplitwise: 'استيراد من Splitwise',
-    importHint: 'أحضر مجموعة من ملف CSV مُصدَّر',
+    importSplitwise: 'استيراد بياناتك',
+    importHint: 'أحضر سجلّك من تطبيق آخر',
     themeRow: 'المظهر',
     languageFollowingPhone: 'يتبع هاتفك — {language}',
     languageRestartHint: '{language} · أعد فتح باقي لعكس الاتجاه',
@@ -8093,7 +8094,6 @@ const ar: UiStrings = {
     lockOff: 'متوقف — أي شخص يمسك هاتفك يمكنه قراءة الدفتر',
     signOutGuestHint: 'حساب الضيف هذا موجود على هذا الجهاز فقط',
     signOutHint: 'لا يُحذف شيء؛ سجّل الدخول متى شئت',
-    footnote: 'باقي · الدفتر مجاني إلى الأبد. لا نتقاضى إلا مقابل الراحة.',
   },
   aiKeys: {
     title: 'أحضر مفتاحك الخاص',
@@ -8138,7 +8138,6 @@ const ar: UiStrings = {
     tapToSpeak: 'انقر للتحدث',
     noAmount: 'لم أفهم المبلغ',
     missedNothing: 'لم أفهم ذلك',
-    missHint: 'قل مبلغًا بالإنجليزية، مثل «add 500 to Goa trip»',
     tapToRetry: 'انقر لإعادة المحاولة',
     tryAgain: 'أعد المحاولة',
     chooseGroup: 'أي مجموعة؟',
@@ -9185,6 +9184,8 @@ const ar: UiStrings = {
     ledgerHowTo:
       'من Splitwise: افتح مجموعة ← قائمة ⚙ ← Export as spreadsheet، ثم اختر ملف CSV هنا. من باقي: اختر ملف JSON صدّرته من الإعدادات. كل من ورد اسمه فيه يصبح عضوًا في المجموعة — لا يحتاجون التطبيق، ويمكنهم المطالبة بسجلّهم متى انضمّوا.',
     chooseFile: 'اختر ملفًا',
+    fromSplitwise: 'استيراد من Splitwise',
+    fromOther: 'استيراد من بيانات أخرى',
     chosenFile: 'المختار: {name}',
     chooseDifferentFile: 'اختر ملفًا آخر',
     whichGroup: 'أي مجموعة',
