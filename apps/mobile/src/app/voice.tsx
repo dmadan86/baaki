@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
-import { router, useNavigation } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -104,6 +104,12 @@ export default function VoiceScreen() {
   const dc = useDefaultCurrency();
   const access = useAiAccess();
   const groups = useGroups();
+  // Opened from a group's own screens (the raised mic passes its id), so a
+  // spoken expense lands in that group by default rather than the unassigned
+  // inbox. The reader can still switch the destination on the review; and a
+  // sentence that names a different group ("…for the Goa trip") still wins.
+  const params = useLocalSearchParams<{ group?: string }>();
+  const launchGroupId = typeof params.group === 'string' ? params.group : null;
 
   const createCapture = useCreateCapture();
   const createGroup = useCreateGroup();
@@ -195,6 +201,12 @@ export default function VoiceScreen() {
     } else if (result.group?.kind === 'existing') {
       setRequested(null);
       setDest({ kind: 'existing', groupId: result.group.groupId });
+    } else if (launchGroupId && groupRows.some((group) => group.id === launchGroupId)) {
+      // No group named in the sentence, but the mic was opened from a group —
+      // default to it. Guarded against a stale id (a group left or deleted since
+      // the screen opened), which falls through to the inbox.
+      setRequested(null);
+      setDest({ kind: 'existing', groupId: launchGroupId });
     } else {
       setRequested(null);
       setDest({ kind: 'unassigned' });
