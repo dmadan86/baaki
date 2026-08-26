@@ -771,7 +771,14 @@ export interface UiStrings {
     prompt: string;
     example: string;
     tapToSpeak: string;
+    /** Miss recovery headline: heard, but no amount landed. */
     noAmount: string;
+    /** Miss recovery headline: nothing intelligible was heard at all. */
+    missedNothing: string;
+    /** The one supporting line under a miss — a concrete sentence to copy. */
+    missHint: string;
+    /** The status line under the mic on a miss: the mic itself is the retry. */
+    tapToRetry: string;
     tryAgain: string;
     chooseGroup: string;
     /** '{note}' is the spoken description. */
@@ -799,6 +806,15 @@ export interface UiStrings {
     /** The row that adds a brand-new person (a 1:1 IOU) by name. */
     addPerson: string;
     addPersonPlaceholder: string;
+    /** Section label above the one-tap destination chips on the review. */
+    quickPick: string;
+    /** The two destination tabs in the "Save to" picker. */
+    groupsTab: string;
+    peopleTab: string;
+    /** Row badges in the picker: freshly made, lately used, used a lot. */
+    badgeNew: string;
+    badgeRecent: string;
+    badgeFrequent: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -1107,6 +1123,8 @@ export interface UiStrings {
     currencyLabel: string;
     currencyPickerTitle: string;
     newTitle: string;
+    editTitle: string;
+    edit: string;
     emptyTitle: string;
     emptyBody: string;
     amount: string;
@@ -1119,6 +1137,14 @@ export interface UiStrings {
     previewReceipt: string;
     reading: string;
     notSynced: string;
+    /** The collapsible voice-batch row: its "{n} expenses" title and the
+     *  expand/collapse control's accessibility labels. */
+    batchExpenses: PluralForms;
+    expandBatch: string;
+    collapseBatch: string;
+    /** Confirm body when deleting a whole voice batch at once. */
+    deleteBatch: string;
+    deleteBatchConfirm: PluralForms;
     assign: string;
     assignTitle: string;
     assignBody: string;
@@ -2557,7 +2583,10 @@ const en: UiStrings = {
     prompt: 'Say what you spent',
     example: 'e.g. “add 500 to Goa trip”',
     tapToSpeak: 'Tap to speak',
-    noAmount: 'Didn’t catch an amount. Try again.',
+    noAmount: 'Didn’t catch an amount',
+    missedNothing: 'Didn’t catch that',
+    missHint: 'Try saying an amount, like “add 500 to Goa trip”',
+    tapToRetry: 'Tap to try again',
     tryAgain: 'Try again',
     chooseGroup: 'Which group?',
     heard: 'Heard: {note}',
@@ -2575,6 +2604,12 @@ const en: UiStrings = {
     people: 'People',
     addPerson: 'Add a person',
     addPersonPlaceholder: 'Their name',
+    quickPick: 'Quick pick',
+    groupsTab: 'Groups',
+    peopleTab: 'People',
+    badgeNew: 'New',
+    badgeRecent: 'Recent',
+    badgeFrequent: 'Frequent',
   },
   notifications: {
     title: 'Notifications',
@@ -2869,6 +2904,8 @@ const en: UiStrings = {
     currencyLabel: 'Currency',
     currencyPickerTitle: 'Choose currency',
     newTitle: 'Draft an expense',
+    editTitle: 'Edit draft',
+    edit: 'Edit',
     emptyTitle: 'Nothing drafted yet',
     emptyBody:
       'Catch a spend the moment it happens — the amount, a note, a photo of the bill — and decide which group it belongs to later.',
@@ -2882,6 +2919,14 @@ const en: UiStrings = {
     previewReceipt: 'Preview the attached bill',
     reading: 'Reading…',
     notSynced: 'Not synced yet',
+    batchExpenses: { one: '{n} expense', other: '{n} expenses' },
+    expandBatch: 'Show the expenses',
+    collapseBatch: 'Hide the expenses',
+    deleteBatch: 'Delete these expenses',
+    deleteBatchConfirm: {
+      one: 'Delete this expense?',
+      other: 'Delete all {n} expenses in this batch?',
+    },
     assign: 'Assign to group',
     assignTitle: 'Assign to a group',
     assignBody: 'Pick the group this belongs to. You can set who paid and how it splits next.',
@@ -4353,7 +4398,10 @@ const ta: UiStrings = {
     prompt: 'நீங்கள் என்ன செலவழித்தீர்கள் என்று சொல்',
     example: 'உ.தா. “கோவா டிரிப்பில் 500 சேர்”',
     tapToSpeak: 'பேச தட்டு',
-    noAmount: 'தொகை புரியவில்லை. மீண்டும் முயற்சி செய்.',
+    noAmount: 'தொகை புரியவில்லை',
+    missedNothing: 'புரியவில்லை',
+    missHint: 'ஒரு தொகையைச் சொல்லுங்கள் (ஆங்கிலத்தில்), உ.தா. “add 500 to Goa trip”',
+    tapToRetry: 'மீண்டும் முயற்சிக்க தட்டு',
     tryAgain: 'மீண்டும் முயற்சி செய்',
     chooseGroup: 'எந்த குழு?',
     heard: 'கேட்டது: {note}',
@@ -4372,6 +4420,12 @@ const ta: UiStrings = {
     people: 'நபர்கள்',
     addPerson: 'ஒரு நபரைச் சேர்',
     addPersonPlaceholder: 'அவர்களின் பெயர்',
+    quickPick: 'விரைவுத் தேர்வு',
+    groupsTab: 'குழுக்கள்',
+    peopleTab: 'நபர்கள்',
+    badgeNew: 'புதியது',
+    badgeRecent: 'சமீபத்தில்',
+    badgeFrequent: 'அடிக்கடி',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -4682,6 +4736,8 @@ const ta: UiStrings = {
     currencyLabel: 'நாணயம்',
     currencyPickerTitle: 'நாணயத்தைத் தேர்ந்தெடுங்கள்',
     newTitle: 'ஒரு செலவை வரைவாக்குங்கள்',
+    editTitle: 'வரைவைத் திருத்து',
+    edit: 'திருத்து',
     emptyTitle: 'இன்னும் எந்த வரைவும் இல்லை',
     emptyBody:
       'செலவு நடந்த அந்த நொடியிலேயே பிடித்து வையுங்கள் — தொகை, ஒரு குறிப்பு, ரசீதின் படம் — எந்தக் குழுவுக்கு உரியது என்பதைப் பிறகு தீர்மானியுங்கள்.',
@@ -4695,6 +4751,14 @@ const ta: UiStrings = {
     previewReceipt: 'இணைத்த ரசீதை முன்னோட்டமிடு',
     reading: 'படிக்கிறது…',
     notSynced: 'இன்னும் ஒத்திசைக்கவில்லை',
+    batchExpenses: { one: '{n} செலவு', other: '{n} செலவுகள்' },
+    expandBatch: 'செலவுகளைக் காட்டு',
+    collapseBatch: 'செலவுகளை மறை',
+    deleteBatch: 'இந்தச் செலவுகளை நீக்கு',
+    deleteBatchConfirm: {
+      one: 'இந்தச் செலவை நீக்கவா?',
+      other: 'இந்த தொகுப்பில் உள்ள {n} செலவுகளையும் நீக்கவா?',
+    },
     assign: 'குழுவுக்கு ஒதுக்கு',
     assignTitle: 'ஒரு குழுவுக்கு ஒதுக்குங்கள்',
     assignBody:
@@ -6202,7 +6266,10 @@ const hi: UiStrings = {
     prompt: 'बताएँ आपने क्या खर्च किया',
     example: 'जैसे “गोवा ट्रिप में 500 जोड़ें”',
     tapToSpeak: 'बोलने के लिए टैप करें',
-    noAmount: 'रकम समझ नहीं आई। फिर कोशिश करें।',
+    noAmount: 'रकम समझ नहीं आई',
+    missedNothing: 'समझ नहीं आया',
+    missHint: 'रकम बोलें (अंग्रेज़ी में), जैसे “add 500 to Goa trip”',
+    tapToRetry: 'दोबारा कोशिश के लिए टैप करें',
     tryAgain: 'फिर कोशिश करें',
     chooseGroup: 'कौन सा ग्रुप?',
     heard: 'सुना: {note}',
@@ -6220,6 +6287,12 @@ const hi: UiStrings = {
     people: 'लोग',
     addPerson: 'व्यक्ति जोड़ें',
     addPersonPlaceholder: 'उनका नाम',
+    quickPick: 'क्विक चुनें',
+    groupsTab: 'ग्रुप',
+    peopleTab: 'लोग',
+    badgeNew: 'नया',
+    badgeRecent: 'हाल का',
+    badgeFrequent: 'अक्सर',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -6515,6 +6588,8 @@ const hi: UiStrings = {
     currencyLabel: 'मुद्रा',
     currencyPickerTitle: 'मुद्रा चुनें',
     newTitle: 'एक खर्च का ड्राफ़्ट बनाएँ',
+    editTitle: 'ड्राफ़्ट बदलें',
+    edit: 'बदलें',
     emptyTitle: 'अभी तक कोई ड्राफ़्ट नहीं',
     emptyBody:
       'खर्च होते ही उसे पकड़ लें — रकम, एक नोट, बिल की तस्वीर — और बाद में तय करें कि यह किस समूह का है।',
@@ -6528,6 +6603,11 @@ const hi: UiStrings = {
     previewReceipt: 'संलग्न रसीद का पूर्वावलोकन करें',
     reading: 'पढ़ रहे हैं…',
     notSynced: 'अभी सिंक नहीं हुआ',
+    batchExpenses: { one: '{n} खर्च', other: '{n} खर्च' },
+    expandBatch: 'खर्च दिखाएँ',
+    collapseBatch: 'खर्च छिपाएँ',
+    deleteBatch: 'ये खर्च हटाएँ',
+    deleteBatchConfirm: { one: 'यह खर्च हटाएँ?', other: 'इस बैच के सभी {n} खर्च हटाएँ?' },
     assign: 'समूह को सौंपें',
     assignTitle: 'किसी समूह को सौंपें',
     assignBody: 'चुनें कि यह किस समूह का है। किसने चुकाया और कैसे बँटेगा, यह आगे तय कर सकते हैं।',
@@ -8028,7 +8108,10 @@ const ar: UiStrings = {
     prompt: 'قل ماذا أنفقت',
     example: 'مثل: «أضف 500 إلى رحلة جوا»',
     tapToSpeak: 'انقر للتحدث',
-    noAmount: 'لم أفهم المبلغ. أعد المحاولة.',
+    noAmount: 'لم أفهم المبلغ',
+    missedNothing: 'لم أفهم ذلك',
+    missHint: 'قل مبلغًا بالإنجليزية، مثل «add 500 to Goa trip»',
+    tapToRetry: 'انقر لإعادة المحاولة',
     tryAgain: 'أعد المحاولة',
     chooseGroup: 'أي مجموعة؟',
     heard: 'سُمع: {note}',
@@ -8046,6 +8129,12 @@ const ar: UiStrings = {
     people: 'الأشخاص',
     addPerson: 'إضافة شخص',
     addPersonPlaceholder: 'اسمه',
+    quickPick: 'اختيار سريع',
+    groupsTab: 'المجموعات',
+    peopleTab: 'الأشخاص',
+    badgeNew: 'جديد',
+    badgeRecent: 'حديث',
+    badgeFrequent: 'متكرر',
   },
   notifications: {
     title: 'الإشعارات',
@@ -8332,6 +8421,8 @@ const ar: UiStrings = {
     currencyLabel: 'العملة',
     currencyPickerTitle: 'اختر العملة',
     newTitle: 'أنشئ مسودة مصروف',
+    editTitle: 'تعديل المسودة',
+    edit: 'تعديل',
     emptyTitle: 'لا مسودّات بعد',
     emptyBody:
       'التقط المصروف لحظة حدوثه — المبلغ، ملاحظة، صورة الفاتورة — وقرّر لاحقًا إلى أي مجموعة ينتمي.',
@@ -8345,6 +8436,14 @@ const ar: UiStrings = {
     previewReceipt: 'معاينة الإيصال المرفق',
     reading: 'جارٍ القراءة…',
     notSynced: 'لم تتم المزامنة بعد',
+    batchExpenses: { one: '{n} مصروف', other: '{n} مصاريف' },
+    expandBatch: 'إظهار المصاريف',
+    collapseBatch: 'إخفاء المصاريف',
+    deleteBatch: 'حذف هذه المصاريف',
+    deleteBatchConfirm: {
+      one: 'حذف هذا المصروف؟',
+      other: 'حذف كل المصاريف الـ {n} في هذه المجموعة؟',
+    },
     assign: 'أسنِد إلى مجموعة',
     assignTitle: 'أسنِد إلى مجموعة',
     assignBody: 'اختر المجموعة التي ينتمي إليها. يمكنك تحديد من دفع وكيفية التقسيم بعد ذلك.',

@@ -14,7 +14,7 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Linking, Pressable, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, View } from 'react-native';
 
 import type { ExpenseLocation } from '@waves/core';
 import { Button, Callout, Card, iconSize, Row, Text, useTheme } from '@waves/ui';
@@ -27,13 +27,20 @@ import { captureLocation, coordLabel, LocationFailure, locationAvailable } from 
 export function LocationField({
   value,
   onChange,
+  busy: busyExternal = false,
 }: {
   value: ExpenseLocation | null;
   onChange: (location: ExpenseLocation | null) => void;
+  /**
+   * An owner is already reading a fix (the voice review reads the current place
+   * on its own, up front). Shown as a "getting location" placeholder in place of
+   * the buttons, so the field reads as working rather than empty while it lands.
+   */
+  busy?: boolean;
 }): React.JSX.Element | null {
   const theme = useTheme();
   const { t } = useStrings();
-  const [busy, setBusy] = useState(false);
+  const [working, setWorking] = useState(false);
   // 'denied' offers Settings; 'unavailable' just invites another try. Cleared
   // the moment a fresh attempt starts.
   const [failure, setFailure] = useState<LocationFailure | null>(null);
@@ -47,7 +54,7 @@ export function LocationField({
 
   const add = async (): Promise<void> => {
     setFailure(null);
-    setBusy(true);
+    setWorking(true);
     try {
       const result = await captureLocation();
       if (result.ok) {
@@ -56,10 +63,13 @@ export function LocationField({
         setFailure(result.why);
       }
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   };
 
+  // Either this field's own tap or an owner-driven read (the voice review) counts
+  // as busy — both put the field in the same "getting location" state.
+  const busy = working || busyExternal;
   const label = value ? value.name?.trim() || coordLabel(value) : '';
 
   return (
@@ -101,13 +111,21 @@ export function LocationField({
             </Pressable>
           </Row>
         </Card>
+      ) : busy ? (
+        // A fix is on its way — read the current place rather than showing empty
+        // buttons that look like nothing has happened.
+        <Row
+          style={{ gap: theme.spacing.sm, alignItems: 'center', paddingVertical: theme.spacing.xs }}
+        >
+          <ActivityIndicator size="small" color={theme.color.brand} />
+          <Text tone="muted">{t.location.adding}</Text>
+        </Row>
       ) : (
         <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
           <Button
-            label={busy ? t.location.adding : t.location.add}
+            label={t.location.add}
             variant="secondary"
             size="sm"
-            disabled={busy}
             onPress={() => void add()}
             icon={<Ionicons name="location-outline" size={iconSize.md} color={theme.color.brand} />}
           />
@@ -116,7 +134,6 @@ export function LocationField({
             label={t.location.pick}
             variant="secondary"
             size="sm"
-            disabled={busy}
             onPress={() => setPickerOpen(true)}
             icon={<Ionicons name="map-outline" size={iconSize.md} color={theme.color.brand} />}
           />

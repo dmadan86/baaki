@@ -591,6 +591,62 @@ export function useRecentActivity(): RecentActivityRow[] {
   }, [mirror]);
 }
 
+/** How much a destination (group, or a person's 1:1 group) has been used. */
+export interface DestinationUsage {
+  /** ISO of the most recent non-deleted expense in it, or null if never. */
+  lastAt: string | null;
+  /** How many non-deleted expenses it holds — the "how often" signal. */
+  count: number;
+}
+
+/**
+ * Per-group usage read straight from the expense mirror: for each group, the
+ * newest expense's timestamp and how many it holds. Both the destination picker's
+ * "recent" and "frequent" badges are derived from this — one pass over the local
+ * ledger, keyed by group id, so a person's 1:1 group is covered by the same map.
+ * Soft-deleted expenses (ADR-005 tombstones) do not count towards either.
+ */
+export function useDestinationUsage(): Map<string, DestinationUsage> {
+  const { mirror } = useSync();
+  return useMemo(() => {
+    const usage = new Map<string, DestinationUsage>();
+    for (const row of rowsFor(mirror, SyncTable.Expenses)) {
+      const e = row as unknown as {
+        group_id: string;
+        created_at: string;
+        deleted_at: string | null;
+      };
+      if (e.deleted_at) continue;
+      const prev = usage.get(e.group_id);
+      if (!prev) {
+        usage.set(e.group_id, { lastAt: e.created_at, count: 1 });
+      } else {
+        prev.count += 1;
+        if (String(e.created_at) > String(prev.lastAt)) prev.lastAt = e.created_at;
+      }
+    }
+    return usage;
+  }, [mirror]);
+}
+
+/**
+ * Every group's creation timestamp, keyed by id — including the 1:1 groups behind
+ * individual people, which the group list does not surface. Lets the review offer
+ * a "recently added" person by the age of their 1:1 group, the same way a group's
+ * own `created_at` marks a newly made trip.
+ */
+export function useGroupCreatedAt(): Map<string, string> {
+  const { mirror } = useSync();
+  return useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const row of rowsFor(mirror, SyncTable.Groups)) {
+      const g = row as unknown as { id: string; created_at: string };
+      if (g.id && g.created_at) byId.set(g.id, g.created_at);
+    }
+    return byId;
+  }, [mirror]);
+}
+
 /**
  * One group, entirely from the mirror.
  *

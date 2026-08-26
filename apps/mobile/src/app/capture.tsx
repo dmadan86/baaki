@@ -41,7 +41,7 @@ import { AmountHeader } from '@/components/expense/AmountHeader';
 import { DescriptionField } from '@/components/expense/DescriptionField';
 import { ExpenseHeader } from '@/components/expense/ExpenseHeader';
 import { ChoiceRow, FieldRow, SheetOverlay } from '@/components/expense/SheetOverlay';
-import { useCreateCapture, useGroups, useHomeSummary } from '@/data/hooks';
+import { useCreateCapture, useGroups, useHomeSummary, useUpdateCapture } from '@/data/hooks';
 import { groupLabel, GroupType, type GroupRow, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
@@ -77,6 +77,20 @@ function amountFromParam(value: string | undefined): bigint {
     return BigInt(value);
   } catch {
     return 0n;
+  }
+}
+
+/**
+ * A JSON blob carried in as a query param, parsed back to an object. Params are
+ * strings from the URL, so a malformed or absent value is simply `null` — the
+ * same "nothing carried" the edit path treats as a fresh field, never a throw.
+ */
+function jsonParam<T>(value: string | undefined): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
   }
 }
 
@@ -160,22 +174,60 @@ export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const createCapture = useCreateCapture();
-  // `scan` fires the camera on entry; the rest are an optional prefill when this
-  // screen is reached from a group's "just for me" affordance — the amount, note
-  // and currency already typed there carry over so nothing is entered twice. A
-  // group is never carried: the point of the private route is that this spend
-  // stays personal, off any shared ledger, so `targetGroupId` remains null.
+  const updateCapture = useUpdateCapture();
+  // `scan` fires the camera on entry; `editId` opens an existing draft to fix
+  // (from the inbox pencil), with every field it carries prefilled below; the
+  // rest are an optional prefill when this screen is reached from a group's
+  // "just for me" affordance — the amount, note and currency already typed there
+  // carry over so nothing is entered twice. On the private-route prefill a group
+  // is never carried; on an edit it is, so the draft keeps its intended
+  // destination.
   const {
     scan,
+    editId,
     amount: amountParam,
     desc: descParam,
     cur: curParam,
-  } = useLocalSearchParams<{ scan?: string; amount?: string; desc?: string; cur?: string }>();
+    category: categoryParam,
+    categoryMeta: categoryMetaParam,
+    date: dateParam,
+    payment: paymentParam,
+    targetGroupId: targetGroupParam,
+    location: locationParam,
+    note: noteParam,
+    photoPath: photoPathParam,
+    rawText: rawTextParam,
+    parsed: parsedParam,
+  } = useLocalSearchParams<{
+    scan?: string;
+    editId?: string;
+    amount?: string;
+    desc?: string;
+    cur?: string;
+    category?: string;
+    categoryMeta?: string;
+    date?: string;
+    payment?: string;
+    targetGroupId?: string;
+    location?: string;
+    note?: string;
+    photoPath?: string;
+    rawText?: string;
+    parsed?: string;
+  }>();
+
+  // Editing an existing draft rather than drafting a new one: the submit updates
+  // the row in place, the photo already stored is kept unless a new one is
+  // taken, and the header says so.
+  const isEditing = Boolean(editId);
 
   // Chosen here so the photo can be uploaded under it before the row exists —
   // the storage path keys off the capture id, exactly as add-expense seeds its
   // own expense id up front.
-  const [captureId] = useState(() => randomUUID());
+  // On an edit this is the existing draft's id, so the update targets that row;
+  // on a fresh draft a new id, chosen up front so a photo can be uploaded under
+  // it before the row exists.
+  const [captureId] = useState(() => editId ?? randomUUID());
 
   // The currency starts device-derived (INR when the region is unknown, never a
   // US default) but is the person's to change here — the currency pill under the
@@ -194,18 +246,31 @@ export default function CaptureScreen() {
   const [amount, setAmount] = useState<bigint>(() => amountFromParam(amountParam));
   const [description, setDescription] = useState(() => descParam ?? '');
   // A built-in id or a custom tag's id; `categoryMeta` carries the display of a
-  // custom tag so it rides onto the capture (extends TDR §8).
-  const [category, setCategory] = useState<string | null>(CategoryId.Food);
-  const [categoryMeta, setCategoryMeta] = useState<CategoryMeta | null>(null);
-  const [categoryChosen, setCategoryChosen] = useState(false);
+  // custom tag so it rides onto the capture (extends TDR §8). On an edit both
+  // come from the draft; otherwise Food & drink is the default.
+  const [category, setCategory] = useState<string | null>(() => categoryParam || CategoryId.Food);
+  const [categoryMeta, setCategoryMeta] = useState<CategoryMeta | null>(() =>
+    jsonParam<CategoryMeta>(categoryMetaParam),
+  );
+  // On an edit the category is already the draft's own — treat it as chosen so
+  // the description guesser below does not move it out from under the person.
+  const [categoryChosen, setCategoryChosen] = useState(() => isEditing);
   // The create-tag sheet, opened from the "＋ New tag" chip in the picker.
   const [editingTag, setEditingTag] = useState(false);
-  const [date, setDate] = useState<string>(() => todayIso());
+  const [date, setDate] = useState<string>(() => dateParam ?? todayIso());
+  // A stored bill's path and the OCR text and parsed blob that rode with the
+  // draft — kept as-is through an edit so saving never wipes the receipt, the
+  // recovered text, or the voice-batch id the parsed blob carries. A freshly
+  // scanned receipt below replaces them.
+  const [keptPhotoPath] = useState<string | null>(() => photoPathParam ?? null);
+  const [keptParsed] = useState<Record<string, unknown> | null>(() =>
+    jsonParam<Record<string, unknown>>(parsedParam),
+  );
   const [editingDate, setEditingDate] = useState(false);
   const [photo, setPhoto] = useState<PickedImage | null>(null);
   // Full-screen preview of the attached bill, opened by tapping the thumbnail.
   const [previewing, setPreviewing] = useState(false);
-  const [rawText, setRawText] = useState<string | null>(null);
+  const [rawText, setRawText] = useState<string | null>(() => rawTextParam ?? null);
   // What the on-device parser recovered from the bill: total, item count, lines.
   // Null until a receipt is read; low `confidence` means show it as a draft.
   const [parsed, setParsed] = useState<HeuristicReceipt | null>(null);
@@ -226,12 +291,17 @@ export default function CaptureScreen() {
   // capture and survive until it is assigned. Payment defaults to cash (the most
   // common answer, and one fewer tap for it); the group defaults to "decide
   // later" (null), which keeps the capture in the inbox.
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>('cash');
-  const [targetGroupId, setTargetGroupId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(() =>
+    isEditing ? ((paymentParam as PaymentMethod | undefined) ?? null) : 'cash',
+  );
+  const [targetGroupId, setTargetGroupId] = useState<string | null>(() => targetGroupParam ?? null);
   const [pickingGroup, setPickingGroup] = useState(false);
   // Where it happened (A43). Optional and opt-in; null until the person taps
-  // "Add location" and grants the permission.
-  const [location, setLocation] = useState<ExpenseLocation | null>(null);
+  // "Add location" and grants the permission — or, on an edit, the place the
+  // draft already carried.
+  const [location, setLocation] = useState<ExpenseLocation | null>(() =>
+    jsonParam<ExpenseLocation>(locationParam),
+  );
 
   const { profile } = useAuth();
   const groups = useGroups();
@@ -351,7 +421,11 @@ export default function CaptureScreen() {
       // null and only the parsed fields (amount, text, itemisation) ride the
       // sync. The returned path is written onto the capture row so it can be
       // viewed later from any of the owner's devices.
-      let photoPath: string | null = null;
+      // On an edit, the draft's stored photo is the starting point and is kept
+      // unless a new one is taken here; on a fresh draft there is none until one
+      // is. A failed upload leaves whatever was already there rather than
+      // dropping it.
+      let photoPath: string | null = keptPhotoPath;
       let photoError: unknown = null;
       if (photo && profile?.id) {
         try {
@@ -362,12 +436,11 @@ export default function CaptureScreen() {
             mimeType: photo.mimeType,
           });
         } catch (caught) {
-          photoPath = null;
           photoError = caught;
         }
       }
 
-      await createCapture.mutateAsync({
+      const input = {
         captureId,
         description: description.trim(),
         category,
@@ -375,13 +448,21 @@ export default function CaptureScreen() {
         expenseDate: date,
         currency,
         amount,
+        // An edit keeps the note the draft already had — the form has no note
+        // field, so there is nothing here to overwrite it with.
+        notes: noteParam ?? null,
         photoPath,
         rawText,
-        parsed: parsed ? (parsed as unknown as Record<string, unknown>) : null,
+        // A freshly scanned receipt wins; otherwise keep the blob the draft
+        // arrived with, so an edit never loses its itemisation or the
+        // voice-batch id that keeps a spoken item tied to its batch.
+        parsed: parsed ? (parsed as unknown as Record<string, unknown>) : keptParsed,
         paymentMethod,
         targetGroupId,
         location,
-      });
+      };
+      if (isEditing) await updateCapture.mutateAsync({ ...input, captureId });
+      else await createCapture.mutateAsync(input);
 
       // The capture is saved — its fields are the point. If the bill *photo*
       // could not be stored because the account is out of room, say so and stay:
@@ -437,7 +518,7 @@ export default function CaptureScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <ExpenseHeader title={t.captures.newTitle} />
+        <ExpenseHeader title={isEditing ? t.captures.editTitle : t.captures.newTitle} />
 
         {/* Amount-forward hero: the number is the point of this screen, so it
             leads — big and centred, with the currency it is counted in a tap

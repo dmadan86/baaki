@@ -1,0 +1,125 @@
+name: Database
+
+# The database suites (migrations, RLS/allow-deny matrix, ledger invariants, and
+# the twenty-user scenario) only exercise SQL and the @waves/core split maths —
+# never the mobile or web UI. So they run only when something they actually
+# depend on changes: the migrations and DB tests themselves, or the money logic
+# in @waves/core. A pure UI/mobile change cannot move an RLS policy or a balance,
+# so it does not trigger these jobs.
+#
+# NOTE: if these checks are marked "required" in branch protection, add a path
+# filter there too (or a passing stub) so a UI-only PR is not blocked waiting on
+# a job that intentionally never runs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/db/**'
+      - 'packages/core/**'
+      - '.github/workflows/db.yml'
+  pull_request:
+    paths:
+      - 'packages/db/**'
+      - 'packages/core/**'
+      - '.github/workflows/db.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
+  SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki_shadow?schema=public
+
+jobs:
+  database:
+    name: migrations, RLS policies and ledger invariants
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: baaki
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The single squashed baseline must apply cleanly to an empty database —
+      # including the hand-written RLS / trigger / derived-balance SQL.
+      - name: Apply migrations to a fresh database
+        run: pnpm db:migrate
+
+      # Guards schema.prisma against the applied migrations (TDR §2.0).
+      #
+      # Diffed against the database the step above just built, not replayed
+      # into a shadow database. The replay cannot work: `_prisma_migrations` is
+      # created by Prisma outside any migration, so diffing the migrated
+      # database asks the same question and is the one CI can answer.
+      - name: Prisma drift check
+        run: pnpm db:drift
+
+      # RLS allow/deny matrix + the money invariants, against real Postgres.
+      # TEST_DATABASE_URL is named separately from DATABASE_URL on purpose: this
+      # suite creates, mutates and deletes rows freely, so it must never inherit
+      # whichever project a developer is pointed at (packages/db/test/helpers.ts).
+      - name: Policy and invariant tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+        run: pnpm test:db
+
+  scenario:
+    name: twenty-user scenario ledger e2e
+    runs-on: ubuntu-latest
+    # A separate job from `database` on purpose: this is a slow, real-scale
+    # end-to-end run (twenty users, three groups, ~150 mixed expenses seeded in
+    # one hook) that proves the ledger stays coherent at size. Its own job means
+    # a red check names it directly, and its ~70s build-up never slows the fast
+    # invariant suite. Same fresh Postgres + migrations as `database`; it runs
+    # only test/scenario-twenty-users.test.ts (excluded from `test:db`).
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: baaki
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The scenario builds on the real schema, so apply the baseline to the
+      # empty database first, exactly as the `database` job does.
+      - name: Apply migrations to a fresh database
+        run: pnpm db:migrate
+
+      # TEST_DATABASE_URL is named separately from DATABASE_URL on purpose: this
+      # suite creates, mutates and hard-deletes rows freely, so it must never
+      # inherit whichever project a developer is pointed at (helpers.ts).
+      - name: Twenty-user scenario ledger test
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+        run: pnpm test:db:scenario

@@ -8,7 +8,12 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { dictationError, mergeTranscript, speechLocale } from '@/lib/dictation';
+import {
+  dictationError,
+  englishSpeechLocale,
+  mergeTranscript,
+  speechLocale,
+} from '@/lib/dictation';
 import { Language, STRINGS_BY_LANGUAGE } from '@/i18n';
 
 // The Language enum lives in the i18n module, which imports expo-localization
@@ -40,6 +45,30 @@ describe('speechLocale', () => {
     expect(speechLocale(Language.En, 'en_IN')).toBe('en-IN');
     expect(speechLocale(Language.En, 'en-in')).toBe('en-IN');
     expect(speechLocale(Language.En, '')).toBe('en-IN');
+  });
+});
+
+describe('englishSpeechLocale', () => {
+  it('keeps the device region regardless of the UI language', () => {
+    // The capture flow always recognises English, so an Arabic-UI phone in the
+    // UAE should hear en-AE — not be forced to Indian English the way the
+    // language-matching speechLocale would.
+    expect(englishSpeechLocale('ar-AE')).toBe('en-AE');
+    expect(englishSpeechLocale('ta-LK')).toBe('en-LK');
+    expect(englishSpeechLocale('en-GB')).toBe('en-GB');
+  });
+
+  it('falls back to India only when there is no region', () => {
+    expect(englishSpeechLocale('ar')).toBe('en-IN');
+    expect(englishSpeechLocale('en')).toBe('en-IN');
+    expect(englishSpeechLocale('')).toBe('en-IN');
+  });
+
+  it('survives the shapes a locale tag actually arrives in', () => {
+    expect(englishSpeechLocale('ar_AE')).toBe('en-AE');
+    expect(englishSpeechLocale('en-in')).toBe('en-IN');
+    // A script subtag is skipped; the real region still wins.
+    expect(englishSpeechLocale('zh-Hans-CN')).toBe('en-CN');
   });
 });
 
