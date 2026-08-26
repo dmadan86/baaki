@@ -43,10 +43,12 @@ import {
 } from '@waves/ui';
 
 import {
+  useAddGhostMember,
   useCreateCapture,
   useCreateGroup,
   useGroup,
   useGroups,
+  usePeopleBalances,
   useWriteExpense,
 } from '@/data/hooks';
 import { groupLabel, GroupType, type GroupRow } from '@/data/types';
@@ -73,7 +75,21 @@ interface Draft {
 type Dest =
   | { kind: 'unassigned' }
   | { kind: 'existing'; groupId: string }
-  | { kind: 'create'; groupId: string; memberId: string; name: string };
+  | { kind: 'create'; groupId: string; memberId: string; name: string }
+  // A brand-new individual: a 1:1 group named after them, created with a ghost
+  // for the person, on save. An *existing* person is a plain `existing` pointing
+  // at their 1:1 group — no new kind needed. `groupId`/`memberId` are minted up
+  // front so the create and the expense can name them in the same offline batch,
+  // the same pattern the Add-person screen uses.
+  | { kind: 'person'; groupId: string; memberId: string; name: string };
+
+/** A person the batch can be assigned to on the review — an existing friend
+ *  (reuses their 1:1 group) surfaced by name in the picker. */
+interface PersonChoice {
+  personKey: string;
+  name: string;
+  groupId: string;
+}
 
 const EQUAL: SplitParams = { kind: 'equal' };
 
@@ -113,6 +129,28 @@ export default function VoiceScreen() {
 
   const createCapture = useCreateCapture();
   const createGroup = useCreateGroup();
+  // Existing people, by name, so a spoken expense can be pointed at an
+  // individual — not only a group. Each is a pairwise balance the viewer has;
+  // the ones explained by a single group (`only_group_id`) are their 1:1 group,
+  // which the picker reuses. Computed from the mirror, so it works offline.
+  const people = usePeopleBalances(profile?.id ?? null);
+  const peopleChoices: PersonChoice[] = (() => {
+    const byGroup = new Map<string, PersonChoice>();
+    for (const row of people.data ?? []) {
+      if (!row.only_group_id) continue;
+      // One entry per 1:1 group (a person has one row per currency); newest name
+      // wins, which is fine — they share a display name.
+      byGroup.set(row.only_group_id, {
+        personKey: row.person_key,
+        name: row.display_name,
+        groupId: row.only_group_id,
+      });
+    }
+    return [...byGroup.values()].sort((a, b) => a.name.localeCompare(b.name));
+  })();
+  // The 1:1 groups surfaced under People, so they are not also listed under
+  // Groups — a person shows once, as a person.
+  const oneToOneGroupIds = new Set(peopleChoices.map((choice) => choice.groupId));
 
   // 'listening' → the mic; 'thinking' → the model is reading; 'review' → the
   // heard expenses, editable, awaiting a destination and a Save.
@@ -142,6 +180,10 @@ export default function VoiceScreen() {
   // A new group is created once, not again on a save retry after a partial
   // failure. Flipped true after the create lands; reset when a fresh parse comes.
   const groupCreated = useRef(false);
+  // The ghost for a brand-new person, minted once on the first save and reused
+  // on a retry (so a partial failure does not add a second ghost). Reset with a
+  // fresh parse or a change of destination.
+  const ghostMemberId = useRef<string | null>(null);
   // A Save (or a close that persists the batch as a draft) has already taken
   // over navigation — so the leave-guard below stands aside instead of writing
   // the captures a second time.
@@ -170,6 +212,9 @@ export default function VoiceScreen() {
   const targetGroupId = dest.kind === 'existing' ? dest.groupId : '';
   const target = useGroup(targetGroupId);
   const writeExpense = useWriteExpense(dest.kind === 'unassigned' ? '' : dest.groupId);
+  // Bound to the new person's minted group id; only ever fired when saving a
+  // `person` destination, so the empty id in every other case is inert.
+  const addGhost = useAddGhostMember(dest.kind === 'person' ? dest.groupId : '');
 
   const applyResult = (result: VoiceParseResult): void => {
     if (result.items.length === 0) {
@@ -188,6 +233,7 @@ export default function VoiceScreen() {
     );
     // A fresh parse is a fresh group to create, and a fresh location to read.
     groupCreated.current = false;
+    ghostMemberId.current = null;
     autoLocated.current = false;
     locationGen.current += 1;
     locationTouched.current = false;
@@ -245,6 +291,7 @@ export default function VoiceScreen() {
     setError(null);
     setRequested(null);
     groupCreated.current = false;
+    ghostMemberId.current = null;
     autoLocated.current = false;
     locationGen.current += 1;
     locationTouched.current = false;
@@ -383,7 +430,7 @@ export default function VoiceScreen() {
       // and the reader's member id were chosen up front, so an expense can name
       // them in the same breath (the offline-first pattern used elsewhere). The
       // ref guards a second create on a retry: the group exists after the first.
-      if (dest.kind === 'create' && !groupCreated.current) {
+      if ((dest.kind === 'create' || dest.kind === 'person') && !groupCreated.current) {
         await createGroup.mutateAsync({
           groupId: dest.groupId,
           creatorMemberId: dest.memberId,
@@ -394,17 +441,25 @@ export default function VoiceScreen() {
         groupCreated.current = true;
       }
 
+      // A brand-new person needs a ghost to be the other half of the 1:1 —
+      // minted once, reused on a retry so a partial failure adds no second one.
+      if (dest.kind === 'person' && !ghostMemberId.current) {
+        ghostMemberId.current = await addGhost.mutateAsync(dest.name);
+      }
+
       const groupCurrency =
-        dest.kind === 'create' ? dc : (target.group.data?.default_currency ?? dc);
+        dest.kind === 'existing' ? (target.group.data?.default_currency ?? dc) : dc;
       const participants =
-        dest.kind === 'create'
-          ? [dest.memberId]
-          : (target.members.data ?? []).map((member) => member.id);
+        dest.kind === 'existing'
+          ? (target.members.data ?? []).map((member) => member.id)
+          : dest.kind === 'person'
+            ? [dest.memberId, ghostMemberId.current!]
+            : [dest.memberId];
       const payer =
-        dest.kind === 'create'
-          ? dest.memberId
-          : ((target.members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ??
-            participants[0]);
+        dest.kind === 'existing'
+          ? ((target.members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ??
+            participants[0])
+          : dest.memberId;
 
       if (participants.length === 0 || !payer) throw new Error('no members to split among');
 
@@ -465,9 +520,9 @@ export default function VoiceScreen() {
   const destCurrency =
     dest.kind === 'unassigned'
       ? null
-      : dest.kind === 'create'
-        ? dc
-        : (target.group.data?.default_currency ?? dc);
+      : dest.kind === 'existing'
+        ? (target.group.data?.default_currency ?? dc)
+        : dc;
   const draftTotals = new Map<string, bigint>();
   for (const draft of drafts) {
     const currency = destCurrency ?? draft.currency ?? dc;
@@ -710,9 +765,26 @@ export default function VoiceScreen() {
                 dest={dest}
                 requested={requested}
                 onChoose={(next) => {
+                  // A change of destination is a change of group/ghost to make,
+                  // so drop the once-only latches for the new one.
+                  groupCreated.current = false;
+                  ghostMemberId.current = null;
                   setDest(next);
                   setPickerOpen(false);
                 }}
+                onAddPerson={(name) => {
+                  groupCreated.current = false;
+                  ghostMemberId.current = null;
+                  setDest({
+                    kind: 'person',
+                    groupId: randomUUID(),
+                    memberId: randomUUID(),
+                    name,
+                  });
+                  setPickerOpen(false);
+                }}
+                people={peopleChoices}
+                oneToOneGroupIds={oneToOneGroupIds}
                 groups={groupRows}
                 t={t}
                 theme={theme}
@@ -740,6 +812,9 @@ function describeDest(
       label: t.voice.newGroupNamed.replace('{name}', dest.name),
       icon: 'add-circle-outline',
     };
+  }
+  if (dest.kind === 'person') {
+    return { label: dest.name, icon: 'person-outline' };
   }
   const group = groups.find((candidate) => candidate.id === dest.groupId);
   if (!group) return { label: t.captures.unassigned, icon: 'people-outline' };
@@ -770,6 +845,9 @@ function DestinationPicker({
   dest,
   requested,
   onChoose,
+  onAddPerson,
+  people,
+  oneToOneGroupIds,
   groups,
   t,
   theme,
@@ -777,10 +855,22 @@ function DestinationPicker({
   dest: Dest;
   requested: { groupId: string; memberId: string; name: string } | null;
   onChoose: (dest: Dest) => void;
+  onAddPerson: (name: string) => void;
+  people: PersonChoice[];
+  oneToOneGroupIds: Set<string>;
   groups: GroupRow[];
   t: ReturnType<typeof useStrings>['t'];
   theme: ReturnType<typeof useTheme>;
 }) {
+  // The name typed into the "add a person" row — a brand-new individual, no
+  // group needed up front.
+  const [newName, setNewName] = useState('');
+  const addNewPerson = (): void => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setNewName('');
+    onAddPerson(trimmed);
+  };
   type Row = {
     key: string;
     label: string;
@@ -826,6 +916,9 @@ function DestinationPicker({
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
   for (const group of sorted) {
+    // A person's 1:1 group is shown under People, by their name — not a second
+    // time here as a group.
+    if (oneToOneGroupIds.has(group.id)) continue;
     rows.push({
       key: group.id,
       label: groupLabel(group),
@@ -836,71 +929,153 @@ function DestinationPicker({
     });
   }
 
+  // People: existing friends by name, each reusing their 1:1 group. A person the
+  // reader has just added by name (a `person` dest, no group yet) rides at the
+  // top as the selected row so the choice reads back.
+  const peopleRows: Row[] = people.map((person) => ({
+    key: `person-${person.groupId}`,
+    label: person.name,
+    icon: 'person-outline',
+    selected: dest.kind === 'existing' && dest.groupId === person.groupId,
+    onPress: () => onChoose({ kind: 'existing', groupId: person.groupId }),
+  }));
+  if (dest.kind === 'person') {
+    peopleRows.unshift({
+      key: 'person-new',
+      label: dest.name,
+      icon: 'person-outline',
+      selected: true,
+      onPress: () => {},
+    });
+  }
+
+  const renderRow = (row: Row, showDivider: boolean): React.JSX.Element => (
+    <View key={row.key}>
+      <Pressable
+        onPress={row.onPress}
+        accessibilityRole="button"
+        accessibilityState={{ selected: row.selected }}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: row.selected ? theme.color.brandSoft : theme.color.surfaceMuted,
+          }}
+        >
+          {row.emoji ? (
+            <Text style={{ fontSize: 18 }}>{row.emoji}</Text>
+          ) : (
+            <Ionicons
+              name={row.icon}
+              size={iconSize.md}
+              color={row.selected ? theme.color.brand : theme.color.textMuted}
+            />
+          )}
+        </View>
+        <Text
+          numberOfLines={1}
+          style={{
+            flex: 1,
+            color: row.selected ? theme.color.brand : theme.color.text,
+            fontWeight: row.selected ? '600' : '400',
+          }}
+        >
+          {row.label}
+        </Text>
+        <Ionicons
+          name={row.selected ? 'checkmark-circle' : 'ellipse-outline'}
+          size={iconSize.md}
+          color={row.selected ? theme.color.brand : theme.color.border}
+        />
+      </Pressable>
+      {showDivider ? <Divider /> : null}
+    </View>
+  );
+
   return (
-    <View style={{ gap: theme.spacing.sm }}>
-      <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-        {t.voice.saveTo.toUpperCase()}
-      </Text>
-      {/* One grouped card, hairlines between rows — the destination is a single
-          choice, so it reads as a single control (Expensify "To", Monzo lists)
-          rather than a stack of floating pills. Selection is a leading glyph
-          that lights to brand plus a filled radio, not a full-width purple fill. */}
-      <Card padded={false} flat style={{ overflow: 'hidden' }}>
-        {rows.map((row, index) => (
-          <View key={row.key}>
-            <Pressable
-              onPress={row.onPress}
-              accessibilityRole="button"
-              accessibilityState={{ selected: row.selected }}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
+    <View style={{ gap: theme.spacing.lg }}>
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+          {t.voice.saveTo.toUpperCase()}
+        </Text>
+        {/* One grouped card, hairlines between rows — the destination is a single
+            choice, so it reads as a single control (Expensify "To", Monzo lists)
+            rather than a stack of floating pills. Selection is a leading glyph
+            that lights to brand plus a filled radio, not a full-width purple fill. */}
+        <Card padded={false} flat style={{ overflow: 'hidden' }}>
+          {rows.map((row, index) => renderRow(row, index < rows.length - 1))}
+        </Card>
+      </View>
+
+      {/* People: assign to an individual instead of a group. Existing friends by
+          name (reusing their 1:1 group), plus a row to add someone new by name —
+          which makes the 1:1 group and the ghost on save. */}
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+          {t.voice.people.toUpperCase()}
+        </Text>
+        <Card padded={false} flat style={{ overflow: 'hidden' }}>
+          {peopleRows.map((row) => renderRow(row, true))}
+          {/* Add a new person by name — a 1:1 IOU without leaving the review. */}
+          <Row
+            style={{
+              gap: theme.spacing.md,
+              paddingVertical: theme.spacing.sm,
+              paddingHorizontal: theme.spacing.lg,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
                 alignItems: 'center',
-                gap: theme.spacing.md,
-                paddingVertical: theme.spacing.md,
-                paddingHorizontal: theme.spacing.lg,
-                opacity: pressed ? 0.6 : 1,
-              })}
+                justifyContent: 'center',
+                backgroundColor: theme.color.surfaceMuted,
+              }}
             >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: row.selected ? theme.color.brandSoft : theme.color.surfaceMuted,
-                }}
-              >
-                {row.emoji ? (
-                  <Text style={{ fontSize: 18 }}>{row.emoji}</Text>
-                ) : (
-                  <Ionicons
-                    name={row.icon}
-                    size={iconSize.md}
-                    color={row.selected ? theme.color.brand : theme.color.textMuted}
-                  />
-                )}
-              </View>
-              <Text
-                numberOfLines={1}
-                style={{
-                  flex: 1,
-                  color: row.selected ? theme.color.brand : theme.color.text,
-                  fontWeight: row.selected ? '600' : '400',
-                }}
-              >
-                {row.label}
-              </Text>
               <Ionicons
-                name={row.selected ? 'checkmark-circle' : 'ellipse-outline'}
+                name="person-add-outline"
                 size={iconSize.md}
-                color={row.selected ? theme.color.brand : theme.color.border}
+                color={theme.color.textMuted}
               />
+            </View>
+            <TextInput
+              value={newName}
+              onChangeText={setNewName}
+              placeholder={t.voice.addPersonPlaceholder}
+              placeholderTextColor={theme.color.textFaint}
+              accessibilityLabel={t.voice.addPerson}
+              onSubmitEditing={addNewPerson}
+              returnKeyType="done"
+              style={{ flex: 1, fontSize: 15, color: theme.color.text, paddingVertical: 0 }}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.voice.addPerson}
+              disabled={!newName.trim()}
+              onPress={addNewPerson}
+              hitSlop={8}
+              style={({ pressed }) => ({ opacity: pressed || !newName.trim() ? 0.4 : 1 })}
+            >
+              <Ionicons name="add-circle" size={iconSize.lg} color={theme.color.brand} />
             </Pressable>
-            {index < rows.length - 1 ? <Divider /> : null}
-          </View>
-        ))}
-      </Card>
+          </Row>
+        </Card>
+      </View>
     </View>
   );
 }
