@@ -215,12 +215,14 @@ function BatchGroupCard({
   t,
   onAssign,
   onDelete,
+  onDeleteBatch,
 }: {
   items: CaptureRow[];
   locale: string;
   t: UiStrings;
   onAssign: (capture: CaptureRow) => void;
   onDelete: (capture: CaptureRow) => void;
+  onDeleteBatch: () => void;
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
@@ -302,6 +304,12 @@ function BatchGroupCard({
               {plural(locale, items.length, t.captures.batchExpenses)}
             </Text>
           )}
+          {/* Delete the whole batch — the trailing control the standalone rows
+              carry, here removing every expense in the group at once. A nested
+              press, so it deletes rather than toggling the card. */}
+          <IconButton label={t.captures.deleteBatch} onPress={onDeleteBatch}>
+            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
+          </IconButton>
           <Ionicons
             name={open ? 'chevron-up' : 'chevron-down'}
             size={iconSize.md}
@@ -397,6 +405,25 @@ export default function CapturesScreen() {
         onPress: () => void deleteCapture.mutateAsync(capture.id),
       },
     ]);
+  };
+
+  // Delete every capture in a spoken batch at once, behind one confirm — the
+  // trailing trash on the batch card.
+  const confirmDeleteBatch = (items: CaptureRow[]): void => {
+    Alert.alert(
+      t.captures.deleteBatch,
+      plural(locale, items.length, t.captures.deleteBatchConfirm),
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.captures.delete,
+          style: 'destructive',
+          onPress: () => {
+            for (const item of items) void deleteCapture.mutateAsync(item.id);
+          },
+        },
+      ],
+    );
   };
 
   const closeAssign = (): void => {
@@ -514,6 +541,7 @@ export default function CapturesScreen() {
                       t={t}
                       onAssign={openAssign}
                       onDelete={confirmDelete}
+                      onDeleteBatch={() => confirmDeleteBatch(item.items)}
                     />
                   ) : (
                     <CaptureListRow

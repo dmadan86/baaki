@@ -1140,6 +1140,9 @@ export interface UiStrings {
     batchExpenses: PluralForms;
     expandBatch: string;
     collapseBatch: string;
+    /** Confirm body when deleting a whole voice batch at once. */
+    deleteBatch: string;
+    deleteBatchConfirm: PluralForms;
     assign: string;
     assignTitle: string;
     assignBody: string;
@@ -2915,6 +2918,11 @@ const en: UiStrings = {
     batchExpenses: { one: '{n} expense', other: '{n} expenses' },
     expandBatch: 'Show the expenses',
     collapseBatch: 'Hide the expenses',
+    deleteBatch: 'Delete these expenses',
+    deleteBatchConfirm: {
+      one: 'Delete this expense?',
+      other: 'Delete all {n} expenses in this batch?',
+    },
     assign: 'Assign to group',
     assignTitle: 'Assign to a group',
     assignBody: 'Pick the group this belongs to. You can set who paid and how it splits next.',
@@ -4740,6 +4748,11 @@ const ta: UiStrings = {
     batchExpenses: { one: '{n} செலவு', other: '{n} செலவுகள்' },
     expandBatch: 'செலவுகளைக் காட்டு',
     collapseBatch: 'செலவுகளை மறை',
+    deleteBatch: 'இந்தச் செலவுகளை நீக்கு',
+    deleteBatchConfirm: {
+      one: 'இந்தச் செலவை நீக்கவா?',
+      other: 'இந்த தொகுப்பில் உள்ள {n} செலவுகளையும் நீக்கவா?',
+    },
     assign: 'குழுவுக்கு ஒதுக்கு',
     assignTitle: 'ஒரு குழுவுக்கு ஒதுக்குங்கள்',
     assignBody:
@@ -6585,6 +6598,8 @@ const hi: UiStrings = {
     batchExpenses: { one: '{n} खर्च', other: '{n} खर्च' },
     expandBatch: 'खर्च दिखाएँ',
     collapseBatch: 'खर्च छिपाएँ',
+    deleteBatch: 'ये खर्च हटाएँ',
+    deleteBatchConfirm: { one: 'यह खर्च हटाएँ?', other: 'इस बैच के सभी {n} खर्च हटाएँ?' },
     assign: 'समूह को सौंपें',
     assignTitle: 'किसी समूह को सौंपें',
     assignBody: 'चुनें कि यह किस समूह का है। किसने चुकाया और कैसे बँटेगा, यह आगे तय कर सकते हैं।',
@@ -8414,6 +8429,11 @@ const ar: UiStrings = {
     batchExpenses: { one: '{n} مصروف', other: '{n} مصاريف' },
     expandBatch: 'إظهار المصاريف',
     collapseBatch: 'إخفاء المصاريف',
+    deleteBatch: 'حذف هذه المصاريف',
+    deleteBatchConfirm: {
+      one: 'حذف هذا المصروف؟',
+      other: 'حذف كل المصاريف الـ {n} في هذه المجموعة؟',
+    },
     assign: 'أسنِد إلى مجموعة',
     assignTitle: 'أسنِد إلى مجموعة',
     assignBody: 'اختر المجموعة التي ينتمي إليها. يمكنك تحديد من دفع وكيفية التقسيم بعد ذلك.',
