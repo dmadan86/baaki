@@ -63,7 +63,6 @@ export function ZoomableImage({
     translateY.set(0);
     savedX.set(0);
     savedY.set(0);
-    onZoomChange?.(false);
     RNImage.getSize(
       uri,
       (w, h) => active && setNatural({ uri, size: { w, h } }),
@@ -72,10 +71,23 @@ export function ZoomableImage({
     return () => {
       active = false;
     };
-  }, [onZoomChange, savedScale, savedX, savedY, scale, translateX, translateY, uri]);
+  }, [savedScale, savedX, savedY, scale, translateX, translateY, uri]);
 
   const naturalSize = naturalSizeForUri(natural, uri);
   const rect = containRect({ w: width, h: boxHeight }, naturalSize ?? { w: 0, h: 0 });
+
+  useEffect(() => {
+    const clamped = clampZoomPoint(
+      { x: translateX.get(), y: translateY.get() },
+      { width, height: boxHeight },
+      { width: rect.w, height: rect.h },
+      scale.get(),
+    );
+    translateX.set(clamped.x);
+    translateY.set(clamped.y);
+    savedX.set(clamped.x);
+    savedY.set(clamped.y);
+  }, [boxHeight, rect.h, rect.w, savedX, savedY, scale, translateX, translateY, width]);
 
   const pinch = Gesture.Pinch()
     .onUpdate((event) => {
