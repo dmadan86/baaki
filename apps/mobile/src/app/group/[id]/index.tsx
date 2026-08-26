@@ -516,7 +516,12 @@ export default function GroupScreen() {
               paddingVertical: theme.spacing.md,
             }}
           >
-            <CategoryBadge category={version?.category} meta={version?.category_meta} size={40} />
+            <CategoryBadge
+              category={version?.category}
+              meta={version?.category_meta}
+              description={version?.description}
+              size={40}
+            />
             <View style={{ flex: 1 }}>
               <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
                 <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>

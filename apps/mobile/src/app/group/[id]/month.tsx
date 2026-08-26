@@ -228,6 +228,7 @@ export default function SpendingMonthScreen() {
                             <CategoryBadge
                               category={version?.category}
                               meta={version?.category_meta}
+                              description={version?.description}
                               size={40}
                             />
                             <View style={{ flex: 1 }}>

@@ -17,7 +17,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { normaliseTint, resolveCategory, type CategoryMeta } from '@waves/core';
+import { guessIcon, normaliseTint, resolveCategory, type CategoryMeta } from '@waves/core';
 import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useCategoryCatalog } from '@/data/hooks';
@@ -26,16 +26,26 @@ import { useStrings } from '@/i18n';
 export function CategoryBadge({
   category,
   meta,
+  description,
   size = 42,
 }: {
   category: string | null | undefined;
   /** The custom tag's denormalised display, when the value is a custom tag. */
   meta?: CategoryMeta | null;
+  /** The expense's own words. When given, the badge draws the specific icon for
+   *  what was typed (a coffee cup for a chai) and falls back to the category
+   *  icon when nothing matches. Omit on aggregate badges (per-category rows in
+   *  insights/budgets), where only the category itself is meaningful. Never
+   *  overrides a custom tag's chosen icon. */
+  description?: string | null;
   size?: number;
 }) {
   const theme = useTheme();
   const resolved = resolveCategory(category, meta ?? null);
   const tint = theme.tint[resolved.tint];
+  // A custom tag keeps the icon its author picked; only built-ins get the
+  // description-specific refinement over their single category icon.
+  const icon = resolved.custom ? resolved.icon : (guessIcon(description) ?? resolved.icon);
   return (
     <View
       style={{
@@ -48,7 +58,7 @@ export function CategoryBadge({
       }}
     >
       <Ionicons
-        name={resolved.icon as keyof typeof Ionicons.glyphMap}
+        name={icon as keyof typeof Ionicons.glyphMap}
         size={Math.round(size * 0.5)}
         color={tint.ink}
       />

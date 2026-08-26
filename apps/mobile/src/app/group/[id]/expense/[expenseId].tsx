@@ -345,7 +345,12 @@ export default function ExpenseDetailScreen() {
           </Row>
 
           <View style={{ alignItems: 'flex-start', gap: theme.spacing.sm }}>
-            <CategoryBadge category={version.category} meta={version.category_meta} size={48} />
+            <CategoryBadge
+              category={version.category}
+              meta={version.category_meta}
+              description={version.description}
+              size={48}
+            />
             <MoneyText
               amount={BigInt(version.amount)}
               currency={currency}
