@@ -225,12 +225,16 @@ let failNextOpen = false;
 const secure = vi.hoisted(() => ({
   keystore: new Map<string, string>(),
   deletes: [] as string[],
+  gets: 0,
 }));
 
 vi.mock('expo-secure-store', () => ({
   AFTER_FIRST_UNLOCK: 'after-first-unlock',
   AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 'after-first-unlock-this-device-only',
-  getItemAsync: async (key: string) => secure.keystore.get(key) ?? null,
+  getItemAsync: async (key: string) => {
+    secure.gets += 1;
+    return secure.keystore.get(key) ?? null;
+  },
   setItemAsync: async (key: string, value: string) => {
     secure.keystore.set(key, value);
   },
@@ -280,6 +284,9 @@ beforeEach(() => {
   database = new FakeDatabase();
   openCalls = 0;
   failNextOpen = false;
+  secure.keystore.clear();
+  secure.deletes = [];
+  secure.gets = 0;
 });
 
 describe('two callers, one connection', () => {
@@ -440,8 +447,23 @@ describe('native local store lifecycle', () => {
     expect(hydrated[0]).toEqual(rows[0]);
     expect(hydrated[512]).toEqual(rows[512]);
     expect(hydrated[1024]).toEqual(rows[1024]);
+    expect(openCalls).toBe(1);
+    expect(secure.gets).toBeLessThanOrEqual(2);
     // Generous timeout: 1k fake statements each yield a macrotask, plus a real
     // encrypt/decrypt per row — slow on a loaded Windows timer, not a defect.
+  }, 20000);
+
+  it('round-trips a large encrypted offline queue with one keystore load', async () => {
+    const store = createLocalStore();
+    const queue = Array.from({ length: 1_000 }, (_, index) => mutation(`m${index}`));
+
+    await store.writeQueue(queue);
+    const read = await store.readQueue();
+
+    expect(read).toHaveLength(queue.length);
+    expect(read[0]?.clientMutationId).toBe('m0');
+    expect(read[999]?.clientMutationId).toBe('m999');
+    expect(secure.gets).toBeLessThanOrEqual(2);
   }, 20000);
 
   it('does not open SQLite when asked to persist no rows', async () => {

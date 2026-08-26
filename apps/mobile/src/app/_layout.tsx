@@ -608,6 +608,7 @@ function AuthGate() {
           <Stack.Screen name="settings/feedback" />
           <Stack.Screen name="settings/privacy" />
           <Stack.Screen name="settings/delete-account" />
+          <Stack.Screen name="dev/local-privacy" />
           <Stack.Screen name="join" />
           <Stack.Screen name="inbox" />
           <Stack.Screen name="voice" options={slide} />
