@@ -194,6 +194,49 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
         run: pnpm test:db
 
+  scenario:
+    name: twenty-user scenario ledger e2e
+    runs-on: ubuntu-latest
+    # A separate job from `database` on purpose: this is a slow, real-scale
+    # end-to-end run (twenty users, three groups, ~150 mixed expenses seeded in
+    # one hook) that proves the ledger stays coherent at size. Its own job means
+    # a red check names it directly, and its ~70s build-up never slows the fast
+    # invariant suite. Same fresh Postgres + migrations as `database`; it runs
+    # only test/scenario-twenty-users.test.ts (excluded from `test:db`).
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: baaki
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The scenario builds on the real schema, so apply every migration to the
+      # empty database first, exactly as the `database` job does.
+      - name: Apply migrations to a fresh database
+        run: pnpm db:migrate
+
+      # TEST_DATABASE_URL is named separately from DATABASE_URL on purpose: this
+      # suite creates, mutates and hard-deletes rows freely, so it must never
+      # inherit whichever project a developer is pointed at (helpers.ts).
+      - name: Twenty-user scenario ledger test
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+        run: pnpm test:db:scenario
+
   web-e2e:
     name: web e2e (Playwright)
     runs-on: ubuntu-latest
