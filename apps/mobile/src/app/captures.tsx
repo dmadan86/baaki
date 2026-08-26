@@ -88,13 +88,19 @@ function CaptureListRow({
   locale,
   t,
   onAssign,
+  onEdit,
   onDelete,
+  hideLocation = false,
 }: {
   capture: CaptureRow;
   locale: string;
   t: UiStrings;
   onAssign: () => void;
+  onEdit: () => void;
   onDelete: () => void;
+  /** Inside a batch the description IS the line that matters, so the place is
+   *  suppressed there — the batch stands for one outing, one location. */
+  hideLocation?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   // The note names the spend; with none, its category does; with neither, it is
@@ -105,8 +111,9 @@ function CaptureListRow({
     : undefined;
   const title = capture.description?.trim() || categoryLabel || t.captures.unassigned;
   // Second line: the place it happened, else a note, else nothing. Never the
-  // date — the section heading already carries the day.
-  const locationName = capture.location?.name?.trim() || '';
+  // date — the section heading already carries the day. A row inside a batch
+  // drops the place; there the description on the title line is the whole point.
+  const locationName = hideLocation ? '' : capture.location?.name?.trim() || '';
   const subtitle = locationName || capture.notes?.trim() || '';
 
   return (
@@ -154,6 +161,12 @@ function CaptureListRow({
           locale={locale}
           variant="subheading"
         />
+        {/* Edit the draft's own fields — the pencil beside the trash, so a row
+            offers both "fix it" and "bin it" without stealing the whole-row tap
+            (which still assigns it to a group). */}
+        <IconButton label={t.captures.edit} onPress={onEdit}>
+          <Ionicons name="create-outline" size={iconSize.md} color={theme.color.textFaint} />
+        </IconButton>
         <IconButton label={t.captures.delete} onPress={onDelete}>
           <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
         </IconButton>
@@ -204,6 +217,7 @@ function BatchGroupCard({
   locale,
   t,
   onAssign,
+  onEdit,
   onDelete,
   onDeleteBatch,
 }: {
@@ -211,6 +225,7 @@ function BatchGroupCard({
   locale: string;
   t: UiStrings;
   onAssign: (capture: CaptureRow) => void;
+  onEdit: (capture: CaptureRow) => void;
   onDelete: (capture: CaptureRow) => void;
   onDeleteBatch: () => void;
 }) {
@@ -221,10 +236,9 @@ function BatchGroupCard({
   const sameCurrency = items.every((item) => item.currency === currency);
   const total = sameCurrency ? items.reduce((sum, item) => sum + BigInt(item.amount), 0n) : null;
   const anyPending = items.some((item) => item.pending);
-  // A glance at what is inside — the first couple of descriptions, then "+N".
-  const names = items.map((item) => item.description?.trim()).filter(Boolean) as string[];
-  const preview =
-    names.slice(0, 2).join(' · ') + (names.length > 2 ? ` · +${names.length - 2}` : '');
+  // A spoken batch is one outing in one place, so the location belongs to the
+  // group, not repeated on every item. Take the first place any item carries.
+  const batchLocation = items.map((item) => item.location?.name?.trim()).find((name) => name) ?? '';
 
   return (
     // One rounded, bordered card so the header and its items read as a single
@@ -269,17 +283,15 @@ function BatchGroupCard({
           </View>
 
           <View style={{ flex: 1, minWidth: 0 }}>
+            {/* The count is the whole headline — a batch stands for one outing,
+                so the individual descriptions belong to the expanded rows, not
+                here. Only the unsynced mark rides the second line. */}
             <Text variant="subheading" numberOfLines={1}>
               {plural(locale, items.length, t.captures.batchExpenses)}
             </Text>
-            {preview || anyPending ? (
+            {anyPending ? (
               <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
-                {preview ? (
-                  <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
-                    {preview}
-                  </Text>
-                ) : null}
-                {anyPending ? <PendingMark /> : null}
+                <PendingMark />
               </Row>
             ) : null}
           </View>
@@ -310,6 +322,22 @@ function BatchGroupCard({
 
       {open ? (
         <View style={{ paddingHorizontal: theme.spacing.md }}>
+          {/* The outing's place, shown once for the whole group — the item rows
+              below carry only their descriptions, not the place repeated. */}
+          {batchLocation ? (
+            <Row
+              style={{
+                gap: theme.spacing.xs,
+                alignItems: 'center',
+                paddingTop: theme.spacing.sm,
+              }}
+            >
+              <Ionicons name="location-outline" size={13} color={theme.color.textMuted} />
+              <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {batchLocation}
+              </Text>
+            </Row>
+          ) : null}
           {items.map((capture, index) => (
             <View key={capture.id}>
               <Divider />
@@ -318,7 +346,9 @@ function BatchGroupCard({
                 locale={locale}
                 t={t}
                 onAssign={() => onAssign(capture)}
+                onEdit={() => onEdit(capture)}
                 onDelete={() => onDelete(capture)}
+                hideLocation
               />
               {index === items.length - 1 ? <View style={{ height: theme.spacing.xs }} /> : null}
             </View>
@@ -382,6 +412,33 @@ export default function CapturesScreen() {
   const openAssign = (capture: CaptureRow): void => {
     setQuery('');
     setAssigning(capture);
+  };
+
+  // Open the draft in the capture form to fix its fields — the same screen that
+  // drafted it, now in edit mode. Every value the row carries rides along as a
+  // param so the form opens filled in and saving updates the row in place rather
+  // than making a second one; `parsed` (which holds the voice-batch id) is
+  // preserved so an edited batch item stays part of its batch.
+  const openEdit = (capture: CaptureRow): void => {
+    router.push({
+      pathname: '/capture',
+      params: {
+        editId: capture.id,
+        amount: capture.amount,
+        desc: capture.description ?? '',
+        cur: capture.currency,
+        category: capture.category ?? '',
+        ...(capture.category_meta ? { categoryMeta: JSON.stringify(capture.category_meta) } : {}),
+        date: capture.expense_date,
+        ...(capture.payment_method ? { payment: capture.payment_method } : {}),
+        ...(capture.target_group_id ? { targetGroupId: capture.target_group_id } : {}),
+        ...(capture.location ? { location: JSON.stringify(capture.location) } : {}),
+        ...(capture.notes ? { note: capture.notes } : {}),
+        ...(capture.photo_path ? { photoPath: capture.photo_path } : {}),
+        ...(capture.raw_text ? { rawText: capture.raw_text } : {}),
+        ...(capture.parsed ? { parsed: JSON.stringify(capture.parsed) } : {}),
+      },
+    });
   };
 
   // Shared by the standalone rows and the rows inside a batch, so a capture is
@@ -530,6 +587,7 @@ export default function CapturesScreen() {
                       locale={locale}
                       t={t}
                       onAssign={openAssign}
+                      onEdit={openEdit}
                       onDelete={confirmDelete}
                       onDeleteBatch={() => confirmDeleteBatch(item.items)}
                     />
@@ -540,6 +598,7 @@ export default function CapturesScreen() {
                       locale={locale}
                       t={t}
                       onAssign={() => openAssign(item.capture)}
+                      onEdit={() => openEdit(item.capture)}
                       onDelete={() => confirmDelete(item.capture)}
                     />
                   ),

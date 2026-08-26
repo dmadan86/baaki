@@ -1123,6 +1123,8 @@ export interface UiStrings {
     currencyLabel: string;
     currencyPickerTitle: string;
     newTitle: string;
+    editTitle: string;
+    edit: string;
     emptyTitle: string;
     emptyBody: string;
     amount: string;
@@ -2902,6 +2904,8 @@ const en: UiStrings = {
     currencyLabel: 'Currency',
     currencyPickerTitle: 'Choose currency',
     newTitle: 'Draft an expense',
+    editTitle: 'Edit draft',
+    edit: 'Edit',
     emptyTitle: 'Nothing drafted yet',
     emptyBody:
       'Catch a spend the moment it happens — the amount, a note, a photo of the bill — and decide which group it belongs to later.',
@@ -4732,6 +4736,8 @@ const ta: UiStrings = {
     currencyLabel: 'நாணயம்',
     currencyPickerTitle: 'நாணயத்தைத் தேர்ந்தெடுங்கள்',
     newTitle: 'ஒரு செலவை வரைவாக்குங்கள்',
+    editTitle: 'வரைவைத் திருத்து',
+    edit: 'திருத்து',
     emptyTitle: 'இன்னும் எந்த வரைவும் இல்லை',
     emptyBody:
       'செலவு நடந்த அந்த நொடியிலேயே பிடித்து வையுங்கள் — தொகை, ஒரு குறிப்பு, ரசீதின் படம் — எந்தக் குழுவுக்கு உரியது என்பதைப் பிறகு தீர்மானியுங்கள்.',
@@ -6582,6 +6588,8 @@ const hi: UiStrings = {
     currencyLabel: 'मुद्रा',
     currencyPickerTitle: 'मुद्रा चुनें',
     newTitle: 'एक खर्च का ड्राफ़्ट बनाएँ',
+    editTitle: 'ड्राफ़्ट बदलें',
+    edit: 'बदलें',
     emptyTitle: 'अभी तक कोई ड्राफ़्ट नहीं',
     emptyBody:
       'खर्च होते ही उसे पकड़ लें — रकम, एक नोट, बिल की तस्वीर — और बाद में तय करें कि यह किस समूह का है।',
@@ -8413,6 +8421,8 @@ const ar: UiStrings = {
     currencyLabel: 'العملة',
     currencyPickerTitle: 'اختر العملة',
     newTitle: 'أنشئ مسودة مصروف',
+    editTitle: 'تعديل المسودة',
+    edit: 'تعديل',
     emptyTitle: 'لا مسودّات بعد',
     emptyBody:
       'التقط المصروف لحظة حدوثه — المبلغ، ملاحظة، صورة الفاتورة — وقرّر لاحقًا إلى أي مجموعة ينتمي.',
