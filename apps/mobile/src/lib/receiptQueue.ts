@@ -76,6 +76,26 @@ async function writeQueue(queue: readonly PendingReceipt[]): Promise<void> {
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
+function cleanupOrphanFiles(queue: readonly PendingReceipt[]): void {
+  try {
+    const dir = new Directory(Paths.document, PENDING_DIR);
+    if (!dir.exists) return;
+    const keep = new Set(queue.map((entry) => entry.fileName));
+    const entries = (dir as unknown as { list?: () => unknown[] }).list?.() ?? [];
+    for (const item of entries) {
+      const file = item instanceof File ? item : null;
+      if (!file || keep.has(file.name)) continue;
+      try {
+        if (file.exists) file.delete();
+      } catch {
+        // Best-effort orphan cleanup; continue with the rest.
+      }
+    }
+  } catch {
+    // Directory listing is best-effort and may not be available in every runtime.
+  }
+}
+
 /** The durable file holding one pending capture's bytes. */
 function pendingFile(entry: Pick<PendingReceipt, 'fileName'>): File {
   return new File(Paths.document, PENDING_DIR, entry.fileName);
@@ -99,6 +119,7 @@ export async function isOnline(): Promise<boolean> {
 /** Every pending capture, or those for one expense, oldest first. */
 export async function listPendingReceipts(expenseId?: string): Promise<PendingReceipt[]> {
   const queue = await readQueue();
+  cleanupOrphanFiles(queue);
   return expenseId ? queue.filter((entry) => entry.expenseId === expenseId) : queue;
 }
 

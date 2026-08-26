@@ -175,6 +175,24 @@ class SqliteStore implements LocalStore {
     await database.execAsync(`PRAGMA wal_checkpoint(TRUNCATE)`);
   }
 
+  private async wipeLocalData(database: SQLite.SQLiteDatabase): Promise<void> {
+    await database.withTransactionAsync(async () => {
+      await database.runAsync(`DELETE FROM mirror_rows WHERE 1 = 1`);
+      await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
+      await database.runAsync(`DELETE FROM sync_cursors WHERE 1 = 1`);
+      await database.runAsync(`DELETE FROM drafts WHERE 1 = 1`);
+    });
+    await destroyKey();
+  }
+
+  private async recoverUnreadableLocalData<T>(
+    database: SQLite.SQLiteDatabase,
+    fallback: T,
+  ): Promise<T> {
+    await this.wipeLocalData(database);
+    return fallback;
+  }
+
   async putRows(rows: readonly StoredRow[]): Promise<void> {
     if (rows.length === 0) return;
     await this.serial.run(async () => {
@@ -222,15 +240,19 @@ class SqliteStore implements LocalStore {
       // whole mirror is decrypted and `JSON.parse`d here before `hydrated` flips,
       // and doing it in one synchronous burst froze the loading skeleton and the
       // first frame. The key is loaded once above; the per-row open is sync.
-      return mapYielding(rows, (row) => ({
-        table: row.table_name as SyncTable,
-        id: row.id,
-        groupId: row.group_id,
-        seq: row.seq,
-        row: JSON.parse(
-          decryptWith(key, row.json, mirrorAad(row.table_name, row.id, row.group_id, row.seq)),
-        ) as MirrorRow,
-      }));
+      try {
+        return await mapYielding(rows, (row) => ({
+          table: row.table_name as SyncTable,
+          id: row.id,
+          groupId: row.group_id,
+          seq: row.seq,
+          row: JSON.parse(
+            decryptWith(key, row.json, mirrorAad(row.table_name, row.id, row.group_id, row.seq)),
+          ) as MirrorRow,
+        }));
+      } catch {
+        return this.recoverUnreadableLocalData(database, []);
+      }
     });
   }
 
@@ -271,12 +293,16 @@ class SqliteStore implements LocalStore {
         seq: number;
         json: string;
       }>(`SELECT client_mutation_id, seq, json FROM pending_mutations ORDER BY seq ASC`);
-      return rows.map(
-        (row) =>
-          JSON.parse(
-            decryptWith(key, row.json, queueAad(row.client_mutation_id, row.seq)),
-          ) as QueuedMutation,
-      );
+      try {
+        return rows.map(
+          (row) =>
+            JSON.parse(
+              decryptWith(key, row.json, queueAad(row.client_mutation_id, row.seq)),
+            ) as QueuedMutation,
+        );
+      } catch {
+        return this.recoverUnreadableLocalData(database, []);
+      }
     });
   }
 
@@ -315,7 +341,11 @@ class SqliteStore implements LocalStore {
         `SELECT json FROM drafts WHERE key = ?`,
         [key],
       );
-      return row ? (JSON.parse(decryptWith(dek, row.json, draftAad(key))) as T) : null;
+      try {
+        return row ? (JSON.parse(decryptWith(dek, row.json, draftAad(key))) as T) : null;
+      } catch {
+        return this.recoverUnreadableLocalData(database, null);
+      }
     });
   }
 
@@ -345,11 +375,15 @@ class SqliteStore implements LocalStore {
       const rows = await database.getAllAsync<{ key: string; json: string; saved_at: string }>(
         `SELECT key, json, saved_at FROM drafts ORDER BY saved_at DESC`,
       );
-      return rows.map((row) => ({
-        key: row.key,
-        value: JSON.parse(decryptWith(dek, row.json, draftAad(row.key))) as unknown,
-        savedAt: row.saved_at,
-      }));
+      try {
+        return rows.map((row) => ({
+          key: row.key,
+          value: JSON.parse(decryptWith(dek, row.json, draftAad(row.key))) as unknown,
+          savedAt: row.saved_at,
+        }));
+      } catch {
+        return this.recoverUnreadableLocalData(database, []);
+      }
     });
   }
 

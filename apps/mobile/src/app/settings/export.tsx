@@ -83,12 +83,20 @@ export default function ExportScreen() {
         sizeBytes = result.content.length;
       }
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, {
-          mimeType: result.contentType,
-          dialogTitle: t.exportData.shareTitle,
-          UTI: UTI[format],
-        });
+      try {
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(file.uri, {
+            mimeType: result.contentType,
+            dialogTitle: t.exportData.shareTitle,
+            UTI: UTI[format],
+          });
+        }
+      } finally {
+        try {
+          if (file.exists) file.delete();
+        } catch {
+          // Best-effort privacy cleanup; sharing result still drives the UI.
+        }
       }
       setDone(`${result.filename} · ${Math.ceil(sizeBytes / 1024)} KB`);
     } catch (caught) {

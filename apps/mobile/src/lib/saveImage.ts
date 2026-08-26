@@ -52,10 +52,18 @@ export async function saveImageToDevice(url: string): Promise<SaveImageResult> {
     file.create();
     file.write(bytes);
 
-    await Sharing.shareAsync(file.uri, {
-      mimeType: contentType ?? 'image/jpeg',
-      dialogTitle: 'Save receipt',
-    });
+    try {
+      await Sharing.shareAsync(file.uri, {
+        mimeType: contentType ?? 'image/jpeg',
+        dialogTitle: 'Save receipt',
+      });
+    } finally {
+      try {
+        if (file.exists) file.delete();
+      } catch {
+        // Best-effort privacy cleanup; the share outcome matters more than cleanup errors.
+      }
+    }
     return 'shared';
   } catch {
     return 'error';
