@@ -21,6 +21,34 @@ describe('guessIcon', () => {
     expect(guessIcon('Gym membership')).toBe('barbell-outline');
   });
 
+  it('covers everyday food, grocery, and shopping descriptions', () => {
+    expect(guessIcon('Fresh juice')).toBe('nutrition-outline');
+    expect(guessIcon('Sushi dinner')).toBe('fish-outline');
+    expect(guessIcon('Zomato rolls')).toBe('fast-food-outline');
+    expect(guessIcon('Blinkit milk and atta')).toBe('basket-outline');
+    expect(guessIcon('Nykaa order')).toBe('bag-handle-outline');
+    expect(guessIcon('Shoes laundry')).toBe('shirt-outline');
+  });
+
+  it('covers travel, stay, and local commute descriptions', () => {
+    expect(guessIcon('Akasa flight')).toBe('airplane-outline');
+    expect(guessIcon('Petrol and toll')).toBe('speedometer-outline');
+    expect(guessIcon('Airport namma yatri')).toBe('car-outline');
+    expect(guessIcon('Parking at mall')).toBe('location-outline');
+    expect(guessIcon('Treebo guesthouse checkin')).toBe('bed-outline');
+    expect(guessIcon('Flat society deposit')).toBe('business-outline');
+  });
+
+  it('covers entertainment, home, health, and gifts', () => {
+    expect(guessIcon('Hotstar subscription')).toBe('tv-outline');
+    expect(guessIcon('Museum sightseeing')).toBe('camera-outline');
+    expect(guessIcon('Rent deposit')).toBe('home-outline');
+    expect(guessIcon('Maid cook payment')).toBe('people-outline');
+    expect(guessIcon('Lab scan')).toBe('flask-outline');
+    expect(guessIcon('Charity donation')).toBe('heart-outline');
+    expect(guessIcon('Birthday shagun')).toBe('gift-outline');
+  });
+
   it('prefers the specific reading over the general one below it', () => {
     // "car rental" must be the sportier car, not the plain cab that follows it.
     expect(guessIcon('Car rental for the trip')).toBe('car-sport-outline');
