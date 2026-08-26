@@ -16,6 +16,8 @@
  * `expense-write` path — the parity hole this contract exists to prevent.
  */
 
+import { serialiseSplitParams } from '@waves/core';
+
 import type { WriteExpenseInput } from './api';
 
 /**
@@ -33,7 +35,7 @@ export function serialiseExpense(
     currency: input.currency,
     amount: input.amount.toString(),
     fx: input.fx ?? null,
-    splitParams: input.splitParams,
+    splitParams: serialiseSplitParams(input.splitParams),
     participants: input.participants,
     payers: Object.fromEntries(
       Object.entries(input.payers).map(([member, amount]) => [member, amount.toString()]),

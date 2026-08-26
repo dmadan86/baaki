@@ -82,7 +82,7 @@ export function parseSplitParams(raw: unknown): SplitParams {
       requireRecord(basisPoints, 'basisPoints');
       return {
         kind: 'percent',
-        basisPoints: mapValues(basisPoints, (value) => Number(integer(value, 'basisPoints'))),
+        basisPoints: mapValues(basisPoints, (value) => safeNumberInteger(value, 'basisPoints')),
       };
     }
 
@@ -91,7 +91,7 @@ export function parseSplitParams(raw: unknown): SplitParams {
       requireRecord(weights, 'weights');
       return {
         kind: 'shares',
-        weights: mapValues(weights, (value) => Number(integer(value, 'weights'))),
+        weights: mapValues(weights, (value) => safeNumberInteger(value, 'weights')),
       };
     }
 
@@ -100,7 +100,6 @@ export function parseSplitParams(raw: unknown): SplitParams {
       if (!Array.isArray(items)) {
         throw new SplitWireError('BAD_SHAPE', 'An itemized split needs a list of items');
       }
-      requireRecord(params.claims, 'claims');
       return {
         kind: 'itemized',
         items: items.map((item, index) => {
@@ -113,7 +112,7 @@ export function parseSplitParams(raw: unknown): SplitParams {
             total: integer(line.total, `items[${index}].total`),
           };
         }),
-        claims: params.claims as ItemizedParams['claims'],
+        claims: itemizedClaims(params.claims, items.length),
         ...optionalBig('taxes', maybeInteger(params.taxes, 'taxes')),
         ...optionalBig('serviceCharge', maybeInteger(params.serviceCharge, 'serviceCharge')),
         ...optionalBig('tip', maybeInteger(params.tip, 'tip')),
@@ -153,7 +152,52 @@ function integer(value: unknown, field: string): bigint {
 }
 
 function maybeInteger(value: unknown, field: string): bigint | undefined {
-  return value === undefined || value === null ? undefined : integer(value, field);
+  return value === undefined ? undefined : integer(value, field);
+}
+
+function safeNumberInteger(value: unknown, field: string): number {
+  const parsed = integer(value, field);
+  if (parsed < 0n || parsed > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new SplitWireError(
+      'NOT_AN_INTEGER',
+      `${field}: ${parsed} is outside the safe integer range`,
+    );
+  }
+  return Number(parsed);
+}
+
+function itemizedClaims(raw: unknown, itemCount: number): ItemizedParams['claims'] {
+  requireRecord(raw, 'claims');
+  const claims: Record<number, MemberId[]> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!/^\d+$/.test(key)) {
+      throw new SplitWireError('BAD_SHAPE', `claims key ${key} is not a line index`);
+    }
+    const index = Number(key);
+    if (!Number.isSafeInteger(index) || index >= itemCount) {
+      throw new SplitWireError('BAD_SHAPE', `claims key ${key} does not name an item`);
+    }
+    if (Object.prototype.hasOwnProperty.call(claims, index)) {
+      throw new SplitWireError('BAD_SHAPE', `claims key ${key} repeats an item index`);
+    }
+    if (!Array.isArray(value)) {
+      throw new SplitWireError('BAD_SHAPE', `claims[${key}] must be a list of member ids`);
+    }
+    const members: MemberId[] = [];
+    const seen = new Set<MemberId>();
+    for (const member of value) {
+      if (typeof member !== 'string' || member.length === 0) {
+        throw new SplitWireError('BAD_SHAPE', `claims[${key}] must contain member ids`);
+      }
+      if (seen.has(member)) {
+        throw new SplitWireError('BAD_SHAPE', `claims[${key}] repeats member ${member}`);
+      }
+      seen.add(member);
+      members.push(member);
+    }
+    claims[index] = members;
+  }
+  return claims;
 }
 
 function requireRecord(value: unknown, field: string): asserts value is Record<string, unknown> {
@@ -169,7 +213,7 @@ function mapValues<In, Out>(
   return Object.fromEntries(Object.entries(source).map(([key, value]) => [key, transform(value)]));
 }
 
-/** Absent stays absent. `{ tip: null }` would read as "no tip", which is not the same as "no tip line". */
+/** Absent stays absent. `{ tip: null }` is refused rather than treated as a missing receipt line. */
 function optionalString<K extends string>(
   key: K,
   value: bigint | undefined,
