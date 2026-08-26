@@ -1801,6 +1801,14 @@ export interface UiStrings {
     noGroupsInFile: string;
     /** Rejects the import when the person marked "me" is not in the target group. */
     couldNotFindYou: string;
+    /** Shown while the picked file is being read off disk. */
+    reading: string;
+    /** Shown while the file's rows are being parsed into a preview. */
+    parsing: string;
+    /** Shown while the parsed rows are being written to the group. */
+    importingCount: PluralForms;
+    /** Default group name for a Splitwise import, since the CSV carries none. */
+    splitwiseGroupName: string;
   };
   /** Picking people, a country, and the dates a trip runs between. */
   pickers: {
@@ -3594,6 +3602,10 @@ const en: UiStrings = {
       'The amounts below are the {currency} ones. {others} come across too, and are never converted.',
     noGroupsInFile: 'That file has no groups to import.',
     couldNotFindYou: 'Could not find you in that group. Open it and try again.',
+    reading: 'Reading the file…',
+    parsing: 'Working through the rows…',
+    importingCount: { one: 'Importing {n} expense…', other: 'Importing {n} expenses…' },
+    splitwiseGroupName: 'Splitwise',
   },
   pickers: {
     contactsDeniedTitle: 'Contacts are switched off',
@@ -5471,6 +5483,13 @@ const ta: UiStrings = {
     noGroupsInFile: 'அந்தக் கோப்பில் இறக்குமதி செய்ய குழுக்கள் இல்லை.',
     couldNotFindYou:
       'அந்தக் குழுவில் உங்களைக் கண்டறிய முடியவில்லை. அதைத் திறந்து மீண்டும் முயற்சிக்கவும்.',
+    reading: 'கோப்பைப் படிக்கிறது…',
+    parsing: 'வரிசைகளைச் செயலாக்குகிறது…',
+    importingCount: {
+      one: '{n} செலவை இறக்குமதி செய்கிறது…',
+      other: '{n} செலவுகளை இறக்குமதி செய்கிறது…',
+    },
+    splitwiseGroupName: 'Splitwise',
   },
   pickers: {
     contactsDeniedTitle: 'தொடர்புகள் அணைக்கப்பட்டுள்ளன',
@@ -7286,6 +7305,10 @@ const hi: UiStrings = {
       'नीचे की रकमें {currency} वाली हैं। {others} भी आती हैं, और कभी बदली नहीं जातीं।',
     noGroupsInFile: 'उस फ़ाइल में आयात करने के लिए कोई समूह नहीं है।',
     couldNotFindYou: 'उस समूह में आप नहीं मिले। उसे खोलकर फिर कोशिश करें।',
+    reading: 'फ़ाइल पढ़ी जा रही है…',
+    parsing: 'पंक्तियाँ संसाधित हो रही हैं…',
+    importingCount: { one: '{n} खर्च आयात हो रहा है…', other: '{n} खर्च आयात हो रहे हैं…' },
+    splitwiseGroupName: 'Splitwise',
   },
   pickers: {
     contactsDeniedTitle: 'संपर्क बंद हैं',
@@ -9261,6 +9284,17 @@ const ar: UiStrings = {
       'المبالغ أدناه هي مبالغ {currency}. وتأتي {others} أيضًا، ولا تُحوَّل أبدًا.',
     noGroupsInFile: 'لا توجد مجموعات في ذلك الملف لاستيرادها.',
     couldNotFindYou: 'تعذّر العثور عليك في تلك المجموعة. افتحها وحاول مرة أخرى.',
+    reading: 'جارٍ قراءة الملف…',
+    parsing: 'جارٍ معالجة الصفوف…',
+    importingCount: {
+      zero: 'لا شيء لاستيراده…',
+      one: 'جارٍ استيراد مصروف واحد…',
+      two: 'جارٍ استيراد مصروفين…',
+      few: 'جارٍ استيراد {n} مصاريف…',
+      many: 'جارٍ استيراد {n} مصروفًا…',
+      other: 'جارٍ استيراد {n} مصروف…',
+    },
+    splitwiseGroupName: 'Splitwise',
   },
   pickers: {
     contactsDeniedTitle: 'جهات الاتصال مُوقَفة',
