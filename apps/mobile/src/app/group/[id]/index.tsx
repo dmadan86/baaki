@@ -328,6 +328,25 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
   // colour. A deleted row is dimmed rather than hidden, so the
   // ledger stays visibly append-only.
   const title = expenseTitle(version?.description, version?.category, t, version?.category_meta);
+  // The direction of your stake, said in words. It rides under the amount on the
+  // right and doubles as the label the muted date pairs with — "you lent · 19
+  // Mar" — so the row's meaning is the sign on the amount, not the row's colour.
+  const directionLabel =
+    stake === null
+      ? t.expense.notInvolved
+      : stake > 0n
+        ? t.expense.youLent
+        : stake < 0n
+          ? t.expense.youBorrowed
+          : t.allSettled;
+  // The day-and-month stamp lives in the fixed right column now, not on the
+  // muted subtitle under the title. That is what guarantees it survives a long
+  // payer name: the name ellipsizes in the flexible middle, the date rides the
+  // column that never shrinks.
+  const dateStamp = version ? dateFmt.format(new Date(version.expense_date)) : null;
+  // The right column's date-line: the direction and the date, joined the way the
+  // subtitle joins its parts. Undated rows (no version) show the label alone.
+  const rightMeta = [directionLabel, dateStamp].filter(Boolean).join(' · ');
   return (
     <View>
       <Pressable
@@ -351,7 +370,11 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
             description={version?.description}
             size={40}
           />
-          <View style={{ flex: 1 }}>
+          {/* MIDDLE — the one zone that yields. `minWidth: 0` lets a long title
+              or payer name actually ellipsize here rather than shoving the amount
+              and date off the row; the flex swallows the slack so the right
+              column can stay at its natural width. */}
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
               <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {title}
@@ -361,7 +384,6 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
             <Text variant="caption" tone="muted" numberOfLines={1}>
               {[
                 paidLine,
-                version ? dateFmt.format(new Date(version.expense_date)) : null,
                 expense.deleted_at ? t.expense.deleted : null,
                 (version?.version_no ?? 1) > 1
                   ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
@@ -371,30 +393,30 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
                 .join(' · ')}
             </Text>
           </View>
+          {/* RIGHT — fixed and right-aligned, the money column. `flexShrink: 0`
+              plus no width cap is what makes the amount the hero: it can never be
+              squeezed or clipped by a long name, and the date sits directly under
+              it so it is always on the row too. Only the middle ever gives. */}
           {version ? (
-            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text variant="micro" tone="muted">
-                  {stake === null
-                    ? t.expense.notInvolved
-                    : stake > 0n
-                      ? t.expense.youLent
-                      : stake < 0n
-                        ? t.expense.youBorrowed
-                        : t.allSettled}
-                </Text>
+            <View style={{ flexShrink: 0, alignItems: 'flex-end' }}>
+              <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
                 {stake !== null && stake !== 0n ? (
                   <MoneyText
                     amount={stake}
                     currency={version.currency}
                     locale={locale}
                     mode="balance"
+                    numberOfLines={1}
+                    variant="subheading"
                     style={{ fontWeight: '700' }}
                   />
                 ) : null}
-              </View>
-              {expense.pending ? <PendingMark /> : null}
-            </Row>
+                {expense.pending ? <PendingMark /> : null}
+              </Row>
+              <Text variant="micro" tone="muted" numberOfLines={1}>
+                {rightMeta}
+              </Text>
+            </View>
           ) : null}
         </Row>
       </Pressable>
