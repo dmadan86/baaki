@@ -25,6 +25,42 @@ describe('parseVoiceExpense', () => {
     expect(parseVoiceExpense('add 500 rupees', groups).groupId).toBeNull();
   });
 
+  it('handles assignment phrasing and keeps it out of the note', () => {
+    const withTest: VoiceGroupRef[] = [...groups, { id: 'g-test', name: 'Test One' }];
+    // "assign to group X", the amount and the T-shirt description, plus the
+    // routing verbs, all resolve: group matched, note is just the description.
+    const assign = parseVoiceExpense('500 rupees t shirt assign to group test one', withTest);
+    expect(assign.groupId).toBe('g-test');
+    expect(assign.amountMinor).toBe(50000n);
+    expect(assign.note).toBe('t shirt');
+
+    // "put it in <group>" and "in this group <group>" are the same intent.
+    expect(parseVoiceExpense('200 for lunch put it in Goa trip', groups).groupId).toBe('g-goa');
+    const inThis = parseVoiceExpense('300 snacks in this group Goa trip', groups);
+    expect(inThis.groupId).toBe('g-goa');
+    expect(inThis.note).toBe('snacks');
+  });
+
+  it('routing cleanup is phrase-aware, not a blanket word drop', () => {
+    // A group literally named after a routing word still matches — the words are
+    // only filler inside a recognised routing phrase, not everywhere.
+    const named: VoiceGroupRef[] = [
+      { id: 'g-it', name: 'IT' },
+      { id: 'g-this', name: 'This' },
+      { id: 'g1', name: 'Group 1' },
+      { id: 'g-proj1', name: 'Project 1' },
+    ];
+    expect(parseVoiceExpense('500 lunch for IT', named).groupId).toBe('g-it');
+    expect(parseVoiceExpense('500 lunch for This', named).groupId).toBe('g-this');
+    // "assign to group 1" keeps "Group 1" whole, so it is not confused with
+    // "Project 1" (both would tie on a bare "1" if "group" were dropped here).
+    expect(parseVoiceExpense('500 t shirt assign to group 1', named).groupId).toBe('g1');
+
+    // An ordinary description keeps words like "this" when no routing phrase is
+    // present.
+    expect(parseVoiceExpense('500 for this lunch', groups).note).toBe('this lunch');
+  });
+
   it('leaves the group null when the name is ambiguous', () => {
     const twoTrips: VoiceGroupRef[] = [
       { id: 'a', name: 'Goa Trip' },
