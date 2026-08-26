@@ -193,7 +193,11 @@ export const CATEGORIES: readonly Category[] = [
     keywords: [
       'shopping',
       'clothes',
+      'clothing',
+      'dress',
       'shirt',
+      'tshirt',
+      'jeans',
       'saree',
       'kurta',
       'shoes',

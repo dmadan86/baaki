@@ -88,16 +88,12 @@ function CaptureListRow({
   locale,
   t,
   onAssign,
-  onEdit,
-  onDelete,
   hideLocation = false,
 }: {
   capture: CaptureRow;
   locale: string;
   t: UiStrings;
   onAssign: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
   /** Inside a batch the description IS the line that matters, so the place is
    *  suppressed there — the batch stands for one outing, one location. */
   hideLocation?: boolean;
@@ -155,26 +151,22 @@ function CaptureListRow({
           ) : null}
         </View>
 
+        {/* A clean row: identity, what it was, the amount — and nothing else.
+            The row taps to open the draft's sheet, where assign / edit / delete
+            live, the same one-level-deeper grammar the group expense list uses
+            (a row is a target, its actions sit on the screen it opens). A
+            trailing chevron marks it as tappable-through. */}
         <MoneyText
           amount={BigInt(capture.amount)}
           currency={capture.currency}
           locale={locale}
           variant="subheading"
         />
-        {/* The two row actions kept together as their own group with a tight
-            gap, set off from the amount by the parent Row's spacing — so they
-            read as a pair of buttons, not two glyphs crowding the number. Edit
-            is a neutral muted mark; delete is red before it is tapped (the
-            WhatsApp/Vipps convention), so "bin it" never hides among the greys.
-            The whole row still taps to assign; both icons keep their own hitbox. */}
-        <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-          <IconButton label={t.captures.edit} onPress={onEdit}>
-            <Ionicons name="create-outline" size={iconSize.md} color={theme.color.textMuted} />
-          </IconButton>
-          <IconButton label={t.captures.delete} onPress={onDelete}>
-            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
-          </IconButton>
-        </Row>
+        <Ionicons
+          name={directionalIcon('chevron-forward')}
+          size={iconSize.sm}
+          color={theme.color.textFaint}
+        />
       </Row>
     </Pressable>
   );
@@ -222,16 +214,12 @@ function BatchGroupCard({
   locale,
   t,
   onAssign,
-  onEdit,
-  onDelete,
   onDeleteBatch,
 }: {
   items: CaptureRow[];
   locale: string;
   t: UiStrings;
   onAssign: (capture: CaptureRow) => void;
-  onEdit: (capture: CaptureRow) => void;
-  onDelete: (capture: CaptureRow) => void;
   onDeleteBatch: () => void;
 }) {
   const theme = useTheme();
@@ -311,12 +299,10 @@ function BatchGroupCard({
               {plural(locale, items.length, t.captures.batchExpenses)}
             </Text>
           )}
-          {/* Delete the whole batch — the trailing control the standalone rows
-              carry, here removing every expense in the group at once. A nested
-              press, so it deletes rather than toggling the card. */}
-          <IconButton label={t.captures.deleteBatch} onPress={onDeleteBatch}>
-            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
-          </IconButton>
+          {/* Only the expander at the trailing edge — deleting the whole batch
+              is a labelled action inside the opened card, not an icon crowding
+              the header (the same clean-header rule the rest of the screen now
+              follows). */}
           <Ionicons
             name={open ? 'chevron-up' : 'chevron-down'}
             size={iconSize.md}
@@ -343,7 +329,7 @@ function BatchGroupCard({
               </Text>
             </Row>
           ) : null}
-          {items.map((capture, index) => (
+          {items.map((capture) => (
             <View key={capture.id}>
               <Divider />
               <CaptureListRow
@@ -351,13 +337,31 @@ function BatchGroupCard({
                 locale={locale}
                 t={t}
                 onAssign={() => onAssign(capture)}
-                onEdit={() => onEdit(capture)}
-                onDelete={() => onDelete(capture)}
                 hideLocation
               />
-              {index === items.length - 1 ? <View style={{ height: theme.spacing.xs }} /> : null}
             </View>
           ))}
+          {/* Delete the whole batch — a labelled, red text action at the foot of
+              the opened card rather than an icon in the header. Reads as the
+              deliberate "remove all of these" it is. */}
+          <Divider />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.captures.deleteBatch}
+            onPress={onDeleteBatch}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.sm,
+              paddingVertical: theme.spacing.md,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
+            <Text variant="body" tone="negative">
+              {t.captures.deleteBatch}
+            </Text>
+          </Pressable>
         </View>
       ) : null}
     </View>
@@ -592,8 +596,6 @@ export default function CapturesScreen() {
                       locale={locale}
                       t={t}
                       onAssign={openAssign}
-                      onEdit={openEdit}
-                      onDelete={confirmDelete}
                       onDeleteBatch={() => confirmDeleteBatch(item.items)}
                     />
                   ) : (
@@ -603,8 +605,6 @@ export default function CapturesScreen() {
                       locale={locale}
                       t={t}
                       onAssign={() => openAssign(item.capture)}
-                      onEdit={() => openEdit(item.capture)}
-                      onDelete={() => confirmDelete(item.capture)}
                     />
                   ),
                 )}
@@ -694,6 +694,69 @@ export default function CapturesScreen() {
                     </Text>
                   ) : null}
                 </View>
+              </Row>
+            ) : null}
+
+            {/* The draft's own actions, one level deeper than the list — the
+                place edit and delete live now that the rows are clean. Edit is a
+                neutral outline pill; delete is red. Both close the sheet first so
+                nothing acts on a row that is about to change or vanish. */}
+            {assigning ? (
+              <Row style={{ gap: theme.spacing.sm }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.captures.edit}
+                  onPress={() => {
+                    const target = assigning;
+                    closeAssign();
+                    openEdit(target);
+                  }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: theme.spacing.xs,
+                    paddingVertical: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor: theme.color.border,
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <Ionicons
+                    name="create-outline"
+                    size={iconSize.md}
+                    color={theme.color.textMuted}
+                  />
+                  <Text variant="body">{t.captures.edit}</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.captures.delete}
+                  onPress={() => {
+                    const target = assigning;
+                    closeAssign();
+                    confirmDelete(target);
+                  }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: theme.spacing.xs,
+                    paddingVertical: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor: theme.color.border,
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
+                  <Text variant="body" tone="negative">
+                    {t.captures.delete}
+                  </Text>
+                </Pressable>
               </Row>
             ) : null}
 

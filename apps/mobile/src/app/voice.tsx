@@ -26,7 +26,13 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { computeShares, minorUnitScale, type ExpenseLocation, type SplitParams } from '@waves/core';
+import {
+  computeShares,
+  guessCategory,
+  minorUnitScale,
+  type ExpenseLocation,
+  type SplitParams,
+} from '@waves/core';
 import {
   Badge,
   Button,
@@ -392,9 +398,14 @@ export default function VoiceScreen() {
       const currency = draft.currency ?? dc;
       const amount = toMinor(draft.amount, currency);
       if (amount === null) continue;
+      const description = draft.note.trim() || fallback;
       await createCapture.mutateAsync({
         captureId: draft.key,
-        description: draft.note.trim() || fallback,
+        description,
+        // Guess the category from the spoken words so a draft wears a real glyph
+        // (rent -> home, petrol -> car, dress -> shopping) instead of the generic
+        // "other" ellipsis. Null when nothing matches — a plain circle is fine.
+        category: guessCategory(description),
         expenseDate: date,
         currency,
         amount,
@@ -545,6 +556,7 @@ export default function VoiceScreen() {
         // The draft's stable id is the expense id (and the split seed), so a
         // retry appends no duplicate.
         const expenseId = draft.key;
+        const description = draft.note.trim() || fallback;
         const shares = computeShares({
           amount,
           currency: groupCurrency,
@@ -554,8 +566,10 @@ export default function VoiceScreen() {
         });
         await writeExpense.mutateAsync({
           expenseId,
-          description: draft.note.trim() || fallback,
-          category: null,
+          description,
+          // Same guess as the inbox path: a spoken bill lands in the group with a
+          // real category glyph, not the generic "other" ellipsis.
+          category: guessCategory(description),
           expenseDate: date,
           currency: groupCurrency,
           amount,
