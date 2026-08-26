@@ -57,6 +57,7 @@ import {
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
 import { friendlyError } from '@/lib/errors';
 import { plural, useStrings, type UiStrings } from '@/i18n';
+import { useReducedMotion } from '@/lib/reducedMotion';
 import { useGroups } from '@/data/hooks';
 import { displayName, groupLabel, GroupType, type MemberRow } from '@/data/types';
 import { useAuth } from '@/lib/auth';
@@ -132,6 +133,7 @@ export default function ImportScreen() {
   // plus a token, never a magic pixel number).
   const clearance = useScreenClearance(theme.spacing.xxxl * 2);
   const { t, locale } = useStrings();
+  const reduceMotion = useReducedMotion();
   const groups = useGroups();
   const { profile } = useAuth();
 
@@ -450,7 +452,7 @@ export default function ImportScreen() {
             <Text variant="caption" tone="muted">
               {stage === 'reading' ? t.importLedger.reading : t.importLedger.parsing}
             </Text>
-            <ProgressBar />
+            <ProgressBar animated={!reduceMotion} />
           </View>
         ) : null}
 
@@ -609,7 +611,7 @@ export default function ImportScreen() {
                 />
                 {stage === 'importing' ? (
                   <View style={{ gap: theme.spacing.sm }}>
-                    <ProgressBar />
+                    <ProgressBar animated={!reduceMotion} />
                     <Text variant="caption" tone="muted" align="center">
                       {plural(locale, parsed.expenses.length, t.importLedger.importingCount)}
                     </Text>
