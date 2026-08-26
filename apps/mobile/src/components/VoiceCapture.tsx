@@ -26,7 +26,7 @@ import Reanimated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
@@ -148,24 +148,30 @@ function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
 }
 
 /** The waveform's drawing box. Fixed and centred — the status area centres it. */
-const WAVE_W = 260;
-const WAVE_H = 76;
+const WAVE_W = 300;
+const WAVE_H = 104;
 
 /**
- * The colours of the listening wave, back to front: teal → green → blue → violet
- * → magenta → pink, the spectrum a modern voice assistant paints while it hears
- * you. Each layer is one translucent sine ribbon; overlapped and blended they
- * read as a single flowing, colourful wave rather than a stack of separate lines.
- * The layers differ in phase, wavelength (`cycles`), height (`amp`), stroke and
- * opacity so the overlaps shift and shimmer instead of moving as one.
+ * The listening wave: filled, symmetric lobes mirrored about the centre line, the
+ * shape a modern voice assistant draws while it hears you. Each layer is a closed
+ * ribbon that swells into humps and pinches to a hairline between them, tapering
+ * to a fine point at both ends; layered and blended over one pink→cyan gradient,
+ * the overlaps build a bright core with crisp edges. Layers differ in wavelength
+ * (`cycles`), phase, height (`amp`) and opacity so the humps sit in different
+ * places and the wave reads as one living body, not a stack of copies. The last
+ * layer is the hot white core.
  */
+const WAVE_GRADIENT = 'url(#ecoWaveGrad)';
+
 const WAVE_LAYERS = [
-  { color: '#22D3B7', phase: 0.0, amp: 0.72, width: 9, opacity: 0.55, cycles: 1.4 },
-  { color: '#34D399', phase: 0.9, amp: 0.88, width: 8, opacity: 0.5, cycles: 1.7 },
-  { color: '#3B82F6', phase: 1.8, amp: 1.0, width: 11, opacity: 0.55, cycles: 1.2 },
-  { color: '#8B5CF6', phase: 2.7, amp: 0.8, width: 9, opacity: 0.5, cycles: 1.9 },
-  { color: '#C026D3', phase: 3.6, amp: 0.94, width: 10, opacity: 0.5, cycles: 1.5 },
-  { color: '#EC4899', phase: 4.5, amp: 0.66, width: 8, opacity: 0.5, cycles: 2.1 },
+  { id: 'l0', fill: WAVE_GRADIENT, cycles: 1.1, phase: 0.0, amp: 0.62, opacity: 0.42 },
+  { id: 'l1', fill: WAVE_GRADIENT, cycles: 1.7, phase: 0.9, amp: 0.82, opacity: 0.4 },
+  { id: 'l2', fill: WAVE_GRADIENT, cycles: 1.0, phase: 1.9, amp: 1.0, opacity: 0.4 },
+  { id: 'l3', fill: WAVE_GRADIENT, cycles: 2.1, phase: 2.7, amp: 0.72, opacity: 0.4 },
+  { id: 'l4', fill: WAVE_GRADIENT, cycles: 1.5, phase: 3.6, amp: 0.9, opacity: 0.42 },
+  // The hot core: a bright, low, tight ribbon on top, where a real voice UI's
+  // centre burns near white.
+  { id: 'core', fill: '#F0F9FF', cycles: 1.5, phase: 1.2, amp: 0.34, opacity: 0.9 },
 ] as const;
 
 type WaveLayerSpec = (typeof WAVE_LAYERS)[number];
@@ -173,50 +179,48 @@ type WaveLayerSpec = (typeof WAVE_LAYERS)[number];
 const AnimatedPath = Reanimated.createAnimatedComponent(Path);
 
 /**
- * One layer's path for the current phase. A centre-weighted Gaussian envelope
- * gives the crest in the middle that tapers to nothing at the edges (the shape in
- * the reference); a slow breath on the amplitude keeps it alive when the sound is
- * steady. Runs on the UI thread — it is the body of a `useAnimatedProps` worklet.
+ * One layer's closed path for the current phase: the top edge left→right, then the
+ * mirrored bottom edge right→left, closed into a filled ribbon. Symmetric about
+ * the centre line, so it swells into centre-weighted humps and pinches to a
+ * hairline between them, tapering to a point at both ends like the reference.
+ * Runs on the UI thread — the body of a `useAnimatedProps` worklet.
  */
 function wavePath(phase: number, layer: WaveLayerSpec): string {
   'worklet';
-  const points = 40;
+  const points = 72;
   const cy = WAVE_H / 2;
-  const breath = 0.82 + 0.18 * Math.sin(phase * 2 + layer.phase);
-  const maxAmp = (WAVE_H / 2 - layer.width / 2 - 1) * layer.amp * breath;
-  let d = '';
+  const breath = 0.85 + 0.15 * Math.sin(phase * 2 + layer.phase);
+  const reach = (WAVE_H / 2 - 1) * layer.amp * breath;
+  let top = '';
+  let bottom = '';
   for (let i = 0; i <= points; i++) {
     const frac = i / points;
-    const x = frac * WAVE_W;
-    const env = Math.exp(-Math.pow((frac - 0.5) / 0.32, 2));
-    const y = cy + Math.sin(frac * layer.cycles * Math.PI * 2 + phase + layer.phase) * maxAmp * env;
-    d += `${i === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)} `;
+    const x = (frac * WAVE_W).toFixed(2);
+    const env = Math.exp(-Math.pow((frac - 0.5) / 0.34, 2));
+    const hump = Math.abs(Math.sin(frac * layer.cycles * Math.PI * 2 + phase + layer.phase));
+    // 0.05 keeps a hairline through the middle so the lobes read as one wave, not
+    // a row of separate blobs; the rest is the swelling hump.
+    const h = env * reach * (0.05 + 0.95 * hump);
+    top += `${i === 0 ? 'M' : 'L'}${x} ${(cy - h).toFixed(2)} `;
+    // Prepend the bottom edge so it reads right→left once appended after the top.
+    bottom = `L${x} ${(cy + h).toFixed(2)} ${bottom}`;
   }
-  return d;
+  return `${top}${bottom}Z`;
 }
 
-/** One translucent coloured ribbon, its path recomputed each frame from `phase`. */
+/** One translucent filled ribbon, its path recomputed each frame from `phase`. */
 function WaveLayer({ phase, layer }: { phase: SharedValue<number>; layer: WaveLayerSpec }) {
   const animatedProps = useAnimatedProps(() => ({ d: wavePath(phase.value, layer) }));
-  return (
-    <AnimatedPath
-      animatedProps={animatedProps}
-      stroke={layer.color}
-      strokeWidth={layer.width}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-      opacity={layer.opacity}
-    />
-  );
+  return <AnimatedPath animatedProps={animatedProps} fill={layer.fill} opacity={layer.opacity} />;
 }
 
 /**
- * The live sound wave under the status while listening — layered colourful sine
- * ribbons flowing across a centre crest, the "I am hearing you" of a modern voice
- * screen. One shared phase drives every layer on the UI thread; the layers differ
- * in wavelength and phase so they slide over each other rather than in lockstep.
- * Only mounted while listening, so the loop is torn down the moment it stops.
+ * The live sound wave under the status while listening — filled, symmetric colour
+ * lobes swelling and pinching across a bright core, the "I am hearing you" of a
+ * modern voice screen. One shared phase drives every layer on the UI thread; the
+ * layers differ in wavelength and phase so their humps sit in different places and
+ * the wave reads as one living body. Only mounted while listening, so the loop is
+ * torn down the moment it stops.
  */
 function Waveform({ active }: { active: boolean }) {
   const phase = useSharedValue(0);
@@ -224,9 +228,10 @@ function Waveform({ active }: { active: boolean }) {
   useEffect(() => {
     if (!active) return;
     phase.value = 0;
-    // 0 → 2π on a loop. The wave term is 2π-periodic, so the seam is invisible.
+    // 0 → 2π on a loop. Both the hump term (|sin|, period π) and the breath
+    // (sin of 2·phase) are seamless across the seam.
     phase.value = withRepeat(
-      withTiming(Math.PI * 2, { duration: 2200, easing: ReEasing.linear }),
+      withTiming(Math.PI * 2, { duration: 2400, easing: ReEasing.linear }),
       -1,
       false,
     );
@@ -235,8 +240,20 @@ function Waveform({ active }: { active: boolean }) {
 
   return (
     <Svg width={WAVE_W} height={WAVE_H}>
+      <Defs>
+        {/* Pink → fuchsia → violet → blue → cyan, left to right, so the whole
+            wave carries the reference's horizontal hue shift no matter which
+            layer a given lobe belongs to. */}
+        <LinearGradient id="ecoWaveGrad" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor="#F472B6" />
+          <Stop offset="0.28" stopColor="#C084FC" />
+          <Stop offset="0.52" stopColor="#818CF8" />
+          <Stop offset="0.74" stopColor="#38BDF8" />
+          <Stop offset="1" stopColor="#22D3EE" />
+        </LinearGradient>
+      </Defs>
       {WAVE_LAYERS.map((layer) => (
-        <WaveLayer key={layer.color} phase={phase} layer={layer} />
+        <WaveLayer key={layer.id} phase={phase} layer={layer} />
       ))}
     </Svg>
   );
