@@ -8,6 +8,7 @@ import type { MemberId, ShareMap, SplitParams } from '../src/split/types.js';
 const INR = 'INR';
 const SEED = 'multi-user-expense';
 
+/** Builds stable member ids so expected maps stay readable in failure output. */
 function members(count: number): MemberId[] {
   return Array.from(
     { length: count },
@@ -15,14 +16,17 @@ function members(count: number): MemberId[] {
   );
 }
 
+/** Zips member ids to numeric split inputs such as basis points or weights. */
 function mapValues(ids: readonly MemberId[], values: readonly number[]): Record<MemberId, number> {
   return Object.fromEntries(ids.map((id, index) => [id, values[index] ?? 0]));
 }
 
+/** Converts the core ShareMap into the plain record shape consumed by balances. */
 function recordShares(shares: ShareMap): Record<MemberId, bigint> {
   return Object.fromEntries(shares);
 }
 
+/** Simulates the user action of one payer adding an expense with server-computed shares. */
 function addExpense(input: {
   id: string;
   amount: bigint;
@@ -47,6 +51,7 @@ function addExpense(input: {
   };
 }
 
+/** Verifies the ledger stays balanced and every participant's net equals paid minus owed. */
 function assertExpenseLedger(expense: ExpenseSnapshot, participants: readonly MemberId[]): void {
   const shareMap = new Map(Object.entries(expense.shares));
   expect(sumShares(shareMap)).toBe(expense.amount);
@@ -204,6 +209,7 @@ describe('split performance benchmark', () => {
   });
 });
 
+/** Ensures proportional integer allocation only differs from the exact floor by remainder units. */
 function assertProportionalBounds(
   shares: Readonly<Record<MemberId, bigint>>,
   amount: bigint,
@@ -219,10 +225,12 @@ function assertProportionalBounds(
   }
 }
 
+/** Returns the largest bigint in a non-empty list, defaulting to zero for defensive test setup. */
 function max(values: readonly bigint[]): bigint {
   return values.reduce((highest, value) => (value > highest ? value : highest), values[0] ?? 0n);
 }
 
+/** Returns the smallest bigint in a non-empty list, defaulting to zero for defensive test setup. */
 function min(values: readonly bigint[]): bigint {
   return values.reduce((lowest, value) => (value < lowest ? value : lowest), values[0] ?? 0n);
 }
