@@ -32,6 +32,7 @@ import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { dictationError, englishSpeechLocale } from '@/lib/dictation';
+import { useReducedMotion } from '@/lib/reducedMotion';
 
 const MIC_SIZE = 104;
 
@@ -343,6 +344,7 @@ export function VoiceCapture({
   autoStart = true,
 }: VoiceCaptureProps) {
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
   const { t, locale } = useStrings();
 
   const [available] = useState(recognitionAvailable);
@@ -495,8 +497,8 @@ export function VoiceCapture({
           justifyContent: 'center',
         }}
       >
-        <Halo active={listening} theme={theme} />
-        <PulseRings active={listening} theme={theme} />
+        <Halo active={listening && !reduceMotion} theme={theme} />
+        <PulseRings active={listening && !reduceMotion} theme={theme} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
@@ -541,7 +543,7 @@ export function VoiceCapture({
         <Text tone={listening || showMiss ? 'brand' : 'muted'}>
           {listening ? t.misc.listening : showMiss ? t.voice.tapToRetry : t.voice.tapToSpeak}
         </Text>
-        {listening ? (
+        {listening && !reduceMotion ? (
           <Waveform active={listening} />
         ) : showMiss ? (
           <Text variant="caption" tone="faint" align="center">

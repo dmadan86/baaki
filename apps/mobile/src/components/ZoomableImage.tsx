@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { Image as RNImage, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -11,6 +11,7 @@ import Animated, {
 
 import { AnnotationOverlay } from '@/components/AnnotationOverlay';
 import { containRect, type Annotations } from '@/lib/annotations';
+import { clampZoomPoint, naturalSizeForUri, type NaturalImageSize } from '@/lib/zoomMath';
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -42,22 +43,9 @@ export function ZoomableImage({
   const { width, height } = useWindowDimensions();
   const boxHeight = height * 0.8;
 
-  // The image's natural size, only needed to place an overlay on its exact fit
-  // rectangle. Resolved once per uri; until then the rect falls back to the box.
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
-  useEffect(() => {
-    if (!annotations) return;
-    let active = true;
-    RNImage.getSize(
-      uri,
-      (w, h) => active && setNatural({ w, h }),
-      () => active && setNatural(null),
-    );
-    return () => {
-      active = false;
-    };
-  }, [uri, annotations]);
-
+  // The image's natural size anchors both pan bounds and, when present, overlay
+  // placement. Resolved once per uri; until then the rect falls back to the box.
+  const [natural, setNatural] = useState<NaturalImageSize | null>(null);
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -66,6 +54,51 @@ export function ZoomableImage({
   const savedY = useSharedValue(0);
 
   const reportZoom = (zoomed: boolean) => onZoomChange?.(zoomed);
+
+  // Hold the latest callback so the uri-reset effect can report the return to
+  // fit without depending on onZoomChange (that would reset zoom whenever the
+  // caller re-creates the callback).
+  const onZoomChangeRef = useRef(onZoomChange);
+  useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
+
+  useEffect(() => {
+    let active = true;
+    scale.set(1);
+    savedScale.set(1);
+    translateX.set(0);
+    translateY.set(0);
+    savedX.set(0);
+    savedY.set(0);
+    // A reused page (the gallery keys pages by index) can swap uri while still
+    // zoomed; tell the pager we are back at fit so it re-enables paging.
+    onZoomChangeRef.current?.(false);
+    RNImage.getSize(
+      uri,
+      (w, h) => active && setNatural({ uri, size: { w, h } }),
+      () => active && setNatural(null),
+    );
+    return () => {
+      active = false;
+    };
+  }, [savedScale, savedX, savedY, scale, translateX, translateY, uri]);
+
+  const naturalSize = naturalSizeForUri(natural, uri);
+  const rect = containRect({ w: width, h: boxHeight }, naturalSize ?? { w: 0, h: 0 });
+
+  useEffect(() => {
+    const clamped = clampZoomPoint(
+      { x: translateX.get(), y: translateY.get() },
+      { width, height: boxHeight },
+      { width: rect.w, height: rect.h },
+      scale.get(),
+    );
+    translateX.set(clamped.x);
+    translateY.set(clamped.y);
+    savedX.set(clamped.x);
+    savedY.set(clamped.y);
+  }, [boxHeight, rect.h, rect.w, savedX, savedY, scale, translateX, translateY, width]);
 
   const pinch = Gesture.Pinch()
     .onUpdate((event) => {
@@ -82,6 +115,16 @@ export function ZoomableImage({
         savedY.set(0);
         runOnJS(reportZoom)(false);
       } else {
+        const clamped = clampZoomPoint(
+          { x: translateX.get(), y: translateY.get() },
+          { width, height: boxHeight },
+          { width: rect.w, height: rect.h },
+          scale.get(),
+        );
+        translateX.set(withTiming(clamped.x));
+        translateY.set(withTiming(clamped.y));
+        savedX.set(clamped.x);
+        savedY.set(clamped.y);
         runOnJS(reportZoom)(true);
       }
     });
@@ -90,12 +133,26 @@ export function ZoomableImage({
     .onUpdate((event) => {
       // Panning only makes sense once zoomed in; at fit it stays put.
       if (scale.get() <= 1) return;
-      translateX.set(savedX.get() + event.translationX);
-      translateY.set(savedY.get() + event.translationY);
+      const clamped = clampZoomPoint(
+        { x: savedX.get() + event.translationX, y: savedY.get() + event.translationY },
+        { width, height: boxHeight },
+        { width: rect.w, height: rect.h },
+        scale.get(),
+      );
+      translateX.set(clamped.x);
+      translateY.set(clamped.y);
     })
     .onEnd(() => {
-      savedX.set(translateX.get());
-      savedY.set(translateY.get());
+      const clamped = clampZoomPoint(
+        { x: translateX.get(), y: translateY.get() },
+        { width, height: boxHeight },
+        { width: rect.w, height: rect.h },
+        scale.get(),
+      );
+      translateX.set(withTiming(clamped.x));
+      translateY.set(withTiming(clamped.y));
+      savedX.set(clamped.x);
+      savedY.set(clamped.y);
     });
 
   // Double-tap toggles zoom: from fit it magnifies to a fixed level centred on
@@ -119,14 +176,18 @@ export function ZoomableImage({
       }
       const dx = event.x - width / 2;
       const dy = event.y - height / 2;
-      const tx = -(DOUBLE_TAP_SCALE - 1) * dx;
-      const ty = -(DOUBLE_TAP_SCALE - 1) * dy;
+      const target = clampZoomPoint(
+        { x: -(DOUBLE_TAP_SCALE - 1) * dx, y: -(DOUBLE_TAP_SCALE - 1) * dy },
+        { width, height: boxHeight },
+        { width: rect.w, height: rect.h },
+        DOUBLE_TAP_SCALE,
+      );
       scale.set(withTiming(DOUBLE_TAP_SCALE));
       savedScale.set(DOUBLE_TAP_SCALE);
-      translateX.set(withTiming(tx));
-      translateY.set(withTiming(ty));
-      savedX.set(tx);
-      savedY.set(ty);
+      translateX.set(withTiming(target.x));
+      translateY.set(withTiming(target.y));
+      savedX.set(target.x);
+      savedY.set(target.y);
       runOnJS(reportZoom)(true);
     });
 
@@ -157,8 +218,6 @@ export function ZoomableImage({
       </GestureDetector>
     );
   }
-
-  const rect = containRect({ w: width, h: boxHeight }, natural ?? { w: 0, h: 0 });
 
   return (
     <GestureDetector gesture={composed}>

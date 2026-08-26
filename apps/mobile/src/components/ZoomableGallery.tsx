@@ -31,13 +31,22 @@ export function ZoomableGallery({
   onIndexChange: (index: number) => void;
 }): React.JSX.Element {
   const { width } = useWindowDimensions();
-  const [zoomed, setZoomed] = useState(false);
+  const [zoomState, setZoomState] = useState<{ url: string | null; zoomed: boolean }>({
+    url: null,
+    zoomed: false,
+  });
   const listRef = useRef<FlatList<GalleryPage>>(null);
+  const activeUrl = pages[index]?.url ?? null;
+  const zoomed = zoomState.url === activeUrl && zoomState.zoomed;
 
   const renderItem = ({ item }: ListRenderItemInfo<GalleryPage>) => (
     <View style={{ width, flex: 1, justifyContent: 'center' }}>
       {item.url ? (
-        <ZoomableImage uri={item.url} onZoomChange={setZoomed} annotations={item.annotations} />
+        <ZoomableImage
+          uri={item.url}
+          onZoomChange={(next) => setZoomState({ url: item.url, zoomed: next })}
+          annotations={item.annotations}
+        />
       ) : null}
     </View>
   );
