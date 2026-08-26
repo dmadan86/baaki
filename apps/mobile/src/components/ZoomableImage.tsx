@@ -43,11 +43,10 @@ export function ZoomableImage({
   const { width, height } = useWindowDimensions();
   const boxHeight = height * 0.8;
 
-  // The image's natural size, only needed to place an overlay on its exact fit
-  // rectangle. Resolved once per uri; until then the rect falls back to the box.
+  // The image's natural size anchors both pan bounds and, when present, overlay
+  // placement. Resolved once per uri; until then the rect falls back to the box.
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    if (!annotations) return;
     let active = true;
     RNImage.getSize(
       uri,
@@ -57,7 +56,9 @@ export function ZoomableImage({
     return () => {
       active = false;
     };
-  }, [uri, annotations]);
+  }, [uri]);
+
+  const rect = containRect({ w: width, h: boxHeight }, natural ?? { w: 0, h: 0 });
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -186,8 +187,6 @@ export function ZoomableImage({
       </GestureDetector>
     );
   }
-
-  const rect = containRect({ w: width, h: boxHeight }, natural ?? { w: 0, h: 0 });
 
   return (
     <GestureDetector gesture={composed}>

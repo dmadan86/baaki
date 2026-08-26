@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
+import { shouldApplyInitialReducedMotionPreference } from '@/lib/reducedMotionState';
+
 const ReducedMotionContext = createContext(false);
 
 /**
@@ -15,10 +17,15 @@ export function ReducedMotionProvider({ children }: { children: ReactNode }): Re
 
   useEffect(() => {
     let mounted = true;
+    let receivedEvent = false;
     void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (mounted) setReduceMotion(enabled);
+      if (shouldApplyInitialReducedMotionPreference(mounted, receivedEvent))
+        setReduceMotion(enabled);
     });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      receivedEvent = true;
+      setReduceMotion(enabled);
+    });
     return () => {
       mounted = false;
       subscription.remove();
