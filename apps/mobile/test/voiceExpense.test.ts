@@ -41,6 +41,26 @@ describe('parseVoiceExpense', () => {
     expect(inThis.note).toBe('snacks');
   });
 
+  it('routing cleanup is phrase-aware, not a blanket word drop', () => {
+    // A group literally named after a routing word still matches — the words are
+    // only filler inside a recognised routing phrase, not everywhere.
+    const named: VoiceGroupRef[] = [
+      { id: 'g-it', name: 'IT' },
+      { id: 'g-this', name: 'This' },
+      { id: 'g1', name: 'Group 1' },
+      { id: 'g-proj1', name: 'Project 1' },
+    ];
+    expect(parseVoiceExpense('500 lunch for IT', named).groupId).toBe('g-it');
+    expect(parseVoiceExpense('500 lunch for This', named).groupId).toBe('g-this');
+    // "assign to group 1" keeps "Group 1" whole, so it is not confused with
+    // "Project 1" (both would tie on a bare "1" if "group" were dropped here).
+    expect(parseVoiceExpense('500 t shirt assign to group 1', named).groupId).toBe('g1');
+
+    // An ordinary description keeps words like "this" when no routing phrase is
+    // present.
+    expect(parseVoiceExpense('500 for this lunch', groups).note).toBe('this lunch');
+  });
+
   it('leaves the group null when the name is ambiguous', () => {
     const twoTrips: VoiceGroupRef[] = [
       { id: 'a', name: 'Goa Trip' },

@@ -188,19 +188,6 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'expense',
   'my',
   'our',
-  // Assignment phrasing — "assign to group X", "put it in X", "add to X",
-  // "in this/another group X". These verbs and pointers route the expense to a
-  // destination; they are neither part of the description nor of a group's name,
-  // so they must not survive into the note or count toward a group-name match.
-  'assign',
-  'assigned',
-  'put',
-  'group',
-  'groups',
-  'this',
-  'that',
-  'another',
-  'it',
   // Split phrasing — not part of a description or a group name.
   'split',
   'splits',
@@ -356,6 +343,27 @@ function buildNote(transcript: string, matchedGroupName: string | null): string 
 }
 
 /**
+ * Strip only the recognised *routing lead-in* — "assign to (group)", "put it in
+ * (group)", "in this/that/another/the group", "move/save it to" — leaving the
+ * destination name and the description untouched. Phrase-aware on purpose: the
+ * routing verbs and pointers are not blanket stopwords, so a group literally
+ * named "IT", "This" or "Group 1" still matches, and an ordinary note like
+ * "for this lunch" keeps "this". The trailing "group" is only removed when a
+ * word follows it (`(?=\p{L})`), so "assign to group test one" drops "group"
+ * but "assign to group 1" keeps "Group 1" intact for the match.
+ */
+export function stripAssignmentLeadIn(text: string): string {
+  return text
+    .replace(
+      /\b(?:assign(?:ed)?|move|save|put)\s+(?:it\s+)?(?:to|into|in)\s+(?:the\s+|this\s+|that\s+|another\s+)?(?:groups?\s+(?=\p{L}))?/giu,
+      ' ',
+    )
+    .replace(/\bin\s+(?:this|that|another|the)\s+groups?\s+(?=\p{L})/giu, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Parse a transcript against the reader's groups. Pure: same sentence and same
  * groups always give the same answer.
  */
@@ -365,7 +373,9 @@ export function parseVoiceExpense(
 ): ParsedVoiceExpense {
   // Spoken numbers become digits first; every pattern below is digit-based. A
   // "plus"-joined run of amounts is summed into one before that.
-  const said = normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript)));
+  const said = stripAssignmentLeadIn(
+    normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript))),
+  );
   const tokens = tokenize(said);
   const amountMajor = extractAmount(said);
   const currency = detectCurrency(said);
@@ -1044,7 +1054,10 @@ export function parseVoiceExpenses(
 ): VoiceParseResult {
   const normalized = normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript)));
   const created = detectCreateGroup(normalized);
-  const body = created ? created.rest : normalized;
+  // Strip the routing lead-in ("assign to group …", "put it in …") after any
+  // create-group clause is lifted, so the destination name and the notes are
+  // read from the clean remainder.
+  const body = stripAssignmentLeadIn(created ? created.rest : normalized);
 
   // The group is settled before the notes are built, so each note can have the
   // named group's words taken out ("dinner on the Goa trip" → note "dinner").
