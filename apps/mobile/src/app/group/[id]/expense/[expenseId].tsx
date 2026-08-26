@@ -30,7 +30,7 @@ import {
 
 import { CategoryBadge } from '@/components/Category';
 import { MapPreview } from '@/components/MapPreview';
-import { ExpenseReceipts } from '@/components/ExpenseReceipts';
+import { ExpenseReceipts, type ExpenseReceiptsHandle } from '@/components/ExpenseReceipts';
 import { ExpenseComments } from '@/components/ExpenseComments';
 import { ExpenseHistory } from '@/components/ExpenseHistory';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
@@ -45,7 +45,7 @@ import {
 import { expenseTitle } from '@/data/expenseTitle';
 import { useBlockedUsers } from '@/data/blocked';
 import { displayName, groupLabel, isBlockedMember, isGhost } from '@/data/types';
-import { fill, plural, useStrings, type UiStrings } from '@/i18n';
+import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { expenseReceiptPath, expenseReceiptUrl } from '@/data/api';
 import { coordLabel, mapsUrl } from '@/lib/location';
@@ -61,24 +61,27 @@ function splitLabels(t: UiStrings): Record<string, string> {
   };
 }
 
-/** A small translucent-white pill for the meta tags on the hero wash (split
- *  type, "edited N times") — the on-panel equivalent of a Badge, legible on the
- *  saturated colour where a filled Badge would blend. */
-function HeroTag({ label }: { label: string }): React.JSX.Element {
+/** One labelled row of the bill's detail card — a muted label on the left, its
+ *  value on the right. The stacked "paid by · date · split" caption the hero
+ *  used to carry, given room to breathe as a proper key/value list. */
+function DetailLine({ label, value }: { label: string; value: string }): React.JSX.Element {
   const theme = useTheme();
   return (
-    <View
+    <Row
       style={{
-        paddingVertical: 3,
-        paddingHorizontal: theme.spacing.sm,
-        borderRadius: theme.radius.pill,
-        backgroundColor: 'rgba(255, 255, 255, 0.18)',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
       }}
     >
-      <Text variant="micro" tone="onBrand">
+      <Text variant="caption" tone="muted">
         {label}
       </Text>
-    </View>
+      <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, textAlign: 'right' }}>
+        {value}
+      </Text>
+    </Row>
   );
 }
 
@@ -95,6 +98,10 @@ export default function ExpenseDetailScreen() {
   const versions = useExpenseVersions(expenseId ?? '');
   const imageEvents = useExpenseImageEvents(expenseId ?? '');
   const scrollRef = useRef<RNScrollView>(null);
+  // The receipts section owns the add flow (scan/choose, cap gate); the hero
+  // renders the button and calls into it through this handle, so the "add
+  // receipt" action sits under the amount like the dashboard's "add expense".
+  const receiptsRef = useRef<ExpenseReceiptsHandle>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   // The page has two faces: its breakdown, and its edit history. The hero stays
   // above both; only the body below the tab bar swaps.
@@ -341,14 +348,10 @@ export default function ExpenseDetailScreen() {
                 color={theme.color.onBrand}
               />
             </Pressable>
-            <View style={{ flex: 1, alignItems: 'flex-start' }}>
-              <Text variant="heading" tone="onBrand" numberOfLines={1}>
-                {expenseTitle(version.description, version.category, t, version.category_meta)}
-              </Text>
-              <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-                {groupLabel(group.data, members.data ?? [])}
-              </Text>
-            </View>
+            {/* The title moves out of this row and into the hero body beside the
+                category badge, so the description reads as the heading of the
+                bill rather than a cramped line between two glyphs. */}
+            <View style={{ flex: 1 }} />
             {/* Every action on this bill lives behind one three-dot menu, the same
                 trailing control the group and dashboard headers carry — Edit and
                 Delete (or Restore) instead of a full-width button stacked at the
@@ -364,13 +367,23 @@ export default function ExpenseDetailScreen() {
             </Pressable>
           </Row>
 
-          <View style={{ alignItems: 'flex-start', gap: theme.spacing.sm }}>
-            <CategoryBadge
-              category={version.category}
-              meta={version.category_meta}
-              description={version.description}
-              size={48}
-            />
+          <View style={{ alignItems: 'flex-start', gap: theme.spacing.md }}>
+            {/* Badge + description as one line: the category icon, then what the
+                bill is called (the description, or the category name when none
+                was typed) reads as the heading — this is the "I don't see the
+                description" fix. */}
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm, alignSelf: 'stretch' }}>
+              <CategoryBadge
+                category={version.category}
+                meta={version.category_meta}
+                description={version.description}
+                size={40}
+              />
+              <Text variant="heading" tone="onBrand" numberOfLines={2} style={{ flex: 1 }}>
+                {expenseTitle(version.description, version.category, t, version.category_meta)}
+              </Text>
+              {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
+            </Row>
             <MoneyText
               amount={BigInt(version.amount)}
               currency={currency}
@@ -378,23 +391,32 @@ export default function ExpenseDetailScreen() {
               variant="display"
               style={{ color: theme.color.onBrand }}
             />
-            <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-              {`${fill(t.expense.paidByName, {
-                name: nameOf(version.payers[0]?.member_id ?? null),
-              })} · ${new Intl.DateTimeFormat(locale, {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                timeZone: 'UTC',
-              }).format(new Date(version.expense_date))}`}
-            </Text>
-            <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-              <HeroTag label={splitLabels(t)[version.split_type] ?? version.split_type} />
-              {version.version_no > 1 ? (
-                <HeroTag label={plural(locale, version.version_no - 1, t.expense.editedTimes)} />
-              ) : null}
-              {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
-            </Row>
+            {/* Add receipt, right under the amount — the same "primary action sits
+                under the number" the dashboard and group heros use. A party owns
+                adding; the button drives the receipts section through its ref. */}
+            {isExpenseParty ? (
+              <Pressable
+                onPress={() => receiptsRef.current?.openAdd()}
+                accessibilityRole="button"
+                accessibilityLabel={t.receipts.add}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.sm,
+                  alignSelf: 'flex-start',
+                  paddingHorizontal: theme.spacing.lg,
+                  paddingVertical: theme.spacing.sm,
+                  borderRadius: theme.radius.pill,
+                  backgroundColor: '#FFFFFF',
+                  opacity: pressed ? 0.85 : 1,
+                })}
+              >
+                <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
+                <Text style={{ color: theme.color.brand, fontWeight: '700' }}>
+                  {t.receipts.add}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         </Gradient>
 
@@ -434,10 +456,48 @@ export default function ExpenseDetailScreen() {
               </Callout>
             ) : null}
 
+            {/* The bill's facts as a tidy labelled card — who paid, when, and how
+                it was split — in place of the stacked caption and chips the hero
+                used to wear. The group it belongs to leads the list so the bill
+                is placed without crowding the hero. */}
+            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+              <DetailLine
+                label={t.expense.detailGroup}
+                value={groupLabel(group.data, members.data ?? [])}
+              />
+              <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              <DetailLine
+                label={t.paidBy}
+                value={
+                  version.payers.length > 1
+                    ? plural(locale, version.payers.length, t.misc.peopleCount)
+                    : nameOf(version.payers[0]?.member_id ?? null)
+                }
+              />
+              <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              <DetailLine
+                label={t.expense.detailDate}
+                value={new Intl.DateTimeFormat(locale, {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  timeZone: 'UTC',
+                }).format(new Date(version.expense_date))}
+              />
+              <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              <DetailLine
+                label={t.expense.detailSplit}
+                value={splitLabels(t)[version.split_type] ?? version.split_type}
+              />
+            </Card>
+
             {/* Receipts — one gallery, many images, each group-visible or private.
-            Folds in the legacy single bill (E2) as its first item. A party can
-            add (scan or library) and remove; anyone sees the group images. */}
+            Folds in the legacy single bill (E2) as its first item. Adding is now
+            the hero button (externalAdd), driven through the ref; this section
+            shows the gallery of what is already kept. */}
             <ExpenseReceipts
+              ref={receiptsRef}
+              externalAdd
               groupId={groupId}
               expenseId={expense.id}
               canManage={isExpenseParty}

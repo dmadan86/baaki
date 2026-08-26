@@ -1476,6 +1476,11 @@ export interface UiStrings {
     /** "In 4 expenses" over the list on a member. */
     inCount: PluralForms;
     whoOwesWhat: string;
+    /** Labels on the expense detail card: the group it belongs to, its date, and
+     *  how it was split. */
+    detailGroup: string;
+    detailDate: string;
+    detailSplit: string;
     history: string;
     restore: string;
     deleteAction: string;
@@ -3248,6 +3253,9 @@ const en: UiStrings = {
     editedTimes: { one: 'edited once', other: 'edited {n} times' },
     inCount: { one: 'In {n} expense', other: 'In {n} expenses' },
     whoOwesWhat: 'Who owes what',
+    detailGroup: 'Group',
+    detailDate: 'Date',
+    detailSplit: 'Split',
     history: 'History',
     restore: 'Restore this expense',
     deleteAction: 'Delete expense',
@@ -5110,6 +5118,9 @@ const ta: UiStrings = {
     editedTimes: { one: 'ஒருமுறை திருத்தப்பட்டது', other: '{n} முறை திருத்தப்பட்டது' },
     inCount: { one: '{n} செலவில்', other: '{n} செலவுகளில்' },
     whoOwesWhat: 'யார் என்ன தர வேண்டும்',
+    detailGroup: 'குழு',
+    detailDate: 'தேதி',
+    detailSplit: 'பிரிப்பு',
     history: 'வரலாறு',
     restore: 'இந்தச் செலவை மீட்டெடு',
     deleteAction: 'செலவை நீக்கு',
@@ -6953,6 +6964,9 @@ const hi: UiStrings = {
     editedTimes: { one: 'एक बार संपादित', other: '{n} बार संपादित' },
     inCount: { one: '{n} खर्च में', other: '{n} खर्चों में' },
     whoOwesWhat: 'किस पर क्या बाकी',
+    detailGroup: 'समूह',
+    detailDate: 'तारीख़',
+    detailSplit: 'बँटवारा',
     history: 'इतिहास',
     restore: 'यह खर्च वापस लाएँ',
     deleteAction: 'खर्च मिटाएँ',
@@ -8829,6 +8843,9 @@ const ar: UiStrings = {
       other: 'في {n} مصروف',
     },
     whoOwesWhat: 'من عليه ماذا',
+    detailGroup: 'المجموعة',
+    detailDate: 'التاريخ',
+    detailSplit: 'التقسيم',
     history: 'السجل',
     restore: 'استرجاع هذا المصروف',
     deleteAction: 'حذف المصروف',
