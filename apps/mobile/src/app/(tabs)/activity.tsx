@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, RefreshControl, SectionList, View } from 'react-native';
@@ -38,6 +38,120 @@ import { usePullRefresh } from '@/lib/pullRefresh';
 import { SyncStatus, useSync } from '@/sync';
 
 type DaySection = { key: string; first: RecentActivityRow; data: RecentActivityRow[] };
+
+/**
+ * One row of the virtualized activity feed, memoized so a recycled row that
+ * lands on the same entry does no work when the parent re-renders — the same
+ * pattern the expense feed uses. Every prop is a primitive or a reference the
+ * screen keeps stable (`t`/`theme` from context, `rtf` hoisted per locale), so
+ * the shallow `memo` compare holds on a fast fling.
+ *
+ * `describeActivity` is called once here, not twice (spoken label + visible
+ * line), and `relativeTime` is handed the hoisted `rtf` instead of building an
+ * `Intl.RelativeTimeFormat` per row — the two allocations that made this feed
+ * heavier to scroll than the expense feed it mirrors.
+ */
+const ActivityFeedRow = memo(function ActivityFeedRow({
+  entry,
+  locale,
+  t,
+  theme,
+  myProfileId,
+  blockedIds,
+  rtf,
+}: {
+  entry: RecentActivityRow;
+  locale: string;
+  t: ReturnType<typeof useStrings>['t'];
+  theme: ReturnType<typeof useTheme>;
+  myProfileId: string | null;
+  blockedIds: ReturnType<typeof useBlockedUsers>['blockedIds'];
+  rtf: Intl.RelativeTimeFormat | undefined;
+}) {
+  const money = parseMoney(entry.payload);
+  // A soft rounded-square tile whose tint leans with the verb — the same row the
+  // group's Activity tab and the Expenses tab use, so activity reads one way
+  // everywhere. No timeline rail; the day headings above do the sectioning,
+  // hairlines do the between-row separation.
+  const tint = theme.tint[verbTint(entry.verb)];
+  const g = entry.group;
+  const groupLabel = g
+    ? [g.cover_emoji, g.name].filter(Boolean).join(' ').trim() || t.captures.group
+    : null;
+  const label = describeActivity(entry, myProfileId, blockedIds, t.misc.someone);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() => router.push(`/group/${entry.group_id}`)}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <Row
+        style={{
+          gap: theme.spacing.md,
+          alignItems: 'center',
+          paddingVertical: theme.spacing.md,
+        }}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: theme.radius.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: tint.bg,
+          }}
+        >
+          <Ionicons name={verbIcon(entry.verb)} size={iconSize.lg} color={tint.ink} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="body" numberOfLines={2}>
+            {label}
+          </Text>
+          {/* The relative time, plus which group the entry belongs to — this is a
+              cross-group feed, so the row would otherwise not say. An archived
+              group, or one no longer on this device (left or deleted), gets a
+              badge so it is recognisable without opening it. */}
+          <Row
+            style={{
+              gap: theme.spacing.sm,
+              alignItems: 'center',
+              marginTop: 2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Text variant="caption" tone="muted">
+              {relativeTime(locale, entry.created_at, undefined, rtf)}
+            </Text>
+            {groupLabel ? (
+              <Text variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {`· ${groupLabel}`}
+              </Text>
+            ) : null}
+            {g?.archived_at ? (
+              <Badge label={t.misc.archivedGroup} tone="neutral" />
+            ) : !g ? (
+              <Badge label={t.misc.unavailableGroup} tone="neutral" />
+            ) : null}
+          </Row>
+        </View>
+        {/* `payload` is an untyped JSON blob, so a bad amount must render as no
+            amount, not as a crashed tab. Red like the shares and balances — one
+            money colour across every screen. */}
+        {money ? (
+          <MoneyText
+            amount={money.amount}
+            currency={money.currency}
+            locale={locale}
+            variant="subheading"
+            tone="negative"
+          />
+        ) : null}
+      </Row>
+    </Pressable>
+  );
+});
 
 export default function ActivityScreen() {
   const theme = useTheme();
@@ -102,6 +216,17 @@ export default function ActivityScreen() {
       ? showDay(range.start)
       : `${showDay(range.start)} – ${showDay(range.end)}`
     : '';
+
+  // One relative-time formatter for the whole feed, rebuilt only when the locale
+  // changes — handed to every row so a fast scroll never constructs an
+  // `Intl.RelativeTimeFormat` per recycled row.
+  const rtf = useMemo(
+    () =>
+      typeof Intl.RelativeTimeFormat === 'function'
+        ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+        : undefined,
+    [locale],
+  );
 
   const notifications = useNotifications();
   const unread = (notifications.data ?? []).filter((row) => row.read_at === null).length;
@@ -297,96 +422,17 @@ export default function ActivityScreen() {
         ItemSeparatorComponent={() => (
           <View style={{ height: 1, backgroundColor: theme.color.border }} />
         )}
-        renderItem={({ item: entry }) => {
-          const money = parseMoney(entry.payload);
-          // A soft rounded-square tile whose tint leans with the verb — the same
-          // row the group's Activity tab and the Expenses tab use, so activity
-          // reads one way everywhere. No timeline rail; the day headings above
-          // do the sectioning, hairlines do the between-row separation.
-          const tint = theme.tint[verbTint(entry.verb)];
-          const g = entry.group;
-          const groupLabel = g
-            ? [g.cover_emoji, g.name].filter(Boolean).join(' ').trim() || t.captures.group
-            : null;
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={describeActivity(entry, myProfileId, blockedIds, t.misc.someone)}
-              onPress={() => router.push(`/group/${entry.group_id}`)}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <Row
-                style={{
-                  gap: theme.spacing.md,
-                  alignItems: 'center',
-                  paddingVertical: theme.spacing.md,
-                }}
-              >
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: theme.radius.md,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: tint.bg,
-                  }}
-                >
-                  <Ionicons name={verbIcon(entry.verb)} size={iconSize.lg} color={tint.ink} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text variant="body" numberOfLines={2}>
-                    {describeActivity(entry, myProfileId, blockedIds, t.misc.someone)}
-                  </Text>
-                  {/* The relative time, plus which group the entry belongs to —
-                      this is a cross-group feed, so the row would otherwise not
-                      say. An archived group, or one no longer on this device
-                      (left or deleted), gets a badge so it is recognisable
-                      without opening it. */}
-                  <Row
-                    style={{
-                      gap: theme.spacing.sm,
-                      alignItems: 'center',
-                      marginTop: 2,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <Text variant="caption" tone="muted">
-                      {relativeTime(locale, entry.created_at)}
-                    </Text>
-                    {groupLabel ? (
-                      <Text
-                        variant="caption"
-                        tone="muted"
-                        numberOfLines={1}
-                        style={{ flexShrink: 1 }}
-                      >
-                        {`· ${groupLabel}`}
-                      </Text>
-                    ) : null}
-                    {g?.archived_at ? (
-                      <Badge label={t.misc.archivedGroup} tone="neutral" />
-                    ) : !g ? (
-                      <Badge label={t.misc.unavailableGroup} tone="neutral" />
-                    ) : null}
-                  </Row>
-                </View>
-                {/* `payload` is an untyped JSON blob, so a bad amount must render
-                    as no amount, not as a crashed tab. Red like the shares and
-                    balances — one money colour across every screen. */}
-                {money ? (
-                  <MoneyText
-                    amount={money.amount}
-                    currency={money.currency}
-                    locale={locale}
-                    variant="subheading"
-                    tone="negative"
-                  />
-                ) : null}
-              </Row>
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <ActivityFeedRow
+            entry={item}
+            locale={locale}
+            t={t}
+            theme={theme}
+            myProfileId={myProfileId}
+            blockedIds={blockedIds}
+            rtf={rtf}
+          />
+        )}
       />
       {/* The range picker, over the feed. Rendered only when open and only when
           there is a span to clamp to, so it can seed the picker from real dates. */}

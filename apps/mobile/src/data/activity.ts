@@ -331,15 +331,25 @@ export function filterByDayRange<T extends { created_at: string }>(
   });
 }
 
-export function relativeTime(locale: string, iso: string, now: number = Date.now()): string {
+export function relativeTime(
+  locale: string,
+  iso: string,
+  now: number = Date.now(),
+  // A pre-built formatter the caller can hand in. Constructing an
+  // `Intl.RelativeTimeFormat` is dear, and a virtualized feed re-runs this per
+  // row as it recycles — so a screen builds one per locale and passes it, the
+  // same hoist the expense feed's date formatter uses. Omitted, it builds one.
+  formatter?: Intl.RelativeTimeFormat,
+): string {
   const parsed = Date.parse(iso);
   if (!Number.isFinite(parsed)) return iso;
   const seconds = Math.round((parsed - now) / 1000);
   const abs = Math.abs(seconds);
 
   const RTF = Intl.RelativeTimeFormat as typeof Intl.RelativeTimeFormat | undefined;
-  if (typeof RTF === 'function') {
-    const rtf = new RTF(locale, { numeric: 'auto' });
+  const rtf =
+    formatter ?? (typeof RTF === 'function' ? new RTF(locale, { numeric: 'auto' }) : undefined);
+  if (rtf) {
     if (abs < 60) return rtf.format(Math.round(seconds), 'second');
     if (abs < 3600) return rtf.format(Math.round(seconds / 60), 'minute');
     if (abs < 86400) return rtf.format(Math.round(seconds / 3600), 'hour');

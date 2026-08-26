@@ -100,7 +100,18 @@ export default function InboxScreen() {
           screens sit together, so the inbox reads as the sibling it is. No
           back chevron: the title sits at the left edge exactly like Activity,
           and the bottom bar carries the way back. */}
-      <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center', gap: theme.spacing.sm }}>
+      {/* minHeight matches Activity's header, whose two IconButtons stand it at
+          44 — without it this button-less title row is ~14px shorter, so the
+          title and the whole body jump up when you cross from Activity to here
+          and back. */}
+      <Row
+        style={{
+          paddingTop: theme.spacing.md,
+          minHeight: 44 + theme.spacing.md,
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+        }}
+      >
         <Ionicons name="notifications-outline" size={iconSize.xl} color={theme.color.brand} />
         <Text variant="title">{t.inbox.title}</Text>
       </Row>
