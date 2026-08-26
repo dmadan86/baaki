@@ -404,6 +404,17 @@ export function VoiceCapture({
         addsPunctuation: onDevice,
         contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
         iosTaskHint: 'dictation',
+        // People start with a greeting and a beat of thought — "hello… uh… add
+        // 500 to Goa". Android's default endpointing finalises on that first
+        // pause, ending the session on the greeting alone. Give it room: keep
+        // listening for at least a few seconds, and do not treat a two-second
+        // pause as the end of speech. (Android-only extras; iOS endpointing is
+        // already more forgiving and ignores these.)
+        androidIntentOptions: {
+          EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 4000,
+          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+        },
       });
     } catch {
       setListening(false);
