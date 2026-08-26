@@ -15,7 +15,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Alert, Modal, Pressable, RefreshControl, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  RefreshControl,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -197,6 +205,8 @@ function BatchGroupCard({
   items,
   locale,
   t,
+  open,
+  onToggle,
   onAssign,
   onEdit,
   onDelete,
@@ -205,13 +215,14 @@ function BatchGroupCard({
   items: CaptureRow[];
   locale: string;
   t: UiStrings;
+  open: boolean;
+  onToggle: () => void;
   onAssign: (capture: CaptureRow) => void;
   onEdit: (capture: CaptureRow) => void;
   onDelete: (capture: CaptureRow) => void;
   onDeleteBatch: () => void;
 }) {
   const theme = useTheme();
-  const [open, setOpen] = useState(false);
 
   const currency = items[0]!.currency;
   const sameCurrency = items.every((item) => item.currency === currency);
@@ -239,7 +250,7 @@ function BatchGroupCard({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={open ? t.captures.collapseBatch : t.captures.expandBatch}
-        onPress={() => setOpen((value) => !value)}
+        onPress={onToggle}
         style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
       >
         <Row
@@ -342,6 +353,7 @@ function BatchGroupCard({
 
 export default function CapturesScreen() {
   const theme = useTheme();
+  const { height } = useWindowDimensions();
   const clearance = useTabBarClearance();
   const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
@@ -358,6 +370,9 @@ export default function CapturesScreen() {
   // The picker's own search text, so a long group list stays one tap from any
   // group. Cleared whenever the sheet opens on a fresh capture.
   const [query, setQuery] = useState('');
+  // FlashList recycles row components, so batch expansion lives with the screen
+  // and is keyed by batch id rather than inside the recycled row instance.
+  const [openBatchIds, setOpenBatchIds] = useState<ReadonlySet<string>>(() => new Set());
 
   // Only groups the viewer still belongs to belong in the picker. Leaving a
   // group sets `left_at`; it does not remove the group row, so a left (or
@@ -387,6 +402,7 @@ export default function CapturesScreen() {
   // Past this many groups the picker earns a search field; a short list is
   // faster to eyeball than to type through.
   const showSearch = assignableGroups.length > 6;
+  const pickerListHeight = Math.max(180, height * (showSearch ? 0.34 : 0.42));
 
   const rows = useMemo(() => captures.data ?? [], [captures.data]);
   const feedItems = useMemo(() => buildCaptureFeedItems(rows), [rows]);
@@ -510,6 +526,15 @@ export default function CapturesScreen() {
     }
   }, []);
 
+  const toggleBatch = useCallback((batchId: string): void => {
+    setOpenBatchIds((current) => {
+      const next = new Set(current);
+      if (next.has(batchId)) next.delete(batchId);
+      else next.add(batchId);
+      return next;
+    });
+  }, []);
+
   const renderCaptureItem = useCallback(
     ({ item }: { item: CaptureFeedItem }) => {
       switch (item.kind) {
@@ -533,6 +558,8 @@ export default function CapturesScreen() {
               items={item.items}
               locale={locale}
               t={t}
+              open={openBatchIds.has(item.id)}
+              onToggle={() => toggleBatch(item.id)}
               onAssign={openAssign}
               onEdit={openEdit}
               onDelete={confirmDelete}
@@ -557,10 +584,12 @@ export default function CapturesScreen() {
       confirmDeleteBatch,
       locale,
       openAssign,
+      openBatchIds,
       openEdit,
       t,
       theme.spacing.md,
       theme.spacing.xs,
+      toggleBatch,
     ],
   );
 
@@ -806,68 +835,73 @@ export default function CapturesScreen() {
               </Row>
             ) : null}
 
-            <FlashList
-              data={assignableGroups.length === 0 ? [] : visibleGroups}
-              keyExtractor={(group) => group.id}
-              renderItem={renderGroupPickerItem}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={{ flexShrink: 1 }}
-              ListHeaderComponent={
-                <>
-                  {/* Start a group and drop this into it — so a capture with no
-                      fitting group is no longer a dead end (it used to only say
-                      "make one first"). Mirrors the "Create group" affordance the
-                      Wise/Starling pickers lead with. */}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t.captures.assignNew}
-                    onPress={() => {
-                      closeAssign();
-                      router.push('/new-group');
-                    }}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: theme.spacing.md,
-                      paddingVertical: theme.spacing.md,
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <View
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: theme.color.surfaceMuted,
-                        borderWidth: 1,
-                        borderColor: theme.color.border,
-                        borderStyle: 'dashed',
+            <View style={{ height: pickerListHeight }}>
+              <FlashList
+                data={assignableGroups.length === 0 ? [] : visibleGroups}
+                keyExtractor={(group) => group.id}
+                renderItem={renderGroupPickerItem}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={
+                  <>
+                    {/* Start a group and drop this into it — so a capture with no
+                        fitting group is no longer a dead end (it used to only say
+                        "make one first"). Mirrors the "Create group" affordance the
+                        Wise/Starling pickers lead with. */}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t.captures.assignNew}
+                      onPress={() => {
+                        closeAssign();
+                        router.push('/new-group');
                       }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: theme.spacing.md,
+                        paddingVertical: theme.spacing.md,
+                        opacity: pressed ? 0.6 : 1,
+                      })}
                     >
-                      <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text variant="subheading" numberOfLines={1}>
-                        {t.captures.assignNew}
-                      </Text>
-                      <Text variant="caption" tone="muted" numberOfLines={1}>
-                        {t.captures.assignNewBody}
-                      </Text>
-                    </View>
-                  </Pressable>
+                      <View
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: theme.color.surfaceMuted,
+                          borderWidth: 1,
+                          borderColor: theme.color.border,
+                          borderStyle: 'dashed',
+                        }}
+                      >
+                        <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text variant="subheading" numberOfLines={1}>
+                          {t.captures.assignNew}
+                        </Text>
+                        <Text variant="caption" tone="muted" numberOfLines={1}>
+                          {t.captures.assignNewBody}
+                        </Text>
+                      </View>
+                    </Pressable>
 
-                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                </>
-              }
-              ListEmptyComponent={
-                <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.lg }}>
-                  {assignableGroups.length === 0 ? t.captures.noGroups : t.captures.assignNoMatch}
-                </Text>
-              }
-            />
+                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                  </>
+                }
+                ListEmptyComponent={
+                  <Text
+                    variant="caption"
+                    tone="muted"
+                    style={{ paddingVertical: theme.spacing.lg }}
+                  >
+                    {assignableGroups.length === 0 ? t.captures.noGroups : t.captures.assignNoMatch}
+                  </Text>
+                }
+              />
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
