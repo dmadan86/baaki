@@ -15,7 +15,7 @@
 import { useEffect, useMemo } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, SectionList, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, SectionList, View } from 'react-native';
 
 import { renderNotification } from '@waves/core';
 import {
@@ -160,13 +160,21 @@ export default function InboxScreen() {
           </View>
         </View>
       ) : rows.length === 0 && captureCount === 0 ? (
-        <View
-          style={{
-            flex: 1,
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: clearance,
             gap: theme.spacing.xl,
           }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={pull.refreshing}
+              onRefresh={pull.onRefresh}
+              tintColor={theme.color.brand}
+            />
+          }
         >
           {header}
           {/* Centred, with a glyph — the "all square" treatment Friends uses, so an
@@ -186,7 +194,7 @@ export default function InboxScreen() {
               }
             />
           </View>
-        </View>
+        </ScrollView>
       ) : (
         <SectionList
           sections={sections}

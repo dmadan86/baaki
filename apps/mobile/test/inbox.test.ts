@@ -20,9 +20,9 @@ function row(id: string, createdAt: string): NotificationRow {
 describe('groupNotificationsByDay', () => {
   it('keeps notification order while grouping consecutive rows by local day', () => {
     const sections = groupNotificationsByDay([
-      row('newer-1', '2026-08-26T10:00:00.000Z'),
-      row('newer-2', '2026-08-26T09:00:00.000Z'),
-      row('older-1', '2026-08-24T10:00:00.000Z'),
+      row('newer-1', '2026-08-26T12:00:00'),
+      row('newer-2', '2026-08-26T11:00:00'),
+      row('older-1', '2026-08-24T12:00:00'),
     ]);
 
     expect(sections.map((section) => section.key)).toEqual(['2026-8-26', '2026-8-24']);
