@@ -136,7 +136,7 @@ const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ],
   ['walk-outline', ['trek', 'trekking', 'hike', 'hiking', 'mountain', 'mountains', 'trail']],
   ['map-outline', ['map', 'guide', 'tour']],
-  ['compass-outline', ['explore']],
+  ['compass-outline', ['explore', 'exploration']],
   ['earth-outline', ['visa', 'passport', 'international']],
   ['umbrella-outline', ['umbrella', 'rain']],
   ['trail-sign-outline', ['camping']],
@@ -245,7 +245,16 @@ const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ],
   [
     'construct-outline',
-    ['repair', 'plumber', 'electrician', 'maintenance', 'carpenter', 'painter'],
+    [
+      'repair',
+      'plumber',
+      'electrician',
+      'maintenance',
+      'carpenter',
+      'carpenters',
+      'painter',
+      'painters',
+    ],
   ],
   // ---- Health -------------------------------------------------------------
   ['paw-outline', ['pet', 'pets', 'dog', 'cat', 'vet']],
@@ -272,7 +281,7 @@ const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['gift-outline', ['gift', 'gifts', 'present', 'birthday', 'anniversary', 'wedding', 'shagun']],
   // ---- Money & payment context ------------------------------------------
   ['card-outline', ['card', 'credit', 'debit']],
-  ['wallet-outline', ['wallet', 'upi', 'gpay', 'phonepe', 'paytm']],
+  ['wallet-outline', ['wallet', 'upi', 'gpay', 'phonepe', 'paytm', 'transfer']],
   ['cash-outline', ['cash', 'advance']],
   ['receipt-outline', ['bill', 'receipt', 'invoice']],
 ];

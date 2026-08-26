@@ -54,6 +54,8 @@ describe('guessIcon', () => {
     expect(guessIcon('Passport visa')).toBe('earth-outline');
     expect(guessIcon('Rain umbrella')).toBe('umbrella-outline');
     expect(guessIcon('Camping guide')).toBe('map-outline');
+    expect(guessIcon('Camping')).toBe('trail-sign-outline');
+    expect(guessIcon('Exploration')).toBe('compass-outline');
     expect(guessIcon('Office coworking')).toBe('briefcase-outline');
     expect(guessIcon('SaaS software')).toBe('laptop-outline');
     expect(guessIcon('Xerox printing')).toBe('print-outline');
@@ -64,6 +66,7 @@ describe('guessIcon', () => {
     expect(guessIcon('Security guard')).toBe('shield-checkmark-outline');
     expect(guessIcon('Nanny babysitter')).toBe('person-outline');
     expect(guessIcon('Carpenter repair')).toBe('construct-outline');
+    expect(guessIcon('Painters')).toBe('construct-outline');
     expect(guessIcon('Vet for dog')).toBe('paw-outline');
     expect(guessIcon('Eye glasses')).toBe('eye-outline');
     expect(guessIcon('Firstaid bandage')).toBe('bandage-outline');
@@ -72,8 +75,11 @@ describe('guessIcon', () => {
 
   it('covers celebration and payment context without stealing specific bills', () => {
     expect(guessIcon('Party decoration')).toBe('balloon-outline');
+    expect(guessIcon('Decoration')).toBe('sparkles-outline');
     expect(guessIcon('Prize tournament')).toBe('ribbon-outline');
+    expect(guessIcon('Tournament')).toBe('trophy-outline');
     expect(guessIcon('UPI transfer')).toBe('wallet-outline');
+    expect(guessIcon('Bank transfer')).toBe('wallet-outline');
     expect(guessIcon('Credit card')).toBe('card-outline');
     expect(guessIcon('Cash advance')).toBe('cash-outline');
     expect(guessIcon('Invoice receipt')).toBe('receipt-outline');
