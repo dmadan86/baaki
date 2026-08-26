@@ -10,6 +10,7 @@ import {
   Avatar,
   Badge,
   Button,
+  Callout,
   Card,
   directionalIcon,
   EmptyState,
@@ -148,6 +149,16 @@ export default function ExpenseDetailScreen() {
     (version.author_member_id === myMemberId ||
       version.payers.some((p) => p.member_id === myMemberId)),
   );
+  // Whether *you* have any stake in this bill — money you put in, or a share you
+  // owe of it. A member who is on the group but not on this split (or written into
+  // it with a zero share) has no stake, so the screen frames itself as someone
+  // else's bill: an observer banner up top, and the split shown in neutral ink
+  // instead of the owe-red that would imply the debt is yours. This is money-only
+  // on purpose — being the author but not a party still reads as not involved.
+  const myPaidHere = version?.payers.find((p) => p.member_id === myMemberId)?.amount;
+  const myShareHere = version?.shares.find((s) => s.member_id === myMemberId)?.amount;
+  const notInvolved =
+    Boolean(version) && BigInt(myPaidHere ?? 0) === 0n && BigInt(myShareHere ?? 0) === 0n;
   // Admin of this group — the moderation lever on the comment thread (delete
   // anyone's, resolve a report). The server re-checks; this only shows controls.
   const iAmAdmin =
@@ -400,6 +411,20 @@ export default function ExpenseDetailScreen() {
           />
         ) : (
           <>
+            {/* You are looking at a bill you have no stake in — not a payer, no
+            share. Say so plainly up top so the split below reads as someone
+            else's ledger, the way Splitwise marks it "not involved" rather than
+            letting a zero balance masquerade as "all settled". */}
+            {notInvolved ? (
+              <Callout
+                tone="info"
+                icon={(color) => <Ionicons name="eye-outline" size={iconSize.md} color={color} />}
+                title={t.expense.notInvolvedTitle}
+              >
+                {t.expense.notInvolvedBody}
+              </Callout>
+            ) : null}
+
             {/* Receipts — one gallery, many images, each group-visible or private.
             Folds in the legacy single bill (E2) as its first item. A party can
             add (scan or library) and remove; anyone sees the group images. */}
@@ -526,8 +551,11 @@ export default function ExpenseDetailScreen() {
                             // same owe colour the balances do across the app — not the
                             // neutral ink of a total. Forced (not sign-derived): every
                             // share is a positive owe, so mode="balance" would read it
-                            // as "owed to you" (green) instead.
-                            tone="negative"
+                            // as "owed to you" (green) instead. But when *you* are not
+                            // in this split, none of these owes are yours to read as
+                            // debt — the whole list drops to muted ink so it reads as
+                            // someone else's ledger, matching the observer banner.
+                            tone={notInvolved ? 'muted' : 'negative'}
                           />
                         }
                       />
