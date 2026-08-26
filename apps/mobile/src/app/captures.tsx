@@ -44,6 +44,7 @@ import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { voiceBatchId } from '@/lib/captureBatch';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
 /** A signed URL for a capture's receipt, re-resolved on change and kept fresh
@@ -159,17 +160,6 @@ function CaptureListRow({
       </Row>
     </Pressable>
   );
-}
-
-/** The batch id a voice capture carries (in `parsed`), or null — the key several
- *  expenses spoken in one breath share so the inbox can fold them into one row. */
-function voiceBatchId(capture: CaptureRow): string | null {
-  const parsed = capture.parsed;
-  if (parsed && typeof parsed === 'object' && 'voiceBatchId' in parsed) {
-    const value = (parsed as { voiceBatchId?: unknown }).voiceBatchId;
-    return typeof value === 'string' && value ? value : null;
-  }
-  return null;
 }
 
 /** A day's captures, with same-batch ones folded together in first-seen order. */
