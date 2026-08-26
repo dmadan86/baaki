@@ -351,6 +351,7 @@ function BatchGroupCard({
   );
 }
 
+/** Capture inbox route backed by FlashList rows and screen-owned batch expansion state. */
 export default function CapturesScreen() {
   const theme = useTheme();
   const { height } = useWindowDimensions();

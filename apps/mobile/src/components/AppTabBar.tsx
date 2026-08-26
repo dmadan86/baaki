@@ -22,6 +22,7 @@ import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { resolveTabBar } from '@/lib/tabBar';
 
+/** Renders the persistent bottom navigation bar and routes tab selections without stacking duplicates. */
 export function AppTabBar() {
   const { t } = useStrings();
   const { session } = useAuth();

@@ -49,6 +49,7 @@ import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { groupLabel, GroupType } from '@/data/types';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
+/** Dashboard route with duplicate-safe jumps to stable primary destinations. */
 export default function HomeScreen() {
   const theme = useTheme();
   const pull = usePullRefresh();

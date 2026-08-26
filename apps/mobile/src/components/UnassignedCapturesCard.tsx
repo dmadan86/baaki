@@ -19,6 +19,7 @@ import { useCaptures } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { foldedCaptureCount } from '@/lib/captureBatch';
 
+/** Shows the folded count of unassigned captures and navigates to the captures inbox. */
 export function UnassignedCapturesCard() {
   const theme = useTheme();
   const { t, locale } = useStrings();
