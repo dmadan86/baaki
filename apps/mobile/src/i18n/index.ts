@@ -806,6 +806,13 @@ export interface UiStrings {
     /** The row that adds a brand-new person (a 1:1 IOU) by name. */
     addPerson: string;
     addPersonPlaceholder: string;
+    /** The two destination tabs in the "Save to" picker. */
+    groupsTab: string;
+    peopleTab: string;
+    /** Row badges in the picker: freshly made, lately used, used a lot. */
+    badgeNew: string;
+    badgeRecent: string;
+    badgeFrequent: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -2585,6 +2592,11 @@ const en: UiStrings = {
     people: 'People',
     addPerson: 'Add a person',
     addPersonPlaceholder: 'Their name',
+    groupsTab: 'Groups',
+    peopleTab: 'People',
+    badgeNew: 'New',
+    badgeRecent: 'Recent',
+    badgeFrequent: 'Frequent',
   },
   notifications: {
     title: 'Notifications',
@@ -4385,6 +4397,11 @@ const ta: UiStrings = {
     people: 'நபர்கள்',
     addPerson: 'ஒரு நபரைச் சேர்',
     addPersonPlaceholder: 'அவர்களின் பெயர்',
+    groupsTab: 'குழுக்கள்',
+    peopleTab: 'நபர்கள்',
+    badgeNew: 'புதியது',
+    badgeRecent: 'சமீபத்தில்',
+    badgeFrequent: 'அடிக்கடி',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -6236,6 +6253,11 @@ const hi: UiStrings = {
     people: 'लोग',
     addPerson: 'व्यक्ति जोड़ें',
     addPersonPlaceholder: 'उनका नाम',
+    groupsTab: 'ग्रुप',
+    peopleTab: 'लोग',
+    badgeNew: 'नया',
+    badgeRecent: 'हाल का',
+    badgeFrequent: 'अक्सर',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -8065,6 +8087,11 @@ const ar: UiStrings = {
     people: 'الأشخاص',
     addPerson: 'إضافة شخص',
     addPersonPlaceholder: 'اسمه',
+    groupsTab: 'المجموعات',
+    peopleTab: 'الأشخاص',
+    badgeNew: 'جديد',
+    badgeRecent: 'حديث',
+    badgeFrequent: 'متكرر',
   },
   notifications: {
     title: 'الإشعارات',

@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { computeShares, minorUnitScale, type ExpenseLocation, type SplitParams } from '@waves/core';
 import {
+  Badge,
   Button,
   Callout,
   Card,
@@ -37,6 +38,7 @@ import {
   MoneyText,
   Row,
   Screen,
+  SegmentedTabs,
   Text,
   useScreenClearance,
   useTheme,
@@ -46,10 +48,12 @@ import {
   useAddGhostMember,
   useCreateCapture,
   useCreateGroup,
+  useDestinationUsage,
   useGroup,
   useGroups,
   usePeopleBalances,
   useWriteExpense,
+  type DestinationUsage,
 } from '@/data/hooks';
 import { groupLabel, GroupType, type GroupRow } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
@@ -120,6 +124,12 @@ export default function VoiceScreen() {
   const dc = useDefaultCurrency();
   const access = useAiAccess();
   const groups = useGroups();
+  // How often and how recently each destination has been used — the picker's
+  // "recent"/"frequent" badges. Read once from the mirror, keyed by group id.
+  const usage = useDestinationUsage();
+  // "Now" captured once so the "new"/"recent" windows do not shift mid-render
+  // (a bare Date.now() in render trips the React Compiler lint).
+  const [nowMs] = useState(() => Date.now());
   // Opened from a group's own screens (the raised mic passes its id), so a
   // spoken expense lands in that group by default rather than the unassigned
   // inbox. The reader can still switch the destination on the review; and a
@@ -157,6 +167,9 @@ export default function VoiceScreen() {
   // happened where you are standing (A43). Optional and opt-in; null until the
   // reader taps "Add location" on the review.
   const [location, setLocation] = useState<ExpenseLocation | null>(null);
+  // The up-front read of the current place is in flight — the field shows a
+  // "getting location" placeholder rather than empty buttons while it lands.
+  const [locating, setLocating] = useState(false);
   const [dest, setDest] = useState<Dest>({ kind: 'unassigned' });
   // The destination folds into a single row that opens this sheet, so the
   // expenses — not a wall of group rows — are the first thing on the review.
@@ -386,12 +399,19 @@ export default function VoiceScreen() {
     if (!locationAvailable()) return;
     const gen = locationGen.current;
     void (async () => {
-      const result = await captureLocation();
-      if (!result.ok) return;
-      // Drop a fix that lost its race: the reader has since set or cleared the
-      // pin by hand, or a fresh utterance moved on to a new batch.
-      if (locationGen.current !== gen || locationTouched.current) return;
-      setLocation(result.location);
+      // Set inside the async body, not the effect body, so it does not read as a
+      // synchronous cascading setState (react-hooks/set-state-in-effect).
+      setLocating(true);
+      try {
+        const result = await captureLocation();
+        if (!result.ok) return;
+        // Drop a fix that lost its race: the reader has since set or cleared the
+        // pin by hand, or a fresh utterance moved on to a new batch.
+        if (locationGen.current !== gen || locationTouched.current) return;
+        setLocation(result.location);
+      } finally {
+        setLocating(false);
+      }
     })();
   }, [phase]);
 
@@ -645,7 +665,7 @@ export default function VoiceScreen() {
 
             {/* One place for the whole batch (A43) — opt-in, never a background
                 track. It rides onto every expense saved from this review. */}
-            <LocationField value={location} onChange={handleLocationChange} />
+            <LocationField value={location} onChange={handleLocationChange} busy={locating} />
           </View>
         ) : (
           // Listening — the mic panel owns the whole capture surface, the miss
@@ -770,6 +790,8 @@ export default function VoiceScreen() {
                 }}
                 people={peopleChoices}
                 groups={groupRows}
+                usage={usage}
+                nowMs={nowMs}
                 t={t}
                 theme={theme}
               />
@@ -820,10 +842,57 @@ const GROUP_TYPE_ICON: Record<GroupType, React.ComponentProps<typeof Ionicons>['
   [GroupType.Other]: 'people-outline',
 };
 
+/** How long after creation a destination wears the "New" badge — matched to the
+ *  dashboard's own new-group window so "new" means the same thing everywhere. */
+const NEW_WINDOW_MS = 48 * 60 * 60 * 1000;
+/** Used within this window → "Recent". */
+const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/** This many expenses or more → "Frequent". */
+const FREQUENT_MIN_COUNT = 5;
+
+type RowBadge = { label: string; tone: 'brand' | 'neutral' | 'positive' };
+
 /**
- * The one choice a Save needs: where the expenses land. The capture inbox is
- * always offered and is the default; a "new group" row appears when the sentence
- * asked for one; then every existing group. The selected row carries a check.
+ * The single most useful badge for a destination row, or none. "New" (made in
+ * the last two days) outranks "Frequent" (five or more expenses), which outranks
+ * "Recent" (used in the last week) — one badge per row, never a row of them, and
+ * nothing at all on a destination that is none of the three.
+ */
+function destinationBadge(
+  args: { createdAt?: string | null; usage?: DestinationUsage; nowMs: number },
+  t: ReturnType<typeof useStrings>['t'],
+): RowBadge | null {
+  const { createdAt, usage, nowMs } = args;
+  if (createdAt && nowMs - Date.parse(createdAt) < NEW_WINDOW_MS) {
+    return { label: t.voice.badgeNew, tone: 'brand' };
+  }
+  if (usage && usage.count >= FREQUENT_MIN_COUNT) {
+    return { label: t.voice.badgeFrequent, tone: 'positive' };
+  }
+  if (usage?.lastAt && nowMs - Date.parse(usage.lastAt) < RECENT_WINDOW_MS) {
+    return { label: t.voice.badgeRecent, tone: 'neutral' };
+  }
+  return null;
+}
+
+type PickerRow = {
+  key: string;
+  label: string;
+  // A row wears either the group's own cover emoji or, lacking one, an Ionicon
+  // — the inbox and "new group" rows only ever use an icon.
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  emoji?: string | null;
+  selected: boolean;
+  badge?: RowBadge | null;
+  onPress: () => void;
+};
+
+/**
+ * The one choice a Save needs: where the expenses land. Split into two tabs —
+ * Groups and People — under a pinned "Unassigned" default, because a flat list of
+ * groups then people grew long enough to bury one under the other. Each row can
+ * carry a single badge (new, frequent, or recent) so the destination you actually
+ * reach for is easy to spot. The selected row carries a check.
  */
 function DestinationPicker({
   dest,
@@ -832,6 +901,8 @@ function DestinationPicker({
   onAddPerson,
   people,
   groups,
+  usage,
+  nowMs,
   t,
   theme,
 }: {
@@ -841,9 +912,14 @@ function DestinationPicker({
   onAddPerson: (name: string) => void;
   people: PersonChoice[];
   groups: GroupRow[];
+  usage: Map<string, DestinationUsage>;
+  nowMs: number;
   t: ReturnType<typeof useStrings>['t'];
   theme: ReturnType<typeof useTheme>;
 }) {
+  // Open on whichever tab the current destination lives in, so the choice reads
+  // back; a fresh review with no destination opens on Groups.
+  const [tab, setTab] = useState<'groups' | 'people'>(dest.kind === 'person' ? 'people' : 'groups');
   // The name typed into the "add a person" row — a brand-new individual, no
   // group needed up front.
   const [newName, setNewName] = useState('');
@@ -853,35 +929,31 @@ function DestinationPicker({
     setNewName('');
     onAddPerson(trimmed);
   };
-  type Row = {
-    key: string;
-    label: string;
-    // A row wears either the group's own cover emoji or, lacking one, an Ionicon
-    // — the inbox and "new group" rows only ever use an icon.
-    icon: React.ComponentProps<typeof Ionicons>['name'];
-    emoji?: string | null;
-    selected: boolean;
-    onPress: () => void;
+
+  // Always-present default: the capture inbox, pinned above the tabs. It is
+  // neither a group nor a person, and it is where a Save with no destination
+  // lands, so it stays in view whichever tab is open.
+  const unassignedRow: PickerRow = {
+    key: 'unassigned',
+    label: t.captures.unassigned,
+    // The inbox row wears the dashboard's captures glyph, so "Unassigned" here
+    // and the captures card on Home read as the same place.
+    icon: 'file-tray-full-outline',
+    selected: dest.kind === 'unassigned',
+    onPress: () => onChoose({ kind: 'unassigned' }),
   };
-  const rows: Row[] = [
-    {
-      key: 'unassigned',
-      label: t.captures.unassigned,
-      // The inbox row wears the dashboard's captures glyph, so "Unassigned" here
-      // and the captures card on Home read as the same place.
-      icon: 'file-tray-full-outline',
-      selected: dest.kind === 'unassigned',
-      onPress: () => onChoose({ kind: 'unassigned' }),
-    },
-  ];
+
+  const groupRows: PickerRow[] = [];
   // Driven by the persisted request, not the current destination, so the "new
   // group" row stays offered after the reader switches to the inbox or a group.
+  // It is brand new by definition, so it always wears the "New" badge.
   if (requested) {
-    rows.push({
+    groupRows.push({
       key: 'create',
       label: t.voice.newGroupNamed.replace('{name}', requested.name),
       icon: 'add-circle-outline',
       selected: dest.kind === 'create',
+      badge: { label: t.voice.badgeNew, tone: 'brand' },
       onPress: () => onChoose({ kind: 'create', ...requested }),
     });
   }
@@ -898,24 +970,31 @@ function DestinationPicker({
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
   for (const group of sorted) {
-    rows.push({
+    groupRows.push({
       key: group.id,
       label: groupLabel(group),
       icon: GROUP_TYPE_ICON[group.type] ?? 'people-outline',
       emoji: group.cover_emoji,
       selected: dest.kind === 'existing' && dest.groupId === group.id,
+      badge: destinationBadge(
+        { createdAt: group.created_at, usage: usage.get(group.id), nowMs },
+        t,
+      ),
       onPress: () => onChoose({ kind: 'existing', groupId: group.id }),
     });
   }
 
   // People: existing friends by name, each reusing their 1:1 group. A person the
   // reader has just added by name (a `person` dest, no group yet) rides at the
-  // top as the selected row so the choice reads back.
-  const peopleRows: Row[] = people.map((person) => ({
+  // top as the selected row so the choice reads back. People carry only the
+  // usage-driven badges (recent/frequent) — a person's 1:1 group has no creation
+  // date to hand here, so "new" is a groups-only signal.
+  const peopleRows: PickerRow[] = people.map((person) => ({
     key: `person-${person.groupId}`,
     label: person.name,
     icon: 'person-outline',
     selected: dest.kind === 'existing' && dest.groupId === person.groupId,
+    badge: destinationBadge({ usage: usage.get(person.groupId), nowMs }, t),
     onPress: () => onChoose({ kind: 'existing', groupId: person.groupId }),
   }));
   if (dest.kind === 'person') {
@@ -924,11 +1003,12 @@ function DestinationPicker({
       label: dest.name,
       icon: 'person-outline',
       selected: true,
+      badge: { label: t.voice.badgeNew, tone: 'brand' },
       onPress: () => {},
     });
   }
 
-  const renderRow = (row: Row, showDivider: boolean): React.JSX.Element => (
+  const renderRow = (row: PickerRow, showDivider: boolean): React.JSX.Element => (
     <View key={row.key}>
       <Pressable
         onPress={row.onPress}
@@ -973,6 +1053,7 @@ function DestinationPicker({
         >
           {row.label}
         </Text>
+        {row.badge ? <Badge label={row.badge.label} tone={row.badge.tone} /> : null}
         <Ionicons
           name={row.selected ? 'checkmark-circle' : 'ellipse-outline'}
           size={iconSize.md}
@@ -985,26 +1066,38 @@ function DestinationPicker({
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
-      <View style={{ gap: theme.spacing.sm }}>
-        <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-          {t.voice.saveTo.toUpperCase()}
-        </Text>
-        {/* One grouped card, hairlines between rows — the destination is a single
-            choice, so it reads as a single control (Expensify "To", Monzo lists)
-            rather than a stack of floating pills. Selection is a leading glyph
-            that lights to brand plus a filled radio, not a full-width purple fill. */}
-        <Card padded={false} flat style={{ overflow: 'hidden' }}>
-          {rows.map((row, index) => renderRow(row, index < rows.length - 1))}
-        </Card>
-      </View>
+      <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+        {t.voice.saveTo.toUpperCase()}
+      </Text>
 
-      {/* People: assign to an individual instead of a group. Existing friends by
-          name (reusing their 1:1 group), plus a row to add someone new by name —
-          which makes the 1:1 group and the ghost on save. */}
-      <View style={{ gap: theme.spacing.sm }}>
-        <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-          {t.voice.people.toUpperCase()}
-        </Text>
+      {/* The default, pinned above the tabs — one grouped card, the same control
+          shape the rest of the picker uses. */}
+      <Card padded={false} flat style={{ overflow: 'hidden' }}>
+        {renderRow(unassignedRow, false)}
+      </Card>
+
+      {/* Groups and People are their own tab: a flat list of every group then
+          every person grew long enough to bury one under the other. */}
+      <SegmentedTabs
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'groups', label: t.voice.groupsTab },
+          { value: 'people', label: t.voice.peopleTab },
+        ]}
+      />
+
+      {tab === 'groups' ? (
+        groupRows.length > 0 ? (
+          <Card padded={false} flat style={{ overflow: 'hidden' }}>
+            {groupRows.map((row, index) => renderRow(row, index < groupRows.length - 1))}
+          </Card>
+        ) : (
+          <Text tone="muted" align="center" style={{ paddingVertical: theme.spacing.lg }}>
+            {t.voice.noGroups}
+          </Text>
+        )
+      ) : (
         <Card padded={false} flat style={{ overflow: 'hidden' }}>
           {peopleRows.map((row) => renderRow(row, true))}
           {/* Add a new person by name — a 1:1 IOU without leaving the review. */}
@@ -1054,7 +1147,7 @@ function DestinationPicker({
             </Pressable>
           </Row>
         </Card>
-      </View>
+      )}
     </View>
   );
 }
