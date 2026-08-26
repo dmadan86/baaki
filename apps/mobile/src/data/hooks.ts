@@ -91,6 +91,7 @@ import {
   type PersonContribution,
 } from './peopleBalances';
 import { totalsByCurrency } from './totals';
+import { serialiseExpense } from './serialiseExpense';
 import { putImage, removeRestrictedImage } from '@/lib/storage';
 import { pickAlbumPhoto, type PickedImage } from '@/lib/image';
 import { parseAnnotations, type Annotations } from '@/lib/annotations';
@@ -848,36 +849,6 @@ export function invalidateGroup(queryClient: QueryClient, groupId: string): void
 }
 
 // ─────────────────────────────────────────────────────────── mutations ──
-
-/**
- * bigint does not survive JSON, and the queue is JSON on disk. Amounts go as
- * decimal strings and come back exact — the one thing money may never do here
- * is round-trip through a float.
- */
-function serialiseExpense(input: Omit<WriteExpenseInput, 'groupId'>): Record<string, unknown> {
-  return {
-    description: input.description.trim(),
-    category: input.category ?? null,
-    expenseDate: input.expenseDate,
-    currency: input.currency,
-    amount: input.amount.toString(),
-    fx: input.fx ?? null,
-    splitParams: input.splitParams,
-    participants: input.participants,
-    payers: Object.fromEntries(
-      Object.entries(input.payers).map(([member, amount]) => [member, amount.toString()]),
-    ),
-    expectedShares: input.expectedShares
-      ? Object.fromEntries(
-          Object.entries(input.expectedShares).map(([member, share]) => [member, share.toString()]),
-        )
-      : undefined,
-    notes: input.notes ?? null,
-    paymentMethod: input.paymentMethod ?? null,
-    categoryMeta: input.categoryMeta ?? null,
-    location: input.location ?? null,
-  };
-}
 
 /**
  * Every write below queues rather than calls.
