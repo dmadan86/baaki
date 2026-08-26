@@ -167,8 +167,15 @@ function myStake(
   if (!version || !memberId) return null;
   const paid = version.payers.find((row) => row.member_id === memberId)?.amount;
   const share = version.shares.find((row) => row.member_id === memberId)?.amount;
-  if (paid === undefined && share === undefined) return null;
-  return BigInt(paid ?? 0) - BigInt(share ?? 0);
+  const paidN = BigInt(paid ?? 0);
+  const shareN = BigInt(share ?? 0);
+  // Not involved is "put nothing in, owe nothing" — which covers both the member
+  // absent from the bill entirely AND a member written into the split with a zero
+  // share (an excluded party some imports still list). Either way there is no
+  // stake, so the row must read "not involved", not "all settled" — a settled
+  // square is what you get when you paid and owed the *same non-zero* amount.
+  if (paidN === 0n && shareN === 0n) return null;
+  return paidN - shareN;
 }
 
 /**

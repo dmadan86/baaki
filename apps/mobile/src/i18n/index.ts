@@ -1467,6 +1467,10 @@ export interface UiStrings {
     youBorrowed: string;
     /** An expense you neither paid for nor have a share of. */
     notInvolved: string;
+    /** Detail-screen banner title when you are not a party to the bill. */
+    notInvolvedTitle: string;
+    /** Detail-screen banner body: this bill does not touch your balance. */
+    notInvolvedBody: string;
     /** "edited twice" — the count is edits, so it starts at one. */
     editedTimes: PluralForms;
     /** "In 4 expenses" over the list on a member. */
@@ -3239,6 +3243,8 @@ const en: UiStrings = {
     youLent: 'you lent',
     youBorrowed: 'you borrowed',
     notInvolved: 'not involved',
+    notInvolvedTitle: "You're not in this split",
+    notInvolvedBody: "You're viewing this as a group member — nothing here touches your balance.",
     editedTimes: { one: 'edited once', other: 'edited {n} times' },
     inCount: { one: 'In {n} expense', other: 'In {n} expenses' },
     whoOwesWhat: 'Who owes what',
@@ -5098,6 +5104,9 @@ const ta: UiStrings = {
     youLent: 'நீங்கள் கொடுத்தது',
     youBorrowed: 'நீங்கள் வாங்கியது',
     notInvolved: 'உங்களுக்கு தொடர்பில்லை',
+    notInvolvedTitle: 'இந்த பங்கீட்டில் நீங்கள் இல்லை',
+    notInvolvedBody:
+      'நீங்கள் குழு உறுப்பினராக இதைப் பார்க்கிறீர்கள் — இதில் எதுவும் உங்கள் இருப்பைத் தொடாது.',
     editedTimes: { one: 'ஒருமுறை திருத்தப்பட்டது', other: '{n} முறை திருத்தப்பட்டது' },
     inCount: { one: '{n} செலவில்', other: '{n} செலவுகளில்' },
     whoOwesWhat: 'யார் என்ன தர வேண்டும்',
@@ -6938,6 +6947,9 @@ const hi: UiStrings = {
     youLent: 'आपने दिए',
     youBorrowed: 'आपने लिए',
     notInvolved: 'आप इसमें नहीं',
+    notInvolvedTitle: 'आप इस बँटवारे में नहीं हैं',
+    notInvolvedBody:
+      'आप इसे समूह सदस्य के रूप में देख रहे हैं — इसमें कुछ भी आपके बैलेंस को नहीं बदलता।',
     editedTimes: { one: 'एक बार संपादित', other: '{n} बार संपादित' },
     inCount: { one: '{n} खर्च में', other: '{n} खर्चों में' },
     whoOwesWhat: 'किस पर क्या बाकी',
@@ -8798,6 +8810,8 @@ const ar: UiStrings = {
     youLent: 'أقرضت',
     youBorrowed: 'اقترضت',
     notInvolved: 'لست ضمنها',
+    notInvolvedTitle: 'أنت لست ضمن هذه القسمة',
+    notInvolvedBody: 'أنت تشاهدها كعضو في المجموعة — لا شيء هنا يؤثّر على رصيدك.',
     editedTimes: {
       zero: 'لم يُعدّل',
       one: 'عُدّل مرة واحدة',
