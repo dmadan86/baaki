@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -220,17 +220,23 @@ function groupExpensesByMonth<T extends { currentVersion: ExpenseVersionRow | nu
  * A month heading — "November", or "November 2024" once the year is not this
  * one. The date is a plain calendar date (no zone), so it is read in UTC to
  * match the day the rest of the feed prints beside each expense.
+ *
+ * The two `Intl.DateTimeFormat`s are built once per locale by the screen and
+ * handed in — constructing a formatter is expensive, and doing it inside the
+ * heading (which the virtualized feed re-runs as it recycles) was the same
+ * per-render allocation the expense rows had.
  */
-function monthLabel(locale: string, isoDate: string, now: number = Date.now()): string {
+function monthLabel(
+  fmtSameYear: Intl.DateTimeFormat,
+  fmtWithYear: Intl.DateTimeFormat,
+  isoDate: string,
+  now: number = Date.now(),
+): string {
   const parsed = Date.parse(isoDate);
   if (!Number.isFinite(parsed)) return isoDate;
   const when = new Date(parsed);
   const sameYear = when.getUTCFullYear() === new Date(now).getUTCFullYear();
-  return new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    ...(sameYear ? {} : { year: 'numeric' }),
-    timeZone: 'UTC',
-  }).format(when);
+  return (sameYear ? fmtSameYear : fmtWithYear).format(when);
 }
 
 /**
@@ -248,6 +254,154 @@ type FeedItem =
       readonly expense: ExpenseRow;
       readonly isLast: boolean;
     };
+
+/**
+ * One expense row of the virtualized feed, memoized so a recycled row that lands
+ * on the same expense does no work when the parent re-renders. Every prop is a
+ * primitive or a reference the screen keeps stable across renders — `theme` and
+ * `t` are memoized/static, `nameOf` is a `useCallback`, and `dateFmt` is built
+ * once per locale — so the shallow `memo` compare holds and the fast fling never
+ * has to re-run a row it already drew.
+ *
+ * `contested` and `myMemberId` are lifted to props (not read from the disputes
+ * Set / ledger inside) precisely so this stays a pure function of stable inputs.
+ * The date is formatted with the hoisted `dateFmt`, not a fresh
+ * `Intl.DateTimeFormat` per render, which was what made `renderItem` too slow to
+ * keep up with recycling and left blank cells on a hard fling.
+ */
+const ExpenseFeedRow = memo(function ExpenseFeedRow({
+  expense,
+  isLast,
+  contested,
+  myMemberId,
+  groupId,
+  locale,
+  dateFmt,
+  t,
+  theme,
+  nameOf,
+}: {
+  expense: ExpenseRow;
+  isLast: boolean;
+  contested: boolean;
+  myMemberId: MemberId | null;
+  groupId: string;
+  locale: string;
+  dateFmt: Intl.DateTimeFormat;
+  t: ReturnType<typeof useStrings>['t'];
+  theme: ReturnType<typeof useTheme>;
+  nameOf: (memberId: string | null) => string;
+}) {
+  const version = expense.currentVersion;
+  const payer = version?.payers[0]?.member_id ?? null;
+  // An imported Splitwise expense can have several payers, so
+  // "Asha paid ₹1,200" beside the expense total would put the
+  // whole bill on whoever happens to sort first. One payer is
+  // named and credited with what they actually put in; several
+  // are counted, and the number beside them is the total they
+  // put in between them.
+  const payerCount = version?.payers.length ?? 0;
+  const paidLine =
+    version === null
+      ? fill(t.expense.paidByName, { name: nameOf(payer) })
+      : fill(t.expense.paidByNameAmount, {
+          name: payerCount > 1 ? plural(locale, payerCount, t.misc.peopleCount) : nameOf(payer),
+          amount: formatParts(
+            {
+              minor:
+                payerCount > 1
+                  ? BigInt(version.amount)
+                  : BigInt(version.payers[0]?.amount ?? version.amount),
+              currency: version.currency,
+            },
+            { locale },
+          ).text,
+        });
+  // What this one expense did to *your* balance: what you put in
+  // beyond your share (you lent), or your share of what somebody
+  // else put in (you borrowed). The row used to end in the
+  // expense total, which is the group's number and never the
+  // answer to the question somebody opens a ledger with. The
+  // total keeps its place in the subtitle.
+  const stake = myStake(version, myMemberId);
+  // Flat row: the category is the badge on the left, not the row's
+  // colour. A deleted row is dimmed rather than hidden, so the
+  // ledger stays visibly append-only.
+  const title = expenseTitle(version?.description, version?.category, t, version?.category_meta);
+  return (
+    <View>
+      <Pressable
+        onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
+        accessibilityRole="button"
+        accessibilityLabel={contested ? `${title}, ${t.expense.disputed}` : title}
+        style={({ pressed }) => ({
+          opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
+        })}
+      >
+        <Row
+          style={{
+            gap: theme.spacing.md,
+            alignItems: 'center',
+            paddingVertical: theme.spacing.md,
+          }}
+        >
+          <CategoryBadge
+            category={version?.category}
+            meta={version?.category_meta}
+            description={version?.description}
+            size={40}
+          />
+          <View style={{ flex: 1 }}>
+            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+              <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {title}
+              </Text>
+              {contested ? <Badge label={t.expense.disputed} tone="negative" /> : null}
+            </Row>
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {[
+                paidLine,
+                version ? dateFmt.format(new Date(version.expense_date)) : null,
+                expense.deleted_at ? t.expense.deleted : null,
+                (version?.version_no ?? 1) > 1
+                  ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          </View>
+          {version ? (
+            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text variant="micro" tone="muted">
+                  {stake === null
+                    ? t.expense.notInvolved
+                    : stake > 0n
+                      ? t.expense.youLent
+                      : stake < 0n
+                        ? t.expense.youBorrowed
+                        : t.allSettled}
+                </Text>
+                {stake !== null && stake !== 0n ? (
+                  <MoneyText
+                    amount={stake}
+                    currency={version.currency}
+                    locale={locale}
+                    mode="balance"
+                    style={{ fontWeight: '700' }}
+                  />
+                ) : null}
+              </View>
+              {expense.pending ? <PendingMark /> : null}
+            </Row>
+          ) : null}
+        </Row>
+      </Pressable>
+      {!isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
+    </View>
+  );
+});
 
 export default function GroupScreen() {
   const theme = useTheme();
@@ -306,6 +460,25 @@ export default function GroupScreen() {
       };
     },
     [lookup],
+  );
+
+  // Date formatters built once per locale, not per row. Constructing an
+  // `Intl.DateTimeFormat` is expensive; doing it inside the row renderer meant a
+  // fast fling re-allocated a formatter for every recycled cell, slowing
+  // `renderItem` enough to outrun recycling and flash blanks. `dateFmt` is the
+  // day-and-month stamp on each expense; the two month formatters feed the
+  // section headings (same output as before — long month, year only off-year).
+  const dateFmt = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
+    [locale],
+  );
+  const monthFmtSameYear = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }),
+    [locale],
+  );
+  const monthFmtWithYear = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+    [locale],
   );
 
   if (group.isLoading) {
@@ -458,131 +631,11 @@ export default function GroupScreen() {
     );
   }
 
-  const renderExpenseRow = (expense: ExpenseRow, isLast: boolean) => {
-    const version = expense.currentVersion;
-    const payer = version?.payers[0]?.member_id ?? null;
-    // An imported Splitwise expense can have several payers, so
-    // "Asha paid ₹1,200" beside the expense total would put the
-    // whole bill on whoever happens to sort first. One payer is
-    // named and credited with what they actually put in; several
-    // are counted, and the number beside them is the total they
-    // put in between them.
-    const payerCount = version?.payers.length ?? 0;
-    const paidLine =
-      version === null
-        ? fill(t.expense.paidByName, { name: nameOf(payer) })
-        : fill(t.expense.paidByNameAmount, {
-            name: payerCount > 1 ? plural(locale, payerCount, t.misc.peopleCount) : nameOf(payer),
-            amount: formatParts(
-              {
-                minor:
-                  payerCount > 1
-                    ? BigInt(version.amount)
-                    : BigInt(version.payers[0]?.amount ?? version.amount),
-                currency: version.currency,
-              },
-              { locale },
-            ).text,
-          });
-    // What this one expense did to *your* balance: what you put in
-    // beyond your share (you lent), or your share of what somebody
-    // else put in (you borrowed). The row used to end in the
-    // expense total, which is the group's number and never the
-    // answer to the question somebody opens a ledger with. The
-    // total keeps its place in the subtitle.
-    const stake = myStake(version, ledger.myMemberId);
-    // Somebody disagreeing with an expense is worth seeing from the
-    // list. A disagreement you only find by opening the row is one
-    // that sits there unanswered.
-    const contested = openDisputes.has(expense.id);
-    // Flat row: the category is the badge on the left, not the row's
-    // colour. A deleted row is dimmed rather than hidden, so the
-    // ledger stays visibly append-only.
-    const title = expenseTitle(version?.description, version?.category, t, version?.category_meta);
-    return (
-      <View>
-        <Pressable
-          onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-          accessibilityRole="button"
-          accessibilityLabel={contested ? `${title}, ${t.expense.disputed}` : title}
-          style={({ pressed }) => ({
-            opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
-          })}
-        >
-          <Row
-            style={{
-              gap: theme.spacing.md,
-              alignItems: 'center',
-              paddingVertical: theme.spacing.md,
-            }}
-          >
-            <CategoryBadge
-              category={version?.category}
-              meta={version?.category_meta}
-              description={version?.description}
-              size={40}
-            />
-            <View style={{ flex: 1 }}>
-              <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
-                  {title}
-                </Text>
-                {contested ? <Badge label={t.expense.disputed} tone="negative" /> : null}
-              </Row>
-              <Text variant="caption" tone="muted" numberOfLines={1}>
-                {[
-                  paidLine,
-                  version
-                    ? new Intl.DateTimeFormat(locale, {
-                        day: 'numeric',
-                        month: 'short',
-                        timeZone: 'UTC',
-                      }).format(new Date(version.expense_date))
-                    : null,
-                  expense.deleted_at ? t.expense.deleted : null,
-                  (version?.version_no ?? 1) > 1
-                    ? plural(locale, version!.version_no - 1, t.expense.editedTimes)
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
-            </View>
-            {version ? (
-              <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text variant="micro" tone="muted">
-                    {stake === null
-                      ? t.expense.notInvolved
-                      : stake > 0n
-                        ? t.expense.youLent
-                        : stake < 0n
-                          ? t.expense.youBorrowed
-                          : t.allSettled}
-                  </Text>
-                  {stake !== null && stake !== 0n ? (
-                    <MoneyText
-                      amount={stake}
-                      currency={version.currency}
-                      locale={locale}
-                      mode="balance"
-                      style={{ fontWeight: '700' }}
-                    />
-                  ) : null}
-                </View>
-                {expense.pending ? <PendingMark /> : null}
-              </Row>
-            ) : null}
-          </Row>
-        </Pressable>
-        {!isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
-      </View>
-    );
-  };
-
   // A month heading or an expense row. Headings carry the between-section gap the
   // ScrollView used to give for free; the first item needs none, its space comes
-  // from the header block above it.
+  // from the header block above it. The row itself is a memoized component fed
+  // only stable props, so a recycled cell that lands on the same expense does no
+  // work — the allocation and re-render both moved out of the hot fling path.
   const renderFeedItem = ({ item, index }: { item: FeedItem; index: number }) =>
     item.kind === 'month' ? (
       <Text
@@ -595,10 +648,23 @@ export default function GroupScreen() {
           letterSpacing: 0.6,
         }}
       >
-        {monthLabel(locale, item.date)}
+        {monthLabel(monthFmtSameYear, monthFmtWithYear, item.date)}
       </Text>
     ) : (
-      renderExpenseRow(item.expense, item.isLast)
+      <ExpenseFeedRow
+        expense={item.expense}
+        isLast={item.isLast}
+        // Lifted to a primitive prop so the row does not depend on the disputes
+        // Set — keeps its memo compare cheap and stable.
+        contested={openDisputes.has(item.expense.id)}
+        myMemberId={ledger.myMemberId}
+        groupId={groupId}
+        locale={locale}
+        dateFmt={dateFmt}
+        t={t}
+        theme={theme}
+        nameOf={nameOf}
+      />
     );
 
   return (
@@ -614,10 +680,12 @@ export default function GroupScreen() {
           keyExtractor={(item) => item.key}
           getItemType={(item) => item.kind}
           renderItem={renderFeedItem}
-          // Render well beyond the viewport so a fast fling down a long ledger
+          // Belt-and-suspenders on top of the allocation-light, memoized row:
+          // render well beyond the viewport so a fast fling down a long ledger
           // never outruns recycling and flashes blank rows (default is 250px,
-          // which a hard fling clears in a frame). ~800px ≈ a dozen rows ahead.
-          drawDistance={800}
+          // which a hard fling clears in a frame). ~1500px ≈ two dozen rows
+          // ahead — cheap now that each row barely costs anything to draw.
+          drawDistance={1500}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: clearance,
