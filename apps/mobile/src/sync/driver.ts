@@ -22,6 +22,18 @@ import type { LocalStore, StoredRow } from './store';
 // (see rowCipher.ts). Bump when the migration below needs to run again.
 const SCHEMA_VERSION = 1;
 
+// Associated data bound into each sealed payload: the table plus the row's
+// identity. It is authenticated, not encrypted, so a ciphertext copied to a
+// different row (a different id/group/seq/key) fails to open. The exact same
+// string must be produced on write and read. A unit-separator (\x1f) joins the
+// parts — it never occurs in a UUID, an enum table name or an integer seq.
+const AAD_SEP = '\x1f';
+const mirrorAad = (table: string, id: string, groupId: string, seq: number): string =>
+  ['mirror_rows', table, id, groupId, seq].join(AAD_SEP);
+const queueAad = (clientMutationId: string, seq: number): string =>
+  ['pending_mutations', clientMutationId, seq].join(AAD_SEP);
+const draftAad = (key: string): string => ['drafts', key].join(AAD_SEP);
+
 const SCHEMA = `
 -- Wait for a held lock instead of throwing SQLITE_BUSY the instant the file is
 -- busy. In a production build there is one JS instance, one connection to this
@@ -117,21 +129,40 @@ class SqliteStore implements LocalStore {
     if ((current?.user_version ?? 0) >= SCHEMA_VERSION) return;
 
     const key = await loadKey();
-    const tables: { name: string; pk: readonly string[] }[] = [
-      { name: 'mirror_rows', pk: ['table_name', 'id'] },
-      { name: 'pending_mutations', pk: ['client_mutation_id'] },
-      { name: 'drafts', pk: ['key'] },
+    // `cols` are selected to rebuild both the primary key (for the UPDATE) and
+    // the associated-data binding (see the *Aad helpers). `aad` reproduces the
+    // exact string the normal write path uses, so a migrated row opens the same
+    // way a freshly written one does.
+    const tables: {
+      name: string;
+      pk: readonly string[];
+      cols: readonly string[];
+      aad: (row: Record<string, string>) => string;
+    }[] = [
+      {
+        name: 'mirror_rows',
+        pk: ['table_name', 'id'],
+        cols: ['table_name', 'id', 'group_id', 'seq'],
+        aad: (row) => mirrorAad(row.table_name, row.id, row.group_id, Number(row.seq)),
+      },
+      {
+        name: 'pending_mutations',
+        pk: ['client_mutation_id'],
+        cols: ['client_mutation_id', 'seq'],
+        aad: (row) => queueAad(row.client_mutation_id, Number(row.seq)),
+      },
+      { name: 'drafts', pk: ['key'], cols: ['key'], aad: (row) => draftAad(row.key) },
     ];
     await database.withTransactionAsync(async () => {
       for (const table of tables) {
         const rows = await database.getAllAsync<Record<string, string>>(
-          `SELECT ${[...table.pk, 'json'].join(', ')} FROM ${table.name}`,
+          `SELECT ${[...table.cols, 'json'].join(', ')} FROM ${table.name}`,
         );
         for (const row of rows) {
           if (isSealed(row.json)) continue;
           const where = table.pk.map((col) => `${col} = ?`).join(' AND ');
           await database.runAsync(`UPDATE ${table.name} SET json = ? WHERE ${where}`, [
-            encryptWith(key, row.json),
+            encryptWith(key, row.json, table.aad(row)),
             ...table.pk.map((col) => row[col] as string),
           ]);
         }
@@ -158,7 +189,17 @@ class SqliteStore implements LocalStore {
              VALUES (?, ?, ?, ?, ?)
              ON CONFLICT (table_name, id) DO UPDATE SET
                group_id = excluded.group_id, seq = excluded.seq, json = excluded.json`,
-            [row.table, row.id, row.groupId, row.seq, encryptWith(key, JSON.stringify(row.row))],
+            [
+              row.table,
+              row.id,
+              row.groupId,
+              row.seq,
+              encryptWith(
+                key,
+                JSON.stringify(row.row),
+                mirrorAad(row.table, row.id, row.groupId, row.seq),
+              ),
+            ],
           );
         }
       });
@@ -186,7 +227,9 @@ class SqliteStore implements LocalStore {
         id: row.id,
         groupId: row.group_id,
         seq: row.seq,
-        row: JSON.parse(decryptWith(key, row.json)) as MirrorRow,
+        row: JSON.parse(
+          decryptWith(key, row.json, mirrorAad(row.table_name, row.id, row.group_id, row.seq)),
+        ) as MirrorRow,
       }));
     });
   }
@@ -223,10 +266,17 @@ class SqliteStore implements LocalStore {
     return this.serial.run(async () => {
       const database = await this.db();
       const key = await loadKey();
-      const rows = await database.getAllAsync<{ json: string }>(
-        `SELECT json FROM pending_mutations ORDER BY seq ASC`,
+      const rows = await database.getAllAsync<{
+        client_mutation_id: string;
+        seq: number;
+        json: string;
+      }>(`SELECT client_mutation_id, seq, json FROM pending_mutations ORDER BY seq ASC`);
+      return rows.map(
+        (row) =>
+          JSON.parse(
+            decryptWith(key, row.json, queueAad(row.client_mutation_id, row.seq)),
+          ) as QueuedMutation,
       );
-      return rows.map((row) => JSON.parse(decryptWith(key, row.json)) as QueuedMutation);
     });
   }
 
@@ -242,7 +292,15 @@ class SqliteStore implements LocalStore {
         for (const mutation of queue) {
           await database.runAsync(
             `INSERT INTO pending_mutations (client_mutation_id, seq, json) VALUES (?, ?, ?)`,
-            [mutation.clientMutationId, mutation.seq, encryptWith(key, JSON.stringify(mutation))],
+            [
+              mutation.clientMutationId,
+              mutation.seq,
+              encryptWith(
+                key,
+                JSON.stringify(mutation),
+                queueAad(mutation.clientMutationId, mutation.seq),
+              ),
+            ],
           );
         }
       });
@@ -257,7 +315,7 @@ class SqliteStore implements LocalStore {
         `SELECT json FROM drafts WHERE key = ?`,
         [key],
       );
-      return row ? (JSON.parse(decryptWith(dek, row.json)) as T) : null;
+      return row ? (JSON.parse(decryptWith(dek, row.json, draftAad(key))) as T) : null;
     });
   }
 
@@ -268,7 +326,7 @@ class SqliteStore implements LocalStore {
       await database.runAsync(
         `INSERT INTO drafts (key, json, saved_at) VALUES (?, ?, ?)
          ON CONFLICT (key) DO UPDATE SET json = excluded.json, saved_at = excluded.saved_at`,
-        [key, encryptWith(dek, JSON.stringify(value)), new Date().toISOString()],
+        [key, encryptWith(dek, JSON.stringify(value), draftAad(key)), new Date().toISOString()],
       );
     });
   }
@@ -289,7 +347,7 @@ class SqliteStore implements LocalStore {
       );
       return rows.map((row) => ({
         key: row.key,
-        value: JSON.parse(decryptWith(dek, row.json)) as unknown,
+        value: JSON.parse(decryptWith(dek, row.json, draftAad(row.key))) as unknown,
         savedAt: row.saved_at,
       }));
     });
@@ -309,7 +367,15 @@ class SqliteStore implements LocalStore {
         for (const mutation of queue) {
           await database.runAsync(
             `INSERT INTO pending_mutations (client_mutation_id, seq, json) VALUES (?, ?, ?)`,
-            [mutation.clientMutationId, mutation.seq, encryptWith(key, JSON.stringify(mutation))],
+            [
+              mutation.clientMutationId,
+              mutation.seq,
+              encryptWith(
+                key,
+                JSON.stringify(mutation),
+                queueAad(mutation.clientMutationId, mutation.seq),
+              ),
+            ],
           );
         }
       });

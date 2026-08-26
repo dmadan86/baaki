@@ -222,19 +222,23 @@ let failNextOpen = false;
 // keystore and the RNG. In-memory stand-ins: a Map for SecureStore, Node's own
 // CSPRNG for expo-crypto. The crypto itself (@noble/ciphers) is pure JS and runs
 // for real, so these tests exercise the true encrypt/decrypt round-trip.
-vi.mock('expo-secure-store', () => {
-  const keystore = new Map<string, string>();
-  return {
-    AFTER_FIRST_UNLOCK: 'after-first-unlock',
-    getItemAsync: async (key: string) => keystore.get(key) ?? null,
-    setItemAsync: async (key: string, value: string) => {
-      keystore.set(key, value);
-    },
-    deleteItemAsync: async (key: string) => {
-      keystore.delete(key);
-    },
-  };
-});
+const secure = vi.hoisted(() => ({
+  keystore: new Map<string, string>(),
+  deletes: [] as string[],
+}));
+
+vi.mock('expo-secure-store', () => ({
+  AFTER_FIRST_UNLOCK: 'after-first-unlock',
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 'after-first-unlock-this-device-only',
+  getItemAsync: async (key: string) => secure.keystore.get(key) ?? null,
+  setItemAsync: async (key: string, value: string) => {
+    secure.keystore.set(key, value);
+  },
+  deleteItemAsync: async (key: string) => {
+    secure.deletes.push(key);
+    secure.keystore.delete(key);
+  },
+}));
 
 vi.mock('expo-crypto', () => ({
   getRandomBytes: (length: number) => {
@@ -510,12 +514,18 @@ describe('at-rest encryption', () => {
   });
 
   it('destroys the key on reset (crypto-erase)', async () => {
+    const DEK = 'waves.mirror.dek.v1';
     const store = createLocalStore();
     await store.putRows([
       { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1' } },
     ] as never);
 
+    const deletesBefore = secure.deletes.filter((key) => key === DEK).length;
     await store.reset();
+
+    // reset() actually removes the encryption key (not just the rows), so a
+    // no-op destroyKey would fail this rather than silently pass.
+    expect(secure.deletes.filter((key) => key === DEK).length).toBe(deletesBefore + 1);
 
     // A fresh write after reset still works — the store transparently mints a
     // new key — and the data is gone.

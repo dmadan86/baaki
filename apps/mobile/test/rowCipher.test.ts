@@ -28,6 +28,7 @@ const hoisted = vi.hoisted(() => ({ keystore: new Map<string, string>() }));
 
 vi.mock('expo-secure-store', () => ({
   AFTER_FIRST_UNLOCK: 'after-first-unlock',
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 'after-first-unlock-this-device-only',
   getItemAsync: async (key: string) => hoisted.keystore.get(key) ?? null,
   setItemAsync: async (key: string, value: string) => {
     hoisted.keystore.set(key, value);
@@ -90,6 +91,18 @@ describe('seal / open (pure)', () => {
     const sealed = seal(KEY, NONCE, 'secret');
     const wrong = new Uint8Array(32).fill(9);
     expect(() => open(wrong, sealed)).toThrow();
+  });
+
+  it('binds the ciphertext to its associated data', () => {
+    const plain = JSON.stringify({ id: 'e1' });
+    const sealed = seal(KEY, NONCE, plain, 'mirror_rows\x1fe1\x1fg1\x1f5');
+    // Same context opens it...
+    expect(open(KEY, sealed, 'mirror_rows\x1fe1\x1fg1\x1f5')).toBe(plain);
+    // ...but the same blob "moved" to another row (different id/group/seq) fails,
+    // and so does opening with no context at all.
+    expect(() => open(KEY, sealed, 'mirror_rows\x1fe2\x1fg1\x1f5')).toThrow();
+    expect(() => open(KEY, sealed, 'mirror_rows\x1fe1\x1fg2\x1f5')).toThrow();
+    expect(() => open(KEY, sealed)).toThrow();
   });
 });
 

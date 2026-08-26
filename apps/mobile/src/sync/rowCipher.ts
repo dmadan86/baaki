@@ -104,23 +104,34 @@ export function isSealed(stored: string): boolean {
   return stored.startsWith(VERSION_TAG);
 }
 
-/** Seal `plain` with `key` and a caller-supplied `nonce`. Pure — the native
- *  layer supplies a random nonce; tests can pin one. */
-export function seal(key: MirrorKey, nonce: Uint8Array, plain: string): string {
-  const ct = xchacha20poly1305(key, nonce).encrypt(utf8ToBytes(plain));
+/**
+ * Seal `plain` with `key` and a caller-supplied `nonce`. Pure — the native
+ * layer supplies a random nonce; tests can pin one.
+ *
+ * `aad` (associated data) is authenticated but not encrypted: it binds the
+ * ciphertext to its storage context — the table and the row's identity — so a
+ * blob copied to a different row (a different id, group or seq) fails to open.
+ * The exact same `aad` must be supplied to {@link open}.
+ */
+export function seal(key: MirrorKey, nonce: Uint8Array, plain: string, aad?: string): string {
+  const cipher = xchacha20poly1305(key, nonce, aad === undefined ? undefined : utf8ToBytes(aad));
+  const ct = cipher.encrypt(utf8ToBytes(plain));
   return VERSION_TAG + bytesToBase64(concatBytes(nonce, ct));
 }
 
-/** Open a value sealed by {@link seal}. A value without the version tag is
- *  returned unchanged — that is a row written before encryption existed, and
- *  the next write will seal it. A tampered/corrupt sealed value throws (the
- *  AEAD tag fails), exactly as a corrupt plaintext row would fail `JSON.parse`. */
-export function open(key: MirrorKey, stored: string): string {
+/** Open a value sealed by {@link seal}, with the identical `aad`. A value
+ *  without the version tag is returned unchanged — that is a row written before
+ *  encryption existed, and the next write will seal it. A tampered/corrupt
+ *  sealed value, or one whose `aad` does not match (e.g. a ciphertext moved to
+ *  another row), throws when the AEAD tag fails — exactly as a corrupt plaintext
+ *  row would fail `JSON.parse`. */
+export function open(key: MirrorKey, stored: string, aad?: string): string {
   if (!isSealed(stored)) return stored;
   const raw = base64ToBytes(stored.slice(VERSION_TAG.length));
   const nonce = raw.subarray(0, NONCE_BYTES);
   const ct = raw.subarray(NONCE_BYTES);
-  return bytesToUtf8(xchacha20poly1305(key, nonce).decrypt(ct));
+  const cipher = xchacha20poly1305(key, nonce, aad === undefined ? undefined : utf8ToBytes(aad));
+  return bytesToUtf8(cipher.decrypt(ct));
 }
 
 // --- native layer: keystore-backed key + RNG --------------------------------
@@ -137,8 +148,12 @@ async function loadOrCreateKey(): Promise<MirrorKey> {
   await SecureStore.setItemAsync(DEK_STORE_KEY, bytesToBase64(key), {
     // Readable after the first unlock following a boot, so background sync can
     // decrypt without the user having just unlocked — but not before first
-    // unlock, and never in an iCloud/iTunes backup.
-    keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+    // unlock. The THIS_DEVICE_ONLY variant also keeps the key from ever
+    // migrating to another device through an iCloud/iTunes backup restore: the
+    // key stays put, so a restored copy of the DB is unreadable on the new
+    // device (which is the intent — the ciphertext should not travel with a key
+    // that opens it).
+    keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
   });
   return key;
 }
@@ -154,14 +169,16 @@ export function loadKey(): Promise<MirrorKey> {
   return keyPromise;
 }
 
-/** Seal `plain` with a fresh random nonce. Synchronous given a loaded key. */
-export function encryptWith(key: MirrorKey, plain: string): string {
-  return seal(key, Crypto.getRandomBytes(NONCE_BYTES), plain);
+/** Seal `plain` with a fresh random nonce, bound to `aad` (the row's storage
+ *  context — see {@link seal}). Synchronous given a loaded key. */
+export function encryptWith(key: MirrorKey, plain: string, aad?: string): string {
+  return seal(key, Crypto.getRandomBytes(NONCE_BYTES), plain, aad);
 }
 
-/** Open `stored` (legacy plaintext passes through). Synchronous given a key. */
-export function decryptWith(key: MirrorKey, stored: string): string {
-  return open(key, stored);
+/** Open `stored` with the identical `aad` (legacy plaintext passes through).
+ *  Synchronous given a key. */
+export function decryptWith(key: MirrorKey, stored: string, aad?: string): string {
+  return open(key, stored, aad);
 }
 
 /**
