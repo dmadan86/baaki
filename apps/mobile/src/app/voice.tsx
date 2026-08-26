@@ -148,9 +148,6 @@ export default function VoiceScreen() {
     }
     return [...byGroup.values()].sort((a, b) => a.name.localeCompare(b.name));
   })();
-  // The 1:1 groups surfaced under People, so they are not also listed under
-  // Groups — a person shows once, as a person.
-  const oneToOneGroupIds = new Set(peopleChoices.map((choice) => choice.groupId));
 
   // 'listening' → the mic; 'thinking' → the model is reading; 'review' → the
   // heard expenses, editable, awaiting a destination and a Save.
@@ -784,7 +781,6 @@ export default function VoiceScreen() {
                   setPickerOpen(false);
                 }}
                 people={peopleChoices}
-                oneToOneGroupIds={oneToOneGroupIds}
                 groups={groupRows}
                 t={t}
                 theme={theme}
@@ -847,7 +843,6 @@ function DestinationPicker({
   onChoose,
   onAddPerson,
   people,
-  oneToOneGroupIds,
   groups,
   t,
   theme,
@@ -857,7 +852,6 @@ function DestinationPicker({
   onChoose: (dest: Dest) => void;
   onAddPerson: (name: string) => void;
   people: PersonChoice[];
-  oneToOneGroupIds: Set<string>;
   groups: GroupRow[];
   t: ReturnType<typeof useStrings>['t'];
   theme: ReturnType<typeof useTheme>;
@@ -916,9 +910,6 @@ function DestinationPicker({
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
   for (const group of sorted) {
-    // A person's 1:1 group is shown under People, by their name — not a second
-    // time here as a group.
-    if (oneToOneGroupIds.has(group.id)) continue;
     rows.push({
       key: group.id,
       label: groupLabel(group),

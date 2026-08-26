@@ -25,6 +25,22 @@ describe('parseVoiceExpense', () => {
     expect(parseVoiceExpense('add 500 rupees', groups).groupId).toBeNull();
   });
 
+  it('handles assignment phrasing and keeps it out of the note', () => {
+    const withTest: VoiceGroupRef[] = [...groups, { id: 'g-test', name: 'Test One' }];
+    // "assign to group X", the amount and the T-shirt description, plus the
+    // routing verbs, all resolve: group matched, note is just the description.
+    const assign = parseVoiceExpense('500 rupees t shirt assign to group test one', withTest);
+    expect(assign.groupId).toBe('g-test');
+    expect(assign.amountMinor).toBe(50000n);
+    expect(assign.note).toBe('t shirt');
+
+    // "put it in <group>" and "in this group <group>" are the same intent.
+    expect(parseVoiceExpense('200 for lunch put it in Goa trip', groups).groupId).toBe('g-goa');
+    const inThis = parseVoiceExpense('300 snacks in this group Goa trip', groups);
+    expect(inThis.groupId).toBe('g-goa');
+    expect(inThis.note).toBe('snacks');
+  });
+
   it('leaves the group null when the name is ambiguous', () => {
     const twoTrips: VoiceGroupRef[] = [
       { id: 'a', name: 'Goa Trip' },

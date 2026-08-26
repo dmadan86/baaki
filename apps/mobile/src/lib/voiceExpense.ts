@@ -188,6 +188,19 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'expense',
   'my',
   'our',
+  // Assignment phrasing — "assign to group X", "put it in X", "add to X",
+  // "in this/another group X". These verbs and pointers route the expense to a
+  // destination; they are neither part of the description nor of a group's name,
+  // so they must not survive into the note or count toward a group-name match.
+  'assign',
+  'assigned',
+  'put',
+  'group',
+  'groups',
+  'this',
+  'that',
+  'another',
+  'it',
   // Split phrasing — not part of a description or a group name.
   'split',
   'splits',
