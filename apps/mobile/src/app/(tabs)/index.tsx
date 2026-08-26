@@ -419,7 +419,7 @@ export default function HomeScreen() {
                     label={t.captures.title}
                     badge={captureCount || undefined}
                     disabled={captureCount === 0}
-                    onPress={() => router.push('/captures')}
+                    onPress={() => router.navigate('/captures')}
                   />
                 </Row>
               </Row>
@@ -459,7 +459,7 @@ export default function HomeScreen() {
               <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text variant="subheading">{t.yourGroups}</Text>
                 <Pressable
-                  onPress={() => router.push('/groups')}
+                  onPress={() => router.navigate('/groups')}
                   accessibilityRole="button"
                   accessibilityLabel={t.allGroups}
                   hitSlop={8}

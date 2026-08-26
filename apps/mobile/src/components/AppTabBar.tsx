@@ -70,7 +70,7 @@ export function AppTabBar() {
   const go = (key: string): void => {
     switch (key) {
       case 'inbox':
-        router.push('/inbox');
+        router.navigate('/inbox');
         break;
       case 'friends':
         router.navigate('/friends');

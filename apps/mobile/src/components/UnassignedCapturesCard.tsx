@@ -34,7 +34,7 @@ export function UnassignedCapturesCard() {
       // Both halves the card shows, so the spoken name carries the count a
       // sighted reader gets from the body line, not just "Unassigned".
       accessibilityLabel={`${t.captures.unassigned}. ${plural(locale, count, t.captures.unassignedBody)}`}
-      onPress={() => router.push('/captures')}
+      onPress={() => router.navigate('/captures')}
     >
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
         <View
