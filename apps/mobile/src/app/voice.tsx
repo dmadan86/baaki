@@ -582,6 +582,11 @@ export default function VoiceScreen() {
   const canSave =
     drafts.length > 0 &&
     !saving &&
+    // Hold Save while the automatic location fix is still in flight, so an
+    // expense is not persisted with location === null a moment before the
+    // capture would have filled it in. The fix races a short timeout (see
+    // captureLocation), so this is a brief wait, not an indefinite one.
+    !locating &&
     drafts.every((draft) => toMinor(draft.amount, draft.currency ?? dc) !== null);
 
   // The footer total must read in the same currency the Save will persist, or
@@ -1151,13 +1156,19 @@ function DestinationPicker({
   // order. Every row carries its own cover emoji (or a type glyph as a fallback)
   // so a trip, a home and an event are told apart at a glance instead of a
   // column of identical people icons.
-  const sorted = [...groups].sort((a, b) => {
-    // Newest first by creation time; when two groups share a timestamp (made in
-    // the same request), fall back to id so the order is stable across renders
-    // rather than flipping on every re-sort.
-    if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
+  // A person's 1:1 group is their row on the People tab, not a group in its own
+  // right — showing it in both tabs lists the same conversation twice. So the
+  // groups the People tab already represents are dropped here.
+  const personGroupIds = new Set(people.map((person) => person.groupId));
+  const sorted = [...groups]
+    .filter((group) => !personGroupIds.has(group.id))
+    .sort((a, b) => {
+      // Newest first by creation time; when two groups share a timestamp (made
+      // in the same request), fall back to id so the order is stable across
+      // renders rather than flipping on every re-sort.
+      if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
   for (const group of sorted) {
     groupRows.push({
       key: group.id,

@@ -30,8 +30,8 @@ import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
-import { Language, useStrings } from '@/i18n';
-import { dictationError, speechLocale } from '@/lib/dictation';
+import { useStrings } from '@/i18n';
+import { dictationError, englishSpeechLocale } from '@/lib/dictation';
 
 const MIC_SIZE = 104;
 
@@ -412,7 +412,7 @@ export function VoiceCapture({
         // Recognition is English-only — the surface each speaker reads is still
         // localised, but the mic listens in English (device region where it can,
         // else en-IN), so there is one locale to get right and no chip to miss.
-        lang: speechLocale(Language.En, locale),
+        lang: englishSpeechLocale(locale),
         interimResults: true,
         maxAlternatives: 1,
         // One sentence, then it settles — the same shape a note dictation uses.
