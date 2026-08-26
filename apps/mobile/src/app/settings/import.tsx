@@ -24,7 +24,7 @@ import { randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import {
   importSplitwiseCsv,
@@ -45,6 +45,7 @@ import {
   IconButton,
   iconSize,
   MoneyText,
+  ProgressBar,
   Row,
   Screen,
   SectionHeader,
@@ -64,6 +65,18 @@ import { useAuth } from '@/lib/auth';
 type Mapping = { kind: 'me' } | { kind: 'member'; memberId: string } | { kind: 'ghost' };
 
 const NEW_GROUP = 'new';
+
+/**
+ * Yield one frame so React can flush a state change to the screen before the
+ * thread is tied up again. The file read is async, but the parse that follows
+ * runs on this thread and blocks it — without a paint in between, a large file
+ * freezes on a blank screen and looks like nothing happened.
+ */
+const nextFrame = (): Promise<void> =>
+  new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+/** Which slow step the screen is on, so it can name what it is waiting for. */
+type Stage = 'reading' | 'parsing' | 'importing';
 
 /**
  * The two file formats, flattened to what this screen needs.
@@ -112,7 +125,12 @@ function fromBaaki(group: BaakiImportGroup, fallbackName: string): Loaded {
 
 export default function ImportScreen() {
   const theme = useTheme();
-  const clearance = useScreenClearance();
+  // The last thing on this screen is a full-width primary CTA (Import / Open the
+  // group), not a line of text. A footer-like action needs more breath above the
+  // system nav bar than the default so its icon and label never sit under the
+  // gesture pill — so ask the clearance hook for a larger base (still the inset
+  // plus a token, never a magic pixel number).
+  const clearance = useScreenClearance(theme.spacing.xxxl * 2);
   const { t, locale } = useStrings();
   const groups = useGroups();
   const { profile } = useAuth();
@@ -138,6 +156,7 @@ export default function ImportScreen() {
   const [mutationIds, setMutationIds] = useState<string[]>([]);
 
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{
     groupId: string;
@@ -184,14 +203,27 @@ export default function ImportScreen() {
       setFileGroupIndex(0);
       setParsed(null);
 
+      // Paint the "reading" bar before touching the file. The read below is
+      // async, but the parse after it is not — both run on this thread, so
+      // without a frame here a large file blocks before any progress shows.
+      setStage('reading');
+      await nextFrame();
+
       const pickedFile = new FileSystem.File(asset.uri);
-      const text = pickedFile.textSync();
+      // Async read (Blob.text) rather than the synchronous textSync: a large
+      // file no longer holds the JS thread while it comes off disk.
+      const text = await pickedFile.text();
       try {
         if (pickedFile.exists) pickedFile.delete();
       } catch {
         // Best-effort privacy cleanup; parsing has already copied the content into memory.
       }
       setFile(asset.name);
+
+      // The parse is synchronous and can be the slow part on a big file, so flush
+      // the "parsing" label to the screen before it blocks the thread.
+      setStage('parsing');
+      await nextFrame();
 
       // Asked of the contents, not the extension: a file saved from a browser
       // or shared through a chat app arrives named all sorts of things.
@@ -214,7 +246,10 @@ export default function ImportScreen() {
       const result = importSplitwiseCsv(text);
       load({
         origin: 'splitwise',
-        suggestedName: asset.name.replace(/\.csv$/i, '') || t.importLedger.importedGroup,
+        // A Splitwise CSV is named "export" more often than not and carries no
+        // group name of its own, so default to the source's own name rather than
+        // a filename that means nothing. The person can rename the group later.
+        suggestedName: t.importLedger.splitwiseGroupName,
         people: result.people,
         currency: result.currency,
         expenses: result.expenses,
@@ -227,6 +262,7 @@ export default function ImportScreen() {
       setError(friendlyError(caught, t.importLedger.importFailed, 'import.readFile'));
     } finally {
       setBusy(false);
+      setStage(null);
     }
   };
 
@@ -281,7 +317,11 @@ export default function ImportScreen() {
   const run = async (): Promise<void> => {
     if (!parsed) return;
     setBusy(true);
+    setStage('importing');
     setError(null);
+    // Let the progress bar and "Importing…" label paint before the single
+    // transactional write ties the thread up.
+    await nextFrame();
     try {
       let groupId = target;
       if (groupId === NEW_GROUP) {
@@ -351,6 +391,7 @@ export default function ImportScreen() {
       setError(friendlyError(caught, t.importLedger.importFailed, 'import.commit'));
     } finally {
       setBusy(false);
+      setStage(null);
     }
   };
 
@@ -404,7 +445,14 @@ export default function ImportScreen() {
           }
         />
 
-        {busy && !parsed ? <ActivityIndicator color={theme.color.brand} /> : null}
+        {stage === 'reading' || stage === 'parsing' ? (
+          <View style={{ gap: theme.spacing.sm }}>
+            <Text variant="caption" tone="muted">
+              {stage === 'reading' ? t.importLedger.reading : t.importLedger.parsing}
+            </Text>
+            <ProgressBar />
+          </View>
+        ) : null}
 
         {/* A file holding several groups: one at a time, chosen here. */}
         {fileGroups.length > 1 && !done ? (
@@ -559,6 +607,14 @@ export default function ImportScreen() {
                     />
                   }
                 />
+                {stage === 'importing' ? (
+                  <View style={{ gap: theme.spacing.sm }}>
+                    <ProgressBar />
+                    <Text variant="caption" tone="muted" align="center">
+                      {plural(locale, parsed.expenses.length, t.importLedger.importingCount)}
+                    </Text>
+                  </View>
+                ) : null}
                 {!claimedByMe ? (
                   <Text variant="caption" tone="muted" align="center">
                     {t.importLedger.tapYourNameFirst}
