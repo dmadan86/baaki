@@ -243,6 +243,48 @@ function recognitionAvailable(): boolean {
   }
 }
 
+/**
+ * Whether an on-device English model is actually installed on this phone.
+ *
+ * `supportsOnDeviceRecognition()` only says the phone can do on-device work at
+ * all — not that the model for the language we are about to ask for is present.
+ * Requiring on-device for a locale whose model is not downloaded is the quiet
+ * failure this screen hit: the recogniser starts, hears the words, and returns
+ * nothing, because it was told to use a model that is not there. So on-device is
+ * requested only when English is in `installedLocales`; otherwise the mic falls
+ * back to network recognition, which speaks English everywhere. (An empty or
+ * throwing probe — Android 12 and below, a missing service — resolves to `false`
+ * and the network path, which works, rather than the on-device path, which may
+ * not.)
+ */
+async function englishInstalledOnDevice(): Promise<boolean> {
+  try {
+    let supportsOnDevice = false;
+    try {
+      supportsOnDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+    } catch {
+      supportsOnDevice = false;
+    }
+    if (!supportsOnDevice) return false;
+
+    let androidRecognitionServicePackage: string | undefined;
+    try {
+      const pkg = ExpoSpeechRecognitionModule.getDefaultRecognitionService?.().packageName;
+      if (pkg) androidRecognitionServicePackage = pkg;
+    } catch {
+      // iOS / older builds have no Android service concept — query without one.
+    }
+    const { installedLocales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
+      androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {},
+    );
+    return (installedLocales ?? []).some(
+      (tag) => tag.trim().split(/[-_]/)[0]?.toLowerCase() === 'en',
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function VoiceCapture({
   onDone,
   hints,
@@ -308,12 +350,11 @@ export function VoiceCapture({
       return;
     }
 
-    let onDevice = false;
-    try {
-      onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
-    } catch {
-      onDevice = false;
-    }
+    // On-device only when an English model is actually installed; otherwise the
+    // recogniser is left to use the network, which speaks English on every phone.
+    // Requiring on-device for a model that is not there is what returned silence.
+    const onDevice = await englishInstalledOnDevice();
+    if (!mounted.current) return;
 
     setListening(true);
     try {
