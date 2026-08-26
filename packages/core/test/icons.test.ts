@@ -26,6 +26,11 @@ describe('guessIcon', () => {
     expect(guessIcon('Sushi dinner')).toBe('fish-outline');
     expect(guessIcon('Zomato rolls')).toBe('fast-food-outline');
     expect(guessIcon('Blinkit milk and atta')).toBe('basket-outline');
+    // A grocery run outranks the generic fruit word — a basket, not nutrition.
+    expect(guessIcon('Blinkit fruits')).toBe('basket-outline');
+    expect(guessIcon('Fresh fruit')).toBe('basket-outline');
+    // …while a drink stays with the nutrition glyph.
+    expect(guessIcon('Orange juice')).toBe('nutrition-outline');
     expect(guessIcon('Nykaa order')).toBe('bag-handle-outline');
     expect(guessIcon('Shoes laundry')).toBe('shirt-outline');
   });

@@ -43,7 +43,36 @@ function tokenise(text: string): Set<string> {
 const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
   // ---- Food & drink -------------------------------------------------------
   ['egg-outline', ['breakfast', 'brunch', 'omelette', 'eggs']],
-  ['nutrition-outline', ['juice', 'smoothie', 'salad', 'fruit', 'fruits']],
+  // Groceries sit above the generic food words on purpose: a grocery run names
+  // a brand or a staple ("Blinkit fruits", "milk"), and that should read as a
+  // basket, not as the fruit/juice a snack would. So this owns "fruit(s)" and
+  // the nutrition entry below keeps only the drink-y health words.
+  [
+    'basket-outline',
+    [
+      'groceries',
+      'grocery',
+      'vegetables',
+      'sabzi',
+      'kirana',
+      'supermarket',
+      'fruit',
+      'fruits',
+      'milk',
+      'curd',
+      'rice',
+      'atta',
+      'oil',
+      'provisions',
+      'bigbasket',
+      'blinkit',
+      'zepto',
+      'instamart',
+      'dmart',
+      'jiomart',
+    ],
+  ],
+  ['nutrition-outline', ['juice', 'smoothie', 'salad']],
   ['fish-outline', ['fish', 'seafood', 'prawns', 'sushi']],
   [
     'cafe-outline',
@@ -175,30 +204,6 @@ const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
       'shoes',
       'chappal',
       'laundry',
-    ],
-  ],
-  [
-    'basket-outline',
-    [
-      'groceries',
-      'grocery',
-      'vegetables',
-      'sabzi',
-      'kirana',
-      'supermarket',
-      'fruits',
-      'milk',
-      'curd',
-      'rice',
-      'atta',
-      'oil',
-      'provisions',
-      'bigbasket',
-      'blinkit',
-      'zepto',
-      'instamart',
-      'dmart',
-      'jiomart',
     ],
   ],
   ['storefront-outline', ['market', 'store']],
