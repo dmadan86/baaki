@@ -78,7 +78,10 @@ export function MapPreview({
           style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
           contentFit="cover"
           transition={120}
-          cachePolicy="memory-disk"
+          // Google Maps Platform Terms forbid caching Maps Static API images —
+          // each view must re-request. So no disk/memory cache here (unlike the
+          // CARTO tiles below, whose licence permits the normal image cache).
+          cachePolicy="none"
         />
       ) : null}
       {tiles.map((tile) => (

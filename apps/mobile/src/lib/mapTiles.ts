@@ -75,6 +75,20 @@ export const TILE_HEADERS: Record<string, string> = {
  * `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` and the preview switches to Google; leave it
  * unset and the CARTO tile grid stands. (The "open in maps" deep link is always
  * Google regardless — see `mapsUrl` — this only governs the inline thumbnail.)
+ *
+ * SECURITY — the key ships in the client. An `EXPO_PUBLIC_*` value is compiled
+ * into the app binary and appears in the Static Maps request, so it is
+ * extractable; it is not a secret. Google's sanctioned path for a Maps key that
+ * must live in a mobile app is Cloud-Console restriction, and a key put here
+ * MUST be locked down before release:
+ *   - Application restriction: Android package name + SHA-1, and/or iOS bundle
+ *     id, so another app cannot spend it.
+ *   - API restriction: the Maps Static API only, to bound the blast radius.
+ * For stricter control (hide the key entirely, add request signing) route the
+ * image through a server-side proxy that holds the credential and have this
+ * point at the proxy instead — a deliberate follow-up, not required to ship a
+ * properly-restricted key. Until a restricted key is supplied the feature stays
+ * dark (CARTO), so there is no exposure by default.
  */
 export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
