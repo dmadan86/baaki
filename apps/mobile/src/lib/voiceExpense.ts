@@ -24,7 +24,7 @@ export const MAX_VOICE_NOTE_CHARS = 160;
 
 /** Unsupported intent words that must not be converted into normal expenses. */
 const UNSUPPORTED_EXPENSE_INTENT =
-  /\b(?:do\s+not|don't|dont|cancel|remove|delete|ignore|refund|refunded|reimburse(?:d|ment)?|paid\s+me\s+back|got\s+back|not\s+an\s+expense)\b/i;
+  /\b(?:do\s+not|don't|dont|did\s+not\s+pay|didn't\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back|not\s+an\s+expense)\b/i;
 
 export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
   return UNSUPPORTED_EXPENSE_INTENT.test(text);
@@ -322,9 +322,12 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'fils',
 ]);
 
+/** A signed number; validation below accepts only positive values. */
+const SIGNED_AMOUNT_RE = String.raw`[+-]?\s*\d[\d,]*(?:\.\d+)?`;
+
 /** A number sitting next to a currency word or symbol — the amount, said plainly. */
 const CURRENCY_ADJACENT = new RegExp(
-  `${CURRENCY_SYMBOL_RE}\\s*(\\d[\\d,]*(?:\\.\\d+)?)|(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:${CURRENCY_WORD_ALT})\\b`,
+  `${CURRENCY_SYMBOL_RE}\\s*(${SIGNED_AMOUNT_RE})|(${SIGNED_AMOUNT_RE})\\s*(?:${CURRENCY_WORD_ALT})\\b`,
   'i',
 );
 
@@ -349,7 +352,7 @@ function tokenize(text: string): string[] {
 /** A matched numeric string to a positive, safe amount, commas removed — or null. */
 function toAmount(raw: string | undefined): number | null {
   if (!raw) return null;
-  const value = Number.parseFloat(raw.replace(/,/g, ''));
+  const value = Number.parseFloat(raw.replace(/,/g, '').replace(/\s+/g, ''));
   return Number.isFinite(value) && value > 0 && value <= MAX_VOICE_AMOUNT_MAJOR ? value : null;
 }
 
@@ -374,7 +377,7 @@ function extractAmount(text: string): number | null {
   if (adjacent) return toAmount(adjacent[1] ?? adjacent[2]);
 
   const withoutCount = text.replace(SPLIT_COUNT, ' ');
-  const first = withoutCount.match(/\d[\d,]*(?:\.\d+)?/);
+  const first = withoutCount.match(new RegExp(SIGNED_AMOUNT_RE));
   return toAmount(first?.[0]);
 }
 
@@ -432,7 +435,10 @@ function buildNote(transcript: string, matchedGroupName: string | null): string 
     .replace(/\d[\d,]*(?:\.\d+)?/g, ' ')
     .split(/\s+/)
     .filter((word) => {
-      const token = word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+      const token = word
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]/gu, '');
       if (!token) return false;
       if (STOPWORDS.has(token)) return false;
       if (nameTokens.has(token)) return false;

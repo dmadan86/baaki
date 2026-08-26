@@ -394,8 +394,19 @@ describe('interpretVoiceExpenses', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(interpretVoiceExpenses("don't add 500 rupees", ctx)).resolves.toBeNull();
-    await expect(interpretVoiceExpenses('Ravi paid me back 500 rupees', ctx)).resolves.toBeNull();
+    for (const sentence of [
+      "don't add 500 rupees",
+      'I did not pay 500 rupees',
+      "I didn't pay 500 rupees",
+      'Ravi paid me back 500 rupees',
+      'Ravi repaid 500 rupees',
+      'Ravi repayment 500 rupees',
+      'Ravi reimbursed me 500 rupees',
+      'got paid back 500 rupees',
+      'received money back 500 rupees',
+    ]) {
+      await expect(interpretVoiceExpenses(sentence, ctx), sentence).resolves.toBeNull();
+    }
     expect(getActiveAiKeyMock).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });

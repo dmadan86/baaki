@@ -232,12 +232,19 @@ describe('parseVoiceExpense', () => {
     expect(parsed.note).toBe('groceries');
   });
 
-  it('does not create an expense from unsupported negative or refund intents', () => {
+  it('does not create an expense from unsupported negative, repayment, or refund intents', () => {
     for (const sentence of [
       "don't add 500 rupees for dinner",
       'cancel 500 rupees dinner',
       'refund 200 rupees hotel',
       'Ravi paid me back 500 rupees',
+      'I did not pay 500 rupees for dinner',
+      "I didn't pay 500 rupees for dinner",
+      'Ravi repaid 500 rupees',
+      'Ravi repayment 500 rupees',
+      'Ravi reimbursed me 500 rupees',
+      'got paid back 500 rupees',
+      'received money back 500 rupees',
     ]) {
       const parsed = parseVoiceExpense(sentence, groups);
       expect(parsed.amountMajor, sentence).toBeNull();
@@ -246,15 +253,26 @@ describe('parseVoiceExpense', () => {
     }
   });
 
+  it('rejects negative signed amounts in currency-adjacent and fallback positions', () => {
+    for (const sentence of ['-500 rupees dinner', '₹-500 dinner', 'minus -500 dinner']) {
+      const parsed = parseVoiceExpense(sentence, groups);
+      expect(parsed.amountMajor, sentence).toBeNull();
+      expect(parsed.amountMinor, sentence).toBeNull();
+    }
+    expect(parseVoiceExpense('+500 rupees dinner', groups).amountMajor).toBe(500);
+  });
+
   it('rejects unsafe huge amounts instead of converting them to imprecise minor units', () => {
     const parsed = parseVoiceExpense('999999999999999999 rupees', groups);
     expect(parsed.amountMajor).toBeNull();
     expect(parsed.amountMinor).toBeNull();
   });
 
-  it('normalizes Unicode group names before matching', () => {
+  it('normalizes Unicode group names before matching and note cleanup', () => {
     const accented: VoiceGroupRef[] = [{ id: 'g-cafe', name: 'Café Trip' }];
-    expect(parseVoiceExpense('add 500 to Café Trip', accented).groupId).toBe('g-cafe');
+    const parsed = parseVoiceExpense('add 500 to Café Trip', accented);
+    expect(parsed.groupId).toBe('g-cafe');
+    expect(parsed.note).toBe('');
   });
 
   it('reads a currency symbol', () => {
@@ -475,15 +493,29 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items.map((item) => item.amountMajor)).toEqual([20, 15]);
   });
 
-  it('does not create items from unsupported negative or refund intents', () => {
+  it('does not create items from unsupported negative, repayment, or refund intents', () => {
     for (const sentence of [
       "don't add 500 rupees for dinner",
       'delete 500 rupees dinner',
       'refund 200 rupees hotel',
       'Ravi paid me back 500 rupees',
+      'I did not pay 500 rupees for dinner',
+      "I didn't pay 500 rupees for dinner",
+      'Ravi repaid 500 rupees',
+      'Ravi repayment 500 rupees',
+      'Ravi reimbursed me 500 rupees',
+      'got paid back 500 rupees',
+      'received money back 500 rupees',
     ]) {
       expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
     }
+  });
+
+  it('does not create items from signed negative amounts', () => {
+    for (const sentence of ['-500 rupees dinner', '₹-500 dinner', 'minus -500 dinner']) {
+      expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
+    }
+    expect(parseVoiceExpenses('+500 rupees dinner', groups).items[0]?.amountMajor).toBe(500);
   });
 
   it('does not sum mixed-currency plus runs into one cross-currency amount', () => {
@@ -531,8 +563,8 @@ describe('a spoken digit-by-digit amount', () => {
 
   // "not" is an ordinary negation; it must never become a number on its own.
   it('never turns a plain negation into an amount', () => {
-    // The real amount (500) still comes through, and no phantom 0 is folded in.
-    expect(parseVoiceExpense('i did not pay five hundred rupees', groups).amountMajor).toBe(500);
+    // Explicit did-not-pay wording is a rejected payment intent, not an expense.
+    expect(parseVoiceExpense('i did not pay five hundred rupees', groups).amountMajor).toBeNull();
     // A standalone "not" beside money does not merge with the amount.
     expect(parseVoiceExpense('not sure, dinner 200 rupees', groups).amountMajor).toBe(200);
     // No number at all stays null.
