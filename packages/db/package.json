@@ -17,6 +17,7 @@
     "seed:purge": "node ./scripts/seed-demo.mjs --purge",
     "typecheck": "prisma generate --no-hints && tsc --noEmit",
     "test": "vitest run",
+    "test:scenario": "vitest run --config vitest.scenario.config.ts",
     "coverage": "vitest run --coverage"
   },
   "dependencies": {

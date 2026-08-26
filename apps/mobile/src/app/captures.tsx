@@ -5,8 +5,9 @@
  * photo of the bill — waiting to be assigned to a group. Assigning opens the
  * ordinary add-expense form prefilled; saving there turns the capture into a
  * real group expense and drops it from this list. Everything here is personal
- * and offline-first: a row still queued shows a "not synced yet" hint rather
- * than hiding until the server has seen it (ADR-005).
+ * and offline-first: a row still queued wears a faint cloud glyph rather than
+ * hiding until the server has seen it (ADR-005). Expenses spoken in one breath
+ * fold into a single collapsible "N expenses" row with the running total.
  */
 
 import { useMemo, useState } from 'react';
@@ -18,9 +19,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   Avatar,
-  Badge,
   Button,
   directionalIcon,
+  Divider,
   EmptyState,
   IconButton,
   iconSize,
@@ -34,6 +35,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { PendingMark } from '@/components/PendingMark';
 import { InboxSkeleton } from '@/components/Skeletons';
 import { capturePhotoUrl } from '@/data/api';
 import { useSignedUrl } from '@/lib/useSignedUrl';
@@ -42,20 +44,8 @@ import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { voiceBatchId } from '@/lib/captureBatch';
 import { usePullRefresh } from '@/lib/pullRefresh';
-
-/**
- * `YYYY-MM-DD` shown short, parsed at local noon rather than midnight — a
- * date-only string read as midnight UTC lands on the day before west of
- * Greenwich (the trap TripDates already dodges).
- */
-function shortDate(iso: string, locale: string): string {
-  const [year, month, day] = iso.split('-').map(Number);
-  return new Date(year ?? 2026, (month ?? 1) - 1, day ?? 1, 12).toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-  });
-}
 
 /** A signed URL for a capture's receipt, re-resolved on change and kept fresh
  *  past the signed-URL expiry (see `useSignedUrl`). */
@@ -98,13 +88,19 @@ function CaptureListRow({
   locale,
   t,
   onAssign,
+  onEdit,
   onDelete,
+  hideLocation = false,
 }: {
   capture: CaptureRow;
   locale: string;
   t: UiStrings;
   onAssign: () => void;
+  onEdit: () => void;
   onDelete: () => void;
+  /** Inside a batch the description IS the line that matters, so the place is
+   *  suppressed there — the batch stands for one outing, one location. */
+  hideLocation?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   // The note names the spend; with none, its category does; with neither, it is
@@ -114,6 +110,11 @@ function CaptureListRow({
     ? (t.categories as Record<string, string>)[capture.category]
     : undefined;
   const title = capture.description?.trim() || categoryLabel || t.captures.unassigned;
+  // Second line: the place it happened, else a note, else nothing. Never the
+  // date — the section heading already carries the day. A row inside a batch
+  // drops the place; there the description on the title line is the whole point.
+  const locationName = hideLocation ? '' : capture.location?.name?.trim() || '';
+  const subtitle = locationName || capture.notes?.trim() || '';
 
   return (
     <Pressable
@@ -135,12 +136,23 @@ function CaptureListRow({
           <Text variant="subheading" numberOfLines={1}>
             {title}
           </Text>
-          <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
-            <Text variant="micro" tone="muted">
-              {shortDate(capture.expense_date, locale)}
-            </Text>
-            {capture.pending ? <Badge label={t.captures.notSynced} tone="brand" /> : null}
-          </Row>
+          {/* The day is already the section heading, so a per-row date only
+              repeats it. The second line earns its place instead: where the spend
+              happened, or a note if there is one — and nothing at all when there
+              is neither. The unsynced cloud rides here when the row is queued. */}
+          {subtitle || capture.pending ? (
+            <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
+              {locationName ? (
+                <Ionicons name="location-outline" size={13} color={theme.color.textMuted} />
+              ) : null}
+              {subtitle ? (
+                <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {subtitle}
+                </Text>
+              ) : null}
+              {capture.pending ? <PendingMark /> : null}
+            </Row>
+          ) : null}
         </View>
 
         <MoneyText
@@ -149,11 +161,201 @@ function CaptureListRow({
           locale={locale}
           variant="subheading"
         />
+        {/* Edit the draft's own fields — the pencil beside the trash, so a row
+            offers both "fix it" and "bin it" without stealing the whole-row tap
+            (which still assigns it to a group). */}
+        <IconButton label={t.captures.edit} onPress={onEdit}>
+          <Ionicons name="create-outline" size={iconSize.md} color={theme.color.textFaint} />
+        </IconButton>
         <IconButton label={t.captures.delete} onPress={onDelete}>
           <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
         </IconButton>
       </Row>
     </Pressable>
+  );
+}
+
+/** A day's captures, with same-batch ones folded together in first-seen order. */
+type InboxItem =
+  { kind: 'single'; capture: CaptureRow } | { kind: 'batch'; id: string; items: CaptureRow[] };
+
+function foldBatches(entries: readonly CaptureRow[]): InboxItem[] {
+  const out: InboxItem[] = [];
+  const at = new Map<string, number>();
+  for (const capture of entries) {
+    const id = voiceBatchId(capture);
+    if (!id) {
+      out.push({ kind: 'single', capture });
+      continue;
+    }
+    const index = at.get(id);
+    if (index === undefined) {
+      at.set(id, out.length);
+      out.push({ kind: 'batch', id, items: [capture] });
+    } else {
+      (out[index] as { items: CaptureRow[] }).items.push(capture);
+    }
+  }
+  // A batch reduced to one row (the rest deleted, or a day boundary split it) is
+  // no longer a batch — show it as the plain capture it now is.
+  return out.map((item) =>
+    item.kind === 'batch' && item.items.length === 1
+      ? { kind: 'single', capture: item.items[0]! }
+      : item,
+  );
+}
+
+/**
+ * Several expenses spoken in one breath, folded into one collapsible row: a
+ * layered glyph, an "N expenses" title over a preview of what they were, and the
+ * running total at the trailing edge with a plus to open. Expanding reveals each
+ * as a full capture row — still individually assignable and deletable — so the
+ * total is the headline and the breakdown is one tap away.
+ */
+function BatchGroupCard({
+  items,
+  locale,
+  t,
+  onAssign,
+  onEdit,
+  onDelete,
+  onDeleteBatch,
+}: {
+  items: CaptureRow[];
+  locale: string;
+  t: UiStrings;
+  onAssign: (capture: CaptureRow) => void;
+  onEdit: (capture: CaptureRow) => void;
+  onDelete: (capture: CaptureRow) => void;
+  onDeleteBatch: () => void;
+}) {
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+
+  const currency = items[0]!.currency;
+  const sameCurrency = items.every((item) => item.currency === currency);
+  const total = sameCurrency ? items.reduce((sum, item) => sum + BigInt(item.amount), 0n) : null;
+  const anyPending = items.some((item) => item.pending);
+  // A spoken batch is one outing in one place, so the location belongs to the
+  // group, not repeated on every item. Take the first place any item carries.
+  const batchLocation = items.map((item) => item.location?.name?.trim()).find((name) => name) ?? '';
+
+  return (
+    // One rounded, bordered card so the header and its items read as a single
+    // grouped unit, set apart from the flush standalone rows around it — the
+    // grouped-transactions grammar (Monarch, PayPal, Commons).
+    <View
+      style={{
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        borderColor: theme.color.border,
+        backgroundColor: theme.color.surface,
+        overflow: 'hidden',
+        marginVertical: theme.spacing.xs,
+      }}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={open ? t.captures.collapseBatch : t.captures.expandBatch}
+        onPress={() => setOpen((value) => !value)}
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      >
+        <Row
+          style={{
+            gap: theme.spacing.md,
+            alignItems: 'center',
+            paddingVertical: theme.spacing.md,
+            paddingHorizontal: theme.spacing.md,
+          }}
+        >
+          <View
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.color.brandSoft,
+            }}
+          >
+            <Ionicons name="layers-outline" size={iconSize.lg} color={theme.color.brand} />
+          </View>
+
+          <View style={{ flex: 1, minWidth: 0 }}>
+            {/* The count is the whole headline — a batch stands for one outing,
+                so the individual descriptions belong to the expanded rows, not
+                here. Only the unsynced mark rides the second line. */}
+            <Text variant="subheading" numberOfLines={1}>
+              {plural(locale, items.length, t.captures.batchExpenses)}
+            </Text>
+            {anyPending ? (
+              <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
+                <PendingMark />
+              </Row>
+            ) : null}
+          </View>
+
+          {/* Total then the expander, both trailing — the chevron is the standard
+              reveal affordance (down closed, up open), sitting just past the
+              amount rather than a plus crammed at the edge. */}
+          {total !== null ? (
+            <MoneyText amount={total} currency={currency} locale={locale} variant="subheading" />
+          ) : (
+            <Text variant="subheading" tone="muted">
+              {plural(locale, items.length, t.captures.batchExpenses)}
+            </Text>
+          )}
+          {/* Delete the whole batch — the trailing control the standalone rows
+              carry, here removing every expense in the group at once. A nested
+              press, so it deletes rather than toggling the card. */}
+          <IconButton label={t.captures.deleteBatch} onPress={onDeleteBatch}>
+            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.textFaint} />
+          </IconButton>
+          <Ionicons
+            name={open ? 'chevron-up' : 'chevron-down'}
+            size={iconSize.md}
+            color={theme.color.textMuted}
+          />
+        </Row>
+      </Pressable>
+
+      {open ? (
+        <View style={{ paddingHorizontal: theme.spacing.md }}>
+          {/* The outing's place, shown once for the whole group — the item rows
+              below carry only their descriptions, not the place repeated. */}
+          {batchLocation ? (
+            <Row
+              style={{
+                gap: theme.spacing.xs,
+                alignItems: 'center',
+                paddingTop: theme.spacing.sm,
+              }}
+            >
+              <Ionicons name="location-outline" size={13} color={theme.color.textMuted} />
+              <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {batchLocation}
+              </Text>
+            </Row>
+          ) : null}
+          {items.map((capture, index) => (
+            <View key={capture.id}>
+              <Divider />
+              <CaptureListRow
+                capture={capture}
+                locale={locale}
+                t={t}
+                onAssign={() => onAssign(capture)}
+                onEdit={() => onEdit(capture)}
+                onDelete={() => onDelete(capture)}
+                hideLocation
+              />
+              {index === items.length - 1 ? <View style={{ height: theme.spacing.xs }} /> : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -210,6 +412,65 @@ export default function CapturesScreen() {
   const openAssign = (capture: CaptureRow): void => {
     setQuery('');
     setAssigning(capture);
+  };
+
+  // Open the draft in the capture form to fix its fields — the same screen that
+  // drafted it, now in edit mode. Every value the row carries rides along as a
+  // param so the form opens filled in and saving updates the row in place rather
+  // than making a second one; `parsed` (which holds the voice-batch id) is
+  // preserved so an edited batch item stays part of its batch.
+  const openEdit = (capture: CaptureRow): void => {
+    router.push({
+      pathname: '/capture',
+      params: {
+        editId: capture.id,
+        amount: capture.amount,
+        desc: capture.description ?? '',
+        cur: capture.currency,
+        category: capture.category ?? '',
+        ...(capture.category_meta ? { categoryMeta: JSON.stringify(capture.category_meta) } : {}),
+        date: capture.expense_date,
+        ...(capture.payment_method ? { payment: capture.payment_method } : {}),
+        ...(capture.target_group_id ? { targetGroupId: capture.target_group_id } : {}),
+        ...(capture.location ? { location: JSON.stringify(capture.location) } : {}),
+        ...(capture.notes ? { note: capture.notes } : {}),
+        ...(capture.photo_path ? { photoPath: capture.photo_path } : {}),
+        ...(capture.raw_text ? { rawText: capture.raw_text } : {}),
+        ...(capture.parsed ? { parsed: JSON.stringify(capture.parsed) } : {}),
+      },
+    });
+  };
+
+  // Shared by the standalone rows and the rows inside a batch, so a capture is
+  // deleted the same way wherever it is shown.
+  const confirmDelete = (capture: CaptureRow): void => {
+    Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.captures.delete,
+        style: 'destructive',
+        onPress: () => void deleteCapture.mutateAsync(capture.id),
+      },
+    ]);
+  };
+
+  // Delete every capture in a spoken batch at once, behind one confirm — the
+  // trailing trash on the batch card.
+  const confirmDeleteBatch = (items: CaptureRow[]): void => {
+    Alert.alert(
+      t.captures.deleteBatch,
+      plural(locale, items.length, t.captures.deleteBatchConfirm),
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.captures.delete,
+          style: 'destructive',
+          onPress: () => {
+            for (const item of items) void deleteCapture.mutateAsync(item.id);
+          },
+        },
+      ],
+    );
   };
 
   const closeAssign = (): void => {
@@ -318,25 +579,30 @@ export default function CapturesScreen() {
                 >
                   {dayHeading(locale, section.entries[0]!.created_at)}
                 </Text>
-                {section.entries.map((capture) => (
-                  <CaptureListRow
-                    key={capture.id}
-                    capture={capture}
-                    locale={locale}
-                    t={t}
-                    onAssign={() => openAssign(capture)}
-                    onDelete={() =>
-                      Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
-                        { text: t.common.cancel, style: 'cancel' },
-                        {
-                          text: t.captures.delete,
-                          style: 'destructive',
-                          onPress: () => void deleteCapture.mutateAsync(capture.id),
-                        },
-                      ])
-                    }
-                  />
-                ))}
+                {foldBatches(section.entries).map((item) =>
+                  item.kind === 'batch' ? (
+                    <BatchGroupCard
+                      key={`batch-${item.id}`}
+                      items={item.items}
+                      locale={locale}
+                      t={t}
+                      onAssign={openAssign}
+                      onEdit={openEdit}
+                      onDelete={confirmDelete}
+                      onDeleteBatch={() => confirmDeleteBatch(item.items)}
+                    />
+                  ) : (
+                    <CaptureListRow
+                      key={item.capture.id}
+                      capture={item.capture}
+                      locale={locale}
+                      t={t}
+                      onAssign={() => openAssign(item.capture)}
+                      onEdit={() => openEdit(item.capture)}
+                      onDelete={() => confirmDelete(item.capture)}
+                    />
+                  ),
+                )}
               </View>
             ))}
           </View>

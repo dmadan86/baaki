@@ -35,6 +35,7 @@ import { CountUpMoney } from '@/lib/anim';
 import { useFlagEnabled } from '@/lib/flags';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { foldedCaptureCount } from '@/lib/captureBatch';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { usePromptSlot } from '@/lib/promptQueue';
 import { useDashboardTips } from '@/lib/tips';
@@ -65,7 +66,8 @@ export default function HomeScreen() {
   // Unassigned captures now live as a badged inbox glyph in the toolbar rather
   // than a section in the feed.
   const captures = useCaptures();
-  const captureCount = captures.data?.length ?? 0;
+  // A voice batch counts as one draft on the inbox glyph, not one per item.
+  const captureCount = foldedCaptureCount(captures.data ?? []);
   const guard = useGuestGuard();
   const tour = useTour();
 
