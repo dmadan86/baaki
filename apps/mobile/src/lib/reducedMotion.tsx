@@ -11,7 +11,7 @@ const ReducedMotionContext = createContext(false);
  * whether to mount loops/entrances at all.
  */
 export function ReducedMotionProvider({ children }: { children: ReactNode }): React.JSX.Element {
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(true);
 
   useEffect(() => {
     let mounted = true;

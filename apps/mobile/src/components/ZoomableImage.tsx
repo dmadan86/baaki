@@ -86,6 +86,7 @@ export function ZoomableImage({
         const clamped = clampZoomPoint(
           { x: translateX.get(), y: translateY.get() },
           { width, height: boxHeight },
+          { width: rect.w, height: rect.h },
           scale.get(),
         );
         translateX.set(withTiming(clamped.x));
@@ -103,6 +104,7 @@ export function ZoomableImage({
       const clamped = clampZoomPoint(
         { x: savedX.get() + event.translationX, y: savedY.get() + event.translationY },
         { width, height: boxHeight },
+        { width: rect.w, height: rect.h },
         scale.get(),
       );
       translateX.set(clamped.x);
@@ -112,6 +114,7 @@ export function ZoomableImage({
       const clamped = clampZoomPoint(
         { x: translateX.get(), y: translateY.get() },
         { width, height: boxHeight },
+        { width: rect.w, height: rect.h },
         scale.get(),
       );
       translateX.set(withTiming(clamped.x));
@@ -144,6 +147,7 @@ export function ZoomableImage({
       const target = clampZoomPoint(
         { x: -(DOUBLE_TAP_SCALE - 1) * dx, y: -(DOUBLE_TAP_SCALE - 1) * dy },
         { width, height: boxHeight },
+        { width: rect.w, height: rect.h },
         DOUBLE_TAP_SCALE,
       );
       scale.set(withTiming(DOUBLE_TAP_SCALE));
