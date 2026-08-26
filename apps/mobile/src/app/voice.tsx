@@ -26,7 +26,13 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { computeShares, minorUnitScale, type ExpenseLocation, type SplitParams } from '@waves/core';
+import {
+  computeShares,
+  guessCategory,
+  minorUnitScale,
+  type ExpenseLocation,
+  type SplitParams,
+} from '@waves/core';
 import {
   Badge,
   Button,
@@ -228,6 +234,11 @@ export default function VoiceScreen() {
   // pin by hand, so an in-flight auto-read never overrides their choice.
   const locationGen = useRef(0);
   const locationTouched = useRef(false);
+  // One interpretation at a time. Bumped when a capture is sent to be read, and
+  // again the moment the reader backs out of the 'thinking' phase — so a result
+  // that lands after they have returned to the review (a cancelled append) is
+  // dropped rather than mutating the batch they went back to.
+  const interpretToken = useRef(0);
 
   const navigation = useNavigation();
 
@@ -427,8 +438,13 @@ export default function VoiceScreen() {
       return;
     }
     setPhase('thinking');
+    const token = (interpretToken.current += 1);
     void (async () => {
       const parsed = await interpret(transcript);
+      // Dropped if the reader has since backed out of 'thinking' (which bumps the
+      // token), or a newer capture superseded this one — a late append must not
+      // land on the review they returned to.
+      if (interpretToken.current !== token) return;
       if (mode === 'append') appendResult(parsed);
       else applyResult(parsed);
     })();
@@ -472,7 +488,12 @@ export default function VoiceScreen() {
   // batch intact, rather than leaving the screen. Otherwise it leaves as before
   // (the leave-guard below still files an unassigned batch as a draft on the way).
   const dismiss = (): void => {
-    if (phase === 'listening' && drafts.length > 0) {
+    // A sub-capture over an existing batch — the mic (listening) or its pending
+    // interpretation (thinking). Either way, back out to the review with the
+    // batch intact and cancel any interpretation still in flight, rather than
+    // leaving the screen. The opening capture (no batch yet) leaves as before.
+    if ((phase === 'listening' || phase === 'thinking') && drafts.length > 0) {
+      interpretToken.current += 1;
       setNoAmount(false);
       setMicMode('replace');
       setPhase('review');
@@ -498,9 +519,14 @@ export default function VoiceScreen() {
       const currency = draft.currency ?? dc;
       const amount = toMinor(draft.amount, currency);
       if (amount === null) continue;
+      // Give the draft a guessed category from its description, the same read the
+      // typed capture and add-expense forms do — so a voiced expense lands with a
+      // sensible bucket rather than uncategorised. Null (unrecognised text) is fine.
+      const description = draft.note.trim() || fallback;
       await createCapture.mutateAsync({
         captureId: draft.key,
-        description: draft.note.trim() || fallback,
+        description,
+        category: guessCategory(description),
         expenseDate: date,
         currency,
         amount,
@@ -520,9 +546,12 @@ export default function VoiceScreen() {
     const unsub = navigation.addListener('beforeRemove', (event) => {
       if (committed.current) return;
       // Backing out of a sub-capture (add more / re-dictate a row) — the OS back
-      // gesture, not only the ✕ — returns to the review with the batch intact.
-      if (phase === 'listening' && drafts.length > 0) {
+      // gesture or hardware key, not only the ✕ — returns to the review with the
+      // batch intact, whether the mic is still listening or its interpretation is
+      // pending ('thinking'). A late interpretation is cancelled with the token.
+      if ((phase === 'listening' || phase === 'thinking') && drafts.length > 0) {
         event.preventDefault();
+        interpretToken.current += 1;
         setNoAmount(false);
         setMicMode('replace');
         setPhase('review');
@@ -667,10 +696,13 @@ export default function VoiceScreen() {
           participants,
           seed: expenseId,
         });
+        // Same category guess as the inbox path: a voiced expense carries a bucket
+        // read from its description, which the reader can still change afterwards.
+        const description = draft.note.trim() || fallback;
         await writeExpense.mutateAsync({
           expenseId,
-          description: draft.note.trim() || fallback,
-          category: null,
+          description,
+          category: guessCategory(description),
           expenseDate: date,
           currency: groupCurrency,
           amount,
