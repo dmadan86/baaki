@@ -347,12 +347,32 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
   // The right column's date-line: the direction and the date, joined the way the
   // subtitle joins its parts. Undated rows (no version) show the label alone.
   const rightMeta = [directionLabel, dateStamp].filter(Boolean).join(' · ');
+  // The whole row is one button to a screen reader, so the money a sighted user
+  // reads on the right has to ride the row's label — otherwise it announces the
+  // title alone and never the amount. The magnitude (the direction is already in
+  // words), the direction and the date, comma-joined so it reads as a list, not
+  // "dot". Everything from the right column is gated on `version`, so a row with
+  // nothing priced on the right announces nothing extra either.
+  const amountA11y =
+    version && stake !== null && stake !== 0n
+      ? formatParts({ minor: stake < 0n ? -stake : stake, currency: version.currency }, { locale })
+          .text
+      : null;
+  const rowLabel = [
+    title,
+    contested ? t.expense.disputed : null,
+    version ? directionLabel : null,
+    amountA11y,
+    dateStamp,
+  ]
+    .filter(Boolean)
+    .join(', ');
   return (
     <View>
       <Pressable
         onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
         accessibilityRole="button"
-        accessibilityLabel={contested ? `${title}, ${t.expense.disputed}` : title}
+        accessibilityLabel={rowLabel}
         style={({ pressed }) => ({
           opacity: pressed ? 0.6 : expense.deleted_at ? 0.55 : 1,
         })}
@@ -394,11 +414,15 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
             </Text>
           </View>
           {/* RIGHT — fixed and right-aligned, the money column. `flexShrink: 0`
-              plus no width cap is what makes the amount the hero: it can never be
+              makes the amount the hero: for any normal value it can never be
               squeezed or clipped by a long name, and the date sits directly under
-              it so it is always on the row too. Only the middle ever gives. */}
+              it so it is always on the row too. Only the middle ever gives. The
+              `maxWidth` is a pure safety valve for a pathological amount on a
+              narrow screen — it stops the column from ever eating the whole row
+              and starving the name to zero; short of that ceiling the amount is
+              never capped. */}
           {version ? (
-            <View style={{ flexShrink: 0, alignItems: 'flex-end' }}>
+            <View style={{ flexShrink: 0, maxWidth: '55%', alignItems: 'flex-end' }}>
               <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
                 {stake !== null && stake !== 0n ? (
                   <MoneyText
