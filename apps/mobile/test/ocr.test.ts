@@ -115,6 +115,37 @@ describe('recogniseReceipt', () => {
     });
   });
 
+  it('splits embedded newlines in a native block text into individual receipt lines', async () => {
+    native.recognize.mockResolvedValue({
+      blocks: [
+        {
+          text: ['Cafe Baaki', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
+        },
+      ],
+    });
+
+    await expect(recogniseReceipt('file://block-newlines.jpg')).resolves.toEqual({
+      text: ['Cafe Baaki', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
+      lines: 4,
+    });
+  });
+
+  it('normalises Arabic and Devanagari digits before receipt detection', async () => {
+    native.recognize.mockResolvedValue({
+      blocks: [
+        { text: 'مطعم باكي' },
+        { text: 'Subtotal AED ١٬٢٣٤٫٥٠' },
+        { text: 'GST ₹१२.००' },
+        { text: 'Total AED ١٬٢٤٦٫٥٠' },
+      ],
+    });
+
+    await expect(recogniseReceipt('file://arabic-digits.jpg')).resolves.toEqual({
+      text: ['مطعم باكي', 'Subtotal AED 1,234.50', 'GST ₹12.00', 'Total AED 1,246.50'].join('\n'),
+      lines: 4,
+    });
+  });
+
   it('handles a large OCR result in one linear pass', async () => {
     const blocks = Array.from({ length: 1_000 }, (_, index) => ({
       text: `Item ${index} ${index}.00`,

@@ -36,14 +36,46 @@ const CURRENCY_AMOUNT = /(?:₹|rs\.?|inr|\$|usd|€|eur|£|gbp|aed|د\.إ)\s*\d
 const DECIMAL_AMOUNT = /\b\d{1,3}(?:,\d{2,3})*(?:\.\d{2})\b/;
 const INTEGER_AMOUNT_LINE = /\b\d{1,3}(?:,\d{2,3})+\b/;
 
-function normaliseBlockText(value: unknown): string {
+const DIGIT_RANGES = [
+  ['٠', '٩'],
+  ['۰', '۹'],
+  ['०', '९'],
+] as const;
+
+function normaliseDigits(value: string): string {
+  return [...value]
+    .map((char) => {
+      const code = char.codePointAt(0);
+      if (code === undefined) return char;
+      for (const [start, end] of DIGIT_RANGES) {
+        const startCode = start.codePointAt(0) as number;
+        const endCode = end.codePointAt(0) as number;
+        if (code >= startCode && code <= endCode) return String(code - startCode);
+      }
+      return char;
+    })
+    .join('');
+}
+
+function normaliseLineText(value: string): string {
+  return normaliseDigits(
+    value
+      .normalize('NFKC')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\u066b/g, '.')
+      .replace(/\u066c/g, ',')
+      .replace(/[ \t]+/g, ' ')
+      .trim(),
+  );
+}
+
+function normaliseTextLines(value: unknown): string[] {
   return typeof value === 'string'
     ? value
-        .normalize('NFKC')
-        .replace(/\u00a0/g, ' ')
-        .replace(/[ \t]+/g, ' ')
-        .trim()
-    : '';
+        .split(/\r?\n/)
+        .map(normaliseLineText)
+        .filter((line) => line.length > 0)
+    : [];
 }
 
 function looksLikeReceipt(text: string, lines: readonly string[]): boolean {
@@ -62,16 +94,11 @@ function blockLines(block: unknown): string[] {
   if (!block || typeof block !== 'object') return [];
   const candidate = block as { lines?: unknown; text?: unknown };
   if (Array.isArray(candidate.lines)) {
-    return candidate.lines
-      .map((line) =>
-        line && typeof line === 'object'
-          ? normaliseBlockText((line as { text?: unknown }).text)
-          : '',
-      )
-      .filter((line) => line.length > 0);
+    return candidate.lines.flatMap((line) =>
+      line && typeof line === 'object' ? normaliseTextLines((line as { text?: unknown }).text) : [],
+    );
   }
-  const text = normaliseBlockText(candidate.text);
-  return text.length > 0 ? [text] : [];
+  return normaliseTextLines(candidate.text);
 }
 
 export interface OcrResult {
