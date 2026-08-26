@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import 'dotenv/config';
 
-import { computeShares } from '@waves/core';
+import { computeShares, type SplitParams } from '@waves/core';
 
 /**
  * Deliberately NOT DATABASE_URL / DIRECT_URL: those point at whichever project
@@ -145,6 +145,98 @@ export async function addEqualSplitExpense(
       currency,
       amount.toString(),
       receiptId,
+    ],
+  );
+  for (const [memberId, paid] of Object.entries(payers)) {
+    await client.query(
+      `INSERT INTO expense_payers (id, expense_version_id, member_id, amount)
+       VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), versionId, memberId, paid.toString()],
+    );
+  }
+  for (const [memberId, owed] of shares) {
+    await client.query(
+      `INSERT INTO expense_shares (id, expense_version_id, member_id, amount)
+       VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), versionId, memberId, owed.toString()],
+    );
+  }
+  await client.query(`UPDATE expenses SET current_version_id = $1 WHERE id = $2`, [
+    versionId,
+    expenseId,
+  ]);
+  await client.query('COMMIT');
+
+  return { expenseId, versionId, shares };
+}
+
+export interface AddSplitExpenseOptions {
+  groupId: string;
+  /** memberId → amount paid. Must sum to `amount`. */
+  payers: Record<string, bigint>;
+  /** The members the cost is split across — a subset of the group is fine, and
+   *  members left out simply get no share (they did not contribute). */
+  participants: string[];
+  amount: bigint;
+  /** How the split is computed. `participants` must match the keys the params
+   *  carry (the amounts of an exact split, the weights of a shares split). */
+  params: SplitParams;
+  currency?: string;
+  description?: string;
+  date?: string;
+  category?: string | null;
+}
+
+/**
+ * The general form of {@link addEqualSplitExpense}: an expense with any split
+ * kind (equal / exact / shares / …). Shares are computed by @waves/core from the
+ * params — never taken from the caller — so the rows written are exactly what
+ * the server would write, and members outside `participants` get no share row.
+ */
+export async function addSplitExpense(
+  client: Client,
+  options: AddSplitExpenseOptions,
+): Promise<{ expenseId: string; versionId: string; shares: Map<string, bigint> }> {
+  const {
+    groupId,
+    payers,
+    participants,
+    amount,
+    params,
+    currency = 'INR',
+    description = 'Expense',
+    date = '2026-03-01',
+    category = null,
+  } = options;
+
+  const expenseId = randomUUID();
+  const versionId = randomUUID();
+  const shares = computeShares({ amount, currency, params, participants, seed: expenseId });
+
+  await client.query('BEGIN');
+  await client.query(`INSERT INTO expenses (id, group_id, created_by) VALUES ($1, $2, $3)`, [
+    expenseId,
+    groupId,
+    participants[0] ?? null,
+  ]);
+  await client.query(
+    `INSERT INTO expense_versions
+       (id, expense_id, version_no, author_member_id, description, category, expense_date,
+        currency, amount, split_type, split_params)
+     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)`,
+    [
+      versionId,
+      expenseId,
+      participants[0] ?? null,
+      description,
+      category,
+      date,
+      currency,
+      amount.toString(),
+      params.kind,
+      // The share rows carry the ground truth the balance triggers read; the
+      // stored params only need to name the kind (the seeder does the same).
+      JSON.stringify({ kind: params.kind }),
     ],
   );
   for (const [memberId, paid] of Object.entries(payers)) {

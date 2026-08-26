@@ -31,6 +31,24 @@ export function speechLocale(language: Language, deviceLocale: string): string {
 }
 
 /**
+ * The English tag to recognise in, keeping the device's region whatever the UI
+ * language is.
+ *
+ * The capture flow always recognises English (its parser is English-only), so
+ * the region must be taken from the device independently of the shown language:
+ * a phone on `ar-AE` should hear `en-AE`, not be corrected to Indian English the
+ * way {@link speechLocale} would (it keeps a region only when the tag already
+ * matches the language). India is the fallback only when the device carries no
+ * region at all.
+ */
+export function englishSpeechLocale(deviceLocale: string): string {
+  const parts = deviceLocale.trim().split(/[-_]/);
+  // A two-letter region or a three-digit UN M.49 code — never a script subtag.
+  const region = parts.slice(1).find((part) => /^([A-Za-z]{2}|\d{3})$/.test(part));
+  return region ? `en-${region.toUpperCase()}` : 'en-IN';
+}
+
+/**
  * What the field should read while somebody is speaking.
  *
  * `before` is whatever was in the field when the mic was tapped, and it is

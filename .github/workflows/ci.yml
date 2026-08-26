@@ -145,54 +145,10 @@ jobs:
       # quietly differ from the app's.
       - run: pnpm test:api
 
-  database:
-    name: migrations, RLS policies and ledger invariants
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: baaki
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-      # Every migration must apply cleanly to an empty database — including the
-      # hand-written RLS / trigger / derived-balance SQL.
-      - name: Apply migrations to a fresh database
-        run: pnpm db:migrate
-
-      # Guards schema.prisma against the applied migrations (TDR §2.0).
-      #
-      # Diffed against the database the step above just built, not replayed
-      # into a shadow database. The replay cannot work: `_prisma_migrations` is
-      # created by Prisma outside any migration, and the security hardening
-      # migration revokes privileges on it — which fails against a shadow
-      # database where that table does not exist. Diffing the migrated database
-      # asks the same question and is the one CI can answer.
-      - name: Prisma drift check
-        run: pnpm db:drift
-
-      # RLS allow/deny matrix + the money invariants, against real Postgres.
-      # TEST_DATABASE_URL is named separately from DATABASE_URL on purpose: this
-      # suite creates, mutates and deletes rows freely, so it must never inherit
-      # whichever project a developer is currently pointed at (packages/db/test/helpers.ts).
-      - name: Policy and invariant tests
-        env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
-        run: pnpm test:db
+  # The database + scenario jobs moved to their own workflow (.github/workflows/
+  # db.yml): they exercise only SQL and the @waves/core split maths, so they run
+  # only when the migrations, the DB tests, or @waves/core change — never on a
+  # UI-only push.
 
   web-e2e:
     name: web e2e (Playwright)

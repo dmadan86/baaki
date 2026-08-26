@@ -445,6 +445,24 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items.map((item) => item.amountMajor)).toEqual([50]);
   });
 
+  it('strips a greeting and filler fused to the amount, not into the note', () => {
+    const result = parseVoiceExpenses(
+      'hello, uh, add 500 rupees for dinner on the Goa trip',
+      groups,
+    );
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(500);
+    expect(result.items[0].note).toBe('dinner');
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+  });
+
+  it('reads an expense that opens with a greeting', () => {
+    const result = parseVoiceExpenses('hi 300 rupees petrol', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(300);
+    expect(result.items[0].note).toBe('petrol');
+  });
+
   // Dictation often hands back a digit glued to a spoken scale word — "3
   // thousand", "5 lakh", "2 crore" — rather than the fully-spelled words or the
   // finished digits. These must fold to one amount, not split into a phantom

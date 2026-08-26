@@ -288,6 +288,33 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   'expense',
   'my',
   'our',
+  // Greetings and filler people lead with — "hello, uh, add 500 to Goa". They
+  // are neither a description nor a group name, so they must not survive into the
+  // note or tip a group match. Kept to clear interjections and openers; ordinary
+  // words that could name a group ("so", "well", "like") are deliberately left
+  // out so a real group name is never eaten.
+  'hello',
+  'helo',
+  'hi',
+  'hii',
+  'hey',
+  'heya',
+  'hiya',
+  'yo',
+  'um',
+  'umm',
+  'uh',
+  'uhh',
+  'uhm',
+  'er',
+  'erm',
+  'hmm',
+  'hmmm',
+  'namaste',
+  'ok',
+  'okay',
+  'please',
+  'kindly',
   // Split phrasing — not part of a description or a group name.
   'split',
   'splits',

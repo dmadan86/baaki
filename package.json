@@ -12,6 +12,7 @@
     "test": "pnpm -r --if-present run test",
     "test:core": "pnpm --filter @waves/core run test",
     "test:db": "pnpm --filter @waves/db run test",
+    "test:db:scenario": "pnpm --filter @waves/db run test:scenario",
     "test:app": "pnpm --filter @waves/mobile run test",
     "test:api": "pnpm --filter @waves/api-client run test",
     "test:web": "pnpm --filter @waves/web run test",

@@ -39,6 +39,9 @@ interface ExpoLocation {
   getCurrentPositionAsync(options?: {
     accuracy?: number;
   }): Promise<{ coords: { latitude: number; longitude: number } }>;
+  getLastKnownPositionAsync(): Promise<{
+    coords: { latitude: number; longitude: number };
+  } | null>;
   reverseGeocodeAsync(location: {
     latitude: number;
     longitude: number;
@@ -154,6 +157,37 @@ function placeName(address: LocationGeocodedAddress | undefined): string | null 
 }
 
 /**
+ * A position fix that neither hangs nor gives up too easily.
+ *
+ * A fresh GPS read is raced against a short timeout — indoors or on a cold
+ * receiver it can otherwise block for tens of seconds, or never resolve — and if
+ * it loses, the last known fix is used instead. Either is good enough to name a
+ * place and drop a pin, and the point is to come back with *something* far more
+ * often than a bare `getCurrentPositionAsync` does, which is what left the field
+ * empty when a spend was logged indoors. `null` only when neither is available.
+ */
+async function readPosition(
+  Location: ExpoLocation,
+): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    const fresh = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
+    ]);
+    if (fresh?.coords) return fresh.coords;
+  } catch {
+    // A hardware failure on the fresh read is not the end — try the cache below.
+  }
+  try {
+    const last = await Location.getLastKnownPositionAsync();
+    if (last?.coords) return last.coords;
+  } catch {
+    // Nothing usable; the caller reports "unavailable".
+  }
+  return null;
+}
+
+/**
  * Ask (once, just-in-time), read the current fix, and name it.
  *
  * A refusal comes back as `denied` — an answer, not an error. Reverse-geocoding
@@ -172,12 +206,12 @@ export async function captureLocation(): Promise<LocationResult> {
         : (await Location.requestForegroundPermissionsAsync()).status;
     if (status !== 'granted') return { ok: false, why: LocationFailure.Denied };
 
-    const fix = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    const lat = fix.coords.latitude;
-    const lng = fix.coords.longitude;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    const coords = await readPosition(Location);
+    if (!coords || !Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude)) {
       return { ok: false, why: LocationFailure.Unavailable };
     }
+    const lat = coords.latitude;
+    const lng = coords.longitude;
 
     let name: string | null = null;
     try {
@@ -209,10 +243,12 @@ export async function captureLocationIfGranted(): Promise<ExpenseLocation | null
   try {
     const { status } = await Location.getForegroundPermissionsAsync();
     if (status !== 'granted') return null; // deliberately never requests here
-    const fix = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    const lat = fix.coords.latitude;
-    const lng = fix.coords.longitude;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    const coords = await readPosition(Location);
+    if (!coords || !Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude)) {
+      return null;
+    }
+    const lat = coords.latitude;
+    const lng = coords.longitude;
     let name: string | null = null;
     try {
       const addresses = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });

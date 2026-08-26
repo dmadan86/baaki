@@ -21,6 +21,7 @@ import Animated, {
   type EntryExitAnimationFunction,
 } from 'react-native-reanimated';
 
+import { minorUnitScale } from '@waves/core';
 import { MoneyText, type MoneyTextProps } from '@waves/ui';
 
 import { easeOutCubic, lerpBig, MAX_SAFE_MINOR, staggerDelay } from './motionMath';
@@ -137,7 +138,13 @@ const detailEntering: EntryExitAnimationFunction = () => {
  */
 export function CountUpMoney(props: MoneyTextProps): ReactNode {
   const shown = useCountUp(props.amount);
-  return <MoneyText {...props} amount={shown} />;
+  // While the figure is still rolling, drop the fractional units — the paise
+  // digits spinning past two at a time read as noise, not motion. The tween
+  // always lands on the exact target on its last frame, so the settled number
+  // keeps its decimals; only the in-flight frames are rounded to whole units.
+  const rolling = shown !== props.amount;
+  const display = rolling ? shown - (shown % minorUnitScale(props.currency)) : shown;
+  return <MoneyText {...props} amount={display} />;
 }
 
 /** Roughly the length of a screen transition — long enough to read, short enough to trust. */

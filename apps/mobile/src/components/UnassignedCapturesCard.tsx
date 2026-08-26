@@ -17,12 +17,14 @@ import { Card, iconSize, Text, useTheme } from '@waves/ui';
 
 import { useCaptures } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
+import { foldedCaptureCount } from '@/lib/captureBatch';
 
 export function UnassignedCapturesCard() {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const captures = useCaptures();
-  const count = captures.data?.length ?? 0;
+  // A voice batch is one draft, not one per item spoken — fold before counting.
+  const count = foldedCaptureCount(captures.data ?? []);
 
   if (count === 0) return null;
 

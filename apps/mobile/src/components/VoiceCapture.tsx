@@ -17,11 +17,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { Animated, Easing, Linking, Pressable, View } from 'react-native';
+import Reanimated, {
+  cancelAnimation,
+  Easing as ReEasing,
+  useAnimatedProps,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 
-import { LANGUAGES, LANGUAGE_NAMES, useStrings, type Language } from '@/i18n';
-import { dictationError, speechLocale } from '@/lib/dictation';
+import { useStrings } from '@/i18n';
+import { dictationError, englishSpeechLocale } from '@/lib/dictation';
 
 const MIC_SIZE = 104;
 
@@ -137,75 +147,115 @@ function PulseRings({ active, theme }: { active: boolean; theme: Theme }) {
   );
 }
 
-/** How many bars in the waveform, and the tallest each may reach. */
-const WAVE_BARS = 9;
-const WAVE_MIN = 6;
+/** The waveform's drawing box. Fixed and centred — the status area centres it. */
+const WAVE_W = 300;
+const WAVE_H = 104;
 
 /**
- * The peak height a bar may reach, weighted toward the centre so the row reads as
- * a rounded wave crest rather than a flat block — the centre bars tower, the
- * edges stay short (the equaliser shape every voice UI settled on).
+ * The listening wave: filled, symmetric lobes mirrored about the centre line, the
+ * shape a modern voice assistant draws while it hears you. Each layer is a closed
+ * ribbon that swells into humps and pinches to a hairline between them, tapering
+ * to a fine point at both ends; layered and blended over one pink→cyan gradient,
+ * the overlaps build a bright core with crisp edges. Layers differ in wavelength
+ * (`cycles`), phase, height (`amp`) and opacity so the humps sit in different
+ * places and the wave reads as one living body, not a stack of copies. The last
+ * layer is the hot white core.
  */
-function barPeak(index: number): number {
-  const middle = (WAVE_BARS - 1) / 2;
-  const distance = Math.abs(index - middle) / middle;
-  return 34 - distance * 18;
+const WAVE_GRADIENT = 'url(#ecoWaveGrad)';
+
+const WAVE_LAYERS = [
+  { id: 'l0', fill: WAVE_GRADIENT, cycles: 1.1, phase: 0.0, amp: 0.62, opacity: 0.42 },
+  { id: 'l1', fill: WAVE_GRADIENT, cycles: 1.7, phase: 0.9, amp: 0.82, opacity: 0.4 },
+  { id: 'l2', fill: WAVE_GRADIENT, cycles: 1.0, phase: 1.9, amp: 1.0, opacity: 0.4 },
+  { id: 'l3', fill: WAVE_GRADIENT, cycles: 2.1, phase: 2.7, amp: 0.72, opacity: 0.4 },
+  { id: 'l4', fill: WAVE_GRADIENT, cycles: 1.5, phase: 3.6, amp: 0.9, opacity: 0.42 },
+  // The hot core: a bright, low, tight ribbon on top, where a real voice UI's
+  // centre burns near white.
+  { id: 'core', fill: '#F0F9FF', cycles: 1.5, phase: 1.2, amp: 0.34, opacity: 0.9 },
+] as const;
+
+type WaveLayerSpec = (typeof WAVE_LAYERS)[number];
+
+const AnimatedPath = Reanimated.createAnimatedComponent(Path);
+
+/**
+ * One layer's closed path for the current phase: the top edge left→right, then the
+ * mirrored bottom edge right→left, closed into a filled ribbon. Symmetric about
+ * the centre line, so it swells into centre-weighted humps and pinches to a
+ * hairline between them, tapering to a point at both ends like the reference.
+ * Runs on the UI thread — the body of a `useAnimatedProps` worklet.
+ */
+function wavePath(phase: number, layer: WaveLayerSpec): string {
+  'worklet';
+  const points = 72;
+  const cy = WAVE_H / 2;
+  const breath = 0.85 + 0.15 * Math.sin(phase * 2 + layer.phase);
+  const reach = (WAVE_H / 2 - 1) * layer.amp * breath;
+  let top = '';
+  let bottom = '';
+  for (let i = 0; i <= points; i++) {
+    const frac = i / points;
+    const x = (frac * WAVE_W).toFixed(2);
+    const env = Math.exp(-Math.pow((frac - 0.5) / 0.34, 2));
+    const hump = Math.abs(Math.sin(frac * layer.cycles * Math.PI * 2 + phase + layer.phase));
+    // 0.05 keeps a hairline through the middle so the lobes read as one wave, not
+    // a row of separate blobs; the rest is the swelling hump.
+    const h = env * reach * (0.05 + 0.95 * hump);
+    top += `${i === 0 ? 'M' : 'L'}${x} ${(cy - h).toFixed(2)} `;
+    // Prepend the bottom edge so it reads right→left once appended after the top.
+    bottom = `L${x} ${(cy + h).toFixed(2)} ${bottom}`;
+  }
+  return `${top}${bottom}Z`;
+}
+
+/** One translucent filled ribbon, its path recomputed each frame from `phase`. */
+function WaveLayer({ phase, layer }: { phase: SharedValue<number>; layer: WaveLayerSpec }) {
+  const animatedProps = useAnimatedProps(() => ({ d: wavePath(phase.value, layer) }));
+  return <AnimatedPath animatedProps={animatedProps} fill={layer.fill} opacity={layer.opacity} />;
 }
 
 /**
- * A live sound wave under the status while listening — nine bars rising and
- * falling out of step, centre-weighted into a crest, the shorthand for "audio is
- * coming in". Rounded and tinted a touch lighter at the edges for depth.
+ * The live sound wave under the status while listening — filled, symmetric colour
+ * lobes swelling and pinching across a bright core, the "I am hearing you" of a
+ * modern voice screen. One shared phase drives every layer on the UI thread; the
+ * layers differ in wavelength and phase so their humps sit in different places and
+ * the wave reads as one living body. Only mounted while listening, so the loop is
+ * torn down the moment it stops.
  */
-function Waveform({ active, theme }: { active: boolean; theme: Theme }) {
-  const [bars] = useState(() => Array.from({ length: WAVE_BARS }, () => new Animated.Value(0.3)));
+function Waveform({ active }: { active: boolean }) {
+  const phase = useSharedValue(0);
 
   useEffect(() => {
     if (!active) return;
-    const loops = bars.map((value, index) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(index * 70),
-          Animated.timing(value, {
-            toValue: 1,
-            duration: 300 + (index % 3) * 60,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(value, {
-            toValue: 0.28,
-            duration: 300 + (index % 3) * 60,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-        ]),
-      ),
+    phase.value = 0;
+    // 0 → 2π on a loop. Both the hump term (|sin|, period π) and the breath
+    // (sin of 2·phase) are seamless across the seam.
+    phase.value = withRepeat(
+      withTiming(Math.PI * 2, { duration: 2400, easing: ReEasing.linear }),
+      -1,
+      false,
     );
-    loops.forEach((loop) => loop.start());
-    return () => loops.forEach((loop) => loop.stop());
-  }, [active, bars]);
+    return () => cancelAnimation(phase);
+  }, [active, phase]);
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 36 }}>
-      {bars.map((value, index) => {
-        const peak = barPeak(index);
-        // Edge bars a touch translucent so the crest has depth, not a flat wall.
-        const middle = (WAVE_BARS - 1) / 2;
-        const opacity = 1 - (Math.abs(index - middle) / middle) * 0.35;
-        return (
-          <Animated.View
-            key={index}
-            style={{
-              width: 4,
-              borderRadius: 2,
-              backgroundColor: theme.color.brand,
-              opacity,
-              height: value.interpolate({ inputRange: [0, 1], outputRange: [WAVE_MIN, peak] }),
-            }}
-          />
-        );
-      })}
-    </View>
+    <Svg width={WAVE_W} height={WAVE_H}>
+      <Defs>
+        {/* Pink → fuchsia → violet → blue → cyan, left to right, so the whole
+            wave carries the reference's horizontal hue shift no matter which
+            layer a given lobe belongs to. */}
+        <LinearGradient id="ecoWaveGrad" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor="#F472B6" />
+          <Stop offset="0.28" stopColor="#C084FC" />
+          <Stop offset="0.52" stopColor="#818CF8" />
+          <Stop offset="0.74" stopColor="#38BDF8" />
+          <Stop offset="1" stopColor="#22D3EE" />
+        </LinearGradient>
+      </Defs>
+      {WAVE_LAYERS.map((layer) => (
+        <WaveLayer key={layer.id} phase={phase} layer={layer} />
+      ))}
+    </Svg>
   );
 }
 
@@ -214,6 +264,25 @@ export interface VoiceCaptureProps {
   onDone: (transcript: string) => void;
   /** Names to bias the recogniser towards — group and member names. */
   hints?: readonly string[];
+  /**
+   * The last utterance was heard but carried no amount — the screen parsed it
+   * and came back empty. The panel shows a calm "didn't catch an amount" recovery
+   * with the mic as the only way forward, rather than a separate warning and
+   * button stacked around it.
+   */
+  missed?: boolean;
+  /**
+   * Fired the moment a fresh utterance begins, so the screen can clear a prior
+   * `missed`. The mic is the retry: tapping it is what dismisses the miss state.
+   */
+  onListen?: () => void;
+  /**
+   * Open the mic on mount. True for the first attempt (the reader tapped a mic to
+   * get here, so opening it saves a tap); false when arriving on a miss, where the
+   * recovery copy should sit and wait for a deliberate tap rather than reopening
+   * the mic under a message the reader has not read yet.
+   */
+  autoStart?: boolean;
 }
 
 function recognitionAvailable(): boolean {
@@ -225,19 +294,29 @@ function recognitionAvailable(): boolean {
 }
 
 /**
- * The subset of the app's languages this phone's recogniser can actually listen
- * in. A chip for a language the device cannot recognise only leads to a red "not
- * supported" after the tap, so a language that is not supported is not shown.
+ * Whether an on-device English model is actually installed on this phone.
  *
- * `getSupportedLocales` returns an empty list on Android 12 and below (and can
- * throw when the service package is missing): there we cannot tell what is
- * supported, so we return `null` and every chip is shown rather than hiding them
- * all. A non-empty device list that matched none of ours is treated the same
- * way — more likely a normalisation miss than a phone that speaks nothing we
- * offer.
+ * `supportsOnDeviceRecognition()` only says the phone can do on-device work at
+ * all — not that the model for the language we are about to ask for is present.
+ * Requiring on-device for a locale whose model is not downloaded is the quiet
+ * failure this screen hit: the recogniser starts, hears the words, and returns
+ * nothing, because it was told to use a model that is not there. So on-device is
+ * requested only when English is in `installedLocales`; otherwise the mic falls
+ * back to network recognition, which speaks English everywhere. (An empty or
+ * throwing probe — Android 12 and below, a missing service — resolves to `false`
+ * and the network path, which works, rather than the on-device path, which may
+ * not.)
  */
-async function loadSupportedLanguages(): Promise<Language[] | null> {
+async function englishInstalledOnDevice(): Promise<boolean> {
   try {
+    let supportsOnDevice = false;
+    try {
+      supportsOnDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+    } catch {
+      supportsOnDevice = false;
+    }
+    if (!supportsOnDevice) return false;
+
     let androidRecognitionServicePackage: string | undefined;
     try {
       const pkg = ExpoSpeechRecognitionModule.getDefaultRecognitionService?.().packageName;
@@ -245,35 +324,36 @@ async function loadSupportedLanguages(): Promise<Language[] | null> {
     } catch {
       // iOS / older builds have no Android service concept — query without one.
     }
-    const { locales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
+    const { installedLocales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
       androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {},
     );
-    if (!locales || locales.length === 0) return null;
-    const base = new Set(
-      locales.map((tag) => tag.trim().split(/[-_]/)[0]?.toLowerCase()).filter(Boolean),
+    return (installedLocales ?? []).some(
+      (tag) => tag.trim().split(/[-_]/)[0]?.toLowerCase() === 'en',
     );
-    const supported = LANGUAGES.filter((lang) => base.has(lang));
-    return supported.length > 0 ? supported : null;
   } catch {
-    return null;
+    return false;
   }
 }
 
-export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
+export function VoiceCapture({
+  onDone,
+  hints,
+  missed,
+  onListen,
+  autoStart = true,
+}: VoiceCaptureProps) {
   const theme = useTheme();
-  const { t, language, locale } = useStrings();
+  const { t, locale } = useStrings();
 
   const [available] = useState(recognitionAvailable);
-  // Which language the recogniser listens in this session. Defaults to the app
-  // language, but a speaker whose phone is in one language and mouth in another
-  // can switch it here without changing the whole app — on-device recognition
-  // targets one locale per session, so this is a per-utterance choice.
-  const [spokenLang, setSpokenLang] = useState<Language | null>(null);
-  // Which languages this phone can recognise (null until asked / when unknown).
-  const [supportedLangs, setSupportedLangs] = useState<Language[] | null>(null);
   const [listening, setListening] = useState(false);
   const [live, setLive] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // The mic ran but heard nothing intelligible. Local to the panel — the screen
+  // never saw a transcript to parse — and drives the same recovery copy a parsed
+  // miss (`missed`) does, so "didn't catch that" and "didn't catch an amount"
+  // read as one calm state rather than two different dead ends.
+  const [emptyMiss, setEmptyMiss] = useState(false);
 
   // The latest transcript, kept in a ref so the 'end' handler reads the final
   // one without waiting on a state update.
@@ -298,90 +378,81 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
     setListening(false);
     const said = latest.current.trim();
     if (said) onDone(said);
+    // Heard nothing usable — surface the same calm recovery a parsed miss shows,
+    // rather than silently dropping back to the opening prompt as if nothing had
+    // been tried.
+    else setEmptyMiss(true);
   });
 
-  const start = useCallback(
-    async (langOverride?: Language): Promise<void> => {
-      setError(null);
-      latest.current = '';
-      setLive('');
+  const start = useCallback(async (): Promise<void> => {
+    setError(null);
+    // Speaking again is the retry: clear both miss states as the mic opens, and
+    // let the screen drop any parsed miss it is still holding.
+    setEmptyMiss(false);
+    onListen?.();
+    latest.current = '';
+    setLive('');
 
-      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!mounted.current) return;
-      if (!permission.granted) {
-        setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
-        return;
-      }
+    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!mounted.current) return;
+    if (!permission.granted) {
+      setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
+      return;
+    }
 
-      let onDevice = false;
-      try {
-        onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
-      } catch {
-        onDevice = false;
-      }
+    // On-device only when an English model is actually installed; otherwise the
+    // recogniser is left to use the network, which speaks English on every phone.
+    // Requiring on-device for a model that is not there is what returned silence.
+    const onDevice = await englishInstalledOnDevice();
+    if (!mounted.current) return;
 
-      setListening(true);
-      try {
-        ExpoSpeechRecognitionModule.start({
-          // The explicit override (a language just tapped) wins over the session
-          // choice, which wins over the app language — the tap must take effect
-          // now, before its `setState` has landed.
-          lang: speechLocale(langOverride ?? spokenLang ?? language, locale),
-          interimResults: true,
-          maxAlternatives: 1,
-          // One sentence, then it settles — the same shape a note dictation uses.
-          continuous: false,
-          requiresOnDeviceRecognition: onDevice,
-          addsPunctuation: onDevice,
-          contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
-          iosTaskHint: 'dictation',
-        });
-      } catch {
-        setListening(false);
-        setError(t.misc.dictationFailed);
-      }
-    },
-    [hints, spokenLang, language, locale, t],
-  );
-
-  // Pick the language to listen in. If the mic is already open, restart it at
-  // once in the new language; otherwise the choice applies on the next tap.
-  const chooseLang = useCallback(
-    (lang: Language): void => {
-      setSpokenLang(lang);
-      if (listening) {
-        ExpoSpeechRecognitionModule.abort();
-        void start(lang);
-      }
-    },
-    [listening, start],
-  );
+    setListening(true);
+    try {
+      ExpoSpeechRecognitionModule.start({
+        // Recognition is English-only — the surface each speaker reads is still
+        // localised, but the mic listens in English (device region where it can,
+        // else en-IN), so there is one locale to get right and no chip to miss.
+        lang: englishSpeechLocale(locale),
+        interimResults: true,
+        maxAlternatives: 1,
+        // One sentence, then it settles — the same shape a note dictation uses.
+        continuous: false,
+        requiresOnDeviceRecognition: onDevice,
+        addsPunctuation: onDevice,
+        contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
+        iosTaskHint: 'dictation',
+        // People start with a greeting and a beat of thought — "hello… uh… add
+        // 500 to Goa". Android's default endpointing finalises on that first
+        // pause, ending the session on the greeting alone. Give it room: keep
+        // listening for at least a few seconds, and do not treat a two-second
+        // pause as the end of speech. (Android-only extras; iOS endpointing is
+        // already more forgiving and ignores these.)
+        androidIntentOptions: {
+          EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 4000,
+          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+        },
+      });
+    } catch {
+      setListening(false);
+      setError(t.misc.dictationFailed);
+    }
+  }, [hints, locale, onListen, t]);
 
   const stop = useCallback((): void => {
     ExpoSpeechRecognitionModule.stop();
   }, []);
 
-  // Ask the recogniser which languages it can hear, once, so the chips only
-  // offer the ones that will actually work on this phone.
-  useEffect(() => {
-    if (!available) return;
-    let alive = true;
-    void loadSupportedLanguages().then((langs) => {
-      if (alive) setSupportedLangs(langs);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [available]);
-
   // Open the mic as the screen appears — the reader tapped a mic to get here, so
-  // making them tap a second one to start would be a step too many.
+  // making them tap a second one to start would be a step too many. Suppressed
+  // when arriving on a miss (`autoStart` false): the recovery copy should be read
+  // before the mic reopens, and the mic itself is the retry.
   useEffect(() => {
-    if (!available || started.current) return;
+    if (!available || !autoStart || started.current) return;
     started.current = true;
     void start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [available]);
+  }, [available, autoStart]);
 
   // Leaving mid-sentence must not leave the microphone open.
   useEffect(() => {
@@ -399,12 +470,19 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
     );
   }
 
+  // The recovery state, once, whatever caused it: an utterance that carried no
+  // amount (`missed`, parsed by the screen) or one that carried no words at all
+  // (`emptyMiss`, seen here). Only while the mic is at rest — a new try clears it.
+  const showMiss = !listening && (missed || emptyMiss);
+  const missHeadline = missed ? t.voice.noAmount : t.voice.missedNothing;
+
   return (
     <View style={{ alignItems: 'center', gap: theme.spacing.xl }}>
-      {/* The live transcript as it forms, or the prompt before a word is heard —
-          the sentence the person is building is the headline of the screen. */}
+      {/* One headline, whatever most needs saying: the sentence forming while
+          listening, a calm recovery line after a miss, or the opening prompt at
+          rest. Never a warning stacked on top of it. */}
       <Text variant="title" align="center">
-        {live || t.voice.prompt}
+        {showMiss ? missHeadline : live || t.voice.prompt}
       </Text>
 
       {/* The mic sits inside a fixed square so the pulse rings expanding behind it
@@ -421,7 +499,9 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
         <PulseRings active={listening} theme={theme} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={listening ? t.misc.stopDictating : t.voice.tapToSpeak}
+          accessibilityLabel={
+            listening ? t.misc.stopDictating : showMiss ? t.voice.tapToRetry : t.voice.tapToSpeak
+          }
           accessibilityState={{ busy: listening }}
           onPress={() => (listening ? stop() : void start())}
           hitSlop={8}
@@ -453,77 +533,26 @@ export function VoiceCapture({ onDone, hints }: VoiceCaptureProps) {
         </Pressable>
       </View>
 
-      {/* Listening: the status word over a live waveform. Idle: the same status
-          line, with a worked example under it so a first-timer knows the shape of
-          a sentence the parser understands. */}
+      {/* Listening: the status word over a live waveform. Recovering: the mic is
+          the retry, so the line invites the tap and a worked example sits under it
+          to fix the phrasing. At rest: the same example under a plain prompt. One
+          line and one supporting line — never a third. */}
       <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
-        <Text tone={listening ? 'brand' : 'muted'}>
-          {listening ? t.misc.listening : t.voice.tapToSpeak}
+        <Text tone={listening || showMiss ? 'brand' : 'muted'}>
+          {listening ? t.misc.listening : showMiss ? t.voice.tapToRetry : t.voice.tapToSpeak}
         </Text>
         {listening ? (
-          <Waveform active={listening} theme={theme} />
+          <Waveform active={listening} />
+        ) : showMiss ? (
+          <Text variant="caption" tone="faint" align="center">
+            {t.voice.missHint}
+          </Text>
         ) : !live ? (
           <Text variant="caption" tone="faint" align="center">
             {t.voice.example}
           </Text>
         ) : null}
       </View>
-
-      {/* Which language to listen in — the recogniser targets one locale per
-          session, so a speaker whose phone is in one language and mouth in
-          another picks it here. The chip shows each language in its own script,
-          so it is found by the name its speaker knows. Only languages this phone
-          can actually recognise are offered; with just one, there is nothing to
-          choose and the row is hidden. */}
-      {(supportedLangs ?? LANGUAGES).length > 1 ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-          }}
-        >
-          <Ionicons name="globe-outline" size={iconSize.sm} color={theme.color.textMuted} />
-          {(supportedLangs ?? LANGUAGES).map((lang) => {
-            const selected = (spokenLang ?? language) === lang;
-            return (
-              <Pressable
-                key={lang}
-                onPress={() => chooseLang(lang)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                accessibilityLabel={LANGUAGE_NAMES[lang].english}
-                hitSlop={8}
-                style={({ pressed }) => ({
-                  // A 44pt floor plus hitSlop: on `xs` padding alone the chip was
-                  // ~26pt, the smallest target on the screen and the one that
-                  // switches the recognition language. Centre the label so the
-                  // taller box does not push it off-centre.
-                  minHeight: 44,
-                  justifyContent: 'center',
-                  paddingVertical: theme.spacing.xs,
-                  paddingHorizontal: theme.spacing.md,
-                  borderRadius: theme.radius.pill,
-                  backgroundColor: selected ? theme.color.brandSoft : theme.color.surfaceMuted,
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <Text
-                  variant="caption"
-                  style={{
-                    color: selected ? theme.color.brand : theme.color.textMuted,
-                    fontWeight: selected ? '600' : '400',
-                  }}
-                >
-                  {LANGUAGE_NAMES[lang].own}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
 
       {error ? (
         <Pressable onPress={() => void Linking.openSettings()} accessibilityRole="button">
