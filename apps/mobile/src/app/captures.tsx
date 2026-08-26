@@ -129,7 +129,12 @@ function CaptureListRow({
         {capture.photo_path ? (
           <CaptureThumb path={capture.photo_path} size={46} />
         ) : (
-          <CategoryBadge category={capture.category} meta={capture.category_meta} size={46} />
+          <CategoryBadge
+            category={capture.category}
+            meta={capture.category_meta}
+            description={capture.description}
+            size={46}
+          />
         )}
 
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -679,6 +684,7 @@ export default function CapturesScreen() {
                 <CategoryBadge
                   category={assigning.category}
                   meta={assigning.category_meta}
+                  description={assigning.description}
                   size={38}
                 />
                 <View style={{ flex: 1, minWidth: 0 }}>
