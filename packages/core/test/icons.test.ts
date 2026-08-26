@@ -26,6 +26,7 @@ describe('guessIcon', () => {
     expect(guessIcon('Sushi dinner')).toBe('fish-outline');
     expect(guessIcon('Zomato rolls')).toBe('fast-food-outline');
     expect(guessIcon('Blinkit milk and atta')).toBe('basket-outline');
+    expect(guessIcon('Blinkit fruits')).toBe('basket-outline');
     expect(guessIcon('Nykaa order')).toBe('bag-handle-outline');
     expect(guessIcon('Shoes laundry')).toBe('shirt-outline');
   });

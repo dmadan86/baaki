@@ -43,6 +43,7 @@ function tokenise(text: string): Set<string> {
 const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
   // ---- Food & drink -------------------------------------------------------
   ['egg-outline', ['breakfast', 'brunch', 'omelette', 'eggs']],
+  ['basket-outline', ['bigbasket', 'blinkit', 'zepto', 'instamart', 'dmart', 'jiomart']],
   ['nutrition-outline', ['juice', 'smoothie', 'salad', 'fruit', 'fruits']],
   ['fish-outline', ['fish', 'seafood', 'prawns', 'sushi']],
   [
@@ -193,12 +194,6 @@ const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
       'atta',
       'oil',
       'provisions',
-      'bigbasket',
-      'blinkit',
-      'zepto',
-      'instamart',
-      'dmart',
-      'jiomart',
     ],
   ],
   ['storefront-outline', ['market', 'store']],
