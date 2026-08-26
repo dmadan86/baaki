@@ -179,3 +179,15 @@ export function evictImage(bucket: LogicalBucket, path: string | null): void {
     // Already gone, or unreadable — nothing to do.
   }
 }
+
+/** Sign-out/privacy cleanup: remove every cached receipt/proof/attachment image. */
+export function clearImageCache(): void {
+  try {
+    const dir = new Directory(Paths.cache, CACHE_DIR);
+    if (dir.exists) dir.delete();
+  } catch {
+    // Best-effort cache cleanup.
+  } finally {
+    inFlightDownloads.clear();
+  }
+}

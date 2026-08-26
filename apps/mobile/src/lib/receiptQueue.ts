@@ -102,6 +102,29 @@ export async function listPendingReceipts(expenseId?: string): Promise<PendingRe
   return expenseId ? queue.filter((entry) => entry.expenseId === expenseId) : queue;
 }
 
+/** Sign-out/privacy cleanup: drop the queue index and every pending capture byte file. */
+export async function clearReceiptQueue(): Promise<void> {
+  const queue = await readQueue();
+  for (const entry of queue) {
+    try {
+      const file = pendingFile(entry);
+      if (file.exists) file.delete();
+    } catch {
+      // Best-effort cleanup; keep deleting the rest.
+    }
+  }
+
+  try {
+    const dir = new Directory(Paths.document, PENDING_DIR);
+    if (dir.exists) dir.delete();
+  } catch {
+    // Some file-system implementations cannot delete non-empty dirs; queued files
+    // above were already attempted, and the index removal below is the source of truth.
+  }
+
+  await AsyncStorage.removeItem(QUEUE_KEY);
+}
+
 /**
  * Park a picked image for later upload: write its bytes to a durable file and
  * record the queue entry. Returns the entry so the caller can show it at once.

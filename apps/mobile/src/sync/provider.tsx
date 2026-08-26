@@ -24,6 +24,8 @@ import type { MutationEnvelope, MutationKind } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
 import { reportHandled } from '@/lib/observability';
+import { clearReceiptQueue } from '@/lib/receiptQueue';
+import { clearImageCache } from '@/lib/storage/imageCache';
 
 import { syncEngine, type SyncState } from './engine';
 
@@ -46,6 +48,18 @@ interface SyncContextValue extends SyncState {
 
 const SyncContext = createContext<SyncContextValue | null>(null);
 
+async function clearLocalPrivateData(): Promise<void> {
+  const failures: unknown[] = [];
+  await syncEngine.clear().catch((error: unknown) => failures.push(error));
+  await clearReceiptQueue().catch((error: unknown) => failures.push(error));
+  try {
+    clearImageCache();
+  } catch (error) {
+    failures.push(error);
+  }
+  if (failures.length > 0) throw failures[0];
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const [state, setState] = useState<SyncState>(() => syncEngine.getState());
@@ -61,7 +75,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       // than swallowing — a wipe that failed is a privacy problem, not a
       // cosmetic one — but not worth throwing at a screen mid-sign-out.
       if (wasSignedIn.current) {
-        void syncEngine.clear().catch((error: unknown) => reportHandled(error, 'sync.clear'));
+        void clearLocalPrivateData().catch((error: unknown) =>
+          reportHandled(error, 'sync.clearPrivateData'),
+        );
       }
       wasSignedIn.current = false;
       syncEngine.stop();
