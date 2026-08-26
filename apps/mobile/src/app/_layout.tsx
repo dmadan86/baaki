@@ -51,7 +51,7 @@ import { RecentCountProvider } from '@/lib/recentCount';
 import { ShortcutProvider } from '@/lib/shortcut';
 import { WatchBridgeProvider } from '@/lib/watch/bridge';
 import { ShortcutGesture } from '@/components/ShortcutGesture';
-import { TourProvider } from '@/lib/tour';
+import { TourProvider, useTour } from '@/lib/tour';
 import { PromptQueueProvider } from '@/lib/promptQueue';
 import { SyncNetworkProvider } from '@/lib/syncNetwork';
 import { ThemePreferenceProvider, useThemePreference } from '@/lib/theme';
@@ -413,6 +413,10 @@ function AuthGate() {
   const router = useRouter();
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
+  // Finishing the 3-card intro also marks the coach tour seen, so a new person
+  // is not toured twice back-to-back (the intro, then the coach-marks). The
+  // coach tour stays available on demand from the Home overflow menu.
+  const tour = useTour();
   // The paywall is an unwired placeholder (no store products, no purchase
   // handling), so its route is registered only where a flag turns it on —
   // otherwise a deep link cannot reach a screen that would only mislead.
@@ -555,6 +559,9 @@ function AuthGate() {
           // Not awaited: the tour is over the moment they say so, and a write
           // that fails costs them one repeat, not a stuck screen.
           void AsyncStorage.setItem(TOUR_KEY, 'yes').catch(() => {});
+          // One onboarding, not two: mark the coach tour seen as well so it does
+          // not autostart on the Home screen the intro just handed them to.
+          tour.finish();
         }}
       />
     );

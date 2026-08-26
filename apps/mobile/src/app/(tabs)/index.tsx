@@ -527,7 +527,7 @@ export default function HomeScreen() {
       {/* Guests are nudged to secure their account as an animated popup rather
           than an inline banner — once a day, dismissible. Held back while the
           tour is up so the two do not stack on a guest's first run. */}
-      {isGuest && !tour.active ? (
+      {isGuest ? (
         <GuestPopup gate={guard.gate} t={t} onAction={() => router.push('/settings/account')} />
       ) : null}
 
@@ -866,7 +866,14 @@ function GuestPopup({
 }) {
   const theme = useTheme();
   const { hidden, ready, dismiss } = useDailyDismiss(GUEST_PROMPT_DISMISS_KEY);
-  const visible = ready && !hidden;
+  // Take a turn in the shared prompt queue rather than firing on its own: the
+  // guest card waits behind the tour and the push/campaign asks and only shows
+  // when it is the live winner. `active` is exactly "would show today" (ready and
+  // not dismissed), so it never holds the queue — and blocks the lower-priority
+  // tip — while it is hidden for the day.
+  const wants = ready && !hidden;
+  const granted = usePromptSlot({ id: 'guest', priority: 40, active: wants, delayMs: 300 });
+  const visible = wants && granted;
 
   // A gentle scale-and-fade in, the way the reference presents this card. RN
   // Animated (not reanimated) since this file already drives its counters with
