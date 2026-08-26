@@ -383,6 +383,11 @@ export default function VoiceScreen() {
   const persistDraftsToInbox = useCallback(async (): Promise<void> => {
     const date = today();
     const fallback = t.voice.anExpense;
+    // Several expenses spoken in one breath stay one thing in the inbox: they
+    // share a batch id (carried in the capture's `parsed`, so no schema change),
+    // and the inbox folds them into one collapsible total. A lone capture gets
+    // none — there is nothing to group.
+    const batchId = drafts.length > 1 ? randomUUID() : null;
     for (const draft of drafts) {
       const currency = draft.currency ?? dc;
       const amount = toMinor(draft.amount, currency);
@@ -394,6 +399,7 @@ export default function VoiceScreen() {
         currency,
         amount,
         location,
+        parsed: batchId ? { voiceBatchId: batchId } : undefined,
       });
     }
   }, [drafts, dc, location, t.voice.anExpense, createCapture]);

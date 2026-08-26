@@ -1135,6 +1135,11 @@ export interface UiStrings {
     previewReceipt: string;
     reading: string;
     notSynced: string;
+    /** The collapsible voice-batch row: its "{n} expenses" title and the
+     *  expand/collapse control's accessibility labels. */
+    batchExpenses: PluralForms;
+    expandBatch: string;
+    collapseBatch: string;
     assign: string;
     assignTitle: string;
     assignBody: string;
@@ -2907,6 +2912,9 @@ const en: UiStrings = {
     previewReceipt: 'Preview the attached bill',
     reading: 'Reading…',
     notSynced: 'Not synced yet',
+    batchExpenses: { one: '{n} expense', other: '{n} expenses' },
+    expandBatch: 'Show the expenses',
+    collapseBatch: 'Hide the expenses',
     assign: 'Assign to group',
     assignTitle: 'Assign to a group',
     assignBody: 'Pick the group this belongs to. You can set who paid and how it splits next.',
@@ -4729,6 +4737,9 @@ const ta: UiStrings = {
     previewReceipt: 'இணைத்த ரசீதை முன்னோட்டமிடு',
     reading: 'படிக்கிறது…',
     notSynced: 'இன்னும் ஒத்திசைக்கவில்லை',
+    batchExpenses: { one: '{n} செலவு', other: '{n} செலவுகள்' },
+    expandBatch: 'செலவுகளைக் காட்டு',
+    collapseBatch: 'செலவுகளை மறை',
     assign: 'குழுவுக்கு ஒதுக்கு',
     assignTitle: 'ஒரு குழுவுக்கு ஒதுக்குங்கள்',
     assignBody:
@@ -6571,6 +6582,9 @@ const hi: UiStrings = {
     previewReceipt: 'संलग्न रसीद का पूर्वावलोकन करें',
     reading: 'पढ़ रहे हैं…',
     notSynced: 'अभी सिंक नहीं हुआ',
+    batchExpenses: { one: '{n} खर्च', other: '{n} खर्च' },
+    expandBatch: 'खर्च दिखाएँ',
+    collapseBatch: 'खर्च छिपाएँ',
     assign: 'समूह को सौंपें',
     assignTitle: 'किसी समूह को सौंपें',
     assignBody: 'चुनें कि यह किस समूह का है। किसने चुकाया और कैसे बँटेगा, यह आगे तय कर सकते हैं।',
@@ -8397,6 +8411,9 @@ const ar: UiStrings = {
     previewReceipt: 'معاينة الإيصال المرفق',
     reading: 'جارٍ القراءة…',
     notSynced: 'لم تتم المزامنة بعد',
+    batchExpenses: { one: '{n} مصروف', other: '{n} مصاريف' },
+    expandBatch: 'إظهار المصاريف',
+    collapseBatch: 'إخفاء المصاريف',
     assign: 'أسنِد إلى مجموعة',
     assignTitle: 'أسنِد إلى مجموعة',
     assignBody: 'اختر المجموعة التي ينتمي إليها. يمكنك تحديد من دفع وكيفية التقسيم بعد ذلك.',
