@@ -272,9 +272,12 @@ function ProfileForm() {
   // accounts have a null `avatar_url` and so showed initials here. Fall back to
   // the provider photo (an https URL that resolves straight through) so the
   // account page shows your face whether or not the column was ever filled.
+  // `||`, not `??`: an empty-string avatar (a cleared column, or a provider that
+  // sends '') is "no photo", so it must fall through to the next source rather
+  // than be handed on as a blank URL.
   const oauthAvatar =
-    (session?.user?.user_metadata?.avatar_url as string | undefined) ??
-    (session?.user?.user_metadata?.picture as string | undefined) ??
+    (session?.user?.user_metadata?.avatar_url as string | undefined) ||
+    (session?.user?.user_metadata?.picture as string | undefined) ||
     null;
 
   const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
@@ -422,7 +425,7 @@ function ProfileForm() {
         <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
           <ProfileAvatar
             name={profile?.display_name ?? t.account.you}
-            avatarUrl={profile?.avatar_url ?? oauthAvatar}
+            avatarUrl={profile?.avatar_url || oauthAvatar}
             size={92}
             onPress={profile ? photoOptions : undefined}
             busy={photoBusy}
