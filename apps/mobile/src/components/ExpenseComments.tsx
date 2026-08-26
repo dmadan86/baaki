@@ -29,7 +29,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,6 +46,7 @@ import {
 import { MAX_COMMENT_LENGTH, sanitizeCommentMarkdown } from '@/lib/commentMarkdown';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { CommentMarkdown } from '@/components/CommentMarkdown';
+import { RichCommentInput } from '@/components/RichCommentInput';
 import { useStrings } from '@/i18n';
 
 function whenLabel(iso: string | null, locale: string): string {
@@ -441,27 +441,39 @@ export function ExpenseComments({
         })
       )}
 
-      {/* The editor sheet — always mounted, driven by `visible`, the same shape
-          as the dashboard's tip sheet (a Modal toggled after mount presents
-          reliably on Android only when it stays mounted). A formatting toolbar,
-          the field, and Send. Text only: no image control lives here. */}
+      {/* The editor — always mounted, driven by `visible` (a Modal toggled after
+          mount presents reliably on Android only when it stays mounted). A
+          centred card rather than a bottom sheet, so the field sits in the eye's
+          middle; the KeyboardAvoidingView lifts the whole card as the keyboard
+          rises so nothing it covers is lost. Text only: no image control here. */}
       <Modal transparent animationType="fade" visible={editorOpen} onRequestClose={closeEditor}>
-        <Pressable
-          onPress={closeEditor}
-          accessibilityLabel={t.common.close}
-          style={{ flex: 1, backgroundColor: 'rgba(10, 10, 26, 0.55)', justifyContent: 'flex-end' }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            {/* Swallow taps so pressing the sheet does not dismiss it. */}
+          <Pressable
+            onPress={closeEditor}
+            accessibilityLabel={t.common.close}
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(10, 10, 26, 0.55)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: theme.spacing.xl,
+              paddingVertical: theme.spacing.xxl + insets.top,
+            }}
+          >
+            {/* Swallow taps so pressing the card does not dismiss it. */}
             <Pressable
               onPress={() => {}}
               style={{
+                width: '100%',
+                maxWidth: 480,
                 backgroundColor: theme.color.surface,
-                borderTopLeftRadius: theme.radius.xxl,
-                borderTopRightRadius: theme.radius.xxl,
+                borderRadius: theme.radius.xxl,
                 paddingHorizontal: theme.spacing.xl,
                 paddingTop: theme.spacing.lg,
-                paddingBottom: theme.spacing.lg + insets.bottom,
+                paddingBottom: theme.spacing.lg,
                 gap: theme.spacing.md,
               }}
             >
@@ -469,7 +481,7 @@ export function ExpenseComments({
                 {editorCommentId === null ? t.comments.editorTitle : t.comments.editLabel}
               </Text>
 
-              <TextInput
+              <RichCommentInput
                 value={editorBody}
                 onChangeText={setEditorBody}
                 onSelectionChange={(e) => {
@@ -477,11 +489,10 @@ export function ExpenseComments({
                   setForcedSel(null);
                 }}
                 selection={forcedSel ?? undefined}
-                multiline
                 autoFocus
                 maxLength={MAX_COMMENT_LENGTH}
                 placeholder={t.comments.placeholder}
-                placeholderTextColor={theme.color.textFaint}
+                accessibilityLabel={t.comments.placeholder}
                 style={{
                   minHeight: 96,
                   maxHeight: 200,
@@ -492,7 +503,6 @@ export function ExpenseComments({
                   color: theme.color.text,
                   textAlignVertical: 'top',
                 }}
-                accessibilityLabel={t.comments.placeholder}
               />
 
               <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
@@ -526,8 +536,8 @@ export function ExpenseComments({
                 {busy ? <ActivityIndicator color={theme.color.buttonPrimary} /> : null}
               </Row>
             </Pressable>
-          </KeyboardAvoidingView>
-        </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
