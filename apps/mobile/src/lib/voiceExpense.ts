@@ -16,6 +16,13 @@
 
 import { isCurrencyCode, minorUnitScale } from '@waves/core';
 
+/** Above this, a voice parse is more likely corrupted or misheard than safe to book. */
+const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
+
+/** Unsupported intent words that must not be converted into normal expenses. */
+const UNSUPPORTED_EXPENSE_INTENT =
+  /\b(?:do\s+not|don't|dont|cancel|remove|delete|ignore|refund|refunded|reimburse(?:d|ment)?|paid\s+me\s+back|got\s+back|not\s+an\s+expense)\b/i;
+
 /** The minimum a group needs to be matched by name. */
 export interface VoiceGroupRef {
   id: string;
@@ -91,6 +98,7 @@ const CURRENCY_SIGNALS: readonly (readonly [RegExp, string])[] = [
   [/\bsingapore(?:an)?\s+dollars?\b|\bsgd\b/i, 'SGD'],
   [/\bnew\s+zealand\s+dollars?\b|\bnzd\b/i, 'NZD'],
   [/\bhong\s+kong\s+dollars?\b|\bhkd\b/i, 'HKD'],
+  [/\b(?:indonesian\s+)?rupiahs?\b|\bidr\b|\brp\b/i, 'IDR'],
   // Bare words.
   [/\b(?:rupees?|rupaye|rupya|rs|inr)\b/i, 'INR'],
   [/\b(?:dollars?|usd|bucks?)\b/i, 'USD'],
@@ -122,6 +130,10 @@ const CURRENCY_WORD_ALT = [
   'singapore(?:an)?\\s+dollars?',
   'new\\s+zealand\\s+dollars?',
   'hong\\s+kong\\s+dollars?',
+  'indonesian\\s+rupiahs?',
+  'rupiahs?',
+  'idr',
+  'rp',
   'rupees?',
   'rupaye',
   'rupya',
@@ -237,20 +249,21 @@ const CURRENCY_ADJACENT = new RegExp(
 const SPLIT_COUNT =
   /\b(?:among|amongst|between)\s+(\d+)\b|\b(\d+)\s*(?:people|persons?|ppl|ways?|folks?|heads?)\b/i;
 
-/** Lowercase word tokens, punctuation and symbols stripped. */
+/** Lowercase word tokens, Unicode-normalized, punctuation and symbols stripped. */
 function tokenize(text: string): string[] {
   return text
+    .normalize('NFKC')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
     .filter(Boolean);
 }
 
-/** A matched numeric string to a positive number, commas removed — or null. */
+/** A matched numeric string to a positive, safe amount, commas removed — or null. */
 function toAmount(raw: string | undefined): number | null {
   if (!raw) return null;
   const value = Number.parseFloat(raw.replace(/,/g, ''));
-  return Number.isFinite(value) && value > 0 ? value : null;
+  return Number.isFinite(value) && value > 0 && value <= MAX_VOICE_AMOUNT_MAJOR ? value : null;
 }
 
 /** How many people to split among, if the sentence says — else null. */
@@ -371,6 +384,17 @@ export function parseVoiceExpense(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): ParsedVoiceExpense {
+  if (UNSUPPORTED_EXPENSE_INTENT.test(transcript)) {
+    return {
+      amountMinor: null,
+      amountMajor: null,
+      currency: null,
+      note: '',
+      groupId: null,
+      splitCount: null,
+    };
+  }
+
   // Spoken numbers become digits first; every pattern below is digit-based. A
   // "plus"-joined run of amounts is summed into one before that.
   const said = stripAssignmentLeadIn(
@@ -1052,6 +1076,9 @@ export function parseVoiceExpenses(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
+  if (UNSUPPORTED_EXPENSE_INTENT.test(transcript))
+    return { items: [], group: null, splitCount: null };
+
   const normalized = normalizeSpokenNumbers(collapseAdditionRuns(normalizeDigits(transcript)));
   const created = detectCreateGroup(normalized);
   // Strip the routing lead-in ("assign to group …", "put it in …") after any

@@ -112,14 +112,25 @@ describe('parseVoiceExpense', () => {
       ['2000 yen for sushi', 'JPY'],
       ['50 euros hotel', 'EUR'],
       ['100 pounds tickets', 'GBP'],
+      ['100 GBP tickets', 'GBP'],
       ['300 dirhams taxi', 'AED'],
+      ['300 dirham taxi', 'AED'],
+      ['300 AED taxi', 'AED'],
       ['5000 won lunch', 'KRW'],
       ['1000 ringgit shopping', 'MYR'],
       ['200 baht food', 'THB'],
+      ['200 THB food', 'THB'],
       ['500 dong snacks', 'VND'],
+      ['500 VND snacks', 'VND'],
+      ['100000 rupiah dinner', 'IDR'],
+      ['100000 rupiahs dinner', 'IDR'],
+      ['100000 Indonesian rupiahs dinner', 'IDR'],
+      ['100000 IDR dinner', 'IDR'],
+      ['Rp 100000 dinner', 'IDR'],
       ['80 francs cab', 'CHF'],
       ['500 canadian dollars flight', 'CAD'],
       ['600 australian dollars tour', 'AUD'],
+      ['600 AUD tour', 'AUD'],
       ['sri lankan rupees 400 tea', 'LKR'],
       // Cents folded in must not demote the qualified name to a bare-dollar USD
       ['twenty canadian dollars ninety nine cents', 'CAD'],
@@ -146,6 +157,31 @@ describe('parseVoiceExpense', () => {
     expect(parsed.amountMajor).toBeNull();
     expect(parsed.groupId).toBe('g-flat');
     expect(parsed.note).toBe('groceries');
+  });
+
+  it('does not create an expense from unsupported negative or refund intents', () => {
+    for (const sentence of [
+      "don't add 500 rupees for dinner",
+      'cancel 500 rupees dinner',
+      'refund 200 rupees hotel',
+      'Ravi paid me back 500 rupees',
+    ]) {
+      const parsed = parseVoiceExpense(sentence, groups);
+      expect(parsed.amountMajor, sentence).toBeNull();
+      expect(parsed.amountMinor, sentence).toBeNull();
+      expect(parsed.note, sentence).toBe('');
+    }
+  });
+
+  it('rejects unsafe huge amounts instead of converting them to imprecise minor units', () => {
+    const parsed = parseVoiceExpense('999999999999999999 rupees', groups);
+    expect(parsed.amountMajor).toBeNull();
+    expect(parsed.amountMinor).toBeNull();
+  });
+
+  it('normalizes Unicode group names before matching', () => {
+    const accented: VoiceGroupRef[] = [{ id: 'g-cafe', name: 'Café Trip' }];
+    expect(parseVoiceExpense('add 500 to Café Trip', accented).groupId).toBe('g-cafe');
   });
 
   it('reads a currency symbol', () => {
@@ -364,6 +400,24 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     const result = parseVoiceExpenses('20 euros coffee, 15 euros cake', groups);
     expect(result.items.map((item) => item.currency)).toEqual(['EUR', 'EUR']);
     expect(result.items.map((item) => item.amountMajor)).toEqual([20, 15]);
+  });
+
+  it('does not create items from unsupported negative or refund intents', () => {
+    for (const sentence of [
+      "don't add 500 rupees for dinner",
+      'delete 500 rupees dinner',
+      'refund 200 rupees hotel',
+      'Ravi paid me back 500 rupees',
+    ]) {
+      expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
+    }
+  });
+
+  it('does not sum mixed-currency plus runs into one cross-currency amount', () => {
+    const result = parseVoiceExpenses('20 dollars plus 50 rupees', groups);
+    expect(result.items).toHaveLength(2);
+    expect(result.items.map((item) => item.amountMajor)).toEqual([20, 50]);
+    expect(result.items.map((item) => item.currency)).toEqual(['USD', 'INR']);
   });
 });
 
