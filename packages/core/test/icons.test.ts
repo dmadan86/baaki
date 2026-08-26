@@ -50,6 +50,36 @@ describe('guessIcon', () => {
     expect(guessIcon('Birthday shagun')).toBe('gift-outline');
   });
 
+  it('covers UX-specific travel, work, and study affordances', () => {
+    expect(guessIcon('Passport visa')).toBe('earth-outline');
+    expect(guessIcon('Rain umbrella')).toBe('umbrella-outline');
+    expect(guessIcon('Camping guide')).toBe('map-outline');
+    expect(guessIcon('Office coworking')).toBe('briefcase-outline');
+    expect(guessIcon('SaaS software')).toBe('laptop-outline');
+    expect(guessIcon('Xerox printing')).toBe('print-outline');
+    expect(guessIcon('Tuition course')).toBe('school-outline');
+  });
+
+  it('covers household service and detailed health affordances', () => {
+    expect(guessIcon('Security guard')).toBe('shield-checkmark-outline');
+    expect(guessIcon('Nanny babysitter')).toBe('person-outline');
+    expect(guessIcon('Carpenter repair')).toBe('construct-outline');
+    expect(guessIcon('Vet for dog')).toBe('paw-outline');
+    expect(guessIcon('Eye glasses')).toBe('eye-outline');
+    expect(guessIcon('Firstaid bandage')).toBe('bandage-outline');
+    expect(guessIcon('Ayurveda wellness')).toBe('leaf-outline');
+  });
+
+  it('covers celebration and payment context without stealing specific bills', () => {
+    expect(guessIcon('Party decoration')).toBe('balloon-outline');
+    expect(guessIcon('Prize tournament')).toBe('ribbon-outline');
+    expect(guessIcon('UPI transfer')).toBe('wallet-outline');
+    expect(guessIcon('Credit card')).toBe('card-outline');
+    expect(guessIcon('Cash advance')).toBe('cash-outline');
+    expect(guessIcon('Invoice receipt')).toBe('receipt-outline');
+    expect(guessIcon('Electricity bill')).toBe('flash-outline');
+  });
+
   it('prefers the specific reading over the general one below it', () => {
     // "car rental" must be the sportier car, not the plain cab that follows it.
     expect(guessIcon('Car rental for the trip')).toBe('car-sport-outline');
