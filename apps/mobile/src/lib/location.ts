@@ -244,13 +244,15 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
   }
 }
 
-/** A deep link that opens the point in whatever maps app the phone prefers. */
+/**
+ * A deep link that opens the point in Google Maps — the Google Maps app when it
+ * is installed (this universal `/maps/search/` URL hands off to it on both iOS
+ * and Android), else Google Maps in the browser. One provider on every platform,
+ * rather than Apple Maps on iOS, so "open the map" is always the same place.
+ */
 export function mapsUrl(location: ExpenseLocation): string {
   const query = `${location.lat},${location.lng}`;
-  const label = location.name ? encodeURIComponent(location.name) : query;
-  return Platform.OS === 'ios'
-    ? `https://maps.apple.com/?q=${label}&ll=${query}`
-    : `https://www.google.com/maps/search/?api=1&query=${query}`;
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 /** What to show for a location that has no name: a trimmed coordinate pair. */

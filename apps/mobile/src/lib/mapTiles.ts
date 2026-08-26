@@ -67,6 +67,47 @@ export const TILE_HEADERS: Record<string, string> = {
   'User-Agent': 'WavesApp/1.0 (+https://waves.app; expense location map)',
 };
 
+/**
+ * Google Maps as the preview provider, when a key is configured. Google gives no
+ * keyless raster-tile endpoint (both built-in tile sources above are OSM-data
+ * CDNs), so a Google preview needs the Static Maps API — a single composite
+ * image, key-authenticated and billed. It is therefore opt-in: set
+ * `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` and the preview switches to Google; leave it
+ * unset and the CARTO tile grid stands. (The "open in maps" deep link is always
+ * Google regardless — see `mapsUrl` — this only governs the inline thumbnail.)
+ */
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
+/**
+ * A single Google Static Maps image covering a viewport, or null when no key is
+ * set (the caller then falls back to the raster tile grid). `scale: 2` serves a
+ * retina image; the caller draws its own centre pin over it, so no `markers`
+ * param is needed. The returned image already carries Google's own attribution
+ * baked in, so the caller hides the CARTO/OSM credit when this is used.
+ */
+export function googleStaticMapUrl(
+  center: LatLng,
+  zoom: number,
+  width: number,
+  height: number,
+): string | null {
+  if (!GOOGLE_MAPS_API_KEY) return null;
+  if (width <= 0 || height <= 0) return null;
+  const z = clampZoom(zoom);
+  // Static Maps caps a single (unscaled) dimension at 640; scale:2 doubles the
+  // delivered pixels. Clamp so an oversized frame never asks for a refused size.
+  const w = Math.max(1, Math.min(640, Math.round(width)));
+  const h = Math.max(1, Math.min(640, Math.round(height)));
+  const query = new URLSearchParams({
+    center: `${center.lat},${center.lng}`,
+    zoom: String(z),
+    size: `${w}x${h}`,
+    scale: '2',
+    key: GOOGLE_MAPS_API_KEY,
+  });
+  return `https://maps.googleapis.com/maps/api/staticmap?${query.toString()}`;
+}
+
 /** The latitudes Web Mercator can represent; beyond this the projection blows up. */
 export const MAX_MERCATOR_LAT = 85.05112878;
 

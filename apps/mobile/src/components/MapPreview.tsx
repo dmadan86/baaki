@@ -25,6 +25,7 @@ import { iconSize, Text, useTheme } from '@waves/ui';
 import {
   DEFAULT_TILE_URL,
   DEFAULT_ZOOM,
+  googleStaticMapUrl,
   TILE_ATTRIBUTION,
   TILE_HEADERS,
   TILE_SIZE,
@@ -56,7 +57,10 @@ export function MapPreview({
     setWidth(event.nativeEvent.layout.width);
   };
 
-  const tiles = width > 0 ? tileGrid(location, zoom, width, height) : [];
+  // Google Static Maps when a key is configured, else the CARTO tile grid. One
+  // composite image vs a mosaic of {z}/{x}/{y} tiles — see `googleStaticMapUrl`.
+  const googleUrl = width > 0 ? googleStaticMapUrl(location, zoom, width, height) : null;
+  const tiles = width > 0 && !googleUrl ? tileGrid(location, zoom, width, height) : [];
 
   const body = (
     <View
@@ -68,6 +72,15 @@ export function MapPreview({
         backgroundColor: theme.color.bg,
       }}
     >
+      {googleUrl ? (
+        <Image
+          source={{ uri: googleUrl }}
+          style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
+          contentFit="cover"
+          transition={120}
+          cachePolicy="memory-disk"
+        />
+      ) : null}
       {tiles.map((tile) => (
         <Image
           key={`${tile.x}-${tile.y}-${tile.left}`}
@@ -109,23 +122,26 @@ export function MapPreview({
       </View>
 
       {/* Attribution — required by the tile licence (OSM data, CARTO tiles).
-          Not translated: it is a fixed credit, like a copyright line. */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          right: 0,
-          bottom: 0,
-          paddingHorizontal: 4,
-          paddingVertical: 2,
-          backgroundColor: 'rgba(255, 255, 255, 0.7)',
-          borderTopLeftRadius: theme.radius.sm,
-        }}
-      >
-        <Text variant="micro" style={{ color: '#333', fontSize: 9 }}>
-          {TILE_ATTRIBUTION}
-        </Text>
-      </View>
+          Not translated: it is a fixed credit, like a copyright line. Hidden for
+          the Google image, which carries Google's own credit baked in. */}
+      {googleUrl ? null : (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: 4,
+            paddingVertical: 2,
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            borderTopLeftRadius: theme.radius.sm,
+          }}
+        >
+          <Text variant="micro" style={{ color: '#333', fontSize: 9 }}>
+            {TILE_ATTRIBUTION}
+          </Text>
+        </View>
+      )}
     </View>
   );
 
