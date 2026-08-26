@@ -19,6 +19,7 @@ import { useCaptures } from '@/data/hooks';
 import { plural, useStrings } from '@/i18n';
 import { foldedCaptureCount } from '@/lib/captureBatch';
 
+/** Shows the folded count of unassigned captures and navigates to the captures inbox. */
 export function UnassignedCapturesCard() {
   const theme = useTheme();
   const { t, locale } = useStrings();
@@ -34,7 +35,7 @@ export function UnassignedCapturesCard() {
       // Both halves the card shows, so the spoken name carries the count a
       // sighted reader gets from the body line, not just "Unassigned".
       accessibilityLabel={`${t.captures.unassigned}. ${plural(locale, count, t.captures.unassignedBody)}`}
-      onPress={() => router.push('/captures')}
+      onPress={() => router.navigate('/captures')}
     >
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
         <View

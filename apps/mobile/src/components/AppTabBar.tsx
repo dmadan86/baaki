@@ -22,6 +22,7 @@ import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { resolveTabBar } from '@/lib/tabBar';
 
+/** Renders the persistent bottom navigation bar and routes tab selections without stacking duplicates. */
 export function AppTabBar() {
   const { t } = useStrings();
   const { session } = useAuth();
@@ -70,7 +71,7 @@ export function AppTabBar() {
   const go = (key: string): void => {
     switch (key) {
       case 'inbox':
-        router.push('/inbox');
+        router.navigate('/inbox');
         break;
       case 'friends':
         router.navigate('/friends');

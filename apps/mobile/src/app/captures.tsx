@@ -10,11 +10,20 @@
  * fold into a single collapsible "N expenses" row with the running total.
  */
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  RefreshControl,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -39,12 +48,12 @@ import { PendingMark } from '@/components/PendingMark';
 import { InboxSkeleton } from '@/components/Skeletons';
 import { capturePhotoUrl } from '@/data/api';
 import { useSignedUrl } from '@/lib/useSignedUrl';
-import { dayHeading, groupByDay } from '@/data/activity';
+import { dayHeading } from '@/data/activity';
 import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { voiceBatchId } from '@/lib/captureBatch';
+import { buildCaptureFeedItems, type CaptureFeedItem } from '@/lib/captureFeed';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
 /** A signed URL for a capture's receipt, re-resolved on change and kept fresh
@@ -185,36 +194,6 @@ function CaptureListRow({
   );
 }
 
-/** A day's captures, with same-batch ones folded together in first-seen order. */
-type InboxItem =
-  { kind: 'single'; capture: CaptureRow } | { kind: 'batch'; id: string; items: CaptureRow[] };
-
-function foldBatches(entries: readonly CaptureRow[]): InboxItem[] {
-  const out: InboxItem[] = [];
-  const at = new Map<string, number>();
-  for (const capture of entries) {
-    const id = voiceBatchId(capture);
-    if (!id) {
-      out.push({ kind: 'single', capture });
-      continue;
-    }
-    const index = at.get(id);
-    if (index === undefined) {
-      at.set(id, out.length);
-      out.push({ kind: 'batch', id, items: [capture] });
-    } else {
-      (out[index] as { items: CaptureRow[] }).items.push(capture);
-    }
-  }
-  // A batch reduced to one row (the rest deleted, or a day boundary split it) is
-  // no longer a batch — show it as the plain capture it now is.
-  return out.map((item) =>
-    item.kind === 'batch' && item.items.length === 1
-      ? { kind: 'single', capture: item.items[0]! }
-      : item,
-  );
-}
-
 /**
  * Several expenses spoken in one breath, folded into one collapsible row: a
  * layered glyph, an "N expenses" title over a preview of what they were, and the
@@ -226,6 +205,8 @@ function BatchGroupCard({
   items,
   locale,
   t,
+  open,
+  onToggle,
   onAssign,
   onEdit,
   onDelete,
@@ -234,13 +215,14 @@ function BatchGroupCard({
   items: CaptureRow[];
   locale: string;
   t: UiStrings;
+  open: boolean;
+  onToggle: () => void;
   onAssign: (capture: CaptureRow) => void;
   onEdit: (capture: CaptureRow) => void;
   onDelete: (capture: CaptureRow) => void;
   onDeleteBatch: () => void;
 }) {
   const theme = useTheme();
-  const [open, setOpen] = useState(false);
 
   const currency = items[0]!.currency;
   const sameCurrency = items.every((item) => item.currency === currency);
@@ -268,7 +250,7 @@ function BatchGroupCard({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={open ? t.captures.collapseBatch : t.captures.expandBatch}
-        onPress={() => setOpen((value) => !value)}
+        onPress={onToggle}
         style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
       >
         <Row
@@ -369,8 +351,10 @@ function BatchGroupCard({
   );
 }
 
+/** Capture inbox route backed by FlashList rows and screen-owned batch expansion state. */
 export default function CapturesScreen() {
   const theme = useTheme();
+  const { height } = useWindowDimensions();
   const clearance = useTabBarClearance();
   const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
@@ -387,6 +371,9 @@ export default function CapturesScreen() {
   // The picker's own search text, so a long group list stays one tap from any
   // group. Cleared whenever the sheet opens on a fresh capture.
   const [query, setQuery] = useState('');
+  // FlashList recycles row components, so batch expansion lives with the screen
+  // and is keyed by batch id rather than inside the recycled row instance.
+  const [openBatchIds, setOpenBatchIds] = useState<ReadonlySet<string>>(() => new Set());
 
   // Only groups the viewer still belongs to belong in the picker. Leaving a
   // group sets `left_at`; it does not remove the group row, so a left (or
@@ -416,20 +403,22 @@ export default function CapturesScreen() {
   // Past this many groups the picker earns a search field; a short list is
   // faster to eyeball than to type through.
   const showSearch = assignableGroups.length > 6;
+  const pickerListHeight = Math.max(180, height * (showSearch ? 0.34 : 0.42));
 
-  const rows = captures.data ?? [];
+  const rows = useMemo(() => captures.data ?? [], [captures.data]);
+  const feedItems = useMemo(() => buildCaptureFeedItems(rows), [rows]);
 
-  const openAssign = (capture: CaptureRow): void => {
+  const openAssign = useCallback((capture: CaptureRow): void => {
     setQuery('');
     setAssigning(capture);
-  };
+  }, []);
 
   // Open the draft in the capture form to fix its fields — the same screen that
   // drafted it, now in edit mode. Every value the row carries rides along as a
   // param so the form opens filled in and saving updates the row in place rather
   // than making a second one; `parsed` (which holds the voice-batch id) is
   // preserved so an edited batch item stays part of its batch.
-  const openEdit = (capture: CaptureRow): void => {
+  const openEdit = useCallback((capture: CaptureRow): void => {
     router.push({
       pathname: '/capture',
       params: {
@@ -449,67 +438,217 @@ export default function CapturesScreen() {
         ...(capture.parsed ? { parsed: JSON.stringify(capture.parsed) } : {}),
       },
     });
-  };
+  }, []);
 
   // Shared by the standalone rows and the rows inside a batch, so a capture is
   // deleted the same way wherever it is shown.
-  const confirmDelete = (capture: CaptureRow): void => {
-    Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
-      { text: t.common.cancel, style: 'cancel' },
-      {
-        text: t.captures.delete,
-        style: 'destructive',
-        onPress: () => void deleteCapture.mutateAsync(capture.id),
-      },
-    ]);
-  };
-
-  // Delete every capture in a spoken batch at once, behind one confirm — the
-  // trailing trash on the batch card.
-  const confirmDeleteBatch = (items: CaptureRow[]): void => {
-    Alert.alert(
-      t.captures.deleteBatch,
-      plural(locale, items.length, t.captures.deleteBatchConfirm),
-      [
+  const confirmDelete = useCallback(
+    (capture: CaptureRow): void => {
+      Alert.alert(t.captures.delete, t.captures.deleteConfirm, [
         { text: t.common.cancel, style: 'cancel' },
         {
           text: t.captures.delete,
           style: 'destructive',
-          onPress: () => {
-            for (const item of items) void deleteCapture.mutateAsync(item.id);
-          },
+          onPress: () => void deleteCapture.mutateAsync(capture.id),
         },
-      ],
-    );
-  };
+      ]);
+    },
+    [deleteCapture, t.captures.delete, t.captures.deleteConfirm, t.common.cancel],
+  );
 
-  const closeAssign = (): void => {
+  // Delete every capture in a spoken batch at once, behind one confirm — the
+  // trailing trash on the batch card.
+  const confirmDeleteBatch = useCallback(
+    (items: CaptureRow[]): void => {
+      Alert.alert(
+        t.captures.deleteBatch,
+        plural(locale, items.length, t.captures.deleteBatchConfirm),
+        [
+          { text: t.common.cancel, style: 'cancel' },
+          {
+            text: t.captures.delete,
+            style: 'destructive',
+            onPress: () => {
+              for (const item of items) void deleteCapture.mutateAsync(item.id);
+            },
+          },
+        ],
+      );
+    },
+    [
+      deleteCapture,
+      locale,
+      t.captures.delete,
+      t.captures.deleteBatch,
+      t.captures.deleteBatchConfirm,
+      t.common.cancel,
+    ],
+  );
+
+  const closeAssign = useCallback((): void => {
     setAssigning(null);
     setQuery('');
-  };
+  }, []);
 
   // Hand the capture's own values to the add-expense form as prefill, and carry
   // its id so that saving there can close the capture (useAssignCapture). The
   // amount travels as the same minor-unit string the row stores.
-  const assignTo = (capture: CaptureRow, group: GroupRow): void => {
-    closeAssign();
-    router.push({
-      pathname: '/group/[id]/add-expense',
-      params: {
-        id: group.id,
-        captureId: capture.id,
-        amount: capture.amount,
-        description: capture.description,
-        category: capture.category ?? '',
-        // A custom tag rides along as JSON so the assigned expense keeps it,
-        // rather than dropping to a built-in (extends TDR §8).
-        ...(capture.category_meta ? { categoryMeta: JSON.stringify(capture.category_meta) } : {}),
-        // The place the capture recorded, so the assigned expense keeps it (A43).
-        ...(capture.location ? { location: JSON.stringify(capture.location) } : {}),
-        expenseDate: capture.expense_date,
-      },
+  const assignTo = useCallback(
+    (capture: CaptureRow, group: GroupRow): void => {
+      closeAssign();
+      router.push({
+        pathname: '/group/[id]/add-expense',
+        params: {
+          id: group.id,
+          captureId: capture.id,
+          amount: capture.amount,
+          description: capture.description,
+          category: capture.category ?? '',
+          // A custom tag rides along as JSON so the assigned expense keeps it,
+          // rather than dropping to a built-in (extends TDR §8).
+          ...(capture.category_meta ? { categoryMeta: JSON.stringify(capture.category_meta) } : {}),
+          // The place the capture recorded, so the assigned expense keeps it (A43).
+          ...(capture.location ? { location: JSON.stringify(capture.location) } : {}),
+          expenseDate: capture.expense_date,
+        },
+      });
+    },
+    [closeAssign],
+  );
+
+  const keyCaptureItem = useCallback((item: CaptureFeedItem): string => {
+    switch (item.kind) {
+      case 'day':
+        return item.key;
+      case 'batch':
+        return `batch-${item.id}`;
+      case 'single':
+        return item.capture.id;
+    }
+  }, []);
+
+  const toggleBatch = useCallback((batchId: string): void => {
+    setOpenBatchIds((current) => {
+      const next = new Set(current);
+      if (next.has(batchId)) next.delete(batchId);
+      else next.add(batchId);
+      return next;
     });
-  };
+  }, []);
+
+  const renderCaptureItem = useCallback(
+    ({ item }: { item: CaptureFeedItem }) => {
+      switch (item.kind) {
+        case 'day':
+          return (
+            <Text
+              variant="micro"
+              tone="muted"
+              style={{
+                textTransform: 'uppercase',
+                marginTop: theme.spacing.md,
+                marginBottom: theme.spacing.xs,
+              }}
+            >
+              {dayHeading(locale, item.createdAt)}
+            </Text>
+          );
+        case 'batch':
+          return (
+            <BatchGroupCard
+              items={item.items}
+              locale={locale}
+              t={t}
+              open={openBatchIds.has(item.id)}
+              onToggle={() => toggleBatch(item.id)}
+              onAssign={openAssign}
+              onEdit={openEdit}
+              onDelete={confirmDelete}
+              onDeleteBatch={() => confirmDeleteBatch(item.items)}
+            />
+          );
+        case 'single':
+          return (
+            <CaptureListRow
+              capture={item.capture}
+              locale={locale}
+              t={t}
+              onAssign={() => openAssign(item.capture)}
+              onEdit={() => openEdit(item.capture)}
+              onDelete={() => confirmDelete(item.capture)}
+            />
+          );
+      }
+    },
+    [
+      confirmDelete,
+      confirmDeleteBatch,
+      locale,
+      openAssign,
+      openBatchIds,
+      openEdit,
+      t,
+      theme.spacing.md,
+      theme.spacing.xs,
+      toggleBatch,
+    ],
+  );
+
+  const renderGroupPickerItem = useCallback(
+    ({ item: group }: { item: GroupRow }) => {
+      const label = groupLabel(group, summary.membersFor(group.id), profile?.id);
+      return (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          onPress={() => {
+            // The Modal stays mounted through its fade-out, so this can fire a
+            // frame after the backdrop cleared `assigning`.
+            if (assigning) assignTo(assigning, group);
+          }}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.md,
+            paddingVertical: theme.spacing.md,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          {/* The group's own avatar and colour carry its identity — the flat-row
+              look the dashboard's GroupCard uses. */}
+          <Avatar
+            name={label}
+            emoji={group.cover_emoji ?? undefined}
+            size={44}
+            tint={tintForKey(group.id)}
+          />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text variant="subheading" numberOfLines={1}>
+              {label}
+            </Text>
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {plural(locale, summary.memberCountFor(group.id), t.memberCount)}
+            </Text>
+          </View>
+          <Ionicons
+            name={directionalIcon('chevron-forward')}
+            size={iconSize.md}
+            color={theme.color.textFaint}
+          />
+        </Pressable>
+      );
+    },
+    [
+      assignTo,
+      assigning,
+      locale,
+      profile?.id,
+      summary,
+      t.memberCount,
+      theme.color.textFaint,
+      theme.spacing.md,
+    ],
+  );
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -541,17 +680,19 @@ export default function CapturesScreen() {
         <View style={{ width: 44 }} />
       </Row>
 
-      {/* One scroll region for every state, the way `ActivityScreen` does it —
-          so pull-to-refresh still works while the mirror is loading or the
-          inbox is genuinely empty, not only once cards are on screen. */}
-      <ScrollView
+      {/* One virtualized scroll region for every state, the way `ActivityScreen`
+          does it — pull-to-refresh still works while loading or empty, but a
+          large draft inbox only mounts the rows near the viewport. */}
+      <FlashList
+        data={captures.isLoading || rows.length === 0 ? [] : feedItems}
+        keyExtractor={keyCaptureItem}
+        renderItem={renderCaptureItem}
+        getItemType={(item) => item.kind}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
-          gap: theme.spacing.xl,
-          flexGrow: 1,
         }}
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={pull.refreshing}
@@ -559,65 +700,22 @@ export default function CapturesScreen() {
             tintColor={theme.color.brand}
           />
         }
-      >
-        {captures.isLoading ? (
-          <InboxSkeleton />
-        ) : rows.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState
-              title={t.captures.emptyTitle}
-              body={t.captures.emptyBody}
-              action={
-                <Button label={t.captures.captureCta} onPress={() => router.push('/capture')} />
-              }
-            />
-          </View>
-        ) : (
-          // Day-grouped, same as the activity feed: an uppercase heading per
-          // calendar day, then that day's captures as flat tappable rows — the
-          // WhatsApp/GroupCard grammar the rest of the app uses, not the chunky
-          // action-cards this screen used to stack. The whole row taps to assign
-          // (the primary act on a capture); delete sits as a quiet trailing
-          // control, the way the app carries secondary row actions.
-          <View style={{ gap: theme.spacing.lg }}>
-            {groupByDay(rows).map((section) => (
-              <View key={section.key}>
-                <Text
-                  variant="micro"
-                  tone="muted"
-                  style={{ textTransform: 'uppercase', marginBottom: theme.spacing.xs }}
-                >
-                  {dayHeading(locale, section.entries[0]!.created_at)}
-                </Text>
-                {foldBatches(section.entries).map((item) =>
-                  item.kind === 'batch' ? (
-                    <BatchGroupCard
-                      key={`batch-${item.id}`}
-                      items={item.items}
-                      locale={locale}
-                      t={t}
-                      onAssign={openAssign}
-                      onEdit={openEdit}
-                      onDelete={confirmDelete}
-                      onDeleteBatch={() => confirmDeleteBatch(item.items)}
-                    />
-                  ) : (
-                    <CaptureListRow
-                      key={item.capture.id}
-                      capture={item.capture}
-                      locale={locale}
-                      t={t}
-                      onAssign={() => openAssign(item.capture)}
-                      onEdit={() => openEdit(item.capture)}
-                      onDelete={() => confirmDelete(item.capture)}
-                    />
-                  ),
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+        ListEmptyComponent={
+          captures.isLoading ? (
+            <InboxSkeleton />
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <EmptyState
+                title={t.captures.emptyTitle}
+                body={t.captures.emptyBody}
+                action={
+                  <Button label={t.captures.captureCta} onPress={() => router.push('/capture')} />
+                }
+              />
+            </View>
+          )
+        }
+      />
 
       {/* The group picker, as a sheet over the list rather than a screen away —
           assigning is one tap and one choice, and a whole route for it would be
@@ -738,77 +836,25 @@ export default function CapturesScreen() {
               </Row>
             ) : null}
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={{ flexShrink: 1 }}
-            >
-              {/* Start a group and drop this into it — so a capture with no
-                  fitting group is no longer a dead end (it used to only say
-                  "make one first"). Mirrors the "Create group" affordance the
-                  Wise/Starling pickers lead with. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.captures.assignNew}
-                onPress={() => {
-                  closeAssign();
-                  router.push('/new-group');
-                }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.md,
-                  paddingVertical: theme.spacing.md,
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: theme.color.surfaceMuted,
-                    borderWidth: 1,
-                    borderColor: theme.color.border,
-                    borderStyle: 'dashed',
-                  }}
-                >
-                  <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text variant="subheading" numberOfLines={1}>
-                    {t.captures.assignNew}
-                  </Text>
-                  <Text variant="caption" tone="muted" numberOfLines={1}>
-                    {t.captures.assignNewBody}
-                  </Text>
-                </View>
-              </Pressable>
-
-              <View style={{ height: 1, backgroundColor: theme.color.border }} />
-
-              {assignableGroups.length === 0 ? (
-                <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.lg }}>
-                  {t.captures.noGroups}
-                </Text>
-              ) : visibleGroups.length === 0 ? (
-                <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.lg }}>
-                  {t.captures.assignNoMatch}
-                </Text>
-              ) : (
-                visibleGroups.map((group) => {
-                  const label = groupLabel(group, summary.membersFor(group.id), profile?.id);
-                  return (
+            <View style={{ height: pickerListHeight }}>
+              <FlashList
+                data={assignableGroups.length === 0 ? [] : visibleGroups}
+                keyExtractor={(group) => group.id}
+                renderItem={renderGroupPickerItem}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={
+                  <>
+                    {/* Start a group and drop this into it — so a capture with no
+                        fitting group is no longer a dead end (it used to only say
+                        "make one first"). Mirrors the "Create group" affordance the
+                        Wise/Starling pickers lead with. */}
                     <Pressable
-                      key={group.id}
                       accessibilityRole="button"
-                      accessibilityLabel={label}
+                      accessibilityLabel={t.captures.assignNew}
                       onPress={() => {
-                        // The Modal stays mounted through its fade-out, so this
-                        // can fire a frame after the backdrop cleared `assigning`.
-                        if (assigning) assignTo(assigning, group);
+                        closeAssign();
+                        router.push('/new-group');
                       }}
                       style={({ pressed }) => ({
                         flexDirection: 'row',
@@ -818,32 +864,45 @@ export default function CapturesScreen() {
                         opacity: pressed ? 0.6 : 1,
                       })}
                     >
-                      {/* The group's own avatar and colour carry its identity —
-                          the flat-row look the dashboard's GroupCard uses. */}
-                      <Avatar
-                        name={label}
-                        emoji={group.cover_emoji ?? undefined}
-                        size={44}
-                        tint={tintForKey(group.id)}
-                      />
+                      <View
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: theme.color.surfaceMuted,
+                          borderWidth: 1,
+                          borderColor: theme.color.border,
+                          borderStyle: 'dashed',
+                        }}
+                      >
+                        <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
+                      </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text variant="subheading" numberOfLines={1}>
-                          {label}
+                          {t.captures.assignNew}
                         </Text>
                         <Text variant="caption" tone="muted" numberOfLines={1}>
-                          {plural(locale, summary.memberCountFor(group.id), t.memberCount)}
+                          {t.captures.assignNewBody}
                         </Text>
                       </View>
-                      <Ionicons
-                        name={directionalIcon('chevron-forward')}
-                        size={iconSize.md}
-                        color={theme.color.textFaint}
-                      />
                     </Pressable>
-                  );
-                })
-              )}
-            </ScrollView>
+
+                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                  </>
+                }
+                ListEmptyComponent={
+                  <Text
+                    variant="caption"
+                    tone="muted"
+                    style={{ paddingVertical: theme.spacing.lg }}
+                  >
+                    {assignableGroups.length === 0 ? t.captures.noGroups : t.captures.assignNoMatch}
+                  </Text>
+                }
+              />
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
