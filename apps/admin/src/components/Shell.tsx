@@ -24,6 +24,7 @@ const TITLES: Record<string, string> = {
   '/config': 'Limits',
   '/rate-limits': 'Rate limits',
   '/feedback': 'Feedback',
+  '/voice-attempts': 'Voice attempts',
 };
 
 function titleFor(path: string): string {

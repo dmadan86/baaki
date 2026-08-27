@@ -405,13 +405,14 @@ export default function VoiceScreen() {
         }).catch(() => null);
       }
       const final = result ?? parseVoiceExpenses(transcript, groupRefs);
-      // Keep a local note of what was heard and whether it produced anything, so
-      // a real miss can be revisited from Settings and the parser improved
-      // against it. Best-effort and device-only (see lib/voiceLog).
+      // Report what was heard when nothing usable came back, so the parser can be
+      // improved against a real miss. Best-effort: the lib decides whether to send
+      // (only failures, only with consent) and never throws — see lib/voiceLog.
       void logVoiceAttempt({
         transcript,
         itemCount: final.items.length,
         usedModel: result !== null,
+        locale,
       });
       return final;
     },
