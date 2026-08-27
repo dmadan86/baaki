@@ -28,9 +28,14 @@ const UNSUPPORTED_EXPENSE_INTENT =
 
 const SPOKEN_NEGATIVE_AMOUNT =
   /\b(?:minus|negative)\s+(?=(?:\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|eleven\b|twelve\b|thirteen\b|fourteen\b|fifteen\b|sixteen\b|seventeen\b|eighteen\b|nineteen\b|twenty\b|thirty\b|forty\b|fourty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b|hundred\b|thousand\b|lakh\b|lakhs\b|crore\b|crores\b))/i;
+const THIRD_PARTY_PAYER_INTENT = /\b(?!(?:i|we|you)\b)[\p{L}][\p{L}'’.-]*\s+paid\b/iu;
 
 export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
-  return UNSUPPORTED_EXPENSE_INTENT.test(text) || SPOKEN_NEGATIVE_AMOUNT.test(text);
+  return (
+    UNSUPPORTED_EXPENSE_INTENT.test(text) ||
+    SPOKEN_NEGATIVE_AMOUNT.test(text) ||
+    THIRD_PARTY_PAYER_INTENT.test(text)
+  );
 }
 
 export function isSafeVoiceAmount(amountMajor: number): boolean {
@@ -645,6 +650,46 @@ export function resolveVoiceParticipants(params: {
   return chosen;
 }
 
+function localIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function parseVoiceExpenseDate(text: string, now: Date = new Date()): string | null {
+  if (/\bday\s+before\s+yesterday\b/i.test(text)) return localIsoDate(addDays(now, -2));
+  if (/\byesterday\b/i.test(text)) return localIsoDate(addDays(now, -1));
+  if (/\btomorrow\b/i.test(text)) return localIsoDate(addDays(now, 1));
+  if (/\btoday\b/i.test(text)) return localIsoDate(now);
+
+  const iso = text.match(/\b(?:on\s+)?(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if (!iso) return null;
+  const year = Number(iso[1]);
+  const month = Number(iso[2]);
+  const day = Number(iso[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  return localIsoDate(date);
+}
+
+function stripDatePhrases(text: string): string {
+  return text
+    .replace(/\b(?:on\s+)?\d{4}-\d{1,2}-\d{1,2}\b/gi, ' ')
+    .replace(/\bday\s+before\s+yesterday\b/gi, ' ')
+    .replace(/\b(?:today|yesterday|tomorrow)\b/gi, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
  * Several expenses in one breath, an optional "make a group", and a nudge
  * toward other languages.
@@ -682,6 +727,8 @@ export interface VoiceParseResult {
   splitCount: number | null;
   /** The cleaned transcript fragment that may name split participants. */
   peopleText: string | null;
+  /** A deterministic spoken expense date, when one was heard. */
+  expenseDate: string | null;
 }
 
 /**
@@ -1250,16 +1297,17 @@ export function parseVoiceExpenses(
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
   if (isUnsupportedVoiceExpenseIntent(transcript))
-    return { items: [], group: null, splitCount: null, peopleText: null };
+    return { items: [], group: null, splitCount: null, peopleText: null, expenseDate: null };
 
   const normalized = normalizeSpokenNumbers(
     collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
   );
+  const expenseDate = parseVoiceExpenseDate(normalized);
   const created = detectCreateGroup(normalized);
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
   // read from the clean remainder.
-  const body = stripAssignmentLeadIn(created ? created.rest : normalized);
+  const body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
 
   // The group is settled before the notes are built, so each note can have the
   // named group's words taken out ("dinner on the Goa trip" → note "dinner").
@@ -1306,5 +1354,22 @@ export function parseVoiceExpenses(
     }
   }
 
-  return { items, group, splitCount: extractSplitCount(body), peopleText: body.trim() || null };
+  const namedCurrencies = new Set(items.map((item) => item.currency).filter((currency) => currency));
+  const finalItems =
+    namedCurrencies.size === 1
+      ? items.map((item) => {
+          const currency = item.currency ?? [...namedCurrencies][0] ?? null;
+          return currency === item.currency
+            ? item
+            : { ...item, currency, amountMinor: toVoiceMinorUnits(item.amountMajor, currency) };
+        })
+      : items;
+
+  return {
+    items: finalItems,
+    group,
+    splitCount: extractSplitCount(body),
+    peopleText: body.trim() || null,
+    expenseDate,
+  };
 }

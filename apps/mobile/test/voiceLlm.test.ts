@@ -314,6 +314,7 @@ describe('interpretVoiceExpenses', () => {
       group: { kind: 'create', name: 'Goa' },
       splitCount: null,
       peopleText: null,
+      expenseDate: null,
     });
   });
 
@@ -387,11 +388,12 @@ describe('interpretVoiceExpenses', () => {
     );
 
     const result = await interpretVoiceExpenses(
-      'split 1000 rupees among 4 people for dinner with Ravi',
+      'split 1000 rupees among 4 people for dinner with Ravi yesterday',
       ctx,
     );
     expect(result?.splitCount).toBe(4);
     expect(result?.peopleText).toBe('split 1000 rupees among 4 people for dinner with Ravi');
+    expect(result?.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it('rejects unsupported negative or refund intents before key lookup or network calls', async () => {

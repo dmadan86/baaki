@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   matchMemberNames,
   parseVoiceExpense,
+  parseVoiceExpenseDate,
   resolveVoiceParticipants,
   type VoiceGroupRef,
 } from '@/lib/voiceExpense';
@@ -599,13 +600,34 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items.map((item) => item.amountMajor)).toEqual([20, 15]);
   });
 
-  it('does not create items from unsupported negative, repayment, or refund intents', () => {
+  it('backfills a single named currency to earlier bare items', () => {
+    const result = parseVoiceExpenses('5 snacks, 10 rupees tea', groups);
+    expect(result.items.map((item) => item.currency)).toEqual(['INR', 'INR']);
+    expect(result.items.map((item) => item.amountMinor)).toEqual([500n, 1000n]);
+  });
+
+  it('carries deterministic spoken dates without leaking them into notes', () => {
+    const result = parseVoiceExpenses('500 rupees dinner yesterday', groups);
+    expect(result.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.items[0].note).toBe('dinner');
+  });
+
+  it('reads explicit ISO dates and rejects impossible dates', () => {
+    const result = parseVoiceExpenses('500 rupees dinner on 2026-08-12', groups);
+    expect(result.expenseDate).toBe('2026-08-12');
+    expect(result.items[0].note).toBe('dinner');
+    expect(parseVoiceExpenseDate('dinner on 2026-02-30')).toBeNull();
+  });
+
+  it('does not create items from unsupported negative, repayment, refund, or third-party payer intents', () => {
     for (const sentence of [
       "don't add 500 rupees for dinner",
       'don’t add 500 rupees for dinner',
       'delete 500 rupees dinner',
       'refund 200 rupees hotel',
       'Ravi paid me back 500 rupees',
+      'Ravi paid 500 rupees for dinner',
+      'Priya paid twenty dollars for cab',
       'I did not pay 500 rupees for dinner',
       "I didn't pay 500 rupees for dinner",
       'I didn’t pay 500 rupees for dinner',
@@ -617,6 +639,7 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     ]) {
       expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
     }
+    expect(parseVoiceExpenses('I paid 500 rupees for dinner', groups).items).toHaveLength(1);
   });
 
   it('does not create items from signed or spoken negative amounts', () => {
