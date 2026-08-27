@@ -387,6 +387,15 @@ export function VoiceCapture({
   // needless abort() races the next mount's start() on the Android singleton and
   // leaves the second capture stuck on "listening" with nothing happening.
   const listeningRef = useRef(false);
+  // Set the listening flag and its ref together, synchronously, at every
+  // transition — so the unmount cleanup below always reads the true state. A
+  // passive effect mirroring the ref could still be pending when a fast remount
+  // unmounts this instance, leaving the ref stale (an open mic not aborted, or an
+  // idle one needlessly aborted).
+  const setListeningState = useCallback((next: boolean): void => {
+    listeningRef.current = next;
+    setListening(next);
+  }, []);
 
   useSpeechRecognitionEvent('result', (event) => {
     const transcript = event.results[0]?.transcript ?? '';
@@ -407,12 +416,12 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('error', (event) => {
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
-    setListening(false);
+    setListeningState(false);
     level.set(withTiming(0, { duration: 150 }));
   });
 
   useSpeechRecognitionEvent('end', () => {
-    setListening(false);
+    setListeningState(false);
     level.set(withTiming(0, { duration: 150 }));
     const said = latest.current.trim();
     if (said) onDone(said);
@@ -445,7 +454,7 @@ export function VoiceCapture({
     const onDevice = await englishInstalledOnDevice();
     if (!mounted.current) return;
 
-    setListening(true);
+    setListeningState(true);
     try {
       ExpoSpeechRecognitionModule.start({
         // Recognition is English-only — the surface each speaker reads is still
@@ -476,10 +485,10 @@ export function VoiceCapture({
         },
       });
     } catch {
-      setListening(false);
+      setListeningState(false);
       setError(t.misc.dictationFailed);
     }
-  }, [hints, level, locale, onListen, t]);
+  }, [hints, level, locale, onListen, setListeningState, t]);
 
   const stop = useCallback((): void => {
     ExpoSpeechRecognitionModule.stop();
@@ -495,11 +504,6 @@ export function VoiceCapture({
     void start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [available, autoStart]);
-
-  // Keep the cleanup's view of "is the mic open" current.
-  useEffect(() => {
-    listeningRef.current = listening;
-  }, [listening]);
 
   // Leaving mid-sentence must not leave the microphone open — but only abort when
   // the mic is actually open. On a remount to start the next capture the previous
