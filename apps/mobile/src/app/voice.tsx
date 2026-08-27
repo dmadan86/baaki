@@ -894,6 +894,12 @@ export default function VoiceScreen() {
                 <DraftRow
                   key={draft.key}
                   draft={draft}
+                  // The currency the card shows must be the one Save will persist:
+                  // a group destination writes in the group's currency, so a USD
+                  // draft dropped into an EUR group reads EUR here, matching the
+                  // footer total and the saved expense. The inbox (no group) keeps
+                  // the draft's own spoken currency.
+                  currency={destCurrency ?? draft.currency ?? dc}
                   onEdit={editDraft}
                   onRemove={removeDraft}
                   onRedescribe={startRedescribe}
@@ -1609,6 +1615,7 @@ function DestinationPicker({
 /** One editable expense as its own card: an amount, a note, and a way to drop it. */
 function DraftRow({
   draft,
+  currency,
   onEdit,
   onRemove,
   onRedescribe,
@@ -1620,6 +1627,9 @@ function DraftRow({
   theme,
 }: {
   draft: Draft;
+  /** The currency Save will persist this row in — the group's when a group is
+   *  the destination, else the draft's own spoken currency (or the default). */
+  currency: string;
   onEdit: (key: string, patch: Partial<Draft>) => void;
   onRemove: (key: string) => void;
   onRedescribe: (key: string) => void;
@@ -1665,7 +1675,7 @@ function DraftRow({
             paddingVertical: 0,
           }}
         />
-        {draft.currency ? (
+        {currency ? (
           <View
             style={{
               paddingHorizontal: theme.spacing.sm,
@@ -1675,7 +1685,7 @@ function DraftRow({
             }}
           >
             <Text variant="caption" tone="muted" style={{ fontWeight: '700' }}>
-              {draft.currency}
+              {currency}
             </Text>
           </View>
         ) : null}
