@@ -2224,6 +2224,80 @@ export interface UiStrings {
     body: string;
     action: string;
   };
+  /** The private personal-finance ledger (A48): the "Me" tab and its screens —
+   *  solo expenses/income, recurring rules, loans and monthly budgets. */
+  personal: {
+    tab: string;
+    title: string;
+    subtitle: string;
+    thisMonth: string;
+    income: string;
+    expenses: string;
+    net: string;
+    add: string;
+    addExpense: string;
+    addIncome: string;
+    amount: string;
+    note: string;
+    notePlaceholder: string;
+    date: string;
+    category: string;
+    save: string;
+    recent: string;
+    seeAll: string;
+    empty: string;
+    transactions: string;
+    expense: string;
+    incomeKind: string;
+    recurring: string;
+    recurringSub: string;
+    addRecurring: string;
+    editRecurring: string;
+    repeats: string;
+    weekly: string;
+    monthly: string;
+    yearly: string;
+    every: string;
+    nextDue: string;
+    endDate: string;
+    noEnd: string;
+    autoPost: string;
+    autoPostHint: string;
+    active: string;
+    paused: string;
+    due: string;
+    postNow: string;
+    noRecurring: string;
+    loans: string;
+    loansSub: string;
+    addLoan: string;
+    editLoan: string;
+    borrowed: string;
+    lent: string;
+    counterpart: string;
+    counterpartPlaceholder: string;
+    principal: string;
+    outstanding: string;
+    recordPayment: string;
+    closeLoan: string;
+    reopenLoan: string;
+    paidOff: string;
+    closed: string;
+    noLoans: string;
+    budgets: string;
+    budgetsSub: string;
+    addBudget: string;
+    editBudget: string;
+    overall: string;
+    monthlyLimit: string;
+    spent: string;
+    left: string;
+    over: string;
+    noBudgets: string;
+    justMe: string;
+    justMeHint: string;
+    deleteConfirm: string;
+  };
 }
 
 const en: UiStrings = {
@@ -4130,6 +4204,78 @@ const en: UiStrings = {
     title: 'Something went wrong',
     body: 'That screen hit an error. Nothing you saved is lost — go back and try again.',
     action: 'Back to home',
+  },
+  personal: {
+    tab: 'Me',
+    title: 'Personal',
+    subtitle: 'Your own money — private to you.',
+    thisMonth: 'This month',
+    income: 'Income',
+    expenses: 'Expenses',
+    net: 'Net',
+    add: 'Add',
+    addExpense: 'Add expense',
+    addIncome: 'Add income',
+    amount: 'Amount',
+    note: 'Note',
+    notePlaceholder: 'What was it for?',
+    date: 'Date',
+    category: 'Category',
+    save: 'Save',
+    recent: 'Recent',
+    seeAll: 'See all',
+    empty: 'Nothing yet. Add your first entry.',
+    transactions: 'Transactions',
+    expense: 'Expense',
+    incomeKind: 'Income',
+    recurring: 'Recurring',
+    recurringSub: 'Bills and income that repeat.',
+    addRecurring: 'Add recurring',
+    editRecurring: 'Edit recurring',
+    repeats: 'Repeats',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+    yearly: 'Yearly',
+    every: 'Every',
+    nextDue: 'Next',
+    endDate: 'Ends',
+    noEnd: 'No end',
+    autoPost: 'Add automatically',
+    autoPostHint: 'Post the entry on its own when due. Off just reminds you.',
+    active: 'Active',
+    paused: 'Paused',
+    due: 'Due',
+    postNow: 'Add now',
+    noRecurring: 'No recurring items yet.',
+    loans: 'Loans',
+    loansSub: 'Money you owe or are owed.',
+    addLoan: 'Add loan',
+    editLoan: 'Edit loan',
+    borrowed: 'I borrowed',
+    lent: 'I lent',
+    counterpart: 'With',
+    counterpartPlaceholder: 'A name — a friend, a bank, anyone',
+    principal: 'Amount',
+    outstanding: 'Outstanding',
+    recordPayment: 'Record payment',
+    closeLoan: 'Close',
+    reopenLoan: 'Reopen',
+    paidOff: 'Paid off',
+    closed: 'Closed',
+    noLoans: 'No loans yet.',
+    budgets: 'Budgets',
+    budgetsSub: 'Monthly caps by category.',
+    addBudget: 'Add budget',
+    editBudget: 'Edit budget',
+    overall: 'Overall',
+    monthlyLimit: 'Monthly limit',
+    spent: 'Spent',
+    left: 'left',
+    over: 'over',
+    noBudgets: 'No budgets yet.',
+    justMe: 'Just me',
+    justMeHint: 'A private entry in your own ledger — not shared with anyone.',
+    deleteConfirm: 'Delete this entry? This cannot be undone.',
   },
 };
 
@@ -6132,6 +6278,78 @@ const ta: UiStrings = {
     body: 'அந்தத் திரையில் பிழை ஏற்பட்டது. நீங்கள் சேமித்தது எதுவும் இழக்கப்படவில்லை — திரும்பிச் சென்று மீண்டும் முயலுங்கள்.',
     action: 'முகப்புக்குத் திரும்பு',
   },
+  personal: {
+    tab: 'நான்',
+    title: 'தனிப்பட்டது',
+    subtitle: 'உங்கள் சொந்தப் பணம் — உங்களுக்கு மட்டும் தனிப்பட்டது.',
+    thisMonth: 'இந்த மாதம்',
+    income: 'வருமானம்',
+    expenses: 'செலவுகள்',
+    net: 'நிகரம்',
+    add: 'சேர்',
+    addExpense: 'செலவைச் சேர்',
+    addIncome: 'வருமானத்தைச் சேர்',
+    amount: 'தொகை',
+    note: 'குறிப்பு',
+    notePlaceholder: 'எதற்காக?',
+    date: 'தேதி',
+    category: 'வகை',
+    save: 'சேமி',
+    recent: 'சமீபத்தியவை',
+    seeAll: 'அனைத்தையும் காண்',
+    empty: 'இன்னும் எதுவும் இல்லை. முதல் பதிவைச் சேருங்கள்.',
+    transactions: 'பரிவர்த்தனைகள்',
+    expense: 'செலவு',
+    incomeKind: 'வருமானம்',
+    recurring: 'மீண்டும் வருபவை',
+    recurringSub: 'மீண்டும் வரும் பில்கள், வருமானம்.',
+    addRecurring: 'மீண்டும் வருவதைச் சேர்',
+    editRecurring: 'மீண்டும் வருவதைத் திருத்து',
+    repeats: 'திரும்பும்',
+    weekly: 'வாராந்திரம்',
+    monthly: 'மாதந்தோறும்',
+    yearly: 'ஆண்டுதோறும்',
+    every: 'ஒவ்வொரு',
+    nextDue: 'அடுத்தது',
+    endDate: 'முடிவு',
+    noEnd: 'முடிவு இல்லை',
+    autoPost: 'தானாகச் சேர்',
+    autoPostHint: 'நேரம் வரும்போது பதிவைத் தானாகச் சேர்க்கும். இல்லையெனில் நினைவூட்டும்.',
+    active: 'செயலில்',
+    paused: 'இடைநிறுத்தம்',
+    due: 'நிலுவை',
+    postNow: 'இப்போது சேர்',
+    noRecurring: 'மீண்டும் வரும் பதிவுகள் இல்லை.',
+    loans: 'கடன்கள்',
+    loansSub: 'நீங்கள் தர வேண்டியது அல்லது வர வேண்டியது.',
+    addLoan: 'கடனைச் சேர்',
+    editLoan: 'கடனைத் திருத்து',
+    borrowed: 'நான் வாங்கினேன்',
+    lent: 'நான் கொடுத்தேன்',
+    counterpart: 'யாருடன்',
+    counterpartPlaceholder: 'ஒரு பெயர் — நண்பர், வங்கி, யாரும்',
+    principal: 'தொகை',
+    outstanding: 'நிலுவைத் தொகை',
+    recordPayment: 'கட்டணத்தைப் பதிவு செய்',
+    closeLoan: 'மூடு',
+    reopenLoan: 'மீண்டும் திற',
+    paidOff: 'அடைக்கப்பட்டது',
+    closed: 'மூடப்பட்டது',
+    noLoans: 'கடன்கள் இல்லை.',
+    budgets: 'பட்ஜெட்டுகள்',
+    budgetsSub: 'வகை வாரியான மாதவரம்பு.',
+    addBudget: 'பட்ஜெட்டைச் சேர்',
+    editBudget: 'பட்ஜெட்டைத் திருத்து',
+    overall: 'மொத்தம்',
+    monthlyLimit: 'மாத வரம்பு',
+    spent: 'செலவழித்தது',
+    left: 'மீதம்',
+    over: 'அதிகம்',
+    noBudgets: 'பட்ஜெட்டுகள் இல்லை.',
+    justMe: 'எனக்கு மட்டும்',
+    justMeHint: 'உங்கள் சொந்தக் கணக்கில் தனிப்பட்ட பதிவு — யாருடனும் பகிரப்படாது.',
+    deleteConfirm: 'இந்தப் பதிவை நீக்கவா? இதை மீட்க முடியாது.',
+  },
 };
 
 const hi: UiStrings = {
@@ -8043,6 +8261,78 @@ const hi: UiStrings = {
     title: 'कुछ गड़बड़ हो गई',
     body: 'उस स्क्रीन में कोई त्रुटि आ गई। आपका सहेजा हुआ कुछ भी नहीं खोया — वापस जाकर फिर कोशिश करें।',
     action: 'होम पर वापस',
+  },
+  personal: {
+    tab: 'मैं',
+    title: 'निजी',
+    subtitle: 'आपका अपना पैसा — सिर्फ़ आपके लिए निजी।',
+    thisMonth: 'इस महीने',
+    income: 'आय',
+    expenses: 'खर्च',
+    net: 'शुद्ध',
+    add: 'जोड़ें',
+    addExpense: 'खर्च जोड़ें',
+    addIncome: 'आय जोड़ें',
+    amount: 'राशि',
+    note: 'टिप्पणी',
+    notePlaceholder: 'किसके लिए था?',
+    date: 'तारीख़',
+    category: 'श्रेणी',
+    save: 'सहेजें',
+    recent: 'हाल के',
+    seeAll: 'सभी देखें',
+    empty: 'अभी कुछ नहीं। अपनी पहली प्रविष्टि जोड़ें।',
+    transactions: 'लेन-देन',
+    expense: 'खर्च',
+    incomeKind: 'आय',
+    recurring: 'आवर्ती',
+    recurringSub: 'दोहराए जाने वाले बिल और आय।',
+    addRecurring: 'आवर्ती जोड़ें',
+    editRecurring: 'आवर्ती संपादित करें',
+    repeats: 'दोहराव',
+    weekly: 'साप्ताहिक',
+    monthly: 'मासिक',
+    yearly: 'वार्षिक',
+    every: 'हर',
+    nextDue: 'अगला',
+    endDate: 'समाप्ति',
+    noEnd: 'कोई अंत नहीं',
+    autoPost: 'अपने आप जोड़ें',
+    autoPostHint: 'देय होने पर प्रविष्टि अपने आप जुड़ेगी। बंद रहने पर सिर्फ़ याद दिलाएगा।',
+    active: 'सक्रिय',
+    paused: 'रुका हुआ',
+    due: 'देय',
+    postNow: 'अभी जोड़ें',
+    noRecurring: 'अभी कोई आवर्ती मद नहीं।',
+    loans: 'ऋण',
+    loansSub: 'जो आप देते हैं या आपको मिलना है।',
+    addLoan: 'ऋण जोड़ें',
+    editLoan: 'ऋण संपादित करें',
+    borrowed: 'मैंने उधार लिया',
+    lent: 'मैंने उधार दिया',
+    counterpart: 'किसके साथ',
+    counterpartPlaceholder: 'एक नाम — दोस्त, बैंक, कोई भी',
+    principal: 'राशि',
+    outstanding: 'बकाया',
+    recordPayment: 'भुगतान दर्ज करें',
+    closeLoan: 'बंद करें',
+    reopenLoan: 'फिर खोलें',
+    paidOff: 'चुका दिया',
+    closed: 'बंद',
+    noLoans: 'अभी कोई ऋण नहीं।',
+    budgets: 'बजट',
+    budgetsSub: 'श्रेणी के अनुसार मासिक सीमाएँ।',
+    addBudget: 'बजट जोड़ें',
+    editBudget: 'बजट संपादित करें',
+    overall: 'कुल',
+    monthlyLimit: 'मासिक सीमा',
+    spent: 'ख़र्च',
+    left: 'बचा',
+    over: 'अधिक',
+    noBudgets: 'अभी कोई बजट नहीं।',
+    justMe: 'सिर्फ़ मैं',
+    justMeHint: 'आपके अपने खाते में निजी प्रविष्टि — किसी के साथ साझा नहीं।',
+    deleteConfirm: 'यह प्रविष्टि हटाएँ? इसे वापस नहीं किया जा सकता।',
   },
 };
 
@@ -10168,6 +10458,78 @@ const ar: UiStrings = {
     title: 'حدث خطأ ما',
     body: 'واجهت تلك الشاشة خطأ. لم يُفقد أي شيء حفظته — ارجع وحاول مرة أخرى.',
     action: 'العودة إلى الرئيسية',
+  },
+  personal: {
+    tab: 'أنا',
+    title: 'الشخصي',
+    subtitle: 'أموالك الخاصة — خاصة بك وحدك.',
+    thisMonth: 'هذا الشهر',
+    income: 'الدخل',
+    expenses: 'المصروفات',
+    net: 'الصافي',
+    add: 'إضافة',
+    addExpense: 'إضافة مصروف',
+    addIncome: 'إضافة دخل',
+    amount: 'المبلغ',
+    note: 'ملاحظة',
+    notePlaceholder: 'لماذا كان؟',
+    date: 'التاريخ',
+    category: 'الفئة',
+    save: 'حفظ',
+    recent: 'الأخيرة',
+    seeAll: 'عرض الكل',
+    empty: 'لا شيء بعد. أضف أول إدخال.',
+    transactions: 'المعاملات',
+    expense: 'مصروف',
+    incomeKind: 'دخل',
+    recurring: 'متكرر',
+    recurringSub: 'فواتير ودخل يتكرران.',
+    addRecurring: 'إضافة متكرر',
+    editRecurring: 'تعديل المتكرر',
+    repeats: 'يتكرر',
+    weekly: 'أسبوعياً',
+    monthly: 'شهرياً',
+    yearly: 'سنوياً',
+    every: 'كل',
+    nextDue: 'التالي',
+    endDate: 'ينتهي',
+    noEnd: 'بلا نهاية',
+    autoPost: 'إضافة تلقائية',
+    autoPostHint: 'يضيف الإدخال تلقائياً عند استحقاقه. عند الإيقاف يذكّرك فقط.',
+    active: 'نشط',
+    paused: 'متوقف',
+    due: 'مستحق',
+    postNow: 'أضف الآن',
+    noRecurring: 'لا عناصر متكررة بعد.',
+    loans: 'القروض',
+    loansSub: 'أموال تدين بها أو مستحقة لك.',
+    addLoan: 'إضافة قرض',
+    editLoan: 'تعديل القرض',
+    borrowed: 'اقترضت',
+    lent: 'أقرضت',
+    counterpart: 'مع',
+    counterpartPlaceholder: 'اسم — صديق، بنك، أي أحد',
+    principal: 'المبلغ',
+    outstanding: 'المتبقي',
+    recordPayment: 'تسجيل دفعة',
+    closeLoan: 'إغلاق',
+    reopenLoan: 'إعادة فتح',
+    paidOff: 'مسدَّد',
+    closed: 'مغلق',
+    noLoans: 'لا قروض بعد.',
+    budgets: 'الميزانيات',
+    budgetsSub: 'حدود شهرية حسب الفئة.',
+    addBudget: 'إضافة ميزانية',
+    editBudget: 'تعديل الميزانية',
+    overall: 'الإجمالي',
+    monthlyLimit: 'الحد الشهري',
+    spent: 'المنفَق',
+    left: 'متبقٍ',
+    over: 'تجاوز',
+    noBudgets: 'لا ميزانيات بعد.',
+    justMe: 'أنا فقط',
+    justMeHint: 'إدخال خاص في دفترك أنت — غير مشارَك مع أحد.',
+    deleteConfirm: 'حذف هذا الإدخال؟ لا يمكن التراجع.',
   },
 };
 

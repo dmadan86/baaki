@@ -155,12 +155,16 @@ model Profile {
   /// Per-owner counter behind the personal category-tag catalog scope, the
   /// captures equivalent for `category_tags`. Bumped by `baaki_next_category_tag_seq`.
   categoryTagsSeq   BigInt   @default(0) @map("category_tags_seq")
+  /// Per-owner counter behind the personal-finance scope (A48), covering every
+  /// `personal_records` row. Bumped by `baaki_next_personal_seq`.
+  personalSeq       BigInt   @default(0) @map("personal_seq")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships         GroupMember[]
   captures            Capture[]
   categoryTags        CategoryTag[]
+  personalRecords     PersonalRecord[]
   pushTokens          PushToken[]
   notifications       Notification[]
   emailEvents         EmailEvent[]
@@ -955,6 +959,34 @@ model CategoryTag {
 
   @@index([ownerUserId, updatedSeq], map: "category_tags_owner_user_id_updated_seq_idx")
   @@map("category_tags")
+  @@schema("public")
+}
+
+/// The private personal-finance ledger (A48): a person's own expenses, income,
+/// recurring rules, loans and monthly budgets — none of it shared, no members,
+/// never a group balance. Syncs under the owner exactly like `Capture`: a
+/// per-owner `updatedSeq`, owner-only RLS, soft delete.
+///
+/// One table for all four record kinds. The server only relays this data (every
+/// summary, loan balance and budget figure is computed on the device), so it
+/// never reads the shape of a row: `recordKind` says which of the four it is and
+/// `data` carries that kind's fields, validated on the client.
+model PersonalRecord {
+  id          String    @id @db.Uuid
+  ownerUserId String    @map("owner_user_id") @db.Uuid
+  /// 'txn' | 'recurring' | 'loan' | 'budget'.
+  recordKind  String    @map("record_kind")
+  /// The record's fields, shaped by `recordKind`. Opaque to the server.
+  data        Json      @default("{}")
+  updatedSeq  BigInt    @default(0) @map("updated_seq")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  owner Profile @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId, updatedSeq], map: "personal_records_owner_user_id_updated_seq_idx")
+  @@map("personal_records")
   @@schema("public")
 }
 
