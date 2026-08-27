@@ -220,7 +220,10 @@ export default function InboxScreen() {
           keyExtractor={(row) => row.id}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
-          removeClippedSubviews
+          // No `removeClippedSubviews`: on Android it can leave off-screen rows
+          // detached after a fast fling, blanking the viewport mid-scroll (the
+          // same failure the activity feed hit). `windowSize` bounds what is
+          // mounted without the clipping that caused it.
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
