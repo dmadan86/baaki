@@ -313,6 +313,7 @@ describe('interpretVoiceExpenses', () => {
       items: [],
       group: { kind: 'create', name: 'Goa' },
       splitCount: null,
+      peopleText: null,
     });
   });
 
@@ -374,7 +375,7 @@ describe('interpretVoiceExpenses', () => {
     expect(result?.items[0]?.note).toBe('x'.repeat(160));
   });
 
-  it('keeps heuristic split-count information when the model returns usable items', async () => {
+  it('keeps the heuristic split metadata alongside model items', async () => {
     getActiveAiKeyMock.mockResolvedValue({ id: 'openai', key: 'sk-test' });
     const content = JSON.stringify({
       items: [{ amount: 1000, currency: 'INR', note: 'dinner' }],
@@ -385,8 +386,12 @@ describe('interpretVoiceExpenses', () => {
       vi.fn(async () => openAiReply(content)),
     );
 
-    const result = await interpretVoiceExpenses('split 1000 rupees among 4 people for dinner', ctx);
+    const result = await interpretVoiceExpenses(
+      'split 1000 rupees among 4 people for dinner with Ravi',
+      ctx,
+    );
     expect(result?.splitCount).toBe(4);
+    expect(result?.peopleText).toBe('split 1000 rupees among 4 people for dinner with Ravi');
   });
 
   it('rejects unsupported negative or refund intents before key lookup or network calls', async () => {
