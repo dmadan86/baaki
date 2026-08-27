@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   matchMemberNames,
+  parseVoiceCategory,
   parseVoiceExpense,
   parseVoiceExpenseDate,
   resolveVoiceParticipants,
@@ -617,6 +618,19 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.expenseDate).toBe('2026-08-12');
     expect(result.items[0].note).toBe('dinner');
     expect(parseVoiceExpenseDate('dinner on 2026-02-30')).toBeNull();
+  });
+
+  it('reads explicit built-in category phrases without leaking them into notes', () => {
+    const result = parseVoiceExpenses('500 rupees airport cab category travel', groups);
+    expect(result.items[0].category).toBe('travel');
+    expect(result.items[0].note).toBe('airport cab');
+    expect(parseVoiceCategory('tag as food')).toBe('food');
+  });
+
+  it('ignores unknown category phrases safely', () => {
+    const result = parseVoiceExpenses('500 rupees dinner category crypto', groups);
+    expect(result.items[0].category).toBeNull();
+    expect(result.items[0].note).toBe('dinner');
   });
 
   it('does not create items from unsupported negative, repayment, refund, or third-party payer intents', () => {

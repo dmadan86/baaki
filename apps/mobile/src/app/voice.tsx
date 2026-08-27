@@ -86,6 +86,7 @@ interface Draft {
   amount: string;
   note: string;
   currency: string | null;
+  category: string | null;
 }
 
 /** Where the reviewed expenses will be written. */
@@ -337,6 +338,7 @@ export default function VoiceScreen() {
         amount: String(item.amountMajor),
         note: item.note,
         currency: item.currency,
+        category: item.category,
       })),
     );
     setVoicePeopleText(result.peopleText);
@@ -415,6 +417,7 @@ export default function VoiceScreen() {
       amount: String(item.amountMajor),
       note: item.note,
       currency: item.currency,
+      category: item.category,
     }));
 
   const editDraft = (key: string, patch: Partial<Draft>): void => {
@@ -550,7 +553,7 @@ export default function VoiceScreen() {
       await createCapture.mutateAsync({
         captureId: draft.key,
         description,
-        category: guessCategory(description),
+        category: draft.category ?? guessCategory(description),
         expenseDate: date,
         currency,
         amount,
@@ -737,7 +740,7 @@ export default function VoiceScreen() {
         await writeExpense.mutateAsync({
           expenseId,
           description,
-          category: guessCategory(description),
+          category: draft.category ?? guessCategory(description),
           expenseDate: date,
           currency: groupCurrency,
           amount,

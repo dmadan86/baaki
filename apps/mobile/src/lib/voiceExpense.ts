@@ -14,7 +14,7 @@
  * and the group are cheap and certain here, and everyone gets them.
  */
 
-import { isCurrencyCode, minorUnitScale } from '@waves/core';
+import { CATEGORIES, isCurrencyCode, minorUnitScale, type CategoryId } from '@waves/core';
 
 /** Above this, a voice parse is more likely corrupted or misheard than safe to book. */
 export const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
@@ -690,6 +690,37 @@ function stripDatePhrases(text: string): string {
     .trim();
 }
 
+const CATEGORY_WORDS = new Map<string, CategoryId>(
+  CATEGORIES.flatMap((category) => [
+    [category.id, category.id],
+    [category.label.toLowerCase(), category.id],
+    ...category.label
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(Boolean)
+      .map((word) => [word, category.id] as const),
+  ]),
+);
+
+export function parseVoiceCategory(text: string): CategoryId | null {
+  const match = text.match(/\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40})/iu);
+  if (!match) return null;
+  const phrase = match[1]
+    .trim()
+    .toLowerCase()
+    .replace(/\s+(?:and|then|with|split|on|for)\b.*$/u, '')
+    .trim();
+  if (!phrase) return null;
+  return CATEGORY_WORDS.get(phrase) ?? null;
+}
+
+function stripCategoryPhrase(text: string): string {
+  return text
+    .replace(/\b(?:category|tag|label)\s+(?:as\s+)?[\p{L}\p{N}][\p{L}\p{N}& -]{0,40}(?=\s+(?:and|then|with|split|on|for)\b|\s*$)/giu, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
  * Several expenses in one breath, an optional "make a group", and a nudge
  * toward other languages.
@@ -709,6 +740,7 @@ export interface VoiceExpenseItem {
   amountMajor: number;
   currency: string | null;
   note: string;
+  category: CategoryId | null;
 }
 
 /**
@@ -1303,11 +1335,14 @@ export function parseVoiceExpenses(
     collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
   );
   const expenseDate = parseVoiceExpenseDate(normalized);
+  const category = parseVoiceCategory(normalized);
   const created = detectCreateGroup(normalized);
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
   // read from the clean remainder.
-  const body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
+  const body = stripCategoryPhrase(
+    stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized)),
+  );
 
   // The group is settled before the notes are built, so each note can have the
   // named group's words taken out ("dinner on the Goa trip" → note "dinner").
@@ -1337,6 +1372,7 @@ export function parseVoiceExpenses(
       amountMinor: toVoiceMinorUnits(amountMajor, currency),
       currency,
       note: buildNote(segment, matchedName),
+      category,
     });
   }
 
@@ -1349,7 +1385,8 @@ export function parseVoiceExpenses(
         amountMinor: one.amountMinor,
         amountMajor: one.amountMajor,
         currency: one.currency,
-        note: one.note,
+        note: stripCategoryPhrase(one.note),
+        category,
       });
     }
   }

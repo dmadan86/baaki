@@ -382,6 +382,7 @@ function mapItems(rawItems: unknown): VoiceExpenseItem[] {
       note: String(entry?.note ?? '')
         .trim()
         .slice(0, MAX_VOICE_NOTE_CHARS),
+      category: null,
     });
   }
   return items;
@@ -508,8 +509,12 @@ export async function interpretVoiceExpenses(
     await noteUsage(reply.totalTokens);
 
     const heuristic = parseVoiceExpenses(trimmed, ctx.groups);
+    const categorizedItems = items.map((item, index) => ({
+      ...item,
+      category: heuristic.items[index]?.category ?? null,
+    }));
     return {
-      items,
+      items: categorizedItems,
       group,
       splitCount: heuristic.splitCount,
       peopleText: heuristic.peopleText,

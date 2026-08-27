@@ -274,8 +274,8 @@ describe('interpretVoiceExpenses', () => {
 
     expect(result).not.toBeNull();
     expect(result?.items).toEqual([
-      { amountMajor: 500, amountMinor: 50000n, currency: 'INR', note: 'dinner' },
-      { amountMajor: 20, amountMinor: 2000n, currency: null, note: 'tea' },
+      { amountMajor: 500, amountMinor: 50000n, currency: 'INR', note: 'dinner', category: null },
+      { amountMajor: 20, amountMinor: 2000n, currency: null, note: 'tea', category: null },
     ]);
     expect(result?.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
     expect(result?.splitCount).toBeNull();
@@ -336,7 +336,7 @@ describe('interpretVoiceExpenses', () => {
 
     const result = await interpretVoiceExpenses('snack 12.5 dollars', ctx);
     expect(result?.items).toEqual([
-      { amountMajor: 12.5, amountMinor: 1250n, currency: 'USD', note: 'snack' },
+      { amountMajor: 12.5, amountMinor: 1250n, currency: 'USD', note: 'snack', category: null },
     ]);
   });
 
@@ -357,9 +357,9 @@ describe('interpretVoiceExpenses', () => {
 
     const result = await interpretVoiceExpenses('3000 yen ramen, 100000 rupiah dinner', ctx);
     expect(result?.items).toEqual([
-      { amountMajor: 3000, amountMinor: 3000n, currency: 'JPY', note: 'ramen' },
-      { amountMajor: 100000, amountMinor: 10000000n, currency: 'IDR', note: 'dinner' },
-      { amountMajor: 9, amountMinor: 900n, currency: null, note: 'unknown code' },
+      { amountMajor: 3000, amountMinor: 3000n, currency: 'JPY', note: 'ramen', category: null },
+      { amountMajor: 100000, amountMinor: 10000000n, currency: 'IDR', note: 'dinner', category: null },
+      { amountMajor: 9, amountMinor: 900n, currency: null, note: 'unknown code', category: null },
     ]);
   });
 
@@ -388,12 +388,13 @@ describe('interpretVoiceExpenses', () => {
     );
 
     const result = await interpretVoiceExpenses(
-      'split 1000 rupees among 4 people for dinner with Ravi yesterday',
+      'split 1000 rupees among 4 people for dinner with Ravi yesterday category travel',
       ctx,
     );
     expect(result?.splitCount).toBe(4);
     expect(result?.peopleText).toBe('split 1000 rupees among 4 people for dinner with Ravi');
     expect(result?.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result?.items[0].category).toBe('travel');
   });
 
   it('rejects unsupported negative or refund intents before key lookup or network calls', async () => {
@@ -431,7 +432,7 @@ describe('interpretVoiceExpenses', () => {
 
     const result = await interpretVoiceExpenses('chai 5', ctx);
     expect(result?.items).toEqual([
-      { amountMajor: 5, amountMinor: 500n, currency: null, note: 'chai' },
+      { amountMajor: 5, amountMinor: 500n, currency: null, note: 'chai', category: null },
     ]);
   });
 
@@ -504,7 +505,7 @@ describe('interpretVoiceExpenses', () => {
 
     const result = await interpretVoiceExpenses('bus 7', ctx);
     expect(result?.items).toEqual([
-      { amountMajor: 7, amountMinor: 700n, currency: null, note: 'bus' },
+      { amountMajor: 7, amountMinor: 700n, currency: null, note: 'bus', category: null },
     ]);
     // The recording was attempted, but its failure did not sink the parse.
     expect(addAiTokensUsedMock).toHaveBeenCalled();
@@ -530,7 +531,7 @@ describe('interpretVoiceExpenses — the Anthropic tool path', () => {
     const result = await interpretVoiceExpenses('cab 40 goa trip', ctx);
     // Contract parity with the OpenAI path: same VoiceParseResult shape.
     expect(result?.items).toEqual([
-      { amountMajor: 40, amountMinor: 4000n, currency: 'INR', note: 'cab' },
+      { amountMajor: 40, amountMinor: 4000n, currency: 'INR', note: 'cab', category: null },
     ]);
     expect(result?.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
 
@@ -559,7 +560,7 @@ describe('interpretVoiceExpenses — the Anthropic tool path', () => {
 
     const result = await interpretVoiceExpenses('tea 3', ctx);
     expect(result?.items).toEqual([
-      { amountMajor: 3, amountMinor: 300n, currency: null, note: 'tea' },
+      { amountMajor: 3, amountMinor: 300n, currency: null, note: 'tea', category: null },
     ]);
   });
 
@@ -709,7 +710,7 @@ describe('interpretVoiceExpenses — abort timeout', () => {
 
     const result = await promise;
     expect(result?.items).toEqual([
-      { amountMajor: 5, amountMinor: 500n, currency: null, note: 'chai' },
+      { amountMajor: 5, amountMinor: 500n, currency: null, note: 'chai', category: null },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(reportHandledMock).not.toHaveBeenCalled();
