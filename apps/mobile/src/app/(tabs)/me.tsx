@@ -1,10 +1,13 @@
 /**
  * The "Me" tab — the private personal-finance ledger (A48).
  *
- * A person's own money, nothing shared: this month's income, spend and net at
- * the top; quick ways to add an expense or income; the last few entries; and the
- * doors to the recurring rules, loans and budgets. Everything is read local-first
- * from the mirror and every figure is computed on the device.
+ * A person's own money, nothing shared. The screen leads with a month card that
+ * wears its verdict — a blue wash when you saved, a red one when you overspent —
+ * with income and spend read out beneath a thin spend-against-income bar. Then
+ * two quick-add tiles, the three management areas (recurring, loans, budgets)
+ * each surfacing its live number, and the recent entries grouped by day the way
+ * a bank statement reads. Everything is local-first from the mirror and every
+ * figure is computed on the device.
  *
  * Opening the tab also posts any auto-recurring entries that have come due since
  * it was last open (idempotent — see `postDueRecurring`).
@@ -27,6 +30,7 @@ import {
 import {
   Card,
   Divider,
+  Gradient,
   iconSize,
   Row,
   Screen,
@@ -37,6 +41,7 @@ import {
 
 import { CategoryBadge } from '@/components/Category';
 import {
+  localIsoDate,
   postDueRecurring,
   todayIso,
   usePersonalLedger,
@@ -82,7 +87,8 @@ export default function MeScreen() {
   }, [ready]);
 
   const summary = monthlySummary(ledger.txns, month, dc);
-  const recent = ledger.txns.slice(0, 6);
+  const recent = ledger.txns.slice(0, 8);
+  const days = groupByDay(recent, today, dc, t);
 
   const dueCount = ledger.recurrings.filter((rule) => isRecurringDue(rule, today)).length;
   const activeLoans = ledger.loans.filter((loan) => loan.status === 'active');
@@ -113,21 +119,17 @@ export default function MeScreen() {
           </Text>
         </View>
 
-        {/* This month: income, spend, net — the headline of the ledger. */}
-        <Card style={{ gap: theme.spacing.lg }}>
-          <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-            {t.personal.thisMonth.toUpperCase()}
-          </Text>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Metric label={t.personal.income} value={fmt(summary.income)} tone="positive" />
-            <Metric label={t.personal.expenses} value={fmt(summary.expense)} tone="text" />
-            <Metric
-              label={t.personal.net}
-              value={`${summary.net < 0n ? '−' : ''}${fmt(summary.net < 0n ? -summary.net : summary.net)}`}
-              tone={summary.net < 0n ? 'negative' : 'positive'}
-            />
-          </Row>
-        </Card>
+        {/* The month, wearing its verdict: blue when you saved, red when you
+            overspent. The net is the headline; income and spend sit under a bar
+            that fills with the share of income spent. All white ink. */}
+        <MonthHero
+          net={summary.net}
+          income={summary.income}
+          expense={summary.expense}
+          currency={dc}
+          locale={locale}
+          t={t}
+        />
 
         <Row style={{ gap: theme.spacing.md }}>
           <QuickAdd
@@ -146,7 +148,35 @@ export default function MeScreen() {
           />
         </Row>
 
-        {/* Recent entries. */}
+        {/* The three management areas, each showing its live number. */}
+        <View style={{ gap: theme.spacing.md }}>
+          <SectionLink
+            label={t.personal.recurring}
+            icon="repeat"
+            value={dueCount > 0 ? String(dueCount) : undefined}
+            valueTone="brand"
+            hint={dueCount > 0 ? t.personal.due : t.personal.recurringSub}
+            onPress={() => router.push('/personal/recurring')}
+          />
+          <SectionLink
+            label={t.personal.loans}
+            icon="cash-outline"
+            value={activeLoans.length > 0 ? fmt(outstanding) : undefined}
+            valueTone="text"
+            hint={activeLoans.length > 0 ? t.personal.outstanding : t.personal.loansSub}
+            onPress={() => router.push('/personal/loans')}
+          />
+          <SectionLink
+            label={t.personal.budgets}
+            icon="pie-chart-outline"
+            value={overBudgets > 0 ? String(overBudgets) : undefined}
+            valueTone="negative"
+            hint={overBudgets > 0 ? t.personal.over : t.personal.budgetsSub}
+            onPress={() => router.push('/personal/budgets')}
+          />
+        </View>
+
+        {/* Recent entries, grouped by day like a statement. */}
         <View style={{ gap: theme.spacing.sm }}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
@@ -171,47 +201,96 @@ export default function MeScreen() {
               </Text>
             </Card>
           ) : (
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {recent.map((txn, index) => (
-                <View key={txn.id}>
-                  {index > 0 ? <Divider /> : null}
-                  <TxnRow txn={txn} locale={locale} theme={theme} labelFor={labelForCategory(t)} />
-                </View>
-              ))}
-            </Card>
+            days.map((day) => (
+              <View key={day.key} style={{ gap: theme.spacing.xs }}>
+                {/* Day header: the label on one side, the day's net on the
+                    other — the statement's running story. */}
+                <Row
+                  style={{
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    paddingTop: theme.spacing.sm,
+                    paddingHorizontal: theme.spacing.xs,
+                  }}
+                >
+                  <Text variant="micro" tone="muted" style={{ fontWeight: '600' }}>
+                    {day.label}
+                  </Text>
+                  {day.hasNet ? (
+                    <Text variant="micro" tone={day.net < 0n ? 'negative' : 'muted'}>
+                      {day.net < 0n ? '−' : day.net > 0n ? '+' : ''}
+                      {fmt(day.net < 0n ? -day.net : day.net)}
+                    </Text>
+                  ) : null}
+                </Row>
+                <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                  {day.txns.map((txn, index) => (
+                    <View key={txn.id}>
+                      {index > 0 ? <Divider /> : null}
+                      <TxnRow
+                        txn={txn}
+                        locale={locale}
+                        theme={theme}
+                        labelFor={labelForCategory(t)}
+                      />
+                    </View>
+                  ))}
+                </Card>
+              </View>
+            ))
           )}
-        </View>
-
-        {/* The three management areas. */}
-        <View style={{ gap: theme.spacing.md }}>
-          <SectionLink
-            label={t.personal.recurring}
-            icon="repeat"
-            hint={dueCount > 0 ? `${dueCount} ${t.personal.due}` : t.personal.recurringSub}
-            emphasise={dueCount > 0}
-            onPress={() => router.push('/personal/recurring')}
-          />
-          <SectionLink
-            label={t.personal.loans}
-            icon="cash-outline"
-            hint={
-              activeLoans.length > 0
-                ? `${t.personal.outstanding} ${fmt(outstanding)}`
-                : t.personal.loansSub
-            }
-            onPress={() => router.push('/personal/loans')}
-          />
-          <SectionLink
-            label={t.personal.budgets}
-            icon="pie-chart-outline"
-            hint={overBudgets > 0 ? `${overBudgets} ${t.personal.over}` : t.personal.budgetsSub}
-            emphasise={overBudgets > 0}
-            onPress={() => router.push('/personal/budgets')}
-          />
         </View>
       </ScrollView>
     </Screen>
   );
+}
+
+interface Day {
+  readonly key: string;
+  readonly label: string;
+  /** Net (income minus spend) of this day's entries in the default currency —
+   *  minor units. `hasNet` is false when the day has no entry in that currency,
+   *  in which case there is no single figure to show. */
+  readonly net: bigint;
+  readonly hasNet: boolean;
+  readonly txns: readonly PersonalTxn[];
+}
+
+// Group already-newest-first txns into contiguous days, each carrying its net.
+// The label is Today / Yesterday for the two most recent calendar days,
+// otherwise the date as stored. The day net sums only entries in the default
+// currency `dc` — money in two currencies does not add, so a mixed day shows
+// its rows (each in its own currency) but no single net.
+function groupByDay(
+  txns: readonly PersonalTxn[],
+  today: string,
+  dc: string,
+  t: ReturnType<typeof useStrings>['t'],
+): Day[] {
+  // One calendar day back, not 86,400,000 ms — a day is not always that many
+  // milliseconds across a DST change.
+  const y = new Date(`${today}T00:00:00`);
+  y.setDate(y.getDate() - 1);
+  const yesterday = localIsoDate(y);
+  const labelFor = (date: string): string =>
+    date === today ? t.personal.today : date === yesterday ? t.personal.yesterday : date;
+
+  const days: { date: string; txns: PersonalTxn[] }[] = [];
+  for (const txn of txns) {
+    const last = days[days.length - 1];
+    if (last && last.date === txn.date) last.txns.push(txn);
+    else days.push({ date: txn.date, txns: [txn] });
+  }
+  return days.map((day) => {
+    const inDc = day.txns.filter((txn) => txn.currency === dc);
+    return {
+      key: day.date,
+      label: labelFor(day.date),
+      net: inDc.reduce((sum, txn) => sum + (txn.kind === 'income' ? txn.amount : -txn.amount), 0n),
+      hasNet: inDc.length > 0,
+      txns: day.txns,
+    };
+  });
 }
 
 // The translated label for a category id (built-in key or custom tag id). Custom
@@ -222,28 +301,97 @@ function labelForCategory(t: ReturnType<typeof useStrings>['t']) {
     id ? (t.categories[id as keyof typeof t.categories] ?? null) : null;
 }
 
-function Metric({
+function MonthHero({
+  net,
+  income,
+  expense,
+  currency,
+  locale,
+  t,
+}: {
+  net: bigint;
+  income: bigint;
+  expense: bigint;
+  currency: string;
+  locale: string;
+  t: ReturnType<typeof useStrings>['t'];
+}) {
+  const theme = useTheme();
+  const saved = net >= 0n;
+  const fmt = (amount: bigint): string =>
+    format(money(amount, currency), { locale, compactFraction: true });
+
+  // The share of income spent, for the bar. No income yet but money spent reads
+  // as fully spent; nothing either way reads as empty.
+  const ratio =
+    income > 0n ? Math.min(1, Number((expense * 1000n) / income) / 1000) : expense > 0n ? 1 : 0;
+
+  return (
+    <Gradient colors={saved ? theme.gradient.positive : theme.gradient.negative}>
+      <View style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text variant="micro" tone="onBrand" style={{ letterSpacing: 0.8, opacity: 0.85 }}>
+            {t.personal.thisMonth.toUpperCase()}
+          </Text>
+          <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+            {saved ? t.personal.saved : t.personal.overspent}
+          </Text>
+        </Row>
+
+        <Text variant="display" tone="onBrand" numberOfLines={1} adjustsFontSizeToFit>
+          {net < 0n ? '−' : ''}
+          {fmt(net < 0n ? -net : net)}
+        </Text>
+
+        {/* Spend against income. A translucent track with a white fill; over the
+            whole width when everything (or more) is spent. */}
+        <View
+          style={{
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: 'rgba(255,255,255,0.25)',
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              width: `${Math.round(ratio * 100)}%`,
+              height: 6,
+              backgroundColor: theme.color.onBrand,
+            }}
+          />
+        </View>
+
+        <Row style={{ justifyContent: 'space-between' }}>
+          <HeroFigure label={t.personal.income} value={fmt(income)} icon="arrow-down" />
+          <HeroFigure label={t.personal.expenses} value={fmt(expense)} icon="arrow-up" alignEnd />
+        </Row>
+      </View>
+    </Gradient>
+  );
+}
+
+function HeroFigure({
   label,
   value,
-  tone,
+  icon,
+  alignEnd,
 }: {
   label: string;
   value: string;
-  tone: 'positive' | 'negative' | 'text';
+  icon: keyof typeof Ionicons.glyphMap;
+  alignEnd?: boolean;
 }) {
   const theme = useTheme();
-  const color =
-    tone === 'positive'
-      ? theme.color.positive
-      : tone === 'negative'
-        ? theme.color.negative
-        : theme.color.text;
   return (
-    <View style={{ gap: 4 }}>
-      <Text variant="caption" tone="muted">
-        {label}
-      </Text>
-      <Text variant="heading" style={{ color }}>
+    <View style={{ gap: 4, alignItems: alignEnd ? 'flex-end' : 'flex-start' }}>
+      <Row style={{ alignItems: 'center', gap: 4 }}>
+        <Ionicons name={icon} size={iconSize.xs} color={theme.color.onBrand} />
+        <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+          {label}
+        </Text>
+      </Row>
+      <Text variant="body" tone="onBrand" style={{ fontWeight: '700' }}>
         {value}
       </Text>
     </View>
@@ -292,17 +440,25 @@ function QuickAdd({
 function SectionLink({
   label,
   icon,
+  value,
+  valueTone,
   hint,
-  emphasise,
   onPress,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  value?: string;
+  valueTone: 'brand' | 'text' | 'negative';
   hint: string;
-  emphasise?: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const valueColor =
+    valueTone === 'brand'
+      ? theme.color.brand
+      : valueTone === 'negative'
+        ? theme.color.negative
+        : theme.color.text;
   return (
     <Pressable accessibilityRole="button" onPress={onPress}>
       <Card>
@@ -323,10 +479,15 @@ function SectionLink({
             <Text variant="body" style={{ fontWeight: '600' }}>
               {label}
             </Text>
-            <Text variant="caption" tone={emphasise ? 'brand' : 'muted'}>
+            <Text variant="caption" tone="muted">
               {hint}
             </Text>
           </View>
+          {value !== undefined ? (
+            <Text variant="body" style={{ fontWeight: '700', color: valueColor }}>
+              {value}
+            </Text>
+          ) : null}
           <Ionicons name="chevron-forward" size={iconSize.md} color={theme.color.textFaint} />
         </Row>
       </Card>
@@ -363,9 +524,6 @@ function TxnRow({
       <View style={{ flex: 1 }}>
         <Text variant="body" numberOfLines={1}>
           {title}
-        </Text>
-        <Text variant="micro" tone="muted">
-          {txn.date}
         </Text>
       </View>
       <Text
