@@ -25,7 +25,7 @@
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -102,6 +102,22 @@ export default function MergePeopleScreen() {
   const queryClient = useQueryClient();
   const { flush } = useSync();
 
+  // People pre-picked on the Friends tab (its multiselect merge) arrive as a
+  // comma-joined, encoded list of person_keys, plus the name to pre-fill. They
+  // seed the selection and name here so this screen opens on the confirm step
+  // rather than an empty pick.
+  const params = useLocalSearchParams<{ keys?: string; name?: string }>();
+  const initialKeys = useMemo(
+    () =>
+      new Set(
+        (typeof params.keys === 'string' ? params.keys : '')
+          .split(',')
+          .map((key) => decodeURIComponent(key))
+          .filter((key) => key.length > 0),
+      ),
+    [params.keys],
+  );
+
   const people = useQuery({ queryKey: ['people', 'balances'], queryFn: fetchPeopleBalances });
 
   // One selectable row per guest. A guest unsettled in two currencies is two
@@ -116,13 +132,15 @@ export default function MergePeopleScreen() {
     return [...byKey.values()];
   }, [people.data]);
 
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(initialKeys));
   // Guests materialised from a device contact that was new to the app. They
   // never had a balance to appear in `guests`, so they live beside it rather
   // than in it — always part of the selection once added (removable, not
   // untickable, since there is no unmerged state to go back to).
   const [contactTargets, setContactTargets] = useState<readonly ContactMergeTarget[]>([]);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() =>
+    decodeURIComponent(typeof params.name === 'string' ? params.name : ''),
+  );
   const [nameTouched, setNameTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
