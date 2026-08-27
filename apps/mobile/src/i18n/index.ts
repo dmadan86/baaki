@@ -1831,6 +1831,10 @@ export interface UiStrings {
     importingCount: PluralForms;
     /** Default group name for a Splitwise import, since the CSV carries none. */
     splitwiseGroupName: string;
+    /** Home-screen banner while a background import runs — carries the group name. */
+    importingNamed: string;
+    /** Home-screen banner once a background import has landed the group. */
+    addedNamed: string;
   };
   /** Picking people, a country, and the dates a trip runs between. */
   pickers: {
@@ -3644,6 +3648,8 @@ const en: UiStrings = {
     parsing: 'Working through the rows…',
     importingCount: { one: 'Importing {n} expense…', other: 'Importing {n} expenses…' },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: 'Importing {name}…',
+    addedNamed: '{name} added',
   },
   pickers: {
     contactsDeniedTitle: 'Contacts are switched off',
@@ -5545,6 +5551,8 @@ const ta: UiStrings = {
       other: '{n} செலவுகளை இறக்குமதி செய்கிறது…',
     },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: '{name} இறக்குமதி ஆகிறது…',
+    addedNamed: '{name} சேர்க்கப்பட்டது',
   },
   pickers: {
     contactsDeniedTitle: 'தொடர்புகள் அணைக்கப்பட்டுள்ளன',
@@ -7381,6 +7389,8 @@ const hi: UiStrings = {
     parsing: 'पंक्तियाँ संसाधित हो रही हैं…',
     importingCount: { one: '{n} खर्च आयात हो रहा है…', other: '{n} खर्च आयात हो रहे हैं…' },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: '{name} इंपोर्ट हो रहा है…',
+    addedNamed: '{name} जोड़ा गया',
   },
   pickers: {
     contactsDeniedTitle: 'संपर्क बंद हैं',
@@ -9390,6 +9400,8 @@ const ar: UiStrings = {
       other: 'جارٍ استيراد {n} مصروف…',
     },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: 'جارٍ استيراد {name}…',
+    addedNamed: 'تمت إضافة {name}',
   },
   pickers: {
     contactsDeniedTitle: 'جهات الاتصال مُوقَفة',

@@ -41,7 +41,10 @@ import { usePromptSlot } from '@/lib/promptQueue';
 import { useDashboardTips } from '@/lib/tips';
 import { TourTarget, useTour } from '@/lib/tour';
 import { SyncStatusIcon } from '@/components/SyncBanner';
+import { ImportProgressBanner } from '@/components/ImportProgressBanner';
 import { SkeletonList } from '@/components/Skeletons';
+import { useImportProgress } from '@/lib/importProgress';
+import { useReducedMotion } from '@/lib/reducedMotion';
 import { useDefaultCurrency } from '@/lib/currency';
 import { QuickAddSheet, useQuickAddActions } from '@/components/QuickAddSheet';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
@@ -103,6 +106,13 @@ export default function HomeScreen() {
 
   const list = groups.data ?? [];
   const loading = groups.isLoading || summary.isLoading;
+
+  // A ledger import running in the background (see `@/lib/importProgress`): its
+  // banner sits above the group list, and when it lands the just-added group
+  // slides into the list. `justAddedId` is that group while the success banner
+  // is up, so its row animates in the moment the mirror gains it.
+  const imp = useImportProgress();
+  const justAddedId = imp.phase === 'success' ? imp.groupId : null;
 
   // First time on Home, once the "seen" flag has been read *and the data has
   // loaded*, run the tour. Waiting on the data matters: the coach-marks anchor
@@ -438,6 +448,10 @@ export default function HomeScreen() {
             flexGrow: 1,
           }}
         >
+          {/* A background import's progress lands here, just above the groups —
+              the person tapped Import, came home, and watches it fill. */}
+          <ImportProgressBanner />
+
           {loading ? (
             <SkeletonList rows={3} />
           ) : list.length === 0 ? (
@@ -514,6 +528,9 @@ export default function HomeScreen() {
                       tag={tag}
                       tagTone={onTrip ? 'positive' : 'brand'}
                       divider={index > 0}
+                      // The just-imported group slides and fades into place
+                      // rather than blinking in under the success banner.
+                      enter={group.id === justAddedId}
                       onPress={() => router.push(`/group/${group.id}`)}
                     />
                   );
@@ -1602,6 +1619,7 @@ function GroupRow({
   tag,
   tagTone,
   divider,
+  enter = false,
   onPress,
 }: {
   title: string;
@@ -1617,76 +1635,106 @@ function GroupRow({
   /** A hairline above the row — every row but the first, so the card reads as
       one divided list rather than a stack of loose cards. */
   divider: boolean;
+  /** True for a row that has just arrived (a fresh import): it fades and slides
+      into place on mount rather than blinking in. */
+  enter?: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
   // Money's own colour, kept for the ledger even though the hero is green:
   // owed-to-you positive, you-owe negative, square is quiet.
   const tone = balance === 0n ? 'muted' : balance > 0n ? 'positive' : 'negative';
+
+  // The entrance: start dropped and clear, settle into place. Only for a row
+  // flagged `enter` (a just-imported group), and never under reduce motion —
+  // otherwise the row is static at rest. Lazy-init state, never a ref read in
+  // render (the React Compiler lints that), transform+opacity native-driven.
+  const shouldAnimate = enter && !reduceMotion;
+  const anim = useState(() => new Animated.Value(shouldAnimate ? 0 : 1))[0];
+  useEffect(() => {
+    if (!shouldAnimate) return;
+    const run = Animated.spring(anim, {
+      toValue: 1,
+      friction: 8,
+      tension: 60,
+      useNativeDriver: true,
+    });
+    run.start();
+    return () => run.stop();
+  }, [shouldAnimate, anim]);
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${title}. ${statusLabel}`}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        paddingHorizontal: theme.spacing.lg,
-        borderTopWidth: divider ? 1 : 0,
-        borderTopColor: theme.color.border,
-        opacity: pressed ? 0.6 : 1,
-      })}
+    <Animated.View
+      style={{
+        opacity: anim,
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+      }}
     >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: theme.color.surfaceMuted,
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${statusLabel}`}
+        onPress={onPress}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
-        }}
+          gap: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          borderTopWidth: divider ? 1 : 0,
+          borderTopColor: theme.color.border,
+          opacity: pressed ? 0.6 : 1,
+        })}
       >
-        <Text style={{ fontSize: 20 }}>{coverEmoji ?? '👥'}</Text>
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-          <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, fontWeight: '600' }}>
-            {title}
-          </Text>
-          {tag ? (
-            <View
-              style={{
-                paddingHorizontal: 6,
-                paddingVertical: 1,
-                borderRadius: 6,
-                backgroundColor:
-                  tagTone === 'positive' ? theme.color.positiveSoft : theme.color.brandSoft,
-              }}
-            >
-              <Text
-                variant="micro"
-                tone={tagTone === 'positive' ? 'positive' : 'brand'}
-                style={{ fontWeight: '700' }}
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: theme.color.surfaceMuted,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 20 }}>{coverEmoji ?? '👥'}</Text>
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, fontWeight: '600' }}>
+              {title}
+            </Text>
+            {tag ? (
+              <View
+                style={{
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 6,
+                  backgroundColor:
+                    tagTone === 'positive' ? theme.color.positiveSoft : theme.color.brandSoft,
+                }}
               >
-                {tag}
-              </Text>
-            </View>
-          ) : null}
-        </Row>
-        <Text variant="caption" tone="muted" numberOfLines={1}>
-          {pendingLabel ?? `${memberLabel} · ${statusLabel}`}
-        </Text>
-      </View>
-      <MoneyText
-        amount={balance < 0n ? -balance : balance}
-        currency={currency as never}
-        locale={locale}
-        tone={tone}
-        style={{ fontWeight: '700' }}
-      />
-    </Pressable>
+                <Text
+                  variant="micro"
+                  tone={tagTone === 'positive' ? 'positive' : 'brand'}
+                  style={{ fontWeight: '700' }}
+                >
+                  {tag}
+                </Text>
+              </View>
+            ) : null}
+          </Row>
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {pendingLabel ?? `${memberLabel} · ${statusLabel}`}
+          </Text>
+        </View>
+        <MoneyText
+          amount={balance < 0n ? -balance : balance}
+          currency={currency as never}
+          locale={locale}
+          tone={tone}
+          style={{ fontWeight: '700' }}
+        />
+      </Pressable>
+    </Animated.View>
   );
 }

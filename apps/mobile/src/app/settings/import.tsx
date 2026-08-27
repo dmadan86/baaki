@@ -55,6 +55,7 @@ import {
 } from '@waves/ui';
 
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
+import { beginImport } from '@/lib/importProgress';
 import { friendlyError } from '@/lib/errors';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useReducedMotion } from '@/lib/reducedMotion';
@@ -323,85 +324,110 @@ export default function ImportScreen() {
 
   const claimedByMe = Object.values(mapping).some((value) => value.kind === 'me');
 
-  const run = async (): Promise<void> => {
+  /**
+   * Hand the import to the background store and walk home. The write itself no
+   * longer happens on this screen: the moment it is kicked, we replace this
+   * screen with the dashboard, where a banner above the group list tracks the
+   * percentage and the finished group animates into the list. The job below
+   * closes over everything it needs, so it runs to completion whether or not
+   * this screen is still mounted (see `@/lib/importProgress`).
+   */
+  const run = (): void => {
     if (!parsed) return;
-    setBusy(true);
-    setStage('importing');
-    setError(null);
-    // Let the progress bar and "Importing…" label paint before the single
-    // transactional write ties the thread up.
-    await nextFrame();
-    try {
-      let groupId = target;
-      if (groupId === NEW_GROUP) {
-        groupId = await createGroup({
-          name: parsed.suggestedName || t.importLedger.importedGroup,
-          type: GroupType.Other,
-          currency: parsed.currency,
-        });
-      }
+    const snapshot = parsed;
+    const chosenMapping = mapping;
+    const chosenTarget = target;
+    const ids = mutationIds;
+    const iClaimedAColumn = claimedByMe;
+    const name = snapshot.suggestedName || t.importLedger.importedGroup;
 
-      // Whoever is "you" maps to your own membership in the target group; the
-      // server resolves the rest, so a null memberId means "make a ghost".
-      const mine = (await fetchMembers(groupId)).find(
-        (member) => member.profile_id === profile?.id,
-      );
-
-      // Somebody claimed a column as themselves, but their own membership is not
-      // in the target group — importing would file their history under a ghost.
-      // Refuse rather than quietly drop them into a stranger's row.
-      if (claimedByMe && !mine) {
-        setError(t.importLedger.couldNotFindYou);
-        return;
-      }
-
-      const people: ImportPerson[] = parsed.people.map((person) => {
-        const chosen = mapping[person] ?? { kind: 'ghost' };
-        if (chosen.kind === 'me') return { name: person, memberId: mine?.id ?? null };
-        if (chosen.kind === 'member') return { name: person, memberId: chosen.memberId };
-        return { name: person, memberId: null };
-      });
-
-      const result = await importLedger({
-        groupId,
-        people,
-        origin: parsed.origin,
-        expenses: parsed.expenses.map((expense, index) => ({
-          clientMutationId: mutationIds[index] ?? randomUUID(),
-          description: expense.description,
-          category: expense.category,
-          date: expense.date,
-          currency: expense.currency,
-          amount: expense.amount,
-          payers: expense.payers,
-          shares: expense.shares,
-        })),
-        settlements: parsed.settlements.map((settlement, index) => ({
-          clientMutationId: mutationIds[parsed.expenses.length + index] ?? randomUUID(),
-          from: settlement.from,
-          to: settlement.to,
-          currency: settlement.currency,
-          amount: settlement.amount,
-          method: settlement.method,
-          status: settlement.status,
-          note: settlement.note,
-          at: settlement.at,
-        })),
-      });
-
-      setDone({
-        groupId,
-        expenses: result.expenses,
-        ghosts: result.ghosts,
-        settlements: result.settlements ?? 0,
-      });
-      void groups.refetch();
-    } catch (caught) {
-      setError(friendlyError(caught, t.importLedger.importFailed, 'import.commit'));
-    } finally {
-      setBusy(false);
-      setStage(null);
+    // The one precondition we can settle before leaving: claiming yourself in an
+    // existing group you are not a member of would file your history under a
+    // ghost. A new group makes you a member, so this only bites an existing
+    // target — and there we already hold its members, so the check is local.
+    if (
+      chosenTarget !== NEW_GROUP &&
+      iClaimedAColumn &&
+      !members.some((member) => member.profile_id === profile?.id)
+    ) {
+      setError(t.importLedger.couldNotFindYou);
+      return;
     }
+
+    beginImport({
+      name,
+      run: async () => {
+        try {
+          let groupId = chosenTarget;
+          if (groupId === NEW_GROUP) {
+            groupId = await createGroup({
+              name,
+              type: GroupType.Other,
+              currency: snapshot.currency,
+            });
+          }
+
+          // Whoever is "you" maps to your own membership in the target group; the
+          // server resolves the rest, so a null memberId means "make a ghost".
+          const mine = (await fetchMembers(groupId)).find(
+            (member) => member.profile_id === profile?.id,
+          );
+          if (iClaimedAColumn && !mine) throw new Error(t.importLedger.couldNotFindYou);
+
+          const people: ImportPerson[] = snapshot.people.map((person) => {
+            const chosen = chosenMapping[person] ?? { kind: 'ghost' };
+            if (chosen.kind === 'me') return { name: person, memberId: mine?.id ?? null };
+            if (chosen.kind === 'member') return { name: person, memberId: chosen.memberId };
+            return { name: person, memberId: null };
+          });
+
+          const result = await importLedger({
+            groupId,
+            people,
+            origin: snapshot.origin,
+            expenses: snapshot.expenses.map((expense, index) => ({
+              clientMutationId: ids[index] ?? randomUUID(),
+              description: expense.description,
+              category: expense.category,
+              date: expense.date,
+              currency: expense.currency,
+              amount: expense.amount,
+              payers: expense.payers,
+              shares: expense.shares,
+            })),
+            settlements: snapshot.settlements.map((settlement, index) => ({
+              clientMutationId: ids[snapshot.expenses.length + index] ?? randomUUID(),
+              from: settlement.from,
+              to: settlement.to,
+              currency: settlement.currency,
+              amount: settlement.amount,
+              method: settlement.method,
+              status: settlement.status,
+              note: settlement.note,
+              at: settlement.at,
+            })),
+          });
+
+          // Pull the new group into the mirror so Home can show (and animate) it.
+          groups.refetch();
+          return {
+            groupId,
+            expenses: result.expenses,
+            ghosts: result.ghosts,
+            settlements: result.settlements ?? 0,
+          };
+        } catch (caught) {
+          // Keep the one precondition message as-is; wrap everything else in a
+          // people-facing line. The store shows whichever we throw verbatim.
+          if (caught instanceof Error && caught.message === t.importLedger.couldNotFindYou) {
+            throw caught;
+          }
+          throw new Error(friendlyError(caught, t.importLedger.importFailed, 'import.commit'));
+        }
+      },
+    });
+
+    router.replace('/');
   };
 
   return (
@@ -624,7 +650,7 @@ export default function ImportScreen() {
                   size="lg"
                   fullWidth
                   disabled={busy || !claimedByMe}
-                  onPress={() => void run()}
+                  onPress={() => run()}
                   icon={
                     <Ionicons
                       name="cloud-upload-outline"
@@ -633,14 +659,6 @@ export default function ImportScreen() {
                     />
                   }
                 />
-                {stage === 'importing' ? (
-                  <View style={{ gap: theme.spacing.sm }}>
-                    <ProgressBar animated={!reduceMotion} />
-                    <Text variant="caption" tone="muted" align="center">
-                      {plural(locale, parsed.expenses.length, t.importLedger.importingCount)}
-                    </Text>
-                  </View>
-                ) : null}
                 {!claimedByMe ? (
                   <Text variant="caption" tone="muted" align="center">
                     {t.importLedger.tapYourNameFirst}
