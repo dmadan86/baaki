@@ -68,6 +68,7 @@ import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
 import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
+import { DictateButton } from '@/components/DictateButton';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
 import { LocationField } from '@/components/LocationField';
 import { captureLocation, locationAvailable } from '@/lib/location';
@@ -110,15 +111,17 @@ interface PersonChoice {
 }
 
 /**
- * What a returning transcript does — the mic is reused for three jobs, and the
- * job is fixed the moment the mic is opened, not read off the transcript.
+ * What a returning transcript does — the full-screen mic is reused for two jobs,
+ * and the job is fixed the moment the mic is opened, not read off the transcript.
  *  - 'replace'   the opening capture: the heard batch becomes the review list.
  *  - 'append'    "+ Add more": the heard expenses are pushed onto the current
  *                list, keeping the existing items and the chosen destination.
- *  - redescribe  a single row's mic: plain dictation appended to only that row's
- *                description (no parsing); the amounts and every other row stay put.
+ *
+ * A single row's note is dictated inline instead (the `DictateButton` on each
+ * DraftRow, the same field-level mic Add-Expense uses) — that never opens this
+ * full-screen flow, so it is not a mode here.
  */
-type MicMode = 'replace' | 'append' | { kind: 'redescribe'; key: string };
+type MicMode = 'replace' | 'append';
 
 const EQUAL: SplitParams = { kind: 'equal' };
 
@@ -465,29 +468,6 @@ export default function VoiceScreen() {
     if (!captureActive.current) return;
     captureActive.current = false;
     const mode = micMode;
-    // A single row's mic is plain dictation: the spoken words are appended to
-    // that row's description verbatim — no parsing, so amounts/currency/group
-    // words are NOT stripped and no thinking phase, destination change, or other
-    // row is touched. It only ever adds text to the one note.
-    if (typeof mode === 'object') {
-      const spoken = transcript.trim();
-      if (spoken) {
-        setDrafts((current) =>
-          current.map((draft) =>
-            draft.key === mode.key
-              ? {
-                  ...draft,
-                  note: draft.note.trim() ? `${draft.note.trim()} ${spoken}` : spoken,
-                }
-              : draft,
-          ),
-        );
-      }
-      setNoAmount(false);
-      setMicMode('replace');
-      setPhase('review');
-      return;
-    }
     setPhase('thinking');
     const token = (interpretToken.current += 1);
     void (async () => {
@@ -526,18 +506,10 @@ export default function VoiceScreen() {
     setPhase('listening');
   };
 
-  // The per-row mic — reopen to dictate more text onto just this expense's note.
-  const startRedescribe = (key: string): void => {
-    setMicMode({ kind: 'redescribe', key });
-    setNoAmount(false);
-    setAttempt((current) => current + 1);
-    setPhase('listening');
-  };
-
-  // The ✕. A sub-capture (add more, or a row re-dictation) opened over a review
-  // that already has a batch — backing out of it returns to the review with the
-  // batch intact, rather than leaving the screen. Otherwise it leaves as before
-  // (the leave-guard below still files an unassigned batch as a draft on the way).
+  // The ✕. An "add more" sub-capture opened over a review that already has a
+  // batch — backing out of it returns to the review with the batch intact,
+  // rather than leaving the screen. Otherwise it leaves as before (the
+  // leave-guard below still files an unassigned batch as a draft on the way).
   const dismiss = (): void => {
     // Abandon any live capture: the mic's abort-on-unmount will fire a final
     // `onDone`, and this flag makes handleTranscript drop it.
@@ -599,8 +571,8 @@ export default function VoiceScreen() {
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove', (event) => {
       if (committed.current) return;
-      // Backing out of a sub-capture (add more / re-dictate a row) — the OS back
-      // gesture or hardware key, not only the ✕ — returns to the review with the
+      // Backing out of an "add more" sub-capture — the OS back gesture or
+      // hardware key, not only the ✕ — returns to the review with the
       // batch intact, whether the mic is still listening or its interpretation is
       // pending ('thinking'). A late interpretation is cancelled with the token.
       if ((phase === 'listening' || phase === 'thinking') && drafts.length > 0) {
@@ -902,9 +874,10 @@ export default function VoiceScreen() {
                   currency={destCurrency ?? draft.currency ?? dc}
                   onEdit={editDraft}
                   onRemove={removeDraft}
-                  onRedescribe={startRedescribe}
+                  // The row's note is dictated inline with the same field mic
+                  // Add-Expense uses; group names bias the recogniser the same way.
+                  hints={hints}
                   removeLabel={t.captures.delete}
-                  dictateLabel={t.voice.dictate}
                   amountLabel={t.captures.amount}
                   noteLabel={t.captures.description}
                   notePlaceholder={t.captures.descriptionPlaceholder}
@@ -1618,9 +1591,8 @@ function DraftRow({
   currency,
   onEdit,
   onRemove,
-  onRedescribe,
+  hints,
   removeLabel,
-  dictateLabel,
   amountLabel,
   noteLabel,
   notePlaceholder,
@@ -1632,9 +1604,9 @@ function DraftRow({
   currency: string;
   onEdit: (key: string, patch: Partial<Draft>) => void;
   onRemove: (key: string) => void;
-  onRedescribe: (key: string) => void;
+  /** Names to bias the recogniser towards (group names) for inline dictation. */
+  hints?: readonly string[];
   removeLabel: string;
-  dictateLabel: string;
   amountLabel: string;
   noteLabel: string;
   notePlaceholder: string;
@@ -1706,17 +1678,15 @@ function DraftRow({
           accessibilityLabel={noteLabel}
           style={{ flex: 1, fontSize: 15, color: theme.color.text, paddingVertical: 0 }}
         />
-        {/* Dictate more text onto just this row's note (plain speech-to-text,
-            appended — no parsing), leaving its amount and the other rows alone. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={dictateLabel}
-          onPress={() => onRedescribe(draft.key)}
-          hitSlop={8}
-          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-        >
-          <Ionicons name="mic-outline" size={iconSize.md} color={theme.color.brand} />
-        </Pressable>
+        {/* The same inline dictation as the Add-Expense description field: the
+            mic lives on the note itself and the spoken words are merged straight
+            into it — no full-screen capture, no parsing, leaving the amount and
+            every other row untouched. */}
+        <DictateButton
+          value={draft.note}
+          onChange={(next) => onEdit(draft.key, { note: next })}
+          hints={hints}
+        />
       </Row>
     </Card>
   );
