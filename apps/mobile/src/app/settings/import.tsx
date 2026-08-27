@@ -350,6 +350,11 @@ export default function ImportScreen() {
     // What the person typed, falling back to the file's suggestion and then a
     // generic label — a new group never lands nameless.
     const name = newGroupName.trim() || snapshot.suggestedName || t.importLedger.importedGroup;
+    // A client-chosen id for a brand-new group, fixed here so the whole job is a
+    // safe replay: if the store re-runs it after an offline wait, createGroup is
+    // idempotent on this id (returns the same group, never a second one) and the
+    // ledger write dedups on its mutation ids. Unused for an existing target.
+    const newGroupId = randomUUID();
 
     // The one precondition we can settle before leaving: claiming yourself in an
     // existing group you are not a member of would file your history under a
@@ -370,7 +375,9 @@ export default function ImportScreen() {
         try {
           let groupId = chosenTarget;
           if (groupId === NEW_GROUP) {
-            groupId = await createGroup({
+            groupId = newGroupId;
+            await createGroup({
+              groupId: newGroupId,
               name,
               type: GroupType.Other,
               currency: snapshot.currency,
@@ -817,6 +824,11 @@ export default function ImportScreen() {
               </Text>
               <Text variant="caption" tone="muted">
                 {t.importLedger.fromBaakiNote}
+              </Text>
+              <Divider />
+              {/* Offline: parked and run on reconnect (see `@/lib/importProgress`). */}
+              <Text variant="caption" tone="muted">
+                {t.importLedger.helpOffline}
               </Text>
             </ScrollView>
             <Button label={t.misc.gotIt} fullWidth onPress={() => setHelpOpen(false)} />

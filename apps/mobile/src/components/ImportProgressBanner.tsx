@@ -50,32 +50,43 @@ export function ImportProgressBanner(): React.JSX.Element | null {
   if (!visible) return null;
 
   const running = imp.phase === 'running';
+  const waiting = imp.phase === 'waiting';
   const success = imp.phase === 'success';
+  const error = imp.phase === 'error';
   const percent = Math.round(imp.fraction * 100);
 
   // The title and its sub line, per phase. Running: the group name and the live
-  // percent. Success: "added" and the count. Error: the failure and its reason.
+  // percent. Waiting: parked offline, with the reassurance it will land. Success:
+  // "added" and the count. Error: the failure and its reason.
   const title = running
     ? t.importLedger.importingNamed.replace('{name}', imp.groupName)
-    : success
-      ? t.importLedger.addedNamed.replace('{name}', imp.groupName)
-      : t.importLedger.importFailed;
+    : waiting
+      ? t.importLedger.waitingNamed.replace('{name}', imp.groupName)
+      : success
+        ? t.importLedger.addedNamed.replace('{name}', imp.groupName)
+        : t.importLedger.importFailed;
   const sub = running
     ? `${percent}%`
-    : success && imp.summary
-      ? plural(locale, imp.summary.expenses, t.importLedger.expenseCount)
-      : imp.error;
+    : waiting
+      ? t.importLedger.waitingHint
+      : success && imp.summary
+        ? plural(locale, imp.summary.expenses, t.importLedger.expenseCount)
+        : imp.error;
 
   const icon: keyof typeof Ionicons.glyphMap = running
     ? 'cloud-upload-outline'
-    : success
-      ? 'checkmark-circle'
-      : 'alert-circle';
+    : waiting
+      ? 'cloud-offline-outline'
+      : success
+        ? 'checkmark-circle'
+        : 'alert-circle';
   const accent = success
     ? theme.color.positive
-    : imp.phase === 'error'
+    : error
       ? theme.color.negative
-      : theme.color.brand;
+      : waiting
+        ? theme.color.warning
+        : theme.color.brand;
 
   // Success opens the group on tap; the rest of the time the card is inert.
   const onPress =
@@ -126,7 +137,7 @@ export function ImportProgressBanner(): React.JSX.Element | null {
             <Text variant="subheading" tone="brand" style={{ fontWeight: '700' }}>
               {`${percent}%`}
             </Text>
-          ) : imp.phase === 'error' ? (
+          ) : error || waiting ? (
             <Pressable
               onPress={dismissImport}
               accessibilityRole="button"
