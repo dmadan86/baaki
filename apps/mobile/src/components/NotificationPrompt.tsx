@@ -23,6 +23,7 @@ import { Button, Text, useTheme } from '@waves/ui';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { enablePush, PushPermission, pushPermission, pushSupported } from '@/lib/push';
+import { usePromptSlot } from '@/lib/promptQueue';
 
 const SEEN_KEY = 'waves.push_prompt_seen';
 
@@ -81,7 +82,13 @@ export function NotificationPrompt() {
     }
   };
 
-  if (!visible) return null;
+  // Sits in the shared prompt queue so the soft ask never lands on top of the
+  // tour or the 3-card intro — it waits its turn and shows only when it is the
+  // live winner. It outranks the campaign and guest asks (a permission the OS
+  // will only offer once is worth more than an announcement).
+  const granted = usePromptSlot({ id: 'notifPrompt', priority: 80, active: visible, delayMs: 300 });
+
+  if (!visible || !granted) return null;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={dismiss}>

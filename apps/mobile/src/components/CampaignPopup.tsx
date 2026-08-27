@@ -24,6 +24,7 @@ import { Button, Text, useTheme } from '@waves/ui';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { backend } from '@/lib/backend';
+import { usePromptSlot } from '@/lib/promptQueue';
 
 interface Campaign {
   id: string;
@@ -67,16 +68,23 @@ export function CampaignPopup() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['campaign'] }),
   });
 
-  // On show, not on dismiss: somebody who reads this and force-quits has still
-  // been reached, and the funnel would otherwise never know.
-  useEffect(() => {
-    if (campaign && !dismissed) seen.mutate({ id: campaign.id, acted: false });
-    // Only when the campaign itself changes — re-running on every render of the
-    // mutation object would report the same impression forever.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaign?.id]);
+  // Wait its turn behind the tour and the push ask rather than stacking on them:
+  // the announcement claims a queue slot while there is one to show and only
+  // renders when it is the live winner.
+  const wants = Boolean(campaign) && !dismissed;
+  const granted = usePromptSlot({ id: 'campaign', priority: 60, active: wants, delayMs: 300 });
 
-  if (!campaign || dismissed) return null;
+  // On show, not on dismiss, and only once it is actually granted the screen:
+  // somebody who reads this and force-quits has still been reached, but one that
+  // never surfaced (a higher-priority prompt held the queue) has not.
+  useEffect(() => {
+    if (campaign && !dismissed && granted) seen.mutate({ id: campaign.id, acted: false });
+    // Only when the campaign changes or it is first granted — re-running on every
+    // render of the mutation object would report the same impression forever.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign?.id, granted]);
+
+  if (!campaign || dismissed || !granted) return null;
 
   const close = () => setDismissed(true);
 
