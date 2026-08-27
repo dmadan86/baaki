@@ -31,16 +31,29 @@ function ScreenBody({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const inset: ViewStyle = {
-    paddingTop: edges.includes('top') ? insets.top : 0,
-    paddingBottom: edges.includes('bottom') ? insets.bottom : 0,
-    paddingLeft: edges.includes('left') ? insets.left : 0,
-    paddingRight: edges.includes('right') ? insets.right : 0,
+  // The safe-area inset ADDS to whatever padding the caller set, matching the
+  // `SafeAreaView` contract this replaced (it summed insets onto your padding
+  // rather than overwriting it). A caller's padding for a side is read from the
+  // most specific key that applies — the side, then its axis, then the `padding`
+  // shorthand — and the inset is added on top; the result is applied last so it
+  // wins over the shorthands it subsumes. No screen sets padding on `Screen`
+  // today, but as a shared primitive this keeps a future one from silently
+  // losing its safe-area gap.
+  const side = (specific: keyof ViewStyle, axis: keyof ViewStyle): number => {
+    const value = style?.[specific] ?? style?.[axis] ?? style?.padding;
+    return typeof value === 'number' ? value : 0;
   };
-  // `style` last so a screen that sets its own padding still wins, exactly as it
-  // did when this merged over `SafeAreaView`'s style.
+  const inset: ViewStyle = {
+    paddingTop: (edges.includes('top') ? insets.top : 0) + side('paddingTop', 'paddingVertical'),
+    paddingBottom:
+      (edges.includes('bottom') ? insets.bottom : 0) + side('paddingBottom', 'paddingVertical'),
+    paddingLeft:
+      (edges.includes('left') ? insets.left : 0) + side('paddingLeft', 'paddingHorizontal'),
+    paddingRight:
+      (edges.includes('right') ? insets.right : 0) + side('paddingRight', 'paddingHorizontal'),
+  };
   return (
-    <View style={[{ flex: 1, backgroundColor: theme.color.bg }, inset, style]}>{children}</View>
+    <View style={[{ flex: 1, backgroundColor: theme.color.bg }, style, inset]}>{children}</View>
   );
 }
 
