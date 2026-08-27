@@ -9,7 +9,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   encodeLoan,
@@ -37,6 +37,7 @@ import {
 } from '@waves/ui';
 
 import {
+  localIsoDate,
   todayIso,
   usePersonalLedger,
   useDeletePersonalRecord,
@@ -327,8 +328,7 @@ function LoanEditor({
                 mode="date"
                 onChange={(event, picked) => {
                   if (Platform.OS !== 'ios') setShowDate(false);
-                  if (event.type === 'set' && picked)
-                    setStartDate(picked.toISOString().slice(0, 10));
+                  if (event.type === 'set' && picked) setStartDate(localIsoDate(picked));
                 }}
               />
             ) : null}
@@ -358,7 +358,16 @@ function LoanEditor({
                 label={t.common.delete}
                 variant="danger"
                 fullWidth
-                onPress={() => remove.mutate(loan.id, { onSuccess: onClose })}
+                onPress={() =>
+                  Alert.alert(t.common.delete, t.personal.deleteConfirm, [
+                    { text: t.common.cancel, style: 'cancel' },
+                    {
+                      text: t.common.delete,
+                      style: 'destructive',
+                      onPress: () => remove.mutate(loan.id, { onSuccess: onClose }),
+                    },
+                  ])
+                }
               />
             ) : null}
           </ScrollView>

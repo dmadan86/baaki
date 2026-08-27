@@ -9,9 +9,17 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from 'react-native';
 
-import { encodeTxn, type CategoryMeta, type TxnKind } from '@waves/core';
+import { encodeTxn, type CategoryMeta, type PersonalTxn, type TxnKind } from '@waves/core';
 import {
   AmountField,
   Button,
@@ -28,30 +36,69 @@ import {
 
 import { CategoryPicker } from '@/components/Category';
 import {
+  localIsoDate,
+  todayIso,
   useDeletePersonalRecord,
   usePersonalLedger,
   useUpsertPersonalRecord,
-  todayIso,
 } from '@/data/personal';
 import { useDefaultCurrency } from '@/lib/currency';
 import { useStrings } from '@/i18n';
 
 export default function PersonalEntryScreen() {
   const theme = useTheme();
-  const clearance = useScreenClearance();
   const { t } = useStrings();
   const dc = useDefaultCurrency();
   const params = useLocalSearchParams<{ kind?: string; id?: string; loanId?: string }>();
-
   const { txns } = usePersonalLedger();
+
   const editing = params.id ? txns.find((txn) => txn.id === params.id) : undefined;
 
+  // Editing an id that has not resolved yet (the ledger is still hydrating): hold
+  // a spinner rather than render a blank form whose initial state would be wrong
+  // and whose Save would overwrite the real record with empties.
+  if (params.id && !editing) {
+    return (
+      <Screen>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={theme.color.brand} />
+        </View>
+      </Screen>
+    );
+  }
+
+  // Keyed so a create and each distinct edited record mount their own fresh form.
+  return (
+    <EntryForm
+      key={editing?.id ?? 'new'}
+      editing={editing}
+      defaultKind={params.kind === 'income' ? 'income' : 'expense'}
+      paramLoanId={typeof params.loanId === 'string' ? params.loanId : null}
+      currency={editing?.currency ?? dc}
+      t={t}
+    />
+  );
+}
+
+function EntryForm({
+  editing,
+  defaultKind,
+  paramLoanId,
+  currency,
+  t,
+}: {
+  editing?: PersonalTxn;
+  defaultKind: TxnKind;
+  paramLoanId: string | null;
+  currency: string;
+  t: ReturnType<typeof useStrings>['t'];
+}) {
+  const theme = useTheme();
+  const clearance = useScreenClearance();
   const upsert = useUpsertPersonalRecord();
   const remove = useDeletePersonalRecord();
 
-  const [kind, setKind] = useState<TxnKind>(
-    editing?.kind ?? (params.kind === 'income' ? 'income' : 'expense'),
-  );
+  const [kind, setKind] = useState<TxnKind>(editing?.kind ?? defaultKind);
   const [amount, setAmount] = useState<bigint>(editing?.amount ?? 0n);
   const [note, setNote] = useState(editing?.note ?? '');
   const [category, setCategory] = useState<string | null>(editing?.category ?? null);
@@ -59,9 +106,8 @@ export default function PersonalEntryScreen() {
   const [showDate, setShowDate] = useState(false);
   // A repayment carries the loan it settles through from the loans screen; kept
   // as-is on an edit so the link survives.
-  const loanId = editing?.loanId ?? (typeof params.loanId === 'string' ? params.loanId : null);
+  const loanId = editing?.loanId ?? paramLoanId;
 
-  const currency = editing?.currency ?? dc;
   const canSave = amount > 0n && !upsert.isPending;
 
   const onSave = (): void => {
@@ -87,7 +133,14 @@ export default function PersonalEntryScreen() {
 
   const onDelete = (): void => {
     if (!editing) return;
-    remove.mutate(editing.id, { onSuccess: () => router.back() });
+    Alert.alert(t.common.delete, t.personal.deleteConfirm, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.common.delete,
+        style: 'destructive',
+        onPress: () => remove.mutate(editing.id, { onSuccess: () => router.back() }),
+      },
+    ]);
   };
 
   const title = editing
@@ -203,9 +256,7 @@ export default function PersonalEntryScreen() {
               onChange={(event, picked) => {
                 // Android fires once and dismisses itself; iOS stays open.
                 if (Platform.OS !== 'ios') setShowDate(false);
-                if (event.type === 'set' && picked) {
-                  setDate(picked.toISOString().slice(0, 10));
-                }
+                if (event.type === 'set' && picked) setDate(localIsoDate(picked));
               }}
             />
           ) : null}

@@ -113,6 +113,29 @@ export function recurringCatchUp(
   return { dates, nextDate: cursor };
 }
 
+/**
+ * A stable record id for one occurrence of a recurring rule, derived from the
+ * rule and the occurrence date. Deterministic on purpose: whichever path posts
+ * an occurrence — the auto catch-up on open, or a manual "add now", even racing
+ * — writes the *same* id, so the upsert-by-id collapses them to one row instead
+ * of minting two UUIDs for the same date. Two FNV-1a passes fill a uuid-shaped
+ * 32 hex string; Postgres's `uuid` accepts the grouping and a per-user ledger
+ * makes a collision vanishingly unlikely.
+ */
+export function recurringOccurrenceId(ruleId: string, date: string): string {
+  const seed = `${ruleId}:${date}`;
+  const pass = (offset: number): string => {
+    let hash = offset >>> 0;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash ^= seed.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return hash.toString(16).padStart(8, '0');
+  };
+  const hex = pass(0x811c9dc5) + pass(0x7ee3a5b1) + pass(0x243f6a88) + pass(0x9e3779b9);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 // ─────────────────────────────────────────────────────────── summaries ──
 
 export interface MonthlySummary {

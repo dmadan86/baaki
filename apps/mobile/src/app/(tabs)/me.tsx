@@ -57,18 +57,23 @@ export default function MeScreen() {
   const [today] = useState(() => todayIso());
   const month = today.slice(0, 7);
 
-  // Post due auto-recurring entries once per mount. Idempotent, so a re-run
-  // never double-posts; guarded so it fires only after the ledger has loaded and
-  // not again on every re-render.
+  // Post due auto-recurring entries when the ledger first has any recurring
+  // rules to act on. Waiting for that readiness (rather than firing on the raw
+  // mount) means a screen that mounts before the mirror hydrates still posts
+  // once the rules arrive. It runs at most once per session, and even if it ran
+  // early against a partial ledger the occurrence ids are deterministic
+  // (recurringOccurrenceId), so a later real run upserts the same rows — never a
+  // duplicate.
   const posted = useRef(false);
+  const hasRules = ledger.recurrings.length > 0;
   useEffect(() => {
-    if (posted.current) return;
+    if (posted.current || !hasRules) return;
     posted.current = true;
     void postDueRecurring(ledger, today, (input) => upsert.mutateAsync(input));
-    // Deliberately runs against the first-loaded ledger only; new rules added
-    // later post on the next open.
+    // Intentionally keyed on readiness only; `ledger`/`today`/`upsert` are read
+    // at fire time and the ref makes it one-shot.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasRules]);
 
   const summary = monthlySummary(ledger.txns, month, dc);
   const recent = ledger.txns.slice(0, 6);
@@ -112,7 +117,7 @@ export default function MeScreen() {
             <Metric label={t.personal.expenses} value={fmt(summary.expense)} tone="text" />
             <Metric
               label={t.personal.net}
-              value={fmt(summary.net < 0n ? -summary.net : summary.net)}
+              value={`${summary.net < 0n ? '−' : ''}${fmt(summary.net < 0n ? -summary.net : summary.net)}`}
               tone={summary.net < 0n ? 'negative' : 'positive'}
             />
           </Row>

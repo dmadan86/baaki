@@ -15,6 +15,7 @@ import {
   monthlySummary,
   personalBudgetProgress,
   recurringCatchUp,
+  recurringOccurrenceId,
   type PersonalBudget,
   type PersonalLoan,
   type PersonalRecurring,
@@ -93,6 +94,24 @@ describe('recurringCatchUp', () => {
     expect(isRecurringDue(base, '2026-05-31')).toBe(false);
     expect(isRecurringDue({ ...base, active: false }, '2026-08-01')).toBe(false);
     expect(isRecurringDue({ ...base, endDate: '2026-05-01' }, '2026-08-01')).toBe(false);
+  });
+});
+
+describe('recurringOccurrenceId', () => {
+  it('is deterministic per rule and date, and a valid uuid shape', () => {
+    const a = recurringOccurrenceId('r1', '2026-08-01');
+    const b = recurringOccurrenceId('r1', '2026-08-01');
+    expect(a).toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  it('differs by date and by rule', () => {
+    expect(recurringOccurrenceId('r1', '2026-08-01')).not.toBe(
+      recurringOccurrenceId('r1', '2026-09-01'),
+    );
+    expect(recurringOccurrenceId('r1', '2026-08-01')).not.toBe(
+      recurringOccurrenceId('r2', '2026-08-01'),
+    );
   });
 });
 

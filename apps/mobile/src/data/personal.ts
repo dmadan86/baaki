@@ -23,6 +23,7 @@ import {
   MutationKind,
   personalScope,
   recurringCatchUp,
+  recurringOccurrenceId,
   type PersonalBudget,
   type PersonalLoan,
   type PersonalRecordKind,
@@ -33,10 +34,21 @@ import {
 import { useAuth } from '@/lib/auth';
 import { useSync } from '@/sync';
 
-/** Today as YYYY-MM-DD. Call outside render (an effect or a lazy initialiser);
- *  a bare `new Date()` in render trips the React Compiler lint. */
+/** A Date as a LOCAL YYYY-MM-DD — the calendar day the person is looking at, not
+ *  the UTC one. `toISOString().slice(0,10)` shifts the day for anyone east or
+ *  west of UTC (a local-midnight pick in IST reads as the day before), so the
+ *  date maths must read the local parts instead. */
+export function localIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Today as a LOCAL YYYY-MM-DD. Call outside render (an effect or a lazy
+ *  initialiser); a bare `new Date()` in render trips the React Compiler lint. */
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localIsoDate(new Date());
 }
 
 export interface PersonalLedger {
@@ -151,7 +163,10 @@ export async function postDueRecurring(
     for (const date of dates) {
       const already = ledger.txns.some((txn) => txn.recurringId === rule.id && txn.date === date);
       if (already) continue;
+      // A deterministic id per (rule, date), so two posts of the same occurrence
+      // — a race, or a manual "add now" crossing this catch-up — upsert one row.
       await upsert({
+        recordId: recurringOccurrenceId(rule.id, date),
         recordKind: 'txn',
         data: encodeTxn({
           kind: rule.txnKind,

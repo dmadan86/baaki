@@ -8,9 +8,15 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, View } from 'react-native';
 
-import { format, money, personalBudgetProgress, type PersonalBudget } from '@waves/core';
+import {
+  encodeBudget,
+  format,
+  money,
+  personalBudgetProgress,
+  type PersonalBudget,
+} from '@waves/core';
 import {
   AmountField,
   Button,
@@ -191,11 +197,11 @@ function BudgetEditor({
       {
         recordId: budget?.id,
         recordKind: 'budget',
-        data: {
+        data: encodeBudget({
           category: chosenCategory,
-          limit: limit.toString(),
+          limit,
           currency: budget?.currency ?? currency,
-        },
+        }),
       },
       { onSuccess: onClose },
     );
@@ -262,7 +268,16 @@ function BudgetEditor({
                 label={t.common.delete}
                 variant="danger"
                 fullWidth
-                onPress={() => remove.mutate(budget.id, { onSuccess: onClose })}
+                onPress={() =>
+                  Alert.alert(t.common.delete, t.personal.deleteConfirm, [
+                    { text: t.common.cancel, style: 'cancel' },
+                    {
+                      text: t.common.delete,
+                      style: 'destructive',
+                      onPress: () => remove.mutate(budget.id, { onSuccess: onClose }),
+                    },
+                  ])
+                }
               />
             ) : null}
           </ScrollView>

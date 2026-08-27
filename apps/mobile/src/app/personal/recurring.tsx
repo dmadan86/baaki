@@ -9,14 +9,16 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   addToDate,
   encodeRecurring,
+  encodeTxn,
   format,
   isRecurringDue,
   money,
+  recurringOccurrenceId,
   type Cadence,
   type PersonalRecurring,
   type TxnKind,
@@ -41,6 +43,7 @@ import {
 
 import { CategoryPicker } from '@/components/Category';
 import {
+  localIsoDate,
   todayIso,
   usePersonalLedger,
   useDeletePersonalRecord,
@@ -71,20 +74,23 @@ export default function RecurringScreen() {
     return rule.interval > 1 ? `${t.personal.every} ${rule.interval} · ${base}` : base;
   };
 
-  // Post one occurrence of a manual rule now, and advance its next date.
+  // Post one occurrence of a manual rule now, and advance its next date. The
+  // occurrence id is deterministic per (rule, date), so this posting the same
+  // date the auto catch-up also posts collapses to one row rather than two.
   const postOnce = async (rule: PersonalRecurring): Promise<void> => {
     await upsert.mutateAsync({
+      recordId: recurringOccurrenceId(rule.id, rule.nextDate),
       recordKind: 'txn',
-      data: {
+      data: encodeTxn({
         kind: rule.txnKind,
-        amount: rule.amount.toString(),
+        amount: rule.amount,
         currency: rule.currency,
         category: rule.category,
         note: rule.note,
         date: rule.nextDate,
         loanId: null,
         recurringId: rule.id,
-      },
+      }),
     });
     await upsert.mutateAsync({
       recordId: rule.id,
@@ -228,7 +234,10 @@ function RecurringEditor({
   const [note, setNote] = useState(rule?.note ?? '');
   const [category, setCategory] = useState<string | null>(rule?.category ?? null);
   const [cadence, setCadence] = useState<Cadence>(rule?.cadence ?? 'monthly');
-  const [startDate, setStartDate] = useState(rule?.anchorDate ?? today);
+  // The editable "next due" date: a new rule starts on it; an existing rule is
+  // rescheduled to it. Seeded from the rule's current next date, not its anchor,
+  // so opening and saving an unchanged rule never rewinds its schedule.
+  const [startDate, setStartDate] = useState(rule?.nextDate ?? today);
   const [showDate, setShowDate] = useState(false);
   const [autoPost, setAutoPost] = useState(rule?.autoPost ?? false);
   const [active, setActive] = useState(rule?.active ?? true);
@@ -249,9 +258,11 @@ function RecurringEditor({
           note: note.trim() || null,
           cadence,
           interval: rule?.interval ?? 1,
-          anchorDate: startDate,
-          // A new rule is next due on its start date; an edit keeps its schedule.
-          nextDate: rule?.nextDate ?? startDate,
+          // Keep the original anchor on an edit; a new rule anchors on its start.
+          anchorDate: rule?.anchorDate ?? startDate,
+          // The picker holds the next-due date for both a new rule and an edit,
+          // so a rescheduled date actually takes effect.
+          nextDate: startDate,
           endDate: rule?.endDate ?? null,
           autoPost,
           active,
@@ -350,7 +361,7 @@ function RecurringEditor({
               }}
             >
               <Text variant="body">
-                {t.personal.nextDue}: {rule?.nextDate ?? startDate}
+                {t.personal.nextDue}: {startDate}
               </Text>
               <Ionicons name="calendar-outline" size={iconSize.md} color={theme.color.textMuted} />
             </Pressable>
@@ -360,8 +371,7 @@ function RecurringEditor({
                 mode="date"
                 onChange={(event, picked) => {
                   if (Platform.OS !== 'ios') setShowDate(false);
-                  if (event.type === 'set' && picked)
-                    setStartDate(picked.toISOString().slice(0, 10));
+                  if (event.type === 'set' && picked) setStartDate(localIsoDate(picked));
                 }}
               />
             ) : null}
@@ -404,7 +414,16 @@ function RecurringEditor({
                 label={t.common.delete}
                 variant="danger"
                 fullWidth
-                onPress={() => remove.mutate(rule.id, { onSuccess: onClose })}
+                onPress={() =>
+                  Alert.alert(t.common.delete, t.personal.deleteConfirm, [
+                    { text: t.common.cancel, style: 'cancel' },
+                    {
+                      text: t.common.delete,
+                      style: 'destructive',
+                      onPress: () => remove.mutate(rule.id, { onSuccess: onClose }),
+                    },
+                  ])
+                }
               />
             ) : null}
           </ScrollView>
