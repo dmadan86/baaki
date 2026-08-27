@@ -43,6 +43,31 @@ export interface TabBarState {
   readonly activeKey: string;
 }
 
+export type TabBarRoute = '/' | '/friends' | '/activity' | '/inbox';
+
+/**
+ * The route a bottom-bar tap should navigate to, or null when the destination is
+ * already current. The null is intentional: a repeated tap on the highlighted
+ * tab should not schedule router work or rebuild the same scene.
+ */
+export function tabBarRouteForSelection(
+  activeKey: string,
+  selectedKey: string,
+): TabBarRoute | null {
+  if (selectedKey === activeKey) return null;
+
+  switch (selectedKey) {
+    case 'inbox':
+      return '/inbox';
+    case 'friends':
+      return '/friends';
+    case 'activity':
+      return '/activity';
+    default:
+      return '/';
+  }
+}
+
 /**
  * Resolve the bar's state from the current route segments.
  *

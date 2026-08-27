@@ -13,14 +13,15 @@
  * it is not one of the bar's destinations.
  */
 
+import { useCallback, useMemo } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useGlobalSearchParams, useSegments } from 'expo-router';
 
-import { iconSize, PillTabBar, type PillTabItem } from '@waves/ui';
+import { iconSize, PillTabBar, type PillTabAction, type PillTabItem } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { resolveTabBar } from '@/lib/tabBar';
+import { resolveTabBar, tabBarRouteForSelection } from '@/lib/tabBar';
 
 /** Renders the persistent bottom navigation bar and routes tab selections without stacking duplicates. */
 export function AppTabBar() {
@@ -40,59 +41,58 @@ export function AppTabBar() {
   // No session means no bar anywhere — the privacy page opened from the login
   // legal line is the one place it used to leak onto a signed-out screen.
   const { hidden, activeKey } = resolveTabBar(segments, !session);
-  if (hidden) return null;
 
-  const items: PillTabItem[] = [
-    {
-      key: 'index',
-      label: t.home,
-      icon: (color) => <Ionicons name="home" size={iconSize.lg} color={color} />,
-    },
-    {
-      key: 'friends',
-      label: t.friends,
-      icon: (color) => <Ionicons name="people" size={iconSize.lg} color={color} />,
-    },
-    {
-      key: 'activity',
-      label: t.activity,
-      icon: (color) => <Ionicons name="pulse" size={iconSize.lg} color={color} />,
-    },
-    {
-      key: 'inbox',
-      label: t.tabs.inbox,
-      icon: (color) => <Ionicons name="file-tray-outline" size={iconSize.lg} color={color} />,
-    },
-  ];
+  const items = useMemo<PillTabItem[]>(
+    () => [
+      {
+        key: 'index',
+        label: t.home,
+        icon: (color) => <Ionicons name="home" size={iconSize.lg} color={color} />,
+      },
+      {
+        key: 'friends',
+        label: t.friends,
+        icon: (color) => <Ionicons name="people" size={iconSize.lg} color={color} />,
+      },
+      {
+        key: 'activity',
+        label: t.activity,
+        icon: (color) => <Ionicons name="pulse" size={iconSize.lg} color={color} />,
+      },
+      {
+        key: 'inbox',
+        label: t.tabs.inbox,
+        icon: (color) => <Ionicons name="file-tray-outline" size={iconSize.lg} color={color} />,
+      },
+    ],
+    [t.activity, t.friends, t.home, t.tabs.inbox],
+  );
 
-  // The inbox is a stacked route, so it is pushed; the tabs are navigated to,
-  // which switches the tab rather than stacking a second copy. Home is the
-  // group's default route, reached at '/'.
-  const go = (key: string): void => {
-    switch (key) {
-      case 'inbox':
-        router.navigate('/inbox');
-        break;
-      case 'friends':
-        router.navigate('/friends');
-        break;
-      case 'activity':
-        router.navigate('/activity');
-        break;
-      default:
-        router.navigate('/');
-    }
-  };
+  // All bar destinations are tabs now. `navigate` switches to the existing tab
+  // route instead of stacking a second copy; tapping the active tab is a no-op
+  // so repeated taps do not schedule redundant router work.
+  const go = useCallback(
+    (key: string): void => {
+      const route = tabBarRouteForSelection(activeKey, key);
+      if (route) router.navigate(route);
+    },
+    [activeKey],
+  );
 
   // The raised mic: speak an expense from anywhere the bar is showing. The
   // button is a black circle, so the mic wears the on-brand (white) colour the
   // bar hands it.
-  const voice = {
-    accessibilityLabel: t.voice.speakExpense,
-    onPress: () =>
-      router.push(groupId ? { pathname: '/voice', params: { group: groupId } } : '/voice'),
-    icon: (color: string) => <Ionicons name="mic" size={iconSize.lg} color={color} />,
-  };
+  const voice = useMemo<PillTabAction>(
+    () => ({
+      accessibilityLabel: t.voice.speakExpense,
+      onPress: () =>
+        router.push(groupId ? { pathname: '/voice', params: { group: groupId } } : '/voice'),
+      icon: (color: string) => <Ionicons name="mic" size={iconSize.lg} color={color} />,
+    }),
+    [groupId, t.voice.speakExpense],
+  );
+
+  if (hidden) return null;
 
   return (
     <PillTabBar items={items} activeKey={activeKey} onSelect={go} animated centerAction={voice} />
