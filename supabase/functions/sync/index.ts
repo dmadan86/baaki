@@ -870,7 +870,11 @@ class SyncSession {
   // scope. owner_user_id is set from the identity, never the payload.
   private requirePersonalScope(mutation: MutationEnvelope): void {
     if (mutation.groupId !== personalScope(this.profileId)) {
-      throw new HttpError(403, 'NOT_OWNER', 'A personal record may only be written under its own owner');
+      throw new HttpError(
+        403,
+        'NOT_OWNER',
+        'A personal record may only be written under its own owner',
+      );
     }
   }
 
@@ -1146,7 +1150,8 @@ async function pull(
     .gt('updated_seq', pfSince)
     .order('updated_seq', { ascending: true })
     .limit(MAX_ROWS_PER_TABLE);
-  if (personalError) throw new HttpError(500, 'PULL_FAILED', `personal_records: ${personalError.message}`);
+  if (personalError)
+    throw new HttpError(500, 'PULL_FAILED', `personal_records: ${personalError.message}`);
 
   let pfHighWater = pfSince;
   for (const row of personal ?? []) {
