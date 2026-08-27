@@ -599,7 +599,12 @@ function AuthGate() {
           <Stack.Screen name="clone-group" options={slide} />
           {paywallEnabled ? <Stack.Screen name="paywall" options={slide} /> : null}
           <Stack.Screen name="capture" options={slide} />
-          <Stack.Screen name="captures" />
+          {/* The drafts screen keeps the bottom bar, so a person leaves it by
+              tapping a tab — which should cut straight across the way a tab does,
+              not slide the draft card out first. `none` makes leaving it (and
+              arriving on it) instant, the same treatment the inbox destination
+              had before it became a tab. */}
+          <Stack.Screen name="captures" options={{ animation: 'none' }} />
           <Stack.Screen name="groups" options={slide} />
           <Stack.Screen name="group/[id]/index" options={slide} />
           <Stack.Screen name="group/[id]/add-expense" options={slide} />
