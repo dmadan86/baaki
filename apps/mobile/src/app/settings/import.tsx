@@ -24,7 +24,8 @@ import { randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   importSplitwiseCsv,
@@ -50,8 +51,8 @@ import {
   Screen,
   SectionHeader,
   Text,
+  useTabBarClearance,
   useTheme,
-  useScreenClearance,
 } from '@waves/ui';
 
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
@@ -127,12 +128,13 @@ function fromBaaki(group: BaakiImportGroup, fallbackName: string): Loaded {
 
 export default function ImportScreen() {
   const theme = useTheme();
-  // The last thing on this screen is a full-width primary CTA (Import / Open the
-  // group), not a line of text. A footer-like action needs more breath above the
-  // system nav bar than the default so its icon and label never sit under the
-  // gesture pill — so ask the clearance hook for a larger base (still the inset
-  // plus a token, never a magic pixel number).
-  const clearance = useScreenClearance(theme.spacing.xxxl * 2);
+  // The bottom bar shows on this screen (it is a settings page, not a modal), and
+  // it is opaque — so the scroll has to clear the *bar*, not just the system
+  // inset. `useScreenClearance` only cleared the inset, which left the Import CTA
+  // jammed under the bar. `useTabBarClearance` is the bar-aware room the other
+  // settings screens use; a token more on top gives the footer CTA its breath.
+  const clearance = useTabBarClearance() + theme.spacing.xl;
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const reduceMotion = useReducedMotion();
   const groups = useGroups();
@@ -149,6 +151,10 @@ export default function ImportScreen() {
   const [fileGroups, setFileGroups] = useState<readonly BaakiImportGroup[]>([]);
   const [fileGroupIndex, setFileGroupIndex] = useState(0);
   const [target, setTarget] = useState<string>(NEW_GROUP);
+  // The name a new group is created with. Seeded from the file (the Splitwise
+  // default, or the export's own name) and then the person's to change — they no
+  // longer have to accept "Splitwise" or rename it afterwards.
+  const [newGroupName, setNewGroupName] = useState('');
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [mapping, setMapping] = useState<Record<string, Mapping>>({});
   /**
@@ -159,6 +165,7 @@ export default function ImportScreen() {
   const [mutationIds, setMutationIds] = useState<string[]>([]);
 
   const [busy, setBusy] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{
@@ -171,6 +178,7 @@ export default function ImportScreen() {
   /** Everyone starts as somebody new — see `load`. */
   const load = (loaded: Loaded): void => {
     setParsed(loaded);
+    setNewGroupName(loaded.suggestedName);
     setMutationIds([...loaded.expenses, ...loaded.settlements].map(() => randomUUID()));
     // Claiming a name as yourself is a deliberate act. Guessing by name would
     // silently merge your ledger with a stranger who shares your first name.
@@ -339,7 +347,9 @@ export default function ImportScreen() {
     const chosenTarget = target;
     const ids = mutationIds;
     const iClaimedAColumn = claimedByMe;
-    const name = snapshot.suggestedName || t.importLedger.importedGroup;
+    // What the person typed, falling back to the file's suggestion and then a
+    // generic label — a new group never lands nameless.
+    const name = newGroupName.trim() || snapshot.suggestedName || t.importLedger.importedGroup;
 
     // The one precondition we can settle before leaving: claiming yourself in an
     // existing group you are not a member of would file your history under a
@@ -451,7 +461,9 @@ export default function ImportScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.importLedger.ledgerTitle}</Text>
           </View>
-          <View style={{ width: 44 }} />
+          <IconButton label={t.importLedger.helpTitle} onPress={() => setHelpOpen(true)}>
+            <Ionicons name="help-circle-outline" size={iconSize.lg} color={theme.color.text} />
+          </IconButton>
         </Row>
 
         <Card style={{ gap: theme.spacing.sm }}>
@@ -585,7 +597,7 @@ export default function ImportScreen() {
                 <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                   <TargetRow
                     label={t.importLedger.aNewGroup}
-                    hint={t.importLedger.namedAfterFile}
+                    hint={t.importLedger.nameItBelow}
                     selected={target === NEW_GROUP}
                     onPress={() => void chooseTarget(NEW_GROUP)}
                   />
@@ -599,6 +611,59 @@ export default function ImportScreen() {
                     />
                   ))}
                 </Card>
+
+                {/* Name the new group here rather than accept the file's default.
+                    Only for a new group — an existing target already has a name. */}
+                {target === NEW_GROUP ? (
+                  <View style={{ marginTop: theme.spacing.md, gap: theme.spacing.xs }}>
+                    <Text
+                      variant="micro"
+                      tone="muted"
+                      style={{ paddingHorizontal: theme.spacing.sm }}
+                    >
+                      {t.group.groupName}
+                    </Text>
+                    <Card style={{ paddingVertical: theme.spacing.md }}>
+                      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                        <Ionicons
+                          name="people-outline"
+                          size={iconSize.md}
+                          color={theme.color.textFaint}
+                        />
+                        <TextInput
+                          value={newGroupName}
+                          onChangeText={setNewGroupName}
+                          placeholder={parsed.suggestedName}
+                          placeholderTextColor={theme.color.textFaint}
+                          accessibilityLabel={t.group.groupName}
+                          returnKeyType="done"
+                          style={{
+                            flex: 1,
+                            fontSize: 16,
+                            fontWeight: '600',
+                            color: theme.color.text,
+                            paddingVertical: 0,
+                          }}
+                        />
+                        {newGroupName.length > 0 ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t.entry.clear}
+                            onPress={() => setNewGroupName('')}
+                            hitSlop={8}
+                            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+                          >
+                            <Ionicons
+                              name="close-circle"
+                              size={iconSize.md}
+                              color={theme.color.textFaint}
+                            />
+                          </Pressable>
+                        ) : null}
+                      </Row>
+                    </Card>
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
@@ -693,6 +758,71 @@ export default function ImportScreen() {
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
       </ScrollView>
+
+      {/* How it works, on tap of the header's help glyph — a bottom sheet that
+          walks through the two file types and what does and does not come
+          across, plus that it can be done with no connection. */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={helpOpen}
+        onRequestClose={() => setHelpOpen(false)}
+      >
+        <Pressable
+          onPress={() => setHelpOpen(false)}
+          accessibilityLabel={t.common.close}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(10, 10, 26, 0.55)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          {/* Swallows the tap so pressing the sheet does not dismiss it. */}
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: theme.color.surface,
+              borderTopLeftRadius: theme.radius.xxl,
+              borderTopRightRadius: theme.radius.xxl,
+              paddingHorizontal: theme.spacing.xxl,
+              paddingTop: theme.spacing.xl,
+              paddingBottom: theme.spacing.xxl + insets.bottom,
+              gap: theme.spacing.lg,
+            }}
+          >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: theme.color.border,
+              }}
+            />
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+              <Ionicons name="help-circle-outline" size={iconSize.xl} color={theme.color.brand} />
+              <Text variant="title">{t.importLedger.helpTitle}</Text>
+            </Row>
+            <ScrollView
+              style={{ maxHeight: 340 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ gap: theme.spacing.md }}
+            >
+              <Text variant="body" tone="muted">
+                {t.importLedger.ledgerHowTo}
+              </Text>
+              <Divider />
+              <Text variant="caption" tone="muted">
+                {t.importLedger.fromSplitwiseNote}
+              </Text>
+              <Text variant="caption" tone="muted">
+                {t.importLedger.fromBaakiNote}
+              </Text>
+            </ScrollView>
+            <Button label={t.misc.gotIt} fullWidth onPress={() => setHelpOpen(false)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }

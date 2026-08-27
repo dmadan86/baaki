@@ -1835,6 +1835,10 @@ export interface UiStrings {
     importingNamed: string;
     /** Home-screen banner once a background import has landed the group. */
     addedNamed: string;
+    /** Title of the header help sheet on the import screen. */
+    helpTitle: string;
+    /** Hint on the "A new group" row, now the name is editable below it. */
+    nameItBelow: string;
   };
   /** Picking people, a country, and the dates a trip runs between. */
   pickers: {
@@ -3650,6 +3654,8 @@ const en: UiStrings = {
     splitwiseGroupName: 'Splitwise',
     importingNamed: 'Importing {name}…',
     addedNamed: '{name} added',
+    helpTitle: 'How importing works',
+    nameItBelow: 'Name it below',
   },
   pickers: {
     contactsDeniedTitle: 'Contacts are switched off',
@@ -5553,6 +5559,8 @@ const ta: UiStrings = {
     splitwiseGroupName: 'Splitwise',
     importingNamed: '{name} இறக்குமதி ஆகிறது…',
     addedNamed: '{name} சேர்க்கப்பட்டது',
+    helpTitle: 'இறக்குமதி எப்படி வேலை செய்கிறது',
+    nameItBelow: 'கீழே பெயரிடுங்கள்',
   },
   pickers: {
     contactsDeniedTitle: 'தொடர்புகள் அணைக்கப்பட்டுள்ளன',
@@ -7391,6 +7399,8 @@ const hi: UiStrings = {
     splitwiseGroupName: 'Splitwise',
     importingNamed: '{name} इंपोर्ट हो रहा है…',
     addedNamed: '{name} जोड़ा गया',
+    helpTitle: 'इंपोर्ट कैसे काम करता है',
+    nameItBelow: 'नीचे नाम दें',
   },
   pickers: {
     contactsDeniedTitle: 'संपर्क बंद हैं',
@@ -9402,6 +9412,8 @@ const ar: UiStrings = {
     splitwiseGroupName: 'Splitwise',
     importingNamed: 'جارٍ استيراد {name}…',
     addedNamed: 'تمت إضافة {name}',
+    helpTitle: 'كيف يعمل الاستيراد',
+    nameItBelow: 'سمِّها بالأسفل',
   },
   pickers: {
     contactsDeniedTitle: 'جهات الاتصال مُوقَفة',
