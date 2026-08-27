@@ -306,9 +306,7 @@ function AccountForm() {
                   somebody has not renamed themselves it repeats the name they
                   were given, which reads as a bug rather than a fact — so it is
                   held back for the untouched "Guest" name. */}
-              {isGuest && profile?.display_name !== 'Guest' ? (
-                <Badge label={t.common.guest} />
-              ) : null}
+              {isGuest && displayName !== 'Guest' ? <Badge label={t.common.guest} /> : null}
             </Row>
             {accountContact ? (
               <Text variant="caption" tone="muted">
