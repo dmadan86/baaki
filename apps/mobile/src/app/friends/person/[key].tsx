@@ -195,7 +195,7 @@ export default function PersonDetailScreen() {
                       onPress={() => router.push(`/group/${group.groupId}`)}
                       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
                     >
-                      <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}>
+                      <Row style={{ paddingVertical: theme.spacing.sm, alignItems: 'center' }}>
                         <View
                           style={{
                             width: 44,

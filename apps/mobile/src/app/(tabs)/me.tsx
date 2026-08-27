@@ -517,7 +517,7 @@ function TxnRow({
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
       }}
     >
       <CategoryBadge category={txn.category ?? 'other'} meta={null} size={32} />

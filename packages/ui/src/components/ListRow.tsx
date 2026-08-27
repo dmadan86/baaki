@@ -41,7 +41,10 @@ export function ListRow({
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
+        // WhatsApp-density list rows across the app: a tight vertical rhythm
+        // (the leading avatar/badge sets the height), one shared value so every
+        // list reads the same.
+        paddingVertical: theme.spacing.sm,
       }}
     >
       {leading}

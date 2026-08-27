@@ -403,7 +403,7 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
           style={{
             gap: theme.spacing.md,
             alignItems: 'center',
-            paddingVertical: theme.spacing.md,
+            paddingVertical: theme.spacing.sm,
           }}
         >
           <CategoryBadge
@@ -836,7 +836,7 @@ export default function GroupScreen() {
     return (
       <View>
         <Row
-          style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
+          style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.sm }}
         >
           <View
             style={{

@@ -207,7 +207,7 @@ export default function LanguageSettingsScreen() {
                   alignItems: 'center',
                   gap: theme.spacing.md,
                   paddingVertical: theme.spacing.sm,
-                  paddingHorizontal: theme.spacing.md,
+                  paddingHorizontal: theme.spacing.lg,
                   borderRadius: theme.radius.md,
                   // The chosen row lifts onto the brand's soft wash — a quiet
                   // fill rather than a loud border, so the colour lives with the
