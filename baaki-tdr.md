@@ -69,7 +69,8 @@ profiles(id UUID PK ↔ auth.users, display_name TEXT, avatar_url TEXT,
 -- Groups & membership
 groups(id, name, type TEXT CHECK (type IN ('trip','home','couple','event','other')),
        default_currency CHAR(3), simplify_debts BOOL DEFAULT true,
-       cover_emoji TEXT, archived_at TIMESTAMPTZ NULL)
+       cover_emoji TEXT, archived_at TIMESTAMPTZ NULL,
+       deleted_at TIMESTAMPTZ NULL)             -- A49 group-wide tombstone (admin, settled-gated)
 
 group_members(id, group_id FK, profile_id FK NULL,      -- NULL ⇒ ghost member
               ghost_name TEXT NULL,                     -- exactly one of profile_id/ghost_name

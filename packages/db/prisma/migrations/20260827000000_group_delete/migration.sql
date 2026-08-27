@@ -23,7 +23,13 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  SELECT deleted_at INTO v_deleted_at FROM public.groups WHERE id = p_group_id;
+  -- Lock the group row up front (FOR UPDATE), before the settled check, so the
+  -- settlement validation and the tombstone that follows read and write the same
+  -- serialized view of the row. This closes the delete-vs-delete window and gives
+  -- a single coordination point a balance-mutating writer can share (take the
+  -- same row lock) to be serialized against a delete; on its own it does not stop
+  -- a writer that never locks this row (see A49 review notes).
+  SELECT deleted_at INTO v_deleted_at FROM public.groups WHERE id = p_group_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'NOT_FOUND: no such group' USING ERRCODE = 'no_data_found';
   END IF;
