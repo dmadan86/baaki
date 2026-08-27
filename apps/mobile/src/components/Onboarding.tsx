@@ -144,6 +144,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         // nothing past the first or last card to reveal.
         decelerationRate="fast"
         overScrollMode="never"
+        bounces={false}
         // Pinned left-to-right on purpose: see `@/lib/carousel`. The reversal is
         // arithmetic there rather than three platforms' disagreeing opinions
         // about what `contentOffset.x` means in a mirrored scroll view.
