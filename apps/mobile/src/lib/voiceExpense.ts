@@ -22,20 +22,28 @@ export const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
 /** Bound model-supplied notes before they reach the review UI. */
 export const MAX_VOICE_NOTE_CHARS = 160;
 
-/** Unsupported intent words that must not be converted into normal expenses. */
-const UNSUPPORTED_EXPENSE_INTENT =
-  /\b(?:do\s+not|don['’]t|dont|did\s+not\s+pay|didn['’]t\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back|not\s+an\s+expense)\b/i;
+/** Whole-command intents that must not be converted into expenses. */
+const UNSUPPORTED_GLOBAL_EXPENSE_INTENT =
+  /\b(?:do\s+not|don['’]t|dont|did\s+not\s+pay|didn['’]t\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|not\s+an\s+expense)\b/i;
+
+/** Clause-level intents that can be skipped without discarding neighbouring safe expenses. */
+const UNSUPPORTED_EXPENSE_CLAUSE =
+  /\b(?:refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back)\b/i;
 
 const SPOKEN_NEGATIVE_AMOUNT =
   /\b(?:minus|negative)\s+(?=(?:\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|eleven\b|twelve\b|thirteen\b|fourteen\b|fifteen\b|sixteen\b|seventeen\b|eighteen\b|nineteen\b|twenty\b|thirty\b|forty\b|fourty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b|hundred\b|thousand\b|lakh\b|lakhs\b|crore\b|crores\b))/i;
 const THIRD_PARTY_PAYER_INTENT = /\b(?!(?:i|we|you)\b)[\p{L}][\p{L}'’.-]*\s+paid\b/iu;
 
-export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
+function isUnsupportedVoiceExpenseClause(text: string): boolean {
   return (
-    UNSUPPORTED_EXPENSE_INTENT.test(text) ||
+    UNSUPPORTED_EXPENSE_CLAUSE.test(text) ||
     SPOKEN_NEGATIVE_AMOUNT.test(text) ||
     THIRD_PARTY_PAYER_INTENT.test(text)
   );
+}
+
+export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
+  return UNSUPPORTED_GLOBAL_EXPENSE_INTENT.test(text) || isUnsupportedVoiceExpenseClause(text);
 }
 
 export function isSafeVoiceAmount(amountMajor: number): boolean {
@@ -718,7 +726,10 @@ export function parseVoiceCategory(text: string): CategoryId | null {
 
 function stripCategoryPhrase(text: string): string {
   CATEGORY_PHRASE.lastIndex = 0;
-  return text.replace(CATEGORY_PHRASE, ' ').replace(/[ \t]{2,}/g, ' ').trim();
+  return text
+    .replace(CATEGORY_PHRASE, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -1328,7 +1339,7 @@ export function parseVoiceExpenses(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
-  if (isUnsupportedVoiceExpenseIntent(transcript))
+  if (UNSUPPORTED_GLOBAL_EXPENSE_INTENT.test(transcript))
     return { items: [], group: null, splitCount: null, peopleText: null, expenseDate: null };
 
   const normalized = normalizeSpokenNumbers(
@@ -1361,6 +1372,7 @@ export function parseVoiceExpenses(
   let carriedCurrency: string | null = null;
 
   for (const segment of segments) {
+    if (isUnsupportedVoiceExpenseClause(segment)) continue;
     const amountMajor = extractAmount(segment);
     if (amountMajor === null) continue;
     const currency: string | null = detectCurrency(segment) ?? carriedCurrency;
@@ -1377,7 +1389,7 @@ export function parseVoiceExpenses(
 
   // Nothing segmented out but there is still a single amount — treat the whole
   // sentence as one expense, matching the single-expense parser's reach.
-  if (items.length === 0) {
+  if (items.length === 0 && !isUnsupportedVoiceExpenseClause(body)) {
     const one = parseVoiceExpense(body, groups);
     if (one.amountMinor !== null && one.amountMajor !== null) {
       items.push({
@@ -1390,7 +1402,9 @@ export function parseVoiceExpenses(
     }
   }
 
-  const namedCurrencies = new Set(items.map((item) => item.currency).filter((currency) => currency));
+  const namedCurrencies = new Set(
+    items.map((item) => item.currency).filter((currency) => currency),
+  );
   const finalItems =
     namedCurrencies.size === 1
       ? items.map((item) => {

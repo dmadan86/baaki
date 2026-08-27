@@ -670,6 +670,21 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(parseVoiceExpenses('I paid 500 rupees for dinner', groups).items).toHaveLength(1);
   });
 
+  it('keeps safe expenses while skipping unsupported neighbouring clauses', () => {
+    const result = parseVoiceExpenses(
+      '500 rupees dinner, Ravi paid me back 200 rupees, 300 rupees cab, Priya paid 50 rupees snacks',
+      groups,
+    );
+    expect(result.items.map((item) => item.amountMajor)).toEqual([500, 300]);
+    expect(result.items.map((item) => item.note)).toEqual(['dinner', 'cab']);
+  });
+
+  it('still rejects global removal commands instead of partially parsing them', () => {
+    expect(parseVoiceExpenses('delete 500 rupees dinner and 300 rupees cab', groups).items).toEqual(
+      [],
+    );
+  });
+
   it('does not create items from signed or spoken negative amounts', () => {
     for (const sentence of [
       '-500 rupees dinner',
