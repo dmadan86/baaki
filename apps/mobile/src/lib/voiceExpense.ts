@@ -568,11 +568,11 @@ export function parseVoiceExpense(
   }
 
   // Spoken numbers become digits first; every pattern below is digit-based. A
-  // "plus"-joined run of amounts is summed into one before that.
+  // "plus"-joined run of amounts is summed into one before that. Common Hindi,
+  // Tamil and Arabic amount/currency words are folded into the same vocabulary
+  // before this step, so the deterministic path works offline in the app locales.
   const said = stripAssignmentLeadIn(
-    normalizeSpokenNumbers(
-      collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
-    ),
+    normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript))),
   );
   const tokens = tokenize(said);
   const amountMajor = extractAmount(said);
@@ -793,6 +793,149 @@ export function normalizeDigits(text: string): string {
 
 function normalizeCurrencyPrefixes(text: string): string {
   return text.replace(/\b(rp|idr)\.?\s*(?=\d)/gi, '$1 ');
+}
+
+/**
+ * Localized number and currency words from the app's non-English locales, folded
+ * into the English vocabulary the parser already understands. This is deliberately
+ * a small deterministic bridge, not a translation system: the model remains the
+ * broad answer for arbitrary language, while common Hindi/Tamil/Arabic amount
+ * commands work even offline.
+ */
+const LOCALIZED_VOICE_WORDS: ReadonlyMap<string, string> = new Map([
+  // Hindi currency and common amount words.
+  ['रुपये', 'rupees'],
+  ['रुपया', 'rupees'],
+  ['रुपए', 'rupees'],
+  ['रूपये', 'rupees'],
+  ['रूपया', 'rupees'],
+  ['रूपए', 'rupees'],
+  ['पैसे', 'paise'],
+  ['पैसा', 'paise'],
+  ['शून्य', 'zero'],
+  ['एक', 'one'],
+  ['दो', 'two'],
+  ['तीन', 'three'],
+  ['चार', 'four'],
+  ['पांच', 'five'],
+  ['पाँच', 'five'],
+  ['छह', 'six'],
+  ['सात', 'seven'],
+  ['आठ', 'eight'],
+  ['नौ', 'nine'],
+  ['दस', 'ten'],
+  ['बीस', 'twenty'],
+  ['तीस', 'thirty'],
+  ['चालीस', 'forty'],
+  ['पचास', 'fifty'],
+  ['साठ', 'sixty'],
+  ['सत्तर', 'seventy'],
+  ['अस्सी', 'eighty'],
+  ['नब्बे', 'ninety'],
+  ['सौ', 'hundred'],
+  ['हजार', 'thousand'],
+  ['लाख', 'lakh'],
+  ['करोड़', 'crore'],
+  // Tamil currency and common amount words.
+  ['ரூபாய்', 'rupees'],
+  ['ரூபாய்கள்', 'rupees'],
+  ['பைசா', 'paise'],
+  ['பைசே', 'paise'],
+  ['பூஜ்யம்', 'zero'],
+  ['ஒன்று', 'one'],
+  ['இரண்டு', 'two'],
+  ['மூன்று', 'three'],
+  ['நான்கு', 'four'],
+  ['ஐந்து', 'five'],
+  ['ஆறு', 'six'],
+  ['ஏழு', 'seven'],
+  ['எட்டு', 'eight'],
+  ['ஒன்பது', 'nine'],
+  ['பத்து', 'ten'],
+  ['இருபது', 'twenty'],
+  ['முப்பது', 'thirty'],
+  ['நாற்பது', 'forty'],
+  ['ஐம்பது', 'fifty'],
+  ['அறுபது', 'sixty'],
+  ['எழுபது', 'seventy'],
+  ['எண்பது', 'eighty'],
+  ['தொண்ணூறு', 'ninety'],
+  ['நூறு', 'hundred'],
+  ['ஆயிரம்', 'thousand'],
+  ['லட்சம்', 'lakh'],
+  ['கோடி', 'crore'],
+  // Arabic currency and common amount words.
+  ['روبية', 'rupees'],
+  ['روبيات', 'rupees'],
+  ['روبيه', 'rupees'],
+  ['روبي', 'rupees'],
+  ['درهم', 'dirhams'],
+  ['دراهم', 'dirhams'],
+  ['فلس', 'fils'],
+  ['فلوس', 'fils'],
+  ['صفر', 'zero'],
+  ['واحد', 'one'],
+  ['واحدة', 'one'],
+  ['اثنان', 'two'],
+  ['اثنين', 'two'],
+  ['اثنتان', 'two'],
+  ['اثنتين', 'two'],
+  ['ثلاثة', 'three'],
+  ['ثلاث', 'three'],
+  ['أربعة', 'four'],
+  ['اربعة', 'four'],
+  ['أربع', 'four'],
+  ['اربع', 'four'],
+  ['خمسة', 'five'],
+  ['خمس', 'five'],
+  ['ستة', 'six'],
+  ['ست', 'six'],
+  ['سبعة', 'seven'],
+  ['سبع', 'seven'],
+  ['ثمانية', 'eight'],
+  ['ثمان', 'eight'],
+  ['تسعة', 'nine'],
+  ['تسع', 'nine'],
+  ['عشرة', 'ten'],
+  ['عشر', 'ten'],
+  ['عشرون', 'twenty'],
+  ['ثلاثون', 'thirty'],
+  ['أربعون', 'forty'],
+  ['اربعون', 'forty'],
+  ['خمسون', 'fifty'],
+  ['ستون', 'sixty'],
+  ['سبعون', 'seventy'],
+  ['ثمانون', 'eighty'],
+  ['تسعون', 'ninety'],
+  ['مئة', 'hundred'],
+  ['مائة', 'hundred'],
+  ['ألف', 'thousand'],
+  ['الف', 'thousand'],
+  ['مليون', 'million'],
+]);
+
+function normalizeLocalizedVoiceWords(text: string): string {
+  return text
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/u.test(part)) return part;
+      // A token often carries leading/trailing punctuation — a comma, the Arabic
+      // comma (،), a Devanagari danda (।), a full stop — as in "रुपये," or
+      // "روبية،". Split that off, translate the bare word, then restore the
+      // punctuation, so the currency/number word is still recognised (an exact
+      // lookup of "रुपये," would miss and leave the token untranslated).
+      const match = /^([\p{P}\p{S}]*)(.*?)([\p{P}\p{S}]*)$/u.exec(part);
+      if (!match) return part;
+      const [, prefix, core, suffix] = match;
+      if (!core) return part;
+      const replacement = LOCALIZED_VOICE_WORDS.get(core.normalize('NFKC'));
+      return replacement ? `${prefix}${replacement}${suffix}` : part;
+    })
+    .join('');
+}
+
+function normalizeVoiceInput(text: string): string {
+  return normalizeLocalizedVoiceWords(normalizeCurrencyPrefixes(normalizeDigits(text)));
 }
 
 /** Words for numbers, and the Indian/Western multipliers that scale them. */
@@ -1342,9 +1485,7 @@ export function parseVoiceExpenses(
   if (UNSUPPORTED_GLOBAL_EXPENSE_INTENT.test(transcript))
     return { items: [], group: null, splitCount: null, peopleText: null, expenseDate: null };
 
-  const normalized = normalizeSpokenNumbers(
-    collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
-  );
+  const normalized = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
   const expenseDate = parseVoiceExpenseDate(normalized);
   const category = parseVoiceCategory(normalized);
   const created = detectCreateGroup(normalized);
