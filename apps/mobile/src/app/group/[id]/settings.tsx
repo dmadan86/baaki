@@ -465,7 +465,10 @@ export default function GroupSettingsScreen() {
                 placeholderTextColor={theme.color.textFaint}
                 accessibilityLabel={t.common.name}
                 onSubmitEditing={addMember}
-                editable={!addGhost.isPending}
+                // Both add flows drive the one `addGhost` mutation and the one
+                // `addError`; gate each on the other so a name typed mid-batch
+                // cannot race the contacts loop and clobber its result.
+                editable={!addGhost.isPending && !addingContacts}
                 returnKeyType="done"
                 style={{
                   flex: 1,
@@ -479,7 +482,7 @@ export default function GroupSettingsScreen() {
                 label={t.add}
                 size="sm"
                 variant="secondary"
-                disabled={!newName.trim() || addGhost.isPending}
+                disabled={!newName.trim() || addGhost.isPending || addingContacts}
                 onPress={addMember}
               />
             </Row>
@@ -490,7 +493,7 @@ export default function GroupSettingsScreen() {
             <Button
               label={t.people.browseContacts}
               variant="ghost"
-              disabled={addingContacts}
+              disabled={addingContacts || addGhost.isPending}
               onPress={openContactPicker}
             />
             {addingContacts ? <ActivityIndicator color={theme.color.brand} /> : null}
