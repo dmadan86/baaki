@@ -1,23 +1,27 @@
 /**
  * A tiny global store for an in-flight ledger import, so the work survives the
- * screen that started it — and now survives being offline.
+ * screen that started it — and never ties up the app while it runs.
  *
- * The import screen used to run the write itself and hold the person there
- * watching a bar. Now the tap hands the job here and walks home: this store
- * keeps running the import from plain module code — not tied to any component —
- * and the dashboard subscribes through {@link useImportProgress} to show one
- * banner above the group list. When it finishes, the new group animates into
- * that list on its own; the banner says its piece and clears itself.
+ * The import screen hands the job here and walks home: this store runs the
+ * import from plain module code (not tied to any component), and the dashboard
+ * shows one banner above the group list through {@link useImportProgress}. When
+ * it finishes, the new group animates into that list on its own.
  *
- * Offline (Option B — deferred): the import is one direct RPC, so with no
- * connection it cannot land. Rather than fail, the store parks the job in a
- * `waiting` phase and watches for connectivity; the moment the phone is back
- * online it runs the same job (idempotent — the group id and every mutation id
- * are fixed by the caller, so a replay is a replay, never a duplicate). The
- * pending job lives in memory: it survives navigation, not the app being killed.
+ * It reports *phases*, not a percentage. The import is a single transactional
+ * RPC with no streaming, so there is no honest fraction to tick — and ticking a
+ * fake one meant emitting many times a second, which re-rendered a heavy
+ * dashboard on every tick and made the whole app crawl while a large import ran.
+ * Now the store emits only on a real transition (running → success, or into the
+ * offline wait), a handful of times total; the banner shows an indeterminate bar
+ * that animates on the native driver, so a slow or stalled import costs the JS
+ * thread nothing.
  *
- * Built framework-free on the same shape as {@link ./transferProgress}: the job
- * is kicked from a callback and the UI reads it through `useSyncExternalStore`.
+ * Offline (Option B — deferred): with no connection the RPC cannot land, so the
+ * store parks the job in a `waiting` phase and watches for connectivity; the
+ * moment the phone is back online it runs the same job. The job is idempotent —
+ * the group id and every mutation id are fixed by the caller — so a replay is a
+ * replay, never a duplicate. The pending job lives in memory: it survives
+ * navigation, not the app being killed.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -53,8 +57,6 @@ export interface ImportJob {
 
 export interface ImportProgressSnapshot {
   phase: ImportPhase;
-  /** 0‑1. Simulated while running (see below); exactly 1 only once it is done. */
-  fraction: number;
   groupName: string;
   /** The imported group, known only once it has succeeded. */
   groupId: string | null;
@@ -65,7 +67,6 @@ export interface ImportProgressSnapshot {
 
 const IDLE: ImportProgressSnapshot = {
   phase: 'idle',
-  fraction: 0,
   groupName: '',
   groupId: null,
   summary: null,
@@ -75,9 +76,8 @@ const IDLE: ImportProgressSnapshot = {
 let snapshot: ImportProgressSnapshot = IDLE;
 const listeners = new Set<() => void>();
 
-// The easing ticker while running, the timer that clears a finished banner, and
-// the poll that watches for connectivity while a job is parked offline.
-let ease: ReturnType<typeof setInterval> | null = null;
+// The timer that clears a finished banner, and the poll that watches for
+// connectivity while a job is parked offline.
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
 let netWatch: ReturnType<typeof setInterval> | null = null;
 // The job held for a reconnect while `phase === 'waiting'`.
@@ -90,13 +90,6 @@ let token = 0;
 function emit(next: ImportProgressSnapshot): void {
   snapshot = next;
   for (const listener of listeners) listener();
-}
-
-function stopEase(): void {
-  if (ease) {
-    clearInterval(ease);
-    ease = null;
-  }
 }
 
 function stopClear(): void {
@@ -113,12 +106,6 @@ function stopNetWatch(): void {
   }
 }
 
-/** Where the simulated bar tops out before completion, and how fast it decays
- *  toward it — a bar that eases to ~92% then waits reads as "almost there"
- *  without ever claiming to be done before it is. */
-const EASE_CEILING = 0.92;
-const EASE_RATE = 0.06;
-const EASE_MS = 140;
 /** How long a success banner lingers before it clears itself. */
 const SUCCESS_LINGER_MS = 4200;
 /** How often, while parked offline, to check whether the phone is back online. */
@@ -136,32 +123,19 @@ async function isOnline(): Promise<boolean> {
   }
 }
 
-/** Run the job now: ease the bar, then resolve to success, park (offline), or
- *  fail. `mine` is the start token this attempt belongs to. */
+function toRunning(job: ImportJob): void {
+  emit({ phase: 'running', groupName: job.name, groupId: null, summary: null, error: null });
+}
+
+/** Run the job now: resolve to success, park (offline), or fail. `mine` is the
+ *  start token this attempt belongs to. */
 function attempt(job: ImportJob, mine: number): void {
-  stopEase();
-  emit({
-    phase: 'running',
-    fraction: 0,
-    groupName: job.name,
-    groupId: null,
-    summary: null,
-    error: null,
-  });
-
-  ease = setInterval(() => {
-    if (token !== mine || snapshot.phase !== 'running') return;
-    const next = snapshot.fraction + (EASE_CEILING - snapshot.fraction) * EASE_RATE;
-    emit({ ...snapshot, fraction: next });
-  }, EASE_MS);
-
+  toRunning(job);
   job.run().then(
     (result) => {
       if (token !== mine) return;
-      stopEase();
       emit({
         phase: 'success',
-        fraction: 1,
         groupName: job.name,
         groupId: result.groupId,
         summary: {
@@ -179,7 +153,6 @@ function attempt(job: ImportJob, mine: number): void {
     },
     (caught: unknown) => {
       if (token !== mine) return;
-      stopEase();
       // A write that failed because we dropped offline is not an error — it is a
       // wait. Anything else, online, is a real failure to show.
       void isOnline().then((online) => {
@@ -190,7 +163,6 @@ function attempt(job: ImportJob, mine: number): void {
           const message = caught instanceof Error ? caught.message : String(caught);
           emit({
             phase: 'error',
-            fraction: 0,
             groupName: job.name,
             groupId: null,
             summary: null,
@@ -204,16 +176,8 @@ function attempt(job: ImportJob, mine: number): void {
 
 /** Hold the job for a reconnect, and start watching for one. */
 function park(job: ImportJob, mine: number): void {
-  stopEase();
   pendingJob = job;
-  emit({
-    phase: 'waiting',
-    fraction: 0,
-    groupName: job.name,
-    groupId: null,
-    summary: null,
-    error: null,
-  });
+  emit({ phase: 'waiting', groupName: job.name, groupId: null, summary: null, error: null });
   stopNetWatch();
   netWatch = setInterval(() => {
     if (token !== mine) {
@@ -234,31 +198,19 @@ function park(job: ImportJob, mine: number): void {
  * Start an import. A second call while one is already running or waiting is
  * ignored, so a double tap cannot fan out two writes.
  *
- * The bar is simulated on purpose: the import is a single transactional RPC with
- * no streaming, so there is no real fraction to report mid-flight. It eases
- * toward {@link EASE_CEILING} and only reaches a true 100% when the write
- * actually resolves. If the phone is offline at the tap, the job is parked
- * straight into `waiting` rather than run and failed.
+ * If the phone is offline at the tap, the job is parked straight into `waiting`
+ * rather than run and failed.
  */
 export function beginImport(job: ImportJob): void {
   if (snapshot.phase === 'running' || snapshot.phase === 'waiting') return;
-  stopEase();
   stopClear();
   stopNetWatch();
   pendingJob = null;
   const mine = ++token;
 
   // Show the banner at once, then decide: run if online, park if not. The
-  // reachability check is a fast local call, so any "running → waiting" flip is
-  // within a frame or two.
-  emit({
-    phase: 'running',
-    fraction: 0,
-    groupName: job.name,
-    groupId: null,
-    summary: null,
-    error: null,
-  });
+  // reachability check is a fast local call.
+  toRunning(job);
   void isOnline().then((online) => {
     if (token !== mine) return;
     if (online) attempt(job, mine);
@@ -270,7 +222,6 @@ export function beginImport(job: ImportJob): void {
  *  resolve. Drops any parked job. */
 export function dismissImport(): void {
   token++;
-  stopEase();
   stopClear();
   stopNetWatch();
   pendingJob = null;
@@ -288,7 +239,19 @@ export function getImportSnapshot(): ImportProgressSnapshot {
   return snapshot;
 }
 
+/** The group a just-finished import landed, or null. A primitive so a subscriber
+ *  that only wants this (the dashboard, to animate the new row) re-renders on the
+ *  success transition alone, not on every phase change. */
+export function getImportedGroupId(): string | null {
+  return snapshot.phase === 'success' ? snapshot.groupId : null;
+}
+
 /** React binding: the current import state, re-rendered as it advances. */
 export function useImportProgress(): ImportProgressSnapshot {
   return useSyncExternalStore(subscribeImport, getImportSnapshot, getImportSnapshot);
+}
+
+/** React binding for just the landed group id (see {@link getImportedGroupId}). */
+export function useImportedGroupId(): string | null {
+  return useSyncExternalStore(subscribeImport, getImportedGroupId, getImportedGroupId);
 }

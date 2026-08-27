@@ -2,13 +2,16 @@
  * The import banner that sits above the group list on Home.
  *
  * It is the visible half of {@link ../lib/importProgress}: while a ledger is
- * being brought in it shows the group's name, a live percentage and a
- * determinate bar; on success it flips to a check and the count it added, then
- * clears itself (the store lingers a beat, then goes idle); on failure it holds
- * the people-facing reason with a way to dismiss. Idle, it renders nothing.
+ * being brought in it names the group and shows a slim indeterminate bar; parked
+ * offline it says it is waiting for a connection; on success it flips to a check
+ * and the count it added, then clears itself; on failure it holds the
+ * people-facing reason with a way to dismiss. Idle, it renders nothing.
  *
- * The whole card eases in — a short fade and drop — so it arrives as the person
- * lands on Home from the import screen rather than snapping into the layout.
+ * No percentage. The import is one atomic write with no honest fraction to show,
+ * and a ticking number meant re-rendering the dashboard many times a second — so
+ * the running state is an indeterminate bar that slides on the *native* driver:
+ * it costs the JS thread nothing, so a slow or stalled import never makes the app
+ * feel slow. The whole card eases in once as the person lands on Home.
  */
 
 import { useEffect, useState } from 'react';
@@ -53,11 +56,10 @@ export function ImportProgressBanner(): React.JSX.Element | null {
   const waiting = imp.phase === 'waiting';
   const success = imp.phase === 'success';
   const error = imp.phase === 'error';
-  const percent = Math.round(imp.fraction * 100);
 
-  // The title and its sub line, per phase. Running: the group name and the live
-  // percent. Waiting: parked offline, with the reassurance it will land. Success:
-  // "added" and the count. Error: the failure and its reason.
+  // The title and its sub line, per phase. Running: just the group name (the bar
+  // below carries "in progress"). Waiting: parked offline, with the reassurance
+  // it will land. Success: "added" and the count. Error: the failure and reason.
   const title = running
     ? t.importLedger.importingNamed.replace('{name}', imp.groupName)
     : waiting
@@ -66,7 +68,7 @@ export function ImportProgressBanner(): React.JSX.Element | null {
         ? t.importLedger.addedNamed.replace('{name}', imp.groupName)
         : t.importLedger.importFailed;
   const sub = running
-    ? `${percent}%`
+    ? null
     : waiting
       ? t.importLedger.waitingHint
       : success && imp.summary
@@ -131,13 +133,9 @@ export function ImportProgressBanner(): React.JSX.Element | null {
               </Text>
             ) : null}
           </View>
-          {/* Running: the percent, big and to the right. Success: a chevron into
-              the group. Error: a dismiss. */}
-          {running ? (
-            <Text variant="subheading" tone="brand" style={{ fontWeight: '700' }}>
-              {`${percent}%`}
-            </Text>
-          ) : error || waiting ? (
+          {/* Success: a chevron into the group. Waiting/error: a dismiss. Running
+              carries no trailing control — just the bar below. */}
+          {error || waiting ? (
             <Pressable
               onPress={dismissImport}
               accessibilityRole="button"
@@ -146,7 +144,7 @@ export function ImportProgressBanner(): React.JSX.Element | null {
             >
               <Ionicons name="close" size={iconSize.lg} color={theme.color.textMuted} />
             </Pressable>
-          ) : imp.groupId ? (
+          ) : success && imp.groupId ? (
             <Ionicons
               name={directionalIcon('chevron-forward')}
               size={iconSize.lg}
@@ -154,7 +152,9 @@ export function ImportProgressBanner(): React.JSX.Element | null {
             />
           ) : null}
         </Row>
-        {running ? <ProgressBar progress={imp.fraction} animated={!reduceMotion} /> : null}
+        {/* A slim indeterminate bar while the write is in flight — no `progress`,
+            so it slides on the native driver and never re-renders per frame. */}
+        {running ? <ProgressBar animated={!reduceMotion} height={3} /> : null}
       </Pressable>
     </Animated.View>
   );

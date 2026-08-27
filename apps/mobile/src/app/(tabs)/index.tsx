@@ -26,6 +26,7 @@ import {
   MoneyText,
   Row,
   Screen,
+  Skeleton,
   Text,
   useTabBarClearance,
   useTheme,
@@ -43,7 +44,7 @@ import { TourTarget, useTour } from '@/lib/tour';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { ImportProgressBanner } from '@/components/ImportProgressBanner';
 import { SkeletonList } from '@/components/Skeletons';
-import { useImportProgress } from '@/lib/importProgress';
+import { useImportedGroupId } from '@/lib/importProgress';
 import { useReducedMotion } from '@/lib/reducedMotion';
 import { useDefaultCurrency } from '@/lib/currency';
 import { QuickAddSheet, useQuickAddActions } from '@/components/QuickAddSheet';
@@ -109,10 +110,11 @@ export default function HomeScreen() {
 
   // A ledger import running in the background (see `@/lib/importProgress`): its
   // banner sits above the group list, and when it lands the just-added group
-  // slides into the list. `justAddedId` is that group while the success banner
-  // is up, so its row animates in the moment the mirror gains it.
-  const imp = useImportProgress();
-  const justAddedId = imp.phase === 'success' ? imp.groupId : null;
+  // slides into the list. This reads *only* the landed group id (a primitive),
+  // so the dashboard re-renders on the success transition alone — never on the
+  // running/waiting churn, which would otherwise re-render this heavy screen and
+  // make the app crawl while an import ran. The banner owns the running state.
+  const justAddedId = useImportedGroupId();
 
   // First time on Home, once the "seen" flag has been read *and the data has
   // loaded*, run the tour. Waiting on the data matters: the coach-marks anchor
@@ -531,6 +533,10 @@ export default function HomeScreen() {
                       // The just-imported group slides and fades into place
                       // rather than blinking in under the success banner.
                       enter={group.id === justAddedId}
+                      // Its balance materialises a beat after the group row does,
+                      // so mask the amount until the ledger lands rather than show
+                      // a confident wrong ₹0 that then jumps to the real figure.
+                      pendingBalance={group.id === justAddedId && !summary.hasLedger(group.id)}
                       onPress={() => router.push(`/group/${group.id}`)}
                     />
                   );
@@ -1620,6 +1626,7 @@ function GroupRow({
   tagTone,
   divider,
   enter = false,
+  pendingBalance = false,
   onPress,
 }: {
   title: string;
@@ -1632,6 +1639,9 @@ function GroupRow({
   pendingLabel: string | null;
   tag: string | null;
   tagTone: 'positive' | 'brand';
+  /** True while this group's balance is still materialising (just after an
+      import): the amount is masked with a skeleton instead of a wrong zero. */
+  pendingBalance?: boolean;
   /** A hairline above the row — every row but the first, so the card reads as
       one divided list rather than a stack of loose cards. */
   divider: boolean;
@@ -1727,13 +1737,17 @@ function GroupRow({
             {pendingLabel ?? `${memberLabel} · ${statusLabel}`}
           </Text>
         </View>
-        <MoneyText
-          amount={balance < 0n ? -balance : balance}
-          currency={currency as never}
-          locale={locale}
-          tone={tone}
-          style={{ fontWeight: '700' }}
-        />
+        {pendingBalance ? (
+          <Skeleton width={64} height={16} radius={6} animated={!reduceMotion} />
+        ) : (
+          <MoneyText
+            amount={balance < 0n ? -balance : balance}
+            currency={currency as never}
+            locale={locale}
+            tone={tone}
+            style={{ fontWeight: '700' }}
+          />
+        )}
       </Pressable>
     </Animated.View>
   );
