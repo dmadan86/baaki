@@ -518,6 +518,16 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items[0].note).toBe('lunch');
   });
 
+  it('keeps with inside a created group name', () => {
+    const result = parseVoiceExpenses(
+      'make a group called Friends with Kids and add 200 for lunch',
+      groups,
+    );
+    expect(result.group).toEqual({ kind: 'create', name: 'Friends with Kids' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].note).toBe('lunch');
+  });
+
   it('drops segments that carry no amount', () => {
     const result = parseVoiceExpenses('hello, 50 for coffee, um', groups);
     expect(result.items.map((item) => item.amountMajor)).toEqual([50]);
@@ -812,6 +822,13 @@ describe('detectCreateGroup', () => {
   it('lifts the name and returns the rest', () => {
     expect(detectCreateGroup('create a group named Goa Trip and add 100')).toEqual({
       name: 'Goa Trip',
+      rest: 'add 100',
+    });
+  });
+
+  it('allows with inside the created group name', () => {
+    expect(detectCreateGroup('create a group named Friends with Kids and add 100')).toEqual({
+      name: 'Friends with Kids',
       rest: 'add 100',
     });
   });
