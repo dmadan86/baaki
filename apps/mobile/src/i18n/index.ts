@@ -904,6 +904,8 @@ export interface UiStrings {
     thinking: string;
     /** '{n}' is how many expenses will be saved. */
     save: PluralForms;
+    /** A bare count of the drafts in the review, shown by the total. `{n}`. */
+    count: PluralForms;
     /** The Save button when no group is chosen: the batch is kept as a draft
         (the capture inbox) rather than written into a group. */
     saveDraft: string;
@@ -2848,6 +2850,7 @@ const en: UiStrings = {
     newGroupNamed: 'New group “{name}”',
     thinking: 'Making sense of that…',
     save: { one: 'Save {n} expense', other: 'Save {n} expenses' },
+    count: { one: '{n} expense', other: '{n} expenses' },
     saveDraft: 'Save as draft',
     draftNeedsAmounts: 'Enter an amount for each expense, or remove it, to keep this draft.',
     people: 'People',
@@ -4784,6 +4787,7 @@ const ta: UiStrings = {
     newGroupNamed: 'புதிய குழு “{name}”',
     thinking: 'புரிந்துகொள்கிறது…',
     save: { one: '{n} செலவைச் சேமி', other: '{n} செலவுகளைச் சேமி' },
+    count: { one: '{n} செலவு', other: '{n} செலவுகள்' },
     saveDraft: 'வரைவாகச் சேமி',
     draftNeedsAmounts:
       'இந்த வரைவைச் சேமிக்க ஒவ்வொரு செலவுக்கும் தொகையை உள்ளிடவும், அல்லது அதை நீக்கவும்.',
@@ -6777,6 +6781,7 @@ const hi: UiStrings = {
     newGroupNamed: 'नया समूह “{name}”',
     thinking: 'समझा जा रहा है…',
     save: { one: '{n} खर्च सहेजें', other: '{n} खर्च सहेजें' },
+    count: { one: '{n} खर्च', other: '{n} खर्च' },
     saveDraft: 'ड्राफ़्ट के रूप में सहेजें',
     draftNeedsAmounts: 'यह ड्राफ़्ट रखने के लिए हर खर्च में राशि भरें, या उसे हटाएँ।',
     people: 'लोग',
@@ -8747,6 +8752,14 @@ const ar: UiStrings = {
     newGroupNamed: 'مجموعة جديدة «{name}»',
     thinking: 'جارٍ الفهم…',
     save: { one: 'حفظ مصروف', other: 'حفظ {n} مصاريف' },
+    count: {
+      zero: 'لا مصاريف',
+      one: 'مصروف واحد',
+      two: 'مصروفان',
+      few: '{n} مصاريف',
+      many: '{n} مصروفًا',
+      other: '{n} مصروف',
+    },
     saveDraft: 'حفظ كمسودة',
     draftNeedsAmounts: 'أدخل مبلغًا لكل مصروف، أو احذفه، للاحتفاظ بهذه المسودة.',
     people: 'الأشخاص',
