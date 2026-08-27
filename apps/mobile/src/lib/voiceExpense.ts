@@ -318,14 +318,14 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   // Polite-request framing people wrap a command in — "can you please add 500
   // for tea shop". None of these describe an expense or name a group, so they
   // must not survive into the note ("can you tea shop") or tip a group match.
-  // Left out on purpose: words that can be real names or descriptions.
+  // Left out on purpose: words that double as common first names — "will", "may",
+  // "grace" — since a 1:1 friend group is named after the person, and a name that
+  // collapsed to a stopword could never be matched by voice.
   'can',
   'could',
   'would',
   'should',
-  'will',
   'shall',
-  'may',
   'you',
   'your',
   'i',
