@@ -391,9 +391,11 @@ export default function ActivityScreen() {
           flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
-        // Recycle offscreen rows rather than keep every scrolled-past one
-        // mounted — the point of moving off the old ScrollView.
-        removeClippedSubviews
+        // No `removeClippedSubviews`: on Android it detaches off-screen subviews
+        // and, on a fast fling of this SectionList, fails to re-attach them —
+        // the whole viewport blanks out mid-scroll (rows vanish, only the
+        // scrollbar remains). `windowSize` already bounds how much is mounted, so
+        // virtualization holds without the clipping that caused the blanking.
         initialNumToRender={12}
         windowSize={9}
         ListHeaderComponent={header}
