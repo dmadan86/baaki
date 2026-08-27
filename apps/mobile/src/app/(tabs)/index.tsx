@@ -1287,8 +1287,8 @@ function HeroBalance({
     : primary.net === 0n
       ? t.allSettled
       : primary.net > 0n
-        ? t.youAreOwed
-        : t.youOwe;
+        ? t.dashHero.netOwed
+        : t.dashHero.netOwe;
 
   const slides = [
     {
@@ -1308,7 +1308,7 @@ function HeroBalance({
       key: 'owed',
       node: (
         <MetricSlide
-          label={`${t.youAreOwed} · ${primary.currency}`}
+          label={`${t.dashHero.owedToYou} · ${primary.currency}`}
           amount={primary.owed}
           currency={primary.currency}
           locale={locale}
