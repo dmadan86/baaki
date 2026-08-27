@@ -6,6 +6,7 @@ import { ActivityIndicator, ScrollView, View } from 'react-native';
 import {
   Badge,
   Button,
+  Callout,
   Card,
   directionalIcon,
   Divider,
@@ -192,28 +193,23 @@ export default function NotificationSettingsScreen() {
         </Row>
 
         {/* ADR-010: the competition is simultaneously spammy and silent. These
-            defaults are the fix, and they are all off-switchable. */}
-        <Card
-          flat
-          style={{ backgroundColor: theme.color.buttonPrimary, paddingVertical: theme.spacing.lg }}
+            defaults are the fix, and they are all off-switchable. The promise is
+            a "read this" note, so it wears the app's canonical Callout shape
+            (info tone) rather than a hand-rolled brand banner. */}
+        <Callout
+          tone="info"
+          icon={(color) => (
+            <Ionicons name="shield-checkmark-outline" size={iconSize.md} color={color} />
+          )}
         >
-          <Row gap={theme.spacing.md}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={iconSize.xl}
-              color={theme.color.onBrand}
-            />
-            <Text variant="caption" tone="onBrand" style={{ flex: 1 }}>
-              {t.notifications.neverSpam}
-            </Text>
-          </Row>
-        </Card>
+          {t.notifications.neverSpam}
+        </Callout>
 
         {/* The master switch: nothing below fires until the phone itself is
             allowed to deliver, so this device-permission state leads. */}
         <Card style={{ gap: theme.spacing.md }}>
           <Row gap={theme.spacing.md}>
-            <IconChip icon="phone-portrait-outline" />
+            <Ionicons name="phone-portrait-outline" size={iconSize.xl} color={theme.color.text} />
             <View style={{ flex: 1 }}>
               <Text variant="subheading">{t.notifications.onThisPhone}</Text>
               <Text variant="caption" tone="muted">
@@ -249,11 +245,11 @@ export default function NotificationSettingsScreen() {
           <ActivityIndicator color={theme.color.brand} />
         ) : (
           <>
-            <View>
+            <View style={{ gap: theme.spacing.sm }}>
               <SectionHeader title={t.notifications.pushSection} />
               <PrefSection rows={pushRows(t)} prefs={prefs} onToggle={toggle} />
             </View>
-            <View>
+            <View style={{ gap: theme.spacing.sm }}>
               <SectionHeader title={t.notifications.emailSection} />
               <PrefSection rows={emailRows(t)} prefs={prefs} onToggle={toggle} />
             </View>
@@ -275,30 +271,16 @@ export default function NotificationSettingsScreen() {
 }
 
 /**
- * A soft round badge that carries a row's glyph. Purely decorative — the
- * screen reader ignores it and reads the row title instead — but it gives each
- * preference a fixed anchor on the left, the way the reference notification
- * lists lean on a leading icon column.
+ * One grouped card of preference toggles, shared by the push and email
+ * sections. Built from the same primitives the other settings lists use: a
+ * `Card` holding a stack of `Row`s with a hairline `Divider` between each, a
+ * quiet leading glyph anchoring the left, and a `Toggle` as the trailing
+ * control (the pattern the devices and sync screens share).
+ *
+ * The bodies run to two lines, so each row is a plain `Row` with a
+ * full-wrapping caption rather than a single-line `ListRow` that would clip the
+ * explanation — the same reason the devices list rolls its own row.
  */
-function IconChip({ icon }: { icon: IconName }) {
-  const theme = useTheme();
-  return (
-    <View
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: theme.radius.pill,
-        backgroundColor: theme.color.buttonPrimary,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name={icon} size={iconSize.lg} color={theme.color.onBrand} />
-    </View>
-  );
-}
-
-/** One card of preference toggles, shared by the push and email sections. */
 function PrefSection({
   rows,
   prefs,
@@ -310,12 +292,12 @@ function PrefSection({
 }) {
   const theme = useTheme();
   return (
-    <Card padded={false} style={{ paddingHorizontal: theme.spacing.xl }}>
+    <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
       {rows.map((row, index) => (
         <View key={row.key}>
           {index > 0 ? <Divider /> : null}
-          <Row gap={theme.spacing.md} style={{ paddingVertical: theme.spacing.lg }}>
-            <IconChip icon={row.icon} />
+          <Row gap={theme.spacing.md} style={{ paddingVertical: theme.spacing.md }}>
+            <Ionicons name={row.icon} size={iconSize.xl} color={theme.color.textMuted} />
             <View style={{ flex: 1 }}>
               <Text variant="subheading">{row.title}</Text>
               <Text variant="caption" tone="muted">
