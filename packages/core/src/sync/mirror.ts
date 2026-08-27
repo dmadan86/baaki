@@ -502,6 +502,10 @@ export interface MirrorGroup extends MirrorRow {
   readonly default_currency: string;
   readonly created_at: string;
   readonly archived_at: string | null;
+  /** A group-wide tombstone (A49): an admin deleted a settled group for everyone.
+   *  A deleted group is hidden from BOTH the active list and the archive — the
+   *  rows stay (ADR-004), the group simply stops being shown. */
+  readonly deleted_at: string | null;
   readonly budget_minor?: string | null;
   readonly budget_currency?: string | null;
   /** Per-category caps, keyed by category id. Group-visible, admin-set. */
@@ -535,6 +539,7 @@ function buildGroups(state: MirrorState, queue: readonly QueuedMutation[]): Mirr
         country_code: payload.country ?? null,
         created_at: mutation.clientCreatedAt,
         archived_at: null,
+        deleted_at: null,
         pending: true,
       });
       continue;
@@ -608,7 +613,7 @@ export function materialiseGroups(
   queue: readonly QueuedMutation[],
 ): MirrorGroup[] {
   return buildGroups(state, queue)
-    .filter((group) => !group.archived_at)
+    .filter((group) => !group.archived_at && !group.deleted_at)
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 }
 
@@ -637,7 +642,7 @@ export function materialiseArchivedGroups(
   queue: readonly QueuedMutation[],
 ): MirrorGroup[] {
   return buildGroups(state, queue)
-    .filter((group) => Boolean(group.archived_at))
+    .filter((group) => Boolean(group.archived_at) && !group.deleted_at)
     .sort((a, b) => String(b.archived_at ?? '').localeCompare(String(a.archived_at ?? '')));
 }
 

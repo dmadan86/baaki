@@ -58,6 +58,7 @@ import { backend } from '@/lib/backend';
 import { syncEngine, useSync } from '@/sync';
 import {
   createGroup,
+  deleteGroup,
   disputeExpense,
   fetchAllBalances,
   fetchBalances,
@@ -673,7 +674,9 @@ export function useGroup(groupId: string) {
     // hides archived trips, so preserve that: an archived group resolves to null
     // here exactly as the old `.find` over the active list did.
     const built = materialiseGroup(mirror, queue, groupId) as unknown as GroupRow | undefined;
-    const group = built && !built.archived_at ? built : null;
+    // A deleted group (A49) resolves to null exactly as an archived one does, so a
+    // stale deep-link into it lands on the "not found" state, not a live screen.
+    const group = built && !built.archived_at && !built.deleted_at ? built : null;
     const members = materialiseMembers(mirror, queue, { groupId }) as unknown as MemberRow[];
     const settlements = materialiseSettlements(mirror, queue, {
       groupId,
@@ -754,6 +757,9 @@ export interface GroupLedger {
   transfers: Transfer[];
   myMemberId: MemberId | null;
   myBalance: bigint;
+  /** Whether the WHOLE group is square — every member, in every currency (A49).
+   *  The button state for deleting a group; the RPC re-checks it authoritatively. */
+  groupSettled: boolean;
   /** Difference the still-unconfirmed settlements would make (TDR §3.3). */
   pending: bigint;
   /** True when the server's stored balances disagree with our recomputation. */
@@ -779,6 +785,20 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
       includePending: true,
     });
     const computed = net.get(currency) ?? new Map<MemberId, bigint>();
+
+    // Is the WHOLE group square (A49)? Across every currency, not just the group
+    // default — a USD balance left open must still block a delete. The server
+    // re-checks this in `baaki_delete_group`; this only decides the button.
+    let groupSettled = true;
+    for (const perMember of net.values()) {
+      for (const balance of perMember.values()) {
+        if (balance !== 0n) {
+          groupSettled = false;
+          break;
+        }
+      }
+      if (!groupSettled) break;
+    }
 
     const myMemberId =
       (members.data ?? []).find((member) => member.profile_id === myProfileId)?.id ?? null;
@@ -822,6 +842,7 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
       transfers,
       myMemberId,
       myBalance,
+      groupSettled,
       pending: myPending,
       mismatch,
       loading,
@@ -1414,6 +1435,25 @@ export function useLeaveGroup(groupId: string) {
     // Leaving hides the group server-side (RLS), so it can never be pulled again
     // to signal its removal — the client must forget it locally, or it lingers
     // on the dashboard forever. Purge the mirror first, then refresh what is left.
+    onSuccess: async () => {
+      await forgetGroup(groupId);
+      invalidateGroup(queryClient, groupId);
+    },
+  });
+}
+
+/**
+ * Delete a group for everyone (A49). Unlike leave and archive — plain column
+ * writes — this goes through `baaki_delete_group`, which enforces admin-only and
+ * all-settled server-side. The tombstone syncs to every member and the mirror
+ * filters hide it; on this device we forget it at once (like leave) so it drops
+ * from the list before the pull round-trips, then flush to fetch the tombstone.
+ */
+export function useDeleteGroup(groupId: string) {
+  const queryClient = useQueryClient();
+  const { forgetGroup } = useSync();
+  return useMutation({
+    mutationFn: () => deleteGroup(groupId),
     onSuccess: async () => {
       await forgetGroup(groupId);
       invalidateGroup(queryClient, groupId);

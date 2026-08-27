@@ -56,6 +56,8 @@
 
 **Consequences.** Full audit trail ("who changed this split and when"), safe undo, and sync conflicts can't corrupt totals — worst case a duplicate version, never a wrong balance. Storage grows with history; acceptable at this data size.
 
+**Addendum (deleting a group is a group-wide tombstone, never a hard delete).** Splitwise lets you delete a whole group; Baaki does too, but within this ADR's append-only rule. A delete sets a new `groups.deleted_at`, exactly mirroring how `archived_at` already works, **except** a deleted group is hidden from **both** the active list and the Archive (an archive is recoverable and shown; a delete is not shown anywhere) — no ledger row is ever erased, so balances and history stay reconstructible. Two guards are enforced **server-side** in `baaki_delete_group` (a `SECURITY DEFINER` RPC, not a client column write, so a raw PATCH cannot bypass them): the caller must be a group **admin** (`is_group_admin`, reusing the ADR-006 role addendum — Splitwise allows any member, but Baaki already has admins and deleting for everyone is an admin power), and the **whole group must be settled** — `baaki_group_balances_truth` must return no non-zero row, i.e. every member square in every currency, so nobody's owed balance is dropped out from under them. The RPC is idempotent (a second call on an already-deleted group is a clean no-op), and the `updated_seq` stamp trigger carries the tombstone to every member's mirror on their next sync. The client button is admin-only and settle-gated purely as the courteous front of this boundary. See TDR A49.
+
 ---
 
 ## ADR-005: Offline-first client with queued mutations

@@ -40,6 +40,7 @@ import { photoGateParam, photoGateStatus, photoTapAction } from '@/lib/groupPhot
 import { canUploadGroupPhoto, removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import {
   useAddGhostMember,
+  useDeleteGroup,
   useGroup,
   useGroupLedger,
   useLeaveGroup,
@@ -72,6 +73,7 @@ export default function GroupSettingsScreen() {
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
   const updateGroup = useUpdateGroup(groupId);
   const leaveGroup = useLeaveGroup(groupId);
+  const deleteGroup = useDeleteGroup(groupId);
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const addGhost = useAddGhostMember(groupId);
 
@@ -222,6 +224,12 @@ export default function GroupSettingsScreen() {
   const settled = ledger.myBalance === 0n;
   const currency = group.data.default_currency;
 
+  // Deleting a group is an admin power (like changing roles). A non-admin never
+  // sees the button; the RPC refuses it regardless (NOT_ADMIN).
+  const isAdmin = (members.data ?? []).some(
+    (member) => member.profile_id === profile?.id && member.role === 'admin',
+  );
+
   const leave = (): void => {
     if (!settled) {
       Alert.alert(t.group.settleFirst, t.group.settleFirstBody);
@@ -250,6 +258,35 @@ export default function GroupSettingsScreen() {
             { archived_at: new Date().toISOString() },
             { onSuccess: () => router.replace('/') },
           ),
+      },
+    ]);
+  };
+
+  // Delete removes the group for everyone (A49), so it is gated harder than
+  // archive: the WHOLE group must be square first (not just my own balance), and
+  // it asks before doing something there is no undo for. The server re-checks
+  // both admin and settled — this is the courteous front of that boundary.
+  const confirmDelete = (): void => {
+    if (!ledger.groupSettled) {
+      Alert.alert(t.group.settleFirst, t.group.settleAllFirstBody);
+      return;
+    }
+    Alert.alert(t.group.deleteQuestion, t.group.deleteBody, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.group.delete,
+        style: 'destructive',
+        onPress: () => {
+          if (deleteGroup.isPending) return;
+          deleteGroup.mutate(undefined, {
+            onSuccess: () => router.replace('/'),
+            onError: (caught) =>
+              Alert.alert(
+                t.group.deleteGroup,
+                friendlyError(caught, t.misc.tryAgainMoment, 'groupSettings.delete'),
+              ),
+          });
+        },
       },
     ]);
   };
@@ -569,6 +606,17 @@ export default function GroupSettingsScreen() {
         <View style={{ gap: theme.spacing.md }}>
           <Button label={t.group.archiveGroup} variant="ghostDanger" fullWidth onPress={archive} />
           <Button label={t.group.leaveGroup} variant="ghostDanger" fullWidth onPress={leave} />
+          {/* Deleting drops the group for everyone, so it is an admin-only power
+              and sits below leave/archive as the most final of the three. */}
+          {isAdmin ? (
+            <Button
+              label={t.group.deleteGroup}
+              variant="ghostDanger"
+              fullWidth
+              disabled={deleteGroup.isPending}
+              onPress={confirmDelete}
+            />
+          ) : null}
           {!settled ? (
             <Text variant="micro" tone="muted" align="center">
               {t.group.leaveWhenZero}

@@ -235,6 +235,10 @@ model Group {
   remindEveningAt DateTime  @default(dbgenerated("'21:00:00'::time without time zone")) @map("remind_evening_at") @db.Time(6)
 
   archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  /// A group-wide tombstone (A48): an admin deletes a settled group for everyone.
+  /// ADR-004 keeps the ledger append-only, so the rows stay and this column hides
+  /// the group from every list — active AND archive, unlike `archivedAt`.
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(6)
   createdBy  String?   @map("created_by") @db.Uuid
   /// Monotonic per-group counter driving the sync cursor (TDR §4).
   updatedSeq BigInt    @default(0) @map("updated_seq")
