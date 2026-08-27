@@ -358,7 +358,13 @@ describe('interpretVoiceExpenses', () => {
     const result = await interpretVoiceExpenses('3000 yen ramen, 100000 rupiah dinner', ctx);
     expect(result?.items).toEqual([
       { amountMajor: 3000, amountMinor: 3000n, currency: 'JPY', note: 'ramen', category: null },
-      { amountMajor: 100000, amountMinor: 10000000n, currency: 'IDR', note: 'dinner', category: null },
+      {
+        amountMajor: 100000,
+        amountMinor: 10000000n,
+        currency: 'IDR',
+        note: 'dinner',
+        category: null,
+      },
       { amountMajor: 9, amountMinor: 900n, currency: null, note: 'unknown code', category: null },
     ]);
   });
