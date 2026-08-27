@@ -12,9 +12,9 @@
  * stored English as the fallback for a kind this build has never heard of.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, SectionList, View } from 'react-native';
 
 import { renderNotification } from '@waves/core';
@@ -81,18 +81,26 @@ export default function InboxScreen() {
   const captureCount = useCaptures().data?.length ?? 0;
 
   const rows = notifications.data ?? EMPTY_NOTIFICATIONS;
-  const unread = rows.filter((row) => row.read_at === null);
   const sections = useMemo(() => groupNotificationsByDay(rows), [rows]);
 
-  // Opening the inbox is reading it. Leaving a badge up after somebody has
-  // looked is how a badge stops meaning anything.
+  // The latest rows, held in a ref so the focus effect below reads a snapshot
+  // without taking `rows` as a dependency (which would re-fire it on every
+  // background refetch and fight the user's scroll). The ref is updated in an
+  // effect, never during render — the React Compiler forbids ref writes there.
+  const rowsRef = useRef(rows);
   useEffect(() => {
-    if (unread.length === 0) return;
-    markRead.mutate(unread.map((row) => row.id));
-    // Only on the ids present when the screen opened; re-running as the list
-    // refetches would fight the user's scroll.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifications.isSuccess]);
+    rowsRef.current = rows;
+  }, [rows]);
+
+  // Opening the inbox is reading it. Leaving a badge up after somebody has
+  // looked is how a badge stops meaning anything. Gated on *focus*, not mount:
+  // the inbox is a pre-mounted tab now (lazy: false mounts every tab at launch),
+  // so marking read on mount would clear the badge before anybody looked at it.
+  // The unread snapshot is taken at the moment of focus.
+  useFocusEffect(() => {
+    const ids = rowsRef.current.filter((row) => row.read_at === null).map((row) => row.id);
+    if (ids.length > 0) markRead.mutate(ids);
+  });
 
   const header = (
     <View style={{ gap: theme.spacing.xl }}>

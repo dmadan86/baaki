@@ -634,12 +634,10 @@ function AuthGate() {
           <Stack.Screen name="settings/delete-account" />
           <Stack.Screen name="dev/local-privacy" />
           <Stack.Screen name="join" />
-          {/* A primary tab-bar destination sitting beside Home/Friends/Activity,
-              so it switches instantly like they do rather than sliding in like a
-              pushed page. Without this it inherits the stack's slide, and the
-              inbox was the one bar destination that animated while the tabs cut
-              straight across — the inconsistency this `none` removes. */}
-          <Stack.Screen name="inbox" options={{ animation: 'none' }} />
+          {/* The inbox is a tab-navigator destination now (see `(tabs)/inbox`),
+              so it is no longer a screen on this root stack — a tap on it from
+              anywhere is an instant tab swap rather than a push that re-reveals
+              and thaws the whole tab tree. */}
           <Stack.Screen name="voice" options={slide} />
         </Stack>
         {/* One bar over the whole stack, so every screen keeps it — it hides
