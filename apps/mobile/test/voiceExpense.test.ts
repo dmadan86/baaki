@@ -851,6 +851,44 @@ describe('normalizeDigits', () => {
   });
 });
 
+describe('parseVoiceExpenses in the app languages', () => {
+  it('reads Hindi rupee commands with native numerals and spoken numbers', () => {
+    const numeric = parseVoiceExpenses('५०० रुपये चाय', groups);
+    expect(numeric.items[0]?.amountMajor).toBe(500);
+    expect(numeric.items[0]?.currency).toBe('INR');
+    expect(numeric.items[0]?.note).toBe('चाय');
+
+    const spoken = parseVoiceExpenses('पांच सौ रुपये खाना', groups);
+    expect(spoken.items[0]?.amountMajor).toBe(500);
+    expect(spoken.items[0]?.currency).toBe('INR');
+    expect(spoken.items[0]?.note).toBe('खाना');
+  });
+
+  it('reads Tamil rupee commands with native numerals and spoken numbers', () => {
+    const numeric = parseVoiceExpenses('௫௦௦ ரூபாய் தேநீர்', groups);
+    expect(numeric.items[0]?.amountMajor).toBe(500);
+    expect(numeric.items[0]?.currency).toBe('INR');
+    expect(numeric.items[0]?.note).toBe('தேநீர்');
+
+    const spoken = parseVoiceExpenses('ஐந்து நூறு ரூபாய் சாப்பாடு', groups);
+    expect(spoken.items[0]?.amountMajor).toBe(500);
+    expect(spoken.items[0]?.currency).toBe('INR');
+    expect(spoken.items[0]?.note).toBe('சாப்பாடு');
+  });
+
+  it('reads Arabic currency commands with native numerals and spoken numbers', () => {
+    const numeric = parseVoiceExpenses('٥٠٠ روبية شاي', groups);
+    expect(numeric.items[0]?.amountMajor).toBe(500);
+    expect(numeric.items[0]?.currency).toBe('INR');
+    expect(numeric.items[0]?.note).toBe('شاي');
+
+    const spoken = parseVoiceExpenses('خمسة مئة درهم قهوة', groups);
+    expect(spoken.items[0]?.amountMajor).toBe(500);
+    expect(spoken.items[0]?.currency).toBe('AED');
+    expect(spoken.items[0]?.note).toBe('قهوة');
+  });
+});
+
 describe('parseVoiceExpenses — split count and unnamed create-group', () => {
   it('reads a split count without turning it into an extra expense', () => {
     const result = parseVoiceExpenses('split 1000 among 4 people', groups);
