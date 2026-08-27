@@ -883,35 +883,33 @@ export default function VoiceScreen() {
           </View>
         ) : phase === 'review' ? (
           <View style={{ gap: theme.spacing.xl }}>
-            {/* The expenses are the hero, laid out the way the Activity feed
-                lays out its events: a soft tinted rounded-square node on the
-                left, the line beside it, hairlines between rows in one grouped
-                card — not a stack of separate cards. The tint is `sky`, the same
-                the feed gives a newly-added expense, so a draft here reads as the
-                same thing it will become once saved. */}
-            <View style={{ gap: theme.spacing.sm }}>
-              <Card padded={false} flat style={{ overflow: 'hidden' }}>
-                {drafts.map((draft, index) => (
-                  <View key={draft.key}>
-                    <DraftRow
-                      draft={draft}
-                      onEdit={editDraft}
-                      onRemove={removeDraft}
-                      onRedescribe={startRedescribe}
-                      removeLabel={t.captures.delete}
-                      dictateLabel={t.voice.dictate}
-                      amountLabel={t.captures.amount}
-                      noteLabel={t.captures.description}
-                      notePlaceholder={t.captures.descriptionPlaceholder}
-                      theme={theme}
-                    />
-                    {index < drafts.length - 1 ? <Divider /> : null}
-                  </View>
-                ))}
-              </Card>
+            {/* Each expense is its own editable card (Mobbin: Airwallex line
+                items, Rocket Money split), not a hairline row in one grouped
+                card — an editable amount + note reads and taps better with its
+                own frame and breathing room. The leading tile keeps the `sky`
+                tint the Activity feed gives a newly-added expense, so a draft
+                still reads as the same thing it becomes once saved. */}
+            <View style={{ gap: theme.spacing.md }}>
+              {drafts.map((draft) => (
+                <DraftRow
+                  key={draft.key}
+                  draft={draft}
+                  onEdit={editDraft}
+                  onRemove={removeDraft}
+                  onRedescribe={startRedescribe}
+                  removeLabel={t.captures.delete}
+                  dictateLabel={t.voice.dictate}
+                  amountLabel={t.captures.amount}
+                  noteLabel={t.captures.description}
+                  notePlaceholder={t.captures.descriptionPlaceholder}
+                  theme={theme}
+                />
+              ))}
 
               {/* Speak again and append — another expense (or several) onto the
-                  batch, keeping the ones already here and the chosen destination. */}
+                  batch, keeping the ones already here and the chosen destination.
+                  An outlined pill (Mobbin: Rocket Money "+ Add Split", Splitwise
+                  "Add item") reads as a clear add affordance, not a plain link. */}
               <Pressable
                 onPress={startAddMore}
                 accessibilityRole="button"
@@ -922,10 +920,15 @@ export default function VoiceScreen() {
                   justifyContent: 'center',
                   gap: theme.spacing.xs,
                   paddingVertical: theme.spacing.md,
+                  borderRadius: theme.radius.lg,
+                  borderWidth: 1,
+                  borderColor: theme.color.brand,
+                  borderStyle: 'dashed',
+                  backgroundColor: theme.color.brandSoft,
                   opacity: pressed ? 0.6 : 1,
                 })}
               >
-                <Ionicons name="add-circle-outline" size={iconSize.md} color={theme.color.brand} />
+                <Ionicons name="mic-outline" size={iconSize.md} color={theme.color.brand} />
                 <Text variant="caption" style={{ color: theme.color.brand, fontWeight: '600' }}>
                   {t.voice.addMore}
                 </Text>
@@ -1062,9 +1065,16 @@ export default function VoiceScreen() {
           }}
         >
           <View style={{ gap: 2 }}>
-            <Text variant="micro" tone="muted">
-              {t.itemize.total}
-            </Text>
+            {/* Count + a green check when every row is savable (Mobbin: Airwallex
+                "Difference 0.00 ✓", PayPal "all covered"), over the running total. */}
+            <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+              <Text variant="micro" tone="muted">
+                {plural(locale, drafts.length, t.voice.count)}
+              </Text>
+              {canSave ? (
+                <Ionicons name="checkmark-circle" size={iconSize.sm} color={theme.color.positive} />
+              ) : null}
+            </Row>
             {singleTotal ? (
               <MoneyText
                 amount={singleTotal[1]}
@@ -1596,7 +1606,7 @@ function DestinationPicker({
   );
 }
 
-/** One editable expense line: an amount, a note, and a way to drop it. */
+/** One editable expense as its own card: an amount, a note, and a way to drop it. */
 function DraftRow({
   draft,
   onEdit,
@@ -1620,81 +1630,84 @@ function DraftRow({
   notePlaceholder: string;
   theme: ReturnType<typeof useTheme>;
 }) {
-  // The Activity feed's row shape: a soft rounded-square tile (radius md, not a
-  // full circle) in the `sky` tint the feed gives an added expense, the line
-  // beside it, a quiet trailing control. Here the line is editable — the amount
-  // is the hero with its currency, the note the muted line beneath — but the
-  // frame is the feed's, so review and activity read as one design.
+  // Its own card (Mobbin: Airwallex line items). The amount is the hero — a big
+  // editable field led by the `sky` tile the Activity feed gives an added
+  // expense, with the currency as a chip on the right and a quiet remove. A
+  // hairline separates it from the note line, which carries its own dictation
+  // mic. Review and the feed still read as one family; the frame is just roomier
+  // so an editable amount and note are easy to hit.
   const tile = theme.tint.sky;
   return (
-    <Row
-      style={{
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        paddingHorizontal: theme.spacing.lg,
-      }}
-    >
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: theme.radius.md,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: tile.bg,
-        }}
-      >
-        <Ionicons name="receipt-outline" size={iconSize.lg} color={tile.ink} />
-      </View>
-
-      <View style={{ flex: 1, gap: theme.spacing.xs }}>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-          {draft.currency ? (
-            <Text variant="caption" tone="muted" style={{ fontWeight: '600' }}>
+    <Card style={{ gap: theme.spacing.sm }}>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: theme.radius.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: tile.bg,
+          }}
+        >
+          <Ionicons name="receipt-outline" size={iconSize.lg} color={tile.ink} />
+        </View>
+        <TextInput
+          value={draft.amount}
+          onChangeText={(value) => onEdit(draft.key, { amount: value })}
+          keyboardType="decimal-pad"
+          accessibilityLabel={amountLabel}
+          style={{
+            flex: 1,
+            fontSize: 26,
+            fontWeight: '700',
+            color: theme.color.text,
+            paddingVertical: 0,
+          }}
+        />
+        {draft.currency ? (
+          <View
+            style={{
+              paddingHorizontal: theme.spacing.sm,
+              paddingVertical: 4,
+              borderRadius: theme.radius.pill,
+              backgroundColor: theme.color.surfaceMuted,
+            }}
+          >
+            <Text variant="caption" tone="muted" style={{ fontWeight: '700' }}>
               {draft.currency}
             </Text>
-          ) : null}
-          <TextInput
-            value={draft.amount}
-            onChangeText={(value) => onEdit(draft.key, { amount: value })}
-            keyboardType="decimal-pad"
-            accessibilityLabel={amountLabel}
-            style={{
-              flex: 1,
-              fontSize: 24,
-              fontWeight: '700',
-              color: theme.color.text,
-              paddingVertical: 0,
-            }}
-          />
-        </Row>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-          <TextInput
-            value={draft.note}
-            onChangeText={(value) => onEdit(draft.key, { note: value })}
-            placeholder={notePlaceholder}
-            placeholderTextColor={theme.color.textFaint}
-            accessibilityLabel={noteLabel}
-            style={{ flex: 1, fontSize: 15, color: theme.color.textMuted, paddingVertical: 0 }}
-          />
-          {/* Re-dictate just this description: reopens the mic and rewrites only
-              this row's note, leaving its amount and the other rows untouched. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={dictateLabel}
-            onPress={() => onRedescribe(draft.key)}
-            hitSlop={8}
-            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-          >
-            <Ionicons name="mic-outline" size={iconSize.md} color={theme.color.brand} />
-          </Pressable>
-        </Row>
-      </View>
+          </View>
+        ) : null}
+        <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>
+          <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+        </IconButton>
+      </Row>
 
-      <IconButton label={removeLabel} onPress={() => onRemove(draft.key)}>
-        <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
-      </IconButton>
-    </Row>
+      <Divider />
+
+      <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+        <Ionicons name="create-outline" size={iconSize.sm} color={theme.color.textFaint} />
+        <TextInput
+          value={draft.note}
+          onChangeText={(value) => onEdit(draft.key, { note: value })}
+          placeholder={notePlaceholder}
+          placeholderTextColor={theme.color.textFaint}
+          accessibilityLabel={noteLabel}
+          style={{ flex: 1, fontSize: 15, color: theme.color.text, paddingVertical: 0 }}
+        />
+        {/* Dictate more text onto just this row's note (plain speech-to-text,
+            appended — no parsing), leaving its amount and the other rows alone. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={dictateLabel}
+          onPress={() => onRedescribe(draft.key)}
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+        >
+          <Ionicons name="mic-outline" size={iconSize.md} color={theme.color.brand} />
+        </Pressable>
+      </Row>
+    </Card>
   );
 }
