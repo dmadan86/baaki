@@ -1,12 +1,16 @@
 /**
  * The "Me" tab — the private personal-finance ledger (A48).
  *
- * A person's own money, nothing shared. The screen leads with a month card that
- * wears its verdict — a blue wash when you saved, a red one when you overspent —
- * with income and spend read out beneath a thin spend-against-income bar. Then
- * two quick-add tiles, the three management areas (recurring, loans, budgets)
- * each surfacing its live number, and the recent entries grouped by day the way
- * a bank statement reads. Everything is local-first from the mirror and every
+ * A person's own money, nothing shared. It wears the same clothes as the
+ * dashboard: an edge-to-edge saturated hero that runs up under the status bar,
+ * a swipeable deck of figures inside it (this month's net, what you spent, the
+ * share you kept), the add actions on the hero itself, and a dot pager for the
+ * swipe. A month switcher in the hero header steps back through past months so
+ * the ledger is a record you can browse, not just a snapshot of today.
+ *
+ * Below the hero, the white body: three stat tiles for the management areas
+ * (recurring, loans, budgets) and the month's entries grouped by day the way a
+ * bank statement reads. Everything is local-first from the mirror and every
  * figure is computed on the device.
  *
  * Opening the tab also posts any auto-recurring entries that have come due since
@@ -16,7 +20,15 @@
 import { useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   format,
@@ -25,10 +37,12 @@ import {
   money,
   monthlySummary,
   personalBudgetProgress,
+  savingsRate,
   type PersonalTxn,
 } from '@waves/core';
 import {
   Card,
+  directionalIcon,
   Divider,
   Gradient,
   iconSize,
@@ -51,6 +65,21 @@ import { useDefaultCurrency } from '@/lib/currency';
 import { useSync } from '@/sync';
 import { useStrings } from '@/i18n';
 
+// One saturated wash per hero slide (net, spent, savings), dark corner to light,
+// each deep enough to hold white ink on every corner like a bank card. The net
+// slide's wash is swapped for its verdict at render — blue when you saved, red
+// when you overspent — so the hero opens on the colour of how the month went.
+const SAVED_WASH = ['#1E5A8C', '#0C2E4A'] as const; // blue — money kept
+const OVERSPENT_WASH = ['#8C1D3F', '#4A0F20'] as const; // red — money lost
+const SPENT_WASH = ['#463F86', '#221C46'] as const; // indigo — what went out
+const SAVINGS_WASH = ['#12667A', '#06323D'] as const; // teal — the rate you kept
+
+// One faint watermark glyph per slide, in the same order, bled off the corner
+// and crossfading on the same scroll value as the wash.
+const SLIDE_ICONS = ['wallet-outline', 'card-outline', 'trending-up-outline'] as const;
+
+const HERO_CONTROL_BG = 'rgba(255, 255, 255, 0.16)';
+
 export default function MeScreen() {
   const theme = useTheme();
   const clearance = useScreenClearance();
@@ -62,7 +91,12 @@ export default function MeScreen() {
 
   // Read the clock once, off render (the React Compiler forbids it inline).
   const [today] = useState(() => todayIso());
-  const month = today.slice(0, 7);
+  const currentMonth = today.slice(0, 7);
+
+  // Which month the hero and the list are showing. 0 is the current month; each
+  // step back subtracts a month. You cannot step past the current month.
+  const [monthsBack, setMonthsBack] = useState(0);
+  const month = monthsBack === 0 ? currentMonth : shiftMonth(currentMonth, -monthsBack);
 
   // Post due auto-recurring entries once the mirror has hydrated from disk and
   // there are recurring rules to act on. Gating on `hydrated` (not the raw mount)
@@ -73,6 +107,7 @@ export default function MeScreen() {
   // retry on a later run rather than being swallowed for the session. Even a
   // double-fire is harmless: occurrence ids are deterministic
   // (recurringOccurrenceId), so a repeat upserts the same rows, never a dupe.
+  // Always keyed on `today`, never the browsed month.
   const posted = useRef(false);
   const ready = hydrated && ledger.recurrings.length > 0;
   useEffect(() => {
@@ -87,8 +122,11 @@ export default function MeScreen() {
   }, [ready]);
 
   const summary = monthlySummary(ledger.txns, month, dc);
-  const recent = ledger.txns.slice(0, 8);
-  const days = groupByDay(recent, today, dc, t);
+  const rate = savingsRate(summary.income, summary.expense);
+
+  // The list follows the hero's month: the entries made in it, grouped by day.
+  const monthTxns = ledger.txns.filter((txn) => txn.date.slice(0, 7) === month);
+  const days = groupByDay(monthTxns, today, dc, t);
 
   const dueCount = ledger.recurrings.filter((rule) => isRecurringDue(rule, today)).length;
   const activeLoans = ledger.loans.filter((loan) => loan.status === 'active');
@@ -103,86 +141,63 @@ export default function MeScreen() {
     format(money(amount, dc), { locale, compactFraction: true });
 
   return (
-    <Screen>
+    <Screen edges={[]}>
       <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance,
-          gap: theme.spacing.xl,
-        }}
+        contentContainerStyle={{ paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ paddingTop: theme.spacing.md, gap: 2 }}>
-          <Text variant="title">{t.personal.title}</Text>
-          <Text variant="caption" tone="muted">
-            {t.personal.subtitle}
-          </Text>
-        </View>
-
-        {/* The month, wearing its verdict: blue when you saved, red when you
-            overspent. The net is the headline; income and spend sit under a bar
-            that fills with the share of income spent. All white ink. */}
-        <MonthHero
+        <MeHero
           net={summary.net}
           income={summary.income}
           expense={summary.expense}
+          rate={rate}
           currency={dc}
           locale={locale}
           t={t}
+          monthLabel={monthLabel(month, locale)}
+          canGoForward={monthsBack > 0}
+          onPrevMonth={() => setMonthsBack((back) => back + 1)}
+          onNextMonth={() => setMonthsBack((back) => Math.max(0, back - 1))}
         />
 
-        <Row style={{ gap: theme.spacing.md }}>
-          <QuickAdd
-            label={t.personal.addExpense}
-            icon="remove-circle-outline"
-            tint={theme.color.negative}
-            onPress={() =>
-              router.push({ pathname: '/personal/entry', params: { kind: 'expense' } })
-            }
-          />
-          <QuickAdd
-            label={t.personal.addIncome}
-            icon="add-circle-outline"
-            tint={theme.color.positive}
-            onPress={() => router.push({ pathname: '/personal/entry', params: { kind: 'income' } })}
-          />
-        </Row>
+        <View
+          style={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingTop: theme.spacing.xl,
+            gap: theme.spacing.xl,
+          }}
+        >
+          {/* The three management areas as a compact stat row. */}
+          <Row style={{ gap: theme.spacing.md }}>
+            <StatTile
+              icon="repeat"
+              value={String(dueCount)}
+              label={t.personal.recurring}
+              emphasise={dueCount > 0}
+              onPress={() => router.push('/personal/recurring')}
+            />
+            <StatTile
+              icon="cash-outline"
+              value={activeLoans.length > 0 ? fmt(outstanding) : '—'}
+              label={t.personal.loans}
+              onPress={() => router.push('/personal/loans')}
+            />
+            <StatTile
+              icon="pie-chart-outline"
+              value={String(overBudgets)}
+              label={t.personal.budgets}
+              emphasise={overBudgets > 0}
+              danger={overBudgets > 0}
+              onPress={() => router.push('/personal/budgets')}
+            />
+          </Row>
 
-        {/* The three management areas, each showing its live number. */}
-        <View style={{ gap: theme.spacing.md }}>
-          <SectionLink
-            label={t.personal.recurring}
-            icon="repeat"
-            value={dueCount > 0 ? String(dueCount) : undefined}
-            valueTone="brand"
-            hint={dueCount > 0 ? t.personal.due : t.personal.recurringSub}
-            onPress={() => router.push('/personal/recurring')}
-          />
-          <SectionLink
-            label={t.personal.loans}
-            icon="cash-outline"
-            value={activeLoans.length > 0 ? fmt(outstanding) : undefined}
-            valueTone="text"
-            hint={activeLoans.length > 0 ? t.personal.outstanding : t.personal.loansSub}
-            onPress={() => router.push('/personal/loans')}
-          />
-          <SectionLink
-            label={t.personal.budgets}
-            icon="pie-chart-outline"
-            value={overBudgets > 0 ? String(overBudgets) : undefined}
-            valueTone="negative"
-            hint={overBudgets > 0 ? t.personal.over : t.personal.budgetsSub}
-            onPress={() => router.push('/personal/budgets')}
-          />
-        </View>
-
-        {/* Recent entries, grouped by day like a statement. */}
-        <View style={{ gap: theme.spacing.sm }}>
-          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-              {t.personal.recent.toUpperCase()}
-            </Text>
-            {ledger.txns.length > recent.length ? (
+          {/* The month's entries, grouped by day like a statement. */}
+          <View style={{ gap: theme.spacing.sm }}>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                {monthLabel(month, locale).toUpperCase()}
+              </Text>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => router.push('/personal/transactions')}
@@ -191,57 +206,585 @@ export default function MeScreen() {
                   {t.personal.seeAll}
                 </Text>
               </Pressable>
-            ) : null}
-          </Row>
+            </Row>
 
-          {recent.length === 0 ? (
-            <Card>
-              <Text tone="muted" align="center">
-                {t.personal.empty}
-              </Text>
-            </Card>
-          ) : (
-            days.map((day) => (
-              <View key={day.key} style={{ gap: theme.spacing.xs }}>
-                {/* Day header: the label on one side, the day's net on the
-                    other — the statement's running story. */}
-                <Row
-                  style={{
-                    justifyContent: 'space-between',
-                    alignItems: 'baseline',
-                    paddingTop: theme.spacing.sm,
-                    paddingHorizontal: theme.spacing.xs,
-                  }}
-                >
-                  <Text variant="micro" tone="muted" style={{ fontWeight: '600' }}>
-                    {day.label}
-                  </Text>
-                  {day.hasNet ? (
-                    <Text variant="micro" tone={day.net < 0n ? 'negative' : 'muted'}>
-                      {day.net < 0n ? '−' : day.net > 0n ? '+' : ''}
-                      {fmt(day.net < 0n ? -day.net : day.net)}
+            {days.length === 0 ? (
+              <Card>
+                <Text tone="muted" align="center">
+                  {t.personal.empty}
+                </Text>
+              </Card>
+            ) : (
+              days.map((day) => (
+                <View key={day.key} style={{ gap: theme.spacing.xs }}>
+                  <Row
+                    style={{
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      paddingTop: theme.spacing.sm,
+                      paddingHorizontal: theme.spacing.xs,
+                    }}
+                  >
+                    <Text variant="micro" tone="muted" style={{ fontWeight: '600' }}>
+                      {day.label}
                     </Text>
-                  ) : null}
-                </Row>
-                <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-                  {day.txns.map((txn, index) => (
-                    <View key={txn.id}>
-                      {index > 0 ? <Divider /> : null}
-                      <TxnRow
-                        txn={txn}
-                        locale={locale}
-                        theme={theme}
-                        labelFor={labelForCategory(t)}
-                      />
-                    </View>
-                  ))}
-                </Card>
-              </View>
-            ))
-          )}
+                    {day.hasNet ? (
+                      <Text variant="micro" tone={day.net < 0n ? 'negative' : 'muted'}>
+                        {day.net < 0n ? '−' : day.net > 0n ? '+' : ''}
+                        {fmt(day.net < 0n ? -day.net : day.net)}
+                      </Text>
+                    ) : null}
+                  </Row>
+                  <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                    {day.txns.map((txn, index) => (
+                      <View key={txn.id}>
+                        {index > 0 ? <Divider /> : null}
+                        <TxnRow
+                          txn={txn}
+                          locale={locale}
+                          theme={theme}
+                          labelFor={labelForCategory(t)}
+                        />
+                      </View>
+                    ))}
+                  </Card>
+                </View>
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
     </Screen>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────── month ──
+
+// Shift a YYYY-MM by whole calendar months. Date maths on the first of the month
+// so day-of-month can never overflow (Date arg, never a bare `new Date()`).
+function shiftMonth(month: string, delta: number): string {
+  const d = new Date(`${month}-01T00:00:00`);
+  d.setMonth(d.getMonth() + delta);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// The month for the header — the reader's own calendar name, or the raw YYYY-MM
+// if the platform has no Intl month names.
+function monthLabel(month: string, locale: string): string {
+  try {
+    return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+      new Date(`${month}-01T00:00:00`),
+    );
+  } catch {
+    return month;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────── hero ──
+
+/**
+ * The edge-to-edge hero: a swipeable deck of three figures on a saturated wash,
+ * the add actions, and a dot pager — the dashboard's account panel, told for a
+ * private ledger. The carousel's live scroll offset drives the wash crossfade and
+ * the pager, so colour, corner glyph and dots all move with the finger; it owns
+ * that value itself since every piece that reads it lives inside the hero.
+ */
+function MeHero({
+  net,
+  income,
+  expense,
+  rate,
+  currency,
+  locale,
+  t,
+  monthLabel: label,
+  canGoForward,
+  onPrevMonth,
+  onNextMonth,
+}: {
+  net: bigint;
+  income: bigint;
+  expense: bigint;
+  rate: number | null;
+  currency: string;
+  locale: string;
+  t: ReturnType<typeof useStrings>['t'];
+  monthLabel: string;
+  canGoForward: boolean;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+}) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+
+  // The deck's scroll offset, owned here so the wash, the corner glyph and the
+  // dot pager all ride one value. Lazy-init, never read through `.current` in
+  // render (the ref lint the compiler enforces).
+  const [scrollX] = useState(() => new Animated.Value(0));
+  // Each slide fills the hero's inner width; its snap point is that plus the gap.
+  const cardWidth = width - theme.spacing.xl * 2;
+  const gap = theme.spacing.md;
+  const snap = cardWidth + gap;
+
+  const saved = net >= 0n;
+  const fmt = (amount: bigint): string =>
+    format(money(amount, currency), { locale, compactFraction: true });
+
+  // The net slide shows its figure as an absolute value, so the saved/overspent
+  // direction lives in the label — the only slide whose sign carries meaning.
+  const washes = [saved ? SAVED_WASH : OVERSPENT_WASH, SPENT_WASH, SAVINGS_WASH];
+  const slides = [
+    {
+      key: 'net',
+      label: `${saved ? t.personal.saved : t.personal.overspent} · ${currency}`,
+      value: `${net < 0n ? '−' : ''}${fmt(net < 0n ? -net : net)}`,
+    },
+    {
+      key: 'spent',
+      label: `${t.personal.expenses} · ${currency}`,
+      value: fmt(expense),
+    },
+    {
+      key: 'savings',
+      label: t.personal.savingsRate,
+      value: rate === null ? '—' : `${Math.round(rate * 100)}%`,
+    },
+  ];
+
+  // Share of income spent, for the persistent bar under the deck.
+  const ratio =
+    income > 0n ? Math.min(1, Number((expense * 1000n) / income) / 1000) : expense > 0n ? 1 : 0;
+
+  const rangeFor = (index: number): number[] => [
+    (index - 1) * snap,
+    index * snap,
+    (index + 1) * snap,
+  ];
+
+  return (
+    <View
+      style={{
+        paddingTop: insets.top + theme.spacing.md,
+        paddingHorizontal: theme.spacing.xl,
+        paddingBottom: theme.spacing.lg,
+        borderBottomLeftRadius: theme.radius.xxl,
+        borderBottomRightRadius: theme.radius.xxl,
+        gap: theme.spacing.lg,
+        overflow: 'hidden',
+      }}
+    >
+      {/* One wash layer per slide, stacked and crossfading on the scroll value —
+          the first sits opaque as the base, the rest fade in at their own snap. */}
+      {washes.map((colors, index) => (
+        <Animated.View
+          key={slides[index]?.key ?? index}
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            index === 0
+              ? null
+              : {
+                  opacity: scrollX.interpolate({
+                    inputRange: rangeFor(index),
+                    outputRange: [0, 1, 0],
+                    extrapolate: 'clamp',
+                  }),
+                },
+          ]}
+        >
+          <Gradient colors={colors} radius={0} style={{ flex: 1 }} />
+        </Animated.View>
+      ))}
+      <HeroBackdrop scrollX={scrollX} snap={snap} />
+
+      {/* Month switcher — the hero's header, centred, ‹ August 2026 ›. */}
+      <Row style={{ alignItems: 'center', justifyContent: 'center', gap: theme.spacing.md }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.personal.prevMonth}
+          onPress={onPrevMonth}
+          hitSlop={10}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+        >
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.onBrand}
+          />
+        </Pressable>
+        <Text variant="subheading" tone="onBrand" numberOfLines={1}>
+          {label}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.personal.nextMonth}
+          accessibilityState={{ disabled: !canGoForward }}
+          disabled={!canGoForward}
+          onPress={onNextMonth}
+          hitSlop={10}
+          style={({ pressed }) => ({ opacity: !canGoForward ? 0.35 : pressed ? 0.5 : 1 })}
+        >
+          <Ionicons
+            name={directionalIcon('chevron-forward')}
+            size={iconSize.lg}
+            color={theme.color.onBrand}
+          />
+        </Pressable>
+      </Row>
+
+      {/* The swipeable figures. Full-width slides, no peek — they ride transparent
+          on the wash, so a peek would show floating text with no card edge; the
+          dot pager carries the "swipe me" signal instead. */}
+      <Animated.ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={snap}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        scrollEventThrottle={16}
+        contentContainerStyle={{ gap }}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+          useNativeDriver: true,
+        })}
+      >
+        {slides.map((slide, index) => (
+          <Animated.View
+            key={slide.key}
+            style={{
+              width: cardWidth,
+              opacity: scrollX.interpolate({
+                inputRange: rangeFor(index),
+                outputRange: [0.75, 1, 0.75],
+                extrapolate: 'clamp',
+              }),
+              transform: [
+                {
+                  scale: scrollX.interpolate({
+                    inputRange: rangeFor(index),
+                    outputRange: [0.94, 1, 0.94],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ],
+            }}
+          >
+            <MetricSlide label={slide.label} value={slide.value} />
+          </Animated.View>
+        ))}
+      </Animated.ScrollView>
+
+      {/* Spend against income — a persistent bar under the deck, with income and
+          spend read out beneath it, so the context is there on every slide. */}
+      <View style={{ gap: theme.spacing.sm }}>
+        <View
+          style={{
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: 'rgba(255,255,255,0.25)',
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              width: `${Math.round(ratio * 100)}%`,
+              height: 6,
+              backgroundColor: theme.color.onBrand,
+            }}
+          />
+        </View>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <HeroFigure label={t.personal.income} value={fmt(income)} icon="arrow-down" />
+          <HeroFigure label={t.personal.expenses} value={fmt(expense)} icon="arrow-up" alignEnd />
+        </Row>
+      </View>
+
+      {/* The add actions and the pager travel as one block. */}
+      <View style={{ gap: theme.spacing.md }}>
+        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+          <HeroPill
+            icon="add"
+            label={t.personal.addExpense}
+            onPress={() =>
+              router.push({ pathname: '/personal/entry', params: { kind: 'expense' } })
+            }
+          />
+          <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
+            <HeroCircle
+              icon="arrow-down"
+              label={t.personal.addIncome}
+              onPress={() =>
+                router.push({ pathname: '/personal/entry', params: { kind: 'income' } })
+              }
+            />
+            <HeroCircle
+              icon="list-outline"
+              label={t.personal.transactions}
+              onPress={() => router.push('/personal/transactions')}
+            />
+          </Row>
+        </Row>
+
+        <HeroDots count={slides.length} scrollX={scrollX} snap={snap} />
+      </View>
+    </View>
+  );
+}
+
+/** One figure slide, riding transparent on the wash — a label and the money big
+ *  beneath it, white ink throughout so it reads the same in light and dark. */
+function MetricSlide({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: theme.spacing.sm }}>
+      <Text variant="caption" tone="onBrand" numberOfLines={1} style={{ opacity: 0.85 }}>
+        {label}
+      </Text>
+      <Text variant="display" tone="onBrand" numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+/** The corner watermark — one faint glyph per slide, crossfading on the scroll
+ *  value, clipped to the hero's rounded corner and never eating a tap. */
+function HeroBackdrop({ scrollX, snap }: { scrollX: Animated.Value; snap: number }) {
+  const theme = useTheme();
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {SLIDE_ICONS.map((icon, index) => (
+        <Animated.View
+          key={icon}
+          style={{
+            position: 'absolute',
+            right: -44,
+            bottom: -52,
+            opacity: scrollX.interpolate({
+              inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
+              outputRange: [0, 0.16, 0],
+              extrapolate: 'clamp',
+            }),
+          }}
+        >
+          <Ionicons name={icon} size={208} color={theme.color.onBrand} />
+        </Animated.View>
+      ))}
+    </View>
+  );
+}
+
+const DOT_SIZE = 6;
+const DOT_ACTIVE_WIDTH = 18;
+
+/** The dot pager: a fixed-width white pill that translates across faint static
+ *  dots off the live scroll value — native-driven, so it tracks the finger. */
+function HeroDots({
+  count,
+  scrollX,
+  snap,
+}: {
+  count: number;
+  scrollX: Animated.Value;
+  snap: number;
+}) {
+  const theme = useTheme();
+  const gap = theme.spacing.xs;
+  const step = DOT_SIZE + gap;
+  const trackWidth = count * DOT_SIZE + Math.max(0, count - 1) * gap;
+  const translateX =
+    count > 1
+      ? scrollX.interpolate({
+          inputRange: Array.from({ length: count }, (_, i) => i * snap),
+          outputRange: Array.from({ length: count }, (_, i) => i * step),
+          extrapolate: 'clamp',
+        })
+      : 0;
+  return (
+    <Row style={{ justifyContent: 'center' }}>
+      <View style={{ width: trackWidth, height: DOT_SIZE }}>
+        <Row style={{ position: 'absolute', left: 0, top: 0, gap }}>
+          {Array.from({ length: count }, (_, index) => (
+            <View
+              key={index}
+              style={{
+                width: DOT_SIZE,
+                height: DOT_SIZE,
+                borderRadius: DOT_SIZE / 2,
+                backgroundColor: 'rgba(255, 255, 255, 0.35)',
+              }}
+            />
+          ))}
+        </Row>
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: (DOT_SIZE - DOT_ACTIVE_WIDTH) / 2,
+            width: DOT_ACTIVE_WIDTH,
+            height: DOT_SIZE,
+            borderRadius: DOT_SIZE / 2,
+            backgroundColor: '#FFFFFF',
+            transform: [{ translateX }],
+          }}
+        />
+      </View>
+    </Row>
+  );
+}
+
+function HeroFigure({
+  label,
+  value,
+  icon,
+  alignEnd,
+}: {
+  label: string;
+  value: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  alignEnd?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: 4, alignItems: alignEnd ? 'flex-end' : 'flex-start' }}>
+      <Row style={{ alignItems: 'center', gap: 4 }}>
+        <Ionicons name={icon} size={iconSize.xs} color={theme.color.onBrand} />
+        <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+          {label}
+        </Text>
+      </Row>
+      <Text variant="body" tone="onBrand" style={{ fontWeight: '700' }}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+/** The primary add action on the hero — a white pill with brand ink. */
+function HeroPill({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        paddingVertical: theme.spacing.sm + 2,
+        paddingHorizontal: theme.spacing.lg,
+        borderRadius: theme.radius.pill,
+        backgroundColor: '#FFFFFF',
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.lg} color={theme.color.brand} />
+      <Text variant="subheading" style={{ color: theme.color.brand }} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** A round action on the hero — a translucent white disc with a white glyph. */
+function HeroCircle({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: HERO_CONTROL_BG,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.xl} color={theme.color.onBrand} />
+    </Pressable>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────── body ──
+
+/** One of the three management-area tiles under the hero: a glyph, its live
+ *  number and a label, tappable through to the area's own screen. */
+function StatTile({
+  icon,
+  value,
+  label,
+  emphasise,
+  danger,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+  emphasise?: boolean;
+  danger?: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const valueColor = danger
+    ? theme.color.negative
+    : emphasise
+      ? theme.color.brand
+      : theme.color.text;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${value}`}
+      onPress={onPress}
+      style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.6 : 1 })}
+    >
+      <Card style={{ gap: theme.spacing.sm, alignItems: 'flex-start', minHeight: 96 }}>
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: theme.radius.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.brandSoft,
+          }}
+        >
+          <Ionicons name={icon} size={iconSize.sm} color={theme.color.brand} />
+        </View>
+        <Text
+          variant="heading"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={{ color: valueColor }}
+        >
+          {value}
+        </Text>
+        <Text variant="micro" tone="muted" numberOfLines={1}>
+          {label}
+        </Text>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -301,200 +844,6 @@ function labelForCategory(t: ReturnType<typeof useStrings>['t']) {
     id ? (t.categories[id as keyof typeof t.categories] ?? null) : null;
 }
 
-function MonthHero({
-  net,
-  income,
-  expense,
-  currency,
-  locale,
-  t,
-}: {
-  net: bigint;
-  income: bigint;
-  expense: bigint;
-  currency: string;
-  locale: string;
-  t: ReturnType<typeof useStrings>['t'];
-}) {
-  const theme = useTheme();
-  const saved = net >= 0n;
-  const fmt = (amount: bigint): string =>
-    format(money(amount, currency), { locale, compactFraction: true });
-
-  // The share of income spent, for the bar. No income yet but money spent reads
-  // as fully spent; nothing either way reads as empty.
-  const ratio =
-    income > 0n ? Math.min(1, Number((expense * 1000n) / income) / 1000) : expense > 0n ? 1 : 0;
-
-  return (
-    <Gradient colors={saved ? theme.gradient.positive : theme.gradient.negative}>
-      <View style={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}>
-        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text variant="micro" tone="onBrand" style={{ letterSpacing: 0.8, opacity: 0.85 }}>
-            {t.personal.thisMonth.toUpperCase()}
-          </Text>
-          <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-            {saved ? t.personal.saved : t.personal.overspent}
-          </Text>
-        </Row>
-
-        <Text variant="display" tone="onBrand" numberOfLines={1} adjustsFontSizeToFit>
-          {net < 0n ? '−' : ''}
-          {fmt(net < 0n ? -net : net)}
-        </Text>
-
-        {/* Spend against income. A translucent track with a white fill; over the
-            whole width when everything (or more) is spent. */}
-        <View
-          style={{
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: 'rgba(255,255,255,0.25)',
-            overflow: 'hidden',
-          }}
-        >
-          <View
-            style={{
-              width: `${Math.round(ratio * 100)}%`,
-              height: 6,
-              backgroundColor: theme.color.onBrand,
-            }}
-          />
-        </View>
-
-        <Row style={{ justifyContent: 'space-between' }}>
-          <HeroFigure label={t.personal.income} value={fmt(income)} icon="arrow-down" />
-          <HeroFigure label={t.personal.expenses} value={fmt(expense)} icon="arrow-up" alignEnd />
-        </Row>
-      </View>
-    </Gradient>
-  );
-}
-
-function HeroFigure({
-  label,
-  value,
-  icon,
-  alignEnd,
-}: {
-  label: string;
-  value: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  alignEnd?: boolean;
-}) {
-  const theme = useTheme();
-  return (
-    <View style={{ gap: 4, alignItems: alignEnd ? 'flex-end' : 'flex-start' }}>
-      <Row style={{ alignItems: 'center', gap: 4 }}>
-        <Ionicons name={icon} size={iconSize.xs} color={theme.color.onBrand} />
-        <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-          {label}
-        </Text>
-      </Row>
-      <Text variant="body" tone="onBrand" style={{ fontWeight: '700' }}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function QuickAdd({
-  label,
-  icon,
-  tint,
-  onPress,
-}: {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  tint: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: theme.spacing.sm,
-        paddingVertical: theme.spacing.lg,
-        borderRadius: theme.radius.lg,
-        backgroundColor: theme.color.surface,
-        borderWidth: 1,
-        borderColor: theme.color.border,
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      <Ionicons name={icon} size={iconSize.md} color={tint} />
-      <Text variant="caption" style={{ fontWeight: '600' }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function SectionLink({
-  label,
-  icon,
-  value,
-  valueTone,
-  hint,
-  onPress,
-}: {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  value?: string;
-  valueTone: 'brand' | 'text' | 'negative';
-  hint: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  const valueColor =
-    valueTone === 'brand'
-      ? theme.color.brand
-      : valueTone === 'negative'
-        ? theme.color.negative
-        : theme.color.text;
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress}>
-      <Card>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: theme.radius.md,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme.color.brandSoft,
-            }}
-          >
-            <Ionicons name={icon} size={iconSize.md} color={theme.color.brand} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text variant="body" style={{ fontWeight: '600' }}>
-              {label}
-            </Text>
-            <Text variant="caption" tone="muted">
-              {hint}
-            </Text>
-          </View>
-          {value !== undefined ? (
-            <Text variant="body" style={{ fontWeight: '700', color: valueColor }}>
-              {value}
-            </Text>
-          ) : null}
-          <Ionicons name="chevron-forward" size={iconSize.md} color={theme.color.textFaint} />
-        </Row>
-      </Card>
-    </Pressable>
-  );
-}
-
 function TxnRow({
   txn,
   locale,
@@ -518,6 +867,7 @@ function TxnRow({
         alignItems: 'center',
         gap: theme.spacing.md,
         paddingVertical: theme.spacing.sm,
+        minHeight: 44,
       }}
     >
       <CategoryBadge category={txn.category ?? 'other'} meta={null} size={32} />

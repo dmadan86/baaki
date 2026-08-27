@@ -162,6 +162,17 @@ export function monthlySummary(
   return { income, expense, net: income - expense };
 }
 
+/**
+ * The share of a month's income that was kept: (income − expense) / income, as a
+ * fraction. `null` when there was no income to measure against — a rate needs a
+ * denominator, and "0% saved" would wrongly imply money came in and all went
+ * out. Negative when spending ran past income (you dipped into savings).
+ */
+export function savingsRate(income: bigint, expense: bigint): number | null {
+  if (income <= 0n) return null;
+  return Number(income - expense) / Number(income);
+}
+
 // ─────────────────────────────────────────────────────────────── loans ──
 
 /**
