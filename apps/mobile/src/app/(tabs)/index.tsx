@@ -393,8 +393,8 @@ export default function HomeScreen() {
                 snap={heroSnap}
                 // The mirror hydrates instantly, so the balance shows at once.
                 // Until this session's first sync settles it is provisional —
-                // "updating" rather than an owe/owed verdict, so the sub line
-                // never flips when the sync reconciles (see MetricSlide).
+                // "updating" rather than an owe/owed verdict, so the net slide's
+                // heading never flips when the sync reconciles (see HeroBalance).
                 provisional={summary.pendingFirstSync}
               />
             )}
@@ -1257,7 +1257,7 @@ function HeroBalance({
   monthSpent: readonly { currency: string; amount: bigint }[];
   locale: string;
   t: UiStrings;
-  /** True until this session's first sync settles: the net's direction line is
+  /** True until this session's first sync settles: the net slide's heading is
    *  held at "updating" so it never flips owe↔owed when the sync reconciles. */
   provisional: boolean;
   /** The eye toggle — masks every slide's figure while on. */
@@ -1275,23 +1275,29 @@ function HeroBalance({
   // — all in your primary currency, which is the one the headline is already in
   // (no total across currencies, ADR-004).
   const monthAmount = monthSpent.find((entry) => entry.currency === primary.currency)?.amount ?? 0n;
-  const netSub = provisional
+  // The net slide shows its figure as an ABSOLUTE value, so the owe↔owed
+  // direction has to live in the heading — this is the only slide whose sign
+  // carries meaning. We fold that verdict into the label itself (a Title-case
+  // phrase that matches the other slides' headings) so a single line still
+  // tells you which way you stand, now that the old third "sub" line is gone.
+  // Held at "updating" until the first sync settles, so it never flips owe↔owed
+  // as the sync reconciles.
+  const netDirection = provisional
     ? t.dashHero.updating
     : primary.net === 0n
       ? t.allSettled
       : primary.net > 0n
-        ? t.overallOwed
-        : t.overallOwe;
+        ? t.youAreOwed
+        : t.youOwe;
 
   const slides = [
     {
       key: 'net',
       node: (
         <MetricSlide
-          label={`${t.yourBaaki} · ${primary.currency}`}
+          label={`${netDirection} · ${primary.currency}`}
           amount={primary.net < 0n ? -primary.net : primary.net}
           currency={primary.currency}
-          sub={netSub}
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
@@ -1305,7 +1311,6 @@ function HeroBalance({
           label={`${t.youAreOwed} · ${primary.currency}`}
           amount={primary.owed}
           currency={primary.currency}
-          sub={t.youAreOwed}
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
@@ -1319,7 +1324,6 @@ function HeroBalance({
           label={`${t.dashHero.monthSpent} · ${primary.currency}`}
           amount={monthAmount}
           currency={primary.currency}
-          sub={t.spent}
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
@@ -1459,17 +1463,18 @@ function HeroDots({
 
 /**
  * The balance area while it loads — translucent-white bars on the green that
- * stand in for a `MetricSlide`: a label bar, the big figure, and the sub line.
+ * stand in for a `MetricSlide`: a label bar and the big figure. It has the same
+ * two lines the loaded slide now has (the sub line is gone).
  *
  * The whole point is that the swap-in is a settle, not a jump, so the skeleton
  * is built to the *exact* height a loaded slide fills. Each bar rides inside a
- * wrapper sized to the real line's height — the label and sub to the caption's
- * 18px line, the figure to the money's 46px line — so the block is 92px tall
- * either way and the number lands in place instead of shoving the Add-expense
- * button and the group list down (the layout shift the user flagged). A gentle
- * pulse reads as "loading" rather than a dead placeholder. Plain `Skeleton` is
- * themed for light surfaces and would vanish on the green, so these are
- * hand-drawn washes.
+ * wrapper sized to the real line's height — the label to the caption's 18px
+ * line, the figure to the money's 46px line, one `spacing.sm` gap between — so
+ * the block is 72px tall either way and the number lands in place instead of
+ * shoving the Add-expense button and the group list down (the layout shift the
+ * user flagged). A gentle pulse reads as "loading" rather than a dead
+ * placeholder. Plain `Skeleton` is themed for light surfaces and would vanish on
+ * the green, so these are hand-drawn washes.
  */
 function HeroBalanceSkeleton() {
   const theme = useTheme();
@@ -1495,12 +1500,8 @@ function HeroBalanceSkeleton() {
     <Animated.View style={{ gap: theme.spacing.sm, opacity: pulse }}>
       {/* Label line — the caption+eye row rides an 18px line height. */}
       <View style={{ height: 18, justifyContent: 'center' }}>{bar(120, 12)}</View>
-      <View style={{ gap: 2 }}>
-        {/* The figure — the money sits on a 46px line (fontSize 40). */}
-        <View style={{ height: 46, justifyContent: 'center' }}>{bar(200, 34)}</View>
-        {/* The sub caption — another 18px line. */}
-        <View style={{ height: 18, justifyContent: 'center' }}>{bar(90, 12)}</View>
-      </View>
+      {/* The figure — the money sits on a 46px line (fontSize 40). */}
+      <View style={{ height: 46, justifyContent: 'center' }}>{bar(200, 34)}</View>
     </Animated.View>
   );
 }
@@ -1542,16 +1543,19 @@ function HeroBackdrop({ scrollX, snap }: { scrollX: Animated.Value; snap: number
 
 /**
  * One balance slide, riding transparent on the hero's green — a label with the
- * eye toggle to its right, the money big beneath, and a one-line caption. White
- * ink throughout, so it reads the same in light and dark like a bank card. The
- * eye masks the figure to dots; the toggle sits on every slide (it is the same
- * control repeated as you swipe), so the eye is always to hand wherever you land.
+ * eye toggle to its right and the money big beneath it. Two lines only: the old
+ * third "sub" caption is gone, so the slide is tighter and the hero shorter. The
+ * label carries everything the sub used to say — on the net slide it is the
+ * owe↔owed verdict itself (see `netDirection` in `HeroBalance`), so dropping the
+ * sub loses no direction. White ink throughout, so it reads the same in light
+ * and dark like a bank card. The eye masks the figure to dots; the toggle sits
+ * on every slide (it is the same control repeated as you swipe), so the eye is
+ * always to hand wherever you land.
  */
 function MetricSlide({
   label,
   amount,
   currency,
-  sub,
   locale,
   hidden,
   onToggleHide,
@@ -1559,7 +1563,6 @@ function MetricSlide({
   label: string;
   amount: bigint;
   currency: string;
-  sub: string;
   locale: string;
   hidden: boolean;
   onToggleHide: () => void;
@@ -1586,24 +1589,19 @@ function MetricSlide({
           />
         </Pressable>
       </Row>
-      <View style={{ gap: 2 }}>
-        {hidden ? (
-          <Text tone="onBrand" style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}>
-            {'••••••'}
-          </Text>
-        ) : (
-          <MoneyText
-            amount={amount}
-            currency={currency as never}
-            locale={locale}
-            tone="onBrand"
-            style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
-          />
-        )}
-        <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-          {sub}
+      {hidden ? (
+        <Text tone="onBrand" style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}>
+          {'••••••'}
         </Text>
-      </View>
+      ) : (
+        <MoneyText
+          amount={amount}
+          currency={currency as never}
+          locale={locale}
+          tone="onBrand"
+          style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
+        />
+      )}
     </View>
   );
 }
