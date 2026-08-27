@@ -1306,6 +1306,7 @@ export interface UiStrings {
     builtinSection: string;
     noCustomTags: string;
     reorderHint: string;
+    dragHandle: string;
     hide: string;
     show: string;
     deleteConfirm: string;
@@ -3209,7 +3210,8 @@ const en: UiStrings = {
     yourTags: 'Your tags',
     builtinSection: 'Built-in',
     noCustomTags: 'No tags of your own yet. Make one to sort spending your way.',
-    reorderHint: 'Use the arrows to move a tag up or down.',
+    reorderHint: 'Press and hold the handle, then drag to reorder.',
+    dragHandle: 'Drag to reorder',
     hide: 'Hide',
     show: 'Show',
     deleteConfirm: 'Delete this tag? Past expenses keep it; it just leaves the list.',
@@ -5154,7 +5156,8 @@ const ta: UiStrings = {
     builtinSection: 'உள்ளமைந்தவை',
     noCustomTags:
       'இன்னும் சொந்தக் குறிச்சொற்கள் இல்லை. உங்கள் வழியில் செலவுகளை வகைப்படுத்த ஒன்றை உருவாக்குங்கள்.',
-    reorderHint: 'அம்புக்குறிகளால் ஒரு குறிச்சொல்லை மேலே அல்லது கீழே நகர்த்துங்கள்.',
+    reorderHint: 'கைப்பிடியை அழுத்திப் பிடித்து, இழுத்து வரிசைப்படுத்துங்கள்.',
+    dragHandle: 'இழுத்து வரிசைப்படுத்து',
     hide: 'மறை',
     show: 'காட்டு',
     deleteConfirm:
@@ -7114,7 +7117,8 @@ const hi: UiStrings = {
     yourTags: 'आपके टैग',
     builtinSection: 'पहले से मौजूद',
     noCustomTags: 'अभी आपका कोई टैग नहीं है। अपने तरीके से खर्च बाँटने के लिए एक बनाएँ।',
-    reorderHint: 'तीरों से किसी टैग को ऊपर या नीचे ले जाएँ।',
+    reorderHint: 'हैंडल को दबाकर रखें, फिर खींचकर क्रम बदलें।',
+    dragHandle: 'क्रम बदलने के लिए खींचें',
     hide: 'छिपाएँ',
     show: 'दिखाएँ',
     deleteConfirm: 'यह टैग हटाएँ? पुराने खर्च इसे रखेंगे; यह बस सूची से हटेगा।',
@@ -9074,7 +9078,8 @@ const ar: UiStrings = {
     yourTags: 'وسومك',
     builtinSection: 'جاهزة',
     noCustomTags: 'لا توجد وسوم خاصة بك بعد. أنشئ واحدًا لتصنيف المصروفات بطريقتك.',
-    reorderHint: 'استخدم الأسهم لتحريك وسم لأعلى أو لأسفل.',
+    reorderHint: 'اضغط مطولاً على المقبض ثم اسحب لإعادة الترتيب.',
+    dragHandle: 'اسحب لإعادة الترتيب',
     hide: 'إخفاء',
     show: 'إظهار',
     deleteConfirm: 'حذف هذا الوسم؟ ستحتفظ به المصروفات السابقة؛ يختفي من القائمة فقط.',
