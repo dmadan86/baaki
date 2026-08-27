@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, TextInput, View } from 'react-native';
 
 import {
   Avatar,
@@ -27,8 +27,11 @@ import {
 } from '@waves/ui';
 
 import { GroupPhoto } from '@/components/GroupPhoto';
+import { type PickedContact } from '@/components/ContactPicker';
 import { friendlyError } from '@/lib/errors';
 import { pickGroupPhoto } from '@/lib/image';
+import { requestContacts } from '@/lib/contactPickerBridge';
+import { isPhoneCountryError } from '@/lib/phone';
 import { CountryRow } from '@/components/CountryPicker';
 import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
@@ -42,7 +45,7 @@ import {
   useLeaveGroup,
   useUpdateGroup,
 } from '@/data/hooks';
-import { plural, useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useFavorites } from '@/lib/favorites';
 import { displayName, groupLabel, GroupType, isGhost, vpaOf } from '@/data/types';
@@ -72,11 +75,12 @@ export default function GroupSettingsScreen() {
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const addGhost = useAddGhostMember(groupId);
 
-  // A name is enough to start splitting with someone (ADR-006). The heavier
-  // add flow — contact picker, email/phone — lives on the members screen; this
-  // is the quick add so the common case never leaves settings.
+  // A name is enough to start splitting with someone (ADR-006). Adding by name
+  // or from the phone's contacts both live here; the members screen keeps the
+  // extra email/phone address field for the case that needs it.
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
+  const [addingContacts, setAddingContacts] = useState(false);
   const addMember = (): void => {
     // The button disables while pending, but the keyboard's "done"
     // (onSubmitEditing) can still fire — guard so a second tap can't queue the
@@ -95,6 +99,59 @@ export default function GroupSettingsScreen() {
           setAddError(friendlyError(caught, t.misc.couldNotAddGeneric, 'groupSettings.addGhost')),
       },
     );
+  };
+
+  /**
+   * Several people ticked out of the phone's contacts, one call each — the same
+   * add path the members screen uses (the server takes one member per request,
+   * so batching would only hide which of them failed). A failure part-way does
+   * not undo the ones already in: the honest report is which names did not make
+   * it, keeping the first refusal's words so the message can say why.
+   */
+  const addPicked = async (people: readonly PickedContact[]): Promise<void> => {
+    setAddError(null);
+    setAddingContacts(true);
+    const failed: string[] = [];
+    let reason: string | null = null;
+    for (const person of people) {
+      try {
+        await addGhost.mutateAsync({
+          name: person.name,
+          email: person.email,
+          phone: person.phone,
+        });
+      } catch (caught) {
+        failed.push(person.name);
+        const message = isPhoneCountryError(caught)
+          ? t.people.phoneNeedsCountryCode
+          : friendlyError(caught, t.misc.tryAgainMoment, 'groupSettings.addPicked');
+        if (!reason) reason = message;
+      }
+    }
+    setAddingContacts(false);
+    if (failed.length === 0) return;
+    setAddError(fill(t.misc.couldNotAddSome, { reason: reason ?? '' }));
+  };
+
+  // Addresses already in the group, so the picker greys them out rather than
+  // letting somebody add the same person twice. The server would collapse it
+  // anyway — this just makes the reason visible.
+  const alreadyAdded = new Set(
+    (members.data ?? []).flatMap((member) =>
+      [member.invite_email, member.invite_phone].filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  // Opens the address book on its own screen rather than unfolding it inline —
+  // a thousand-name list needs the whole height (ADR-006: no book is uploaded).
+  // The ticked people come back through the bridge into `addPicked`.
+  const openContactPicker = (): void => {
+    requestContacts({
+      initial: [],
+      existing: alreadyAdded,
+      onPicked: (people) => void addPicked(people),
+    });
+    router.push('/contact-picker');
   };
 
   const [name, setName] = useState(group.data?.name ?? '');
@@ -363,8 +420,8 @@ export default function GroupSettingsScreen() {
 
           {/* The roster in the settings screen itself, so seeing who is in the
               group no longer costs a tap through to the members screen. Each row
-              still opens the person; the members screen keeps the fuller add
-              flow (contacts, email/phone). */}
+              still opens the person; the members screen keeps the extra
+              email/phone add field. */}
           <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
             {(members.data ?? []).map((member, index) => (
               <View key={member.id}>
@@ -426,6 +483,17 @@ export default function GroupSettingsScreen() {
                 onPress={addMember}
               />
             </Row>
+
+            {/* The fuller add — the same address-book picker the members screen
+                and new-group flow open, so adding somebody already in your phone
+                no longer means retyping their name here. */}
+            <Button
+              label={t.people.browseContacts}
+              variant="ghost"
+              disabled={addingContacts}
+              onPress={openContactPicker}
+            />
+            {addingContacts ? <ActivityIndicator color={theme.color.brand} /> : null}
             {addError ? <Callout tone="negative">{addError}</Callout> : null}
           </Card>
 
