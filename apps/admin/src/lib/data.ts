@@ -540,6 +540,32 @@ export const feedback = (limit = 100) =>
     p_limit: limit,
   });
 
+export interface VoiceAttemptRow {
+  id: string;
+  /** The person who spoke it, so the team can follow up — unlike feedback, this
+   *  view keeps the author, because a transcript is only useful for improving
+   *  parsing if you can reach who said it. */
+  profile_id: string | null;
+  transcript: string;
+  locale: string | null;
+  used_model: boolean;
+  item_count: number;
+  platform: string | null;
+  app_version: string | null;
+  client_at: string | null;
+  created_at: string;
+}
+
+/**
+ * The voice quick-add misses. The device only ever reports attempts that failed
+ * to parse (item_count 0), so this is the list of things the parser could not
+ * understand — the whole point of the view. Console-only, like `feedback`.
+ */
+export const voiceAttempts = (limit = 200) =>
+  call<VoiceAttemptRow>('baaki_admin_voice_attempts', {
+    p_limit: limit,
+  });
+
 export const flagResults = (key: string) =>
   call<FlagResultRow>('baaki_admin_flag_results', { p_key: key });
 

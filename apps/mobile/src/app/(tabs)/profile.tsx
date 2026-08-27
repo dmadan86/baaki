@@ -142,12 +142,6 @@ function settingsRows(t: UiStrings): SettingsRow[] {
       route: '/settings/import',
     },
     {
-      icon: 'mic-outline',
-      label: t.account.voiceLog,
-      hint: t.account.voiceLogHint,
-      route: '/settings/voice-log',
-    },
-    {
       icon: 'chatbubble-ellipses-outline',
       label: t.privacy.feedbackRow,
       hint: t.privacy.feedbackRowHint,

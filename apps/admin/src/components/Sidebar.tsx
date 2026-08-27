@@ -70,6 +70,13 @@ const I = {
       <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" />
     </svg>
   ),
+  mic: (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3" />
+    </svg>
+  ),
 };
 
 const SECTIONS: Section[] = [
@@ -91,7 +98,13 @@ const SECTIONS: Section[] = [
       { href: '/rate-limits', label: 'Rate limits', icon: I.gauge },
     ],
   },
-  { heading: 'Voice', items: [{ href: '/feedback', label: 'Feedback', icon: I.chat }] },
+  {
+    heading: 'Voice',
+    items: [
+      { href: '/feedback', label: 'Feedback', icon: I.chat },
+      { href: '/voice-attempts', label: 'Voice attempts', icon: I.mic },
+    ],
+  },
 ];
 
 export function Sidebar() {

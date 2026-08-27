@@ -178,6 +178,7 @@ model Profile {
   ghostMerges         GhostMerge[]
   storageObjects      StorageObject[]
   voiceSttUsage       VoiceSttUsage[]
+  voiceAttempts       VoiceAttempt[]
 
   @@map("profiles")
   @@schema("public")
@@ -1566,6 +1567,36 @@ model VoiceSttUsage {
 
   @@id([profileId, period])
   @@map("voice_stt_usage")
+  @@schema("public")
+}
+
+/// A failed voice quick-add, reported from the device so the parser can be
+/// improved against what people actually said (reverses the old on-device log).
+/// Written through `baaki_log_voice_attempt`, which stamps the author from the
+/// JWT; read only by the admin console via `baaki_admin_voice_attempts`. RLS
+/// grants a user INSERT of their own and grants SELECT to nobody but the service
+/// role, so raw transcripts never reach another person.
+model VoiceAttempt {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId  String?   @map("profile_id") @db.Uuid
+  /// What speech-to-text returned, verbatim.
+  transcript String
+  /// The reader's UI language when the miss happened.
+  locale     String?
+  /// Whether the model tier (BYOK) parsed it, vs the on-device heuristic.
+  usedModel  Boolean   @default(false) @map("used_model")
+  /// How many expenses the parse produced. Always 0 for what the client stores.
+  itemCount  Int       @default(0) @map("item_count")
+  platform   String?
+  appVersion String?   @map("app_version")
+  /// The device's clock when the miss happened; a report can arrive later.
+  clientAt   DateTime? @map("client_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt(sort: Desc)], map: "voice_attempts_recent_idx")
+  @@map("voice_attempts")
   @@schema("public")
 }
 
