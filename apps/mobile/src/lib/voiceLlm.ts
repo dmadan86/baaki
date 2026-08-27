@@ -507,7 +507,8 @@ export async function interpretVoiceExpenses(
     // The call earned its cost only once we know it produced something usable.
     await noteUsage(reply.totalTokens);
 
-    return { items, group, splitCount: parseVoiceExpenses(trimmed, ctx.groups).splitCount };
+    const heuristic = parseVoiceExpenses(trimmed, ctx.groups);
+    return { items, group, splitCount: heuristic.splitCount, peopleText: heuristic.peopleText };
   } catch (caught) {
     // Network error, abort/timeout, malformed body — all of it is a fallback, not
     // a crash. The raw error (scrubbed) goes to Sentry; the key and transcript do

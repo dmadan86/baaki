@@ -62,7 +62,7 @@ import {
   useWriteExpense,
   type DestinationUsage,
 } from '@/data/hooks';
-import { groupLabel, GroupType, type GroupRow } from '@/data/types';
+import { displayName, groupLabel, GroupType, type GroupRow } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
@@ -71,7 +71,12 @@ import { friendlyError } from '@/lib/errors';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
 import { LocationField } from '@/components/LocationField';
 import { captureLocation, locationAvailable } from '@/lib/location';
-import { parseVoiceExpenses, type VoiceGroupRef, type VoiceParseResult } from '@/lib/voiceExpense';
+import {
+  parseVoiceExpenses,
+  resolveVoiceParticipants,
+  type VoiceGroupRef,
+  type VoiceParseResult,
+} from '@/lib/voiceExpense';
 import { interpretVoiceExpenses } from '@/lib/voiceLlm';
 import { logVoiceAttempt } from '@/lib/voiceLog';
 
@@ -188,6 +193,8 @@ export default function VoiceScreen() {
   // capture, "add more", or a single row's re-dictation), read when it returns.
   const [micMode, setMicMode] = useState<MicMode>('replace');
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [voicePeopleText, setVoicePeopleText] = useState<string | null>(null);
+  const [voiceSplitCount, setVoiceSplitCount] = useState<number | null>(null);
   // One place for the whole spoken batch — a run of "coffee, then the taxi" all
   // happened where you are standing (A43). Optional and opt-in; null until the
   // reader taps "Add location" on the review.
@@ -331,6 +338,8 @@ export default function VoiceScreen() {
         currency: item.currency,
       })),
     );
+    setVoicePeopleText(result.peopleText);
+    setVoiceSplitCount(result.splitCount);
     // A fresh parse is a fresh group to create, and a fresh location to read.
     groupCreated.current = false;
     ghostMemberId.current = null;
@@ -427,6 +436,8 @@ export default function VoiceScreen() {
       return;
     }
     setDrafts((current) => [...current, ...toDrafts(result)]);
+    if (result.peopleText) setVoicePeopleText(result.peopleText);
+    if (result.splitCount !== null) setVoiceSplitCount(result.splitCount);
     setNoAmount(false);
     setMicMode('replace');
     setPhase('review');
@@ -676,19 +687,30 @@ export default function VoiceScreen() {
 
       const groupCurrency =
         dest.kind === 'existing' ? (target.group.data?.default_currency ?? dc) : dc;
+      const groupMembers = target.members.data ?? [];
+      const payer =
+        dest.kind === 'existing'
+          ? (groupMembers.find((member) => member.profile_id === profile?.id)?.id ??
+            groupMembers[0]?.id)
+          : dest.memberId;
+      if (!payer) throw new Error('no members to split among');
       const participants =
         dest.kind === 'existing'
-          ? (target.members.data ?? []).map((member) => member.id)
+          ? resolveVoiceParticipants({
+              all: groupMembers.map((member) => member.id),
+              payer,
+              members: groupMembers.map((member) => ({
+                id: member.id,
+                name: displayName(member, profile?.id),
+              })),
+              peopleText: voicePeopleText,
+              splitCount: voiceSplitCount,
+            })
           : dest.kind === 'person'
             ? [dest.memberId, ghostMemberId.current!]
             : [dest.memberId];
-      const payer =
-        dest.kind === 'existing'
-          ? ((target.members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ??
-            participants[0])
-          : dest.memberId;
 
-      if (participants.length === 0 || !payer) throw new Error('no members to split among');
+      if (participants.length === 0) throw new Error('no members to split among');
 
       for (const draft of drafts) {
         const amount = toMinor(draft.amount, groupCurrency);

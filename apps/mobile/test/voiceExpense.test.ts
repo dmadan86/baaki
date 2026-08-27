@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchMemberNames, parseVoiceExpense, type VoiceGroupRef } from '@/lib/voiceExpense';
+import {
+  matchMemberNames,
+  parseVoiceExpense,
+  resolveVoiceParticipants,
+  type VoiceGroupRef,
+} from '@/lib/voiceExpense';
 
 const groups: VoiceGroupRef[] = [
   { id: 'g-goa', name: 'Goa Trip' },
@@ -271,8 +276,14 @@ describe('parseVoiceExpense', () => {
     }
   });
 
-  it('rejects negative signed amounts in currency-adjacent and fallback positions', () => {
-    for (const sentence of ['-500 rupees dinner', '₹-500 dinner', 'minus -500 dinner']) {
+  it('rejects negative signed and spoken amounts in currency-adjacent and fallback positions', () => {
+    for (const sentence of [
+      '-500 rupees dinner',
+      '₹-500 dinner',
+      'minus -500 dinner',
+      'minus five hundred rupees dinner',
+      'negative twenty dollars cab',
+    ]) {
       const parsed = parseVoiceExpense(sentence, groups);
       expect(parsed.amountMajor, sentence).toBeNull();
       expect(parsed.amountMinor, sentence).toBeNull();
@@ -420,6 +431,56 @@ describe('matchMemberNames', () => {
   it('returns nothing when no one is named', () => {
     expect(matchMemberNames('add 500 for dinner', members)).toEqual([]);
   });
+
+  it('resolves named voice participants and keeps the payer included', () => {
+    expect(
+      resolveVoiceParticipants({
+        all: members.map((member) => member.id),
+        payer: 'm-me',
+        members,
+        peopleText: '800 dinner split with Ravi and Priya',
+        splitCount: 3,
+      }),
+    ).toEqual(['m-ravi', 'm-priya', 'm-me']);
+    expect(
+      resolveVoiceParticipants({
+        all: members.map((member) => member.id),
+        payer: 'm-me',
+        members,
+        peopleText: 'split 800 dinner with Ravi and Priya',
+        splitCount: 3,
+      }),
+    ).toEqual(['m-ravi', 'm-priya', 'm-me']);
+  });
+
+  it('does not narrow participants when names appear outside an explicit split clause', () => {
+    const all = members.map((member) => member.id);
+    expect(
+      resolveVoiceParticipants({
+        all,
+        payer: 'm-me',
+        members,
+        peopleText: "1000 rupees for Priya's birthday dinner",
+        splitCount: null,
+      }),
+    ).toEqual(all);
+  });
+
+  it('falls back to all members when a split count names nobody or conflicts', () => {
+    const all = members.map((member) => member.id);
+    expect(
+      resolveVoiceParticipants({ all, payer: 'm-me', members, peopleText: null, splitCount: 2 }),
+    ).toEqual(all);
+    expect(
+      resolveVoiceParticipants({
+        all,
+        payer: 'm-me',
+        members,
+        peopleText: '800 dinner split with Ravi and Priya',
+        splitCount: 2,
+      }),
+    ).toEqual(all);
+  });
 });
 
 import { detectCreateGroup, normalizeDigits, parseVoiceExpenses } from '@/lib/voiceExpense';
@@ -523,6 +584,15 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items[0].amountMajor).toBe(1000);
   });
 
+  it('carries split names for downstream matching without leaking them into the note', () => {
+    const result = parseVoiceExpenses(
+      '800 rupees dinner on Goa trip split with Ravi and Priya',
+      groups,
+    );
+    expect(result.peopleText).toBe('800 rupees dinner on Goa trip split with Ravi and Priya');
+    expect(result.items[0].note).toBe('dinner');
+  });
+
   it('carries non-rupee currencies through the multi-expense path', () => {
     const result = parseVoiceExpenses('20 euros coffee, 15 euros cake', groups);
     expect(result.items.map((item) => item.currency)).toEqual(['EUR', 'EUR']);
@@ -549,11 +619,26 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     }
   });
 
-  it('does not create items from signed negative amounts', () => {
-    for (const sentence of ['-500 rupees dinner', '₹-500 dinner', 'minus -500 dinner']) {
+  it('does not create items from signed or spoken negative amounts', () => {
+    for (const sentence of [
+      '-500 rupees dinner',
+      '₹-500 dinner',
+      'minus -500 dinner',
+      'minus five hundred rupees dinner',
+      'negative twenty dollars cab',
+    ]) {
       expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
     }
     expect(parseVoiceExpenses('+500 rupees dinner', groups).items[0]?.amountMajor).toBe(500);
+  });
+
+  it('does not reject non-amount uses of negative or minus', () => {
+    expect(parseVoiceExpenses('500 rupees negative test kit', groups).items[0]?.note).toBe(
+      'negative test kit',
+    );
+    expect(parseVoiceExpenses('300 rupees minus screwdriver', groups).items[0]?.note).toBe(
+      'minus screwdriver',
+    );
   });
 
   it('does not sum mixed-currency plus runs into one cross-currency amount', () => {
