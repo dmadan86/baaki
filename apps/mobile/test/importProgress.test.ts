@@ -165,9 +165,11 @@ describe('importProgress store', () => {
     const first = vi.fn(() => deferred<ImportResult>().promise);
     const second = vi.fn(() => deferred<ImportResult>().promise);
 
-    beginImport({ name: 'One', run: first });
+    expect(beginImport({ name: 'One', run: first })).toBe(true);
     await flush();
-    beginImport({ name: 'Two', run: second });
+    // Refused while one is running — and the caller is told, so it can stay put
+    // rather than navigate away and strand this file.
+    expect(beginImport({ name: 'Two', run: second })).toBe(false);
     await flush();
 
     expect(first).toHaveBeenCalledTimes(1);

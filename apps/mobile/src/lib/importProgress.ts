@@ -195,14 +195,17 @@ function park(job: ImportJob, mine: number): void {
 }
 
 /**
- * Start an import. A second call while one is already running or waiting is
- * ignored, so a double tap cannot fan out two writes.
+ * Start an import. Returns whether the job was scheduled: `false` when one is
+ * already running or waiting (a second import is refused so a double tap cannot
+ * fan out two writes), `true` once this job is on. The caller uses that to
+ * decide whether to leave the import screen — dropping the job *and* navigating
+ * away would strand the person's mapping unimported.
  *
  * If the phone is offline at the tap, the job is parked straight into `waiting`
  * rather than run and failed.
  */
-export function beginImport(job: ImportJob): void {
-  if (snapshot.phase === 'running' || snapshot.phase === 'waiting') return;
+export function beginImport(job: ImportJob): boolean {
+  if (snapshot.phase === 'running' || snapshot.phase === 'waiting') return false;
   stopClear();
   stopNetWatch();
   pendingJob = null;
@@ -216,6 +219,7 @@ export function beginImport(job: ImportJob): void {
     if (online) attempt(job, mine);
     else park(job, mine);
   });
+  return true;
 }
 
 /** Clear the banner — the error/waiting dismiss, and the guard against a late

@@ -369,7 +369,7 @@ export default function ImportScreen() {
       return;
     }
 
-    beginImport({
+    const scheduled = beginImport({
       name,
       run: async () => {
         try {
@@ -444,6 +444,13 @@ export default function ImportScreen() {
       },
     });
 
+    // Only leave once the job is actually on. If another import is already
+    // running, the store refused this one — staying put with a message beats
+    // walking home to watch a different import and silently losing this file.
+    if (!scheduled) {
+      setError(t.importLedger.alreadyImporting);
+      return;
+    }
     router.replace('/');
   };
 
