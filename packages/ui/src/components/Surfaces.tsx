@@ -1,10 +1,48 @@
 import type { ReactNode } from 'react';
 import { View, type ViewProps, type ViewStyle } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
 import type { TintName } from '../tokens';
 import { Text } from './Text';
+
+/**
+ * The safe-area padding applied as a plain `View`, read from the *hook* rather
+ * than drawn by `SafeAreaView`.
+ *
+ * `SafeAreaView` measures its own frame to decide which edges touch the screen
+ * boundary, so on a freshly mounted screen its first layout pass runs with zero
+ * padding and the real inset lands a frame later — the whole screen visibly
+ * drops by the status-bar height as you arrive on it (the "layout shift" on a
+ * tab you have not visited this session). `useSafeAreaInsets` instead returns
+ * the inset already measured by the root provider, synchronously, on the very
+ * first render — so the content is placed correctly from frame one and nothing
+ * jumps in. This is why finance/chat apps lay out against known insets rather
+ * than a self-measuring safe-area view.
+ */
+function ScreenBody({
+  children,
+  edges,
+  style,
+}: {
+  children: ReactNode;
+  edges: readonly Edge[];
+  style?: ViewStyle;
+}) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const inset: ViewStyle = {
+    paddingTop: edges.includes('top') ? insets.top : 0,
+    paddingBottom: edges.includes('bottom') ? insets.bottom : 0,
+    paddingLeft: edges.includes('left') ? insets.left : 0,
+    paddingRight: edges.includes('right') ? insets.right : 0,
+  };
+  // `style` last so a screen that sets its own padding still wins, exactly as it
+  // did when this merged over `SafeAreaView`'s style.
+  return (
+    <View style={[{ flex: 1, backgroundColor: theme.color.bg }, inset, style]}>{children}</View>
+  );
+}
 
 export function Screen({
   children,
@@ -20,17 +58,17 @@ export function Screen({
    * in its own native window that the app's SafeAreaProvider can't reach, so on
    * edge-to-edge Android the insets read as zero and the content slides under
    * the status bar. Wrapping the modal's Screen in its own provider makes the
-   * safe-area inside it re-measure against the modal window.
+   * safe-area inside it re-measure against the modal window — and `ScreenBody`'s
+   * hook then reads that inner provider's insets.
    */
   inModal?: boolean;
 }) {
-  const theme = useTheme();
-  const screen = (
-    <SafeAreaView edges={edges} style={[{ flex: 1, backgroundColor: theme.color.bg }, style]}>
+  const body = (
+    <ScreenBody edges={edges} style={style}>
       {children}
-    </SafeAreaView>
+    </ScreenBody>
   );
-  return inModal ? <SafeAreaProvider>{screen}</SafeAreaProvider> : screen;
+  return inModal ? <SafeAreaProvider>{body}</SafeAreaProvider> : body;
 }
 
 export interface CardProps extends ViewProps {
