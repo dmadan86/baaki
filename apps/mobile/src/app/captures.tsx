@@ -13,7 +13,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import {
   Alert,
@@ -46,8 +45,6 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { PendingMark } from '@/components/PendingMark';
 import { InboxSkeleton } from '@/components/Skeletons';
-import { capturePhotoUrl } from '@/data/api';
-import { useSignedUrl } from '@/lib/useSignedUrl';
 import { dayHeading } from '@/data/activity';
 import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
@@ -56,41 +53,17 @@ import { useAuth } from '@/lib/auth';
 import { buildCaptureFeedItems, type CaptureFeedItem } from '@/lib/captureFeed';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
-/** A signed URL for a capture's receipt, re-resolved on change and kept fresh
- *  past the signed-URL expiry (see `useSignedUrl`). */
-function CaptureThumb({ path, size }: { path: string; size: number }) {
-  const theme = useTheme();
-  const url = useSignedUrl(path, capturePhotoUrl);
-
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: theme.radius.sm,
-        overflow: 'hidden',
-        backgroundColor: theme.color.surfaceMuted,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {url ? (
-        <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-      ) : (
-        <Ionicons name="receipt-outline" size={size * 0.4} color={theme.color.textFaint} />
-      )}
-    </View>
-  );
-}
-
 /**
- * One capture as a flat list row, the WhatsApp/GroupCard grammar the rest of the
- * app speaks: a leading identity glyph (the bill's own thumbnail, or its category
- * colour), the note over a muted date line, and the amount at the trailing edge.
+ * One capture, in the card grammar this screen now speaks (Mobbin: Phantom
+ * Recent Activity, Apple Wallet Daily Cash): a leading category glyph — always
+ * the category colour, never the bill's thumbnail — the note over a muted place
+ * line, and the amount at the trailing edge, all on a soft rounded card.
  *
- * The whole row taps to assign — the one thing you do with a capture — so the
- * screen sheds the full-width button it used to stack under every card. Delete
- * is the quiet trailing control, kept out of the tap target by its own hitbox.
+ * The whole card taps to assign, the one thing you do with a capture. Edit and
+ * delete are the quiet trailing controls, each with its own hitbox so the card's
+ * tap still assigns. Inside a batch a row is `bare` — no card of its own, since
+ * the batch card already frames it — and drops the place (the batch is one
+ * outing, one location).
  */
 function CaptureListRow({
   capture,
@@ -100,6 +73,7 @@ function CaptureListRow({
   onEdit,
   onDelete,
   hideLocation = false,
+  bare = false,
 }: {
   capture: CaptureRow;
   locale: string;
@@ -110,6 +84,8 @@ function CaptureListRow({
   /** Inside a batch the description IS the line that matters, so the place is
    *  suppressed there — the batch stands for one outing, one location. */
   hideLocation?: boolean;
+  /** A row nested in a batch card: no card frame of its own. */
+  bare?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   // The note names the spend; with none, its category does; with neither, it is
@@ -130,21 +106,29 @@ function CaptureListRow({
       accessibilityRole="button"
       accessibilityLabel={`${title}, ${t.captures.assign}`}
       onPress={onAssign}
-      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      style={({ pressed }) =>
+        bare
+          ? { opacity: pressed ? 0.6 : 1 }
+          : {
+              opacity: pressed ? 0.85 : 1,
+              backgroundColor: theme.color.surface,
+              borderRadius: theme.radius.lg,
+              borderWidth: 1,
+              borderColor: theme.color.border,
+              paddingHorizontal: theme.spacing.md,
+              marginVertical: theme.spacing.xs,
+            }
+      }
     >
       <Row
         style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
       >
-        {capture.photo_path ? (
-          <CaptureThumb path={capture.photo_path} size={46} />
-        ) : (
-          <CategoryBadge
-            category={capture.category}
-            meta={capture.category_meta}
-            description={capture.description}
-            size={46}
-          />
-        )}
+        <CategoryBadge
+          category={capture.category}
+          meta={capture.category_meta}
+          description={capture.description}
+          size={46}
+        />
 
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="subheading" numberOfLines={1}>
@@ -341,6 +325,7 @@ function BatchGroupCard({
                 onEdit={() => onEdit(capture)}
                 onDelete={() => onDelete(capture)}
                 hideLocation
+                bare
               />
               {index === items.length - 1 ? <View style={{ height: theme.spacing.xs }} /> : null}
             </View>
