@@ -1428,32 +1428,50 @@ function HeroDots({
 }
 
 /**
- * The balance area while it loads — two translucent-white bars on the green, a
- * label bar over a taller figure bar, sized to the same block the real balance
- * fills so the swap in is a settle, not a jump. Plain `Skeleton` is themed for
- * light surfaces and would vanish on the green, so these are hand-drawn washes.
+ * The balance area while it loads — translucent-white bars on the green that
+ * stand in for a `MetricSlide`: a label bar, the big figure, and the sub line.
+ *
+ * The whole point is that the swap-in is a settle, not a jump, so the skeleton
+ * is built to the *exact* height a loaded slide fills. Each bar rides inside a
+ * wrapper sized to the real line's height — the label and sub to the caption's
+ * 18px line, the figure to the money's 46px line — so the block is 92px tall
+ * either way and the number lands in place instead of shoving the Add-expense
+ * button and the group list down (the layout shift the user flagged). A gentle
+ * pulse reads as "loading" rather than a dead placeholder. Plain `Skeleton` is
+ * themed for light surfaces and would vanish on the green, so these are
+ * hand-drawn washes.
  */
 function HeroBalanceSkeleton() {
   const theme = useTheme();
+  // A slow breathe so the bars read as loading. Lazy-init state, never through a
+  // ref in render (the React Compiler lints that), native-driven opacity.
+  const [pulse] = useState(() => new Animated.Value(0.5));
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.5, duration: 650, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  const bar = (width: number, height: number) => (
+    <View
+      style={{ width, height, borderRadius: height / 2, backgroundColor: 'rgba(255,255,255,0.28)' }}
+    />
+  );
   return (
-    <View style={{ gap: theme.spacing.sm }}>
-      <View
-        style={{
-          width: 120,
-          height: 14,
-          borderRadius: 7,
-          backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        }}
-      />
-      <View
-        style={{
-          width: 200,
-          height: 40,
-          borderRadius: 10,
-          backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        }}
-      />
-    </View>
+    <Animated.View style={{ gap: theme.spacing.sm, opacity: pulse }}>
+      {/* Label line — the caption+eye row rides an 18px line height. */}
+      <View style={{ height: 18, justifyContent: 'center' }}>{bar(120, 12)}</View>
+      <View style={{ gap: 2 }}>
+        {/* The figure — the money sits on a 46px line (fontSize 40). */}
+        <View style={{ height: 46, justifyContent: 'center' }}>{bar(200, 34)}</View>
+        {/* The sub caption — another 18px line. */}
+        <View style={{ height: 18, justifyContent: 'center' }}>{bar(90, 12)}</View>
+      </View>
+    </Animated.View>
   );
 }
 
