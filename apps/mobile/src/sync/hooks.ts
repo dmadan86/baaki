@@ -42,7 +42,7 @@ export function useLocalGroups(): GroupRow[] {
   return useMemo(
     () =>
       (rowsFor(mirror, SyncTable.Groups) as unknown as GroupRow[])
-        .filter((group) => !group.archived_at)
+        .filter((group) => !group.archived_at && !group.deleted_at)
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
     [mirror],
   );

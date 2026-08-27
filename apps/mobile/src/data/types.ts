@@ -52,6 +52,10 @@ export interface GroupRow {
   remind_morning_at: string;
   remind_evening_at: string;
   archived_at: string | null;
+  /** A group-wide tombstone (A49): set when an admin deletes a settled group.
+   *  Hides the group from every list — active AND archive — on all members'
+   *  devices; the rows stay (ADR-004). */
+  deleted_at: string | null;
   created_at: string;
   /** The overall trip budget, minor units, or null for "no cap". Set by an admin
    *  and always group-visible; the private per-member caps live elsewhere.

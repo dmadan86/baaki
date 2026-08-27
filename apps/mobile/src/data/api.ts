@@ -48,7 +48,7 @@ import type {
 const GROUP_SELECT = `
   id, name, type, country_code, default_currency, simplify_debts, cover_emoji, photo_path,
   start_date, end_date, time_zone, remind_daily, remind_morning_at, remind_evening_at,
-  archived_at, created_at
+  archived_at, deleted_at, created_at
 `;
 
 // profiles is embedded by its FK column (profile_id): ghost_merges references
@@ -83,6 +83,9 @@ export async function fetchGroups(): Promise<GroupRow[]> {
       .from('groups')
       .select(GROUP_SELECT)
       .is('archived_at', null)
+      // A deleted group (A49) is a tombstone, not an archive — it never shows,
+      // so it is excluded here as well as from the archived list.
+      .is('deleted_at', null)
       .order('created_at', { ascending: false }),
   );
 }
@@ -977,6 +980,31 @@ export async function leaveGroup(memberId: string): Promise<void> {
     .update({ left_at: new Date().toISOString() })
     .eq('id', memberId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Delete a group for everyone (A49) — Splitwise-style. A group-wide tombstone,
+ * not a row delete: the ledger stays append-only (ADR-004), the group simply
+ * leaves every member's lists on their next sync.
+ *
+ * Admin-only and settled-only are enforced in `baaki_delete_group`, not here —
+ * the button only offers it to an admin of a squared-up group, so the two coded
+ * refusals are defence-in-depth. They are turned into a sentence the same way
+ * `importLedger` maps its codes.
+ */
+export async function deleteGroup(groupId: string): Promise<void> {
+  const { error } = await backend.rpc('baaki_delete_group', { p_group_id: groupId });
+  if (error) {
+    const code = /^([A-Z_]+):/.exec(error.message)?.[1];
+    const strings = activeStrings();
+    throw new Error(
+      code === 'NOT_SETTLED'
+        ? strings.group.settleAllFirstBody
+        : code === 'NOT_ADMIN'
+          ? strings.group.deleteAdminOnly
+          : error.message,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────── invites (ADR-006) ──
