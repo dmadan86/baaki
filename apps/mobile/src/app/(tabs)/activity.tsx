@@ -256,7 +256,7 @@ export default function ActivityScreen() {
           {/* The feed is what happened in the groups; the inbox is what Baaki
               said to you. Related enough to sit together, different enough not
               to be interleaved. */}
-          <IconButton label={t.tabs.inbox} onPress={() => router.push('/inbox' as never)}>
+          <IconButton label={t.tabs.inbox} onPress={() => router.navigate('/inbox')}>
             <Ionicons name="notifications-outline" size={iconSize.lg} color={theme.color.text} />
             {unread > 0 ? (
               <View

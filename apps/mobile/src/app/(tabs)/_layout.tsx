@@ -39,6 +39,11 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="friends" />
       <Tabs.Screen name="activity" />
+      {/* The inbox is a bar destination like the three above it, so it lives in
+          the tab navigator too — a tap from Activity is then an instant tab swap,
+          not a stack push that re-reveals (and thaws) the whole tab tree. It is
+          not shown in the hidden native bar; the root `AppTabBar` draws it. */}
+      <Tabs.Screen name="inbox" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );
