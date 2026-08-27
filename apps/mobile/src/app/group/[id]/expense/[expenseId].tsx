@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ScrollView as RNScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -106,6 +106,23 @@ export default function ExpenseDetailScreen() {
   // The page has two faces: its breakdown, and its edit history. The hero stays
   // above both; only the body below the tab bar swaps.
   const [tab, setTab] = useState<'details' | 'history'>('details');
+  // The receipts section (and so its ref) is mounted only under the details tab,
+  // but the hero — with the "add receipt" button — stays above both tabs. A tap
+  // from the history tab would hit a null ref and do nothing, so it flips to
+  // details and parks the intent here; this effect fires it once the section has
+  // mounted.
+  const [pendingAdd, setPendingAdd] = useState(false);
+  useEffect(() => {
+    if (!pendingAdd || tab !== 'details') return undefined;
+    // Through a frame, not synchronously in the effect body: a bare setState here
+    // cascades renders (the lint the compiler enforces), and the extra tick also
+    // lets the just-switched-to receipts section finish mounting so its ref is set.
+    const frame = requestAnimationFrame(() => {
+      setPendingAdd(false);
+      receiptsRef.current?.openAdd();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pendingAdd, tab]);
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
 
@@ -396,7 +413,14 @@ export default function ExpenseDetailScreen() {
                 adding; the button drives the receipts section through its ref. */}
             {isExpenseParty ? (
               <Pressable
-                onPress={() => receiptsRef.current?.openAdd()}
+                onPress={() => {
+                  if (tab === 'details') receiptsRef.current?.openAdd();
+                  else {
+                    // Switch to where the receipts live, then add once mounted.
+                    setTab('details');
+                    setPendingAdd(true);
+                  }
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={t.receipts.add}
                 style={({ pressed }) => ({
@@ -463,7 +487,7 @@ export default function ExpenseDetailScreen() {
             <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
               <DetailLine
                 label={t.expense.detailGroup}
-                value={groupLabel(group.data, members.data ?? [])}
+                value={groupLabel(group.data, members.data ?? [], profile?.id)}
               />
               <View style={{ height: 1, backgroundColor: theme.color.border }} />
               <DetailLine
