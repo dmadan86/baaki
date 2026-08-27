@@ -12,6 +12,7 @@ import {
   dictationError,
   englishSpeechLocale,
   mergeTranscript,
+  onDeviceLocaleInstalled,
   speechLocale,
 } from '@/lib/dictation';
 import { Language, STRINGS_BY_LANGUAGE } from '@/i18n';
@@ -129,5 +130,34 @@ describe('dictationError', () => {
     for (const code of codes) {
       expect(dictationError(code, messages)).toMatch(/try again|Type the note|speak again/i);
     }
+  });
+});
+
+describe('onDeviceLocaleInstalled', () => {
+  it('does not let one region stand in for another', () => {
+    // The bug this guards: asking for the en-IN on-device model on a phone that
+    // only has en-US returns silence. Two regioned tags must match in full.
+    expect(onDeviceLocaleInstalled('en-IN', ['en-US'])).toBe(false);
+    expect(onDeviceLocaleInstalled('en-IN', ['en-US', 'en-GB'])).toBe(false);
+    expect(onDeviceLocaleInstalled('en-IN', ['en-IN'])).toBe(true);
+  });
+
+  it('treats a language-only installed entry as the whole language', () => {
+    // Android commonly lists an installed model as just `en` — the generic
+    // model, which does cover any English region.
+    expect(onDeviceLocaleInstalled('en-IN', ['en'])).toBe(true);
+    expect(onDeviceLocaleInstalled('ta-IN', ['ta'])).toBe(true);
+  });
+
+  it('covers a language-only request with any installed region of it', () => {
+    expect(onDeviceLocaleInstalled('en', ['en-US'])).toBe(true);
+    expect(onDeviceLocaleInstalled('en', ['fr-FR'])).toBe(false);
+  });
+
+  it('normalises separators and case, and handles an empty probe', () => {
+    expect(onDeviceLocaleInstalled('en_IN', ['EN-in'])).toBe(true);
+    expect(onDeviceLocaleInstalled('en-IN', [])).toBe(false);
+    expect(onDeviceLocaleInstalled('en-IN', null)).toBe(false);
+    expect(onDeviceLocaleInstalled('', ['en'])).toBe(false);
   });
 });

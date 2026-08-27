@@ -12,6 +12,14 @@
  * `DictateButton`, which loads it inside a `try`, because the import below
  * throws on any binary built before the native module existed — see the note
  * there.
+ *
+ * The native recogniser is a single global object with one event stream: every
+ * mounted `DictateVoice` (a review screen shows one per expense row) subscribes
+ * to the *same* `result`/`error`/`end` events. So a module-level lock hands the
+ * mic to one field at a time, and each instance acts on an event only while it
+ * is the one listening — otherwise idle rows cross-write the transcript, and a
+ * row unmounting (the list changing after "add more") aborts a capture some
+ * other surface just started.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -22,7 +30,12 @@ import { Linking, Pressable, View } from 'react-native';
 import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
-import { dictationError, mergeTranscript, speechLocale } from '@/lib/dictation';
+import {
+  dictationError,
+  mergeTranscript,
+  onDeviceLocaleInstalled,
+  speechLocale,
+} from '@/lib/dictation';
 
 export interface DictateProps {
   /** What is in the field now. Dictation adds to it, never replaces it. */
@@ -36,10 +49,60 @@ export interface DictateProps {
   hints?: readonly string[];
 }
 
+/**
+ * Which field currently owns the single native recogniser, or `null` when no
+ * dictation is running. Module-level on purpose: it is shared across every
+ * mounted `DictateVoice` so a second field cannot start a capture on top of the
+ * first, and so only the owning field reacts to the global events.
+ */
+let micOwner: symbol | null = null;
+
 /** Whether this phone has a recogniser at all. A phone without one gets no mic. */
 function recognitionAvailable(): boolean {
   try {
     return ExpoSpeechRecognitionModule.isRecognitionAvailable();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether an on-device model for `langTag` is actually installed on this phone.
+ *
+ * `supportsOnDeviceRecognition()` only says the phone can do on-device work at
+ * all — not that the model for the language we are about to ask for is present.
+ * Requiring on-device for a locale whose model is not downloaded is a quiet
+ * failure: the recogniser starts, hears the words, and returns nothing, because
+ * it was told to use a model that is not there (the "did not catch anything"
+ * this field used to hit). So on-device is requested only when this language is
+ * in `installedLocales`; otherwise the mic falls back to network recognition,
+ * which is what the keyboard's mic key uses. An empty or throwing probe
+ * (Android 12 and below, a missing service) resolves to `false` and the network
+ * path, which works, rather than the on-device path, which may not.
+ */
+async function installedOnDeviceFor(langTag: string): Promise<boolean> {
+  try {
+    let supportsOnDevice = false;
+    try {
+      supportsOnDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+    } catch {
+      supportsOnDevice = false;
+    }
+    if (!supportsOnDevice) return false;
+
+    let androidRecognitionServicePackage: string | undefined;
+    try {
+      const pkg = ExpoSpeechRecognitionModule.getDefaultRecognitionService?.().packageName;
+      if (pkg) androidRecognitionServicePackage = pkg;
+    } catch {
+      // iOS / older builds have no Android service concept — query without one.
+    }
+    const { installedLocales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
+      androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {},
+    );
+    // Match the whole tag, region and all: a phone with only en-US installed
+    // must not be told it has the en-IN model (that returns silence).
+    return onDeviceLocaleInstalled(langTag, installedLocales);
   } catch {
     return false;
   }
@@ -55,6 +118,20 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // This instance's identity in the module-level `micOwner` lock. Stable for the
+  // life of the component (lazy-initialised so it is minted once).
+  const [id] = useState(() => Symbol('dictate'));
+
+  // Whether *this* field is the one currently listening, read synchronously
+  // inside the global event handlers. The single-owner lock guarantees at most
+  // one field has this set at a time, so it is a safe stand-in for "this event
+  // is mine" — and it avoids reacting to an event another field's session fired.
+  const listeningRef = useRef(false);
+  const setListeningState = useCallback((next: boolean): void => {
+    listeningRef.current = next;
+    setListening(next);
+  }, []);
+
   // What the field held when the mic was tapped. Interim results are re-issued
   // in full, so every one of them is merged onto this rather than onto the
   // field's current contents.
@@ -65,23 +142,42 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   const mounted = useRef(true);
 
   useSpeechRecognitionEvent('result', (event) => {
+    // Only the field that started this capture takes the words — otherwise the
+    // other rows' mics would each merge the transcript into their own note too.
+    if (!listeningRef.current) return;
     const transcript = event.results[0]?.transcript ?? '';
     onChange(mergeTranscript(before.current, transcript));
   });
 
   useSpeechRecognitionEvent('error', (event) => {
+    if (!listeningRef.current) return;
+    micOwner = null;
+    setListeningState(false);
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
   });
 
-  useSpeechRecognitionEvent('end', () => setListening(false));
+  useSpeechRecognitionEvent('end', () => {
+    if (!listeningRef.current) return;
+    micOwner = null;
+    setListeningState(false);
+  });
 
   const stop = useCallback(() => {
+    // Ask the recogniser to finish — but hold the lock and the listening flag.
+    // stop() (unlike abort()) still delivers one last `result` and then `end`,
+    // and it is the `end`/`error` handlers that clear ownership. Clearing it
+    // here would make that final result's `if (!listeningRef.current) return`
+    // drop the last words the person spoke before tapping stop.
     ExpoSpeechRecognitionModule.stop();
-    setListening(false);
   }, []);
 
   const start = useCallback(async () => {
+    // The mic is a single global object. If another field is mid-dictation,
+    // ignore the tap rather than aborting it: an abort would race that field's
+    // next event and wedge the recogniser for both.
+    if (micOwner !== null && micOwner !== id) return;
+
     setError(null);
 
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
@@ -91,22 +187,27 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
       return;
     }
 
+    const lang = speechLocale(language, locale);
+
     // Best effort, not a requirement: asking for on-device recognition on a
-    // phone that has no model for this language would fail outright, and a
-    // failed note is worse than a note the OS transcribed over the network.
-    let onDevice = false;
-    try {
-      onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
-    } catch {
-      onDevice = false;
-    }
+    // phone that has no model for this language returns silence, so fall to the
+    // network recogniser unless the language's model is actually installed.
+    const onDevice = await installedOnDeviceFor(lang);
+    if (!mounted.current) return;
+
+    // Re-check the lock right before taking it. The two awaits above (the
+    // permission prompt, the installed-model probe) give another field a window
+    // to claim the mic between the first check and here; without this recheck
+    // two overlapping starts could both reach ExpoSpeechRecognitionModule.start.
+    if (micOwner !== null && micOwner !== id) return;
 
     before.current = value;
-    setListening(true);
+    micOwner = id;
+    setListeningState(true);
 
     try {
       ExpoSpeechRecognitionModule.start({
-        lang: speechLocale(language, locale),
+        lang,
         interimResults: true,
         maxAlternatives: 1,
         // A note is one short utterance. Continuous listening would leave the
@@ -120,16 +221,27 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
         iosTaskHint: 'dictation',
       });
     } catch {
-      setListening(false);
+      micOwner = null;
+      setListeningState(false);
       setError(t.misc.dictationFailed);
     }
-  }, [hints, language, locale, value, t]);
+  }, [hints, id, language, locale, value, t, setListeningState]);
 
-  // Leaving the screen mid-sentence must not leave the microphone open.
+  // Leaving the screen mid-sentence must not leave the microphone open — but
+  // only this field may abort, and only while it is the one listening. An idle
+  // row unmounting (the list changing after "add more") must not abort a capture
+  // another surface just started.
   useEffect(() => {
     return () => {
       mounted.current = false;
-      ExpoSpeechRecognitionModule.abort();
+      if (listeningRef.current) {
+        try {
+          ExpoSpeechRecognitionModule.abort();
+        } catch {
+          // Recogniser already torn down — nothing to abort.
+        }
+        micOwner = null;
+      }
     };
   }, []);
 
