@@ -1269,6 +1269,14 @@ export function detectCreateGroup(transcript: string): { name: string; rest: str
   // A name that opens with a joining word is not a name: "create a group and add
   // 100" names nothing. Treat the clause as missing so the rest parses normally.
   if (/^(?:and|then|plus|also)\b/i.test(name)) return null;
+  // "with" is allowed inside a name ("Friends with Kids"), but a *leading* "with"
+  // that introduces an amount is an expense clause, not a name: "create a group
+  // with 100 for lunch" is an unnamed group and a 100 expense, not a group called
+  // "with 100 for lunch". Fall to the missing-name path so the expense still
+  // parses, exactly like a leading joiner above.
+  if (/^with\b/i.test(name) && extractAmount(name.replace(/^with\b/i, '')) !== null) {
+    return null;
+  }
 
   // Consume the whole name match — name *and* the joining word that ended it
   // ("and", a comma) — so the joiner does not lead the leftover sentence.

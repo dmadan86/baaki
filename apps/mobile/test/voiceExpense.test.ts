@@ -836,6 +836,11 @@ describe('detectCreateGroup', () => {
   it('is null when no group is asked for', () => {
     expect(detectCreateGroup('add 100 for lunch')).toBeNull();
   });
+
+  it('is null when a leading with introduces an amount, not a name', () => {
+    // "with 100 for lunch" is an expense clause, not a group name.
+    expect(detectCreateGroup('create a group with 100 for lunch')).toBeNull();
+  });
 });
 
 describe('normalizeDigits', () => {
@@ -864,5 +869,12 @@ describe('parseVoiceExpenses — split count and unnamed create-group', () => {
     expect(result.group).toBeNull();
     expect(result.items).toHaveLength(1);
     expect(result.items[0].amountMajor).toBe(500);
+  });
+
+  it('reads "create a group with 100 for lunch" as no group and a 100 expense', () => {
+    const result = parseVoiceExpenses('create a group with 100 for lunch', groups);
+    expect(result.group).toBeNull();
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(100);
   });
 });
