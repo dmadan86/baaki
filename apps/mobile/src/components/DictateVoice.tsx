@@ -30,7 +30,12 @@ import { Linking, Pressable, View } from 'react-native';
 import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
-import { dictationError, mergeTranscript, speechLocale } from '@/lib/dictation';
+import {
+  dictationError,
+  mergeTranscript,
+  onDeviceLocaleInstalled,
+  speechLocale,
+} from '@/lib/dictation';
 
 export interface DictateProps {
   /** What is in the field now. Dictation adds to it, never replaces it. */
@@ -85,9 +90,6 @@ async function installedOnDeviceFor(langTag: string): Promise<boolean> {
     }
     if (!supportsOnDevice) return false;
 
-    const primary = langTag.trim().split(/[-_]/)[0]?.toLowerCase();
-    if (!primary) return false;
-
     let androidRecognitionServicePackage: string | undefined;
     try {
       const pkg = ExpoSpeechRecognitionModule.getDefaultRecognitionService?.().packageName;
@@ -98,9 +100,9 @@ async function installedOnDeviceFor(langTag: string): Promise<boolean> {
     const { installedLocales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
       androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {},
     );
-    return (installedLocales ?? []).some(
-      (tag) => tag.trim().split(/[-_]/)[0]?.toLowerCase() === primary,
-    );
+    // Match the whole tag, region and all: a phone with only en-US installed
+    // must not be told it has the en-IN model (that returns silence).
+    return onDeviceLocaleInstalled(langTag, installedLocales);
   } catch {
     return false;
   }
@@ -162,10 +164,13 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   });
 
   const stop = useCallback(() => {
+    // Ask the recogniser to finish — but hold the lock and the listening flag.
+    // stop() (unlike abort()) still delivers one last `result` and then `end`,
+    // and it is the `end`/`error` handlers that clear ownership. Clearing it
+    // here would make that final result's `if (!listeningRef.current) return`
+    // drop the last words the person spoke before tapping stop.
     ExpoSpeechRecognitionModule.stop();
-    micOwner = null;
-    setListeningState(false);
-  }, [setListeningState]);
+  }, []);
 
   const start = useCallback(async () => {
     // The mic is a single global object. If another field is mid-dictation,
@@ -189,6 +194,12 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
     // network recogniser unless the language's model is actually installed.
     const onDevice = await installedOnDeviceFor(lang);
     if (!mounted.current) return;
+
+    // Re-check the lock right before taking it. The two awaits above (the
+    // permission prompt, the installed-model probe) give another field a window
+    // to claim the mic between the first check and here; without this recheck
+    // two overlapping starts could both reach ExpoSpeechRecognitionModule.start.
+    if (micOwner !== null && micOwner !== id) return;
 
     before.current = value;
     micOwner = id;

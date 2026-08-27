@@ -49,6 +49,44 @@ export function englishSpeechLocale(deviceLocale: string): string {
 }
 
 /**
+ * Whether an on-device model for `langTag` is covered by the phone's list of
+ * installed locales — kept pure (no native module) so the matching itself can be
+ * tested without a device.
+ *
+ * The trap this avoids: matching on the language subtag alone treats every
+ * regional model as interchangeable, so a phone with only `en-US` installed
+ * would be told it has `en-IN` — and asking the recogniser for an on-device
+ * model that is not there returns silence (the "did not catch anything" bug).
+ * So two *regioned* tags must match in full: `en-US` does not satisfy `en-IN`.
+ *
+ * A language-only entry is the one wildcard: Android commonly lists an installed
+ * model as just `en`, meaning the generic English model, which does cover any
+ * region of English. So `en` (installed) covers `en-IN` (wanted), and a bare
+ * `en` request is covered by any installed English. Only when both sides name a
+ * region must those regions agree.
+ */
+export function onDeviceLocaleInstalled(
+  langTag: string,
+  installedLocales: readonly string[] | null | undefined,
+): boolean {
+  const norm = (tag: string): string => tag.trim().replace(/_/g, '-').toLowerCase();
+  const want = norm(langTag);
+  if (!want) return false;
+  const wantLang = want.split('-')[0];
+  const wantHasRegion = want.includes('-');
+  return (installedLocales ?? []).some((raw) => {
+    const tag = norm(raw);
+    if (!tag) return false;
+    if (tag.split('-')[0] !== wantLang) return false;
+    const tagHasRegion = tag.includes('-');
+    // A language-only entry on either side is the generic model: it covers the
+    // whole language. Only when both carry a region must the regions match.
+    if (!tagHasRegion || !wantHasRegion) return true;
+    return tag === want;
+  });
+}
+
+/**
  * What the field should read while somebody is speaking.
  *
  * `before` is whatever was in the field when the mic was tapped, and it is
