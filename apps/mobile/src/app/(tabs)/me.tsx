@@ -88,7 +88,7 @@ export default function MeScreen() {
 
   const summary = monthlySummary(ledger.txns, month, dc);
   const recent = ledger.txns.slice(0, 8);
-  const days = groupByDay(recent, today, t);
+  const days = groupByDay(recent, today, dc, t);
 
   const dueCount = ledger.recurrings.filter((rule) => isRecurringDue(rule, today)).length;
   const activeLoans = ledger.loans.filter((loan) => loan.status === 'active');
@@ -216,10 +216,12 @@ export default function MeScreen() {
                   <Text variant="micro" tone="muted" style={{ fontWeight: '600' }}>
                     {day.label}
                   </Text>
-                  <Text variant="micro" tone={day.net < 0n ? 'negative' : 'muted'}>
-                    {day.net < 0n ? '−' : day.net > 0n ? '+' : ''}
-                    {fmt(day.net < 0n ? -day.net : day.net)}
-                  </Text>
+                  {day.hasNet ? (
+                    <Text variant="micro" tone={day.net < 0n ? 'negative' : 'muted'}>
+                      {day.net < 0n ? '−' : day.net > 0n ? '+' : ''}
+                      {fmt(day.net < 0n ? -day.net : day.net)}
+                    </Text>
+                  ) : null}
                 </Row>
                 <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                   {day.txns.map((txn, index) => (
@@ -246,19 +248,30 @@ export default function MeScreen() {
 interface Day {
   readonly key: string;
   readonly label: string;
+  /** Net (income minus spend) of this day's entries in the default currency —
+   *  minor units. `hasNet` is false when the day has no entry in that currency,
+   *  in which case there is no single figure to show. */
   readonly net: bigint;
+  readonly hasNet: boolean;
   readonly txns: readonly PersonalTxn[];
 }
 
-// Group already-newest-first txns into contiguous days, each carrying its net
-// (income minus spend). The label is Today / Yesterday for the two most recent
-// calendar days, otherwise the date as stored.
+// Group already-newest-first txns into contiguous days, each carrying its net.
+// The label is Today / Yesterday for the two most recent calendar days,
+// otherwise the date as stored. The day net sums only entries in the default
+// currency `dc` — money in two currencies does not add, so a mixed day shows
+// its rows (each in its own currency) but no single net.
 function groupByDay(
   txns: readonly PersonalTxn[],
   today: string,
+  dc: string,
   t: ReturnType<typeof useStrings>['t'],
 ): Day[] {
-  const yesterday = localIsoDate(new Date(new Date(`${today}T00:00:00`).getTime() - 86400000));
+  // One calendar day back, not 86,400,000 ms — a day is not always that many
+  // milliseconds across a DST change.
+  const y = new Date(`${today}T00:00:00`);
+  y.setDate(y.getDate() - 1);
+  const yesterday = localIsoDate(y);
   const labelFor = (date: string): string =>
     date === today ? t.personal.today : date === yesterday ? t.personal.yesterday : date;
 
@@ -268,15 +281,16 @@ function groupByDay(
     if (last && last.date === txn.date) last.txns.push(txn);
     else days.push({ date: txn.date, txns: [txn] });
   }
-  return days.map((day) => ({
-    key: day.date,
-    label: labelFor(day.date),
-    net: day.txns.reduce(
-      (sum, txn) => sum + (txn.kind === 'income' ? txn.amount : -txn.amount),
-      0n,
-    ),
-    txns: day.txns,
-  }));
+  return days.map((day) => {
+    const inDc = day.txns.filter((txn) => txn.currency === dc);
+    return {
+      key: day.date,
+      label: labelFor(day.date),
+      net: inDc.reduce((sum, txn) => sum + (txn.kind === 'income' ? txn.amount : -txn.amount), 0n),
+      hasNet: inDc.length > 0,
+      txns: day.txns,
+    };
+  });
 }
 
 // The translated label for a category id (built-in key or custom tag id). Custom
