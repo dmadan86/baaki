@@ -887,6 +887,23 @@ describe('parseVoiceExpenses in the app languages', () => {
     expect(spoken.items[0]?.currency).toBe('AED');
     expect(spoken.items[0]?.note).toBe('قهوة');
   });
+
+  it('recognises a currency word carrying trailing punctuation', () => {
+    // "रुपये," / "روبية،" — a comma (ASCII or the Arabic comma) stuck to the
+    // currency word must not stop it being recognised: the token is looked up
+    // without its punctuation, so the currency still resolves and the word is not
+    // left behind in the note. (Singular parse: the multi-expense path treats a
+    // comma as a separator, which is a different concern.)
+    const hindi = parseVoiceExpense('५०० रुपये, चाय', groups);
+    expect(hindi.amountMajor).toBe(500);
+    expect(hindi.currency).toBe('INR');
+    expect(hindi.note).toBe('चाय');
+
+    const arabic = parseVoiceExpense('٥٠٠ روبية، شاي', groups);
+    expect(arabic.amountMajor).toBe(500);
+    expect(arabic.currency).toBe('INR');
+    expect(arabic.note).toBe('شاي');
+  });
 });
 
 describe('parseVoiceExpenses — split count and unnamed create-group', () => {

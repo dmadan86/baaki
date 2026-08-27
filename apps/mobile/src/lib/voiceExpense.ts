@@ -919,8 +919,17 @@ function normalizeLocalizedVoiceWords(text: string): string {
     .split(/(\s+)/)
     .map((part) => {
       if (/^\s+$/u.test(part)) return part;
-      const replacement = LOCALIZED_VOICE_WORDS.get(part.normalize('NFKC'));
-      return replacement ?? part;
+      // A token often carries leading/trailing punctuation — a comma, the Arabic
+      // comma (،), a Devanagari danda (।), a full stop — as in "रुपये," or
+      // "روبية،". Split that off, translate the bare word, then restore the
+      // punctuation, so the currency/number word is still recognised (an exact
+      // lookup of "रुपये," would miss and leave the token untranslated).
+      const match = /^([\p{P}\p{S}]*)(.*?)([\p{P}\p{S}]*)$/u.exec(part);
+      if (!match) return part;
+      const [, prefix, core, suffix] = match;
+      if (!core) return part;
+      const replacement = LOCALIZED_VOICE_WORDS.get(core.normalize('NFKC'));
+      return replacement ? `${prefix}${replacement}${suffix}` : part;
     })
     .join('');
 }
