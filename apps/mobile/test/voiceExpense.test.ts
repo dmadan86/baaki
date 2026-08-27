@@ -442,6 +442,28 @@ describe('matchMemberNames', () => {
         splitCount: 3,
       }),
     ).toEqual(['m-ravi', 'm-priya', 'm-me']);
+    expect(
+      resolveVoiceParticipants({
+        all: members.map((member) => member.id),
+        payer: 'm-me',
+        members,
+        peopleText: 'split 800 dinner with Ravi and Priya',
+        splitCount: 3,
+      }),
+    ).toEqual(['m-ravi', 'm-priya', 'm-me']);
+  });
+
+  it('does not narrow participants when names appear outside an explicit split clause', () => {
+    const all = members.map((member) => member.id);
+    expect(
+      resolveVoiceParticipants({
+        all,
+        payer: 'm-me',
+        members,
+        peopleText: "1000 rupees for Priya's birthday dinner",
+        splitCount: null,
+      }),
+    ).toEqual(all);
   });
 
   it('falls back to all members when a split count names nobody or conflicts', () => {
@@ -563,7 +585,10 @@ describe('parseVoiceExpenses (several in one breath)', () => {
   });
 
   it('carries split names for downstream matching without leaking them into the note', () => {
-    const result = parseVoiceExpenses('800 rupees dinner on Goa trip split with Ravi and Priya', groups);
+    const result = parseVoiceExpenses(
+      '800 rupees dinner on Goa trip split with Ravi and Priya',
+      groups,
+    );
     expect(result.peopleText).toBe('800 rupees dinner on Goa trip split with Ravi and Priya');
     expect(result.items[0].note).toBe('dinner');
   });
@@ -605,6 +630,15 @@ describe('parseVoiceExpenses (several in one breath)', () => {
       expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
     }
     expect(parseVoiceExpenses('+500 rupees dinner', groups).items[0]?.amountMajor).toBe(500);
+  });
+
+  it('does not reject non-amount uses of negative or minus', () => {
+    expect(parseVoiceExpenses('500 rupees negative test kit', groups).items[0]?.note).toBe(
+      'negative test kit',
+    );
+    expect(parseVoiceExpenses('300 rupees minus screwdriver', groups).items[0]?.note).toBe(
+      'minus screwdriver',
+    );
   });
 
   it('does not sum mixed-currency plus runs into one cross-currency amount', () => {

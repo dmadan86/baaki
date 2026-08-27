@@ -26,7 +26,8 @@ export const MAX_VOICE_NOTE_CHARS = 160;
 const UNSUPPORTED_EXPENSE_INTENT =
   /\b(?:do\s+not|don['’]t|dont|did\s+not\s+pay|didn['’]t\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back|not\s+an\s+expense)\b/i;
 
-const SPOKEN_NEGATIVE_AMOUNT = /\b(?:minus|negative)\s+(?=\S)/i;
+const SPOKEN_NEGATIVE_AMOUNT =
+  /\b(?:minus|negative)\s+(?=(?:\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|eleven\b|twelve\b|thirteen\b|fourteen\b|fifteen\b|sixteen\b|seventeen\b|eighteen\b|nineteen\b|twenty\b|thirty\b|forty\b|fourty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b|hundred\b|thousand\b|lakh\b|lakhs\b|crore\b|crores\b))/i;
 
 export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
   return UNSUPPORTED_EXPENSE_INTENT.test(text) || SPOKEN_NEGATIVE_AMOUNT.test(text);
@@ -477,12 +478,24 @@ function matchGroup(tokens: readonly string[], groups: readonly VoiceGroupRef[])
  * description someone would have typed. Numbers, currency words, the stopwords,
  * and any word from the matched group's name are all dropped.
  */
+const SPLIT_COUNT_WORD_AFTER_PREPOSITION =
+  '(?:\\d|zero\\b|one\\b|two\\b|three\\b|four\\b|five\\b|six\\b|seven\\b|eight\\b|nine\\b|ten\\b|eleven\\b|twelve\\b|people\\b|persons\\b|ways\\b)';
+const SPLIT_WITH_CLAUSE = new RegExp(
+  `\\bsplit\\b(?:(?!\\bwith\\b|\\bbetween\\b|\\bamong\\b|\\bamongst\\b).)*` +
+    `\\b(?:with|between|among|amongst)\\b\\s+(?!${SPLIT_COUNT_WORD_AFTER_PREPOSITION})(.*)$`,
+  'iu',
+);
+
+function splitParticipantClause(text: string | null): string | null {
+  return text?.match(SPLIT_WITH_CLAUSE)?.[1]?.trim() || null;
+}
+
 function buildNote(transcript: string, matchedGroupName: string | null): string {
   const nameTokens = new Set(matchedGroupName ? tokenize(matchedGroupName) : []);
   const currencyWord = new RegExp(`\\b(?:${CURRENCY_WORD_ALT})\\b`, 'gi');
 
   return transcript
-    .replace(/\bsplit\s+(?:it\s+)?(?:with|between|among|amongst)\b.*$/iu, ' ')
+    .replace(SPLIT_WITH_CLAUSE, ' ')
     .replace(currencyWord, ' ')
     .replace(new RegExp(CURRENCY_SYMBOL_RE, 'g'), ' ')
     .replace(/\d[\d,]*(?:\.\d+)?/g, ' ')
@@ -624,7 +637,8 @@ export function resolveVoiceParticipants(params: {
   peopleText: string | null;
   splitCount: number | null;
 }): string[] {
-  const named = params.peopleText ? matchMemberNames(params.peopleText, params.members) : [];
+  const clause = splitParticipantClause(params.peopleText);
+  const named = clause ? matchMemberNames(clause, params.members) : [];
   if (named.length === 0) return [...params.all];
   const chosen = named.includes(params.payer) ? [...named] : [...named, params.payer];
   if (params.splitCount !== null && params.splitCount !== chosen.length) return [...params.all];
