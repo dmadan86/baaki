@@ -228,12 +228,25 @@ export default function GroupExportScreen() {
           setError(t.groupExport.updateNeeded);
           return;
         }
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'application/pdf',
-            dialogTitle: t.groupExport.shareTitle,
-            UTI: 'com.adobe.pdf',
-          });
+        // The rendered PDF holds the same group statement as the workbook —
+        // member names, amounts, balances — so it must not linger in the cache
+        // after sharing any more than the XLSX file does. Best-effort delete in a
+        // finally, the same cleanup the Excel branch below performs.
+        const pdf = new FileSystem.File(uri);
+        try {
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: t.groupExport.shareTitle,
+              UTI: 'com.adobe.pdf',
+            });
+          }
+        } finally {
+          try {
+            if (pdf.exists) pdf.delete();
+          } catch {
+            // Best-effort privacy cleanup; the share result still drives the UI.
+          }
         }
         setDone(`${base}.pdf`);
       } else {
