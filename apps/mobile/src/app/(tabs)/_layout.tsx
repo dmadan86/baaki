@@ -23,14 +23,16 @@ export default function TabsLayout() {
         // thing that reads as sluggish next to WhatsApp. WhatsApp keeps all of
         // its tabs mounted, so a tap is a pure visibility swap; this does the
         // same. The cost is a little more work at cold start, paid once behind
-        // the splash, and `freezeOnBlur` keeps the pre-mounted tabs idle so they
-        // do not burn the JS thread while off-screen.
+        // the splash, and `freezeOnBlur` keeps the pre-mounted tabs from
+        // re-rendering while off-screen.
         lazy: false,
-        // Suspend an off-screen tab's rendering while it is blurred, so its
-        // queries and realtime subscriptions stop competing for the JS thread
-        // with the foreground tab's paint. Combined with `lazy: false` this is
-        // the WhatsApp shape: mounted once, frozen while away, unfrozen on
-        // return — which is instant, no rebuild.
+        // Suspend an off-screen tab's re-rendering while it is blurred
+        // (react-freeze), so a background tab does not re-render and repaint
+        // while the foreground tab is the one being used. This freezes rendering
+        // only — a tab's effects, timers and subscriptions keep running. Combined
+        // with `lazy: false` this is the WhatsApp shape: mounted once, its
+        // rendering frozen while away, resumed on return — which is instant, no
+        // rebuild.
         freezeOnBlur: true,
       }}
     >
