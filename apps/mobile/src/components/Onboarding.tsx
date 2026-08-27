@@ -13,7 +13,7 @@
  * dots are there for anyone who wants to count.
  */
 
-import { memo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   Pressable,
@@ -96,6 +96,38 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   // The dots take the ink of the card they sit over — that is the current one.
   const activeInk = theme.tint[SLIDES[index]!.tint].ink;
 
+  // The three cards, built once and held stable across `index` changes. Without
+  // this the `.map` reran on every drag that crossed a page boundary (that is
+  // what moves `index`), handing the pager a fresh children array mid-gesture;
+  // React then reconciled all three full-screen cards while the finger was still
+  // down, and the swipe stuttered. `index` is deliberately not a dependency —
+  // only the dots overlay below tracks it, and it lives in its own subtree.
+  const cards = useMemo(
+    () =>
+      pageOrder(SLIDES, rtl).map(({ slide, index: slideIndex }) => {
+        // The words live in the string table; this file only knows the look.
+        const copy = t.onboarding[slideIndex] ?? t.onboarding[0]!;
+        return (
+          <SlideCard
+            key={slide.tint}
+            emoji={slide.emoji}
+            tint={slide.tint}
+            title={copy.title}
+            body={copy.body}
+            appName={t.common.appName}
+            skipLabel={t.skip}
+            width={width}
+            height={height}
+            rtl={rtl}
+            topInset={insets.top}
+            bottomInset={insets.bottom}
+            onSkip={onDone}
+          />
+        );
+      }),
+    [rtl, t, width, height, insets.top, insets.bottom, onDone],
+  );
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -106,32 +138,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         onScroll={onScroll}
         onContentSizeChange={onContentSizeChange}
         scrollEventThrottle={16}
+        // Crisp snap on release rather than a long floaty glide — the default
+        // Android deceleration made a paged tour feel like it was catching up
+        // with the thumb. No rubber-band glow at the ends either; there is
+        // nothing past the first or last card to reveal.
+        decelerationRate="fast"
+        overScrollMode="never"
         // Pinned left-to-right on purpose: see `@/lib/carousel`. The reversal is
         // arithmetic there rather than three platforms' disagreeing opinions
         // about what `contentOffset.x` means in a mirrored scroll view.
         style={{ flex: 1, direction: 'ltr' }}
       >
-        {pageOrder(SLIDES, rtl).map(({ slide, index: slideIndex }) => {
-          // The words live in the string table; this file only knows the look.
-          const copy = t.onboarding[slideIndex] ?? t.onboarding[0]!;
-          return (
-            <SlideCard
-              key={slide.tint}
-              emoji={slide.emoji}
-              tint={slide.tint}
-              title={copy.title}
-              body={copy.body}
-              appName={t.common.appName}
-              skipLabel={t.skip}
-              width={width}
-              height={height}
-              rtl={rtl}
-              topInset={insets.top}
-              bottomInset={insets.bottom}
-              onSkip={onDone}
-            />
-          );
-        })}
+        {cards}
       </ScrollView>
 
       {/* The dots and the next arrow are the only things that track which card
@@ -254,15 +272,21 @@ const SlideCard = memo(function SlideCard({
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ fontSize: 20, fontWeight: '700', color: ink }}>{appName}</Text>
+        {/* Skip carries the card's own ink, the colour the title is in, so it
+            reads on every tint — the old brand purple all but vanished on the
+            pastel backgrounds. A chevron makes it look like the shortcut it is,
+            and it mirrors with the layout. */}
         <Pressable
           onPress={onSkip}
           accessibilityRole="button"
           accessibilityLabel={skipLabel}
           hitSlop={12}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}
         >
-          <Text variant="caption" style={{ color: theme.color.buttonPrimary }}>
+          <Text variant="caption" style={{ color: ink, fontWeight: '600' }}>
             {skipLabel}
           </Text>
+          <Ionicons name={directionalIcon('chevron-forward')} size={iconSize.sm} color={ink} />
         </Pressable>
       </View>
 
