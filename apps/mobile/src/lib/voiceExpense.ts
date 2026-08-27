@@ -1249,10 +1249,10 @@ export function collapseAdditionRuns(text: string): string {
  * A spoken "make a group" and the name it gives.
  *
  * Matches "create/make/start/new/open [a] [new] group [called/named/for] X",
- * where X runs to the first joining word ("and", "then", ",", "with") or the
- * end. Returns the trimmed name and the sentence with that whole clause cut out,
- * so what remains can still be parsed for expenses ("make a group Goa and add
- * 500 for lunch" leaves "add 500 for lunch"). Null when no such intent is heard.
+ * where X runs to the first joining word ("and", "then", ",") or the end.
+ * Returns the trimmed name and the sentence with that whole clause cut out, so
+ * what remains can still be parsed for expenses ("make a group Goa and add 500
+ * for lunch" leaves "add 500 for lunch"). Null when no such intent is heard.
  */
 export function detectCreateGroup(transcript: string): { name: string; rest: string } | null {
   const pattern =
@@ -1262,13 +1262,13 @@ export function detectCreateGroup(transcript: string): { name: string; rest: str
 
   const after = transcript.slice(head.index + head[0].length);
   // The name is everything up to a joining word that starts the next clause, or
-  // the end. "and/then/with/plus" and a comma each end the name.
-  const nameMatch = after.match(/^(.*?)(?:\s+(?:and|then|with|plus|also)\b|\s*[,;]|$)/i);
+  // the end. "with" is allowed inside names ("Friends with Kids").
+  const nameMatch = after.match(/^(.*?)(?:\s+(?:and|then|plus|also)\b|\s*[,;]|$)/i);
   const name = (nameMatch?.[1] ?? after).trim().replace(/[.\s]+$/, '');
   if (!name) return null;
   // A name that opens with a joining word is not a name: "create a group and add
   // 100" names nothing. Treat the clause as missing so the rest parses normally.
-  if (/^(?:and|then|with|plus|also)\b/i.test(name)) return null;
+  if (/^(?:and|then|plus|also)\b/i.test(name)) return null;
 
   // Consume the whole name match — name *and* the joining word that ended it
   // ("and", a comma) — so the joiner does not lead the leftover sentence.
