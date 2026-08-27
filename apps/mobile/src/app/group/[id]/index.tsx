@@ -689,6 +689,7 @@ export default function GroupScreen() {
           } as OverflowMenuItem,
         ]
       : []),
+    { icon: 'download-outline', label: t.groupExport.menu, route: `/group/${groupId}/export` },
     { icon: 'settings-outline', label: t.group.settings, route: `/group/${groupId}/settings` },
   ];
 
