@@ -786,7 +786,7 @@ export default function GroupScreen() {
             style={{
               gap: theme.spacing.md,
               alignItems: 'center',
-              paddingVertical: theme.spacing.md,
+              paddingVertical: theme.spacing.sm,
             }}
           >
             <Avatar
