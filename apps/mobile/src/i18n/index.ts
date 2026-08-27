@@ -2230,6 +2230,7 @@ export interface UiStrings {
     tab: string;
     title: string;
     subtitle: string;
+    entryMissing: string;
     thisMonth: string;
     income: string;
     expenses: string;
@@ -4209,6 +4210,7 @@ const en: UiStrings = {
     tab: 'Me',
     title: 'Personal',
     subtitle: 'Your own money — private to you.',
+    entryMissing: 'That entry is no longer here.',
     thisMonth: 'This month',
     income: 'Income',
     expenses: 'Expenses',
@@ -6282,6 +6284,7 @@ const ta: UiStrings = {
     tab: 'நான்',
     title: 'தனிப்பட்டது',
     subtitle: 'உங்கள் சொந்தப் பணம் — உங்களுக்கு மட்டும் தனிப்பட்டது.',
+    entryMissing: 'அந்தப் பதிவு இப்போது இல்லை.',
     thisMonth: 'இந்த மாதம்',
     income: 'வருமானம்',
     expenses: 'செலவுகள்',
@@ -8266,6 +8269,7 @@ const hi: UiStrings = {
     tab: 'मैं',
     title: 'निजी',
     subtitle: 'आपका अपना पैसा — सिर्फ़ आपके लिए निजी।',
+    entryMissing: 'वह प्रविष्टि अब यहाँ नहीं है।',
     thisMonth: 'इस महीने',
     income: 'आय',
     expenses: 'खर्च',
@@ -10463,6 +10467,7 @@ const ar: UiStrings = {
     tab: 'أنا',
     title: 'الشخصي',
     subtitle: 'أموالك الخاصة — خاصة بك وحدك.',
+    entryMissing: 'هذا القيد لم يعد موجودًا.',
     thisMonth: 'هذا الشهر',
     income: 'الدخل',
     expenses: 'المصروفات',

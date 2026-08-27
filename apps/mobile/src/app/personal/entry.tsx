@@ -43,6 +43,7 @@ import {
   useUpsertPersonalRecord,
 } from '@/data/personal';
 import { useDefaultCurrency } from '@/lib/currency';
+import { useSync } from '@/sync';
 import { useStrings } from '@/i18n';
 
 export default function PersonalEntryScreen() {
@@ -50,18 +51,38 @@ export default function PersonalEntryScreen() {
   const { t } = useStrings();
   const dc = useDefaultCurrency();
   const params = useLocalSearchParams<{ kind?: string; id?: string; loanId?: string }>();
+  const { hydrated } = useSync();
   const { txns } = usePersonalLedger();
 
   const editing = params.id ? txns.find((txn) => txn.id === params.id) : undefined;
 
-  // Editing an id that has not resolved yet (the ledger is still hydrating): hold
-  // a spinner rather than render a blank form whose initial state would be wrong
-  // and whose Save would overwrite the real record with empties.
+  // Editing an id that has not resolved. Two very different cases:
+  //  - the mirror is still loading from disk (`!hydrated`): hold a spinner rather
+  //    than render a blank form whose Save would overwrite the record with empties;
+  //  - hydration is done and the id still isn't there (deleted, or a stale link):
+  //    say so and offer a way back, instead of a spinner that never ends.
   if (params.id && !editing) {
     return (
       <Screen>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={theme.color.brand} />
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: theme.spacing.lg,
+            padding: theme.spacing.xl,
+          }}
+        >
+          {hydrated ? (
+            <>
+              <Text tone="muted" align="center">
+                {t.personal.entryMissing}
+              </Text>
+              <Button label={t.common.back} variant="secondary" onPress={() => router.back()} />
+            </>
+          ) : (
+            <ActivityIndicator color={theme.color.brand} />
+          )}
         </View>
       </Screen>
     );

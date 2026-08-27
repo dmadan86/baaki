@@ -43,6 +43,7 @@ import {
   useUpsertPersonalRecord,
 } from '@/data/personal';
 import { useDefaultCurrency } from '@/lib/currency';
+import { useSync } from '@/sync';
 import { useStrings } from '@/i18n';
 
 export default function MeScreen() {
@@ -50,6 +51,7 @@ export default function MeScreen() {
   const clearance = useScreenClearance();
   const { t, locale } = useStrings();
   const dc = useDefaultCurrency();
+  const { hydrated } = useSync();
   const ledger = usePersonalLedger();
   const upsert = useUpsertPersonalRecord();
 
@@ -57,23 +59,27 @@ export default function MeScreen() {
   const [today] = useState(() => todayIso());
   const month = today.slice(0, 7);
 
-  // Post due auto-recurring entries when the ledger first has any recurring
-  // rules to act on. Waiting for that readiness (rather than firing on the raw
-  // mount) means a screen that mounts before the mirror hydrates still posts
-  // once the rules arrive. It runs at most once per session, and even if it ran
-  // early against a partial ledger the occurrence ids are deterministic
-  // (recurringOccurrenceId), so a later real run upserts the same rows — never a
-  // duplicate.
+  // Post due auto-recurring entries once the mirror has hydrated from disk and
+  // there are recurring rules to act on. Gating on `hydrated` (not the raw mount)
+  // means we never latch against a still-loading, empty ledger; gating on
+  // local hydration — not a network round-trip — keeps it working offline, which
+  // is the whole point of the local-first ledger. `posted` is set only after the
+  // catch-up resolves and cleared on failure, so a transient write error can
+  // retry on a later run rather than being swallowed for the session. Even a
+  // double-fire is harmless: occurrence ids are deterministic
+  // (recurringOccurrenceId), so a repeat upserts the same rows, never a dupe.
   const posted = useRef(false);
-  const hasRules = ledger.recurrings.length > 0;
+  const ready = hydrated && ledger.recurrings.length > 0;
   useEffect(() => {
-    if (posted.current || !hasRules) return;
+    if (posted.current || !ready) return;
     posted.current = true;
-    void postDueRecurring(ledger, today, (input) => upsert.mutateAsync(input));
-    // Intentionally keyed on readiness only; `ledger`/`today`/`upsert` are read
-    // at fire time and the ref makes it one-shot.
+    postDueRecurring(ledger, today, (input) => upsert.mutateAsync(input)).catch(() => {
+      posted.current = false;
+    });
+    // Keyed on readiness only; `ledger`/`today`/`upsert` are read at fire time
+    // and the ref makes it one-shot per successful run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasRules]);
+  }, [ready]);
 
   const summary = monthlySummary(ledger.txns, month, dc);
   const recent = ledger.txns.slice(0, 6);
