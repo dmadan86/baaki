@@ -1134,6 +1134,12 @@ export interface UiStrings {
     inviteTitle: string;
     inviteBody: string;
     inviteCta: string;
+    /** Net-slide labels: where you stand overall, owe↔owed folded in (the
+     *  figure is shown absolute, so the direction lives in the label). */
+    netOwed: string;
+    netOwe: string;
+    /** Owed-to-you slide label: the gross total others owe you. */
+    owedToYou: string;
     /** Balance-deck slide label: your spend so far in the current month. */
     monthSpent: string;
     /** The hero greeting over the name: "Hi, {name}". */
@@ -3054,7 +3060,10 @@ const en: UiStrings = {
     inviteTitle: 'Settle up together',
     inviteBody: 'Add the people you share costs with and keep everyone square.',
     inviteCta: 'Add a person',
-    monthSpent: 'This month',
+    netOwed: "You're owed overall",
+    netOwe: 'You owe overall',
+    owedToYou: 'Owed to you',
+    monthSpent: 'Spent this month',
     hi: 'Hi, {name}',
     morning: 'Good morning',
     afternoon: 'Good afternoon',
@@ -4991,7 +5000,10 @@ const ta: UiStrings = {
     inviteTitle: 'சேர்ந்து கணக்கு தீர்க்கலாம்',
     inviteBody: 'செலவுகளைப் பகிர்பவர்களைச் சேர்த்து அனைவரையும் சரிசெய்யுங்கள்.',
     inviteCta: 'ஒருவரைச் சேர்',
-    monthSpent: 'இந்த மாதம்',
+    netOwed: 'மொத்தத்தில் வரவேண்டியது',
+    netOwe: 'மொத்தத்தில் தரவேண்டியது',
+    owedToYou: 'உங்களுக்கு வரவேண்டியது',
+    monthSpent: 'இந்த மாத செலவு',
     hi: 'வணக்கம், {name}',
     morning: 'காலை வணக்கம்',
     afternoon: 'மதிய வணக்கம்',
@@ -6960,7 +6972,10 @@ const hi: UiStrings = {
     inviteTitle: 'मिलकर हिसाब बराबर करें',
     inviteBody: 'जिनके साथ खर्च बाँटते हैं उन्हें जोड़ें और सबका हिसाब बराबर रखें.',
     inviteCta: 'व्यक्ति जोड़ें',
-    monthSpent: 'इस महीने',
+    netOwed: 'कुल मिलाकर आपको मिलेंगे',
+    netOwe: 'कुल मिलाकर आप देंगे',
+    owedToYou: 'आपको मिलने हैं',
+    monthSpent: 'इस माह का खर्च',
     hi: 'नमस्ते, {name}',
     morning: 'शुभ प्रभात',
     afternoon: 'नमस्कार',
@@ -8915,7 +8930,10 @@ const ar: UiStrings = {
     inviteTitle: 'سوّوا الحساب معًا',
     inviteBody: 'أضف من تتشارك معهم النفقات وابقوا جميعًا على حساب متوازن.',
     inviteCta: 'إضافة شخص',
-    monthSpent: 'هذا الشهر',
+    netOwed: 'لك إجمالاً',
+    netOwe: 'عليك إجمالاً',
+    owedToYou: 'مستحق لك',
+    monthSpent: 'إنفاق هذا الشهر',
     hi: 'مرحباً، {name}',
     morning: 'صباح الخير',
     afternoon: 'مساء الخير',
