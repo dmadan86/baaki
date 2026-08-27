@@ -702,23 +702,23 @@ const CATEGORY_WORDS = new Map<string, CategoryId>(
   ]),
 );
 
+const CATEGORY_PHRASE =
+  /\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40}?)(?=\s+(?:and|then|with|split|on|for|category|tag|label)\b|\s*[,;]|\s*$)/giu;
+
 export function parseVoiceCategory(text: string): CategoryId | null {
-  const match = text.match(/\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40})/iu);
-  if (!match) return null;
-  const phrase = match[1]
-    .trim()
-    .toLowerCase()
-    .replace(/\s+(?:and|then|with|split|on|for)\b.*$/u, '')
-    .trim();
-  if (!phrase) return null;
-  return CATEGORY_WORDS.get(phrase) ?? null;
+  CATEGORY_PHRASE.lastIndex = 0;
+  for (let match = CATEGORY_PHRASE.exec(text); match !== null; match = CATEGORY_PHRASE.exec(text)) {
+    const phrase = match[1].trim().toLowerCase();
+    if (!phrase) continue;
+    const category = CATEGORY_WORDS.get(phrase);
+    if (category) return category;
+  }
+  return null;
 }
 
 function stripCategoryPhrase(text: string): string {
-  return text
-    .replace(/\b(?:category|tag|label)\s+(?:as\s+)?[\p{L}\p{N}][\p{L}\p{N}& -]{0,40}(?=\s+(?:and|then|with|split|on|for)\b|\s*$)/giu, ' ')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
+  CATEGORY_PHRASE.lastIndex = 0;
+  return text.replace(CATEGORY_PHRASE, ' ').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -1340,9 +1340,7 @@ export function parseVoiceExpenses(
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
   // read from the clean remainder.
-  const body = stripCategoryPhrase(
-    stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized)),
-  );
+  const body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
 
   // The group is settled before the notes are built, so each note can have the
   // named group's words taken out ("dinner on the Goa trip" → note "dinner").
@@ -1367,12 +1365,13 @@ export function parseVoiceExpenses(
     if (amountMajor === null) continue;
     const currency: string | null = detectCurrency(segment) ?? carriedCurrency;
     if (currency) carriedCurrency = currency;
+    const itemCategory = parseVoiceCategory(segment) ?? category;
     items.push({
       amountMajor,
       amountMinor: toVoiceMinorUnits(amountMajor, currency),
       currency,
-      note: buildNote(segment, matchedName),
-      category,
+      note: stripCategoryPhrase(buildNote(segment, matchedName)),
+      category: itemCategory,
     });
   }
 
@@ -1402,11 +1401,12 @@ export function parseVoiceExpenses(
         })
       : items;
 
+  const peopleText = stripCategoryPhrase(body).trim();
   return {
     items: finalItems,
     group,
     splitCount: extractSplitCount(body),
-    peopleText: body.trim() || null,
+    peopleText: peopleText || null,
     expenseDate,
   };
 }

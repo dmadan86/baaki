@@ -627,6 +627,20 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(parseVoiceCategory('tag as food')).toBe('food');
   });
 
+  it('keeps explicit categories item-specific in multi-expense transcripts', () => {
+    const result = parseVoiceExpenses(
+      '500 rupees airport cab category travel, 300 rupees dinner tag food',
+      groups,
+    );
+    expect(result.items.map((item) => item.category)).toEqual(['travel', 'food']);
+    expect(result.items.map((item) => item.note)).toEqual(['airport cab', 'dinner']);
+  });
+
+  it('uses a trailing category as a global fallback when items do not name one', () => {
+    const result = parseVoiceExpenses('500 rupees cab, 300 rupees bus category travel', groups);
+    expect(result.items.map((item) => item.category)).toEqual(['travel', 'travel']);
+  });
+
   it('ignores unknown category phrases safely', () => {
     const result = parseVoiceExpenses('500 rupees dinner category crypto', groups);
     expect(result.items[0].category).toBeNull();
