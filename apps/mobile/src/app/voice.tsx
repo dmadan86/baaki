@@ -115,8 +115,8 @@ interface PersonChoice {
  *  - 'replace'   the opening capture: the heard batch becomes the review list.
  *  - 'append'    "+ Add more": the heard expenses are pushed onto the current
  *                list, keeping the existing items and the chosen destination.
- *  - redescribe  a single row's mic: only that row's description is re-dictated;
- *                the amounts and every other row stay put.
+ *  - redescribe  a single row's mic: plain dictation appended to only that row's
+ *                description (no parsing); the amounts and every other row stay put.
  */
 type MicMode = 'replace' | 'append' | { kind: 'redescribe'; key: string };
 
@@ -451,14 +451,24 @@ export default function VoiceScreen() {
 
   const handleTranscript = (transcript: string): void => {
     const mode = micMode;
-    // A single row's re-dictation replaces only that description — no thinking
-    // phase, no destination change; the amounts and the other rows stand.
+    // A single row's mic is plain dictation: the spoken words are appended to
+    // that row's description verbatim — no parsing, so amounts/currency/group
+    // words are NOT stripped and no thinking phase, destination change, or other
+    // row is touched. It only ever adds text to the one note.
     if (typeof mode === 'object') {
-      const parsed = parseVoiceExpenses(transcript, groupRefs);
-      // Prefer the cleaned note (amount/currency/group words stripped); fall back
-      // to the raw sentence when nothing parsed out of it.
-      const note = parsed.items[0]?.note.trim() || transcript.trim();
-      if (note) editDraft(mode.key, { note });
+      const spoken = transcript.trim();
+      if (spoken) {
+        setDrafts((current) =>
+          current.map((draft) =>
+            draft.key === mode.key
+              ? {
+                  ...draft,
+                  note: draft.note.trim() ? `${draft.note.trim()} ${spoken}` : spoken,
+                }
+              : draft,
+          ),
+        );
+      }
       setNoAmount(false);
       setMicMode('replace');
       setPhase('review');
@@ -502,7 +512,7 @@ export default function VoiceScreen() {
     setPhase('listening');
   };
 
-  // The per-row mic — reopen to re-dictate just this expense's description.
+  // The per-row mic — reopen to dictate more text onto just this expense's note.
   const startRedescribe = (key: string): void => {
     setMicMode({ kind: 'redescribe', key });
     setNoAmount(false);
@@ -829,9 +839,19 @@ export default function VoiceScreen() {
             <Ionicons name="mic" size={iconSize.xl} color={theme.color.brand} />
             <Text variant="title">{phase === 'review' ? t.voice.review : t.voice.title}</Text>
           </Row>
-          <IconButton label={t.common.close} onPress={dismiss}>
-            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-          </IconButton>
+          {/* On the review, a mic sits before the ✕ so another expense (or
+              several) can be spoken and appended without hunting for the inline
+              "+ Add more" — same append job (`startAddMore`), header-reachable. */}
+          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            {phase === 'review' ? (
+              <IconButton label={t.voice.addMore} onPress={startAddMore}>
+                <Ionicons name="mic-outline" size={iconSize.lg} color={theme.color.brand} />
+              </IconButton>
+            ) : null}
+            <IconButton label={t.common.close} onPress={dismiss}>
+              <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+            </IconButton>
+          </Row>
         </Row>
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
@@ -861,7 +881,7 @@ export default function VoiceScreen() {
                       onRemove={removeDraft}
                       onRedescribe={startRedescribe}
                       removeLabel={t.captures.delete}
-                      redescribeLabel={t.voice.redescribe}
+                      dictateLabel={t.voice.dictate}
                       amountLabel={t.captures.amount}
                       noteLabel={t.captures.description}
                       notePlaceholder={t.captures.descriptionPlaceholder}
@@ -1560,7 +1580,7 @@ function DraftRow({
   onRemove,
   onRedescribe,
   removeLabel,
-  redescribeLabel,
+  dictateLabel,
   amountLabel,
   noteLabel,
   notePlaceholder,
@@ -1571,7 +1591,7 @@ function DraftRow({
   onRemove: (key: string) => void;
   onRedescribe: (key: string) => void;
   removeLabel: string;
-  redescribeLabel: string;
+  dictateLabel: string;
   amountLabel: string;
   noteLabel: string;
   notePlaceholder: string;
@@ -1639,7 +1659,7 @@ function DraftRow({
               this row's note, leaving its amount and the other rows untouched. */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={redescribeLabel}
+            accessibilityLabel={dictateLabel}
             onPress={() => onRedescribe(draft.key)}
             hitSlop={8}
             style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}

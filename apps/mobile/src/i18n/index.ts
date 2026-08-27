@@ -818,8 +818,8 @@ export interface UiStrings {
     addPersonPlaceholder: string;
     /** The affordance under the review items to speak and append more expenses. */
     addMore: string;
-    /** The per-item mic that re-dictates just that expense's description. */
-    redescribe: string;
+    /** The per-item mic: plain voice dictation appended to that expense's note. */
+    dictate: string;
     /** The two destination tabs in the "Save to" picker. */
     groupsTab: string;
     peopleTab: string;
@@ -2672,7 +2672,7 @@ const en: UiStrings = {
     addPerson: 'Add a person',
     addPersonPlaceholder: 'Their name',
     addMore: 'Add more',
-    redescribe: 'Say the description again',
+    dictate: 'Add text by voice',
     groupsTab: 'Groups',
     peopleTab: 'People',
     badgeNew: 'New',
@@ -4525,7 +4525,7 @@ const ta: UiStrings = {
     addPerson: 'ஒரு நபரைச் சேர்',
     addPersonPlaceholder: 'அவர்களின் பெயர்',
     addMore: 'மேலும் சேர்',
-    redescribe: 'விளக்கத்தை மீண்டும் பேசு',
+    dictate: 'குரல் மூலம் உரை சேர்',
     groupsTab: 'குழுக்கள்',
     peopleTab: 'நபர்கள்',
     badgeNew: 'புதியது',
@@ -6434,7 +6434,7 @@ const hi: UiStrings = {
     addPerson: 'व्यक्ति जोड़ें',
     addPersonPlaceholder: 'उनका नाम',
     addMore: 'और जोड़ें',
-    redescribe: 'विवरण दोबारा बोलें',
+    dictate: 'आवाज़ से टेक्स्ट जोड़ें',
     groupsTab: 'ग्रुप',
     peopleTab: 'लोग',
     badgeNew: 'नया',
@@ -8321,7 +8321,7 @@ const ar: UiStrings = {
     addPerson: 'إضافة شخص',
     addPersonPlaceholder: 'اسمه',
     addMore: 'أضف المزيد',
-    redescribe: 'انطق الوصف مرة أخرى',
+    dictate: 'إضافة نص بالصوت',
     groupsTab: 'المجموعات',
     peopleTab: 'الأشخاص',
     badgeNew: 'جديد',
