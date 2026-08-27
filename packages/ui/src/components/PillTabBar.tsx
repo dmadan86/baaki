@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { memo, useRef, type ReactNode } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -134,7 +134,7 @@ export function PillTabBar({
 }
 
 /** The raised round action in the middle of the bar. */
-function CenterButton({ action }: { action: PillTabAction }) {
+const CenterButton = memo(function CenterButton({ action }: { action: PillTabAction }) {
   const theme = useTheme();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -164,9 +164,9 @@ function CenterButton({ action }: { action: PillTabAction }) {
       </Pressable>
     </View>
   );
-}
+});
 
-function TabItem({
+const TabItem = memo(function TabItem({
   item,
   focused,
   animated,
@@ -202,7 +202,9 @@ function TabItem({
       accessibilityRole="tab"
       accessibilityState={{ selected: focused }}
       accessibilityLabel={item.label}
-      onPress={() => onSelect(item.key)}
+      onPress={() => {
+        if (!focused) onSelect(item.key);
+      }}
       onPressIn={() => press(0.9)}
       onPressOut={() => press(1)}
       style={{ flex: 1 }}
@@ -241,4 +243,4 @@ function TabItem({
       </Animated.View>
     </Pressable>
   );
-}
+});

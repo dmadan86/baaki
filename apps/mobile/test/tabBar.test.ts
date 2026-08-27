@@ -1,19 +1,36 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveTabBar } from '../src/lib/tabBar';
+import { resolveTabBar, tabBarRouteForSelection } from '../src/lib/tabBar';
+
+describe('tabBarRouteForSelection', () => {
+  it('does not navigate when the selected tab is already active', () => {
+    expect(tabBarRouteForSelection('index', 'index')).toBeNull();
+    expect(tabBarRouteForSelection('friends', 'friends')).toBeNull();
+    expect(tabBarRouteForSelection('activity', 'activity')).toBeNull();
+    expect(tabBarRouteForSelection('inbox', 'inbox')).toBeNull();
+  });
+
+  it('maps inactive tab selections to their routes', () => {
+    expect(tabBarRouteForSelection('friends', 'index')).toBe('/');
+    expect(tabBarRouteForSelection('index', 'friends')).toBe('/friends');
+    expect(tabBarRouteForSelection('index', 'activity')).toBe('/activity');
+    expect(tabBarRouteForSelection('index', 'inbox')).toBe('/inbox');
+  });
+});
 
 describe('resolveTabBar', () => {
   it('lights the current tab inside the tabs group', () => {
     expect(resolveTabBar(['(tabs)', 'index'])).toEqual({ hidden: false, activeKey: 'index' });
     expect(resolveTabBar(['(tabs)', 'friends'])).toEqual({ hidden: false, activeKey: 'friends' });
     expect(resolveTabBar(['(tabs)', 'activity'])).toEqual({ hidden: false, activeKey: 'activity' });
+    expect(resolveTabBar(['(tabs)', 'inbox'])).toEqual({ hidden: false, activeKey: 'inbox' });
   });
 
   it('defaults to home when the tabs group has no leaf yet', () => {
     expect(resolveTabBar(['(tabs)'])).toEqual({ hidden: false, activeKey: 'index' });
   });
 
-  it('lights the inbox on its pushed route', () => {
+  it('keeps compatibility for the old pushed inbox route', () => {
     expect(resolveTabBar(['inbox'])).toEqual({ hidden: false, activeKey: 'inbox' });
   });
 
