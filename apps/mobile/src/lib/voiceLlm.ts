@@ -382,6 +382,7 @@ function mapItems(rawItems: unknown): VoiceExpenseItem[] {
       note: String(entry?.note ?? '')
         .trim()
         .slice(0, MAX_VOICE_NOTE_CHARS),
+      category: null,
     });
   }
   return items;
@@ -508,7 +509,17 @@ export async function interpretVoiceExpenses(
     await noteUsage(reply.totalTokens);
 
     const heuristic = parseVoiceExpenses(trimmed, ctx.groups);
-    return { items, group, splitCount: heuristic.splitCount, peopleText: heuristic.peopleText };
+    const categorizedItems = items.map((item, index) => ({
+      ...item,
+      category: heuristic.items[index]?.category ?? null,
+    }));
+    return {
+      items: categorizedItems,
+      group,
+      splitCount: heuristic.splitCount,
+      peopleText: heuristic.peopleText,
+      expenseDate: heuristic.expenseDate,
+    };
   } catch (caught) {
     // Network error, abort/timeout, malformed body — all of it is a fallback, not
     // a crash. The raw error (scrubbed) goes to Sentry; the key and transcript do

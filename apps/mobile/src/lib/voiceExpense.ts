@@ -14,7 +14,7 @@
  * and the group are cheap and certain here, and everyone gets them.
  */
 
-import { isCurrencyCode, minorUnitScale } from '@waves/core';
+import { CATEGORIES, isCurrencyCode, minorUnitScale, type CategoryId } from '@waves/core';
 
 /** Above this, a voice parse is more likely corrupted or misheard than safe to book. */
 export const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
@@ -22,15 +22,28 @@ export const MAX_VOICE_AMOUNT_MAJOR = 1_000_000_000;
 /** Bound model-supplied notes before they reach the review UI. */
 export const MAX_VOICE_NOTE_CHARS = 160;
 
-/** Unsupported intent words that must not be converted into normal expenses. */
-const UNSUPPORTED_EXPENSE_INTENT =
-  /\b(?:do\s+not|don['’]t|dont|did\s+not\s+pay|didn['’]t\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back|not\s+an\s+expense)\b/i;
+/** Whole-command intents that must not be converted into expenses. */
+const UNSUPPORTED_GLOBAL_EXPENSE_INTENT =
+  /\b(?:do\s+not|don['’]t|dont|did\s+not\s+pay|didn['’]t\s+pay|didnt\s+pay|not\s+paid|cancel|remove|delete|ignore|not\s+an\s+expense)\b/i;
+
+/** Clause-level intents that can be skipped without discarding neighbouring safe expenses. */
+const UNSUPPORTED_EXPENSE_CLAUSE =
+  /\b(?:refund(?:ed|s|ing)?|reimburse(?:d|ment|ments|s|ing)?|repay(?:ment|ments|s|ing)?|repaid|pay\s*back|paid\s+(?:me\s+)?back|got\s+(?:paid\s+)?back|received\s+(?:money\s+)?back)\b/i;
 
 const SPOKEN_NEGATIVE_AMOUNT =
   /\b(?:minus|negative)\s+(?=(?:\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|eleven\b|twelve\b|thirteen\b|fourteen\b|fifteen\b|sixteen\b|seventeen\b|eighteen\b|nineteen\b|twenty\b|thirty\b|forty\b|fourty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b|hundred\b|thousand\b|lakh\b|lakhs\b|crore\b|crores\b))/i;
+const THIRD_PARTY_PAYER_INTENT = /\b(?!(?:i|we|you)\b)[\p{L}][\p{L}'’.-]*\s+paid\b/iu;
+
+function isUnsupportedVoiceExpenseClause(text: string): boolean {
+  return (
+    UNSUPPORTED_EXPENSE_CLAUSE.test(text) ||
+    SPOKEN_NEGATIVE_AMOUNT.test(text) ||
+    THIRD_PARTY_PAYER_INTENT.test(text)
+  );
+}
 
 export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
-  return UNSUPPORTED_EXPENSE_INTENT.test(text) || SPOKEN_NEGATIVE_AMOUNT.test(text);
+  return UNSUPPORTED_GLOBAL_EXPENSE_INTENT.test(text) || isUnsupportedVoiceExpenseClause(text);
 }
 
 export function isSafeVoiceAmount(amountMajor: number): boolean {
@@ -645,6 +658,80 @@ export function resolveVoiceParticipants(params: {
   return chosen;
 }
 
+function localIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function parseVoiceExpenseDate(text: string, now: Date = new Date()): string | null {
+  if (/\bday\s+before\s+yesterday\b/i.test(text)) return localIsoDate(addDays(now, -2));
+  if (/\byesterday\b/i.test(text)) return localIsoDate(addDays(now, -1));
+  if (/\btomorrow\b/i.test(text)) return localIsoDate(addDays(now, 1));
+  if (/\btoday\b/i.test(text)) return localIsoDate(now);
+
+  const iso = text.match(/\b(?:on\s+)?(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if (!iso) return null;
+  const year = Number(iso[1]);
+  const month = Number(iso[2]);
+  const day = Number(iso[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  return localIsoDate(date);
+}
+
+function stripDatePhrases(text: string): string {
+  return text
+    .replace(/\b(?:on\s+)?\d{4}-\d{1,2}-\d{1,2}\b/gi, ' ')
+    .replace(/\bday\s+before\s+yesterday\b/gi, ' ')
+    .replace(/\b(?:today|yesterday|tomorrow)\b/gi, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+const CATEGORY_WORDS = new Map<string, CategoryId>(
+  CATEGORIES.flatMap((category) => [
+    [category.id, category.id],
+    [category.label.toLowerCase(), category.id],
+    ...category.label
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(Boolean)
+      .map((word) => [word, category.id] as const),
+  ]),
+);
+
+const CATEGORY_PHRASE =
+  /\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40}?)(?=\s+(?:and|then|with|split|on|for|category|tag|label)\b|\s*[,;]|\s*$)/giu;
+
+export function parseVoiceCategory(text: string): CategoryId | null {
+  CATEGORY_PHRASE.lastIndex = 0;
+  for (let match = CATEGORY_PHRASE.exec(text); match !== null; match = CATEGORY_PHRASE.exec(text)) {
+    const phrase = match[1].trim().toLowerCase();
+    if (!phrase) continue;
+    const category = CATEGORY_WORDS.get(phrase);
+    if (category) return category;
+  }
+  return null;
+}
+
+function stripCategoryPhrase(text: string): string {
+  CATEGORY_PHRASE.lastIndex = 0;
+  return text
+    .replace(CATEGORY_PHRASE, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
  * Several expenses in one breath, an optional "make a group", and a nudge
  * toward other languages.
@@ -664,6 +751,7 @@ export interface VoiceExpenseItem {
   amountMajor: number;
   currency: string | null;
   note: string;
+  category: CategoryId | null;
 }
 
 /**
@@ -682,6 +770,8 @@ export interface VoiceParseResult {
   splitCount: number | null;
   /** The cleaned transcript fragment that may name split participants. */
   peopleText: string | null;
+  /** A deterministic spoken expense date, when one was heard. */
+  expenseDate: string | null;
 }
 
 /**
@@ -1249,17 +1339,19 @@ export function parseVoiceExpenses(
   transcript: string,
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
-  if (isUnsupportedVoiceExpenseIntent(transcript))
-    return { items: [], group: null, splitCount: null, peopleText: null };
+  if (UNSUPPORTED_GLOBAL_EXPENSE_INTENT.test(transcript))
+    return { items: [], group: null, splitCount: null, peopleText: null, expenseDate: null };
 
   const normalized = normalizeSpokenNumbers(
     collapseAdditionRuns(normalizeCurrencyPrefixes(normalizeDigits(transcript))),
   );
+  const expenseDate = parseVoiceExpenseDate(normalized);
+  const category = parseVoiceCategory(normalized);
   const created = detectCreateGroup(normalized);
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
   // read from the clean remainder.
-  const body = stripAssignmentLeadIn(created ? created.rest : normalized);
+  const body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
 
   // The group is settled before the notes are built, so each note can have the
   // named group's words taken out ("dinner on the Goa trip" → note "dinner").
@@ -1280,31 +1372,55 @@ export function parseVoiceExpenses(
   let carriedCurrency: string | null = null;
 
   for (const segment of segments) {
+    if (isUnsupportedVoiceExpenseClause(segment)) continue;
     const amountMajor = extractAmount(segment);
     if (amountMajor === null) continue;
     const currency: string | null = detectCurrency(segment) ?? carriedCurrency;
     if (currency) carriedCurrency = currency;
+    const itemCategory = parseVoiceCategory(segment) ?? category;
     items.push({
       amountMajor,
       amountMinor: toVoiceMinorUnits(amountMajor, currency),
       currency,
-      note: buildNote(segment, matchedName),
+      note: stripCategoryPhrase(buildNote(segment, matchedName)),
+      category: itemCategory,
     });
   }
 
   // Nothing segmented out but there is still a single amount — treat the whole
   // sentence as one expense, matching the single-expense parser's reach.
-  if (items.length === 0) {
+  if (items.length === 0 && !isUnsupportedVoiceExpenseClause(body)) {
     const one = parseVoiceExpense(body, groups);
     if (one.amountMinor !== null && one.amountMajor !== null) {
       items.push({
         amountMinor: one.amountMinor,
         amountMajor: one.amountMajor,
         currency: one.currency,
-        note: one.note,
+        note: stripCategoryPhrase(one.note),
+        category,
       });
     }
   }
 
-  return { items, group, splitCount: extractSplitCount(body), peopleText: body.trim() || null };
+  const namedCurrencies = new Set(
+    items.map((item) => item.currency).filter((currency) => currency),
+  );
+  const finalItems =
+    namedCurrencies.size === 1
+      ? items.map((item) => {
+          const currency = item.currency ?? [...namedCurrencies][0] ?? null;
+          return currency === item.currency
+            ? item
+            : { ...item, currency, amountMinor: toVoiceMinorUnits(item.amountMajor, currency) };
+        })
+      : items;
+
+  const peopleText = stripCategoryPhrase(body).trim();
+  return {
+    items: finalItems,
+    group,
+    splitCount: extractSplitCount(body),
+    peopleText: peopleText || null,
+    expenseDate,
+  };
 }

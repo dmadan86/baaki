@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   matchMemberNames,
+  parseVoiceCategory,
   parseVoiceExpense,
+  parseVoiceExpenseDate,
   resolveVoiceParticipants,
   type VoiceGroupRef,
 } from '@/lib/voiceExpense';
@@ -599,13 +601,61 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items.map((item) => item.amountMajor)).toEqual([20, 15]);
   });
 
-  it('does not create items from unsupported negative, repayment, or refund intents', () => {
+  it('backfills a single named currency to earlier bare items', () => {
+    const result = parseVoiceExpenses('5 snacks, 10 rupees tea', groups);
+    expect(result.items.map((item) => item.currency)).toEqual(['INR', 'INR']);
+    expect(result.items.map((item) => item.amountMinor)).toEqual([500n, 1000n]);
+  });
+
+  it('carries deterministic spoken dates without leaking them into notes', () => {
+    const result = parseVoiceExpenses('500 rupees dinner yesterday', groups);
+    expect(result.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.items[0].note).toBe('dinner');
+  });
+
+  it('reads explicit ISO dates and rejects impossible dates', () => {
+    const result = parseVoiceExpenses('500 rupees dinner on 2026-08-12', groups);
+    expect(result.expenseDate).toBe('2026-08-12');
+    expect(result.items[0].note).toBe('dinner');
+    expect(parseVoiceExpenseDate('dinner on 2026-02-30')).toBeNull();
+  });
+
+  it('reads explicit built-in category phrases without leaking them into notes', () => {
+    const result = parseVoiceExpenses('500 rupees airport cab category travel', groups);
+    expect(result.items[0].category).toBe('travel');
+    expect(result.items[0].note).toBe('airport cab');
+    expect(parseVoiceCategory('tag as food')).toBe('food');
+  });
+
+  it('keeps explicit categories item-specific in multi-expense transcripts', () => {
+    const result = parseVoiceExpenses(
+      '500 rupees airport cab category travel, 300 rupees dinner tag food',
+      groups,
+    );
+    expect(result.items.map((item) => item.category)).toEqual(['travel', 'food']);
+    expect(result.items.map((item) => item.note)).toEqual(['airport cab', 'dinner']);
+  });
+
+  it('uses a trailing category as a global fallback when items do not name one', () => {
+    const result = parseVoiceExpenses('500 rupees cab, 300 rupees bus category travel', groups);
+    expect(result.items.map((item) => item.category)).toEqual(['travel', 'travel']);
+  });
+
+  it('ignores unknown category phrases safely', () => {
+    const result = parseVoiceExpenses('500 rupees dinner category crypto', groups);
+    expect(result.items[0].category).toBeNull();
+    expect(result.items[0].note).toBe('dinner');
+  });
+
+  it('does not create items from unsupported negative, repayment, refund, or third-party payer intents', () => {
     for (const sentence of [
       "don't add 500 rupees for dinner",
       'don’t add 500 rupees for dinner',
       'delete 500 rupees dinner',
       'refund 200 rupees hotel',
       'Ravi paid me back 500 rupees',
+      'Ravi paid 500 rupees for dinner',
+      'Priya paid twenty dollars for cab',
       'I did not pay 500 rupees for dinner',
       "I didn't pay 500 rupees for dinner",
       'I didn’t pay 500 rupees for dinner',
@@ -617,6 +667,22 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     ]) {
       expect(parseVoiceExpenses(sentence, groups).items, sentence).toEqual([]);
     }
+    expect(parseVoiceExpenses('I paid 500 rupees for dinner', groups).items).toHaveLength(1);
+  });
+
+  it('keeps safe expenses while skipping unsupported neighbouring clauses', () => {
+    const result = parseVoiceExpenses(
+      '500 rupees dinner, Ravi paid me back 200 rupees, 300 rupees cab, Priya paid 50 rupees snacks',
+      groups,
+    );
+    expect(result.items.map((item) => item.amountMajor)).toEqual([500, 300]);
+    expect(result.items.map((item) => item.note)).toEqual(['dinner', 'cab']);
+  });
+
+  it('still rejects global removal commands instead of partially parsing them', () => {
+    expect(parseVoiceExpenses('delete 500 rupees dinner and 300 rupees cab', groups).items).toEqual(
+      [],
+    );
   });
 
   it('does not create items from signed or spoken negative amounts', () => {

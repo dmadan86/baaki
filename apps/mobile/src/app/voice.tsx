@@ -86,6 +86,7 @@ interface Draft {
   amount: string;
   note: string;
   currency: string | null;
+  category: string | null;
 }
 
 /** Where the reviewed expenses will be written. */
@@ -195,6 +196,7 @@ export default function VoiceScreen() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [voicePeopleText, setVoicePeopleText] = useState<string | null>(null);
   const [voiceSplitCount, setVoiceSplitCount] = useState<number | null>(null);
+  const [voiceExpenseDate, setVoiceExpenseDate] = useState<string | null>(null);
   // One place for the whole spoken batch — a run of "coffee, then the taxi" all
   // happened where you are standing (A43). Optional and opt-in; null until the
   // reader taps "Add location" on the review.
@@ -336,10 +338,12 @@ export default function VoiceScreen() {
         amount: String(item.amountMajor),
         note: item.note,
         currency: item.currency,
+        category: item.category,
       })),
     );
     setVoicePeopleText(result.peopleText);
     setVoiceSplitCount(result.splitCount);
+    setVoiceExpenseDate(result.expenseDate);
     // A fresh parse is a fresh group to create, and a fresh location to read.
     groupCreated.current = false;
     ghostMemberId.current = null;
@@ -413,6 +417,7 @@ export default function VoiceScreen() {
       amount: String(item.amountMajor),
       note: item.note,
       currency: item.currency,
+      category: item.category,
     }));
 
   const editDraft = (key: string, patch: Partial<Draft>): void => {
@@ -438,6 +443,7 @@ export default function VoiceScreen() {
     setDrafts((current) => [...current, ...toDrafts(result)]);
     if (result.peopleText) setVoicePeopleText(result.peopleText);
     if (result.splitCount !== null) setVoiceSplitCount(result.splitCount);
+    if (result.expenseDate) setVoiceExpenseDate(result.expenseDate);
     setNoAmount(false);
     setMicMode('replace');
     setPhase('review');
@@ -529,7 +535,7 @@ export default function VoiceScreen() {
   // duplicate. Shared by the "Save as draft" button and the close-intercept, so
   // the two land the same rows.
   const persistDraftsToInbox = useCallback(async (): Promise<void> => {
-    const date = today();
+    const date = voiceExpenseDate ?? today();
     const fallback = t.voice.anExpense;
     // Several expenses spoken in one breath stay one thing in the inbox: they
     // share a batch id (carried in the capture's `parsed`, so no schema change),
@@ -547,7 +553,7 @@ export default function VoiceScreen() {
       await createCapture.mutateAsync({
         captureId: draft.key,
         description,
-        category: guessCategory(description),
+        category: draft.category ?? guessCategory(description),
         expenseDate: date,
         currency,
         amount,
@@ -555,7 +561,7 @@ export default function VoiceScreen() {
         parsed: batchId ? { voiceBatchId: batchId } : undefined,
       });
     }
-  }, [drafts, dc, location, t.voice.anExpense, createCapture]);
+  }, [drafts, dc, location, voiceExpenseDate, t.voice.anExpense, createCapture]);
 
   // Leaving the review with a draft batch and no group chosen must not throw the
   // expenses away — an unassigned batch is a draft, and a draft survives a close
@@ -653,7 +659,7 @@ export default function VoiceScreen() {
     setError(null);
     setSaving(true);
     try {
-      const date = today();
+      const date = voiceExpenseDate ?? today();
       const fallback = t.voice.anExpense;
 
       if (dest.kind === 'unassigned') {
@@ -734,7 +740,7 @@ export default function VoiceScreen() {
         await writeExpense.mutateAsync({
           expenseId,
           description,
-          category: guessCategory(description),
+          category: draft.category ?? guessCategory(description),
           expenseDate: date,
           currency: groupCurrency,
           amount,
