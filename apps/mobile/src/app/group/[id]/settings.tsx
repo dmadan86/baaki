@@ -280,11 +280,19 @@ export default function GroupSettingsScreen() {
           if (deleteGroup.isPending) return;
           deleteGroup.mutate(undefined, {
             onSuccess: () => router.replace('/'),
-            onError: (caught) =>
-              Alert.alert(
-                t.group.deleteGroup,
-                friendlyError(caught, t.misc.tryAgainMoment, 'groupSettings.delete'),
-              ),
+            onError: (caught) => {
+              // The two coded refusals carry a `code` (set in api.deleteGroup);
+              // show their localized line directly. Anything else is unknown and
+              // goes through friendlyError, which never echoes raw backend text.
+              const code = (caught as { code?: string } | null)?.code;
+              const body =
+                code === 'NOT_SETTLED'
+                  ? t.group.settleAllFirstBody
+                  : code === 'NOT_ADMIN'
+                    ? t.group.deleteAdminOnly
+                    : friendlyError(caught, t.misc.tryAgainMoment, 'groupSettings.delete');
+              Alert.alert(t.group.deleteGroup, body);
+            },
           });
         },
       },

@@ -111,4 +111,41 @@ describe('deleting a group', () => {
     await asUser(profileIds[0]!, () => client.query(`SELECT baaki_delete_group($1)`, [groupId]));
     expect(await deletedAt(groupId)).toBe(first);
   });
+
+  it('holds the group row lock while deleting, serializing a concurrent writer', async () => {
+    // The delete takes `FOR UPDATE` on the group row before it validates the
+    // balances, so a balance-mutating writer that shares that lock cannot slip a
+    // change in between the settled check and the tombstone. Prove it with a
+    // second connection: while the delete's transaction is open, a `FOR UPDATE
+    // NOWAIT` on the same row is refused (55P03) rather than interleaving.
+    const { groupId, profileIds, memberIds } = await seedGroup(client, { memberCount: 2 });
+    await addEqualSplitExpense(client, {
+      groupId,
+      amount: 1000n,
+      participants: [memberIds[0]!, memberIds[1]!],
+      payers: { [memberIds[0]!]: 500n, [memberIds[1]!]: 500n },
+    });
+
+    const other = await connect();
+    try {
+      // Connection A: run the delete inside an open transaction — it locks the
+      // group row and does not commit yet.
+      await client.query('BEGIN');
+      await asUser(profileIds[0]!, () => client.query(`SELECT baaki_delete_group($1)`, [groupId]));
+
+      // Connection B: the same row lock is unavailable while A holds it.
+      let refused = false;
+      try {
+        await other.query(`SELECT 1 FROM groups WHERE id = $1 FOR UPDATE NOWAIT`, [groupId]);
+      } catch (caught) {
+        const err = caught as { code?: string; message?: string };
+        refused = err.code === '55P03' || /could not obtain lock|lock/i.test(err.message ?? '');
+      }
+      expect(refused).toBe(true);
+    } finally {
+      // Undo the uncommitted delete; the group is left as it was.
+      await client.query('ROLLBACK');
+      await other.end();
+    }
+  });
 });

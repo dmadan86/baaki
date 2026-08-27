@@ -997,13 +997,22 @@ export async function deleteGroup(groupId: string): Promise<void> {
   if (error) {
     const code = /^([A-Z_]+):/.exec(error.message)?.[1];
     const strings = activeStrings();
-    throw new Error(
+    // Carry the coded reason on the Error so the caller can pick the right
+    // localized line in the render locale. The message is still a sentence (not
+    // raw PostgREST) for any non-UI consumer / crash report; the unknown case
+    // keeps the raw message, which the UI runs through friendlyError so it is
+    // never shown verbatim.
+    const thrown = new Error(
       code === 'NOT_SETTLED'
         ? strings.group.settleAllFirstBody
         : code === 'NOT_ADMIN'
           ? strings.group.deleteAdminOnly
           : error.message,
     );
+    if (code === 'NOT_SETTLED' || code === 'NOT_ADMIN') {
+      (thrown as { code?: string }).code = code;
+    }
+    throw thrown;
   }
 }
 
