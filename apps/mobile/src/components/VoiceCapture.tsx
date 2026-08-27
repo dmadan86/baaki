@@ -381,6 +381,12 @@ export function VoiceCapture({
   const mounted = useRef(true);
   // Guards the one auto-start so a re-render never reopens the mic.
   const started = useRef(false);
+  // Mirrors `listening` for the unmount cleanup to read. The panel is remounted
+  // (via a changing `key`) to start each new capture; its cleanup must abort a
+  // mic that is still open, but must NOT abort an already-idle recogniser — a
+  // needless abort() races the next mount's start() on the Android singleton and
+  // leaves the second capture stuck on "listening" with nothing happening.
+  const listeningRef = useRef(false);
 
   useSpeechRecognitionEvent('result', (event) => {
     const transcript = event.results[0]?.transcript ?? '';
@@ -490,11 +496,20 @@ export function VoiceCapture({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [available, autoStart]);
 
-  // Leaving mid-sentence must not leave the microphone open.
+  // Keep the cleanup's view of "is the mic open" current.
+  useEffect(() => {
+    listeningRef.current = listening;
+  }, [listening]);
+
+  // Leaving mid-sentence must not leave the microphone open — but only abort when
+  // the mic is actually open. On a remount to start the next capture the previous
+  // instance has usually already finished (idle); aborting it then needlessly
+  // disrupts the singleton recogniser and the next start() does nothing, leaving
+  // the second capture stuck on "listening".
   useEffect(() => {
     return () => {
       mounted.current = false;
-      ExpoSpeechRecognitionModule.abort();
+      if (listeningRef.current) ExpoSpeechRecognitionModule.abort();
     };
   }, []);
 
