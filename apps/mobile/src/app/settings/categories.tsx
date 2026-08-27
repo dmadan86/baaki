@@ -166,7 +166,9 @@ export default function CategoriesSettingsScreen() {
           </Text>
 
           {/* A custom tag is edited (and deleted) in the sheet; a built-in is
-              only ever hidden or shown. */}
+              only ever hidden or shown. Hiding a built-in also mints its override
+              row, so it is held while a reorder is still saving — same reason the
+              grip is — so the two can't race to create the one built-in's row. */}
           {entry.custom ? (
             <IconButton label={t.common.edit} onPress={() => setEditing(entry)}>
               <Ionicons name="pencil" size={iconSize.md} color={theme.color.textMuted} />
@@ -175,6 +177,7 @@ export default function CategoriesSettingsScreen() {
             <Toggle
               value={!entry.hidden}
               onValueChange={(shown) => persist(entry, { hidden: !shown })}
+              disabled={savingOrder}
               accessibilityLabel={entry.hidden ? t.tags.show : t.tags.hide}
             />
           )}
