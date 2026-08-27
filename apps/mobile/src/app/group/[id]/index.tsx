@@ -46,8 +46,10 @@ import {
   isBlockedMember,
   isGhost,
   type ActivityActor,
+  type ActivityRow,
   type ExpenseRow,
   type ExpenseVersionRow,
+  type MemberRow,
 } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -259,6 +261,19 @@ type FeedItem =
       readonly kind: 'expense';
       readonly key: string;
       readonly expense: ExpenseRow;
+      readonly isLast: boolean;
+    }
+  | {
+      readonly kind: 'balance';
+      readonly key: string;
+      readonly member: MemberRow;
+      readonly balance: bigint;
+      readonly isLast: boolean;
+    }
+  | {
+      readonly kind: 'activity';
+      readonly key: string;
+      readonly entry: ActivityRow;
       readonly isLast: boolean;
     };
 
@@ -533,6 +548,17 @@ export default function GroupScreen() {
     () => new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }),
     [locale],
   );
+  // The Activity tab's relative-time formatter, built once per locale and handed
+  // to every row — the same reason the date formatters above are hoisted. The
+  // standalone Activity feed already does this; this one used to build an
+  // `Intl.RelativeTimeFormat` per row while rendering the whole feed at once.
+  const activityRtf = useMemo(
+    () =>
+      typeof Intl.RelativeTimeFormat === 'function'
+        ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+        : undefined,
+    [locale],
+  );
 
   if (group.isLoading) {
     return <GroupSkeleton />;
@@ -684,41 +710,177 @@ export default function GroupScreen() {
     );
   }
 
+  // The Balances and Activity tabs ride the same virtualized list as Expenses,
+  // one FeedItem per row, so switching to them renders only the handful of rows
+  // on screen — not every member and every activity entry at once, which is what
+  // made the tab switch stall (they were mapped in full inside the list footer).
+  const memberList = members.data ?? [];
+  const balanceItems: FeedItem[] = memberList.map((member, index) => ({
+    kind: 'balance',
+    key: `balance-${member.id}`,
+    member,
+    balance: ledger.balances.get(member.id) ?? 0n,
+    isLast: index === memberList.length - 1,
+  }));
+  const activityList = activity.data ?? [];
+  const activityItems: FeedItem[] = activityList.map((entry, index) => ({
+    kind: 'activity',
+    key: `activity-${entry.id}`,
+    entry,
+    isLast: index === activityList.length - 1,
+  }));
+  // The rows the list shows for the current tab. One source for `data`, so the
+  // three tabs are the same list with different contents rather than a list plus
+  // two hand-rolled footers.
+  const listData: FeedItem[] =
+    tab === Tab.Balances ? balanceItems : tab === Tab.Activity ? activityItems : feedItems;
+
   // A month heading or an expense row. Headings carry the between-section gap the
   // ScrollView used to give for free; the first item needs none, its space comes
   // from the header block above it. The row itself is a memoized component fed
   // only stable props, so a recycled cell that lands on the same expense does no
   // work — the allocation and re-render both moved out of the hot fling path.
-  const renderFeedItem = ({ item, index }: { item: FeedItem; index: number }) =>
-    item.kind === 'month' ? (
-      <Text
-        variant="micro"
-        tone="muted"
-        style={{
-          marginTop: index === 0 ? 0 : theme.spacing.xl,
-          marginBottom: theme.spacing.xs,
-          textTransform: 'uppercase',
-          letterSpacing: 0.6,
-        }}
-      >
-        {monthLabel(monthFmtSameYear, monthFmtWithYear, item.date)}
-      </Text>
-    ) : (
-      <ExpenseFeedRow
-        expense={item.expense}
-        isLast={item.isLast}
-        // Lifted to a primitive prop so the row does not depend on the disputes
-        // Set — keeps its memo compare cheap and stable.
-        contested={openDisputes.has(item.expense.id)}
-        myMemberId={ledger.myMemberId}
-        groupId={groupId}
-        locale={locale}
-        dateFmt={dateFmt}
-        t={t}
-        theme={theme}
-        nameOf={nameOf}
-      />
+  const renderFeedItem = ({ item, index }: { item: FeedItem; index: number }) => {
+    if (item.kind === 'month') {
+      return (
+        <Text
+          variant="micro"
+          tone="muted"
+          style={{
+            marginTop: index === 0 ? 0 : theme.spacing.xl,
+            marginBottom: theme.spacing.xs,
+            textTransform: 'uppercase',
+            letterSpacing: 0.6,
+          }}
+        >
+          {monthLabel(monthFmtSameYear, monthFmtWithYear, item.date)}
+        </Text>
+      );
+    }
+    if (item.kind === 'expense') {
+      return (
+        <ExpenseFeedRow
+          expense={item.expense}
+          isLast={item.isLast}
+          // Lifted to a primitive prop so the row does not depend on the disputes
+          // Set — keeps its memo compare cheap and stable.
+          contested={openDisputes.has(item.expense.id)}
+          myMemberId={ledger.myMemberId}
+          groupId={groupId}
+          locale={locale}
+          dateFmt={dateFmt}
+          t={t}
+          theme={theme}
+          nameOf={nameOf}
+        />
+      );
+    }
+    if (item.kind === 'balance') {
+      const { member, balance, isLast } = item;
+      // Flat row: the money meaning is the sign on the amount and its
+      // "you are owed / you owe" label, not the row's colour.
+      return (
+        <View>
+          <Row
+            style={{
+              gap: theme.spacing.md,
+              alignItems: 'center',
+              paddingVertical: theme.spacing.md,
+            }}
+          >
+            <Avatar
+              name={displayName(member, null, blockedIds, t.misc.someone)}
+              ghost={isGhost(member) || isBlockedMember(member, blockedIds)}
+              size={40}
+            />
+            <View style={{ flex: 1 }}>
+              <Row style={{ gap: theme.spacing.sm }}>
+                <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {displayName(member, profile?.id, blockedIds, t.misc.someone)}
+                </Text>
+                {member.role === 'admin' && !isGhost(member) ? (
+                  <Badge label={t.people.admin} tone="brand" />
+                ) : null}
+              </Row>
+              <Text variant="caption" tone="muted" numberOfLines={1}>
+                {isGhost(member)
+                  ? t.notJoinedYet
+                  : isBlockedMember(member, blockedIds)
+                    ? // A VPA carries a name or phone — masked for a blocked person.
+                      '—'
+                    : (member.vpa ?? member.profile?.default_vpa ?? '—')}
+              </Text>
+            </View>
+            <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+              {/* Somebody who owes the group money can be nudged from the row that
+                  says so, the way Friends already does. Ghosts have nowhere to
+                  send it. */}
+              {balance < 0n && !isGhost(member) && member.id !== ledger.myMemberId ? (
+                <RemindChip groupId={groupId} memberId={member.id} currency={currency} />
+              ) : null}
+              <MoneyText amount={balance} currency={currency} locale={locale} mode="balance" />
+              {member.pending ? <PendingMark /> : null}
+            </Row>
+          </Row>
+          {!isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
+        </View>
+      );
+    }
+    // Activity: the same row shape as the Expenses tab, so the three tabs read as
+    // one screen — a soft tinted tile, the sentence and a relative time beside
+    // it, the amount on the right, hairlines between.
+    const { entry, isLast } = item;
+    const money = parseMoney(entry.payload, currency);
+    const tint = theme.tint[verbTint(entry.verb)];
+    return (
+      <View>
+        <Row
+          style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: theme.radius.md,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: tint.bg,
+            }}
+          >
+            <Ionicons name={verbIcon(entry.verb)} size={iconSize.lg} color={tint.ink} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="body" numberOfLines={2}>
+              {describeActivity(
+                // The group feed rides the mirror, where an activity row carries
+                // only `actor_member_id` — not the joined actor the cross-group
+                // feed gets. Resolve the actor from this group's members so the
+                // row names the person instead of "someone".
+                entry.actor ? entry : { ...entry, actor: actorFor(entry.actor_member_id) },
+                profile?.id ?? null,
+                blockedIds,
+                t.misc.someone,
+              )}
+            </Text>
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {relativeTime(locale, entry.created_at, undefined, activityRtf)}
+            </Text>
+          </View>
+          {money ? (
+            <MoneyText
+              amount={money.amount}
+              currency={money.currency}
+              locale={locale}
+              variant="subheading"
+              // Same owe colour as the shares, balances and the global feed.
+              tone="negative"
+            />
+          ) : null}
+        </Row>
+        {!isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
+      </View>
     );
+  };
 
   return (
     <Screen edges={[]}>
@@ -728,7 +890,7 @@ export default function GroupScreen() {
           second scale-up on top of that read as an unwanted zoom. */}
       <View style={{ flex: 1 }}>
         <FlashList
-          data={tab === Tab.Expenses ? feedItems : []}
+          data={listData}
           extraData={`${tab}|${showDeleted}|${locale}`}
           keyExtractor={(item) => item.key}
           getItemType={(item) => item.kind}
@@ -1104,182 +1266,32 @@ export default function GroupScreen() {
               </View>
             </View>
           }
-          ListFooterComponent={
+          ListEmptyComponent={
             tab === Tab.Expenses ? (
-              visibleExpenses.length === 0 ? (
-                // An empty list that only describes itself leaves the one thing to
-                // do on the screen to a floating button in the corner. The way out
-                // of an empty state belongs inside it.
-                <EmptyState
-                  title={t.nothingYet}
-                  body={t.nothingYetBody}
-                  icon={
-                    <Ionicons
-                      name="receipt-outline"
-                      size={iconSize.xxl}
-                      color={theme.color.brand}
-                    />
-                  }
-                  action={
-                    <Button
-                      label={t.addExpense}
-                      onPress={() => router.push(`/group/${groupId}/add-expense`)}
-                      icon={<Ionicons name="add" size={iconSize.md} color={theme.color.onBrand} />}
-                    />
-                  }
-                />
-              ) : null
-            ) : tab === Tab.Balances ? (
-              <View>
-                {(members.data ?? []).map((member, index, arr) => {
-                  // Flat row: the money meaning is the sign on the amount and its
-                  // "you are owed / you owe" label, not the row's colour.
-                  const balance = ledger.balances.get(member.id) ?? 0n;
-                  return (
-                    <View key={member.id}>
-                      <Row
-                        style={{
-                          gap: theme.spacing.md,
-                          alignItems: 'center',
-                          paddingVertical: theme.spacing.md,
-                        }}
-                      >
-                        <Avatar
-                          name={displayName(member, null, blockedIds, t.misc.someone)}
-                          ghost={isGhost(member) || isBlockedMember(member, blockedIds)}
-                          size={40}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Row style={{ gap: theme.spacing.sm }}>
-                            <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
-                              {displayName(member, profile?.id, blockedIds, t.misc.someone)}
-                            </Text>
-                            {member.role === 'admin' && !isGhost(member) ? (
-                              <Badge label={t.people.admin} tone="brand" />
-                            ) : null}
-                          </Row>
-                          <Text variant="caption" tone="muted" numberOfLines={1}>
-                            {isGhost(member)
-                              ? t.notJoinedYet
-                              : isBlockedMember(member, blockedIds)
-                                ? // A VPA carries a name or phone — masked for a blocked person.
-                                  '—'
-                                : (member.vpa ?? member.profile?.default_vpa ?? '—')}
-                          </Text>
-                        </View>
-                        <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                          {/* Somebody who owes the group money can be nudged from
-                              the row that says so, the way Friends already does —
-                              reading a debt and acting on it were two screens
-                              apart for no reason. Ghosts have nowhere to send it. */}
-                          {balance < 0n && !isGhost(member) && member.id !== ledger.myMemberId ? (
-                            <RemindChip
-                              groupId={groupId}
-                              memberId={member.id}
-                              currency={currency}
-                            />
-                          ) : null}
-                          <MoneyText
-                            amount={balance}
-                            currency={currency}
-                            locale={locale}
-                            mode="balance"
-                          />
-                          {member.pending ? <PendingMark /> : null}
-                        </Row>
-                      </Row>
-                      {index < arr.length - 1 ? (
-                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                      ) : null}
-                    </View>
-                  );
-                })}
-              </View>
-            ) : (activity.data ?? []).length === 0 ? (
+              // An empty list that only describes itself leaves the one thing to
+              // do on the screen to a floating button in the corner. The way out
+              // of an empty state belongs inside it.
+              <EmptyState
+                title={t.nothingYet}
+                body={t.nothingYetBody}
+                icon={
+                  <Ionicons name="receipt-outline" size={iconSize.xxl} color={theme.color.brand} />
+                }
+                action={
+                  <Button
+                    label={t.addExpense}
+                    onPress={() => router.push(`/group/${groupId}/add-expense`)}
+                    icon={<Ionicons name="add" size={iconSize.md} color={theme.color.onBrand} />}
+                  />
+                }
+              />
+            ) : tab === Tab.Activity ? (
               <EmptyState
                 title={t.nothingYet}
                 body={t.group.activityEmptyBody}
                 icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
               />
-            ) : (
-              // The same row shape as the Expenses tab, so the three tabs read as
-              // one screen: a soft tinted tile on the left, the sentence and a
-              // relative time beside it, the amount on the right, hairlines
-              // between. The event wears a rounded-square tile (not the expense's
-              // circle, not a bare timeline node or a bold filled disc) in a tint
-              // that leans with the verb — mint for money in and confirmations,
-              // coral for a delete or a dispute — so the feed is skimmable by
-              // colour at a glance without a connector line drawing the eye down.
-              <View>
-                {(activity.data ?? []).map((entry, index) => {
-                  const isLast = index === (activity.data?.length ?? 0) - 1;
-                  const money = parseMoney(entry.payload, currency);
-                  const tint = theme.tint[verbTint(entry.verb)];
-                  return (
-                    <View key={entry.id}>
-                      <Row
-                        style={{
-                          gap: theme.spacing.md,
-                          alignItems: 'center',
-                          paddingVertical: theme.spacing.md,
-                        }}
-                      >
-                        <View
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: theme.radius.md,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: tint.bg,
-                          }}
-                        >
-                          <Ionicons
-                            name={verbIcon(entry.verb)}
-                            size={iconSize.lg}
-                            color={tint.ink}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text variant="body" numberOfLines={2}>
-                            {describeActivity(
-                              // The group feed rides the mirror, where an activity
-                              // row carries only `actor_member_id` — not the joined
-                              // actor the cross-group feed gets. Resolve the actor
-                              // from this group's members so the row names the
-                              // person instead of "someone".
-                              entry.actor
-                                ? entry
-                                : { ...entry, actor: actorFor(entry.actor_member_id) },
-                              profile?.id ?? null,
-                              blockedIds,
-                              t.misc.someone,
-                            )}
-                          </Text>
-                          <Text variant="caption" tone="muted" numberOfLines={1}>
-                            {relativeTime(locale, entry.created_at)}
-                          </Text>
-                        </View>
-                        {money ? (
-                          <MoneyText
-                            amount={money.amount}
-                            currency={money.currency}
-                            locale={locale}
-                            variant="subheading"
-                            // Same owe colour as the shares, balances and the
-                            // global feed — one money colour across every screen.
-                            tone="negative"
-                          />
-                        ) : null}
-                      </Row>
-                      {!isLast ? (
-                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                      ) : null}
-                    </View>
-                  );
-                })}
-              </View>
-            )
+            ) : null
           }
         />
 
