@@ -12,7 +12,12 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 
-import { importSplitwiseCsv, parseCsvAmount, parseCsvRow } from '../src/index.js';
+import {
+  ImportProblemKind,
+  importSplitwiseCsv,
+  parseCsvAmount,
+  parseCsvRow,
+} from '../src/index.js';
 
 const HEADER = 'Date,Description,Category,Cost,Currency,Asha,Bharath,Chitra';
 
@@ -65,6 +70,70 @@ describe('reading the file', () => {
       file('2026-03-01,Dinner,Food and drink,300.00,INR,200.00,-100.00,-100.00'),
     );
     expect(result.expenses[0]?.category).toBe('Food and drink');
+  });
+
+  it('accepts Splitwise headers with extra spaces, casing differences, and BOMs', () => {
+    const result = importSplitwiseCsv(
+      [
+        '\uFEFF Date , Description , Category , Cost , Currency , Asha , Bharath ',
+        '2026-03-01,Dinner,Food and drink,300.00,INR,200.00,-200.00',
+      ].join('\n'),
+    );
+
+    expect(result.problems).toEqual([]);
+    expect(result.people).toEqual(['Asha', 'Bharath']);
+    expect(result.expenses).toHaveLength(1);
+  });
+
+  it('rejects duplicate person columns after trimming', () => {
+    const result = importSplitwiseCsv(
+      [
+        'Date,Description,Category,Cost,Currency,Asha, Asha ',
+        '2026-03-01,Dinner,Food and drink,300.00,INR,200.00,-100.00',
+      ].join('\n'),
+    );
+
+    expect(result.problems).toMatchObject([{ kind: ImportProblemKind.DuplicatePerson, row: 1 }]);
+    expect(result.expenses).toEqual([]);
+  });
+
+  it('rejects zero, negative, and malformed person amounts', () => {
+    const result = importSplitwiseCsv(
+      [
+        'Date,Description,Category,Cost,Currency,Asha,Bharath',
+        '2026-03-01,Zero,Food,0.00,INR,0.00,0.00',
+        '2026-03-02,Refund,Food,-300.00,INR,-200.00,100.00',
+        '2026-03-03,Broken,Food,300.00,INR,not-a-number,-100.00',
+      ].join('\n'),
+    );
+
+    expect(result.expenses).toEqual([]);
+    expect(result.problems.map((problem) => problem.kind)).toEqual([
+      ImportProblemKind.NonPositiveCost,
+      ImportProblemKind.NonPositiveCost,
+      ImportProblemKind.UnparseableRow,
+    ]);
+  });
+
+  it('parses non-INR currencies with their own minor-unit precision', () => {
+    const result = importSplitwiseCsv(
+      [
+        'Date,Description,Category,Cost,Currency,Asha,Bharath',
+        '2026-03-01,Sushi,Food,1234,JPY,617,-617',
+      ].join('\n'),
+    );
+
+    expect(result.problems).toEqual([]);
+    expect(result.currency).toBe('JPY');
+    expect(result.expenses).toMatchObject([
+      {
+        currency: 'JPY',
+        amount: 1234n,
+        payers: { Asha: 1234n },
+        shares: { Asha: 617n, Bharath: 617n },
+      },
+    ]);
+    expect(result.balances).toEqual({ Asha: 617n, Bharath: -617n });
   });
 });
 
