@@ -13,7 +13,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
 
 import {
-  Avatar,
   Badge,
   Button,
   Callout,
@@ -24,7 +23,6 @@ import {
   iconSize,
   Row,
   Screen,
-  SectionHeader,
   Text,
   useTabBarClearance,
   useTheme,
@@ -34,6 +32,7 @@ import { currencyForCountry, currencySymbol, dialingCodeForCountry } from '@wave
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { CountryRow } from '@/components/CountryPicker';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { friendlyError } from '@/lib/errors';
 import { confirmContact, startAddingContact, ContactChannel } from '@/data/api';
 import { deviceCountry, useStrings } from '@/i18n';
@@ -113,6 +112,22 @@ function AccountForm() {
   // independent of which channel the form below is currently pointed at, so it
   // does not flip as the chips are toggled. Purely a label.
   const accountContact = session?.user.email ?? session?.user.phone ?? null;
+
+  // The portrait's photo. A Google/Apple sign-in carries a photo in the
+  // session's user metadata, but the profile row only holds one if a trigger
+  // copied it across — older accounts have a null `avatar_url` and so showed
+  // initials here. Fall back to the provider photo (an https URL that resolves
+  // straight through) so the header shows the real face whether or not the
+  // column was ever filled. `||`, not `??`: an empty-string avatar (a cleared
+  // column, or a provider that sends '') is "no photo", so it must fall through
+  // to the next source rather than be handed on as a blank URL. This mirrors the
+  // derivation on (tabs)/profile deliberately — kept local so this screen does
+  // not depend on that one (a separate change is in flight there).
+  const oauthAvatar =
+    (session?.user?.user_metadata?.avatar_url as string | undefined) ||
+    (session?.user?.user_metadata?.picture as string | undefined) ||
+    null;
+  const avatarUrl = profile?.avatar_url || oauthAvatar;
 
   // The name shown in the header portrait, never blank — the same "You"
   // fallback the save path already uses, so the header agrees with the row.
@@ -270,20 +285,29 @@ function AccountForm() {
         </Row>
 
         {/* A calm identity header: the avatar and name give the screen a focal
-            point that names whose account this is (Mobbin — Todoist, TheFork).
-            It is a portrait, not a control — the name is edited in the field
-            just below, and the initials fall back cleanly when there is no
-            display name yet. */}
+            point that names whose account this is (Mobbin — Slopes, Tesla, Me+,
+            Vivino: a centred portrait over the name and contact). It is a
+            portrait, not a control — the name is edited in the field just below,
+            and the photo owner is (tabs)/profile, so there is no camera badge
+            here. `ProfileAvatar` shows the uploaded photo, or the provider
+            photo, and falls back to initials only when there is neither. */}
         <View
           style={{
             alignItems: 'center',
-            gap: theme.spacing.sm,
+            gap: theme.spacing.md,
             paddingTop: theme.spacing.sm,
           }}
         >
-          <Avatar name={displayName} size={88} />
+          <ProfileAvatar name={displayName} avatarUrl={avatarUrl} size={96} />
           <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-            <Text variant="title">{displayName}</Text>
+            <Row style={{ gap: theme.spacing.sm }}>
+              <Text variant="title">{displayName}</Text>
+              {/* The badge says the account has no email or phone on it. When
+                  somebody has not renamed themselves it repeats the name they
+                  were given, which reads as a bug rather than a fact — so it is
+                  held back for the untouched "Guest" name. */}
+              {isGuest && displayName !== 'Guest' ? <Badge label={t.common.guest} /> : null}
+            </Row>
             {accountContact ? (
               <Text variant="caption" tone="muted">
                 {accountContact}
@@ -296,7 +320,7 @@ function AccountForm() {
             old "You" screen so the whole account lives on one page. Save appears
             only once the name has changed, so the resting screen is calm. */}
         <View style={{ gap: theme.spacing.md }}>
-          <SectionHeader title={t.account.displayName} />
+          <GroupLabel icon="person-outline" title={t.account.displayName} />
           <Card style={{ gap: theme.spacing.lg }}>
             <TextInput
               value={name}
@@ -324,7 +348,7 @@ function AccountForm() {
             expense starts on, and the settle rails you are offered. Required —
             an address may follow, but it never has to. */}
         <View style={{ gap: theme.spacing.md }}>
-          <SectionHeader title={t.account.regionTitle} />
+          <GroupLabel icon="location-outline" title={t.account.regionTitle} />
           <Card style={{ gap: theme.spacing.lg }}>
             <CountryRow countryCode={country} onChange={(next) => void saveCountry(next)} />
 
@@ -399,7 +423,7 @@ function AccountForm() {
         ) : null}
 
         <View style={{ gap: theme.spacing.md }}>
-          <SectionHeader title={t.contact.signInMethodsTitle} />
+          <GroupLabel icon="log-in-outline" title={t.contact.signInMethodsTitle} />
           {/* An email or phone, or a linked account — any of them signs you back
               in on another phone. */}
           <Card style={{ gap: theme.spacing.lg }}>
@@ -571,6 +595,39 @@ function AccountForm() {
         </Text>
       </ScrollView>
     </Screen>
+  );
+}
+
+/**
+ * A section label in the settings grammar: a leading glyph in a soft brand
+ * circle beside the heading, matching the rows on (tabs)/profile so this screen
+ * reads as one of the settings family rather than a bespoke form. It replaces
+ * the bare `SectionHeader` here — the icon gives each grouped card a fast,
+ * scannable anchor (Mobbin — Me+, Vivino: grouped rows led by an icon). No
+ * chevron: every group below is edited in place, so there is nowhere to go.
+ */
+function GroupLabel({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
+  const theme = useTheme();
+  return (
+    <Row style={{ gap: theme.spacing.md, marginBottom: theme.spacing.xs }}>
+      <View
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: theme.radius.pill,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.color.brandSoft,
+        }}
+      >
+        <Ionicons name={icon} size={iconSize.md} color={theme.color.brand} />
+      </View>
+      {/* Marked as a header so a screen reader's heading navigation can still
+          jump between sections, exactly as the `SectionHeader` it replaced did. */}
+      <Text variant="heading" accessibilityRole="header">
+        {title}
+      </Text>
+    </Row>
   );
 }
 
