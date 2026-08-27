@@ -48,6 +48,8 @@ export enum SplitwiseProblemKind {
   UnparseableRow = 'unparseable_row',
   RowDoesNotBalance = 'row_does_not_balance',
   UnexpectedSettlement = 'unexpected_settlement',
+  DuplicatePerson = 'duplicate_person',
+  NonPositiveCost = 'non_positive_cost',
   NoPeople = 'no_people',
   NoRows = 'no_rows',
 }
@@ -109,6 +111,17 @@ export interface SplitwiseParse {
 
 /** Columns Splitwise writes before the per-person ones. */
 const FIXED_COLUMNS = ['date', 'description', 'category', 'cost', 'currency'];
+
+function normaliseHeaderName(name: string): string {
+  return name
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .toLowerCase();
+}
+
+function normalisePersonName(name: string): string {
+  return name.replace(/^\uFEFF/, '').trim();
+}
 
 /** The trailing summary row Splitwise appends — not an expense. */
 const TOTAL_ROW = /^total\s+balance$/i;
@@ -199,16 +212,20 @@ export function parseSplitwiseCsv(csv: string): SplitwiseParse {
 
   const header = lines[0] ? parseCsvRow(lines[0]) : [];
   const fixedCount = FIXED_COLUMNS.filter((name) =>
-    header.some((column) => column.toLowerCase() === name),
+    header.some((column) => normaliseHeaderName(column) === name),
   ).length;
   // Keep the field index beside each name: a blank person column in the header
   // shifts the people list without shifting the field positions, so reading by
   // list index would attribute every net after the gap to the wrong person.
   const personColumns = header
     .slice(FIXED_COLUMNS.length)
-    .map((name, offset) => ({ name, column: FIXED_COLUMNS.length + offset }))
+    .map((name, offset) => ({
+      name: normalisePersonName(name),
+      column: FIXED_COLUMNS.length + offset,
+    }))
     .filter((entry) => entry.name !== '');
   const people = personColumns.map((entry) => entry.name);
+  const duplicatePeople = people.filter((person, index) => people.indexOf(person) !== index);
 
   if (fixedCount < FIXED_COLUMNS.length || people.length === 0) {
     errors.push({
@@ -216,6 +233,22 @@ export function parseSplitwiseCsv(csv: string): SplitwiseParse {
       row: 1,
       message:
         'This does not look like a Splitwise export — expected Date, Description, Category, Cost, Currency and then one column per person.',
+    });
+    return {
+      people: [],
+      expenses: [],
+      settlements: [],
+      errors,
+      currency: 'INR',
+      netByPerson: {},
+    };
+  }
+
+  if (duplicatePeople.length > 0) {
+    errors.push({
+      kind: SplitwiseProblemKind.DuplicatePerson,
+      row: 1,
+      message: `Splitwise export has duplicate person columns: ${[...new Set(duplicatePeople)].join(', ')}.`,
     });
     return {
       people: [],
@@ -260,12 +293,37 @@ export function parseSplitwiseCsv(csv: string): SplitwiseParse {
     }
     currency = rowCurrency;
 
+    if (amount <= 0n) {
+      errors.push({
+        kind: SplitwiseProblemKind.NonPositiveCost,
+        row: rowNumber,
+        message: `Row ${rowNumber} ("${description}"): Splitwise cost must be greater than zero.`,
+      });
+      continue;
+    }
+
     const nets = new Map<string, bigint>();
     let netTotal = 0n;
+    let malformedNet: string | null = null;
     for (const entry of personColumns) {
-      const value = parseCsvAmount(fields[entry.column] ?? '', rowCurrency) ?? 0n;
+      const raw = fields[entry.column] ?? '';
+      const parsed = parseCsvAmount(raw, rowCurrency);
+      if (parsed === null && raw.trim() !== '') {
+        malformedNet = entry.name;
+        break;
+      }
+      const value = parsed ?? 0n;
       nets.set(entry.name, value);
       netTotal += value;
+    }
+
+    if (malformedNet) {
+      errors.push({
+        kind: SplitwiseProblemKind.UnparseableRow,
+        row: rowNumber,
+        message: `Row ${rowNumber} ("${description}"): could not read ${malformedNet}'s amount.`,
+      });
+      continue;
     }
 
     // Every row in a correct export sums to zero across people. A row that does
