@@ -68,6 +68,10 @@ type MutationKind =
   | 'tag.create'
   | 'tag.update'
   | 'tag.delete'
+  // The private personal-finance ledger (A48): personal like captures, under its
+  // own suffixed scope. One generic upsert/delete covers all four record kinds.
+  | 'personal.upsert'
+  | 'personal.delete'
   // Trip plan + budgets (A23) — group-scoped, authorised by membership, so NOT
   // in isPersonalKind below.
   | 'plan_item.create'
@@ -87,7 +91,9 @@ function isPersonalKind(kind: MutationKind): boolean {
     kind === 'capture.assign' ||
     kind === 'tag.create' ||
     kind === 'tag.update' ||
-    kind === 'tag.delete'
+    kind === 'tag.delete' ||
+    kind === 'personal.upsert' ||
+    kind === 'personal.delete'
   );
 }
 
@@ -96,6 +102,12 @@ function isPersonalKind(kind: MutationKind): boolean {
  *  suffixed, so the two personal scopes keep separate cursors. */
 function categoryTagsScope(profileId: string): string {
   return `${profileId}:category_tags`;
+}
+
+/** The personal-scope key for a user's personal-finance ledger (A48). Must match
+ *  the client's `personalScope`; suffixed so it keeps its own cursor. */
+function personalScope(profileId: string): string {
+  return `${profileId}:personal`;
 }
 
 interface MutationEnvelope {
@@ -422,6 +434,10 @@ class SyncSession {
         return await this.upsertTag(mutation);
       case 'tag.delete':
         return await this.deleteTag(mutation);
+      case 'personal.upsert':
+        return await this.upsertPersonal(mutation);
+      case 'personal.delete':
+        return await this.deletePersonal(mutation);
       case 'plan_item.create':
         return await this.rpcAsCaller('baaki_add_plan_item', {
           p_group_id: mutation.groupId,
@@ -846,6 +862,66 @@ class SyncSession {
     if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
     return { tagId };
   }
+
+  // ────────────────────────────────── personal finance (A48) ──
+  // A personal record's scope is suffixed (`<profileId>:personal`). The server
+  // is only a relay: `data` is stored as sent (all sums are computed on the
+  // device), so there is nothing to validate beyond the record kind and the
+  // scope. owner_user_id is set from the identity, never the payload.
+  private requirePersonalScope(mutation: MutationEnvelope): void {
+    if (mutation.groupId !== personalScope(this.profileId)) {
+      throw new HttpError(
+        403,
+        'NOT_OWNER',
+        'A personal record may only be written under its own owner',
+      );
+    }
+  }
+
+  private async upsertPersonal(mutation: MutationEnvelope): Promise<unknown> {
+    this.requirePersonalScope(mutation);
+    const payload = mutation.payload as {
+      recordId?: string;
+      recordKind?: string;
+      data?: Record<string, unknown> | null;
+    };
+    const recordId = requireString(payload.recordId, 'recordId');
+    const recordKind = requireString(payload.recordKind, 'recordKind');
+    if (!['txn', 'recurring', 'loan', 'budget'].includes(recordKind)) {
+      throw new HttpError(400, 'VALIDATION_FAILED', `Unknown personal record kind: ${recordKind}`);
+    }
+    const data =
+      payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+        ? payload.data
+        : {};
+    // Upsert by id, so a create and its edits are one row and a replay is
+    // harmless. `deleted_at: null` lets an upsert un-delete (an edit after a
+    // remove), matching the tag path.
+    const { error } = await this.caller.from('personal_records').upsert(
+      {
+        id: recordId,
+        owner_user_id: this.profileId,
+        record_kind: recordKind,
+        data,
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' },
+    );
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { recordId };
+  }
+
+  private async deletePersonal(mutation: MutationEnvelope): Promise<unknown> {
+    this.requirePersonalScope(mutation);
+    const recordId = requireString(mutation.payload.recordId, 'recordId');
+    const { error } = await this.caller
+      .from('personal_records')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', recordId);
+    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    return { recordId };
+  }
 }
 
 /**
@@ -889,6 +965,11 @@ async function pull(
   // merges. Must equal `categoryTagsScope(profileId)` in @waves/core.
   const tagScope = `${profileId}:category_tags`;
   groupIds.delete(tagScope);
+
+  // The personal-finance ledger (A48) rides a fourth personal scope, its own
+  // suffixed key. Must equal `personalScope(profileId)` in @waves/core.
+  const pfScope = `${profileId}:personal`;
+  groupIds.delete(pfScope);
 
   for (const groupId of groupIds) {
     const since = cursors[groupId] ?? 0;
@@ -1057,6 +1138,30 @@ async function pull(
   }
   nextCursors[tagScope] = tagsHighWater;
   if ((tags ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
+
+  // Personal scope (A48): the caller's own personal-finance ledger, its own
+  // suffixed cursor. Read as the caller so owner-only RLS guarantees the rows
+  // are theirs. Tombstones (deleted_at set) ride the pull like every soft delete.
+  const pfSince = cursors[pfScope] ?? 0;
+  const { data: personal, error: personalError } = await caller
+    .from('personal_records')
+    .select('*')
+    .eq('owner_user_id', profileId)
+    .gt('updated_seq', pfSince)
+    .order('updated_seq', { ascending: true })
+    .limit(MAX_ROWS_PER_TABLE);
+  if (personalError)
+    throw new HttpError(500, 'PULL_FAILED', `personal_records: ${personalError.message}`);
+
+  let pfHighWater = pfSince;
+  for (const row of personal ?? []) {
+    const record = row as Record<string, unknown>;
+    const seq = Number(record.updated_seq ?? 0);
+    changes.push({ table: 'personal_records', groupId: pfScope, seq, row: record });
+    if (seq > pfHighWater) pfHighWater = seq;
+  }
+  nextCursors[pfScope] = pfHighWater;
+  if ((personal ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
 
   return { changes, cursors: nextCursors, hasMore };
 }

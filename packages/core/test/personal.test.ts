@@ -1,0 +1,208 @@
+/**
+ * The personal-finance maths (A48). All of it is pure, so the sums the "Me" tab
+ * shows — a month's net, a loan's outstanding balance, a budget's remaining, and
+ * when a recurring rule is next due — are pinned here without a device.
+ */
+
+import { describe, expect, it } from 'vitest';
+
+import {
+  addToDate,
+  decodeTxn,
+  encodeTxn,
+  isRecurringDue,
+  loanOutstanding,
+  monthlySummary,
+  personalBudgetProgress,
+  recurringCatchUp,
+  recurringOccurrenceId,
+  type PersonalBudget,
+  type PersonalLoan,
+  type PersonalRecurring,
+  type PersonalTxn,
+} from '../src/personal/index.js';
+
+const txn = (over: Partial<PersonalTxn>): PersonalTxn => ({
+  id: over.id ?? crypto.randomUUID(),
+  kind: over.kind ?? 'expense',
+  amount: over.amount ?? 0n,
+  currency: over.currency ?? 'INR',
+  category: over.category ?? null,
+  note: over.note ?? null,
+  date: over.date ?? '2026-08-15',
+  loanId: over.loanId ?? null,
+  recurringId: over.recurringId ?? null,
+});
+
+describe('addToDate', () => {
+  it('hops exact weeks', () => {
+    expect(addToDate('2026-08-15', 'weekly', 1)).toBe('2026-08-22');
+    expect(addToDate('2026-08-28', 'weekly', 1)).toBe('2026-09-04');
+  });
+
+  it('clamps a month step to the shorter month', () => {
+    // Jan 31 + 1 month is Feb 28, not an invalid Feb 31 that rolls into March.
+    expect(addToDate('2026-01-31', 'monthly', 1)).toBe('2026-02-28');
+    expect(addToDate('2028-01-31', 'monthly', 1)).toBe('2028-02-29'); // leap year
+  });
+
+  it('rolls a month step across the year boundary', () => {
+    expect(addToDate('2026-12-10', 'monthly', 1)).toBe('2027-01-10');
+    expect(addToDate('2026-11-15', 'monthly', 3)).toBe('2027-02-15');
+  });
+
+  it('clamps a yearly step off Feb 29', () => {
+    expect(addToDate('2028-02-29', 'yearly', 1)).toBe('2029-02-28');
+  });
+});
+
+describe('recurringCatchUp', () => {
+  const base: PersonalRecurring = {
+    id: 'r1',
+    txnKind: 'expense',
+    amount: 50000n,
+    currency: 'INR',
+    category: null,
+    note: 'Phone',
+    cadence: 'monthly',
+    interval: 1,
+    anchorDate: '2026-06-01',
+    nextDate: '2026-06-01',
+    endDate: null,
+    autoPost: true,
+    active: true,
+  };
+
+  it('returns every missed occurrence up to today, then the new next date', () => {
+    const { dates, nextDate } = recurringCatchUp(base, '2026-08-15');
+    expect(dates).toEqual(['2026-06-01', '2026-07-01', '2026-08-01']);
+    expect(nextDate).toBe('2026-09-01');
+  });
+
+  it('stops at the end date', () => {
+    const { dates } = recurringCatchUp({ ...base, endDate: '2026-07-01' }, '2026-12-01');
+    expect(dates).toEqual(['2026-06-01', '2026-07-01']);
+  });
+
+  it('caps a far-past anchor rather than minting forever', () => {
+    const { dates } = recurringCatchUp({ ...base, cadence: 'weekly' }, '2030-01-01', 10);
+    expect(dates).toHaveLength(10);
+  });
+
+  it('isRecurringDue tracks active, end date and today', () => {
+    expect(isRecurringDue(base, '2026-06-01')).toBe(true);
+    expect(isRecurringDue(base, '2026-05-31')).toBe(false);
+    expect(isRecurringDue({ ...base, active: false }, '2026-08-01')).toBe(false);
+    expect(isRecurringDue({ ...base, endDate: '2026-05-01' }, '2026-08-01')).toBe(false);
+  });
+});
+
+describe('recurringOccurrenceId', () => {
+  it('is deterministic per rule and date, and a valid uuid shape', () => {
+    const a = recurringOccurrenceId('r1', '2026-08-01');
+    const b = recurringOccurrenceId('r1', '2026-08-01');
+    expect(a).toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  it('differs by date and by rule', () => {
+    expect(recurringOccurrenceId('r1', '2026-08-01')).not.toBe(
+      recurringOccurrenceId('r1', '2026-09-01'),
+    );
+    expect(recurringOccurrenceId('r1', '2026-08-01')).not.toBe(
+      recurringOccurrenceId('r2', '2026-08-01'),
+    );
+  });
+});
+
+describe('monthlySummary', () => {
+  it('nets income against expense within one month and currency', () => {
+    const txns = [
+      txn({ kind: 'income', amount: 100000n, date: '2026-08-01' }),
+      txn({ kind: 'expense', amount: 30000n, date: '2026-08-10' }),
+      txn({ kind: 'expense', amount: 20000n, date: '2026-08-20' }),
+      txn({ kind: 'expense', amount: 99999n, date: '2026-07-31' }), // other month
+      txn({ kind: 'expense', amount: 99999n, currency: 'USD', date: '2026-08-05' }), // other currency
+    ];
+    const s = monthlySummary(txns, '2026-08', 'INR');
+    expect(s.income).toBe(100000n);
+    expect(s.expense).toBe(50000n);
+    expect(s.net).toBe(50000n);
+  });
+});
+
+describe('loanOutstanding', () => {
+  const loan: PersonalLoan = {
+    id: 'L1',
+    direction: 'borrowed',
+    counterpart: 'Bank',
+    principal: 100000n,
+    currency: 'INR',
+    note: null,
+    startDate: '2026-01-01',
+    status: 'active',
+  };
+
+  it('is the principal less linked repayments, floored at zero', () => {
+    const txns = [
+      txn({ amount: 40000n, loanId: 'L1' }),
+      txn({ amount: 70000n, loanId: 'L1' }), // over-pays
+      txn({ amount: 99999n, loanId: 'other' }), // not this loan
+    ];
+    expect(loanOutstanding(loan, txns)).toBe(0n);
+    expect(loanOutstanding(loan, [txn({ amount: 25000n, loanId: 'L1' })])).toBe(75000n);
+  });
+});
+
+describe('personalBudgetProgress', () => {
+  const budget: PersonalBudget = { id: 'B1', category: 'food', limit: 50000n, currency: 'INR' };
+
+  it('counts matching-category expenses in the month, not income or loan repayments', () => {
+    const txns = [
+      txn({ kind: 'expense', category: 'food', amount: 20000n, date: '2026-08-02' }),
+      txn({ kind: 'expense', category: 'food', amount: 15000n, date: '2026-08-09' }),
+      txn({ kind: 'expense', category: 'travel', amount: 9999n, date: '2026-08-09' }), // other category
+      txn({ kind: 'income', category: 'food', amount: 9999n, date: '2026-08-09' }), // income
+      txn({ kind: 'expense', category: 'food', amount: 9999n, loanId: 'L1', date: '2026-08-09' }), // repayment
+      txn({ kind: 'expense', category: 'food', amount: 9999n, date: '2026-07-31' }), // other month
+    ];
+    const p = personalBudgetProgress(budget, txns, '2026-08');
+    expect(p.spent).toBe(35000n);
+    expect(p.remaining).toBe(15000n);
+  });
+
+  it('an overall budget (null category) counts every everyday expense', () => {
+    const overall: PersonalBudget = { id: 'B2', category: null, limit: 40000n, currency: 'INR' };
+    const txns = [
+      txn({ kind: 'expense', category: 'food', amount: 20000n, date: '2026-08-02' }),
+      txn({ kind: 'expense', category: 'travel', amount: 30000n, date: '2026-08-02' }),
+    ];
+    const p = personalBudgetProgress(overall, txns, '2026-08');
+    expect(p.spent).toBe(50000n);
+    expect(p.remaining).toBe(-10000n); // over budget
+  });
+});
+
+describe('txn codec', () => {
+  it('round-trips through the wire blob', () => {
+    const original = txn({
+      kind: 'income',
+      amount: 123456n,
+      currency: 'INR',
+      category: 'salary',
+      note: 'August pay',
+      date: '2026-08-01',
+      loanId: null,
+      recurringId: 'r9',
+    });
+    const decoded = decodeTxn(original.id, encodeTxn(original));
+    expect(decoded).toEqual(original);
+  });
+
+  it('decodes a malformed blob to safe defaults rather than throwing', () => {
+    const decoded = decodeTxn('x', { amount: 'not-a-number', kind: 'weird' });
+    expect(decoded.amount).toBe(0n);
+    expect(decoded.kind).toBe('expense');
+    expect(decoded.currency).toBe('INR');
+  });
+});

@@ -20,7 +20,7 @@ import type { MemberId, SplitParams, SplitType } from '../split/types';
 import type { CurrencyCode } from '../money/currency';
 import type { ExpenseSnapshot } from '../balances/types';
 
-import { categoryTagsScope, parseAmount, SyncTable } from './protocol';
+import { categoryTagsScope, parseAmount, personalScope, SyncTable } from './protocol';
 import type { CategoryMeta } from '../category/catalog';
 import type {
   CaptureAssignPayload,
@@ -31,6 +31,9 @@ import type {
   ExpenseLocation,
   MemberBudgetSetPayload,
   MutationEnvelope,
+  PersonalDeletePayload,
+  PersonalRecordKind,
+  PersonalUpsertPayload,
   PlanItemCreatePayload,
   PlanItemDeletePayload,
   PlanItemUpdatePayload,
@@ -68,6 +71,7 @@ const TABLES: readonly SyncTable[] = [
   SyncTable.ExpenseAttachments,
   SyncTable.ExpenseComments,
   SyncTable.ExpenseImageEvents,
+  SyncTable.PersonalRecords,
 ];
 
 export function emptyMirror(): MirrorState {
@@ -852,6 +856,74 @@ export function materialiseCategoryTags(
   }
 
   return [...byId.values()].filter((tag) => tag.deleted_at === null);
+}
+
+// ─────────────────────────────────────── the personal-finance ledger ──
+// Personal scope (A48), exactly like captures/tags but under `personalScope`.
+// One generic row per record; `record_kind` says which of the four it is and
+// `data` carries that kind's fields (money as minor-unit strings). A record made
+// offline is only in the queue, so the same server+pending overlay applies.
+
+export interface MirrorPersonalRecord extends MirrorRow {
+  readonly id: string;
+  readonly owner_user_id: string;
+  readonly record_kind: PersonalRecordKind;
+  readonly data: Record<string, unknown>;
+  readonly created_at: string;
+  readonly deleted_at: string | null;
+  readonly pending?: boolean;
+}
+
+/**
+ * The personal-finance records to read: the server's rows for this owner with
+ * the queue replayed on top. `ownerId` is the personal scope; every queued
+ * personal mutation carries `personalScope(ownerId)` in the envelope's group
+ * slot. Deleted rows are dropped — the caller sees only live records.
+ */
+export function materialisePersonalRecords(
+  state: MirrorState,
+  queue: readonly QueuedMutation[],
+  options: { readonly ownerId: string },
+): MirrorPersonalRecord[] {
+  const scope = personalScope(options.ownerId);
+  const byId = new Map<string, MirrorPersonalRecord>();
+  for (const row of rowsFor(state, SyncTable.PersonalRecords) as MirrorPersonalRecord[]) {
+    if (row.owner_user_id !== options.ownerId) continue;
+    byId.set(row.id, row);
+  }
+
+  for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
+    if (mutation.groupId !== scope) continue;
+
+    switch (mutation.kind) {
+      case 'personal.upsert': {
+        const payload = mutation.payload as PersonalUpsertPayload;
+        const existing = byId.get(payload.recordId);
+        byId.set(payload.recordId, {
+          id: payload.recordId,
+          owner_user_id: options.ownerId,
+          record_kind: payload.recordKind,
+          data: { ...payload.data },
+          created_at: existing?.created_at ?? mutation.clientCreatedAt,
+          deleted_at: existing?.deleted_at ?? null,
+          pending: true,
+        });
+        break;
+      }
+      case 'personal.delete': {
+        const { recordId } = mutation.payload as PersonalDeletePayload;
+        const existing = byId.get(recordId);
+        if (existing) {
+          byId.set(recordId, { ...existing, deleted_at: mutation.clientCreatedAt, pending: true });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return [...byId.values()].filter((record) => record.deleted_at === null);
 }
 
 /**

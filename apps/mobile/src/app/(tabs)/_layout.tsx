@@ -44,6 +44,7 @@ export default function TabsLayout() {
           not a stack push that re-reveals (and thaws) the whole tab tree. It is
           not shown in the hidden native bar; the root `AppTabBar` draws it. */}
       <Tabs.Screen name="inbox" />
+      <Tabs.Screen name="me" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );

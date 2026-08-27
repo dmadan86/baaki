@@ -54,6 +54,14 @@ export enum MutationKind {
   MemberBudgetClear = 'member_budget.clear',
   GroupBudgetSet = 'group_budget.set',
   CategoryBudgetSet = 'category_budget.set',
+  // Personal-scope kinds for the private personal-finance ledger (A48): solo
+  // expenses/income, recurring rules, loans and monthly budgets. Like captures
+  // they ride a personal scope, under their own suffixed cursor
+  // (`personalScope`). One generic upsert/delete pair covers all four record
+  // kinds; `recordKind` in the payload says which, and the `data` blob is opaque
+  // to the server, which only relays it. A delete is a soft tombstone.
+  PersonalUpsert = 'personal.upsert',
+  PersonalDelete = 'personal.delete',
 }
 
 export interface MutationEnvelope<K extends MutationKind = MutationKind, P = unknown> {
@@ -284,6 +292,27 @@ export interface CategoryBudgetSetPayload {
   readonly currency?: CurrencyCode | null;
 }
 
+/** The four kinds of row the personal-finance ledger holds (A48). */
+export type PersonalRecordKind = 'txn' | 'recurring' | 'loan' | 'budget';
+
+/**
+ * An upsert of one personal-finance record (A48). `recordId` is client-chosen
+ * and the idempotency key. `data` carries the record's fields shaped by
+ * `recordKind` — money fields are minor-unit decimal strings, like everywhere
+ * on the wire — and is opaque to the server, which stores and relays it without
+ * reading it (all summaries and balances are computed on the device).
+ */
+export interface PersonalUpsertPayload {
+  readonly recordId: string;
+  readonly recordKind: PersonalRecordKind;
+  readonly data: Readonly<Record<string, unknown>>;
+}
+
+/** Soft-deletes one personal-finance record; the tombstone rides the pull. */
+export interface PersonalDeletePayload {
+  readonly recordId: string;
+}
+
 export interface SyncRequest {
   readonly deviceId: string;
   readonly mutations: readonly MutationEnvelope[];
@@ -371,6 +400,10 @@ export enum SyncTable {
    * log RPC and the attachment RPCs, which stamp the actor from the session; a
    * `parties` row is RLS-filtered so a non-party never receives it. */
   ExpenseImageEvents = 'expense_image_events',
+  /** Personal scope (A48): the caller's own personal-finance ledger — solo
+   * expenses/income, recurring rules, loans and budgets. Read + write, one
+   * generic row per record, keyed by the owner's user id under `personalScope`. */
+  PersonalRecords = 'personal_records',
 }
 
 /**
@@ -390,6 +423,15 @@ export function ghostMergesScope(profileId: string): string {
  */
 export function categoryTagsScope(profileId: string): string {
   return `${profileId}:category_tags`;
+}
+
+/**
+ * The sync scope key for a user's personal-finance ledger (A48). Suffixed, so it
+ * keeps its own cursor apart from captures, ghost merges and the tag catalog.
+ * The edge and the client must agree on this string.
+ */
+export function personalScope(profileId: string): string {
+  return `${profileId}:personal`;
 }
 
 /** bigint ↔ string at the wire boundary; JSON has no integers this size. */
