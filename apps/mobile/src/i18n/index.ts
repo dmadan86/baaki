@@ -2615,7 +2615,8 @@ const en: UiStrings = {
     missedNothing: 'Didn’t catch that',
     tapToRetry: 'Tap to try again',
     logTitle: 'Voice attempts',
-    logSubtitle: 'Kept on this device only, to improve recognition. Nothing is sent anywhere.',
+    logSubtitle:
+      'Kept on this device only, to improve recognition. Nothing leaves the device unless you tap Share.',
     logEmpty: 'No voice attempts yet',
     logEmptyBody: 'Speak an expense from the mic and it shows here.',
     logNoExpense: 'No expense found',
@@ -4448,7 +4449,7 @@ const ta: UiStrings = {
     tapToRetry: 'மீண்டும் முயற்சிக்க தட்டு',
     logTitle: 'குரல் முயற்சிகள்',
     logSubtitle:
-      'அங்கீகாரத்தை மேம்படுத்த இந்த சாதனத்தில் மட்டுமே வைக்கப்படும். எதுவும் எங்கும் அனுப்பப்படாது.',
+      'அங்கீகாரத்தை மேம்படுத்த இந்த சாதனத்தில் மட்டுமே வைக்கப்படும். நீங்கள் பகிர் என்பதைத் தட்டாத வரை எதுவும் சாதனத்தை விட்டு வெளியேறாது.',
     logEmpty: 'இன்னும் குரல் முயற்சிகள் இல்லை',
     logEmptyBody: 'மைக்கில் ஒரு செலவைச் சொல்லுங்கள், அது இங்கே தெரியும்.',
     logNoExpense: 'செலவு எதுவும் கிடைக்கவில்லை',
@@ -6337,7 +6338,8 @@ const hi: UiStrings = {
     missedNothing: 'समझ नहीं आया',
     tapToRetry: 'दोबारा कोशिश के लिए टैप करें',
     logTitle: 'आवाज़ प्रयास',
-    logSubtitle: 'पहचान सुधारने के लिए सिर्फ़ इस डिवाइस पर रखा जाता है। कहीं कुछ नहीं भेजा जाता।',
+    logSubtitle:
+      'पहचान सुधारने के लिए सिर्फ़ इस डिवाइस पर रखा जाता है। जब तक आप शेयर न दबाएँ, कुछ भी डिवाइस से बाहर नहीं जाता।',
     logEmpty: 'अभी कोई आवाज़ प्रयास नहीं',
     logEmptyBody: 'माइक से कोई ख़र्च बोलें, वह यहाँ दिखेगा।',
     logNoExpense: 'कोई ख़र्च नहीं मिला',
@@ -8197,7 +8199,8 @@ const ar: UiStrings = {
     missedNothing: 'لم أفهم ذلك',
     tapToRetry: 'انقر لإعادة المحاولة',
     logTitle: 'محاولات الصوت',
-    logSubtitle: 'يُحفظ على هذا الجهاز فقط لتحسين التعرّف. لا يُرسل شيء إلى أي مكان.',
+    logSubtitle:
+      'يُحفظ على هذا الجهاز فقط لتحسين التعرّف. لا يغادر شيء الجهاز ما لم تضغط على مشاركة.',
     logEmpty: 'لا محاولات صوتية بعد',
     logEmptyBody: 'انطق مصروفًا من الميكروفون وسيظهر هنا.',
     logNoExpense: 'لم يُعثر على مصروف',
