@@ -2242,6 +2242,10 @@ export interface UiStrings {
     income: string;
     expenses: string;
     net: string;
+    saved: string;
+    overspent: string;
+    today: string;
+    yesterday: string;
     add: string;
     addExpense: string;
     addIncome: string;
@@ -4226,6 +4230,10 @@ const en: UiStrings = {
     income: 'Income',
     expenses: 'Expenses',
     net: 'Net',
+    saved: 'saved',
+    overspent: 'overspent',
+    today: 'Today',
+    yesterday: 'Yesterday',
     add: 'Add',
     addExpense: 'Add expense',
     addIncome: 'Add income',
@@ -6304,6 +6312,10 @@ const ta: UiStrings = {
     income: 'வருமானம்',
     expenses: 'செலவுகள்',
     net: 'நிகரம்',
+    saved: 'சேமிப்பு',
+    overspent: 'அதிகச் செலவு',
+    today: 'இன்று',
+    yesterday: 'நேற்று',
     add: 'சேர்',
     addExpense: 'செலவைச் சேர்',
     addIncome: 'வருமானத்தைச் சேர்',
@@ -8293,6 +8305,10 @@ const hi: UiStrings = {
     income: 'आय',
     expenses: 'खर्च',
     net: 'शुद्ध',
+    saved: 'बचत',
+    overspent: 'अधिक ख़र्च',
+    today: 'आज',
+    yesterday: 'कल',
     add: 'जोड़ें',
     addExpense: 'खर्च जोड़ें',
     addIncome: 'आय जोड़ें',
@@ -10495,6 +10511,10 @@ const ar: UiStrings = {
     income: 'الدخل',
     expenses: 'المصروفات',
     net: 'الصافي',
+    saved: 'ادّخرت',
+    overspent: 'إنفاق زائد',
+    today: 'اليوم',
+    yesterday: 'أمس',
     add: 'إضافة',
     addExpense: 'إضافة مصروف',
     addIncome: 'إضافة دخل',
