@@ -147,19 +147,26 @@ export default function CategoriesSettingsScreen() {
                   }}
                 >
                   {/* Reorder controls. Compact chevrons stacked up-over-down:
-                      their tap target comes from `hitSlop`, not padding, so the
-                      pair no longer inflates the row — the badge and label set
-                      its height. `move` is a no-op at the ends, and the arrow
-                      dims there, so the list cannot push a row off an edge. The
-                      hitSlop leans outward (away from its sibling) so the two
-                      taps stay cleanly separated. */}
+                      the tap target is real padding on each Pressable (kept
+                      small), so it stays inside the control's own bounds — a
+                      `hitSlop` would extend past this wrapper and be clipped on
+                      Android — while the badge and label still set the row height.
+                      A `move` that can't go anywhere (the first row's up, the last
+                      row's down, or any while a reorder is still saving) is
+                      disabled: the arrow dims, gives no pressed feedback, and
+                      announces its disabled state. */}
                   <View style={{ gap: 2 }}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${entry.label} ▲`}
+                      accessibilityState={{ disabled: index === 0 || upsertTag.isPending }}
+                      disabled={index === 0 || upsertTag.isPending}
                       onPress={() => move(index, -1)}
-                      hitSlop={{ top: 10, bottom: 2, left: 8, right: 8 }}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 3,
+                        opacity: pressed ? 0.5 : 1,
+                      })}
                     >
                       <Ionicons
                         name="chevron-up"
@@ -170,9 +177,16 @@ export default function CategoriesSettingsScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${entry.label} ▼`}
+                      accessibilityState={{
+                        disabled: index === all.length - 1 || upsertTag.isPending,
+                      }}
+                      disabled={index === all.length - 1 || upsertTag.isPending}
                       onPress={() => move(index, 1)}
-                      hitSlop={{ top: 2, bottom: 10, left: 8, right: 8 }}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 3,
+                        opacity: pressed ? 0.5 : 1,
+                      })}
                     >
                       <Ionicons
                         name="chevron-down"
