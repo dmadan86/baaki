@@ -15,7 +15,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import type { CatalogEntry } from '@waves/core';
 import {
@@ -93,10 +93,13 @@ export default function CategoriesSettingsScreen() {
   return (
     <Screen>
       <ScrollView
+        // A tighter vertical rhythm than the old blanket `xl` gap: the header,
+        // the intro line, the card and the hint each carry their own margin so
+        // the intro can hug the header while the card still breathes. Denser
+        // overall, so the list starts higher up the screen.
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
-          gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -116,7 +119,9 @@ export default function CategoriesSettingsScreen() {
           </IconButton>
         </Row>
 
-        <Text variant="caption" tone="muted" align="center">
+        {/* Hugs the header (small top margin) rather than sitting a full gap
+            below it, so the intro reads as a subtitle of the title above. */}
+        <Text variant="caption" tone="muted" align="center" style={{ marginTop: theme.spacing.sm }}>
           {t.tags.manageSubtitle}
         </Text>
 
@@ -125,7 +130,10 @@ export default function CategoriesSettingsScreen() {
             <EmptyState title={t.tags.noCustomTags} />
           </View>
         ) : (
-          <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+          <Card
+            padded={false}
+            style={{ paddingHorizontal: theme.spacing.lg, marginTop: theme.spacing.lg }}
+          >
             {all.map((entry, index) => (
               <View key={entry.key}>
                 {index > 0 ? (
@@ -134,21 +142,52 @@ export default function CategoriesSettingsScreen() {
                 <Row
                   style={{
                     alignItems: 'center',
-                    paddingVertical: theme.spacing.md,
+                    paddingVertical: theme.spacing.sm,
                     gap: theme.spacing.sm,
                   }}
                 >
-                  {/* Reorder controls. `move` is a no-op at the ends, and the
-                      arrow dims there, so the list cannot push a row off an edge. */}
+                  {/* Reorder controls. Compact chevrons stacked up-over-down:
+                      the tap target is real padding on each Pressable (kept
+                      small), so it stays inside the control's own bounds — a
+                      `hitSlop` would extend past this wrapper and be clipped on
+                      Android — while the badge and label still set the row height.
+                      A `move` that can't go anywhere (the first row's up, the last
+                      row's down, or any while a reorder is still saving) is
+                      disabled: the arrow dims, gives no pressed feedback, and
+                      announces its disabled state. */}
                   <View style={{ gap: 2 }}>
-                    <IconButton label={`${entry.label} ▲`} onPress={() => move(index, -1)}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${entry.label} ▲`}
+                      accessibilityState={{ disabled: index === 0 || upsertTag.isPending }}
+                      disabled={index === 0 || upsertTag.isPending}
+                      onPress={() => move(index, -1)}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 3,
+                        opacity: pressed ? 0.5 : 1,
+                      })}
+                    >
                       <Ionicons
                         name="chevron-up"
                         size={iconSize.md}
                         color={index === 0 ? theme.color.textFaint : theme.color.textMuted}
                       />
-                    </IconButton>
-                    <IconButton label={`${entry.label} ▼`} onPress={() => move(index, 1)}>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${entry.label} ▼`}
+                      accessibilityState={{
+                        disabled: index === all.length - 1 || upsertTag.isPending,
+                      }}
+                      disabled={index === all.length - 1 || upsertTag.isPending}
+                      onPress={() => move(index, 1)}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 3,
+                        opacity: pressed ? 0.5 : 1,
+                      })}
+                    >
                       <Ionicons
                         name="chevron-down"
                         size={iconSize.md}
@@ -156,7 +195,7 @@ export default function CategoriesSettingsScreen() {
                           index === all.length - 1 ? theme.color.textFaint : theme.color.textMuted
                         }
                       />
-                    </IconButton>
+                    </Pressable>
                   </View>
 
                   <CategoryBadge
@@ -166,7 +205,7 @@ export default function CategoriesSettingsScreen() {
                         ? { label: entry.label, icon: entry.icon, tint: entry.tint }
                         : null
                     }
-                    size={40}
+                    size={32}
                   />
 
                   <Text
@@ -196,7 +235,7 @@ export default function CategoriesSettingsScreen() {
           </Card>
         )}
 
-        <Text variant="micro" tone="muted" align="center">
+        <Text variant="micro" tone="muted" align="center" style={{ marginTop: theme.spacing.md }}>
           {t.tags.reorderHint}
         </Text>
       </ScrollView>
