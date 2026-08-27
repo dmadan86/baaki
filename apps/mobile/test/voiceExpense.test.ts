@@ -16,6 +16,21 @@ describe('parseVoiceExpense', () => {
     expect(parsed.currency).toBe('INR');
   });
 
+  it('parses a polite, conversational request and keeps the note clean', () => {
+    // "hello, can you please add five hundred rupees for tea shop" — greeting +
+    // request framing wrap the real command. The amount and currency still come
+    // through, and the filler ("can you please add … for") is stripped so the
+    // note is just what it was spent on.
+    const parsed = parseVoiceExpense(
+      'hello, can you please add five hundred rupees for tea shop',
+      groups,
+    );
+    expect(parsed.amountMajor).toBe(500);
+    expect(parsed.amountMinor).toBe(50000n);
+    expect(parsed.currency).toBe('INR');
+    expect(parsed.note).toBe('tea shop');
+  });
+
   it('matches the group the sentence names', () => {
     expect(parseVoiceExpense('add 500 to Goa trip', groups).groupId).toBe('g-goa');
     expect(parseVoiceExpense('200 for flat', groups).groupId).toBe('g-flat');

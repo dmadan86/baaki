@@ -714,6 +714,9 @@ export interface UiStrings {
     lockOff: string;
     signOutGuestHint: string;
     signOutHint: string;
+    /** Settings row → the on-device voice-attempt log. */
+    voiceLog: string;
+    voiceLogHint: string;
   };
   /** Bring your own model key — held on the device, used on your own account. */
   aiKeys: {
@@ -776,6 +779,16 @@ export interface UiStrings {
     missedNothing: string;
     /** The status line under the mic on a miss: the mic itself is the retry. */
     tapToRetry: string;
+    /** The on-device voice-attempt log (settings/voice-log) — diagnostics kept
+     *  on the phone to improve recognition. */
+    logTitle: string;
+    logSubtitle: string;
+    logEmpty: string;
+    logEmptyBody: string;
+    logNoExpense: string;
+    logFound: PluralForms;
+    logClear: string;
+    logShare: string;
     tryAgain: string;
     chooseGroup: string;
     /** '{note}' is the spoken description. */
@@ -2559,6 +2572,8 @@ const en: UiStrings = {
     lockOff: 'Off — anyone holding your phone can read the ledger',
     signOutGuestHint: 'This guest account lives on this device only',
     signOutHint: 'Nothing is deleted; sign back in whenever',
+    voiceLog: 'Voice attempts',
+    voiceLogHint: 'Review what the mic heard',
   },
   aiKeys: {
     title: 'Bring your own key',
@@ -2604,6 +2619,15 @@ const en: UiStrings = {
     noAmount: 'Didn’t catch an amount',
     missedNothing: 'Didn’t catch that',
     tapToRetry: 'Tap to try again',
+    logTitle: 'Voice attempts',
+    logSubtitle:
+      'Kept on this device only, to improve recognition. Nothing leaves the device unless you tap Share.',
+    logEmpty: 'No voice attempts yet',
+    logEmptyBody: 'Speak an expense from the mic and it shows here.',
+    logNoExpense: 'No expense found',
+    logFound: { one: '{n} expense', other: '{n} expenses' },
+    logClear: 'Clear log',
+    logShare: 'Share',
     tryAgain: 'Try again',
     chooseGroup: 'Which group?',
     heard: 'Heard: {note}',
@@ -4381,6 +4405,8 @@ const ta: UiStrings = {
     lockOff: 'நிறுத்தத்தில் — உங்கள் ஃபோனை வைத்திருப்பவர் யாரும் கணக்கைப் படிக்கலாம்',
     signOutGuestHint: 'இந்த விருந்தினர் கணக்கு இந்தச் சாதனத்தில் மட்டுமே உள்ளது',
     signOutHint: 'எதுவும் அழிக்கப்படாது; எப்போது வேண்டுமானாலும் மீண்டும் உள்நுழையலாம்',
+    voiceLog: 'குரல் முயற்சிகள்',
+    voiceLogHint: 'மைக் என்ன கேட்டது என்பதைப் பார்',
   },
   aiKeys: {
     title: 'உங்கள் சொந்த விசையைச் சேர்',
@@ -4429,6 +4455,15 @@ const ta: UiStrings = {
     noAmount: 'தொகை புரியவில்லை',
     missedNothing: 'புரியவில்லை',
     tapToRetry: 'மீண்டும் முயற்சிக்க தட்டு',
+    logTitle: 'குரல் முயற்சிகள்',
+    logSubtitle:
+      'அங்கீகாரத்தை மேம்படுத்த இந்த சாதனத்தில் மட்டுமே வைக்கப்படும். நீங்கள் பகிர் என்பதைத் தட்டாத வரை எதுவும் சாதனத்தை விட்டு வெளியேறாது.',
+    logEmpty: 'இன்னும் குரல் முயற்சிகள் இல்லை',
+    logEmptyBody: 'மைக்கில் ஒரு செலவைச் சொல்லுங்கள், அது இங்கே தெரியும்.',
+    logNoExpense: 'செலவு எதுவும் கிடைக்கவில்லை',
+    logFound: { one: '{n} செலவு', other: '{n} செலவுகள்' },
+    logClear: 'பதிவை அழி',
+    logShare: 'பகிர்',
     tryAgain: 'மீண்டும் முயற்சி செய்',
     chooseGroup: 'எந்த குழு?',
     heard: 'கேட்டது: {note}',
@@ -6265,6 +6300,8 @@ const hi: UiStrings = {
     lockOff: 'बंद — आपका फ़ोन पकड़े कोई भी हिसाब पढ़ सकता है',
     signOutGuestHint: 'यह मेहमान खाता सिर्फ़ इसी डिवाइस पर है',
     signOutHint: 'कुछ मिटता नहीं; जब चाहें दोबारा साइन इन करें',
+    voiceLog: 'आवाज़ प्रयास',
+    voiceLogHint: 'माइक ने क्या सुना, देखें',
   },
   aiKeys: {
     title: 'अपनी कुंजी लाएँ',
@@ -6311,6 +6348,15 @@ const hi: UiStrings = {
     noAmount: 'रकम समझ नहीं आई',
     missedNothing: 'समझ नहीं आया',
     tapToRetry: 'दोबारा कोशिश के लिए टैप करें',
+    logTitle: 'आवाज़ प्रयास',
+    logSubtitle:
+      'पहचान सुधारने के लिए सिर्फ़ इस डिवाइस पर रखा जाता है। जब तक आप शेयर न दबाएँ, कुछ भी डिवाइस से बाहर नहीं जाता।',
+    logEmpty: 'अभी कोई आवाज़ प्रयास नहीं',
+    logEmptyBody: 'माइक से कोई ख़र्च बोलें, वह यहाँ दिखेगा।',
+    logNoExpense: 'कोई ख़र्च नहीं मिला',
+    logFound: { one: '{n} ख़र्च', other: '{n} ख़र्च' },
+    logClear: 'लॉग साफ़ करें',
+    logShare: 'साझा करें',
     tryAgain: 'फिर कोशिश करें',
     chooseGroup: 'कौन सा ग्रुप?',
     heard: 'सुना: {note}',
@@ -8119,6 +8165,8 @@ const ar: UiStrings = {
     lockOff: 'متوقف — أي شخص يمسك هاتفك يمكنه قراءة الدفتر',
     signOutGuestHint: 'حساب الضيف هذا موجود على هذا الجهاز فقط',
     signOutHint: 'لا يُحذف شيء؛ سجّل الدخول متى شئت',
+    voiceLog: 'محاولات الصوت',
+    voiceLogHint: 'راجع ما سمعه الميكروفون',
   },
   aiKeys: {
     title: 'أحضر مفتاحك الخاص',
@@ -8164,6 +8212,22 @@ const ar: UiStrings = {
     noAmount: 'لم أفهم المبلغ',
     missedNothing: 'لم أفهم ذلك',
     tapToRetry: 'انقر لإعادة المحاولة',
+    logTitle: 'محاولات الصوت',
+    logSubtitle:
+      'يُحفظ على هذا الجهاز فقط لتحسين التعرّف. لا يغادر شيء الجهاز ما لم تضغط على مشاركة.',
+    logEmpty: 'لا محاولات صوتية بعد',
+    logEmptyBody: 'انطق مصروفًا من الميكروفون وسيظهر هنا.',
+    logNoExpense: 'لم يُعثر على مصروف',
+    logFound: {
+      zero: 'لا مصاريف',
+      one: 'مصروف واحد',
+      two: 'مصروفان',
+      few: '{n} مصاريف',
+      many: '{n} مصروفًا',
+      other: '{n} مصروف',
+    },
+    logClear: 'مسح السجل',
+    logShare: 'مشاركة',
     tryAgain: 'أعد المحاولة',
     chooseGroup: 'أي مجموعة؟',
     heard: 'سُمع: {note}',
