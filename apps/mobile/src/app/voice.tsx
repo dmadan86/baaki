@@ -249,6 +249,13 @@ export default function VoiceScreen() {
   // that lands after they have returned to the review (a cancelled append) is
   // dropped rather than mutating the batch they went back to.
   const interpretToken = useRef(0);
+  // True only while a mic capture the reader actually started is live. The mic's
+  // `abort()` on unmount (a dismiss, or the switch back to the review) fires a
+  // final `end` that calls `onDone` with the last transcript — so a dismissed
+  // capture would otherwise still append its words to a row or replace the batch.
+  // Set on every real listen start (via `onListen`), cleared on dismiss and the
+  // moment a transcript is consumed, so a post-dismiss `onDone` is ignored.
+  const captureActive = useRef(false);
 
   const navigation = useNavigation();
 
@@ -450,6 +457,13 @@ export default function VoiceScreen() {
   };
 
   const handleTranscript = (transcript: string): void => {
+    // Ignore a callback from a capture the reader has already dismissed: the
+    // mic's abort-on-unmount emits a final `end` → `onDone`, and without this a
+    // stale transcript would land after the dismiss. Consuming one live capture
+    // also clears the flag, so a second `end` from the same abort cannot
+    // double-apply.
+    if (!captureActive.current) return;
+    captureActive.current = false;
     const mode = micMode;
     // A single row's mic is plain dictation: the spoken words are appended to
     // that row's description verbatim — no parsing, so amounts/currency/group
@@ -525,6 +539,9 @@ export default function VoiceScreen() {
   // batch intact, rather than leaving the screen. Otherwise it leaves as before
   // (the leave-guard below still files an unassigned batch as a draft on the way).
   const dismiss = (): void => {
+    // Abandon any live capture: the mic's abort-on-unmount will fire a final
+    // `onDone`, and this flag makes handleTranscript drop it.
+    captureActive.current = false;
     // A sub-capture over an existing batch — the mic (listening) or its pending
     // interpretation (thinking). Either way, back out to the review with the
     // batch intact and cancel any interpretation still in flight, rather than
@@ -588,6 +605,7 @@ export default function VoiceScreen() {
       // pending ('thinking'). A late interpretation is cancelled with the token.
       if ((phase === 'listening' || phase === 'thinking') && drafts.length > 0) {
         event.preventDefault();
+        captureActive.current = false;
         interpretToken.current += 1;
         setNoAmount(false);
         setMicMode('replace');
@@ -1014,7 +1032,12 @@ export default function VoiceScreen() {
               hints={hints}
               missed={noAmount}
               autoStart={!noAmount}
-              onListen={() => setNoAmount(false)}
+              onListen={() => {
+                // A capture the reader actually started — mark it live so its
+                // transcript is accepted (and a dismissed one's is not).
+                captureActive.current = true;
+                setNoAmount(false);
+              }}
             />
           </View>
         )}
