@@ -24,7 +24,8 @@ import { randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   importSplitwiseCsv,
@@ -50,11 +51,12 @@ import {
   Screen,
   SectionHeader,
   Text,
+  useTabBarClearance,
   useTheme,
-  useScreenClearance,
 } from '@waves/ui';
 
 import { createGroup, fetchMembers, importLedger, type ImportPerson } from '@/data/api';
+import { beginImport } from '@/lib/importProgress';
 import { friendlyError } from '@/lib/errors';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useReducedMotion } from '@/lib/reducedMotion';
@@ -126,12 +128,13 @@ function fromBaaki(group: BaakiImportGroup, fallbackName: string): Loaded {
 
 export default function ImportScreen() {
   const theme = useTheme();
-  // The last thing on this screen is a full-width primary CTA (Import / Open the
-  // group), not a line of text. A footer-like action needs more breath above the
-  // system nav bar than the default so its icon and label never sit under the
-  // gesture pill — so ask the clearance hook for a larger base (still the inset
-  // plus a token, never a magic pixel number).
-  const clearance = useScreenClearance(theme.spacing.xxxl * 2);
+  // The bottom bar shows on this screen (it is a settings page, not a modal), and
+  // it is opaque — so the scroll has to clear the *bar*, not just the system
+  // inset. `useScreenClearance` only cleared the inset, which left the Import CTA
+  // jammed under the bar. `useTabBarClearance` is the bar-aware room the other
+  // settings screens use; a token more on top gives the footer CTA its breath.
+  const clearance = useTabBarClearance() + theme.spacing.xl;
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const reduceMotion = useReducedMotion();
   const groups = useGroups();
@@ -148,6 +151,10 @@ export default function ImportScreen() {
   const [fileGroups, setFileGroups] = useState<readonly BaakiImportGroup[]>([]);
   const [fileGroupIndex, setFileGroupIndex] = useState(0);
   const [target, setTarget] = useState<string>(NEW_GROUP);
+  // The name a new group is created with. Seeded from the file (the Splitwise
+  // default, or the export's own name) and then the person's to change — they no
+  // longer have to accept "Splitwise" or rename it afterwards.
+  const [newGroupName, setNewGroupName] = useState('');
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [mapping, setMapping] = useState<Record<string, Mapping>>({});
   /**
@@ -158,6 +165,7 @@ export default function ImportScreen() {
   const [mutationIds, setMutationIds] = useState<string[]>([]);
 
   const [busy, setBusy] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{
@@ -170,6 +178,7 @@ export default function ImportScreen() {
   /** Everyone starts as somebody new — see `load`. */
   const load = (loaded: Loaded): void => {
     setParsed(loaded);
+    setNewGroupName(loaded.suggestedName);
     setMutationIds([...loaded.expenses, ...loaded.settlements].map(() => randomUUID()));
     // Claiming a name as yourself is a deliberate act. Guessing by name would
     // silently merge your ledger with a stranger who shares your first name.
@@ -323,85 +332,126 @@ export default function ImportScreen() {
 
   const claimedByMe = Object.values(mapping).some((value) => value.kind === 'me');
 
-  const run = async (): Promise<void> => {
+  /**
+   * Hand the import to the background store and walk home. The write itself no
+   * longer happens on this screen: the moment it is kicked, we replace this
+   * screen with the dashboard, where a banner above the group list tracks the
+   * percentage and the finished group animates into the list. The job below
+   * closes over everything it needs, so it runs to completion whether or not
+   * this screen is still mounted (see `@/lib/importProgress`).
+   */
+  const run = (): void => {
     if (!parsed) return;
-    setBusy(true);
-    setStage('importing');
-    setError(null);
-    // Let the progress bar and "Importing…" label paint before the single
-    // transactional write ties the thread up.
-    await nextFrame();
-    try {
-      let groupId = target;
-      if (groupId === NEW_GROUP) {
-        groupId = await createGroup({
-          name: parsed.suggestedName || t.importLedger.importedGroup,
-          type: GroupType.Other,
-          currency: parsed.currency,
-        });
-      }
+    const snapshot = parsed;
+    const chosenMapping = mapping;
+    const chosenTarget = target;
+    const ids = mutationIds;
+    const iClaimedAColumn = claimedByMe;
+    // What the person typed, falling back to the file's suggestion and then a
+    // generic label — a new group never lands nameless.
+    const name = newGroupName.trim() || snapshot.suggestedName || t.importLedger.importedGroup;
+    // A client-chosen id for a brand-new group, fixed here so the whole job is a
+    // safe replay: if the store re-runs it after an offline wait, createGroup is
+    // idempotent on this id (returns the same group, never a second one) and the
+    // ledger write dedups on its mutation ids. Unused for an existing target.
+    const newGroupId = randomUUID();
 
-      // Whoever is "you" maps to your own membership in the target group; the
-      // server resolves the rest, so a null memberId means "make a ghost".
-      const mine = (await fetchMembers(groupId)).find(
-        (member) => member.profile_id === profile?.id,
-      );
-
-      // Somebody claimed a column as themselves, but their own membership is not
-      // in the target group — importing would file their history under a ghost.
-      // Refuse rather than quietly drop them into a stranger's row.
-      if (claimedByMe && !mine) {
-        setError(t.importLedger.couldNotFindYou);
-        return;
-      }
-
-      const people: ImportPerson[] = parsed.people.map((person) => {
-        const chosen = mapping[person] ?? { kind: 'ghost' };
-        if (chosen.kind === 'me') return { name: person, memberId: mine?.id ?? null };
-        if (chosen.kind === 'member') return { name: person, memberId: chosen.memberId };
-        return { name: person, memberId: null };
-      });
-
-      const result = await importLedger({
-        groupId,
-        people,
-        origin: parsed.origin,
-        expenses: parsed.expenses.map((expense, index) => ({
-          clientMutationId: mutationIds[index] ?? randomUUID(),
-          description: expense.description,
-          category: expense.category,
-          date: expense.date,
-          currency: expense.currency,
-          amount: expense.amount,
-          payers: expense.payers,
-          shares: expense.shares,
-        })),
-        settlements: parsed.settlements.map((settlement, index) => ({
-          clientMutationId: mutationIds[parsed.expenses.length + index] ?? randomUUID(),
-          from: settlement.from,
-          to: settlement.to,
-          currency: settlement.currency,
-          amount: settlement.amount,
-          method: settlement.method,
-          status: settlement.status,
-          note: settlement.note,
-          at: settlement.at,
-        })),
-      });
-
-      setDone({
-        groupId,
-        expenses: result.expenses,
-        ghosts: result.ghosts,
-        settlements: result.settlements ?? 0,
-      });
-      void groups.refetch();
-    } catch (caught) {
-      setError(friendlyError(caught, t.importLedger.importFailed, 'import.commit'));
-    } finally {
-      setBusy(false);
-      setStage(null);
+    // The one precondition we can settle before leaving: claiming yourself in an
+    // existing group you are not a member of would file your history under a
+    // ghost. A new group makes you a member, so this only bites an existing
+    // target — and there we already hold its members, so the check is local.
+    if (
+      chosenTarget !== NEW_GROUP &&
+      iClaimedAColumn &&
+      !members.some((member) => member.profile_id === profile?.id)
+    ) {
+      setError(t.importLedger.couldNotFindYou);
+      return;
     }
+
+    const scheduled = beginImport({
+      name,
+      run: async () => {
+        try {
+          let groupId = chosenTarget;
+          if (groupId === NEW_GROUP) {
+            groupId = newGroupId;
+            await createGroup({
+              groupId: newGroupId,
+              name,
+              type: GroupType.Other,
+              currency: snapshot.currency,
+            });
+          }
+
+          // Whoever is "you" maps to your own membership in the target group; the
+          // server resolves the rest, so a null memberId means "make a ghost".
+          const mine = (await fetchMembers(groupId)).find(
+            (member) => member.profile_id === profile?.id,
+          );
+          if (iClaimedAColumn && !mine) throw new Error(t.importLedger.couldNotFindYou);
+
+          const people: ImportPerson[] = snapshot.people.map((person) => {
+            const chosen = chosenMapping[person] ?? { kind: 'ghost' };
+            if (chosen.kind === 'me') return { name: person, memberId: mine?.id ?? null };
+            if (chosen.kind === 'member') return { name: person, memberId: chosen.memberId };
+            return { name: person, memberId: null };
+          });
+
+          const result = await importLedger({
+            groupId,
+            people,
+            origin: snapshot.origin,
+            expenses: snapshot.expenses.map((expense, index) => ({
+              clientMutationId: ids[index] ?? randomUUID(),
+              description: expense.description,
+              category: expense.category,
+              date: expense.date,
+              currency: expense.currency,
+              amount: expense.amount,
+              payers: expense.payers,
+              shares: expense.shares,
+            })),
+            settlements: snapshot.settlements.map((settlement, index) => ({
+              clientMutationId: ids[snapshot.expenses.length + index] ?? randomUUID(),
+              from: settlement.from,
+              to: settlement.to,
+              currency: settlement.currency,
+              amount: settlement.amount,
+              method: settlement.method,
+              status: settlement.status,
+              note: settlement.note,
+              at: settlement.at,
+            })),
+          });
+
+          // Pull the new group into the mirror so Home can show (and animate) it.
+          groups.refetch();
+          return {
+            groupId,
+            expenses: result.expenses,
+            ghosts: result.ghosts,
+            settlements: result.settlements ?? 0,
+          };
+        } catch (caught) {
+          // Keep the one precondition message as-is; wrap everything else in a
+          // people-facing line. The store shows whichever we throw verbatim.
+          if (caught instanceof Error && caught.message === t.importLedger.couldNotFindYou) {
+            throw caught;
+          }
+          throw new Error(friendlyError(caught, t.importLedger.importFailed, 'import.commit'));
+        }
+      },
+    });
+
+    // Only leave once the job is actually on. If another import is already
+    // running, the store refused this one — staying put with a message beats
+    // walking home to watch a different import and silently losing this file.
+    if (!scheduled) {
+      setError(t.importLedger.alreadyImporting);
+      return;
+    }
+    router.replace('/');
   };
 
   return (
@@ -425,7 +475,9 @@ export default function ImportScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text variant="heading">{t.importLedger.ledgerTitle}</Text>
           </View>
-          <View style={{ width: 44 }} />
+          <IconButton label={t.importLedger.helpTitle} onPress={() => setHelpOpen(true)}>
+            <Ionicons name="help-circle-outline" size={iconSize.lg} color={theme.color.text} />
+          </IconButton>
         </Row>
 
         <Card style={{ gap: theme.spacing.sm }}>
@@ -559,7 +611,7 @@ export default function ImportScreen() {
                 <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
                   <TargetRow
                     label={t.importLedger.aNewGroup}
-                    hint={t.importLedger.namedAfterFile}
+                    hint={t.importLedger.nameItBelow}
                     selected={target === NEW_GROUP}
                     onPress={() => void chooseTarget(NEW_GROUP)}
                   />
@@ -573,6 +625,59 @@ export default function ImportScreen() {
                     />
                   ))}
                 </Card>
+
+                {/* Name the new group here rather than accept the file's default.
+                    Only for a new group — an existing target already has a name. */}
+                {target === NEW_GROUP ? (
+                  <View style={{ marginTop: theme.spacing.md, gap: theme.spacing.xs }}>
+                    <Text
+                      variant="micro"
+                      tone="muted"
+                      style={{ paddingHorizontal: theme.spacing.sm }}
+                    >
+                      {t.group.groupName}
+                    </Text>
+                    <Card style={{ paddingVertical: theme.spacing.md }}>
+                      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                        <Ionicons
+                          name="people-outline"
+                          size={iconSize.md}
+                          color={theme.color.textFaint}
+                        />
+                        <TextInput
+                          value={newGroupName}
+                          onChangeText={setNewGroupName}
+                          placeholder={parsed.suggestedName}
+                          placeholderTextColor={theme.color.textFaint}
+                          accessibilityLabel={t.group.groupName}
+                          returnKeyType="done"
+                          style={{
+                            flex: 1,
+                            fontSize: 16,
+                            fontWeight: '600',
+                            color: theme.color.text,
+                            paddingVertical: 0,
+                          }}
+                        />
+                        {newGroupName.length > 0 ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t.entry.clear}
+                            onPress={() => setNewGroupName('')}
+                            hitSlop={8}
+                            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+                          >
+                            <Ionicons
+                              name="close-circle"
+                              size={iconSize.md}
+                              color={theme.color.textFaint}
+                            />
+                          </Pressable>
+                        ) : null}
+                      </Row>
+                    </Card>
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
@@ -624,7 +729,7 @@ export default function ImportScreen() {
                   size="lg"
                   fullWidth
                   disabled={busy || !claimedByMe}
-                  onPress={() => void run()}
+                  onPress={() => run()}
                   icon={
                     <Ionicons
                       name="cloud-upload-outline"
@@ -633,14 +738,6 @@ export default function ImportScreen() {
                     />
                   }
                 />
-                {stage === 'importing' ? (
-                  <View style={{ gap: theme.spacing.sm }}>
-                    <ProgressBar animated={!reduceMotion} />
-                    <Text variant="caption" tone="muted" align="center">
-                      {plural(locale, parsed.expenses.length, t.importLedger.importingCount)}
-                    </Text>
-                  </View>
-                ) : null}
                 {!claimedByMe ? (
                   <Text variant="caption" tone="muted" align="center">
                     {t.importLedger.tapYourNameFirst}
@@ -675,6 +772,76 @@ export default function ImportScreen() {
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
       </ScrollView>
+
+      {/* How it works, on tap of the header's help glyph — a bottom sheet that
+          walks through the two file types and what does and does not come
+          across, plus that it can be done with no connection. */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={helpOpen}
+        onRequestClose={() => setHelpOpen(false)}
+      >
+        <Pressable
+          onPress={() => setHelpOpen(false)}
+          accessibilityLabel={t.common.close}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(10, 10, 26, 0.55)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          {/* Swallows the tap so pressing the sheet does not dismiss it. */}
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: theme.color.surface,
+              borderTopLeftRadius: theme.radius.xxl,
+              borderTopRightRadius: theme.radius.xxl,
+              paddingHorizontal: theme.spacing.xxl,
+              paddingTop: theme.spacing.xl,
+              paddingBottom: theme.spacing.xxl + insets.bottom,
+              gap: theme.spacing.lg,
+            }}
+          >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: theme.color.border,
+              }}
+            />
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+              <Ionicons name="help-circle-outline" size={iconSize.xl} color={theme.color.brand} />
+              <Text variant="title">{t.importLedger.helpTitle}</Text>
+            </Row>
+            <ScrollView
+              style={{ maxHeight: 340 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ gap: theme.spacing.md }}
+            >
+              <Text variant="body" tone="muted">
+                {t.importLedger.ledgerHowTo}
+              </Text>
+              <Divider />
+              <Text variant="caption" tone="muted">
+                {t.importLedger.fromSplitwiseNote}
+              </Text>
+              <Text variant="caption" tone="muted">
+                {t.importLedger.fromBaakiNote}
+              </Text>
+              <Divider />
+              {/* Offline: parked and run on reconnect (see `@/lib/importProgress`). */}
+              <Text variant="caption" tone="muted">
+                {t.importLedger.helpOffline}
+              </Text>
+            </ScrollView>
+            <Button label={t.misc.gotIt} fullWidth onPress={() => setHelpOpen(false)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }

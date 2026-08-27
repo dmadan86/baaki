@@ -288,6 +288,11 @@ export function useHomeSummary(profileId: string | null) {
     // `snapshot.date` comes from `expense_date`, a local date, so a UTC prefix
     // is the wrong month for the hours either side of the 1st.
     const monthByCurrency = new Map<string, bigint>();
+    // Groups that already have a materialised ledger (any expense or settlement).
+    // A freshly imported group lands in the mirror a beat before its expenses do,
+    // so its balance reads a confident 0 until they arrive; this lets the row mask
+    // that amount rather than flash a wrong zero (see the dashboard's GroupRow).
+    const withLedger = new Set<string>();
 
     for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
       const currency = group.default_currency ?? 'INR';
@@ -302,6 +307,8 @@ export function useHomeSummary(profileId: string | null) {
       const snapshots = materialiseExpenses(mirror, queue, { groupId: group.id })
         .map((expense) => toSnapshot(expense as unknown as ExpenseRow))
         .filter((snapshot): snapshot is ExpenseSnapshot => snapshot !== null);
+
+      if (snapshots.length > 0 || settlements.length > 0) withLedger.add(group.id);
 
       const net = computeNetBalances(snapshots, settlements.map(toSettlementSnapshot));
       const mine = (membersByGroup.get(group.id) ?? []).find(
@@ -341,7 +348,7 @@ export function useHomeSummary(profileId: string | null) {
       .map(([currency, amount]) => ({ currency, amount }))
       .sort((a, b) => (b.amount > a.amount ? 1 : b.amount < a.amount ? -1 : 0));
 
-    return { byGroup, membersByGroup, awaiting, totals, monthSpent };
+    return { byGroup, membersByGroup, awaiting, totals, monthSpent, withLedger };
   }, [mirror, queue, profileId, monthPrefix]);
 
   return {
@@ -349,6 +356,9 @@ export function useHomeSummary(profileId: string | null) {
     membersFor: (groupId: string) => summary.membersByGroup.get(groupId) ?? [],
     memberCountFor: (groupId: string) => summary.membersByGroup.get(groupId)?.length ?? 0,
     hasPending: (groupId: string) => summary.awaiting.has(groupId),
+    /** Whether this group's ledger has materialised yet — false for the brief
+     *  window after an import lands the group but before its expenses arrive. */
+    hasLedger: (groupId: string) => summary.withLedger.has(groupId),
     totals: summary.totals,
     /** My share of this month's expenses, per currency, biggest first. */
     monthSpent: summary.monthSpent,

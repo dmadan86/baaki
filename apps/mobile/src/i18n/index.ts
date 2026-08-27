@@ -1831,6 +1831,22 @@ export interface UiStrings {
     importingCount: PluralForms;
     /** Default group name for a Splitwise import, since the CSV carries none. */
     splitwiseGroupName: string;
+    /** Home-screen banner while a background import runs — carries the group name. */
+    importingNamed: string;
+    /** Home-screen banner once a background import has landed the group. */
+    addedNamed: string;
+    /** Title of the header help sheet on the import screen. */
+    helpTitle: string;
+    /** Hint on the "A new group" row, now the name is editable below it. */
+    nameItBelow: string;
+    /** Banner title when an import is parked offline, awaiting a connection. */
+    waitingNamed: string;
+    /** Banner sub line under a parked import — the reassurance it will land. */
+    waitingHint: string;
+    /** Help-sheet line: what happens to an import started with no connection. */
+    helpOffline: string;
+    /** Shown when a second import is started while one is already in progress. */
+    alreadyImporting: string;
   };
   /** Picking people, a country, and the dates a trip runs between. */
   pickers: {
@@ -3644,6 +3660,14 @@ const en: UiStrings = {
     parsing: 'Working through the rows…',
     importingCount: { one: 'Importing {n} expense…', other: 'Importing {n} expenses…' },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: 'Importing {name}…',
+    addedNamed: '{name} added',
+    helpTitle: 'How importing works',
+    nameItBelow: 'Name it below',
+    waitingNamed: '{name} — waiting for a connection',
+    waitingHint: 'It will import the moment you are back online.',
+    helpOffline: 'No connection? The import is saved and runs the moment you are back online.',
+    alreadyImporting: 'An import is already running. Give it a moment to finish.',
   },
   pickers: {
     contactsDeniedTitle: 'Contacts are switched off',
@@ -5545,6 +5569,15 @@ const ta: UiStrings = {
       other: '{n} செலவுகளை இறக்குமதி செய்கிறது…',
     },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: '{name} இறக்குமதி ஆகிறது…',
+    addedNamed: '{name} சேர்க்கப்பட்டது',
+    helpTitle: 'இறக்குமதி எப்படி வேலை செய்கிறது',
+    nameItBelow: 'கீழே பெயரிடுங்கள்',
+    waitingNamed: '{name} — இணைப்புக்காக காத்திருக்கிறது',
+    waitingHint: 'நீங்கள் மீண்டும் ஆன்லைனுக்கு வந்ததும் இறக்குமதி ஆகும்.',
+    helpOffline:
+      'இணைப்பு இல்லையா? இறக்குமதி சேமிக்கப்பட்டு, நீங்கள் ஆன்லைனுக்கு வந்ததும் இயங்கும்.',
+    alreadyImporting: 'ஏற்கனவே ஒரு இறக்குமதி நடக்கிறது. முடிய சிறிது நேரம் கொடுங்கள்.',
   },
   pickers: {
     contactsDeniedTitle: 'தொடர்புகள் அணைக்கப்பட்டுள்ளன',
@@ -7381,6 +7414,14 @@ const hi: UiStrings = {
     parsing: 'पंक्तियाँ संसाधित हो रही हैं…',
     importingCount: { one: '{n} खर्च आयात हो रहा है…', other: '{n} खर्च आयात हो रहे हैं…' },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: '{name} इंपोर्ट हो रहा है…',
+    addedNamed: '{name} जोड़ा गया',
+    helpTitle: 'इंपोर्ट कैसे काम करता है',
+    nameItBelow: 'नीचे नाम दें',
+    waitingNamed: '{name} — कनेक्शन का इंतज़ार',
+    waitingHint: 'ऑनलाइन आते ही यह इंपोर्ट हो जाएगा।',
+    helpOffline: 'कनेक्शन नहीं? इंपोर्ट सेव हो जाता है और ऑनलाइन आते ही चल जाता है।',
+    alreadyImporting: 'एक इंपोर्ट पहले से चल रहा है। इसे पूरा होने का थोड़ा समय दें।',
   },
   pickers: {
     contactsDeniedTitle: 'संपर्क बंद हैं',
@@ -9390,6 +9431,14 @@ const ar: UiStrings = {
       other: 'جارٍ استيراد {n} مصروف…',
     },
     splitwiseGroupName: 'Splitwise',
+    importingNamed: 'جارٍ استيراد {name}…',
+    addedNamed: 'تمت إضافة {name}',
+    helpTitle: 'كيف يعمل الاستيراد',
+    nameItBelow: 'سمِّها بالأسفل',
+    waitingNamed: '{name} — بانتظار الاتصال',
+    waitingHint: 'سيُستورد فور عودتك للاتصال.',
+    helpOffline: 'لا يوجد اتصال؟ يُحفظ الاستيراد ويعمل فور عودتك للاتصال.',
+    alreadyImporting: 'هناك استيراد قيد التنفيذ بالفعل. امنحه لحظة حتى ينتهي.',
   },
   pickers: {
     contactsDeniedTitle: 'جهات الاتصال مُوقَفة',
