@@ -5,6 +5,10 @@
   "dependencies": {
     "@expo/ui": "~57.0.10",
     "@expo/vector-icons": "^15.1.1",
+    "@formatjs/intl-getcanonicallocales": "^3.2.11",
+    "@formatjs/intl-locale": "^5.3.10",
+    "@formatjs/intl-pluralrules": "^6.3.13",
+    "@formatjs/intl-relativetimeformat": "^12.3.13",
     "@microsoft/react-native-clarity": "^4.6.3",
     "@noble/ciphers": "^2.3.0",
     "@react-native-async-storage/async-storage": "3.1.1",

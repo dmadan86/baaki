@@ -1,3 +1,7 @@
+// Backfills Intl.RelativeTimeFormat (absent on Android Hermes) before anything
+// renders, so relative time works app-wide. Side-effect import, must be first.
+import '@/lib/intlPolyfill';
+
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
