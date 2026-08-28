@@ -28,7 +28,11 @@ function parseYmd(date: string): Ymd | null {
   const y = Number(match[1]);
   const m = Number(match[2]);
   const d = Number(match[3]);
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  // Reject impossible calendar dates (Feb 30, Apr 31, …). Checking against the
+  // real month length — not a flat 1–31 — matters because callers feed the day
+  // straight into `Date.UTC`, which silently rolls an impossible day into the
+  // next month rather than treating it as the malformed input it is.
+  if (m < 1 || m > 12 || d < 1 || d > daysInMonth(y, m)) return null;
   return { y, m, d };
 }
 
@@ -102,7 +106,11 @@ export function dayDelta(from: string, to: string): number {
 export function recentMonths(month: string, count: number): string[] {
   const p = /^(\d{4})-(\d{2})$/.exec(month);
   if (!p || count < 1) return [month];
-  const base = Number(p[1]) * 12 + (Number(p[2]) - 1);
+  const mm = Number(p[2]);
+  // The regex admits `2026-00` / `2026-13`; reject an out-of-range month so a bad
+  // anchor falls back to itself rather than generating skewed keys.
+  if (mm < 1 || mm > 12) return [month];
+  const base = Number(p[1]) * 12 + (mm - 1);
   const out: string[] = [];
   for (let k = count - 1; k >= 0; k -= 1) {
     const idx = base - k;
@@ -379,14 +387,22 @@ export interface OverBudget {
  * furthest past its cap — so the Me tab can name it, not just count how many are
  * over. `null` when nothing is over budget. Ties break on the budget id so the
  * pick is stable.
+ *
+ * Scoped to one `currency`: overages live in different currencies' minor units,
+ * which do not compare (₹500 over is not "less" than $6 over), and the caller
+ * formats the winner in a single display currency. Budgets in another currency
+ * are skipped rather than silently mislabelled — pass the same currency the
+ * screen formats with.
  */
 export function worstOverBudget(
   budgets: readonly PersonalBudget[],
   txns: readonly PersonalTxn[],
   month: string,
+  currency: CurrencyCode,
 ): OverBudget | null {
   let worst: OverBudget | null = null;
   for (const budget of budgets) {
+    if (budget.currency !== currency) continue;
     const { remaining } = personalBudgetProgress(budget, txns, month);
     if (remaining >= 0n) continue;
     const over = -remaining;

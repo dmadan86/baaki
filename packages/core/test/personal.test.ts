@@ -241,6 +241,18 @@ describe('dayDelta', () => {
   it('is 0 for a malformed date rather than NaN', () => {
     expect(dayDelta('nope', '2026-08-28')).toBe(0);
   });
+
+  it('treats an impossible calendar date as malformed (0), not a rolled-over one', () => {
+    // Feb 30 does not exist; without a days-in-month check Date.UTC would roll it
+    // into March and yield a nonzero delta.
+    expect(dayDelta('2026-02-30', '2026-03-02')).toBe(0);
+    expect(dayDelta('2026-04-31', '2026-05-01')).toBe(0);
+    expect(dayDelta('2027-02-29', '2027-03-01')).toBe(0); // 2027 is not a leap year
+  });
+
+  it('accepts a real leap-year Feb 29', () => {
+    expect(dayDelta('2028-02-29', '2028-03-01')).toBe(1); // 2028 is a leap year
+  });
 });
 
 describe('recentMonths', () => {
@@ -255,6 +267,11 @@ describe('recentMonths', () => {
   it('falls back to the anchor for a bad month or count', () => {
     expect(recentMonths('2026-08', 0)).toEqual(['2026-08']);
     expect(recentMonths('nope', 3)).toEqual(['nope']);
+  });
+
+  it('rejects an out-of-range month (00 / 13) rather than skewing the keys', () => {
+    expect(recentMonths('2026-00', 3)).toEqual(['2026-00']);
+    expect(recentMonths('2026-13', 3)).toEqual(['2026-13']);
   });
 });
 
@@ -367,9 +384,40 @@ describe('worstOverBudget', () => {
       txn({ kind: 'expense', category: 'food', amount: 60000n, date: '2026-08-02' }), // 10000 over
       txn({ kind: 'expense', category: 'travel', amount: 55000n, date: '2026-08-03' }), // 35000 over
     ];
-    const worst = worstOverBudget(budgets, txns, '2026-08');
+    const worst = worstOverBudget(budgets, txns, '2026-08', 'INR');
     expect(worst?.budget.id).toBe('travel');
     expect(worst?.over).toBe(35000n);
+  });
+
+  it('compares only budgets in the requested currency', () => {
+    // A larger USD overage must NOT be picked when the screen formats in INR —
+    // minor units across currencies do not compare, and the winner would be
+    // mislabelled. The INR budget wins even though its raw overage is smaller.
+    const budgets: PersonalBudget[] = [
+      { id: 'rent-inr', category: 'rent', limit: 100000n, currency: 'INR' },
+      { id: 'trip-usd', category: 'travel', limit: 1000n, currency: 'USD' },
+    ];
+    const txns = [
+      txn({
+        kind: 'expense',
+        category: 'rent',
+        amount: 150000n,
+        currency: 'INR',
+        date: '2026-08-02',
+      }), // 50000 over (INR)
+      txn({
+        kind: 'expense',
+        category: 'travel',
+        amount: 900000n,
+        currency: 'USD',
+        date: '2026-08-03',
+      }), // 899000 over (USD)
+    ];
+    const worst = worstOverBudget(budgets, txns, '2026-08', 'INR');
+    expect(worst?.budget.id).toBe('rent-inr');
+    expect(worst?.over).toBe(50000n);
+    // And scoping to USD picks the USD budget instead.
+    expect(worstOverBudget(budgets, txns, '2026-08', 'USD')?.budget.id).toBe('trip-usd');
   });
 
   it('is null when everything is within its cap', () => {
@@ -377,7 +425,7 @@ describe('worstOverBudget', () => {
       { id: 'food', category: 'food', limit: 50000n, currency: 'INR' },
     ];
     const txns = [txn({ kind: 'expense', category: 'food', amount: 10000n, date: '2026-08-02' })];
-    expect(worstOverBudget(budgets, txns, '2026-08')).toBeNull();
-    expect(worstOverBudget([], txns, '2026-08')).toBeNull();
+    expect(worstOverBudget(budgets, txns, '2026-08', 'INR')).toBeNull();
+    expect(worstOverBudget([], txns, '2026-08', 'INR')).toBeNull();
   });
 });

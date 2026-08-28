@@ -157,17 +157,33 @@ export default function MeScreen() {
     format(money(amount, dc), { locale, compactFraction: true });
 
   // Where the month's money went — the biggest categories, each with its share,
-  // capped so the list stays a glance rather than a scroll.
+  // capped so the list stays a glance rather than a scroll. Personal txns carry
+  // no category-meta snapshot, so unknown/custom-tag ids all resolve to the same
+  // built-in "Other"; fold them into one bucket (summing spend and share) BEFORE
+  // sorting and slicing, or several look-alike "Other" rows would crowd real
+  // categories out of the top six.
   const catLabel = labelForCategory(t);
-  const breakdownBars: BarDatum[] = categoryBreakdown(ledger.txns, month, dc)
+  const buckets = new Map<string, { spent: bigint; share: number }>();
+  for (const row of categoryBreakdown(ledger.txns, month, dc)) {
+    const key = resolveCategory(row.category, null).builtinId ?? 'other';
+    const prev = buckets.get(key);
+    buckets.set(key, {
+      spent: (prev?.spent ?? 0n) + row.spent,
+      share: (prev?.share ?? 0) + row.share,
+    });
+  }
+  const breakdownBars: BarDatum[] = [...buckets]
+    .sort((a, b) =>
+      b[1].spent === a[1].spent ? (a[0] < b[0] ? -1 : 1) : b[1].spent > a[1].spent ? 1 : -1,
+    )
     .slice(0, 6)
-    .map((row) => ({
-      key: row.category ?? '__none',
-      label: catLabel(row.category) ?? t.categories.other,
-      value: row.spent,
-      formatted: `${fmt(row.spent)} · ${Math.round(row.share * 100)}%`,
-      tint: resolveCategory(row.category, null).tint,
-      leading: <CategoryBadge category={row.category} meta={null} size={26} />,
+    .map(([key, agg]) => ({
+      key,
+      label: catLabel(key) ?? t.categories.other,
+      value: agg.spent,
+      formatted: `${fmt(agg.spent)} · ${Math.round(agg.share * 100)}%`,
+      tint: resolveCategory(key, null).tint,
+      leading: <CategoryBadge category={key} meta={null} size={26} />,
     }));
 
   // The soonest upcoming recurring item, previewed by name and when.
@@ -180,7 +196,7 @@ export default function MeScreen() {
     : '';
 
   // The single worst over-budget category, named — more useful than the count.
-  const worstOver = worstOverBudget(ledger.budgets, ledger.txns, month);
+  const worstOver = worstOverBudget(ledger.budgets, ledger.txns, month, dc);
   const overName = worstOver
     ? worstOver.budget.category
       ? (catLabel(worstOver.budget.category) ?? t.categories.other)
