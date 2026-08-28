@@ -60,7 +60,12 @@ export default function AllGroupsScreen() {
 
   const [query, setQuery] = useState('');
   const searchRef = useRef<TextInput>(null);
-  const trimmed = query.trim().toLowerCase();
+  // The search field only appears once the roster is long enough to need one.
+  // If it later shrinks back under that line the field vanishes — so the query
+  // has to stop filtering along with it, or the list could sit empty behind a
+  // stale query with no visible control left to clear it.
+  const showSearch = list.length >= SEARCH_THRESHOLD;
+  const trimmed = showSearch ? query.trim().toLowerCase() : '';
 
   // Decorate every group with the three facts a row shows — balance, whether a
   // settlement is pending, the member count — then split into the ones needing
@@ -107,8 +112,6 @@ export default function AllGroupsScreen() {
 
     return out;
   }, [list, summary, profile?.id, trimmed, t.settledHeader]);
-
-  const showSearch = list.length >= SEARCH_THRESHOLD;
 
   const header = (
     <View style={{ paddingTop: theme.spacing.md, gap: theme.spacing.lg }}>
@@ -217,6 +220,10 @@ export default function AllGroupsScreen() {
           paddingBottom: clearance,
         }}
         showsVerticalScrollIndicator={false}
+        // With the search keyboard open, a tap on a result row should open it in
+        // one go, not be eaten by the keyboard dismiss (FlashList defaults this
+        // to "never").
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ItemSeparatorComponent={() => (
@@ -251,7 +258,10 @@ export default function AllGroupsScreen() {
           return (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${row.item.label}. ${statusLabel}`}
+              // The full subtitle, not just the status word: a pending group at a
+              // zero balance would otherwise be read out as "All settled",
+              // hiding the very state that needs attention.
+              accessibilityLabel={`${row.item.label}. ${subtitle}`}
               onPress={() => router.push(`/group/${group.id}`)}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
             >
