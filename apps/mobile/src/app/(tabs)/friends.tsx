@@ -14,12 +14,13 @@
  * account are followed across groups, because a profile id is proof.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
+  BackHandler,
   Modal,
   Pressable,
   RefreshControl,
@@ -31,6 +32,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Badge,
+  Button,
   Card,
   EmptyState,
   iconSize,
@@ -45,6 +47,7 @@ import {
 
 import { nudgeToSettle, type PersonBalanceRow } from '@/data/api';
 import { useBlockedUsers } from '@/data/blocked';
+import { defaultMergeName } from '@/data/mergePeople';
 import { useKnownPeopleCount, usePeopleBalances } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
 import { PeopleSkeleton } from '@/components/Skeletons';
@@ -148,6 +151,66 @@ export default function FriendsScreen() {
     }
   };
 
+  // Multiselect merge: long-press a guest to start picking, tap to add/remove,
+  // then Merge folds them into one person through the very flow the header's
+  // merge entry uses (rename + optional contact + the irreversibility warning),
+  // only pre-selected. Only guests (ghosts) are mergeable, so only they are
+  // selectable — a real account is already one identity across every group.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(new Set());
+
+  const exitSelect = (): void => {
+    setSelectMode(false);
+    setSelectedKeys(new Set());
+  };
+
+  const enterSelect = (personKey: string): void => {
+    setSelectMode(true);
+    setSelectedKeys(new Set([personKey]));
+  };
+
+  const toggleSelect = (personKey: string): void => {
+    const next = new Set(selectedKeys);
+    if (next.has(personKey)) next.delete(personKey);
+    else next.add(personKey);
+    // Dropping the last pick leaves selection mode — an empty selection is no
+    // selection.
+    if (next.size === 0) exitSelect();
+    else setSelectedKeys(next);
+  };
+
+  const startMerge = (): void => {
+    const keys = [...selectedKeys];
+    // The Merge action is only enabled at two or more, but guard anyway.
+    if (keys.length < 2) return;
+    // Pre-fill the merge screen's name from the picked people — one display name
+    // per person (a person unsettled in two currencies is two rows but one
+    // name), most-common wins, exactly as the merge screen's own default does.
+    const nameByKey = new Map<string, string>();
+    for (const row of rows) {
+      if (selectedKeys.has(row.person_key) && !nameByKey.has(row.person_key)) {
+        nameByKey.set(row.person_key, row.display_name);
+      }
+    }
+    const suggestedName = defaultMergeName(
+      [...nameByKey.values()].map((display_name) => ({ display_name })),
+    );
+    const keyParam = keys.map(encodeURIComponent).join(',');
+    const nameParam = encodeURIComponent(suggestedName);
+    exitSelect();
+    router.push(`/friends/merge?keys=${keyParam}&name=${nameParam}` as never);
+  };
+
+  // Android hardware back leaves selection mode rather than the tab.
+  useEffect(() => {
+    if (!selectMode) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      exitSelect();
+      return true;
+    });
+    return () => sub.remove();
+  }, [selectMode]);
+
   // The two lists are a filter plus an O(n log n) sort each, and every render —
   // opening or closing the sort menu, a pull-to-refresh tick — used to run both
   // again and hand back freshly allocated arrays. They only actually change when
@@ -191,75 +254,111 @@ export default function FriendsScreen() {
           />
         }
       >
-        <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
-          <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            <Ionicons name="people" size={iconSize.xl} color={theme.color.brand} />
-            <Text variant="title">{t.friends}</Text>
-          </Row>
-          <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            {/* Merge same-person guests into one — only once there are at least
-                two guests to merge, so the control never leads to a dead end. */}
-            {mergeableGuestCount >= 2 ? (
+        {selectMode ? (
+          // Selection header: leave the mode, the running count, and Merge —
+          // enabled only at two or more, since one person is nothing to merge.
+          <Row
+            style={{
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingTop: theme.spacing.md,
+            }}
+          >
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t.mergePeople.entry}
-                onPress={() => router.push('/friends/merge' as never)}
+                accessibilityLabel={t.common.close}
+                onPress={exitSelect}
                 hitSlop={10}
                 style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
               >
-                <Ionicons name="git-merge-outline" size={iconSize.xl} color={theme.color.text} />
+                <Ionicons name="close" size={iconSize.xl} color={theme.color.text} />
               </Pressable>
-            ) : null}
-            {/* Add somebody who is not in your contacts — just a name and the
+              <Text variant="heading" numberOfLines={1}>
+                {plural(locale, selectedKeys.size, t.mergePeople.selected)}
+              </Text>
+            </Row>
+            <Button
+              label={t.mergePeople.entry}
+              size="sm"
+              disabled={selectedKeys.size < 2}
+              onPress={startMerge}
+            />
+          </Row>
+        ) : (
+          <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+              <Ionicons name="people" size={iconSize.xl} color={theme.color.brand} />
+              <Text variant="title">{t.friends}</Text>
+            </Row>
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+              {/* Merge same-person guests into one — only once there are at least
+                two guests to merge, so the control never leads to a dead end. */}
+              {mergeableGuestCount >= 2 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.mergePeople.entry}
+                  onPress={() => router.push('/friends/merge' as never)}
+                  hitSlop={10}
+                  style={({ pressed }) => ({
+                    opacity: pressed ? 0.5 : 1,
+                    padding: theme.spacing.xs,
+                  })}
+                >
+                  <Ionicons name="git-merge-outline" size={iconSize.xl} color={theme.color.text} />
+                </Pressable>
+              ) : null}
+              {/* Add somebody who is not in your contacts — just a name and the
                 amount between you. A person icon, bare like the rest of the row. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t.addPerson.title}
-              onPress={() => router.push('/friends/add-person' as never)}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-            >
-              {/* Optically one step down: Ionicons draws `person-add-outline`'s
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.addPerson.title}
+                onPress={() => router.push('/friends/add-person' as never)}
+                hitSlop={10}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+              >
+                {/* Optically one step down: Ionicons draws `person-add-outline`'s
                   single figure larger in its viewbox than `people-outline` and
                   the three-dot, so at an equal nominal size it reads bigger.
                   lg here makes the three header icons appear the same size. */}
-              <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.text} />
-            </Pressable>
-            {/* Pull people from the phone's address book — icon only, no button
+                <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.text} />
+              </Pressable>
+              {/* Pull people from the phone's address book — icon only, no button
                 chrome, so the header reads as a title row not a toolbar. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t.tabs.fromContacts}
-              onPress={() => router.push('/friends/contacts')}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-            >
-              <Ionicons name="people-outline" size={iconSize.xl} color={theme.color.text} />
-            </Pressable>
-            {/* Point the camera at a group's invite QR to join it — the read
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.tabs.fromContacts}
+                onPress={() => router.push('/friends/contacts')}
+                hitSlop={10}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+              >
+                <Ionicons name="people-outline" size={iconSize.xl} color={theme.color.text} />
+              </Pressable>
+              {/* Point the camera at a group's invite QR to join it — the read
                 lands in the same join flow an invite link opens. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t.misc.scanToJoin}
-              onPress={() => router.push('/scan')}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-            >
-              <Ionicons name="qr-code-outline" size={iconSize.lg} color={theme.color.text} />
-            </Pressable>
-            {/* The sort control — a bare vertical three-dot beside the button,
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.misc.scanToJoin}
+                onPress={() => router.push('/scan')}
+                hitSlop={10}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+              >
+                <Ionicons name="qr-code-outline" size={iconSize.lg} color={theme.color.text} />
+              </Pressable>
+              {/* The sort control — a bare vertical three-dot beside the button,
                 opening the same corner dropdown the rest of the app uses. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t.sort.by}
-              onPress={() => setSortOpen(true)}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-            >
-              <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
-            </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.sort.by}
+                onPress={() => setSortOpen(true)}
+                hitSlop={10}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+              >
+                <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
+              </Pressable>
+            </Row>
           </Row>
-        </Row>
+        )}
 
         <SortMenu
           open={sortOpen}
@@ -283,6 +382,10 @@ export default function FriendsScreen() {
               multiCurrencyKeys={multiCurrencyKeys}
               emptyBody={t.tabs.nobodyOwesYou}
               emptyIcon="people-outline"
+              selectMode={selectMode}
+              selectedKeys={selectedKeys}
+              onEnterSelect={enterSelect}
+              onToggleSelect={toggleSelect}
             />
             <FriendsSection
               title={t.tabs.youOweThem}
@@ -291,6 +394,10 @@ export default function FriendsScreen() {
               multiCurrencyKeys={multiCurrencyKeys}
               emptyBody={t.tabs.youAreNotBehind}
               emptyIcon="checkmark-circle-outline"
+              selectMode={selectMode}
+              selectedKeys={selectedKeys}
+              onEnterSelect={enterSelect}
+              onToggleSelect={toggleSelect}
             />
           </>
         )}
@@ -431,6 +538,10 @@ function FriendsSection({
   multiCurrencyKeys,
   emptyBody,
   emptyIcon,
+  selectMode,
+  selectedKeys,
+  onEnterSelect,
+  onToggleSelect,
 }: {
   title: string;
   rows: PersonBalanceRow[];
@@ -440,6 +551,13 @@ function FriendsSection({
   emptyBody: string;
   /** Glyph for the empty card — says "state, not error" before the line is read. */
   emptyIcon: React.ComponentProps<typeof Ionicons>['name'];
+  /** Whether the screen is in multiselect-merge mode (rows tap to (de)select). */
+  selectMode: boolean;
+  selectedKeys: ReadonlySet<string>;
+  /** Long-press a selectable (guest) row to begin selecting from it. */
+  onEnterSelect: (personKey: string) => void;
+  /** Tap a selectable row while selecting to add/remove it. */
+  onToggleSelect: (personKey: string) => void;
 }): React.JSX.Element {
   const theme = useTheme();
   const { t } = useStrings();
@@ -485,6 +603,10 @@ function FriendsSection({
                 locale={locale}
                 t={t}
                 showCurrency={multiCurrencyKeys.has(row.person_key)}
+                selectMode={selectMode}
+                selected={selectedKeys.has(row.person_key)}
+                onEnterSelect={onEnterSelect}
+                onToggleSelect={onToggleSelect}
               />
               {index < rows.length - 1 ? (
                 <View style={{ height: 1, backgroundColor: theme.color.border }} />
@@ -502,6 +624,10 @@ function FriendCard({
   locale,
   t,
   showCurrency,
+  selectMode,
+  selected,
+  onEnterSelect,
+  onToggleSelect,
 }: {
   row: PersonBalanceRow;
   locale: string;
@@ -509,6 +635,11 @@ function FriendCard({
   /** When this person has balances in more than one currency, name the currency
       in the subtitle so two rows for them do not read as two different people. */
   showCurrency: boolean;
+  /** Whether the screen is picking people to merge. */
+  selectMode: boolean;
+  selected: boolean;
+  onEnterSelect: (personKey: string) => void;
+  onToggleSelect: (personKey: string) => void;
 }): React.JSX.Element {
   const theme = useTheme();
   const { isBlocked } = useBlockedUsers();
@@ -521,10 +652,15 @@ function FriendCard({
   // reads in ordinary ink, and the owed/owe meaning is carried by the sign and
   // the section this row sits under. The avatar keeps the person's own colour.
   const owed = BigInt(row.net) > 0n;
+  // Only a guest can be merged — a real account is already one identity across
+  // every group — so only guest rows take part in a selection. A real-account
+  // row stays inert (and dimmed) while a merge selection is running.
+  const selectable = row.is_ghost;
+
   // One group explains the balance: open it. Several do: the amount is a sum, so
   // open the person instead — a screen that splits it back out per group. Either
   // way the row is now a doorway; it used to be a dead end once it spanned two.
-  const onPress = row.only_group_id
+  const navigate = row.only_group_id
     ? () => router.push(`/group/${row.only_group_id}`)
     : () =>
         router.push(
@@ -535,8 +671,32 @@ function FriendCard({
           )}` as never,
         );
 
+  // In a selection, a tap toggles a guest and does nothing on a non-guest; out
+  // of one, a tap opens the row and a long-press on a guest starts a selection.
+  const onPress = selectMode
+    ? selectable
+      ? () => onToggleSelect(row.person_key)
+      : undefined
+    : navigate;
+  const onLongPress = !selectMode && selectable ? () => onEnterSelect(row.person_key) : undefined;
+
   const body = (
-    <Row style={{ paddingVertical: theme.spacing.sm, alignItems: 'center' }}>
+    <Row
+      style={{
+        paddingVertical: theme.spacing.sm,
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        // A non-selectable row reads as unavailable while a selection runs.
+        opacity: selectMode && !selectable ? 0.4 : 1,
+      }}
+    >
+      {selectMode ? (
+        <Ionicons
+          name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+          size={iconSize.xl}
+          color={selected ? theme.color.brand : theme.color.textFaint}
+        />
+      ) : null}
       <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
         <Avatar name={shownName} size={44} ghost={row.is_ghost || blocked} />
         <View style={{ flex: 1 }}>
@@ -567,7 +727,7 @@ function FriendCard({
           variant="subheading"
           mode="balance"
         />
-        {row.is_ghost ? (
+        {selectMode ? null : row.is_ghost ? (
           // A ghost is somebody you added who has no Baaki account yet, so the
           // badge is the useful action rather than a verdict: send them this
           // group's invite link, which is the same link that lets them claim
@@ -600,9 +760,23 @@ function FriendCard({
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
+      onLongPress={onLongPress}
+      delayLongPress={250}
+      // In selection mode a selectable row is a checkbox; a non-selectable one
+      // (a real account — already one identity, nothing to merge) is inert, so
+      // it announces neither role nor tap and reads as disabled. Outside
+      // selection mode every row is the usual button into the person.
+      disabled={selectMode && !selectable}
+      accessibilityRole={selectMode ? (selectable ? 'checkbox' : 'none') : 'button'}
+      accessibilityState={
+        selectMode ? (selectable ? { checked: selected } : { disabled: true }) : undefined
+      }
       accessibilityLabel={shownName}
-      style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+      style={({ pressed }) => ({
+        opacity: pressed ? 0.9 : 1,
+        // A tick alone can be missed; a picked row also wears a soft fill.
+        backgroundColor: selected ? theme.color.surfaceMuted : 'transparent',
+      })}
     >
       {body}
     </Pressable>
