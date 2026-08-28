@@ -4308,7 +4308,7 @@ const en: UiStrings = {
     action: 'Back to home',
   },
   personal: {
-    tab: 'Me',
+    tab: 'Personal',
     title: 'Personal',
     subtitle: 'Your own money — private to you.',
     entryMissing: 'That entry is no longer here.',
@@ -6425,7 +6425,7 @@ const ta: UiStrings = {
     action: 'முகப்புக்குத் திரும்பு',
   },
   personal: {
-    tab: 'நான்',
+    tab: 'தனிப்பட்டது',
     title: 'தனிப்பட்டது',
     subtitle: 'உங்கள் சொந்தப் பணம் — உங்களுக்கு மட்டும் தனிப்பட்டது.',
     entryMissing: 'அந்தப் பதிவு இப்போது இல்லை.',
@@ -8454,7 +8454,7 @@ const hi: UiStrings = {
     action: 'होम पर वापस',
   },
   personal: {
-    tab: 'मैं',
+    tab: 'निजी',
     title: 'निजी',
     subtitle: 'आपका अपना पैसा — सिर्फ़ आपके लिए निजी।',
     entryMissing: 'वह प्रविष्टि अब यहाँ नहीं है।',
@@ -10701,7 +10701,7 @@ const ar: UiStrings = {
     action: 'العودة إلى الرئيسية',
   },
   personal: {
-    tab: 'أنا',
+    tab: 'الشخصي',
     title: 'الشخصي',
     subtitle: 'أموالك الخاصة — خاصة بك وحدك.',
     entryMissing: 'هذا القيد لم يعد موجودًا.',
