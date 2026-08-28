@@ -2324,6 +2324,13 @@ export interface UiStrings {
     justMe: string;
     justMeHint: string;
     deleteConfirm: string;
+    whereMoneyWent: string;
+    last3Months: string;
+    upcoming: string;
+    overBudget: string;
+    overdue: string;
+    tomorrow: string;
+    privateNote: string;
   };
 }
 
@@ -4322,6 +4329,13 @@ const en: UiStrings = {
     justMe: 'Just me',
     justMeHint: 'A private entry in your own ledger — not shared with anyone.',
     deleteConfirm: 'Delete this entry? This cannot be undone.',
+    whereMoneyWent: 'Where your money went',
+    last3Months: 'Last 3 months',
+    upcoming: 'Upcoming',
+    overBudget: 'Over budget',
+    overdue: 'Overdue',
+    tomorrow: 'Tomorrow',
+    privateNote: 'Private to you · Not shared with groups',
   },
 };
 
@@ -6414,6 +6428,13 @@ const ta: UiStrings = {
     justMe: 'எனக்கு மட்டும்',
     justMeHint: 'உங்கள் சொந்தக் கணக்கில் தனிப்பட்ட பதிவு — யாருடனும் பகிரப்படாது.',
     deleteConfirm: 'இந்தப் பதிவை நீக்கவா? இதை மீட்க முடியாது.',
+    whereMoneyWent: 'உங்கள் பணம் எங்கே போனது',
+    last3Months: 'கடந்த 3 மாதங்கள்',
+    upcoming: 'வரவிருப்பது',
+    overBudget: 'பட்ஜெட்டைத் தாண்டியது',
+    overdue: 'தாமதம்',
+    tomorrow: 'நாளை',
+    privateNote: 'உங்களுக்கு மட்டும் தனிப்பட்டது · குழுக்களுடன் பகிரப்படாது',
   },
 };
 
@@ -8417,6 +8438,13 @@ const hi: UiStrings = {
     justMe: 'सिर्फ़ मैं',
     justMeHint: 'आपके अपने खाते में निजी प्रविष्टि — किसी के साथ साझा नहीं।',
     deleteConfirm: 'यह प्रविष्टि हटाएँ? इसे वापस नहीं किया जा सकता।',
+    whereMoneyWent: 'आपका पैसा कहाँ गया',
+    last3Months: 'पिछले 3 महीने',
+    upcoming: 'आने वाला',
+    overBudget: 'बजट से अधिक',
+    overdue: 'बकाया',
+    tomorrow: 'कल',
+    privateNote: 'सिर्फ़ आपके लिए निजी · समूहों के साथ साझा नहीं',
   },
 };
 
@@ -10632,6 +10660,13 @@ const ar: UiStrings = {
     justMe: 'أنا فقط',
     justMeHint: 'إدخال خاص في دفترك أنت — غير مشارَك مع أحد.',
     deleteConfirm: 'حذف هذا الإدخال؟ لا يمكن التراجع.',
+    whereMoneyWent: 'أين ذهبت أموالك',
+    last3Months: 'آخر 3 أشهر',
+    upcoming: 'القادم',
+    overBudget: 'تجاوز الميزانية',
+    overdue: 'متأخر',
+    tomorrow: 'غداً',
+    privateNote: 'خاص بك وحدك · غير مشارَك مع المجموعات',
   },
 };
 

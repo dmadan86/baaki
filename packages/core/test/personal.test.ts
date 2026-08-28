@@ -8,15 +8,21 @@ import { describe, expect, it } from 'vitest';
 
 import {
   addToDate,
+  cashflowTrend,
+  categoryBreakdown,
+  dayDelta,
   decodeTxn,
   encodeTxn,
   isRecurringDue,
   loanOutstanding,
   monthlySummary,
+  nextRecurring,
   personalBudgetProgress,
+  recentMonths,
   recurringCatchUp,
   recurringOccurrenceId,
   savingsRate,
+  worstOverBudget,
   type PersonalBudget,
   type PersonalLoan,
   type PersonalRecurring,
@@ -221,5 +227,205 @@ describe('savingsRate', () => {
   it('is null when there was no income to measure against', () => {
     expect(savingsRate(0n, 500n)).toBeNull();
     expect(savingsRate(-10n, 0n)).toBeNull();
+  });
+});
+
+describe('dayDelta', () => {
+  it('counts whole days, signed, and across a month boundary', () => {
+    expect(dayDelta('2026-08-28', '2026-08-28')).toBe(0);
+    expect(dayDelta('2026-08-28', '2026-08-29')).toBe(1);
+    expect(dayDelta('2026-08-28', '2026-08-27')).toBe(-1);
+    expect(dayDelta('2026-08-28', '2026-09-01')).toBe(4);
+  });
+
+  it('is 0 for a malformed date rather than NaN', () => {
+    expect(dayDelta('nope', '2026-08-28')).toBe(0);
+  });
+
+  it('treats an impossible calendar date as malformed (0), not a rolled-over one', () => {
+    // Feb 30 does not exist; without a days-in-month check Date.UTC would roll it
+    // into March and yield a nonzero delta.
+    expect(dayDelta('2026-02-30', '2026-03-02')).toBe(0);
+    expect(dayDelta('2026-04-31', '2026-05-01')).toBe(0);
+    expect(dayDelta('2027-02-29', '2027-03-01')).toBe(0); // 2027 is not a leap year
+  });
+
+  it('accepts a real leap-year Feb 29', () => {
+    expect(dayDelta('2028-02-29', '2028-03-01')).toBe(1); // 2028 is a leap year
+  });
+});
+
+describe('recentMonths', () => {
+  it('returns the count months ending at the anchor, oldest first', () => {
+    expect(recentMonths('2026-08', 3)).toEqual(['2026-06', '2026-07', '2026-08']);
+  });
+
+  it('rolls the year boundary', () => {
+    expect(recentMonths('2027-01', 3)).toEqual(['2026-11', '2026-12', '2027-01']);
+  });
+
+  it('falls back to the anchor for a bad month or count', () => {
+    expect(recentMonths('2026-08', 0)).toEqual(['2026-08']);
+    expect(recentMonths('nope', 3)).toEqual(['nope']);
+  });
+
+  it('rejects an out-of-range month (00 / 13) rather than skewing the keys', () => {
+    expect(recentMonths('2026-00', 3)).toEqual(['2026-00']);
+    expect(recentMonths('2026-13', 3)).toEqual(['2026-13']);
+  });
+});
+
+describe('categoryBreakdown', () => {
+  it('splits a month by category, biggest first, with shares that sum to one', () => {
+    const txns = [
+      txn({ kind: 'expense', category: 'food', amount: 30000n, date: '2026-08-02' }),
+      txn({ kind: 'expense', category: 'food', amount: 10000n, date: '2026-08-10' }),
+      txn({ kind: 'expense', category: 'travel', amount: 60000n, date: '2026-08-05' }),
+      txn({ kind: 'income', category: 'salary', amount: 99999n, date: '2026-08-01' }), // income excluded
+      txn({ kind: 'expense', category: 'food', amount: 99999n, date: '2026-07-31' }), // other month
+      txn({
+        kind: 'expense',
+        category: 'food',
+        amount: 99999n,
+        currency: 'USD',
+        date: '2026-08-01',
+      }), // other currency
+    ];
+    const rows = categoryBreakdown(txns, '2026-08', 'INR');
+    expect(rows.map((r) => r.category)).toEqual(['travel', 'food']);
+    expect(rows[0]!.spent).toBe(60000n);
+    expect(rows[1]!.spent).toBe(40000n);
+    expect(rows[0]!.share).toBeCloseTo(0.6);
+    expect(rows[1]!.share).toBeCloseTo(0.4);
+  });
+
+  it('folds uncategorised expenses under a null key and reconciles with the month expense', () => {
+    const txns = [
+      txn({ kind: 'expense', category: null, amount: 25000n, date: '2026-08-02' }),
+      txn({ kind: 'expense', category: 'food', amount: 25000n, date: '2026-08-03' }),
+    ];
+    const rows = categoryBreakdown(txns, '2026-08', 'INR');
+    const total = rows.reduce((sum, r) => sum + r.spent, 0n);
+    expect(total).toBe(monthlySummary(txns, '2026-08', 'INR').expense);
+    expect(rows.some((r) => r.category === null)).toBe(true);
+  });
+
+  it('is empty when nothing was spent that month', () => {
+    expect(categoryBreakdown([], '2026-08', 'INR')).toEqual([]);
+  });
+});
+
+describe('cashflowTrend', () => {
+  it('gives income, expense and net per month in order', () => {
+    const txns = [
+      txn({ kind: 'income', amount: 100000n, date: '2026-06-01' }),
+      txn({ kind: 'expense', amount: 40000n, date: '2026-06-10' }),
+      txn({ kind: 'expense', amount: 20000n, date: '2026-08-05' }),
+    ];
+    const trend = cashflowTrend(txns, recentMonths('2026-08', 3), 'INR');
+    expect(trend.map((m) => m.month)).toEqual(['2026-06', '2026-07', '2026-08']);
+    expect(trend[0]).toMatchObject({ income: 100000n, expense: 40000n, net: 60000n });
+    expect(trend[1]).toMatchObject({ income: 0n, expense: 0n, net: 0n });
+    expect(trend[2]).toMatchObject({ income: 0n, expense: 20000n, net: -20000n });
+  });
+});
+
+describe('nextRecurring', () => {
+  const rule = (over: Partial<PersonalRecurring>): PersonalRecurring => ({
+    id: over.id ?? 'r1',
+    txnKind: over.txnKind ?? 'expense',
+    amount: over.amount ?? 50000n,
+    currency: over.currency ?? 'INR',
+    category: over.category ?? null,
+    note: over.note ?? null,
+    cadence: over.cadence ?? 'monthly',
+    interval: over.interval ?? 1,
+    anchorDate: over.anchorDate ?? '2026-08-01',
+    nextDate: over.nextDate ?? '2026-08-01',
+    endDate: over.endDate ?? null,
+    autoPost: over.autoPost ?? true,
+    active: over.active ?? true,
+  });
+
+  it('picks the soonest active rule', () => {
+    const picked = nextRecurring(
+      [rule({ id: 'rent', nextDate: '2026-09-01' }), rule({ id: 'phone', nextDate: '2026-08-29' })],
+      '2026-08-28',
+    );
+    expect(picked?.rule.id).toBe('phone');
+    expect(picked?.date).toBe('2026-08-29');
+  });
+
+  it('skips paused and past-their-end rules', () => {
+    const picked = nextRecurring(
+      [
+        rule({ id: 'a', nextDate: '2026-08-29', active: false }),
+        rule({ id: 'b', nextDate: '2026-09-05', endDate: '2026-08-01' }),
+        rule({ id: 'c', nextDate: '2026-09-10' }),
+      ],
+      '2026-08-28',
+    );
+    expect(picked?.rule.id).toBe('c');
+  });
+
+  it('is null when nothing is scheduled', () => {
+    expect(nextRecurring([], '2026-08-28')).toBeNull();
+    expect(nextRecurring([rule({ active: false })], '2026-08-28')).toBeNull();
+  });
+});
+
+describe('worstOverBudget', () => {
+  it('names the category furthest past its cap', () => {
+    const budgets: PersonalBudget[] = [
+      { id: 'food', category: 'food', limit: 50000n, currency: 'INR' },
+      { id: 'travel', category: 'travel', limit: 20000n, currency: 'INR' },
+    ];
+    const txns = [
+      txn({ kind: 'expense', category: 'food', amount: 60000n, date: '2026-08-02' }), // 10000 over
+      txn({ kind: 'expense', category: 'travel', amount: 55000n, date: '2026-08-03' }), // 35000 over
+    ];
+    const worst = worstOverBudget(budgets, txns, '2026-08', 'INR');
+    expect(worst?.budget.id).toBe('travel');
+    expect(worst?.over).toBe(35000n);
+  });
+
+  it('compares only budgets in the requested currency', () => {
+    // A larger USD overage must NOT be picked when the screen formats in INR —
+    // minor units across currencies do not compare, and the winner would be
+    // mislabelled. The INR budget wins even though its raw overage is smaller.
+    const budgets: PersonalBudget[] = [
+      { id: 'rent-inr', category: 'rent', limit: 100000n, currency: 'INR' },
+      { id: 'trip-usd', category: 'travel', limit: 1000n, currency: 'USD' },
+    ];
+    const txns = [
+      txn({
+        kind: 'expense',
+        category: 'rent',
+        amount: 150000n,
+        currency: 'INR',
+        date: '2026-08-02',
+      }), // 50000 over (INR)
+      txn({
+        kind: 'expense',
+        category: 'travel',
+        amount: 900000n,
+        currency: 'USD',
+        date: '2026-08-03',
+      }), // 899000 over (USD)
+    ];
+    const worst = worstOverBudget(budgets, txns, '2026-08', 'INR');
+    expect(worst?.budget.id).toBe('rent-inr');
+    expect(worst?.over).toBe(50000n);
+    // And scoping to USD picks the USD budget instead.
+    expect(worstOverBudget(budgets, txns, '2026-08', 'USD')?.budget.id).toBe('trip-usd');
+  });
+
+  it('is null when everything is within its cap', () => {
+    const budgets: PersonalBudget[] = [
+      { id: 'food', category: 'food', limit: 50000n, currency: 'INR' },
+    ];
+    const txns = [txn({ kind: 'expense', category: 'food', amount: 10000n, date: '2026-08-02' })];
+    expect(worstOverBudget(budgets, txns, '2026-08', 'INR')).toBeNull();
+    expect(worstOverBudget([], txns, '2026-08', 'INR')).toBeNull();
   });
 });
