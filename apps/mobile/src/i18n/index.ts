@@ -3407,7 +3407,7 @@ const en: UiStrings = {
     saveName: 'Save name',
     chooseIcon: 'Choose an icon',
     removePhoto: 'Remove photo',
-    simplifyDebts: 'Simplify debts',
+    simplifyDebts: 'Fewer repayments',
     simplifyDebtsBody:
       'Suggest the fewest payments that settle the group. The real who-owes-whom ledger is never rewritten.',
     simplifyDebtsHint: 'Fewest payments to settle up',
@@ -5460,7 +5460,7 @@ const ta: UiStrings = {
     saveName: 'பெயரைச் சேமி',
     chooseIcon: 'ஐகானைத் தேர்ந்தெடு',
     removePhoto: 'புகைப்படத்தை நீக்கு',
-    simplifyDebts: 'கடன்களை எளிமையாக்கு',
+    simplifyDebts: 'குறைந்த திருப்பிச் செலுத்தல்கள்',
     simplifyDebtsBody:
       'குழுவைத் தீர்க்கும் மிகக் குறைந்த பணப்பரிமாற்றங்களைப் பரிந்துரைக்கும். யார் யாருக்குத் தர வேண்டும் என்ற உண்மையான கணக்கு மாற்றப்படுவதே இல்லை.',
     simplifyDebtsHint: 'தீர்க குறைந்தபட்ச பணம் செலுத்தல்கள்',
@@ -7513,7 +7513,7 @@ const hi: UiStrings = {
     saveName: 'नाम सेव करें',
     chooseIcon: 'आइकन चुनें',
     removePhoto: 'फ़ोटो हटाएँ',
-    simplifyDebts: 'हिसाब सरल करें',
+    simplifyDebts: 'कम भुगतान',
     simplifyDebtsBody:
       'समूह को निपटाने के सबसे कम भुगतान सुझाता है। किस पर किसका बाकी है, वह असली हिसाब कभी नहीं बदला जाता।',
     simplifyDebtsHint: 'सेटल करने के लिए कम से कम भुगतान',
@@ -9580,7 +9580,7 @@ const ar: UiStrings = {
     saveName: 'حفظ الاسم',
     chooseIcon: 'اختر أيقونة',
     removePhoto: 'إزالة الصورة',
-    simplifyDebts: 'تبسيط الديون',
+    simplifyDebts: 'مدفوعات أقل',
     simplifyDebtsBody:
       'يقترح أقل عدد من الدفعات لتسوية المجموعة. أما دفتر من يدين لمن فلا يُعاد كتابته أبدًا.',
     simplifyDebtsHint: 'أقل عدد من المدفوعات للتسوية',
