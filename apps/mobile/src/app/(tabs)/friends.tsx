@@ -160,9 +160,20 @@ export default function FriendsScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(new Set());
 
+  // A live mirror of the selection, read by `toggleSelect` so a tap always folds
+  // into the very latest set — not a snapshot captured at some earlier render,
+  // and not a value that lags behind a passive effect. It is written in the same
+  // helper that schedules the state, so a second tap that lands before React has
+  // flushed still sees the real set (picking A then B keeps both, never just B).
+  const selectedKeysRef = useRef<ReadonlySet<string>>(selectedKeys);
+  const applySelection = (next: ReadonlySet<string>): void => {
+    selectedKeysRef.current = next;
+    setSelectedKeys(next);
+  };
+
   const exitSelect = (): void => {
     setSelectMode(false);
-    setSelectedKeys(new Set());
+    applySelection(new Set());
   };
 
   // A long press fires onLongPress (this), then the SAME touch fires the row's
@@ -176,20 +187,8 @@ export default function FriendsScreen() {
   const enterSelect = (personKey: string): void => {
     swallowNextToggleRef.current = true;
     setSelectMode(true);
-    setSelectedKeys(new Set([personKey]));
+    applySelection(new Set([personKey]));
   };
-
-  // A live mirror of the selection, read through a ref so a tap always folds
-  // into the very latest set — not a snapshot captured at some earlier render.
-  // Two taps in quick succession (add A, then add B) previously worked off a
-  // stale `selectedKeys` closure, so the second tap dropped the first pick and
-  // selection mode appeared to fall apart the moment you chose a second person.
-  // The ref is current on every commit, so even a memoised row's handler sees
-  // the real set.
-  const selectedKeysRef = useRef(selectedKeys);
-  useEffect(() => {
-    selectedKeysRef.current = selectedKeys;
-  }, [selectedKeys]);
 
   const toggleSelect = (personKey: string): void => {
     // The release of the long press that just entered selection — ignore it once
@@ -204,7 +203,7 @@ export default function FriendsScreen() {
     // Dropping the last pick leaves selection mode — an empty selection is no
     // selection.
     if (next.size === 0) exitSelect();
-    else setSelectedKeys(next);
+    else applySelection(next);
   };
 
   const startMerge = (): void => {
