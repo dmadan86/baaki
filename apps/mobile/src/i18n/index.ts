@@ -190,6 +190,16 @@ export interface UiStrings {
   allSettled: string;
   yourGroups: string;
   allGroups: string;
+  /** Title of the full groups screen — plainer than "All groups", which read like a database view. */
+  groupsTitle: string;
+  /** Placeholder in the groups search field. */
+  searchGroups: string;
+  /** Empty result when a search matches no group. */
+  noGroupsMatch: string;
+  /** Body under "No groups yet" on the groups screen, with its Create-group button. */
+  noGroupsBody: string;
+  /** Divider above the settled groups, once they're sorted below the ones needing action. */
+  settledHeader: string;
   /** The "show every category" chip at the head of the group filter strip. */
   filterAll: string;
   /** A small tag on a just-created group row. */
@@ -2365,6 +2375,11 @@ const en: UiStrings = {
   allSettled: 'All settled',
   yourGroups: 'Your groups',
   allGroups: 'All groups',
+  groupsTitle: 'Groups',
+  searchGroups: 'Search groups',
+  noGroupsMatch: 'No groups match your search',
+  noGroupsBody: 'Create a group for a trip, rent, dinner — anything you split.',
+  settledHeader: 'Settled',
   filterAll: 'All',
   tagNew: 'New',
   tagOnTrip: 'On trip',
@@ -4389,6 +4404,11 @@ const ta: UiStrings = {
   allSettled: 'எல்லாம் சரி',
   yourGroups: 'உங்கள் குழுக்கள்',
   allGroups: 'அனைத்து குழுக்கள்',
+  groupsTitle: 'குழுக்கள்',
+  searchGroups: 'குழுக்களைத் தேடு',
+  noGroupsMatch: 'உங்கள் தேடலுக்கு எந்தக் குழுவும் இல்லை',
+  noGroupsBody: 'பயணம், வாடகை, இரவு உணவு — நீங்கள் பகிர்வது எதற்கும் ஒரு குழுவை உருவாக்குங்கள்.',
+  settledHeader: 'தீர்க்கப்பட்டவை',
   filterAll: 'அனைத்தும்',
   tagNew: 'புதியது',
   tagOnTrip: 'பயணத்தில்',
@@ -6490,6 +6510,11 @@ const hi: UiStrings = {
   allSettled: 'सब बराबर',
   yourGroups: 'आपके समूह',
   allGroups: 'सभी समूह',
+  groupsTitle: 'समूह',
+  searchGroups: 'समूह खोजें',
+  noGroupsMatch: 'आपकी खोज से कोई समूह मेल नहीं खाता',
+  noGroupsBody: 'यात्रा, किराया, डिनर — जो कुछ भी आप बाँटते हैं, उसके लिए एक समूह बनाएँ।',
+  settledHeader: 'निपटाए गए',
   filterAll: 'सभी',
   tagNew: 'नया',
   tagOnTrip: 'यात्रा जारी',
@@ -8523,6 +8548,11 @@ const ar: UiStrings = {
   allSettled: 'تمت التسوية',
   yourGroups: 'مجموعاتك',
   allGroups: 'كل المجموعات',
+  groupsTitle: 'المجموعات',
+  searchGroups: 'ابحث في المجموعات',
+  noGroupsMatch: 'لا توجد مجموعات تطابق بحثك',
+  noGroupsBody: 'أنشئ مجموعة لرحلة أو إيجار أو عشاء — أي شيء تتقاسمه.',
+  settledHeader: 'مُسوَّاة',
   filterAll: 'الكل',
   tagNew: 'جديد',
   tagOnTrip: 'في رحلة',
