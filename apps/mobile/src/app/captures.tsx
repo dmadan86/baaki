@@ -50,8 +50,17 @@ import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { assignCaptureHref } from '@/lib/captureAssign';
+import { foldedCaptureCount } from '@/lib/captureBatch';
 import { buildCaptureFeedItems, type CaptureFeedItem } from '@/lib/captureFeed';
 import { usePullRefresh } from '@/lib/pullRefresh';
+
+/**
+ * What the ⋯ overflow sheet is open on: a single capture (add to group / edit /
+ * delete) or a whole spoken batch (delete them all). Null when nothing is open.
+ */
+type CaptureMenu =
+  { kind: 'capture'; capture: CaptureRow } | { kind: 'batch'; items: CaptureRow[] } | null;
 
 /**
  * One capture, in the card grammar this screen now speaks (Mobbin: Phantom
@@ -59,19 +68,22 @@ import { usePullRefresh } from '@/lib/pullRefresh';
  * the category colour, never the bill's thumbnail — the note over a muted place
  * line, and the amount at the trailing edge, all on a soft rounded card.
  *
- * The whole card taps to assign, the one thing you do with a capture. Edit and
- * delete are the quiet trailing controls, each with its own hitbox so the card's
- * tap still assigns. Inside a batch a row is `bare` — no card of its own, since
- * the batch card already frames it — and drops the place (the batch is one
- * outing, one location).
+ * The whole card taps to assign — adding it to a group is the one thing you do
+ * with a capture, so it is the card's own gesture, not a control to hunt for.
+ * The quieter things (edit, delete) fold behind a single ⋯ at the trailing edge,
+ * which opens the actions sheet; the two used to sit on the row as a pencil and
+ * an always-red trash, which crowded the amount and put "delete" a mis-tap from
+ * the assign gesture. The ⋯ keeps its own hitbox so the card's tap still
+ * assigns. Inside a batch a row is `bare` — no card of its own, since the batch
+ * card already frames it — and drops the place (the batch is one outing, one
+ * location).
  */
 function CaptureListRow({
   capture,
   locale,
   t,
   onAssign,
-  onEdit,
-  onDelete,
+  onMore,
   hideLocation = false,
   bare = false,
 }: {
@@ -79,8 +91,8 @@ function CaptureListRow({
   locale: string;
   t: UiStrings;
   onAssign: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  /** Open the row's overflow sheet (add to group, edit, delete). */
+  onMore: () => void;
   /** Inside a batch the description IS the line that matters, so the place is
    *  suppressed there — the batch stands for one outing, one location. */
   hideLocation?: boolean;
@@ -159,20 +171,14 @@ function CaptureListRow({
           locale={locale}
           variant="subheading"
         />
-        {/* The two row actions kept together as their own group with a tight
-            gap, set off from the amount by the parent Row's spacing — so they
-            read as a pair of buttons, not two glyphs crowding the number. Edit
-            is a neutral muted mark; delete is red before it is tapped (the
-            WhatsApp/Vipps convention), so "bin it" never hides among the greys.
-            The whole row still taps to assign; both icons keep their own hitbox. */}
-        <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-          <IconButton label={t.captures.edit} onPress={onEdit}>
-            <Ionicons name="create-outline" size={iconSize.md} color={theme.color.textMuted} />
-          </IconButton>
-          <IconButton label={t.captures.delete} onPress={onDelete}>
-            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
-          </IconButton>
-        </Row>
+        {/* One quiet ⋯ instead of the old pencil-and-red-trash pair: the actions
+            that are not "add to group" live behind it, so the row carries the
+            amount and a single neutral control rather than three competing marks.
+            Its own hitbox, so tapping it opens the sheet while the card's tap
+            still assigns. */}
+        <IconButton label={t.captures.moreActions} onPress={onMore}>
+          <Ionicons name="ellipsis-horizontal" size={iconSize.md} color={theme.color.textMuted} />
+        </IconButton>
       </Row>
     </Pressable>
   );
@@ -192,9 +198,8 @@ function BatchGroupCard({
   open,
   onToggle,
   onAssign,
-  onEdit,
-  onDelete,
-  onDeleteBatch,
+  onMore,
+  onMoreBatch,
 }: {
   items: CaptureRow[];
   locale: string;
@@ -202,9 +207,8 @@ function BatchGroupCard({
   open: boolean;
   onToggle: () => void;
   onAssign: (capture: CaptureRow) => void;
-  onEdit: (capture: CaptureRow) => void;
-  onDelete: (capture: CaptureRow) => void;
-  onDeleteBatch: () => void;
+  onMore: (capture: CaptureRow) => void;
+  onMoreBatch: () => void;
 }) {
   const theme = useTheme();
 
@@ -261,15 +265,17 @@ function BatchGroupCard({
           <View style={{ flex: 1, minWidth: 0 }}>
             {/* The count is the whole headline — a batch stands for one outing,
                 so the individual descriptions belong to the expanded rows, not
-                here. Only the unsynced mark rides the second line. */}
+                here. The second line says what the folded row can do, so a person
+                is not left guessing whether it assigns whole or item by item. */}
             <Text variant="subheading" numberOfLines={1}>
               {plural(locale, items.length, t.captures.batchExpenses)}
             </Text>
-            {anyPending ? (
-              <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
-                <PendingMark />
-              </Row>
-            ) : null}
+            <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
+              <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {t.captures.batchHint}
+              </Text>
+              {anyPending ? <PendingMark /> : null}
+            </Row>
           </View>
 
           {/* Total then the expander, both trailing — the chevron is the standard
@@ -282,11 +288,12 @@ function BatchGroupCard({
               {plural(locale, items.length, t.captures.batchExpenses)}
             </Text>
           )}
-          {/* Delete the whole batch — the trailing control the standalone rows
-              carry, here removing every expense in the group at once. A nested
-              press, so it deletes rather than toggling the card. */}
-          <IconButton label={t.captures.deleteBatch} onPress={onDeleteBatch}>
-            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
+          {/* The batch's own ⋯, matching the standalone rows: it opens the sheet
+              that can delete the whole batch at once, rather than a standing red
+              trash on the card. A nested press, so it opens the sheet rather than
+              toggling the card. */}
+          <IconButton label={t.captures.moreActions} onPress={onMoreBatch}>
+            <Ionicons name="ellipsis-horizontal" size={iconSize.md} color={theme.color.textMuted} />
           </IconButton>
           <Ionicons
             name={open ? 'chevron-up' : 'chevron-down'}
@@ -322,8 +329,7 @@ function BatchGroupCard({
                 locale={locale}
                 t={t}
                 onAssign={() => onAssign(capture)}
-                onEdit={() => onEdit(capture)}
-                onDelete={() => onDelete(capture)}
+                onMore={() => onMore(capture)}
                 hideLocation
                 bare
               />
@@ -333,6 +339,50 @@ function BatchGroupCard({
         </View>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * One action in the ⋯ overflow sheet: a leading glyph and a label, tinted by
+ * role — brand for the primary "add to group", the ink default for edit, red for
+ * a delete. The whole row is the hitbox, the grammar the picker sheets use.
+ */
+function ActionSheetRow({
+  icon,
+  label,
+  tone = 'default',
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  tone?: 'default' | 'brand' | 'negative';
+  onPress: () => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const color =
+    tone === 'negative'
+      ? theme.color.negative
+      : tone === 'brand'
+        ? theme.color.brand
+        : theme.color.text;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.md} color={color} />
+      <Text variant="body" style={{ flex: 1, color }}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -359,6 +409,9 @@ export default function CapturesScreen() {
   // FlashList recycles row components, so batch expansion lives with the screen
   // and is keyed by batch id rather than inside the recycled row instance.
   const [openBatchIds, setOpenBatchIds] = useState<ReadonlySet<string>>(() => new Set());
+  // The row's ⋯ overflow: which capture (or which spoken batch) has its actions
+  // sheet open, if any. Null when nothing is open.
+  const [menu, setMenu] = useState<CaptureMenu>(null);
 
   // Only groups the viewer still belongs to belong in the picker. Leaving a
   // group sets `left_at`; it does not remove the group row, so a left (or
@@ -392,6 +445,9 @@ export default function CapturesScreen() {
 
   const rows = useMemo(() => captures.data ?? [], [captures.data]);
   const feedItems = useMemo(() => buildCaptureFeedItems(rows), [rows]);
+  // A spoken batch is one thing waiting, not one per item — fold before counting,
+  // so the header total matches the rows on screen.
+  const waitingCount = useMemo(() => foldedCaptureCount(rows), [rows]);
 
   const openAssign = useCallback((capture: CaptureRow): void => {
     setQuery('');
@@ -477,28 +533,24 @@ export default function CapturesScreen() {
 
   // Hand the capture's own values to the add-expense form as prefill, and carry
   // its id so that saving there can close the capture (useAssignCapture). The
-  // amount travels as the same minor-unit string the row stores.
+  // href is built by the shared helper so the "New group" flow, which routes to
+  // the very same form, hands it identical params.
   const assignTo = useCallback(
     (capture: CaptureRow, group: GroupRow): void => {
       closeAssign();
-      router.push({
-        pathname: '/group/[id]/add-expense',
-        params: {
-          id: group.id,
-          captureId: capture.id,
-          amount: capture.amount,
-          description: capture.description,
-          category: capture.category ?? '',
-          // A custom tag rides along as JSON so the assigned expense keeps it,
-          // rather than dropping to a built-in (extends TDR §8).
-          ...(capture.category_meta ? { categoryMeta: JSON.stringify(capture.category_meta) } : {}),
-          // The place the capture recorded, so the assigned expense keeps it (A43).
-          ...(capture.location ? { location: JSON.stringify(capture.location) } : {}),
-          expenseDate: capture.expense_date,
-        },
-      });
+      router.push(assignCaptureHref(capture, group.id));
     },
     [closeAssign],
+  );
+
+  const closeMenu = useCallback((): void => setMenu(null), []);
+  const openCaptureMenu = useCallback(
+    (capture: CaptureRow): void => setMenu({ kind: 'capture', capture }),
+    [],
+  );
+  const openBatchMenu = useCallback(
+    (items: CaptureRow[]): void => setMenu({ kind: 'batch', items }),
+    [],
   );
 
   const keyCaptureItem = useCallback((item: CaptureFeedItem): string => {
@@ -547,9 +599,8 @@ export default function CapturesScreen() {
               open={openBatchIds.has(item.id)}
               onToggle={() => toggleBatch(item.id)}
               onAssign={openAssign}
-              onEdit={openEdit}
-              onDelete={confirmDelete}
-              onDeleteBatch={() => confirmDeleteBatch(item.items)}
+              onMore={openCaptureMenu}
+              onMoreBatch={() => openBatchMenu(item.items)}
             />
           );
         case 'single':
@@ -559,19 +610,17 @@ export default function CapturesScreen() {
               locale={locale}
               t={t}
               onAssign={() => openAssign(item.capture)}
-              onEdit={() => openEdit(item.capture)}
-              onDelete={() => confirmDelete(item.capture)}
+              onMore={() => openCaptureMenu(item.capture)}
             />
           );
       }
     },
     [
-      confirmDelete,
-      confirmDeleteBatch,
       locale,
       openAssign,
       openBatchIds,
-      openEdit,
+      openBatchMenu,
+      openCaptureMenu,
       t,
       theme.spacing.md,
       theme.spacing.xs,
@@ -661,6 +710,14 @@ export default function CapturesScreen() {
           <Text variant="heading" numberOfLines={1}>
             {t.captures.title}
           </Text>
+          {/* How many are waiting, right under the title — so the screen answers
+              "what is this and how much is here?" before a person reads a row.
+              Hidden at zero, where the empty state already says it. */}
+          {waitingCount > 0 ? (
+            <Text variant="micro" tone="muted" numberOfLines={1}>
+              {plural(locale, waitingCount, t.captures.unassignedBody)}
+            </Text>
+          ) : null}
         </View>
         <View style={{ width: 44 }} />
       </Row>
@@ -838,8 +895,16 @@ export default function CapturesScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={t.captures.assignNew}
                       onPress={() => {
+                        // Carry the capture through group creation so new-group
+                        // can hand it back and finish the assignment — read the id
+                        // before closeAssign clears `assigning`.
+                        const captureId = assigning?.id;
                         closeAssign();
-                        router.push('/new-group');
+                        router.push(
+                          captureId
+                            ? { pathname: '/new-group', params: { assignCaptureId: captureId } }
+                            : '/new-group',
+                        );
                       }}
                       style={({ pressed }) => ({
                         flexDirection: 'row',
@@ -888,6 +953,117 @@ export default function CapturesScreen() {
                 }
               />
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* The row's ⋯ overflow, as a small sheet: the actions that are not "add to
+          group" (the card's own tap) plus a labelled way to reach it, so the one
+          thing a person does with a capture is spelled out and delete no longer
+          rides on every row. A real Modal for the same reason the assign sheet is
+          one — an in-tree overlay would paint under the root tab bar. */}
+      <Modal transparent visible={menu !== null} animationType="fade" onRequestClose={closeMenu}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.common.close}
+          onPress={closeMenu}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(10, 10, 26, 0.55)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Pressable
+            onPress={() => {}}
+            accessibilityViewIsModal
+            style={{
+              backgroundColor: theme.color.surface,
+              borderTopLeftRadius: theme.radius.xxl,
+              borderTopRightRadius: theme.radius.xxl,
+              paddingHorizontal: theme.spacing.xl,
+              paddingTop: theme.spacing.md,
+              paddingBottom: theme.spacing.md + insets.bottom,
+              gap: theme.spacing.xs,
+              ...theme.shadow.lifted,
+            }}
+          >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: theme.color.border,
+                marginBottom: theme.spacing.sm,
+              }}
+            />
+
+            {menu?.kind === 'capture' ? (
+              <>
+                <Text
+                  variant="heading"
+                  numberOfLines={1}
+                  style={{ marginBottom: theme.spacing.xs }}
+                >
+                  {menu.capture.description?.trim() ||
+                    (menu.capture.category
+                      ? (t.categories as Record<string, string>)[menu.capture.category]
+                      : undefined) ||
+                    t.captures.unassigned}
+                </Text>
+                <ActionSheetRow
+                  icon="people-outline"
+                  label={t.captures.assign}
+                  tone="brand"
+                  onPress={() => {
+                    const capture = menu.capture;
+                    setMenu(null);
+                    openAssign(capture);
+                  }}
+                />
+                <Divider />
+                <ActionSheetRow
+                  icon="create-outline"
+                  label={t.captures.edit}
+                  onPress={() => {
+                    const capture = menu.capture;
+                    setMenu(null);
+                    openEdit(capture);
+                  }}
+                />
+                <Divider />
+                <ActionSheetRow
+                  icon="trash-outline"
+                  label={t.captures.delete}
+                  tone="negative"
+                  onPress={() => {
+                    const capture = menu.capture;
+                    setMenu(null);
+                    confirmDelete(capture);
+                  }}
+                />
+              </>
+            ) : menu?.kind === 'batch' ? (
+              <>
+                <Text
+                  variant="heading"
+                  numberOfLines={1}
+                  style={{ marginBottom: theme.spacing.xs }}
+                >
+                  {plural(locale, menu.items.length, t.captures.batchExpenses)}
+                </Text>
+                <ActionSheetRow
+                  icon="trash-outline"
+                  label={t.captures.deleteBatch}
+                  tone="negative"
+                  onPress={() => {
+                    const items = menu.items;
+                    setMenu(null);
+                    confirmDeleteBatch(items);
+                  }}
+                />
+              </>
+            ) : null}
           </Pressable>
         </Pressable>
       </Modal>
