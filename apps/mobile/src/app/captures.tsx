@@ -84,8 +84,9 @@ function AssignChip({ label, aimed }: { label: string; aimed: boolean }): React.
         alignItems: 'center',
         gap: 3,
         paddingVertical: 3,
-        paddingLeft: 6,
-        paddingRight: 9,
+        // Logical, not left/right, so the plus-then-label pill mirrors in RTL.
+        paddingStart: 6,
+        paddingEnd: 9,
         borderRadius: theme.radius.pill,
         backgroundColor: aimed ? theme.color.brandSoft : theme.color.surfaceMuted,
         borderWidth: aimed ? 0 : 1,
