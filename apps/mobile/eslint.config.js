@@ -18,6 +18,11 @@ module.exports = [
   ...expoConfig,
   {
     settings: {
+      // eslint-plugin-react (via eslint-config-expo) auto-detects the installed
+      // React version by calling context.getFilename(), which ESLint 10 removed —
+      // that path throws before any rule runs. Pinning the version skips detection.
+      // Keep in sync with the `react` dependency in package.json.
+      react: { version: '19.2' },
       'import/resolver': {
         typescript: {
           project: path.join(__dirname, 'tsconfig.json'),
