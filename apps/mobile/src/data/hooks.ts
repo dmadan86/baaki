@@ -170,6 +170,59 @@ export function useGroups(): LocalRead<GroupRow[]> {
 }
 
 /**
+ * Group ids that are a one-to-one: exactly two members still in them (you and
+ * one other). These are the groups the People tab represents as a contact, so a
+ * destination list can hide them to avoid listing the same conversation twice —
+ * while a real multi-person group stays visible even when it happens to be your
+ * only shared group with someone (a group is not a "person" just because you
+ * share no other group with them).
+ */
+export function useOneToOneGroupIds(): LocalRead<Set<string>> {
+  const { mirror, queue } = useSync();
+  const ids = useMemo(() => {
+    const set = new Set<string>();
+    for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
+      const members = (
+        materialiseMembers(mirror, queue, { groupId: group.id }) as unknown as MemberRow[]
+      ).filter((member) => member.left_at === null);
+      if (members.length === 2) set.add(group.id);
+    }
+    return set;
+  }, [mirror, queue]);
+  return useLocalRead(ids);
+}
+
+/**
+ * For each group I am in, the display names of its other live members — a
+ * "who is in this" signature the voice review uses to tell whether a set of
+ * people already share a group. Names only (not member ids), because the people
+ * a picker offers are names typed or tapped, and a match on the same set of
+ * names is what "they already have a group" means to the person choosing.
+ */
+export function useGroupPeopleSignatures(
+  profileId: string | null,
+): LocalRead<{ groupId: string; names: string[] }[]> {
+  const { mirror, queue } = useSync();
+  const sigs = useMemo(() => {
+    if (!profileId) return [] as { groupId: string; names: string[] }[];
+    const out: { groupId: string; names: string[] }[] = [];
+    for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
+      const members = (
+        materialiseMembers(mirror, queue, { groupId: group.id }) as unknown as MemberRow[]
+      ).filter((member) => member.left_at === null);
+      if (!members.some((member) => member.profile_id === profileId)) continue;
+      const names = members
+        .filter((member) => member.profile_id !== profileId)
+        .map((member) => member.profile?.display_name ?? member.ghost_name ?? '')
+        .filter((name) => name.length > 0);
+      out.push({ groupId: group.id, names });
+    }
+    return out;
+  }, [mirror, queue, profileId]);
+  return useLocalRead(sigs);
+}
+
+/**
  * The archived groups, read local-first like everything else (ADR-005). These
  * are the groups `useGroups` hides; the archived screen is their only way back
  * into view, and unarchiving one (an ordinary group.update clearing
