@@ -536,7 +536,7 @@ function FriendCard({
         );
 
   const body = (
-    <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}>
+    <Row style={{ paddingVertical: theme.spacing.sm, alignItems: 'center' }}>
       <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
         <Avatar name={shownName} size={44} ghost={row.is_ghost || blocked} />
         <View style={{ flex: 1 }}>

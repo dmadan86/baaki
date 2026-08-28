@@ -1687,7 +1687,7 @@ function GroupRow({
           flexDirection: 'row',
           alignItems: 'center',
           gap: theme.spacing.md,
-          paddingVertical: theme.spacing.md,
+          paddingVertical: theme.spacing.sm,
           paddingHorizontal: theme.spacing.lg,
           borderTopWidth: divider ? 1 : 0,
           borderTopColor: theme.color.border,

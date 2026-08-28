@@ -111,7 +111,7 @@ function BlockedRow({
   const name = user.name.trim() || t.misc.someone;
 
   return (
-    <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center', gap: theme.spacing.md }}>
+    <Row style={{ paddingVertical: theme.spacing.sm, alignItems: 'center', gap: theme.spacing.md }}>
       <Avatar name={name} size={44} photoUrl={url} />
       <Text variant="subheading" numberOfLines={1} style={{ flex: 1 }}>
         {name}

@@ -276,8 +276,8 @@ export default function InboxScreen() {
                   opacity: pressed ? 0.6 : 1,
                   borderRadius: theme.radius.lg,
                   backgroundColor: unreadRow ? theme.color.brandSoft : 'transparent',
-                  paddingHorizontal: theme.spacing.sm,
-                  paddingVertical: theme.spacing.md,
+                  paddingHorizontal: theme.spacing.lg,
+                  paddingVertical: theme.spacing.sm,
                 })}
               >
                 <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>

@@ -41,7 +41,13 @@ export function ListRow({
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
+        // WhatsApp-density list rows across the app: a tight vertical rhythm
+        // (the leading avatar/badge sets the height), one shared value so every
+        // list reads the same. `minHeight` floors a leading-less, single-line
+        // row at the 44pt touch target — a tall avatar row already clears it, so
+        // this only lifts the short ones the tight padding would leave too small.
+        paddingVertical: theme.spacing.sm,
+        minHeight: 44,
       }}
     >
       {leading}

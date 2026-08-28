@@ -106,7 +106,7 @@ export default function PersonalTransactionsScreen() {
             >
               <Card
                 padded={false}
-                style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.md }}
+                style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm }}
               >
                 <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
                   <CategoryBadge category={txn.category ?? 'other'} meta={null} size={32} />
