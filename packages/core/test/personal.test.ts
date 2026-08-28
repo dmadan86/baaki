@@ -273,6 +273,12 @@ describe('recentMonths', () => {
     expect(recentMonths('2026-00', 3)).toEqual(['2026-00']);
     expect(recentMonths('2026-13', 3)).toEqual(['2026-13']);
   });
+
+  it('rejects a count that is not a positive integer (NaN / fractional / Infinity)', () => {
+    expect(recentMonths('2026-08', Number.NaN)).toEqual(['2026-08']);
+    expect(recentMonths('2026-08', 2.5)).toEqual(['2026-08']);
+    expect(recentMonths('2026-08', Number.POSITIVE_INFINITY)).toEqual(['2026-08']);
+  });
 });
 
 describe('categoryBreakdown', () => {
