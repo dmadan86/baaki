@@ -10,12 +10,19 @@
  * `kind` and a payload without knowing who would read it or in which language;
  * `renderNotification` in @waves/core turns that into a sentence, with the
  * stored English as the fallback for a kind this build has never heard of.
+ *
+ * The screen is the Activity feed's sibling and is built the same way: one
+ * virtualized `SectionList` cut into day headings, its loading / error / empty
+ * states carried by `ListEmptyComponent`, and one memoized row so a fast fling
+ * mounts nothing it does not have to. What differs is only the content — a
+ * notification sentence and a read/unread dot in place of an activity line and
+ * its amount.
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, SectionList, View } from 'react-native';
+import { Pressable, RefreshControl, SectionList, View } from 'react-native';
 
 import { renderNotification } from '@waves/core';
 import {
@@ -31,8 +38,8 @@ import {
 
 import { dayHeading, relativeTime } from '@/data/activity';
 import { useCaptures, useMarkNotificationsRead, useNotifications } from '@/data/hooks';
-import { groupNotificationsByDay } from '@/data/inbox';
-import { SkeletonList } from '@/components/Skeletons';
+import { groupNotificationsByDay, type NotificationDaySection } from '@/data/inbox';
+import { FeedSkeleton } from '@/components/Skeletons';
 import { UnassignedCapturesCard } from '@/components/UnassignedCapturesCard';
 import type { NotificationRow } from '@/data/types';
 import { useStrings } from '@/i18n';
@@ -84,6 +91,112 @@ function factsOf(row: NotificationRow): Record<string, string | undefined> {
 
 const EMPTY_NOTIFICATIONS: readonly NotificationRow[] = [];
 
+/**
+ * One row of the virtualized inbox, memoized so a recycled row that lands on the
+ * same notification does no work when the parent re-renders — the same pattern
+ * `ActivityFeedRow` uses. Every prop is a primitive or a reference the screen
+ * keeps stable (`t`/`theme` from context, `rtf` hoisted per locale), so the
+ * shallow `memo` compare holds on a fast fling, and `relativeTime` is handed the
+ * hoisted `rtf` instead of building an `Intl.RelativeTimeFormat` per row.
+ *
+ * The row is the Activity feed's, to the letter: a soft rounded-square tile
+ * whose tint leans with the kind, the sentence beside it, and a muted meta line
+ * (relative time · group). Read/unread is the one thing the feed does not carry,
+ * so it lives as a small brand dot on the right rather than a highlighted row —
+ * the list stays a clean feed.
+ */
+const InboxFeedRow = memo(function InboxFeedRow({
+  row,
+  locale,
+  theme,
+  rtf,
+}: {
+  row: NotificationRow;
+  locale: string;
+  theme: ReturnType<typeof useTheme>;
+  rtf: Intl.RelativeTimeFormat | undefined;
+}) {
+  const facts = factsOf(row);
+  const { title, body } = renderNotification(row.kind, facts, locale, {
+    title: row.title,
+    body: row.body,
+  });
+  const unreadRow = row.read_at === null;
+  const tint = theme.tint[TINTS[row.kind] ?? 'lilac'];
+  return (
+    <Pressable
+      accessibilityRole={row.group_id ? 'button' : undefined}
+      accessibilityLabel={title}
+      onPress={row.group_id ? () => router.push(`/group/${row.group_id}` as never) : undefined}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <Row
+        style={{
+          gap: theme.spacing.md,
+          alignItems: 'center',
+          paddingVertical: theme.spacing.sm,
+        }}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: theme.radius.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: tint.bg,
+          }}
+        >
+          <Ionicons
+            name={ICONS[row.kind] ?? 'notifications-outline'}
+            size={iconSize.lg}
+            color={tint.ink}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="body" numberOfLines={2}>
+            {title}
+          </Text>
+          {body ? (
+            <Text variant="caption" tone="muted" numberOfLines={2} style={{ marginTop: 2 }}>
+              {body}
+            </Text>
+          ) : null}
+          {/* The relative time, plus which group the notification belongs to —
+              the same cross-group meta line the Activity feed carries. */}
+          <Row
+            style={{
+              gap: theme.spacing.sm,
+              alignItems: 'center',
+              marginTop: 2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Text variant="caption" tone="muted">
+              {relativeTime(locale, row.created_at, undefined, rtf)}
+            </Text>
+            {facts.group ? (
+              <Text variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {`· ${facts.group}`}
+              </Text>
+            ) : null}
+          </Row>
+        </View>
+        {unreadRow ? (
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: theme.color.brand,
+            }}
+          />
+        ) : null}
+      </Row>
+    </Pressable>
+  );
+});
+
 export default function InboxScreen() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
@@ -91,7 +204,7 @@ export default function InboxScreen() {
   const { t, locale } = useStrings();
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
-  // Unassigned captures show as their own card above the list; the count also
+  // Unassigned captures show as their own card in the header; the count also
   // decides whether an empty notification list is really "nothing yet" or just
   // "nothing but the capture waiting above".
   const captureCount = useCaptures().data?.length ?? 0;
@@ -130,7 +243,7 @@ export default function InboxScreen() {
   });
 
   const header = (
-    <View style={{ gap: theme.spacing.xl }}>
+    <View style={{ gap: theme.spacing.xl, paddingBottom: theme.spacing.lg }}>
       {/* The same glyph-plus-big-title mark the Activity feed wears — the two
           screens sit together, so the inbox reads as the sibling it is. No
           back chevron: the title sits at the left edge exactly like Activity,
@@ -158,239 +271,115 @@ export default function InboxScreen() {
     </View>
   );
 
+  // The states the list can be in when there are no rows to show — mounted as
+  // the list's empty component so the header, pull-to-refresh and centred layout
+  // all still apply exactly as with a feed present, the same way the Activity
+  // feed carries its own empty/error/loading states.
+  const empty = notifications.isLoading ? (
+    // Until the fetch answers, `rows` is empty — which is not the same as "you
+    // have no notifications". A feed-shaped skeleton says "what is loading", and
+    // its shape matches the real rows so the swap is a fill, not a jump.
+    <FeedSkeleton />
+  ) : notifications.isError ? (
+    <View style={{ flex: 1, justifyContent: 'center' }}>
+      <EmptyState
+        title={t.loadError}
+        body={t.loadErrorBody}
+        icon={
+          <Ionicons name="cloud-offline-outline" size={iconSize.xxl} color={theme.color.brand} />
+        }
+        action={
+          <Button label={t.retry} variant="secondary" onPress={() => notifications.refetch()} />
+        }
+      />
+    </View>
+  ) : captureCount > 0 ? (
+    // No notifications, but a capture is waiting in the header above — that card
+    // is the content, so the "nothing yet" verdict would be wrong here.
+    <View />
+  ) : (
+    // Centred, with a glyph — the "all square" treatment the Activity feed uses,
+    // so an empty inbox reads as a state and not a screen that failed to load.
+    <View style={{ flex: 1, justifyContent: 'center' }}>
+      <EmptyState
+        title={t.nothingYet}
+        body={t.inbox.nothingYetBody}
+        icon={
+          <Ionicons name="notifications-outline" size={iconSize.xxl} color={theme.color.brand} />
+        }
+      />
+    </View>
+  );
+
   return (
     <Screen>
-      {notifications.isLoading ? (
-        <View
-          style={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: clearance,
-            gap: theme.spacing.xl,
-          }}
-        >
-          {header}
-          {/* Until the fetch answers, `rows` is empty — which is not the same as
-              "you have no notifications". Showing the empty state here told people
-              their inbox was empty while it was still loading. */}
-          <SkeletonList rows={6} trailing={false} />
-        </View>
-      ) : notifications.isError ? (
-        <View
-          style={{
-            flex: 1,
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: clearance,
-            gap: theme.spacing.xl,
-          }}
-        >
-          {header}
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState
-              title={t.loadError}
-              body={t.loadErrorBody}
-              icon={
-                <Ionicons
-                  name="cloud-offline-outline"
-                  size={iconSize.xxl}
-                  color={theme.color.brand}
-                />
-              }
-              action={
-                <Button
-                  label={t.retry}
-                  variant="secondary"
-                  onPress={() => notifications.refetch()}
-                />
-              }
-            />
-          </View>
-        </View>
-      ) : rows.length === 0 && captureCount === 0 ? (
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: clearance,
-            gap: theme.spacing.xl,
-          }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={pull.refreshing}
-              onRefresh={pull.onRefresh}
-              tintColor={theme.color.brand}
-            />
-          }
-        >
-          {header}
-          {/* Centred, with a glyph — the "all square" treatment Friends uses, so an
-              empty inbox reads as a state and not a screen that failed to load.
-              A waiting capture counts as content, so the empty state stands down
-              when the card above is showing. */}
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState
-              title={t.nothingYet}
-              body={t.inbox.nothingYetBody}
-              icon={
-                <Ionicons
-                  name="notifications-outline"
-                  size={iconSize.xxl}
-                  color={theme.color.brand}
-                />
-              }
-            />
-          </View>
-        </ScrollView>
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(row) => row.id}
-          showsVerticalScrollIndicator={false}
-          stickySectionHeadersEnabled={false}
-          // No `removeClippedSubviews`: on Android it can leave off-screen rows
-          // detached after a fast fling, blanking the viewport mid-scroll (the
-          // same failure the activity feed hit). `windowSize` bounds what is
-          // mounted without the clipping that caused it.
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          // No `gap` here on purpose: on a VirtualizedList it would stack on top
-          // of the Section/Item separators below and double the spacing. The
-          // separators own the space between rows and sections; the header gets
-          // its own bottom padding so it does not butt against the first section.
-          contentContainerStyle={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: clearance,
-            flexGrow: 1,
-          }}
-          refreshControl={
-            <RefreshControl
-              refreshing={pull.refreshing}
-              onRefresh={pull.onRefresh}
-              tintColor={theme.color.brand}
-            />
-          }
-          ListHeaderComponent={<View style={{ paddingBottom: theme.spacing.lg }}>{header}</View>}
-          renderSectionHeader={({ section }) => (
+      {/* One virtualized list cut into day headings — the Activity feed's exact
+          shape. Only the rows near the viewport are mounted and they recycle as
+          the inbox scrolls, so a heavy account's memory and mount cost stay
+          bounded no matter how far back the history goes. */}
+      <SectionList<NotificationRow, NotificationDaySection>
+        sections={sections}
+        keyExtractor={(row) => row.id}
+        contentContainerStyle={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingBottom: clearance,
+          // So the empty, error and loading states can take the room the feed is
+          // not using and sit centred. With a feed present this changes nothing.
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
+        // No `removeClippedSubviews`: on Android it can leave off-screen rows
+        // detached after a fast fling, blanking the viewport mid-scroll (the
+        // same failure the activity feed hit). `windowSize` bounds what is
+        // mounted without the clipping that caused it.
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
+        // The footnote only earns its place under a real feed; with no rows the
+        // empty state owns the screen and a footer beneath it would just clutter.
+        ListFooterComponent={
+          sections.length > 0 ? (
             <Text
               variant="micro"
               tone="muted"
-              style={{
-                textTransform: 'uppercase',
-                marginTop: theme.spacing.lg,
-                marginBottom: theme.spacing.md,
-                backgroundColor: theme.color.bg,
-              }}
+              align="center"
+              style={{ marginTop: theme.spacing.lg }}
             >
-              {dayHeading(locale, section.first.created_at)}
-            </Text>
-          )}
-          ItemSeparatorComponent={() => (
-            <View style={{ height: 1, backgroundColor: theme.color.border }} />
-          )}
-          renderItem={({ item: row }) => {
-            const facts = factsOf(row);
-            const { title, body } = renderNotification(row.kind, facts, locale, {
-              title: row.title,
-              body: row.body,
-            });
-            const unreadRow = row.read_at === null;
-            // The Activity feed's row, to the letter: a soft rounded-square tile
-            // whose tint leans with the kind, the sentence beside it, and a muted
-            // meta line (relative time · group). Read/unread is the one thing the
-            // feed does not carry, so it lives as a small brand dot on the right
-            // rather than a highlighted row — the list stays a clean feed.
-            const tint = theme.tint[TINTS[row.kind] ?? 'lilac'];
-            return (
-              <Pressable
-                accessibilityRole={row.group_id ? 'button' : undefined}
-                accessibilityLabel={title}
-                onPress={
-                  row.group_id ? () => router.push(`/group/${row.group_id}` as never) : undefined
-                }
-                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-              >
-                <Row
-                  style={{
-                    gap: theme.spacing.md,
-                    alignItems: 'center',
-                    paddingVertical: theme.spacing.sm,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: theme.radius.md,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: tint.bg,
-                    }}
-                  >
-                    <Ionicons
-                      name={ICONS[row.kind] ?? 'notifications-outline'}
-                      size={iconSize.lg}
-                      color={tint.ink}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text variant="body" numberOfLines={2}>
-                      {title}
-                    </Text>
-                    {body ? (
-                      <Text
-                        variant="caption"
-                        tone="muted"
-                        numberOfLines={2}
-                        style={{ marginTop: 2 }}
-                      >
-                        {body}
-                      </Text>
-                    ) : null}
-                    <Row
-                      style={{
-                        gap: theme.spacing.sm,
-                        alignItems: 'center',
-                        marginTop: 2,
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <Text variant="caption" tone="muted">
-                        {relativeTime(locale, row.created_at, undefined, rtf)}
-                      </Text>
-                      {facts.group ? (
-                        <Text
-                          variant="caption"
-                          tone="muted"
-                          numberOfLines={1}
-                          style={{ flexShrink: 1 }}
-                        >
-                          {`· ${facts.group}`}
-                        </Text>
-                      ) : null}
-                    </Row>
-                  </View>
-                  {unreadRow ? (
-                    <View
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: theme.color.brand,
-                      }}
-                    />
-                  ) : null}
-                </Row>
-              </Pressable>
-            );
-          }}
-          ListFooterComponent={
-            <Text variant="micro" tone="muted" align="center">
               {t.extras.deliveryComesLater}
             </Text>
-          }
-        />
-      )}
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={pull.refreshing}
+            onRefresh={pull.onRefresh}
+            tintColor={theme.color.brand}
+          />
+        }
+        renderSectionHeader={({ section }) => (
+          <Text
+            variant="micro"
+            tone="muted"
+            style={{
+              textTransform: 'uppercase',
+              marginTop: theme.spacing.lg,
+              marginBottom: theme.spacing.md,
+              backgroundColor: theme.color.bg,
+            }}
+          >
+            {dayHeading(locale, section.first.created_at)}
+          </Text>
+        )}
+        ItemSeparatorComponent={() => (
+          <View style={{ height: 1, backgroundColor: theme.color.border }} />
+        )}
+        renderItem={({ item }) => (
+          <InboxFeedRow row={item} locale={locale} theme={theme} rtf={rtf} />
+        )}
+      />
     </Screen>
   );
 }
