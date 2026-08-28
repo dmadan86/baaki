@@ -205,10 +205,13 @@ export default function AllGroupsScreen() {
         keyExtractor={(row) => (row.kind === 'header' ? 'settled-header' : row.item.group.id)}
         getItemType={(row) => row.kind}
         // The group-ledger settings: render well ahead of the viewport so a fast
-        // fling doesn't flash blank rows, and re-render rows when the money,
-        // language or search behind them changes.
+        // fling doesn't flash blank rows. The row items already carry their own
+        // balance/pending/count (baked in the memo above), so a money change
+        // flows through `data`; the only external a row reads is `locale`, so
+        // that alone — a stable string — is the extraData. Passing an array
+        // literal here would allocate every render and re-render every row.
         drawDistance={1500}
-        extraData={[summary, locale, trimmed]}
+        extraData={locale}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,

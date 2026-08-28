@@ -402,37 +402,46 @@ export function useHomeSummary(profileId: string | null) {
     return { byGroup, membersByGroup, awaiting, totals, monthSpent, withLedger };
   }, [mirror, queue, profileId, monthPrefix]);
 
-  return {
-    balanceFor: (groupId: string) => summary.byGroup.get(groupId) ?? 0n,
-    membersFor: (groupId: string) => summary.membersByGroup.get(groupId) ?? [],
-    memberCountFor: (groupId: string) => summary.membersByGroup.get(groupId)?.length ?? 0,
-    hasPending: (groupId: string) => summary.awaiting.has(groupId),
-    /** Whether this group's ledger has materialised yet — false for the brief
-     *  window after an import lands the group but before its expenses arrive. */
-    hasLedger: (groupId: string) => summary.withLedger.has(groupId),
-    totals: summary.totals,
-    /** My share of this month's expenses, per currency, biggest first. */
-    monthSpent: summary.monthSpent,
-    isLoading: !hydrated,
-    isFetching: status === 'syncing',
-    // The mirror hydrates from disk instantly (ADR-005), but that snapshot can
-    // be behind the server — a settlement that cleared your debt may only exist
-    // server-side until the session's first pull lands. Painting a confident,
-    // colour-coded balance from stale local data means the card can read "you
-    // owe" (red) and then flip once the sync reconciles — the exact jump the
-    // hero skeleton exists to hide. So the balance is only trustworthy once the
-    // first sync of the session has settled. `lastSyncedAt` is in-memory and
-    // starts null each launch, so it marks *this session's* first success.
-    //
-    // Bounded, never a hang: the provider kicks one `flush` on mount, which
-    // resolves to either `lastSyncedAt` set (success) or a can't-sync status
-    // (offline/metered/error). In those states there is nothing better than the
-    // local snapshot, so fall through and show it at once rather than shimmer
-    // forever — local-first still wins whenever the network can't answer.
-    pendingFirstSync:
-      hydrated && lastSyncedAt === null && (status === 'idle' || status === 'syncing'),
-    refetch: () => void flush(),
-  };
+  // Memoised so the returned object keeps a stable identity across renders that
+  // didn't change the underlying data. Without this every consumer got a fresh
+  // object (and fresh selector closures) every render — which, on the groups
+  // list, made `extraData` churn and re-render the whole FlashList each frame,
+  // janking the transition when you navigated away. Identity now changes only
+  // when the memoised `summary` or a sync flag actually moves.
+  return useMemo(
+    () => ({
+      balanceFor: (groupId: string) => summary.byGroup.get(groupId) ?? 0n,
+      membersFor: (groupId: string) => summary.membersByGroup.get(groupId) ?? [],
+      memberCountFor: (groupId: string) => summary.membersByGroup.get(groupId)?.length ?? 0,
+      hasPending: (groupId: string) => summary.awaiting.has(groupId),
+      /** Whether this group's ledger has materialised yet — false for the brief
+       *  window after an import lands the group but before its expenses arrive. */
+      hasLedger: (groupId: string) => summary.withLedger.has(groupId),
+      totals: summary.totals,
+      /** My share of this month's expenses, per currency, biggest first. */
+      monthSpent: summary.monthSpent,
+      isLoading: !hydrated,
+      isFetching: status === 'syncing',
+      // The mirror hydrates from disk instantly (ADR-005), but that snapshot can
+      // be behind the server — a settlement that cleared your debt may only exist
+      // server-side until the session's first pull lands. Painting a confident,
+      // colour-coded balance from stale local data means the card can read "you
+      // owe" (red) and then flip once the sync reconciles — the exact jump the
+      // hero skeleton exists to hide. So the balance is only trustworthy once the
+      // first sync of the session has settled. `lastSyncedAt` is in-memory and
+      // starts null each launch, so it marks *this session's* first success.
+      //
+      // Bounded, never a hang: the provider kicks one `flush` on mount, which
+      // resolves to either `lastSyncedAt` set (success) or a can't-sync status
+      // (offline/metered/error). In those states there is nothing better than the
+      // local snapshot, so fall through and show it at once rather than shimmer
+      // forever — local-first still wins whenever the network can't answer.
+      pendingFirstSync:
+        hydrated && lastSyncedAt === null && (status === 'idle' || status === 'syncing'),
+      refetch: () => void flush(),
+    }),
+    [summary, hydrated, status, lastSyncedAt, flush],
+  );
 }
 
 /**
