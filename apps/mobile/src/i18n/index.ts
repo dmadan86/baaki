@@ -2244,6 +2244,9 @@ export interface UiStrings {
     net: string;
     saved: string;
     overspent: string;
+    savingsRate: string;
+    prevMonth: string;
+    nextMonth: string;
     today: string;
     yesterday: string;
     add: string;
@@ -4232,6 +4235,9 @@ const en: UiStrings = {
     net: 'Net',
     saved: 'saved',
     overspent: 'overspent',
+    savingsRate: 'Savings rate',
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
     today: 'Today',
     yesterday: 'Yesterday',
     add: 'Add',
@@ -6314,6 +6320,9 @@ const ta: UiStrings = {
     net: 'நிகரம்',
     saved: 'சேமிப்பு',
     overspent: 'அதிகச் செலவு',
+    savingsRate: 'சேமிப்பு விகிதம்',
+    prevMonth: 'முந்தைய மாதம்',
+    nextMonth: 'அடுத்த மாதம்',
     today: 'இன்று',
     yesterday: 'நேற்று',
     add: 'சேர்',
@@ -8307,6 +8316,9 @@ const hi: UiStrings = {
     net: 'शुद्ध',
     saved: 'बचत',
     overspent: 'अधिक ख़र्च',
+    savingsRate: 'बचत दर',
+    prevMonth: 'पिछला महीना',
+    nextMonth: 'अगला महीना',
     today: 'आज',
     yesterday: 'कल',
     add: 'जोड़ें',
@@ -10513,6 +10525,9 @@ const ar: UiStrings = {
     net: 'الصافي',
     saved: 'ادّخرت',
     overspent: 'إنفاق زائد',
+    savingsRate: 'معدّل الادّخار',
+    prevMonth: 'الشهر السابق',
+    nextMonth: 'الشهر التالي',
     today: 'اليوم',
     yesterday: 'أمس',
     add: 'إضافة',

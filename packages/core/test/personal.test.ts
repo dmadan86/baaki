@@ -16,6 +16,7 @@ import {
   personalBudgetProgress,
   recurringCatchUp,
   recurringOccurrenceId,
+  savingsRate,
   type PersonalBudget,
   type PersonalLoan,
   type PersonalRecurring,
@@ -204,5 +205,21 @@ describe('txn codec', () => {
     expect(decoded.amount).toBe(0n);
     expect(decoded.kind).toBe('expense');
     expect(decoded.currency).toBe('INR');
+  });
+});
+
+describe('savingsRate', () => {
+  it('is the fraction of income kept', () => {
+    expect(savingsRate(1000n, 250n)).toBeCloseTo(0.75);
+    expect(savingsRate(1000n, 1000n)).toBe(0);
+  });
+
+  it('is negative when spending runs past income', () => {
+    expect(savingsRate(1000n, 1500n)).toBeCloseTo(-0.5);
+  });
+
+  it('is null when there was no income to measure against', () => {
+    expect(savingsRate(0n, 500n)).toBeNull();
+    expect(savingsRate(-10n, 0n)).toBeNull();
   });
 });
