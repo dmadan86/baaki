@@ -193,6 +193,36 @@ export function useOneToOneGroupIds(): LocalRead<Set<string>> {
 }
 
 /**
+ * For each group I am in, the display names of its other live members — a
+ * "who is in this" signature the voice review uses to tell whether a set of
+ * people already share a group. Names only (not member ids), because the people
+ * a picker offers are names typed or tapped, and a match on the same set of
+ * names is what "they already have a group" means to the person choosing.
+ */
+export function useGroupPeopleSignatures(
+  profileId: string | null,
+): LocalRead<{ groupId: string; names: string[] }[]> {
+  const { mirror, queue } = useSync();
+  const sigs = useMemo(() => {
+    if (!profileId) return [] as { groupId: string; names: string[] }[];
+    const out: { groupId: string; names: string[] }[] = [];
+    for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
+      const members = (
+        materialiseMembers(mirror, queue, { groupId: group.id }) as unknown as MemberRow[]
+      ).filter((member) => member.left_at === null);
+      if (!members.some((member) => member.profile_id === profileId)) continue;
+      const names = members
+        .filter((member) => member.profile_id !== profileId)
+        .map((member) => member.profile?.display_name ?? member.ghost_name ?? '')
+        .filter((name) => name.length > 0);
+      out.push({ groupId: group.id, names });
+    }
+    return out;
+  }, [mirror, queue, profileId]);
+  return useLocalRead(sigs);
+}
+
+/**
  * The archived groups, read local-first like everything else (ADR-005). These
  * are the groups `useGroups` hides; the archived screen is their only way back
  * into view, and unarchiving one (an ordinary group.update clearing

@@ -911,6 +911,17 @@ export interface UiStrings {
     /** The two destination tabs in the "Save to" picker. */
     groupsTab: string;
     peopleTab: string;
+    /** A private personal expense — no group, nobody to split with. */
+    justMe: string;
+    /** The People-tab box that both filters contacts and adds a new person. */
+    searchPeople: string;
+    /** The row that adds a typed name to the selection. '{name}' is the name. */
+    addNamed: string;
+    /** The People tab with nobody to show yet. */
+    noPeople: string;
+    /** The People-tab confirm button — with people picked, and with none. */
+    confirmPeople: string;
+    selectPeople: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -2952,6 +2963,12 @@ const en: UiStrings = {
     addMore: 'Add another',
     groupsTab: 'Groups',
     peopleTab: 'People',
+    justMe: 'Just me',
+    searchPeople: 'Search or add a person',
+    addNamed: 'Add “{name}”',
+    noPeople: 'No people yet — type a name to add one.',
+    confirmPeople: 'Save with these',
+    selectPeople: 'Pick who this is with',
   },
   notifications: {
     title: 'Notifications',
@@ -4979,6 +4996,12 @@ const ta: UiStrings = {
     addMore: 'மற்றொன்றைச் சேர்',
     groupsTab: 'குழுக்கள்',
     peopleTab: 'நபர்கள்',
+    justMe: 'நான் மட்டும்',
+    searchPeople: 'நபரைத் தேடு அல்லது சேர்',
+    addNamed: '“{name}” ஐச் சேர்',
+    noPeople: 'இன்னும் நபர்கள் இல்லை — சேர்க்க பெயரை உள்ளிடவும்.',
+    confirmPeople: 'இவர்களுடன் சேமி',
+    selectPeople: 'யாருடன் என்று தேர்ந்தெடு',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -7062,6 +7085,12 @@ const hi: UiStrings = {
     addMore: 'एक और जोड़ें',
     groupsTab: 'ग्रुप',
     peopleTab: 'लोग',
+    justMe: 'सिर्फ़ मैं',
+    searchPeople: 'व्यक्ति खोजें या जोड़ें',
+    addNamed: '“{name}” जोड़ें',
+    noPeople: 'अभी कोई व्यक्ति नहीं — जोड़ने के लिए नाम लिखें।',
+    confirmPeople: 'इनके साथ सहेजें',
+    selectPeople: 'यह किसके साथ है चुनें',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -9123,6 +9152,12 @@ const ar: UiStrings = {
     addMore: 'أضف آخر',
     groupsTab: 'المجموعات',
     peopleTab: 'الأشخاص',
+    justMe: 'أنا فقط',
+    searchPeople: 'ابحث عن شخص أو أضفه',
+    addNamed: 'إضافة «{name}»',
+    noPeople: 'لا أشخاص بعد — اكتب اسمًا لإضافته.',
+    confirmPeople: 'الحفظ مع هؤلاء',
+    selectPeople: 'اختر مع من',
   },
   notifications: {
     title: 'الإشعارات',
