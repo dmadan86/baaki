@@ -281,7 +281,7 @@ jobs:
           script: bash e2e/run-maestro.sh
       - name: Upload Maestro report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: maestro-report
           path: |
