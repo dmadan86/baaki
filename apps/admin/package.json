@@ -12,21 +12,21 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.3",
+    "@supabase/supabase-js": "^2.112.4",
     "@waves/core": "workspace:*",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
-    "next": "^16.3.0",
+    "next": "^16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@types/node": "^26.3.0",
     "@types/react": "~19.2.2",
-    "@types/react-dom": "~19.2.2",
+    "@types/react-dom": "~19.2.5",
     "eslint": "^10.9.1",
-    "eslint-config-next": "^16.3.0",
+    "eslint-config-next": "^16.3.2",
     "typescript": "~5.9.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

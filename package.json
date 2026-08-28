@@ -43,9 +43,9 @@
     "coverage:watches": "pnpm --filter @waves/mobile run coverage:watches"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "prettier": "^3.4.2",
     "typescript": "~5.9.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
