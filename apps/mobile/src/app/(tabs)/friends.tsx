@@ -22,26 +22,28 @@ import { router } from 'expo-router';
 import {
   ActivityIndicator,
   BackHandler,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import Reanimated, { ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  Avatar,
-  Badge,
   Button,
-  Card,
   directionalIcon,
   EmptyState,
+  Gradient,
   iconSize,
+  initialsOf,
   MoneyText,
   Row,
   Screen,
   Text,
+  tintForKey,
   useTabBarClearance,
   useTheme,
 } from '@waves/ui';
@@ -53,6 +55,8 @@ import { useBlockedUsers } from '@/data/blocked';
 import { defaultMergeName } from '@/data/mergePeople';
 import { useKnownPeopleCount, usePeopleBalances } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
+import { PressableScale } from '@/lib/anim';
+import { useReducedMotion } from '@/lib/reducedMotion';
 import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -177,10 +181,81 @@ function currencyTotals(rows: PersonBalanceRow[]): CurrencyTotal[] {
     .sort((a, b) => (absBig(a.net) < absBig(b.net) ? 1 : absBig(a.net) > absBig(b.net) ? -1 : 0));
 }
 
+/**
+ * The Friends hero wash — a saturated indigo, the same proven two-stop diagonal
+ * the dashboard's month slide rides, so the two tabs read as one system and the
+ * white ink clears AA on either stop in both themes (dark corners, like a bank
+ * card). Friends earns its own hue rather than the dashboard's green so the tab
+ * you are on is legible from the colour alone.
+ */
+const FRIENDS_GRADIENT = ['#463F86', '#221C46'] as const;
+
+/** The fixed-width trailing slot each row reserves for its action glyph, present
+    even when there is no action — so every amount's right edge lines up and the
+    invite/remind discs form one clean column instead of floating with the amount. */
+const ACTION_SLOT = 34;
+
+/** Darken a `#rrggbb` by a factor (<1) — the second, deeper stop for a vivid
+    avatar disc, so one tint token yields a two-tone gradient without new colours. */
+function shade(hex: string, factor: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n >> 16) & 0xff) * factor);
+  const g = Math.round(((n >> 8) & 0xff) * factor);
+  const b = Math.round((n & 0xff) * factor);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+/**
+ * Which guests are probably the same person seen twice.
+ *
+ * Two ghosts with the same name in different groups are the *only* thing merge
+ * fixes — yet the old hint fired on any two guests at all, and asked in a full
+ * paragraph. This finds the real duplicates instead: ghosts whose display name
+ * (trimmed, case-folded) is shared by two or more distinct person_keys. It hands
+ * back the set of keys that belong to some duplicate cluster (so their rows can
+ * wear a quiet "seen twice" mark), the count of people caught in one, and the
+ * largest cluster pre-folded into merge params for a one-tap fix.
+ */
+interface DuplicateInfo {
+  /** Every person_key that shares a name with another guest. */
+  keys: ReadonlySet<string>;
+  /** How many distinct guests are caught in some duplicate cluster. */
+  count: number;
+  /** The biggest cluster, ready to hand the merge screen. */
+  prefill: { keys: string[]; name: string } | null;
+}
+
+function findDuplicates(rows: PersonBalanceRow[]): DuplicateInfo {
+  // name → the distinct person_keys wearing it, and one display spelling to show.
+  const byName = new Map<string, { keys: Set<string>; display: string }>();
+  for (const row of rows) {
+    if (!row.is_ghost) continue;
+    const norm = row.display_name.trim().toLowerCase();
+    if (!norm) continue;
+    let bucket = byName.get(norm);
+    if (!bucket) {
+      bucket = { keys: new Set(), display: row.display_name };
+      byName.set(norm, bucket);
+    }
+    bucket.keys.add(row.person_key);
+  }
+  const keys = new Set<string>();
+  let biggest: { keys: string[]; name: string } | null = null;
+  for (const bucket of byName.values()) {
+    if (bucket.keys.size < 2) continue;
+    for (const k of bucket.keys) keys.add(k);
+    if (!biggest || bucket.keys.size > biggest.keys.length) {
+      biggest = { keys: [...bucket.keys], name: bucket.display };
+    }
+  }
+  return { keys, count: keys.size, prefill: biggest };
+}
+
 export default function FriendsScreen() {
   const theme = useTheme();
   const pull = usePullRefresh();
   const clearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
 
   const { profile } = useAuth();
@@ -193,13 +268,10 @@ export default function FriendsScreen() {
   // they want opposite screens — see `EmptyFriends`.
   const known = useKnownPeopleCount(profile?.id ?? null);
 
-  // The merge entry earns its place in the header only once there are two or
-  // more guests to merge — for everyone else it would be a control that leads to
-  // an empty screen. Counted by distinct person, so a guest unsettled in two
-  // currencies is one, not two.
-  const mergeableGuestCount = new Set(
-    rows.filter((row) => row.is_ghost).map((row) => row.person_key),
-  ).size;
+  // Which guests look like the same person seen twice — the only thing merge is
+  // for. Surfaced as a slim strip that points at the actual duplicates (and
+  // marks their rows), not a paragraph that fired on any two guests at all.
+  const duplicates = useMemo(() => findDuplicates(rows), [rows]);
 
   // The sort the whole list obeys. Tapping a key in the menu switches to it;
   // tapping the key already chosen flips its direction — amount and recent
@@ -324,164 +396,328 @@ export default function FriendsScreen() {
   const totals = useMemo(() => currencyTotals(rows), [rows]);
 
   return (
-    <Screen>
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance,
-          gap: theme.spacing.xl,
-          // So the empty state can take the room the list is not using and sit
-          // in the middle of it. With a list present this changes nothing.
-          flexGrow: 1,
-        }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={pull.refreshing}
-            onRefresh={pull.onRefresh}
-            tintColor={theme.color.brand}
+    <Screen edges={[]}>
+      {/* The header is fixed — it does not ride the scroll. Only the list and the
+          merge strip below move under it. */}
+      {selectMode ? (
+        // Selection header: leave the mode, the running count, and Merge —
+        // enabled only at two or more, since one person is nothing to merge. It
+        // replaces the hero because merging is a mode, not the resting state.
+        <Row
+          style={{
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingTop: insets.top + theme.spacing.md,
+            paddingBottom: theme.spacing.md,
+            paddingHorizontal: theme.spacing.lg,
+          }}
+        >
+          <Row style={{ alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
+              onPress={exitSelect}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+            >
+              <Ionicons name="close" size={iconSize.xl} color={theme.color.text} />
+            </Pressable>
+            <Text variant="heading" numberOfLines={1}>
+              {plural(locale, selectedKeys.size, t.mergePeople.selected)}
+            </Text>
+          </Row>
+          <Button
+            label={t.mergePeople.entry}
+            size="sm"
+            disabled={selectedKeys.size < 2}
+            onPress={startMerge}
           />
-        }
-      >
-        {selectMode ? (
-          // Selection header: leave the mode, the running count, and Merge —
-          // enabled only at two or more, since one person is nothing to merge.
-          <Row
-            style={{
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingTop: theme.spacing.md,
-            }}
-          >
-            <Row style={{ alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.common.close}
-                onPress={exitSelect}
-                hitSlop={10}
-                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-              >
-                <Ionicons name="close" size={iconSize.xl} color={theme.color.text} />
-              </Pressable>
-              <Text variant="heading" numberOfLines={1}>
-                {plural(locale, selectedKeys.size, t.mergePeople.selected)}
-              </Text>
-            </Row>
-            <Button
-              label={t.mergePeople.entry}
-              size="sm"
-              disabled={selectedKeys.size < 2}
-              onPress={startMerge}
-            />
-          </Row>
-        ) : (
-          <Row style={{ justifyContent: 'space-between', paddingTop: theme.spacing.md }}>
-            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-              <Ionicons name="people" size={iconSize.xl} color={theme.color.brand} />
-              <Text variant="title">{t.friends}</Text>
-            </Row>
-            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-              {/* One primary action — everything that adds a person (type a name,
-                pull from contacts, scan an invite QR) lives behind this `+` so a
-                first-timer has one obvious door instead of four bare glyphs to
-                guess between. Merge is not here: it is a fix, not an add, and it
-                gets its own contextual card once there are duplicates. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.tabs.addSomeone}
-                onPress={() => setAddOpen(true)}
-                hitSlop={10}
-                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-              >
-                <Ionicons name="add" size={iconSize.xxxl} color={theme.color.text} />
-              </Pressable>
-              {/* The sort control now wears its own state: the active key's glyph
-                and the direction arrow, so a glance says how the list is ordered
-                without opening the menu (fixes the invisible-sort complaint). */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${t.sort.by}: ${sortLabel(sortKey, t)}`}
-                onPress={() => setSortOpen(true)}
-                hitSlop={10}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.5 : 1,
-                  padding: theme.spacing.xs,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 2,
-                })}
-              >
-                <Ionicons
-                  name={SORT_META[sortKey].icon}
-                  size={iconSize.lg}
-                  color={theme.color.textMuted}
-                />
-                <Ionicons
-                  name={sortDir === SortDir.Asc ? 'arrow-up' : 'arrow-down'}
-                  size={iconSize.sm}
-                  color={theme.color.textMuted}
-                />
-              </Pressable>
-            </Row>
-          </Row>
-        )}
-
-        <AddMenu open={addOpen} onClose={() => setAddOpen(false)} t={t} />
-
-        <SortMenu
-          open={sortOpen}
-          onClose={() => setSortOpen(false)}
+        </Row>
+      ) : (
+        // The hero: one saturated indigo panel edge to edge and up under the
+        // status bar — the dashboard's signature account panel, applied here.
+        // It carries the title, the two controls (add, sort), and the overall
+        // balance, so the top of Friends reads as a header rather than a title
+        // row floating over a chunky list.
+        <FriendsHero
+          totals={totals}
+          locale={locale}
+          t={t}
           sortKey={sortKey}
           sortDir={sortDir}
-          onPick={pickSort}
-          t={t}
+          onAdd={() => setAddOpen(true)}
+          onSort={() => setSortOpen(true)}
         />
+      )}
 
+      <AddMenu open={addOpen} onClose={() => setAddOpen(false)} t={t} />
+
+      <SortMenu
+        open={sortOpen}
+        onClose={() => setSortOpen(false)}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onPick={pickSort}
+        t={t}
+      />
+
+      {/* Only this scrolls — the list and the merge strip, beneath the fixed
+          header. A tight side margin so the list reads edge-to-edge dense. */}
+      <View style={{ flex: 1 }}>
         {people.isLoading ? (
-          <PeopleSkeleton />
+          <View style={{ paddingHorizontal: theme.spacing.sm, paddingTop: theme.spacing.md }}>
+            <PeopleSkeleton />
+          </View>
         ) : rows.length === 0 ? (
-          <EmptyFriends hasPeople={known.data > 0} t={t} />
+          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: theme.spacing.lg }}>
+            <EmptyFriends hasPeople={known.data > 0} t={t} />
+          </View>
         ) : (
-          <>
-            {/* Overall headline — am I up or down, and by how much, before a
-              single row is read. This is the one thing group-by-group
-              navigation could never answer. One line per currency; never a
-              summed cross-currency total (ADR-003). It steps aside mid-merge,
-              where the running selection owns the top of the screen. */}
-            {!selectMode ? <BalanceHeadline totals={totals} locale={locale} t={t} /> : null}
-            {/* Merge used to hide behind a bare header glyph and a long-press
-              nobody discovers. When two or more guests could be the same person,
-              say so in words with a way in — a stable place to learn the concept
-              (hidden in selection mode, where merging is already under way). */}
-            {mergeableGuestCount >= 2 && !selectMode ? (
-              <MergeHint onPress={() => router.push('/friends/merge' as never)} t={t} />
-            ) : null}
-            {/* One list, one row per person (Splitwise model). Direction lives on
-              the row — a "you owe"/"owes you" micro-label and the money's own
-              colour — so no owes/owed tab, and a person unsettled in two
-              currencies is one row with both nets stacked, not two faces. */}
-            <View>
-              {persons.map((person, index) => (
-                <View key={person.person_key}>
-                  <PersonRow
-                    person={person}
+          // The only virtualized list on this screen — same FlashList setup the
+          // group ledger uses (recycled rows, a wide draw distance so a fast fling
+          // never outruns recycling into blank rows). Only what is on screen is
+          // mounted, which is what keeps a long friends list scrolling smoothly.
+          <FlashList
+            data={persons}
+            // Selection state lives outside the row data, so the list has to be
+            // told to re-render its rows when it changes (the tick, the fill).
+            extraData={`${selectMode}|${[...selectedKeys].join(',')}|${locale}`}
+            keyExtractor={(item) => item.person_key}
+            drawDistance={1500}
+            contentContainerStyle={{
+              paddingHorizontal: theme.spacing.sm,
+              paddingTop: theme.spacing.md,
+              paddingBottom: clearance,
+            }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={pull.refreshing}
+                onRefresh={pull.onRefresh}
+                tintColor={theme.color.brand}
+              />
+            }
+            // The merge strip rides above the rows and scrolls with them — a
+            // duplicate is the only thing merge fixes, so it appears only when
+            // there is one, and points at the count in one slim line. Hidden
+            // mid-selection, where merging is already under way.
+            ListHeaderComponent={
+              duplicates.count >= 2 && !selectMode ? (
+                <View style={{ marginBottom: theme.spacing.sm }}>
+                  <DuplicateStrip
+                    count={duplicates.count}
                     locale={locale}
                     t={t}
-                    selectMode={selectMode}
-                    selected={selectedKeys.has(person.person_key)}
-                    onEnterSelect={enterSelect}
-                    onToggleSelect={toggleSelect}
+                    onPress={() => {
+                      const p = duplicates.prefill;
+                      if (!p) return router.push('/friends/merge' as never);
+                      const keyParam = p.keys.map(encodeURIComponent).join(',');
+                      const nameParam = encodeURIComponent(p.name);
+                      router.push(`/friends/merge?keys=${keyParam}&name=${nameParam}` as never);
+                    }}
                   />
-                  {index < persons.length - 1 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
                 </View>
-              ))}
-            </View>
-          </>
+              ) : null
+            }
+            renderItem={({ item, index }) => (
+              <PersonRow
+                person={item}
+                locale={locale}
+                t={t}
+                divider={index > 0}
+                duplicate={duplicates.keys.has(item.person_key)}
+                selectMode={selectMode}
+                selected={selectedKeys.has(item.person_key)}
+                onEnterSelect={enterSelect}
+                onToggleSelect={toggleSelect}
+              />
+            )}
+          />
         )}
-      </ScrollView>
+      </View>
     </Screen>
+  );
+}
+
+/**
+ * The Friends hero — the dashboard's saturated account panel, carrying the top
+ * of the screen: title, the add and sort controls (white on the wash), and the
+ * overall balance. One indigo gradient bled edge to edge and up under the status
+ * bar, its bottom corners rounded, the white body sliding in beneath.
+ *
+ * The overall balance rides transparent on the colour (no inner card) — one line
+ * per currency, because there is no honest single total across currencies without
+ * a rate (ADR-003). All square, or nobody added? Then the balance says nothing
+ * and the hero is just the title row.
+ */
+function FriendsHero({
+  totals,
+  locale,
+  t,
+  sortKey,
+  sortDir,
+  onAdd,
+  onSort,
+}: {
+  totals: readonly CurrencyTotal[];
+  locale: string;
+  t: UiStrings;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onAdd: () => void;
+  onSort: () => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
+  return (
+    <View
+      style={{
+        paddingTop: insets.top + theme.spacing.md,
+        paddingHorizontal: theme.spacing.xl,
+        paddingBottom: theme.spacing.xxl,
+        borderBottomLeftRadius: theme.radius.xxl,
+        borderBottomRightRadius: theme.radius.xxl,
+        gap: theme.spacing.xl,
+        overflow: 'hidden',
+      }}
+    >
+      {/* The wash, clipped to the hero's rounded corner. Flat-falls to its first
+          stop if the native gradient is unavailable — still white on indigo. */}
+      <Gradient
+        colors={FRIENDS_GRADIENT}
+        radius={0}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+      {/* The artwork: a big faint people watermark bled off the corner and a few
+          translucent rings, so the panel has depth rather than reading as a flat
+          block of colour. Behind everything, never eats a tap. */}
+      <HeroArt />
+
+      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+        {/* The title glyph pops in on mount — a small, once-only spring, the beat
+            of motion that reads as "premium" without ever nagging. Bare white, no
+            disc, so the header reads as a title and only the `+` is a button. */}
+        <Reanimated.View
+          entering={reduceMotion ? undefined : ZoomIn.springify().damping(14).mass(0.6)}
+        >
+          <Ionicons name="people" size={iconSize.xl} color={theme.color.onBrand} />
+        </Reanimated.View>
+        <Text variant="title" tone="onBrand" style={{ flex: 1 }} numberOfLines={1}>
+          {t.friends}
+        </Text>
+        {/* Everything that adds a person (type a name, pull from contacts, scan
+            an invite QR) lives behind this one `+`. A solid white disc with the
+            indigo glyph — a real button, the dashboard's white "add" pill as a
+            circle — rather than a faint frosted ring. It dips under the finger. */}
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={t.tabs.addSomeone}
+          onPress={onAdd}
+          hitSlop={10}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#FFFFFF',
+          }}
+        >
+          <Ionicons name="add" size={iconSize.xl} color={FRIENDS_GRADIENT[0]} />
+        </PressableScale>
+        {/* Sort wears its own state — the active key's glyph and the direction
+            arrow — so a glance says how the list is ordered. */}
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={`${t.sort.by}: ${sortLabel(sortKey, t)}`}
+          onPress={onSort}
+          hitSlop={10}
+          style={{
+            padding: theme.spacing.xs,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <Ionicons name={SORT_META[sortKey].icon} size={iconSize.lg} color={theme.color.onBrand} />
+          <Ionicons
+            name={sortDir === SortDir.Asc ? 'arrow-up' : 'arrow-down'}
+            size={iconSize.sm}
+            color={theme.color.onBrand}
+          />
+        </PressableScale>
+      </Row>
+
+      {totals.length > 0 ? (
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="micro" tone="onBrand" style={{ letterSpacing: 1, opacity: 0.7 }}>
+            {t.tabs.overall.toUpperCase()}
+          </Text>
+          {totals.map((total) => (
+            <Row
+              key={total.currency}
+              style={{
+                justifyContent: 'space-between',
+                alignItems: 'flex-end',
+                gap: theme.spacing.md,
+              }}
+            >
+              <Text variant="body" tone="onBrand" style={{ opacity: 0.85 }}>
+                {total.net > 0n ? t.tabs.youAreOwed : t.tabs.youOweThem}
+              </Text>
+              <MoneyText
+                amount={total.net < 0n ? -total.net : total.net}
+                currency={total.currency}
+                locale={locale}
+                tone="onBrand"
+                style={{ fontSize: 32, lineHeight: 38, fontWeight: '800' }}
+              />
+            </Row>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * The hero's artwork — depth without an illustration pipeline. A big people
+ * watermark bled off the bottom-right corner, and a couple of translucent rings
+ * floating over the wash, so the panel reads as a designed surface rather than a
+ * flat rectangle of colour. All white at low alpha, so it sits the same on the
+ * indigo in either theme; `pointerEvents none` so it never intercepts a tap.
+ */
+function HeroArt(): React.JSX.Element {
+  const theme = useTheme();
+  const ring = (size: number, top: number, left: number, alpha: number): React.JSX.Element => (
+    <View
+      style={{
+        position: 'absolute',
+        top,
+        left,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth: 2,
+        borderColor: `rgba(255,255,255,${alpha})`,
+      }}
+    />
+  );
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      {ring(150, -60, -40, 0.1)}
+      {ring(90, 20, -30, 0.08)}
+      <View style={{ position: 'absolute', right: -30, bottom: -46 }}>
+        <Ionicons name="people" size={190} color="rgba(255,255,255,0.09)" />
+      </View>
+      <View style={{ position: 'absolute', right: 54, top: -18 }}>
+        <Ionicons name="heart" size={26} color={theme.color.onBrand} style={{ opacity: 0.12 }} />
+      </View>
+    </View>
   );
 }
 
@@ -635,60 +871,75 @@ function Face({
  * there is no honest single number across currencies without a rate (ADR-003).
  * Nets to nothing overall? Then it says nothing and the rows below carry it.
  */
-function BalanceHeadline({
-  totals,
+/**
+ * The slim duplicate strip — one line, not a paragraph.
+ *
+ * Merge only ever fixes one thing: the same guest added twice, in two groups.
+ * The old card asked about that in a full sentence with an icon medallion and a
+ * chevron, and fired on any two guests at all. This says only how many likely
+ * duplicates were spotted and offers the fix in a single row you can skip past —
+ * a small merge glyph, the count, an arrow. Tapping folds the biggest cluster
+ * straight into the merge screen. The duplicate rows below wear a matching mark,
+ * so this points at something the eye can also find.
+ */
+function DuplicateStrip({
+  count,
   locale,
   t,
+  onPress,
 }: {
-  totals: readonly CurrencyTotal[];
+  count: number;
   locale: string;
   t: UiStrings;
-}): React.JSX.Element | null {
+  onPress: () => void;
+}): React.JSX.Element {
   const theme = useTheme();
-  if (totals.length === 0) return null;
   return (
-    <Card>
-      <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-        {t.tabs.overall.toUpperCase()}
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={plural(locale, count, t.mergePeople.duplicates)}
+      accessibilityHint={t.mergePeople.hint}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
+        borderRadius: theme.radius.md,
+        backgroundColor: theme.color.brandSoft,
+      }}
+    >
+      <Ionicons name="git-merge-outline" size={iconSize.md} color={theme.color.brand} />
+      <Text variant="caption" tone="brand" style={{ flex: 1, fontWeight: '600' }} numberOfLines={1}>
+        {plural(locale, count, t.mergePeople.duplicates)}
       </Text>
-      <View style={{ gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-        {totals.map((total) => (
-          <Row
-            key={total.currency}
-            style={{
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-              gap: theme.spacing.md,
-            }}
-          >
-            <Text variant="body" tone="muted">
-              {total.net > 0n ? t.tabs.youAreOwed : t.tabs.youOweThem}
-            </Text>
-            <MoneyText
-              amount={total.net}
-              currency={total.currency}
-              locale={locale}
-              variant="heading"
-              mode="balance"
-            />
-          </Row>
-        ))}
-      </View>
-    </Card>
+      <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
+        {t.mergePeople.entry}
+      </Text>
+      <Ionicons
+        name={directionalIcon('chevron-forward')}
+        size={iconSize.sm}
+        color={theme.color.brand}
+      />
+    </PressableScale>
   );
 }
 
 /**
- * One person, one row — every group and currency they are unsettled with you in,
- * folded into a single line (the Splitwise model). Direction lives on the row: a
- * "you owe" / "owes you" micro-label and the money's own colour, so no owes/owed
- * tab is needed. A person unsettled in two currencies shows both nets stacked at
- * the right edge rather than appearing as two different people.
+ * One person, one compact row on the shared list card — an avatar, the name over
+ * its direction line, the balance to the right (the dashboard's group row, applied
+ * to people). Direction lives in the caption ("Owes you" / "You owe") so the right
+ * edge is just the coloured amount, and the invite/remind actions shrink to a
+ * single round glyph beside it rather than a text pill that padded the row out.
+ * A person unsettled in two currencies is one row with both nets stacked.
  */
 function PersonRow({
   person,
   locale,
   t,
+  divider,
+  duplicate,
   selectMode,
   selected,
   onEnterSelect,
@@ -697,6 +948,11 @@ function PersonRow({
   person: PersonGroup;
   locale: string;
   t: ReturnType<typeof useStrings>['t'];
+  /** A hairline above the row — every row but the first, so the card reads as one
+      divided list. */
+  divider: boolean;
+  /** This guest shares a name with another — wears a quiet "seen twice" mark. */
+  duplicate: boolean;
   selectMode: boolean;
   selected: boolean;
   onEnterSelect: (personKey: string) => void;
@@ -714,8 +970,8 @@ function PersonRow({
   const selectable = person.is_ghost;
 
   const entries = person.entries;
-  // The common case: a person with a single balance. It carries the micro-label,
-  // the group scope and the badges; a multi-currency person leans on the stacked
+  // The common case: a person with a single balance. It carries the direction,
+  // the group scope and the action; a multi-currency person leans on the stacked
   // amounts instead.
   const single = entries.length === 1 ? entries[0] : null;
   const soloGroup = single?.only_group_id ?? null;
@@ -739,11 +995,18 @@ function PersonRow({
   const onLongPress =
     !selectMode && selectable ? () => onEnterSelect(person.person_key) : undefined;
 
-  const subtitle = single
-    ? single.group_count === 1
-      ? t.tabs.inOneGroup
-      : plural(locale, single.group_count, t.tabs.acrossGroups)
-    : null;
+  // The group scope, only when it earns a mention (a person spread over more than
+  // one group). One group is the default and says nothing.
+  const scope =
+    single && single.group_count > 1
+      ? plural(locale, single.group_count, t.tabs.acrossGroups)
+      : null;
+  // The caption folds direction and scope onto one line, so the right edge no
+  // longer stacks a micro-label over the amount. Multi-currency people have no
+  // single direction (owed in one, owing in another) — their stacked coloured
+  // amounts carry it, so the caption is just the scope, if any.
+  const direction = single ? (BigInt(single.net) > 0n ? t.tabs.owesYou : t.tabs.youOweThem) : null;
+  const caption = [direction, scope].filter(Boolean).join(' · ') || null;
 
   // What a screen reader hears: who, then each currency's spoken direction and
   // amount, the group scope, and — for a guest — that they have not joined.
@@ -756,7 +1019,7 @@ function PersonRow({
     ),
   );
   const statusPart = person.is_ghost ? (soloGroup ? t.people.invite : t.tabs.notJoined) : '';
-  const rowA11yLabel = [shownName, ...moneyLabels, subtitle ?? '', statusPart]
+  const rowA11yLabel = [shownName, ...moneyLabels, scope ?? '', statusPart]
     .filter(Boolean)
     .join('. ');
 
@@ -776,8 +1039,11 @@ function PersonRow({
     <Row
       style={{
         paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.sm,
         alignItems: 'center',
         gap: theme.spacing.sm,
+        borderTopWidth: divider ? 1 : 0,
+        borderTopColor: theme.color.border,
         // A non-selectable row reads as unavailable while a selection runs.
         opacity: selectMode && !selectable ? 0.4 : 1,
       }}
@@ -789,36 +1055,54 @@ function PersonRow({
           color={selected ? theme.color.brand : theme.color.textFaint}
         />
       ) : null}
-      <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
-        <Avatar name={shownName} size={44} ghost={person.is_ghost || blocked} />
-        <View style={{ flex: 1 }}>
-          <Text variant="subheading" numberOfLines={1}>
-            {shownName}
+      <View>
+        <PersonAvatar name={shownName} size={44} ghost={person.is_ghost || blocked} />
+        {/* The "seen twice" mark — a small merge glyph on the avatar corner, so
+            a duplicate the strip counted can also be spotted in the list itself. */}
+        {duplicate && !selectMode ? (
+          <View
+            style={{
+              position: 'absolute',
+              right: -3,
+              bottom: -3,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: theme.color.brand,
+              borderWidth: 2,
+              borderColor: theme.color.surface,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="git-merge" size={10} color={theme.color.onBrand} />
+          </View>
+        ) : null}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="body" numberOfLines={1} style={{ fontWeight: '600' }}>
+          {shownName}
+        </Text>
+        {caption ? (
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {caption}
           </Text>
-          {subtitle ? (
-            <Text variant="caption" tone="muted" numberOfLines={1}>
-              {subtitle}
-            </Text>
-          ) : null}
-        </View>
-      </Row>
-      <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        ) : null}
+      </View>
+      {/* Right cluster: the coloured amount right-aligned, then a fixed-width
+          trailing slot for the action glyph. The slot is always present, even on
+          rows with no action, so every amount's right edge lines up and the
+          invite/remind discs sit in one clean column at the edge — rather than
+          floating at a different x on every row because the amount width differs. */}
+      <View style={{ alignItems: 'flex-end' }}>
         {single ? (
-          <>
-            {/* The one place the row says the direction in words — over the
-                coloured amount — so a glance reads owed-vs-owe without leaning on
-                red/green alone. */}
-            <Text variant="micro" tone="faint">
-              {BigInt(single.net) > 0n ? t.tabs.owesYou : t.tabs.youOweThem}
-            </Text>
-            <MoneyText
-              amount={BigInt(single.net)}
-              currency={single.currency}
-              locale={locale}
-              variant="subheading"
-              mode="balance"
-            />
-          </>
+          <MoneyText
+            amount={BigInt(single.net)}
+            currency={single.currency}
+            locale={locale}
+            variant="subheading"
+            mode="balance"
+          />
         ) : (
           // Multi-currency: one small coloured line per currency — never summed.
           sortedEntries.map((e) => (
@@ -832,27 +1116,19 @@ function PersonRow({
             />
           ))
         )}
-        {selectMode ? null : person.is_ghost ? (
-          // A ghost is somebody you added who has no account yet, so the badge is
-          // the useful action: send them this group's invite link — the same link
-          // that lets them claim this balance (A25). Offered only when a single
-          // group explains it, otherwise there is no one link to share.
-          soloGroup ? (
-            <Pressable
-              onPress={() => router.push(`/group/${soloGroup}/invite`)}
-              accessibilityRole="button"
-              accessibilityLabel={t.people.invite}
-              hitSlop={12}
-              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-            >
-              <Badge label={t.people.invite} tone="brand" />
-            </Pressable>
-          ) : (
-            <Badge label={t.tabs.notJoined} />
-          )
-        ) : single && BigInt(single.net) > 0n && single.only_group_id ? (
-          // They owe you and one group explains it, so there is a single pair to
-          // nudge. The server keeps it honest — one a day (ADR-010).
+      </View>
+      <View style={{ width: ACTION_SLOT, alignItems: 'center', justifyContent: 'center' }}>
+        {!selectMode && person.is_ghost && soloGroup ? (
+          // A guest with no account yet: the useful action is the invite link that
+          // also lets them claim this balance (A25). One group, one link.
+          <RowAction
+            icon="paper-plane-outline"
+            label={t.people.invite}
+            onPress={() => router.push(`/group/${soloGroup}/invite`)}
+          />
+        ) : !selectMode && single && BigInt(single.net) > 0n && single.only_group_id ? (
+          // They owe you and one group explains it — a single pair to nudge, kept
+          // honest by the server at one a day (ADR-010).
           <RemindButton row={single} />
         ) : null}
       </View>
@@ -860,6 +1136,9 @@ function PersonRow({
   );
 
   return (
+    // A plain Pressable, deliberately — the row lives in a scroll list, and a
+    // per-row Reanimated press-spring is what made scrolling feel less than
+    // buttery. A flat opacity dip costs nothing and keeps the list smooth.
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
@@ -875,7 +1154,7 @@ function PersonRow({
       }
       accessibilityLabel={selectMode ? shownName : rowA11yLabel}
       style={({ pressed }) => ({
-        opacity: pressed ? 0.9 : 1,
+        opacity: pressed ? 0.6 : 1,
         // A tick alone can be missed; a picked row also wears a soft fill.
         backgroundColor: selected ? theme.color.surfaceMuted : 'transparent',
       })}
@@ -886,7 +1165,113 @@ function PersonRow({
 }
 
 /**
- * The one-tap nudge on a card for somebody who owes you.
+ * The vivid avatar disc — a saturated two-tone gradient keyed off the person's
+ * stable tint, with white initials, the pop the Monzo / Mesh / Satispay people
+ * lists get from colour. A photo, when there is one, fills the disc instead. A
+ * guest (a ghost, ADR-006) stays deliberately quieter — the soft pastel with a
+ * dashed ring — so "not joined yet" still reads apart from a full member at a
+ * glance. One tint token yields both stops (ink, and a darkened ink), so nothing
+ * new is invented and the colour matches the person everywhere else in the app.
+ */
+function PersonAvatar({
+  name,
+  size,
+  ghost,
+  photoUrl,
+}: {
+  name: string;
+  size: number;
+  ghost: boolean;
+  photoUrl?: string | null;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const pair = theme.tint[tintForKey(name)];
+
+  if (photoUrl) {
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        resizeMode="cover"
+        accessibilityLabel={name}
+      />
+    );
+  }
+
+  if (ghost) {
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: pair.bg,
+          borderWidth: 1.5,
+          borderColor: pair.ink,
+          borderStyle: 'dashed',
+        }}
+      >
+        <Text variant="caption" style={{ color: pair.ink, fontWeight: '700' }}>
+          {initialsOf(name)}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <Gradient
+      colors={[pair.ink, shade(pair.ink, 0.72)]}
+      radius={size / 2}
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: size * 0.38 }}>
+        {initialsOf(name)}
+      </Text>
+    </Gradient>
+  );
+}
+
+/**
+ * A single round action glyph on a person row — the invite send button, sized to
+ * a thumb but not to a text pill's width. A soft brand disc that dips under the
+ * finger. Its own pressable, so a tap fires the action rather than opening the
+ * person behind it.
+ */
+function RowAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={10}
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.color.brandSoft,
+      }}
+    >
+      <Ionicons name={icon} size={iconSize.md} color={theme.color.brand} />
+    </PressableScale>
+  );
+}
+
+/**
+ * The one-tap nudge for somebody who owes you — a round bell glyph matching the
+ * invite action's shape.
  *
  * Once tapped it does not offer to be tapped again — it settles into a quiet
  * "Reminded", and if the server says the daily limit is already spent it says
@@ -926,15 +1311,11 @@ function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | n
   if (nudge.isPending) return <ActivityIndicator size="small" color={theme.color.brand} />;
 
   return (
-    <Pressable
+    <RowAction
+      icon="notifications-outline"
+      label={t.people.remind}
       onPress={() => nudge.mutate()}
-      accessibilityRole="button"
-      accessibilityLabel={t.people.remind}
-      hitSlop={12}
-      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-    >
-      <Badge label={t.people.remind} tone="brand" />
-    </Pressable>
+    />
   );
 }
 
@@ -1040,52 +1421,6 @@ function SortMenu({
         </View>
       </Pressable>
     </Modal>
-  );
-}
-
-/**
- * The contextual merge nudge — a card, not a bare header glyph.
- *
- * Merge used to live behind an icon that appeared only when it was usable and a
- * long-press nobody stumbles onto. This says the concept in words and offers the
- * way in, so a user learns "duplicate guests can be merged" at the one moment it
- * is true and actionable. It disappears the instant the duplicates are gone.
- */
-function MergeHint({ onPress, t }: { onPress: () => void; t: UiStrings }): React.JSX.Element {
-  const theme = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={t.mergePeople.entry}
-      accessibilityHint={t.mergePeople.hint}
-      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-    >
-      <Card>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme.color.brandSoft,
-            }}
-          >
-            <Ionicons name="git-merge-outline" size={iconSize.xl} color={theme.color.brand} />
-          </View>
-          <Text variant="caption" tone="muted" style={{ flex: 1 }}>
-            {t.mergePeople.hint}
-          </Text>
-          <Ionicons
-            name={directionalIcon('chevron-forward')}
-            size={iconSize.lg}
-            color={theme.color.textFaint}
-          />
-        </Row>
-      </Card>
-    </Pressable>
   );
 }
 
