@@ -14,8 +14,9 @@
  * account are followed across groups, because a profile id is proof.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
@@ -159,24 +160,50 @@ export default function FriendsScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(new Set());
 
-  const exitSelect = (): void => {
-    setSelectMode(false);
-    setSelectedKeys(new Set());
+  // A live mirror of the selection, read by `toggleSelect` so a tap always folds
+  // into the very latest set — not a snapshot captured at some earlier render,
+  // and not a value that lags behind a passive effect. It is written in the same
+  // helper that schedules the state, so a second tap that lands before React has
+  // flushed still sees the real set (picking A then B keeps both, never just B).
+  const selectedKeysRef = useRef<ReadonlySet<string>>(selectedKeys);
+  const applySelection = (next: ReadonlySet<string>): void => {
+    selectedKeysRef.current = next;
+    setSelectedKeys(next);
   };
 
+  const exitSelect = (): void => {
+    setSelectMode(false);
+    applySelection(new Set());
+  };
+
+  // A long press fires onLongPress (this), then the SAME touch fires the row's
+  // onPress on release — which in selection mode is a toggle. Left alone, that
+  // release toggles right back off the person the long press just picked, the
+  // set empties, and selection mode vanishes the instant you lift your finger.
+  // So the long press arms a one-shot guard that the very next toggle consumes
+  // and ignores. Any later tap is a real pick.
+  const swallowNextToggleRef = useRef(false);
+
   const enterSelect = (personKey: string): void => {
+    swallowNextToggleRef.current = true;
     setSelectMode(true);
-    setSelectedKeys(new Set([personKey]));
+    applySelection(new Set([personKey]));
   };
 
   const toggleSelect = (personKey: string): void => {
-    const next = new Set(selectedKeys);
+    // The release of the long press that just entered selection — ignore it once
+    // so the picked person stays picked.
+    if (swallowNextToggleRef.current) {
+      swallowNextToggleRef.current = false;
+      return;
+    }
+    const next = new Set(selectedKeysRef.current);
     if (next.has(personKey)) next.delete(personKey);
     else next.add(personKey);
     // Dropping the last pick leaves selection mode — an empty selection is no
     // selection.
     if (next.size === 0) exitSelect();
-    else setSelectedKeys(next);
+    else applySelection(next);
   };
 
   const startMerge = (): void => {
@@ -323,8 +350,9 @@ export default function FriendsScreen() {
                   lg here makes the three header icons appear the same size. */}
                 <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.text} />
               </Pressable>
-              {/* Pull people from the phone's address book — icon only, no button
-                chrome, so the header reads as a title row not a toolbar. */}
+              {/* Pull people from the phone's address book — an address-book
+                glyph, icon only, no button chrome, so the header reads as a
+                title row not a toolbar. */}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t.tabs.fromContacts}
@@ -332,7 +360,11 @@ export default function FriendsScreen() {
                 hitSlop={10}
                 style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
               >
-                <Ionicons name="people-outline" size={iconSize.xl} color={theme.color.text} />
+                <MaterialCommunityIcons
+                  name="book-account-outline"
+                  size={iconSize.xl}
+                  color={theme.color.text}
+                />
               </Pressable>
               {/* Point the camera at a group's invite QR to join it — the read
                 lands in the same join flow an invite link opens. */}

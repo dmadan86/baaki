@@ -1195,6 +1195,18 @@ export interface UiStrings {
     /** Fallback when adding a contact as a new guest fails. `{name}` is the
      *  contact's name. */
     errorContactAdd: string;
+    /** Caption under the merged name, on the confirm hero. */
+    heroCaption: string;
+    /** Header over the list of people currently in the merge. `{n}` is the count. */
+    peopleHeader: PluralForms;
+    /** Hint shown in place of the list until two people are picked. */
+    needTwo: string;
+    /** Button that opens the sheet to add another person to the merge. */
+    addPerson: string;
+    /** Title of that add sheet. */
+    addGuestTitle: string;
+    /** Empty state of the add sheet when every mergeable guest is already in. */
+    noMoreGuests: string;
   };
   /** Group photos are a paid feature; the cover emoji stays free for everyone. */
   groupPhoto: {
@@ -3191,6 +3203,13 @@ const en: UiStrings = {
     newContactBody:
       '{name} isn’t on Waves yet. Add them to a group first, then merge them in below.',
     errorContactAdd: 'Could not add {name}. Please try again.',
+    heroCaption: 'They’ll appear as one person on Friends.',
+    peopleHeader: { one: '{n} person to merge', other: '{n} people to merge' },
+    needTwo: 'Add at least two people to merge them into one.',
+    addPerson: 'Assign to a contact',
+    addGuestTitle: 'Add a person',
+    noMoreGuests:
+      'Everyone you can merge is already added. Add someone from your contacts instead.',
   },
   groupPhoto: {
     paidHint: 'Group photos are a Plus feature. Pick an icon, or upgrade to add a photo.',
@@ -5215,6 +5234,13 @@ const ta: UiStrings = {
     newContactBody:
       '{name} இன்னும் Waves-இல் இல்லை. முதலில் அவர்களை ஒரு குழுவில் சேர்க்கவும், பிறகு கீழே இணைக்கவும்.',
     errorContactAdd: '{name} ஐச் சேர்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    heroCaption: 'நண்பர்கள் பட்டியலில் அவர்கள் ஒரே நபராகத் தோன்றுவார்கள்.',
+    peopleHeader: { one: 'இணைக்க {n} நபர்', other: 'இணைக்க {n} நபர்கள்' },
+    needTwo: 'ஒரே நபராக இணைக்க குறைந்தது இரண்டு நபர்களைச் சேர்க்கவும்.',
+    addPerson: 'தொடர்பிற்கு ஒதுக்கு',
+    addGuestTitle: 'ஒரு நபரைச் சேர்க்கவும்',
+    noMoreGuests:
+      'இணைக்கக்கூடிய அனைவரும் ஏற்கனவே சேர்க்கப்பட்டுள்ளனர். பதிலாக உங்கள் தொடர்புகளிலிருந்து ஒருவரைச் சேர்க்கவும்.',
   },
   groupPhoto: {
     paidHint:
@@ -7267,6 +7293,13 @@ const hi: UiStrings = {
     newContactBody:
       '{name} अभी Waves पर नहीं है. पहले उन्हें किसी समूह में जोड़ें, फिर नीचे मर्ज करें.',
     errorContactAdd: '{name} को नहीं जोड़ा जा सका. कृपया फिर कोशिश करें.',
+    heroCaption: 'वे Friends सूची में एक ही व्यक्ति के रूप में दिखेंगे.',
+    peopleHeader: { one: 'मर्ज करने के लिए {n} व्यक्ति', other: 'मर्ज करने के लिए {n} लोग' },
+    needTwo: 'एक व्यक्ति में मर्ज करने के लिए कम से कम दो लोगों को जोड़ें.',
+    addPerson: 'संपर्क से लिंक करें',
+    addGuestTitle: 'एक व्यक्ति जोड़ें',
+    noMoreGuests:
+      'जिन्हें आप मर्ज कर सकते हैं वे सभी पहले से जुड़े हैं. इसके बजाय अपने संपर्कों से किसी को जोड़ें.',
   },
   groupPhoto: {
     paidHint: 'ग्रुप फ़ोटो एक Plus सुविधा है। कोई आइकन चुनें, या फ़ोटो जोड़ने के लिए अपग्रेड करें।',
@@ -9301,6 +9334,12 @@ const ar: UiStrings = {
     fromContactsTag: 'أُضيف من جهات الاتصال',
     newContactBody: '{name} ليس على Waves بعد. أضفه إلى مجموعة أولاً، ثم ادمجه أدناه.',
     errorContactAdd: 'تعذّرت إضافة {name}. يرجى المحاولة مرة أخرى.',
+    heroCaption: 'سيظهرون كشخص واحد في قائمة الأصدقاء.',
+    peopleHeader: { one: 'شخص واحد للدمج', other: '{n} أشخاص للدمج' },
+    needTwo: 'أضف شخصين على الأقل لدمجهما في شخص واحد.',
+    addPerson: 'ربطه بجهة اتصال',
+    addGuestTitle: 'إضافة شخص',
+    noMoreGuests: 'كل من يمكنك دمجهم مُضافون بالفعل. أضِف شخصًا من جهات اتصالك بدلاً من ذلك.',
   },
   groupPhoto: {
     paidHint: 'صور المجموعة ميزة Plus. اختر أيقونة، أو قم بالترقية لإضافة صورة.',
