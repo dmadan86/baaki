@@ -20,7 +20,6 @@ export enum Section {
   Activity = 'activity',
   Friends = 'friends',
   Settle = 'settle',
-  Inbox = 'inbox',
 }
 
 export function Shell({
@@ -67,7 +66,6 @@ export function Shell({
     { key: Section.Activity, label: t.dash.nav.activity, href: '/activity', icon: '📈' },
     { key: Section.Friends, label: t.dash.nav.friends, href: '/friends', icon: '🙂' },
     { key: Section.Settle, label: t.dash.nav.settle, href: '/settle', icon: '⇄' },
-    { key: Section.Inbox, label: t.inbox.title, href: '/inbox', icon: '🔔' },
   ];
 
   const pageTitle = nav.find((item) => item.key === activeKey)?.label ?? t.dash.nav.overview;

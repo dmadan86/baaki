@@ -248,25 +248,6 @@ export interface ActivityRow {
 }
 
 /**
- * A row in the inbox (TDR §7.1).
- *
- * `title` and `body` are English and are a fallback: the server wrote them
- * without knowing who would read them or in which language. The real wording
- * comes from `kind` + `payload` through `renderNotification` in @waves/core.
- */
-export interface NotificationRow {
-  id: string;
-  group_id: string | null;
-  kind: string;
-  title: string;
-  body: string;
-  deep_link: string | null;
-  payload: Record<string, unknown>;
-  read_at: string | null;
-  created_at: string;
-}
-
-/**
  * "Ravi", or "You" when it was this person — an activity feed that cannot say
  * who changed an expense is not answering the question it exists for.
  *

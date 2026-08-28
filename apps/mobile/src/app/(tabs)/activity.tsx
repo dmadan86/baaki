@@ -31,7 +31,7 @@ import {
 import { useBlockedUsers } from '@/data/blocked';
 import { ActivityDateFilter, type DateRange } from '@/components/ActivityDateFilter';
 import { FeedSkeleton } from '@/components/Skeletons';
-import { useNotifications, useRecentActivity, type RecentActivityRow } from '@/data/hooks';
+import { useRecentActivity, type RecentActivityRow } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -228,9 +228,6 @@ export default function ActivityScreen() {
     [locale],
   );
 
-  const notifications = useNotifications();
-  const unread = (notifications.data ?? []).filter((row) => row.read_at === null).length;
-
   const header = (
     <View>
       <Row style={{ paddingTop: theme.spacing.md, justifyContent: 'space-between' }}>
@@ -253,25 +250,6 @@ export default function ActivityScreen() {
               />
             </IconButton>
           ) : null}
-          {/* The feed is what happened in the groups; the inbox is what Baaki
-              said to you. Related enough to sit together, different enough not
-              to be interleaved. */}
-          <IconButton label={t.tabs.inbox} onPress={() => router.navigate('/inbox')}>
-            <Ionicons name="notifications-outline" size={iconSize.lg} color={theme.color.text} />
-            {unread > 0 ? (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 6,
-                  right: 6,
-                  width: 9,
-                  height: 9,
-                  borderRadius: 5,
-                  backgroundColor: theme.color.brand,
-                }}
-              />
-            ) : null}
-          </IconButton>
         </Row>
       </Row>
 

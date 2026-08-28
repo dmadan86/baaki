@@ -1106,7 +1106,6 @@ export interface UiStrings {
     noGroupsBody: string;
     activityEmptyBody: string;
     quickActions: string;
-    inbox: string;
     fromContacts: string;
     addFromContacts: string;
     /** Title of the header `+` menu and its primary empty-state button — the
@@ -1220,12 +1219,6 @@ export interface UiStrings {
   /** Group photos are a paid feature; the cover emoji stays free for everyone. */
   groupPhoto: {
     paidHint: string;
-  };
-  /** The inbox — the record of what Waves said, whether or not push arrived. */
-  inbox: {
-    title: string;
-    nothingYetBody: string;
-    recent: string;
   };
   /** Captures (A34): an expense caught before it has a group, kept in a personal inbox. */
   captures: {
@@ -3146,7 +3139,6 @@ const en: UiStrings = {
     activityEmptyBody:
       'Every expense, edit, deletion and settlement lands here — for everyone in the group.',
     quickActions: 'Quick actions',
-    inbox: 'Inbox',
     fromContacts: 'From contacts',
     addFromContacts: 'Add from contacts',
     addSomeone: 'Add someone',
@@ -3233,12 +3225,6 @@ const en: UiStrings = {
   },
   groupPhoto: {
     paidHint: 'Group photos are a Plus feature. Pick an icon, or upgrade to add a photo.',
-  },
-  inbox: {
-    title: 'Inbox',
-    nothingYetBody:
-      'Reminders, settlement confirmations and anything else Waves tells you collect here — even when the notification never reached your phone.',
-    recent: 'Recent',
   },
   captures: {
     title: 'Drafts',
@@ -5184,7 +5170,6 @@ const ta: UiStrings = {
     activityEmptyBody:
       'ஒவ்வொரு செலவும், திருத்தமும், நீக்கமும், தீர்வும் இங்கே வந்து சேரும் — குழுவில் உள்ள அனைவருக்கும்.',
     quickActions: 'விரைவுச் செயல்கள்',
-    inbox: 'அஞ்சல் பெட்டி',
     fromContacts: 'தொடர்புகளிலிருந்து',
     addFromContacts: 'தொடர்புகளிலிருந்து சேர்',
     addSomeone: 'ஒருவரைச் சேர்',
@@ -5276,12 +5261,6 @@ const ta: UiStrings = {
   groupPhoto: {
     paidHint:
       'குழு புகைப்படங்கள் Plus அம்சம். ஒரு ஐகானைத் தேர்ந்தெடுக்கவும், அல்லது புகைப்படம் சேர்க்க மேம்படுத்தவும்.',
-  },
-  inbox: {
-    title: 'அஞ்சல் பெட்டி',
-    nothingYetBody:
-      'நினைவூட்டல்கள், தீர்வு உறுதிப்படுத்தல்கள், பாக்கி உங்களிடம் சொல்லும் மற்ற அனைத்தும் இங்கே சேரும் — அறிவிப்பு உங்கள் ஃபோனுக்கு வராவிட்டாலும் கூட.',
-    recent: 'சமீபத்தியவை',
   },
   captures: {
     title: 'வரைவுகள்',
@@ -7256,7 +7235,6 @@ const hi: UiStrings = {
       'किसी सफ़र, फ़्लैट, या बस आप दोनों के लिए एक शुरू करें। खर्च जोड़ना हमेशा मुफ़्त और असीमित है।',
     activityEmptyBody: 'हर खर्च, बदलाव, हटाना और निपटान यहीं आता है — समूह के हर व्यक्ति के लिए।',
     quickActions: 'त्वरित क्रियाएँ',
-    inbox: 'इनबॉक्स',
     fromContacts: 'संपर्कों से',
     addFromContacts: 'संपर्कों से जोड़ें',
     addSomeone: 'किसी को जोड़ें',
@@ -7345,12 +7323,6 @@ const hi: UiStrings = {
   },
   groupPhoto: {
     paidHint: 'ग्रुप फ़ोटो एक Plus सुविधा है। कोई आइकन चुनें, या फ़ोटो जोड़ने के लिए अपग्रेड करें।',
-  },
-  inbox: {
-    title: 'इनबॉक्स',
-    nothingYetBody:
-      'याद दिलाना, निपटान की पुष्टि और बाकी जो कुछ भी आपसे कहता है, सब यहाँ जमा होता है — भले ही सूचना आपके फ़ोन तक कभी न पहुँची हो।',
-    recent: 'हाल के',
   },
   captures: {
     title: 'ड्राफ़्ट',
@@ -9307,7 +9279,6 @@ const ar: UiStrings = {
       'ابدأ واحدة لرحلة أو لشقة أو لكما أنتما. إضافة المصروفات مجانية وبلا حدود، دائمًا.',
     activityEmptyBody: 'كل مصروف وتعديل وحذف وتسوية يصل إلى هنا — لكل من في المجموعة.',
     quickActions: 'إجراءات سريعة',
-    inbox: 'صندوق الوارد',
     fromContacts: 'من جهات الاتصال',
     addFromContacts: 'أضف من جهات الاتصال',
     addSomeone: 'إضافة شخص',
@@ -9396,12 +9367,6 @@ const ar: UiStrings = {
   },
   groupPhoto: {
     paidHint: 'صور المجموعة ميزة Plus. اختر أيقونة، أو قم بالترقية لإضافة صورة.',
-  },
-  inbox: {
-    title: 'صندوق الوارد',
-    nothingYetBody:
-      'التذكيرات وتأكيدات التسوية وكل ما يخبرك به باقي يتجمّع هنا — حتى حين لا يصل الإشعار إلى هاتفك.',
-    recent: 'الأحدث',
   },
   captures: {
     title: 'المسودّات',

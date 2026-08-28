@@ -294,13 +294,6 @@ export interface WebStrings {
     nudged: string;
     loading: string;
   };
-  /** The inbox — everything Baaki has told you, whether a push reached you or not. */
-  inbox: {
-    title: string;
-    empty: string;
-    markAllRead: string;
-    loading: string;
-  };
 }
 
 const en: WebStrings = {
@@ -504,12 +497,6 @@ const en: WebStrings = {
     waitingConfirm: 'Waiting for {name} to confirm',
     nudge: 'Nudge',
     nudged: 'Nudged',
-    loading: 'Loading…',
-  },
-  inbox: {
-    title: 'Inbox',
-    empty: 'Nothing in your inbox yet.',
-    markAllRead: 'Mark all read',
     loading: 'Loading…',
   },
 };
@@ -725,12 +712,6 @@ const ta: WebStrings = {
     nudged: 'நினைவூட்டப்பட்டது',
     loading: 'ஏற்றுகிறது…',
   },
-  inbox: {
-    title: 'இன்பாக்ஸ்',
-    empty: 'உங்கள் இன்பாக்ஸில் இன்னும் எதுவும் இல்லை.',
-    markAllRead: 'அனைத்தையும் படித்ததாகக் குறி',
-    loading: 'ஏற்றுகிறது…',
-  },
 };
 
 const hi: WebStrings = {
@@ -936,12 +917,6 @@ const hi: WebStrings = {
     waitingConfirm: '{name} की पुष्टि का इंतज़ार',
     nudge: 'याद दिलाएँ',
     nudged: 'याद दिला दिया',
-    loading: 'लोड हो रहा है…',
-  },
-  inbox: {
-    title: 'इनबॉक्स',
-    empty: 'आपके इनबॉक्स में अभी कुछ नहीं।',
-    markAllRead: 'सभी पढ़ा हुआ चिह्नित करें',
     loading: 'लोड हो रहा है…',
   },
 };
@@ -1189,12 +1164,6 @@ const ar: WebStrings = {
     waitingConfirm: 'بانتظار تأكيد {name}',
     nudge: 'تذكير',
     nudged: 'تم التذكير',
-    loading: 'جارٍ التحميل…',
-  },
-  inbox: {
-    title: 'صندوق الوارد',
-    empty: 'لا شيء في صندوق واردك بعد.',
-    markAllRead: 'وسم الكل كمقروء',
     loading: 'جارٍ التحميل…',
   },
 };

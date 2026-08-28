@@ -37,13 +37,13 @@ export interface TabBarState {
   /** True when the bar should not render on this route at all. */
   readonly hidden: boolean;
   /**
-   * The destination key that reads as current: one of the four tabs, or
-   * 'inbox', or '' when nothing is current (inside a group, settings, etc.).
+   * The destination key that reads as current: one of the four tabs, or '' when
+   * nothing is current (inside a group, settings, etc.).
    */
   readonly activeKey: string;
 }
 
-export type TabBarRoute = '/' | '/friends' | '/activity' | '/inbox' | '/me';
+export type TabBarRoute = '/' | '/friends' | '/activity' | '/me';
 
 /**
  * The route a bottom-bar tap should navigate to, or null when the destination is
@@ -57,8 +57,6 @@ export function tabBarRouteForSelection(
   if (selectedKey === activeKey) return null;
 
   switch (selectedKey) {
-    case 'inbox':
-      return '/inbox';
     case 'friends':
       return '/friends';
     case 'activity':
@@ -80,8 +78,8 @@ export function tabBarRouteForSelection(
  * page — now reached from Settings — keeps the bar like any other settings page.
  *
  * Then `hidden`: a modal or the camera or a signed-out screen shows no bar.
- * Otherwise the active destination is the tab inside the `(tabs)` group, or the
- * pushed inbox, or nothing when you are deeper in the app.
+ * Otherwise the active destination is the tab inside the `(tabs)` group, or
+ * nothing when you are deeper in the app.
  */
 export function resolveTabBar(segments: readonly string[], signedOut = false): TabBarState {
   if (signedOut) {
@@ -97,7 +95,6 @@ export function resolveTabBar(segments: readonly string[], signedOut = false): T
 
   let activeKey = '';
   if (root === '(tabs)') activeKey = segments[1] ?? 'index';
-  else if (root === 'inbox') activeKey = 'inbox';
 
   return { hidden: false, activeKey };
 }
