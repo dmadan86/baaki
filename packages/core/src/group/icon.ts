@@ -306,3 +306,41 @@ export function guessGroupEmoji(name: string): string | null {
   }
   return best;
 }
+
+/** The kind of group its name suggests. String values, not an app enum, so core
+ *  stays free of the mobile `GroupType` — the caller casts. Matches the enum's
+ *  string values exactly ('trip' | 'home' | ...). */
+export type GuessedGroupType = 'trip' | 'home' | 'couple' | 'event' | 'friends' | 'other';
+
+/**
+ * The picture the name-guesser lands on, mapped to a kind of group. One source
+ * of truth: whatever emoji `guessGroupEmoji` picks decides the kind, so "Goa"
+ * (a beach) is a trip and "Flat 402" (a house) is a home. Every icon that means
+ * "somebody is going somewhere" maps to Trip; the rest to the nearest kind.
+ */
+const EMOJI_TO_TYPE: Record<string, GuessedGroupType> = {
+  '🏖️': 'trip',
+  '⛰️': 'trip',
+  '✈️': 'trip',
+  '🏠': 'home',
+  '🛒': 'home',
+  '💜': 'couple',
+  '🎉': 'event',
+  '🎓': 'friends',
+  '🏏': 'friends',
+  '🍽️': 'friends',
+  '🎬': 'friends',
+  '🏢': 'other',
+  '🚗': 'other',
+};
+
+/**
+ * The kind of group a name suggests, or null when it suggests nothing — the
+ * caller (which opens on a sensible default) decides what "nothing" means. Lets
+ * the new-group screen keep Trip out of the default while still catching the
+ * "Goa trip" that genuinely is one, from the same word list the icon reads.
+ */
+export function guessGroupType(name: string): GuessedGroupType | null {
+  const emoji = guessGroupEmoji(name);
+  return emoji ? (EMOJI_TO_TYPE[emoji] ?? null) : null;
+}

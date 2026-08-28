@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react
 import {
   currencySymbol,
   guessGroupEmoji,
+  guessGroupType,
   minorUnitExponent,
   minorUnitScale,
   MutationKind,
@@ -17,7 +18,6 @@ import {
   Callout,
   Card,
   ChipRow,
-  directionalIcon,
   Divider,
   IconButton,
   iconSize,
@@ -232,10 +232,17 @@ export default function NewGroupScreen() {
   // The group cover is an emoji icon, chosen by tapping the avatar. Photos are
   // a paid feature edited from group settings, not part of creating one.
   const [iconOpen, setIconOpen] = useState(false);
-  const [type, setType] = useState<GroupType>(GroupType.Trip);
+  // Null until somebody picks a kind — until then it is read from the name, the
+  // same bargain the icon strikes. So the screen never opens assuming a trip: a
+  // group called "Goa" still becomes one, "Dinner" does not, and an untyped
+  // name falls back to Other rather than dragging trip fields in behind it.
+  const [pickedType, setPickedType] = useState<GroupType | null>(null);
+  // Kind, dates, budget and simplify all live behind one collapsed row: the
+  // shortest path is name, people, create, and everything here is optional.
+  const [showMore, setShowMore] = useState(false);
   // Which attribute row of the combined card is unfolded, if any — one at a
   // time, so the card stays a short list until you open the one you want.
-  const [openAttr, setOpenAttr] = useState<'kind' | 'dates' | 'budget' | null>(null);
+  const [openAttr, setOpenAttr] = useState<'dates' | 'budget' | null>(null);
   const [ghostName, setGhostName] = useState('');
   // People to add on Create — a typed name carries no address, a contact carries
   // whatever the phone had. Same shape either way, so the create loop treats
@@ -297,7 +304,7 @@ export default function NewGroupScreen() {
     // same shape GroupPhoto's signed-URL fetch uses).
     void Promise.resolve().then(() => {
       setName(group.name ? fill(t.clone.copyOf, { name: group.name }) : '');
-      setType(group.type);
+      setPickedType(group.type);
       setPickedEmoji(group.cover_emoji ?? null);
       setSimplify(group.simplify_debts);
       if (budgetMinor !== null) setBudget(budgetMinor);
@@ -316,6 +323,11 @@ export default function NewGroupScreen() {
     });
   }, [cloning, sourceGroup, sourceMembers, profile?.id, t]);
 
+  // The kind is a reading of the name, unless somebody has chosen one, and
+  // Other when the name says nothing — never Trip by default, so the trip-only
+  // dates and budget stay out of the way of a dinner or a flat.
+  const type: GroupType =
+    pickedType ?? (guessGroupType(name) as GroupType | null) ?? GroupType.Other;
   // The icon is a reading of the name, unless somebody has chosen one; it
   // changes under the caret as they type "Goa" and again if they change the
   // kind of group.
@@ -542,36 +554,6 @@ export default function NewGroupScreen() {
           </Row>
         </Card>
 
-        {/* Seed the whole form from a group you already have. Hidden once you
-            are already cloning — you are past the choosing. */}
-        {!cloning ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.clone.startFromExisting}
-            onPress={() => router.push('/clone-group')}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <Card style={{ paddingVertical: theme.spacing.md }}>
-              <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                <IconTile tint="lilac" icon="copy-outline" />
-                <View style={{ flex: 1 }}>
-                  <Text variant="subheading" style={{ fontWeight: '600' }}>
-                    {t.clone.startFromExisting}
-                  </Text>
-                  <Text variant="caption" tone="muted">
-                    {t.clone.startFromExistingHint}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={directionalIcon('chevron-forward')}
-                  size={iconSize.base}
-                  color={theme.color.textFaint}
-                />
-              </Row>
-            </Card>
-          </Pressable>
-        ) : null}
-
         {/* Controlled by the avatar tap above — no trigger of its own. */}
         <CoverEmojiPicker
           value={emoji}
@@ -580,133 +562,23 @@ export default function NewGroupScreen() {
           onOpenChange={setIconOpen}
         />
 
-        {/* Kind, dates, budget and simplify as one card of attribute rows —
-            each a label with a value pill that unfolds its editor beneath, so
-            the whole shape of a group is set from one short list rather than
-            four stacked cards. Dates and budget are trip-only.
-
-            The budget, left at zero, sets nothing; entered, it seeds the
-            planner's overall cap on create so the Plan screen opens with the
-            number already in it. ADR-009: simplification is presentation only —
-            the pairwise ledger underneath is untouched. */}
-        <Card
-          flat
-          padded={false}
-          style={{ backgroundColor: theme.color.surfaceMuted, overflow: 'hidden' }}
-        >
-          <AttrRow tint="lilac" icon={currentType.icon} label={t.extras.groupKind}>
-            <Pill
-              label={currentType.label}
-              expanded={openAttr === 'kind'}
-              accessibilityLabel={t.extras.whatKindOfGroup}
-              onPress={() => setOpenAttr((current) => (current === 'kind' ? null : 'kind'))}
-            />
-          </AttrRow>
-          {openAttr === 'kind' ? (
-            <View style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}>
-              <ChipRow<GroupType>
-                value={type}
-                onChange={(next) => {
-                  setType(next);
-                  setOpenAttr(null);
-                }}
-                options={typeOptions.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                  icon: iconFor(option.icon),
-                }))}
-              />
-            </View>
-          ) : null}
-
-          {type === GroupType.Trip ? (
-            <>
-              <InsetDivider />
-              <AttrRow tint="sky" icon="calendar-outline" label={t.misc.tripDatesTitle}>
-                <Pill
-                  label={dateSummary}
-                  placeholder={!tripDates.start_date || !tripDates.end_date}
-                  expanded={openAttr === 'dates'}
-                  accessibilityLabel={t.misc.tripDatesTitle}
-                  onPress={() => setOpenAttr((current) => (current === 'dates' ? null : 'dates'))}
-                />
-              </AttrRow>
-              {openAttr === 'dates' ? (
-                <View
-                  style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}
-                >
-                  <TripDates
-                    group={tripDates}
-                    locale={locale}
-                    embedded
-                    onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
-                  />
-                </View>
-              ) : null}
-
-              <InsetDivider />
-              <AttrRow tint="mint" icon="wallet-outline" label={t.extras.tripBudget}>
-                <Pill
-                  label={budgetSummary}
-                  placeholder={budget <= 0n}
-                  expanded={openAttr === 'budget'}
-                  accessibilityLabel={t.extras.tripBudgetOptional}
-                  onPress={() => setOpenAttr((current) => (current === 'budget' ? null : 'budget'))}
-                />
-              </AttrRow>
-              {openAttr === 'budget' ? (
-                <View
-                  style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}
-                >
-                  <AmountField currency={currency} value={budget} onChange={setBudget} />
-                </View>
-              ) : null}
-            </>
-          ) : null}
-
-          <InsetDivider />
-          <AttrRow
-            tint="peach"
-            icon="flash-outline"
-            label={t.group.simplifyDebts}
-            subtitle={t.group.simplifyDebtsHint}
-          >
-            <Toggle
-              value={effectiveSimplify}
-              onValueChange={setSimplify}
-              accessibilityLabel={t.group.simplifyDebts}
-            />
-          </AttrRow>
-        </Card>
-
+        {/* People sit directly under the name — they are the group, so nothing
+            optional (kind, dates, budget) comes between naming it and saying who
+            is in it. Contacts is a real button, not a corner link; a typed name
+            is the quieter second way. Nobody's address book is uploaded
+            (ADR-006). */}
         <Card style={{ gap: theme.spacing.md }}>
           <InfoDisclosure
             title={t.extras.addPeopleByName}
             info={t.extras.ghostNote}
             titleVariant="caption"
-            right={
-              // Opens the address book on its own screen rather than unfolding
-              // it inline — a thousand-name list needs the whole height. Nobody's
-              // book is uploaded (ADR-006). The picker hands its answer back
-              // through the bridge into `addContacts`.
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.people.browseContacts}
-                hitSlop={8}
-                onPress={openContactPicker}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <Ionicons name="people-outline" size={iconSize.base} color={theme.color.brand} />
-                <Text variant="caption" style={{ color: theme.color.brand }}>
-                  {t.people.contacts}
-                </Text>
-              </Pressable>
-            }
+          />
+          <Button
+            label={t.people.browseContacts}
+            variant="secondary"
+            fullWidth
+            onPress={openContactPicker}
+            icon={<Ionicons name="people-outline" size={iconSize.base} color={theme.color.brand} />}
           />
           <Row>
             <TextInput
@@ -758,6 +630,175 @@ export default function NewGroupScreen() {
             </Row>
           ) : null}
         </Card>
+
+        {/* Everything that is not name-people-create folds behind one row, so
+            the screen opens as a short path and the settings are there for who
+            wants them. The collapsed row still shows the current kind, so a
+            wrong guess from the name is visible without opening it.
+
+            Dates and budget are trip-only; the budget, left at zero, sets
+            nothing; entered, it seeds the planner's overall cap on create.
+            ADR-009: simplification is presentation only — the pairwise ledger
+            underneath is untouched. */}
+        <Card
+          flat
+          padded={false}
+          style={{ backgroundColor: theme.color.surfaceMuted, overflow: 'hidden' }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showMore }}
+            // The explicit label overrides the descendant text, so the current
+            // kind shown on the right of the collapsed row is announced here too
+            // — a screen reader would otherwise never hear it.
+            accessibilityLabel={`${t.extras.moreOptions}, ${currentType.label}`}
+            onPress={() => setShowMore((current) => !current)}
+            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+          >
+            <Row
+              style={{
+                alignItems: 'center',
+                gap: theme.spacing.md,
+                paddingHorizontal: theme.spacing.lg,
+                paddingVertical: theme.spacing.md,
+              }}
+            >
+              <IconTile tint="lilac" icon="options-outline" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="subheading" style={{ fontWeight: '600' }}>
+                  {t.extras.moreOptions}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  {t.extras.moreOptionsHint}
+                </Text>
+              </View>
+              {!showMore ? (
+                <Text variant="caption" tone="muted">
+                  {currentType.label}
+                </Text>
+              ) : null}
+              <Ionicons
+                name={showMore ? 'chevron-up' : 'chevron-down'}
+                size={iconSize.base}
+                color={theme.color.textFaint}
+              />
+            </Row>
+          </Pressable>
+
+          {showMore ? (
+            <>
+              <InsetDivider />
+              <AttrRow tint="lilac" icon={currentType.icon} label={t.extras.groupKind}>
+                <View />
+              </AttrRow>
+              <View
+                style={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.md }}
+              >
+                <ChipRow<GroupType>
+                  value={type}
+                  onChange={setPickedType}
+                  options={typeOptions.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                    icon: iconFor(option.icon),
+                  }))}
+                />
+              </View>
+
+              {type === GroupType.Trip ? (
+                <>
+                  <InsetDivider />
+                  <AttrRow tint="sky" icon="calendar-outline" label={t.misc.tripDatesTitle}>
+                    <Pill
+                      label={dateSummary}
+                      placeholder={!tripDates.start_date || !tripDates.end_date}
+                      expanded={openAttr === 'dates'}
+                      accessibilityLabel={t.misc.tripDatesTitle}
+                      onPress={() =>
+                        setOpenAttr((current) => (current === 'dates' ? null : 'dates'))
+                      }
+                    />
+                  </AttrRow>
+                  {openAttr === 'dates' ? (
+                    <View
+                      style={{
+                        paddingHorizontal: theme.spacing.lg,
+                        paddingBottom: theme.spacing.md,
+                      }}
+                    >
+                      <TripDates
+                        group={tripDates}
+                        locale={locale}
+                        embedded
+                        onChange={(patch) => setTripDates((current) => ({ ...current, ...patch }))}
+                      />
+                    </View>
+                  ) : null}
+
+                  <InsetDivider />
+                  <AttrRow tint="mint" icon="wallet-outline" label={t.extras.tripBudget}>
+                    <Pill
+                      label={budgetSummary}
+                      placeholder={budget <= 0n}
+                      expanded={openAttr === 'budget'}
+                      accessibilityLabel={t.extras.tripBudgetOptional}
+                      onPress={() =>
+                        setOpenAttr((current) => (current === 'budget' ? null : 'budget'))
+                      }
+                    />
+                  </AttrRow>
+                  {openAttr === 'budget' ? (
+                    <View
+                      style={{
+                        paddingHorizontal: theme.spacing.lg,
+                        paddingBottom: theme.spacing.md,
+                      }}
+                    >
+                      <AmountField currency={currency} value={budget} onChange={setBudget} />
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
+
+              <InsetDivider />
+              <AttrRow
+                tint="peach"
+                icon="flash-outline"
+                label={t.group.simplifyDebts}
+                subtitle={t.group.simplifyDebtsHint}
+              >
+                <Toggle
+                  value={effectiveSimplify}
+                  onValueChange={setSimplify}
+                  accessibilityLabel={t.group.simplifyDebts}
+                />
+              </AttrRow>
+            </>
+          ) : null}
+        </Card>
+
+        {/* Seed the whole form from a group you already have — a power move, so
+            it is a quiet link at the foot, not a card above the real work.
+            Hidden once you are already cloning: you are past the choosing. */}
+        {!cloning ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.clone.startFromExisting}
+            onPress={() => router.push('/clone-group')}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: theme.spacing.sm,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Ionicons name="copy-outline" size={iconSize.base} color={theme.color.brand} />
+            <Text variant="subheading" style={{ color: theme.color.brand, fontWeight: '600' }}>
+              {t.clone.startFromExisting}
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       {/* The primary action is pinned rather than parked at the foot of a long
