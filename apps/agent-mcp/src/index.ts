@@ -260,13 +260,13 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
             z.object({
               kind: z.literal('exact'),
               amounts: z
-                .record(MinorUnits)
+                .record(z.string(), MinorUnits)
                 .describe('memberId → minor units; must sum to the total.'),
             }),
             z.object({
               kind: z.literal('shares'),
               weights: z
-                .record(z.number().int().positive())
+                .record(z.string(), z.number().int().positive())
                 .describe('memberId → weight, e.g. {"a":2,"b":1}.'),
             }),
           ])
