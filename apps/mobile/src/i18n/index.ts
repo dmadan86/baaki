@@ -1109,6 +1109,9 @@ export interface UiStrings {
     inbox: string;
     fromContacts: string;
     addFromContacts: string;
+    /** Title of the header `+` menu and its primary empty-state button — the
+        umbrella verb over add-a-person / from-contacts / scan. */
+    addSomeone: string;
     /** The Friends screen with nobody in it yet — not the same state as being
         square with people you do have, which is `allSquare` below. */
     noFriends: string;
@@ -1117,6 +1120,10 @@ export interface UiStrings {
     allSquareBody: string;
     owesYou: string;
     youOweThem: string;
+    /** Headline card label over the overall per-currency balances. */
+    overall: string;
+    /** Headline line when a currency's overall net is in your favour. */
+    youAreOwed: string;
     nobodyOwesYou: string;
     youAreNotBehind: string;
     inOneGroup: string;
@@ -1207,6 +1214,8 @@ export interface UiStrings {
     addGuestTitle: string;
     /** Empty state of the add sheet when every mergeable guest is already in. */
     noMoreGuests: string;
+    /** Contextual card on Friends when duplicate guests exist, inviting a merge. */
+    hint: string;
   };
   /** Group photos are a paid feature; the cover emoji stays free for everyone. */
   groupPhoto: {
@@ -3140,6 +3149,7 @@ const en: UiStrings = {
     inbox: 'Inbox',
     fromContacts: 'From contacts',
     addFromContacts: 'Add from contacts',
+    addSomeone: 'Add someone',
     noFriends: 'Your circle starts here',
     noFriendsBody:
       'Add the people you share costs with. They do not need the app — a name is enough to start.',
@@ -3147,6 +3157,8 @@ const en: UiStrings = {
     allSquareBody: 'Nobody owes you and you owe nobody. New balances show up here.',
     owesYou: 'Owes you',
     youOweThem: 'You owe',
+    overall: 'Overall',
+    youAreOwed: 'You’re owed',
     nobodyOwesYou: 'Nobody owes you anything right now.',
     youAreNotBehind: 'All settled up — you owe nobody right now.',
     inOneGroup: 'in one group',
@@ -3217,6 +3229,7 @@ const en: UiStrings = {
     addGuestTitle: 'Add a person',
     noMoreGuests:
       'Everyone you can merge is already added. Add someone from your contacts instead.',
+    hint: 'Seeing the same guest in more than one group? Merge the duplicates into one person.',
   },
   groupPhoto: {
     paidHint: 'Group photos are a Plus feature. Pick an icon, or upgrade to add a photo.',
@@ -5174,6 +5187,7 @@ const ta: UiStrings = {
     inbox: 'அஞ்சல் பெட்டி',
     fromContacts: 'தொடர்புகளிலிருந்து',
     addFromContacts: 'தொடர்புகளிலிருந்து சேர்',
+    addSomeone: 'ஒருவரைச் சேர்',
     noFriends: 'உங்கள் வட்டம் இங்கே தொடங்குகிறது',
     noFriendsBody:
       'நீங்கள் செலவுகளைப் பகிர்பவர்களைச் சேருங்கள். அவர்களுக்கு ஆப் தேவையில்லை — ஒரு பெயர் போதும்.',
@@ -5182,6 +5196,8 @@ const ta: UiStrings = {
       'உங்களுக்கு யாரும் தர வேண்டியதில்லை, நீங்களும் யாருக்கும் தர வேண்டியதில்லை. புதிய பாக்கிகள் இங்கே தோன்றும்.',
     owesYou: 'உங்களுக்குத் தர வேண்டியவர்கள்',
     youOweThem: 'நீங்கள் தர வேண்டியவர்கள்',
+    overall: 'மொத்தம்',
+    youAreOwed: 'உங்களுக்கு வர வேண்டியது',
     nobodyOwesYou: 'இப்போது உங்களுக்கு யாரும் தர வேண்டியதில்லை.',
     youAreNotBehind: 'நீங்கள் யாருக்கும் பாக்கி வைத்திருக்கவில்லை.',
     inOneGroup: 'ஒரு குழுவில்',
@@ -5255,6 +5271,7 @@ const ta: UiStrings = {
     addGuestTitle: 'ஒரு நபரைச் சேர்க்கவும்',
     noMoreGuests:
       'இணைக்கக்கூடிய அனைவரும் ஏற்கனவே சேர்க்கப்பட்டுள்ளனர். பதிலாக உங்கள் தொடர்புகளிலிருந்து ஒருவரைச் சேர்க்கவும்.',
+    hint: 'ஒரே விருந்தினர் ஒன்றுக்கு மேற்பட்ட குழுக்களில் தெரிகிறாரா? நகல்களை ஒரே நபராக இணைக்கவும்.',
   },
   groupPhoto: {
     paidHint:
@@ -7242,6 +7259,7 @@ const hi: UiStrings = {
     inbox: 'इनबॉक्स',
     fromContacts: 'संपर्कों से',
     addFromContacts: 'संपर्कों से जोड़ें',
+    addSomeone: 'किसी को जोड़ें',
     noFriends: 'आपका सर्कल यहाँ से शुरू होता है',
     noFriendsBody:
       'जिनके साथ आप खर्च बाँटते हैं उन्हें जोड़ें। उन्हें ऐप की ज़रूरत नहीं — बस एक नाम काफ़ी है।',
@@ -7249,6 +7267,8 @@ const hi: UiStrings = {
     allSquareBody: 'न किसी पर आपका बाकी है, न आप पर किसी का। नए हिसाब यहाँ दिखेंगे।',
     owesYou: 'आपको देने हैं',
     youOweThem: 'आपको देने हैं जिन्हें',
+    overall: 'कुल मिलाकर',
+    youAreOwed: 'आपको मिलने हैं',
     nobodyOwesYou: 'अभी किसी पर आपका कुछ बाकी नहीं है।',
     youAreNotBehind: 'आप पर किसी का कुछ बाकी नहीं है।',
     inOneGroup: 'एक समूह में',
@@ -7321,6 +7341,7 @@ const hi: UiStrings = {
     addGuestTitle: 'एक व्यक्ति जोड़ें',
     noMoreGuests:
       'जिन्हें आप मर्ज कर सकते हैं वे सभी पहले से जुड़े हैं. इसके बजाय अपने संपर्कों से किसी को जोड़ें.',
+    hint: 'एक ही मेहमान कई समूहों में दिख रहा है? डुप्लिकेट को एक व्यक्ति में मर्ज करें.',
   },
   groupPhoto: {
     paidHint: 'ग्रुप फ़ोटो एक Plus सुविधा है। कोई आइकन चुनें, या फ़ोटो जोड़ने के लिए अपग्रेड करें।',
@@ -9289,12 +9310,15 @@ const ar: UiStrings = {
     inbox: 'صندوق الوارد',
     fromContacts: 'من جهات الاتصال',
     addFromContacts: 'أضف من جهات الاتصال',
+    addSomeone: 'إضافة شخص',
     noFriends: 'دائرتك تبدأ من هنا',
     noFriendsBody: 'أضف من تتشارك معهم المصاريف. لا يحتاجون إلى التطبيق — يكفي اسم للبدء.',
     allSquare: 'كل شيء متساوٍ',
     allSquareBody: 'لا أحد يدين لك ولا أنت تدين لأحد. ستظهر هنا أي مبالغ جديدة.',
     owesYou: 'لك عندهم',
     youOweThem: 'عليك لهم',
+    overall: 'الإجمالي',
+    youAreOwed: 'لك عندهم',
     nobodyOwesYou: 'لا أحد يدين لك بشيء الآن.',
     youAreNotBehind: 'لست متأخرًا مع أحد.',
     inOneGroup: 'في مجموعة واحدة',
@@ -9368,6 +9392,7 @@ const ar: UiStrings = {
     addPerson: 'ربطه بجهة اتصال',
     addGuestTitle: 'إضافة شخص',
     noMoreGuests: 'كل من يمكنك دمجهم مُضافون بالفعل. أضِف شخصًا من جهات اتصالك بدلاً من ذلك.',
+    hint: 'هل ترى نفس الضيف في أكثر من مجموعة؟ ادمج المكرَّرين في شخص واحد.',
   },
   groupPhoto: {
     paidHint: 'صور المجموعة ميزة Plus. اختر أيقونة، أو قم بالترقية لإضافة صورة.',

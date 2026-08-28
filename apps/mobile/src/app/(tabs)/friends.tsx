@@ -35,16 +35,18 @@ import {
   Badge,
   Button,
   Card,
+  directionalIcon,
   EmptyState,
   iconSize,
   MoneyText,
   Row,
   Screen,
-  SectionHeader,
   Text,
   useTabBarClearance,
   useTheme,
 } from '@waves/ui';
+
+import { balanceDirection, copyFor, moneyAccessibilityLabel } from '@waves/core';
 
 import { nudgeToSettle, type PersonBalanceRow } from '@/data/api';
 import { useBlockedUsers } from '@/data/blocked';
@@ -75,23 +77,104 @@ const SORT_META: Record<SortKey, { icon: keyof typeof Ionicons.glyphMap; default
 
 const SORT_ORDER: readonly SortKey[] = [SortKey.Amount, SortKey.Date, SortKey.Name];
 
-/** Sort a section by the chosen key; asc/desc flips whatever the key means. */
-function sortPeople(rows: PersonBalanceRow[], key: SortKey, dir: SortDir): PersonBalanceRow[] {
+/** The human name of a sort key — shared by the menu row and the header's
+ *  now-stateful sort control's spoken label. */
+function sortLabel(key: SortKey, t: UiStrings): string {
+  if (key === SortKey.Amount) return t.sort.amount;
+  if (key === SortKey.Date) return t.sort.date;
+  return t.sort.name;
+}
+
+/**
+ * One person and every currency they are unsettled with you in.
+ *
+ * The mirror returns a row per (person, currency) — currencies never sum
+ * (ADR-003), so a person owed in rupees and owing in dollars is two rows. This
+ * folds them back into the one human the list shows, keeping each currency's net
+ * as its own entry for the row's right edge to stack.
+ */
+interface PersonGroup {
+  person_key: string;
+  display_name: string;
+  profile_id: string | null;
+  /** A ghost only if every one of their rows is — a real account is proof. */
+  is_ghost: boolean;
+  entries: PersonBalanceRow[];
+  /** The largest single-currency balance, for the amount sort. */
+  topAbs: bigint;
+  /** Newest activity across their rows, for the recent sort. */
+  lastActivityAt: string | null;
+}
+
+function absBig(v: bigint): bigint {
+  return v < 0n ? -v : v;
+}
+
+/** Later of two ISO timestamps, ignoring null. */
+function laterDate(a: string | null, b: string | null): string | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return b > a ? b : a;
+}
+
+/** Fold the per-currency rows into one entry per person. */
+function groupByPerson(rows: PersonBalanceRow[]): PersonGroup[] {
+  const map = new Map<string, PersonGroup>();
+  for (const row of rows) {
+    let g = map.get(row.person_key);
+    if (!g) {
+      g = {
+        person_key: row.person_key,
+        display_name: row.display_name,
+        profile_id: row.profile_id,
+        is_ghost: true,
+        entries: [],
+        topAbs: 0n,
+        lastActivityAt: null,
+      };
+      map.set(row.person_key, g);
+    }
+    g.entries.push(row);
+    g.is_ghost = g.is_ghost && row.is_ghost;
+    if (row.profile_id) g.profile_id = row.profile_id;
+    const abs = absBig(BigInt(row.net));
+    if (abs > g.topAbs) g.topAbs = abs;
+    g.lastActivityAt = laterDate(g.lastActivityAt, row.last_activity_at);
+  }
+  return [...map.values()];
+}
+
+/** Sort people by the chosen key; asc/desc flips whatever the key means. A
+ *  person's amount is their biggest single-currency balance (never a
+ *  cross-currency sum), their date the newest activity across their rows. */
+function sortPersons(people: PersonGroup[], key: SortKey, dir: SortDir): PersonGroup[] {
   const sign = dir === SortDir.Asc ? 1 : -1;
-  const cmp = (a: PersonBalanceRow, b: PersonBalanceRow): number => {
+  const cmp = (a: PersonGroup, b: PersonGroup): number => {
     if (key === SortKey.Name) return a.display_name.localeCompare(b.display_name) * sign;
     if (key === SortKey.Date) {
-      const at = a.last_activity_at ? Date.parse(a.last_activity_at) : 0;
-      const bt = b.last_activity_at ? Date.parse(b.last_activity_at) : 0;
+      const at = a.lastActivityAt ? Date.parse(a.lastActivityAt) : 0;
+      const bt = b.lastActivityAt ? Date.parse(b.lastActivityAt) : 0;
       return (at < bt ? -1 : at > bt ? 1 : 0) * sign;
     }
-    const av = BigInt(a.net);
-    const aAbs = av < 0n ? -av : av;
-    const bv = BigInt(b.net);
-    const bAbs = bv < 0n ? -bv : bv;
-    return (aAbs < bAbs ? -1 : aAbs > bAbs ? 1 : 0) * sign;
+    return (a.topAbs < b.topAbs ? -1 : a.topAbs > b.topAbs ? 1 : 0) * sign;
   };
-  return [...rows].sort(cmp);
+  return [...people].sort(cmp);
+}
+
+export interface CurrencyTotal {
+  currency: string;
+  net: bigint;
+}
+
+/** The net you are up or down in each currency, summed over everyone. Positive:
+ *  owed to you. Never summed across currencies (ADR-003). Biggest first. */
+function currencyTotals(rows: PersonBalanceRow[]): CurrencyTotal[] {
+  const m = new Map<string, bigint>();
+  for (const row of rows) m.set(row.currency, (m.get(row.currency) ?? 0n) + BigInt(row.net));
+  return [...m.entries()]
+    .filter(([, net]) => net !== 0n)
+    .map(([currency, net]) => ({ currency, net }))
+    .sort((a, b) => (absBig(a.net) < absBig(b.net) ? 1 : absBig(a.net) > absBig(b.net) ? -1 : 0));
 }
 
 export default function FriendsScreen() {
@@ -118,30 +201,17 @@ export default function FriendsScreen() {
     rows.filter((row) => row.is_ghost).map((row) => row.person_key),
   ).size;
 
-  // A person unsettled in two currencies shows up as two rows (currencies never
-  // mix — ADR-003/004), which reads as a duplicate when both rows carry the same
-  // "in one group" subtitle. These are the person_keys that appear in more than
-  // one currency, so their rows can name the currency and stop looking like two
-  // different people. Computed once over the whole list, not per section — the
-  // two currencies can land in opposite sections (owed in one, owe in the other).
-  const multiCurrencyKeys = useMemo(() => {
-    const byPerson = new Map<string, Set<string>>();
-    for (const row of rows) {
-      const set = byPerson.get(row.person_key) ?? new Set<string>();
-      set.add(row.currency);
-      byPerson.set(row.person_key, set);
-    }
-    return new Set(
-      [...byPerson.entries()].filter(([, currencies]) => currencies.size > 1).map(([key]) => key),
-    );
-  }, [rows]);
-
   // The sort the whole list obeys. Tapping a key in the menu switches to it;
   // tapping the key already chosen flips its direction — amount and recent
   // activity open biggest/newest first, name A→Z, and either can be reversed.
   const [sortKey, setSortKey] = useState<SortKey>(SortKey.Amount);
   const [sortDir, setSortDir] = useState<SortDir>(SortDir.Desc);
   const [sortOpen, setSortOpen] = useState(false);
+
+  // The "add someone" family — add a person, pull from contacts, scan an invite
+  // QR — folded behind one `+` so the header reads as a title row, not a
+  // five-icon toolbar of mystery glyphs.
+  const [addOpen, setAddOpen] = useState(false);
 
   const pickSort = (key: SortKey): void => {
     if (key === sortKey) {
@@ -238,28 +308,20 @@ export default function FriendsScreen() {
     return () => sub.remove();
   }, [selectMode]);
 
-  // The two lists are a filter plus an O(n log n) sort each, and every render —
-  // opening or closing the sort menu, a pull-to-refresh tick — used to run both
-  // again and hand back freshly allocated arrays. They only actually change when
-  // the rows or the chosen sort change, so memoise on exactly those.
-  const owedToYou = useMemo(
-    () =>
-      sortPeople(
-        rows.filter((row) => BigInt(row.net) > 0n),
-        sortKey,
-        sortDir,
-      ),
+  // One row per person, not per (person, currency). The mirror hands back a row
+  // for each currency a person is unsettled in (currencies never mix — ADR-003);
+  // folding them into one person is what lets the list read the Splitwise way —
+  // a single row whose right edge stacks each currency's net — instead of the
+  // same face twice. Memoised on rows + sort, which is all that moves it.
+  const persons = useMemo(
+    () => sortPersons(groupByPerson(rows), sortKey, sortDir),
     [rows, sortKey, sortDir],
   );
-  const youOwe = useMemo(
-    () =>
-      sortPeople(
-        rows.filter((row) => BigInt(row.net) < 0n),
-        sortKey,
-        sortDir,
-      ),
-    [rows, sortKey, sortDir],
-  );
+
+  // The headline's figures: the net you are up or down in each currency, summed
+  // across everyone. Never across currencies — there is no honest single number
+  // without a rate (ADR-003), so a mixed wallet shows one line per currency.
+  const totals = useMemo(() => currencyTotals(rows), [rows]);
 
   return (
     <Screen>
@@ -318,79 +380,53 @@ export default function FriendsScreen() {
               <Ionicons name="people" size={iconSize.xl} color={theme.color.brand} />
               <Text variant="title">{t.friends}</Text>
             </Row>
-            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-              {/* Merge same-person guests into one — only once there are at least
-                two guests to merge, so the control never leads to a dead end. */}
-              {mergeableGuestCount >= 2 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t.mergePeople.entry}
-                  onPress={() => router.push('/friends/merge' as never)}
-                  hitSlop={10}
-                  style={({ pressed }) => ({
-                    opacity: pressed ? 0.5 : 1,
-                    padding: theme.spacing.xs,
-                  })}
-                >
-                  <Ionicons name="git-merge-outline" size={iconSize.xl} color={theme.color.text} />
-                </Pressable>
-              ) : null}
-              {/* Add somebody who is not in your contacts — just a name and the
-                amount between you. A person icon, bare like the rest of the row. */}
+            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+              {/* One primary action — everything that adds a person (type a name,
+                pull from contacts, scan an invite QR) lives behind this `+` so a
+                first-timer has one obvious door instead of four bare glyphs to
+                guess between. Merge is not here: it is a fix, not an add, and it
+                gets its own contextual card once there are duplicates. */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t.addPerson.title}
-                onPress={() => router.push('/friends/add-person' as never)}
+                accessibilityLabel={t.tabs.addSomeone}
+                onPress={() => setAddOpen(true)}
                 hitSlop={10}
                 style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
               >
-                {/* Optically one step down: Ionicons draws `person-add-outline`'s
-                  single figure larger in its viewbox than `people-outline` and
-                  the three-dot, so at an equal nominal size it reads bigger.
-                  lg here makes the three header icons appear the same size. */}
-                <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.text} />
+                <Ionicons name="add" size={iconSize.xxxl} color={theme.color.text} />
               </Pressable>
-              {/* Pull people from the phone's address book — an address-book
-                glyph, icon only, no button chrome, so the header reads as a
-                title row not a toolbar. */}
+              {/* The sort control now wears its own state: the active key's glyph
+                and the direction arrow, so a glance says how the list is ordered
+                without opening the menu (fixes the invisible-sort complaint). */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t.tabs.fromContacts}
-                onPress={() => router.push('/friends/contacts')}
-                hitSlop={10}
-                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-              >
-                <MaterialCommunityIcons
-                  name="book-account-outline"
-                  size={iconSize.xl}
-                  color={theme.color.text}
-                />
-              </Pressable>
-              {/* Point the camera at a group's invite QR to join it — the read
-                lands in the same join flow an invite link opens. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.misc.scanToJoin}
-                onPress={() => router.push('/scan')}
-                hitSlop={10}
-                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-              >
-                <Ionicons name="qr-code-outline" size={iconSize.lg} color={theme.color.text} />
-              </Pressable>
-              {/* The sort control — a bare vertical three-dot beside the button,
-                opening the same corner dropdown the rest of the app uses. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.sort.by}
+                accessibilityLabel={`${t.sort.by}: ${sortLabel(sortKey, t)}`}
                 onPress={() => setSortOpen(true)}
                 hitSlop={10}
-                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.5 : 1,
+                  padding: theme.spacing.xs,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 2,
+                })}
               >
-                <Ionicons name="ellipsis-vertical" size={iconSize.xl} color={theme.color.text} />
+                <Ionicons
+                  name={SORT_META[sortKey].icon}
+                  size={iconSize.lg}
+                  color={theme.color.textMuted}
+                />
+                <Ionicons
+                  name={sortDir === SortDir.Asc ? 'arrow-up' : 'arrow-down'}
+                  size={iconSize.sm}
+                  color={theme.color.textMuted}
+                />
               </Pressable>
             </Row>
           </Row>
         )}
+
+        <AddMenu open={addOpen} onClose={() => setAddOpen(false)} t={t} />
 
         <SortMenu
           open={sortOpen}
@@ -407,30 +443,41 @@ export default function FriendsScreen() {
           <EmptyFriends hasPeople={known.data > 0} t={t} />
         ) : (
           <>
-            <FriendsSection
-              title={t.tabs.owesYou}
-              rows={owedToYou}
-              locale={locale}
-              multiCurrencyKeys={multiCurrencyKeys}
-              emptyBody={t.tabs.nobodyOwesYou}
-              emptyIcon="people-outline"
-              selectMode={selectMode}
-              selectedKeys={selectedKeys}
-              onEnterSelect={enterSelect}
-              onToggleSelect={toggleSelect}
-            />
-            <FriendsSection
-              title={t.tabs.youOweThem}
-              rows={youOwe}
-              locale={locale}
-              multiCurrencyKeys={multiCurrencyKeys}
-              emptyBody={t.tabs.youAreNotBehind}
-              emptyIcon="checkmark-circle-outline"
-              selectMode={selectMode}
-              selectedKeys={selectedKeys}
-              onEnterSelect={enterSelect}
-              onToggleSelect={toggleSelect}
-            />
+            {/* Overall headline — am I up or down, and by how much, before a
+              single row is read. This is the one thing group-by-group
+              navigation could never answer. One line per currency; never a
+              summed cross-currency total (ADR-003). It steps aside mid-merge,
+              where the running selection owns the top of the screen. */}
+            {!selectMode ? <BalanceHeadline totals={totals} locale={locale} t={t} /> : null}
+            {/* Merge used to hide behind a bare header glyph and a long-press
+              nobody discovers. When two or more guests could be the same person,
+              say so in words with a way in — a stable place to learn the concept
+              (hidden in selection mode, where merging is already under way). */}
+            {mergeableGuestCount >= 2 && !selectMode ? (
+              <MergeHint onPress={() => router.push('/friends/merge' as never)} t={t} />
+            ) : null}
+            {/* One list, one row per person (Splitwise model). Direction lives on
+              the row — a "you owe"/"owes you" micro-label and the money's own
+              colour — so no owes/owed tab, and a person unsettled in two
+              currencies is one row with both nets stacked, not two faces. */}
+            <View>
+              {persons.map((person, index) => (
+                <View key={person.person_key}>
+                  <PersonRow
+                    person={person}
+                    locale={locale}
+                    t={t}
+                    selectMode={selectMode}
+                    selected={selectedKeys.has(person.person_key)}
+                    onEnterSelect={enterSelect}
+                    onToggleSelect={toggleSelect}
+                  />
+                  {index < persons.length - 1 ? (
+                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
+                  ) : null}
+                </View>
+              ))}
+            </View>
           </>
         )}
       </ScrollView>
@@ -525,6 +572,25 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
       <Text variant="heading" align="center">
         {t.tabs.noFriends}
       </Text>
+      <Text variant="body" tone="muted" align="center" style={{ maxWidth: 300 }}>
+        {t.tabs.noFriendsBody}
+      </Text>
+      {/* Both ways in, where a first-timer is actually looking — the header `+`
+          is easy to miss on an otherwise blank page. Primary types a name;
+          secondary pulls from the phone's contacts. */}
+      <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm, marginTop: theme.spacing.lg }}>
+        <Button
+          label={t.tabs.addSomeone}
+          onPress={() => router.push('/friends/add-person' as never)}
+          fullWidth
+        />
+        <Button
+          label={t.tabs.fromContacts}
+          variant="secondary"
+          onPress={() => router.push('/friends/contacts')}
+          fullWidth
+        />
+      </View>
     </View>
   );
 }
@@ -563,111 +629,74 @@ function Face({
   );
 }
 
-function FriendsSection({
-  title,
-  rows,
+/**
+ * The one figure group-by-group navigation can never show: across every group
+ * and person, am I up or down — and by how much. One line per currency, because
+ * there is no honest single number across currencies without a rate (ADR-003).
+ * Nets to nothing overall? Then it says nothing and the rows below carry it.
+ */
+function BalanceHeadline({
+  totals,
   locale,
-  multiCurrencyKeys,
-  emptyBody,
-  emptyIcon,
-  selectMode,
-  selectedKeys,
-  onEnterSelect,
-  onToggleSelect,
+  t,
 }: {
-  title: string;
-  rows: PersonBalanceRow[];
+  totals: readonly CurrencyTotal[];
   locale: string;
-  /** person_keys that appear in more than one currency — their rows name it. */
-  multiCurrencyKeys: ReadonlySet<string>;
-  emptyBody: string;
-  /** Glyph for the empty card — says "state, not error" before the line is read. */
-  emptyIcon: React.ComponentProps<typeof Ionicons>['name'];
-  /** Whether the screen is in multiselect-merge mode (rows tap to (de)select). */
-  selectMode: boolean;
-  selectedKeys: ReadonlySet<string>;
-  /** Long-press a selectable (guest) row to begin selecting from it. */
-  onEnterSelect: (personKey: string) => void;
-  /** Tap a selectable row while selecting to add/remove it. */
-  onToggleSelect: (personKey: string) => void;
-}): React.JSX.Element {
+  t: UiStrings;
+}): React.JSX.Element | null {
   const theme = useTheme();
-  const { t } = useStrings();
-
+  if (totals.length === 0) return null;
   return (
-    <View style={{ gap: theme.spacing.md }}>
-      <SectionHeader title={title} />
-      {rows.length === 0 ? (
-        <Card>
-          {/* Mobbin pass: an empty section is mostly air; a lone grey sentence
-              reads as a screen that failed. A tinted glyph over the line names
-              it as a resting state (cf. Zip "all paid up", Splitwise settled). */}
-          <View
+    <Card>
+      <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+        {t.tabs.overall.toUpperCase()}
+      </Text>
+      <View style={{ gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
+        {totals.map((total) => (
+          <Row
+            key={total.currency}
             style={{
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-              paddingVertical: theme.spacing.sm,
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              gap: theme.spacing.md,
             }}
           >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: theme.color.buttonPrimary,
-              }}
-            >
-              <Ionicons name={emptyIcon} size={22} color={theme.color.onBrand} />
-            </View>
-            <Text variant="caption" tone="muted" align="center">
-              {emptyBody}
+            <Text variant="body" tone="muted">
+              {total.net > 0n ? t.tabs.youAreOwed : t.tabs.youOweThem}
             </Text>
-          </View>
-        </Card>
-      ) : (
-        <View>
-          {rows.map((row, index) => (
-            <View key={`${row.person_key}-${row.currency}`}>
-              <FriendCard
-                row={row}
-                locale={locale}
-                t={t}
-                showCurrency={multiCurrencyKeys.has(row.person_key)}
-                selectMode={selectMode}
-                selected={selectedKeys.has(row.person_key)}
-                onEnterSelect={onEnterSelect}
-                onToggleSelect={onToggleSelect}
-              />
-              {index < rows.length - 1 ? (
-                <View style={{ height: 1, backgroundColor: theme.color.border }} />
-              ) : null}
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
+            <MoneyText
+              amount={total.net}
+              currency={total.currency}
+              locale={locale}
+              variant="heading"
+              mode="balance"
+            />
+          </Row>
+        ))}
+      </View>
+    </Card>
   );
 }
 
-function FriendCard({
-  row,
+/**
+ * One person, one row — every group and currency they are unsettled with you in,
+ * folded into a single line (the Splitwise model). Direction lives on the row: a
+ * "you owe" / "owes you" micro-label and the money's own colour, so no owes/owed
+ * tab is needed. A person unsettled in two currencies shows both nets stacked at
+ * the right edge rather than appearing as two different people.
+ */
+function PersonRow({
+  person,
   locale,
   t,
-  showCurrency,
   selectMode,
   selected,
   onEnterSelect,
   onToggleSelect,
 }: {
-  row: PersonBalanceRow;
+  person: PersonGroup;
   locale: string;
   t: ReturnType<typeof useStrings>['t'];
-  /** When this person has balances in more than one currency, name the currency
-      in the subtitle so two rows for them do not read as two different people. */
-  showCurrency: boolean;
-  /** Whether the screen is picking people to merge. */
   selectMode: boolean;
   selected: boolean;
   onEnterSelect: (personKey: string) => void;
@@ -675,42 +704,73 @@ function FriendCard({
 }): React.JSX.Element {
   const theme = useTheme();
   const { isBlocked } = useBlockedUsers();
-  // A blocked person is hidden behind the ghost name and the ghost avatar here
-  // too, so their identity never surfaces on the Friends list — the amount and
-  // everything the row does with it are unchanged; only who it names is.
-  const blocked = isBlocked(row.profile_id);
-  const shownName = blocked ? t.misc.someone : row.display_name;
-  // Flat WhatsApp row: the money colour is gone from the background, the amount
-  // reads in ordinary ink, and the owed/owe meaning is carried by the sign and
-  // the section this row sits under. The avatar keeps the person's own colour.
-  const owed = BigInt(row.net) > 0n;
+  // A blocked person is hidden behind the ghost name and avatar here too, so
+  // their identity never surfaces on the list — the amounts are unchanged; only
+  // who the row names is.
+  const blocked = isBlocked(person.profile_id);
+  const shownName = blocked ? t.misc.someone : person.display_name;
   // Only a guest can be merged — a real account is already one identity across
-  // every group — so only guest rows take part in a selection. A real-account
-  // row stays inert (and dimmed) while a merge selection is running.
-  const selectable = row.is_ghost;
+  // every group — so only guest rows take part in a selection.
+  const selectable = person.is_ghost;
 
-  // One group explains the balance: open it. Several do: the amount is a sum, so
-  // open the person instead — a screen that splits it back out per group. Either
-  // way the row is now a doorway; it used to be a dead end once it spanned two.
-  const navigate = row.only_group_id
-    ? () => router.push(`/group/${row.only_group_id}`)
+  const entries = person.entries;
+  // The common case: a person with a single balance. It carries the micro-label,
+  // the group scope and the badges; a multi-currency person leans on the stacked
+  // amounts instead.
+  const single = entries.length === 1 ? entries[0] : null;
+  const soloGroup = single?.only_group_id ?? null;
+
+  // One group and one currency explains it: open that group. Otherwise the
+  // person page splits the balance back out per group and currency.
+  const navigate = soloGroup
+    ? () => router.push(`/group/${soloGroup}`)
     : () =>
         router.push(
-          // The route is typed once expo regenerates its route map; `as never`
-          // matches how the other friends/* pushes bridge that gap.
-          `/friends/person/${encodeURIComponent(row.person_key)}?name=${encodeURIComponent(
+          `/friends/person/${encodeURIComponent(person.person_key)}?name=${encodeURIComponent(
             shownName,
           )}` as never,
         );
 
-  // In a selection, a tap toggles a guest and does nothing on a non-guest; out
-  // of one, a tap opens the row and a long-press on a guest starts a selection.
   const onPress = selectMode
     ? selectable
-      ? () => onToggleSelect(row.person_key)
+      ? () => onToggleSelect(person.person_key)
       : undefined
     : navigate;
-  const onLongPress = !selectMode && selectable ? () => onEnterSelect(row.person_key) : undefined;
+  const onLongPress =
+    !selectMode && selectable ? () => onEnterSelect(person.person_key) : undefined;
+
+  const subtitle = single
+    ? single.group_count === 1
+      ? t.tabs.inOneGroup
+      : plural(locale, single.group_count, t.tabs.acrossGroups)
+    : null;
+
+  // What a screen reader hears: who, then each currency's spoken direction and
+  // amount, the group scope, and — for a guest — that they have not joined.
+  const moneyLabels = entries.map((e) =>
+    moneyAccessibilityLabel(
+      { minor: BigInt(e.net), currency: e.currency },
+      balanceDirection(BigInt(e.net)),
+      copyFor(locale).money,
+      { locale },
+    ),
+  );
+  const statusPart = person.is_ghost ? (soloGroup ? t.people.invite : t.tabs.notJoined) : '';
+  const rowA11yLabel = [shownName, ...moneyLabels, subtitle ?? '', statusPart]
+    .filter(Boolean)
+    .join('. ');
+
+  // Biggest currency first when a person spans several.
+  const sortedEntries =
+    entries.length > 1
+      ? [...entries].sort((a, b) =>
+          absBig(BigInt(a.net)) < absBig(BigInt(b.net))
+            ? 1
+            : absBig(BigInt(a.net)) > absBig(BigInt(b.net))
+              ? -1
+              : 0,
+        )
+      : entries;
 
   const body = (
     <Row
@@ -730,45 +790,56 @@ function FriendCard({
         />
       ) : null}
       <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
-        <Avatar name={shownName} size={44} ghost={row.is_ghost || blocked} />
+        <Avatar name={shownName} size={44} ghost={person.is_ghost || blocked} />
         <View style={{ flex: 1 }}>
           <Text variant="subheading" numberOfLines={1}>
             {shownName}
           </Text>
-          <Text variant="caption" tone="muted" numberOfLines={1}>
-            {(() => {
-              const groupPart =
-                row.group_count === 1
-                  ? t.tabs.inOneGroup
-                  : plural(locale, row.group_count, t.tabs.acrossGroups);
-              // The currency is what tells this row apart from the same person's
-              // other-currency row; a middot keeps it one glanceable line.
-              return showCurrency ? `${groupPart} · ${row.currency}` : groupPart;
-            })()}
-          </Text>
+          {subtitle ? (
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
         </View>
       </Row>
       <View style={{ alignItems: 'flex-end', gap: 2 }}>
-        {/* Semantic money colour (owed green, owe red) is the one signal that
-            tells direction at a glance — the section header alone is lost the
-            moment it scrolls off. Sign is spoken via the balance a11y label. */}
-        <MoneyText
-          amount={BigInt(row.net)}
-          currency={row.currency}
-          locale={locale}
-          variant="subheading"
-          mode="balance"
-        />
-        {selectMode ? null : row.is_ghost ? (
-          // A ghost is somebody you added who has no Baaki account yet, so the
-          // badge is the useful action rather than a verdict: send them this
-          // group's invite link, which is the same link that lets them claim
-          // this very row (A25). Only offered when a single group explains the
-          // balance — otherwise there is no one link to share. Its own
-          // Pressable so tapping it invites rather than opening the group.
-          row.only_group_id ? (
+        {single ? (
+          <>
+            {/* The one place the row says the direction in words — over the
+                coloured amount — so a glance reads owed-vs-owe without leaning on
+                red/green alone. */}
+            <Text variant="micro" tone="faint">
+              {BigInt(single.net) > 0n ? t.tabs.owesYou : t.tabs.youOweThem}
+            </Text>
+            <MoneyText
+              amount={BigInt(single.net)}
+              currency={single.currency}
+              locale={locale}
+              variant="subheading"
+              mode="balance"
+            />
+          </>
+        ) : (
+          // Multi-currency: one small coloured line per currency — never summed.
+          sortedEntries.map((e) => (
+            <MoneyText
+              key={e.currency}
+              amount={BigInt(e.net)}
+              currency={e.currency}
+              locale={locale}
+              variant="caption"
+              mode="balance"
+            />
+          ))
+        )}
+        {selectMode ? null : person.is_ghost ? (
+          // A ghost is somebody you added who has no account yet, so the badge is
+          // the useful action: send them this group's invite link — the same link
+          // that lets them claim this balance (A25). Offered only when a single
+          // group explains it, otherwise there is no one link to share.
+          soloGroup ? (
             <Pressable
-              onPress={() => router.push(`/group/${row.only_group_id}/invite`)}
+              onPress={() => router.push(`/group/${soloGroup}/invite`)}
               accessibilityRole="button"
               accessibilityLabel={t.people.invite}
               hitSlop={12}
@@ -779,11 +850,10 @@ function FriendCard({
           ) : (
             <Badge label={t.tabs.notJoined} />
           )
-        ) : owed && row.only_group_id ? (
-          // They owe you and one group explains it, so there is a single pair
-          // to nudge. The server keeps it honest — one a day, never to a
-          // ghost, never for nothing — so the button only has to ask (ADR-010).
-          <RemindButton row={row} />
+        ) : single && BigInt(single.net) > 0n && single.only_group_id ? (
+          // They owe you and one group explains it, so there is a single pair to
+          // nudge. The server keeps it honest — one a day (ADR-010).
+          <RemindButton row={single} />
         ) : null}
       </View>
     </Row>
@@ -795,15 +865,15 @@ function FriendCard({
       onLongPress={onLongPress}
       delayLongPress={250}
       // In selection mode a selectable row is a checkbox; a non-selectable one
-      // (a real account — already one identity, nothing to merge) is inert, so
-      // it announces neither role nor tap and reads as disabled. Outside
-      // selection mode every row is the usual button into the person.
+      // (a real account — already one identity, nothing to merge) is inert, so it
+      // announces neither role nor tap and reads as disabled. Outside selection
+      // mode every row is the usual button into the person.
       disabled={selectMode && !selectable}
       accessibilityRole={selectMode ? (selectable ? 'checkbox' : 'none') : 'button'}
       accessibilityState={
         selectMode ? (selectable ? { checked: selected } : { disabled: true }) : undefined
       }
-      accessibilityLabel={shownName}
+      accessibilityLabel={selectMode ? shownName : rowA11yLabel}
       style={({ pressed }) => ({
         opacity: pressed ? 0.9 : 1,
         // A tick alone can be missed; a picked row also wears a soft fill.
@@ -928,12 +998,7 @@ function SortMenu({
             </Text>
             {SORT_ORDER.map((key) => {
               const active = key === sortKey;
-              const label =
-                key === SortKey.Amount
-                  ? t.sort.amount
-                  : key === SortKey.Date
-                    ? t.sort.date
-                    : t.sort.name;
+              const label = sortLabel(key, t);
               return (
                 <Pressable
                   key={key}
@@ -971,6 +1036,169 @@ function SortMenu({
                 </Pressable>
               );
             })}
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+/**
+ * The contextual merge nudge — a card, not a bare header glyph.
+ *
+ * Merge used to live behind an icon that appeared only when it was usable and a
+ * long-press nobody stumbles onto. This says the concept in words and offers the
+ * way in, so a user learns "duplicate guests can be merged" at the one moment it
+ * is true and actionable. It disappears the instant the duplicates are gone.
+ */
+function MergeHint({ onPress, t }: { onPress: () => void; t: UiStrings }): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t.mergePeople.entry}
+      accessibilityHint={t.mergePeople.hint}
+      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+    >
+      <Card>
+        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.color.brandSoft,
+            }}
+          >
+            <Ionicons name="git-merge-outline" size={iconSize.xl} color={theme.color.brand} />
+          </View>
+          <Text variant="caption" tone="muted" style={{ flex: 1 }}>
+            {t.mergePeople.hint}
+          </Text>
+          <Ionicons
+            name={directionalIcon('chevron-forward')}
+            size={iconSize.lg}
+            color={theme.color.textFaint}
+          />
+        </Row>
+      </Card>
+    </Pressable>
+  );
+}
+
+/**
+ * The `+` menu — the same corner dropdown SortMenu uses, holding the three ways
+ * to add a person: type a name, pull from contacts, scan an invite QR. One door
+ * in place of the header's former row of bare glyphs.
+ */
+function AddMenu({
+  open,
+  onClose,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  t: UiStrings;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const go = (path: string): void => {
+    onClose();
+    router.push(path as never);
+  };
+
+  const items: {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    onPress: () => void;
+  }[] = [
+    {
+      key: 'add',
+      label: t.addPerson.title,
+      icon: <Ionicons name="person-add-outline" size={iconSize.lg} color={theme.color.text} />,
+      onPress: () => go('/friends/add-person'),
+    },
+    {
+      key: 'contacts',
+      label: t.tabs.fromContacts,
+      icon: (
+        <MaterialCommunityIcons
+          name="book-account-outline"
+          size={iconSize.lg}
+          color={theme.color.text}
+        />
+      ),
+      onPress: () => go('/friends/contacts'),
+    },
+    {
+      key: 'scan',
+      label: t.misc.scanToJoin,
+      icon: <Ionicons name="qr-code-outline" size={iconSize.lg} color={theme.color.text} />,
+      onPress: () => go('/scan'),
+    },
+  ];
+
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.close}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' }}
+      >
+        <View
+          style={{
+            position: 'absolute',
+            top: insets.top + 56,
+            right: theme.spacing.xl,
+            minWidth: 220,
+            borderRadius: theme.radius.lg,
+            ...theme.shadow.lifted,
+          }}
+        >
+          <View
+            style={{
+              borderRadius: theme.radius.lg,
+              borderWidth: 1,
+              borderColor: theme.color.border,
+              backgroundColor: theme.color.surface,
+              paddingVertical: theme.spacing.xs,
+              overflow: 'hidden',
+            }}
+          >
+            <Text
+              variant="micro"
+              tone="faint"
+              style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+            >
+              {t.tabs.addSomeone}
+            </Text>
+            {items.map((item) => (
+              <Pressable
+                key={item.key}
+                onPress={item.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.md,
+                  paddingHorizontal: theme.spacing.lg,
+                  paddingVertical: theme.spacing.md,
+                  backgroundColor: pressed ? theme.color.surfaceMuted : 'transparent',
+                })}
+              >
+                {item.icon}
+                <Text variant="body" style={{ flex: 1 }}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
       </Pressable>
