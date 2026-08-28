@@ -113,6 +113,13 @@ export default function AllGroupsScreen() {
     return out;
   }, [list, summary, profile?.id, trimmed, t.settledHeader]);
 
+  // What a rendered row reads from outside its own data: the locale (money and
+  // member-count formatting) and the theme (its colours). Both hold identity
+  // between renders and move only when they truly change, so this memo is a
+  // stable extraData that re-renders rows on a language or light/dark switch
+  // without the per-render churn an inline array would cause.
+  const listExtraData = useMemo(() => ({ locale, theme }), [locale, theme]);
+
   const header = (
     <View style={{ paddingTop: theme.spacing.md, gap: theme.spacing.lg }}>
       <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
@@ -210,11 +217,11 @@ export default function AllGroupsScreen() {
         // The group-ledger settings: render well ahead of the viewport so a fast
         // fling doesn't flash blank rows. The row items already carry their own
         // balance/pending/count (baked in the memo above), so a money change
-        // flows through `data`; the only external a row reads is `locale`, so
-        // that alone — a stable string — is the extraData. Passing an array
-        // literal here would allocate every render and re-render every row.
+        // flows through `data`; the outside a row reads — locale and theme —
+        // rides the memoised `listExtraData`, which changes identity only on a
+        // real language or light/dark switch, not every render.
         drawDistance={1500}
-        extraData={locale}
+        extraData={listExtraData}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
