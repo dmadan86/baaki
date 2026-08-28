@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { GROUP_ICONS, guessGroupEmoji } from '../src/index';
+import { GROUP_ICONS, guessGroupEmoji, guessGroupType } from '../src/index';
 
 describe('a group name suggests a picture', () => {
   it('reads the ordinary names people give groups', () => {
@@ -62,6 +62,43 @@ describe('a group name suggests a picture', () => {
     expect(guessGroupEmoji('GOA!!')).toBe('🏖️');
     expect(guessGroupEmoji('flat-402')).toBe('🏠');
     expect(guessGroupEmoji('  Wedding  ')).toBe('🎉');
+  });
+});
+
+describe('a group name suggests a kind', () => {
+  it('catches the names that really are a trip', () => {
+    expect(guessGroupType('Goa December')).toBe('trip');
+    expect(guessGroupType('Manali trek')).toBe('trip');
+    expect(guessGroupType('Europe trip')).toBe('trip');
+  });
+
+  it('reads the non-trip kinds too', () => {
+    expect(guessGroupType('Flat 402')).toBe('home');
+    expect(guessGroupType('Grocery run')).toBe('home');
+    expect(guessGroupType('Priya wedding')).toBe('event');
+    expect(guessGroupType('Honeymoon')).toBe('couple');
+    expect(guessGroupType('Friday dinner')).toBe('friends');
+    expect(guessGroupType('Office offsite')).toBe('other');
+  });
+
+  it('says nothing when the name says nothing, so the caller keeps its default', () => {
+    // The screen opens on Other, not Trip — null here is what lets a bare name
+    // stay Other instead of dragging trip fields in.
+    expect(guessGroupType('')).toBeNull();
+    expect(guessGroupType('Ravi and Asha')).toBeNull();
+    expect(guessGroupType('Group 3')).toBeNull();
+  });
+
+  it('maps every icon in the table to a kind', () => {
+    // A picture with no kind would silently fall through to the caller's
+    // default even when the name clearly meant something.
+    for (const icon of GROUP_ICONS) {
+      const name = `test ${icon.keywords[0]}`;
+      expect(
+        guessGroupType(name),
+        `${icon.emoji} (${icon.keywords[0]}) has no kind`,
+      ).not.toBeNull();
+    }
   });
 });
 
