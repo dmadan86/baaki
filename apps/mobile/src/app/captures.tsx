@@ -55,6 +55,10 @@ import { foldedCaptureCount } from '@/lib/captureBatch';
 import { buildCaptureFeedItems, type CaptureFeedItem } from '@/lib/captureFeed';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
+/** Minimum width of the right-aligned amount column, so short (₹300) and long
+ *  (₹80,580) amounts share a right edge and read as one column down the list. */
+const AMOUNT_COLUMN = 76;
+
 /**
  * What the ⋯ overflow sheet is open on: a single capture (add to group / edit /
  * delete) or a whole spoken batch (delete them all). Null when nothing is open.
@@ -165,12 +169,17 @@ function CaptureListRow({
           ) : null}
         </View>
 
-        <MoneyText
-          amount={BigInt(capture.amount)}
-          currency={capture.currency}
-          locale={locale}
-          variant="subheading"
-        />
+        {/* The amount sits in a right-aligned column so the numbers line up down
+            the list rather than each ending wherever its own width happens to
+            land — a ledger reads by its right edge. */}
+        <View style={{ minWidth: AMOUNT_COLUMN, alignItems: 'flex-end' }}>
+          <MoneyText
+            amount={BigInt(capture.amount)}
+            currency={capture.currency}
+            locale={locale}
+            variant="subheading"
+          />
+        </View>
         {/* One quiet ⋯ instead of the old pencil-and-red-trash pair: the actions
             that are not "add to group" live behind it, so the row carries the
             amount and a single neutral control rather than three competing marks.
@@ -179,6 +188,11 @@ function CaptureListRow({
         <IconButton label={t.captures.moreActions} onPress={onMore}>
           <Ionicons name="ellipsis-horizontal" size={iconSize.md} color={theme.color.textMuted} />
         </IconButton>
+        {/* An empty slot the width of the batch card's expand chevron, so a
+            standalone row's amount and ⋯ share the exact right edge with the
+            batch rows that do carry a chevron. Without it the two row kinds end
+            their amounts a chevron's width apart. */}
+        <View style={{ width: iconSize.md }} />
       </Row>
     </Pressable>
   );
@@ -281,13 +295,17 @@ function BatchGroupCard({
           {/* Total then the expander, both trailing — the chevron is the standard
               reveal affordance (down closed, up open), sitting just past the
               amount rather than a plus crammed at the edge. */}
-          {total !== null ? (
-            <MoneyText amount={total} currency={currency} locale={locale} variant="subheading" />
-          ) : (
-            <Text variant="subheading" tone="muted">
-              {plural(locale, items.length, t.captures.batchExpenses)}
-            </Text>
-          )}
+          {/* Same right-aligned amount column as the standalone rows, so a
+              batch total lines up under the single amounts above and below it. */}
+          <View style={{ minWidth: AMOUNT_COLUMN, alignItems: 'flex-end' }}>
+            {total !== null ? (
+              <MoneyText amount={total} currency={currency} locale={locale} variant="subheading" />
+            ) : (
+              <Text variant="subheading" tone="muted">
+                {plural(locale, items.length, t.captures.batchExpenses)}
+              </Text>
+            )}
+          </View>
           {/* The batch's own ⋯, matching the standalone rows: it opens the sheet
               that can delete the whole batch at once, rather than a standing red
               trash on the card. A nested press, so it opens the sheet rather than
