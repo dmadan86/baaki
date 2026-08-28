@@ -37,7 +37,8 @@ import { CoverEmojiPicker } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { requestContacts } from '@/lib/contactPickerBridge';
-import { useCreateGroup, useGroup } from '@/data/hooks';
+import { useCaptures, useCreateGroup, useGroup } from '@/data/hooks';
+import { assignCaptureHref } from '@/lib/captureAssign';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
 import { useGuestGuard } from '@/lib/guestGuard';
@@ -224,9 +225,17 @@ export default function NewGroupScreen() {
   // the group is on disk. Everything seeded stays editable, and the people are
   // seeded into the same removable chip list a fresh group uses, which is what
   // lets you drop someone before the group is made.
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  // `?assignCaptureId=<id>` means this screen was opened from a capture's group
+  // picker with no group to place it in yet: make the group here, then drop that
+  // capture straight into it (below), completing the "create one and add this to
+  // it" the picker promised rather than stranding the capture back in the inbox.
+  const { from, assignCaptureId } = useLocalSearchParams<{
+    from?: string;
+    assignCaptureId?: string;
+  }>();
   const cloning = Boolean(from);
   const source = useGroup(from ?? '');
+  const captures = useCaptures();
 
   const [name, setName] = useState('');
   // The group cover is an emoji icon, chosen by tapping the avatar. Photos are
@@ -443,6 +452,20 @@ export default function NewGroupScreen() {
           amountMinor: budget.toString(),
           currency,
         });
+      }
+
+      // Made to hold a waiting capture: hand that capture to this group's
+      // add-expense form instead of opening the group, so the person lands where
+      // they were headed — placing the spend — with the new group already chosen.
+      // Replace, not push, so backing out of the form does not return to this
+      // half-made-group screen. Any trip nudge yields to this: assigning is the
+      // errand they were on.
+      if (assignCaptureId) {
+        const capture = captures.data?.find((row) => row.id === assignCaptureId);
+        if (capture) {
+          router.replace(assignCaptureHref(capture, groupId));
+          return;
+        }
       }
 
       // A trip made without dates lands on its group with a one-time nudge to
