@@ -886,6 +886,8 @@ export interface UiStrings {
     /** The review step for one or more heard expenses. */
     review: string;
     saveTo: string;
+    /** The action on the destination row that opens the picker sheet. */
+    change: string;
     /** '{name}' is the spoken group name. */
     newGroupNamed: string;
     thinking: string;
@@ -909,10 +911,6 @@ export interface UiStrings {
     /** The two destination tabs in the "Save to" picker. */
     groupsTab: string;
     peopleTab: string;
-    /** Row badges in the picker: freshly made, lately used, used a lot. */
-    badgeNew: string;
-    badgeRecent: string;
-    badgeFrequent: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -2941,21 +2939,19 @@ const en: UiStrings = {
     unavailable: 'Speech isn’t available on this phone.',
     review: 'Review',
     saveTo: 'Save to',
+    change: 'Change',
     newGroupNamed: 'New group “{name}”',
     thinking: 'Making sense of that…',
     save: { one: 'Save {n} expense', other: 'Save {n} expenses' },
     count: { one: '{n} expense', other: '{n} expenses' },
-    saveDraft: 'Save as draft',
+    saveDraft: 'Save to inbox',
     draftNeedsAmounts: 'Enter an amount for each expense, or remove it, to keep this draft.',
     people: 'People',
     addPerson: 'Add a person',
     addPersonPlaceholder: 'Their name',
-    addMore: 'Add more',
+    addMore: 'Add another',
     groupsTab: 'Groups',
     peopleTab: 'People',
-    badgeNew: 'New',
-    badgeRecent: 'Recent',
-    badgeFrequent: 'Frequent',
   },
   notifications: {
     title: 'Notifications',
@@ -4969,22 +4965,20 @@ const ta: UiStrings = {
     unavailable: 'இந்த ஃபோனில் பேச்சு அங்கீகாரம் இல்லை.',
     review: 'மறுபார்வை',
     saveTo: 'இதில் சேமி',
+    change: 'மாற்று',
     newGroupNamed: 'புதிய குழு “{name}”',
     thinking: 'புரிந்துகொள்கிறது…',
     save: { one: '{n} செலவைச் சேமி', other: '{n} செலவுகளைச் சேமி' },
     count: { one: '{n} செலவு', other: '{n} செலவுகள்' },
-    saveDraft: 'வரைவாகச் சேமி',
+    saveDraft: 'இன்பாக்ஸில் சேமி',
     draftNeedsAmounts:
       'இந்த வரைவைச் சேமிக்க ஒவ்வொரு செலவுக்கும் தொகையை உள்ளிடவும், அல்லது அதை நீக்கவும்.',
     people: 'நபர்கள்',
     addPerson: 'ஒரு நபரைச் சேர்',
     addPersonPlaceholder: 'அவர்களின் பெயர்',
-    addMore: 'மேலும் சேர்',
+    addMore: 'மற்றொன்றைச் சேர்',
     groupsTab: 'குழுக்கள்',
     peopleTab: 'நபர்கள்',
-    badgeNew: 'புதியது',
-    badgeRecent: 'சமீபத்தில்',
-    badgeFrequent: 'அடிக்கடி',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -7055,21 +7049,19 @@ const hi: UiStrings = {
     unavailable: 'इस फ़ोन पर वॉइस पहचान उपलब्ध नहीं है।',
     review: 'समीक्षा',
     saveTo: 'यहाँ सहेजें',
+    change: 'बदलें',
     newGroupNamed: 'नया समूह “{name}”',
     thinking: 'समझा जा रहा है…',
     save: { one: '{n} खर्च सहेजें', other: '{n} खर्च सहेजें' },
     count: { one: '{n} खर्च', other: '{n} खर्च' },
-    saveDraft: 'ड्राफ़्ट के रूप में सहेजें',
+    saveDraft: 'इनबॉक्स में सहेजें',
     draftNeedsAmounts: 'यह ड्राफ़्ट रखने के लिए हर खर्च में राशि भरें, या उसे हटाएँ।',
     people: 'लोग',
     addPerson: 'व्यक्ति जोड़ें',
     addPersonPlaceholder: 'उनका नाम',
-    addMore: 'और जोड़ें',
+    addMore: 'एक और जोड़ें',
     groupsTab: 'ग्रुप',
     peopleTab: 'लोग',
-    badgeNew: 'नया',
-    badgeRecent: 'हाल का',
-    badgeFrequent: 'अक्सर',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -9111,6 +9103,7 @@ const ar: UiStrings = {
     unavailable: 'التعرّف على الكلام غير متاح على هذا الهاتف.',
     review: 'مراجعة',
     saveTo: 'الحفظ في',
+    change: 'تغيير',
     newGroupNamed: 'مجموعة جديدة «{name}»',
     thinking: 'جارٍ الفهم…',
     save: { one: 'حفظ مصروف', other: 'حفظ {n} مصاريف' },
@@ -9122,17 +9115,14 @@ const ar: UiStrings = {
       many: '{n} مصروفًا',
       other: '{n} مصروف',
     },
-    saveDraft: 'حفظ كمسودة',
+    saveDraft: 'الحفظ في الوارد',
     draftNeedsAmounts: 'أدخل مبلغًا لكل مصروف، أو احذفه، للاحتفاظ بهذه المسودة.',
     people: 'الأشخاص',
     addPerson: 'إضافة شخص',
     addPersonPlaceholder: 'اسمه',
-    addMore: 'أضف المزيد',
+    addMore: 'أضف آخر',
     groupsTab: 'المجموعات',
     peopleTab: 'الأشخاص',
-    badgeNew: 'جديد',
-    badgeRecent: 'حديث',
-    badgeFrequent: 'متكرر',
   },
   notifications: {
     title: 'الإشعارات',

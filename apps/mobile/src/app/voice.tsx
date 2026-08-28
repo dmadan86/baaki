@@ -34,7 +34,6 @@ import {
   type SplitParams,
 } from '@waves/core';
 import {
-  Badge,
   Button,
   Callout,
   Card,
@@ -54,13 +53,10 @@ import {
   useAddGhostMember,
   useCreateCapture,
   useCreateGroup,
-  useDestinationUsage,
   useGroup,
-  useGroupCreatedAt,
   useGroups,
   usePeopleBalances,
   useWriteExpense,
-  type DestinationUsage,
 } from '@/data/hooks';
 import { displayName, groupLabel, GroupType, type GroupRow } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
@@ -68,10 +64,8 @@ import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
 import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
-import { DictateButton } from '@/components/DictateButton';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
 import { LocationField } from '@/components/LocationField';
-import { captureLocation, locationAvailable } from '@/lib/location';
 import {
   parseVoiceExpenses,
   resolveVoiceParticipants,
@@ -114,12 +108,13 @@ interface PersonChoice {
  * What a returning transcript does — the full-screen mic is reused for two jobs,
  * and the job is fixed the moment the mic is opened, not read off the transcript.
  *  - 'replace'   the opening capture: the heard batch becomes the review list.
- *  - 'append'    "+ Add more": the heard expenses are pushed onto the current
+ *  - 'append'    "+ Add another": the heard expenses are pushed onto the current
  *                list, keeping the existing items and the chosen destination.
  *
- * A single row's note is dictated inline instead (the `DictateButton` on each
- * DraftRow, the same field-level mic Add-Expense uses) — that never opens this
- * full-screen flow, so it is not a mode here.
+ * There is no third mode: the full-screen mic is the only way to speak an
+ * expense here. A row's note is corrected by typing, not dictation — the whole
+ * screen is already voice, so a mic in every row was clutter doing an unclear
+ * job, and it is gone.
  */
 type MicMode = 'replace' | 'append';
 
@@ -152,15 +147,6 @@ export default function VoiceScreen() {
   const dc = useDefaultCurrency();
   const access = useAiAccess();
   const groups = useGroups();
-  // How often and how recently each destination has been used — the picker's
-  // "recent"/"frequent" badges. Read once from the mirror, keyed by group id.
-  const usage = useDestinationUsage();
-  // Every group's creation time (people's 1:1 groups included), for the "newly
-  // created" trip chip and the "recently added" person chips.
-  const groupCreatedAt = useGroupCreatedAt();
-  // "Now" captured once so the "new"/"recent" windows do not shift mid-render
-  // (a bare Date.now() in render trips the React Compiler lint).
-  const [nowMs] = useState(() => Date.now());
   // Opened from a group's own screens (the raised mic passes its id), so a
   // spoken expense lands in that group by default rather than the unassigned
   // inbox. The reader can still switch the destination on the review; and a
@@ -201,12 +187,11 @@ export default function VoiceScreen() {
   const [voiceSplitCount, setVoiceSplitCount] = useState<number | null>(null);
   const [voiceExpenseDate, setVoiceExpenseDate] = useState<string | null>(null);
   // One place for the whole spoken batch — a run of "coffee, then the taxi" all
-  // happened where you are standing (A43). Optional and opt-in; null until the
-  // reader taps "Add location" on the review.
+  // happened where you are standing (A43). Strictly opt-in: null until the reader
+  // taps "Add location" on the review. Nothing is read in the background — a
+  // spoken expense is about money, not place, so the pin is only ever the
+  // reader's own deliberate tap (the roast's ask, and A43's stated intent).
   const [location, setLocation] = useState<ExpenseLocation | null>(null);
-  // The up-front read of the current place is in flight — the field shows a
-  // "getting location" placeholder rather than empty buttons while it lands.
-  const [locating, setLocating] = useState(false);
   const [dest, setDest] = useState<Dest>({ kind: 'unassigned' });
   // The destination folds into a single row that opens this sheet, so the
   // expenses — not a wall of group rows — are the first thing on the review.
@@ -235,18 +220,6 @@ export default function VoiceScreen() {
   // over navigation — so the leave-guard below stands aside instead of writing
   // the captures a second time.
   const committed = useRef(false);
-  // The review reads the current location once, on its own, so the batch is
-  // filed where it happened without the reader having to ask for it — a spoken
-  // expense is nearly always logged on the spot. Latched so the read fires once
-  // per batch (not on every render, and not again after the reader clears or
-  // adjusts the pin); reset when a fresh parse opens a new review.
-  const autoLocated = useRef(false);
-  // Guards the async auto-read from clobbering a later truth. `locationGen`
-  // ticks once per parsed batch, so a fix that arrives after a new utterance is
-  // dropped; `locationTouched` flips the moment the reader sets or clears the
-  // pin by hand, so an in-flight auto-read never overrides their choice.
-  const locationGen = useRef(0);
-  const locationTouched = useRef(false);
   // One interpretation at a time. Bumped when a capture is sent to be read, and
   // again the moment the reader backs out of the 'thinking' phase — so a result
   // that lands after they have returned to the review (a cancelled append) is
@@ -265,66 +238,6 @@ export default function VoiceScreen() {
   const groupRows = useMemo(() => groups.data ?? [], [groups.data]);
   const groupRefs: VoiceGroupRef[] = groupRows.map((group) => ({ id: group.id, name: group.name }));
   const hints = groupRows.map((group) => group.name ?? '').filter(Boolean);
-
-  // One-tap destination chips shown under the "Save to" selector on the review:
-  // the trips worth reaching for first, then the two people most recently added.
-  //
-  // Trips: the most recently used, the most used, and a just-created one — each
-  // added once, deduped, capped at three, in that order. Empty when nothing has
-  // been used and nothing is new.
-  const quickTrips = useMemo(() => {
-    const picks: { group: GroupRow; reason: 'recent' | 'frequent' | 'new' }[] = [];
-    const add = (group: GroupRow | null, reason: 'recent' | 'frequent' | 'new'): void => {
-      if (group && !picks.some((pick) => pick.group.id === group.id)) picks.push({ group, reason });
-    };
-
-    // A person's 1:1 group is a *person* chip, never a trip chip. Without this
-    // exclusion the same 1:1 group surfaced in both rows; since a trip chip and a
-    // person chip each key their selected state on `dest.groupId`, choosing one
-    // lit up the other (a group appeared to select a person, and vice versa).
-    const personGroupIds = new Set<string>();
-    for (const row of people.data ?? []) {
-      if (row.only_group_id) personGroupIds.add(row.only_group_id);
-    }
-
-    let recent: GroupRow | null = null;
-    let recentAt = '';
-    let frequent: GroupRow | null = null;
-    let frequentCount = 0;
-    let fresh: GroupRow | null = null;
-    let freshAt = '';
-    for (const group of groupRows) {
-      if (personGroupIds.has(group.id)) continue;
-      const use = usage.get(group.id);
-      if (use?.lastAt && use.lastAt > recentAt) {
-        recentAt = use.lastAt;
-        recent = group;
-      }
-      if (use && use.count > frequentCount) {
-        frequentCount = use.count;
-        frequent = group;
-      }
-      if (nowMs - Date.parse(group.created_at) < NEW_WINDOW_MS && group.created_at > freshAt) {
-        freshAt = group.created_at;
-        fresh = group;
-      }
-    }
-    add(recent, 'recent');
-    if (frequentCount > 0) add(frequent, 'frequent');
-    add(fresh, 'new');
-    return picks.slice(0, 3);
-  }, [groupRows, usage, nowMs, people.data]);
-
-  // People: the two most recently added, by the age of their 1:1 group.
-  const quickPeople = useMemo(
-    () =>
-      [...peopleChoices]
-        .map((person) => ({ person, at: groupCreatedAt.get(person.groupId) ?? '' }))
-        .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
-        .slice(0, 2)
-        .map((entry) => entry.person),
-    [peopleChoices, groupCreatedAt],
-  );
 
   // Members and currency of the chosen group, read from the local mirror. Empty
   // id (the unassigned/create cases) reads nothing, which is what we want.
@@ -354,12 +267,9 @@ export default function VoiceScreen() {
     setVoicePeopleText(result.peopleText);
     setVoiceSplitCount(result.splitCount);
     setVoiceExpenseDate(result.expenseDate);
-    // A fresh parse is a fresh group to create, and a fresh location to read.
+    // A fresh parse is a fresh group to create, and a cleared location pin.
     groupCreated.current = false;
     ghostMemberId.current = null;
-    autoLocated.current = false;
-    locationGen.current += 1;
-    locationTouched.current = false;
     setLocation(null);
     // Default the destination to what was heard: a new group to make, an
     // existing group named, else the capture inbox.
@@ -482,23 +392,7 @@ export default function VoiceScreen() {
     })();
   };
 
-  // The reader set or cleared the pin by hand. Latch it so a still-pending
-  // auto-read cannot come back and overwrite their choice.
-  const handleLocationChange = (next: ExpenseLocation | null): void => {
-    locationTouched.current = true;
-    setLocation(next);
-  };
-
-  // Point the batch at an existing group (a trip, or a person's 1:1 group) — the
-  // one-tap path the quick chips and the picker share. A change of destination is
-  // a change of group/ghost to make, so drop the once-only latches for the new one.
-  const chooseExistingDest = (groupId: string): void => {
-    groupCreated.current = false;
-    ghostMemberId.current = null;
-    setDest({ kind: 'existing', groupId });
-  };
-
-  // "+ Add more" — reopen the mic to speak another expense (or several). The
+  // "+ Add another" — reopen the mic to speak another expense (or several). The
   // returning batch is appended, not replaced; the destination is untouched.
   const startAddMore = (): void => {
     setMicMode('append');
@@ -628,34 +522,6 @@ export default function VoiceScreen() {
     t.voice.draftNeedsAmounts,
   ]);
 
-  // On opening the review, read the current location once and pin the batch to
-  // it — so the map shows and the place is saved by default, no tap needed. It
-  // asks for permission just-in-time; a refusal or an unavailable fix leaves the
-  // field on its manual "Add location" / "Pick on map" buttons rather than
-  // failing loudly. Never overrides a pin the reader has since set or cleared:
-  // the latch runs it exactly once per parsed batch.
-  useEffect(() => {
-    if (phase !== 'review' || autoLocated.current) return;
-    autoLocated.current = true;
-    if (!locationAvailable()) return;
-    const gen = locationGen.current;
-    void (async () => {
-      // Set inside the async body, not the effect body, so it does not read as a
-      // synchronous cascading setState (react-hooks/set-state-in-effect).
-      setLocating(true);
-      try {
-        const result = await captureLocation();
-        if (!result.ok) return;
-        // Drop a fix that lost its race: the reader has since set or cleared the
-        // pin by hand, or a fresh utterance moved on to a new batch.
-        if (locationGen.current !== gen || locationTouched.current) return;
-        setLocation(result.location);
-      } finally {
-        setLocating(false);
-      }
-    })();
-  }, [phase]);
-
   const save = async (): Promise<void> => {
     setError(null);
     setSaving(true);
@@ -768,11 +634,6 @@ export default function VoiceScreen() {
   const canSave =
     drafts.length > 0 &&
     !saving &&
-    // Hold Save while the automatic location fix is still in flight, so an
-    // expense is not persisted with location === null a moment before the
-    // capture would have filled it in. The fix races a short timeout (see
-    // captureLocation), so this is a brief wait, not an indefinite one.
-    !locating &&
     drafts.every((draft) => toMinor(draft.amount, draft.currency ?? dc) !== null);
 
   // The footer total must read in the same currency the Save will persist, or
@@ -830,19 +691,12 @@ export default function VoiceScreen() {
             <Ionicons name="mic" size={iconSize.xl} color={theme.color.brand} />
             <Text variant="title">{phase === 'review' ? t.voice.review : t.voice.title}</Text>
           </Row>
-          {/* On the review, a mic sits before the ✕ so another expense (or
-              several) can be spoken and appended without hunting for the inline
-              "+ Add more" — same append job (`startAddMore`), header-reachable. */}
-          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-            {phase === 'review' ? (
-              <IconButton label={t.voice.addMore} onPress={startAddMore}>
-                <Ionicons name="mic-outline" size={iconSize.lg} color={theme.color.brand} />
-              </IconButton>
-            ) : null}
-            <IconButton label={t.common.close} onPress={dismiss}>
-              <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-            </IconButton>
-          </Row>
+          {/* Just the ✕. Speaking another expense is one job with one home — the
+              "+ Add another" pill under the list — so the header carries no second
+              mic competing with it. */}
+          <IconButton label={t.common.close} onPress={dismiss}>
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+          </IconButton>
         </Row>
 
         {error ? <Callout tone="negative">{error}</Callout> : null}
@@ -856,152 +710,118 @@ export default function VoiceScreen() {
           </View>
         ) : phase === 'review' ? (
           <View style={{ gap: theme.spacing.xl }}>
-            {/* Each expense is its own editable card (Mobbin: Airwallex line
-                items, Rocket Money split), not a hairline row in one grouped
-                card — an editable amount + note reads and taps better with its
-                own frame and breathing room. The leading tile keeps the `sky`
-                tint the Activity feed gives a newly-added expense, so a draft
-                still reads as the same thing it becomes once saved. */}
-            <View style={{ gap: theme.spacing.md }}>
-              {drafts.map((draft) => (
-                <DraftRow
-                  key={draft.key}
-                  draft={draft}
-                  // The currency the card shows must be the one Save will persist:
-                  // a group destination writes in the group's currency, so a USD
-                  // draft dropped into an EUR group reads EUR here, matching the
-                  // footer total and the saved expense. The inbox (no group) keeps
-                  // the draft's own spoken currency.
-                  currency={destCurrency ?? draft.currency ?? dc}
-                  onEdit={editDraft}
-                  onRemove={removeDraft}
-                  // The row's note is dictated inline with the same field mic
-                  // Add-Expense uses; group names bias the recogniser the same way.
-                  hints={hints}
-                  removeLabel={t.captures.delete}
-                  amountLabel={t.captures.amount}
-                  noteLabel={t.captures.description}
-                  notePlaceholder={t.captures.descriptionPlaceholder}
-                  theme={theme}
-                />
+            {/* Confirmation, not an edit form. Each expense reads as a quiet
+                summary line — what we heard, and the amount — inside one grouped
+                card, the way a receipt lists what it charged. Tapping a line opens
+                it to correct the amount or the note; it is closed again by
+                default. The parser is not put on trial the moment you land here. */}
+            <Card padded={false} style={{ overflow: 'hidden' }}>
+              {drafts.map((draft, index) => (
+                <View key={draft.key}>
+                  {index > 0 ? <Divider /> : null}
+                  <DraftRow
+                    draft={draft}
+                    // The currency the row shows must be the one Save will persist:
+                    // a group destination writes in the group's currency, so a USD
+                    // draft dropped into an EUR group reads EUR here, matching the
+                    // footer total and the saved expense. The inbox (no group)
+                    // keeps the draft's own spoken currency.
+                    currency={destCurrency ?? draft.currency ?? dc}
+                    onEdit={editDraft}
+                    onRemove={removeDraft}
+                    fallbackNote={t.voice.anExpense}
+                    editLabel={t.common.edit}
+                    doneLabel={t.common.done}
+                    removeLabel={t.captures.delete}
+                    amountLabel={t.captures.amount}
+                    noteLabel={t.captures.description}
+                    notePlaceholder={t.captures.descriptionPlaceholder}
+                    theme={theme}
+                  />
+                </View>
               ))}
+            </Card>
 
-              {/* Speak again and append — another expense (or several) onto the
-                  batch, keeping the ones already here and the chosen destination.
-                  An outlined pill (Mobbin: Rocket Money "+ Add Split", Splitwise
-                  "Add item") reads as a clear add affordance, not a plain link. */}
+            {/* Speak again and append — another expense (or several) onto the
+                batch, keeping the ones already here and the chosen destination.
+                The one and only "add another"; the header carries no rival mic. */}
+            <Pressable
+              onPress={startAddMore}
+              accessibilityRole="button"
+              accessibilityLabel={t.voice.addMore}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: theme.spacing.xs,
+                paddingVertical: theme.spacing.md,
+                borderRadius: theme.radius.lg,
+                borderWidth: 1,
+                borderColor: theme.color.brand,
+                borderStyle: 'dashed',
+                backgroundColor: theme.color.brandSoft,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Ionicons name="mic-outline" size={iconSize.md} color={theme.color.brand} />
+              <Text variant="caption" style={{ color: theme.color.brand, fontWeight: '600' }}>
+                {t.voice.addMore}
+              </Text>
+            </Pressable>
+
+            {/* One opinionated destination row: "Save to <where>" with a single
+                Change. No chips, no badges, no tabs out here — the taxonomy of
+                groups and people only appears once the reader taps Change and the
+                picker sheet opens. The answer to "where does this go?" is one
+                line, not a wall. */}
+            <Card padded={false} style={{ overflow: 'hidden' }}>
               <Pressable
-                onPress={startAddMore}
+                onPress={() => setPickerOpen(true)}
                 accessibilityRole="button"
-                accessibilityLabel={t.voice.addMore}
+                accessibilityLabel={`${t.voice.saveTo}: ${current.label}. ${t.voice.change}`}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: theme.spacing.xs,
+                  gap: theme.spacing.md,
                   paddingVertical: theme.spacing.md,
-                  borderRadius: theme.radius.lg,
-                  borderWidth: 1,
-                  borderColor: theme.color.brand,
-                  borderStyle: 'dashed',
-                  backgroundColor: theme.color.brandSoft,
+                  paddingHorizontal: theme.spacing.lg,
                   opacity: pressed ? 0.6 : 1,
                 })}
               >
-                <Ionicons name="mic-outline" size={iconSize.md} color={theme.color.brand} />
-                <Text variant="caption" style={{ color: theme.color.brand, fontWeight: '600' }}>
-                  {t.voice.addMore}
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* "Save to": the label, the one-tap tags directly beneath it, then the
-                folded picker trigger below the tags. Trip and person chips are
-                shaped and tinted apart, so a glance tells them apart. */}
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-                {t.voice.saveTo.toUpperCase()}
-              </Text>
-
-              {quickTrips.length > 0 || quickPeople.length > 0 ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ gap: theme.spacing.sm, paddingRight: theme.spacing.xl }}
-                >
-                  {quickTrips.map(({ group }) => (
-                    <QuickChip
-                      key={`trip-${group.id}`}
-                      kind="trip"
-                      label={groupLabel(group)}
-                      emoji={group.cover_emoji}
-                      icon={GROUP_TYPE_ICON[group.type] ?? 'people-outline'}
-                      selected={dest.kind === 'existing' && dest.groupId === group.id}
-                      onPress={() => chooseExistingDest(group.id)}
-                      theme={theme}
-                    />
-                  ))}
-                  {quickPeople.map((person) => (
-                    <QuickChip
-                      key={`person-${person.groupId}`}
-                      kind="person"
-                      label={person.name}
-                      selected={dest.kind === 'existing' && dest.groupId === person.groupId}
-                      onPress={() => chooseExistingDest(person.groupId)}
-                      theme={theme}
-                    />
-                  ))}
-                </ScrollView>
-              ) : null}
-
-              {/* The full destination list folded to one row — tapping opens the
-                  picker as a sheet. Sits below the tags. */}
-              <Card padded={false} style={{ overflow: 'hidden' }}>
-                <Pressable
-                  onPress={() => setPickerOpen(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t.voice.saveTo}: ${current.label}`}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
                     alignItems: 'center',
-                    gap: theme.spacing.md,
-                    paddingVertical: theme.spacing.md,
-                    paddingHorizontal: theme.spacing.lg,
-                    opacity: pressed ? 0.6 : 1,
-                  })}
+                    justifyContent: 'center',
+                    backgroundColor: theme.color.buttonPrimary,
+                  }}
                 >
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: theme.color.buttonPrimary,
-                    }}
-                  >
-                    {current.emoji ? (
-                      <Text style={{ fontSize: 18 }}>{current.emoji}</Text>
-                    ) : (
-                      <Ionicons
-                        name={current.icon}
-                        size={iconSize.md}
-                        color={theme.color.onBrand}
-                      />
-                    )}
-                  </View>
-                  <Text numberOfLines={1} style={{ flex: 1, color: theme.color.text }}>
+                  {current.emoji ? (
+                    <Text style={{ fontSize: 18 }}>{current.emoji}</Text>
+                  ) : (
+                    <Ionicons name={current.icon} size={iconSize.md} color={theme.color.onBrand} />
+                  )}
+                </View>
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text variant="micro" tone="faint" style={{ letterSpacing: 0.6 }}>
+                    {t.voice.saveTo.toUpperCase()}
+                  </Text>
+                  <Text numberOfLines={1} style={{ color: theme.color.text, fontWeight: '600' }}>
                     {current.label}
                   </Text>
-                  <Ionicons name="chevron-down" size={iconSize.md} color={theme.color.textMuted} />
-                </Pressable>
-              </Card>
-            </View>
+                </View>
+                <Text variant="caption" style={{ color: theme.color.brand, fontWeight: '600' }}>
+                  {t.voice.change}
+                </Text>
+              </Pressable>
+            </Card>
 
-            {/* One place for the whole batch (A43) — opt-in, never a background
-                track. It rides onto every expense saved from this review. */}
-            <LocationField value={location} onChange={handleLocationChange} busy={locating} />
+            {/* One place for the whole batch (A43) — strictly opt-in, read only
+                when the reader taps it, never in the background. It rides onto
+                every expense saved from this review. */}
+            <LocationField value={location} onChange={setLocation} />
           </View>
         ) : (
           // Listening — the mic panel owns the whole capture surface, the miss
@@ -1044,17 +864,15 @@ export default function VoiceScreen() {
             backgroundColor: theme.color.surface,
           }}
         >
-          <View style={{ gap: 2 }}>
-            {/* Count + a green check when every row is savable (Mobbin: Airwallex
-                "Difference 0.00 ✓", PayPal "all covered"), over the running total. */}
-            <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+          {/* Quiet running total on the left — the count when a mixed-currency
+              batch has no single sum. No check, no ledger flourish; the Save
+              button is the confirmation. */}
+          <View style={{ gap: 1 }}>
+            {drafts.length > 1 ? (
               <Text variant="micro" tone="muted">
                 {plural(locale, drafts.length, t.voice.count)}
               </Text>
-              {canSave ? (
-                <Ionicons name="checkmark-circle" size={iconSize.sm} color={theme.color.positive} />
-              ) : null}
-            </Row>
+            ) : null}
             {singleTotal ? (
               <MoneyText
                 amount={singleTotal[1]}
@@ -1064,7 +882,7 @@ export default function VoiceScreen() {
                 variant="subheading"
               />
             ) : (
-              <Text variant="subheading">{plural(locale, drafts.length, t.voice.save)}</Text>
+              <Text variant="subheading">{plural(locale, drafts.length, t.voice.count)}</Text>
             )}
           </View>
           <Button label={saveLabel} onPress={() => void save()} disabled={!canSave} />
@@ -1138,8 +956,6 @@ export default function VoiceScreen() {
                 }}
                 people={peopleChoices}
                 groups={groupRows}
-                usage={usage}
-                nowMs={nowMs}
                 t={t}
                 theme={theme}
               />
@@ -1179,86 +995,6 @@ function describeDest(
   };
 }
 
-/**
- * A one-tap destination chip on the review — deliberately different for a trip
- * and a person so a glance tells them apart. A trip reads as a place: a
- * violet-tinted rounded card wearing the group's own cover emoji (or a type
- * glyph). A person reads as a contact: a cooler pill led by a round avatar mark.
- * Shape, leading mark and tint all differ, not just the label.
- */
-function QuickChip({
-  kind,
-  label,
-  emoji,
-  icon,
-  selected,
-  onPress,
-  theme,
-}: {
-  kind: 'trip' | 'person';
-  label: string;
-  emoji?: string | null;
-  icon?: React.ComponentProps<typeof Ionicons>['name'];
-  selected: boolean;
-  onPress: () => void;
-  theme: ReturnType<typeof useTheme>;
-}) {
-  const isPerson = kind === 'person';
-  const restFill = isPerson ? theme.color.surfaceMuted : theme.color.brandSoft;
-  const restInk = isPerson ? theme.color.text : theme.color.brand;
-  const fill = selected ? (isPerson ? theme.color.buttonPrimary : theme.color.brand) : restFill;
-  const ink = selected ? (isPerson ? theme.color.onButtonPrimary : theme.color.onBrand) : restInk;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.xs,
-        height: 40,
-        paddingLeft: isPerson ? 4 : theme.spacing.md,
-        paddingRight: theme.spacing.md,
-        borderRadius: isPerson ? theme.radius.pill : theme.radius.lg,
-        backgroundColor: fill,
-        opacity: pressed ? 0.75 : 1,
-      })}
-    >
-      {isPerson ? (
-        <View
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: selected ? theme.color.onButtonPrimary : theme.color.surface,
-          }}
-        >
-          <Ionicons
-            name="person"
-            size={iconSize.sm}
-            color={selected ? theme.color.buttonPrimary : theme.color.textMuted}
-          />
-        </View>
-      ) : emoji ? (
-        <Text style={{ fontSize: 16 }}>{emoji}</Text>
-      ) : (
-        <Ionicons name={icon ?? 'people-outline'} size={iconSize.sm} color={ink} />
-      )}
-      <Text
-        variant="caption"
-        numberOfLines={1}
-        style={{ color: ink, fontWeight: '600', maxWidth: 150 }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 /** One Ionicon per group type, the fallback when a group has no cover emoji —
  * echoing the new-group picker and the dashboard's category glyphs. */
 const GROUP_TYPE_ICON: Record<GroupType, React.ComponentProps<typeof Ionicons>['name']> = {
@@ -1270,39 +1006,6 @@ const GROUP_TYPE_ICON: Record<GroupType, React.ComponentProps<typeof Ionicons>['
   [GroupType.Other]: 'people-outline',
 };
 
-/** How long after creation a destination wears the "New" badge — matched to the
- *  dashboard's own new-group window so "new" means the same thing everywhere. */
-const NEW_WINDOW_MS = 48 * 60 * 60 * 1000;
-/** Used within this window → "Recent". */
-const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-/** This many expenses or more → "Frequent". */
-const FREQUENT_MIN_COUNT = 5;
-
-type RowBadge = { label: string; tone: 'brand' | 'neutral' | 'positive' };
-
-/**
- * The single most useful badge for a destination row, or none. "New" (made in
- * the last two days) outranks "Frequent" (five or more expenses), which outranks
- * "Recent" (used in the last week) — one badge per row, never a row of them, and
- * nothing at all on a destination that is none of the three.
- */
-function destinationBadge(
-  args: { createdAt?: string | null; usage?: DestinationUsage; nowMs: number },
-  t: ReturnType<typeof useStrings>['t'],
-): RowBadge | null {
-  const { createdAt, usage, nowMs } = args;
-  if (createdAt && nowMs - Date.parse(createdAt) < NEW_WINDOW_MS) {
-    return { label: t.voice.badgeNew, tone: 'brand' };
-  }
-  if (usage && usage.count >= FREQUENT_MIN_COUNT) {
-    return { label: t.voice.badgeFrequent, tone: 'positive' };
-  }
-  if (usage?.lastAt && nowMs - Date.parse(usage.lastAt) < RECENT_WINDOW_MS) {
-    return { label: t.voice.badgeRecent, tone: 'neutral' };
-  }
-  return null;
-}
-
 type PickerRow = {
   key: string;
   label: string;
@@ -1311,16 +1014,15 @@ type PickerRow = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   emoji?: string | null;
   selected: boolean;
-  badge?: RowBadge | null;
   onPress: () => void;
 };
 
 /**
  * The one choice a Save needs: where the expenses land. Split into two tabs —
  * Groups and People — under a pinned "Unassigned" default, because a flat list of
- * groups then people grew long enough to bury one under the other. Each row can
- * carry a single badge (new, frequent, or recent) so the destination you actually
- * reach for is easy to spot. The selected row carries a check.
+ * groups then people grew long enough to bury one under the other. No recency or
+ * frequency badges: they made the reader read the row twice; the plain name is the
+ * signal. The selected row carries a check.
  */
 function DestinationPicker({
   dest,
@@ -1329,8 +1031,6 @@ function DestinationPicker({
   onAddPerson,
   people,
   groups,
-  usage,
-  nowMs,
   t,
   theme,
 }: {
@@ -1340,8 +1040,6 @@ function DestinationPicker({
   onAddPerson: (name: string) => void;
   people: PersonChoice[];
   groups: GroupRow[];
-  usage: Map<string, DestinationUsage>;
-  nowMs: number;
   t: ReturnType<typeof useStrings>['t'];
   theme: ReturnType<typeof useTheme>;
 }) {
@@ -1374,14 +1072,12 @@ function DestinationPicker({
   const groupRows: PickerRow[] = [];
   // Driven by the persisted request, not the current destination, so the "new
   // group" row stays offered after the reader switches to the inbox or a group.
-  // It is brand new by definition, so it always wears the "New" badge.
   if (requested) {
     groupRows.push({
       key: 'create',
       label: t.voice.newGroupNamed.replace('{name}', requested.name),
       icon: 'add-circle-outline',
       selected: dest.kind === 'create',
-      badge: { label: t.voice.badgeNew, tone: 'brand' },
       onPress: () => onChoose({ kind: 'create', ...requested }),
     });
   }
@@ -1410,25 +1106,18 @@ function DestinationPicker({
       icon: GROUP_TYPE_ICON[group.type] ?? 'people-outline',
       emoji: group.cover_emoji,
       selected: dest.kind === 'existing' && dest.groupId === group.id,
-      badge: destinationBadge(
-        { createdAt: group.created_at, usage: usage.get(group.id), nowMs },
-        t,
-      ),
       onPress: () => onChoose({ kind: 'existing', groupId: group.id }),
     });
   }
 
   // People: existing friends by name, each reusing their 1:1 group. A person the
   // reader has just added by name (a `person` dest, no group yet) rides at the
-  // top as the selected row so the choice reads back. People carry only the
-  // usage-driven badges (recent/frequent) — a person's 1:1 group has no creation
-  // date to hand here, so "new" is a groups-only signal.
+  // top as the selected row so the choice reads back.
   const peopleRows: PickerRow[] = people.map((person) => ({
     key: `person-${person.groupId}`,
     label: person.name,
     icon: 'person-outline',
     selected: dest.kind === 'existing' && dest.groupId === person.groupId,
-    badge: destinationBadge({ usage: usage.get(person.groupId), nowMs }, t),
     onPress: () => onChoose({ kind: 'existing', groupId: person.groupId }),
   }));
   if (dest.kind === 'person') {
@@ -1437,7 +1126,6 @@ function DestinationPicker({
       label: dest.name,
       icon: 'person-outline',
       selected: true,
-      badge: { label: t.voice.badgeNew, tone: 'brand' },
       onPress: () => {},
     });
   }
@@ -1487,7 +1175,6 @@ function DestinationPicker({
         >
           {row.label}
         </Text>
-        {row.badge ? <Badge label={row.badge.label} tone={row.badge.tone} /> : null}
         <Ionicons
           name={row.selected ? 'checkmark-circle' : 'ellipse-outline'}
           size={iconSize.md}
@@ -1586,13 +1273,26 @@ function DestinationPicker({
   );
 }
 
-/** One editable expense as its own card: an amount, a note, and a way to drop it. */
+/**
+ * One heard expense as a confirmation line, not an edit form. Closed, it reads
+ * as a quiet row: what we heard on the left, the amount on the right, the way a
+ * receipt lists a charge — a faint pencil the only hint it can be opened. Tapping
+ * it (or its pencil) opens the amount and note to correct, and Done closes it
+ * back to a line. Inline note dictation is gone: the whole screen is already
+ * voice; a mic in every row was clutter doing an unclear job.
+ *
+ * No card of its own — the review stacks these inside one grouped card, divided
+ * by hairlines, so several spoken expenses read as one list rather than a tower
+ * of mini-forms.
+ */
 function DraftRow({
   draft,
   currency,
   onEdit,
   onRemove,
-  hints,
+  fallbackNote,
+  editLabel,
+  doneLabel,
   removeLabel,
   amountLabel,
   noteLabel,
@@ -1605,23 +1305,72 @@ function DraftRow({
   currency: string;
   onEdit: (key: string, patch: Partial<Draft>) => void;
   onRemove: (key: string) => void;
-  /** Names to bias the recogniser towards (group names) for inline dictation. */
-  hints?: readonly string[];
+  /** Shown as the row's title when the spoken note came back empty. */
+  fallbackNote: string;
+  editLabel: string;
+  doneLabel: string;
   removeLabel: string;
   amountLabel: string;
   noteLabel: string;
   notePlaceholder: string;
   theme: ReturnType<typeof useTheme>;
 }) {
-  // Its own card (Mobbin: Airwallex line items). The amount is the hero — a big
-  // editable field led by the `sky` tile the Activity feed gives an added
-  // expense, with the currency as a chip on the right and a quiet remove. A
-  // hairline separates it from the note line, which carries its own dictation
-  // mic. Review and the feed still read as one family; the frame is just roomier
-  // so an editable amount and note are easy to hit.
+  // Closed by default: you land on a confirmation, and only open a row if the
+  // parser got something wrong. A fresh parse remounts every row (new keys), so
+  // this resets to closed for each new batch.
+  const [editing, setEditing] = useState(false);
   const tile = theme.tint.sky;
+  const title = draft.note.trim() || fallbackNote;
+  const amountText = draft.amount.trim();
+
+  if (!editing) {
+    return (
+      <Pressable
+        onPress={() => setEditing(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${amountText} ${currency}. ${editLabel}`}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: theme.radius.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: tile.bg,
+          }}
+        >
+          <Ionicons name="receipt-outline" size={iconSize.md} color={tile.ink} />
+        </View>
+        <Text numberOfLines={1} style={{ flex: 1, color: theme.color.text }}>
+          {title}
+        </Text>
+        <Text style={{ fontWeight: '700', color: theme.color.text }}>
+          {amountText ? `${amountText} ${currency}` : currency}
+        </Text>
+        <Ionicons name="pencil" size={iconSize.sm} color={theme.color.textFaint} />
+      </Pressable>
+    );
+  }
+
+  // Opened for a correction: the amount is the one field worth making big, with
+  // the currency as a chip and the note beneath. Done folds it back to a line.
   return (
-    <Card style={{ gap: theme.spacing.sm }}>
+    <View
+      style={{
+        gap: theme.spacing.sm,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+      }}
+    >
       <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
         <View
           style={{
@@ -1640,6 +1389,7 @@ function DraftRow({
           onChangeText={(value) => onEdit(draft.key, { amount: value })}
           keyboardType="decimal-pad"
           accessibilityLabel={amountLabel}
+          autoFocus
           style={{
             flex: 1,
             fontSize: 26,
@@ -1679,16 +1429,18 @@ function DraftRow({
           accessibilityLabel={noteLabel}
           style={{ flex: 1, fontSize: 15, color: theme.color.text, paddingVertical: 0 }}
         />
-        {/* The same inline dictation as the Add-Expense description field: the
-            mic lives on the note itself and the spoken words are merged straight
-            into it — no full-screen capture, no parsing, leaving the amount and
-            every other row untouched. */}
-        <DictateButton
-          value={draft.note}
-          onChange={(next) => onEdit(draft.key, { note: next })}
-          hints={hints}
-        />
+        <Pressable
+          onPress={() => setEditing(false)}
+          accessibilityRole="button"
+          accessibilityLabel={doneLabel}
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Text variant="caption" style={{ color: theme.color.brand, fontWeight: '600' }}>
+            {doneLabel}
+          </Text>
+        </Pressable>
       </Row>
-    </Card>
+    </View>
   );
 }
