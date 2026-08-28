@@ -48,7 +48,7 @@ import { InboxSkeleton } from '@/components/Skeletons';
 import { dayHeading } from '@/data/activity';
 import { useCaptures, useDeleteCapture, useGroups, useHomeSummary } from '@/data/hooks';
 import { groupLabel, type CaptureRow, type GroupRow } from '@/data/types';
-import { plural, useStrings, type UiStrings } from '@/i18n';
+import { fill, plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { assignCaptureHref } from '@/lib/captureAssign';
 import { foldedCaptureCount } from '@/lib/captureBatch';
@@ -65,6 +65,46 @@ const AMOUNT_COLUMN = 76;
  */
 type CaptureMenu =
   { kind: 'capture'; capture: CaptureRow } | { kind: 'batch'; items: CaptureRow[] } | null;
+
+/**
+ * The pill on a row's second line that names its one action: "Add to a group"
+ * when the capture is loose, or "Add to Goa Trip" when it was pre-aimed at one.
+ * Brand-soft and filled when aimed (a real destination to confirm), a quiet
+ * dashed outline when still open — so a labelled affordance replaces the old
+ * invisible "the whole card is secretly tappable". The chip is a label, not its
+ * own button: the card's tap is what assigns.
+ */
+function AssignChip({ label, aimed }: { label: string; aimed: boolean }): React.JSX.Element {
+  const theme = useTheme();
+  const ink = aimed ? theme.color.brand : theme.color.textMuted;
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        paddingVertical: 3,
+        paddingLeft: 6,
+        paddingRight: 9,
+        borderRadius: theme.radius.pill,
+        backgroundColor: aimed ? theme.color.brandSoft : theme.color.surfaceMuted,
+        borderWidth: aimed ? 0 : 1,
+        borderColor: theme.color.border,
+        borderStyle: 'dashed',
+        flexShrink: 1,
+      }}
+    >
+      <Ionicons name="add" size={13} color={ink} />
+      <Text
+        variant="micro"
+        numberOfLines={1}
+        style={{ color: ink, fontWeight: '600', flexShrink: 1 }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
 
 /**
  * One capture, in the card grammar this screen now speaks (Mobbin: Phantom
@@ -88,6 +128,7 @@ function CaptureListRow({
   t,
   onAssign,
   onMore,
+  targetGroupName = null,
   hideLocation = false,
   bare = false,
 }: {
@@ -97,6 +138,10 @@ function CaptureListRow({
   onAssign: () => void;
   /** Open the row's overflow sheet (add to group, edit, delete). */
   onMore: () => void;
+  /** The group this capture was tagged for, resolved to its display name — so the
+   *  assign chip reads "Add to Goa Trip". Null when it was not pre-aimed (or the
+   *  aimed group is one the viewer can no longer assign into). */
+  targetGroupName?: string | null;
   /** Inside a batch the description IS the line that matters, so the place is
    *  suppressed there — the batch stands for one outing, one location. */
   hideLocation?: boolean;
@@ -146,18 +191,29 @@ function CaptureListRow({
           size={46}
         />
 
-        <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
           <Text variant="subheading" numberOfLines={1}>
             {title}
           </Text>
-          {/* The day is already the section heading, so a per-row date only
-              repeats it. The second line earns its place instead: where the spend
-              happened, or a note if there is one — and nothing at all when there
-              is neither. The unsynced cloud rides here when the row is queued. */}
-          {subtitle || capture.pending ? (
-            <Row style={{ gap: theme.spacing.xs, alignItems: 'center', marginTop: 2 }}>
+          {/* Line two spells the one thing you do with a capture — add it to a
+              group — and names the group when the capture was pre-aimed at one, so
+              the action is labelled rather than hidden in the card's tap. The
+              place and the unsynced mark trail it, muted. Inside a batch the chip
+              is dropped: the batch's own line already says how its items assign. */}
+          {!bare || subtitle || capture.pending ? (
+            <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+              {!bare ? (
+                <AssignChip
+                  label={
+                    targetGroupName
+                      ? fill(t.captures.addTo, { name: targetGroupName })
+                      : t.captures.assign
+                  }
+                  aimed={Boolean(targetGroupName)}
+                />
+              ) : null}
               {locationName ? (
-                <Ionicons name="location-outline" size={13} color={theme.color.textMuted} />
+                <Ionicons name="location-outline" size={13} color={theme.color.textFaint} />
               ) : null}
               {subtitle ? (
                 <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
@@ -621,24 +677,43 @@ export default function CapturesScreen() {
               onMoreBatch={() => openBatchMenu(item.items)}
             />
           );
-        case 'single':
+        case 'single': {
+          const capture = item.capture;
+          // The group this capture was pre-aimed at, if it is still one the viewer
+          // can assign into — the chip names it and the tap goes straight there.
+          const targetGroup = capture.target_group_id
+            ? (assignableGroups.find((group) => group.id === capture.target_group_id) ?? null)
+            : null;
+          const targetGroupName = targetGroup
+            ? groupLabel(targetGroup, summary.membersFor(targetGroup.id), profile?.id)
+            : null;
           return (
             <CaptureListRow
-              capture={item.capture}
+              capture={capture}
               locale={locale}
               t={t}
-              onAssign={() => openAssign(item.capture)}
-              onMore={() => openCaptureMenu(item.capture)}
+              targetGroupName={targetGroupName}
+              // A pre-aimed capture skips the picker — the chip said where it is
+              // going, so tapping should not ask again; a loose one opens it.
+              onAssign={
+                targetGroup ? () => assignTo(capture, targetGroup) : () => openAssign(capture)
+              }
+              onMore={() => openCaptureMenu(capture)}
             />
           );
+        }
       }
     },
     [
+      assignTo,
+      assignableGroups,
       locale,
       openAssign,
       openBatchIds,
       openBatchMenu,
       openCaptureMenu,
+      profile?.id,
+      summary,
       t,
       theme.spacing.md,
       theme.spacing.xs,

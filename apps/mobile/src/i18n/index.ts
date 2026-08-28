@@ -1290,6 +1290,8 @@ export interface UiStrings {
     deleteBatch: string;
     deleteBatchConfirm: PluralForms;
     assign: string;
+    /** Chip label on a pre-aimed row: "Add to {name}" (the group it was tagged for). */
+    addTo: string;
     assignTitle: string;
     assignBody: string;
     assignSearch: string;
@@ -3318,6 +3320,7 @@ const en: UiStrings = {
       other: 'Delete all {n} expenses in this batch?',
     },
     assign: 'Add to group',
+    addTo: 'Add to {name}',
     assignTitle: 'Add to a group',
     assignBody: 'Choose where to add this expense.',
     assignSearch: 'Search groups',
@@ -5375,6 +5378,7 @@ const ta: UiStrings = {
       other: 'இந்த தொகுப்பில் உள்ள {n} செலவுகளையும் நீக்கவா?',
     },
     assign: 'குழுவில் சேர்',
+    addTo: '{name} இல் சேர்',
     assignTitle: 'ஒரு குழுவில் சேர்க்கவும்',
     assignBody: 'இந்தச் செலவை எங்கே சேர்ப்பது எனத் தேர்ந்தெடுங்கள்.',
     assignSearch: 'குழுக்களைத் தேடு',
@@ -7453,6 +7457,7 @@ const hi: UiStrings = {
     deleteBatch: 'ये खर्च हटाएँ',
     deleteBatchConfirm: { one: 'यह खर्च हटाएँ?', other: 'इस बैच के सभी {n} खर्च हटाएँ?' },
     assign: 'समूह में जोड़ें',
+    addTo: '{name} में जोड़ें',
     assignTitle: 'किसी समूह में जोड़ें',
     assignBody: 'चुनें कि यह खर्च कहाँ जोड़ना है।',
     assignSearch: 'समूह खोजें',
@@ -9528,6 +9533,7 @@ const ar: UiStrings = {
       other: 'حذف كل المصاريف الـ {n} في هذه المجموعة؟',
     },
     assign: 'أضِف إلى مجموعة',
+    addTo: 'أضِف إلى {name}',
     assignTitle: 'أضِف إلى مجموعة',
     assignBody: 'اختر أين تضيف هذا المصروف.',
     assignSearch: 'ابحث عن المجموعات',
