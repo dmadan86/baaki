@@ -22,6 +22,7 @@ import { router } from 'expo-router';
 import {
   ActivityIndicator,
   BackHandler,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -56,6 +57,7 @@ import { useKnownPeopleCount, usePeopleBalances } from '@/data/hooks';
 import { useAuth } from '@/lib/auth';
 import { PressableScale } from '@/lib/anim';
 import { useReducedMotion } from '@/lib/reducedMotion';
+import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { PeopleSkeleton } from '@/components/Skeletons';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -979,6 +981,11 @@ const PersonRow = memo(function PersonRow({
   const selectable = person.is_ghost;
 
   const entries = person.entries;
+  // A member's profile photo, resolved from the private bucket path to a signed
+  // URL the avatar can show. Suppressed for a blocked person — their identity is
+  // hidden behind the ghost name and face, so a photo must not leak it. The
+  // `avatar_url` is the same across a person's rows, so the first carries it.
+  const photoUrl = useAvatarUrl(blocked ? null : (entries[0]?.avatar_url ?? null));
   // The common case: a person with a single balance. It carries the direction,
   // the group scope and the action; a multi-currency person leans on the stacked
   // amounts instead.
@@ -1065,7 +1072,12 @@ const PersonRow = memo(function PersonRow({
         />
       ) : null}
       <View>
-        <PersonAvatar name={shownName} size={44} ghost={person.is_ghost || blocked} />
+        <PersonAvatar
+          name={shownName}
+          size={44}
+          ghost={person.is_ghost || blocked}
+          photoUrl={photoUrl}
+        />
         {/* The "seen twice" mark — a small merge glyph on the avatar corner, so
             a duplicate the strip counted can also be spotted in the list itself. */}
         {duplicate && !selectMode ? (
@@ -1176,10 +1188,11 @@ const PersonRow = memo(function PersonRow({
 /**
  * The vivid avatar disc — a saturated fill keyed off the person's
  * stable tint, with white initials, the pop the Monzo / Mesh / Satispay people
- * lists get from colour. A guest (a ghost, ADR-006) stays deliberately quieter —
- * the soft pastel with a dashed ring — so "not joined yet" still reads apart from
- * a full member at a glance. The colour is the person's own stable tint, so it
- * matches them everywhere else in the app.
+ * lists get from colour. A member's profile photo, once resolved to a signed
+ * URL, fills the disc instead. A guest (a ghost, ADR-006) stays deliberately
+ * quieter — the soft pastel with a dashed ring — so "not joined yet" still reads
+ * apart from a full member at a glance. The colour is the person's own stable
+ * tint, so it matches them everywhere else in the app.
  *
  * A flat saturated fill, deliberately — not a per-row native gradient. This disc
  * is drawn once for every visible row of a virtualized list, and a native
@@ -1190,13 +1203,27 @@ function PersonAvatar({
   name,
   size,
   ghost,
+  photoUrl,
 }: {
   name: string;
   size: number;
   ghost: boolean;
+  /** A resolved, displayable URL (the caller signs the private bucket path). */
+  photoUrl?: string | null;
 }): React.JSX.Element {
   const theme = useTheme();
   const pair = theme.tint[tintForKey(name)];
+
+  if (photoUrl) {
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        resizeMode="cover"
+        accessibilityLabel={name}
+      />
+    );
+  }
 
   if (ghost) {
     return (
@@ -1288,7 +1315,11 @@ function RowAction({
 function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | null {
   const theme = useTheme();
   const { t } = useStrings();
-  const [note, setNote] = useState<string | null>(null);
+  // The outcome, once nudged — a verdict, not a sentence. It shows as a single
+  // glyph so it fits the row's fixed action slot; the full phrase (which is a
+  // whole sentence in the error case) rides the accessibility label rather than
+  // wrapping or clipping inside 34px.
+  const [outcome, setOutcome] = useState<{ ok: boolean; label: string } | null>(null);
 
   const nudge = useMutation({
     mutationFn: () =>
@@ -1297,20 +1328,29 @@ function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | n
         toMemberId: row.member_id,
         currency: row.currency,
       }),
-    onSuccess: () => setNote(t.people.reminded),
+    onSuccess: () => setOutcome({ ok: true, label: t.people.reminded }),
     onError: (error) => {
       const message = error instanceof Error ? error.message : String(error);
       // A backend message is neither translated nor meant for the person being
-      // nudged. The limit case is the one that has something true to say.
-      setNote(message.includes('NUDGE_RATE_LIMIT') ? t.people.remindedToday : t.loadError);
+      // nudged. The limit case already went, so it reads as done, not an error.
+      const limited = message.includes('NUDGE_RATE_LIMIT');
+      setOutcome({ ok: limited, label: limited ? t.people.remindedToday : t.loadError });
     },
   });
 
-  if (note) {
+  if (outcome) {
     return (
-      <Text variant="micro" tone="muted">
-        {note}
-      </Text>
+      <View
+        accessible
+        accessibilityLabel={outcome.label}
+        style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Ionicons
+          name={outcome.ok ? 'checkmark-circle' : 'alert-circle-outline'}
+          size={iconSize.lg}
+          color={outcome.ok ? theme.color.positive : theme.color.negative}
+        />
+      </View>
     );
   }
   if (nudge.isPending) return <ActivityIndicator size="small" color={theme.color.brand} />;
