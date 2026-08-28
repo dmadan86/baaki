@@ -31,16 +31,25 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  cashflowTrend,
+  categoryBreakdown,
+  dayDelta,
   format,
   isRecurringDue,
   loanOutstanding,
   money,
   monthlySummary,
+  nextRecurring,
   personalBudgetProgress,
+  recentMonths,
+  resolveCategory,
   savingsRate,
+  worstOverBudget,
+  type MonthCashflow,
   type PersonalTxn,
 } from '@waves/core';
 import {
+  BarList,
   Card,
   directionalIcon,
   Divider,
@@ -51,6 +60,7 @@ import {
   Text,
   useScreenClearance,
   useTheme,
+  type BarDatum,
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
@@ -146,6 +156,42 @@ export default function MeScreen() {
   const fmt = (amount: bigint): string =>
     format(money(amount, dc), { locale, compactFraction: true });
 
+  // Where the month's money went — the biggest categories, each with its share,
+  // capped so the list stays a glance rather than a scroll.
+  const catLabel = labelForCategory(t);
+  const breakdownBars: BarDatum[] = categoryBreakdown(ledger.txns, month, dc)
+    .slice(0, 6)
+    .map((row) => ({
+      key: row.category ?? '__none',
+      label: catLabel(row.category) ?? t.categories.other,
+      value: row.spent,
+      formatted: `${fmt(row.spent)} · ${Math.round(row.share * 100)}%`,
+      tint: resolveCategory(row.category, null).tint,
+      leading: <CategoryBadge category={row.category} meta={null} size={26} />,
+    }));
+
+  // The soonest upcoming recurring item, previewed by name and when.
+  const upcoming = nextRecurring(ledger.recurrings, today);
+  const upcomingName = upcoming
+    ? upcoming.rule.note?.trim() || catLabel(upcoming.rule.category) || t.personal.recurring
+    : '';
+  const upcomingWhen = upcoming
+    ? whenLabel(dayDelta(today, upcoming.date), upcoming.date, locale, t)
+    : '';
+
+  // The single worst over-budget category, named — more useful than the count.
+  const worstOver = worstOverBudget(ledger.budgets, ledger.txns, month);
+  const overName = worstOver
+    ? worstOver.budget.category
+      ? (catLabel(worstOver.budget.category) ?? t.categories.other)
+      : t.personal.overall
+    : '';
+
+  // The last three months of cash flow, ending on the browsed month. Hidden
+  // until there is something in the window to draw.
+  const trend = cashflowTrend(ledger.txns, recentMonths(month, 3), dc);
+  const trendActive = trend.some((m) => m.income > 0n || m.expense > 0n);
+
   return (
     <Screen edges={[]}>
       <ScrollView
@@ -198,6 +244,60 @@ export default function MeScreen() {
               onPress={() => router.push('/personal/budgets')}
             />
           </Row>
+
+          {/* Two quiet contextual lines: what recurring item is next, and the
+              category that has run furthest past its cap this month. */}
+          {upcoming || worstOver ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              {upcoming ? (
+                <SignalRow
+                  icon="repeat"
+                  tone="brand"
+                  label={t.personal.upcoming}
+                  title={upcomingName}
+                  value={upcomingWhen}
+                  onPress={() => router.push('/personal/recurring')}
+                />
+              ) : null}
+              {worstOver ? (
+                <SignalRow
+                  icon="alert-circle-outline"
+                  tone="negative"
+                  label={t.personal.overBudget}
+                  title={overName}
+                  value={`+${fmt(worstOver.over)}`}
+                  onPress={() => router.push('/personal/budgets')}
+                />
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Where the money went — a ranked bar list of the month's categories. */}
+          {breakdownBars.length > 0 ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                {t.personal.whereMoneyWent.toUpperCase()}
+              </Text>
+              <Card>
+                <BarList
+                  data={breakdownBars}
+                  accessibilityLabelFor={(d) => `${d.label}, ${d.formatted}`}
+                />
+              </Card>
+            </View>
+          ) : null}
+
+          {/* Cash flow over the last three months — a small saved/spent trend. */}
+          {trendActive ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                {t.personal.last3Months.toUpperCase()}
+              </Text>
+              <Card>
+                <CashflowStrip trend={trend} currency={dc} locale={locale} />
+              </Card>
+            </View>
+          ) : null}
 
           {/* The month's entries, grouped by day like a statement. */}
           <View style={{ gap: theme.spacing.sm }}>
@@ -259,6 +359,14 @@ export default function MeScreen() {
               ))
             )}
           </View>
+
+          {/* A quiet reassurance: this ledger is the person's alone. */}
+          <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
+            <Ionicons name="lock-closed-outline" size={iconSize.xs} color={theme.color.textFaint} />
+            <Text variant="micro" tone="faint">
+              {t.personal.privateNote}
+            </Text>
+          </Row>
         </View>
       </ScrollView>
     </Screen>
@@ -292,6 +400,26 @@ function monthLabel(month: string, locale: string): string {
     );
   } catch {
     return month;
+  }
+}
+
+// When an upcoming item falls, in words: overdue / today / tomorrow, else the
+// short calendar date (Sep 3). `days` is signed days from today to the date.
+function whenLabel(
+  days: number,
+  date: string,
+  locale: string,
+  t: ReturnType<typeof useStrings>['t'],
+): string {
+  if (days < 0) return t.personal.overdue;
+  if (days === 0) return t.personal.today;
+  if (days === 1) return t.personal.tomorrow;
+  try {
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
+      new Date(`${date}T00:00:00`),
+    );
+  } catch {
+    return date;
   }
 }
 
@@ -805,6 +933,139 @@ function StatTile({
       </Card>
     </Pressable>
   );
+}
+
+/** A compact contextual line under the stat tiles: a tinted glyph, a small label
+ *  (Upcoming / Over budget), the thing it names, and a trailing value — tappable
+ *  through to the area it belongs to. Kept quiet, one row, never a card of its
+ *  own weight. */
+function SignalRow({
+  icon,
+  tone,
+  label,
+  title,
+  value,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  tone: 'brand' | 'negative';
+  label: string;
+  title: string;
+  value: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const accent = tone === 'negative' ? theme.color.negative : theme.color.brand;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${title}. ${value}`}
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <Card flat style={{ backgroundColor: theme.color.surfaceMuted }}>
+        <Row style={{ gap: theme.spacing.md }}>
+          <Ionicons name={icon} size={iconSize.md} color={accent} />
+          <View style={{ flex: 1 }}>
+            <Text variant="micro" tone="faint" numberOfLines={1}>
+              {label}
+            </Text>
+            <Text variant="body" numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
+          <Text variant="body" style={{ fontWeight: '700', color: accent }} numberOfLines={1}>
+            {value}
+          </Text>
+        </Row>
+      </Card>
+    </Pressable>
+  );
+}
+
+/** The last-three-months trend: one column per month, its height the size of the
+ *  month's net and its colour the verdict (kept when in the black, spent when in
+ *  the red), with the signed net and the month beneath. Heights scale to the
+ *  largest absolute net in the window so the three read against each other. */
+function CashflowStrip({
+  trend,
+  currency,
+  locale,
+}: {
+  trend: readonly MonthCashflow[];
+  currency: string;
+  locale: string;
+}) {
+  const theme = useTheme();
+  const abs = (n: bigint): bigint => (n < 0n ? -n : n);
+  const largest = trend.reduce((max, m) => (abs(m.net) > max ? abs(m.net) : max), 0n);
+  const barsHeight = 72;
+  const fmt = (amount: bigint): string =>
+    format(money(amount, currency), { locale, compactFraction: true });
+
+  return (
+    <View style={{ gap: theme.spacing.sm }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          gap: theme.spacing.md,
+          height: barsHeight,
+        }}
+      >
+        {trend.map((m) => {
+          const saved = m.net >= 0n;
+          const percent = largest > 0n ? Number((abs(m.net) * 100n) / largest) : 0;
+          return (
+            <View
+              key={m.month}
+              accessible
+              accessibilityLabel={`${monthShort(m.month, locale)}: ${saved ? '' : '−'}${fmt(abs(m.net))}`}
+              style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'center' }}
+            >
+              <View
+                style={{
+                  width: '100%',
+                  maxWidth: 44,
+                  height: Math.max((percent / 100) * barsHeight, abs(m.net) > 0n ? 4 : 0),
+                  borderRadius: theme.radius.sm,
+                  backgroundColor: saved ? theme.color.positive : theme.color.negative,
+                }}
+              />
+            </View>
+          );
+        })}
+      </View>
+      <Row style={{ gap: theme.spacing.md }}>
+        {trend.map((m) => (
+          <View key={m.month} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+            <Text
+              variant="micro"
+              numberOfLines={1}
+              style={{ color: m.net < 0n ? theme.color.negative : theme.color.text }}
+            >
+              {m.net < 0n ? '−' : ''}
+              {fmt(abs(m.net))}
+            </Text>
+            <Text variant="micro" tone="faint" numberOfLines={1}>
+              {monthShort(m.month, locale)}
+            </Text>
+          </View>
+        ))}
+      </Row>
+    </View>
+  );
+}
+
+// A month's short name (Sep) for the trend axis, timezone-safe.
+function monthShort(month: string, locale: string): string {
+  try {
+    return new Intl.DateTimeFormat(locale, { month: 'short' }).format(
+      new Date(`${month}-01T00:00:00`),
+    );
+  } catch {
+    return month;
+  }
 }
 
 interface Day {
