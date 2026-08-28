@@ -29,7 +29,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { dayHeading } from '@/data/activity';
+import { dayHeading, relativeTime } from '@/data/activity';
 import { useCaptures, useMarkNotificationsRead, useNotifications } from '@/data/hooks';
 import { groupNotificationsByDay } from '@/data/inbox';
 import { SkeletonList } from '@/components/Skeletons';
@@ -50,6 +50,22 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   expense_added: 'receipt-outline',
   ghost_claimed: 'person-add-outline',
   group_invite_accepted: 'person-add-outline',
+};
+
+// The tint each kind's tile leans in — the same soft rounded-square tile the
+// Activity feed uses (`verbTint`), so the two sibling screens read as one. A
+// kind this build has not tinted falls back to the neutral lilac.
+type TintKey = 'lilac' | 'pink' | 'mint' | 'peach' | 'sky' | 'coral';
+const TINTS: Record<string, TintKey> = {
+  settlement_confirmed: 'mint',
+  settlement_initiated: 'sky',
+  settlement_confirm_request: 'peach',
+  trip_nudge_morning: 'peach',
+  trip_nudge_evening: 'lilac',
+  nudge: 'coral',
+  expense_added: 'sky',
+  ghost_claimed: 'mint',
+  group_invite_accepted: 'mint',
 };
 
 function factsOf(row: NotificationRow): Record<string, string | undefined> {
@@ -82,6 +98,17 @@ export default function InboxScreen() {
 
   const rows = notifications.data ?? EMPTY_NOTIFICATIONS;
   const sections = useMemo(() => groupNotificationsByDay(rows), [rows]);
+
+  // One relative-time formatter for the whole list, rebuilt only on a locale
+  // change — the same allocation-saving pattern the Activity feed uses so a
+  // fast scroll never constructs an `Intl.RelativeTimeFormat` per row.
+  const rtf = useMemo(
+    () =>
+      typeof Intl.RelativeTimeFormat === 'function'
+        ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+        : undefined,
+    [locale],
+  );
 
   // The latest rows, held in a ref so the focus effect below reads a snapshot
   // without taking `rows` as a dependency (which would re-fire it on every
@@ -250,21 +277,30 @@ export default function InboxScreen() {
               tone="muted"
               style={{
                 textTransform: 'uppercase',
-                marginBottom: theme.spacing.xs,
-                paddingHorizontal: theme.spacing.sm,
+                marginTop: theme.spacing.lg,
+                marginBottom: theme.spacing.md,
+                backgroundColor: theme.color.bg,
               }}
             >
               {dayHeading(locale, section.first.created_at)}
             </Text>
           )}
-          SectionSeparatorComponent={() => <View style={{ height: theme.spacing.lg }} />}
-          ItemSeparatorComponent={() => <View style={{ height: theme.spacing.xs }} />}
+          ItemSeparatorComponent={() => (
+            <View style={{ height: 1, backgroundColor: theme.color.border }} />
+          )}
           renderItem={({ item: row }) => {
-            const { title, body } = renderNotification(row.kind, factsOf(row), locale, {
+            const facts = factsOf(row);
+            const { title, body } = renderNotification(row.kind, facts, locale, {
               title: row.title,
               body: row.body,
             });
             const unreadRow = row.read_at === null;
+            // The Activity feed's row, to the letter: a soft rounded-square tile
+            // whose tint leans with the kind, the sentence beside it, and a muted
+            // meta line (relative time · group). Read/unread is the one thing the
+            // feed does not carry, so it lives as a small brand dot on the right
+            // rather than a highlighted row — the list stays a clean feed.
+            const tint = theme.tint[TINTS[row.kind] ?? 'lilac'];
             return (
               <Pressable
                 accessibilityRole={row.group_id ? 'button' : undefined}
@@ -272,59 +308,78 @@ export default function InboxScreen() {
                 onPress={
                   row.group_id ? () => router.push(`/group/${row.group_id}` as never) : undefined
                 }
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.6 : 1,
-                  borderRadius: theme.radius.lg,
-                  backgroundColor: unreadRow ? theme.color.brandSoft : 'transparent',
-                  paddingHorizontal: theme.spacing.lg,
-                  paddingVertical: theme.spacing.sm,
-                })}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
               >
-                <Row style={{ gap: theme.spacing.md, alignItems: 'flex-start' }}>
+                <Row
+                  style={{
+                    gap: theme.spacing.md,
+                    alignItems: 'center',
+                    paddingVertical: theme.spacing.sm,
+                  }}
+                >
                   <View
                     style={{
                       width: 40,
                       height: 40,
-                      borderRadius: theme.radius.pill,
+                      borderRadius: theme.radius.md,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: theme.color.buttonPrimary,
+                      backgroundColor: tint.bg,
                     }}
                   >
                     <Ionicons
                       name={ICONS[row.kind] ?? 'notifications-outline'}
                       size={iconSize.lg}
-                      color={theme.color.onBrand}
+                      color={tint.ink}
                     />
                   </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text variant="subheading" numberOfLines={2}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body" numberOfLines={2}>
                       {title}
                     </Text>
-                    <Text variant="caption" tone="muted" numberOfLines={2}>
-                      {body}
-                    </Text>
-                  </View>
-                  {/* The clock lives on the right, the day is the heading's
-                      job — the row says when within the day, not which day. */}
-                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text variant="micro" tone="muted">
-                      {new Intl.DateTimeFormat(locale, {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      }).format(new Date(row.created_at))}
-                    </Text>
-                    {unreadRow ? (
-                      <View
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: theme.color.brand,
-                        }}
-                      />
+                    {body ? (
+                      <Text
+                        variant="caption"
+                        tone="muted"
+                        numberOfLines={2}
+                        style={{ marginTop: 2 }}
+                      >
+                        {body}
+                      </Text>
                     ) : null}
+                    <Row
+                      style={{
+                        gap: theme.spacing.sm,
+                        alignItems: 'center',
+                        marginTop: 2,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <Text variant="caption" tone="muted">
+                        {relativeTime(locale, row.created_at, undefined, rtf)}
+                      </Text>
+                      {facts.group ? (
+                        <Text
+                          variant="caption"
+                          tone="muted"
+                          numberOfLines={1}
+                          style={{ flexShrink: 1 }}
+                        >
+                          {`· ${facts.group}`}
+                        </Text>
+                      ) : null}
+                    </Row>
                   </View>
+                  {unreadRow ? (
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: theme.color.brand,
+                      }}
+                    />
+                  ) : null}
                 </Row>
               </Pressable>
             );
