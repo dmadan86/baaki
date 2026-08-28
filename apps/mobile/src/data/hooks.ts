@@ -170,6 +170,29 @@ export function useGroups(): LocalRead<GroupRow[]> {
 }
 
 /**
+ * Group ids that are a one-to-one: exactly two members still in them (you and
+ * one other). These are the groups the People tab represents as a contact, so a
+ * destination list can hide them to avoid listing the same conversation twice —
+ * while a real multi-person group stays visible even when it happens to be your
+ * only shared group with someone (a group is not a "person" just because you
+ * share no other group with them).
+ */
+export function useOneToOneGroupIds(): LocalRead<Set<string>> {
+  const { mirror, queue } = useSync();
+  const ids = useMemo(() => {
+    const set = new Set<string>();
+    for (const group of materialiseGroups(mirror, queue) as unknown as GroupRow[]) {
+      const members = (
+        materialiseMembers(mirror, queue, { groupId: group.id }) as unknown as MemberRow[]
+      ).filter((member) => member.left_at === null);
+      if (members.length === 2) set.add(group.id);
+    }
+    return set;
+  }, [mirror, queue]);
+  return useLocalRead(ids);
+}
+
+/**
  * The archived groups, read local-first like everything else (ADR-005). These
  * are the groups `useGroups` hides; the archived screen is their only way back
  * into view, and unarchiving one (an ordinary group.update clearing

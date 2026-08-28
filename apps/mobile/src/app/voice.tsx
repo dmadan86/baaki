@@ -55,6 +55,7 @@ import {
   useCreateGroup,
   useGroup,
   useGroups,
+  useOneToOneGroupIds,
   usePeopleBalances,
   useWriteExpense,
 } from '@/data/hooks';
@@ -66,6 +67,8 @@ import { aiEnabled, useAiAccess } from '@/lib/aiAccess';
 import { friendlyError } from '@/lib/errors';
 import { VoiceMicPanel } from '@/components/VoiceMicPanel';
 import { LocationField } from '@/components/LocationField';
+import { CategoryBadge } from '@/components/Category';
+import { captureLocation, locationAvailable } from '@/lib/location';
 import {
   parseVoiceExpenses,
   resolveVoiceParticipants,
@@ -161,10 +164,17 @@ export default function VoiceScreen() {
   // the ones explained by a single group (`only_group_id`) are their 1:1 group,
   // which the picker reuses. Computed from the mirror, so it works offline.
   const people = usePeopleBalances(profile?.id ?? null);
+  // Groups that are a true 1:1 (you + one other) — these are the People-tab
+  // contacts, and the only groups the Groups tab hides. A multi-person group is
+  // never treated as a person, even when it is your sole shared group with
+  // someone, so it always stays listed under Groups.
+  const oneToOne = useOneToOneGroupIds();
   const peopleChoices: PersonChoice[] = (() => {
     const byGroup = new Map<string, PersonChoice>();
     for (const row of people.data ?? []) {
-      if (!row.only_group_id) continue;
+      // A contact is a real 1:1 group, not merely the one group you happen to
+      // share with them — otherwise a whole trip would masquerade as a person.
+      if (!row.only_group_id || !oneToOne.data.has(row.only_group_id)) continue;
       // One entry per 1:1 group (a person has one row per currency); newest name
       // wins, which is fine — they share a display name.
       byGroup.set(row.only_group_id, {
@@ -187,11 +197,14 @@ export default function VoiceScreen() {
   const [voiceSplitCount, setVoiceSplitCount] = useState<number | null>(null);
   const [voiceExpenseDate, setVoiceExpenseDate] = useState<string | null>(null);
   // One place for the whole spoken batch — a run of "coffee, then the taxi" all
-  // happened where you are standing (A43). Strictly opt-in: null until the reader
-  // taps "Add location" on the review. Nothing is read in the background — a
-  // spoken expense is about money, not place, so the pin is only ever the
-  // reader's own deliberate tap (the roast's ask, and A43's stated intent).
+  // happened where you are standing (A43). The current place is read on its own
+  // when the review opens and pinned by default; the reader can still clear or
+  // move it. A spoken expense is nearly always logged on the spot, so filing it
+  // there without a tap is the point.
   const [location, setLocation] = useState<ExpenseLocation | null>(null);
+  // The up-front read of the current place is in flight — the field shows a
+  // "getting location" state rather than empty buttons while it lands.
+  const [locating, setLocating] = useState(false);
   const [dest, setDest] = useState<Dest>({ kind: 'unassigned' });
   // The destination folds into a single row that opens this sheet, so the
   // expenses — not a wall of group rows — are the first thing on the review.
@@ -220,6 +233,16 @@ export default function VoiceScreen() {
   // over navigation — so the leave-guard below stands aside instead of writing
   // the captures a second time.
   const committed = useRef(false);
+  // The review reads the current location once per batch and pins it. Latched so
+  // the read fires once (not on every render, and not again after the reader
+  // clears or moves the pin); reset when a fresh parse opens a new review.
+  const autoLocated = useRef(false);
+  // Guards the async read from clobbering a later truth. `locationGen` ticks once
+  // per parsed batch, so a fix arriving after a new utterance is dropped;
+  // `locationTouched` flips the moment the reader sets or clears the pin by hand,
+  // so an in-flight read never overrides their choice.
+  const locationGen = useRef(0);
+  const locationTouched = useRef(false);
   // One interpretation at a time. Bumped when a capture is sent to be read, and
   // again the moment the reader backs out of the 'thinking' phase — so a result
   // that lands after they have returned to the review (a cancelled append) is
@@ -267,9 +290,12 @@ export default function VoiceScreen() {
     setVoicePeopleText(result.peopleText);
     setVoiceSplitCount(result.splitCount);
     setVoiceExpenseDate(result.expenseDate);
-    // A fresh parse is a fresh group to create, and a cleared location pin.
+    // A fresh parse is a fresh group to create, and a fresh location to read.
     groupCreated.current = false;
     ghostMemberId.current = null;
+    autoLocated.current = false;
+    locationGen.current += 1;
+    locationTouched.current = false;
     setLocation(null);
     // Default the destination to what was heard: a new group to make, an
     // existing group named, else the capture inbox.
@@ -390,6 +416,13 @@ export default function VoiceScreen() {
       if (mode === 'append') appendResult(parsed);
       else applyResult(parsed);
     })();
+  };
+
+  // The reader set or cleared the pin by hand. Latch it so a still-pending
+  // auto-read cannot come back and overwrite their choice.
+  const handleLocationChange = (next: ExpenseLocation | null): void => {
+    locationTouched.current = true;
+    setLocation(next);
   };
 
   // "+ Add another" — reopen the mic to speak another expense (or several). The
@@ -522,6 +555,34 @@ export default function VoiceScreen() {
     t.voice.draftNeedsAmounts,
   ]);
 
+  // On opening the review, read the current location once and pin the batch to
+  // it — so the place is saved by default, no tap needed. It asks permission
+  // just-in-time; a refusal or an unavailable fix leaves the field on its manual
+  // "Add location" / "Pick on map" buttons rather than failing loudly. Never
+  // overrides a pin the reader has since set or cleared: the latch runs it
+  // exactly once per parsed batch.
+  useEffect(() => {
+    if (phase !== 'review' || autoLocated.current) return;
+    autoLocated.current = true;
+    if (!locationAvailable()) return;
+    const gen = locationGen.current;
+    void (async () => {
+      // Set inside the async body, not the effect body, so it does not read as a
+      // synchronous cascading setState (react-hooks/set-state-in-effect).
+      setLocating(true);
+      try {
+        const result = await captureLocation();
+        if (!result.ok) return;
+        // Drop a fix that lost its race: the reader has since set or cleared the
+        // pin by hand, or a fresh utterance moved on to a new batch.
+        if (locationGen.current !== gen || locationTouched.current) return;
+        setLocation(result.location);
+      } finally {
+        setLocating(false);
+      }
+    })();
+  }, [phase]);
+
   const save = async (): Promise<void> => {
     setError(null);
     setSaving(true);
@@ -634,6 +695,10 @@ export default function VoiceScreen() {
   const canSave =
     drafts.length > 0 &&
     !saving &&
+    // Hold Save while the location fix is still in flight, so an expense is not
+    // persisted with location === null a moment before the read would have filled
+    // it in. captureLocation races a short timeout, so this is a brief wait.
+    !locating &&
     drafts.every((draft) => toMinor(draft.amount, draft.currency ?? dc) !== null);
 
   // The footer total must read in the same currency the Save will persist, or
@@ -818,10 +883,10 @@ export default function VoiceScreen() {
               </Pressable>
             </Card>
 
-            {/* One place for the whole batch (A43) — strictly opt-in, read only
-                when the reader taps it, never in the background. It rides onto
-                every expense saved from this review. */}
-            <LocationField value={location} onChange={setLocation} />
+            {/* One place for the whole batch (A43) — read once when the review
+                opens and pinned by default; the reader can clear or move it. It
+                rides onto every expense saved from this review. */}
+            <LocationField value={location} onChange={handleLocationChange} busy={locating} />
           </View>
         ) : (
           // Listening — the mic panel owns the whole capture surface, the miss
@@ -1319,7 +1384,6 @@ function DraftRow({
   // parser got something wrong. A fresh parse remounts every row (new keys), so
   // this resets to closed for each new batch.
   const [editing, setEditing] = useState(false);
-  const tile = theme.tint.sky;
   const title = draft.note.trim() || fallbackNote;
   const amountText = draft.amount.trim();
 
@@ -1338,18 +1402,10 @@ function DraftRow({
           opacity: pressed ? 0.6 : 1,
         })}
       >
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: theme.radius.md,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: tile.bg,
-          }}
-        >
-          <Ionicons name="receipt-outline" size={iconSize.md} color={tile.ink} />
-        </View>
+        {/* The icon reads the description: a coffee cup for a chai, a car for the
+            cab — guessed from the note, tinted by its category, so the line is
+            recognisable at a glance instead of a row of identical receipts. */}
+        <CategoryBadge category={draft.category} description={draft.note} size={36} />
         <Text numberOfLines={1} style={{ flex: 1, color: theme.color.text }}>
           {title}
         </Text>
@@ -1372,18 +1428,7 @@ function DraftRow({
       }}
     >
       <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: theme.radius.md,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: tile.bg,
-          }}
-        >
-          <Ionicons name="receipt-outline" size={iconSize.lg} color={tile.ink} />
-        </View>
+        <CategoryBadge category={draft.category} description={draft.note} size={40} />
         <TextInput
           value={draft.amount}
           onChangeText={(value) => onEdit(draft.key, { amount: value })}
