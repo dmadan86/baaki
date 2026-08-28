@@ -1215,6 +1215,9 @@ export interface UiStrings {
     noMoreGuests: string;
     /** Contextual card on Friends when duplicate guests exist, inviting a merge. */
     hint: string;
+    /** Slim strip on Friends naming how many likely-duplicate guests were spotted
+     *  (same name across groups). `{n}` is the count. */
+    duplicates: PluralForms;
   };
   /** Group photos are a paid feature; the cover emoji stays free for everyone. */
   groupPhoto: {
@@ -3222,6 +3225,7 @@ const en: UiStrings = {
     noMoreGuests:
       'Everyone you can merge is already added. Add someone from your contacts instead.',
     hint: 'Seeing the same guest in more than one group? Merge the duplicates into one person.',
+    duplicates: { one: '{n} possible duplicate', other: '{n} possible duplicates' },
   },
   groupPhoto: {
     paidHint: 'Group photos are a Plus feature. Pick an icon, or upgrade to add a photo.',
@@ -5257,6 +5261,7 @@ const ta: UiStrings = {
     noMoreGuests:
       'இணைக்கக்கூடிய அனைவரும் ஏற்கனவே சேர்க்கப்பட்டுள்ளனர். பதிலாக உங்கள் தொடர்புகளிலிருந்து ஒருவரைச் சேர்க்கவும்.',
     hint: 'ஒரே விருந்தினர் ஒன்றுக்கு மேற்பட்ட குழுக்களில் தெரிகிறாரா? நகல்களை ஒரே நபராக இணைக்கவும்.',
+    duplicates: { one: '{n} சாத்தியமான நகல்', other: '{n} சாத்தியமான நகல்கள்' },
   },
   groupPhoto: {
     paidHint:
@@ -7320,6 +7325,7 @@ const hi: UiStrings = {
     noMoreGuests:
       'जिन्हें आप मर्ज कर सकते हैं वे सभी पहले से जुड़े हैं. इसके बजाय अपने संपर्कों से किसी को जोड़ें.',
     hint: 'एक ही मेहमान कई समूहों में दिख रहा है? डुप्लिकेट को एक व्यक्ति में मर्ज करें.',
+    duplicates: { one: '{n} संभावित डुप्लिकेट', other: '{n} संभावित डुप्लिकेट' },
   },
   groupPhoto: {
     paidHint: 'ग्रुप फ़ोटो एक Plus सुविधा है। कोई आइकन चुनें, या फ़ोटो जोड़ने के लिए अपग्रेड करें।',
@@ -9364,6 +9370,14 @@ const ar: UiStrings = {
     addGuestTitle: 'إضافة شخص',
     noMoreGuests: 'كل من يمكنك دمجهم مُضافون بالفعل. أضِف شخصًا من جهات اتصالك بدلاً من ذلك.',
     hint: 'هل ترى نفس الضيف في أكثر من مجموعة؟ ادمج المكرَّرين في شخص واحد.',
+    duplicates: {
+      zero: 'لا مكرَّرين محتملين',
+      one: 'مكرَّر محتمل واحد',
+      two: 'مكرَّران محتملان',
+      few: '{n} مكرَّرين محتملين',
+      many: '{n} مكرَّرًا محتملًا',
+      other: '{n} مكرَّر محتمل',
+    },
   },
   groupPhoto: {
     paidHint: 'صور المجموعة ميزة Plus. اختر أيقونة، أو قم بالترقية لإضافة صورة.',
