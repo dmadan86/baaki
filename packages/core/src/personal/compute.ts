@@ -100,12 +100,15 @@ export function dayDelta(from: string, to: string): number {
  * The `count` month keys (YYYY-MM) ending at `month`, oldest first — the window
  * a short trend reads over. `recentMonths('2026-08', 3)` → `['2026-06',
  * '2026-07', '2026-08']`. Pure integer maths on the year/month, so it rolls year
- * boundaries without a `Date`. A malformed `month` or `count < 1` yields
- * `[month]` so a caller always has at least the anchor to show.
+ * boundaries without a `Date`. A malformed `month`, or a `count` that is not a
+ * positive integer (rejecting `0`, negatives, fractions, `NaN`, and `Infinity`),
+ * yields `[month]` so a caller always has at least the anchor to show.
  */
 export function recentMonths(month: string, count: number): string[] {
   const p = /^(\d{4})-(\d{2})$/.exec(month);
-  if (!p || count < 1) return [month];
+  // `count < 1` alone lets `NaN` (loop never runs → `[]`), `Infinity` (runaway
+  // loop), and fractions (skewed keys) slip through, so require a safe integer.
+  if (!p || !Number.isInteger(count) || count < 1) return [month];
   const mm = Number(p[2]);
   // The regex admits `2026-00` / `2026-13`; reject an out-of-range month so a bad
   // anchor falls back to itself rather than generating skewed keys.
