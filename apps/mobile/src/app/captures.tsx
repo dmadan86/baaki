@@ -166,6 +166,14 @@ function CaptureListRow({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${title}, ${t.captures.assign}`}
+      // The overflow lives on a control nested inside this row; a nested focusable
+      // can hide from a screen reader, so the row exposes it as a custom action
+      // instead and the ⋯ itself is taken out of the a11y tree below. Assign stays
+      // the row's default activate.
+      accessibilityActions={[{ name: 'more', label: t.captures.moreActions }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'more') onMore();
+      }}
       onPress={onAssign}
       style={({ pressed }) =>
         bare
@@ -239,16 +247,24 @@ function CaptureListRow({
         {/* One quiet ⋯ instead of the old pencil-and-red-trash pair: the actions
             that are not "add to group" live behind it, so the row carries the
             amount and a single neutral control rather than three competing marks.
-            Its own hitbox, so tapping it opens the sheet while the card's tap
-            still assigns. */}
-        <IconButton label={t.captures.moreActions} onPress={onMore}>
-          <Ionicons name="ellipsis-horizontal" size={iconSize.md} color={theme.color.textMuted} />
-        </IconButton>
-        {/* An empty slot the width of the batch card's expand chevron, so a
-            standalone row's amount and ⋯ share the exact right edge with the
-            batch rows that do carry a chevron. Without it the two row kinds end
-            their amounts a chevron's width apart. */}
-        <View style={{ width: iconSize.md }} />
+            Its own hitbox for a sighted tap, but hidden from the a11y tree — a
+            focusable nested in the accessible row can be unreachable, so screen
+            readers reach it through the row's "more" action instead.
+
+            The trailing slot mirrors the batch card's ⋯-plus-chevron exactly
+            (same order, same gap) so a standalone amount shares its right edge
+            with a batch total — the empty slot stands in for the batch's expand
+            chevron. */}
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
+        >
+          <IconButton label={t.captures.moreActions} onPress={onMore}>
+            <Ionicons name="ellipsis-horizontal" size={iconSize.md} color={theme.color.textMuted} />
+          </IconButton>
+          <View style={{ width: iconSize.md }} />
+        </View>
       </Row>
     </Pressable>
   );
@@ -308,6 +324,13 @@ function BatchGroupCard({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={open ? t.captures.collapseBatch : t.captures.expandBatch}
+        // The ⋯ (delete-the-batch) is nested inside this expander; a nested
+        // focusable can hide from a screen reader, so it rides here as a custom
+        // action and is dropped from the a11y tree below.
+        accessibilityActions={[{ name: 'more', label: t.captures.moreActions }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'more') onMoreBatch();
+        }}
         onPress={onToggle}
         style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
       >
@@ -364,16 +387,27 @@ function BatchGroupCard({
           </View>
           {/* The batch's own ⋯, matching the standalone rows: it opens the sheet
               that can delete the whole batch at once, rather than a standing red
-              trash on the card. A nested press, so it opens the sheet rather than
-              toggling the card. */}
-          <IconButton label={t.captures.moreActions} onPress={onMoreBatch}>
-            <Ionicons name="ellipsis-horizontal" size={iconSize.md} color={theme.color.textMuted} />
-          </IconButton>
-          <Ionicons
-            name={open ? 'chevron-up' : 'chevron-down'}
-            size={iconSize.md}
-            color={theme.color.textMuted}
-          />
+              trash on the card. A nested press for a sighted tap, but hidden from
+              the a11y tree (reached through the row's "more" action); the chevron
+              beside it is decorative — the expanded state is already announced. */}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
+          >
+            <IconButton label={t.captures.moreActions} onPress={onMoreBatch}>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={iconSize.md}
+                color={theme.color.textMuted}
+              />
+            </IconButton>
+            <Ionicons
+              name={open ? 'chevron-up' : 'chevron-down'}
+              size={iconSize.md}
+              color={theme.color.textMuted}
+            />
+          </View>
         </Row>
       </Pressable>
 
