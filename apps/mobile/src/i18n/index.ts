@@ -781,13 +781,14 @@ export interface UiStrings {
     railLinkNote: string;
     railManualNote: string;
     nothingToAdd: string;
-    sectionProfile: string;
-    sectionBaaki: string;
-    sectionSettings: string;
+    sectionAccount: string;
+    sectionHelp: string;
+    sectionPreferences: string;
     sectionSecurity: string;
-    sectionAi: string;
+    sectionData: string;
     aiKeysRow: string;
     aiKeysHint: string;
+    planRow: string;
     upgradeHint: string;
     yourAccount: string;
     yourAccountHint: string;
@@ -2861,14 +2862,15 @@ const en: UiStrings = {
     railManualNote:
       'People settling with you see this to pay you from their own bank app. Waves never handles the money.',
     nothingToAdd: 'Nothing to add — people will record what they paid you by hand.',
-    sectionProfile: 'Profile',
-    sectionBaaki: 'Waves',
-    sectionSettings: 'Settings',
+    sectionAccount: 'Account',
+    sectionHelp: 'Help',
+    sectionPreferences: 'Preferences',
     sectionSecurity: 'Security',
-    sectionAi: 'AI',
+    sectionData: 'Data & privacy',
     aiKeysRow: 'Your AI keys',
     aiKeysHint: 'Bring your own OpenAI, Claude or Kimi key',
-    upgradeHint: 'Nothing to buy yet — the ledger stays free',
+    planRow: 'Plan',
+    upgradeHint: 'Free plan — everything included, nothing to buy',
     yourAccount: 'Your account',
     yourAccountHint: 'Email, phone, or a linked account',
     notifications: 'Notifications',
@@ -4890,14 +4892,15 @@ const ta: UiStrings = {
     railManualNote:
       'உங்களுடன் தீர்ப்பவர்கள் இதைப் பார்த்து தங்கள் வங்கி ஆப்பிலிருந்து பணம் அனுப்புவார்கள். பாக்கி பணத்தைக் கையாள்வதே இல்லை.',
     nothingToAdd: 'சேர்க்க ஒன்றுமில்லை — கொடுத்ததை மற்றவர்கள் கையால் பதிவு செய்வார்கள்.',
-    sectionProfile: 'சுயவிவரம்',
-    sectionBaaki: 'பாக்கி',
-    sectionSettings: 'அமைப்புகள்',
+    sectionAccount: 'கணக்கு',
+    sectionHelp: 'உதவி',
+    sectionPreferences: 'விருப்பங்கள்',
     sectionSecurity: 'பாதுகாப்பு',
-    sectionAi: 'AI',
+    sectionData: 'தரவு & தனியுரிமை',
     aiKeysRow: 'உங்கள் AI விசைகள்',
     aiKeysHint: 'உங்கள் சொந்த OpenAI, Claude அல்லது Kimi விசையைச் சேர்',
-    upgradeHint: 'வாங்க இன்னும் ஒன்றுமில்லை — கணக்கு இலவசமாகவே இருக்கும்',
+    planRow: 'திட்டம்',
+    upgradeHint: 'இலவசத் திட்டம் — எல்லாம் உள்ளடக்கம், வாங்க எதுவுமில்லை',
     yourAccount: 'உங்கள் கணக்கு',
     yourAccountHint: 'மின்னஞ்சல், தொலைபேசி, அல்லது இணைத்த கணக்கு',
     notifications: 'அறிவிப்புகள்',
@@ -6982,14 +6985,15 @@ const hi: UiStrings = {
     railManualNote:
       'आपसे हिसाब करने वाले इसे देखकर अपने बैंक ऐप से भुगतान करते हैं। बाकी पैसा कभी नहीं छूता।',
     nothingToAdd: 'जोड़ने को कुछ नहीं — लोग जो चुकाया है उसे खुद दर्ज करेंगे।',
-    sectionProfile: 'प्रोफ़ाइल',
-    sectionBaaki: 'बाकी',
-    sectionSettings: 'सेटिंग्स',
+    sectionAccount: 'खाता',
+    sectionHelp: 'सहायता',
+    sectionPreferences: 'प्राथमिकताएँ',
     sectionSecurity: 'सुरक्षा',
-    sectionAi: 'AI',
+    sectionData: 'डेटा और गोपनीयता',
     aiKeysRow: 'आपकी AI कुंजियाँ',
     aiKeysHint: 'अपनी OpenAI, Claude या Kimi कुंजी जोड़ें',
-    upgradeHint: 'अभी खरीदने को कुछ नहीं — हिसाब मुफ़्त ही रहेगा',
+    planRow: 'प्लान',
+    upgradeHint: 'मुफ़्त प्लान — सब कुछ शामिल, खरीदने को कुछ नहीं',
     yourAccount: 'आपका खाता',
     yourAccountHint: 'ईमेल, फ़ोन, या कोई लिंक किया खाता',
     notifications: 'सूचनाएँ',
@@ -9043,14 +9047,15 @@ const ar: UiStrings = {
     railLinkNote: 'من يسوّي معك يدفع بضغطة واحدة. باقي لا يلمس المال أبدًا.',
     railManualNote: 'من يسوّي معك يرى هذا ليدفع لك من تطبيق مصرفه. باقي لا يلمس المال أبدًا.',
     nothingToAdd: 'لا شيء تضيفه — سيسجّل الناس ما دفعوه لك يدويًا.',
-    sectionProfile: 'الملف الشخصي',
-    sectionBaaki: 'باقي',
-    sectionSettings: 'الإعدادات',
+    sectionAccount: 'الحساب',
+    sectionHelp: 'المساعدة',
+    sectionPreferences: 'التفضيلات',
     sectionSecurity: 'الأمان',
-    sectionAi: 'الذكاء الاصطناعي',
+    sectionData: 'البيانات والخصوصية',
     aiKeysRow: 'مفاتيح الذكاء الاصطناعي',
     aiKeysHint: 'أضف مفتاح OpenAI أو Claude أو Kimi الخاص بك',
-    upgradeHint: 'لا شيء للشراء بعد — الدفتر يبقى مجانيًا',
+    planRow: 'الخطة',
+    upgradeHint: 'خطة مجانية — كل شيء مُتضمَّن، لا شيء للشراء',
     yourAccount: 'حسابك',
     yourAccountHint: 'بريد، هاتف، أو حساب مرتبط',
     notifications: 'الإشعارات',

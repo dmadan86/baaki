@@ -24,7 +24,7 @@ import { friendlyError } from '@/lib/errors';
 import { SkeletonList } from '@/components/Skeletons';
 import { removeAvatar, uploadAvatar } from '@/data/api';
 import { useSettledTotals } from '@/data/hooks';
-import { isRtlLanguage, LANGUAGE_NAMES, plural, useStrings, type UiStrings } from '@/i18n';
+import { isRtlLanguage, LANGUAGE_NAMES, plural, useStrings } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
 import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
@@ -44,11 +44,11 @@ interface SettingsRow {
   destructive?: boolean;
 }
 
-function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }) {
+function SettingsSection({ title, rows }: { title?: string; rows: SettingsRow[] }) {
   const theme = useTheme();
   return (
     <View>
-      <SectionHeader title={title} />
+      {title ? <SectionHeader title={title} /> : null}
       <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
         {rows.map((item, index) => {
           const live = Boolean(item.route ?? item.onPress);
@@ -108,80 +108,6 @@ function SettingsSection({ title, rows }: { title: string; rows: SettingsRow[] }
       </Card>
     </View>
   );
-}
-
-/**
- * A function of the strings rather than a constant, because the labels are no
- * longer knowable at module load — they depend on which language the reader
- * has chosen, and that can change while the app is open.
- */
-function settingsRows(t: UiStrings): SettingsRow[] {
-  return [
-    {
-      icon: 'notifications-outline',
-      label: t.account.notifications,
-      hint: t.account.notificationsHint,
-      route: '/settings/notifications',
-    },
-    {
-      icon: 'pricetags-outline',
-      label: t.tags.settingsRow,
-      hint: t.tags.manageSubtitle,
-      route: '/settings/categories',
-    },
-    {
-      icon: 'download-outline',
-      label: t.account.exportDataRow,
-      hint: t.account.exportHint,
-      route: '/settings/export',
-    },
-    {
-      icon: 'cloud-upload-outline',
-      label: t.account.importSplitwise,
-      hint: t.account.importHint,
-      route: '/settings/import',
-    },
-    {
-      icon: 'chatbubble-ellipses-outline',
-      label: t.privacy.feedbackRow,
-      hint: t.privacy.feedbackRowHint,
-      route: '/settings/feedback',
-    },
-    {
-      icon: 'shield-checkmark-outline',
-      label: t.privacy.row,
-      hint: t.privacy.rowHint,
-      route: '/settings/privacy',
-    },
-  ];
-}
-
-/**
- * Your account and Paying used to be two faces of this screen, switched with a
- * segmented control that sat between the hero and the settings. They are the
- * two things a person edits about themselves rather than about the app, so they
- * now lead the settings list as their own rows — each a page of its own,
- * reached the same way every other setting is.
- *
- * "You" (just the name) and "Your account" (email, phone, sign-in links) were
- * one thing split across two screens, so they are folded into a single "Your
- * account" page that carries the name too.
- */
-function profileRows(t: UiStrings): SettingsRow[] {
-  return [
-    {
-      icon: 'person-circle-outline',
-      label: t.account.yourAccount,
-      hint: t.account.yourAccountHint,
-      route: '/settings/account',
-    },
-    {
-      icon: 'card-outline',
-      label: t.account.facePaying,
-      hint: t.account.howPeoplePayYou,
-      route: '/settings/paying',
-    },
-  ];
 }
 
 /**
@@ -450,20 +376,32 @@ function ProfileForm() {
           </View>
         </View>
 
-        {/* You and Paying lead: the two things you edit about yourself, above
-            everything you set about the app. */}
-        <SettingsSection title={t.account.sectionProfile} rows={profileRows(t)} />
-
-        {/* Its own section, above the settings rather than among them. Paying
-            for something is not a preference, and a row that sells you something
-            sitting between Notifications and Export is a row dressed up as a
-            setting. */}
+        {/* Account: who you are, how people pay you, what plan you're on. The
+            things you edit about *yourself*, above everything you set about the
+            app. Storage and your AI keys belong to the account too, so they sit
+            here rather than each claiming a section of its own. Only their
+            state-bearing rows keep a subtitle; the rest say enough in the label. */}
         <SettingsSection
-          title={t.account.sectionBaaki}
+          title={t.account.sectionAccount}
           rows={[
             {
+              icon: 'person-circle-outline',
+              label: t.account.yourAccount,
+              hint: t.account.yourAccountHint,
+              route: '/settings/account',
+            },
+            {
+              icon: 'card-outline',
+              label: t.account.facePaying,
+              hint: t.account.howPeoplePayYou,
+              route: '/settings/paying',
+            },
+            // "Plan", not "Upgrade": the row opened a page that sells nothing, so
+            // its old name promised a purchase the app doesn't have. The honest
+            // label states what it is; the hint says the plan is free.
+            {
               icon: 'rocket-outline',
-              label: t.upgrade,
+              label: t.account.planRow,
               hint: t.account.upgradeHint,
               route: '/settings/upgrade',
             },
@@ -474,38 +412,31 @@ function ProfileForm() {
                   {
                     icon: 'cloud-outline' as const,
                     label: t.storage.row,
-                    hint: t.storage.rowHint,
                     route: '/settings/storage',
+                  },
+                ]
+              : []),
+            // Bring your own model key — a credential you supply, held on the
+            // device. Flagged off until it ships.
+            ...(aiKeysEnabled
+              ? [
+                  {
+                    icon: 'key-outline' as const,
+                    label: t.account.aiKeysRow,
+                    route: '/settings/ai-keys',
                   },
                 ]
               : []),
           ]}
         />
 
-        {/* Bring your own model key. Its own section because it is neither a
-            preference nor a Baaki purchase — it is a credential the reader
-            supplies, held on the device, to run the model-powered features on
-            their own account. */}
-        {aiKeysEnabled ? (
-          <SettingsSection
-            title={t.account.sectionAi}
-            rows={[
-              {
-                icon: 'key-outline',
-                label: t.account.aiKeysRow,
-                hint: t.account.aiKeysHint,
-                route: '/settings/ai-keys',
-              },
-            ]}
-          />
-        ) : null}
-
-        {/* Language leads. It was fifth, under Import, and it is the one setting
-            somebody may have to reach *before* they can read the four above it —
-            a row you can only find by reading past rows you cannot read is a row
-            that is not there. */}
+        {/* Preferences: how the app looks and speaks to you. Language leads — it
+            is the one setting somebody may have to reach *before* they can read
+            the rows below it, so it cannot sit under them. Shortcut and the
+            watch are neither everyday nor state-bearing, so they trail the
+            section, quiet, rather than sit among the primary rows. */}
         <SettingsSection
-          title={t.account.sectionSettings}
+          title={t.account.sectionPreferences}
           rows={[
             {
               icon: 'language-outline',
@@ -513,12 +444,16 @@ function ProfileForm() {
               hint: languageSummary,
               route: '/settings/language',
             },
-            ...settingsRows(t),
             {
               icon: 'contrast-outline',
               label: t.account.themeRow,
               hint: themeSummary,
               route: '/settings/theme',
+            },
+            {
+              icon: 'notifications-outline',
+              label: t.account.notifications,
+              route: '/settings/notifications',
             },
             {
               icon: 'flash-outline',
@@ -530,17 +465,50 @@ function ProfileForm() {
               label: t.recent.title,
               route: '/settings/recent',
             },
+          ]}
+        />
+
+        {/* Data & privacy: your records, and who can reach them. Export and
+            import used to sit up among Language and Notifications, which made
+            the screen read like an admin console; they belong with the data
+            they move. */}
+        <SettingsSection
+          title={t.account.sectionData}
+          rows={[
+            {
+              icon: 'pricetags-outline',
+              label: t.tags.settingsRow,
+              route: '/settings/categories',
+            },
+            {
+              icon: 'download-outline',
+              label: t.account.exportDataRow,
+              route: '/settings/export',
+            },
+            {
+              icon: 'cloud-upload-outline',
+              label: t.account.importSplitwise,
+              route: '/settings/import',
+            },
             {
               icon: 'cloud-outline',
               label: t.sync.title,
               hint: syncNetworkSummary,
               route: '/settings/sync',
             },
+            {
+              icon: 'shield-checkmark-outline',
+              label: t.privacy.row,
+              route: '/settings/privacy',
+            },
           ]}
         />
 
-        {/* Security is its own section rather than one row among many: it is the
-            only group of settings somebody comes looking for. */}
+        {/* Security: the one group somebody comes to Settings looking *for*.
+            Sign out and Delete used to live here too — but ending a session and
+            ending an account are not security settings, and burying an
+            irreversible act in a list is how it gets tapped by accident. They
+            are pulled out below. */}
         <SettingsSection
           title={t.account.sectionSecurity}
           rows={[
@@ -553,9 +521,38 @@ function ProfileForm() {
             {
               icon: 'phone-portrait-outline',
               label: t.devices.row,
-              hint: t.devices.rowHint,
               route: '/settings/devices',
             },
+          ]}
+        />
+
+        {/* Help: not settings — support and the fine print. Feedback was a row
+            dressed as a preference; licenses were buried on the privacy page.
+            Both are things you look for at the bottom, so that is where they
+            are. */}
+        <SettingsSection
+          title={t.account.sectionHelp}
+          rows={[
+            {
+              icon: 'chatbubble-ellipses-outline',
+              label: t.privacy.feedbackRow,
+              route: '/settings/feedback',
+            },
+            {
+              icon: 'document-text-outline',
+              label: t.privacy.licensesRow,
+              route: '/settings/licenses',
+            },
+          ]}
+        />
+
+        {/* The two irreversible acts, each alone on its own card at the very
+            bottom, split from every section and from each other by the same gap
+            that separates sections. No header — a danger zone announces itself
+            by standing apart, not by a title. Sign out ends the session; Delete
+            ends the account. */}
+        <SettingsSection
+          rows={[
             {
               icon: 'log-out-outline',
               label: t.lock.signOut,
@@ -563,11 +560,10 @@ function ProfileForm() {
               onPress: confirmSignOut,
               destructive: true,
             },
-            // Last row of the last section, under Sign out. It first sat in the
-            // middle of the settings list, because `settingsRows` is spread
-            // before Motion is appended — which put an irreversible action
-            // between "import a spreadsheet" and "animations on". Running it on
-            // a device is what showed that.
+          ]}
+        />
+        <SettingsSection
+          rows={[
             {
               icon: 'trash-outline',
               label: t.privacy.deleteRow,
