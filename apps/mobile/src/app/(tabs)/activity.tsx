@@ -1,7 +1,8 @@
 import { memo, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, type Href } from 'expo-router';
-import { Pressable, RefreshControl, SectionList, View } from 'react-native';
+import { Pressable, RefreshControl, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 
 import {
   Badge,
@@ -40,7 +41,13 @@ import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
 import { SyncStatus, useSync } from '@/sync';
 
-type DaySection = { key: string; first: RecentActivityRow; data: RecentActivityRow[] };
+// The day-grouped feed flattened for FlashList, which has no section API: a
+// `header` item per day, then that day's `entry` rows. The day cut is made to
+// stick via `stickyHeaderIndices`; `firstOfDay` drives the between-row hairline
+// so no line falls between a day heading and its first entry.
+type FeedRow =
+  | { kind: 'header'; key: string; date: string }
+  | { kind: 'row'; key: string; entry: RecentActivityRow; firstOfDay: boolean };
 
 /**
  * One row of the virtualized activity feed, memoized so a recycled row that
@@ -210,20 +217,27 @@ export default function ActivityScreen() {
   );
 
   // The whole history is already on the phone (the mirror), so there is no page
-  // to fetch — the list is fully known. `SectionList` virtualizes it: only the
+  // to fetch — the list is fully known. `FlashList` virtualizes it: only the
   // rows near the viewport are mounted, and they recycle as the feed scrolls, so
   // a heavy account's memory and mount cost stay bounded no matter how far back
-  // it goes. (This replaced a plain `ScrollView` that grew a window but never
-  // recycled a mounted row.)
-  const sections: DaySection[] = useMemo(
-    () =>
-      groupByDay(visibleEntries).map((section) => ({
-        key: section.key,
-        first: section.entries[0]!,
-        data: section.entries,
-      })),
-    [visibleEntries],
-  );
+  // it goes. FlashList has no sections, so the day cut is flattened into `header`
+  // items whose positions become `stickyIndices`.
+  const { listData, stickyIndices } = useMemo(() => {
+    const rows: FeedRow[] = [];
+    const sticky: number[] = [];
+    for (const section of groupByDay(visibleEntries)) {
+      sticky.push(rows.length);
+      rows.push({
+        kind: 'header',
+        key: `day-${section.key}`,
+        date: section.entries[0]!.created_at,
+      });
+      section.entries.forEach((entry, index) => {
+        rows.push({ kind: 'row', key: entry.id, entry, firstOfDay: index === 0 });
+      });
+    }
+    return { listData: rows, stickyIndices: sticky };
+  }, [visibleEntries]);
 
   // The active range worded for the chip: one date when start and end share a
   // day, "start – end" otherwise. Formatted in the current locale.
@@ -379,82 +393,110 @@ export default function ActivityScreen() {
     </View>
   );
 
+  // The range picker, over the feed. Rendered only when open and only when there
+  // is a span to clamp to, so it can seed the picker from real dates.
+  const picker =
+    filterOpen && span ? (
+      <ActivityDateFilter
+        earliest={span.earliest}
+        latest={span.latest}
+        locale={locale}
+        initial={range}
+        onApply={setRange}
+        onClear={() => setRange(null)}
+        onClose={() => setFilterOpen(false)}
+      />
+    ) : null;
+
+  // With no rows, FlashList's empty slot renders inside an unbounded scroll view,
+  // so a `flex: 1` centre is meaningless there — the header and the centred empty
+  // state are laid out directly instead, keeping the same padding the feed uses.
+  if (listData.length === 0) {
+    return (
+      <Screen>
+        <View style={{ flex: 1, paddingHorizontal: theme.spacing.xl }}>
+          {header}
+          {empty}
+        </View>
+        {picker}
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
-      {/* A vertical timeline broken into days: each event is a node on a
-          connector line running down the left, its icon in a soft circle, the
-          sentence beside it and the time beneath. The day headings are what make
-          a long feed skimmable — without them every row had to be read to place
-          it in time. */}
-      <SectionList<RecentActivityRow, DaySection>
-        sections={sections}
-        keyExtractor={(entry) => entry.id}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance,
-          // So the empty and error states can take the room the feed is not
-          // using and sit centred. With a feed present this changes nothing.
-          flexGrow: 1,
-        }}
-        showsVerticalScrollIndicator={false}
-        // No `removeClippedSubviews`: on Android it detaches off-screen subviews
-        // and, on a fast fling of this SectionList, fails to re-attach them —
-        // the whole viewport blanks out mid-scroll (rows vanish, only the
-        // scrollbar remains). `windowSize` already bounds how much is mounted, so
-        // virtualization holds without the clipping that caused the blanking.
-        initialNumToRender={12}
-        windowSize={9}
-        ListHeaderComponent={header}
-        ListEmptyComponent={empty}
-        refreshControl={
-          <RefreshControl
-            refreshing={pull.refreshing}
-            onRefresh={pull.onRefresh}
-            tintColor={theme.color.brand}
-          />
-        }
-        renderSectionHeader={({ section }) => (
-          <Text
-            variant="micro"
-            tone="muted"
-            style={{
-              textTransform: 'uppercase',
-              marginTop: theme.spacing.lg,
-              marginBottom: theme.spacing.md,
-              backgroundColor: theme.color.bg,
-            }}
-          >
-            {dayHeading(locale, section.first.created_at)}
-          </Text>
-        )}
-        ItemSeparatorComponent={() => (
-          <View style={{ height: 1, backgroundColor: theme.color.border }} />
-        )}
-        renderItem={({ item }) => (
-          <ActivityFeedRow
-            entry={item}
-            locale={locale}
-            t={t}
-            theme={theme}
-            myProfileId={myProfileId}
-            blockedIds={blockedIds}
-            rtf={rtf}
-          />
-        )}
-      />
-      {/* The range picker, over the feed. Rendered only when open and only when
-          there is a span to clamp to, so it can seed the picker from real dates. */}
-      {filterOpen && span ? (
-        <ActivityDateFilter
-          earliest={span.earliest}
-          latest={span.latest}
-          locale={locale}
-          initial={range}
-          onApply={setRange}
-          onClear={() => setRange(null)}
-          onClose={() => setFilterOpen(false)}
+      {/* A feed broken into days: each event is an icon in a soft tile, the
+          sentence beside it and the actor/group/time beneath. The day headings
+          are what make a long feed skimmable — they stick to the top so the day
+          in view is always named — without them every row had to be read to
+          place it in time. */}
+      <View style={{ flex: 1 }}>
+        <FlashList
+          data={listData}
+          // The row text is locale-formatted, so a language change has to re-run
+          // renderItem even though the data array is unchanged.
+          extraData={locale}
+          keyExtractor={(item) => item.key}
+          // Day headings and event rows are structurally different subtrees;
+          // typing them lets FlashList recycle like with like.
+          getItemType={(item) => item.kind}
+          stickyHeaderIndices={stickyIndices}
+          // Render well beyond the viewport so a fast fling never outruns
+          // recycling into blank rows (default 250px clears in a frame).
+          drawDistance={1500}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: clearance,
+          }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={pull.refreshing}
+              onRefresh={pull.onRefresh}
+              tintColor={theme.color.brand}
+            />
+          }
+          ListHeaderComponent={header}
+          renderItem={({ item }) =>
+            item.kind === 'header' ? (
+              <Text
+                variant="micro"
+                tone="muted"
+                style={{
+                  textTransform: 'uppercase',
+                  marginTop: theme.spacing.lg,
+                  marginBottom: theme.spacing.md,
+                  // Opaque, so rows scrolling under the stuck heading are masked.
+                  backgroundColor: theme.color.bg,
+                }}
+              >
+                {dayHeading(locale, item.date)}
+              </Text>
+            ) : (
+              // The between-row hairline rides on the row itself — above every row
+              // but the day's first, so no line falls under a day heading.
+              <View
+                style={
+                  item.firstOfDay
+                    ? undefined
+                    : { borderTopWidth: 1, borderTopColor: theme.color.border }
+                }
+              >
+                <ActivityFeedRow
+                  entry={item.entry}
+                  locale={locale}
+                  t={t}
+                  theme={theme}
+                  myProfileId={myProfileId}
+                  blockedIds={blockedIds}
+                  rtf={rtf}
+                />
+              </View>
+            )
+          }
         />
-      ) : null}
+      </View>
+      {picker}
     </Screen>
   );
 }
