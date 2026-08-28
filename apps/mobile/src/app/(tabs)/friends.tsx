@@ -17,7 +17,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
@@ -28,7 +27,7 @@ import {
   RefreshControl,
   View,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, useRecyclingState } from '@shopify/flash-list';
 import Reanimated, { ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -1312,56 +1311,68 @@ function RowAction({
  * so a rate limit reads here as reassurance that it already went, not a wall.
  * Its own Pressable, so a tap nudges rather than opening the group behind it.
  */
+/** The nudge's row-local state, kept as one value so a single recycling reset
+    clears it. `done` shows a glyph; the full phrase rides the a11y label. */
+type NudgeState =
+  { phase: 'idle' } | { phase: 'pending' } | { phase: 'done'; ok: boolean; label: string };
+
 function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | null {
   const theme = useTheme();
   const { t } = useStrings();
-  // The outcome, once nudged — a verdict, not a sentence. It shows as a single
-  // glyph so it fits the row's fixed action slot; the full phrase (which is a
-  // whole sentence in the error case) rides the accessibility label rather than
-  // wrapping or clipping inside 34px.
-  const [outcome, setOutcome] = useState<{ ok: boolean; label: string } | null>(null);
+  // FlashList recycles this row's whole tree, so a naive useState would carry
+  // one person's "Reminded" tick — or a stale spinner — onto the next person the
+  // row is reused for. `useRecyclingState` resets to idle whenever the row's
+  // identity (the pair being nudged) changes, so the button always reflects the
+  // person now under it. One value holds the whole lifecycle, so the reset is
+  // atomic — no separate mutation object to clear.
+  const [state, setState] = useRecyclingState<NudgeState>({ phase: 'idle' }, [
+    row.member_id,
+    row.only_group_id,
+    row.currency,
+  ]);
 
-  const nudge = useMutation({
-    mutationFn: () =>
-      nudgeToSettle({
-        groupId: row.only_group_id ?? '',
-        toMemberId: row.member_id,
-        currency: row.currency,
-      }),
-    onSuccess: () => setOutcome({ ok: true, label: t.people.reminded }),
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      // A backend message is neither translated nor meant for the person being
-      // nudged. The limit case already went, so it reads as done, not an error.
-      const limited = message.includes('NUDGE_RATE_LIMIT');
-      setOutcome({ ok: limited, label: limited ? t.people.remindedToday : t.loadError });
-    },
-  });
+  const run = (): void => {
+    setState({ phase: 'pending' });
+    nudgeToSettle({
+      groupId: row.only_group_id ?? '',
+      toMemberId: row.member_id,
+      currency: row.currency,
+    })
+      .then(() => setState({ phase: 'done', ok: true, label: t.people.reminded }))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        // A backend message is neither translated nor meant for the person being
+        // nudged. The limit case already went, so it reads as done, not an error.
+        const limited = message.includes('NUDGE_RATE_LIMIT');
+        setState({
+          phase: 'done',
+          ok: limited,
+          label: limited ? t.people.remindedToday : t.loadError,
+        });
+      });
+  };
 
-  if (outcome) {
+  if (state.phase === 'done') {
+    // A verdict, not a sentence — one glyph, sized to the fixed action slot; the
+    // full phrase (a whole sentence in the error case) rides the a11y label.
     return (
       <View
         accessible
-        accessibilityLabel={outcome.label}
+        accessibilityLabel={state.label}
         style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
       >
         <Ionicons
-          name={outcome.ok ? 'checkmark-circle' : 'alert-circle-outline'}
+          name={state.ok ? 'checkmark-circle' : 'alert-circle-outline'}
           size={iconSize.lg}
-          color={outcome.ok ? theme.color.positive : theme.color.negative}
+          color={state.ok ? theme.color.positive : theme.color.negative}
         />
       </View>
     );
   }
-  if (nudge.isPending) return <ActivityIndicator size="small" color={theme.color.brand} />;
+  if (state.phase === 'pending')
+    return <ActivityIndicator size="small" color={theme.color.brand} />;
 
-  return (
-    <RowAction
-      icon="notifications-outline"
-      label={t.people.remind}
-      onPress={() => nudge.mutate()}
-    />
-  );
+  return <RowAction icon="notifications-outline" label={t.people.remind} onPress={run} />;
 }
 
 /**
