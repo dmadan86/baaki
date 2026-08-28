@@ -236,27 +236,37 @@ export default function MeScreen() {
             gap: theme.spacing.xl,
           }}
         >
-          {/* The three management areas as a compact stat row. */}
+          {/* The three management areas as a compact stat row. Each tile's big
+              figure is the size of that collection — how many recurring rules, how
+              much is owed, how many budgets — so the number answers "how many/how
+              much" on its own. A coloured qualifier line carries the one thing that
+              wants attention (N due, N active, N over), shown only when there is
+              one; the figure itself stays neutral. */}
           <Row style={{ gap: theme.spacing.md }}>
             <StatTile
               icon="repeat"
-              value={String(dueCount)}
+              value={String(ledger.recurrings.length)}
+              hint={dueCount > 0 ? `${dueCount} ${t.personal.due.toLowerCase()}` : undefined}
               label={t.personal.recurring}
-              emphasise={dueCount > 0}
               onPress={() => router.push('/personal/recurring')}
             />
             <StatTile
               icon="cash-outline"
               value={activeLoans.length > 0 ? fmt(outstanding) : '—'}
+              hint={
+                activeLoans.length > 0
+                  ? `${activeLoans.length} ${t.personal.active.toLowerCase()}`
+                  : undefined
+              }
               label={t.personal.loans}
               onPress={() => router.push('/personal/loans')}
             />
             <StatTile
               icon="pie-chart-outline"
-              value={String(overBudgets)}
+              value={String(ledger.budgets.length)}
+              hint={overBudgets > 0 ? `${overBudgets} ${t.personal.over}` : undefined}
+              tone={overBudgets > 0 ? 'negative' : undefined}
               label={t.personal.budgets}
-              emphasise={overBudgets > 0}
-              danger={overBudgets > 0}
               onPress={() => router.push('/personal/budgets')}
             />
           </Row>
@@ -892,37 +902,35 @@ function HeroCircle({
 
 // ──────────────────────────────────────────────────────────────── body ──
 
-/** One of the three management-area tiles under the hero: a glyph, its live
- *  number and a label, tappable through to the area's own screen. */
+/** One of the three management-area tiles under the hero: a glyph, the size of
+ *  the collection, an optional coloured qualifier (the one figure that wants
+ *  attention), and a label — tappable through to the area's own screen. The big
+ *  figure stays neutral; the signal lives in `hint`, tinted by `tone`. */
 function StatTile({
   icon,
   value,
+  hint,
+  tone,
   label,
-  emphasise,
-  danger,
   onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   value: string;
+  hint?: string;
+  tone?: 'negative';
   label: string;
-  emphasise?: boolean;
-  danger?: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const valueColor = danger
-    ? theme.color.negative
-    : emphasise
-      ? theme.color.brand
-      : theme.color.text;
+  const hintColor = tone === 'negative' ? theme.color.negative : theme.color.brand;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}. ${value}`}
+      accessibilityLabel={hint ? `${label}. ${value}. ${hint}` : `${label}. ${value}`}
       onPress={onPress}
       style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.6 : 1 })}
     >
-      <Card style={{ gap: theme.spacing.sm, alignItems: 'flex-start', minHeight: 96 }}>
+      <Card style={{ gap: theme.spacing.xs, alignItems: 'flex-start', minHeight: 96 }}>
         <View
           style={{
             width: 32,
@@ -931,18 +939,19 @@ function StatTile({
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: theme.color.brandSoft,
+            marginBottom: theme.spacing.xs,
           }}
         >
           <Ionicons name={icon} size={iconSize.sm} color={theme.color.brand} />
         </View>
-        <Text
-          variant="heading"
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          style={{ color: valueColor }}
-        >
+        <Text variant="heading" numberOfLines={1} adjustsFontSizeToFit>
           {value}
         </Text>
+        {hint ? (
+          <Text variant="micro" numberOfLines={1} style={{ color: hintColor, fontWeight: '700' }}>
+            {hint}
+          </Text>
+        ) : null}
         <Text variant="micro" tone="muted" numberOfLines={1}>
           {label}
         </Text>
