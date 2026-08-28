@@ -445,7 +445,13 @@ export default function NewGroupScreen() {
         });
       }
 
-      router.replace(`/group/${groupId}`);
+      // A trip made without dates lands on its group with a one-time nudge to
+      // plan it — dates turn on the daily reminders, a budget the cap. Only when
+      // neither was set here, since the point of moving them off the create
+      // screen is that most trips skip them there. Any other kind, or a trip
+      // already dated, opens plain.
+      const nudgeTrip = type === GroupType.Trip && !(tripDates.start_date && tripDates.end_date);
+      router.replace(nudgeTrip ? `/group/${groupId}?welcome=trip` : `/group/${groupId}`);
     } catch (caught) {
       setError(
         isPhoneCountryError(caught)
