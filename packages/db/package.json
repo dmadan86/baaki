@@ -25,7 +25,7 @@
     "@waves/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "dotenv": "^17.2.3",
     "pg": "^8.23.0",
     "@types/pg": "^8.21.0",
