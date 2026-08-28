@@ -94,8 +94,14 @@ export default function MeScreen() {
   const currentMonth = today.slice(0, 7);
 
   // Which month the hero and the list are showing. 0 is the current month; each
-  // step back subtracts a month. You cannot step past the current month.
+  // step back subtracts a month. You cannot step past the current month, nor
+  // back before the first month you have any entry in — wandering into unbounded
+  // empty past months is not browsing a record. The ledger comes newest-first,
+  // so the last txn's month is the earliest represented.
   const [monthsBack, setMonthsBack] = useState(0);
+  const earliestMonth =
+    ledger.txns.length > 0 ? ledger.txns[ledger.txns.length - 1]!.date.slice(0, 7) : currentMonth;
+  const maxBack = Math.max(0, monthsBetween(earliestMonth, currentMonth));
   const month = monthsBack === 0 ? currentMonth : shiftMonth(currentMonth, -monthsBack);
 
   // Post due auto-recurring entries once the mirror has hydrated from disk and
@@ -156,7 +162,8 @@ export default function MeScreen() {
           t={t}
           monthLabel={monthLabel(month, locale)}
           canGoForward={monthsBack > 0}
-          onPrevMonth={() => setMonthsBack((back) => back + 1)}
+          canGoBack={monthsBack < maxBack}
+          onPrevMonth={() => setMonthsBack((back) => Math.min(maxBack, back + 1))}
           onNextMonth={() => setMonthsBack((back) => Math.max(0, back - 1))}
         />
 
@@ -268,6 +275,14 @@ function shiftMonth(month: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Whole months from `from` to `to` (both YYYY-MM); negative if `to` precedes
+// `from`. Used to bound backward month navigation to the earliest entry.
+function monthsBetween(from: string, to: string): number {
+  const [fy = 0, fm = 0] = from.split('-').map(Number);
+  const [ty = 0, tm = 0] = to.split('-').map(Number);
+  return (ty - fy) * 12 + (tm - fm);
+}
+
 // The month for the header — the reader's own calendar name, or the raw YYYY-MM
 // if the platform has no Intl month names.
 function monthLabel(month: string, locale: string): string {
@@ -299,6 +314,7 @@ function MeHero({
   t,
   monthLabel: label,
   canGoForward,
+  canGoBack,
   onPrevMonth,
   onNextMonth,
 }: {
@@ -311,6 +327,7 @@ function MeHero({
   t: ReturnType<typeof useStrings>['t'];
   monthLabel: string;
   canGoForward: boolean;
+  canGoBack: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
 }) {
@@ -403,9 +420,11 @@ function MeHero({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t.personal.prevMonth}
+          accessibilityState={{ disabled: !canGoBack }}
+          disabled={!canGoBack}
           onPress={onPrevMonth}
           hitSlop={10}
-          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          style={({ pressed }) => ({ opacity: !canGoBack ? 0.35 : pressed ? 0.5 : 1 })}
         >
           <Ionicons
             name={directionalIcon('chevron-back')}
