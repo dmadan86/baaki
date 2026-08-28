@@ -477,12 +477,16 @@ export default function GroupScreen() {
   const clearance = useScreenClearance(112);
   const pull = usePullRefresh();
   const { t, locale } = useStrings();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `?welcome=trip` is set once, by the create screen, when a trip is made
+  // without dates — it opens this group with a one-time plan-your-trip nudge.
+  // The param is gone on any later visit, so the nudge is a moment, not a nag.
+  const { id, welcome } = useLocalSearchParams<{ id: string; welcome?: string }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
   const [tab, setTab] = useState<Tab>(Tab.Expenses);
   const [showDeleted, setShowDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tripNudgeDismissed, setTripNudgeDismissed] = useState(false);
 
   // Live updates from the other devices in this group (TDR §1).
   useGroupRealtime(groupId);
@@ -678,6 +682,12 @@ export default function GroupScreen() {
   // The overflow: the same three-dot dropdown the dashboard uses, not a bottom
   // sheet, so the two headers behave alike. Planner only appears where there is
   // a trip to plan; a flatshare has no use for the row.
+  // The one-time trip nudge: a trip opened straight from create, with no dates
+  // on it yet, until it is dismissed. Dates being the tell — a dated trip was
+  // already planned at create, and a nudge would be noise.
+  const showTripNudge =
+    welcome === 'trip' && groupData.type === 'trip' && !groupData.start_date && !tripNudgeDismissed;
+
   const menuItems: OverflowMenuItem[] = [
     { icon: 'pie-chart-outline', label: t.spending, route: `/group/${groupId}/insights` },
     ...(groupData.type === 'trip'
@@ -1118,6 +1128,43 @@ export default function GroupScreen() {
                     <Text variant="caption" tone="muted">
                       {t.group.mismatchBody}
                     </Text>
+                  </Card>
+                ) : null}
+
+                {/* The one-time nudge to plan a fresh trip. Dates and budget were
+            moved off the create screen to keep it short; this is where a trip
+            gets offered them, once, on its own group. Later dismisses it for
+            this visit; the param is gone next time regardless. */}
+                {showTripNudge ? (
+                  <Card style={{ gap: theme.spacing.md }}>
+                    <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+                      <Ionicons name="airplane" size={iconSize.md} color={theme.color.brand} />
+                      <Text variant="subheading" style={{ flex: 1 }}>
+                        {t.extras.tripWelcomeTitle}
+                      </Text>
+                    </Row>
+                    <Text variant="caption" tone="muted">
+                      {t.extras.tripWelcomeBody}
+                    </Text>
+                    <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                      <Button
+                        label={t.extras.tripWelcomeAddDates}
+                        size="sm"
+                        onPress={() => router.push(`/group/${groupId}/settings`)}
+                      />
+                      <Button
+                        label={t.extras.tripWelcomeSetBudget}
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => router.push(`/group/${groupId}/plan`)}
+                      />
+                      <Button
+                        label={t.extras.tripWelcomeLater}
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => setTripNudgeDismissed(true)}
+                      />
+                    </Row>
                   </Card>
                 ) : null}
 

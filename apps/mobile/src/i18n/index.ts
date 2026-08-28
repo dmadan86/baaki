@@ -2202,6 +2202,11 @@ export interface UiStrings {
     tripBudgetOptional: string;
     moreOptions: string;
     moreOptionsHint: string;
+    tripWelcomeTitle: string;
+    tripWelcomeBody: string;
+    tripWelcomeAddDates: string;
+    tripWelcomeSetBudget: string;
+    tripWelcomeLater: string;
     groupKind: string;
     tripBudget: string;
     whatKindOfGroup: string;
@@ -4202,6 +4207,11 @@ const en: UiStrings = {
     tripBudgetOptional: 'Trip budget (optional)',
     moreOptions: 'More options',
     moreOptionsHint: 'Type, dates, budget',
+    tripWelcomeTitle: 'Want to plan this trip?',
+    tripWelcomeBody: 'Add dates to turn on daily reminders, or set a budget to track spending.',
+    tripWelcomeAddDates: 'Add dates',
+    tripWelcomeSetBudget: 'Set budget',
+    tripWelcomeLater: 'Later',
     groupKind: 'Kind',
     tripBudget: 'Budget',
     whatKindOfGroup: 'What kind of group?',
@@ -6299,6 +6309,12 @@ const ta: UiStrings = {
     tripBudgetOptional: 'பயண பட்ஜெட் (விருப்பம்)',
     moreOptions: 'மேலும் விருப்பங்கள்',
     moreOptionsHint: 'வகை, தேதிகள், பட்ஜெட்',
+    tripWelcomeTitle: 'இந்தப் பயணத்தைத் திட்டமிடலாமா?',
+    tripWelcomeBody:
+      'தினசரி நினைவூட்டல்களை இயக்க தேதிகளைச் சேர்க்கவும், அல்லது செலவைக் கண்காணிக்க பட்ஜெட் அமைக்கவும்.',
+    tripWelcomeAddDates: 'தேதிகளைச் சேர்',
+    tripWelcomeSetBudget: 'பட்ஜெட் அமை',
+    tripWelcomeLater: 'பிறகு',
     groupKind: 'வகை',
     tripBudget: 'பட்ஜெட்',
     whatKindOfGroup: 'என்ன வகைக் குழு?',
@@ -8312,6 +8328,12 @@ const hi: UiStrings = {
     tripBudgetOptional: 'ट्रिप बजट (वैकल्पिक)',
     moreOptions: 'और विकल्प',
     moreOptionsHint: 'प्रकार, तारीखें, बजट',
+    tripWelcomeTitle: 'इस ट्रिप की योजना बनाएँ?',
+    tripWelcomeBody:
+      'रोज़ाना रिमाइंडर चालू करने के लिए तारीखें जोड़ें, या खर्च देखने के लिए बजट सेट करें।',
+    tripWelcomeAddDates: 'तारीखें जोड़ें',
+    tripWelcomeSetBudget: 'बजट सेट करें',
+    tripWelcomeLater: 'बाद में',
     groupKind: 'प्रकार',
     tripBudget: 'बजट',
     whatKindOfGroup: 'किस तरह का समूह?',
@@ -10540,6 +10562,11 @@ const ar: UiStrings = {
     tripBudgetOptional: 'ميزانية الرحلة (اختياري)',
     moreOptions: 'خيارات إضافية',
     moreOptionsHint: 'النوع، التواريخ، الميزانية',
+    tripWelcomeTitle: 'هل تريد التخطيط لهذه الرحلة؟',
+    tripWelcomeBody: 'أضِف التواريخ لتشغيل التذكيرات اليومية، أو حدّد ميزانية لتتبّع الإنفاق.',
+    tripWelcomeAddDates: 'أضف التواريخ',
+    tripWelcomeSetBudget: 'حدّد الميزانية',
+    tripWelcomeLater: 'لاحقًا',
     groupKind: 'النوع',
     tripBudget: 'الميزانية',
     whatKindOfGroup: 'أي نوع من المجموعات؟',
