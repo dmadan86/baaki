@@ -14,7 +14,7 @@
  * account are followed across groups, because a profile id is proof.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMutation } from '@tanstack/react-query';
@@ -22,7 +22,6 @@ import { router } from 'expo-router';
 import {
   ActivityIndicator,
   BackHandler,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -195,16 +194,6 @@ const FRIENDS_GRADIENT = ['#463F86', '#221C46'] as const;
     invite/remind discs form one clean column instead of floating with the amount. */
 const ACTION_SLOT = 34;
 
-/** Darken a `#rrggbb` by a factor (<1) — the second, deeper stop for a vivid
-    avatar disc, so one tint token yields a two-tone gradient without new colours. */
-function shade(hex: string, factor: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.round(((n >> 16) & 0xff) * factor);
-  const g = Math.round(((n >> 8) & 0xff) * factor);
-  const b = Math.round((n & 0xff) * factor);
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
-}
-
 /**
  * Which guests are probably the same person seen twice.
  *
@@ -308,15 +297,19 @@ export default function FriendsScreen() {
   // helper that schedules the state, so a second tap that lands before React has
   // flushed still sees the real set (picking A then B keeps both, never just B).
   const selectedKeysRef = useRef<ReadonlySet<string>>(selectedKeys);
-  const applySelection = (next: ReadonlySet<string>): void => {
+  // These handlers are handed to every row as props. They are wrapped in
+  // useCallback so their identity is stable across renders — which is what lets
+  // the memoized PersonRow skip work on a recycled row and keeps a long list
+  // scrolling smoothly (the same discipline the group ledger's rows rely on).
+  const applySelection = useCallback((next: ReadonlySet<string>): void => {
     selectedKeysRef.current = next;
     setSelectedKeys(next);
-  };
+  }, []);
 
-  const exitSelect = (): void => {
+  const exitSelect = useCallback((): void => {
     setSelectMode(false);
     applySelection(new Set());
-  };
+  }, [applySelection]);
 
   // A long press fires onLongPress (this), then the SAME touch fires the row's
   // onPress on release — which in selection mode is a toggle. Left alone, that
@@ -326,27 +319,33 @@ export default function FriendsScreen() {
   // and ignores. Any later tap is a real pick.
   const swallowNextToggleRef = useRef(false);
 
-  const enterSelect = (personKey: string): void => {
-    swallowNextToggleRef.current = true;
-    setSelectMode(true);
-    applySelection(new Set([personKey]));
-  };
+  const enterSelect = useCallback(
+    (personKey: string): void => {
+      swallowNextToggleRef.current = true;
+      setSelectMode(true);
+      applySelection(new Set([personKey]));
+    },
+    [applySelection],
+  );
 
-  const toggleSelect = (personKey: string): void => {
-    // The release of the long press that just entered selection — ignore it once
-    // so the picked person stays picked.
-    if (swallowNextToggleRef.current) {
-      swallowNextToggleRef.current = false;
-      return;
-    }
-    const next = new Set(selectedKeysRef.current);
-    if (next.has(personKey)) next.delete(personKey);
-    else next.add(personKey);
-    // Dropping the last pick leaves selection mode — an empty selection is no
-    // selection.
-    if (next.size === 0) exitSelect();
-    else applySelection(next);
-  };
+  const toggleSelect = useCallback(
+    (personKey: string): void => {
+      // The release of the long press that just entered selection — ignore it
+      // once so the picked person stays picked.
+      if (swallowNextToggleRef.current) {
+        swallowNextToggleRef.current = false;
+        return;
+      }
+      const next = new Set(selectedKeysRef.current);
+      if (next.has(personKey)) next.delete(personKey);
+      else next.add(personKey);
+      // Dropping the last pick leaves selection mode — an empty selection is no
+      // selection.
+      if (next.size === 0) exitSelect();
+      else applySelection(next);
+    },
+    [applySelection, exitSelect],
+  );
 
   const startMerge = (): void => {
     const keys = [...selectedKeys];
@@ -378,7 +377,7 @@ export default function FriendsScreen() {
       return true;
     });
     return () => sub.remove();
-  }, [selectMode]);
+  }, [selectMode, exitSelect]);
 
   // One row per person, not per (person, currency). The mirror hands back a row
   // for each currency a person is unsettled in (currencies never mix — ADR-003);
@@ -483,6 +482,10 @@ export default function FriendsScreen() {
             // told to re-render its rows when it changes (the tick, the fill).
             extraData={`${selectMode}|${[...selectedKeys].join(',')}|${locale}`}
             keyExtractor={(item) => item.person_key}
+            // A single-currency row and a multi-currency (stacked amounts) row are
+            // structurally different subtrees; typing them lets FlashList recycle
+            // like with like rather than reflowing one shape into the other.
+            getItemType={(item) => (item.entries.length === 1 ? 'single' : 'multi')}
             drawDistance={1500}
             contentContainerStyle={{
               paddingHorizontal: theme.spacing.sm,
@@ -621,7 +624,7 @@ function FriendsHero({
             borderRadius: 19,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: theme.color.onBrand,
           }}
         >
           <Ionicons name="add" size={iconSize.xl} color={FRIENDS_GRADIENT[0]} />
@@ -933,8 +936,14 @@ function DuplicateStrip({
  * edge is just the coloured amount, and the invite/remind actions shrink to a
  * single round glyph beside it rather than a text pill that padded the row out.
  * A person unsettled in two currencies is one row with both nets stacked.
+ *
+ * Memoized: it lives in a virtualized list, and a recycled row that lands on the
+ * same person with the same selection state does no work when the parent
+ * re-renders. Every prop is a primitive or a reference the screen keeps stable
+ * (`t` is static per locale, the two handlers are `useCallback`), so the shallow
+ * compare holds and a fast fling never re-runs a row it already drew.
  */
-function PersonRow({
+const PersonRow = memo(function PersonRow({
   person,
   locale,
   t,
@@ -1162,41 +1171,32 @@ function PersonRow({
       {body}
     </Pressable>
   );
-}
+});
 
 /**
- * The vivid avatar disc — a saturated two-tone gradient keyed off the person's
+ * The vivid avatar disc — a saturated fill keyed off the person's
  * stable tint, with white initials, the pop the Monzo / Mesh / Satispay people
- * lists get from colour. A photo, when there is one, fills the disc instead. A
- * guest (a ghost, ADR-006) stays deliberately quieter — the soft pastel with a
- * dashed ring — so "not joined yet" still reads apart from a full member at a
- * glance. One tint token yields both stops (ink, and a darkened ink), so nothing
- * new is invented and the colour matches the person everywhere else in the app.
+ * lists get from colour. A guest (a ghost, ADR-006) stays deliberately quieter —
+ * the soft pastel with a dashed ring — so "not joined yet" still reads apart from
+ * a full member at a glance. The colour is the person's own stable tint, so it
+ * matches them everywhere else in the app.
+ *
+ * A flat saturated fill, deliberately — not a per-row native gradient. This disc
+ * is drawn once for every visible row of a virtualized list, and a native
+ * LinearGradient view per row is a real cost on a fast fling; a solid `ink` with
+ * white initials reads all but identically and stays cheap.
  */
 function PersonAvatar({
   name,
   size,
   ghost,
-  photoUrl,
 }: {
   name: string;
   size: number;
   ghost: boolean;
-  photoUrl?: string | null;
 }): React.JSX.Element {
   const theme = useTheme();
   const pair = theme.tint[tintForKey(name)];
-
-  if (photoUrl) {
-    return (
-      <Image
-        source={{ uri: photoUrl }}
-        style={{ width: size, height: size, borderRadius: size / 2 }}
-        resizeMode="cover"
-        accessibilityLabel={name}
-      />
-    );
-  }
 
   if (ghost) {
     return (
@@ -1221,15 +1221,20 @@ function PersonAvatar({
   }
 
   return (
-    <Gradient
-      colors={[pair.ink, shade(pair.ink, 0.72)]}
-      radius={size / 2}
-      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: pair.ink,
+      }}
     >
-      <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: size * 0.38 }}>
+      <Text style={{ color: theme.color.onBrand, fontWeight: '800', fontSize: size * 0.38 }}>
         {initialsOf(name)}
       </Text>
-    </Gradient>
+    </View>
   );
 }
 
