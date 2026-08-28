@@ -113,6 +113,100 @@ export function describeActivity(
 }
 
 /**
+ * The feed row's first line — the *event*, not the actor.
+ *
+ * `describeActivity` writes a full sentence ("Ravi added Dinner") and stays the
+ * row's accessibility label, because a screen reader wants the whole thing in
+ * one utterance. But a sighted reader skims, and a column of sentences all
+ * starting with a name is slow to scan — the thing that varies row to row (what
+ * happened) is buried mid-sentence. So the visible title leads with the event
+ * and the actor drops to the metadata line beneath it: "Dinner added" over
+ * "Ravi · Goa Trip · 2h ago". One event still reads one way in both feeds,
+ * which is why this lives here beside the sentence and the icon.
+ *
+ * English to match `describeActivity`, which is itself not yet localized — this
+ * is not the change that closes that gap.
+ */
+export function activityHeadline(entry: ActivityRow): string {
+  const { payload } = entry;
+  const description = typeof payload.description === 'string' ? payload.description : null;
+  // Verb first, description second. An imported description can itself be a whole
+  // clause ("Hethu paid Madan D."), and suffixing the verb onto that reads as a
+  // dangling "... added". Leading with the verb keeps our word anchored and reads
+  // cleanly whatever the description is. Lower-case fallback since it now trails
+  // a capitalised verb.
+  const what = description ?? 'expense';
+
+  switch (entry.verb) {
+    case 'added':
+      return `Added ${what}`;
+    case 'edited':
+      return `Edited ${what}`;
+    case 'deleted':
+      return `Deleted ${what}`;
+    case 'restored':
+      return `Restored ${what}`;
+    case 'superseded':
+      return 'Edit replaced';
+    case 'disputed':
+      return `Flagged ${what}`;
+    case 'withdrew_dispute':
+      return 'Correction withdrawn';
+    case 'accepted_dispute':
+      return 'Correction accepted';
+    case 'rejected_dispute':
+      return 'Marked correct';
+    case 'settled':
+      return 'Settlement recorded';
+    case 'confirmed':
+      return 'Settlement confirmed';
+    case 'auto_confirmed':
+      return 'Settlement auto-confirmed';
+    case 'joined':
+      return 'Joined the group';
+    case 'created': {
+      const name =
+        typeof payload.name === 'string' && payload.name.trim() ? payload.name.trim() : null;
+      return name ? `Created ${name}` : 'Group created';
+    }
+    case 'imported':
+      return 'Group imported';
+    case 'auto_archived':
+      return 'Group archived';
+    default:
+      // A verb from a newer build. Say what is known rather than dropping the row.
+      return `${entry.verb} ${entry.object_type}`;
+  }
+}
+
+/**
+ * Where a feed row should open.
+ *
+ * Every entry defaulted to the group screen, which answers "which group" but not
+ * "which thing" — tapping "Dinner edited" and landing on the group list, not on
+ * Dinner, is a dead end. The server stamps each row with the object it is about
+ * (`object_type` + `object_id`), so an expense event opens the expense and a
+ * join opens the member. A settlement has no detail screen of its own, so it
+ * (and a group-level event) opens the group, where the confirm cards live. A
+ * missing id or an unknown type falls back to the group — the old behaviour,
+ * never a broken link. A stale id lands on the app's existing not-found state,
+ * the same as any other deep link into a since-deleted row.
+ */
+export function activityTarget(entry: ActivityRow): string {
+  const group = `/group/${entry.group_id}`;
+  if (!entry.object_id) return entry.object_type === 'member' ? `${group}/members` : group;
+  switch (entry.object_type) {
+    case 'expense':
+      return `${group}/expense/${entry.object_id}`;
+    case 'member':
+      return `${group}/member/${entry.object_id}`;
+    default:
+      // settlement, group, and anything a newer build adds: the group screen.
+      return group;
+  }
+}
+
+/**
  * The verb as one monochrome Ionicons line glyph — the node both feeds hang off.
  * It lives here for the same reason the wording does: two feeds drawing the same
  * event two different ways is a feed people stop trusting. Rendered in a
@@ -368,4 +462,51 @@ export function relativeTime(
     hour: withinYear ? 'numeric' : undefined,
     minute: withinYear ? '2-digit' : undefined,
   }).format(new Date(Date.parse(iso)));
+}
+
+/**
+ * The per-row stamp in the day-grouped activity feed.
+ *
+ * The feed is cut into day sections with a date heading over each ("Today",
+ * "Yesterday", "Thursday", "28 August"), so the row already knows its day. A
+ * relative "yesterday" or "3 days ago" on the row just says the heading again —
+ * and a full "Aug 28, 8:12 PM" repeats it with the clock bolted on. So the split
+ * is by age, not by what the device can format:
+ *
+ *  - under a day old → a relative "4 hours ago" / "20 minutes ago": the row's
+ *    own freshness, which the heading does not carry;
+ *  - a day or more old → the clock time alone ("8:16 PM"): the heading above
+ *    already places the day, so the row never repeats it as "yesterday" or a
+ *    weekday or a date.
+ *
+ * The relative half needs `Intl.RelativeTimeFormat` (backfilled by the Intl
+ * polyfill on Hermes); without it, everything falls to the clock time, which is
+ * still never the redundant date. `relativeTime`, used by screens that are not
+ * day-grouped and do want the day word, is left as it is.
+ *
+ * `formatter`/`now` mirror `relativeTime` so a virtualized feed can hoist one
+ * formatter per locale and stay testable without a live clock.
+ */
+const ONE_DAY_SECONDS = 86_400;
+
+export function activityTimestamp(
+  locale: string,
+  iso: string,
+  now: number = Date.now(),
+  formatter?: Intl.RelativeTimeFormat,
+): string {
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+
+  const RTF = Intl.RelativeTimeFormat as typeof Intl.RelativeTimeFormat | undefined;
+  const canRelative = Boolean(formatter) || typeof RTF === 'function';
+  const abs = Math.abs(Math.round((parsed - now) / 1000));
+  // Under a day, and only if we can word it relatively: the freshness stamp.
+  if (canRelative && abs < ONE_DAY_SECONDS) return relativeTime(locale, iso, now, formatter);
+
+  // A day or more old, or no relative formatter: the clock time only. The day
+  // sits in the section heading above, so the row must not repeat it.
+  return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(
+    new Date(parsed),
+  );
 }

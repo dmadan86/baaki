@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Pressable, RefreshControl, SectionList, View } from 'react-native';
 
 import {
@@ -19,19 +19,22 @@ import {
 
 import {
   activityDateSpan,
+  activityHeadline,
+  activityTarget,
+  activityTimestamp,
   dayHeading,
   describeActivity,
   filterByDayRange,
   groupByDay,
   parseMoney,
-  relativeTime,
   verbIcon,
   verbTint,
 } from '@/data/activity';
+import { actorName } from '@/data/types';
 import { useBlockedUsers } from '@/data/blocked';
 import { ActivityDateFilter, type DateRange } from '@/components/ActivityDateFilter';
 import { FeedSkeleton } from '@/components/Skeletons';
-import { useRecentActivity, type RecentActivityRow } from '@/data/hooks';
+import { useGroups, useRecentActivity, type RecentActivityRow } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -78,12 +81,19 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
   const groupLabel = g
     ? [g.cover_emoji, g.name].filter(Boolean).join(' ').trim() || t.captures.group
     : null;
+  // The full sentence stays the spoken label — a screen reader wants the whole
+  // event in one utterance. The visible title leads with the event instead, and
+  // the actor moves to the metadata line beneath it, so the feed is skimmable.
   const label = describeActivity(entry, myProfileId, blockedIds, t.misc.someone);
+  const headline = activityHeadline(entry);
+  // Nobody did an auto-event, so it carries no actor — omit it rather than say
+  // "Someone". A blocked or since-left actor still resolves through actorName.
+  const who = entry.actor ? actorName(entry.actor, myProfileId, blockedIds, t.misc.someone) : null;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={() => router.push(`/group/${entry.group_id}`)}
+      onPress={() => router.push(activityTarget(entry) as Href)}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Row
@@ -107,10 +117,10 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="body" numberOfLines={2}>
-            {label}
+            {headline}
           </Text>
-          {/* The relative time, plus which group the entry belongs to — this is a
-              cross-group feed, so the row would otherwise not say. An archived
+          {/* Who · which group · when. The actor sits here now, not in the title;
+              the group is named because this is a cross-group feed. An archived
               group, or one no longer on this device (left or deleted), gets a
               badge so it is recognisable without opening it. */}
           <Row
@@ -121,14 +131,19 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
               flexWrap: 'wrap',
             }}
           >
-            <Text variant="caption" tone="muted">
-              {relativeTime(locale, entry.created_at, undefined, rtf)}
-            </Text>
-            {groupLabel ? (
-              <Text variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {`· ${groupLabel}`}
+            {who ? (
+              <Text variant="caption" tone="muted">
+                {who}
               </Text>
             ) : null}
+            {groupLabel ? (
+              <Text variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {`${who ? '· ' : ''}${groupLabel}`}
+              </Text>
+            ) : null}
+            <Text variant="caption" tone="muted">
+              {`${who || groupLabel ? '· ' : ''}${activityTimestamp(locale, entry.created_at, undefined, rtf)}`}
+            </Text>
             {g?.archived_at ? (
               <Badge label={t.misc.archivedGroup} tone="neutral" />
             ) : !g ? (
@@ -137,15 +152,15 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
           </Row>
         </View>
         {/* `payload` is an untyped JSON blob, so a bad amount must render as no
-            amount, not as a crashed tab. Red like the shares and balances — one
-            money colour across every screen. */}
+            amount, not as a crashed tab. Neutral, not red: this is an expense
+            total belonging to nobody in particular, not a balance you owe —
+            `mode="plain"` is MoneyText's neutral ink. */}
         {money ? (
           <MoneyText
             amount={money.amount}
             currency={money.currency}
             locale={locale}
             variant="subheading"
-            tone="negative"
           />
         ) : null}
       </Row>
@@ -169,6 +184,13 @@ export default function ActivityScreen() {
   // `flush`, so the screen offers a way out rather than a skeleton forever.
   const { hydrated, status, flush } = useSync();
   const allEntries = useRecentActivity();
+  // Whether the account has any live group at all — decides the empty-state's
+  // next step. A brand-new account with nothing starts a group; an account that
+  // has groups but no activity yet wants to add an expense, not make another
+  // group. `materialiseGroups` already hides archived trips, so an account left
+  // with only archived groups is treated as having none — start-a-group is still
+  // the right nudge there.
+  const hasGroups = useGroups().data.length > 0;
 
   // Filtering a long feed to a date span. The whole history is on the phone, so
   // this is a pure client-side cut — no fetch. `range` is the committed filter
@@ -346,7 +368,13 @@ export default function ActivityScreen() {
         title={t.nothingYet}
         body={t.tabs.activityEmptyBody}
         icon={<Ionicons name="pulse" size={iconSize.xxl} color={theme.color.brand} />}
-        action={<Button label={t.newGroup} onPress={() => router.push('/new-group')} />}
+        action={
+          hasGroups ? (
+            <Button label={t.addExpense} onPress={() => router.push('/capture')} />
+          ) : (
+            <Button label={t.newGroup} onPress={() => router.push('/new-group')} />
+          )
+        }
       />
     </View>
   );

@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { Pressable, RefreshControl, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,13 +34,22 @@ import {
   useGroupRealtime,
   useOpenReceipts,
 } from '@/data/hooks';
-import { describeActivity, parseMoney, relativeTime, verbIcon, verbTint } from '@/data/activity';
+import {
+  activityHeadline,
+  activityTarget,
+  describeActivity,
+  parseMoney,
+  relativeTime,
+  verbIcon,
+  verbTint,
+} from '@/data/activity';
 import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
 import { formatParts, type MemberId } from '@waves/core';
 import { useBlockedUsers } from '@/data/blocked';
 import {
+  actorName,
   displayName,
   groupLabel,
   isBlockedMember,
@@ -838,56 +847,76 @@ export default function GroupScreen() {
       );
     }
     // Activity: the same row shape as the Expenses tab, so the three tabs read as
-    // one screen — a soft tinted tile, the sentence and a relative time beside
-    // it, the amount on the right, hairlines between.
+    // one screen — a soft tinted tile, the event and a relative time beside it,
+    // the amount on the right, hairlines between. The group feed rides the
+    // mirror, where an activity row carries only `actor_member_id` — not the
+    // joined actor the cross-group feed gets — so resolve the actor from this
+    // group's members before wording the row.
     const { entry, isLast } = item;
     const money = parseMoney(entry.payload, currency);
     const tint = theme.tint[verbTint(entry.verb)];
+    const resolved = entry.actor ? entry : { ...entry, actor: actorFor(entry.actor_member_id) };
+    // The full sentence stays the spoken label; the visible title leads with the
+    // event and the actor drops to the metadata line, so the feed is skimmable.
+    const label = describeActivity(resolved, profile?.id ?? null, blockedIds, t.misc.someone);
+    const headline = activityHeadline(entry);
+    // No actor on an auto-event — omit it rather than say "Someone".
+    const who = resolved.actor
+      ? actorName(resolved.actor, profile?.id ?? null, blockedIds, t.misc.someone)
+      : null;
+    // This feed is flat — no day headings — so the row keeps the full relative
+    // wording ("yesterday", "3 days ago"), the day the reader would otherwise
+    // have no other way to place. The cross-group Activity tab, which is cut into
+    // day sections, uses activityTimestamp to drop that redundant day word.
+    const when = relativeTime(locale, entry.created_at, undefined, activityRtf);
     return (
       <View>
-        <Row
-          style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.sm }}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          onPress={() => router.push(activityTarget(entry) as Href)}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
-          <View
+          <Row
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: theme.radius.md,
+              gap: theme.spacing.md,
               alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: tint.bg,
+              paddingVertical: theme.spacing.sm,
             }}
           >
-            <Ionicons name={verbIcon(entry.verb)} size={iconSize.lg} color={tint.ink} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text variant="body" numberOfLines={2}>
-              {describeActivity(
-                // The group feed rides the mirror, where an activity row carries
-                // only `actor_member_id` — not the joined actor the cross-group
-                // feed gets. Resolve the actor from this group's members so the
-                // row names the person instead of "someone".
-                entry.actor ? entry : { ...entry, actor: actorFor(entry.actor_member_id) },
-                profile?.id ?? null,
-                blockedIds,
-                t.misc.someone,
-              )}
-            </Text>
-            <Text variant="caption" tone="muted" numberOfLines={1}>
-              {relativeTime(locale, entry.created_at, undefined, activityRtf)}
-            </Text>
-          </View>
-          {money ? (
-            <MoneyText
-              amount={money.amount}
-              currency={money.currency}
-              locale={locale}
-              variant="subheading"
-              // Same owe colour as the shares, balances and the global feed.
-              tone="negative"
-            />
-          ) : null}
-        </Row>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: theme.radius.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: tint.bg,
+              }}
+            >
+              <Ionicons name={verbIcon(entry.verb)} size={iconSize.lg} color={tint.ink} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="body" numberOfLines={2}>
+                {headline}
+              </Text>
+              <Text variant="caption" tone="muted" numberOfLines={1}>
+                {who ? `${who} · ${when}` : when}
+              </Text>
+            </View>
+            {money ? (
+              // Neutral, not red: an expense total belongs to nobody in
+              // particular — it is not a balance you owe. `mode="plain"` is
+              // MoneyText's neutral ink, the same on the cross-group feed.
+              <MoneyText
+                amount={money.amount}
+                currency={money.currency}
+                locale={locale}
+                variant="subheading"
+              />
+            ) : null}
+          </Row>
+        </Pressable>
         {!isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
       </View>
     );

@@ -16,6 +16,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   activityDateSpan,
+  activityHeadline,
+  activityTarget,
+  activityTimestamp,
   dayHeading,
   dayKey,
   describeActivity,
@@ -162,6 +165,109 @@ describe('what happened', () => {
   });
 });
 
+/**
+ * The row's visible title.
+ *
+ * `describeActivity` writes the spoken sentence; this is the line a sighted
+ * reader skims. It must lead with the event, never the actor — the actor lives
+ * on the metadata line — so a column of rows is scannable by "what happened"
+ * rather than by whose name comes first.
+ */
+describe('activityHeadline', () => {
+  it('leads with the event, not the actor', () => {
+    expect(activityHeadline(row({ payload: { description: 'Dinner' } }))).toBe('Added Dinner');
+    // The actor's name never appears in the title, whoever it is.
+    expect(activityHeadline(row({ payload: { description: 'Dinner' } }))).not.toContain('Ravi');
+  });
+
+  it.each([
+    ['added', 'Added Dinner'],
+    ['edited', 'Edited Dinner'],
+    ['deleted', 'Deleted Dinner'],
+    ['restored', 'Restored Dinner'],
+    ['disputed', 'Flagged Dinner'],
+  ])('%s leads with the verb, then the description', (verb, expected) => {
+    expect(activityHeadline(row({ verb, payload: { description: 'Dinner' } }))).toBe(expected);
+  });
+
+  it('does not dangle the verb off a sentence-like imported description', () => {
+    // The real case from a Splitwise import: the description is itself a clause.
+    expect(activityHeadline(row({ payload: { description: 'Hethu paid Madan D.' } }))).toBe(
+      'Added Hethu paid Madan D.',
+    );
+  });
+
+  it('falls back to a lower-case noun when the payload names nothing', () => {
+    expect(activityHeadline(row({ verb: 'edited' }))).toBe('Edited expense');
+  });
+
+  it.each([
+    ['settled', 'Settlement recorded'],
+    ['confirmed', 'Settlement confirmed'],
+    ['auto_confirmed', 'Settlement auto-confirmed'],
+    ['joined', 'Joined the group'],
+    ['created', 'Group created'],
+  ])('words the non-expense event %s', (verb, expected) => {
+    expect(activityHeadline(row({ verb }))).toBe(expected);
+  });
+
+  it('names the group in the title when a create carries one', () => {
+    expect(activityHeadline(row({ verb: 'created', payload: { name: 'Goa Trip' } }))).toBe(
+      'Created Goa Trip',
+    );
+  });
+
+  it('shows an unknown verb rather than dropping the row', () => {
+    expect(activityHeadline(row({ verb: 'archived', object_type: 'group' }))).toBe(
+      'archived group',
+    );
+  });
+});
+
+/**
+ * Where a tapped row opens.
+ *
+ * A feed row is a doorway to the thing that happened, not just to the group it
+ * happened in: an expense event opens the expense, a join opens the member. A
+ * type with no detail screen (a settlement, a group event) or a row missing its
+ * id falls back to the group — never a broken link.
+ */
+describe('activityTarget', () => {
+  it('opens the expense for an expense event', () => {
+    expect(activityTarget(row({ object_type: 'expense', object_id: 'expense-1' }))).toBe(
+      '/group/group-1/expense/expense-1',
+    );
+  });
+
+  it('opens the member for a join', () => {
+    expect(
+      activityTarget(row({ verb: 'joined', object_type: 'member', object_id: 'member-9' })),
+    ).toBe('/group/group-1/member/member-9');
+  });
+
+  it('opens the group for a settlement — it has no detail screen', () => {
+    expect(
+      activityTarget(row({ verb: 'settled', object_type: 'settlement', object_id: 'settle-1' })),
+    ).toBe('/group/group-1');
+  });
+
+  it('opens the group for a group-level event', () => {
+    expect(
+      activityTarget(row({ verb: 'created', object_type: 'group', object_id: 'group-1' })),
+    ).toBe('/group/group-1');
+  });
+
+  it('falls back to the members list for a member row with no id', () => {
+    expect(activityTarget(row({ object_type: 'member', object_id: null }))).toBe(
+      '/group/group-1/members',
+    );
+  });
+
+  it('falls back to the group when the object id is missing', () => {
+    expect(activityTarget(row({ object_type: 'expense', object_id: null }))).toBe('/group/group-1');
+  });
+});
+
 describe('the icon', () => {
   it('gives an edit and its conflict the same mark', () => {
     // A superseded row IS an edit; two icons for one thing reads as two events.
@@ -243,6 +349,57 @@ describe('how long ago', () => {
       const stamp = relativeTime('en', new Date(now - 19 * 60 * 1000).toISOString(), now);
       expect(typeof stamp).toBe('string');
       expect(stamp.length).toBeGreaterThan(0);
+      expect(stamp).not.toContain('undefined');
+    } finally {
+      mutable.RelativeTimeFormat = original;
+    }
+  });
+});
+
+/**
+ * The stamp on a day-grouped feed row.
+ *
+ * The feed is cut into day sections with a date heading, so the row must not
+ * repeat the day. Under a day old it reads relatively ("4 hours ago"); a day or
+ * more old it drops to the clock time, never "yesterday" / a weekday / a date —
+ * that day word is the heading's job, and doubling it is exactly the noise this
+ * function exists to remove.
+ */
+describe('activityTimestamp', () => {
+  const now = Date.parse('2026-08-15T12:00:00Z');
+  const at = (seconds: number): string =>
+    activityTimestamp('en', new Date(now - seconds * 1000).toISOString(), now);
+
+  it('reads relatively while under a day old', () => {
+    expect(at(4 * 3600)).toBe('4 hours ago');
+    expect(at(19 * 60)).toBe('19 minutes ago');
+  });
+
+  it('drops to the clock time once a day or more old — never "yesterday"', () => {
+    // A day heading sits above this row; repeating the day in it is the noise.
+    const stamp = at(24 * 3600);
+    expect(stamp).not.toContain('yesterday');
+    // A wall-clock time, not a date: no month name, no day word.
+    expect(stamp).not.toMatch(/aug|august|day/i);
+    expect(stamp).toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it('shows the clock time for an event several days back, not a weekday', () => {
+    const stamp = at(3 * 24 * 3600);
+    expect(stamp).toMatch(/\d{1,2}:\d{2}/);
+    expect(stamp).not.toMatch(/day|aug/i);
+  });
+
+  it('falls back to the clock time, never the date, when RelativeTimeFormat is missing', () => {
+    const mutable = Intl as unknown as { RelativeTimeFormat?: typeof Intl.RelativeTimeFormat };
+    const original = mutable.RelativeTimeFormat;
+    try {
+      delete mutable.RelativeTimeFormat;
+      // Even a fresh event has no relative wording available now, so it too is a
+      // clock time — still never the redundant date.
+      const stamp = activityTimestamp('en', new Date(now - 4 * 3600 * 1000).toISOString(), now);
+      expect(stamp).toMatch(/\d{1,2}:\d{2}/);
+      expect(stamp).not.toMatch(/aug|ago/i);
       expect(stamp).not.toContain('undefined');
     } finally {
       mutable.RelativeTimeFormat = original;
