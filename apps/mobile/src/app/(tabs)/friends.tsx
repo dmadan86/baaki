@@ -14,7 +14,7 @@
  * account are followed across groups, because a profile id is proof.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -169,8 +169,20 @@ export default function FriendsScreen() {
     setSelectedKeys(new Set([personKey]));
   };
 
+  // A live mirror of the selection, read through a ref so a tap always folds
+  // into the very latest set — not a snapshot captured at some earlier render.
+  // Two taps in quick succession (add A, then add B) previously worked off a
+  // stale `selectedKeys` closure, so the second tap dropped the first pick and
+  // selection mode appeared to fall apart the moment you chose a second person.
+  // The ref is current on every commit, so even a memoised row's handler sees
+  // the real set.
+  const selectedKeysRef = useRef(selectedKeys);
+  useEffect(() => {
+    selectedKeysRef.current = selectedKeys;
+  }, [selectedKeys]);
+
   const toggleSelect = (personKey: string): void => {
-    const next = new Set(selectedKeys);
+    const next = new Set(selectedKeysRef.current);
     if (next.has(personKey)) next.delete(personKey);
     else next.add(personKey);
     // Dropping the last pick leaves selection mode — an empty selection is no
