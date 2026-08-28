@@ -56,7 +56,7 @@ jobs:
       VERCEL_PROJECT_ID: ${{ matrix.app == 'admin' && secrets.VERCEL_PROJECT_ID_ADMIN || secrets.VERCEL_PROJECT_ID_WEB }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
       - name: Install the Vercel CLI
