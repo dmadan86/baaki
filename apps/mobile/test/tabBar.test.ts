@@ -7,14 +7,13 @@ describe('tabBarRouteForSelection', () => {
     expect(tabBarRouteForSelection('index', 'index')).toBeNull();
     expect(tabBarRouteForSelection('friends', 'friends')).toBeNull();
     expect(tabBarRouteForSelection('activity', 'activity')).toBeNull();
-    expect(tabBarRouteForSelection('inbox', 'inbox')).toBeNull();
   });
 
   it('maps inactive tab selections to their routes', () => {
     expect(tabBarRouteForSelection('friends', 'index')).toBe('/');
     expect(tabBarRouteForSelection('index', 'friends')).toBe('/friends');
     expect(tabBarRouteForSelection('index', 'activity')).toBe('/activity');
-    expect(tabBarRouteForSelection('index', 'inbox')).toBe('/inbox');
+    expect(tabBarRouteForSelection('index', 'me')).toBe('/me');
   });
 });
 
@@ -23,15 +22,11 @@ describe('resolveTabBar', () => {
     expect(resolveTabBar(['(tabs)', 'index'])).toEqual({ hidden: false, activeKey: 'index' });
     expect(resolveTabBar(['(tabs)', 'friends'])).toEqual({ hidden: false, activeKey: 'friends' });
     expect(resolveTabBar(['(tabs)', 'activity'])).toEqual({ hidden: false, activeKey: 'activity' });
-    expect(resolveTabBar(['(tabs)', 'inbox'])).toEqual({ hidden: false, activeKey: 'inbox' });
+    expect(resolveTabBar(['(tabs)', 'me'])).toEqual({ hidden: false, activeKey: 'me' });
   });
 
   it('defaults to home when the tabs group has no leaf yet', () => {
     expect(resolveTabBar(['(tabs)'])).toEqual({ hidden: false, activeKey: 'index' });
-  });
-
-  it('keeps compatibility for the old pushed inbox route', () => {
-    expect(resolveTabBar(['inbox'])).toEqual({ hidden: false, activeKey: 'inbox' });
   });
 
   it('shows the bar with nothing current deeper in the app', () => {
@@ -45,7 +40,7 @@ describe('resolveTabBar', () => {
     // but it is no longer a bar destination, so nothing lights.
     const state = resolveTabBar(['(tabs)', 'profile']);
     expect(state.hidden).toBe(false);
-    expect(['index', 'friends', 'activity', 'inbox']).not.toContain(state.activeKey);
+    expect(['index', 'friends', 'activity', 'me']).not.toContain(state.activeKey);
   });
 
   it('hides on the full-screen camera and the signed-out screens', () => {

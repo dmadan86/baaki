@@ -40,7 +40,6 @@ import type {
   GroupType,
   DisputeRow,
   MemberRow,
-  NotificationRow,
   SettlementMethod,
   SettlementRow,
 } from './types';
@@ -1325,31 +1324,6 @@ export async function fetchNotificationPrefs(profileId: string): Promise<Notific
     .single();
   if (error) throw new Error(error.message);
   return { ...DEFAULT_NOTIFICATION_PREFS, ...((data?.notification_prefs ?? {}) as object) };
-}
-
-// ─────────────────────────────────────────────────────────── the inbox ──
-// Everything Baaki has told this person, whether or not a push ever reached
-// them. TDR §7.1 calls it the ledger of record for what we sent: a push that a
-// phone dropped, or that arrived while notifications were off, is still here.
-
-export async function fetchNotifications(limit = 50): Promise<NotificationRow[]> {
-  // No profile filter: `notifications_select_own` is the only thing that
-  // decides whose inbox this is, and adding a second, weaker check in the
-  // client would only invite disagreement about which one is authoritative.
-  return unwrap(
-    await backend
-      .from('notifications')
-      .select('id, group_id, kind, title, body, deep_link, payload, read_at, created_at')
-      .order('created_at', { ascending: false })
-      .limit(limit),
-  ) as unknown as NotificationRow[];
-}
-
-export async function markNotificationsRead(ids: string[]): Promise<number> {
-  if (ids.length === 0) return 0;
-  const { data, error } = await backend.rpc('baaki_mark_notifications_read', { p_ids: ids });
-  if (error) throw new Error(error.message);
-  return Number(data ?? 0);
 }
 
 export async function saveNotificationPrefs(

@@ -68,13 +68,11 @@ import {
   fetchOpenReceipts,
   fetchReceipt,
   fetchGroupSpending,
-  fetchNotifications,
   fetchMemberClaims,
   decideMemberClaim,
   type PlanItemRow,
   type MemberBudgetRow,
   type GroupBudget,
-  markNotificationsRead,
   recordSettlement,
   resolveDispute,
   leaveGroup,
@@ -119,7 +117,6 @@ export const keys = {
   settlements: (id: string) => ['group', id, 'settlements'] as const,
   activity: (id: string) => ['group', id, 'activity'] as const,
   balances: (id: string) => ['group', id, 'balances'] as const,
-  notifications: ['notifications'] as const,
   disputes: (id: string) => ['group', id, 'disputes'] as const,
   spending: (id: string) => ['group', id, 'spending'] as const,
   memberClaims: (id: string) => ['group', id, 'member-claims'] as const,
@@ -1281,25 +1278,6 @@ export function useDeleteTag() {
       await mutate(MutationKind.TagDelete, categoryTagsScope(ownerId), { tagId });
       return tagId;
     },
-  });
-}
-
-/**
- * The inbox (TDR §7.1).
- *
- * Kept short and refetched rather than paginated: this is what Baaki has said
- * to you lately, not an archive. A read that goes back further than the last
- * fifty things is a report, not a notification list.
- */
-export function useNotifications() {
-  return useQuery({ queryKey: keys.notifications, queryFn: () => fetchNotifications() });
-}
-
-export function useMarkNotificationsRead() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: markNotificationsRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.notifications }),
   });
 }
 

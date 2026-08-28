@@ -60,17 +60,12 @@ export function AppTabBar() {
         icon: (color) => <Ionicons name="pulse" size={iconSize.lg} color={color} />,
       },
       {
-        key: 'inbox',
-        label: t.tabs.inbox,
-        icon: (color) => <Ionicons name="file-tray-outline" size={iconSize.lg} color={color} />,
-      },
-      {
         key: 'me',
         label: t.personal.tab,
         icon: (color) => <Ionicons name="wallet-outline" size={iconSize.lg} color={color} />,
       },
     ],
-    [t.activity, t.friends, t.home, t.tabs.inbox, t.personal.tab],
+    [t.activity, t.friends, t.home, t.personal.tab],
   );
 
   // All bar destinations are tabs now. `navigate` switches to the existing tab
