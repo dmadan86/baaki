@@ -55,7 +55,7 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ matrix.app == 'admin' && secrets.VERCEL_PROJECT_ID_ADMIN || secrets.VERCEL_PROJECT_ID_WEB }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 20
