@@ -31,7 +31,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   TextInput,
   View,
@@ -145,6 +144,10 @@ export default function MergePeopleScreen() {
   const [nameTouched, setNameTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The "add another person" sheet — the only way more guests join the merge
+  // now that the main list shows the chosen people rather than the whole roster.
+  const [addOpen, setAddOpen] = useState(false);
+
   const [contactStep, setContactStep] = useState<ContactStep>('closed');
   const [pendingContact, setPendingContact] = useState<PickedContact | null>(null);
   const [contactBusy, setContactBusy] = useState(false);
@@ -158,7 +161,15 @@ export default function MergePeopleScreen() {
     enabled: contactStep !== 'closed',
   });
 
-  const selectedRows = [...guests.filter((row) => selected.has(row.person_key)), ...contactTargets];
+  const selectedGuestRows = guests.filter((row) => selected.has(row.person_key));
+  const selectedRows = [...selectedGuestRows, ...contactTargets];
+  // Guests not yet in the merge — what the "add another person" sheet offers.
+  const remainingGuests = guests.filter((row) => !selected.has(row.person_key));
+
+  const openContacts = (): void => {
+    setAddOpen(false);
+    setContactStep('pick');
+  };
 
   const toggle = (personKey: string): void => {
     setError(null);
@@ -350,88 +361,89 @@ export default function MergePeopleScreen() {
             />
           ) : (
             <>
-              <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-                {guests.map((row, index) => {
-                  const isSelected = selected.has(row.person_key);
-                  const isLastRow = index === guests.length - 1 && contactTargets.length === 0;
-                  return (
-                    <View key={row.person_key}>
-                      <Pressable
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: isSelected }}
-                        accessibilityLabel={row.display_name}
-                        onPress={() => toggle(row.person_key)}
-                        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-                      >
-                        <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}>
-                          <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
-                            <Avatar name={row.display_name} size={44} ghost />
-                            <View style={{ flex: 1 }}>
-                              <Text variant="subheading" numberOfLines={1}>
-                                {row.display_name}
-                              </Text>
-                              <Text variant="caption" tone="muted" numberOfLines={1}>
-                                {row.group_count === 1
-                                  ? t.tabs.inOneGroup
-                                  : plural(locale, row.group_count, t.tabs.acrossGroups)}
-                              </Text>
-                            </View>
-                          </Row>
-                          <Ionicons
-                            name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                            size={iconSize.xl}
-                            color={isSelected ? theme.color.brand : theme.color.textFaint}
-                          />
-                        </Row>
-                      </Pressable>
-                      {!isLastRow ? (
-                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                      ) : null}
-                    </View>
-                  );
-                })}
-                {contactTargets.map((row, index) => {
-                  const isLastRow = index === contactTargets.length - 1;
-                  return (
-                    <View key={row.member_id}>
-                      <Row style={{ paddingVertical: theme.spacing.md, alignItems: 'center' }}>
-                        <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
-                          <Avatar name={row.display_name} size={44} ghost />
-                          <View style={{ flex: 1 }}>
-                            <Text variant="subheading" numberOfLines={1}>
-                              {row.display_name}
-                            </Text>
-                            <Text variant="caption" tone="muted" numberOfLines={1}>
-                              {t.mergePeople.fromContactsTag}
-                            </Text>
-                          </View>
-                        </Row>
-                        <IconButton
-                          label={fill(t.pickers.removeName, { name: row.display_name })}
-                          onPress={() => removeContactTarget(row.member_id)}
-                        >
-                          <Ionicons
-                            name="close-circle"
-                            size={iconSize.xl}
-                            color={theme.color.textFaint}
-                          />
-                        </IconButton>
-                      </Row>
-                      {!isLastRow ? (
-                        <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                      ) : null}
-                    </View>
-                  );
-                })}
-              </Card>
+              {/* The identity these people become: their faces folded into one,
+                  and the name that one person will carry on the Friends list.
+                  This is the whole point of the screen, so it leads. */}
+              <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                <MergedAvatars names={selectedRows.map((row) => row.display_name)} />
+                <View style={{ alignSelf: 'stretch', alignItems: 'center', gap: theme.spacing.xs }}>
+                  <TextInput
+                    value={name}
+                    onChangeText={(value) => {
+                      setNameTouched(true);
+                      setName(value);
+                    }}
+                    editable={selectedRows.length > 0}
+                    accessibilityLabel={t.mergePeople.nameLabel}
+                    placeholder={t.mergePeople.namePlaceholder}
+                    placeholderTextColor={theme.color.textFaint}
+                    textAlign="center"
+                    style={{
+                      fontSize: 24,
+                      fontWeight: '800',
+                      color: theme.color.text,
+                      minWidth: 180,
+                      maxWidth: '100%',
+                      paddingVertical: theme.spacing.xs,
+                      paddingHorizontal: theme.spacing.md,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.color.border,
+                    }}
+                  />
+                  <Text variant="caption" tone="muted" align="center">
+                    {t.mergePeople.heroCaption}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Only the people actually being merged — not the whole roster.
+                  Each one is removable; more are added through the sheet below. */}
+              <View style={{ gap: theme.spacing.sm }}>
+                <Text variant="caption" tone="muted">
+                  {selectedRows.length > 0
+                    ? plural(locale, selectedRows.length, t.mergePeople.peopleHeader)
+                    : t.mergePeople.needTwo}
+                </Text>
+                {selectedRows.length > 0 ? (
+                  <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                    {selectedGuestRows.map((row, index) => (
+                      <View key={row.person_key}>
+                        <MergeMemberRow
+                          name={row.display_name}
+                          subtitle={
+                            row.group_count === 1
+                              ? t.tabs.inOneGroup
+                              : plural(locale, row.group_count, t.tabs.acrossGroups)
+                          }
+                          removeLabel={fill(t.pickers.removeName, { name: row.display_name })}
+                          onRemove={() => toggle(row.person_key)}
+                        />
+                        {index < selectedGuestRows.length - 1 || contactTargets.length > 0 ? (
+                          <Divider />
+                        ) : null}
+                      </View>
+                    ))}
+                    {contactTargets.map((row, index) => (
+                      <View key={row.member_id}>
+                        <MergeMemberRow
+                          name={row.display_name}
+                          subtitle={t.mergePeople.fromContactsTag}
+                          removeLabel={fill(t.pickers.removeName, { name: row.display_name })}
+                          onRemove={() => removeContactTarget(row.member_id)}
+                        />
+                        {index < contactTargets.length - 1 ? <Divider /> : null}
+                      </View>
+                    ))}
+                  </Card>
+                ) : null}
+              </View>
 
               <Button
-                label={t.tabs.fromContacts}
+                label={t.mergePeople.addPerson}
                 variant="secondary"
-                size="sm"
                 fullWidth
                 disabled={merge.isPending}
-                onPress={() => setContactStep('pick')}
+                onPress={() => setAddOpen(true)}
                 icon={
                   <Ionicons
                     name="person-add-outline"
@@ -440,28 +452,6 @@ export default function MergePeopleScreen() {
                   />
                 }
               />
-
-              <Card style={{ gap: theme.spacing.xs }}>
-                <Text variant="caption" tone="muted">
-                  {t.mergePeople.nameLabel}
-                </Text>
-                <TextInput
-                  value={name}
-                  onChangeText={(value) => {
-                    setNameTouched(true);
-                    setName(value);
-                  }}
-                  accessibilityLabel={t.mergePeople.nameLabel}
-                  placeholder={t.mergePeople.namePlaceholder}
-                  placeholderTextColor={theme.color.textFaint}
-                  style={{
-                    fontSize: 20,
-                    fontWeight: '700',
-                    color: theme.color.text,
-                    paddingVertical: theme.spacing.sm,
-                  }}
-                />
-              </Card>
 
               {/* The irreversibility, spelled out before the button rather than
                 buried in a toast after the fact. Title + body go through Callout's
@@ -472,12 +462,6 @@ export default function MergePeopleScreen() {
               </Callout>
 
               {error ? <Callout tone="negative">{error}</Callout> : null}
-
-              {selectedRows.length > 0 ? (
-                <Text variant="caption" tone="muted" align="center">
-                  {plural(locale, memberIdsForMerge(selectedRows).length, t.mergePeople.selected)}
-                </Text>
-              ) : null}
 
               <Button
                 label={t.mergePeople.cta}
@@ -491,6 +475,80 @@ export default function MergePeopleScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Add another person to the merge: pick from the guests not already in
+          it, or reach for a device contact. Kept a plain sheet — the roster is
+          usually short — with the contact door at the top for the case the
+          person you mean is not a guest yet. */}
+      <Modal visible={addOpen} animationType="slide" onRequestClose={() => setAddOpen(false)}>
+        <Screen edges={['top', 'bottom']} inModal>
+          <View
+            style={{
+              flex: 1,
+              paddingHorizontal: theme.spacing.xl,
+              paddingBottom: theme.spacing.md,
+              gap: theme.spacing.lg,
+            }}
+          >
+            <Row style={{ paddingTop: theme.spacing.md }}>
+              <IconButton label={t.common.close} onPress={() => setAddOpen(false)}>
+                <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+              </IconButton>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text variant="heading">{t.mergePeople.addGuestTitle}</Text>
+              </View>
+              <View style={{ width: 44 }} />
+            </Row>
+
+            <Button
+              label={t.tabs.fromContacts}
+              variant="secondary"
+              fullWidth
+              onPress={openContacts}
+              icon={
+                <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.brand} />
+              }
+            />
+
+            <ScrollView
+              contentContainerStyle={{ paddingBottom: theme.spacing.xl, gap: theme.spacing.sm }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {remainingGuests.length === 0 ? (
+                <Text variant="caption" tone="muted" align="center">
+                  {t.mergePeople.noMoreGuests}
+                </Text>
+              ) : (
+                <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                  {remainingGuests.map((row, index) => (
+                    <View key={row.person_key}>
+                      <ListRow
+                        title={row.display_name}
+                        subtitle={
+                          row.group_count === 1
+                            ? t.tabs.inOneGroup
+                            : plural(locale, row.group_count, t.tabs.acrossGroups)
+                        }
+                        leading={<Avatar name={row.display_name} size={40} ghost />}
+                        trailing={
+                          <Ionicons
+                            name="add-circle"
+                            size={iconSize.xl}
+                            color={theme.color.brand}
+                          />
+                        }
+                        onPress={() => toggle(row.person_key)}
+                      />
+                      {index < remainingGuests.length - 1 ? <Divider /> : null}
+                    </View>
+                  ))}
+                </Card>
+              )}
+            </ScrollView>
+          </View>
+        </Screen>
+      </Modal>
 
       {/* Picking a device contact as a merge target: step one is the contact
           itself, step two (only when the contact is new to the app) is which
@@ -647,5 +705,74 @@ function ChooseGroupForContact({
 
       <Button label={t.common.cancel} variant="ghost" onPress={onCancel} />
     </ScrollView>
+  );
+}
+
+/**
+ * The people being merged, shown as one overlapping cluster of faces — the
+ * visual promise of "these become one." Up to four; a ring in the page colour
+ * keeps them legible where they overlap. Empty (nothing picked yet) shows a
+ * single placeholder so the hero never collapses.
+ */
+function MergedAvatars({ names }: { names: readonly string[] }): React.JSX.Element {
+  const theme = useTheme();
+  const shown = names.slice(0, 4);
+  if (shown.length === 0) {
+    return <Avatar name="?" size={72} ghost />;
+  }
+  return (
+    <Row style={{ alignItems: 'center' }}>
+      {shown.map((name, index) => (
+        <View
+          key={`${name}-${index}`}
+          style={{
+            marginLeft: index === 0 ? 0 : -20,
+            borderRadius: 999,
+            borderWidth: 3,
+            borderColor: theme.color.bg,
+          }}
+        >
+          <Avatar name={name} size={64} ghost />
+        </View>
+      ))}
+    </Row>
+  );
+}
+
+/**
+ * One person in the merge selection: face, name, where their balance sits, and
+ * a remove control. Removing is the only edit here — there is no "unpick to
+ * unmerged," only "not part of this merge," so it reads as a delete, not a
+ * toggle.
+ */
+function MergeMemberRow({
+  name,
+  subtitle,
+  removeLabel,
+  onRemove,
+}: {
+  name: string;
+  subtitle: string;
+  removeLabel: string;
+  onRemove: () => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <Row style={{ paddingVertical: theme.spacing.sm, alignItems: 'center', minHeight: 44 }}>
+      <Row style={{ flex: 1, gap: theme.spacing.md, alignItems: 'center' }}>
+        <Avatar name={name} size={44} ghost />
+        <View style={{ flex: 1 }}>
+          <Text variant="subheading" numberOfLines={1}>
+            {name}
+          </Text>
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {subtitle}
+          </Text>
+        </View>
+      </Row>
+      <IconButton label={removeLabel} onPress={onRemove}>
+        <Ionicons name="close-circle" size={iconSize.xl} color={theme.color.textFaint} />
+      </IconButton>
+    </Row>
   );
 }
