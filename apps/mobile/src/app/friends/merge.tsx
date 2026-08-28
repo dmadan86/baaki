@@ -112,7 +112,8 @@ export default function MergePeopleScreen() {
       new Set(
         (typeof params.keys === 'string' ? params.keys : '')
           .split(',')
-          .map((key) => decodeURIComponent(key))
+          // useLocalSearchParams already URL-decodes params, so the keys arrive
+          // decoded — decoding again would corrupt any key containing a %.
           .filter((key) => key.length > 0),
       ),
     [params.keys],

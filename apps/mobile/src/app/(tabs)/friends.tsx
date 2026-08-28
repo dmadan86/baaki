@@ -762,8 +762,15 @@ function FriendCard({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={250}
-      accessibilityRole={selectMode && selectable ? 'checkbox' : 'button'}
-      accessibilityState={selectMode && selectable ? { checked: selected } : undefined}
+      // In selection mode a selectable row is a checkbox; a non-selectable one
+      // (a real account — already one identity, nothing to merge) is inert, so
+      // it announces neither role nor tap and reads as disabled. Outside
+      // selection mode every row is the usual button into the person.
+      disabled={selectMode && !selectable}
+      accessibilityRole={selectMode ? (selectable ? 'checkbox' : 'none') : 'button'}
+      accessibilityState={
+        selectMode ? (selectable ? { checked: selected } : { disabled: true }) : undefined
+      }
       accessibilityLabel={shownName}
       style={({ pressed }) => ({
         opacity: pressed ? 0.9 : 1,
