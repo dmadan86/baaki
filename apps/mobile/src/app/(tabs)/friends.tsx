@@ -1324,22 +1324,33 @@ function RemindButton({ row }: { row: PersonBalanceRow }): React.JSX.Element | n
   // row is reused for. `useRecyclingState` resets to idle whenever the row's
   // identity (the pair being nudged) changes, so the button always reflects the
   // person now under it. One value holds the whole lifecycle, so the reset is
-  // atomic — no separate mutation object to clear.
-  const [state, setState] = useRecyclingState<NudgeState>({ phase: 'idle' }, [
-    row.member_id,
-    row.only_group_id,
-    row.currency,
-  ]);
+  // atomic. A request generation guards the async gap: a nudge that settles
+  // after the row has been recycled onto someone else is a stale reply for a
+  // person no longer here, so its `setState` is dropped (the reset bumps the
+  // generation; each `run` captures its own and checks it before applying).
+  const genRef = useRef(0);
+  const [state, setState] = useRecyclingState<NudgeState>(
+    { phase: 'idle' },
+    [row.member_id, row.only_group_id, row.currency],
+    () => {
+      genRef.current += 1;
+    },
+  );
 
   const run = (): void => {
+    const gen = (genRef.current += 1);
+    const fresh = (): boolean => genRef.current === gen;
     setState({ phase: 'pending' });
     nudgeToSettle({
       groupId: row.only_group_id ?? '',
       toMemberId: row.member_id,
       currency: row.currency,
     })
-      .then(() => setState({ phase: 'done', ok: true, label: t.people.reminded }))
+      .then(() => {
+        if (fresh()) setState({ phase: 'done', ok: true, label: t.people.reminded });
+      })
       .catch((error: unknown) => {
+        if (!fresh()) return;
         const message = error instanceof Error ? error.message : String(error);
         // A backend message is neither translated nor meant for the person being
         // nudged. The limit case already went, so it reads as done, not an error.
