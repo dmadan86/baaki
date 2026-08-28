@@ -164,7 +164,16 @@ export default function FriendsScreen() {
     setSelectedKeys(new Set());
   };
 
+  // A long press fires onLongPress (this), then the SAME touch fires the row's
+  // onPress on release — which in selection mode is a toggle. Left alone, that
+  // release toggles right back off the person the long press just picked, the
+  // set empties, and selection mode vanishes the instant you lift your finger.
+  // So the long press arms a one-shot guard that the very next toggle consumes
+  // and ignores. Any later tap is a real pick.
+  const swallowNextToggleRef = useRef(false);
+
   const enterSelect = (personKey: string): void => {
+    swallowNextToggleRef.current = true;
     setSelectMode(true);
     setSelectedKeys(new Set([personKey]));
   };
@@ -182,6 +191,12 @@ export default function FriendsScreen() {
   }, [selectedKeys]);
 
   const toggleSelect = (personKey: string): void => {
+    // The release of the long press that just entered selection — ignore it once
+    // so the picked person stays picked.
+    if (swallowNextToggleRef.current) {
+      swallowNextToggleRef.current = false;
+      return;
+    }
     const next = new Set(selectedKeysRef.current);
     if (next.has(personKey)) next.delete(personKey);
     else next.add(personKey);
