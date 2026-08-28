@@ -648,7 +648,10 @@ export default function NewGroupScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: showMore }}
-            accessibilityLabel={t.extras.moreOptions}
+            // The explicit label overrides the descendant text, so the current
+            // kind shown on the right of the collapsed row is announced here too
+            // — a screen reader would otherwise never hear it.
+            accessibilityLabel={`${t.extras.moreOptions}, ${currentType.label}`}
             onPress={() => setShowMore((current) => !current)}
             style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
           >
