@@ -5,6 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
+  ActivityIndicator,
   Animated,
   Modal,
   Pressable,
@@ -441,11 +442,12 @@ export default function HomeScreen() {
 
         <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
 
-        {/* The white body beneath the hero: the groups list. */}
+        {/* The white body beneath the hero: the groups list. Tightened to a
+            WhatsApp-style side margin (lg) so the list reads dense, not floaty. */}
         <View
           style={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingTop: theme.spacing.xl,
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
             gap: theme.spacing.md,
             flexGrow: 1,
           }}
@@ -1280,15 +1282,12 @@ function HeroBalance({
   // carries meaning. We fold that verdict into the label itself (a Title-case
   // phrase that matches the other slides' headings) so a single line still
   // tells you which way you stand, now that the old third "sub" line is gone.
-  // Held at "updating" until the first sync settles, so it never flips owe↔owed
-  // as the sync reconciles.
-  const netDirection = provisional
-    ? t.dashHero.updating
-    : primary.net === 0n
-      ? t.allSettled
-      : primary.net > 0n
-        ? t.dashHero.netOwed
-        : t.dashHero.netOwe;
+  // The real owe↔owed verdict, shown even before the first sync settles: rather
+  // than masking it behind an "updating" label, each slide carries a small
+  // spinner (see `busy` on MetricSlide) while the sync is still in flight, so
+  // the direction is there to read and the spinner says it may yet change.
+  const netDirection =
+    primary.net === 0n ? t.allSettled : primary.net > 0n ? t.dashHero.netOwed : t.dashHero.netOwe;
 
   const slides = [
     {
@@ -1301,6 +1300,7 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
+          busy={provisional}
         />
       ),
     },
@@ -1314,6 +1314,7 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
+          busy={provisional}
         />
       ),
     },
@@ -1327,6 +1328,7 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
+          busy={provisional}
         />
       ),
     },
@@ -1559,6 +1561,7 @@ function MetricSlide({
   locale,
   hidden,
   onToggleHide,
+  busy = false,
 }: {
   label: string;
   amount: bigint;
@@ -1566,6 +1569,9 @@ function MetricSlide({
   locale: string;
   hidden: boolean;
   onToggleHide: () => void;
+  /** Sync still in flight — a small spinner beside the eye says the figure may
+   *  yet change, without hiding the real label behind an "updating" placeholder. */
+  busy?: boolean;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
@@ -1588,6 +1594,13 @@ function MetricSlide({
             color={theme.color.onBrand}
           />
         </Pressable>
+        {busy ? (
+          <ActivityIndicator
+            size="small"
+            color={theme.color.onBrand}
+            accessibilityLabel={t.dashHero.updating}
+          />
+        ) : null}
       </Row>
       {hidden ? (
         <Text tone="onBrand" style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}>
