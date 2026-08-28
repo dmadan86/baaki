@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
@@ -361,7 +361,11 @@ export default function FriendsScreen() {
                 hitSlop={10}
                 style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
               >
-                <MaterialIcons name="import-contacts" size={iconSize.xl} color={theme.color.text} />
+                <MaterialCommunityIcons
+                  name="book-account-outline"
+                  size={iconSize.xl}
+                  color={theme.color.text}
+                />
               </Pressable>
               {/* Point the camera at a group's invite QR to join it — the read
                 lands in the same join flow an invite link opens. */}

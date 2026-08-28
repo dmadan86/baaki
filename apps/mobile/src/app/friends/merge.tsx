@@ -24,11 +24,12 @@
  */
 import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -215,12 +216,12 @@ export default function MergePeopleScreen() {
       setSelected((prev) => {
         const next = new Set(prev);
         for (const row of matches) next.add(row.person_key);
-        if (!nameTouched) {
-          const rows = guests.filter((row) => next.has(row.person_key));
-          setName(defaultMergeName([...rows, ...contactTargets]));
-        }
         return next;
       });
+      // Assigning a contact is naming the merged person: the contact's name
+      // wins, and it stops auto-tracking the picks from here on.
+      setNameTouched(true);
+      setName(contact.name);
       closeContactFlow();
       return;
     }
@@ -258,7 +259,10 @@ export default function MergePeopleScreen() {
         display_name: pendingContact.name,
       };
       setContactTargets((prev) => [...prev, newTarget]);
-      if (!nameTouched) setName(defaultMergeName([...selectedRows, newTarget]));
+      // The assigned contact's name is the merged person's name (preferred over
+      // the auto-name), and it stays put once chosen.
+      setNameTouched(true);
+      setName(pendingContact.name);
       setError(null);
       closeContactFlow();
     } catch (caught) {
@@ -289,6 +293,17 @@ export default function MergePeopleScreen() {
     },
     onError: (caught) => setError(mergeErrorMessage(caught, t.mergePeople)),
   });
+
+  // Merging is permanent, so the "this can't be undone" warning is a dialog on
+  // tap — the person confirms it deliberately — rather than a line they may
+  // skim past. Only the confirm proceeds to the write.
+  const confirmMerge = (): void => {
+    if (!ready || merge.isPending) return;
+    Alert.alert(t.mergePeople.warningTitle, t.mergePeople.warningBody, [
+      { text: t.common.cancel, style: 'cancel' },
+      { text: t.mergePeople.cta, style: 'destructive', onPress: () => merge.mutate() },
+    ]);
+  };
 
   return (
     <Screen>
@@ -386,9 +401,6 @@ export default function MergePeopleScreen() {
                   />
                   <Ionicons name="pencil" size={iconSize.md} color={theme.color.textFaint} />
                 </Row>
-                <Text variant="caption" tone="muted">
-                  {t.mergePeople.heroCaption}
-                </Text>
               </View>
 
               {/* Only the people actually being merged — not the whole roster.
@@ -433,8 +445,10 @@ export default function MergePeopleScreen() {
                 ) : null}
               </View>
 
-              {/* Another person joins from your device contacts — a name matches
-                  an existing guest and ticks it, or is added as a new one. */}
+              {/* Give the merged person a real identity: assign them a device
+                  contact. A contact whose name matches a guest ticks it; a new
+                  one is added — and either way the contact's name becomes the
+                  merged name (see onPickContact / attachContact). */}
               <Button
                 label={t.mergePeople.addPerson}
                 variant="secondary"
@@ -442,25 +456,25 @@ export default function MergePeopleScreen() {
                 disabled={merge.isPending}
                 onPress={() => setContactStep('pick')}
                 icon={
-                  <MaterialIcons
-                    name="import-contacts"
+                  <MaterialCommunityIcons
+                    name="book-account-outline"
                     size={iconSize.md}
                     color={theme.color.brand}
                   />
                 }
               />
 
-              {/* Irreversible — one quiet line before the button, not a block. */}
-              <Callout tone="negative">{t.mergePeople.warningTitle}</Callout>
-
               {error ? <Callout tone="negative">{error}</Callout> : null}
 
+              {/* The irreversibility is confirmed in a dialog on tap rather than
+                  shouted inline — one clear "are you sure, this can't be undone"
+                  before anything is written. */}
               <Button
                 label={t.mergePeople.cta}
                 size="lg"
                 fullWidth
                 disabled={!ready || merge.isPending}
-                onPress={() => merge.mutate()}
+                onPress={confirmMerge}
               />
               {merge.isPending ? <ActivityIndicator color={theme.color.brand} /> : null}
             </>

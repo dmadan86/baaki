@@ -3206,7 +3206,7 @@ const en: UiStrings = {
     heroCaption: 'They’ll appear as one person on Friends.',
     peopleHeader: { one: '{n} person to merge', other: '{n} people to merge' },
     needTwo: 'Add at least two people to merge them into one.',
-    addPerson: 'Add another person',
+    addPerson: 'Assign to a contact',
     addGuestTitle: 'Add a person',
     noMoreGuests:
       'Everyone you can merge is already added. Add someone from your contacts instead.',
@@ -5237,7 +5237,7 @@ const ta: UiStrings = {
     heroCaption: 'நண்பர்கள் பட்டியலில் அவர்கள் ஒரே நபராகத் தோன்றுவார்கள்.',
     peopleHeader: { one: 'இணைக்க {n} நபர்', other: 'இணைக்க {n} நபர்கள்' },
     needTwo: 'ஒரே நபராக இணைக்க குறைந்தது இரண்டு நபர்களைச் சேர்க்கவும்.',
-    addPerson: 'மற்றொரு நபரைச் சேர்க்கவும்',
+    addPerson: 'தொடர்பிற்கு ஒதுக்கு',
     addGuestTitle: 'ஒரு நபரைச் சேர்க்கவும்',
     noMoreGuests:
       'இணைக்கக்கூடிய அனைவரும் ஏற்கனவே சேர்க்கப்பட்டுள்ளனர். பதிலாக உங்கள் தொடர்புகளிலிருந்து ஒருவரைச் சேர்க்கவும்.',
@@ -7296,7 +7296,7 @@ const hi: UiStrings = {
     heroCaption: 'वे Friends सूची में एक ही व्यक्ति के रूप में दिखेंगे.',
     peopleHeader: { one: 'मर्ज करने के लिए {n} व्यक्ति', other: 'मर्ज करने के लिए {n} लोग' },
     needTwo: 'एक व्यक्ति में मर्ज करने के लिए कम से कम दो लोगों को जोड़ें.',
-    addPerson: 'एक और व्यक्ति जोड़ें',
+    addPerson: 'संपर्क से लिंक करें',
     addGuestTitle: 'एक व्यक्ति जोड़ें',
     noMoreGuests:
       'जिन्हें आप मर्ज कर सकते हैं वे सभी पहले से जुड़े हैं. इसके बजाय अपने संपर्कों से किसी को जोड़ें.',
@@ -9337,7 +9337,7 @@ const ar: UiStrings = {
     heroCaption: 'سيظهرون كشخص واحد في قائمة الأصدقاء.',
     peopleHeader: { one: 'شخص واحد للدمج', other: '{n} أشخاص للدمج' },
     needTwo: 'أضف شخصين على الأقل لدمجهما في شخص واحد.',
-    addPerson: 'إضافة شخص آخر',
+    addPerson: 'ربطه بجهة اتصال',
     addGuestTitle: 'إضافة شخص',
     noMoreGuests: 'كل من يمكنك دمجهم مُضافون بالفعل. أضِف شخصًا من جهات اتصالك بدلاً من ذلك.',
   },
