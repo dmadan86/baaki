@@ -1212,23 +1212,28 @@ export interface UiStrings {
     errorNameRequired: string;
     errorNotSignedIn: string;
     errorGeneric: string;
-    /** Caption on a merge-list row added from a device contact rather than picked
-     *  off the balances list. */
-    fromContactsTag: string;
-    /** Shown while choosing a group for a contact that is new to the app.
-     *  `{name}` is the contact's name. */
-    newContactBody: string;
-    /** Fallback when adding a contact as a new guest fails. `{name}` is the
-     *  contact's name. */
-    errorContactAdd: string;
+    /** After a merge, the prompt offering to invite the merged person to their
+     *  groups. `{name}` is the merged person's name. */
+    invitePromptTitle: string;
+    invitePromptBody: string;
+    /** Dismisses the invite prompt without sharing anything. */
+    invitePromptSkip: string;
+    /** The sheet that shares a group join link per group the merged person is in. */
+    inviteSheetTitle: string;
+    /** `{name}` is the merged person's name. */
+    inviteSheetBody: string;
+    /** Share a join link for one group in that sheet. */
+    inviteShare: string;
     /** Caption under the merged name, on the confirm hero. */
     heroCaption: string;
     /** Header over the list of people currently in the merge. `{n}` is the count. */
     peopleHeader: PluralForms;
     /** Hint shown in place of the list until two people are picked. */
     needTwo: string;
-    /** Button that opens the sheet to add another person to the merge. */
+    /** Button that assigns the merged person a real contact (names the merge). */
     addPerson: string;
+    /** That button's label once a contact is linked. `{name}` is the contact. */
+    assignedTo: string;
     /** Title of that add sheet. */
     addGuestTitle: string;
     /** Empty state of the add sheet when every mergeable guest is already in. */
@@ -3268,14 +3273,18 @@ const en: UiStrings = {
     errorNameRequired: 'Give the merged person a name.',
     errorNotSignedIn: 'You’re signed out. Sign in and try the merge again.',
     errorGeneric: 'Could not merge. Please try again.',
-    fromContactsTag: 'Added from contacts',
-    newContactBody:
-      '{name} isn’t on Waves yet. Add them to a group first, then merge them in below.',
-    errorContactAdd: 'Could not add {name}. Please try again.',
+    invitePromptTitle: 'Invite {name}?',
+    invitePromptBody: 'Share a join link so they can see the groups you merged them into.',
+    invitePromptSkip: 'Not now',
+    inviteSheetTitle: 'Invite to groups',
+    inviteSheetBody:
+      'Share a join link for each group. {name} taps it to join and claim their place.',
+    inviteShare: 'Share',
     heroCaption: 'They’ll appear as one person on Friends.',
     peopleHeader: { one: '{n} person to merge', other: '{n} people to merge' },
     needTwo: 'Add at least two people to merge them into one.',
     addPerson: 'Assign to a contact',
+    assignedTo: 'Assigned to {name}',
     addGuestTitle: 'Add a person',
     noMoreGuests:
       'Everyone you can merge is already added. Add someone from your contacts instead.',
@@ -5332,14 +5341,18 @@ const ta: UiStrings = {
     errorNameRequired: 'இணைந்த நபருக்கு ஒரு பெயரைக் கொடுக்கவும்.',
     errorNotSignedIn: 'நீங்கள் வெளியேறிவிட்டீர்கள். உள்நுழைந்து மீண்டும் இணைக்க முயற்சிக்கவும்.',
     errorGeneric: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
-    fromContactsTag: 'தொடர்புகளிலிருந்து சேர்க்கப்பட்டது',
-    newContactBody:
-      '{name} இன்னும் Waves-இல் இல்லை. முதலில் அவர்களை ஒரு குழுவில் சேர்க்கவும், பிறகு கீழே இணைக்கவும்.',
-    errorContactAdd: '{name} ஐச் சேர்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    invitePromptTitle: '{name} ஐ அழைக்கவா?',
+    invitePromptBody: 'நீங்கள் இணைத்த குழுக்களை அவர்கள் பார்க்க, இணைவதற்கான இணைப்பைப் பகிரவும்.',
+    invitePromptSkip: 'இப்போது வேண்டாம்',
+    inviteSheetTitle: 'குழுக்களுக்கு அழைக்கவும்',
+    inviteSheetBody:
+      'ஒவ்வொரு குழுவுக்கும் இணைவதற்கான இணைப்பைப் பகிரவும். {name} அதைத் தட்டி இணைந்து தங்கள் இடத்தைக் கோரலாம்.',
+    inviteShare: 'பகிர்',
     heroCaption: 'நண்பர்கள் பட்டியலில் அவர்கள் ஒரே நபராகத் தோன்றுவார்கள்.',
     peopleHeader: { one: 'இணைக்க {n} நபர்', other: 'இணைக்க {n} நபர்கள்' },
     needTwo: 'ஒரே நபராக இணைக்க குறைந்தது இரண்டு நபர்களைச் சேர்க்கவும்.',
     addPerson: 'தொடர்பிற்கு ஒதுக்கு',
+    assignedTo: '{name} உடன் இணைக்கப்பட்டது',
     addGuestTitle: 'ஒரு நபரைச் சேர்க்கவும்',
     noMoreGuests:
       'இணைக்கக்கூடிய அனைவரும் ஏற்கனவே சேர்க்கப்பட்டுள்ளனர். பதிலாக உங்கள் தொடர்புகளிலிருந்து ஒருவரைச் சேர்க்கவும்.',
@@ -7427,14 +7440,19 @@ const hi: UiStrings = {
     errorNameRequired: 'मर्ज किए गए व्यक्ति को एक नाम दें.',
     errorNotSignedIn: 'आप साइन आउट हैं. साइन इन करके फिर से मर्ज करें.',
     errorGeneric: 'मर्ज नहीं हो सका. कृपया फिर से प्रयास करें.',
-    fromContactsTag: 'संपर्कों से जोड़ा गया',
-    newContactBody:
-      '{name} अभी Waves पर नहीं है. पहले उन्हें किसी समूह में जोड़ें, फिर नीचे मर्ज करें.',
-    errorContactAdd: '{name} को नहीं जोड़ा जा सका. कृपया फिर कोशिश करें.',
+    invitePromptTitle: '{name} को आमंत्रित करें?',
+    invitePromptBody:
+      'एक जॉइन लिंक शेयर करें ताकि वे उन समूहों को देख सकें जिनमें आपने उन्हें मर्ज किया है.',
+    invitePromptSkip: 'अभी नहीं',
+    inviteSheetTitle: 'समूहों में आमंत्रित करें',
+    inviteSheetBody:
+      'हर समूह के लिए एक जॉइन लिंक शेयर करें. {name} उस पर टैप करके जुड़ता है और अपनी जगह क्लेम करता है.',
+    inviteShare: 'शेयर करें',
     heroCaption: 'वे Friends सूची में एक ही व्यक्ति के रूप में दिखेंगे.',
     peopleHeader: { one: 'मर्ज करने के लिए {n} व्यक्ति', other: 'मर्ज करने के लिए {n} लोग' },
     needTwo: 'एक व्यक्ति में मर्ज करने के लिए कम से कम दो लोगों को जोड़ें.',
     addPerson: 'संपर्क से लिंक करें',
+    assignedTo: '{name} से लिंक किया गया',
     addGuestTitle: 'एक व्यक्ति जोड़ें',
     noMoreGuests:
       'जिन्हें आप मर्ज कर सकते हैं वे सभी पहले से जुड़े हैं. इसके बजाय अपने संपर्कों से किसी को जोड़ें.',
@@ -9506,13 +9524,17 @@ const ar: UiStrings = {
     errorNameRequired: 'أعطِ الشخص المدمج اسمًا.',
     errorNotSignedIn: 'أنت مسجّل الخروج. سجّل الدخول وحاول الدمج مرة أخرى.',
     errorGeneric: 'تعذّر الدمج. يرجى المحاولة مرة أخرى.',
-    fromContactsTag: 'أُضيف من جهات الاتصال',
-    newContactBody: '{name} ليس على Waves بعد. أضفه إلى مجموعة أولاً، ثم ادمجه أدناه.',
-    errorContactAdd: 'تعذّرت إضافة {name}. يرجى المحاولة مرة أخرى.',
+    invitePromptTitle: 'دعوة {name}؟',
+    invitePromptBody: 'شارك رابط انضمام حتى يتمكنوا من رؤية المجموعات التي دمجتهم فيها.',
+    invitePromptSkip: 'ليس الآن',
+    inviteSheetTitle: 'الدعوة إلى المجموعات',
+    inviteSheetBody: 'شارك رابط انضمام لكل مجموعة. ينقر {name} عليه للانضمام والمطالبة بمكانه.',
+    inviteShare: 'مشاركة',
     heroCaption: 'سيظهرون كشخص واحد في قائمة الأصدقاء.',
     peopleHeader: { one: 'شخص واحد للدمج', other: '{n} أشخاص للدمج' },
     needTwo: 'أضف شخصين على الأقل لدمجهما في شخص واحد.',
     addPerson: 'ربطه بجهة اتصال',
+    assignedTo: 'مرتبط بـ {name}',
     addGuestTitle: 'إضافة شخص',
     noMoreGuests: 'كل من يمكنك دمجهم مُضافون بالفعل. أضِف شخصًا من جهات اتصالك بدلاً من ذلك.',
     hint: 'هل ترى نفس الضيف في أكثر من مجموعة؟ ادمج المكرَّرين في شخص واحد.',
