@@ -764,10 +764,8 @@ function stripCategoryPhrase(text: string): string {
  * The single-expense parser above is the certain core. This layer sits on top
  * for the fuller request: "five rupees for snacks, ten for tea, shopping 1000"
  * is four expenses, not one; "make a group called Goa and add 500" both creates
- * a group and files an expense into it. None of it needs a model — but a model
- * does all of it better across languages, so when a key is present the caller
- * prefers {@link interpretVoiceExpenses} and falls back to this only when there
- * is no key or the call fails.
+ * a group and files an expense into it. None of it needs a model or a network —
+ * this pure heuristic is the whole of voice parsing.
  * ───────────────────────────────────────────────────────────────────────── */
 
 /** One expense lifted out of a possibly-multi sentence. Always has an amount. */
@@ -1502,7 +1500,7 @@ function segmentExpenses(text: string): string[] {
 /**
  * Parse a transcript into one or more expenses, plus any group instruction.
  *
- * Pure and model-free: the heuristic fallback for {@link interpretVoiceExpenses}.
+ * Pure and model-free: the whole of voice parsing, no network required.
  * A create-group clause is lifted out first; the rest is segmented, each segment
  * parsed for an amount/currency/note, and segments with no amount dropped. A
  * currency named in one segment carries to later segments that name none, so

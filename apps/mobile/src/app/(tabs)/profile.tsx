@@ -30,7 +30,6 @@ import { useAuth } from '@/lib/auth';
 import { pickAvatarPhoto } from '@/lib/image';
 import { r2Enabled } from '@/lib/storage';
 import { describeGrace, useLock } from '@/lib/lock';
-import { useFlagEnabled } from '@/lib/flags';
 import { SyncNetworkPreference, useSyncNetwork } from '@/lib/syncNetwork';
 import { useThemePreference } from '@/lib/theme';
 
@@ -190,8 +189,6 @@ function ProfileForm() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
-  // Gate the bring-your-own AI-key vault behind a flag until it ships.
-  const aiKeysEnabled = useFlagEnabled('ai_keys');
   const { session, profile, isGuest, updateProfile, signOut } = useAuth();
   // A Google/Apple sign-in carries a photo in the session's user metadata, but
   // the profile row only holds one if a trigger copied it across — older
@@ -413,17 +410,6 @@ function ProfileForm() {
                     icon: 'cloud-outline' as const,
                     label: t.storage.row,
                     route: '/settings/storage',
-                  },
-                ]
-              : []),
-            // Bring your own model key — a credential you supply, held on the
-            // device. Flagged off until it ships.
-            ...(aiKeysEnabled
-              ? [
-                  {
-                    icon: 'key-outline' as const,
-                    label: t.account.aiKeysRow,
-                    route: '/settings/ai-keys',
                   },
                 ]
               : []),
