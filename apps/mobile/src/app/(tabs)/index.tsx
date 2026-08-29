@@ -34,7 +34,6 @@ import {
 } from '@waves/ui';
 
 import { useCaptures, useGroups, useHomeSummary } from '@/data/hooks';
-import { useFlagEnabled } from '@/lib/flags';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { foldedCaptureCount } from '@/lib/captureBatch';
@@ -147,9 +146,6 @@ export default function HomeScreen() {
   // less-used destinations, surfaced from the dashboard rather than only from
   // the profile tab.
   const [menuOpen, setMenuOpen] = useState(false);
-  // The bring-your-own AI-key vault is gated behind a flag until it ships: off
-  // for everyone with no flag row, on only where the console turns it on.
-  const aiKeysEnabled = useFlagEnabled('ai_keys');
   const menuItems: OverflowMenuItem[] = useMemo(
     () => [
       // The `section` keys are internal grouping only (not user-visible): they
@@ -180,16 +176,6 @@ export default function HomeScreen() {
         route: '/settings/theme',
         section: 'app',
       },
-      ...(aiKeysEnabled
-        ? [
-            {
-              icon: 'key-outline' as const,
-              label: t.account.aiKeysRow,
-              route: '/settings/ai-keys' as const,
-              section: 'app',
-            },
-          ]
-        : []),
       {
         icon: 'settings-outline',
         label: t.account.faceSettings,
@@ -203,7 +189,7 @@ export default function HomeScreen() {
         section: 'settings',
       },
     ],
-    [t, aiKeysEnabled, tour],
+    [t, tour],
   );
 
   // A guest tapping "new group" past their limit is sent to sign up rather than
