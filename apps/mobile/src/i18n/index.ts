@@ -1606,6 +1606,19 @@ export interface UiStrings {
     splitBetween: string;
     ofCount: string;
     saveChanges: string;
+    /** Bottom-bar Save on a new expense — more than a bare "Save". */
+    saveExpense: string;
+    /** Compact receipt actions under the amount. */
+    scanReceipt: string;
+    addPhoto: string;
+    /** The collapsible that folds category, payment, location and FX away. */
+    moreDetails: string;
+    fewerDetails: string;
+    /** Split summary, outcome-first: "You paid · split equally with everyone". */
+    youPaid: string;
+    splitEquallyEveryone: string;
+    /** Bottom-bar preview for an even split: "3 people owe ₹200 each". */
+    oweEach: PluralForms;
     notFound: string;
     notFoundBody: string;
     deleteQuestion: string;
@@ -3618,6 +3631,14 @@ const en: UiStrings = {
     splitBetween: 'Split between',
     ofCount: '{chosen} of {total}',
     saveChanges: 'Save changes',
+    saveExpense: 'Save expense',
+    scanReceipt: 'Scan receipt',
+    addPhoto: 'Add photo',
+    moreDetails: 'More details',
+    fewerDetails: 'Fewer details',
+    youPaid: 'You paid',
+    splitEquallyEveryone: 'split equally with everyone',
+    oweEach: { one: '{n} person owes {amount}', other: '{n} people owe {amount} each' },
     notFound: 'Expense not found',
     notFoundBody: 'It may have been deleted more than 30 days ago.',
     deleteQuestion: 'Delete this expense?',
@@ -5697,6 +5718,17 @@ const ta: UiStrings = {
     splitBetween: 'யாருக்கிடையே',
     ofCount: '{total} இல் {chosen}',
     saveChanges: 'மாற்றங்களைச் சேமி',
+    saveExpense: 'செலவைச் சேமி',
+    scanReceipt: 'ரசீதை ஸ்கேன் செய்',
+    addPhoto: 'படத்தைச் சேர்',
+    moreDetails: 'மேலும் விவரங்கள்',
+    fewerDetails: 'விவரங்களை மறை',
+    youPaid: 'நீங்கள் கொடுத்தீர்கள்',
+    splitEquallyEveryone: 'அனைவருடனும் சமமாகப் பிரிக்கப்படும்',
+    oweEach: {
+      one: '{n} நபர் {amount} செலுத்த வேண்டும்',
+      other: '{n} பேர் தலா {amount} செலுத்த வேண்டும்',
+    },
     notFound: 'செலவு கிடைக்கவில்லை',
     notFoundBody: '30 நாட்களுக்கு முன்பே அது நீக்கப்பட்டிருக்கலாம்.',
     deleteQuestion: 'இந்தச் செலவை நீக்கவா?',
@@ -7760,6 +7792,17 @@ const hi: UiStrings = {
     splitBetween: 'किनके बीच',
     ofCount: '{total} में से {chosen}',
     saveChanges: 'बदलाव सेव करें',
+    saveExpense: 'खर्च सेव करें',
+    scanReceipt: 'बिल स्कैन करें',
+    addPhoto: 'फ़ोटो जोड़ें',
+    moreDetails: 'और जानकारी',
+    fewerDetails: 'जानकारी छिपाएँ',
+    youPaid: 'आपने चुकाया',
+    splitEquallyEveryone: 'सबके साथ बराबर बँटेगा',
+    oweEach: {
+      one: '{n} व्यक्ति को {amount} देना है',
+      other: '{n} लोगों को प्रत्येक {amount} देना है',
+    },
     notFound: 'खर्च नहीं मिला',
     notFoundBody: 'हो सकता है इसे 30 दिन से पहले हटा दिया गया हो।',
     deleteQuestion: 'यह खर्च मिटाएँ?',
@@ -9855,6 +9898,20 @@ const ar: UiStrings = {
     splitBetween: 'التقسيم بين',
     ofCount: '{chosen} من {total}',
     saveChanges: 'حفظ التغييرات',
+    saveExpense: 'احفظ المصروف',
+    scanReceipt: 'امسح الفاتورة',
+    addPhoto: 'أضف صورة',
+    moreDetails: 'المزيد من التفاصيل',
+    fewerDetails: 'إخفاء التفاصيل',
+    youPaid: 'أنت دفعت',
+    splitEquallyEveryone: 'يُقسَّم بالتساوي مع الجميع',
+    oweEach: {
+      one: 'على شخص واحد دفع {amount}',
+      two: 'على شخصين دفع {amount} لكلٍّ',
+      few: 'على {n} أشخاص دفع {amount} لكل واحد',
+      many: 'على {n} شخصًا دفع {amount} لكل واحد',
+      other: 'على {n} شخص دفع {amount} لكل واحد',
+    },
     notFound: 'المصروف غير موجود',
     notFoundBody: 'ربما حُذف قبل أكثر من 30 يومًا.',
     deleteQuestion: 'حذف هذا المصروف؟',
