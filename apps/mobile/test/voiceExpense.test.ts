@@ -986,6 +986,12 @@ describe('detectRelativeGroup', () => {
     expect(detectRelativeGroup('300 in that most recent group')).toBe(true);
   });
 
+  it('catches phrases people say while already looking at a group', () => {
+    expect(detectRelativeGroup('add 500 to this group')).toBe(true);
+    expect(detectRelativeGroup('put 200 in the current group')).toBe(true);
+    expect(detectRelativeGroup('100 for tea in my active group')).toBe(true);
+  });
+
   it('does not fire when a real name sits before "group"', () => {
     // "last Goa group" names Goa; matchGroup must own it, not the relative path.
     expect(detectRelativeGroup('add 500 to the last Goa group')).toBe(false);
@@ -1003,8 +1009,20 @@ describe('parseVoiceExpenses resolves a relative group to the newest', () => {
     expect(result.items[0].note).toBe('dinner');
   });
 
+  it('routes "this/current group" the same way the voice screen orders its contextual group first', () => {
+    const currentFirst: VoiceGroupRef[] = [
+      { id: 'g-flat', name: 'Flat 4B' },
+      { id: 'g-goa', name: 'Goa Trip' },
+    ];
+    const result = parseVoiceExpenses('add 350 rupees for milk to this group', currentFirst);
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-flat' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].note).toBe('milk');
+  });
+
   it('falls through to the inbox when there are no groups to resolve against', () => {
     expect(parseVoiceExpenses('add 500 to the latest group', []).group).toBeNull();
+    expect(parseVoiceExpenses('add 500 to this group', []).group).toBeNull();
   });
 });
 
@@ -1014,7 +1032,7 @@ describe('voiceAutoAction', () => {
     expect(voiceAutoAction(result)).toEqual({ kind: 'create-group', name: 'Weekend Trip' });
   });
 
-  it('acts on one expense aimed at an existing group', () => {
+  it('acts on one plain expense aimed at an existing group', () => {
     const result = parseVoiceExpenses('add 500 rupees to the latest group', groups);
     expect(voiceAutoAction(result)).toEqual({ kind: 'commit-expense', groupId: 'g-goa' });
   });
@@ -1039,6 +1057,38 @@ describe('voiceAutoAction', () => {
     const result = parseVoiceExpenses('add 500 rupees for coffee just for me', groups);
     expect(result.personal).toBe(true);
     expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when a split count would otherwise be silently ignored', () => {
+    const result = parseVoiceExpenses(
+      'add 1000 rupees groceries to this group split among 4',
+      groups,
+    );
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+    expect(result.splitCount).toBe(4);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when split participant names need member resolution', () => {
+    const result = parseVoiceExpenses(
+      'add 800 rupees dinner to the latest group split with Ravi',
+      groups,
+    );
+    expect(result.peopleText).toContain('Ravi');
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when a date or category changes the default expense fields', () => {
+    const dated = parseVoiceExpenses('add 500 rupees dinner yesterday to the latest group', groups);
+    expect(dated.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(voiceAutoAction(dated)).toBeNull();
+
+    const categorised = parseVoiceExpenses(
+      'add 300 rupees cab category travel to the latest group',
+      groups,
+    );
+    expect(categorised.items[0].category).toBe('travel');
+    expect(voiceAutoAction(categorised)).toBeNull();
   });
 });
 

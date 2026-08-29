@@ -512,14 +512,16 @@ function matchGroup(tokens: readonly string[], groups: readonly VoiceGroupRef[])
 }
 
 /**
- * A phrase that points at "the group I was just in" rather than naming one —
- * "the latest group", "last group", "my most recent group", "previous group".
- * The reader's group list arrives most-recent-first, so a hit resolves to its
- * first entry (see `parseVoiceExpenses`). The words must sit next to "group":
- * "last Goa group" names Goa and is left for `matchGroup`, not caught here.
+ * A phrase that points at the contextual group rather than naming one — "this
+ * group" / "current group" while already looking at one, or "the latest group",
+ * "last group", "my most recent group", "previous group" from the global mic.
+ * The reader's group list arrives current/most-recent-first, so a hit resolves
+ * to its first entry (see `parseVoiceExpenses`). The words must sit next to
+ * "group": "last Goa group" names Goa and is left for `matchGroup`, not caught
+ * here.
  */
 const RELATIVE_GROUP =
-  /\b(?:the\s+|my\s+|that\s+)?(?:latest|last|recent|most\s+recent|previous|prev)\s+group\b/iu;
+  /\b(?:the\s+|my\s+|that\s+)?(?:this|current|active|latest|last|recent|most\s+recent|previous|prev)\s+group\b/iu;
 
 export function detectRelativeGroup(text: string): boolean {
   return RELATIVE_GROUP.test(text);
@@ -758,7 +760,7 @@ const CATEGORY_WORDS = new Map<string, CategoryId>(
 );
 
 const CATEGORY_PHRASE =
-  /\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40}?)(?=\s+(?:and|then|with|split|on|for|category|tag|label)\b|\s*[,;]|\s*$)/giu;
+  /\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40}?)(?=\s+(?:and|then|with|split|on|for|to|in|into|category|tag|label)\b|\s*[,;]|\s*$)/giu;
 
 export function parseVoiceCategory(text: string): CategoryId | null {
   CATEGORY_PHRASE.lastIndex = 0;
@@ -832,13 +834,15 @@ export interface VoiceParseResult {
  * Two cases are safe to act on directly:
  *  - `create-group`: a bare "make a group called Goa" with no expense in it. No
  *    amount to mishear, nothing to split — just the group.
- *  - `commit-expense`: exactly one expense aimed at a group that already exists.
- *    The group's own currency and an equal split are the documented defaults the
- *    review would have applied anyway, so there is nothing a tap would decide.
+ *  - `commit-expense`: exactly one *plain* expense aimed at a group that already
+ *    exists. The group's own currency and an equal split are the documented
+ *    defaults the review would have applied anyway, so there is nothing a tap
+ *    would decide.
  *
  * Everything else — several expenses in a breath, a group to *create* alongside
- * an expense, a "just for me" spend, an unresolved or unnamed destination —
- * returns null so the reader confirms on the review screen first.
+ * an expense, a "just for me" spend, an unresolved or unnamed destination, or a
+ * command carrying split/date/category details — returns null so the reader
+ * confirms on the review screen first.
  */
 export type VoiceAutoAction =
   { kind: 'create-group'; name: string } | { kind: 'commit-expense'; groupId: string };
@@ -852,12 +856,20 @@ export function voiceAutoAction(result: VoiceParseResult): VoiceAutoAction | nul
     return { kind: 'create-group', name: result.group.name };
   }
 
+  const [item] = result.items;
+  const hasSplitInstructions =
+    result.splitCount !== null || splitParticipantClause(result.peopleText) !== null;
+  const hasNonDefaultExpenseFields = result.expenseDate !== null || item?.category !== null;
+
   if (
     result.group?.kind === 'existing' &&
     !result.personal &&
     result.items.length === 1 &&
-    Number.isFinite(result.items[0].amountMajor) &&
-    result.items[0].amountMajor > 0
+    !hasSplitInstructions &&
+    !hasNonDefaultExpenseFields &&
+    item &&
+    Number.isFinite(item.amountMajor) &&
+    item.amountMajor > 0
   ) {
     return { kind: 'commit-expense', groupId: result.group.groupId };
   }
