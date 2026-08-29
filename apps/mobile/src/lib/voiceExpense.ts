@@ -891,8 +891,14 @@ export function voiceAutoAction(result: VoiceParseResult): VoiceAutoAction | nul
 export type VoiceMoneyIntent =
   { kind: 'settle'; who: string; amount: number | null } | { kind: 'remind'; who: string };
 
-const REMIND_VERB = /\b(?:remind|nudge|send\s+(?:a\s+)?reminder\s+to)\b\s*/i;
-const SETTLE_VERB = /\b(?:settle\s*up|settle|pay\s*back|pay\s*off|clear\s*up)\b\s*/i;
+const REMIND_VERB = /\b(?:remind|nudge|send\s+(?:a\s+)?(?:payment\s+)?reminder\s+to)\b\s*/i;
+const SETTLE_VERB =
+  /\b(?:settle\s*up|settle|pay\s*back|pay\s*off|clear\s*up|clear\s+(?:the\s+)?(?:balance|dues?))\b\s*/i;
+const MARK_SETTLED = /\bmark\s+(.+?)\s+as\s+settled\b/iu;
+const NON_PERSON_REMINDER = /^\s*(?:me|myself|us|ourselves)\b/iu;
+const NON_PERSON_SETTLEMENT = /\b(?:bill|receipt|expense|hotel|restaurant|tab)\b/iu;
+const NON_MEMBER_DESTINATION =
+  /\b(?:grocery|shopping|packing|todo|to-do|checklist|list|plan|itinerary|agenda)\b/iu;
 
 /** The person's name out of a settle/remind clause — the words a name is made
  *  of, once the amount, currency and command filler are taken away. Prefers an
@@ -902,7 +908,7 @@ function cleanWho(text: string): string {
   return (withClause ? withClause[1] : text)
     .replace(/\d[\d.,]*/g, ' ')
     .replace(
-      /\b(?:up|to|for|my|me|the|a|an|friend|friends|back|off|pay|paid|paying|settle|settled|remind|nudge|now|please|today|rupees?|rupee|dollars?|dollar|euros?|euro|about|it|money|owed?|owes)\b/giu,
+      /\b(?:up|to|for|my|me|the|a|an|friend|friends|back|off|pay|paid|paying|settle|settled|remind|nudge|now|please|today|tomorrow|tonight|later|rupees?|rupee|dollars?|dollar|euros?|euro|about|it|money|balance|dues?|owed?|owes)\b/giu,
       ' ',
     )
     .replace(/\s+/g, ' ')
@@ -914,13 +920,22 @@ export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
 
   const remind = norm.match(REMIND_VERB);
   if (remind && remind.index !== undefined) {
-    const who = cleanWho(norm.slice(remind.index + remind[0].length));
+    const rest = norm.slice(remind.index + remind[0].length);
+    if (NON_PERSON_REMINDER.test(rest)) return null;
+    const who = cleanWho(rest);
     if (who) return { kind: 'remind', who };
+  }
+
+  const markedSettled = norm.match(MARK_SETTLED);
+  if (markedSettled) {
+    const who = cleanWho(markedSettled[1]);
+    if (who) return { kind: 'settle', who, amount: null };
   }
 
   const settle = norm.match(SETTLE_VERB);
   if (settle && settle.index !== undefined) {
     const rest = norm.slice(settle.index + settle[0].length);
+    if (!/\bwith\b/iu.test(rest) && NON_PERSON_SETTLEMENT.test(rest)) return null;
     const who = cleanWho(rest);
     if (who) return { kind: 'settle', who, amount: extractAmount(rest) };
   }
@@ -936,16 +951,17 @@ export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
  *
  * Guarded against the expense it looks like: a sentence with an amount is "add
  * 500 to Goa", not a member add, so any number here returns null and the
- * sentence stays an expense. A verb with no name, or no "to/into/in" tail,
- * returns null too. The group is NOT resolved here — the caller does that and
- * falls back to the expense parse when nothing resolves.
+ * sentence stays an expense. A verb with no name, a non-group destination such
+ * as a shopping list, or no "to/into/in" tail returns null too. The group is NOT
+ * resolved here — the caller does that and falls back to the expense parse when
+ * nothing resolves.
  */
 export function detectAddMember(transcript: string): { names: string[] } | null {
   const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
   if (extractAmount(norm) !== null) return null;
 
-  const match = norm.match(/\b(?:add|include|put|invite)\s+(.+?)\s+(?:to|into|in)\b/iu);
-  if (!match) return null;
+  const match = norm.match(/\b(?:add|include|put|invite)\s+(.+?)\s+(?:to|into|in)\b\s+(.+)$/iu);
+  if (!match || NON_MEMBER_DESTINATION.test(match[2])) return null;
 
   const names = match[1]
     .replace(/^\s*(?:the|a|an|my)\s+/iu, '')

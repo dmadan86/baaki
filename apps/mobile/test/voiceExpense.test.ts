@@ -1107,6 +1107,19 @@ describe('detectMoneyIntent', () => {
     });
   });
 
+  it('reads casual real-world settle verbs and keeps only the person name', () => {
+    expect(detectMoneyIntent('clear balance with Ravi please')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: null,
+    });
+    expect(detectMoneyIntent('mark Priya as settled')).toEqual({
+      kind: 'settle',
+      who: 'Priya',
+      amount: null,
+    });
+  });
+
   it('reads a partial settle amount', () => {
     expect(detectMoneyIntent('settle 200 with Ravi')).toEqual({
       kind: 'settle',
@@ -1120,6 +1133,14 @@ describe('detectMoneyIntent', () => {
     });
   });
 
+  it('reads a partial settle amount with currency words before the person', () => {
+    expect(detectMoneyIntent('pay off 500 rupees to Priya')).toEqual({
+      kind: 'settle',
+      who: 'Priya',
+      amount: 500,
+    });
+  });
+
   it('reads a remind command and the person', () => {
     expect(detectMoneyIntent('remind Ravi')).toEqual({ kind: 'remind', who: 'Ravi' });
     expect(detectMoneyIntent('remind Ravi to pay me back')).toEqual({
@@ -1129,11 +1150,28 @@ describe('detectMoneyIntent', () => {
     expect(detectMoneyIntent('nudge Priya')).toEqual({ kind: 'remind', who: 'Priya' });
   });
 
+  it('reads polite reminder phrasing without keeping filler as a name', () => {
+    expect(detectMoneyIntent('please remind Ravi tomorrow')).toEqual({
+      kind: 'remind',
+      who: 'Ravi',
+    });
+    expect(detectMoneyIntent('send a payment reminder to Priya')).toEqual({
+      kind: 'remind',
+      who: 'Priya',
+    });
+  });
+
   it('leaves ordinary expenses alone', () => {
     // Bare "pay"/"paid" are not settle verbs, so an expense is never hijacked.
     expect(detectMoneyIntent('I paid 500 rupees for dinner')).toBeNull();
     expect(detectMoneyIntent('add 500 to the Goa trip')).toBeNull();
     expect(detectMoneyIntent('pay 500 for lunch')).toBeNull();
+  });
+
+  it('leaves planning and non-money reminders alone', () => {
+    expect(detectMoneyIntent('remind me to add dinner later')).toBeNull();
+    expect(detectMoneyIntent('remind me tomorrow about receipts')).toBeNull();
+    expect(detectMoneyIntent('settle the hotel bill tomorrow')).toBeNull();
   });
 
   it('returns null when a verb names no one', () => {
@@ -1156,10 +1194,25 @@ describe('detectAddMember', () => {
     });
   });
 
+  it('reads invite phrasing that names people before the group', () => {
+    expect(detectAddMember('invite Maya and Kabir to this group')).toEqual({
+      names: ['Maya', 'Kabir'],
+    });
+    expect(detectAddMember('can you add Ananya Rao to the Goa trip')).toEqual({
+      names: ['Ananya Rao'],
+    });
+  });
+
   it('does not fire on an expense that has an amount', () => {
     // "add 500 to Goa" is an expense, never a member add.
     expect(detectAddMember('add 500 to Goa')).toBeNull();
     expect(detectAddMember('add 500 rupees to the latest group')).toBeNull();
+  });
+
+  it('does not turn shopping-list or trip-plan language into member invites', () => {
+    expect(detectAddMember('add milk to the grocery list')).toBeNull();
+    expect(detectAddMember('put sunscreen in Goa packing list')).toBeNull();
+    expect(detectAddMember('include breakfast in the plan')).toBeNull();
   });
 
   it('returns null without an add-to shape', () => {
