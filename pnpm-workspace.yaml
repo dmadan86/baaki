@@ -12,6 +12,7 @@ allowBuilds:
   # upload, so every stack trace arrives minified and a crash report points at
   # column 4210 of one line.
   '@sentry/cli': true
+  '@shopify/react-native-skia': true
 minimumReleaseAgeExclude:
   - '@expo/cli@57.0.12 || 57.0.13 || 57.0.14'
   - '@expo/router-server@57.0.5'

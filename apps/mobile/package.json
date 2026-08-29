@@ -12,6 +12,7 @@
     "@react-native-ml-kit/text-recognition": "^2.0.0",
     "@sentry/react-native": "~8.22.0",
     "@shopify/flash-list": "2.3.2",
+    "@shopify/react-native-skia": "2.6.2",
     "@supabase/supabase-js": "^2.112.3",
     "@tanstack/react-query": "^5.101.4",
     "@waves/core": "workspace:*",
