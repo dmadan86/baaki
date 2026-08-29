@@ -46,62 +46,94 @@ import { SyncStatus, useSync } from '@/sync';
 // with their rows (not pinned — sticky headers on this long, variable-height
 // feed left blank gaps and misaligned on a fast fling). `firstOfDay` drives the
 // between-row hairline so no line falls between a day heading and its first entry.
+//
+// A row carries a fully pre-computed `RowView`, not the raw entry: the localized
+// sentence, actor, group label, relative time, tint and parsed amount are all
+// resolved once when the list is built (see `toRowView`), never per render. On a
+// fast fling FlashList recycles a cell onto a new row constantly, so the mount
+// has to be near-free — recomputing all of that per mount is what let a hard
+// fling outrun the recycler into a blank screen.
+type RowView = {
+  href: Href;
+  /** The whole event as one sentence — the spoken (screen-reader) label. */
+  label: string;
+  /** The visible title, event-first so the feed is skimmable. */
+  headline: string;
+  who: string | null;
+  groupLabel: string | null;
+  timestamp: string;
+  tintKey: ReturnType<typeof verbTint>;
+  icon: ReturnType<typeof verbIcon>;
+  money: ReturnType<typeof parseMoney>;
+  archived: boolean;
+  unavailable: boolean;
+};
+
 type FeedRow =
   | { kind: 'header'; key: string; date: string }
-  | { kind: 'row'; key: string; entry: RecentActivityRow; firstOfDay: boolean };
+  | { kind: 'row'; key: string; firstOfDay: boolean; view: RowView };
 
-/**
- * One row of the virtualized activity feed, memoized so a recycled row that
- * lands on the same entry does no work when the parent re-renders — the same
- * pattern the expense feed uses. Every prop is a primitive or a reference the
- * screen keeps stable (`t`/`theme` from context, `rtf` hoisted per locale), so
- * the shallow `memo` compare holds on a fast fling.
- *
- * `describeActivity` is called once here, not twice (spoken label + visible
- * line), and `relativeTime` is handed the hoisted `rtf` instead of building an
- * `Intl.RelativeTimeFormat` per row — the two allocations that made this feed
- * heavier to scroll than the expense feed it mirrors.
- */
-const ActivityFeedRow = memo(function ActivityFeedRow({
-  entry,
-  locale,
-  t,
-  theme,
-  myProfileId,
-  blockedIds,
-  rtf,
-}: {
-  entry: RecentActivityRow;
+type RowContext = {
   locale: string;
   t: ReturnType<typeof useStrings>['t'];
-  theme: ReturnType<typeof useTheme>;
   myProfileId: string | null;
   blockedIds: ReturnType<typeof useBlockedUsers>['blockedIds'];
   rtf: Intl.RelativeTimeFormat | undefined;
+};
+
+// Resolve everything a row shows, once, at list-build time. `describeActivity`
+// is called once for the spoken label; the visible title uses the lighter
+// `activityHeadline`; `rtf` is the hoisted formatter, never rebuilt per row.
+function toRowView(entry: RecentActivityRow, ctx: RowContext): RowView {
+  const g = entry.group;
+  return {
+    href: activityTarget(entry) as Href,
+    label: describeActivity(entry, ctx.myProfileId, ctx.blockedIds, ctx.t.misc.someone),
+    headline: activityHeadline(entry),
+    // Nobody did an auto-event, so it carries no actor — omit it rather than say
+    // "Someone". A blocked or since-left actor still resolves through actorName.
+    who: entry.actor
+      ? actorName(entry.actor, ctx.myProfileId, ctx.blockedIds, ctx.t.misc.someone)
+      : null,
+    groupLabel: g
+      ? [g.cover_emoji, g.name].filter(Boolean).join(' ').trim() || ctx.t.captures.group
+      : null,
+    timestamp: activityTimestamp(ctx.locale, entry.created_at, undefined, ctx.rtf),
+    tintKey: verbTint(entry.verb),
+    icon: verbIcon(entry.verb),
+    money: parseMoney(entry.payload),
+    archived: !!g?.archived_at,
+    unavailable: !g,
+  };
+}
+
+/**
+ * One row of the virtualized activity feed — purely presentational over a
+ * pre-computed `RowView`, and memoized so a recycled cell that lands on the same
+ * row does no work. The render is just JSX assembly (no string-building, no
+ * parsing), which is what keeps a hard fling from outrunning the recycler.
+ */
+const ActivityFeedRow = memo(function ActivityFeedRow({
+  view,
+  locale,
+  t,
+  theme,
+}: {
+  view: RowView;
+  locale: string;
+  t: ReturnType<typeof useStrings>['t'];
+  theme: ReturnType<typeof useTheme>;
 }) {
-  const money = parseMoney(entry.payload);
   // A soft rounded-square tile whose tint leans with the verb — the same row the
   // group's Activity tab and the Expenses tab use, so activity reads one way
   // everywhere. No timeline rail; the day headings above do the sectioning,
   // hairlines do the between-row separation.
-  const tint = theme.tint[verbTint(entry.verb)];
-  const g = entry.group;
-  const groupLabel = g
-    ? [g.cover_emoji, g.name].filter(Boolean).join(' ').trim() || t.captures.group
-    : null;
-  // The full sentence stays the spoken label — a screen reader wants the whole
-  // event in one utterance. The visible title leads with the event instead, and
-  // the actor moves to the metadata line beneath it, so the feed is skimmable.
-  const label = describeActivity(entry, myProfileId, blockedIds, t.misc.someone);
-  const headline = activityHeadline(entry);
-  // Nobody did an auto-event, so it carries no actor — omit it rather than say
-  // "Someone". A blocked or since-left actor still resolves through actorName.
-  const who = entry.actor ? actorName(entry.actor, myProfileId, blockedIds, t.misc.someone) : null;
+  const tint = theme.tint[view.tintKey];
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={() => router.push(activityTarget(entry) as Href)}
+      accessibilityLabel={view.label}
+      onPress={() => router.push(view.href)}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Row
@@ -121,11 +153,11 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
             backgroundColor: tint.bg,
           }}
         >
-          <Ionicons name={verbIcon(entry.verb)} size={iconSize.lg} color={tint.ink} />
+          <Ionicons name={view.icon} size={iconSize.lg} color={tint.ink} />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="body" numberOfLines={2}>
-            {headline}
+            {view.headline}
           </Text>
           {/* Who · which group · when. The actor sits here now, not in the title;
               the group is named because this is a cross-group feed. An archived
@@ -139,22 +171,22 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
               flexWrap: 'wrap',
             }}
           >
-            {who ? (
+            {view.who ? (
               <Text variant="caption" tone="muted">
-                {who}
+                {view.who}
               </Text>
             ) : null}
-            {groupLabel ? (
+            {view.groupLabel ? (
               <Text variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {`${who ? '· ' : ''}${groupLabel}`}
+                {`${view.who ? '· ' : ''}${view.groupLabel}`}
               </Text>
             ) : null}
             <Text variant="caption" tone="muted">
-              {`${who || groupLabel ? '· ' : ''}${activityTimestamp(locale, entry.created_at, undefined, rtf)}`}
+              {`${view.who || view.groupLabel ? '· ' : ''}${view.timestamp}`}
             </Text>
-            {g?.archived_at ? (
+            {view.archived ? (
               <Badge label={t.misc.archivedGroup} tone="neutral" />
-            ) : !g ? (
+            ) : view.unavailable ? (
               <Badge label={t.misc.unavailableGroup} tone="neutral" />
             ) : null}
           </Row>
@@ -163,10 +195,10 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
             amount, not as a crashed tab. Neutral, not red: this is an expense
             total belonging to nobody in particular, not a balance you owe —
             `mode="plain"` is MoneyText's neutral ink. */}
-        {money ? (
+        {view.money ? (
           <MoneyText
-            amount={money.amount}
-            currency={money.currency}
+            amount={view.money.amount}
+            currency={view.money.currency}
             locale={locale}
             variant="subheading"
           />
@@ -217,13 +249,29 @@ export default function ActivityScreen() {
     [allEntries, range],
   );
 
+  // One relative-time formatter for the whole feed, rebuilt only when the locale
+  // changes — handed to `toRowView` so no `Intl.RelativeTimeFormat` is ever built
+  // per row. Declared before the list so the build below can use it.
+  const rtf = useMemo(
+    () =>
+      typeof Intl.RelativeTimeFormat === 'function'
+        ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+        : undefined,
+    [locale],
+  );
+
   // The whole history is already on the phone (the mirror), so there is no page
   // to fetch — the list is fully known. `FlashList` virtualizes it: only the
   // rows near the viewport are mounted, and they recycle as the feed scrolls, so
   // a heavy account's memory and mount cost stay bounded no matter how far back
   // it goes. FlashList has no sections, so the day cut is flattened into `header`
   // items that scroll inline with their rows (like the group ledger's months).
+  //
+  // Each row's display is pre-computed here via `toRowView` so a recycled cell
+  // mounts with no work. This whole pass only reruns when the data, filter or
+  // locale changes — never on scroll — so the up-front cost is paid off-fling.
   const listData = useMemo(() => {
+    const ctx: RowContext = { locale, t, myProfileId, blockedIds, rtf };
     const rows: FeedRow[] = [];
     for (const section of groupByDay(visibleEntries)) {
       rows.push({
@@ -232,11 +280,16 @@ export default function ActivityScreen() {
         date: section.entries[0]!.created_at,
       });
       section.entries.forEach((entry, index) => {
-        rows.push({ kind: 'row', key: entry.id, entry, firstOfDay: index === 0 });
+        rows.push({
+          kind: 'row',
+          key: entry.id,
+          firstOfDay: index === 0,
+          view: toRowView(entry, ctx),
+        });
       });
     }
     return rows;
-  }, [visibleEntries]);
+  }, [visibleEntries, locale, t, myProfileId, blockedIds, rtf]);
 
   // The active range worded for the chip: one date when start and end share a
   // day, "start – end" otherwise. Formatted in the current locale.
@@ -251,17 +304,6 @@ export default function ActivityScreen() {
       ? showDay(range.start)
       : `${showDay(range.start)} – ${showDay(range.end)}`
     : '';
-
-  // One relative-time formatter for the whole feed, rebuilt only when the locale
-  // changes — handed to every row so a fast scroll never constructs an
-  // `Intl.RelativeTimeFormat` per recycled row.
-  const rtf = useMemo(
-    () =>
-      typeof Intl.RelativeTimeFormat === 'function'
-        ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
-        : undefined,
-    [locale],
-  );
 
   const header = (
     <View>
@@ -477,15 +519,7 @@ export default function ActivityScreen() {
                     : { borderTopWidth: 1, borderTopColor: theme.color.border }
                 }
               >
-                <ActivityFeedRow
-                  entry={item.entry}
-                  locale={locale}
-                  t={t}
-                  theme={theme}
-                  myProfileId={myProfileId}
-                  blockedIds={blockedIds}
-                  rtf={rtf}
-                />
+                <ActivityFeedRow view={item.view} locale={locale} t={t} theme={theme} />
               </View>
             )
           }
