@@ -487,6 +487,7 @@ describe('matchMemberNames', () => {
 
 import {
   detectAddMember,
+  detectBalanceQuery,
   detectCreateGroup,
   detectMoneyIntent,
   detectRelativeGroup,
@@ -1234,5 +1235,32 @@ describe('detectAddMember', () => {
   it('returns null without an add-to shape', () => {
     expect(detectAddMember('remind Ravi')).toBeNull();
     expect(detectAddMember('add Ravi')).toBeNull();
+  });
+});
+
+describe('detectBalanceQuery', () => {
+  it('reads a person balance question', () => {
+    expect(detectBalanceQuery('how much does Ravi owe me')).toEqual({
+      kind: 'person',
+      who: 'Ravi',
+    });
+    expect(detectBalanceQuery('how much do I owe Priya')).toEqual({ kind: 'person', who: 'Priya' });
+    expect(detectBalanceQuery('am I settled with Ravi')).toEqual({ kind: 'person', who: 'Ravi' });
+    expect(detectBalanceQuery('what is my balance with Sam')).toEqual({
+      kind: 'person',
+      who: 'Sam',
+    });
+  });
+
+  it('reads a general balance question (group or overall)', () => {
+    expect(detectBalanceQuery("what's my balance in Goa")).toEqual({ kind: 'balance' });
+    expect(detectBalanceQuery('how much do I owe overall')).toEqual({ kind: 'balance' });
+  });
+
+  it('leaves commands and plain expenses alone', () => {
+    expect(detectBalanceQuery('add 500 to Goa')).toBeNull();
+    expect(detectBalanceQuery('settle up with Ravi')).toBeNull();
+    expect(detectBalanceQuery('remind Ravi')).toBeNull();
+    expect(detectBalanceQuery('add Ravi to the latest group')).toBeNull();
   });
 });

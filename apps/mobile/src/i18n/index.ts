@@ -947,6 +947,22 @@ export interface UiStrings {
     autoAddingPerson: string;
     /** The button on the auto-act banner that cancels the pending write. */
     autoUndo: string;
+    /** The header of the read-only answer to a spoken balance question. */
+    ansTitle: string;
+    /** A person balance answer. '{name}' and '{amount}'. */
+    ansTheyOweYou: string;
+    ansYouOwe: string;
+    /** A person with nothing outstanding. '{name}'. */
+    ansSettled: string;
+    /** A group balance answer. '{group}' and '{amount}'. */
+    ansGroupOwed: string;
+    ansGroupOwe: string;
+    /** A square group. '{group}'. */
+    ansGroupSettled: string;
+    /** A spoken name that matched no contact. '{name}'. */
+    ansNoPerson: string;
+    /** The button on the answer card that reopens the mic for another question. */
+    askAgain: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -3029,6 +3045,15 @@ const en: UiStrings = {
     autoReminding: 'Reminding {name}',
     autoAddingPerson: 'Adding {name} to {group}',
     autoUndo: 'Undo',
+    ansTitle: 'Balance',
+    ansTheyOweYou: '{name} owes you {amount}',
+    ansYouOwe: 'You owe {name} {amount}',
+    ansSettled: "You're settled up with {name}",
+    ansGroupOwed: 'In {group}, you are owed {amount}',
+    ansGroupOwe: 'In {group}, you owe {amount}',
+    ansGroupSettled: "You're all settled up in {group}",
+    ansNoPerson: "Couldn't find {name}",
+    askAgain: 'Ask again',
   },
   notifications: {
     title: 'Notifications',
@@ -5089,6 +5114,15 @@ const ta: UiStrings = {
     autoReminding: '{name} க்கு நினைவூட்டல்',
     autoAddingPerson: '{group} இல் {name} சேர்க்கிறது',
     autoUndo: 'செயல்தவிர்',
+    ansTitle: 'இருப்பு',
+    ansTheyOweYou: '{name} உங்களுக்கு {amount} தர வேண்டும்',
+    ansYouOwe: 'நீங்கள் {name} க்கு {amount} தர வேண்டும்',
+    ansSettled: '{name} உடன் தீர்க்கப்பட்டது',
+    ansGroupOwed: '{group} இல், உங்களுக்கு {amount} வர வேண்டும்',
+    ansGroupOwe: '{group} இல், நீங்கள் {amount} தர வேண்டும்',
+    ansGroupSettled: '{group} இல் அனைத்தும் தீர்க்கப்பட்டது',
+    ansNoPerson: '{name} கிடைக்கவில்லை',
+    askAgain: 'மீண்டும் கேள்',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -7207,6 +7241,15 @@ const hi: UiStrings = {
     autoReminding: '{name} को याद दिला रहे हैं',
     autoAddingPerson: '{group} में {name} जोड़ रहे हैं',
     autoUndo: 'पूर्ववत करें',
+    ansTitle: 'बैलेंस',
+    ansTheyOweYou: '{name} आप पर {amount} बकाया है',
+    ansYouOwe: 'आप {name} को {amount} देते हैं',
+    ansSettled: '{name} के साथ हिसाब बराबर है',
+    ansGroupOwed: '{group} में, आपको {amount} मिलने हैं',
+    ansGroupOwe: '{group} में, आप {amount} देते हैं',
+    ansGroupSettled: '{group} में सब हिसाब बराबर है',
+    ansNoPerson: '{name} नहीं मिला',
+    askAgain: 'फिर पूछें',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -9305,6 +9348,15 @@ const ar: UiStrings = {
     autoReminding: 'تذكير {name}',
     autoAddingPerson: 'إضافة {name} إلى {group}',
     autoUndo: 'تراجع',
+    ansTitle: 'الرصيد',
+    ansTheyOweYou: '{name} يدين لك بمبلغ {amount}',
+    ansYouOwe: 'أنت تدين لـ {name} بمبلغ {amount}',
+    ansSettled: 'تمت التسوية مع {name}',
+    ansGroupOwed: 'في {group}، لك {amount}',
+    ansGroupOwe: 'في {group}، عليك {amount}',
+    ansGroupSettled: 'تمت التسوية بالكامل في {group}',
+    ansNoPerson: 'تعذر العثور على {name}',
+    askAgain: 'اسأل مرة أخرى',
   },
   notifications: {
     title: 'الإشعارات',

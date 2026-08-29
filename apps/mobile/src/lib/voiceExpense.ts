@@ -985,6 +985,53 @@ export function detectAddMember(transcript: string): { names: string[] } | null 
 }
 
 /**
+ * A spoken read-only question about balances — "how much does Ravi owe me",
+ * "what's my balance in Goa", "am I settled with Priya". Nothing is written; the
+ * screen looks the number up and shows it. `person` carries the name to resolve;
+ * `balance` is a group/overall question the screen answers by resolving the
+ * group named (and shows nothing when none resolves — it is not a command).
+ *
+ * A person frame ("does X owe", "I owe X", "settled with X") wins; failing that,
+ * a first-person balance question with no name is a `balance`. Anything without
+ * a balance word, or without a question framing, returns null so an ordinary
+ * expense is never mistaken for a question.
+ */
+export type VoiceBalanceQuery = { kind: 'person'; who: string } | { kind: 'balance' };
+
+// Frames that name a specific person. The "I owe X" ones lead so "how much do I
+// owe Priya" reads Priya, not "I"; the third-person one then excludes "i" as the
+// subject so it only catches "how much does Ravi owe".
+const QUERY_PERSON_FRAMES: readonly RegExp[] = [
+  /\b(?:how much do i owe|what do i owe|do i owe)\s+(.+)$/iu,
+  /\bhow much (?:does|do)\s+(?!i\b)(.+?)\s+owe\b/iu,
+  /\bdoes\s+(.+?)\s+owe\s+me\b/iu,
+  /\b(?:balance|settled(?:\s+up)?)\s+with\s+(.+)$/iu,
+];
+
+// Words a person is not — "how much do I owe overall" is a balance question,
+// not a debt to someone named "overall". Stripped from a captured name; when
+// nothing is left, the frame did not really name a person.
+const QUERY_NON_PERSON = /\b(?:overall|in total|total|everyone|everybody|anyone|anybody|all)\b/giu;
+
+export function detectBalanceQuery(transcript: string): VoiceBalanceQuery | null {
+  const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
+
+  for (const frame of QUERY_PERSON_FRAMES) {
+    const match = norm.match(frame);
+    if (match) {
+      const who = cleanWho(match[1]).replace(QUERY_NON_PERSON, ' ').replace(/\s+/g, ' ').trim();
+      if (who) return { kind: 'person', who };
+    }
+  }
+
+  const framed = /\b(?:how much|what(?:'s| is)?|do i|am i|are we)\b/iu.test(norm);
+  const aboutBalance = /\b(?:balance|owe|owed|owes|settled)\b/iu.test(norm);
+  if (framed && aboutBalance) return { kind: 'balance' };
+
+  return null;
+}
+
+/**
  * Native numerals to ASCII, so "५०० रुपये" and "௫" and "٥" all read as numbers.
  * Devanagari, Tamil, Arabic-Indic and Eastern-Arabic (Persian/Urdu) digits are
  * the ones this app's four locales and their neighbours actually type or speak.
