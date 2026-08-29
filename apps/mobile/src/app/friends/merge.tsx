@@ -13,16 +13,18 @@
  * already one identity by their account and must never be folded under a made-up
  * name, which the RPC also enforces.
  *
- * A merge target does not have to already be on this screen's list. Picking a
- * phone contact resolves it the same way a person reading names would: if it
- * matches an existing guest by name, that guest is ticked; if it does not, the
- * contact is not yet anyone in Waves, so it is added as a guest of one of your
- * groups first — through the very same `addGhostMember` path `contacts.tsx` and
- * `add-person.tsx` use — and then folded into the selection. Either way the
- * merge itself still goes through `mergeGhosts` and its ledger-safety rules;
- * nothing here writes to a balance.
+ * Assigning a device contact only *names* the merged person. It never creates a
+ * new guest and never asks which group to add anyone to — the people being
+ * merged are already in their groups. If the contact's name matches a guest on
+ * the list, that guest is ticked; either way the contact's name becomes the
+ * merged name and is held so the invite step below can offer it.
+ *
+ * After the merge, the person can be invited to the groups they now span. There
+ * is no targeted send in this app — invites are one durable join link per group
+ * (see `group/[id]/invite`) — so "invite them" here is a sheet that shares that
+ * same link for each of the merged person's groups.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -34,6 +36,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   TextInput,
   View,
 } from 'react-native';
@@ -57,9 +60,10 @@ import {
 } from '@waves/ui';
 
 import {
-  addGhostMember,
-  fetchGroups,
+  ensureGroupJoinToken,
   fetchPeopleBalances,
+  fetchPersonGroupBalances,
+  groupJoinLink,
   mergeGhosts,
   type PersonBalanceRow,
 } from '@/data/api';
@@ -70,28 +74,18 @@ import {
   memberIdsForMerge,
   mergeErrorMessage,
 } from '@/data/mergePeople';
-import { groupLabel, type GroupRow } from '@/data/types';
 import { ContactPicker, type PickedContact } from '@/components/ContactPicker';
 import { PeopleSkeleton } from '@/components/Skeletons';
 import { friendlyError } from '@/lib/errors';
 import { useSync } from '@/sync';
 import { fill, plural, useStrings } from '@/i18n';
 
-/**
- * A merge candidate that did not come from the balances list — a ghost just
- * created (or about to be) from a device contact. Shaped like the subset of
- * {@link PersonBalanceRow} the merge logic actually reads, so it can sit
- * alongside guest rows in the same selection without either side knowing about
- * the other's origin.
- */
-interface ContactMergeTarget {
-  readonly member_id: string;
-  readonly display_name: string;
+/** One group the merged person belongs to, for the post-merge invite sheet. */
+interface InviteGroup {
+  readonly id: string;
+  readonly name: string | null;
+  readonly emoji: string | null;
 }
-
-/** Where the "add a contact" flow is: closed, picking a contact, or — once a
- * contact turns out to be new to the app — picking which group to add them to. */
-type ContactStep = 'closed' | 'pick' | 'chooseGroup';
 
 export default function MergePeopleScreen() {
   const theme = useTheme();
@@ -135,32 +129,28 @@ export default function MergePeopleScreen() {
   }, [people.data]);
 
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(initialKeys));
-  // Guests materialised from a device contact that was new to the app. They
-  // never had a balance to appear in `guests`, so they live beside it rather
-  // than in it — always part of the selection once added (removable, not
-  // untickable, since there is no unmerged state to go back to).
-  const [contactTargets, setContactTargets] = useState<readonly ContactMergeTarget[]>([]);
   const [name, setName] = useState(() =>
     decodeURIComponent(typeof params.name === 'string' ? params.name : ''),
   );
   const [nameTouched, setNameTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [contactStep, setContactStep] = useState<ContactStep>('closed');
-  const [pendingContact, setPendingContact] = useState<PickedContact | null>(null);
-  const [contactBusy, setContactBusy] = useState(false);
-  const [contactError, setContactError] = useState<string | null>(null);
+  // The device contact assigned to name the merge (if any). Held only for its
+  // name and to show the "assigned" state — it is never turned into a guest.
+  const [pickedContact, setPickedContact] = useState<PickedContact | null>(null);
+  const [pickingContact, setPickingContact] = useState(false);
 
-  // Only fetched once the contact flow actually needs somewhere to put a new
-  // ghost — most visits to this screen never open it.
-  const groups = useQuery({
-    queryKey: ['groups'],
-    queryFn: fetchGroups,
-    enabled: contactStep !== 'closed',
-  });
+  // The post-merge invite step: the merged person's name and the groups they
+  // span, or null while the sheet is closed.
+  const [inviteFor, setInviteFor] = useState<{ name: string; groups: InviteGroup[] } | null>(null);
+  const [shareBusyId, setShareBusyId] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  // Groups snapshot taken the instant before the merge writes — memberships do
+  // not change, and the pre-merge person_keys resolve cleanly (a merged key may
+  // not), so the invite prompt can list them without another round-trip.
+  const pendingInviteGroups = useRef<InviteGroup[]>([]);
 
-  const selectedGuestRows = guests.filter((row) => selected.has(row.person_key));
-  const selectedRows = [...selectedGuestRows, ...contactTargets];
+  const selectedRows = guests.filter((row) => selected.has(row.person_key));
 
   const toggle = (personKey: string): void => {
     setError(null);
@@ -170,116 +160,54 @@ export default function MergePeopleScreen() {
       else next.add(personKey);
       // Keep the name in step with the pick until the person types their own.
       if (!nameTouched) {
-        const rows = guests.filter((row) => next.has(row.person_key));
-        setName(defaultMergeName([...rows, ...contactTargets]));
+        setName(defaultMergeName(guests.filter((row) => next.has(row.person_key))));
       }
       return next;
     });
-  };
-
-  const removeContactTarget = (memberId: string): void => {
-    setError(null);
-    setContactTargets((prev) => {
-      const next = prev.filter((row) => row.member_id !== memberId);
-      // Keep the auto-name in step with the selection the same way toggle and
-      // onPickContact do — the removed contact is no longer in it — until the
-      // person types their own. The ghost addGhostMember created is left alone;
-      // this only drops it from this merge's selection.
-      if (!nameTouched) {
-        const rows = guests.filter((row) => selected.has(row.person_key));
-        setName(defaultMergeName([...rows, ...next]));
-      }
-      return next;
-    });
-  };
-
-  const closeContactFlow = (): void => {
-    setContactStep('closed');
-    setPendingContact(null);
-    setContactError(null);
   };
 
   /**
-   * A contact was picked. If its name matches somebody already on this list,
-   * that is exactly the recognition this screen is built on — tick them, the
-   * same as tapping their row would. Only when nothing matches is the contact
-   * genuinely new, and the flow moves on to asking which group to add them to.
+   * A contact was picked. It only names the merge: if its name matches somebody
+   * already on this list, that is exactly the recognition this screen is built
+   * on — tick them, the same as tapping their row would. Either way the contact
+   * becomes the merged name and is held for the invite step. No guest is
+   * created, and no group is chosen — the merge is over the people already here.
    */
   const onPickContact = (chosen: readonly PickedContact[]): void => {
     const contact = chosen[0];
     if (!contact) return;
-    setContactError(null);
     const needle = contact.name.trim().toLowerCase();
     const matches = guests.filter((row) => row.display_name.trim().toLowerCase() === needle);
-    if (matches.length > 0) {
-      setError(null);
-      setSelected((prev) => {
-        const next = new Set(prev);
-        for (const row of matches) next.add(row.person_key);
-        return next;
-      });
-      // Assigning a contact is naming the merged person: the contact's name
-      // wins, and it stops auto-tracking the picks from here on.
-      setNameTouched(true);
-      setName(contact.name);
-      closeContactFlow();
-      return;
-    }
-    // Already added as a contact target on this list — it is in the selection
-    // and the name already reflects it, so re-picking it must not run through
-    // chooseGroup again and create a second ghost. Just close.
-    const alreadyAdded = contactTargets.some(
-      (row) => row.display_name.trim().toLowerCase() === needle,
-    );
-    if (alreadyAdded) {
-      closeContactFlow();
-      return;
-    }
-    setPendingContact(contact);
-    setContactStep('chooseGroup');
-  };
-
-  /**
-   * The contact is new to the app: add them as a guest of the chosen group —
-   * through the same `addGhostMember` RPC `contacts.tsx` and `add-person.tsx`
-   * use, so there is exactly one path that creates a ghost — then fold the new
-   * member straight into this merge's selection.
-   */
-  const attachContact = async (groupId: string): Promise<void> => {
-    if (!pendingContact) return;
-    setContactBusy(true);
-    setContactError(null);
-    try {
-      const memberId = await addGhostMember(groupId, pendingContact.name, {
-        email: pendingContact.email,
-        phone: pendingContact.phone,
-      });
-      const newTarget: ContactMergeTarget = {
-        member_id: memberId,
-        display_name: pendingContact.name,
-      };
-      setContactTargets((prev) => [...prev, newTarget]);
-      // The assigned contact's name is the merged person's name (preferred over
-      // the auto-name), and it stays put once chosen.
-      setNameTouched(true);
-      setName(pendingContact.name);
-      setError(null);
-      closeContactFlow();
-    } catch (caught) {
-      setContactError(
-        friendlyError(
-          caught,
-          fill(t.mergePeople.errorContactAdd, { name: pendingContact.name }),
-          'merge.attachContact',
-        ),
-      );
-    } finally {
-      setContactBusy(false);
-    }
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const row of matches) next.add(row.person_key);
+      return next;
+    });
+    setPickedContact(contact);
+    // Assigning a contact is naming the merged person: the contact's name wins,
+    // and it stops auto-tracking the picks from here on.
+    setNameTouched(true);
+    setName(contact.name);
+    setError(null);
+    setPickingContact(false);
   };
 
   const ready = canMerge(selectedRows) && name.trim().length > 0;
-  const nothingToMergeYet = guests.length === 0 && contactTargets.length === 0;
+  const nothingToMergeYet = guests.length === 0;
+
+  /** The groups the currently-selected guests span, deduped by group id. */
+  const gatherInviteGroups = async (): Promise<InviteGroup[]> => {
+    const rows = (
+      await Promise.all([...selected].map((key) => fetchPersonGroupBalances(key)))
+    ).flat();
+    const byId = new Map<string, InviteGroup>();
+    for (const row of rows) {
+      if (!byId.has(row.group_id)) {
+        byId.set(row.group_id, { id: row.group_id, name: row.group_name, emoji: row.cover_emoji });
+      }
+    }
+    return [...byId.values()];
+  };
 
   const merge = useMutation({
     mutationFn: () => mergeGhosts(memberIdsForMerge(selectedRows), name.trim()),
@@ -289,7 +217,22 @@ export default function MergePeopleScreen() {
       // next background sync. The invalidate keeps this screen's own list fresh.
       await queryClient.invalidateQueries({ queryKey: ['people', 'balances'] });
       void flush();
-      router.back();
+      const groups = pendingInviteGroups.current;
+      // Nothing to invite into (no groups resolved) → this screen is done.
+      if (groups.length === 0) {
+        router.back();
+        return;
+      }
+      // Ask before sharing anything. Skip closes the screen; Invite opens the
+      // per-group share sheet.
+      Alert.alert(
+        fill(t.mergePeople.invitePromptTitle, { name: name.trim() }),
+        t.mergePeople.invitePromptBody,
+        [
+          { text: t.mergePeople.invitePromptSkip, style: 'cancel', onPress: () => router.back() },
+          { text: t.people.invite, onPress: () => setInviteFor({ name: name.trim(), groups }) },
+        ],
+      );
     },
     onError: (caught) => setError(mergeErrorMessage(caught, t.mergePeople)),
   });
@@ -301,8 +244,46 @@ export default function MergePeopleScreen() {
     if (!ready || merge.isPending) return;
     Alert.alert(t.mergePeople.warningTitle, t.mergePeople.warningBody, [
       { text: t.common.cancel, style: 'cancel' },
-      { text: t.mergePeople.cta, style: 'destructive', onPress: () => merge.mutate() },
+      {
+        text: t.mergePeople.cta,
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            // Snapshot the groups before the write, from the pre-merge keys.
+            try {
+              pendingInviteGroups.current = await gatherInviteGroups();
+            } catch {
+              pendingInviteGroups.current = [];
+            }
+            merge.mutate();
+          })();
+        },
+      },
     ]);
+  };
+
+  const dismissInvite = (): void => {
+    setInviteFor(null);
+    router.back();
+  };
+
+  /** Share one group's durable join link through the OS share sheet. */
+  const shareGroupInvite = async (group: InviteGroup): Promise<void> => {
+    setShareBusyId(group.id);
+    setInviteError(null);
+    try {
+      const token = await ensureGroupJoinToken(group.id);
+      void flush();
+      const label = group.name ?? t.captures.group;
+      const message = t.people.shareMessage
+        .replace('{group}', label)
+        .replace('{link}', groupJoinLink(token));
+      await Share.share({ message });
+    } catch (caught) {
+      setInviteError(friendlyError(caught, t.couldNotSave, 'merge.shareInvite'));
+    } finally {
+      setShareBusyId(null);
+    }
   };
 
   return (
@@ -350,20 +331,7 @@ export default function MergePeopleScreen() {
               }
             />
           ) : nothingToMergeYet ? (
-            // Nothing on the balances list yet — but a device contact can still
-            // start a merge (see the module doc), so the empty state offers that
-            // rather than being a dead end.
-            <EmptyState
-              title={t.mergePeople.title}
-              body={t.mergePeople.empty}
-              action={
-                <Button
-                  label={t.tabs.fromContacts}
-                  variant="secondary"
-                  onPress={() => setContactStep('pick')}
-                />
-              }
-            />
+            <EmptyState title={t.mergePeople.title} body={t.mergePeople.empty} />
           ) : (
             <>
               {/* The one thing this screen decides: the name the merged person
@@ -404,7 +372,7 @@ export default function MergePeopleScreen() {
               </View>
 
               {/* Only the people actually being merged — not the whole roster.
-                  Each is removable; more come in through the button below. */}
+                  Each is removable; the button below assigns a contact name. */}
               <View style={{ gap: theme.spacing.sm }}>
                 <Text variant="caption" tone="muted">
                   {selectedRows.length > 0
@@ -413,7 +381,7 @@ export default function MergePeopleScreen() {
                 </Text>
                 {selectedRows.length > 0 ? (
                   <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-                    {selectedGuestRows.map((row, index) => (
+                    {selectedRows.map((row, index) => (
                       <View key={row.person_key}>
                         <MergeMemberRow
                           name={row.display_name}
@@ -425,20 +393,7 @@ export default function MergePeopleScreen() {
                           removeLabel={fill(t.pickers.removeName, { name: row.display_name })}
                           onRemove={() => toggle(row.person_key)}
                         />
-                        {index < selectedGuestRows.length - 1 || contactTargets.length > 0 ? (
-                          <Divider />
-                        ) : null}
-                      </View>
-                    ))}
-                    {contactTargets.map((row, index) => (
-                      <View key={row.member_id}>
-                        <MergeMemberRow
-                          name={row.display_name}
-                          subtitle={t.mergePeople.fromContactsTag}
-                          removeLabel={fill(t.pickers.removeName, { name: row.display_name })}
-                          onRemove={() => removeContactTarget(row.member_id)}
-                        />
-                        {index < contactTargets.length - 1 ? <Divider /> : null}
+                        {index < selectedRows.length - 1 ? <Divider /> : null}
                       </View>
                     ))}
                   </Card>
@@ -446,18 +401,22 @@ export default function MergePeopleScreen() {
               </View>
 
               {/* Give the merged person a real identity: assign them a device
-                  contact. A contact whose name matches a guest ticks it; a new
-                  one is added — and either way the contact's name becomes the
-                  merged name (see onPickContact / attachContact). */}
+                  contact. A contact whose name matches a guest ticks it; either
+                  way the contact's name becomes the merged name (see
+                  onPickContact). No guest is created and no group is chosen. */}
               <Button
-                label={t.mergePeople.addPerson}
+                label={
+                  pickedContact
+                    ? fill(t.mergePeople.assignedTo, { name: pickedContact.name })
+                    : t.mergePeople.addPerson
+                }
                 variant="secondary"
                 fullWidth
                 disabled={merge.isPending}
-                onPress={() => setContactStep('pick')}
+                onPress={() => setPickingContact(true)}
                 icon={
                   <MaterialCommunityIcons
-                    name="book-account-outline"
+                    name={pickedContact ? 'account-check-outline' : 'book-account-outline'}
                     size={iconSize.md}
                     color={theme.color.brand}
                   />
@@ -482,16 +441,14 @@ export default function MergePeopleScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Picking a device contact as a merge target: step one is the contact
-          itself, step two (only when the contact is new to the app) is which
-          group to add them to. Mounted only while open, for the same reason
-          add-person's own contact modal is — a React Native Modal keeps its
-          children mounted across a close, so without this gate the picker would
-          reopen showing the last pick still ticked. */}
+      {/* Picking a device contact to name the merge. Mounted only while open,
+          for the same reason add-person's own contact modal is — a React Native
+          Modal keeps its children mounted across a close, so without this gate
+          the picker would reopen showing the last pick still ticked. */}
       <Modal
-        visible={contactStep !== 'closed'}
+        visible={pickingContact}
         animationType="slide"
-        onRequestClose={closeContactFlow}
+        onRequestClose={() => setPickingContact(false)}
       >
         <Screen edges={['top', 'bottom']} inModal>
           <View
@@ -503,140 +460,87 @@ export default function MergePeopleScreen() {
             }}
           >
             <Row style={{ paddingTop: theme.spacing.md }}>
-              <IconButton label={t.common.close} onPress={closeContactFlow}>
+              <IconButton label={t.common.close} onPress={() => setPickingContact(false)}>
                 <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
               </IconButton>
               <View style={{ flex: 1, alignItems: 'center' }}>
-                <Text variant="heading">
-                  {contactStep === 'pick' ? t.tabs.fromContacts : t.misc.addToWhichGroup}
-                </Text>
+                <Text variant="heading">{t.tabs.fromContacts}</Text>
               </View>
               <View style={{ width: 44 }} />
             </Row>
-            {contactStep === 'pick' ? (
-              <ContactPicker single onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
-            ) : pendingContact ? (
-              <ChooseGroupForContact
-                contact={pendingContact}
-                groups={groups.data ?? []}
-                loading={groups.isLoading}
-                busy={contactBusy}
-                error={contactError}
-                onChoose={(groupId) => void attachContact(groupId)}
-                onCancel={closeContactFlow}
-              />
-            ) : null}
+            <ContactPicker single onConfirm={onPickContact} confirmVerb={t.misc.continueWith} />
           </View>
         </Screen>
       </Modal>
-    </Screen>
-  );
-}
 
-/**
- * Which of my groups a brand-new contact-ghost joins, once merge.tsx has
- * established they are not already anyone in `guests`.
- *
- * Deliberately the smaller sibling of `contacts.tsx`'s own `ChooseGroup`: one
- * contact rather than a batch, and the destination is a merge selection rather
- * than a fresh membership, but the list itself — and the "no groups yet, start
- * one" fallback — is the same shape on purpose.
- */
-function ChooseGroupForContact({
-  contact,
-  groups,
-  loading,
-  busy,
-  error,
-  onChoose,
-  onCancel,
-}: {
-  contact: PickedContact;
-  groups: readonly GroupRow[];
-  loading: boolean;
-  busy: boolean;
-  error: string | null;
-  onChoose: (groupId: string) => void;
-  onCancel: () => void;
-}): React.JSX.Element {
-  const theme = useTheme();
-  const clearance = useTabBarClearance();
-  const { t } = useStrings();
-
-  return (
-    <ScrollView
-      contentContainerStyle={{ paddingBottom: clearance, gap: theme.spacing.lg }}
-      showsVerticalScrollIndicator={false}
-    >
-      <Card style={{ gap: theme.spacing.xs }}>
-        <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-          <Avatar name={contact.name} size={44} ghost />
-          <View style={{ flex: 1 }}>
-            <Text variant="subheading" numberOfLines={1}>
-              {contact.name}
-            </Text>
-            <Text variant="micro" tone="muted" numberOfLines={1}>
-              {contact.email ?? contact.phone ?? t.misc.noAddress}
-            </Text>
-          </View>
-        </Row>
-      </Card>
-
-      <Text variant="caption" tone="muted">
-        {fill(t.mergePeople.newContactBody, { name: contact.name })}
-      </Text>
-
-      {loading ? (
-        <ActivityIndicator color={theme.color.brand} />
-      ) : groups.length === 0 ? (
-        <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="caption" tone="muted">
-            {t.extras.noGroupsYet}
-          </Text>
-          <Button
-            label={t.misc.startAGroup}
-            variant="secondary"
-            onPress={() => {
-              // Dismiss the contact modal before leaving, so it is not left
-              // stacked under the new-group screen.
-              onCancel();
-              router.push('/new-group');
+      {/* After the merge: share a durable join link for each group the merged
+          person spans. There is no targeted send in this app — each group has
+          one link (see group/[id]/invite) — so inviting them to "all their
+          groups" is one Share per group here. */}
+      <Modal visible={inviteFor !== null} animationType="slide" onRequestClose={dismissInvite}>
+        <Screen edges={['top', 'bottom']} inModal>
+          <ScrollView
+            contentContainerStyle={{
+              paddingHorizontal: theme.spacing.xl,
+              paddingBottom: theme.spacing.xl,
+              gap: theme.spacing.lg,
             }}
-          />
-        </Card>
-      ) : (
-        <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-          {groups.map((group, index) => (
-            <View key={group.id}>
-              <ListRow
-                title={groupLabel(group)}
-                leading={
-                  <Avatar
-                    name={groupLabel(group)}
-                    emoji={group.cover_emoji ?? undefined}
-                    size={40}
-                  />
-                }
-                onPress={busy ? undefined : () => onChoose(group.id)}
-                trailing={
-                  <Ionicons
-                    name={directionalIcon('chevron-forward')}
-                    size={iconSize.md}
-                    color={theme.color.textFaint}
-                  />
-                }
-              />
-              {index < groups.length - 1 ? <Divider /> : null}
-            </View>
-          ))}
-        </Card>
-      )}
+            showsVerticalScrollIndicator={false}
+          >
+            <Row style={{ paddingTop: theme.spacing.md }}>
+              <IconButton label={t.common.close} onPress={dismissInvite}>
+                <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+              </IconButton>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text variant="heading">{t.mergePeople.inviteSheetTitle}</Text>
+              </View>
+              <View style={{ width: 44 }} />
+            </Row>
 
-      {busy ? <ActivityIndicator color={theme.color.brand} /> : null}
-      {error ? <Callout tone="negative">{error}</Callout> : null}
+            <Text variant="caption" tone="muted">
+              {fill(t.mergePeople.inviteSheetBody, { name: inviteFor?.name ?? '' })}
+            </Text>
 
-      <Button label={t.common.cancel} variant="ghost" onPress={onCancel} />
-    </ScrollView>
+            {inviteFor ? (
+              <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                {inviteFor.groups.map((group, index) => (
+                  <View key={group.id}>
+                    <ListRow
+                      title={group.name ?? t.captures.group}
+                      leading={
+                        <Avatar
+                          name={group.name ?? t.captures.group}
+                          emoji={group.emoji ?? undefined}
+                          size={40}
+                        />
+                      }
+                      onPress={shareBusyId ? undefined : () => void shareGroupInvite(group)}
+                      trailing={
+                        shareBusyId === group.id ? (
+                          <ActivityIndicator color={theme.color.brand} />
+                        ) : (
+                          <Ionicons
+                            name="share-outline"
+                            size={iconSize.md}
+                            color={theme.color.brand}
+                            accessibilityLabel={t.mergePeople.inviteShare}
+                          />
+                        )
+                      }
+                    />
+                    {index < inviteFor.groups.length - 1 ? <Divider /> : null}
+                  </View>
+                ))}
+              </Card>
+            ) : null}
+
+            {inviteError ? <Callout tone="negative">{inviteError}</Callout> : null}
+
+            <Button label={t.common.done} size="lg" fullWidth onPress={dismissInvite} />
+          </ScrollView>
+        </Screen>
+      </Modal>
+    </Screen>
   );
 }
 

@@ -1017,6 +1017,20 @@ export async function deleteGroup(groupId: string): Promise<void> {
 
 // ─────────────────────────────────────────────── invites (ADR-006) ──
 
+/**
+ * Base of a group's durable join link. Web-lite (M3) will serve this path; until
+ * then the link deep-links straight into the app, which is what the people being
+ * invited actually have.
+ */
+export const INVITE_BASE = 'https://baaki.app/join';
+
+/** A group's durable join link from its join token — the same string the invite
+ *  screen paints as a QR and shares. Kept here so every place that shares a link
+ *  (the invite screen, the post-merge invite sheet) builds the identical URL. */
+export function groupJoinLink(token: string): string {
+  return `${INVITE_BASE}#${token}`;
+}
+
 export interface MintedInvite {
   inviteId: string;
   token: string;

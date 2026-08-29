@@ -30,19 +30,13 @@ import {
   useScreenClearance,
 } from '@waves/ui';
 
-import { ensureGroupJoinToken, resetGroupJoinToken } from '@/data/api';
+import { ensureGroupJoinToken, groupJoinLink, resetGroupJoinToken } from '@/data/api';
 import { friendlyError } from '@/lib/errors';
 import { useGroup } from '@/data/hooks';
 import { useSync } from '@/sync';
 import { groupLabel } from '@/data/types';
 import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/i18n';
-
-/**
- * Web-lite (M3) will serve this path; until then the link deep-links straight
- * into the app, which is what the people being invited here actually have.
- */
-const INVITE_BASE = 'https://baaki.app/join';
 
 /**
  * The group's durable join link, shown as a QR (the WhatsApp/Signal model).
@@ -76,7 +70,7 @@ export default function InviteScreen() {
   const qrRef = useRef<{ toDataURL?: (cb: (base64: string) => void) => void } | null>(null);
 
   const joinToken = group.data?.join_token ?? ensured;
-  const link = joinToken ? `${INVITE_BASE}#${joinToken}` : null;
+  const link = joinToken ? groupJoinLink(joinToken) : null;
 
   const iAmAdmin =
     (members.data ?? []).find((m) => m.profile_id === profile?.id && m.left_at === null)?.role ===
