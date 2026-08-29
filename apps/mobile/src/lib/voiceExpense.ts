@@ -897,8 +897,13 @@ const SETTLE_VERB =
 const MARK_SETTLED = /\bmark\s+(.+?)\s+as\s+settled\b/iu;
 const NON_PERSON_REMINDER = /^\s*(?:me|myself|us|ourselves)\b/iu;
 const NON_PERSON_SETTLEMENT = /\b(?:bill|receipt|expense|hotel|restaurant|tab)\b/iu;
+const GENERIC_PERSON_TARGET = /^(?:everyone|everybody|all|all friends|friends|group|the group)$/iu;
 const NON_MEMBER_DESTINATION =
   /\b(?:grocery|shopping|packing|todo|to-do|checklist|list|plan|itinerary|agenda)\b/iu;
+
+function isGenericPersonTarget(text: string): boolean {
+  return GENERIC_PERSON_TARGET.test(text.trim());
+}
 
 /** The person's name out of a settle/remind clause — the words a name is made
  *  of, once the amount, currency and command filler are taken away. Prefers an
@@ -915,6 +920,13 @@ function cleanWho(text: string): string {
     .trim();
 }
 
+function cleanInviteName(name: string): string {
+  return name
+    .replace(/^\s*and\s+/iu, '')
+    .replace(/^\s*(?:(?:the|a|an|my|all)\s+)?(?:friend|friends|person|people)\s+/iu, '')
+    .trim();
+}
+
 export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
   const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
 
@@ -923,13 +935,13 @@ export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
     const rest = norm.slice(remind.index + remind[0].length);
     if (NON_PERSON_REMINDER.test(rest)) return null;
     const who = cleanWho(rest);
-    if (who) return { kind: 'remind', who };
+    if (who && !isGenericPersonTarget(who)) return { kind: 'remind', who };
   }
 
   const markedSettled = norm.match(MARK_SETTLED);
   if (markedSettled) {
     const who = cleanWho(markedSettled[1]);
-    if (who) return { kind: 'settle', who, amount: null };
+    if (who && !isGenericPersonTarget(who)) return { kind: 'settle', who, amount: null };
   }
 
   const settle = norm.match(SETTLE_VERB);
@@ -937,7 +949,8 @@ export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
     const rest = norm.slice(settle.index + settle[0].length);
     if (!/\bwith\b/iu.test(rest) && NON_PERSON_SETTLEMENT.test(rest)) return null;
     const who = cleanWho(rest);
-    if (who) return { kind: 'settle', who, amount: extractAmount(rest) };
+    if (who && !isGenericPersonTarget(who))
+      return { kind: 'settle', who, amount: extractAmount(rest) };
   }
 
   return null;
@@ -966,8 +979,8 @@ export function detectAddMember(transcript: string): { names: string[] } | null 
   const names = match[1]
     .replace(/^\s*(?:the|a|an|my)\s+/iu, '')
     .split(/\s*,\s*|\s+and\s+|\s*&\s*/iu)
-    .map((name) => name.trim())
-    .filter(Boolean);
+    .map(cleanInviteName)
+    .filter((name) => name && !isGenericPersonTarget(name));
   return names.length > 0 ? { names } : null;
 }
 

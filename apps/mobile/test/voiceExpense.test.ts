@@ -1174,6 +1174,12 @@ describe('detectMoneyIntent', () => {
     expect(detectMoneyIntent('settle the hotel bill tomorrow')).toBeNull();
   });
 
+  it('does not target generic groups of people for money actions', () => {
+    expect(detectMoneyIntent('remind everyone')).toBeNull();
+    expect(detectMoneyIntent('remind the group')).toBeNull();
+    expect(detectMoneyIntent('settle up with everyone')).toBeNull();
+  });
+
   it('returns null when a verb names no one', () => {
     expect(detectMoneyIntent('settle up')).toBeNull();
     expect(detectMoneyIntent('remind')).toBeNull();
@@ -1192,6 +1198,9 @@ describe('detectAddMember', () => {
     expect(detectAddMember('add Sam, Ravi and Priya to the latest group')).toEqual({
       names: ['Sam', 'Ravi', 'Priya'],
     });
+    expect(detectAddMember('add Ravi, Priya, and Sam to this group')).toEqual({
+      names: ['Ravi', 'Priya', 'Sam'],
+    });
   });
 
   it('reads invite phrasing that names people before the group', () => {
@@ -1201,6 +1210,7 @@ describe('detectAddMember', () => {
     expect(detectAddMember('can you add Ananya Rao to the Goa trip')).toEqual({
       names: ['Ananya Rao'],
     });
+    expect(detectAddMember('add my friend Neha to the flat')).toEqual({ names: ['Neha'] });
   });
 
   it('does not fire on an expense that has an amount', () => {
@@ -1213,6 +1223,12 @@ describe('detectAddMember', () => {
     expect(detectAddMember('add milk to the grocery list')).toBeNull();
     expect(detectAddMember('put sunscreen in Goa packing list')).toBeNull();
     expect(detectAddMember('include breakfast in the plan')).toBeNull();
+  });
+
+  it('does not invite generic placeholders instead of people', () => {
+    expect(detectAddMember('add everyone to Goa')).toBeNull();
+    expect(detectAddMember('invite all friends to the latest group')).toBeNull();
+    expect(detectAddMember('include the group in Goa')).toBeNull();
   });
 
   it('returns null without an add-to shape', () => {
