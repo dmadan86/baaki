@@ -1703,7 +1703,7 @@ function GroupRow({
           alignItems: 'center',
           gap: theme.spacing.md,
           paddingVertical: theme.spacing.sm,
-          paddingHorizontal: theme.spacing.lg,
+          paddingHorizontal: theme.spacing.xs,
           borderTopWidth: divider ? 1 : 0,
           borderTopColor: theme.color.border,
           opacity: pressed ? 0.6 : 1,

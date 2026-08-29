@@ -1154,7 +1154,7 @@ const PersonRow = memo(function PersonRow({
     <Row
       style={{
         paddingVertical: theme.spacing.sm,
-        paddingHorizontal: theme.spacing.lg,
+        paddingHorizontal: theme.spacing.xs,
         alignItems: 'center',
         gap: theme.spacing.md,
         borderTopWidth: divider ? 1 : 0,
