@@ -261,6 +261,173 @@ export default function HomeScreen() {
 
   return (
     <Screen edges={[]}>
+      {/* The hero is a fixed header — it stays put while only the body below it
+          scrolls, matching Friends. */}
+      {/* The hero: one saturated green card that runs edge to edge and up under
+            the status bar — the reference's signature "account panel". It carries
+            the whole top of the screen now: the greeting and face, the swipeable
+            balance, and the add actions. Everything below it is the plain white
+            body. Wrapped as the tour's "hero" anchor so the first coach-mark still
+            spotlights the balance. */}
+      <TourTarget id="hero">
+        <View
+          style={{
+            paddingTop: insets.top + theme.spacing.md,
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: theme.spacing.lg,
+            borderBottomLeftRadius: theme.radius.xxl,
+            borderBottomRightRadius: theme.radius.xxl,
+            gap: theme.spacing.xl,
+            overflow: 'hidden',
+          }}
+        >
+          {/* One gradient layer per slide, stacked and clipped to the hero's
+                rounded corner. Each fades in as its slide reaches centre and out
+                as you leave it (opacity peaks at that slide's snap point, zero at
+                its neighbours), so the hero crossfades colour in lock-step with
+                the swipe. Native-driven opacity off the shared scroll value —
+                smooth at 60fps and free at rest. The first layer sits opaque
+                behind everything as the base while the balance loads. */}
+          {SLIDE_GRADIENTS.map((colors, index) => (
+            <Animated.View
+              key={colors[0]}
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                index === 0
+                  ? null
+                  : {
+                      opacity: heroScrollX.interpolate({
+                        inputRange: [
+                          (index - 1) * heroSnap,
+                          index * heroSnap,
+                          (index + 1) * heroSnap,
+                        ],
+                        outputRange: [0, 1, 0],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+              ]}
+            >
+              <Gradient colors={colors} radius={0} style={{ flex: 1 }} />
+            </Animated.View>
+          ))}
+
+          {/* The corner watermark — a faint glyph per slide that crossfades
+                as you swipe, off the same scroll value as the colour. */}
+          <HeroBackdrop scrollX={heroScrollX} snap={heroSnap} />
+
+          {/* Greeting row: face + "Hi, {name}" over the time of day, then the
+                white controls the reference tucks top-right — sync, a shortcut to
+                start a group, and the overflow menu. */}
+          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <HeroAvatar
+              name={displayName}
+              photoUrl={avatarUrl}
+              onPress={() => router.navigate('/profile')}
+              label={t.profile}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.profile}
+              onPress={() => router.navigate('/profile')}
+              hitSlop={8}
+              style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.5 : 1 })}
+            >
+              <Text variant="heading" tone="onBrand" numberOfLines={1}>
+                {t.dashHero.hi.replace('{name}', displayName)}
+              </Text>
+              <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+                {t.dashHero[greetKey]}
+              </Text>
+            </Pressable>
+            <SyncStatusIcon onBrand />
+            {/* Start a group — moved up here from the action row, so it sits
+                  just before the menu. Still the tour's "add a group" anchor. */}
+            <TourTarget id="addGroup">
+              <HeroIconButton
+                icon="group-add"
+                family="material"
+                label={t.newGroup}
+                onPress={openNewGroup}
+              />
+            </TourTarget>
+            <HeroIconButton
+              icon="ellipsis-vertical"
+              label={t.account.faceSettings}
+              onPress={() => setMenuOpen(true)}
+            />
+          </Row>
+
+          {/* The swipeable balance — net, then owed, then this month — riding
+                on the hero's colour rather than in its own card (ADR-004: no total
+                across currencies, so each is its own slide). Its scroll drives the
+                background crossfade above. While it loads a light placeholder
+                stands in so the number never paints confident zeros. */}
+          {summary.isLoading || !balanceReady ? (
+            <HeroBalanceSkeleton />
+          ) : (
+            <HeroBalance
+              primary={headline}
+              monthSpent={summary.monthSpent}
+              locale={locale}
+              t={t}
+              hidden={balanceHidden}
+              onToggleHide={toggleBalance}
+              scrollX={heroScrollX}
+              cardWidth={heroInner}
+              gap={heroGap}
+              snap={heroSnap}
+              // The mirror hydrates instantly, so the balance shows at once.
+              // Until this session's first sync settles it is provisional —
+              // "updating" rather than an owe/owed verdict, so the net slide's
+              // heading never flips when the sync reconciles (see HeroBalance).
+              provisional={summary.pendingFirstSync}
+            />
+          )}
+
+          {/* The add actions: one white "add expense" pill and two translucent
+                circles — scan and the inbox. Starting a group moved up to the
+                header cluster. */}
+          {/* Buttons and the pager travel together as one block, so the pager
+                sits just under the buttons rather than a full hero-gap away. */}
+          <View style={{ gap: theme.spacing.md }}>
+            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+              <TourTarget id="addExpense">
+                <HeroPill
+                  icon="add"
+                  label={t.addExpense}
+                  onPress={() => router.push('/capture')}
+                  onLongPress={() => setQuickAddOpen(true)}
+                />
+              </TourTarget>
+              <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
+                {/* A fresh nonce each tap so the capture screen's consumed-once
+                      scan guard survives Android recreating it. */}
+                <HeroCircle
+                  icon="camera-outline"
+                  label={t.scanBill}
+                  onPress={() => router.push(`/capture?scan=${Date.now()}`)}
+                  onLongPress={() => setQuickAddOpen(true)}
+                />
+                <HeroCircle
+                  icon="file-tray-outline"
+                  label={t.captures.title}
+                  badge={captureCount || undefined}
+                  disabled={captureCount === 0}
+                  onPress={() => router.navigate('/captures')}
+                />
+              </Row>
+            </Row>
+
+            {/* The swipe pager, right under the buttons. */}
+            <HeroDots count={SLIDE_GRADIENTS.length} scrollX={heroScrollX} snap={heroSnap} />
+          </View>
+        </View>
+      </TourTarget>
+
+      <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
+
       <ScrollView
         contentContainerStyle={{
           paddingBottom: clearance,
@@ -277,171 +444,6 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* The hero: one saturated green card that runs edge to edge and up under
-            the status bar — the reference's signature "account panel". It carries
-            the whole top of the screen now: the greeting and face, the swipeable
-            balance, and the add actions. Everything below it is the plain white
-            body. Wrapped as the tour's "hero" anchor so the first coach-mark still
-            spotlights the balance. */}
-        <TourTarget id="hero">
-          <View
-            style={{
-              paddingTop: insets.top + theme.spacing.md,
-              paddingHorizontal: theme.spacing.xl,
-              paddingBottom: theme.spacing.lg,
-              borderBottomLeftRadius: theme.radius.xxl,
-              borderBottomRightRadius: theme.radius.xxl,
-              gap: theme.spacing.xl,
-              overflow: 'hidden',
-            }}
-          >
-            {/* One gradient layer per slide, stacked and clipped to the hero's
-                rounded corner. Each fades in as its slide reaches centre and out
-                as you leave it (opacity peaks at that slide's snap point, zero at
-                its neighbours), so the hero crossfades colour in lock-step with
-                the swipe. Native-driven opacity off the shared scroll value —
-                smooth at 60fps and free at rest. The first layer sits opaque
-                behind everything as the base while the balance loads. */}
-            {SLIDE_GRADIENTS.map((colors, index) => (
-              <Animated.View
-                key={colors[0]}
-                pointerEvents="none"
-                style={[
-                  StyleSheet.absoluteFill,
-                  index === 0
-                    ? null
-                    : {
-                        opacity: heroScrollX.interpolate({
-                          inputRange: [
-                            (index - 1) * heroSnap,
-                            index * heroSnap,
-                            (index + 1) * heroSnap,
-                          ],
-                          outputRange: [0, 1, 0],
-                          extrapolate: 'clamp',
-                        }),
-                      },
-                ]}
-              >
-                <Gradient colors={colors} radius={0} style={{ flex: 1 }} />
-              </Animated.View>
-            ))}
-
-            {/* The corner watermark — a faint glyph per slide that crossfades
-                as you swipe, off the same scroll value as the colour. */}
-            <HeroBackdrop scrollX={heroScrollX} snap={heroSnap} />
-
-            {/* Greeting row: face + "Hi, {name}" over the time of day, then the
-                white controls the reference tucks top-right — sync, a shortcut to
-                start a group, and the overflow menu. */}
-            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-              <HeroAvatar
-                name={displayName}
-                photoUrl={avatarUrl}
-                onPress={() => router.navigate('/profile')}
-                label={t.profile}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.profile}
-                onPress={() => router.navigate('/profile')}
-                hitSlop={8}
-                style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.5 : 1 })}
-              >
-                <Text variant="heading" tone="onBrand" numberOfLines={1}>
-                  {t.dashHero.hi.replace('{name}', displayName)}
-                </Text>
-                <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-                  {t.dashHero[greetKey]}
-                </Text>
-              </Pressable>
-              <SyncStatusIcon onBrand />
-              {/* Start a group — moved up here from the action row, so it sits
-                  just before the menu. Still the tour's "add a group" anchor. */}
-              <TourTarget id="addGroup">
-                <HeroIconButton
-                  icon="group-add"
-                  family="material"
-                  label={t.newGroup}
-                  onPress={openNewGroup}
-                />
-              </TourTarget>
-              <HeroIconButton
-                icon="ellipsis-vertical"
-                label={t.account.faceSettings}
-                onPress={() => setMenuOpen(true)}
-              />
-            </Row>
-
-            {/* The swipeable balance — net, then owed, then this month — riding
-                on the hero's colour rather than in its own card (ADR-004: no total
-                across currencies, so each is its own slide). Its scroll drives the
-                background crossfade above. While it loads a light placeholder
-                stands in so the number never paints confident zeros. */}
-            {summary.isLoading || !balanceReady ? (
-              <HeroBalanceSkeleton />
-            ) : (
-              <HeroBalance
-                primary={headline}
-                monthSpent={summary.monthSpent}
-                locale={locale}
-                t={t}
-                hidden={balanceHidden}
-                onToggleHide={toggleBalance}
-                scrollX={heroScrollX}
-                cardWidth={heroInner}
-                gap={heroGap}
-                snap={heroSnap}
-                // The mirror hydrates instantly, so the balance shows at once.
-                // Until this session's first sync settles it is provisional —
-                // "updating" rather than an owe/owed verdict, so the net slide's
-                // heading never flips when the sync reconciles (see HeroBalance).
-                provisional={summary.pendingFirstSync}
-              />
-            )}
-
-            {/* The add actions: one white "add expense" pill and two translucent
-                circles — scan and the inbox. Starting a group moved up to the
-                header cluster. */}
-            {/* Buttons and the pager travel together as one block, so the pager
-                sits just under the buttons rather than a full hero-gap away. */}
-            <View style={{ gap: theme.spacing.md }}>
-              <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                <TourTarget id="addExpense">
-                  <HeroPill
-                    icon="add"
-                    label={t.addExpense}
-                    onPress={() => router.push('/capture')}
-                    onLongPress={() => setQuickAddOpen(true)}
-                  />
-                </TourTarget>
-                <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
-                  {/* A fresh nonce each tap so the capture screen's consumed-once
-                      scan guard survives Android recreating it. */}
-                  <HeroCircle
-                    icon="camera-outline"
-                    label={t.scanBill}
-                    onPress={() => router.push(`/capture?scan=${Date.now()}`)}
-                    onLongPress={() => setQuickAddOpen(true)}
-                  />
-                  <HeroCircle
-                    icon="file-tray-outline"
-                    label={t.captures.title}
-                    badge={captureCount || undefined}
-                    disabled={captureCount === 0}
-                    onPress={() => router.navigate('/captures')}
-                  />
-                </Row>
-              </Row>
-
-              {/* The swipe pager, right under the buttons. */}
-              <HeroDots count={SLIDE_GRADIENTS.length} scrollX={heroScrollX} snap={heroSnap} />
-            </View>
-          </View>
-        </TourTarget>
-
-        <OverflowMenu visible={menuOpen} onClose={() => setMenuOpen(false)} items={menuItems} />
-
         {/* The white body beneath the hero: the groups list. Tightened to a
             WhatsApp-style side margin (lg) so the list reads dense, not floaty. */}
         <View
@@ -814,7 +816,7 @@ const NEW_GROUP_WINDOW_MS = 48 * 60 * 60 * 1000;
 /** How many groups the dashboard shows inline before deferring to the full
     "All groups" screen — enough to cover most people's active set without the
     home list growing without bound. */
-const GROUPS_PREVIEW = 5;
+const GROUPS_PREVIEW = 15;
 
 /** The AsyncStorage key holding the day the guest last closed the prompt. */
 const GUEST_PROMPT_DISMISS_KEY = 'guestPrompt:dismissedOn';
