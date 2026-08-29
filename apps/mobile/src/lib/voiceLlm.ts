@@ -519,6 +519,9 @@ export async function interpretVoiceExpenses(
       splitCount: heuristic.splitCount,
       peopleText: heuristic.peopleText,
       expenseDate: heuristic.expenseDate,
+      // "Just for me" routes to the private ledger — but only if the model, which
+      // owns the group here, also matched no group. An explicit group wins.
+      personal: heuristic.personal && group === null,
     };
   } catch (caught) {
     // Network error, abort/timeout, malformed body — all of it is a fallback, not

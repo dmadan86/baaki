@@ -46,6 +46,31 @@ export function isUnsupportedVoiceExpenseIntent(text: string): boolean {
   return UNSUPPORTED_GLOBAL_EXPENSE_INTENT.test(text) || isUnsupportedVoiceExpenseClause(text);
 }
 
+/**
+ * Solo-only markers: the whole spend is the speaker's own, so it belongs on the
+ * private "Me" ledger (A48) rather than any group. "just me and Ravi" is NOT
+ * solo — that is a two-person split — so a marker sitting next to another person
+ * cancels it (SELF_WITH_OTHERS). English phrasings only; the model tier catches
+ * the rest, and this stays certain and cheap.
+ */
+const SELF_ONLY_INTENT =
+  /\b(?:just|only)\s+(?:for\s+)?(?:me|myself)\b|\bfor\s+myself\b|\bfor\s+my\s+own\b|\bmy\s+own\s+expense\b|\bpersonal\s+expense\b|\bby\s+myself\b|\bon\s+my\s+own\b/i;
+const SELF_WITH_OTHERS =
+  /\b(?:me|myself)\s+(?:and|&|\+|with|plus)\b|\b(?:and|&|\+|with|plus)\s+(?:me|myself)\b/i;
+
+/** True when the sentence marks the spend as the speaker's alone (no split). */
+export function isSelfOnlyVoiceIntent(text: string): boolean {
+  return SELF_ONLY_INTENT.test(text) && !SELF_WITH_OTHERS.test(text);
+}
+
+/** Take the solo marker out so the note reads clean ("coffee just for me" → "coffee"). */
+export function stripSelfOnlyPhrase(text: string): string {
+  return text
+    .replace(SELF_ONLY_INTENT, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export function isSafeVoiceAmount(amountMajor: number): boolean {
   return Number.isFinite(amountMajor) && amountMajor > 0 && amountMajor <= MAX_VOICE_AMOUNT_MAJOR;
 }
@@ -772,6 +797,12 @@ export interface VoiceParseResult {
   peopleText: string | null;
   /** A deterministic spoken expense date, when one was heard. */
   expenseDate: string | null;
+  /**
+   * The spend is the speaker's own ("just for me"), so the screen routes the
+   * batch to the private "Me" ledger (A48) instead of a group. Only ever true
+   * when no group was named — an explicit group wins over a solo marker.
+   */
+  personal: boolean;
 }
 
 /**
@@ -1483,7 +1514,14 @@ export function parseVoiceExpenses(
   groups: readonly VoiceGroupRef[],
 ): VoiceParseResult {
   if (UNSUPPORTED_GLOBAL_EXPENSE_INTENT.test(transcript))
-    return { items: [], group: null, splitCount: null, peopleText: null, expenseDate: null };
+    return {
+      items: [],
+      group: null,
+      splitCount: null,
+      peopleText: null,
+      expenseDate: null,
+      personal: false,
+    };
 
   const normalized = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
   const expenseDate = parseVoiceExpenseDate(normalized);
@@ -1508,7 +1546,13 @@ export function parseVoiceExpenses(
     }
   }
 
-  const segments = segmentExpenses(body);
+  // A solo marker only routes to "Me" when the sentence named no group — an
+  // explicit group beats it. When it does apply, the marker is lifted from the
+  // working text so it never lands in a note or gets read as a split.
+  const personal = group === null && isSelfOnlyVoiceIntent(body);
+  const workBody = personal ? stripSelfOnlyPhrase(body) : body;
+
+  const segments = segmentExpenses(workBody);
   const items: VoiceExpenseItem[] = [];
   let carriedCurrency: string | null = null;
 
@@ -1530,8 +1574,8 @@ export function parseVoiceExpenses(
 
   // Nothing segmented out but there is still a single amount — treat the whole
   // sentence as one expense, matching the single-expense parser's reach.
-  if (items.length === 0 && !isUnsupportedVoiceExpenseClause(body)) {
-    const one = parseVoiceExpense(body, groups);
+  if (items.length === 0 && !isUnsupportedVoiceExpenseClause(workBody)) {
+    const one = parseVoiceExpense(workBody, groups);
     if (one.amountMinor !== null && one.amountMajor !== null) {
       items.push({
         amountMinor: one.amountMinor,
@@ -1556,12 +1600,15 @@ export function parseVoiceExpenses(
         })
       : items;
 
-  const peopleText = stripCategoryPhrase(body).trim();
+  // Solo means nobody to split with, so no people and no split count survive to
+  // the review — they would only muddy a private "Me" expense.
+  const peopleText = personal ? '' : stripCategoryPhrase(workBody).trim();
   return {
     items: finalItems,
     group,
-    splitCount: extractSplitCount(body),
+    splitCount: personal ? null : extractSplitCount(workBody),
     peopleText: peopleText || null,
     expenseDate,
+    personal,
   };
 }

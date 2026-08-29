@@ -485,7 +485,12 @@ describe('matchMemberNames', () => {
   });
 });
 
-import { detectCreateGroup, normalizeDigits, parseVoiceExpenses } from '@/lib/voiceExpense';
+import {
+  detectCreateGroup,
+  isSelfOnlyVoiceIntent,
+  normalizeDigits,
+  parseVoiceExpenses,
+} from '@/lib/voiceExpense';
 
 describe('parseVoiceExpenses (several in one breath)', () => {
   it('splits a comma-and-and list into one expense each', () => {
@@ -919,5 +924,52 @@ describe('parseVoiceExpenses — split count and unnamed create-group', () => {
     expect(result.group).toBeNull();
     expect(result.items).toHaveLength(1);
     expect(result.items[0].amountMajor).toBe(500);
+  });
+});
+
+describe('parseVoiceExpenses — "just for me" routes to the personal ledger', () => {
+  it('flags a solo spend and cleans the marker out of the note', () => {
+    const result = parseVoiceExpenses('add 200 for coffee just for me', groups);
+    expect(result.personal).toBe(true);
+    expect(result.group).toBeNull();
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(200);
+    expect(result.items[0].note).toBe('coffee');
+    // Solo means nobody to split with.
+    expect(result.peopleText).toBeNull();
+    expect(result.splitCount).toBeNull();
+  });
+
+  it('reads "for myself" and "by myself" as solo too', () => {
+    expect(parseVoiceExpenses('500 groceries for myself', groups).personal).toBe(true);
+    expect(parseVoiceExpenses('300 lunch by myself', groups).personal).toBe(true);
+    expect(parseVoiceExpenses('add 150 personal expense for stationery', groups).personal).toBe(
+      true,
+    );
+  });
+
+  it('does NOT treat "just me and Ravi" as solo — that is a split', () => {
+    const result = parseVoiceExpenses('split 400 dinner just me and Ravi', groups);
+    expect(result.personal).toBe(false);
+  });
+
+  it('lets a named group win over a solo marker', () => {
+    const result = parseVoiceExpenses('add 500 to the Goa trip for myself', groups);
+    expect(result.personal).toBe(false);
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+  });
+
+  it('leaves an ordinary group expense not personal', () => {
+    expect(parseVoiceExpenses('add 500 rupees for dinner', groups).personal).toBe(false);
+  });
+});
+
+describe('isSelfOnlyVoiceIntent', () => {
+  it('accepts solo markers and rejects ones sitting next to another person', () => {
+    expect(isSelfOnlyVoiceIntent('coffee just for me')).toBe(true);
+    expect(isSelfOnlyVoiceIntent('lunch on my own')).toBe(true);
+    expect(isSelfOnlyVoiceIntent('dinner just me and Priya')).toBe(false);
+    expect(isSelfOnlyVoiceIntent('dinner with Ravi and me')).toBe(false);
+    expect(isSelfOnlyVoiceIntent('add 500 for dinner')).toBe(false);
   });
 });

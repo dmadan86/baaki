@@ -315,6 +315,7 @@ describe('interpretVoiceExpenses', () => {
       splitCount: null,
       peopleText: null,
       expenseDate: null,
+      personal: false,
     });
   });
 
