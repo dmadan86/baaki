@@ -205,6 +205,12 @@ export interface WebStrings {
     youOwe: string;
     net: string;
     activeGroups: string;
+    /** The one-line answer the dashboard hero gives: are you up or down. */
+    youGetBack: string;
+    youNeedToPay: string;
+    /** The always-present primary action, and the group picker it opens. */
+    addExpense: string;
+    addPickGroup: string;
     allSettled: string;
     moreCurrencies: PluralForms;
     yourGroups: string;
@@ -298,7 +304,7 @@ export interface WebStrings {
 
 const en: WebStrings = {
   home: {
-    title: 'Baaki',
+    title: 'Waves',
     description:
       'Split expenses without the argument at the end. This page is only for opening an invite link — if somebody shared a group with you, open their link rather than this address.',
     elsewhere: 'Everything else lives in the app.',
@@ -349,7 +355,7 @@ const en: WebStrings = {
     recent: 'Recent',
     addAnExpense: 'Add an expense',
     installNote:
-      'Install Baaki to scan receipts, settle over UPI and keep this working without a signal.',
+      'Install Waves to scan receipts, settle over UPI and keep this working without a signal.',
   },
   add: {
     title: 'Add an expense',
@@ -389,7 +395,7 @@ const en: WebStrings = {
       settle: 'Settle',
     },
     searchPlaceholder: 'Search groups, people, expenses',
-    signInTitle: 'Baaki',
+    signInTitle: 'Waves',
     signInBody: 'Split expenses without the argument at the end.',
     continueWithGoogle: 'Continue with Google',
     orDivider: 'or',
@@ -414,6 +420,10 @@ const en: WebStrings = {
     youOwe: 'You owe',
     net: 'Net position',
     activeGroups: 'Active groups',
+    youGetBack: 'You get back',
+    youNeedToPay: 'You need to pay',
+    addExpense: 'Add expense',
+    addPickGroup: 'Which group?',
     allSettled: 'All settled',
     moreCurrencies: { one: '+{n} more currency', other: '+{n} more currencies' },
     yourGroups: 'Your groups',
@@ -503,7 +513,7 @@ const en: WebStrings = {
 
 const ta: WebStrings = {
   home: {
-    title: 'பாக்கி',
+    title: 'Waves',
     description:
       'கடைசியில் வாக்குவாதம் இல்லாமல் செலவுகளைப் பிரியுங்கள். இந்தப் பக்கம் அழைப்புச் சுட்டியைத் திறக்க மட்டுமே — யாராவது ஒரு குழுவை உங்களுடன் பகிர்ந்திருந்தால், இந்த முகவரிக்குப் பதிலாக அவர்களின் சுட்டியைத் திறக்கவும்.',
     elsewhere: 'மற்ற அனைத்தும் செயலியில் உள்ளது.',
@@ -556,7 +566,7 @@ const ta: WebStrings = {
     recent: 'சமீபத்தியவை',
     addAnExpense: 'ஒரு செலவைச் சேர்',
     installNote:
-      'ரசீதுகளை ஸ்கேன் செய்ய, UPI மூலம் தீர்க்க, சிக்னல் இல்லாமலும் இது வேலை செய்ய — பாக்கியை நிறுவுங்கள்.',
+      'ரசீதுகளை ஸ்கேன் செய்ய, UPI மூலம் தீர்க்க, சிக்னல் இல்லாமலும் இது வேலை செய்ய — Waves ஐ நிறுவுங்கள்.',
   },
   add: {
     title: 'ஒரு செலவைச் சேர்',
@@ -598,7 +608,7 @@ const ta: WebStrings = {
       settle: 'தீர்வு',
     },
     searchPlaceholder: 'குழுக்கள், நபர்கள், செலவுகளைத் தேடுங்கள்',
-    signInTitle: 'பாக்கி',
+    signInTitle: 'Waves',
     signInBody: 'கடைசியில் வாக்குவாதம் இல்லாமல் செலவுகளைப் பிரியுங்கள்.',
     continueWithGoogle: 'Google மூலம் தொடரவும்',
     orDivider: 'அல்லது',
@@ -623,6 +633,10 @@ const ta: WebStrings = {
     youOwe: 'நீங்கள் தர வேண்டியது',
     net: 'நிகர நிலை',
     activeGroups: 'செயலில் உள்ள குழுக்கள்',
+    youGetBack: 'உங்களுக்கு வர வேண்டியது',
+    youNeedToPay: 'நீங்கள் தர வேண்டியது',
+    addExpense: 'செலவைச் சேர்',
+    addPickGroup: 'எந்தக் குழு?',
     allSettled: 'அனைத்தும் தீர்ந்தது',
     moreCurrencies: { one: '+இன்னும் {n} நாணயம்', other: '+இன்னும் {n} நாணயங்கள்' },
     yourGroups: 'உங்கள் குழுக்கள்',
@@ -716,7 +730,7 @@ const ta: WebStrings = {
 
 const hi: WebStrings = {
   home: {
-    title: 'बाकी',
+    title: 'Waves',
     description:
       'आख़िर में बहस किए बिना खर्च बाँटें। यह पेज सिर्फ़ न्योते का लिंक खोलने के लिए है — अगर किसी ने आपके साथ कोई समूह साझा किया है, तो इस पते के बजाय उनका लिंक खोलें।',
     elsewhere: 'बाकी सब कुछ ऐप में है।',
@@ -768,7 +782,7 @@ const hi: WebStrings = {
     recent: 'हाल के',
     addAnExpense: 'खर्च जोड़ें',
     installNote:
-      'रसीदें स्कैन करने, UPI से निपटाने और बिना सिग्नल भी यह चलाने के लिए बाकी इंस्टॉल करें।',
+      'रसीदें स्कैन करने, UPI से निपटाने और बिना सिग्नल भी यह चलाने के लिए Waves इंस्टॉल करें।',
   },
   add: {
     title: 'खर्च जोड़ें',
@@ -808,7 +822,7 @@ const hi: WebStrings = {
       settle: 'हिसाब',
     },
     searchPlaceholder: 'समूह, लोग, खर्च खोजें',
-    signInTitle: 'बाकी',
+    signInTitle: 'Waves',
     signInBody: 'आख़िर में बहस किए बिना खर्च बाँटें।',
     continueWithGoogle: 'Google से जारी रखें',
     orDivider: 'या',
@@ -833,6 +847,10 @@ const hi: WebStrings = {
     youOwe: 'आपको देने हैं',
     net: 'कुल स्थिति',
     activeGroups: 'सक्रिय समूह',
+    youGetBack: 'आपको मिलने हैं',
+    youNeedToPay: 'आपको देने हैं',
+    addExpense: 'खर्च जोड़ें',
+    addPickGroup: 'कौन सा समूह?',
     allSettled: 'सब हिसाब बराबर',
     moreCurrencies: { one: '+{n} और मुद्रा', other: '+{n} और मुद्राएँ' },
     yourGroups: 'आपके समूह',
@@ -923,7 +941,7 @@ const hi: WebStrings = {
 
 const ar: WebStrings = {
   home: {
-    title: 'باقي',
+    title: 'Waves',
     description:
       'قسّموا المصاريف دون خلاف في النهاية. هذه الصفحة لفتح رابط دعوة فقط — إن شاركك أحدهم مجموعة، فافتح رابطه بدل هذا العنوان.',
     elsewhere: 'كل ما عدا ذلك في التطبيق.',
@@ -989,7 +1007,7 @@ const ar: WebStrings = {
       'أقل عدد من الدفعات يسوّي حساب الجميع. ولا يُطلب من أحد أن يدفع لشخص لم يقسّم معه شيئًا قط.',
     recent: 'الأحدث',
     addAnExpense: 'أضف مصروفًا',
-    installNote: 'ثبّت باقي لمسح الإيصالات والتسوية عبر UPI ولكي يعمل هذا دون اتصال.',
+    installNote: 'ثبّت Waves لمسح الإيصالات والتسوية عبر UPI ولكي يعمل هذا دون اتصال.',
   },
   add: {
     title: 'أضف مصروفًا',
@@ -1029,7 +1047,7 @@ const ar: WebStrings = {
       settle: 'التسوية',
     },
     searchPlaceholder: 'ابحث في المجموعات والأشخاص والمصاريف',
-    signInTitle: 'باقي',
+    signInTitle: 'Waves',
     signInBody: 'قسّموا المصاريف دون خلاف في النهاية.',
     continueWithGoogle: 'المتابعة عبر Google',
     orDivider: 'أو',
@@ -1061,6 +1079,10 @@ const ar: WebStrings = {
     youOwe: 'عليك',
     net: 'الصافي',
     activeGroups: 'المجموعات النشطة',
+    youGetBack: 'لك',
+    youNeedToPay: 'عليك',
+    addExpense: 'أضف مصروفًا',
+    addPickGroup: 'أي مجموعة؟',
     allSettled: 'كل الحسابات مسوّاة',
     moreCurrencies: {
       one: '+عملة أخرى',

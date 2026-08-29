@@ -111,6 +111,18 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
     [myBalances],
   );
 
+  // The hero's single answer: the currency the reader is furthest from square
+  // in leads, the rest fold into "+N more". Net, never a sum across currencies
+  // (ADR-004) — the largest |net| just decides which one gets the big line.
+  const heroTotals = useMemo(() => {
+    const abs = (n: bigint) => (n < 0n ? -n : n);
+    return overall
+      .filter((e) => e.net !== 0n)
+      .sort((a, b) => (abs(a.net) > abs(b.net) ? -1 : abs(a.net) < abs(b.net) ? 1 : 0));
+  }, [overall]);
+  const heroTop = heroTotals[0] ?? null;
+  const heroRest = Math.max(heroTotals.length - 1, 0);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groupNets;
@@ -159,49 +171,27 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
           </div>
         </div>
 
-        <div className="stat-grid">
-          <StatCard
-            tint="tint-mint"
-            icon="📈"
-            label={t.dash.youreOwed}
-            entries={overall
-              .filter((e) => e.owed > 0n)
-              .map((e) => ({ currency: e.currency, amount: e.owed }))}
-            locale={locale}
-            emptyLabel={t.dash.allSettled}
-            moreForms={t.dash.moreCurrencies}
-          />
-          <StatCard
-            tint="tint-rose"
-            icon="📉"
-            label={t.dash.youOwe}
-            entries={overall
-              .filter((e) => e.owing > 0n)
-              .map((e) => ({ currency: e.currency, amount: e.owing }))}
-            locale={locale}
-            emptyLabel={t.dash.allSettled}
-            moreForms={t.dash.moreCurrencies}
-          />
-          <StatCard
-            tint="tint-blue"
-            icon="⚖️"
-            label={t.dash.net}
-            entries={overall.map((e) => ({ currency: e.currency, amount: e.net }))}
-            locale={locale}
-            signed
-            emptyLabel={t.dash.allSettled}
-            moreForms={t.dash.moreCurrencies}
-          />
-          <div className="stat tint-lilac">
-            <div className="stat-top">
-              <span className="stat-badge" aria-hidden>
-                👥
-              </span>
-              {t.dash.activeGroups}
-            </div>
-            <div className="stat-value">{groups.length}</div>
-          </div>
-        </div>
+        {/* One dominant answer instead of four boxes of equal weight: are you
+            up, down, or square. The per-group rows below carry the detail. */}
+        {groups.length > 0 ? (
+          heroTop ? (
+            <section className={`hero ${heroTop.net > 0n ? 'hero-owed' : 'hero-owe'}`}>
+              <div className="hero-label">
+                {heroTop.net > 0n ? t.dash.youGetBack : t.dash.youNeedToPay}
+              </div>
+              <div className="hero-amount">
+                {money(heroTop.net < 0n ? -heroTop.net : heroTop.net, heroTop.currency, locale)}
+              </div>
+              {heroRest > 0 ? (
+                <div className="hero-extra">{plural(locale, heroRest, t.dash.moreCurrencies)}</div>
+              ) : null}
+            </section>
+          ) : (
+            <section className="hero hero-flat">
+              <div className="hero-amount hero-flat-line">🎉 {t.dash.allSettled}</div>
+            </section>
+          )
+        ) : null}
 
         <section className="panel">
           <div className="panel-head">
@@ -257,7 +247,7 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
             <p className="muted">{t.dash.noActivity}</p>
           ) : (
             <div className="list">
-              {filteredActivity.slice(0, 12).map((entry) => (
+              {filteredActivity.slice(0, 6).map((entry) => (
                 <div key={entry.id} className="item" style={{ cursor: 'default' }}>
                   <span className="tile-emoji" aria-hidden>
                     {verbEmoji(entry.verb)}
@@ -308,16 +298,9 @@ function OverviewSkeleton() {
           <span className="sk sk-sub" />
         </div>
 
-        <div className="stat-grid">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="stat">
-              <div className="stat-top">
-                <span className="sk sk-badge" />
-                <span className="sk sk-line" style={{ width: 84 }} />
-              </div>
-              <span className="sk sk-value" />
-            </div>
-          ))}
+        <div className="hero">
+          <span className="sk sk-line" style={{ width: 96 }} />
+          <span className="sk sk-line" style={{ height: 38, width: 190, marginTop: 6 }} />
         </div>
 
         {[0, 1].map((panel) => (
@@ -342,54 +325,6 @@ function OverviewSkeleton() {
           </div>
         ))}
       </aside>
-    </div>
-  );
-}
-
-function StatCard({
-  tint,
-  icon,
-  label,
-  entries,
-  locale,
-  emptyLabel,
-  moreForms,
-  signed = false,
-}: {
-  tint: string;
-  icon: string;
-  label: string;
-  entries: { currency: string; amount: bigint }[];
-  locale: string;
-  emptyLabel: string;
-  moreForms: PluralForms;
-  signed?: boolean;
-}) {
-  const shown = entries.filter((e) => e.amount !== 0n);
-  const top = shown[0] ?? null;
-  const rest = shown.length - 1;
-
-  return (
-    <div className={`stat ${tint}`}>
-      <div className="stat-top">
-        <span className="stat-badge" aria-hidden>
-          {icon}
-        </span>
-        {label}
-      </div>
-      {top ? (
-        <>
-          <div className="stat-value">
-            {signed && top.amount < 0n ? '−' : ''}
-            {money(top.amount < 0n ? -top.amount : top.amount, top.currency, locale)}
-          </div>
-          {rest > 0 ? <div className="stat-extra">{plural(locale, rest, moreForms)}</div> : null}
-        </>
-      ) : (
-        <div className="stat-value" style={{ fontSize: 18, opacity: 0.7 }}>
-          {emptyLabel}
-        </div>
-      )}
     </div>
   );
 }

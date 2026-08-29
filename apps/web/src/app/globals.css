@@ -388,6 +388,48 @@
     @apply text-[12px] text-ink-faint [font-variant-numeric:tabular-nums];
   }
 
+  /* The dashboard's one loud answer: are you up, down, or square. One big tinted
+     card, so the eye lands on the number that matters instead of comparing a row
+     of equal boxes. Owed reads mint, owe reads rose, settled celebrates. */
+  .hero {
+    @apply mb-[22px] flex flex-col gap-[5px] rounded-card border border-line px-[24px] py-[22px] shadow-card;
+  }
+  .hero-owed {
+    background: var(--tint-mint);
+  }
+  .hero-owe {
+    background: var(--tint-rose);
+  }
+  .hero-flat {
+    background: var(--tint-mint);
+  }
+  .hero-label {
+    @apply text-[13px] font-semibold uppercase [letter-spacing:0.4px] text-ink-muted;
+  }
+  .hero-amount {
+    @apply text-[40px] font-extrabold [font-variant-numeric:tabular-nums] [letter-spacing:-1px] text-ink;
+  }
+  .hero-owed .hero-amount {
+    @apply text-owed;
+  }
+  .hero-owe .hero-amount {
+    @apply text-owe;
+  }
+  .hero-flat-line {
+    @apply text-[28px] text-ink;
+  }
+  .hero-extra {
+    @apply text-[13px] text-ink-muted [font-variant-numeric:tabular-nums];
+  }
+
+  /* The primary action, sitting in the top bar of every page. */
+  .topbar-add {
+    @apply flex-none;
+  }
+  .item-go {
+    @apply flex-none text-[16px] text-ink-faint;
+  }
+
   .panel {
     @apply mb-[18px] rounded-card border border-line bg-app-surface px-[18px] py-[14px] shadow-card;
   }
@@ -408,7 +450,7 @@
     @apply flex flex-col;
   }
   .item {
-    @apply flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-0 bg-transparent px-2 py-[11px] text-start text-inherit;
+    @apply flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-0 bg-transparent px-2 py-[11px] text-start text-inherit no-underline;
   }
   .item:hover,
   .item[aria-pressed='true'] {
@@ -725,5 +767,13 @@
   }
   .stat-value {
     font-size: 23px;
+  }
+  .hero-amount {
+    font-size: 32px;
+  }
+  /* On a phone the bar is tight: the action keeps its ＋ but sheds its label so
+     the title and search still fit without wrapping. */
+  .topbar-add-label {
+    display: none;
   }
 }

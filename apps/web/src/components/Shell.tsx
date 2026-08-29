@@ -79,7 +79,7 @@ export function Shell({
             <span className="brand-mark" aria-hidden>
               ₹
             </span>
-            Baaki
+            Waves
           </div>
 
           <nav className="side-nav">
@@ -146,6 +146,13 @@ export function Shell({
         <div className="main-col">
           <header className="topbar">
             <h1 className="topbar-title">{pageTitle}</h1>
+            {/* The one action a split app is for, present on every page — no
+                need to open a group first to reach it (the picker at /add does
+                that). This is the loudest thing in the bar on purpose. */}
+            <Link href="/add" className="btn topbar-add">
+              <span aria-hidden>＋</span>
+              <span className="topbar-add-label">{t.dash.addExpense}</span>
+            </Link>
             <label className="search">
               <span aria-hidden>🔍</span>
               <input
