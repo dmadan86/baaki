@@ -49,6 +49,7 @@ import {
   MoneyText,
   Row,
   Screen,
+  Skeleton,
   Text,
   tintForKey,
   useTabBarClearance,
@@ -422,6 +423,7 @@ export default function FriendsScreen() {
         selectedCount={selectedKeys.size}
         onExitSelect={exitSelect}
         onMerge={startMerge}
+        loading={people.isLoading}
       />
 
       <AddMenu open={addOpen} onClose={() => setAddOpen(false)} t={t} />
@@ -559,6 +561,7 @@ function FriendsHero({
   selectedCount,
   onExitSelect,
   onMerge,
+  loading,
 }: {
   totals: readonly CurrencyTotal[];
   locale: string;
@@ -573,6 +576,10 @@ function FriendsHero({
   selectedCount: number;
   onExitSelect: () => void;
   onMerge: () => void;
+  /** Cold launch, mirror not read yet — the hero paints a shimmering balance so
+      the panel reads as a full Friends header rather than a bare title bar over
+      an empty screen while the rows hydrate. */
+  loading: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -737,7 +744,28 @@ function FriendsHero({
         </Reanimated.View>
       </View>
 
-      {!selectMode && totals.length > 0 ? (
+      {!selectMode && loading ? (
+        // Cold launch: a shimmering stand-in for the OVERALL balance, tinted
+        // translucent-white so it reads on the indigo (the grey skeleton default
+        // is overridden by the trailing style). Keeps the hero a full header
+        // while the mirror hydrates instead of a bare title bar over blank.
+        <View style={{ gap: theme.spacing.sm }}>
+          <Skeleton width="30%" height={12} style={{ backgroundColor: 'rgba(255,255,255,0.20)' }} />
+          <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Skeleton
+              width="28%"
+              height={18}
+              style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}
+            />
+            <Skeleton
+              width="52%"
+              height={34}
+              radius={theme.radius.sm}
+              style={{ backgroundColor: 'rgba(255,255,255,0.22)' }}
+            />
+          </Row>
+        </View>
+      ) : !selectMode && totals.length > 0 ? (
         <Reanimated.View
           entering={reduceMotion ? undefined : FadeIn.duration(160)}
           exiting={reduceMotion ? undefined : FadeOut.duration(100)}
