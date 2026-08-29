@@ -461,82 +461,97 @@ export default function FriendsScreen() {
         t={t}
       />
 
-      {/* Only this scrolls — the list and the merge strip, beneath the fixed
-          header. A tight side margin so the list reads edge-to-edge dense. */}
-      <View style={{ flex: 1 }}>
+      {/* Only this scrolls — the list, beneath the fixed header. The rows sit in
+          one bordered, hairline-divided card with the dashboard's `lg` side
+          margin, so the friends list reads exactly like the groups list at home. */}
+      <View
+        style={{
+          flex: 1,
+          paddingHorizontal: theme.spacing.lg,
+          paddingTop: theme.spacing.lg,
+        }}
+      >
         {people.isLoading ? (
-          <View style={{ paddingHorizontal: theme.spacing.sm, paddingTop: theme.spacing.md }}>
-            <PeopleSkeleton />
-          </View>
+          <PeopleSkeleton />
         ) : rows.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: theme.spacing.lg }}>
+          <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyFriends hasPeople={known.data > 0} t={t} />
           </View>
         ) : (
-          // The only virtualized list on this screen — same FlashList setup the
-          // group ledger uses (recycled rows, a wide draw distance so a fast fling
-          // never outruns recycling into blank rows). Only what is on screen is
-          // mounted, which is what keeps a long friends list scrolling smoothly.
-          <FlashList
-            data={persons}
-            // Selection state lives outside the row data, so the list has to be
-            // told to re-render its rows when it changes (the tick, the fill).
-            extraData={`${selectMode}|${[...selectedKeys].join(',')}|${locale}`}
-            keyExtractor={(item) => item.person_key}
-            // A single-currency row and a multi-currency (stacked amounts) row are
-            // structurally different subtrees; typing them lets FlashList recycle
-            // like with like rather than reflowing one shape into the other.
-            getItemType={(item) => (item.entries.length === 1 ? 'single' : 'multi')}
-            drawDistance={1500}
-            contentContainerStyle={{
-              paddingHorizontal: theme.spacing.sm,
-              paddingTop: theme.spacing.md,
-              paddingBottom: clearance,
-            }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={pull.refreshing}
-                onRefresh={pull.onRefresh}
-                tintColor={theme.color.brand}
-              />
-            }
-            // The merge strip rides above the rows and scrolls with them — a
-            // duplicate is the only thing merge fixes, so it appears only when
-            // there is one, and points at the count in one slim line. Hidden
-            // mid-selection, where merging is already under way.
-            ListHeaderComponent={
-              duplicates.count >= 2 && !selectMode ? (
-                <View style={{ marginBottom: theme.spacing.sm }}>
-                  <DuplicateStrip
-                    count={duplicates.count}
+          <>
+            {/* The merge strip rides above the card — a duplicate is the only
+                thing merge fixes, so it appears only when there is one, and points
+                at the count in one slim line. Hidden mid-selection, where merging
+                is already under way. */}
+            {duplicates.count >= 2 && !selectMode ? (
+              <View style={{ marginBottom: theme.spacing.md }}>
+                <DuplicateStrip
+                  count={duplicates.count}
+                  locale={locale}
+                  t={t}
+                  onPress={() => {
+                    const p = duplicates.prefill;
+                    if (!p) return router.push('/friends/merge' as never);
+                    const keyParam = p.keys.map(encodeURIComponent).join(',');
+                    const nameParam = encodeURIComponent(p.name);
+                    router.push(`/friends/merge?keys=${keyParam}&name=${nameParam}` as never);
+                  }}
+                />
+              </View>
+            ) : null}
+            {/* The people as one clean list on a single card — the same surface,
+                border, radius and clipped corners the dashboard's groups card
+                uses; each PersonRow draws its own hairline divider. */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: theme.color.surface,
+                borderRadius: theme.radius.lg,
+                borderWidth: 1,
+                borderColor: theme.color.border,
+                overflow: 'hidden',
+              }}
+            >
+              {/* The only virtualized list on this screen — same FlashList setup the
+                  group ledger uses (recycled rows, a wide draw distance so a fast fling
+                  never outruns recycling into blank rows). Only what is on screen is
+                  mounted, which is what keeps a long friends list scrolling smoothly. */}
+              <FlashList
+                data={persons}
+                // Selection state lives outside the row data, so the list has to be
+                // told to re-render its rows when it changes (the tick, the fill).
+                extraData={`${selectMode}|${[...selectedKeys].join(',')}|${locale}`}
+                keyExtractor={(item) => item.person_key}
+                // A single-currency row and a multi-currency (stacked amounts) row are
+                // structurally different subtrees; typing them lets FlashList recycle
+                // like with like rather than reflowing one shape into the other.
+                getItemType={(item) => (item.entries.length === 1 ? 'single' : 'multi')}
+                drawDistance={1500}
+                contentContainerStyle={{ paddingBottom: clearance }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={pull.refreshing}
+                    onRefresh={pull.onRefresh}
+                    tintColor={theme.color.brand}
+                  />
+                }
+                renderItem={({ item, index }) => (
+                  <PersonRow
+                    person={item}
                     locale={locale}
                     t={t}
-                    onPress={() => {
-                      const p = duplicates.prefill;
-                      if (!p) return router.push('/friends/merge' as never);
-                      const keyParam = p.keys.map(encodeURIComponent).join(',');
-                      const nameParam = encodeURIComponent(p.name);
-                      router.push(`/friends/merge?keys=${keyParam}&name=${nameParam}` as never);
-                    }}
+                    divider={index > 0}
+                    duplicate={duplicates.keys.has(item.person_key)}
+                    selectMode={selectMode}
+                    selected={selectedKeys.has(item.person_key)}
+                    onEnterSelect={enterSelect}
+                    onToggleSelect={toggleSelect}
                   />
-                </View>
-              ) : null
-            }
-            renderItem={({ item, index }) => (
-              <PersonRow
-                person={item}
-                locale={locale}
-                t={t}
-                divider={index > 0}
-                duplicate={duplicates.keys.has(item.person_key)}
-                selectMode={selectMode}
-                selected={selectedKeys.has(item.person_key)}
-                onEnterSelect={enterSelect}
-                onToggleSelect={toggleSelect}
+                )}
               />
-            )}
-          />
+            </View>
+          </>
         )}
       </View>
     </Screen>
@@ -1054,9 +1069,9 @@ const PersonRow = memo(function PersonRow({
     <Row
       style={{
         paddingVertical: theme.spacing.sm,
-        paddingHorizontal: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.lg,
         alignItems: 'center',
-        gap: theme.spacing.sm,
+        gap: theme.spacing.md,
         borderTopWidth: divider ? 1 : 0,
         borderTopColor: theme.color.border,
         // A non-selectable row reads as unavailable while a selection runs.
