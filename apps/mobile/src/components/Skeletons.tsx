@@ -170,46 +170,42 @@ export function ListScreenSkeleton({
 }
 
 /**
- * The friends tab: the two balance sections — owed to you, and what you owe —
- * each a heading and a short list.
+ * The friends tab list, mid-load.
  *
- * Shaped to `FriendsSection` down to the pixel so the swap to real content is a
- * fill, not a jump. The loaded list is drawn as bare rows on the screen with a
- * hairline between — *not* inside a Card — so this must be too: an earlier
- * version wrapped the rows in `SkeletonList` (a Card with an `lg` inset and a
- * shadow), and on load that surface, its rounded corners and the inset all
- * vanished at once while every row slid left. The heading matches the real
- * 19px `heading` and carries the same `marginBottom` the section header does,
- * and the per-currency footnote holds its place at the foot. Shown in place of
- * the "all square" empty state, which is a verdict the query has not returned.
+ * The loaded list is one bordered card of hairline-divided avatar rows under the
+ * indigo hero — no section headings, no footnote (an earlier sectioned design
+ * had both; this is shaped to the current one so the swap is a fill, not a
+ * jump). The card fills the region so the shimmer covers the visible area rather
+ * than sitting as a stub at the top. Shown under the hero while the balances
+ * load — the hero itself is real, so only this area waits.
  */
 export function PeopleSkeleton() {
   const theme = useTheme();
+  // The loaded Friends list is one bordered card of hairline-divided avatar rows
+  // (no section headings, no footnote). The skeleton is that same card, filling
+  // the region (`flex: 1`) so the shimmer covers the visible area rather than a
+  // stub at the top, and the swap to real rows is a fill, not a jump. Enough
+  // rows to reach the bottom of a phone screen; the card border runs full height.
   return (
-    <LoadingRegion style={{ gap: theme.spacing.xl }}>
-      {[0, 1].map((section) => (
-        <View key={section} style={{ gap: theme.spacing.md }}>
-          {/* The section heading: the same 19px height as `SectionHeader`'s
-              `heading` text, and its `marginBottom` too, so the gap down to the
-              first row is identical and the list does not lift on load. */}
-          <Skeleton width="35%" height={19} style={{ marginBottom: theme.spacing.md }} />
-          {/* Bare rows on the screen with a hairline between — exactly how
-              `FriendsSection` draws the loaded list. No Card. */}
-          <View>
-            {[0, 1].map((row, index, all) => (
-              <View key={row}>
-                <SkeletonRow />
-                {index < all.length - 1 ? (
-                  <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                ) : null}
-              </View>
-            ))}
+    <LoadingRegion style={{ flex: 1 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: theme.color.surface,
+          borderRadius: theme.radius.lg,
+          borderWidth: 1,
+          borderColor: theme.color.border,
+          overflow: 'hidden',
+          paddingHorizontal: theme.spacing.lg,
+        }}
+      >
+        {Array.from({ length: 9 }, (_, index) => (
+          <View key={index}>
+            <SkeletonRow />
+            {index < 8 ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
           </View>
-        </View>
-      ))}
-      {/* The per-currency footnote holds its spot so nothing shifts up under it
-          when the real note arrives. */}
-      <Skeleton width="70%" height={11} radius={theme.radius.sm} style={{ alignSelf: 'center' }} />
+        ))}
+      </View>
     </LoadingRegion>
   );
 }

@@ -28,7 +28,15 @@ import {
   View,
 } from 'react-native';
 import { FlashList, useRecyclingState } from '@shopify/flash-list';
-import Reanimated, { ZoomIn } from 'react-native-reanimated';
+import Reanimated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  ZoomIn,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -245,7 +253,7 @@ export default function FriendsScreen() {
   const theme = useTheme();
   const pull = usePullRefresh();
   const clearance = useTabBarClearance();
-  const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const { t, locale } = useStrings();
 
   const { profile } = useAuth();
@@ -398,57 +406,23 @@ export default function FriendsScreen() {
   return (
     <Screen edges={[]}>
       {/* The header is fixed — it does not ride the scroll. Only the list and the
-          merge strip below move under it. */}
-      {selectMode ? (
-        // Selection header: leave the mode, the running count, and Merge —
-        // enabled only at two or more, since one person is nothing to merge. It
-        // replaces the hero because merging is a mode, not the resting state.
-        <Row
-          style={{
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingTop: insets.top + theme.spacing.md,
-            paddingBottom: theme.spacing.md,
-            paddingHorizontal: theme.spacing.lg,
-          }}
-        >
-          <Row style={{ alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t.common.close}
-              onPress={exitSelect}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: theme.spacing.xs })}
-            >
-              <Ionicons name="close" size={iconSize.xl} color={theme.color.text} />
-            </Pressable>
-            <Text variant="heading" numberOfLines={1}>
-              {plural(locale, selectedKeys.size, t.mergePeople.selected)}
-            </Text>
-          </Row>
-          <Button
-            label={t.mergePeople.entry}
-            size="sm"
-            disabled={selectedKeys.size < 2}
-            onPress={startMerge}
-          />
-        </Row>
-      ) : (
-        // The hero: one saturated indigo panel edge to edge and up under the
-        // status bar — the dashboard's signature account panel, applied here.
-        // It carries the title, the two controls (add, sort), and the overall
-        // balance, so the top of Friends reads as a header rather than a title
-        // row floating over a chunky list.
-        <FriendsHero
-          totals={totals}
-          locale={locale}
-          t={t}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onAdd={() => setAddOpen(true)}
-          onSort={() => setSortOpen(true)}
-        />
-      )}
+          merge strip below move under it. Selection is a mode *within* the hero,
+          not a replacement for it: the same indigo panel stays, and its title
+          line swaps to close / count / Merge, so the header never blinks away
+          under a long press. */}
+      <FriendsHero
+        totals={totals}
+        locale={locale}
+        t={t}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onAdd={() => setAddOpen(true)}
+        onSort={() => setSortOpen(true)}
+        selectMode={selectMode}
+        selectedCount={selectedKeys.size}
+        onExitSelect={exitSelect}
+        onMerge={startMerge}
+      />
 
       <AddMenu open={addOpen} onClose={() => setAddOpen(false)} t={t} />
 
@@ -463,8 +437,12 @@ export default function FriendsScreen() {
 
       {/* Only this scrolls — the list, beneath the fixed header. The rows sit in
           one bordered, hairline-divided card with the dashboard's `lg` side
-          margin, so the friends list reads exactly like the groups list at home. */}
-      <View
+          margin, so the friends list reads exactly like the groups list at home.
+          It carries the motion the hero deliberately does not: when the balance
+          collapses on entering selection, the hero curve snaps and this whole
+          card glides up (`layout`) to fill the freed space. */}
+      <Reanimated.View
+        layout={reduceMotion ? undefined : LinearTransition.duration(160)}
         style={{
           flex: 1,
           paddingHorizontal: theme.spacing.lg,
@@ -553,7 +531,7 @@ export default function FriendsScreen() {
             </View>
           </>
         )}
-      </View>
+      </Reanimated.View>
     </Screen>
   );
 }
@@ -577,6 +555,10 @@ function FriendsHero({
   sortDir,
   onAdd,
   onSort,
+  selectMode,
+  selectedCount,
+  onExitSelect,
+  onMerge,
 }: {
   totals: readonly CurrencyTotal[];
   locale: string;
@@ -585,16 +567,47 @@ function FriendsHero({
   sortDir: SortDir;
   onAdd: () => void;
   onSort: () => void;
+  /** Merge selection is a mode inside the hero — its title line swaps to the
+      close / count / Merge controls while it runs, on the same indigo panel. */
+  selectMode: boolean;
+  selectedCount: number;
+  onExitSelect: () => void;
+  onMerge: () => void;
 }): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+
+  // One value drives the whole header swap: 0 is the resting title row, 1 is the
+  // selection row, and it *eases* between them rather than cutting. Both rows
+  // stay mounted and overlaid, so this is a genuine crossfade — the title fades
+  // down and out as the count fades up and in — not an unmount that pops.
+  const sel = useSharedValue(selectMode ? 1 : 0);
+  useEffect(() => {
+    sel.set(
+      reduceMotion ? (selectMode ? 1 : 0) : withTiming(selectMode ? 1 : 0, { duration: 150 }),
+    );
+  }, [selectMode, reduceMotion, sel]);
+  const restingAnim = useAnimatedStyle(() => ({
+    opacity: 1 - sel.get(),
+    transform: [{ translateY: sel.get() * -6 }],
+  }));
+  const selectAnim = useAnimatedStyle(() => ({
+    opacity: sel.get(),
+    transform: [{ translateY: (1 - sel.get()) * 6 }],
+  }));
+
   return (
+    // The panel does NOT animate its own height — the rounded bottom curve snaps
+    // straight to its final place rather than springing, so the hero edge stays
+    // crisp. The motion lives below instead: the list glides up into the freed
+    // space (see the list container's `layout`). Bottom padding tightens in
+    // selection, where there is no balance beneath the controls.
     <View
       style={{
         paddingTop: insets.top + theme.spacing.md,
         paddingHorizontal: theme.spacing.xl,
-        paddingBottom: theme.spacing.xxl,
+        paddingBottom: selectMode ? theme.spacing.lg : theme.spacing.xxl,
         borderBottomLeftRadius: theme.radius.xxl,
         borderBottomRightRadius: theme.radius.xxl,
         gap: theme.spacing.xl,
@@ -613,63 +626,123 @@ function FriendsHero({
           block of colour. Behind everything, never eats a tap. */}
       <HeroArt />
 
-      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-        {/* The title glyph pops in on mount — a small, once-only spring, the beat
-            of motion that reads as "premium" without ever nagging. Bare white, no
-            disc, so the header reads as a title and only the `+` is a button. */}
+      {/* The two control rows share one slot and crossfade between them. The
+          resting row sits in flow and gives the slot its height; the selection
+          row is overlaid on top at the same height, so neither ever unmounts and
+          the swap dissolves instead of cutting. Only the active row takes taps. */}
+      <View style={{ justifyContent: 'center' }}>
         <Reanimated.View
-          entering={reduceMotion ? undefined : ZoomIn.springify().damping(14).mass(0.6)}
+          pointerEvents={selectMode ? 'none' : 'auto'}
+          style={[
+            { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+            restingAnim,
+          ]}
         >
-          <Ionicons name="people" size={iconSize.xl} color={theme.color.onBrand} />
+          {/* The title glyph pops in on mount — a small, once-only spring, the beat
+              of motion that reads as "premium" without ever nagging. Bare white, no
+              disc, so the header reads as a title and only the `+` is a button. */}
+          <Reanimated.View
+            entering={reduceMotion ? undefined : ZoomIn.springify().damping(14).mass(0.6)}
+          >
+            <Ionicons name="people" size={iconSize.xl} color={theme.color.onBrand} />
+          </Reanimated.View>
+          <Text variant="title" tone="onBrand" style={{ flex: 1 }} numberOfLines={1}>
+            {t.friends}
+          </Text>
+          {/* Everything that adds a person (type a name, pull from contacts, scan
+              an invite QR) lives behind this one `+`. A solid white disc with the
+              indigo glyph — a real button, the dashboard's white "add" pill as a
+              circle — rather than a faint frosted ring. It dips under the finger. */}
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={t.tabs.addSomeone}
+            onPress={onAdd}
+            hitSlop={10}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.color.onBrand,
+            }}
+          >
+            <Ionicons name="add" size={iconSize.xl} color={FRIENDS_GRADIENT[0]} />
+          </PressableScale>
+          {/* Sort wears its own state — the active key's glyph and the direction
+              arrow — so a glance says how the list is ordered. */}
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={`${t.sort.by}: ${sortLabel(sortKey, t)}`}
+            onPress={onSort}
+            hitSlop={10}
+            style={{
+              padding: theme.spacing.xs,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            <Ionicons
+              name={SORT_META[sortKey].icon}
+              size={iconSize.lg}
+              color={theme.color.onBrand}
+            />
+            <Ionicons
+              name={sortDir === SortDir.Asc ? 'arrow-up' : 'arrow-down'}
+              size={iconSize.sm}
+              color={theme.color.onBrand}
+            />
+          </PressableScale>
         </Reanimated.View>
-        <Text variant="title" tone="onBrand" style={{ flex: 1 }} numberOfLines={1}>
-          {t.friends}
-        </Text>
-        {/* Everything that adds a person (type a name, pull from contacts, scan
-            an invite QR) lives behind this one `+`. A solid white disc with the
-            indigo glyph — a real button, the dashboard's white "add" pill as a
-            circle — rather than a faint frosted ring. It dips under the finger. */}
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={t.tabs.addSomeone}
-          onPress={onAdd}
-          hitSlop={10}
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: theme.color.onBrand,
-          }}
-        >
-          <Ionicons name="add" size={iconSize.xl} color={FRIENDS_GRADIENT[0]} />
-        </PressableScale>
-        {/* Sort wears its own state — the active key's glyph and the direction
-            arrow — so a glance says how the list is ordered. */}
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={`${t.sort.by}: ${sortLabel(sortKey, t)}`}
-          onPress={onSort}
-          hitSlop={10}
-          style={{
-            padding: theme.spacing.xs,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 2,
-          }}
-        >
-          <Ionicons name={SORT_META[sortKey].icon} size={iconSize.lg} color={theme.color.onBrand} />
-          <Ionicons
-            name={sortDir === SortDir.Asc ? 'arrow-up' : 'arrow-down'}
-            size={iconSize.sm}
-            color={theme.color.onBrand}
-          />
-        </PressableScale>
-      </Row>
 
-      {totals.length > 0 ? (
-        <View style={{ gap: theme.spacing.sm }}>
+        {/* Selection controls, overlaid on the same line — close the mode, the
+            running count, and Merge (enabled at two or more, since one person is
+            nothing to merge). White ink to clear the wash. */}
+        <Reanimated.View
+          pointerEvents={selectMode ? 'auto' : 'none'}
+          style={[
+            {
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.md,
+            },
+            selectAnim,
+          ]}
+        >
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={t.common.close}
+            onPress={onExitSelect}
+            hitSlop={10}
+            style={{ padding: theme.spacing.xs }}
+          >
+            <Ionicons name="close" size={iconSize.xl} color={theme.color.onBrand} />
+          </PressableScale>
+          <Text variant="heading" tone="onBrand" style={{ flex: 1 }} numberOfLines={1}>
+            {plural(locale, selectedCount, t.mergePeople.selected)}
+          </Text>
+          <Button
+            label={t.mergePeople.entry}
+            size="sm"
+            variant="onBrand"
+            disabled={selectedCount < 2}
+            onPress={onMerge}
+          />
+        </Reanimated.View>
+      </View>
+
+      {!selectMode && totals.length > 0 ? (
+        <Reanimated.View
+          entering={reduceMotion ? undefined : FadeIn.duration(160)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(100)}
+          style={{ gap: theme.spacing.sm }}
+        >
           <Text variant="micro" tone="onBrand" style={{ letterSpacing: 1, opacity: 0.7 }}>
             {t.tabs.overall.toUpperCase()}
           </Text>
@@ -694,7 +767,7 @@ function FriendsHero({
               />
             </Row>
           ))}
-        </View>
+        </Reanimated.View>
       ) : null}
     </View>
   );
@@ -794,8 +867,9 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
     <View
       style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.sm }}
     >
-      {/* Face pair + plus badge. Fixed box so the overlap and badge can be
-          placed absolutely without the layout guessing at their size. */}
+      {/* The face pair — two overlapping people, no plus badge. The badge read as
+          a tappable "+" it never was; the real ways in are the labelled buttons
+          below, so the medallion is now pure illustration. */}
       <View style={{ width: D * 1.7, height: D, marginBottom: theme.spacing.lg }}>
         <Face x={0} d={D} bg={sky.bg} ink={sky.ink} borderColor={theme.color.surface} />
         <Face
@@ -805,23 +879,6 @@ function NoFriendsHero({ t }: { t: UiStrings }): React.JSX.Element {
           ink={theme.color.brand}
           borderColor={theme.color.surface}
         />
-        <View
-          style={{
-            position: 'absolute',
-            right: -2,
-            bottom: -2,
-            width: 30,
-            height: 30,
-            borderRadius: 15,
-            backgroundColor: theme.color.buttonPrimary,
-            borderWidth: 3,
-            borderColor: theme.color.surface,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="add" size={iconSize.lg} color={theme.color.onButtonPrimary} />
-        </View>
       </View>
 
       <Text variant="heading" align="center">
@@ -1190,10 +1247,27 @@ const PersonRow = memo(function PersonRow({
       accessibilityLabel={selectMode ? shownName : rowA11yLabel}
       style={({ pressed }) => ({
         opacity: pressed ? 0.6 : 1,
-        // A tick alone can be missed; a picked row also wears a soft fill.
-        backgroundColor: selected ? theme.color.surfaceMuted : 'transparent',
+        // A tick alone can be missed; a picked row also wears a soft brand fill —
+        // brandSoft rather than a grey, so the selection reads as *chosen*, the
+        // same colour language the check and the header's Merge button speak.
+        backgroundColor: selected ? theme.color.brandSoft : 'transparent',
       })}
     >
+      {/* A slim brand bar down the leading edge of a picked row — the accent that
+          turns a tinted background into a deliberate selection, the way a mail
+          client marks the rows you have ticked. */}
+      {selected ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: 3,
+            backgroundColor: theme.color.brand,
+          }}
+        />
+      ) : null}
       {body}
     </Pressable>
   );
