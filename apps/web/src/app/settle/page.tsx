@@ -429,7 +429,7 @@ function SettleForm({
             payeeName: memberName(payee),
             amount,
             currency: currency as CurrencyCode,
-            note: `Baaki ${group.name ?? ''}`.trim(),
+            note: `Waves ${group.name ?? ''}`.trim(),
           },
           (value, code) => toMajorString({ minor: value, currency: code }),
         )

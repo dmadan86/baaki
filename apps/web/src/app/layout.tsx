@@ -8,7 +8,7 @@ import { isRtlLanguage, localeFor, pickLanguage, stringsFor } from '@/i18n';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Baaki',
+  title: 'Waves',
   description: 'Split expenses without the argument at the end.',
 };
 
