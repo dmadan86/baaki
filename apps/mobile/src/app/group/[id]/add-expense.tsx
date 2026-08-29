@@ -19,7 +19,9 @@ import {
   CategoryId,
   computeShares,
   currencySymbol,
+  format,
   guessCategory,
+  money,
   MutationKind,
   ridersSplit,
   splitByUnits,
@@ -40,7 +42,6 @@ import {
   ChipRow,
   directionalIcon,
   EmptyState,
-  IconButton,
   iconSize,
   MoneyText,
   Row,
@@ -551,6 +552,12 @@ export default function AddExpenseScreen() {
   const [splitOpen, setSplitOpen] = useState(false);
   const showSplit = splitOpen || !isDefaultSplit || splitIssue !== null;
 
+  // "More details" folds category, payment method, location and the FX rate off
+  // the common path — the same collapse the split summary uses. It opens itself
+  // whenever one of those carries a non-default value, so an edit (or a foreign
+  // currency, whose rate must be typed to save) is never hidden behind the fold.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   const isTrip = group.data?.type === 'trip';
   const groupCurrency = group.data?.default_currency ?? 'INR';
   // The expense keeps the currency it was paid in; the group's is only the
@@ -1017,6 +1024,55 @@ export default function AddExpenseScreen() {
         : null;
   const canSave = amount > 0n && participants.length > 0 && splitIssue === null;
 
+  // A foreign currency must show its rate card (it cannot be saved without one),
+  // and any detail somebody has already set is a decision that must not hide.
+  const detailsNonDefault =
+    currency !== groupCurrency || location !== null || paymentMethod !== 'cash' || categoryChosen;
+  const showDetails = detailsOpen || detailsNonDefault;
+
+  // The split, as the outcome rather than the machinery: "You paid · split
+  // equally with everyone". The payer leads (you, or the person who did); the
+  // tail is the preset's own words, or "split equally with everyone" for the
+  // default, or the split kind and headcount for anything hand-tuned.
+  const payerMember =
+    payer && payer !== myMemberId
+      ? (members.data ?? []).find((member) => member.id === payer)
+      : undefined;
+  const payerName = payerMember
+    ? t.expense.paidByName.replace('{name}', displayName(payerMember, profile?.id))
+    : t.expense.youPaid;
+  const splitTail =
+    presetLabel ??
+    (isDefaultSplit
+      ? t.expense.splitEquallyEveryone
+      : [
+          splitKind === SplitKind.Equal
+            ? t.expense.equally
+            : splitKind === SplitKind.Shares
+              ? t.expense.shares
+              : t.expense.percent,
+          plural(locale, participants.length, t.memberCount),
+        ].join(' · '));
+  const splitSummary = `${payerName} · ${splitTail}`;
+
+  // The bottom-bar sub-line. When an equal split lands the same amount on every
+  // head, say it in money — "3 people owe ₹200 each" — which is the number
+  // people actually care about; otherwise the plain headcount.
+  const previewValues = preview ? [...preview.values()] : [];
+  const evenEach =
+    previewValues.length > 0 && previewValues.every((value) => value === previewValues[0])
+      ? previewValues[0]
+      : null;
+  const savePreview =
+    participants.length === 0
+      ? t.extras.savedStraightAway
+      : evenEach !== null && amount > 0n
+        ? plural(locale, participants.length, t.expense.oweEach).replace(
+            '{amount}',
+            format(money(evenEach, currency), { locale, compactFraction: true }),
+          )
+        : plural(locale, participants.length, t.memberCount);
+
   return (
     <Screen edges={['top', 'bottom']}>
       {/* The action bar is pinned to the bottom edge, outside the scroll, and a
@@ -1046,12 +1102,21 @@ export default function AddExpenseScreen() {
             subtitle={groupLabel(group.data, members.data ?? [], profile?.id)}
             right={
               editing ? undefined : (
-                <IconButton
-                  label={t.expense.splitByItem}
+                // A bare list glyph read as nothing in particular; the words say
+                // what it does — split the bill line by line.
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.expense.splitByItem}
                   onPress={() => router.replace(`/group/${groupId}/itemize`)}
+                  hitSlop={8}
                 >
-                  <Ionicons name="list-outline" size={iconSize.lg} color={theme.color.brand} />
-                </IconButton>
+                  <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+                    <Ionicons name="list-outline" size={iconSize.md} color={theme.color.brand} />
+                    <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
+                      {t.expense.splitByItem}
+                    </Text>
+                  </Row>
+                </Pressable>
               )
             }
           />
@@ -1073,28 +1138,32 @@ export default function AddExpenseScreen() {
             onPressCurrency={() => setPickingCurrency(true)}
           />
 
-          {/* Below the amount, not above it. Typing a number is the fast path and
-            stays the first thing on the screen; the camera is for the bill that
-            is easier to point at than to read. Attach sits beside Scan for the
-            bill that is already a picture, or the scan that would not read. */}
-          <Card style={{ gap: theme.spacing.md }}>
-            <View>
-              <Text variant="subheading">
-                {capLocked ? t.expense.capReachedTitle : t.expense.scanBillTitle}
-              </Text>
-              <Text variant="caption" tone="muted">
-                {capLocked ? t.expense.capReachedBody : t.expense.scanBillBody}
-              </Text>
-            </View>
+          {/* "How much" and "what for" are the whole of the common case, so the
+            description sits directly under the amount — nothing between the two
+            fields somebody came here to fill and the split below them. The names
+            are handed to the recogniser as hints; a general model guesses at
+            Indian names and the note is where they turn up. */}
+          <DescriptionField
+            value={description}
+            onChange={setDescription}
+            placeholder={t.expense.descriptionPlaceholder}
+            accessibilityLabel={t.description}
+            hints={nameHints}
+            multiline
+          />
 
-            {/* Scan is metered and gives way when the group is capped; Attach is
-              not — it keeps a photo on the device and never records a receipt
-              server-side, so it is offered even at the cap. */}
+          {/* The bill is a shortcut, not the screen: two small actions rather
+            than a card that makes this look like a receipt scanner. Scan is
+            metered and gives way when the group is capped; Add photo keeps an
+            image on the device and never records a receipt server-side, so it
+            is offered even at the cap. */}
+          <View style={{ gap: theme.spacing.sm }}>
             <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
               {!capLocked ? (
                 <Button
-                  label={scanning ? t.expense.reading : t.expense.scan}
-                  variant="secondary"
+                  label={scanning ? t.expense.reading : t.expense.scanReceipt}
+                  variant="ghost"
+                  size="sm"
                   disabled={scanning || saving || capStatus === 'loading'}
                   onPress={() => void scan()}
                   icon={
@@ -1103,8 +1172,9 @@ export default function AddExpenseScreen() {
                 />
               ) : null}
               <Button
-                label={t.expense.attach}
-                variant="secondary"
+                label={t.expense.addPhoto}
+                variant="ghost"
+                size="sm"
                 disabled={scanning || saving}
                 onPress={() => void attach()}
                 icon={
@@ -1113,9 +1183,13 @@ export default function AddExpenseScreen() {
               />
             </Row>
             {capLocked ? (
-              <Row style={{ gap: theme.spacing.sm }}>
+              <Row style={{ gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Text variant="caption" tone="muted" style={{ flex: 1, minWidth: 0 }}>
+                  {t.expense.capReachedBody}
+                </Text>
                 <Button
                   label={t.expense.capUpgrade}
+                  size="sm"
                   onPress={() => router.push('/settings/upgrade')}
                 />
               </Row>
@@ -1176,62 +1250,38 @@ export default function AddExpenseScreen() {
                 </Text>
               </Pressable>
             ) : null}
-          </Card>
+          </View>
 
-          {/* Currency is chosen from the header pill; this now collapses to the FX
-            rate alone — nothing while the expense is in the group's currency,
-            the rate methods once it is foreign (ADR-003). */}
-          <CurrencyRate
-            groupCurrency={groupCurrency}
-            currency={currency}
-            onCurrencyChange={setExpenseCurrency}
-            amount={amount}
-            fx={fx}
-            onFxChange={setFx}
-            showCurrencyPicker={false}
-          />
-
-          {/* Description field shared with capture. Kept multiline here for the
-            longer notes a group expense sometimes carries. The member names are
-            handed to the recogniser as hints — a general model guesses at Indian
-            names and gets them wrong, and the note is where they turn up. */}
-          <DescriptionField
-            value={description}
-            onChange={setDescription}
-            placeholder={t.expense.descriptionPlaceholder}
-            accessibilityLabel={t.description}
-            hints={nameHints}
-            multiline
-          />
-
-          {/* Pre-picked from the description, because a menu between somebody and
-            saving a dinner is how a column ends up empty — and an empty column
-            is a spending chart nobody can draw (TDR §8). */}
-          <View style={{ gap: theme.spacing.md }}>
-            <Text variant="caption" tone="muted">
-              {t.whatFor}
-            </Text>
-            <CategoryPicker
-              value={category}
-              onChange={(picked, meta) => {
-                setCategory(picked);
-                setCategoryMeta(meta);
-                setCategoryChosen(true);
+          {/* The escape hatch, up on the common path where it is found before the
+            whole shared form is filled — not after. Some spend is nobody else's;
+            this hands the amount and note already typed to the personal captures
+            inbox, which never touches a group balance (plan §5). Only on a new
+            expense; converting an existing shared row is a different act. */}
+          {!editing ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.expense.justForMe}
+              onPress={() => {
+                const params: Record<string, string> = { cur: currency };
+                if (amount > 0n) params.amount = amount.toString();
+                const note = description.trim();
+                if (note) params.desc = note;
+                router.replace({ pathname: '/capture', params });
               }}
-              onCreate={() => setEditingTag(true)}
-            />
-          </View>
-
-          {/* How it was paid — a tag on the expense, defaulting to cash. */}
-          <View style={{ gap: theme.spacing.md }}>
-            <Text variant="caption" tone="muted">
-              {t.captures.paidWith}
-            </Text>
-            <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
-          </View>
-
-          {/* Where it happened (A43) — optional, opt-in, never a background track. */}
-          <LocationField value={location} onChange={setLocation} />
+            >
+              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                <Ionicons name="lock-closed-outline" size={iconSize.md} color={theme.color.brand} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="subheading" tone="brand">
+                    {t.expense.justForMe}
+                  </Text>
+                  <Text variant="micro" tone="muted">
+                    {t.expense.justForMeBody}
+                  </Text>
+                </View>
+              </Row>
+            </Pressable>
+          ) : null}
 
           {/* The one-line answer to "who pays what", tappable to open the three
             controls that decide it. */}
@@ -1250,15 +1300,7 @@ export default function AddExpenseScreen() {
                     {t.expense.howToSplit}
                   </Text>
                   <Text variant="subheading" numberOfLines={2}>
-                    {[
-                      presetLabel ??
-                        (splitKind === SplitKind.Equal
-                          ? t.expense.equally
-                          : splitKind === SplitKind.Shares
-                            ? t.expense.shares
-                            : t.expense.percent),
-                      plural(locale, participants.length, t.memberCount),
-                    ].join(' · ')}
+                    {splitSummary}
                   </Text>
                 </View>
                 <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flexShrink: 0 }}>
@@ -1481,39 +1523,73 @@ export default function AddExpenseScreen() {
             />
           </Card>
 
-          {/* The way out of splitting. Some spend on a trip is nobody else's —
-              a souvenir, a private treat — and forcing it onto the shared ledger
-              (even split 1:1 with yourself) is noise in everyone's balances. This
-              hands the amount and note already typed to the personal captures
-              inbox, which never touches a group balance (plan §5). Only offered
-              on a new expense; converting an existing shared row is a different,
-              destructive act. `replace` so the abandoned split form is not left
-              on the back stack behind the capture. */}
-          {!editing ? (
-            <View style={{ gap: theme.spacing.xs, alignItems: 'flex-start' }}>
-              <Button
-                label={t.expense.justForMe}
-                variant="ghost"
-                onPress={() => {
-                  const params: Record<string, string> = { cur: currency };
-                  if (amount > 0n) params.amount = amount.toString();
-                  const note = description.trim();
-                  if (note) params.desc = note;
-                  router.replace({ pathname: '/capture', params });
-                }}
-                icon={
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={iconSize.md}
-                    color={theme.color.brand}
-                  />
-                }
-              />
-              <Text variant="micro" tone="muted">
-                {t.expense.justForMeBody}
+          {/* Everything most expenses never need — the category (already guessed
+            from the note), how it was paid, where, and a foreign rate — folded
+            off the common path. It opens itself the moment one of them carries a
+            value, so an edit or a foreign currency is never hidden behind it. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showDetails }}
+            accessibilityLabel={t.expense.moreDetails}
+            onPress={() => setDetailsOpen((open) => !open)}
+            // A detail that is already set must not be foldable away.
+            disabled={detailsNonDefault}
+          >
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
+                {showDetails ? t.expense.fewerDetails : t.expense.moreDetails}
               </Text>
+              <Ionicons
+                name={showDetails ? 'chevron-up' : 'chevron-down'}
+                size={iconSize.md}
+                color={theme.color.brand}
+              />
+            </Row>
+          </Pressable>
+
+          <View style={{ gap: theme.spacing.xl, display: showDetails ? 'flex' : 'none' }}>
+            {/* Pre-picked from the description, because a menu between somebody and
+              saving a dinner is how a column ends up empty — and an empty column
+              is a spending chart nobody can draw (TDR §8). */}
+            <View style={{ gap: theme.spacing.md }}>
+              <Text variant="caption" tone="muted">
+                {t.whatFor}
+              </Text>
+              <CategoryPicker
+                value={category}
+                onChange={(picked, meta) => {
+                  setCategory(picked);
+                  setCategoryMeta(meta);
+                  setCategoryChosen(true);
+                }}
+                onCreate={() => setEditingTag(true)}
+              />
             </View>
-          ) : null}
+
+            {/* How it was paid — a tag on the expense, defaulting to cash. */}
+            <View style={{ gap: theme.spacing.md }}>
+              <Text variant="caption" tone="muted">
+                {t.captures.paidWith}
+              </Text>
+              <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+            </View>
+
+            {/* Where it happened (A43) — optional, opt-in, never a background track. */}
+            <LocationField value={location} onChange={setLocation} />
+
+            {/* Currency is chosen from the header pill; this collapses to the FX
+              rate alone — nothing while the expense is in the group's currency,
+              the rate methods once it is foreign (ADR-003). */}
+            <CurrencyRate
+              groupCurrency={groupCurrency}
+              currency={currency}
+              onCurrencyChange={setExpenseCurrency}
+              amount={amount}
+              fx={fx}
+              onFxChange={setFx}
+              showCurrencyPicker={false}
+            />
+          </View>
         </ScrollView>
 
         {/* The one action, pinned. The screen is tall — keypad, scan, currency,
@@ -1538,16 +1614,14 @@ export default function AddExpenseScreen() {
           <Row style={{ justifyContent: 'space-between', gap: theme.spacing.lg }}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <MoneyText amount={amount} currency={currency} locale={locale} variant="heading" />
-              <Text variant="micro" tone="muted">
-                {participants.length > 0
-                  ? plural(locale, participants.length, t.memberCount)
-                  : t.extras.savedStraightAway}
+              <Text variant="micro" tone="muted" numberOfLines={1}>
+                {savePreview}
               </Text>
             </View>
             <Row style={{ gap: theme.spacing.md, flexGrow: 0, flexShrink: 0 }}>
               {saving ? <ActivityIndicator color={theme.color.brand} /> : null}
               <Button
-                label={editing ? t.expense.saveChanges : t.save}
+                label={editing ? t.expense.saveChanges : t.expense.saveExpense}
                 size="lg"
                 disabled={!canSave || saving}
                 onPress={() => void submit()}
