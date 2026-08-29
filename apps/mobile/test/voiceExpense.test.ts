@@ -486,10 +486,15 @@ describe('matchMemberNames', () => {
 });
 
 import {
+  detectAddMember,
+  detectBalanceQuery,
   detectCreateGroup,
+  detectMoneyIntent,
+  detectRelativeGroup,
   isSelfOnlyVoiceIntent,
   normalizeDigits,
   parseVoiceExpenses,
+  voiceAutoAction,
 } from '@/lib/voiceExpense';
 
 describe('parseVoiceExpenses (several in one breath)', () => {
@@ -971,5 +976,291 @@ describe('isSelfOnlyVoiceIntent', () => {
     expect(isSelfOnlyVoiceIntent('dinner just me and Priya')).toBe(false);
     expect(isSelfOnlyVoiceIntent('dinner with Ravi and me')).toBe(false);
     expect(isSelfOnlyVoiceIntent('add 500 for dinner')).toBe(false);
+  });
+});
+
+describe('detectRelativeGroup', () => {
+  it('catches phrases that point at the most recent group', () => {
+    expect(detectRelativeGroup('add 500 to the latest group')).toBe(true);
+    expect(detectRelativeGroup('put 200 in my last group')).toBe(true);
+    expect(detectRelativeGroup('100 for tea in the recent group')).toBe(true);
+    expect(detectRelativeGroup('add 50 to the previous group')).toBe(true);
+    expect(detectRelativeGroup('300 in that most recent group')).toBe(true);
+  });
+
+  it('catches phrases people say while already looking at a group', () => {
+    expect(detectRelativeGroup('add 500 to this group')).toBe(true);
+    expect(detectRelativeGroup('put 200 in the current group')).toBe(true);
+    expect(detectRelativeGroup('100 for tea in my active group')).toBe(true);
+  });
+
+  it('does not fire when a real name sits before "group"', () => {
+    // "last Goa group" names Goa; matchGroup must own it, not the relative path.
+    expect(detectRelativeGroup('add 500 to the last Goa group')).toBe(false);
+    expect(detectRelativeGroup('add 500 to the Goa trip')).toBe(false);
+  });
+});
+
+describe('parseVoiceExpenses resolves a relative group to the newest', () => {
+  // `groups` arrives most-recent-first, so index 0 (g-goa) is "the latest".
+  it('routes "the latest group" to the first group and keeps the note clean', () => {
+    const result = parseVoiceExpenses('add 500 rupees for dinner to the latest group', groups);
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(500);
+    expect(result.items[0].note).toBe('dinner');
+  });
+
+  it('routes "this/current group" the same way the voice screen orders its contextual group first', () => {
+    const currentFirst: VoiceGroupRef[] = [
+      { id: 'g-flat', name: 'Flat 4B' },
+      { id: 'g-goa', name: 'Goa Trip' },
+    ];
+    const result = parseVoiceExpenses('add 350 rupees for milk to this group', currentFirst);
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-flat' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].note).toBe('milk');
+  });
+
+  it('falls through to the inbox when there are no groups to resolve against', () => {
+    expect(parseVoiceExpenses('add 500 to the latest group', []).group).toBeNull();
+    expect(parseVoiceExpenses('add 500 to this group', []).group).toBeNull();
+  });
+});
+
+describe('voiceAutoAction', () => {
+  it('acts on a bare create-group with no expense', () => {
+    const result = parseVoiceExpenses('create a group called Weekend Trip', groups);
+    expect(voiceAutoAction(result)).toEqual({ kind: 'create-group', name: 'Weekend Trip' });
+  });
+
+  it('acts on one plain expense aimed at an existing group', () => {
+    const result = parseVoiceExpenses('add 500 rupees to the latest group', groups);
+    expect(voiceAutoAction(result)).toEqual({ kind: 'commit-expense', groupId: 'g-goa' });
+  });
+
+  it('holds for review when create-group also carries an expense', () => {
+    const result = parseVoiceExpenses('make a group called Weekend and add 200 for lunch', groups);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review with several expenses in one breath', () => {
+    const result = parseVoiceExpenses('add 500 dinner and 300 cab to the Goa trip', groups);
+    expect(result.items.length).toBeGreaterThan(1);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when no destination resolved (goes to the inbox)', () => {
+    const result = parseVoiceExpenses('add 500 rupees for dinner', groups);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review for a "just for me" spend', () => {
+    const result = parseVoiceExpenses('add 500 rupees for coffee just for me', groups);
+    expect(result.personal).toBe(true);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when a split count would otherwise be silently ignored', () => {
+    const result = parseVoiceExpenses(
+      'add 1000 rupees groceries to this group split among 4',
+      groups,
+    );
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+    expect(result.splitCount).toBe(4);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when split participant names need member resolution', () => {
+    const result = parseVoiceExpenses(
+      'add 800 rupees dinner to the latest group split with Ravi',
+      groups,
+    );
+    expect(result.peopleText).toContain('Ravi');
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when a date or category changes the default expense fields', () => {
+    const dated = parseVoiceExpenses('add 500 rupees dinner yesterday to the latest group', groups);
+    expect(dated.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(voiceAutoAction(dated)).toBeNull();
+
+    const categorised = parseVoiceExpenses(
+      'add 300 rupees cab category travel to the latest group',
+      groups,
+    );
+    expect(categorised.items[0].category).toBe('travel');
+    expect(voiceAutoAction(categorised)).toBeNull();
+  });
+});
+
+describe('detectMoneyIntent', () => {
+  it('reads a settle-up command and the person', () => {
+    expect(detectMoneyIntent('settle up with Ravi')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: null,
+    });
+    expect(detectMoneyIntent('settle with Priya')).toEqual({
+      kind: 'settle',
+      who: 'Priya',
+      amount: null,
+    });
+  });
+
+  it('reads casual real-world settle verbs and keeps only the person name', () => {
+    expect(detectMoneyIntent('clear balance with Ravi please')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: null,
+    });
+    expect(detectMoneyIntent('mark Priya as settled')).toEqual({
+      kind: 'settle',
+      who: 'Priya',
+      amount: null,
+    });
+  });
+
+  it('reads a partial settle amount', () => {
+    expect(detectMoneyIntent('settle 200 with Ravi')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: 200,
+    });
+    expect(detectMoneyIntent('pay back Ravi 500')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: 500,
+    });
+  });
+
+  it('reads a partial settle amount with currency words before the person', () => {
+    expect(detectMoneyIntent('pay off 500 rupees to Priya')).toEqual({
+      kind: 'settle',
+      who: 'Priya',
+      amount: 500,
+    });
+  });
+
+  it('reads a remind command and the person', () => {
+    expect(detectMoneyIntent('remind Ravi')).toEqual({ kind: 'remind', who: 'Ravi' });
+    expect(detectMoneyIntent('remind Ravi to pay me back')).toEqual({
+      kind: 'remind',
+      who: 'Ravi',
+    });
+    expect(detectMoneyIntent('nudge Priya')).toEqual({ kind: 'remind', who: 'Priya' });
+  });
+
+  it('reads polite reminder phrasing without keeping filler as a name', () => {
+    expect(detectMoneyIntent('please remind Ravi tomorrow')).toEqual({
+      kind: 'remind',
+      who: 'Ravi',
+    });
+    expect(detectMoneyIntent('send a payment reminder to Priya')).toEqual({
+      kind: 'remind',
+      who: 'Priya',
+    });
+  });
+
+  it('leaves ordinary expenses alone', () => {
+    // Bare "pay"/"paid" are not settle verbs, so an expense is never hijacked.
+    expect(detectMoneyIntent('I paid 500 rupees for dinner')).toBeNull();
+    expect(detectMoneyIntent('add 500 to the Goa trip')).toBeNull();
+    expect(detectMoneyIntent('pay 500 for lunch')).toBeNull();
+  });
+
+  it('leaves planning and non-money reminders alone', () => {
+    expect(detectMoneyIntent('remind me to add dinner later')).toBeNull();
+    expect(detectMoneyIntent('remind me tomorrow about receipts')).toBeNull();
+    expect(detectMoneyIntent('settle the hotel bill tomorrow')).toBeNull();
+  });
+
+  it('does not target generic groups of people for money actions', () => {
+    expect(detectMoneyIntent('remind everyone')).toBeNull();
+    expect(detectMoneyIntent('remind the group')).toBeNull();
+    expect(detectMoneyIntent('settle up with everyone')).toBeNull();
+  });
+
+  it('returns null when a verb names no one', () => {
+    expect(detectMoneyIntent('settle up')).toBeNull();
+    expect(detectMoneyIntent('remind')).toBeNull();
+  });
+});
+
+describe('detectAddMember', () => {
+  it('reads a person and a group from an add command', () => {
+    expect(detectAddMember('add Ravi to the latest group')).toEqual({ names: ['Ravi'] });
+    expect(detectAddMember('include Priya in Goa')).toEqual({ names: ['Priya'] });
+    expect(detectAddMember('put John Smith into the flat')).toEqual({ names: ['John Smith'] });
+  });
+
+  it('reads several names at once', () => {
+    expect(detectAddMember('add Ravi and Priya to Goa')).toEqual({ names: ['Ravi', 'Priya'] });
+    expect(detectAddMember('add Sam, Ravi and Priya to the latest group')).toEqual({
+      names: ['Sam', 'Ravi', 'Priya'],
+    });
+    expect(detectAddMember('add Ravi, Priya, and Sam to this group')).toEqual({
+      names: ['Ravi', 'Priya', 'Sam'],
+    });
+  });
+
+  it('reads invite phrasing that names people before the group', () => {
+    expect(detectAddMember('invite Maya and Kabir to this group')).toEqual({
+      names: ['Maya', 'Kabir'],
+    });
+    expect(detectAddMember('can you add Ananya Rao to the Goa trip')).toEqual({
+      names: ['Ananya Rao'],
+    });
+    expect(detectAddMember('add my friend Neha to the flat')).toEqual({ names: ['Neha'] });
+  });
+
+  it('does not fire on an expense that has an amount', () => {
+    // "add 500 to Goa" is an expense, never a member add.
+    expect(detectAddMember('add 500 to Goa')).toBeNull();
+    expect(detectAddMember('add 500 rupees to the latest group')).toBeNull();
+  });
+
+  it('does not turn shopping-list or trip-plan language into member invites', () => {
+    expect(detectAddMember('add milk to the grocery list')).toBeNull();
+    expect(detectAddMember('put sunscreen in Goa packing list')).toBeNull();
+    expect(detectAddMember('include breakfast in the plan')).toBeNull();
+  });
+
+  it('does not invite generic placeholders instead of people', () => {
+    expect(detectAddMember('add everyone to Goa')).toBeNull();
+    expect(detectAddMember('invite all friends to the latest group')).toBeNull();
+    expect(detectAddMember('include the group in Goa')).toBeNull();
+  });
+
+  it('returns null without an add-to shape', () => {
+    expect(detectAddMember('remind Ravi')).toBeNull();
+    expect(detectAddMember('add Ravi')).toBeNull();
+  });
+});
+
+describe('detectBalanceQuery', () => {
+  it('reads a person balance question', () => {
+    expect(detectBalanceQuery('how much does Ravi owe me')).toEqual({
+      kind: 'person',
+      who: 'Ravi',
+    });
+    expect(detectBalanceQuery('how much do I owe Priya')).toEqual({ kind: 'person', who: 'Priya' });
+    expect(detectBalanceQuery('am I settled with Ravi')).toEqual({ kind: 'person', who: 'Ravi' });
+    expect(detectBalanceQuery('what is my balance with Sam')).toEqual({
+      kind: 'person',
+      who: 'Sam',
+    });
+  });
+
+  it('reads a general balance question (group or overall)', () => {
+    expect(detectBalanceQuery("what's my balance in Goa")).toEqual({ kind: 'balance' });
+    expect(detectBalanceQuery('how much do I owe overall')).toEqual({ kind: 'balance' });
+  });
+
+  it('leaves commands and plain expenses alone', () => {
+    expect(detectBalanceQuery('add 500 to Goa')).toBeNull();
+    expect(detectBalanceQuery('settle up with Ravi')).toBeNull();
+    expect(detectBalanceQuery('remind Ravi')).toBeNull();
+    expect(detectBalanceQuery('add Ravi to the latest group')).toBeNull();
   });
 });

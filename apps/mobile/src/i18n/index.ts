@@ -933,6 +933,36 @@ export interface UiStrings {
     /** The People-tab confirm button — with people picked, and with none. */
     confirmPeople: string;
     selectPeople: string;
+    /** The auto-act countdown banner when a confident command is about to write
+        itself. '{amount}' and '{group}' are the spend and its destination. */
+    autoAdding: string;
+    /** The auto-act banner for a spoken new group. '{name}' is its name. */
+    autoCreating: string;
+    /** The auto-act banner for a spoken settle-up. '{amount}' and '{name}'. */
+    autoSettling: string;
+    /** The auto-act banner for a spoken reminder/nudge. '{name}' is the person. */
+    autoReminding: string;
+    /** The auto-act banner for a spoken "add X to a group". '{name}' (one or
+        several, comma-joined) and '{group}'. */
+    autoAddingPerson: string;
+    /** The button on the auto-act banner that cancels the pending write. */
+    autoUndo: string;
+    /** The header of the read-only answer to a spoken balance question. */
+    ansTitle: string;
+    /** A person balance answer. '{name}' and '{amount}'. */
+    ansTheyOweYou: string;
+    ansYouOwe: string;
+    /** A person with nothing outstanding. '{name}'. */
+    ansSettled: string;
+    /** A group balance answer. '{group}' and '{amount}'. */
+    ansGroupOwed: string;
+    ansGroupOwe: string;
+    /** A square group. '{group}'. */
+    ansGroupSettled: string;
+    /** A spoken name that matched no contact. '{name}'. */
+    ansNoPerson: string;
+    /** The button on the answer card that reopens the mic for another question. */
+    askAgain: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -3009,6 +3039,21 @@ const en: UiStrings = {
     noPeople: 'No people yet — type a name to add one.',
     confirmPeople: 'Save with these',
     selectPeople: 'Pick who this is with',
+    autoAdding: 'Adding {amount} to {group}',
+    autoCreating: 'Creating {name}',
+    autoSettling: 'Settling {amount} with {name}',
+    autoReminding: 'Reminding {name}',
+    autoAddingPerson: 'Adding {name} to {group}',
+    autoUndo: 'Undo',
+    ansTitle: 'Balance',
+    ansTheyOweYou: '{name} owes you {amount}',
+    ansYouOwe: 'You owe {name} {amount}',
+    ansSettled: "You're settled up with {name}",
+    ansGroupOwed: 'In {group}, you are owed {amount}',
+    ansGroupOwe: 'In {group}, you owe {amount}',
+    ansGroupSettled: "You're all settled up in {group}",
+    ansNoPerson: "Couldn't find {name}",
+    askAgain: 'Ask again',
   },
   notifications: {
     title: 'Notifications',
@@ -5063,6 +5108,21 @@ const ta: UiStrings = {
     noPeople: 'இன்னும் நபர்கள் இல்லை — சேர்க்க பெயரை உள்ளிடவும்.',
     confirmPeople: 'இவர்களுடன் சேமி',
     selectPeople: 'யாருடன் என்று தேர்ந்தெடு',
+    autoAdding: '{group} இல் {amount} சேர்க்கிறது',
+    autoCreating: '{name} உருவாக்குகிறது',
+    autoSettling: '{name} உடன் {amount} தீர்க்கிறது',
+    autoReminding: '{name} க்கு நினைவூட்டல்',
+    autoAddingPerson: '{group} இல் {name} சேர்க்கிறது',
+    autoUndo: 'செயல்தவிர்',
+    ansTitle: 'இருப்பு',
+    ansTheyOweYou: '{name} உங்களுக்கு {amount} தர வேண்டும்',
+    ansYouOwe: 'நீங்கள் {name} க்கு {amount} தர வேண்டும்',
+    ansSettled: '{name} உடன் தீர்க்கப்பட்டது',
+    ansGroupOwed: '{group} இல், உங்களுக்கு {amount} வர வேண்டும்',
+    ansGroupOwe: '{group} இல், நீங்கள் {amount} தர வேண்டும்',
+    ansGroupSettled: '{group} இல் அனைத்தும் தீர்க்கப்பட்டது',
+    ansNoPerson: '{name} கிடைக்கவில்லை',
+    askAgain: 'மீண்டும் கேள்',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -7175,6 +7235,21 @@ const hi: UiStrings = {
     noPeople: 'अभी कोई व्यक्ति नहीं — जोड़ने के लिए नाम लिखें।',
     confirmPeople: 'इनके साथ सहेजें',
     selectPeople: 'यह किसके साथ है चुनें',
+    autoAdding: '{group} में {amount} जोड़ रहे हैं',
+    autoCreating: '{name} बना रहे हैं',
+    autoSettling: '{name} के साथ {amount} चुका रहे हैं',
+    autoReminding: '{name} को याद दिला रहे हैं',
+    autoAddingPerson: '{group} में {name} जोड़ रहे हैं',
+    autoUndo: 'पूर्ववत करें',
+    ansTitle: 'बैलेंस',
+    ansTheyOweYou: '{name} आप पर {amount} बकाया है',
+    ansYouOwe: 'आप {name} को {amount} देते हैं',
+    ansSettled: '{name} के साथ हिसाब बराबर है',
+    ansGroupOwed: '{group} में, आपको {amount} मिलने हैं',
+    ansGroupOwe: '{group} में, आप {amount} देते हैं',
+    ansGroupSettled: '{group} में सब हिसाब बराबर है',
+    ansNoPerson: '{name} नहीं मिला',
+    askAgain: 'फिर पूछें',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -9267,6 +9342,21 @@ const ar: UiStrings = {
     noPeople: 'لا أشخاص بعد — اكتب اسمًا لإضافته.',
     confirmPeople: 'الحفظ مع هؤلاء',
     selectPeople: 'اختر مع من',
+    autoAdding: 'إضافة {amount} إلى {group}',
+    autoCreating: 'إنشاء {name}',
+    autoSettling: 'تسوية {amount} مع {name}',
+    autoReminding: 'تذكير {name}',
+    autoAddingPerson: 'إضافة {name} إلى {group}',
+    autoUndo: 'تراجع',
+    ansTitle: 'الرصيد',
+    ansTheyOweYou: '{name} يدين لك بمبلغ {amount}',
+    ansYouOwe: 'أنت تدين لـ {name} بمبلغ {amount}',
+    ansSettled: 'تمت التسوية مع {name}',
+    ansGroupOwed: 'في {group}، لك {amount}',
+    ansGroupOwe: 'في {group}، عليك {amount}',
+    ansGroupSettled: 'تمت التسوية بالكامل في {group}',
+    ansNoPerson: 'تعذر العثور على {name}',
+    askAgain: 'اسأل مرة أخرى',
   },
   notifications: {
     title: 'الإشعارات',

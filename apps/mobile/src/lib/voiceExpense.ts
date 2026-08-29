@@ -512,6 +512,30 @@ function matchGroup(tokens: readonly string[], groups: readonly VoiceGroupRef[])
 }
 
 /**
+ * A phrase that points at the contextual group rather than naming one — "this
+ * group" / "current group" while already looking at one, or "the latest group",
+ * "last group", "my most recent group", "previous group" from the global mic.
+ * The reader's group list arrives current/most-recent-first, so a hit resolves
+ * to its first entry (see `parseVoiceExpenses`). The words must sit next to
+ * "group": "last Goa group" names Goa and is left for `matchGroup`, not caught
+ * here.
+ */
+const RELATIVE_GROUP =
+  /\b(?:the\s+|my\s+|that\s+)?(?:this|current|active|latest|last|recent|most\s+recent|previous|prev)\s+group\b/iu;
+
+export function detectRelativeGroup(text: string): boolean {
+  return RELATIVE_GROUP.test(text);
+}
+
+/** Lift the relative-group phrase out, so "group"/"latest" never reach a note. */
+export function stripRelativeGroupPhrase(text: string): string {
+  return text
+    .replace(new RegExp(RELATIVE_GROUP.source, 'giu'), ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * The words left once the amount, currency and named group are taken out — the
  * description someone would have typed. Numbers, currency words, the stopwords,
  * and any word from the matched group's name are all dropped.
@@ -736,7 +760,7 @@ const CATEGORY_WORDS = new Map<string, CategoryId>(
 );
 
 const CATEGORY_PHRASE =
-  /\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40}?)(?=\s+(?:and|then|with|split|on|for|category|tag|label)\b|\s*[,;]|\s*$)/giu;
+  /\b(?:category|tag|label)\s+(?:as\s+)?([\p{L}\p{N}][\p{L}\p{N}& -]{0,40}?)(?=\s+(?:and|then|with|split|on|for|to|in|into|category|tag|label)\b|\s*[,;]|\s*$)/giu;
 
 export function parseVoiceCategory(text: string): CategoryId | null {
   CATEGORY_PHRASE.lastIndex = 0;
@@ -801,6 +825,210 @@ export interface VoiceParseResult {
    * when no group was named — an explicit group wins over a solo marker.
    */
   personal: boolean;
+}
+
+/**
+ * When a spoken sentence is unambiguous enough to act on without a review, the
+ * action to take — otherwise null and the screen shows the editable review.
+ *
+ * Two cases are safe to act on directly:
+ *  - `create-group`: a bare "make a group called Goa" with no expense in it. No
+ *    amount to mishear, nothing to split — just the group.
+ *  - `commit-expense`: exactly one *plain* expense aimed at a group that already
+ *    exists. The group's own currency and an equal split are the documented
+ *    defaults the review would have applied anyway, so there is nothing a tap
+ *    would decide.
+ *
+ * Everything else — several expenses in a breath, a group to *create* alongside
+ * an expense, a "just for me" spend, an unresolved or unnamed destination, or a
+ * command carrying split/date/category details — returns null so the reader
+ * confirms on the review screen first.
+ */
+export type VoiceAutoAction =
+  { kind: 'create-group'; name: string } | { kind: 'commit-expense'; groupId: string };
+
+export function voiceAutoAction(result: VoiceParseResult): VoiceAutoAction | null {
+  if (
+    result.group?.kind === 'create' &&
+    result.items.length === 0 &&
+    result.group.name.trim().length > 0
+  ) {
+    return { kind: 'create-group', name: result.group.name };
+  }
+
+  const [item] = result.items;
+  const hasSplitInstructions =
+    result.splitCount !== null || splitParticipantClause(result.peopleText) !== null;
+  const hasNonDefaultExpenseFields = result.expenseDate !== null || item?.category !== null;
+
+  if (
+    result.group?.kind === 'existing' &&
+    !result.personal &&
+    result.items.length === 1 &&
+    !hasSplitInstructions &&
+    !hasNonDefaultExpenseFields &&
+    item &&
+    Number.isFinite(item.amountMajor) &&
+    item.amountMajor > 0
+  ) {
+    return { kind: 'commit-expense', groupId: result.group.groupId };
+  }
+
+  return null;
+}
+
+/**
+ * A spoken money-movement command that is not an expense: settling a debt or
+ * reminding someone to pay. The verb and the person's name are pulled out here;
+ * the screen resolves the name against the reader's people and reads the amount
+ * and direction from the balance (see voice.tsx). `amount` is a spoken partial
+ * for a settle ("settle 200 with Ravi"); null means settle the whole balance.
+ *
+ * Only explicit settle/remind verbs fire this — bare "pay"/"paid" stay expenses,
+ * so "I paid 500 for dinner" is untouched. A verb with no name returns null so
+ * the sentence falls through to the ordinary expense parse.
+ */
+export type VoiceMoneyIntent =
+  { kind: 'settle'; who: string; amount: number | null } | { kind: 'remind'; who: string };
+
+const REMIND_VERB = /\b(?:remind|nudge|send\s+(?:a\s+)?(?:payment\s+)?reminder\s+to)\b\s*/i;
+const SETTLE_VERB =
+  /\b(?:settle\s*up|settle|pay\s*back|pay\s*off|clear\s*up|clear\s+(?:the\s+)?(?:balance|dues?))\b\s*/i;
+const MARK_SETTLED = /\bmark\s+(.+?)\s+as\s+settled\b/iu;
+const NON_PERSON_REMINDER = /^\s*(?:me|myself|us|ourselves)\b/iu;
+const NON_PERSON_SETTLEMENT = /\b(?:bill|receipt|expense|hotel|restaurant|tab)\b/iu;
+const GENERIC_PERSON_TARGET = /^(?:everyone|everybody|all|all friends|friends|group|the group)$/iu;
+const NON_MEMBER_DESTINATION =
+  /\b(?:grocery|shopping|packing|todo|to-do|checklist|list|plan|itinerary|agenda)\b/iu;
+
+function isGenericPersonTarget(text: string): boolean {
+  return GENERIC_PERSON_TARGET.test(text.trim());
+}
+
+/** The person's name out of a settle/remind clause — the words a name is made
+ *  of, once the amount, currency and command filler are taken away. Prefers an
+ *  explicit "with X" tail; the screen's name matcher does the rest. */
+function cleanWho(text: string): string {
+  const withClause = text.match(/\bwith\s+(.+)$/iu);
+  return (withClause ? withClause[1] : text)
+    .replace(/\d[\d.,]*/g, ' ')
+    .replace(
+      /\b(?:up|to|for|my|me|the|a|an|friend|friends|back|off|pay|paid|paying|settle|settled|remind|nudge|now|please|today|tomorrow|tonight|later|rupees?|rupee|dollars?|dollar|euros?|euro|about|it|money|balance|dues?|owed?|owes)\b/giu,
+      ' ',
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanInviteName(name: string): string {
+  return name
+    .replace(/^\s*and\s+/iu, '')
+    .replace(/^\s*(?:(?:the|a|an|my|all)\s+)?(?:friend|friends|person|people)\s+/iu, '')
+    .trim();
+}
+
+export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
+  const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
+
+  const remind = norm.match(REMIND_VERB);
+  if (remind && remind.index !== undefined) {
+    const rest = norm.slice(remind.index + remind[0].length);
+    if (NON_PERSON_REMINDER.test(rest)) return null;
+    const who = cleanWho(rest);
+    if (who && !isGenericPersonTarget(who)) return { kind: 'remind', who };
+  }
+
+  const markedSettled = norm.match(MARK_SETTLED);
+  if (markedSettled) {
+    const who = cleanWho(markedSettled[1]);
+    if (who && !isGenericPersonTarget(who)) return { kind: 'settle', who, amount: null };
+  }
+
+  const settle = norm.match(SETTLE_VERB);
+  if (settle && settle.index !== undefined) {
+    const rest = norm.slice(settle.index + settle[0].length);
+    if (!/\bwith\b/iu.test(rest) && NON_PERSON_SETTLEMENT.test(rest)) return null;
+    const who = cleanWho(rest);
+    if (who && !isGenericPersonTarget(who))
+      return { kind: 'settle', who, amount: extractAmount(rest) };
+  }
+
+  return null;
+}
+
+/**
+ * A spoken "add someone to a group" — "add Ravi to the latest group", "include
+ * Priya and Sam in Goa". One or more names between the verb and the "to/into/in
+ * <group>" tail. The screen resolves the group (a named or relative one, via the
+ * ordinary parse) and adds a ghost per name.
+ *
+ * Guarded against the expense it looks like: a sentence with an amount is "add
+ * 500 to Goa", not a member add, so any number here returns null and the
+ * sentence stays an expense. A verb with no name, a non-group destination such
+ * as a shopping list, or no "to/into/in" tail returns null too. The group is NOT
+ * resolved here — the caller does that and falls back to the expense parse when
+ * nothing resolves.
+ */
+export function detectAddMember(transcript: string): { names: string[] } | null {
+  const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
+  if (extractAmount(norm) !== null) return null;
+
+  const match = norm.match(/\b(?:add|include|put|invite)\s+(.+?)\s+(?:to|into|in)\b\s+(.+)$/iu);
+  if (!match || NON_MEMBER_DESTINATION.test(match[2])) return null;
+
+  const names = match[1]
+    .replace(/^\s*(?:the|a|an|my)\s+/iu, '')
+    .split(/\s*,\s*|\s+and\s+|\s*&\s*/iu)
+    .map(cleanInviteName)
+    .filter((name) => name && !isGenericPersonTarget(name));
+  return names.length > 0 ? { names } : null;
+}
+
+/**
+ * A spoken read-only question about balances — "how much does Ravi owe me",
+ * "what's my balance in Goa", "am I settled with Priya". Nothing is written; the
+ * screen looks the number up and shows it. `person` carries the name to resolve;
+ * `balance` is a group/overall question the screen answers by resolving the
+ * group named (and shows nothing when none resolves — it is not a command).
+ *
+ * A person frame ("does X owe", "I owe X", "settled with X") wins; failing that,
+ * a first-person balance question with no name is a `balance`. Anything without
+ * a balance word, or without a question framing, returns null so an ordinary
+ * expense is never mistaken for a question.
+ */
+export type VoiceBalanceQuery = { kind: 'person'; who: string } | { kind: 'balance' };
+
+// Frames that name a specific person. The "I owe X" ones lead so "how much do I
+// owe Priya" reads Priya, not "I"; the third-person one then excludes "i" as the
+// subject so it only catches "how much does Ravi owe".
+const QUERY_PERSON_FRAMES: readonly RegExp[] = [
+  /\b(?:how much do i owe|what do i owe|do i owe)\s+(.+)$/iu,
+  /\bhow much (?:does|do)\s+(?!i\b)(.+?)\s+owe\b/iu,
+  /\bdoes\s+(.+?)\s+owe\s+me\b/iu,
+  /\b(?:balance|settled(?:\s+up)?)\s+with\s+(.+)$/iu,
+];
+
+// Words a person is not — "how much do I owe overall" is a balance question,
+// not a debt to someone named "overall". Stripped from a captured name; when
+// nothing is left, the frame did not really name a person.
+const QUERY_NON_PERSON = /\b(?:overall|in total|total|everyone|everybody|anyone|anybody|all)\b/giu;
+
+export function detectBalanceQuery(transcript: string): VoiceBalanceQuery | null {
+  const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
+
+  for (const frame of QUERY_PERSON_FRAMES) {
+    const match = norm.match(frame);
+    if (match) {
+      const who = cleanWho(match[1]).replace(QUERY_NON_PERSON, ' ').replace(/\s+/g, ' ').trim();
+      if (who) return { kind: 'person', who };
+    }
+  }
+
+  const framed = /\b(?:how much|what(?:'s| is)?|do i|am i|are we)\b/iu.test(norm);
+  const aboutBalance = /\b(?:balance|owe|owed|owes|settled)\b/iu.test(norm);
+  if (framed && aboutBalance) return { kind: 'balance' };
+
+  return null;
 }
 
 /**
@@ -1528,7 +1756,7 @@ export function parseVoiceExpenses(
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
   // read from the clean remainder.
-  const body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
+  let body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
 
   // The group is settled before the notes are built, so each note can have the
   // named group's words taken out ("dinner on the Goa trip" → note "dinner").
@@ -1536,6 +1764,14 @@ export function parseVoiceExpenses(
   let matchedName: string | null = null;
   if (created) {
     group = { kind: 'create', name: created.name };
+  } else if (groups.length > 0 && detectRelativeGroup(body)) {
+    // "the latest / last / recent group" — resolve to the most recent group.
+    // The list arrives most-recent-first, so position 0 is that group. The
+    // phrase is lifted before matching and note-building so "latest"/"group"
+    // never tip a name match or land in a description.
+    group = { kind: 'existing', groupId: groups[0].id };
+    matchedName = groups[0].name;
+    body = stripRelativeGroupPhrase(body);
   } else {
     const groupId = matchGroup(tokenize(body), groups);
     if (groupId) {
