@@ -929,6 +929,33 @@ export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
 }
 
 /**
+ * A spoken "add someone to a group" — "add Ravi to the latest group", "include
+ * Priya and Sam in Goa". One or more names between the verb and the "to/into/in
+ * <group>" tail. The screen resolves the group (a named or relative one, via the
+ * ordinary parse) and adds a ghost per name.
+ *
+ * Guarded against the expense it looks like: a sentence with an amount is "add
+ * 500 to Goa", not a member add, so any number here returns null and the
+ * sentence stays an expense. A verb with no name, or no "to/into/in" tail,
+ * returns null too. The group is NOT resolved here — the caller does that and
+ * falls back to the expense parse when nothing resolves.
+ */
+export function detectAddMember(transcript: string): { names: string[] } | null {
+  const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
+  if (extractAmount(norm) !== null) return null;
+
+  const match = norm.match(/\b(?:add|include|put|invite)\s+(.+?)\s+(?:to|into|in)\b/iu);
+  if (!match) return null;
+
+  const names = match[1]
+    .replace(/^\s*(?:the|a|an|my)\s+/iu, '')
+    .split(/\s*,\s*|\s+and\s+|\s*&\s*/iu)
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return names.length > 0 ? { names } : null;
+}
+
+/**
  * Native numerals to ASCII, so "५०० रुपये" and "௫" and "٥" all read as numbers.
  * Devanagari, Tamil, Arabic-Indic and Eastern-Arabic (Persian/Urdu) digits are
  * the ones this app's four locales and their neighbours actually type or speak.

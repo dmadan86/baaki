@@ -486,6 +486,7 @@ describe('matchMemberNames', () => {
 });
 
 import {
+  detectAddMember,
   detectCreateGroup,
   detectMoneyIntent,
   detectRelativeGroup,
@@ -1138,5 +1139,31 @@ describe('detectMoneyIntent', () => {
   it('returns null when a verb names no one', () => {
     expect(detectMoneyIntent('settle up')).toBeNull();
     expect(detectMoneyIntent('remind')).toBeNull();
+  });
+});
+
+describe('detectAddMember', () => {
+  it('reads a person and a group from an add command', () => {
+    expect(detectAddMember('add Ravi to the latest group')).toEqual({ names: ['Ravi'] });
+    expect(detectAddMember('include Priya in Goa')).toEqual({ names: ['Priya'] });
+    expect(detectAddMember('put John Smith into the flat')).toEqual({ names: ['John Smith'] });
+  });
+
+  it('reads several names at once', () => {
+    expect(detectAddMember('add Ravi and Priya to Goa')).toEqual({ names: ['Ravi', 'Priya'] });
+    expect(detectAddMember('add Sam, Ravi and Priya to the latest group')).toEqual({
+      names: ['Sam', 'Ravi', 'Priya'],
+    });
+  });
+
+  it('does not fire on an expense that has an amount', () => {
+    // "add 500 to Goa" is an expense, never a member add.
+    expect(detectAddMember('add 500 to Goa')).toBeNull();
+    expect(detectAddMember('add 500 rupees to the latest group')).toBeNull();
+  });
+
+  it('returns null without an add-to shape', () => {
+    expect(detectAddMember('remind Ravi')).toBeNull();
+    expect(detectAddMember('add Ravi')).toBeNull();
   });
 });

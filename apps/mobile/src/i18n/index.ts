@@ -942,6 +942,9 @@ export interface UiStrings {
     autoSettling: string;
     /** The auto-act banner for a spoken reminder/nudge. '{name}' is the person. */
     autoReminding: string;
+    /** The auto-act banner for a spoken "add X to a group". '{name}' (one or
+        several, comma-joined) and '{group}'. */
+    autoAddingPerson: string;
     /** The button on the auto-act banner that cancels the pending write. */
     autoUndo: string;
   };
@@ -3024,6 +3027,7 @@ const en: UiStrings = {
     autoCreating: 'Creating {name}',
     autoSettling: 'Settling {amount} with {name}',
     autoReminding: 'Reminding {name}',
+    autoAddingPerson: 'Adding {name} to {group}',
     autoUndo: 'Undo',
   },
   notifications: {
@@ -5083,6 +5087,7 @@ const ta: UiStrings = {
     autoCreating: '{name} உருவாக்குகிறது',
     autoSettling: '{name} உடன் {amount} தீர்க்கிறது',
     autoReminding: '{name} க்கு நினைவூட்டல்',
+    autoAddingPerson: '{group} இல் {name} சேர்க்கிறது',
     autoUndo: 'செயல்தவிர்',
   },
   notifications: {
@@ -7200,6 +7205,7 @@ const hi: UiStrings = {
     autoCreating: '{name} बना रहे हैं',
     autoSettling: '{name} के साथ {amount} चुका रहे हैं',
     autoReminding: '{name} को याद दिला रहे हैं',
+    autoAddingPerson: '{group} में {name} जोड़ रहे हैं',
     autoUndo: 'पूर्ववत करें',
   },
   notifications: {
@@ -9297,6 +9303,7 @@ const ar: UiStrings = {
     autoCreating: 'إنشاء {name}',
     autoSettling: 'تسوية {amount} مع {name}',
     autoReminding: 'تذكير {name}',
+    autoAddingPerson: 'إضافة {name} إلى {group}',
     autoUndo: 'تراجع',
   },
   notifications: {
