@@ -42,9 +42,10 @@ import { usePullRefresh } from '@/lib/pullRefresh';
 import { SyncStatus, useSync } from '@/sync';
 
 // The day-grouped feed flattened for FlashList, which has no section API: a
-// `header` item per day, then that day's `entry` rows. The day cut is made to
-// stick via `stickyHeaderIndices`; `firstOfDay` drives the between-row hairline
-// so no line falls between a day heading and its first entry.
+// `header` item per day, then that day's `entry` rows. Headers scroll inline
+// with their rows (not pinned — sticky headers on this long, variable-height
+// feed left blank gaps and misaligned on a fast fling). `firstOfDay` drives the
+// between-row hairline so no line falls between a day heading and its first entry.
 type FeedRow =
   | { kind: 'header'; key: string; date: string }
   | { kind: 'row'; key: string; entry: RecentActivityRow; firstOfDay: boolean };
@@ -221,12 +222,10 @@ export default function ActivityScreen() {
   // rows near the viewport are mounted, and they recycle as the feed scrolls, so
   // a heavy account's memory and mount cost stay bounded no matter how far back
   // it goes. FlashList has no sections, so the day cut is flattened into `header`
-  // items whose positions become `stickyIndices`.
-  const { listData, stickyIndices } = useMemo(() => {
+  // items that scroll inline with their rows (like the group ledger's months).
+  const listData = useMemo(() => {
     const rows: FeedRow[] = [];
-    const sticky: number[] = [];
     for (const section of groupByDay(visibleEntries)) {
-      sticky.push(rows.length);
       rows.push({
         kind: 'header',
         key: `day-${section.key}`,
@@ -236,7 +235,7 @@ export default function ActivityScreen() {
         rows.push({ kind: 'row', key: entry.id, entry, firstOfDay: index === 0 });
       });
     }
-    return { listData: rows, stickyIndices: sticky };
+    return rows;
   }, [visibleEntries]);
 
   // The active range worded for the chip: one date when start and end share a
@@ -427,9 +426,8 @@ export default function ActivityScreen() {
     <Screen>
       {/* A feed broken into days: each event is an icon in a soft tile, the
           sentence beside it and the actor/group/time beneath. The day headings
-          are what make a long feed skimmable — they stick to the top so the day
-          in view is always named — without them every row had to be read to
-          place it in time. */}
+          are what make a long feed skimmable — without them every row had to be
+          read to place it in time. */}
       <View style={{ flex: 1 }}>
         <FlashList
           data={listData}
@@ -440,7 +438,6 @@ export default function ActivityScreen() {
           // Day headings and event rows are structurally different subtrees;
           // typing them lets FlashList recycle like with like.
           getItemType={(item) => item.kind}
-          stickyHeaderIndices={stickyIndices}
           // Render well beyond the viewport so a fast fling never outruns
           // recycling into blank rows (default 250px clears in a frame).
           drawDistance={1500}
@@ -466,8 +463,6 @@ export default function ActivityScreen() {
                   textTransform: 'uppercase',
                   marginTop: theme.spacing.lg,
                   marginBottom: theme.spacing.md,
-                  // Opaque, so rows scrolling under the stuck heading are masked.
-                  backgroundColor: theme.color.bg,
                 }}
               >
                 {dayHeading(locale, item.date)}
