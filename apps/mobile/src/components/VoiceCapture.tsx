@@ -308,6 +308,20 @@ function recognitionAvailable(): boolean {
 }
 
 /**
+ * Once English has been confirmed on-device, keep that answer for the session.
+ *
+ * The probe below (`getSupportedLocales`) is flaky when called right after a
+ * recognition session ends: Android's RecognitionService is briefly busy and the
+ * query throws or returns empty, so the `catch` reports `false`. That flipped the
+ * *second* capture to the network recogniser — which, offline, fails with a
+ * "needs a connection" error even though the very model that served the first
+ * capture is still installed. A model is not uninstalled between two utterances,
+ * so the positive signal is reliable and a re-probe's negative is not: latch the
+ * true and never re-probe once it lands.
+ */
+let englishOnDeviceConfirmed = false;
+
+/**
  * Whether an on-device English model is actually installed on this phone.
  *
  * `supportsOnDeviceRecognition()` only says the phone can do on-device work at
@@ -322,6 +336,7 @@ function recognitionAvailable(): boolean {
  * not.)
  */
 async function englishInstalledOnDevice(): Promise<boolean> {
+  if (englishOnDeviceConfirmed) return true;
   try {
     let supportsOnDevice = false;
     try {
@@ -341,9 +356,11 @@ async function englishInstalledOnDevice(): Promise<boolean> {
     const { installedLocales } = await ExpoSpeechRecognitionModule.getSupportedLocales(
       androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {},
     );
-    return (installedLocales ?? []).some(
+    const installed = (installedLocales ?? []).some(
       (tag) => tag.trim().split(/[-_]/)[0]?.toLowerCase() === 'en',
     );
+    if (installed) englishOnDeviceConfirmed = true;
+    return installed;
   } catch {
     return false;
   }
