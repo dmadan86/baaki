@@ -512,6 +512,28 @@ function matchGroup(tokens: readonly string[], groups: readonly VoiceGroupRef[])
 }
 
 /**
+ * A phrase that points at "the group I was just in" rather than naming one —
+ * "the latest group", "last group", "my most recent group", "previous group".
+ * The reader's group list arrives most-recent-first, so a hit resolves to its
+ * first entry (see `parseVoiceExpenses`). The words must sit next to "group":
+ * "last Goa group" names Goa and is left for `matchGroup`, not caught here.
+ */
+const RELATIVE_GROUP =
+  /\b(?:the\s+|my\s+|that\s+)?(?:latest|last|recent|most\s+recent|previous|prev)\s+group\b/iu;
+
+export function detectRelativeGroup(text: string): boolean {
+  return RELATIVE_GROUP.test(text);
+}
+
+/** Lift the relative-group phrase out, so "group"/"latest" never reach a note. */
+export function stripRelativeGroupPhrase(text: string): string {
+  return text
+    .replace(new RegExp(RELATIVE_GROUP.source, 'giu'), ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * The words left once the amount, currency and named group are taken out — the
  * description someone would have typed. Numbers, currency words, the stopwords,
  * and any word from the matched group's name are all dropped.
@@ -801,6 +823,46 @@ export interface VoiceParseResult {
    * when no group was named — an explicit group wins over a solo marker.
    */
   personal: boolean;
+}
+
+/**
+ * When a spoken sentence is unambiguous enough to act on without a review, the
+ * action to take — otherwise null and the screen shows the editable review.
+ *
+ * Two cases are safe to act on directly:
+ *  - `create-group`: a bare "make a group called Goa" with no expense in it. No
+ *    amount to mishear, nothing to split — just the group.
+ *  - `commit-expense`: exactly one expense aimed at a group that already exists.
+ *    The group's own currency and an equal split are the documented defaults the
+ *    review would have applied anyway, so there is nothing a tap would decide.
+ *
+ * Everything else — several expenses in a breath, a group to *create* alongside
+ * an expense, a "just for me" spend, an unresolved or unnamed destination —
+ * returns null so the reader confirms on the review screen first.
+ */
+export type VoiceAutoAction =
+  { kind: 'create-group'; name: string } | { kind: 'commit-expense'; groupId: string };
+
+export function voiceAutoAction(result: VoiceParseResult): VoiceAutoAction | null {
+  if (
+    result.group?.kind === 'create' &&
+    result.items.length === 0 &&
+    result.group.name.trim().length > 0
+  ) {
+    return { kind: 'create-group', name: result.group.name };
+  }
+
+  if (
+    result.group?.kind === 'existing' &&
+    !result.personal &&
+    result.items.length === 1 &&
+    Number.isFinite(result.items[0].amountMajor) &&
+    result.items[0].amountMajor > 0
+  ) {
+    return { kind: 'commit-expense', groupId: result.group.groupId };
+  }
+
+  return null;
 }
 
 /**
@@ -1528,7 +1590,7 @@ export function parseVoiceExpenses(
   // Strip the routing lead-in ("assign to group …", "put it in …") after any
   // create-group clause is lifted, so the destination name and the notes are
   // read from the clean remainder.
-  const body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
+  let body = stripDatePhrases(stripAssignmentLeadIn(created ? created.rest : normalized));
 
   // The group is settled before the notes are built, so each note can have the
   // named group's words taken out ("dinner on the Goa trip" → note "dinner").
@@ -1536,6 +1598,14 @@ export function parseVoiceExpenses(
   let matchedName: string | null = null;
   if (created) {
     group = { kind: 'create', name: created.name };
+  } else if (groups.length > 0 && detectRelativeGroup(body)) {
+    // "the latest / last / recent group" — resolve to the most recent group.
+    // The list arrives most-recent-first, so position 0 is that group. The
+    // phrase is lifted before matching and note-building so "latest"/"group"
+    // never tip a name match or land in a description.
+    group = { kind: 'existing', groupId: groups[0].id };
+    matchedName = groups[0].name;
+    body = stripRelativeGroupPhrase(body);
   } else {
     const groupId = matchGroup(tokenize(body), groups);
     if (groupId) {

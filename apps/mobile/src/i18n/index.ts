@@ -933,6 +933,13 @@ export interface UiStrings {
     /** The People-tab confirm button — with people picked, and with none. */
     confirmPeople: string;
     selectPeople: string;
+    /** The auto-act countdown banner when a confident command is about to write
+        itself. '{amount}' and '{group}' are the spend and its destination. */
+    autoAdding: string;
+    /** The auto-act banner for a spoken new group. '{name}' is its name. */
+    autoCreating: string;
+    /** The button on the auto-act banner that cancels the pending write. */
+    autoUndo: string;
   };
   /** Notification preferences, and what the phone will and will not allow. */
   notifications: {
@@ -3009,6 +3016,9 @@ const en: UiStrings = {
     noPeople: 'No people yet — type a name to add one.',
     confirmPeople: 'Save with these',
     selectPeople: 'Pick who this is with',
+    autoAdding: 'Adding {amount} to {group}',
+    autoCreating: 'Creating {name}',
+    autoUndo: 'Undo',
   },
   notifications: {
     title: 'Notifications',
@@ -5063,6 +5073,9 @@ const ta: UiStrings = {
     noPeople: 'இன்னும் நபர்கள் இல்லை — சேர்க்க பெயரை உள்ளிடவும்.',
     confirmPeople: 'இவர்களுடன் சேமி',
     selectPeople: 'யாருடன் என்று தேர்ந்தெடு',
+    autoAdding: '{group} இல் {amount} சேர்க்கிறது',
+    autoCreating: '{name} உருவாக்குகிறது',
+    autoUndo: 'செயல்தவிர்',
   },
   notifications: {
     title: 'அறிவிப்புகள்',
@@ -7175,6 +7188,9 @@ const hi: UiStrings = {
     noPeople: 'अभी कोई व्यक्ति नहीं — जोड़ने के लिए नाम लिखें।',
     confirmPeople: 'इनके साथ सहेजें',
     selectPeople: 'यह किसके साथ है चुनें',
+    autoAdding: '{group} में {amount} जोड़ रहे हैं',
+    autoCreating: '{name} बना रहे हैं',
+    autoUndo: 'पूर्ववत करें',
   },
   notifications: {
     title: 'सूचनाएँ',
@@ -9267,6 +9283,9 @@ const ar: UiStrings = {
     noPeople: 'لا أشخاص بعد — اكتب اسمًا لإضافته.',
     confirmPeople: 'الحفظ مع هؤلاء',
     selectPeople: 'اختر مع من',
+    autoAdding: 'إضافة {amount} إلى {group}',
+    autoCreating: 'إنشاء {name}',
+    autoUndo: 'تراجع',
   },
   notifications: {
     title: 'الإشعارات',

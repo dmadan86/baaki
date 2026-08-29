@@ -487,9 +487,11 @@ describe('matchMemberNames', () => {
 
 import {
   detectCreateGroup,
+  detectRelativeGroup,
   isSelfOnlyVoiceIntent,
   normalizeDigits,
   parseVoiceExpenses,
+  voiceAutoAction,
 } from '@/lib/voiceExpense';
 
 describe('parseVoiceExpenses (several in one breath)', () => {
@@ -971,5 +973,70 @@ describe('isSelfOnlyVoiceIntent', () => {
     expect(isSelfOnlyVoiceIntent('dinner just me and Priya')).toBe(false);
     expect(isSelfOnlyVoiceIntent('dinner with Ravi and me')).toBe(false);
     expect(isSelfOnlyVoiceIntent('add 500 for dinner')).toBe(false);
+  });
+});
+
+describe('detectRelativeGroup', () => {
+  it('catches phrases that point at the most recent group', () => {
+    expect(detectRelativeGroup('add 500 to the latest group')).toBe(true);
+    expect(detectRelativeGroup('put 200 in my last group')).toBe(true);
+    expect(detectRelativeGroup('100 for tea in the recent group')).toBe(true);
+    expect(detectRelativeGroup('add 50 to the previous group')).toBe(true);
+    expect(detectRelativeGroup('300 in that most recent group')).toBe(true);
+  });
+
+  it('does not fire when a real name sits before "group"', () => {
+    // "last Goa group" names Goa; matchGroup must own it, not the relative path.
+    expect(detectRelativeGroup('add 500 to the last Goa group')).toBe(false);
+    expect(detectRelativeGroup('add 500 to the Goa trip')).toBe(false);
+  });
+});
+
+describe('parseVoiceExpenses resolves a relative group to the newest', () => {
+  // `groups` arrives most-recent-first, so index 0 (g-goa) is "the latest".
+  it('routes "the latest group" to the first group and keeps the note clean', () => {
+    const result = parseVoiceExpenses('add 500 rupees for dinner to the latest group', groups);
+    expect(result.group).toEqual({ kind: 'existing', groupId: 'g-goa' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(500);
+    expect(result.items[0].note).toBe('dinner');
+  });
+
+  it('falls through to the inbox when there are no groups to resolve against', () => {
+    expect(parseVoiceExpenses('add 500 to the latest group', []).group).toBeNull();
+  });
+});
+
+describe('voiceAutoAction', () => {
+  it('acts on a bare create-group with no expense', () => {
+    const result = parseVoiceExpenses('create a group called Weekend Trip', groups);
+    expect(voiceAutoAction(result)).toEqual({ kind: 'create-group', name: 'Weekend Trip' });
+  });
+
+  it('acts on one expense aimed at an existing group', () => {
+    const result = parseVoiceExpenses('add 500 rupees to the latest group', groups);
+    expect(voiceAutoAction(result)).toEqual({ kind: 'commit-expense', groupId: 'g-goa' });
+  });
+
+  it('holds for review when create-group also carries an expense', () => {
+    const result = parseVoiceExpenses('make a group called Weekend and add 200 for lunch', groups);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review with several expenses in one breath', () => {
+    const result = parseVoiceExpenses('add 500 dinner and 300 cab to the Goa trip', groups);
+    expect(result.items.length).toBeGreaterThan(1);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review when no destination resolved (goes to the inbox)', () => {
+    const result = parseVoiceExpenses('add 500 rupees for dinner', groups);
+    expect(voiceAutoAction(result)).toBeNull();
+  });
+
+  it('holds for review for a "just for me" spend', () => {
+    const result = parseVoiceExpenses('add 500 rupees for coffee just for me', groups);
+    expect(result.personal).toBe(true);
+    expect(voiceAutoAction(result)).toBeNull();
   });
 });
