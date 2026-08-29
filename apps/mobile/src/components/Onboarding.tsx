@@ -3,10 +3,11 @@
  *
  * A tour is a tax on somebody who wants to split a bill, so it is paid exactly
  * once and it is always skippable from the first frame. What it buys is the
- * three things about Baaki that are not guessable from a ledger screen: that
+ * three things about Waves that are not guessable from a ledger screen: that
  * nothing is behind a sign-up, that the people you split with do not need the
- * app, and that settling hands the amount to UPI rather than leaving you to
- * type it. Somebody who never reads this loses nothing they cannot find later.
+ * app, and that settling hands the amount to a payment app rather than leaving
+ * you to type it. Somebody who never reads this loses nothing they cannot find
+ * later.
  *
  * Full-bleed tint per card rather than one background: the colour changing
  * under your thumb is the progress indicator that needs no explanation, and the
@@ -190,27 +191,46 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           ))}
         </View>
 
+        {/* Text leads, glyph trails. A new user should read what the button does
+            ("Next", then "Get started") rather than decode an arrow or a tick.
+            The pill sizes to its label, so a longer word in another language just
+            widens it. It can shrink (`flexShrink`) and grow taller (`minHeight`)
+            rather than overflow the dots when a long label meets a large system
+            font scale; the label wraps, the icon keeps its size. */}
         <Pressable
           onPress={() => goTo(index + 1)}
           accessibilityRole="button"
           accessibilityLabel={isLast ? t.getStarted : t.next}
           style={({ pressed }) => ({
-            height: 56,
-            width: 56,
-            borderRadius: theme.radius.pill,
+            minHeight: 56,
+            flexShrink: 1,
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: theme.spacing.sm,
+            paddingHorizontal: theme.spacing.xl,
+            paddingVertical: theme.spacing.sm,
+            borderRadius: theme.radius.pill,
             backgroundColor: theme.color.buttonPrimary,
             opacity: pressed ? 0.85 : 1,
             ...theme.shadow.soft,
           })}
         >
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '700',
+              color: theme.color.onButtonPrimary,
+              flexShrink: 1,
+            }}
+          >
+            {isLast ? t.getStarted : t.next}
+          </Text>
           <Ionicons
             // A tick means the same in both directions; an arrow does not, and
             // this one kept pointing right in a mirrored screen — "next"
             // pointing backwards, on the very first screen.
             name={isLast ? 'checkmark' : directionalIcon('arrow-forward')}
-            size={iconSize.xxl}
+            size={iconSize.lg}
             color={theme.color.onButtonPrimary}
           />
         </Pressable>

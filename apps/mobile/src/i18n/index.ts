@@ -2614,7 +2614,7 @@ const en: UiStrings = {
   add: 'Add',
   cancel: 'Cancel',
   whichGroup: 'Which group is this for?',
-  skip: 'Skip',
+  skip: 'Skip intro',
   next: 'Next',
   getStarted: 'Get started',
   language: 'Language',
@@ -2644,20 +2644,18 @@ const en: UiStrings = {
   },
   onboarding: [
     {
-      // Not "split anything with anyone" — that is the welcome's line, and the
-      // welcome is the very next screen.
-      title: 'Dinner, rent,\na whole trip',
-      body: 'Waves keeps who paid and who owes, down to the last decimal — free, and with no account to make first.',
+      title: 'Split any expense',
+      body: 'Track who paid and who owes — no account needed.',
     },
     {
-      title: 'Send a link,\nthey are in',
-      body: 'The people you split with do not need to install anything. They open a link and see the same numbers you do.',
+      title: 'Invite with a link',
+      body: 'Friends can join from a link, even without installing the app.',
     },
     {
-      // "your payment app", not "your UPI app": this is the first screen
-      // somebody in Dubai or São Paulo sees, and UPI means nothing there.
-      title: 'Settle it\nin one tap',
-      body: 'Waves hands the exact amount to your payment app, so nobody does the arithmetic twice and nobody is owed a rounding error.',
+      // "payment app", not "UPI app": this is the first screen somebody in Dubai
+      // or São Paulo sees, and UPI means nothing there.
+      title: 'Settle faster',
+      body: "Send the exact amount to your payment app when it's time to pay.",
     },
   ],
   exportData: {
@@ -4649,7 +4647,7 @@ const ta: UiStrings = {
   add: 'சேர்',
   cancel: 'ரத்து',
   whichGroup: 'எந்தக் குழுவுக்கு?',
-  skip: 'தவிர்',
+  skip: 'அறிமுகத்தைத் தவிர்',
   next: 'அடுத்து',
   getStarted: 'தொடங்கலாம்',
   language: 'மொழி',
@@ -4679,16 +4677,16 @@ const ta: UiStrings = {
   },
   onboarding: [
     {
-      title: 'இரவு உணவு, வாடகை,\nஒரு முழுப் பயணம்',
-      body: 'யார் கொடுத்தார்கள், யார் தர வேண்டும் என்பதைக் கடைசிக் காசு வரை பாக்கி வைத்திருக்கும் — இலவசம், முதலில் கணக்கு உருவாக்கத் தேவையில்லை.',
+      title: 'எந்தச் செலவையும் பிரியுங்கள்',
+      body: 'யார் கட்டினார், யார் தர வேண்டும் எனக் கண்காணியுங்கள் — கணக்கு தேவையில்லை.',
     },
     {
-      title: 'ஒரு இணைப்பை அனுப்புங்கள்,\nஅவர்கள் உள்ளே',
-      body: 'நீங்கள் பகிர்ந்துகொள்பவர்கள் எதையும் நிறுவத் தேவையில்லை. இணைப்பைத் திறந்தால் நீங்கள் பார்க்கும் அதே எண்களையே பார்ப்பார்கள்.',
+      title: 'இணைப்பால் அழையுங்கள்',
+      body: 'நண்பர்கள் இணைப்பின் மூலம் சேரலாம் — செயலியை நிறுவாமலும்கூட.',
     },
     {
-      title: 'ஒரே தட்டில்\nதீர்த்து விடுங்கள்',
-      body: 'சரியான தொகையை பாக்கி உங்கள் பணச் செயலிக்கே கொடுக்கும் — யாரும் இரண்டு முறை கணக்குப் போட வேண்டாம், யாருக்கும் சில்லறை பாக்கி நிற்காது.',
+      title: 'விரைவாகத் தீர்த்துக்கொள்ளுங்கள்',
+      body: 'கட்டும் நேரம் வரும்போது சரியான தொகையை உங்கள் பணச் செயலிக்கு அனுப்புங்கள்.',
     },
   ],
   exportData: {
@@ -6754,7 +6752,7 @@ const hi: UiStrings = {
   add: 'जोड़ें',
   cancel: 'रद्द',
   whichGroup: 'किस समूह के लिए?',
-  skip: 'छोड़ें',
+  skip: 'परिचय छोड़ें',
   next: 'आगे',
   getStarted: 'शुरू करें',
   language: 'भाषा',
@@ -6784,16 +6782,16 @@ const hi: UiStrings = {
   },
   onboarding: [
     {
-      title: 'खाना, किराया,\nपूरी यात्रा',
-      body: 'किसने दिया और किस पर कितना बाकी है — बाकी यह आख़िरी पैसे तक रखता है। मुफ़्त, और पहले खाता बनाने की ज़रूरत नहीं।',
+      title: 'कोई भी खर्च बाँटें',
+      body: 'किसने दिया और किस पर कितना बाकी है, ट्रैक करें — कोई खाता ज़रूरी नहीं।',
     },
     {
-      title: 'एक लिंक भेजिए,\nवे शामिल',
-      body: 'जिनके साथ बाँट रहे हैं उन्हें कुछ भी इंस्टॉल नहीं करना। लिंक खोलिए और वही अंक दिखेंगे जो आपको दिखते हैं।',
+      title: 'लिंक से न्योता दें',
+      body: 'दोस्त लिंक से जुड़ सकते हैं — बिना ऐप इंस्टॉल किए भी।',
     },
     {
-      title: 'एक टैप में\nहिसाब बराबर',
-      body: 'बाकी ठीक उतनी रकम आपके पेमेंट ऐप को दे देता है, ताकि कोई दोबारा जोड़-घटाव न करे और किसी का चिल्लर न रह जाए।',
+      title: 'जल्दी निपटाएँ',
+      body: 'चुकाने का समय आने पर सही रकम अपने पेमेंट ऐप में भेजें।',
     },
   ],
   exportData: {
@@ -8802,7 +8800,7 @@ const ar: UiStrings = {
   add: 'إضافة',
   cancel: 'إلغاء',
   whichGroup: 'لأي مجموعة؟',
-  skip: 'تخطٍ',
+  skip: 'تخطَّ المقدمة',
   next: 'التالي',
   getStarted: 'لنبدأ',
   language: 'اللغة',
@@ -8832,16 +8830,16 @@ const ar: UiStrings = {
   },
   onboarding: [
     {
-      title: 'عشاء، إيجار،\nرحلة كاملة',
-      body: 'باقي يحفظ من دفع ومن عليه، بالفلس الواحد — مجاناً، وبدون إنشاء حساب أولاً.',
+      title: 'قسّم أي مصروف',
+      body: 'تتبّع مَن دفع ومَن عليه الدفع — بلا حاجة إلى حساب.',
     },
     {
-      title: 'أرسل رابطاً،\nوانضموا',
-      body: 'من تقتسم معهم لا يحتاجون تثبيت أي شيء. يفتحون الرابط ويرون نفس الأرقام التي تراها.',
+      title: 'ادعُ عبر رابط',
+      body: 'يمكن للأصدقاء الانضمام عبر رابط، حتى دون تثبيت التطبيق.',
     },
     {
-      title: 'سوِّ الحساب\nبضغطة واحدة',
-      body: 'باقي يمرّر المبلغ بالضبط إلى تطبيق الدفع لديك، فلا أحد يحسب مرتين ولا أحد يخسر كسراً.',
+      title: 'سَوِّ الحساب أسرع',
+      body: 'أرسِل المبلغ الدقيق إلى تطبيق الدفع لديك عند وقت السداد.',
     },
   ],
   exportData: {
