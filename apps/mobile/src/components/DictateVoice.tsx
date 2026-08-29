@@ -67,6 +67,20 @@ function recognitionAvailable(): boolean {
 }
 
 /**
+ * Languages already confirmed on-device this session — kept so a flaky re-probe
+ * cannot downgrade one to the network path.
+ *
+ * `getSupportedLocales` is unreliable when called right after a recognition
+ * session ends: Android's RecognitionService is briefly busy and the query
+ * throws or returns empty, so the `catch` reports `false`. That flipped a second
+ * dictation to the network recogniser — which, offline, fails with a "needs a
+ * connection" error even though the model that served the first is still there.
+ * A model is not uninstalled between two utterances, so the positive signal is
+ * reliable and a re-probe's negative is not: latch each confirmed tag.
+ */
+const onDeviceConfirmed = new Set<string>();
+
+/**
  * Whether an on-device model for `langTag` is actually installed on this phone.
  *
  * `supportsOnDeviceRecognition()` only says the phone can do on-device work at
@@ -81,6 +95,7 @@ function recognitionAvailable(): boolean {
  * path, which works, rather than the on-device path, which may not.
  */
 async function installedOnDeviceFor(langTag: string): Promise<boolean> {
+  if (onDeviceConfirmed.has(langTag)) return true;
   try {
     let supportsOnDevice = false;
     try {
@@ -102,7 +117,9 @@ async function installedOnDeviceFor(langTag: string): Promise<boolean> {
     );
     // Match the whole tag, region and all: a phone with only en-US installed
     // must not be told it has the en-IN model (that returns silence).
-    return onDeviceLocaleInstalled(langTag, installedLocales);
+    const installed = onDeviceLocaleInstalled(langTag, installedLocales);
+    if (installed) onDeviceConfirmed.add(langTag);
+    return installed;
   } catch {
     return false;
   }

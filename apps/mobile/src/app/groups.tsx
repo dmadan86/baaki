@@ -280,11 +280,15 @@ export default function AllGroupsScreen() {
                   opacity: dim ? 0.55 : 1,
                 }}
               >
+                {/* The activity feed's row tile — a 40×40 rounded square — so the
+                    two lists read as one family. Activity tints its tile by the
+                    verb; a group carries an emoji cover instead, so the tile stays
+                    neutral and the emoji is the identity. */}
                 <View
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
+                    width: 40,
+                    height: 40,
+                    borderRadius: theme.radius.md,
                     backgroundColor: theme.color.surfaceMuted,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -292,15 +296,11 @@ export default function AllGroupsScreen() {
                 >
                   <Text style={{ fontSize: 20 }}>{group.cover_emoji ?? '👥'}</Text>
                 </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text
-                    variant="body"
-                    numberOfLines={1}
-                    style={{ flexShrink: 1, fontWeight: '600' }}
-                  >
+                <View style={{ flex: 1 }}>
+                  <Text variant="body" numberOfLines={2}>
                     {row.item.label}
                   </Text>
-                  <Text variant="caption" tone="muted" numberOfLines={1}>
+                  <Text variant="caption" tone="muted" numberOfLines={1} style={{ marginTop: 2 }}>
                     {subtitle}
                   </Text>
                 </View>
