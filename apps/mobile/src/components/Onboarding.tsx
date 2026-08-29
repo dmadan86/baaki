@@ -194,24 +194,35 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {/* Text leads, glyph trails. A new user should read what the button does
             ("Next", then "Get started") rather than decode an arrow or a tick.
             The pill sizes to its label, so a longer word in another language just
-            widens it. */}
+            widens it. It can shrink (`flexShrink`) and grow taller (`minHeight`)
+            rather than overflow the dots when a long label meets a large system
+            font scale; the label wraps, the icon keeps its size. */}
         <Pressable
           onPress={() => goTo(index + 1)}
           accessibilityRole="button"
           accessibilityLabel={isLast ? t.getStarted : t.next}
           style={({ pressed }) => ({
-            height: 56,
+            minHeight: 56,
+            flexShrink: 1,
             flexDirection: 'row',
             alignItems: 'center',
             gap: theme.spacing.sm,
             paddingHorizontal: theme.spacing.xl,
+            paddingVertical: theme.spacing.sm,
             borderRadius: theme.radius.pill,
             backgroundColor: theme.color.buttonPrimary,
             opacity: pressed ? 0.85 : 1,
             ...theme.shadow.soft,
           })}
         >
-          <Text style={{ fontSize: 17, fontWeight: '700', color: theme.color.onButtonPrimary }}>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '700',
+              color: theme.color.onButtonPrimary,
+              flexShrink: 1,
+            }}
+          >
             {isLast ? t.getStarted : t.next}
           </Text>
           <Ionicons
