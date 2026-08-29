@@ -866,6 +866,57 @@ export function voiceAutoAction(result: VoiceParseResult): VoiceAutoAction | nul
 }
 
 /**
+ * A spoken money-movement command that is not an expense: settling a debt or
+ * reminding someone to pay. The verb and the person's name are pulled out here;
+ * the screen resolves the name against the reader's people and reads the amount
+ * and direction from the balance (see voice.tsx). `amount` is a spoken partial
+ * for a settle ("settle 200 with Ravi"); null means settle the whole balance.
+ *
+ * Only explicit settle/remind verbs fire this — bare "pay"/"paid" stay expenses,
+ * so "I paid 500 for dinner" is untouched. A verb with no name returns null so
+ * the sentence falls through to the ordinary expense parse.
+ */
+export type VoiceMoneyIntent =
+  { kind: 'settle'; who: string; amount: number | null } | { kind: 'remind'; who: string };
+
+const REMIND_VERB = /\b(?:remind|nudge|send\s+(?:a\s+)?reminder\s+to)\b\s*/i;
+const SETTLE_VERB = /\b(?:settle\s*up|settle|pay\s*back|pay\s*off|clear\s*up)\b\s*/i;
+
+/** The person's name out of a settle/remind clause — the words a name is made
+ *  of, once the amount, currency and command filler are taken away. Prefers an
+ *  explicit "with X" tail; the screen's name matcher does the rest. */
+function cleanWho(text: string): string {
+  const withClause = text.match(/\bwith\s+(.+)$/iu);
+  return (withClause ? withClause[1] : text)
+    .replace(/\d[\d.,]*/g, ' ')
+    .replace(
+      /\b(?:up|to|for|my|me|the|a|an|friend|friends|back|off|pay|paid|paying|settle|settled|remind|nudge|now|please|today|rupees?|rupee|dollars?|dollar|euros?|euro|about|it|money|owed?|owes)\b/giu,
+      ' ',
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function detectMoneyIntent(transcript: string): VoiceMoneyIntent | null {
+  const norm = normalizeSpokenNumbers(collapseAdditionRuns(normalizeVoiceInput(transcript)));
+
+  const remind = norm.match(REMIND_VERB);
+  if (remind && remind.index !== undefined) {
+    const who = cleanWho(norm.slice(remind.index + remind[0].length));
+    if (who) return { kind: 'remind', who };
+  }
+
+  const settle = norm.match(SETTLE_VERB);
+  if (settle && settle.index !== undefined) {
+    const rest = norm.slice(settle.index + settle[0].length);
+    const who = cleanWho(rest);
+    if (who) return { kind: 'settle', who, amount: extractAmount(rest) };
+  }
+
+  return null;
+}
+
+/**
  * Native numerals to ASCII, so "५०० रुपये" and "௫" and "٥" all read as numbers.
  * Devanagari, Tamil, Arabic-Indic and Eastern-Arabic (Persian/Urdu) digits are
  * the ones this app's four locales and their neighbours actually type or speak.

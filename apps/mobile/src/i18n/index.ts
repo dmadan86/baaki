@@ -938,6 +938,10 @@ export interface UiStrings {
     autoAdding: string;
     /** The auto-act banner for a spoken new group. '{name}' is its name. */
     autoCreating: string;
+    /** The auto-act banner for a spoken settle-up. '{amount}' and '{name}'. */
+    autoSettling: string;
+    /** The auto-act banner for a spoken reminder/nudge. '{name}' is the person. */
+    autoReminding: string;
     /** The button on the auto-act banner that cancels the pending write. */
     autoUndo: string;
   };
@@ -3018,6 +3022,8 @@ const en: UiStrings = {
     selectPeople: 'Pick who this is with',
     autoAdding: 'Adding {amount} to {group}',
     autoCreating: 'Creating {name}',
+    autoSettling: 'Settling {amount} with {name}',
+    autoReminding: 'Reminding {name}',
     autoUndo: 'Undo',
   },
   notifications: {
@@ -5075,6 +5081,8 @@ const ta: UiStrings = {
     selectPeople: 'யாருடன் என்று தேர்ந்தெடு',
     autoAdding: '{group} இல் {amount} சேர்க்கிறது',
     autoCreating: '{name} உருவாக்குகிறது',
+    autoSettling: '{name} உடன் {amount} தீர்க்கிறது',
+    autoReminding: '{name} க்கு நினைவூட்டல்',
     autoUndo: 'செயல்தவிர்',
   },
   notifications: {
@@ -7190,6 +7198,8 @@ const hi: UiStrings = {
     selectPeople: 'यह किसके साथ है चुनें',
     autoAdding: '{group} में {amount} जोड़ रहे हैं',
     autoCreating: '{name} बना रहे हैं',
+    autoSettling: '{name} के साथ {amount} चुका रहे हैं',
+    autoReminding: '{name} को याद दिला रहे हैं',
     autoUndo: 'पूर्ववत करें',
   },
   notifications: {
@@ -9285,6 +9295,8 @@ const ar: UiStrings = {
     selectPeople: 'اختر مع من',
     autoAdding: 'إضافة {amount} إلى {group}',
     autoCreating: 'إنشاء {name}',
+    autoSettling: 'تسوية {amount} مع {name}',
+    autoReminding: 'تذكير {name}',
     autoUndo: 'تراجع',
   },
   notifications: {

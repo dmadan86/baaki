@@ -487,6 +487,7 @@ describe('matchMemberNames', () => {
 
 import {
   detectCreateGroup,
+  detectMoneyIntent,
   detectRelativeGroup,
   isSelfOnlyVoiceIntent,
   normalizeDigits,
@@ -1038,5 +1039,54 @@ describe('voiceAutoAction', () => {
     const result = parseVoiceExpenses('add 500 rupees for coffee just for me', groups);
     expect(result.personal).toBe(true);
     expect(voiceAutoAction(result)).toBeNull();
+  });
+});
+
+describe('detectMoneyIntent', () => {
+  it('reads a settle-up command and the person', () => {
+    expect(detectMoneyIntent('settle up with Ravi')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: null,
+    });
+    expect(detectMoneyIntent('settle with Priya')).toEqual({
+      kind: 'settle',
+      who: 'Priya',
+      amount: null,
+    });
+  });
+
+  it('reads a partial settle amount', () => {
+    expect(detectMoneyIntent('settle 200 with Ravi')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: 200,
+    });
+    expect(detectMoneyIntent('pay back Ravi 500')).toEqual({
+      kind: 'settle',
+      who: 'Ravi',
+      amount: 500,
+    });
+  });
+
+  it('reads a remind command and the person', () => {
+    expect(detectMoneyIntent('remind Ravi')).toEqual({ kind: 'remind', who: 'Ravi' });
+    expect(detectMoneyIntent('remind Ravi to pay me back')).toEqual({
+      kind: 'remind',
+      who: 'Ravi',
+    });
+    expect(detectMoneyIntent('nudge Priya')).toEqual({ kind: 'remind', who: 'Priya' });
+  });
+
+  it('leaves ordinary expenses alone', () => {
+    // Bare "pay"/"paid" are not settle verbs, so an expense is never hijacked.
+    expect(detectMoneyIntent('I paid 500 rupees for dinner')).toBeNull();
+    expect(detectMoneyIntent('add 500 to the Goa trip')).toBeNull();
+    expect(detectMoneyIntent('pay 500 for lunch')).toBeNull();
+  });
+
+  it('returns null when a verb names no one', () => {
+    expect(detectMoneyIntent('settle up')).toBeNull();
+    expect(detectMoneyIntent('remind')).toBeNull();
   });
 });
