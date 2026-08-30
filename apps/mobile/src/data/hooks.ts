@@ -1103,7 +1103,25 @@ export function useConfirmSettlement(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
     mutationFn: (settlementId: string) =>
-      mutate(MutationKind.SettlementTransition, groupId, { settlementId }),
+      mutate(MutationKind.SettlementTransition, groupId, { settlementId, to: 'confirmed' }),
+  });
+}
+
+/** The payer withdraws a payment they recorded (a mistaken or duplicate claim). */
+export function useCancelSettlement(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (settlementId: string) =>
+      mutate(MutationKind.SettlementTransition, groupId, { settlementId, to: 'cancelled' }),
+  });
+}
+
+/** The payee rejects a claimed payment that never reached them. */
+export function useDisputeSettlement(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (settlementId: string) =>
+      mutate(MutationKind.SettlementTransition, groupId, { settlementId, to: 'disputed' }),
   });
 }
 

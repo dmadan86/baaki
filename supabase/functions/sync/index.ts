@@ -371,10 +371,33 @@ class SyncSession {
         });
       case 'settlement.create':
         return await this.createSettlement(mutation);
-      case 'settlement.transition':
+      case 'settlement.transition': {
+        // `to` is the target status. Absent on mutations queued by older builds,
+        // which only ever meant confirm.
+        const settlementId = requireString(mutation.payload.settlementId, 'settlementId');
+        const to = (mutation.payload.to as string | undefined) ?? 'confirmed';
+        if (to === 'cancelled')
+          return await this.rpcAsCaller('baaki_cancel_settlement', {
+            p_settlement_id: settlementId,
+          });
+        if (to === 'disputed')
+          return await this.rpcAsCaller('baaki_dispute_settlement', {
+            p_settlement_id: settlementId,
+            p_reason: (mutation.payload.reason as string | undefined) ?? null,
+          });
+        // Anything other than the three known targets is a client the server
+        // does not speak the same vocabulary as — reject it rather than silently
+        // confirming, which would leave the client recording a different state.
+        if (to !== 'confirmed')
+          throw new HttpError(
+            400,
+            'INVALID_TRANSITION',
+            `Unsupported settlement transition target: ${to}`,
+          );
         return await this.rpcAsCaller('baaki_confirm_settlement', {
-          p_settlement_id: requireString(mutation.payload.settlementId, 'settlementId'),
+          p_settlement_id: settlementId,
         });
+      }
       case 'member.add_ghost':
         return await this.rpcAsCaller('baaki_add_ghost_member', {
           p_group_id: mutation.groupId,

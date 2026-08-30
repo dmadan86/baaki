@@ -742,6 +742,8 @@ export interface UiStrings {
     signOutReassure: string;
     staySignedIn: string;
     footnote: string;
+    /** Native biometric prompt shown on entering the private Me tab. */
+    personalPrompt: string;
   };
   /** The devices screen and the free-tier two-device cap. */
   devices: {
@@ -1457,6 +1459,20 @@ export interface UiStrings {
     confirmReceived: string;
     /** Heading over an incoming settlement claim; `{name}` is the payer. */
     saysTheyPaidYou: string;
+    /** The claim heading with the auto-confirm countdown folded in: `{name}` is
+     *  the payer, `{window}` the localized "N days to confirm". */
+    saysTheyPaidYouWindow: string;
+    daysToConfirm: PluralForms;
+    /** Summary of many incoming claims: "{n} person/people say they paid you". */
+    peopleSaidPaid: PluralForms;
+    /** Opens the full pending list; `{count}` is how many claims. */
+    reviewClaims: string;
+    /** The pending-confirmations screen: title, per-count subtitle, bulk action. */
+    pendingTitle: string;
+    claimsCount: PluralForms;
+    confirmAll: string;
+    /** Prompt body for Confirm all; `{count}` is how many. */
+    confirmAllBody: string;
     autoConfirms: string;
     hideDeleted: string;
     showDeleted: string;
@@ -1509,6 +1525,20 @@ export interface UiStrings {
     archivedOn: string;
     nobodyOwes: string;
     recordedNotMoved: string;
+    /** Payee's reject action on an incoming "they paid you" claim, and its prompt. */
+    rejectSettlement: string;
+    rejectTitle: string;
+    /** `{name}` is the payer who recorded the payment. */
+    rejectBody: string;
+    rejectConfirm: string;
+    /** Payer's action to withdraw a payment they recorded, and its prompt. */
+    cancelSettlement: string;
+    cancelTitle: string;
+    /** `{name}` is the payee who would have confirmed. */
+    cancelBody: string;
+    cancelConfirm: string;
+    /** The dismiss button on both prompts — leaves the settlement untouched. */
+    keep: string;
   };
   /** The people in a group, and the link that brings more in. */
   people: {
@@ -2876,6 +2906,7 @@ const en: UiStrings = {
     staySignedIn: 'Stay signed in',
     footnote:
       'This guards the screen, not the data — your ledger is protected by row-level security on the server whether the lock is on or not.',
+    personalPrompt: 'Unlock your personal ledger',
   },
   devices: {
     couldNotSignOut: 'Could not sign out the other devices. Please try again.',
@@ -3507,6 +3538,17 @@ const en: UiStrings = {
       'This device and the server disagree about this group’s balances. Pull to refresh; if it persists, the ledger below is the source of truth.',
     confirmReceived: 'Confirm received',
     saysTheyPaidYou: '{name} says they paid you',
+    saysTheyPaidYouWindow: '{name} says they paid you ({window})',
+    daysToConfirm: { one: '{n} day to confirm', other: '{n} days to confirm' },
+    peopleSaidPaid: {
+      one: '{n} person says they paid you',
+      other: '{n} people say they paid you',
+    },
+    reviewClaims: 'Review {count}',
+    pendingTitle: 'Pending confirmations',
+    claimsCount: { one: '{n} claim', other: '{n} claims' },
+    confirmAll: 'Confirm all',
+    confirmAllBody: 'Mark all {count} payments as received?',
     autoConfirms: 'Auto-confirms in 7 days if nobody responds.',
     hideDeleted: 'Hide deleted',
     showDeleted: 'Show deleted',
@@ -3557,6 +3599,17 @@ const en: UiStrings = {
     archivedOn: 'Archived {date}',
     nobodyOwes: 'Nobody owes anybody in this group.',
     recordedNotMoved: 'Recorded, not moved by Waves',
+    rejectSettlement: 'Not received',
+    rejectTitle: 'Say you didn’t get this?',
+    rejectBody:
+      '{name} recorded paying you. This clears the pending payment and doesn’t change any balance.',
+    rejectConfirm: 'Reject',
+    cancelSettlement: 'Cancel payment',
+    cancelTitle: 'Cancel this payment?',
+    cancelBody:
+      'Removes the payment you recorded. {name} won’t be asked to confirm it, and no balance changes.',
+    cancelConfirm: 'Remove',
+    keep: 'Keep',
   },
   people: {
     invite: 'Invite',
@@ -4938,6 +4991,7 @@ const ta: UiStrings = {
     staySignedIn: 'உள்ளேயே இரு',
     footnote:
       'இது திரையைக் காக்கிறது, தரவை அல்ல — பூட்டு இருந்தாலும் இல்லாவிட்டாலும் உங்கள் கணக்கு சர்வரில் வரிசை அளவிலான பாதுகாப்பால் காக்கப்படுகிறது.',
+    personalPrompt: 'உங்கள் தனிப்பட்ட கணக்கைத் திறக்கவும்',
   },
   devices: {
     couldNotSignOut: 'மற்ற சாதனங்களை வெளியேற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
@@ -5604,6 +5658,17 @@ const ta: UiStrings = {
       'இந்தக் குழுவின் இருப்புகள் குறித்து இந்தச் சாதனமும் சர்வரும் ஒத்துப்போகவில்லை. இழுத்துப் புதுப்பிக்கவும்; தொடர்ந்தால் கீழே உள்ள கணக்கே சரியானது.',
     confirmReceived: 'கிடைத்தது என்று உறுதிப்படுத்து',
     saysTheyPaidYou: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்',
+    saysTheyPaidYouWindow: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார் ({window})',
+    daysToConfirm: { one: 'உறுதிக்கு {n} நாள்', other: 'உறுதிக்கு {n} நாட்கள்' },
+    peopleSaidPaid: {
+      one: '{n} நபர் உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்',
+      other: '{n} பேர் உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்கள்',
+    },
+    reviewClaims: '{count} ஐ மறுபார்வை செய்',
+    pendingTitle: 'நிலுவை உறுதிப்படுத்தல்கள்',
+    claimsCount: { one: '{n} உரிமைகோரல்', other: '{n} உரிமைகோரல்கள்' },
+    confirmAll: 'அனைத்தையும் உறுதிப்படுத்து',
+    confirmAllBody: 'அனைத்து {count} பணமும் கிடைத்ததாகக் குறிக்கவா?',
     autoConfirms: 'யாரும் பதிலளிக்காவிட்டால் 7 நாட்களில் தானாகவே உறுதியாகும்.',
     hideDeleted: 'நீக்கியவற்றை மறை',
     showDeleted: 'நீக்கியவற்றைக் காட்டு',
@@ -5656,6 +5721,17 @@ const ta: UiStrings = {
     archivedOn: '{date} அன்று காப்பகப்படுத்தப்பட்டது',
     nobodyOwes: 'இந்தக் குழுவில் யாரும் யாருக்கும் தர வேண்டியதில்லை.',
     recordedNotMoved: 'பதிவு செய்யப்பட்டது, பாக்கி பணத்தை அனுப்பவில்லை',
+    rejectSettlement: 'கிடைக்கவில்லை',
+    rejectTitle: 'இது உங்களுக்குக் கிடைக்கவில்லையா?',
+    rejectBody:
+      '{name} உங்களுக்குப் பணம் கொடுத்ததாகப் பதிவு செய்தார். இது நிலுவைப் பணத்தை நீக்கும்; எந்த இருப்பும் மாறாது.',
+    rejectConfirm: 'நிராகரி',
+    cancelSettlement: 'பணத்தை ரத்து செய்',
+    cancelTitle: 'இந்தப் பணத்தை ரத்து செய்யவா?',
+    cancelBody:
+      'நீங்கள் பதிவு செய்த பணத்தை நீக்கும். {name} உறுதிப்படுத்தக் கேட்கப்பட மாட்டார், எந்த இருப்பும் மாறாது.',
+    cancelConfirm: 'நீக்கு',
+    keep: 'வைத்திரு',
   },
   people: {
     invite: 'அழை',
@@ -7070,6 +7146,7 @@ const hi: UiStrings = {
     staySignedIn: 'साइन इन रहें',
     footnote:
       'यह स्क्रीन की रक्षा करता है, डेटा की नहीं — लॉक चालू हो या बंद, आपका हिसाब सर्वर पर रो-लेवल सुरक्षा से सुरक्षित है।',
+    personalPrompt: 'अपना निजी हिसाब अनलॉक करें',
   },
   devices: {
     couldNotSignOut: 'अन्य डिवाइस साइन आउट नहीं हो सके। कृपया फिर कोशिश करें।',
@@ -7707,6 +7784,17 @@ const hi: UiStrings = {
       'इस समूह के हिसाब पर यह डिवाइस और सर्वर सहमत नहीं हैं। खींचकर ताज़ा करें; फिर भी बना रहे तो नीचे का हिसाब ही सही है।',
     confirmReceived: 'मिलने की पुष्टि करें',
     saysTheyPaidYou: '{name} कहते हैं कि उन्होंने आपको भुगतान किया',
+    saysTheyPaidYouWindow: '{name} कहते हैं कि उन्होंने आपको भुगतान किया ({window})',
+    daysToConfirm: { one: 'पुष्टि के लिए {n} दिन', other: 'पुष्टि के लिए {n} दिन' },
+    peopleSaidPaid: {
+      one: '{n} व्यक्ति कहता है कि उसने आपको भुगतान किया',
+      other: '{n} लोग कहते हैं कि उन्होंने आपको भुगतान किया',
+    },
+    reviewClaims: '{count} की समीक्षा करें',
+    pendingTitle: 'लंबित पुष्टियाँ',
+    claimsCount: { one: '{n} दावा', other: '{n} दावे' },
+    confirmAll: 'सभी पुष्ट करें',
+    confirmAllBody: 'सभी {count} भुगतान प्राप्त के रूप में चिह्नित करें?',
     autoConfirms: 'कोई जवाब न दे तो 7 दिन में अपने आप पुष्ट हो जाएगा।',
     hideDeleted: 'हटाए हुए छिपाएँ',
     showDeleted: 'हटाए हुए दिखाएँ',
@@ -7756,6 +7844,17 @@ const hi: UiStrings = {
     archivedOn: '{date} को संग्रहित',
     nobodyOwes: 'इस समूह में किसी पर किसी का कुछ बाकी नहीं है।',
     recordedNotMoved: 'दर्ज किया गया, बाकी ने पैसा नहीं भेजा',
+    rejectSettlement: 'नहीं मिला',
+    rejectTitle: 'कहें कि आपको यह नहीं मिला?',
+    rejectBody:
+      '{name} ने आपको भुगतान करना दर्ज किया। इससे लंबित भुगतान हट जाएगा और कोई बैलेंस नहीं बदलेगा।',
+    rejectConfirm: 'अस्वीकारें',
+    cancelSettlement: 'भुगतान रद्द करें',
+    cancelTitle: 'यह भुगतान रद्द करें?',
+    cancelBody:
+      'आपके द्वारा दर्ज भुगतान हट जाएगा। {name} से पुष्टि नहीं मांगी जाएगी और कोई बैलेंस नहीं बदलेगा।',
+    cancelConfirm: 'हटाएँ',
+    keep: 'रखें',
   },
   people: {
     invite: 'बुलाएँ',
@@ -9161,6 +9260,7 @@ const ar: UiStrings = {
     staySignedIn: 'ابقَ مسجّل الدخول',
     footnote:
       'هذا يحمي الشاشة لا البيانات — دفترك محمي على الخادم بأمان على مستوى الصفوف سواء كان القفل مفعّلًا أم لا.',
+    personalPrompt: 'افتح قفل دفترك الشخصي',
   },
   devices: {
     couldNotSignOut: 'تعذّر تسجيل خروج الأجهزة الأخرى. حاول مرة أخرى.',
@@ -9823,6 +9923,35 @@ const ar: UiStrings = {
       'هذا الجهاز والخادم لا يتفقان على أرصدة هذه المجموعة. اسحب للتحديث؛ وإن استمر الأمر فالدفتر بالأسفل هو المرجع.',
     confirmReceived: 'أكّد الاستلام',
     saysTheyPaidYou: 'يقول {name} إنه دفع لك',
+    saysTheyPaidYouWindow: 'يقول {name} إنه دفع لك ({window})',
+    daysToConfirm: {
+      zero: '{n} يوم للتأكيد',
+      one: 'يوم واحد للتأكيد',
+      two: 'يومان للتأكيد',
+      few: '{n} أيام للتأكيد',
+      many: '{n} يومًا للتأكيد',
+      other: '{n} يوم للتأكيد',
+    },
+    peopleSaidPaid: {
+      zero: '{n} شخص يقول إنه دفع لك',
+      one: 'شخص واحد يقول إنه دفع لك',
+      two: 'شخصان يقولان إنهما دفعا لك',
+      few: '{n} أشخاص يقولون إنهم دفعوا لك',
+      many: '{n} شخصًا يقولون إنهم دفعوا لك',
+      other: '{n} شخص يقولون إنهم دفعوا لك',
+    },
+    reviewClaims: 'مراجعة {count}',
+    pendingTitle: 'التأكيدات المعلّقة',
+    claimsCount: {
+      zero: '{n} مطالبة',
+      one: 'مطالبة واحدة',
+      two: 'مطالبتان',
+      few: '{n} مطالبات',
+      many: '{n} مطالبة',
+      other: '{n} مطالبة',
+    },
+    confirmAll: 'تأكيد الكل',
+    confirmAllBody: 'وضع علامة استلام على كل الدفعات ({count})؟',
     autoConfirms: 'يتأكد تلقائيًا خلال 7 أيام إن لم يردّ أحد.',
     hideDeleted: 'إخفاء المحذوف',
     showDeleted: 'إظهار المحذوف',
@@ -9872,6 +10001,16 @@ const ar: UiStrings = {
     archivedOn: 'أُرشفت في {date}',
     nobodyOwes: 'لا أحد يدين لأحد في هذه المجموعة.',
     recordedNotMoved: 'مسجَّل، ولم يحوّل باقي المال',
+    rejectSettlement: 'لم يصل',
+    rejectTitle: 'هل تقول إنك لم تستلم هذا؟',
+    rejectBody: 'سجّل {name} أنه دفع لك. هذا يمسح الدفعة المعلّقة ولا يغيّر أي رصيد.',
+    rejectConfirm: 'رفض',
+    cancelSettlement: 'إلغاء الدفعة',
+    cancelTitle: 'إلغاء هذه الدفعة؟',
+    cancelBody:
+      'سيؤدي هذا إلى إزالة الدفعة التي سجّلتها. لن يُطلب من {name} تأكيدها، ولا يتغيّر أي رصيد.',
+    cancelConfirm: 'إزالة',
+    keep: 'إبقاء',
   },
   people: {
     invite: 'دعوة',

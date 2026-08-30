@@ -9,6 +9,7 @@ import {
 } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
+import { useFocusEffect } from 'expo-router';
 import { AppState, Platform } from 'react-native';
 
 import { plural, type UiStrings } from '@/i18n';
@@ -146,6 +147,98 @@ export function useLock(): LockValue {
   const value = useContext(LockContext);
   if (!value) throw new Error('useLock must be used inside LockProvider');
   return value;
+}
+
+/**
+ * When the personal ("Me") ledger was last unlocked. Module-scoped so leaving
+ * the tab and coming back within the grace window does not re-prompt — the same
+ * intent the app lock's grace has, applied per-screen rather than per-app.
+ */
+let personalAuthedAt: number | null = null;
+
+/**
+ * Whether a recent personal unlock still counts, read off render through a
+ * function call (the React Compiler forbids `Date.now()` inline in a component,
+ * the same reason `todayIso()` is hoisted). Lets the gate open with no cover on
+ * a within-grace re-entry instead of flashing the shield first.
+ */
+export function personalGateFresh(graceSeconds: number): boolean {
+  return personalAuthedAt !== null && Date.now() - personalAuthedAt < graceSeconds * 1000;
+}
+
+/**
+ * A biometric gate for the private personal ledger, independent of the whole-app
+ * lock. On entering the Me tab it asks the device to prove who is holding it and
+ * keeps the screen obscured until it succeeds, so the figures are never on show
+ * behind the prompt. It then stays quiet for the same "ask again after" window
+ * the app lock uses (so the two share one setting) — a within-grace re-entry
+ * opens straight away. A failed or cancelled check calls `onFail` (navigate off
+ * the tab) rather than revealing anything. With nothing enrolled to authenticate
+ * against there is nothing to ask, so it opens; RLS still guards the data on the
+ * server. `onFail` should be stable (wrap it in useCallback).
+ */
+export function usePersonalGate(
+  promptMessage: string,
+  onFail: () => void,
+): { unlocked: boolean; checking: boolean } {
+  const { graceSeconds, supported } = useLock();
+  // Start open only when a prior unlock is still within grace; otherwise start
+  // covered so the first paint never shows the ledger.
+  const [unlocked, setUnlocked] = useState(() => personalGateFresh(graceSeconds));
+  const [checking, setChecking] = useState(false);
+
+  const run = useCallback(async (): Promise<void> => {
+    // Still inside the grace window from a recent success — open, no prompt.
+    if (personalGateFresh(graceSeconds)) {
+      setUnlocked(true);
+      return;
+    }
+    // Nothing to authenticate against (no hardware, nothing enrolled, or web):
+    // there is nothing to prompt for, so open. RLS still guards the data.
+    const canAsk =
+      Platform.OS !== 'web' && supported && (await LocalAuthentication.isEnrolledAsync());
+    if (!canAsk) {
+      personalAuthedAt = Date.now();
+      setUnlocked(true);
+      return;
+    }
+    // Keep it covered while the OS prompt is up so a cancel never flashes the
+    // figures.
+    setUnlocked(false);
+    setChecking(true);
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage,
+      fallbackLabel: 'Use passcode',
+    });
+    setChecking(false);
+    if (result.success) {
+      personalAuthedAt = Date.now();
+      setUnlocked(true);
+    } else {
+      onFail();
+    }
+  }, [graceSeconds, supported, promptMessage, onFail]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      // The check runs inside the async callback, not the effect body, so no
+      // state is set synchronously on the render path.
+      void (async () => {
+        if (active) await run();
+      })();
+      // On blur, always re-cover: the tab stays mounted, so without this a
+      // return after the grace lapsed would show the old figures for a frame
+      // before the next prompt resolves. A within-grace return re-opens on the
+      // next focus with no prompt, so the cost is at most a one-frame shield.
+      return () => {
+        active = false;
+        setUnlocked(false);
+      };
+    }, [run]),
+  );
+
+  return { unlocked, checking };
 }
 
 /** "Straight away", "After 30 seconds" — the words the settings row uses too. */

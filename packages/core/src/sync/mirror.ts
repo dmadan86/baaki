@@ -408,13 +408,31 @@ export function materialiseSettlements(
     }
 
     if (mutation.kind === 'settlement.transition') {
-      const { settlementId } = mutation.payload as { settlementId: string };
+      // `to` is the target status (confirmed | cancelled | disputed). Older
+      // queued mutations predate the field and only ever meant confirm, so a
+      // missing `to` still resolves to 'confirmed' — the one thing transition
+      // used to do.
+      const { settlementId, to } = mutation.payload as {
+        settlementId: string;
+        to?: string;
+      };
+      const next = to ?? 'confirmed';
+      // The server speaks only these three targets (see the sync edge). An
+      // unknown value would be rejected there, so recording it optimistically
+      // here would only invent a state the ledger never reaches — skip it.
+      if (next !== 'confirmed' && next !== 'cancelled' && next !== 'disputed') {
+        continue;
+      }
       const existing = byId.get(settlementId);
       if (existing) {
         byId.set(settlementId, {
           ...existing,
-          status: 'confirmed',
-          confirmed_at: mutation.clientCreatedAt,
+          status: next,
+          // Only a confirmation stamps a confirmed_at; cancel and dispute leave
+          // whatever was there (null for a still-pending row). A client only ever
+          // targets confirmed/cancelled/disputed — auto_confirmed is the cron's,
+          // never a queued mutation, so it cannot appear here.
+          confirmed_at: next === 'confirmed' ? mutation.clientCreatedAt : existing.confirmed_at,
           pending: true,
         });
       }

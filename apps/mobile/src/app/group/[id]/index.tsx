@@ -2,9 +2,8 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { Pressable, RefreshControl, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import {
@@ -14,7 +13,6 @@ import {
   Card,
   directionalIcon,
   EmptyState,
-  Gradient,
   iconSize,
   MoneyText,
   Row,
@@ -27,7 +25,7 @@ import {
 
 import {
   memberLookup,
-  useConfirmSettlement,
+  useCancelSettlement,
   useGroup,
   useDisputes,
   useGroupLedger,
@@ -51,7 +49,6 @@ import { useBlockedUsers } from '@/data/blocked';
 import {
   actorName,
   displayName,
-  groupLabel,
   isBlockedMember,
   isGhost,
   type ActivityActor,
@@ -64,10 +61,10 @@ import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { CategoryBadge } from '@/components/Category';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
-import { GroupPhoto } from '@/components/GroupPhoto';
+import { GroupHero } from '@/components/GroupHero';
 import { PendingMark } from '@/components/PendingMark';
 import { SettlementProof } from '@/components/SettlementProof';
-import { SyncBanner, SyncStatusIcon } from '@/components/SyncBanner';
+import { SyncBanner } from '@/components/SyncBanner';
 import { useSync } from '@/sync';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
@@ -84,41 +81,6 @@ enum Tab {
  * same manner: once tapped it stops offering, and a rate limit reads as "already
  * nudged today" rather than as an error. Nobody should be told off for asking.
  */
-/**
- * One round translucent action on the group hero — a white glyph on a dim
- * white disc, the same on-panel circle the dashboard hero uses. Icon-only;
- * its name rides on the accessibility label.
- */
-function HeroActionCircle({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.18)',
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Ionicons name={icon} size={iconSize.xl} color={theme.color.onBrand} />
-    </Pressable>
-  );
-}
-
 function RemindChip({
   groupId,
   memberId,
@@ -482,7 +444,6 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
 
 export default function GroupScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const clearance = useScreenClearance(112);
   const pull = usePullRefresh();
   const { t, locale } = useStrings();
@@ -515,7 +476,7 @@ export default function GroupScreen() {
       ),
     [disputes.data],
   );
-  const confirmSettlement = useConfirmSettlement(groupId);
+  const cancelSettlement = useCancelSettlement(groupId);
 
   const { blockedIds } = useBlockedUsers();
   const lookup = useMemo(() => memberLookup(members.data), [members.data]);
@@ -571,6 +532,60 @@ export default function GroupScreen() {
         ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
         : undefined,
     [locale],
+  );
+
+  // The feed, memoized so a re-render that leaves the ledger untouched does not
+  // re-filter and re-section every expense. Hoisted above the loading/error
+  // guards below so these hooks run in the same order on every render.
+  const visibleExpenses = useMemo(
+    () => expenses.rows.filter((expense) => showDeleted || !expense.deleted_at),
+    [expenses.rows, showDeleted],
+  );
+  const expenseSections = useMemo(() => groupExpensesByMonth(visibleExpenses), [visibleExpenses]);
+  // The month sections flattened into one recyclable list: a heading item per
+  // month, then its expense rows. FlashList mounts only what is on screen, so a
+  // group with a thousand bills opens as fast as one with ten.
+  const feedItems: FeedItem[] = useMemo(() => {
+    const items: FeedItem[] = [];
+    for (const section of expenseSections) {
+      if (section.date) {
+        items.push({ kind: 'month', key: `month-${section.key}`, date: section.date });
+      }
+      section.rows.forEach((expense, index) =>
+        items.push({
+          kind: 'expense',
+          key: expense.id,
+          expense,
+          isLast: index === section.rows.length - 1,
+        }),
+      );
+    }
+    return items;
+  }, [expenseSections]);
+  // The Balances and Activity tabs ride the same virtualized list as Expenses,
+  // one FeedItem per row, so switching to them renders only the handful of rows
+  // on screen — not every member and every activity entry at once, which is what
+  // made the tab switch stall (they were mapped in full inside the list footer).
+  const balanceItems: FeedItem[] = useMemo(
+    () =>
+      (members.data ?? []).map((member, index, arr) => ({
+        kind: 'balance',
+        key: `balance-${member.id}`,
+        member,
+        balance: ledger.balances.get(member.id) ?? 0n,
+        isLast: index === arr.length - 1,
+      })),
+    [members.data, ledger.balances],
+  );
+  const activityItems: FeedItem[] = useMemo(
+    () =>
+      (activity.data ?? []).map((entry, index, arr) => ({
+        kind: 'activity',
+        key: `activity-${entry.id}`,
+        entry,
+        isLast: index === arr.length - 1,
+      })),
+    [activity.data],
   );
 
   if (group.isLoading) {
@@ -665,13 +680,10 @@ export default function GroupScreen() {
       : ledger.myBalance < 0n
         ? theme.gradient.negative
         : theme.gradient.brand;
-  const visibleExpenses = expenses.rows.filter((expense) => showDeleted || !expense.deleted_at);
   // The show/hide-deleted toggle only earns its place once something has been
   // deleted. On a group whose ledger has never lost a row it is an answer to a
   // question nobody asked.
   const hasDeleted = expenses.rows.some((expense) => Boolean(expense.deleted_at));
-  // The feed, cut into month sections for skimming (Splitwise/Settle Up).
-  const expenseSections = groupExpensesByMonth(visibleExpenses);
   // A refused change waiting on this group — the one sync state that still earns
   // an inline card, because it needs a decision the header glyph cannot offer.
   const refusedHere = rejected.some((item) => item.groupId === groupId);
@@ -712,43 +724,6 @@ export default function GroupScreen() {
     { icon: 'settings-outline', label: t.group.settings, route: `/group/${groupId}/settings` },
   ];
 
-  // The month sections flattened into one recyclable list: a heading item per
-  // month, then its expense rows. FlashList mounts only what is on screen, so a
-  // group with a thousand bills opens as fast as one with ten.
-  const feedItems: FeedItem[] = [];
-  for (const section of expenseSections) {
-    if (section.date) {
-      feedItems.push({ kind: 'month', key: `month-${section.key}`, date: section.date });
-    }
-    section.rows.forEach((expense, index) =>
-      feedItems.push({
-        kind: 'expense',
-        key: expense.id,
-        expense,
-        isLast: index === section.rows.length - 1,
-      }),
-    );
-  }
-
-  // The Balances and Activity tabs ride the same virtualized list as Expenses,
-  // one FeedItem per row, so switching to them renders only the handful of rows
-  // on screen — not every member and every activity entry at once, which is what
-  // made the tab switch stall (they were mapped in full inside the list footer).
-  const memberList = members.data ?? [];
-  const balanceItems: FeedItem[] = memberList.map((member, index) => ({
-    kind: 'balance',
-    key: `balance-${member.id}`,
-    member,
-    balance: ledger.balances.get(member.id) ?? 0n,
-    isLast: index === memberList.length - 1,
-  }));
-  const activityList = activity.data ?? [];
-  const activityItems: FeedItem[] = activityList.map((entry, index) => ({
-    kind: 'activity',
-    key: `activity-${entry.id}`,
-    entry,
-    isLast: index === activityList.length - 1,
-  }));
   // The rows the list shows for the current tab. One source for `data`, so the
   // three tabs are the same list with different contents rather than a list plus
   // two hand-rolled footers.
@@ -929,6 +904,19 @@ export default function GroupScreen() {
       {/* No entrance re-animation: the screen already slides in natively, and a
           second scale-up on top of that read as an unwanted zoom. */}
       <View style={{ flex: 1 }}>
+        <GroupHero
+          groupId={groupId}
+          group={group.data}
+          members={members.data ?? []}
+          profileId={profile?.id ?? null}
+          currency={currency}
+          myBalance={ledger.myBalance}
+          pending={ledger.pending}
+          pendingForMe={pendingForMe}
+          heroGradient={heroGradient}
+          nameOf={nameOf}
+          onOpenMenu={() => setMenuOpen(true)}
+        />
         <FlashList
           data={listData}
           extraData={`${tab}|${showDeleted}|${locale}`}
@@ -955,181 +943,6 @@ export default function GroupScreen() {
           }
           ListHeaderComponent={
             <View style={{ marginBottom: theme.spacing.xl }}>
-              {/* The group hero, built like the dashboard's: one saturated panel
-                  running edge to edge and up under the status bar, carrying the
-                  top controls, the balance, and its two actions on the group's
-                  verdict colour. It breaks out of the list's horizontal padding
-                  with a negative margin, then re-pads itself, and rounds only its
-                  bottom corners so it reads as the top of the screen. */}
-              <Gradient
-                radius={0}
-                colors={heroGradient}
-                style={{
-                  marginHorizontal: -theme.spacing.xl,
-                  paddingTop: insets.top + theme.spacing.md,
-                  paddingHorizontal: theme.spacing.xl,
-                  // Match the dashboard hero's bottom padding so the three heroes
-                  // are the same height (dashboard is lg, not xl).
-                  paddingBottom: theme.spacing.lg,
-                  borderBottomLeftRadius: theme.radius.xxl,
-                  borderBottomRightRadius: theme.radius.xxl,
-                  gap: theme.spacing.xl,
-                }}
-              >
-                <Row style={{ gap: theme.spacing.sm }}>
-                  {/* Just the arrow and its tap target — no chip behind it. */}
-                  <Pressable
-                    onPress={() => router.back()}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.common.back}
-                    hitSlop={10}
-                  >
-                    <Ionicons
-                      name={directionalIcon('chevron-back')}
-                      size={iconSize.xxl}
-                      color={theme.color.onBrand}
-                    />
-                  </Pressable>
-                  {/* The photo-and-name cluster is itself the way into settings, the
-              way tapping a chat's title bar opens its info in WhatsApp — so the
-              name is a tap target, not just a label above a menu. */}
-                  <Pressable
-                    onPress={() => router.push(`/group/${groupId}/settings`)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.group.settings}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      flexDirection: 'row',
-                      gap: theme.spacing.md,
-                      justifyContent: 'flex-start',
-                      alignItems: 'center',
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <GroupPhoto
-                      photoPath={group.data.photo_path}
-                      emoji={group.data.cover_emoji}
-                      size={38}
-                    />
-                    <View style={{ flexShrink: 1 }}>
-                      <Text variant="heading" tone="onBrand" numberOfLines={1}>
-                        {groupLabel(group.data, members.data ?? [], profile?.id)}
-                      </Text>
-                      <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-                        {plural(locale, members.data?.length ?? 0, t.memberCount)}
-                      </Text>
-                    </View>
-                  </Pressable>
-                  {/* The sync state as one glyph, the same control the dashboard header
-              carries: a quiet cloud for unsent changes or no connection, a
-              turning arrow mid-sync, a red mark for a refused change — nothing
-              when all is well. It replaces the wide banner this screen used to
-              stack under the header. */}
-                  <SyncStatusIcon onBrand groupId={groupId} />
-                  {/* A code to hand the group across the table. The whole invite
-              surface — link, share sheet and the QR to point a camera at — lives
-              one tap behind this, so it is the fast way to get somebody in
-              without typing a thing. */}
-                  <Pressable
-                    onPress={() => router.push(`/group/${groupId}/invite`)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.people.inviteTitle}
-                    hitSlop={10}
-                  >
-                    <Ionicons
-                      name="qr-code-outline"
-                      size={iconSize.xl}
-                      color={theme.color.onBrand}
-                    />
-                  </Pressable>
-                  {/* Planner, spending and settings live behind this one menu; planner
-              only shows for a trip. Bare icon, no chip, to match the back
-              arrow. */}
-                  <Pressable
-                    onPress={() => setMenuOpen(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.group.more}
-                    hitSlop={10}
-                  >
-                    <Ionicons
-                      name="ellipsis-vertical"
-                      size={iconSize.xl}
-                      color={theme.color.onBrand}
-                    />
-                  </Pressable>
-                </Row>
-
-                {/* The balance — the group's standing, said as a verdict. A zero is
-                  the good outcome and gets its own words, not "owed ₹0". White on
-                  the wash, the same as the dashboard's hero number. */}
-                <View style={{ gap: theme.spacing.lg }}>
-                  <Row style={{ justifyContent: 'space-between' }}>
-                    <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-                      {ledger.myBalance === 0n
-                        ? t.allSettled
-                        : ledger.myBalance > 0n
-                          ? t.youAreOwed
-                          : t.youOwe}
-                    </Text>
-                    {ledger.pending !== 0n ? (
-                      <Badge label={t.pendingConfirmation} tone="brand" />
-                    ) : null}
-                  </Row>
-
-                  <MoneyText
-                    amount={ledger.myBalance}
-                    currency={currency}
-                    locale={locale}
-                    mode="balance"
-                    variant="display"
-                    tone="default"
-                    style={{ color: theme.color.onBrand }}
-                  />
-
-                  {/* Three actions on the hero, like the dashboard: a white
-                    "add expense" pill leads (the one primary), then two
-                    translucent circles — settle up and who-pays-whom. */}
-                  <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                    <Pressable
-                      onPress={() => router.push(`/group/${groupId}/add-expense`)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t.addExpense}
-                      style={({ pressed }) => ({
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: theme.spacing.xs,
-                        paddingVertical: theme.spacing.sm + 2,
-                        paddingHorizontal: theme.spacing.lg,
-                        borderRadius: theme.radius.pill,
-                        backgroundColor: '#FFFFFF',
-                        opacity: pressed ? 0.85 : 1,
-                      })}
-                    >
-                      <Ionicons name="add" size={iconSize.lg} color={heroGradient[0]} />
-                      <Text
-                        variant="subheading"
-                        style={{ color: heroGradient[0] }}
-                        numberOfLines={1}
-                      >
-                        {t.addExpense}
-                      </Text>
-                    </Pressable>
-                    <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
-                      <HeroActionCircle
-                        icon="swap-horizontal"
-                        label={t.settleUp}
-                        onPress={() => router.push(`/group/${groupId}/settle`)}
-                      />
-                      <HeroActionCircle
-                        icon="git-network-outline"
-                        label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                        onPress={() => router.push(`/group/${groupId}/simplify`)}
-                      />
-                    </Row>
-                  </Row>
-                </View>
-              </Gradient>
-
               {/* The white body beneath the hero: alerts, shared receipts, pending
                   settlements, then the three-face tab bar. */}
               <View style={{ gap: theme.spacing.xl, marginTop: theme.spacing.xl }}>
@@ -1237,40 +1050,9 @@ export default function GroupScreen() {
                   </Pressable>
                 ))}
 
-                {pendingForMe.map((settlement) => (
-                  <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
-                    <Text variant="subheading">
-                      {fill(t.group.saysTheyPaidYou, { name: nameOf(settlement.from_member_id) })}
-                    </Text>
-                    <Row style={{ gap: theme.spacing.sm }}>
-                      <MoneyText
-                        amount={BigInt(settlement.amount)}
-                        currency={settlement.currency}
-                        locale={locale}
-                        variant="title"
-                      />
-                      {settlement.pending ? <PendingMark size={16} /> : null}
-                    </Row>
-                    {/* The payer's evidence, if they attached any — seen here
-                      before confirming, so a confirmation answers proof rather
-                      than a bare claim. View-only: this is the other side's. */}
-                    <SettlementProof
-                      groupId={groupId}
-                      settlementId={settlement.id}
-                      canManage={false}
-                    />
-                    <Row style={{ gap: theme.spacing.md }}>
-                      <Button
-                        label={t.group.confirmReceived}
-                        onPress={() => confirmSettlement.mutate(settlement.id)}
-                        disabled={confirmSettlement.isPending}
-                      />
-                      <Text variant="micro" tone="muted" style={{ flex: 1 }}>
-                        {t.group.autoConfirms}
-                      </Text>
-                    </Row>
-                  </Card>
-                ))}
+                {/* The "they paid you" claims now ride the hero deck above as
+                  swipeable slides (confirm / reject up there), so the body no
+                  longer carries a full-page confirmation card. */}
 
                 {/* My own recorded payments, waiting on the payee. The place to
                   back the claim with a screenshot, and an acknowledgement that
@@ -1300,6 +1082,30 @@ export default function GroupScreen() {
                       groupId={groupId}
                       settlementId={settlement.id}
                       canManage={!settlement.pending}
+                    />
+                    {/* Withdraw a payment recorded by mistake or twice. Queued
+                        like every other mutation, so even a still-syncing claim
+                        cancels cleanly — the create runs before the cancel in
+                        the ordered queue. */}
+                    <Button
+                      label={t.group.cancelSettlement}
+                      variant="secondary"
+                      fullWidth
+                      onPress={() =>
+                        Alert.alert(
+                          t.group.cancelTitle,
+                          fill(t.group.cancelBody, { name: nameOf(settlement.to_member_id) }),
+                          [
+                            { text: t.group.keep, style: 'cancel' },
+                            {
+                              text: t.group.cancelConfirm,
+                              style: 'destructive',
+                              onPress: () => cancelSettlement.mutate(settlement.id),
+                            },
+                          ],
+                        )
+                      }
+                      disabled={cancelSettlement.isPending}
                     />
                   </Card>
                 ))}
