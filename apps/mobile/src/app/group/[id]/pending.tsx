@@ -25,6 +25,7 @@ import {
   useGroup,
   useGroupLedger,
 } from '@/data/hooks';
+import { SettlementProof } from '@/components/SettlementProof';
 import { useBlockedUsers } from '@/data/blocked';
 import { displayName, isGhost, type SettlementRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
@@ -169,6 +170,9 @@ export default function PendingConfirmationsScreen() {
                     </Row>
                   </View>
                 </Row>
+                {/* The payer's evidence, if they attached any — the payee looks
+                    at it here before deciding, so a confirm is never blind. */}
+                <SettlementProof groupId={groupId} settlementId={settlement.id} canManage={false} />
                 <Row style={{ gap: theme.spacing.md }}>
                   <View style={{ flex: 1 }}>
                     <Button

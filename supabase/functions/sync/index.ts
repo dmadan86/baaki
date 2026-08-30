@@ -385,6 +385,15 @@ class SyncSession {
             p_settlement_id: settlementId,
             p_reason: (mutation.payload.reason as string | undefined) ?? null,
           });
+        // Anything other than the three known targets is a client the server
+        // does not speak the same vocabulary as — reject it rather than silently
+        // confirming, which would leave the client recording a different state.
+        if (to !== 'confirmed')
+          throw new HttpError(
+            400,
+            'INVALID_TRANSITION',
+            `Unsupported settlement transition target: ${to}`,
+          );
         return await this.rpcAsCaller('baaki_confirm_settlement', {
           p_settlement_id: settlementId,
         });

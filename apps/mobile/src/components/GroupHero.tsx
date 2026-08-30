@@ -15,7 +15,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { useConfirmSettlement, useDisputeSettlement } from '@/data/hooks';
+import { useConfirmSettlement, useDisputeSettlement, useSettlementProof } from '@/data/hooks';
 import { groupLabel, type GroupRow, type MemberRow, type SettlementRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { GroupPhoto } from '@/components/GroupPhoto';
@@ -133,6 +133,14 @@ export function GroupHero({
   const heroDeckRef = useRef<ScrollView>(null);
 
   const busy = confirmSettlement.isPending || disputeSettlement.isPending;
+
+  // The one inline claim, if that is the case we are in — used to look up whether
+  // the payer attached a proof, so the fast path can offer to show it before the
+  // payee confirms rather than asking them to trust the amount blind. Called with
+  // an empty id (a harmless null lookup) whenever there is not exactly one claim,
+  // so the hook count never changes.
+  const soleClaim = pendingForMe.length === 1 ? pendingForMe[0] : null;
+  const soleProof = useSettlementProof(soleClaim?.id ?? '');
 
   const rejectPrompt = (settlement: SettlementRow): void => {
     Alert.alert(
@@ -368,6 +376,36 @@ export function GroupHero({
                     </Text>
                   </Pressable>
                 </Row>
+
+                {/* The payer's evidence is on the review screen; surface a way in
+                    only when there is actually a proof to look at. */}
+                {soleProof.data ? (
+                  <Pressable
+                    onPress={() => router.push(`/group/${groupId}/pending`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.proof.view}
+                    hitSlop={8}
+                    style={({ pressed }) => ({
+                      alignSelf: 'flex-start',
+                      opacity: pressed ? 0.6 : 0.9,
+                    })}
+                  >
+                    <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+                      <Ionicons
+                        name="image-outline"
+                        size={iconSize.sm}
+                        color={theme.color.onBrand}
+                      />
+                      <Text
+                        variant="micro"
+                        tone="onBrand"
+                        style={{ textDecorationLine: 'underline' }}
+                      >
+                        {t.proof.view}
+                      </Text>
+                    </Row>
+                  </Pressable>
+                ) : null}
               </View>
             ))}
 

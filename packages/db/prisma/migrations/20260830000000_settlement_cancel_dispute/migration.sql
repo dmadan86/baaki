@@ -9,9 +9,17 @@
 --   * the PAYER can cancel a claim they recorded (a mistaken or duplicate entry);
 --   * the PAYEE can dispute a claim ("that money never reached me").
 --
--- Neither touches a balance: an `initiated` settlement is not counted as settled
--- (see @waves/core isSettled — only confirmed/auto_confirmed clear a debt), so
--- both transitions simply retire the pending row and stop the auto-confirm clock.
+-- Balance effects (see @waves/core isSettled — only confirmed/auto_confirmed
+-- clear a debt, and the canTransition table that already permits these moves):
+--   * cancel only reaches an `initiated` row, which was never counted as
+--     settled, so it moves no balance — it just retires the pending claim and
+--     stops the auto-confirm clock.
+--   * dispute of an `initiated` row is likewise balance-neutral.
+--   * dispute of an `auto_confirmed` row DOES reopen the debt, and that is the
+--     point: the 7-day cron confirmed a payment the payee now says never
+--     arrived, so the money is owed again until they settle it for real. The
+--     state machine keeps a recovery path (disputed -> confirmed / cancelled)
+--     for when the two sort it out.
 -- Each is party-scoped like baaki_confirm_settlement, and idempotent so a
 -- replayed offline mutation is a no-op rather than a batch-failing error.
 
