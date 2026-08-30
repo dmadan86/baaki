@@ -10,6 +10,8 @@
  *
  * Run: node e2e/m4-live.mjs   (needs ANON_KEY)
  */
+import { randomUUID } from 'node:crypto';
+
 import { createClient } from '@supabase/supabase-js';
 
 const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
@@ -178,6 +180,25 @@ for (const [name, args] of [
   check(
     `${name} is not something a signed-in person can run`,
     Boolean(attempt.error),
+    attempt.error?.message?.slice(0, 60) ?? 'ALLOWED',
+  );
+}
+
+// ── cancel / dispute a pending settlement (A50) ─────────────────────────────
+// A live run cannot stage a real pending settlement without a second account,
+// but it can prove the two hand-transition RPCs are DEPLOYED and grant-reachable
+// by an authenticated caller, and that their own party guard runs at all: a
+// random id belongs to no settlement, so each must answer with its own NOT_FOUND
+// — not PostgREST's "could not find the function", which is exactly how a missing
+// migration or a lost grant would show up instead.
+for (const [name, args] of [
+  ['baaki_cancel_settlement', { p_settlement_id: randomUUID() }],
+  ['baaki_dispute_settlement', { p_settlement_id: randomUUID(), p_reason: null }],
+]) {
+  const attempt = await client.rpc(name, args);
+  check(
+    `${name} is deployed and its guard runs`,
+    /NOT_FOUND/i.test(attempt.error?.message ?? ''),
     attempt.error?.message?.slice(0, 60) ?? 'ALLOWED',
   );
 }
