@@ -108,28 +108,30 @@ export default function ExportScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{t.exportData.title}</Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
+          paddingTop: theme.spacing.lg,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.exportData.title}</Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="subheading">{t.exportData.everythingFree}</Text>

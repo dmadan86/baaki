@@ -134,34 +134,36 @@ export default function SpendingMonthScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{monthTitle}</Text>
+          <Text variant="micro" tone="muted">
+            {`${mine ? t.extras.justMe : t.extras.theGroup} · ${groupLabel(
+              group.data,
+              members.data ?? [],
+            )}`}
+          </Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{monthTitle}</Text>
-            <Text variant="micro" tone="muted">
-              {`${mine ? t.extras.justMe : t.extras.theGroup} · ${groupLabel(
-                group.data,
-                members.data ?? [],
-              )}`}
-            </Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         {expenses.isLoading ? (
           <View style={{ padding: theme.spacing.xl }}>
             <ActivityIndicator color={theme.color.brand} />

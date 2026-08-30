@@ -60,41 +60,42 @@ export default function LanguageScreen() {
 
   return (
     <Screen>
+      {/* Back to the gateway, the chevron in the primary ink. */}
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.common.back}
+          hitSlop={12}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.buttonPrimary}
+          />
+        </Pressable>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{t.language}</Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: insets.bottom + theme.spacing.xxxl,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back to the gateway, the chevron in the primary ink. */}
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.common.back}
-            hitSlop={12}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))}
-            style={({ pressed }) => ({
-              width: 44,
-              height: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.buttonPrimary}
-            />
-          </Pressable>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.language}</Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         {/* Choosing Arabic mirrors the layout only after a restart, so the note
             sits above the list, where the eyes already are. */}
         {restartNeeded ? (

@@ -456,30 +456,32 @@ export default function ImportScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{t.importLedger.ledgerTitle}</Text>
+        </View>
+        <IconButton label={t.importLedger.helpTitle} onPress={() => setHelpOpen(true)}>
+          <Ionicons name="help-circle-outline" size={iconSize.lg} color={theme.color.text} />
+        </IconButton>
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
+          paddingTop: theme.spacing.lg,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.importLedger.ledgerTitle}</Text>
-          </View>
-          <IconButton label={t.importLedger.helpTitle} onPress={() => setHelpOpen(true)}>
-            <Ionicons name="help-circle-outline" size={iconSize.lg} color={theme.color.text} />
-          </IconButton>
-        </Row>
-
         <Card style={{ gap: theme.spacing.sm }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text variant="subheading">{t.importLedger.bringHistory}</Text>

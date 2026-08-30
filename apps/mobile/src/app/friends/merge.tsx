@@ -297,29 +297,30 @@ export default function MergePeopleScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
+        <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+          <IconButton label={t.common.back} onPress={() => router.back()}>
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
+          </IconButton>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text variant="heading">{t.mergePeople.title}</Text>
+          </View>
+          <View style={{ width: 44 }} />
+        </Row>
         <ScrollView
+          style={{ flex: 1 }}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
+            paddingTop: theme.spacing.lg,
             paddingBottom: clearance,
             gap: theme.spacing.xl,
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Row style={{ paddingTop: theme.spacing.md }}>
-            <IconButton label={t.common.back} onPress={() => router.back()}>
-              <Ionicons
-                name={directionalIcon('chevron-back')}
-                size={iconSize.lg}
-                color={theme.color.text}
-              />
-            </IconButton>
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text variant="heading">{t.mergePeople.title}</Text>
-            </View>
-            <View style={{ width: 44 }} />
-          </Row>
-
           {people.isLoading ? (
             <PeopleSkeleton />
           ) : people.isError ? (

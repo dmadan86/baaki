@@ -471,6 +471,9 @@ export default function ActivityScreen() {
           are what make a long feed skimmable — without them every row had to be
           read to place it in time. */}
       <View style={{ flex: 1 }}>
+        {/* The nav header is a fixed sibling above the feed, so only the rows
+            scroll under it. Padded to line up with the feed rows below. */}
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>{header}</View>
         <FlashList
           data={listData}
           // The row text is locale-formatted, so a language change has to re-run
@@ -495,7 +498,6 @@ export default function ActivityScreen() {
               tintColor={theme.color.brand}
             />
           }
-          ListHeaderComponent={header}
           renderItem={({ item }) =>
             item.kind === 'header' ? (
               <Text

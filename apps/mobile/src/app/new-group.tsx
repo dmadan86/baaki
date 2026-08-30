@@ -523,25 +523,26 @@ export default function NewGroupScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.close} onPress={() => router.back()}>
+          <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{cloning ? t.clone.duplicateTitle : t.newGroup}</Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: theme.spacing.xl,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{cloning ? t.clone.duplicateTitle : t.newGroup}</Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         {/* One compact row: the cover — tapped to choose an icon — with the
             name inline beside it and a clear (×) once there is a name. */}
         <Card style={{ paddingVertical: theme.spacing.md }}>
