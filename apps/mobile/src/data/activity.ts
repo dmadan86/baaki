@@ -95,6 +95,14 @@ export function describeActivity(
       return `${who} recorded a settlement`;
     case 'confirmed':
       return `${who} confirmed a settlement`;
+    case 'cancelled':
+      return `${who} cancelled a recorded payment`;
+    case 'settle_disputed': {
+      const reason = typeof payload.reason === 'string' ? payload.reason : null;
+      return reason
+        ? `${who} says a payment didn't reach them — "${reason}"`
+        : `${who} says a payment didn't reach them`;
+    }
     case 'joined':
       return `${who} joined`;
     case 'created': {
@@ -162,6 +170,10 @@ export function activityHeadline(entry: ActivityRow): string {
       return 'Settlement confirmed';
     case 'auto_confirmed':
       return 'Settlement auto-confirmed';
+    case 'cancelled':
+      return 'Payment cancelled';
+    case 'settle_disputed':
+      return 'Payment rejected';
     case 'joined':
       return 'Joined the group';
     case 'created': {
@@ -234,7 +246,10 @@ export function verbIcon(verb: string): React.ComponentProps<typeof Ionicons>['n
     case 'rejected_dispute':
       return 'checkmark-circle-outline';
     case 'disputed':
+    case 'settle_disputed':
       return 'flag-outline';
+    case 'cancelled':
+      return 'close-circle-outline';
     case 'joined':
       return 'person-add-outline';
     case 'created':
@@ -267,6 +282,8 @@ export function verbTint(verb: string): ActivityTint {
       return 'mint';
     case 'deleted':
     case 'disputed':
+    case 'settle_disputed':
+    case 'cancelled':
     case 'rejected_dispute':
       return 'coral';
     case 'added':

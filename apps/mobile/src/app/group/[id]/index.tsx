@@ -2,7 +2,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { Pressable, RefreshControl, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -27,7 +27,9 @@ import {
 
 import {
   memberLookup,
+  useCancelSettlement,
   useConfirmSettlement,
+  useDisputeSettlement,
   useGroup,
   useDisputes,
   useGroupLedger,
@@ -516,6 +518,8 @@ export default function GroupScreen() {
     [disputes.data],
   );
   const confirmSettlement = useConfirmSettlement(groupId);
+  const cancelSettlement = useCancelSettlement(groupId);
+  const disputeSettlement = useDisputeSettlement(groupId);
 
   const { blockedIds } = useBlockedUsers();
   const lookup = useMemo(() => memberLookup(members.data), [members.data]);
@@ -1259,16 +1263,43 @@ export default function GroupScreen() {
                       settlementId={settlement.id}
                       canManage={false}
                     />
-                    <Row style={{ gap: theme.spacing.md }}>
-                      <Button
-                        label={t.group.confirmReceived}
-                        onPress={() => confirmSettlement.mutate(settlement.id)}
-                        disabled={confirmSettlement.isPending}
-                      />
-                      <Text variant="micro" tone="muted" style={{ flex: 1 }}>
-                        {t.group.autoConfirms}
-                      </Text>
-                    </Row>
+                    <Button
+                      label={t.group.confirmReceived}
+                      fullWidth
+                      onPress={() => confirmSettlement.mutate(settlement.id)}
+                      disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                    />
+                    {/* The other half of receiving a claim: saying it never
+                        reached you. Neither confirm nor reject moves money — a
+                        pending settlement is not counted against any balance —
+                        so rejecting simply retires the claim and stops the
+                        auto-confirm clock. Guarded behind a prompt because it
+                        tells the payer their record was wrong. */}
+                    <Button
+                      label={t.group.rejectSettlement}
+                      variant="secondary"
+                      fullWidth
+                      onPress={() =>
+                        Alert.alert(
+                          t.group.rejectTitle,
+                          fill(t.group.rejectBody, {
+                            name: nameOf(settlement.from_member_id),
+                          }),
+                          [
+                            { text: t.group.keep, style: 'cancel' },
+                            {
+                              text: t.group.rejectConfirm,
+                              style: 'destructive',
+                              onPress: () => disputeSettlement.mutate(settlement.id),
+                            },
+                          ],
+                        )
+                      }
+                      disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                    />
+                    <Text variant="micro" tone="muted">
+                      {t.group.autoConfirms}
+                    </Text>
                   </Card>
                 ))}
 
@@ -1300,6 +1331,30 @@ export default function GroupScreen() {
                       groupId={groupId}
                       settlementId={settlement.id}
                       canManage={!settlement.pending}
+                    />
+                    {/* Withdraw a payment recorded by mistake or twice. Queued
+                        like every other mutation, so even a still-syncing claim
+                        cancels cleanly — the create runs before the cancel in
+                        the ordered queue. */}
+                    <Button
+                      label={t.group.cancelSettlement}
+                      variant="secondary"
+                      fullWidth
+                      onPress={() =>
+                        Alert.alert(
+                          t.group.cancelTitle,
+                          fill(t.group.cancelBody, { name: nameOf(settlement.to_member_id) }),
+                          [
+                            { text: t.group.keep, style: 'cancel' },
+                            {
+                              text: t.group.cancelConfirm,
+                              style: 'destructive',
+                              onPress: () => cancelSettlement.mutate(settlement.id),
+                            },
+                          ],
+                        )
+                      }
+                      disabled={cancelSettlement.isPending}
                     />
                   </Card>
                 ))}

@@ -1509,6 +1509,20 @@ export interface UiStrings {
     archivedOn: string;
     nobodyOwes: string;
     recordedNotMoved: string;
+    /** Payee's reject action on an incoming "they paid you" claim, and its prompt. */
+    rejectSettlement: string;
+    rejectTitle: string;
+    /** `{name}` is the payer who recorded the payment. */
+    rejectBody: string;
+    rejectConfirm: string;
+    /** Payer's action to withdraw a payment they recorded, and its prompt. */
+    cancelSettlement: string;
+    cancelTitle: string;
+    /** `{name}` is the payee who would have confirmed. */
+    cancelBody: string;
+    cancelConfirm: string;
+    /** The dismiss button on both prompts — leaves the settlement untouched. */
+    keep: string;
   };
   /** The people in a group, and the link that brings more in. */
   people: {
@@ -3557,6 +3571,17 @@ const en: UiStrings = {
     archivedOn: 'Archived {date}',
     nobodyOwes: 'Nobody owes anybody in this group.',
     recordedNotMoved: 'Recorded, not moved by Waves',
+    rejectSettlement: 'Not received',
+    rejectTitle: 'Say you didn’t get this?',
+    rejectBody:
+      '{name} recorded paying you. This clears the pending payment and doesn’t change any balance.',
+    rejectConfirm: 'Reject',
+    cancelSettlement: 'Cancel payment',
+    cancelTitle: 'Cancel this payment?',
+    cancelBody:
+      'Removes the payment you recorded. {name} won’t be asked to confirm it, and no balance changes.',
+    cancelConfirm: 'Remove',
+    keep: 'Keep',
   },
   people: {
     invite: 'Invite',
@@ -5656,6 +5681,17 @@ const ta: UiStrings = {
     archivedOn: '{date} அன்று காப்பகப்படுத்தப்பட்டது',
     nobodyOwes: 'இந்தக் குழுவில் யாரும் யாருக்கும் தர வேண்டியதில்லை.',
     recordedNotMoved: 'பதிவு செய்யப்பட்டது, பாக்கி பணத்தை அனுப்பவில்லை',
+    rejectSettlement: 'கிடைக்கவில்லை',
+    rejectTitle: 'இது உங்களுக்குக் கிடைக்கவில்லையா?',
+    rejectBody:
+      '{name} உங்களுக்குப் பணம் கொடுத்ததாகப் பதிவு செய்தார். இது நிலுவைப் பணத்தை நீக்கும்; எந்த இருப்பும் மாறாது.',
+    rejectConfirm: 'நிராகரி',
+    cancelSettlement: 'பணத்தை ரத்து செய்',
+    cancelTitle: 'இந்தப் பணத்தை ரத்து செய்யவா?',
+    cancelBody:
+      'நீங்கள் பதிவு செய்த பணத்தை நீக்கும். {name} உறுதிப்படுத்தக் கேட்கப்பட மாட்டார், எந்த இருப்பும் மாறாது.',
+    cancelConfirm: 'நீக்கு',
+    keep: 'வைத்திரு',
   },
   people: {
     invite: 'அழை',
@@ -7756,6 +7792,17 @@ const hi: UiStrings = {
     archivedOn: '{date} को संग्रहित',
     nobodyOwes: 'इस समूह में किसी पर किसी का कुछ बाकी नहीं है।',
     recordedNotMoved: 'दर्ज किया गया, बाकी ने पैसा नहीं भेजा',
+    rejectSettlement: 'नहीं मिला',
+    rejectTitle: 'कहें कि आपको यह नहीं मिला?',
+    rejectBody:
+      '{name} ने आपको भुगतान करना दर्ज किया। इससे लंबित भुगतान हट जाएगा और कोई बैलेंस नहीं बदलेगा।',
+    rejectConfirm: 'अस्वीकारें',
+    cancelSettlement: 'भुगतान रद्द करें',
+    cancelTitle: 'यह भुगतान रद्द करें?',
+    cancelBody:
+      'आपके द्वारा दर्ज भुगतान हट जाएगा। {name} से पुष्टि नहीं मांगी जाएगी और कोई बैलेंस नहीं बदलेगा।',
+    cancelConfirm: 'हटाएँ',
+    keep: 'रखें',
   },
   people: {
     invite: 'बुलाएँ',
@@ -9872,6 +9919,16 @@ const ar: UiStrings = {
     archivedOn: 'أُرشفت في {date}',
     nobodyOwes: 'لا أحد يدين لأحد في هذه المجموعة.',
     recordedNotMoved: 'مسجَّل، ولم يحوّل باقي المال',
+    rejectSettlement: 'لم يصل',
+    rejectTitle: 'هل تقول إنك لم تستلم هذا؟',
+    rejectBody: 'سجّل {name} أنه دفع لك. هذا يمسح الدفعة المعلّقة ولا يغيّر أي رصيد.',
+    rejectConfirm: 'رفض',
+    cancelSettlement: 'إلغاء الدفعة',
+    cancelTitle: 'إلغاء هذه الدفعة؟',
+    cancelBody:
+      'سيؤدي هذا إلى إزالة الدفعة التي سجّلتها. لن يُطلب من {name} تأكيدها، ولا يتغيّر أي رصيد.',
+    cancelConfirm: 'إزالة',
+    keep: 'إبقاء',
   },
   people: {
     invite: 'دعوة',
