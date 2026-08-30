@@ -17,10 +17,11 @@
  * it was last open (idempotent — see `postDueRecurring`).
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   ScrollView,
@@ -72,6 +73,7 @@ import {
   useUpsertPersonalRecord,
 } from '@/data/personal';
 import { useDefaultCurrency } from '@/lib/currency';
+import { usePersonalGate } from '@/lib/lock';
 import { useSync } from '@/sync';
 import { useStrings } from '@/i18n';
 
@@ -98,6 +100,16 @@ export default function MeScreen() {
   const { hydrated } = useSync();
   const ledger = usePersonalLedger();
   const upsert = useUpsertPersonalRecord();
+
+  // The Me tab is the private personal ledger — ask for biometrics on entry and
+  // keep the screen a blank shield until it succeeds (below), so the figures are
+  // never on show behind the prompt. It then stays quiet for the app-lock grace
+  // window. A failed or cancelled check leaves the tab rather than exposing data.
+  const leaveMe = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }, []);
+  const gate = usePersonalGate(t.lock.personalPrompt, leaveMe);
 
   // Read the clock once, off render (the React Compiler forbids it inline).
   const [today] = useState(() => todayIso());
@@ -207,6 +219,22 @@ export default function MeScreen() {
   // until there is something in the window to draw.
   const trend = cashflowTrend(ledger.txns, recentMonths(month, 3), dc);
   const trendActive = trend.some((m) => m.income > 0n || m.expense > 0n);
+
+  // Private ledger: while the biometric gate is unresolved the whole screen is a
+  // blank shield — no hero, no figures — so nothing is on show behind the OS
+  // prompt. A failed check has already navigated away by the time this renders.
+  if (!gate.unlocked) {
+    return (
+      <Screen edges={[]}>
+        <View
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: theme.spacing.lg }}
+        >
+          <Ionicons name="lock-closed" size={iconSize.huge} color={theme.color.textFaint} />
+          {gate.checking ? <ActivityIndicator color={theme.color.textFaint} /> : null}
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen edges={[]}>

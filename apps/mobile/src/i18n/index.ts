@@ -742,6 +742,8 @@ export interface UiStrings {
     signOutReassure: string;
     staySignedIn: string;
     footnote: string;
+    /** Native biometric prompt shown on entering the private Me tab. */
+    personalPrompt: string;
   };
   /** The devices screen and the free-tier two-device cap. */
   devices: {
@@ -2904,6 +2906,7 @@ const en: UiStrings = {
     staySignedIn: 'Stay signed in',
     footnote:
       'This guards the screen, not the data — your ledger is protected by row-level security on the server whether the lock is on or not.',
+    personalPrompt: 'Unlock your personal ledger',
   },
   devices: {
     couldNotSignOut: 'Could not sign out the other devices. Please try again.',
@@ -4988,6 +4991,7 @@ const ta: UiStrings = {
     staySignedIn: 'உள்ளேயே இரு',
     footnote:
       'இது திரையைக் காக்கிறது, தரவை அல்ல — பூட்டு இருந்தாலும் இல்லாவிட்டாலும் உங்கள் கணக்கு சர்வரில் வரிசை அளவிலான பாதுகாப்பால் காக்கப்படுகிறது.',
+    personalPrompt: 'உங்கள் தனிப்பட்ட கணக்கைத் திறக்கவும்',
   },
   devices: {
     couldNotSignOut: 'மற்ற சாதனங்களை வெளியேற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
@@ -7142,6 +7146,7 @@ const hi: UiStrings = {
     staySignedIn: 'साइन इन रहें',
     footnote:
       'यह स्क्रीन की रक्षा करता है, डेटा की नहीं — लॉक चालू हो या बंद, आपका हिसाब सर्वर पर रो-लेवल सुरक्षा से सुरक्षित है।',
+    personalPrompt: 'अपना निजी हिसाब अनलॉक करें',
   },
   devices: {
     couldNotSignOut: 'अन्य डिवाइस साइन आउट नहीं हो सके। कृपया फिर कोशिश करें।',
@@ -9255,6 +9260,7 @@ const ar: UiStrings = {
     staySignedIn: 'ابقَ مسجّل الدخول',
     footnote:
       'هذا يحمي الشاشة لا البيانات — دفترك محمي على الخادم بأمان على مستوى الصفوف سواء كان القفل مفعّلًا أم لا.',
+    personalPrompt: 'افتح قفل دفترك الشخصي',
   },
   devices: {
     couldNotSignOut: 'تعذّر تسجيل خروج الأجهزة الأخرى. حاول مرة أخرى.',
