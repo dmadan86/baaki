@@ -534,6 +534,60 @@ export default function GroupScreen() {
     [locale],
   );
 
+  // The feed, memoized so a re-render that leaves the ledger untouched does not
+  // re-filter and re-section every expense. Hoisted above the loading/error
+  // guards below so these hooks run in the same order on every render.
+  const visibleExpenses = useMemo(
+    () => expenses.rows.filter((expense) => showDeleted || !expense.deleted_at),
+    [expenses.rows, showDeleted],
+  );
+  const expenseSections = useMemo(() => groupExpensesByMonth(visibleExpenses), [visibleExpenses]);
+  // The month sections flattened into one recyclable list: a heading item per
+  // month, then its expense rows. FlashList mounts only what is on screen, so a
+  // group with a thousand bills opens as fast as one with ten.
+  const feedItems: FeedItem[] = useMemo(() => {
+    const items: FeedItem[] = [];
+    for (const section of expenseSections) {
+      if (section.date) {
+        items.push({ kind: 'month', key: `month-${section.key}`, date: section.date });
+      }
+      section.rows.forEach((expense, index) =>
+        items.push({
+          kind: 'expense',
+          key: expense.id,
+          expense,
+          isLast: index === section.rows.length - 1,
+        }),
+      );
+    }
+    return items;
+  }, [expenseSections]);
+  // The Balances and Activity tabs ride the same virtualized list as Expenses,
+  // one FeedItem per row, so switching to them renders only the handful of rows
+  // on screen — not every member and every activity entry at once, which is what
+  // made the tab switch stall (they were mapped in full inside the list footer).
+  const balanceItems: FeedItem[] = useMemo(
+    () =>
+      (members.data ?? []).map((member, index, arr) => ({
+        kind: 'balance',
+        key: `balance-${member.id}`,
+        member,
+        balance: ledger.balances.get(member.id) ?? 0n,
+        isLast: index === arr.length - 1,
+      })),
+    [members.data, ledger.balances],
+  );
+  const activityItems: FeedItem[] = useMemo(
+    () =>
+      (activity.data ?? []).map((entry, index, arr) => ({
+        kind: 'activity',
+        key: `activity-${entry.id}`,
+        entry,
+        isLast: index === arr.length - 1,
+      })),
+    [activity.data],
+  );
+
   if (group.isLoading) {
     return <GroupSkeleton />;
   }
@@ -626,16 +680,10 @@ export default function GroupScreen() {
       : ledger.myBalance < 0n
         ? theme.gradient.negative
         : theme.gradient.brand;
-  const visibleExpenses = useMemo(
-    () => expenses.rows.filter((expense) => showDeleted || !expense.deleted_at),
-    [expenses.rows, showDeleted],
-  );
   // The show/hide-deleted toggle only earns its place once something has been
   // deleted. On a group whose ledger has never lost a row it is an answer to a
   // question nobody asked.
   const hasDeleted = expenses.rows.some((expense) => Boolean(expense.deleted_at));
-  // The feed, cut into month sections for skimming (Splitwise/Settle Up).
-  const expenseSections = useMemo(() => groupExpensesByMonth(visibleExpenses), [visibleExpenses]);
   // A refused change waiting on this group — the one sync state that still earns
   // an inline card, because it needs a decision the header glyph cannot offer.
   const refusedHere = rejected.some((item) => item.groupId === groupId);
@@ -676,54 +724,6 @@ export default function GroupScreen() {
     { icon: 'settings-outline', label: t.group.settings, route: `/group/${groupId}/settings` },
   ];
 
-  // The month sections flattened into one recyclable list: a heading item per
-  // month, then its expense rows. FlashList mounts only what is on screen, so a
-  // group with a thousand bills opens as fast as one with ten.
-  const feedItems: FeedItem[] = useMemo(() => {
-    const items: FeedItem[] = [];
-    for (const section of expenseSections) {
-      if (section.date) {
-        items.push({ kind: 'month', key: `month-${section.key}`, date: section.date });
-      }
-      section.rows.forEach((expense, index) =>
-        items.push({
-          kind: 'expense',
-          key: expense.id,
-          expense,
-          isLast: index === section.rows.length - 1,
-        }),
-      );
-    }
-    return items;
-  }, [expenseSections]);
-
-  // The Balances and Activity tabs ride the same virtualized list as Expenses,
-  // one FeedItem per row, so switching to them renders only the handful of rows
-  // on screen — not every member and every activity entry at once, which is what
-  // made the tab switch stall (they were mapped in full inside the list footer).
-  const memberList = members.data ?? [];
-  const balanceItems: FeedItem[] = useMemo(
-    () =>
-      memberList.map((member, index) => ({
-        kind: 'balance',
-        key: `balance-${member.id}`,
-        member,
-        balance: ledger.balances.get(member.id) ?? 0n,
-        isLast: index === memberList.length - 1,
-      })),
-    [memberList, ledger.balances],
-  );
-  const activityList = activity.data ?? [];
-  const activityItems: FeedItem[] = useMemo(
-    () =>
-      activityList.map((entry, index) => ({
-        kind: 'activity',
-        key: `activity-${entry.id}`,
-        entry,
-        isLast: index === activityList.length - 1,
-      })),
-    [activityList],
-  );
   // The rows the list shows for the current tab. One source for `data`, so the
   // three tabs are the same list with different contents rather than a list plus
   // two hand-rolled footers.
