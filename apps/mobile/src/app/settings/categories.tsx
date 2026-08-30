@@ -188,40 +188,43 @@ export default function CategoriesSettingsScreen() {
 
   return (
     <Screen>
-      <DraggableFlatList
-        data={order}
-        keyExtractor={(entry) => entry.key}
-        renderItem={renderItem}
-        onDragEnd={({ data }) => {
-          setOrder(data);
-          void commitOrder(data);
-        }}
-        containerStyle={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance,
-        }}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View>
-            <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center' }}>
-              <IconButton label={t.common.back} onPress={() => router.back()}>
-                <Ionicons
-                  name={directionalIcon('chevron-back')}
-                  size={iconSize.lg}
-                  color={theme.color.text}
-                />
-              </IconButton>
-              <View style={{ flex: 1, alignItems: 'center' }}>
-                <Text variant="heading">{t.tags.manageTitle}</Text>
-              </View>
-              <IconButton label={t.tags.newTag} onPress={() => setCreating(true)}>
-                <Ionicons name="add" size={iconSize.xxl} color={theme.color.brand} />
-              </IconButton>
-            </Row>
-
-            {/* Hugs the header (small top margin) rather than sitting a full gap
-                below it, so the intro reads as a subtitle of the title above. */}
+      <View style={{ flex: 1 }}>
+        {/* The nav header is a fixed sibling above the drag list, so only the
+            tags scroll under it. Padded to line up with the rows below. */}
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>
+          <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center' }}>
+            <IconButton label={t.common.back} onPress={() => router.back()}>
+              <Ionicons
+                name={directionalIcon('chevron-back')}
+                size={iconSize.lg}
+                color={theme.color.text}
+              />
+            </IconButton>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text variant="heading">{t.tags.manageTitle}</Text>
+            </View>
+            <IconButton label={t.tags.newTag} onPress={() => setCreating(true)}>
+              <Ionicons name="add" size={iconSize.xxl} color={theme.color.brand} />
+            </IconButton>
+          </Row>
+        </View>
+        <DraggableFlatList
+          data={order}
+          keyExtractor={(entry) => entry.key}
+          renderItem={renderItem}
+          onDragEnd={({ data }) => {
+            setOrder(data);
+            void commitOrder(data);
+          }}
+          containerStyle={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: clearance,
+          }}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            // Hugs the (now fixed) header rather than sitting a full gap below it,
+            // so the intro reads as a subtitle of the title above.
             <Text
               variant="caption"
               tone="muted"
@@ -230,26 +233,26 @@ export default function CategoriesSettingsScreen() {
             >
               {t.tags.manageSubtitle}
             </Text>
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={{ paddingTop: theme.spacing.xxxl }}>
-            <EmptyState title={t.tags.noCustomTags} />
-          </View>
-        }
-        ListFooterComponent={
-          order.length > 0 ? (
-            <Text
-              variant="micro"
-              tone="muted"
-              align="center"
-              style={{ marginTop: theme.spacing.md }}
-            >
-              {t.tags.reorderHint}
-            </Text>
-          ) : null
-        }
-      />
+          }
+          ListEmptyComponent={
+            <View style={{ paddingTop: theme.spacing.xxxl }}>
+              <EmptyState title={t.tags.noCustomTags} />
+            </View>
+          }
+          ListFooterComponent={
+            order.length > 0 ? (
+              <Text
+                variant="micro"
+                tone="muted"
+                align="center"
+                style={{ marginTop: theme.spacing.md }}
+              >
+                {t.tags.reorderHint}
+              </Text>
+            ) : null
+          }
+        />
+      </View>
 
       <TagEditorSheet open={creating} onClose={() => setCreating(false)} />
       <TagEditorSheet open={editing !== null} editing={editing} onClose={() => setEditing(null)} />

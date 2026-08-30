@@ -73,7 +73,7 @@ export default function StorageUsageScreen() {
   });
 
   const header = (
-    <Row style={{ paddingTop: theme.spacing.md }}>
+    <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
       <IconButton label={t.common.back} onPress={() => router.back()}>
         <Ionicons
           name={directionalIcon('chevron-back')}
@@ -181,15 +181,17 @@ export default function StorageUsageScreen() {
 
   return (
     <Screen>
+      {header}
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
+          paddingTop: theme.spacing.lg,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {header}
         {body()}
       </ScrollView>
     </Screen>

@@ -99,29 +99,31 @@ export default function PrivacyScreen() {
 
   return (
     <Screen>
+      {/* Back on the left, the title lifted out of the bar into the hero
+          below — the policy leads with a symbol and a heading centred on the
+          page, the way Apple's own privacy sheets open. */}
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1 }} />
+        <View style={{ width: 44 }} />
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
+          paddingTop: theme.spacing.lg,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back on the left, the title lifted out of the bar into the hero
-            below — the policy leads with a symbol and a heading centred on the
-            page, the way Apple's own privacy sheets open. */}
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1 }} />
-          <View style={{ width: 44 }} />
-        </Row>
-
         <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
           <Ionicons name="people" size={64} color={theme.color.text} />
           <Text

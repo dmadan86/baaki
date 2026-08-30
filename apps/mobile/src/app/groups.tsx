@@ -210,112 +210,116 @@ export default function AllGroupsScreen() {
 
   return (
     <Screen>
-      <FlashList
-        data={rows}
-        keyExtractor={(row) => (row.kind === 'header' ? 'settled-header' : row.item.group.id)}
-        getItemType={(row) => row.kind}
-        // The group-ledger settings: render well ahead of the viewport so a fast
-        // fling doesn't flash blank rows. The row items already carry their own
-        // balance/pending/count (baked in the memo above), so a money change
-        // flows through `data`; the outside a row reads — locale and theme —
-        // rides the memoised `listExtraData`, which changes identity only on a
-        // real language or light/dark switch, not every render.
-        drawDistance={1500}
-        extraData={listExtraData}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance,
-        }}
-        showsVerticalScrollIndicator={false}
-        // With the search keyboard open, a tap on a result row should open it in
-        // one go, not be eaten by the keyboard dismiss (FlashList defaults this
-        // to "never").
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={header}
-        ListEmptyComponent={empty}
-        ItemSeparatorComponent={() => (
-          <View style={{ height: 1, backgroundColor: theme.color.border }} />
-        )}
-        renderItem={({ item: row }) => {
-          if (row.kind === 'header') {
+      <View style={{ flex: 1 }}>
+        {/* The nav header is a fixed sibling above the list, so only the roster
+            scrolls under it. Padded to line up with the list rows below. */}
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>{header}</View>
+        <FlashList
+          data={rows}
+          keyExtractor={(row) => (row.kind === 'header' ? 'settled-header' : row.item.group.id)}
+          getItemType={(row) => row.kind}
+          // The group-ledger settings: render well ahead of the viewport so a fast
+          // fling doesn't flash blank rows. The row items already carry their own
+          // balance/pending/count (baked in the memo above), so a money change
+          // flows through `data`; the outside a row reads — locale and theme —
+          // rides the memoised `listExtraData`, which changes identity only on a
+          // real language or light/dark switch, not every render.
+          drawDistance={1500}
+          extraData={listExtraData}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: clearance,
+          }}
+          showsVerticalScrollIndicator={false}
+          // With the search keyboard open, a tap on a result row should open it in
+          // one go, not be eaten by the keyboard dismiss (FlashList defaults this
+          // to "never").
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={empty}
+          ItemSeparatorComponent={() => (
+            <View style={{ height: 1, backgroundColor: theme.color.border }} />
+          )}
+          renderItem={({ item: row }) => {
+            if (row.kind === 'header') {
+              return (
+                <Text
+                  variant="caption"
+                  tone="muted"
+                  style={{ paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.xs }}
+                >
+                  {row.label}
+                </Text>
+              );
+            }
+
+            const { group, balance, pending, count } = row.item;
+            const statusLabel =
+              balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe;
+            // Status first, member count second: the reader's question is "do I
+            // owe or am I owed?", not "how many people". Pending keeps its context
+            // rather than replacing it — it used to swallow the member count whole.
+            const subtitle = pending
+              ? `${t.pendingConfirmation} · ${plural(locale, count, t.memberCount)}`
+              : `${statusLabel} · ${plural(locale, count, t.memberCount)}`;
+            // Settled groups are present, not urgent: dimmed so the eye lands on
+            // the rows that still need something.
+            const dim = !row.item.needsAction;
+
             return (
-              <Text
-                variant="caption"
-                tone="muted"
-                style={{ paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.xs }}
+              <Pressable
+                accessibilityRole="button"
+                // The full subtitle, not just the status word: a pending group at a
+                // zero balance would otherwise be read out as "All settled",
+                // hiding the very state that needs attention.
+                accessibilityLabel={`${row.item.label}. ${subtitle}`}
+                onPress={() => router.push(`/group/${group.id}`)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
               >
-                {row.label}
-              </Text>
-            );
-          }
-
-          const { group, balance, pending, count } = row.item;
-          const statusLabel =
-            balance === 0n ? t.allSettled : balance > 0n ? t.youAreOwed : t.youOwe;
-          // Status first, member count second: the reader's question is "do I
-          // owe or am I owed?", not "how many people". Pending keeps its context
-          // rather than replacing it — it used to swallow the member count whole.
-          const subtitle = pending
-            ? `${t.pendingConfirmation} · ${plural(locale, count, t.memberCount)}`
-            : `${statusLabel} · ${plural(locale, count, t.memberCount)}`;
-          // Settled groups are present, not urgent: dimmed so the eye lands on
-          // the rows that still need something.
-          const dim = !row.item.needsAction;
-
-          return (
-            <Pressable
-              accessibilityRole="button"
-              // The full subtitle, not just the status word: a pending group at a
-              // zero balance would otherwise be read out as "All settled",
-              // hiding the very state that needs attention.
-              accessibilityLabel={`${row.item.label}. ${subtitle}`}
-              onPress={() => router.push(`/group/${group.id}`)}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <Row
-                style={{
-                  gap: theme.spacing.md,
-                  alignItems: 'center',
-                  paddingVertical: theme.spacing.sm,
-                  opacity: dim ? 0.55 : 1,
-                }}
-              >
-                {/* The activity feed's row tile — a 40×40 rounded square — so the
+                <Row
+                  style={{
+                    gap: theme.spacing.md,
+                    alignItems: 'center',
+                    paddingVertical: theme.spacing.sm,
+                    opacity: dim ? 0.55 : 1,
+                  }}
+                >
+                  {/* The activity feed's row tile — a 40×40 rounded square — so the
                     two lists read as one family. Activity tints its tile by the
                     verb; a group carries an emoji cover instead, so the tile stays
                     neutral and the emoji is the identity. */}
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: theme.radius.md,
-                    backgroundColor: theme.color.surfaceMuted,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 20 }}>{group.cover_emoji ?? '👥'}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text variant="body" numberOfLines={2}>
-                    {row.item.label}
-                  </Text>
-                  <Text variant="caption" tone="muted" numberOfLines={1} style={{ marginTop: 2 }}>
-                    {subtitle}
-                  </Text>
-                </View>
-                <MoneyText
-                  amount={balance}
-                  currency={group.default_currency as never}
-                  locale={locale}
-                  mode="balance"
-                  variant="subheading"
-                />
-              </Row>
-            </Pressable>
-          );
-        }}
-      />
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.color.surfaceMuted,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 20 }}>{group.cover_emoji ?? '👥'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body" numberOfLines={2}>
+                      {row.item.label}
+                    </Text>
+                    <Text variant="caption" tone="muted" numberOfLines={1} style={{ marginTop: 2 }}>
+                      {subtitle}
+                    </Text>
+                  </View>
+                  <MoneyText
+                    amount={balance}
+                    currency={group.default_currency as never}
+                    locale={locale}
+                    mode="balance"
+                    variant="subheading"
+                  />
+                </Row>
+              </Pressable>
+            );
+          }}
+        />
+      </View>
     </Screen>
   );
 }

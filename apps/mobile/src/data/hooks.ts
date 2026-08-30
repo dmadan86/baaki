@@ -49,6 +49,7 @@ import {
   type MirrorCategoryTag,
   type MirrorExpense,
   type SettlementSnapshot,
+  type SettlementTransitionPayload,
   type Transfer,
 } from '@waves/core';
 
@@ -1103,7 +1104,10 @@ export function useConfirmSettlement(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
     mutationFn: (settlementId: string) =>
-      mutate(MutationKind.SettlementTransition, groupId, { settlementId, to: 'confirmed' }),
+      mutate(MutationKind.SettlementTransition, groupId, {
+        settlementId,
+        to: SettlementStatus.Confirmed,
+      } satisfies SettlementTransitionPayload),
   });
 }
 
@@ -1112,7 +1116,10 @@ export function useCancelSettlement(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
     mutationFn: (settlementId: string) =>
-      mutate(MutationKind.SettlementTransition, groupId, { settlementId, to: 'cancelled' }),
+      mutate(MutationKind.SettlementTransition, groupId, {
+        settlementId,
+        to: SettlementStatus.Cancelled,
+      } satisfies SettlementTransitionPayload),
   });
 }
 
@@ -1121,7 +1128,10 @@ export function useDisputeSettlement(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
     mutationFn: (settlementId: string) =>
-      mutate(MutationKind.SettlementTransition, groupId, { settlementId, to: 'disputed' }),
+      mutate(MutationKind.SettlementTransition, groupId, {
+        settlementId,
+        to: SettlementStatus.Disputed,
+      } satisfies SettlementTransitionPayload),
   });
 }
 

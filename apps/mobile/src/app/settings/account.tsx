@@ -262,28 +262,30 @@ function AccountForm() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{t.contact.title}</Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
+          paddingTop: theme.spacing.lg,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.contact.title}</Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         {/* A calm identity header: the avatar and name give the screen a focal
             point that names whose account this is (Mobbin — Slopes, Tesla, Me+,
             Vivino: a centred portrait over the name and contact). It is a

@@ -316,11 +316,126 @@ export default function ExpenseDetailScreen() {
       {/* The hero runs dark under the status bar, so its icons must be light —
           overriding the app's theme-driven default for this route. */}
       <StatusBar style="light" />
+      {/* The expense hero, built like the group and dashboard panels: one
+          saturated wash edge to edge and up under the status bar, carrying the
+          back/edit controls, the category badge, the amount and its "paid by"
+          line — all in white. Neutral brand indigo, never a money colour: the
+          amount is a total that is nobody's balance. A fixed header: it sits as a
+          sibling before the scroll so only the body below it scrolls, then re-pads
+          and rounds only its bottom corners. */}
+      <Gradient
+        radius={0}
+        colors={theme.gradient.brand}
+        style={{
+          paddingTop: insets.top + theme.spacing.md,
+          paddingHorizontal: theme.spacing.xl,
+          // Match the dashboard/group hero height: lg bottom padding, not xl.
+          paddingBottom: theme.spacing.lg,
+          borderBottomLeftRadius: theme.radius.xxl,
+          borderBottomRightRadius: theme.radius.xxl,
+          gap: theme.spacing.lg,
+        }}
+      >
+        <Row style={{ alignItems: 'center' }}>
+          {/* Back and overflow match the dashboard/group hero: a chip-less xxl
+                white glyph, not the smaller boxed IconButton. */}
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={t.common.back}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          >
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.xxl}
+              color={theme.color.onBrand}
+            />
+          </Pressable>
+          {/* The title moves out of this row and into the hero body beside the
+                category badge, so the description reads as the heading of the
+                bill rather than a cramped line between two glyphs. */}
+          <View style={{ flex: 1 }} />
+          {/* Every action on this bill lives behind one three-dot menu, the same
+                trailing control the group and dashboard headers carry — Edit and
+                Delete (or Restore) instead of a full-width button stacked at the
+                bottom of a long scroll. */}
+          <Pressable
+            onPress={() => setMenuOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t.group.more}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          >
+            <Ionicons name="ellipsis-vertical" size={iconSize.xxl} color={theme.color.onBrand} />
+          </Pressable>
+        </Row>
+
+        <View style={{ alignItems: 'flex-start', gap: theme.spacing.md }}>
+          {/* Badge + description as one line: the category icon, then what the
+                bill is called (the description, or the category name when none
+                was typed) reads as the heading — this is the "I don't see the
+                description" fix. */}
+          <Row style={{ alignItems: 'center', gap: theme.spacing.sm, alignSelf: 'stretch' }}>
+            <CategoryBadge
+              category={version.category}
+              meta={version.category_meta}
+              description={version.description}
+              size={40}
+            />
+            <Text variant="heading" tone="onBrand" numberOfLines={2} style={{ flex: 1 }}>
+              {expenseTitle(version.description, version.category, t, version.category_meta)}
+            </Text>
+            {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
+          </Row>
+          <MoneyText
+            amount={BigInt(version.amount)}
+            currency={currency}
+            locale={locale}
+            variant="display"
+            style={{ color: theme.color.onBrand }}
+          />
+          {/* Add receipt, right under the amount — the same "primary action sits
+                under the number" the dashboard and group heros use. A party owns
+                adding; the button drives the receipts section through its ref. */}
+          {isExpenseParty ? (
+            <Pressable
+              onPress={() => {
+                if (tab === 'details') receiptsRef.current?.openAdd();
+                else {
+                  // Switch to where the receipts live, then add once mounted.
+                  setTab('details');
+                  setPendingAdd(true);
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t.receipts.add}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+                alignSelf: 'flex-start',
+                paddingHorizontal: theme.spacing.lg,
+                paddingVertical: theme.spacing.sm,
+                borderRadius: theme.radius.pill,
+                backgroundColor: '#FFFFFF',
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
+              <Text style={{ color: theme.color.brand, fontWeight: '700' }}>{t.receipts.add}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </Gradient>
+
       <ScrollView
         ref={scrollRef}
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance,
+          paddingTop: theme.spacing.xl,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
@@ -329,121 +444,6 @@ export default function ExpenseDetailScreen() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        {/* The expense hero, built like the group and dashboard panels: one
-            saturated wash edge to edge and up under the status bar, carrying the
-            back/edit controls, the category badge, the amount and its "paid by"
-            line — all in white. Neutral brand indigo, never a money colour: the
-            amount is a total that is nobody's balance. Breaks out of the
-            scroll's padding, then re-pads and rounds only its bottom corners. */}
-        <Gradient
-          radius={0}
-          colors={theme.gradient.brand}
-          style={{
-            marginHorizontal: -theme.spacing.xl,
-            paddingTop: insets.top + theme.spacing.md,
-            paddingHorizontal: theme.spacing.xl,
-            // Match the dashboard/group hero height: lg bottom padding, not xl.
-            paddingBottom: theme.spacing.lg,
-            borderBottomLeftRadius: theme.radius.xxl,
-            borderBottomRightRadius: theme.radius.xxl,
-            gap: theme.spacing.lg,
-          }}
-        >
-          <Row style={{ alignItems: 'center' }}>
-            {/* Back and overflow match the dashboard/group hero: a chip-less xxl
-                white glyph, not the smaller boxed IconButton. */}
-            <Pressable
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel={t.common.back}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-            >
-              <Ionicons
-                name={directionalIcon('chevron-back')}
-                size={iconSize.xxl}
-                color={theme.color.onBrand}
-              />
-            </Pressable>
-            {/* The title moves out of this row and into the hero body beside the
-                category badge, so the description reads as the heading of the
-                bill rather than a cramped line between two glyphs. */}
-            <View style={{ flex: 1 }} />
-            {/* Every action on this bill lives behind one three-dot menu, the same
-                trailing control the group and dashboard headers carry — Edit and
-                Delete (or Restore) instead of a full-width button stacked at the
-                bottom of a long scroll. */}
-            <Pressable
-              onPress={() => setMenuOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t.group.more}
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-            >
-              <Ionicons name="ellipsis-vertical" size={iconSize.xxl} color={theme.color.onBrand} />
-            </Pressable>
-          </Row>
-
-          <View style={{ alignItems: 'flex-start', gap: theme.spacing.md }}>
-            {/* Badge + description as one line: the category icon, then what the
-                bill is called (the description, or the category name when none
-                was typed) reads as the heading — this is the "I don't see the
-                description" fix. */}
-            <Row style={{ alignItems: 'center', gap: theme.spacing.sm, alignSelf: 'stretch' }}>
-              <CategoryBadge
-                category={version.category}
-                meta={version.category_meta}
-                description={version.description}
-                size={40}
-              />
-              <Text variant="heading" tone="onBrand" numberOfLines={2} style={{ flex: 1 }}>
-                {expenseTitle(version.description, version.category, t, version.category_meta)}
-              </Text>
-              {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
-            </Row>
-            <MoneyText
-              amount={BigInt(version.amount)}
-              currency={currency}
-              locale={locale}
-              variant="display"
-              style={{ color: theme.color.onBrand }}
-            />
-            {/* Add receipt, right under the amount — the same "primary action sits
-                under the number" the dashboard and group heros use. A party owns
-                adding; the button drives the receipts section through its ref. */}
-            {isExpenseParty ? (
-              <Pressable
-                onPress={() => {
-                  if (tab === 'details') receiptsRef.current?.openAdd();
-                  else {
-                    // Switch to where the receipts live, then add once mounted.
-                    setTab('details');
-                    setPendingAdd(true);
-                  }
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t.receipts.add}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.sm,
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: theme.spacing.lg,
-                  paddingVertical: theme.spacing.sm,
-                  borderRadius: theme.radius.pill,
-                  backgroundColor: '#FFFFFF',
-                  opacity: pressed ? 0.85 : 1,
-                })}
-              >
-                <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
-                <Text style={{ color: theme.color.brand, fontWeight: '700' }}>
-                  {t.receipts.add}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </Gradient>
-
         {/* The two faces of the page — its breakdown and its edit history —
             sectioned so the audit is its own place rather than the tail of a
             long scroll. */}

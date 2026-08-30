@@ -1086,16 +1086,7 @@ export default function AddExpenseScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingBottom: theme.spacing.xl,
-            gap: theme.spacing.xl,
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={{ paddingHorizontal: theme.spacing.xl }}>
           <ExpenseHeader
             leading="back"
             title={editing ? t.expense.edit : t.addExpense}
@@ -1120,7 +1111,18 @@ export default function AddExpenseScreen() {
               )
             }
           />
-
+        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingTop: theme.spacing.lg,
+            paddingBottom: theme.spacing.xl,
+            gap: theme.spacing.xl,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {editing ? (
             <Card style={{ backgroundColor: theme.color.buttonPrimary }}>
               <Text variant="caption" tone="onBrand">

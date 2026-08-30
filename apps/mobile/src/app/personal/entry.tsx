@@ -172,35 +172,42 @@ function EntryForm({
 
   return (
     <Screen>
+      <Row
+        style={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.md,
+          alignItems: 'center',
+        }}
+      >
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{title}</Text>
+        </View>
+        {editing ? (
+          <IconButton label={t.common.delete} onPress={onDelete}>
+            <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
+          </IconButton>
+        ) : (
+          <View style={{ width: iconSize.lg }} />
+        )}
+      </Row>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md, alignItems: 'center' }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{title}</Text>
-          </View>
-          {editing ? (
-            <IconButton label={t.common.delete} onPress={onDelete}>
-              <Ionicons name="trash-outline" size={iconSize.md} color={theme.color.negative} />
-            </IconButton>
-          ) : (
-            <View style={{ width: iconSize.lg }} />
-          )}
-        </Row>
-
         {/* A repayment's kind is fixed by the loan, so only a plain entry chooses. */}
         {loanId ? null : (
           <SegmentedTabs

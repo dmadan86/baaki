@@ -508,18 +508,20 @@ export default function CaptureScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
+      <View style={{ paddingHorizontal: theme.spacing.xl }}>
+        <ExpenseHeader title={isEditing ? t.captures.editTitle : t.captures.newTitle} />
+      </View>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: theme.spacing.xl,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <ExpenseHeader title={isEditing ? t.captures.editTitle : t.captures.newTitle} />
-
         {/* Amount-forward hero: the number is the point of this screen, so it
             leads — big and centred, with the currency it is counted in a tap
             below it (the Splitwise/PayPal amount-first pattern). Shared with

@@ -109,43 +109,44 @@ export default function PersonDetailScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading" numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+        {isRealPerson ? (
+          <IconButton
+            label={blocked ? t.blocked.unblock : t.blocked.action}
+            onPress={blocked ? () => unblock(key) : confirmBlock}
+          >
+            <Ionicons
+              name={blocked ? 'person-add-outline' : 'person-remove-outline'}
+              size={iconSize.md}
+              color={blocked ? theme.color.brand : theme.color.negative}
+            />
+          </IconButton>
+        ) : (
+          <View style={{ width: 44 }} />
+        )}
+      </Row>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading" numberOfLines={1}>
-              {title}
-            </Text>
-          </View>
-          {isRealPerson ? (
-            <IconButton
-              label={blocked ? t.blocked.unblock : t.blocked.action}
-              onPress={blocked ? () => unblock(key) : confirmBlock}
-            >
-              <Ionicons
-                name={blocked ? 'person-add-outline' : 'person-remove-outline'}
-                size={iconSize.md}
-                color={blocked ? theme.color.brand : theme.color.negative}
-              />
-            </IconButton>
-          ) : (
-            <View style={{ width: 44 }} />
-          )}
-        </Row>
-
         {person.isLoading ? (
           <PeopleSkeleton />
         ) : person.isError ? (

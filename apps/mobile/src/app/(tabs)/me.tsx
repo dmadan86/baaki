@@ -238,25 +238,25 @@ export default function MeScreen() {
 
   return (
     <Screen edges={[]}>
+      <MeHero
+        net={summary.net}
+        income={summary.income}
+        expense={summary.expense}
+        rate={rate}
+        currency={dc}
+        locale={locale}
+        t={t}
+        monthLabel={monthLabel(month, locale)}
+        canGoForward={monthsBack > 0}
+        canGoBack={monthsBack < maxBack}
+        onPrevMonth={() => setMonthsBack((back) => Math.min(maxBack, back + 1))}
+        onNextMonth={() => setMonthsBack((back) => Math.max(0, back - 1))}
+      />
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
       >
-        <MeHero
-          net={summary.net}
-          income={summary.income}
-          expense={summary.expense}
-          rate={rate}
-          currency={dc}
-          locale={locale}
-          t={t}
-          monthLabel={monthLabel(month, locale)}
-          canGoForward={monthsBack > 0}
-          canGoBack={monthsBack < maxBack}
-          onPrevMonth={() => setMonthsBack((back) => Math.min(maxBack, back + 1))}
-          onNextMonth={() => setMonthsBack((back) => Math.max(0, back - 1))}
-        />
-
         <View
           style={{
             paddingHorizontal: theme.spacing.xl,
