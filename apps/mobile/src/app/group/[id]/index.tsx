@@ -1137,7 +1137,11 @@ export default function GroupScreen() {
                       // balance slide whenever the landed page no longer exists.
                       // A content-size callback, not an effect, so it stays out
                       // of render and off the hooks path.
-                      if (heroPage > pendingForMe.length) {
+                      // The deck is at most two slides now (balance + the single
+                      // claim or the many-claims summary), so the last valid page
+                      // is 1 while anything is pending, 0 otherwise.
+                      const maxPage = pendingForMe.length > 0 ? 1 : 0;
+                      if (heroPage > maxPage) {
                         heroDeckRef.current?.scrollTo({ x: 0, animated: false });
                         setHeroPage(0);
                       }
@@ -1209,52 +1213,153 @@ export default function GroupScreen() {
                       </Row>
                     </View>
 
-                    {/* One slide per incoming claim: the amount on the wash, then
-                      the two answers as a pair — a solid white "Confirm received"
-                      (the loud default) and a translucent "Not received" beside it
-                      (the quieter, bordered secondary). The auto-confirm note sits
-                      under both. Neither moves a balance; both retire the claim. */}
-                    {pendingForMe.map((settlement) => (
-                      <View
-                        key={settlement.id}
-                        style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}
-                      >
+                    {/* Exactly one claim gets the fast path — its amount on the
+                      wash and the two answers inline (a solid white "Confirm
+                      received" and a translucent "Not received"). Two or more
+                      collapse to a single summary slide below rather than a stack
+                      of cards nobody wants to swipe through. Neither answer moves
+                      a balance; both retire the claim. */}
+                    {pendingForMe.length === 1 &&
+                      pendingForMe.map((settlement) => (
+                        <View
+                          key={settlement.id}
+                          style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}
+                        >
+                          <Text
+                            variant="caption"
+                            tone="onBrand"
+                            style={{ opacity: 0.85 }}
+                            numberOfLines={1}
+                          >
+                            {fill(t.group.saysTheyPaidYouWindow, {
+                              name: nameOf(settlement.from_member_id),
+                              window: plural(
+                                locale,
+                                daysToConfirm(settlement.initiated_at),
+                                t.group.daysToConfirm,
+                              ),
+                            })}
+                          </Text>
+
+                          <MoneyText
+                            amount={BigInt(settlement.amount)}
+                            currency={settlement.currency}
+                            locale={locale}
+                            variant="display"
+                            tone="default"
+                            style={{ color: theme.color.onBrand }}
+                          />
+
+                          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                            <Pressable
+                              onPress={() => confirmSettlement.mutate(settlement.id)}
+                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                              accessibilityRole="button"
+                              accessibilityLabel={t.group.confirmReceived}
+                              style={({ pressed }) => ({
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: theme.spacing.xs,
+                                paddingVertical: theme.spacing.sm + 2,
+                                paddingHorizontal: theme.spacing.lg,
+                                borderRadius: theme.radius.pill,
+                                backgroundColor: '#FFFFFF',
+                                opacity: pressed ? 0.85 : 1,
+                              })}
+                            >
+                              <Ionicons
+                                name="checkmark"
+                                size={iconSize.lg}
+                                color={heroGradient[0]}
+                              />
+                              <Text
+                                variant="subheading"
+                                style={{ color: heroGradient[0] }}
+                                numberOfLines={1}
+                              >
+                                {t.group.confirmReceived}
+                              </Text>
+                            </Pressable>
+                            {/* The decline, visible rather than in an overflow.
+                              Translucent with a hairline so it reads as the
+                              secondary answer, not a second primary; the prompt
+                              behind it is the real confirmation. */}
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={t.group.rejectSettlement}
+                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                              onPress={() =>
+                                Alert.alert(
+                                  t.group.rejectTitle,
+                                  fill(t.group.rejectBody, {
+                                    name: nameOf(settlement.from_member_id),
+                                  }),
+                                  [
+                                    { text: t.group.keep, style: 'cancel' },
+                                    {
+                                      text: t.group.rejectConfirm,
+                                      style: 'destructive',
+                                      onPress: () => disputeSettlement.mutate(settlement.id),
+                                    },
+                                  ],
+                                )
+                              }
+                              style={({ pressed }) => ({
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                paddingVertical: theme.spacing.sm + 2,
+                                paddingHorizontal: theme.spacing.lg,
+                                borderRadius: theme.radius.pill,
+                                borderWidth: 1,
+                                borderColor: 'rgba(255, 255, 255, 0.5)',
+                                opacity: pressed ? 0.7 : 1,
+                              })}
+                            >
+                              <Text variant="subheading" tone="onBrand" numberOfLines={1}>
+                                {t.group.rejectSettlement}
+                              </Text>
+                            </Pressable>
+                          </Row>
+                        </View>
+                      ))}
+
+                    {/* Two or more claims: one summary slide — how many people,
+                      the total on the wash, and a Review that opens the full
+                      list where each can be confirmed or rejected in one place. */}
+                    {pendingForMe.length >= 2 ? (
+                      <View style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}>
                         <Text
                           variant="caption"
                           tone="onBrand"
                           style={{ opacity: 0.85 }}
                           numberOfLines={1}
                         >
-                          {fill(t.group.saysTheyPaidYouWindow, {
-                            name: nameOf(settlement.from_member_id),
-                            window: plural(
-                              locale,
-                              daysToConfirm(settlement.initiated_at),
-                              t.group.daysToConfirm,
-                            ),
-                          })}
+                          {plural(locale, pendingForMe.length, t.group.peopleSaidPaid)}
                         </Text>
-
                         <MoneyText
-                          amount={BigInt(settlement.amount)}
-                          currency={settlement.currency}
+                          amount={pendingForMe.reduce(
+                            (sum, settlement) => sum + BigInt(settlement.amount),
+                            0n,
+                          )}
+                          currency={currency}
                           locale={locale}
                           variant="display"
                           tone="default"
                           style={{ color: theme.color.onBrand }}
                         />
-
                         <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
                           <Pressable
-                            onPress={() => confirmSettlement.mutate(settlement.id)}
-                            disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                            onPress={() => router.push(`/group/${groupId}/pending`)}
                             accessibilityRole="button"
-                            accessibilityLabel={t.group.confirmReceived}
+                            accessibilityLabel={fill(t.group.reviewClaims, {
+                              count: pendingForMe.length,
+                            })}
                             style={({ pressed }) => ({
-                              flex: 1,
                               flexDirection: 'row',
                               alignItems: 'center',
-                              justifyContent: 'center',
                               gap: theme.spacing.xs,
                               paddingVertical: theme.spacing.sm + 2,
                               paddingHorizontal: theme.spacing.lg,
@@ -1263,58 +1368,22 @@ export default function GroupScreen() {
                               opacity: pressed ? 0.85 : 1,
                             })}
                           >
-                            <Ionicons name="checkmark" size={iconSize.lg} color={heroGradient[0]} />
                             <Text
                               variant="subheading"
                               style={{ color: heroGradient[0] }}
                               numberOfLines={1}
                             >
-                              {t.group.confirmReceived}
+                              {fill(t.group.reviewClaims, { count: pendingForMe.length })}
                             </Text>
-                          </Pressable>
-                          {/* The decline, visible rather than in an overflow.
-                              Translucent with a hairline so it reads as the
-                              secondary answer, not a second primary; the prompt
-                              behind it is the real confirmation. */}
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={t.group.rejectSettlement}
-                            disabled={confirmSettlement.isPending || disputeSettlement.isPending}
-                            onPress={() =>
-                              Alert.alert(
-                                t.group.rejectTitle,
-                                fill(t.group.rejectBody, {
-                                  name: nameOf(settlement.from_member_id),
-                                }),
-                                [
-                                  { text: t.group.keep, style: 'cancel' },
-                                  {
-                                    text: t.group.rejectConfirm,
-                                    style: 'destructive',
-                                    onPress: () => disputeSettlement.mutate(settlement.id),
-                                  },
-                                ],
-                              )
-                            }
-                            style={({ pressed }) => ({
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              paddingVertical: theme.spacing.sm + 2,
-                              paddingHorizontal: theme.spacing.lg,
-                              borderRadius: theme.radius.pill,
-                              borderWidth: 1,
-                              borderColor: 'rgba(255, 255, 255, 0.5)',
-                              opacity: pressed ? 0.7 : 1,
-                            })}
-                          >
-                            <Text variant="subheading" tone="onBrand" numberOfLines={1}>
-                              {t.group.rejectSettlement}
-                            </Text>
+                            <Ionicons
+                              name="chevron-forward"
+                              size={iconSize.md}
+                              color={heroGradient[0]}
+                            />
                           </Pressable>
                         </Row>
                       </View>
-                    ))}
+                    ) : null}
                   </ScrollView>
 
                   {/* The dot pager — the "swipe me" signal, only when a claim is
@@ -1327,7 +1396,9 @@ export default function GroupScreen() {
                         marginTop: theme.spacing.md,
                       }}
                     >
-                      {Array.from({ length: pendingForMe.length + 1 }).map((_, index) => (
+                      {/* Two dots whenever anything is pending: the balance, and
+                        the single claim or the summary of many. */}
+                      {Array.from({ length: 2 }).map((_, index) => (
                         <View
                           key={index}
                           style={{

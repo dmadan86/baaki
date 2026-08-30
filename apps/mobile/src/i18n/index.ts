@@ -1461,6 +1461,16 @@ export interface UiStrings {
      *  the payer, `{window}` the localized "N days to confirm". */
     saysTheyPaidYouWindow: string;
     daysToConfirm: PluralForms;
+    /** Summary of many incoming claims: "{n} person/people say they paid you". */
+    peopleSaidPaid: PluralForms;
+    /** Opens the full pending list; `{count}` is how many claims. */
+    reviewClaims: string;
+    /** The pending-confirmations screen: title, per-count subtitle, bulk action. */
+    pendingTitle: string;
+    claimsCount: PluralForms;
+    confirmAll: string;
+    /** Prompt body for Confirm all; `{count}` is how many. */
+    confirmAllBody: string;
     autoConfirms: string;
     hideDeleted: string;
     showDeleted: string;
@@ -3527,6 +3537,15 @@ const en: UiStrings = {
     saysTheyPaidYou: '{name} says they paid you',
     saysTheyPaidYouWindow: '{name} says they paid you ({window})',
     daysToConfirm: { one: '{n} day to confirm', other: '{n} days to confirm' },
+    peopleSaidPaid: {
+      one: '{n} person says they paid you',
+      other: '{n} people say they paid you',
+    },
+    reviewClaims: 'Review {count}',
+    pendingTitle: 'Pending confirmations',
+    claimsCount: { one: '{n} claim', other: '{n} claims' },
+    confirmAll: 'Confirm all',
+    confirmAllBody: 'Mark all {count} payments as received?',
     autoConfirms: 'Auto-confirms in 7 days if nobody responds.',
     hideDeleted: 'Hide deleted',
     showDeleted: 'Show deleted',
@@ -5637,6 +5656,15 @@ const ta: UiStrings = {
     saysTheyPaidYou: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்',
     saysTheyPaidYouWindow: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார் ({window})',
     daysToConfirm: { one: 'உறுதிக்கு {n} நாள்', other: 'உறுதிக்கு {n} நாட்கள்' },
+    peopleSaidPaid: {
+      one: '{n} நபர் உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்',
+      other: '{n} பேர் உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்கள்',
+    },
+    reviewClaims: '{count} ஐ மறுபார்வை செய்',
+    pendingTitle: 'நிலுவை உறுதிப்படுத்தல்கள்',
+    claimsCount: { one: '{n} உரிமைகோரல்', other: '{n} உரிமைகோரல்கள்' },
+    confirmAll: 'அனைத்தையும் உறுதிப்படுத்து',
+    confirmAllBody: 'அனைத்து {count} பணமும் கிடைத்ததாகக் குறிக்கவா?',
     autoConfirms: 'யாரும் பதிலளிக்காவிட்டால் 7 நாட்களில் தானாகவே உறுதியாகும்.',
     hideDeleted: 'நீக்கியவற்றை மறை',
     showDeleted: 'நீக்கியவற்றைக் காட்டு',
@@ -7753,6 +7781,15 @@ const hi: UiStrings = {
     saysTheyPaidYou: '{name} कहते हैं कि उन्होंने आपको भुगतान किया',
     saysTheyPaidYouWindow: '{name} कहते हैं कि उन्होंने आपको भुगतान किया ({window})',
     daysToConfirm: { one: 'पुष्टि के लिए {n} दिन', other: 'पुष्टि के लिए {n} दिन' },
+    peopleSaidPaid: {
+      one: '{n} व्यक्ति कहता है कि उसने आपको भुगतान किया',
+      other: '{n} लोग कहते हैं कि उन्होंने आपको भुगतान किया',
+    },
+    reviewClaims: '{count} की समीक्षा करें',
+    pendingTitle: 'लंबित पुष्टियाँ',
+    claimsCount: { one: '{n} दावा', other: '{n} दावे' },
+    confirmAll: 'सभी पुष्ट करें',
+    confirmAllBody: 'सभी {count} भुगतान प्राप्त के रूप में चिह्नित करें?',
     autoConfirms: 'कोई जवाब न दे तो 7 दिन में अपने आप पुष्ट हो जाएगा।',
     hideDeleted: 'हटाए हुए छिपाएँ',
     showDeleted: 'हटाए हुए दिखाएँ',
@@ -9889,6 +9926,26 @@ const ar: UiStrings = {
       many: '{n} يومًا للتأكيد',
       other: '{n} يوم للتأكيد',
     },
+    peopleSaidPaid: {
+      zero: '{n} شخص يقول إنه دفع لك',
+      one: 'شخص واحد يقول إنه دفع لك',
+      two: 'شخصان يقولان إنهما دفعا لك',
+      few: '{n} أشخاص يقولون إنهم دفعوا لك',
+      many: '{n} شخصًا يقولون إنهم دفعوا لك',
+      other: '{n} شخص يقولون إنهم دفعوا لك',
+    },
+    reviewClaims: 'مراجعة {count}',
+    pendingTitle: 'التأكيدات المعلّقة',
+    claimsCount: {
+      zero: '{n} مطالبة',
+      one: 'مطالبة واحدة',
+      two: 'مطالبتان',
+      few: '{n} مطالبات',
+      many: '{n} مطالبة',
+      other: '{n} مطالبة',
+    },
+    confirmAll: 'تأكيد الكل',
+    confirmAllBody: 'وضع علامة استلام على كل الدفعات ({count})؟',
     autoConfirms: 'يتأكد تلقائيًا خلال 7 أيام إن لم يردّ أحد.',
     hideDeleted: 'إخفاء المحذوف',
     showDeleted: 'إظهار المحذوف',
