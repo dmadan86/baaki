@@ -218,7 +218,7 @@ export default function PendingConfirmationsScreen() {
                 }
               />
               <View style={{ paddingTop: theme.spacing.xl, alignItems: 'center' }}>
-                <Button label={t.done} variant="secondary" onPress={() => router.back()} />
+                <Button label={t.common.done} variant="secondary" onPress={() => router.back()} />
               </View>
             </View>
           }

@@ -1,18 +1,9 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import {
-  Alert,
-  I18nManager,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  View,
-} from 'react-native';
+import { Alert, Pressable, RefreshControl, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import {
@@ -22,7 +13,6 @@ import {
   Card,
   directionalIcon,
   EmptyState,
-  Gradient,
   iconSize,
   MoneyText,
   Row,
@@ -36,8 +26,6 @@ import {
 import {
   memberLookup,
   useCancelSettlement,
-  useConfirmSettlement,
-  useDisputeSettlement,
   useGroup,
   useDisputes,
   useGroupLedger,
@@ -61,7 +49,6 @@ import { useBlockedUsers } from '@/data/blocked';
 import {
   actorName,
   displayName,
-  groupLabel,
   isBlockedMember,
   isGhost,
   type ActivityActor,
@@ -74,10 +61,10 @@ import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { CategoryBadge } from '@/components/Category';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
-import { GroupPhoto } from '@/components/GroupPhoto';
+import { GroupHero } from '@/components/GroupHero';
 import { PendingMark } from '@/components/PendingMark';
 import { SettlementProof } from '@/components/SettlementProof';
-import { SyncBanner, SyncStatusIcon } from '@/components/SyncBanner';
+import { SyncBanner } from '@/components/SyncBanner';
 import { useSync } from '@/sync';
 import { usePullRefresh } from '@/lib/pullRefresh';
 
@@ -88,84 +75,12 @@ enum Tab {
 }
 
 /**
- * Which hero slide a paging scroll has landed on, correct in both directions.
- *
- * Android reports a horizontal ScrollView's offset from the physical left even
- * under RTL, so the logical first slide sits at the far right (the max offset);
- * iOS handles RTL natively and keeps the offset logical. So the Android-RTL case
- * — and only that one — is flipped, measuring from the content's logical start
- * so the dot pager tracks the same slide the reader is looking at.
- */
-function heroPageOf(event: {
-  contentOffset: { x: number };
-  layoutMeasurement: { width: number };
-  contentSize: { width: number };
-}): number {
-  const width = event.layoutMeasurement.width;
-  if (width <= 0) return 0;
-  const flip = Platform.OS === 'android' && I18nManager.isRTL;
-  const maxOffset = Math.max(0, event.contentSize.width - width);
-  const fromStart = flip ? maxOffset - event.contentOffset.x : event.contentOffset.x;
-  return Math.max(0, Math.round(fromStart / width));
-}
-
-/**
- * Whole days left before a pending settlement auto-confirms — the 7-day window
- * the server's `baaki_auto_confirm_settlements` job enforces, counted from when
- * the payer recorded it. Never below one: a claim that has run past the window
- * is auto-confirmed by the cron and has already left the pending list, so the
- * countdown only ever shows a live figure.
- */
-const AUTO_CONFIRM_DAYS = 7;
-function daysToConfirm(initiatedIso: string, now: number = Date.now()): number {
-  const parsed = Date.parse(initiatedIso);
-  if (!Number.isFinite(parsed)) return AUTO_CONFIRM_DAYS;
-  const left = AUTO_CONFIRM_DAYS * 86_400_000 - (now - parsed);
-  return Math.max(1, Math.ceil(left / 86_400_000));
-}
-
-/**
  * The nudge on a balances row, for somebody who owes this group money.
  *
  * The same one-a-day server rule the Friends tab leans on (ADR-010), and the
  * same manner: once tapped it stops offering, and a rate limit reads as "already
  * nudged today" rather than as an error. Nobody should be told off for asking.
  */
-/**
- * One round translucent action on the group hero — a white glyph on a dim
- * white disc, the same on-panel circle the dashboard hero uses. Icon-only;
- * its name rides on the accessibility label.
- */
-function HeroActionCircle({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.18)',
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Ionicons name={icon} size={iconSize.xl} color={theme.color.onBrand} />
-    </Pressable>
-  );
-}
-
 function RemindChip({
   groupId,
   memberId,
@@ -529,7 +444,6 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
 
 export default function GroupScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const clearance = useScreenClearance(112);
   const pull = usePullRefresh();
   const { t, locale } = useStrings();
@@ -543,13 +457,6 @@ export default function GroupScreen() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tripNudgeDismissed, setTripNudgeDismissed] = useState(false);
-  // The hero deck's measured slide width and the landed page, so the balance and
-  // each pending "they paid you" claim can ride as snapping slides without the
-  // hero changing height. Zero until the first layout; the slides fall back to
-  // content width for that one frame.
-  const [heroSlideW, setHeroSlideW] = useState(0);
-  const [heroPage, setHeroPage] = useState(0);
-  const heroDeckRef = useRef<ScrollView>(null);
 
   // Live updates from the other devices in this group (TDR §1).
   useGroupRealtime(groupId);
@@ -569,9 +476,7 @@ export default function GroupScreen() {
       ),
     [disputes.data],
   );
-  const confirmSettlement = useConfirmSettlement(groupId);
   const cancelSettlement = useCancelSettlement(groupId);
-  const disputeSettlement = useDisputeSettlement(groupId);
 
   const { blockedIds } = useBlockedUsers();
   const lookup = useMemo(() => memberLookup(members.data), [members.data]);
@@ -721,13 +626,16 @@ export default function GroupScreen() {
       : ledger.myBalance < 0n
         ? theme.gradient.negative
         : theme.gradient.brand;
-  const visibleExpenses = expenses.rows.filter((expense) => showDeleted || !expense.deleted_at);
+  const visibleExpenses = useMemo(
+    () => expenses.rows.filter((expense) => showDeleted || !expense.deleted_at),
+    [expenses.rows, showDeleted],
+  );
   // The show/hide-deleted toggle only earns its place once something has been
   // deleted. On a group whose ledger has never lost a row it is an answer to a
   // question nobody asked.
   const hasDeleted = expenses.rows.some((expense) => Boolean(expense.deleted_at));
   // The feed, cut into month sections for skimming (Splitwise/Settle Up).
-  const expenseSections = groupExpensesByMonth(visibleExpenses);
+  const expenseSections = useMemo(() => groupExpensesByMonth(visibleExpenses), [visibleExpenses]);
   // A refused change waiting on this group — the one sync state that still earns
   // an inline card, because it needs a decision the header glyph cannot offer.
   const refusedHere = rejected.some((item) => item.groupId === groupId);
@@ -771,40 +679,51 @@ export default function GroupScreen() {
   // The month sections flattened into one recyclable list: a heading item per
   // month, then its expense rows. FlashList mounts only what is on screen, so a
   // group with a thousand bills opens as fast as one with ten.
-  const feedItems: FeedItem[] = [];
-  for (const section of expenseSections) {
-    if (section.date) {
-      feedItems.push({ kind: 'month', key: `month-${section.key}`, date: section.date });
+  const feedItems: FeedItem[] = useMemo(() => {
+    const items: FeedItem[] = [];
+    for (const section of expenseSections) {
+      if (section.date) {
+        items.push({ kind: 'month', key: `month-${section.key}`, date: section.date });
+      }
+      section.rows.forEach((expense, index) =>
+        items.push({
+          kind: 'expense',
+          key: expense.id,
+          expense,
+          isLast: index === section.rows.length - 1,
+        }),
+      );
     }
-    section.rows.forEach((expense, index) =>
-      feedItems.push({
-        kind: 'expense',
-        key: expense.id,
-        expense,
-        isLast: index === section.rows.length - 1,
-      }),
-    );
-  }
+    return items;
+  }, [expenseSections]);
 
   // The Balances and Activity tabs ride the same virtualized list as Expenses,
   // one FeedItem per row, so switching to them renders only the handful of rows
   // on screen — not every member and every activity entry at once, which is what
   // made the tab switch stall (they were mapped in full inside the list footer).
   const memberList = members.data ?? [];
-  const balanceItems: FeedItem[] = memberList.map((member, index) => ({
-    kind: 'balance',
-    key: `balance-${member.id}`,
-    member,
-    balance: ledger.balances.get(member.id) ?? 0n,
-    isLast: index === memberList.length - 1,
-  }));
+  const balanceItems: FeedItem[] = useMemo(
+    () =>
+      memberList.map((member, index) => ({
+        kind: 'balance',
+        key: `balance-${member.id}`,
+        member,
+        balance: ledger.balances.get(member.id) ?? 0n,
+        isLast: index === memberList.length - 1,
+      })),
+    [memberList, ledger.balances],
+  );
   const activityList = activity.data ?? [];
-  const activityItems: FeedItem[] = activityList.map((entry, index) => ({
-    kind: 'activity',
-    key: `activity-${entry.id}`,
-    entry,
-    isLast: index === activityList.length - 1,
-  }));
+  const activityItems: FeedItem[] = useMemo(
+    () =>
+      activityList.map((entry, index) => ({
+        kind: 'activity',
+        key: `activity-${entry.id}`,
+        entry,
+        isLast: index === activityList.length - 1,
+      })),
+    [activityList],
+  );
   // The rows the list shows for the current tab. One source for `data`, so the
   // three tabs are the same list with different contents rather than a list plus
   // two hand-rolled footers.
@@ -985,6 +904,19 @@ export default function GroupScreen() {
       {/* No entrance re-animation: the screen already slides in natively, and a
           second scale-up on top of that read as an unwanted zoom. */}
       <View style={{ flex: 1 }}>
+        <GroupHero
+          groupId={groupId}
+          group={group.data}
+          members={members.data ?? []}
+          profileId={profile?.id ?? null}
+          currency={currency}
+          myBalance={ledger.myBalance}
+          pending={ledger.pending}
+          pendingForMe={pendingForMe}
+          heroGradient={heroGradient}
+          nameOf={nameOf}
+          onOpenMenu={() => setMenuOpen(true)}
+        />
         <FlashList
           data={listData}
           extraData={`${tab}|${showDeleted}|${locale}`}
@@ -1011,410 +943,6 @@ export default function GroupScreen() {
           }
           ListHeaderComponent={
             <View style={{ marginBottom: theme.spacing.xl }}>
-              {/* The group hero, built like the dashboard's: one saturated panel
-                  running edge to edge and up under the status bar, carrying the
-                  top controls, the balance, and its two actions on the group's
-                  verdict colour. It breaks out of the list's horizontal padding
-                  with a negative margin, then re-pads itself, and rounds only its
-                  bottom corners so it reads as the top of the screen. */}
-              <Gradient
-                radius={0}
-                colors={heroGradient}
-                style={{
-                  marginHorizontal: -theme.spacing.xl,
-                  paddingTop: insets.top + theme.spacing.md,
-                  paddingHorizontal: theme.spacing.xl,
-                  // Match the dashboard hero's bottom padding so the three heroes
-                  // are the same height (dashboard is lg, not xl).
-                  paddingBottom: theme.spacing.lg,
-                  borderBottomLeftRadius: theme.radius.xxl,
-                  borderBottomRightRadius: theme.radius.xxl,
-                  gap: theme.spacing.xl,
-                }}
-              >
-                <Row style={{ gap: theme.spacing.sm }}>
-                  {/* Just the arrow and its tap target — no chip behind it. */}
-                  <Pressable
-                    onPress={() => router.back()}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.common.back}
-                    hitSlop={10}
-                  >
-                    <Ionicons
-                      name={directionalIcon('chevron-back')}
-                      size={iconSize.xxl}
-                      color={theme.color.onBrand}
-                    />
-                  </Pressable>
-                  {/* The photo-and-name cluster is itself the way into settings, the
-              way tapping a chat's title bar opens its info in WhatsApp — so the
-              name is a tap target, not just a label above a menu. */}
-                  <Pressable
-                    onPress={() => router.push(`/group/${groupId}/settings`)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.group.settings}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      flexDirection: 'row',
-                      gap: theme.spacing.md,
-                      justifyContent: 'flex-start',
-                      alignItems: 'center',
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <GroupPhoto
-                      photoPath={group.data.photo_path}
-                      emoji={group.data.cover_emoji}
-                      size={38}
-                    />
-                    <View style={{ flexShrink: 1 }}>
-                      <Text variant="heading" tone="onBrand" numberOfLines={1}>
-                        {groupLabel(group.data, members.data ?? [], profile?.id)}
-                      </Text>
-                      <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-                        {plural(locale, members.data?.length ?? 0, t.memberCount)}
-                      </Text>
-                    </View>
-                  </Pressable>
-                  {/* The sync state as one glyph, the same control the dashboard header
-              carries: a quiet cloud for unsent changes or no connection, a
-              turning arrow mid-sync, a red mark for a refused change — nothing
-              when all is well. It replaces the wide banner this screen used to
-              stack under the header. */}
-                  <SyncStatusIcon onBrand groupId={groupId} />
-                  {/* A code to hand the group across the table. The whole invite
-              surface — link, share sheet and the QR to point a camera at — lives
-              one tap behind this, so it is the fast way to get somebody in
-              without typing a thing. */}
-                  <Pressable
-                    onPress={() => router.push(`/group/${groupId}/invite`)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.people.inviteTitle}
-                    hitSlop={10}
-                  >
-                    <Ionicons
-                      name="qr-code-outline"
-                      size={iconSize.xl}
-                      color={theme.color.onBrand}
-                    />
-                  </Pressable>
-                  {/* Planner, spending and settings live behind this one menu; planner
-              only shows for a trip. Bare icon, no chip, to match the back
-              arrow. */}
-                  <Pressable
-                    onPress={() => setMenuOpen(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.group.more}
-                    hitSlop={10}
-                  >
-                    <Ionicons
-                      name="ellipsis-vertical"
-                      size={iconSize.xl}
-                      color={theme.color.onBrand}
-                    />
-                  </Pressable>
-                </Row>
-
-                {/* The hero deck. The balance and its actions lead; each pending
-                  "they paid you" claim rides as its own snapping slide, so a
-                  confirmation happens up here on the wash instead of a full-page
-                  card in the body. Every slide fills the hero's measured inner
-                  width, so the block keeps the balance slide's height and the
-                  header above is untouched. With nothing pending it is a single
-                  static slide — the hero exactly as before. */}
-                <View onLayout={(event) => setHeroSlideW(event.nativeEvent.layout.width)}>
-                  <ScrollView
-                    ref={heroDeckRef}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    scrollEnabled={pendingForMe.length > 0 && heroSlideW > 0}
-                    onMomentumScrollEnd={(event) => setHeroPage(heroPageOf(event.nativeEvent))}
-                    onContentSizeChange={() => {
-                      // Confirming or rejecting a claim drops it from the deck,
-                      // shrinking the content. If the view was parked on that
-                      // now-gone slide it would show blank — snap back to the
-                      // balance slide whenever the landed page no longer exists.
-                      // A content-size callback, not an effect, so it stays out
-                      // of render and off the hooks path.
-                      // The deck is at most two slides now (balance + the single
-                      // claim or the many-claims summary), so the last valid page
-                      // is 1 while anything is pending, 0 otherwise.
-                      const maxPage = pendingForMe.length > 0 ? 1 : 0;
-                      if (heroPage > maxPage) {
-                        heroDeckRef.current?.scrollTo({ x: 0, animated: false });
-                        setHeroPage(0);
-                      }
-                    }}
-                  >
-                    {/* Slide 0 — the balance said as a verdict, then the three
-                      hero actions (white "add expense" pill, settle, who-pays). */}
-                    <View style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}>
-                      <Row style={{ justifyContent: 'space-between' }}>
-                        <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-                          {ledger.myBalance === 0n
-                            ? t.allSettled
-                            : ledger.myBalance > 0n
-                              ? t.youAreOwed
-                              : t.youOwe}
-                        </Text>
-                        {ledger.pending !== 0n ? (
-                          <Badge label={t.pendingConfirmation} tone="brand" />
-                        ) : null}
-                      </Row>
-
-                      <MoneyText
-                        amount={ledger.myBalance}
-                        currency={currency}
-                        locale={locale}
-                        mode="balance"
-                        variant="display"
-                        tone="default"
-                        style={{ color: theme.color.onBrand }}
-                      />
-
-                      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                        <Pressable
-                          onPress={() => router.push(`/group/${groupId}/add-expense`)}
-                          accessibilityRole="button"
-                          accessibilityLabel={t.addExpense}
-                          style={({ pressed }) => ({
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: theme.spacing.xs,
-                            paddingVertical: theme.spacing.sm + 2,
-                            paddingHorizontal: theme.spacing.lg,
-                            borderRadius: theme.radius.pill,
-                            backgroundColor: '#FFFFFF',
-                            opacity: pressed ? 0.85 : 1,
-                          })}
-                        >
-                          <Ionicons name="add" size={iconSize.lg} color={heroGradient[0]} />
-                          <Text
-                            variant="subheading"
-                            style={{ color: heroGradient[0] }}
-                            numberOfLines={1}
-                          >
-                            {t.addExpense}
-                          </Text>
-                        </Pressable>
-                        <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
-                          <HeroActionCircle
-                            icon="swap-horizontal"
-                            label={t.settleUp}
-                            onPress={() => router.push(`/group/${groupId}/settle`)}
-                          />
-                          <HeroActionCircle
-                            icon="git-network-outline"
-                            label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                            onPress={() => router.push(`/group/${groupId}/simplify`)}
-                          />
-                        </Row>
-                      </Row>
-                    </View>
-
-                    {/* Exactly one claim gets the fast path — its amount on the
-                      wash and the two answers inline (a solid white "Confirm
-                      received" and a translucent "Not received"). Two or more
-                      collapse to a single summary slide below rather than a stack
-                      of cards nobody wants to swipe through. Neither answer moves
-                      a balance; both retire the claim. */}
-                    {pendingForMe.length === 1 &&
-                      pendingForMe.map((settlement) => (
-                        <View
-                          key={settlement.id}
-                          style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}
-                        >
-                          <Text
-                            variant="caption"
-                            tone="onBrand"
-                            style={{ opacity: 0.85 }}
-                            numberOfLines={1}
-                          >
-                            {fill(t.group.saysTheyPaidYouWindow, {
-                              name: nameOf(settlement.from_member_id),
-                              window: plural(
-                                locale,
-                                daysToConfirm(settlement.initiated_at),
-                                t.group.daysToConfirm,
-                              ),
-                            })}
-                          </Text>
-
-                          <MoneyText
-                            amount={BigInt(settlement.amount)}
-                            currency={settlement.currency}
-                            locale={locale}
-                            variant="display"
-                            tone="default"
-                            style={{ color: theme.color.onBrand }}
-                          />
-
-                          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                            <Pressable
-                              onPress={() => confirmSettlement.mutate(settlement.id)}
-                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
-                              accessibilityRole="button"
-                              accessibilityLabel={t.group.confirmReceived}
-                              style={({ pressed }) => ({
-                                flex: 1,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: theme.spacing.xs,
-                                paddingVertical: theme.spacing.sm + 2,
-                                paddingHorizontal: theme.spacing.lg,
-                                borderRadius: theme.radius.pill,
-                                backgroundColor: '#FFFFFF',
-                                opacity: pressed ? 0.85 : 1,
-                              })}
-                            >
-                              <Ionicons
-                                name="checkmark"
-                                size={iconSize.lg}
-                                color={heroGradient[0]}
-                              />
-                              <Text
-                                variant="subheading"
-                                style={{ color: heroGradient[0] }}
-                                numberOfLines={1}
-                              >
-                                {t.group.confirmReceived}
-                              </Text>
-                            </Pressable>
-                            {/* The decline, visible rather than in an overflow.
-                              Translucent with a hairline so it reads as the
-                              secondary answer, not a second primary; the prompt
-                              behind it is the real confirmation. */}
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={t.group.rejectSettlement}
-                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
-                              onPress={() =>
-                                Alert.alert(
-                                  t.group.rejectTitle,
-                                  fill(t.group.rejectBody, {
-                                    name: nameOf(settlement.from_member_id),
-                                  }),
-                                  [
-                                    { text: t.group.keep, style: 'cancel' },
-                                    {
-                                      text: t.group.rejectConfirm,
-                                      style: 'destructive',
-                                      onPress: () => disputeSettlement.mutate(settlement.id),
-                                    },
-                                  ],
-                                )
-                              }
-                              style={({ pressed }) => ({
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                paddingVertical: theme.spacing.sm + 2,
-                                paddingHorizontal: theme.spacing.lg,
-                                borderRadius: theme.radius.pill,
-                                borderWidth: 1,
-                                borderColor: 'rgba(255, 255, 255, 0.5)',
-                                opacity: pressed ? 0.7 : 1,
-                              })}
-                            >
-                              <Text variant="subheading" tone="onBrand" numberOfLines={1}>
-                                {t.group.rejectSettlement}
-                              </Text>
-                            </Pressable>
-                          </Row>
-                        </View>
-                      ))}
-
-                    {/* Two or more claims: one summary slide — how many people,
-                      the total on the wash, and a Review that opens the full
-                      list where each can be confirmed or rejected in one place. */}
-                    {pendingForMe.length >= 2 ? (
-                      <View style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}>
-                        <Text
-                          variant="caption"
-                          tone="onBrand"
-                          style={{ opacity: 0.85 }}
-                          numberOfLines={1}
-                        >
-                          {plural(locale, pendingForMe.length, t.group.peopleSaidPaid)}
-                        </Text>
-                        <MoneyText
-                          amount={pendingForMe.reduce(
-                            (sum, settlement) => sum + BigInt(settlement.amount),
-                            0n,
-                          )}
-                          currency={currency}
-                          locale={locale}
-                          variant="display"
-                          tone="default"
-                          style={{ color: theme.color.onBrand }}
-                        />
-                        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                          <Pressable
-                            onPress={() => router.push(`/group/${groupId}/pending`)}
-                            accessibilityRole="button"
-                            accessibilityLabel={fill(t.group.reviewClaims, {
-                              count: pendingForMe.length,
-                            })}
-                            style={({ pressed }) => ({
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: theme.spacing.xs,
-                              paddingVertical: theme.spacing.sm + 2,
-                              paddingHorizontal: theme.spacing.lg,
-                              borderRadius: theme.radius.pill,
-                              backgroundColor: '#FFFFFF',
-                              opacity: pressed ? 0.85 : 1,
-                            })}
-                          >
-                            <Text
-                              variant="subheading"
-                              style={{ color: heroGradient[0] }}
-                              numberOfLines={1}
-                            >
-                              {fill(t.group.reviewClaims, { count: pendingForMe.length })}
-                            </Text>
-                            <Ionicons
-                              name="chevron-forward"
-                              size={iconSize.md}
-                              color={heroGradient[0]}
-                            />
-                          </Pressable>
-                        </Row>
-                      </View>
-                    ) : null}
-                  </ScrollView>
-
-                  {/* The dot pager — the "swipe me" signal, only when a claim is
-                    waiting. A wide pill marks the landed slide over faint dots. */}
-                  {pendingForMe.length > 0 ? (
-                    <Row
-                      style={{
-                        justifyContent: 'center',
-                        gap: 6,
-                        marginTop: theme.spacing.md,
-                      }}
-                    >
-                      {/* Two dots whenever anything is pending: the balance, and
-                        the single claim or the summary of many. */}
-                      {Array.from({ length: 2 }).map((_, index) => (
-                        <View
-                          key={index}
-                          style={{
-                            width: heroPage === index ? 18 : 6,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: theme.color.onBrand,
-                            opacity: heroPage === index ? 1 : 0.4,
-                          }}
-                        />
-                      ))}
-                    </Row>
-                  ) : null}
-                </View>
-              </Gradient>
-
               {/* The white body beneath the hero: alerts, shared receipts, pending
                   settlements, then the three-face tab bar. */}
               <View style={{ gap: theme.spacing.xl, marginTop: theme.spacing.xl }}>
