@@ -2,7 +2,15 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { Alert, Pressable, RefreshControl, View } from 'react-native';
+import {
+  Alert,
+  I18nManager,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -77,6 +85,28 @@ enum Tab {
   Expenses = 'expenses',
   Balances = 'balances',
   Activity = 'activity',
+}
+
+/**
+ * Which hero slide a paging scroll has landed on, correct in both directions.
+ *
+ * Android reports a horizontal ScrollView's offset from the physical left even
+ * under RTL, so the logical first slide sits at the far right (the max offset);
+ * iOS handles RTL natively and keeps the offset logical. So the Android-RTL case
+ * — and only that one — is flipped, measuring from the content's logical start
+ * so the dot pager tracks the same slide the reader is looking at.
+ */
+function heroPageOf(event: {
+  contentOffset: { x: number };
+  layoutMeasurement: { width: number };
+  contentSize: { width: number };
+}): number {
+  const width = event.layoutMeasurement.width;
+  if (width <= 0) return 0;
+  const flip = Platform.OS === 'android' && I18nManager.isRTL;
+  const maxOffset = Math.max(0, event.contentSize.width - width);
+  const fromStart = flip ? maxOffset - event.contentOffset.x : event.contentOffset.x;
+  return Math.max(0, Math.round(fromStart / width));
 }
 
 /**
@@ -498,6 +528,12 @@ export default function GroupScreen() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tripNudgeDismissed, setTripNudgeDismissed] = useState(false);
+  // The hero deck's measured slide width and the landed page, so the balance and
+  // each pending "they paid you" claim can ride as snapping slides without the
+  // hero changing height. Zero until the first layout; the slides fall back to
+  // content width for that one frame.
+  const [heroSlideW, setHeroSlideW] = useState(0);
+  const [heroPage, setHeroPage] = useState(0);
 
   // Live updates from the other devices in this group (TDR §1).
   useGroupRealtime(groupId);
@@ -1063,74 +1099,223 @@ export default function GroupScreen() {
                   </Pressable>
                 </Row>
 
-                {/* The balance — the group's standing, said as a verdict. A zero is
-                  the good outcome and gets its own words, not "owed ₹0". White on
-                  the wash, the same as the dashboard's hero number. */}
-                <View style={{ gap: theme.spacing.lg }}>
-                  <Row style={{ justifyContent: 'space-between' }}>
-                    <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-                      {ledger.myBalance === 0n
-                        ? t.allSettled
-                        : ledger.myBalance > 0n
-                          ? t.youAreOwed
-                          : t.youOwe}
-                    </Text>
-                    {ledger.pending !== 0n ? (
-                      <Badge label={t.pendingConfirmation} tone="brand" />
-                    ) : null}
-                  </Row>
+                {/* The hero deck. The balance and its actions lead; each pending
+                  "they paid you" claim rides as its own snapping slide, so a
+                  confirmation happens up here on the wash instead of a full-page
+                  card in the body. Every slide fills the hero's measured inner
+                  width, so the block keeps the balance slide's height and the
+                  header above is untouched. With nothing pending it is a single
+                  static slide — the hero exactly as before. */}
+                <View onLayout={(event) => setHeroSlideW(event.nativeEvent.layout.width)}>
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    scrollEnabled={pendingForMe.length > 0 && heroSlideW > 0}
+                    onMomentumScrollEnd={(event) => setHeroPage(heroPageOf(event.nativeEvent))}
+                  >
+                    {/* Slide 0 — the balance said as a verdict, then the three
+                      hero actions (white "add expense" pill, settle, who-pays). */}
+                    <View style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}>
+                      <Row style={{ justifyContent: 'space-between' }}>
+                        <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+                          {ledger.myBalance === 0n
+                            ? t.allSettled
+                            : ledger.myBalance > 0n
+                              ? t.youAreOwed
+                              : t.youOwe}
+                        </Text>
+                        {ledger.pending !== 0n ? (
+                          <Badge label={t.pendingConfirmation} tone="brand" />
+                        ) : null}
+                      </Row>
 
-                  <MoneyText
-                    amount={ledger.myBalance}
-                    currency={currency}
-                    locale={locale}
-                    mode="balance"
-                    variant="display"
-                    tone="default"
-                    style={{ color: theme.color.onBrand }}
-                  />
+                      <MoneyText
+                        amount={ledger.myBalance}
+                        currency={currency}
+                        locale={locale}
+                        mode="balance"
+                        variant="display"
+                        tone="default"
+                        style={{ color: theme.color.onBrand }}
+                      />
 
-                  {/* Three actions on the hero, like the dashboard: a white
-                    "add expense" pill leads (the one primary), then two
-                    translucent circles — settle up and who-pays-whom. */}
-                  <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                    <Pressable
-                      onPress={() => router.push(`/group/${groupId}/add-expense`)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t.addExpense}
-                      style={({ pressed }) => ({
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: theme.spacing.xs,
-                        paddingVertical: theme.spacing.sm + 2,
-                        paddingHorizontal: theme.spacing.lg,
-                        borderRadius: theme.radius.pill,
-                        backgroundColor: '#FFFFFF',
-                        opacity: pressed ? 0.85 : 1,
-                      })}
-                    >
-                      <Ionicons name="add" size={iconSize.lg} color={heroGradient[0]} />
-                      <Text
-                        variant="subheading"
-                        style={{ color: heroGradient[0] }}
-                        numberOfLines={1}
+                      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                        <Pressable
+                          onPress={() => router.push(`/group/${groupId}/add-expense`)}
+                          accessibilityRole="button"
+                          accessibilityLabel={t.addExpense}
+                          style={({ pressed }) => ({
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: theme.spacing.xs,
+                            paddingVertical: theme.spacing.sm + 2,
+                            paddingHorizontal: theme.spacing.lg,
+                            borderRadius: theme.radius.pill,
+                            backgroundColor: '#FFFFFF',
+                            opacity: pressed ? 0.85 : 1,
+                          })}
+                        >
+                          <Ionicons name="add" size={iconSize.lg} color={heroGradient[0]} />
+                          <Text
+                            variant="subheading"
+                            style={{ color: heroGradient[0] }}
+                            numberOfLines={1}
+                          >
+                            {t.addExpense}
+                          </Text>
+                        </Pressable>
+                        <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
+                          <HeroActionCircle
+                            icon="swap-horizontal"
+                            label={t.settleUp}
+                            onPress={() => router.push(`/group/${groupId}/settle`)}
+                          />
+                          <HeroActionCircle
+                            icon="git-network-outline"
+                            label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
+                            onPress={() => router.push(`/group/${groupId}/simplify`)}
+                          />
+                        </Row>
+                      </Row>
+                    </View>
+
+                    {/* One slide per incoming claim: the amount on the wash, then
+                      the two answers as a pair — a solid white "Confirm received"
+                      (the loud default) and a translucent "Not received" beside it
+                      (the quieter, bordered secondary). The auto-confirm note sits
+                      under both. Neither moves a balance; both retire the claim. */}
+                    {pendingForMe.map((settlement) => (
+                      <View
+                        key={settlement.id}
+                        style={{ width: heroSlideW || undefined, gap: theme.spacing.lg }}
                       >
-                        {t.addExpense}
-                      </Text>
-                    </Pressable>
-                    <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
-                      <HeroActionCircle
-                        icon="swap-horizontal"
-                        label={t.settleUp}
-                        onPress={() => router.push(`/group/${groupId}/settle`)}
-                      />
-                      <HeroActionCircle
-                        icon="git-network-outline"
-                        label={group.data.simplify_debts ? t.simplify : t.whoPaysWhom}
-                        onPress={() => router.push(`/group/${groupId}/simplify`)}
-                      />
+                        <Text
+                          variant="caption"
+                          tone="onBrand"
+                          style={{ opacity: 0.85 }}
+                          numberOfLines={1}
+                        >
+                          {fill(t.group.saysTheyPaidYou, {
+                            name: nameOf(settlement.from_member_id),
+                          })}
+                        </Text>
+
+                        <MoneyText
+                          amount={BigInt(settlement.amount)}
+                          currency={settlement.currency}
+                          locale={locale}
+                          variant="display"
+                          tone="default"
+                          style={{ color: theme.color.onBrand }}
+                        />
+
+                        <View style={{ gap: theme.spacing.sm }}>
+                          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                            <Pressable
+                              onPress={() => confirmSettlement.mutate(settlement.id)}
+                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                              accessibilityRole="button"
+                              accessibilityLabel={t.group.confirmReceived}
+                              style={({ pressed }) => ({
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: theme.spacing.xs,
+                                paddingVertical: theme.spacing.sm + 2,
+                                paddingHorizontal: theme.spacing.lg,
+                                borderRadius: theme.radius.pill,
+                                backgroundColor: '#FFFFFF',
+                                opacity: pressed ? 0.85 : 1,
+                              })}
+                            >
+                              <Ionicons
+                                name="checkmark"
+                                size={iconSize.lg}
+                                color={heroGradient[0]}
+                              />
+                              <Text
+                                variant="subheading"
+                                style={{ color: heroGradient[0] }}
+                                numberOfLines={1}
+                              >
+                                {t.group.confirmReceived}
+                              </Text>
+                            </Pressable>
+                            {/* The decline, visible rather than in an overflow.
+                              Translucent with a hairline so it reads as the
+                              secondary answer, not a second primary; the prompt
+                              behind it is the real confirmation. */}
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={t.group.rejectSettlement}
+                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                              onPress={() =>
+                                Alert.alert(
+                                  t.group.rejectTitle,
+                                  fill(t.group.rejectBody, {
+                                    name: nameOf(settlement.from_member_id),
+                                  }),
+                                  [
+                                    { text: t.group.keep, style: 'cancel' },
+                                    {
+                                      text: t.group.rejectConfirm,
+                                      style: 'destructive',
+                                      onPress: () => disputeSettlement.mutate(settlement.id),
+                                    },
+                                  ],
+                                )
+                              }
+                              style={({ pressed }) => ({
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                paddingVertical: theme.spacing.sm + 2,
+                                paddingHorizontal: theme.spacing.lg,
+                                borderRadius: theme.radius.pill,
+                                borderWidth: 1,
+                                borderColor: 'rgba(255, 255, 255, 0.5)',
+                                opacity: pressed ? 0.7 : 1,
+                              })}
+                            >
+                              <Text variant="subheading" tone="onBrand" numberOfLines={1}>
+                                {t.group.rejectSettlement}
+                              </Text>
+                            </Pressable>
+                          </Row>
+                          <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+                            {t.group.autoConfirms}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
+
+                  {/* The dot pager — the "swipe me" signal, only when a claim is
+                    waiting. A wide pill marks the landed slide over faint dots. */}
+                  {pendingForMe.length > 0 ? (
+                    <Row
+                      style={{
+                        justifyContent: 'center',
+                        gap: 6,
+                        marginTop: theme.spacing.md,
+                      }}
+                    >
+                      {Array.from({ length: pendingForMe.length + 1 }).map((_, index) => (
+                        <View
+                          key={index}
+                          style={{
+                            width: heroPage === index ? 18 : 6,
+                            height: 6,
+                            borderRadius: 3,
+                            backgroundColor: theme.color.onBrand,
+                            opacity: heroPage === index ? 1 : 0.4,
+                          }}
+                        />
+                      ))}
                     </Row>
-                  </Row>
+                  ) : null}
                 </View>
               </Gradient>
 
@@ -1241,67 +1426,9 @@ export default function GroupScreen() {
                   </Pressable>
                 ))}
 
-                {pendingForMe.map((settlement) => (
-                  <Card key={settlement.id} style={{ gap: theme.spacing.md }}>
-                    <Text variant="subheading">
-                      {fill(t.group.saysTheyPaidYou, { name: nameOf(settlement.from_member_id) })}
-                    </Text>
-                    <Row style={{ gap: theme.spacing.sm }}>
-                      <MoneyText
-                        amount={BigInt(settlement.amount)}
-                        currency={settlement.currency}
-                        locale={locale}
-                        variant="title"
-                      />
-                      {settlement.pending ? <PendingMark size={16} /> : null}
-                    </Row>
-                    {/* The payer's evidence, if they attached any — seen here
-                      before confirming, so a confirmation answers proof rather
-                      than a bare claim. View-only: this is the other side's. */}
-                    <SettlementProof
-                      groupId={groupId}
-                      settlementId={settlement.id}
-                      canManage={false}
-                    />
-                    <Button
-                      label={t.group.confirmReceived}
-                      fullWidth
-                      onPress={() => confirmSettlement.mutate(settlement.id)}
-                      disabled={confirmSettlement.isPending || disputeSettlement.isPending}
-                    />
-                    {/* The other half of receiving a claim: saying it never
-                        reached you. Neither confirm nor reject moves money — a
-                        pending settlement is not counted against any balance —
-                        so rejecting simply retires the claim and stops the
-                        auto-confirm clock. Guarded behind a prompt because it
-                        tells the payer their record was wrong. */}
-                    <Button
-                      label={t.group.rejectSettlement}
-                      variant="secondary"
-                      fullWidth
-                      onPress={() =>
-                        Alert.alert(
-                          t.group.rejectTitle,
-                          fill(t.group.rejectBody, {
-                            name: nameOf(settlement.from_member_id),
-                          }),
-                          [
-                            { text: t.group.keep, style: 'cancel' },
-                            {
-                              text: t.group.rejectConfirm,
-                              style: 'destructive',
-                              onPress: () => disputeSettlement.mutate(settlement.id),
-                            },
-                          ],
-                        )
-                      }
-                      disabled={confirmSettlement.isPending || disputeSettlement.isPending}
-                    />
-                    <Text variant="micro" tone="muted">
-                      {t.group.autoConfirms}
-                    </Text>
-                  </Card>
-                ))}
+                {/* The "they paid you" claims now ride the hero deck above as
+                  swipeable slides (confirm / reject up there), so the body no
+                  longer carries a full-page confirmation card. */}
 
                 {/* My own recorded payments, waiting on the payee. The place to
                   back the claim with a screenshot, and an acknowledgement that
