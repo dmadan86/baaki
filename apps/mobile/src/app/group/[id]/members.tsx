@@ -188,37 +188,36 @@ export default function MembersScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{t.members}</Text>
+          <Text variant="micro" tone="muted">
+            {groupLabel(group.data, members.data ?? [])}
+          </Text>
+        </View>
+        <IconButton label={t.people.invite} onPress={() => router.push(`/group/${groupId}/invite`)}>
+          <Ionicons name="share-outline" size={iconSize.md} color={theme.color.brand} />
+        </IconButton>
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.members}</Text>
-            <Text variant="micro" tone="muted">
-              {groupLabel(group.data, members.data ?? [])}
-            </Text>
-          </View>
-          <IconButton
-            label={t.people.invite}
-            onPress={() => router.push(`/group/${groupId}/invite`)}
-          >
-            <Ionicons name="share-outline" size={iconSize.md} color={theme.color.brand} />
-          </IconButton>
-        </Row>
-
         {/* Above the member list, because it is a question and the list is not.
             Only admins ever see anything here: the function returns no rows to
             anybody else, so the screen does not have to know who is one. */}

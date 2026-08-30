@@ -87,25 +87,33 @@ export default function PaywallScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
+      {/* Header: close on the left, title centred, a spacer to balance it. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.sm,
+        }}
+      >
+        <IconButton label="Close" onPress={() => router.back()}>
+          <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">Choose your plan</Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </View>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: theme.spacing.xxxl,
           gap: theme.spacing.xxl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header: close on the left, title centred, a spacer to balance it. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: theme.spacing.sm }}>
-          <IconButton label="Close" onPress={() => router.back()}>
-            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">Choose your plan</Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </View>
-
         {/* The plans. Tapping one selects it; the selected card wears the brand
             border and a green check. */}
         <View accessibilityRole="radiogroup" style={{ gap: theme.spacing.lg }}>

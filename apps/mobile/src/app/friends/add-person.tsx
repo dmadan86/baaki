@@ -233,32 +233,33 @@ export default function AddPersonScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+            <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.brand} />
+            <Text variant="heading">{t.addPerson.title}</Text>
+          </Row>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-              <Ionicons name="person-add-outline" size={iconSize.md} color={theme.color.brand} />
-              <Text variant="heading">{t.addPerson.title}</Text>
-            </Row>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         {/* The person is the subject of this screen, so the card leads with
             them: an avatar that fills in with the name's own colour and initial
             as it is typed, the name as the field beside it, and picking from

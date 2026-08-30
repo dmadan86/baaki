@@ -99,31 +99,33 @@ export default function RecapScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{t.tripInsights.recap}</Text>
+          <Text variant="micro" tone="muted">
+            {group.data?.name}
+          </Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.tripInsights.recap}</Text>
-            <Text variant="micro" tone="muted">
-              {group.data?.name}
-            </Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         {loading ? (
           <InsightsSkeleton />
         ) : recapData.byCurrency.length === 0 ? (

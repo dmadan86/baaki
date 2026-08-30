@@ -432,34 +432,39 @@ export default function PlanScreen() {
 
   return (
     <Screen>
+      <Row
+        style={{
+          paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.md,
+          gap: theme.spacing.sm,
+        }}
+      >
+        <IconButton label={t.common.back} onPress={() => router.back()}>
+          <Ionicons
+            name={directionalIcon('chevron-back')}
+            size={iconSize.lg}
+            color={theme.color.text}
+          />
+        </IconButton>
+        <Text variant="heading">{t.plan}</Text>
+        <View style={{ flex: 1 }} />
+        {group.data?.type === 'trip' ? (
+          <IconButton label={t.tripMap.title} onPress={() => router.push(`/group/${groupId}/map`)}>
+            <Ionicons name="location-outline" size={iconSize.lg} color={theme.color.text} />
+          </IconButton>
+        ) : null}
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.lg,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md, gap: theme.spacing.sm }}>
-          <IconButton label={t.common.back} onPress={() => router.back()}>
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </IconButton>
-          <Text variant="heading">{t.plan}</Text>
-          <View style={{ flex: 1 }} />
-          {group.data?.type === 'trip' ? (
-            <IconButton
-              label={t.tripMap.title}
-              onPress={() => router.push(`/group/${groupId}/map`)}
-            >
-              <Ionicons name="location-outline" size={iconSize.lg} color={theme.color.text} />
-            </IconButton>
-          ) : null}
-        </Row>
-
         {error ? <Callout tone="negative">{error}</Callout> : null}
 
         {/* Planned against actual, per currency and never added together. */}

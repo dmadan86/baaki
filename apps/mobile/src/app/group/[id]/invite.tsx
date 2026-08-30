@@ -202,27 +202,29 @@ export default function InviteScreen() {
 
   return (
     <Screen>
+      <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
+        <IconButton label={t.common.close} onPress={() => router.back()}>
+          <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+        </IconButton>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text variant="heading">{t.people.inviteTitle}</Text>
+          <Text variant="micro" tone="muted">
+            {label}
+          </Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </Row>
+
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
+          paddingTop: theme.spacing.lg,
           paddingBottom: clearance,
           gap: theme.spacing.xl,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Row style={{ paddingTop: theme.spacing.md }}>
-          <IconButton label={t.common.close} onPress={() => router.back()}>
-            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-          </IconButton>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="heading">{t.people.inviteTitle}</Text>
-            <Text variant="micro" tone="muted">
-              {label}
-            </Text>
-          </View>
-          <View style={{ width: 44 }} />
-        </Row>
-
         <Card style={{ gap: theme.spacing.md }}>
           <Text variant="subheading">{t.people.anyoneWithLink}</Text>
           <Text variant="caption" tone="muted">
