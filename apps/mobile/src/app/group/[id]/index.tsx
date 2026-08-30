@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
@@ -107,6 +107,21 @@ function heroPageOf(event: {
   const maxOffset = Math.max(0, event.contentSize.width - width);
   const fromStart = flip ? maxOffset - event.contentOffset.x : event.contentOffset.x;
   return Math.max(0, Math.round(fromStart / width));
+}
+
+/**
+ * Whole days left before a pending settlement auto-confirms — the 7-day window
+ * the server's `baaki_auto_confirm_settlements` job enforces, counted from when
+ * the payer recorded it. Never below one: a claim that has run past the window
+ * is auto-confirmed by the cron and has already left the pending list, so the
+ * countdown only ever shows a live figure.
+ */
+const AUTO_CONFIRM_DAYS = 7;
+function daysToConfirm(initiatedIso: string, now: number = Date.now()): number {
+  const parsed = Date.parse(initiatedIso);
+  if (!Number.isFinite(parsed)) return AUTO_CONFIRM_DAYS;
+  const left = AUTO_CONFIRM_DAYS * 86_400_000 - (now - parsed);
+  return Math.max(1, Math.ceil(left / 86_400_000));
 }
 
 /**
@@ -534,6 +549,7 @@ export default function GroupScreen() {
   // content width for that one frame.
   const [heroSlideW, setHeroSlideW] = useState(0);
   const [heroPage, setHeroPage] = useState(0);
+  const heroDeckRef = useRef<ScrollView>(null);
 
   // Live updates from the other devices in this group (TDR §1).
   useGroupRealtime(groupId);
@@ -1108,11 +1124,24 @@ export default function GroupScreen() {
                   static slide — the hero exactly as before. */}
                 <View onLayout={(event) => setHeroSlideW(event.nativeEvent.layout.width)}>
                   <ScrollView
+                    ref={heroDeckRef}
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
                     scrollEnabled={pendingForMe.length > 0 && heroSlideW > 0}
                     onMomentumScrollEnd={(event) => setHeroPage(heroPageOf(event.nativeEvent))}
+                    onContentSizeChange={() => {
+                      // Confirming or rejecting a claim drops it from the deck,
+                      // shrinking the content. If the view was parked on that
+                      // now-gone slide it would show blank — snap back to the
+                      // balance slide whenever the landed page no longer exists.
+                      // A content-size callback, not an effect, so it stays out
+                      // of render and off the hooks path.
+                      if (heroPage > pendingForMe.length) {
+                        heroDeckRef.current?.scrollTo({ x: 0, animated: false });
+                        setHeroPage(0);
+                      }
+                    }}
                   >
                     {/* Slide 0 — the balance said as a verdict, then the three
                       hero actions (white "add expense" pill, settle, who-pays). */}
@@ -1196,8 +1225,13 @@ export default function GroupScreen() {
                           style={{ opacity: 0.85 }}
                           numberOfLines={1}
                         >
-                          {fill(t.group.saysTheyPaidYou, {
+                          {fill(t.group.saysTheyPaidYouWindow, {
                             name: nameOf(settlement.from_member_id),
+                            window: plural(
+                              locale,
+                              daysToConfirm(settlement.initiated_at),
+                              t.group.daysToConfirm,
+                            ),
                           })}
                         </Text>
 
@@ -1210,84 +1244,75 @@ export default function GroupScreen() {
                           style={{ color: theme.color.onBrand }}
                         />
 
-                        <View style={{ gap: theme.spacing.sm }}>
-                          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                            <Pressable
-                              onPress={() => confirmSettlement.mutate(settlement.id)}
-                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
-                              accessibilityRole="button"
-                              accessibilityLabel={t.group.confirmReceived}
-                              style={({ pressed }) => ({
-                                flex: 1,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: theme.spacing.xs,
-                                paddingVertical: theme.spacing.sm + 2,
-                                paddingHorizontal: theme.spacing.lg,
-                                borderRadius: theme.radius.pill,
-                                backgroundColor: '#FFFFFF',
-                                opacity: pressed ? 0.85 : 1,
-                              })}
+                        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+                          <Pressable
+                            onPress={() => confirmSettlement.mutate(settlement.id)}
+                            disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                            accessibilityRole="button"
+                            accessibilityLabel={t.group.confirmReceived}
+                            style={({ pressed }) => ({
+                              flex: 1,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: theme.spacing.xs,
+                              paddingVertical: theme.spacing.sm + 2,
+                              paddingHorizontal: theme.spacing.lg,
+                              borderRadius: theme.radius.pill,
+                              backgroundColor: '#FFFFFF',
+                              opacity: pressed ? 0.85 : 1,
+                            })}
+                          >
+                            <Ionicons name="checkmark" size={iconSize.lg} color={heroGradient[0]} />
+                            <Text
+                              variant="subheading"
+                              style={{ color: heroGradient[0] }}
+                              numberOfLines={1}
                             >
-                              <Ionicons
-                                name="checkmark"
-                                size={iconSize.lg}
-                                color={heroGradient[0]}
-                              />
-                              <Text
-                                variant="subheading"
-                                style={{ color: heroGradient[0] }}
-                                numberOfLines={1}
-                              >
-                                {t.group.confirmReceived}
-                              </Text>
-                            </Pressable>
-                            {/* The decline, visible rather than in an overflow.
+                              {t.group.confirmReceived}
+                            </Text>
+                          </Pressable>
+                          {/* The decline, visible rather than in an overflow.
                               Translucent with a hairline so it reads as the
                               secondary answer, not a second primary; the prompt
                               behind it is the real confirmation. */}
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={t.group.rejectSettlement}
-                              disabled={confirmSettlement.isPending || disputeSettlement.isPending}
-                              onPress={() =>
-                                Alert.alert(
-                                  t.group.rejectTitle,
-                                  fill(t.group.rejectBody, {
-                                    name: nameOf(settlement.from_member_id),
-                                  }),
-                                  [
-                                    { text: t.group.keep, style: 'cancel' },
-                                    {
-                                      text: t.group.rejectConfirm,
-                                      style: 'destructive',
-                                      onPress: () => disputeSettlement.mutate(settlement.id),
-                                    },
-                                  ],
-                                )
-                              }
-                              style={({ pressed }) => ({
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                paddingVertical: theme.spacing.sm + 2,
-                                paddingHorizontal: theme.spacing.lg,
-                                borderRadius: theme.radius.pill,
-                                borderWidth: 1,
-                                borderColor: 'rgba(255, 255, 255, 0.5)',
-                                opacity: pressed ? 0.7 : 1,
-                              })}
-                            >
-                              <Text variant="subheading" tone="onBrand" numberOfLines={1}>
-                                {t.group.rejectSettlement}
-                              </Text>
-                            </Pressable>
-                          </Row>
-                          <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-                            {t.group.autoConfirms}
-                          </Text>
-                        </View>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t.group.rejectSettlement}
+                            disabled={confirmSettlement.isPending || disputeSettlement.isPending}
+                            onPress={() =>
+                              Alert.alert(
+                                t.group.rejectTitle,
+                                fill(t.group.rejectBody, {
+                                  name: nameOf(settlement.from_member_id),
+                                }),
+                                [
+                                  { text: t.group.keep, style: 'cancel' },
+                                  {
+                                    text: t.group.rejectConfirm,
+                                    style: 'destructive',
+                                    onPress: () => disputeSettlement.mutate(settlement.id),
+                                  },
+                                ],
+                              )
+                            }
+                            style={({ pressed }) => ({
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              paddingVertical: theme.spacing.sm + 2,
+                              paddingHorizontal: theme.spacing.lg,
+                              borderRadius: theme.radius.pill,
+                              borderWidth: 1,
+                              borderColor: 'rgba(255, 255, 255, 0.5)',
+                              opacity: pressed ? 0.7 : 1,
+                            })}
+                          >
+                            <Text variant="subheading" tone="onBrand" numberOfLines={1}>
+                              {t.group.rejectSettlement}
+                            </Text>
+                          </Pressable>
+                        </Row>
                       </View>
                     ))}
                   </ScrollView>

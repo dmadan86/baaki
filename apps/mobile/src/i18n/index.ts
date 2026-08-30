@@ -1457,6 +1457,10 @@ export interface UiStrings {
     confirmReceived: string;
     /** Heading over an incoming settlement claim; `{name}` is the payer. */
     saysTheyPaidYou: string;
+    /** The claim heading with the auto-confirm countdown folded in: `{name}` is
+     *  the payer, `{window}` the localized "N days to confirm". */
+    saysTheyPaidYouWindow: string;
+    daysToConfirm: PluralForms;
     autoConfirms: string;
     hideDeleted: string;
     showDeleted: string;
@@ -3521,6 +3525,8 @@ const en: UiStrings = {
       'This device and the server disagree about this group’s balances. Pull to refresh; if it persists, the ledger below is the source of truth.',
     confirmReceived: 'Confirm received',
     saysTheyPaidYou: '{name} says they paid you',
+    saysTheyPaidYouWindow: '{name} says they paid you ({window})',
+    daysToConfirm: { one: '{n} day to confirm', other: '{n} days to confirm' },
     autoConfirms: 'Auto-confirms in 7 days if nobody responds.',
     hideDeleted: 'Hide deleted',
     showDeleted: 'Show deleted',
@@ -5629,6 +5635,8 @@ const ta: UiStrings = {
       'இந்தக் குழுவின் இருப்புகள் குறித்து இந்தச் சாதனமும் சர்வரும் ஒத்துப்போகவில்லை. இழுத்துப் புதுப்பிக்கவும்; தொடர்ந்தால் கீழே உள்ள கணக்கே சரியானது.',
     confirmReceived: 'கிடைத்தது என்று உறுதிப்படுத்து',
     saysTheyPaidYou: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார்',
+    saysTheyPaidYouWindow: '{name} உங்களுக்குப் பணம் கொடுத்ததாகச் சொல்கிறார் ({window})',
+    daysToConfirm: { one: 'உறுதிக்கு {n} நாள்', other: 'உறுதிக்கு {n} நாட்கள்' },
     autoConfirms: 'யாரும் பதிலளிக்காவிட்டால் 7 நாட்களில் தானாகவே உறுதியாகும்.',
     hideDeleted: 'நீக்கியவற்றை மறை',
     showDeleted: 'நீக்கியவற்றைக் காட்டு',
@@ -7743,6 +7751,8 @@ const hi: UiStrings = {
       'इस समूह के हिसाब पर यह डिवाइस और सर्वर सहमत नहीं हैं। खींचकर ताज़ा करें; फिर भी बना रहे तो नीचे का हिसाब ही सही है।',
     confirmReceived: 'मिलने की पुष्टि करें',
     saysTheyPaidYou: '{name} कहते हैं कि उन्होंने आपको भुगतान किया',
+    saysTheyPaidYouWindow: '{name} कहते हैं कि उन्होंने आपको भुगतान किया ({window})',
+    daysToConfirm: { one: 'पुष्टि के लिए {n} दिन', other: 'पुष्टि के लिए {n} दिन' },
     autoConfirms: 'कोई जवाब न दे तो 7 दिन में अपने आप पुष्ट हो जाएगा।',
     hideDeleted: 'हटाए हुए छिपाएँ',
     showDeleted: 'हटाए हुए दिखाएँ',
@@ -9870,6 +9880,15 @@ const ar: UiStrings = {
       'هذا الجهاز والخادم لا يتفقان على أرصدة هذه المجموعة. اسحب للتحديث؛ وإن استمر الأمر فالدفتر بالأسفل هو المرجع.',
     confirmReceived: 'أكّد الاستلام',
     saysTheyPaidYou: 'يقول {name} إنه دفع لك',
+    saysTheyPaidYouWindow: 'يقول {name} إنه دفع لك ({window})',
+    daysToConfirm: {
+      zero: '{n} يوم للتأكيد',
+      one: 'يوم واحد للتأكيد',
+      two: 'يومان للتأكيد',
+      few: '{n} أيام للتأكيد',
+      many: '{n} يومًا للتأكيد',
+      other: '{n} يوم للتأكيد',
+    },
     autoConfirms: 'يتأكد تلقائيًا خلال 7 أيام إن لم يردّ أحد.',
     hideDeleted: 'إخفاء المحذوف',
     showDeleted: 'إظهار المحذوف',
