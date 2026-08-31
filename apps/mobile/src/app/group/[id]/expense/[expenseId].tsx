@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ScrollView as RNScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -29,8 +29,9 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { MapPreview } from '@/components/MapPreview';
-import { ExpenseReceipts, type ExpenseReceiptsHandle } from '@/components/ExpenseReceipts';
+import { ExpenseReceipts } from '@/components/ExpenseReceipts';
 import { ExpenseComments } from '@/components/ExpenseComments';
 import { ExpenseHistory } from '@/components/ExpenseHistory';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
@@ -59,6 +60,25 @@ function splitLabels(t: UiStrings): Record<string, string> {
     adjustment: t.expense.withAdjustments,
     itemized: t.expense.itemized,
   };
+}
+
+/** A member's avatar showing their real picture when they have one. The signing
+ *  hook (`useAvatarUrl`) must run per row, so this is its own component rather
+ *  than a call inside a `.map`. Falls back to initials — same as the comment
+ *  thread below. */
+function MemberAvatar({
+  name,
+  photo,
+  ghost,
+  size = 38,
+}: {
+  name: string;
+  photo: string | null | undefined;
+  ghost: boolean;
+  size?: number;
+}): React.JSX.Element {
+  const url = useAvatarUrl(photo);
+  return <Avatar name={name} photoUrl={url} ghost={ghost} size={size} />;
 }
 
 /** One labelled row of the bill's detail card — a muted label on the left, its
@@ -98,31 +118,10 @@ export default function ExpenseDetailScreen() {
   const versions = useExpenseVersions(expenseId ?? '');
   const imageEvents = useExpenseImageEvents(expenseId ?? '');
   const scrollRef = useRef<RNScrollView>(null);
-  // The receipts section owns the add flow (scan/choose, cap gate); the hero
-  // renders the button and calls into it through this handle, so the "add
-  // receipt" action sits under the amount like the dashboard's "add expense".
-  const receiptsRef = useRef<ExpenseReceiptsHandle>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   // The page has two faces: its breakdown, and its edit history. The hero stays
   // above both; only the body below the tab bar swaps.
   const [tab, setTab] = useState<'details' | 'history'>('details');
-  // The receipts section (and so its ref) is mounted only under the details tab,
-  // but the hero — with the "add receipt" button — stays above both tabs. A tap
-  // from the history tab would hit a null ref and do nothing, so it flips to
-  // details and parks the intent here; this effect fires it once the section has
-  // mounted.
-  const [pendingAdd, setPendingAdd] = useState(false);
-  useEffect(() => {
-    if (!pendingAdd || tab !== 'details') return undefined;
-    // Through a frame, not synchronously in the effect body: a bare setState here
-    // cascades renders (the lint the compiler enforces), and the extra tick also
-    // lets the just-switched-to receipts section finish mounting so its ref is set.
-    const frame = requestAnimationFrame(() => {
-      setPendingAdd(false);
-      receiptsRef.current?.openAdd();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [pendingAdd, tab]);
   const deleteExpense = useDeleteExpense(groupId);
   const restoreExpense = useRestoreExpense(groupId);
 
@@ -336,7 +335,13 @@ export default function ExpenseDetailScreen() {
           gap: theme.spacing.lg,
         }}
       >
-        <Row style={{ alignItems: 'center' }}>
+        {/* A slim header bar, like the Friends hero: back and overflow on the
+              ends, and the bill's identity held compactly between them — the
+              category badge, the description as a one-line heading, the amount
+              beneath it — instead of the tall stacked block, big display amount
+              and receipt pill this hero used to be. Adding a receipt moved back
+              into the receipts section's own tile below. */}
+        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
           {/* Back and overflow match the dashboard/group hero: a chip-less xxl
                 white glyph, not the smaller boxed IconButton. */}
           <Pressable
@@ -352,10 +357,31 @@ export default function ExpenseDetailScreen() {
               color={theme.color.onBrand}
             />
           </Pressable>
-          {/* The title moves out of this row and into the hero body beside the
-                category badge, so the description reads as the heading of the
-                bill rather than a cramped line between two glyphs. */}
-          <View style={{ flex: 1 }} />
+          <CategoryBadge
+            category={version.category}
+            meta={version.category_meta}
+            description={version.description}
+            size={40}
+          />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+              <Text variant="subheading" tone="onBrand" numberOfLines={1} style={{ flex: 1 }}>
+                {expenseTitle(version.description, version.category, t, version.category_meta)}
+              </Text>
+              {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
+            </Row>
+            {/* The amount kept in the hero, but at heading — not display — scale:
+                  still the prominent number, no longer the reason the panel is
+                  tall. Neutral white, never a money colour — it is a total, not a
+                  balance. */}
+            <MoneyText
+              amount={BigInt(version.amount)}
+              currency={currency}
+              locale={locale}
+              variant="title"
+              style={{ color: theme.color.onBrand }}
+            />
+          </View>
           {/* Every action on this bill lives behind one three-dot menu, the same
                 trailing control the group and dashboard headers carry — Edit and
                 Delete (or Restore) instead of a full-width button stacked at the
@@ -370,63 +396,6 @@ export default function ExpenseDetailScreen() {
             <Ionicons name="ellipsis-vertical" size={iconSize.xxl} color={theme.color.onBrand} />
           </Pressable>
         </Row>
-
-        <View style={{ alignItems: 'flex-start', gap: theme.spacing.md }}>
-          {/* Badge + description as one line: the category icon, then what the
-                bill is called (the description, or the category name when none
-                was typed) reads as the heading — this is the "I don't see the
-                description" fix. */}
-          <Row style={{ alignItems: 'center', gap: theme.spacing.sm, alignSelf: 'stretch' }}>
-            <CategoryBadge
-              category={version.category}
-              meta={version.category_meta}
-              description={version.description}
-              size={40}
-            />
-            <Text variant="heading" tone="onBrand" numberOfLines={2} style={{ flex: 1 }}>
-              {expenseTitle(version.description, version.category, t, version.category_meta)}
-            </Text>
-            {deleted ? <Badge label={t.expense.deleted} tone="negative" /> : null}
-          </Row>
-          <MoneyText
-            amount={BigInt(version.amount)}
-            currency={currency}
-            locale={locale}
-            variant="display"
-            style={{ color: theme.color.onBrand }}
-          />
-          {/* Add receipt, right under the amount — the same "primary action sits
-                under the number" the dashboard and group heros use. A party owns
-                adding; the button drives the receipts section through its ref. */}
-          {isExpenseParty ? (
-            <Pressable
-              onPress={() => {
-                if (tab === 'details') receiptsRef.current?.openAdd();
-                else {
-                  // Switch to where the receipts live, then add once mounted.
-                  setTab('details');
-                  setPendingAdd(true);
-                }
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={t.receipts.add}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                alignSelf: 'flex-start',
-                paddingHorizontal: theme.spacing.lg,
-                paddingVertical: theme.spacing.sm,
-                borderRadius: theme.radius.pill,
-                backgroundColor: '#FFFFFF',
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
-              <Text style={{ color: theme.color.brand, fontWeight: '700' }}>{t.receipts.add}</Text>
-            </Pressable>
-          ) : null}
-        </View>
       </Gradient>
 
       <ScrollView
@@ -520,8 +489,6 @@ export default function ExpenseDetailScreen() {
             the hero button (externalAdd), driven through the ref; this section
             shows the gallery of what is already kept. */}
             <ExpenseReceipts
-              ref={receiptsRef}
-              externalAdd
               groupId={groupId}
               expenseId={expense.id}
               canManage={isExpenseParty}
@@ -584,14 +551,14 @@ export default function ExpenseDetailScreen() {
                         <ListRow
                           title={nameOf(payer.member_id)}
                           leading={
-                            <Avatar
+                            <MemberAvatar
                               name={avatarNameOf(payer.member_id)}
+                              photo={payerMember?.profile?.avatar_url}
                               ghost={
                                 payerMember
                                   ? isGhost(payerMember) || isBlockedMember(payerMember, blockedIds)
                                   : false
                               }
-                              size={38}
                             />
                           }
                           trailing={
@@ -624,14 +591,14 @@ export default function ExpenseDetailScreen() {
                         title={nameOf(share.member_id)}
                         subtitle={member && isGhost(member) ? t.notJoinedYet : undefined}
                         leading={
-                          <Avatar
+                          <MemberAvatar
                             name={avatarNameOf(share.member_id)}
+                            photo={member?.profile?.avatar_url}
                             ghost={
                               member
                                 ? isGhost(member) || isBlockedMember(member, blockedIds)
                                 : false
                             }
-                            size={38}
                           />
                         }
                         trailing={
