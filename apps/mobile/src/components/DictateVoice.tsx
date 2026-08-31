@@ -15,11 +15,13 @@
  *
  * The native recogniser is a single global object with one event stream: every
  * mounted `DictateVoice` (a review screen shows one per expense row) subscribes
- * to the *same* `result`/`error`/`end` events. So a module-level lock hands the
- * mic to one field at a time, and each instance acts on an event only while it
- * is the one listening — otherwise idle rows cross-write the transcript, and a
- * row unmounting (the list changing after "add more") aborts a capture some
- * other surface just started.
+ * to the *same* `result`/`error`/`end` events — and so does the voice quick-add
+ * panel on the other side of the app. So the mic is handed out by the shared
+ * arbiter in `lib/speechMic`, one holder at a time, and each instance acts on an
+ * event only while it is the holder: otherwise idle rows cross-write the
+ * transcript, a row unmounting (the list changing after "add more") aborts a
+ * capture some other surface just started, and the trailing events of a
+ * torn-down session close the one that replaced it.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -36,6 +38,15 @@ import {
   onDeviceLocaleInstalled,
   speechLocale,
 } from '@/lib/dictation';
+import { speechMic } from '@/lib/speechMic';
+
+// Hand the shared arbiter the real recogniser. Safe at module scope: this file
+// is only reached through `DictateButton`'s guarded require, so getting here at
+// all means the native module imported cleanly.
+speechMic.attach({
+  stop: () => ExpoSpeechRecognitionModule.stop(),
+  abort: () => ExpoSpeechRecognitionModule.abort(),
+});
 
 export interface DictateProps {
   /** What is in the field now. Dictation adds to it, never replaces it. */
@@ -48,14 +59,6 @@ export interface DictateProps {
    */
   hints?: readonly string[];
 }
-
-/**
- * Which field currently owns the single native recogniser, or `null` when no
- * dictation is running. Module-level on purpose: it is shared across every
- * mounted `DictateVoice` so a second field cannot start a capture on top of the
- * first, and so only the owning field reacts to the global events.
- */
-let micOwner: symbol | null = null;
 
 /** Whether this phone has a recogniser at all. A phone without one gets no mic. */
 function recognitionAvailable(): boolean {
@@ -135,19 +138,16 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // This instance's identity in the module-level `micOwner` lock. Stable for the
-  // life of the component (lazy-initialised so it is minted once).
-  const [id] = useState(() => Symbol('dictate'));
+  // This instance's claim on the single recogniser. Minted once for the life of
+  // the component, and the answer to "is this event mine?" — the events are
+  // global, so a field that does not hold the mic must ignore every one of them.
+  const [session] = useState(() => Symbol('dictate'));
 
-  // Whether *this* field is the one currently listening, read synchronously
-  // inside the global event handlers. The single-owner lock guarantees at most
-  // one field has this set at a time, so it is a safe stand-in for "this event
-  // is mine" — and it avoids reacting to an event another field's session fired.
-  const listeningRef = useRef(false);
-  const setListeningState = useCallback((next: boolean): void => {
-    listeningRef.current = next;
-    setListening(next);
-  }, []);
+  // A start is already on its way: the mic is claimed but the native call has
+  // not been made yet, because a permission check and an installed-model probe
+  // are awaited first. Without this a double tap would issue two native starts,
+  // the second tearing down the recogniser the first had only just created.
+  const starting = useRef(false);
 
   // What the field held when the mic was tapped. Interim results are re-issued
   // in full, so every one of them is merged onto this rather than onto the
@@ -161,47 +161,78 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   useSpeechRecognitionEvent('result', (event) => {
     // Only the field that started this capture takes the words — otherwise the
     // other rows' mics would each merge the transcript into their own note too.
-    if (!listeningRef.current) return;
+    if (!speechMic.owns(session)) return;
     const transcript = event.results[0]?.transcript ?? '';
     onChange(mergeTranscript(before.current, transcript));
   });
 
   useSpeechRecognitionEvent('error', (event) => {
-    if (!listeningRef.current) return;
-    micOwner = null;
-    setListeningState(false);
+    if (!speechMic.owns(session)) return;
+    setListening(false);
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
+    // The mic is given up by the `end` that follows, so a stop's final result
+    // still lands; the arbiter guards against an `end` that never comes.
+    speechMic.errored(session);
   });
 
   useSpeechRecognitionEvent('end', () => {
-    if (!listeningRef.current) return;
-    micOwner = null;
-    setListeningState(false);
+    const mine = speechMic.owns(session);
+    // Told either way: the recogniser really has finished, and whatever is
+    // waiting to open it next needs exactly this to know it may. A field that
+    // does not own the session is ignored by the arbiter, so this cannot close
+    // another field's capture out from under it.
+    speechMic.ended(session);
+    if (!mine) return;
+    starting.current = false;
+    setListening(false);
   });
 
   const stop = useCallback(() => {
-    // Ask the recogniser to finish — but hold the lock and the listening flag.
-    // stop() (unlike abort()) still delivers one last `result` and then `end`,
-    // and it is the `end`/`error` handlers that clear ownership. Clearing it
-    // here would make that final result's `if (!listeningRef.current) return`
-    // drop the last words the person spoke before tapping stop.
-    ExpoSpeechRecognitionModule.stop();
-  }, []);
+    // Ask the recogniser to finish — but keep the session. stop() (unlike
+    // abort()) still delivers one last `result` and then `end`, and it is the
+    // `end` handler that gives the mic back. Giving it up here would make that
+    // final result's ownership check drop the last words the person spoke
+    // before tapping stop.
+    speechMic.stop(session);
+  }, [session]);
 
   const start = useCallback(async () => {
-    // The mic is a single global object. If another field is mid-dictation,
-    // ignore the tap rather than aborting it: an abort would race that field's
-    // next event and wedge the recogniser for both.
-    if (micOwner !== null && micOwner !== id) return;
-
+    // One start at a time from this field, and one capture at a time in the app.
+    if (starting.current) return;
+    starting.current = true;
     setError(null);
+    // Still holding the mic from a session this field has already given up on —
+    // an error whose `end` never arrived, say. The tap is a deliberate retry, so
+    // let go of the old session here; the claim below then waits for its
+    // teardown rather than opening a second recogniser on top of it.
+    if (speechMic.owns(session)) speechMic.release(session);
+
+    // Claim the mic before the awaits below, and wait here for any previous
+    // session's teardown to land — opening a new one on top of a teardown that
+    // has not run yet is what leaves the next capture silent. If another field
+    // is mid-dictation the claim is refused and the tap does nothing, rather
+    // than aborting them: an abort would race that field's next event and wedge
+    // the recogniser for both.
+    const claimed = await speechMic.acquire(session);
+    if (!mounted.current || !claimed) {
+      starting.current = false;
+      if (claimed) speechMic.release(session);
+      return;
+    }
+
+    // Every path from here gives the mic back. A claim nobody releases is a
+    // recogniser nothing can reopen.
+    const give = (): void => {
+      starting.current = false;
+      speechMic.release(session);
+    };
 
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!mounted.current) return;
+    if (!mounted.current) return give();
     if (!permission.granted) {
       setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
-      return;
+      return give();
     }
 
     const lang = speechLocale(language, locale);
@@ -210,17 +241,10 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
     // phone that has no model for this language returns silence, so fall to the
     // network recogniser unless the language's model is actually installed.
     const onDevice = await installedOnDeviceFor(lang);
-    if (!mounted.current) return;
-
-    // Re-check the lock right before taking it. The two awaits above (the
-    // permission prompt, the installed-model probe) give another field a window
-    // to claim the mic between the first check and here; without this recheck
-    // two overlapping starts could both reach ExpoSpeechRecognitionModule.start.
-    if (micOwner !== null && micOwner !== id) return;
+    if (!mounted.current) return give();
 
     before.current = value;
-    micOwner = id;
-    setListeningState(true);
+    setListening(true);
 
     try {
       ExpoSpeechRecognitionModule.start({
@@ -237,30 +261,33 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
         contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
         iosTaskHint: 'dictation',
       });
+      speechMic.opened(session);
+      starting.current = false;
     } catch {
-      micOwner = null;
-      setListeningState(false);
+      setListening(false);
       setError(t.misc.dictationFailed);
+      give();
     }
-  }, [hints, id, language, locale, value, t, setListeningState]);
+  }, [hints, language, locale, session, value, t]);
 
-  // Leaving the screen mid-sentence must not leave the microphone open — but
-  // only this field may abort, and only while it is the one listening. An idle
-  // row unmounting (the list changing after "add more") must not abort a capture
-  // another surface just started.
+  // Leaving the screen mid-sentence must not leave the microphone open — and
+  // must not leave it claimed either. `release` is the one call for both: it
+  // aborts a session this field actually opened, hands back a claim that never
+  // got as far as the native start, and does nothing at all when the mic belongs
+  // to another field (an idle row unmounting as the list changes must not abort
+  // a capture some other surface just started).
+  //
+  // `mounted` is re-armed on the way in, not only cleared on the way out: this
+  // effect is re-run whole by a Fast Refresh, and a flag that only ever goes
+  // false would leave every later start() bailing out after its first await.
   useEffect(() => {
+    mounted.current = true;
     return () => {
       mounted.current = false;
-      if (listeningRef.current) {
-        try {
-          ExpoSpeechRecognitionModule.abort();
-        } catch {
-          // Recogniser already torn down — nothing to abort.
-        }
-        micOwner = null;
-      }
+      starting.current = false;
+      speechMic.release(session);
     };
-  }, []);
+  }, [session]);
 
   if (!available) return null;
 
