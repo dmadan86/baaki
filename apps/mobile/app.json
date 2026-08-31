@@ -85,6 +85,7 @@
         }
       ],
       "./plugins/withShortNativeBuildPath",
+      "./plugins/withSideBySideDebug",
       "./plugins/withWavesWidgets",
       "./plugins/withWavesWear",
       "@bacons/apple-targets",
