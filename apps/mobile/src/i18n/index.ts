@@ -2250,6 +2250,32 @@ export interface UiStrings {
     servicesBody: string;
     retentionTitle: string;
     retentionBody: string;
+    controlsSection: string;
+    appLockRow: string;
+    appLockHint: string;
+    appLockUnavailable: string;
+    statusOn: string;
+    statusOff: string;
+    blockedNone: string;
+    sessionReplayHint: string;
+    policySection: string;
+    dangerSection: string;
+    supportRow: string;
+    supportRowHint: string;
+    /** Carries `{date}` — when this policy text last changed. */
+    lastUpdated: string;
+    /** A collapsed policy point's a11y hint, and its expanded counterpart. */
+    expandLabel: string;
+    collapseLabel: string;
+    storeSummary: string;
+    protectSummary: string;
+    servicesSummary: string;
+    analyticsSummary: string;
+    retentionSummary: string;
+    choicesSummary: string;
+    deviceTitle: string;
+    deviceSummary: string;
+    deviceBody: string;
     dataControlsSection: string;
     legalSection: string;
     exportRow: string;
@@ -4292,7 +4318,7 @@ const en: UiStrings = {
       'Your display name, and whichever of a phone number, email or sign-in identity you used. Optionally a payment handle, so somebody can pay you back, and a country, which decides which payment rails you are offered, and an optional postal address if you add one. The groups you are in, the expenses in them, and who owes whom. Nothing else: no contacts are uploaded, and there is no advertising identifier.',
     protectTitle: 'How it is kept',
     protectBody:
-      'Every table is behind row-level security in the database, so a request can only ever read rows your own account is entitled to — not a filter applied by the app, but a rule the database enforces. Receipt images sit in a private bucket reached through short-lived signed links. Crash reports are scrubbed of addresses, phone numbers, payment handles and keys before they leave the phone. You can require your fingerprint or face to open the app.',
+      'Every table is behind row-level security in the database, so a request can only ever read rows your own account is entitled to — not a filter applied by the app, but a rule the database enforces. Receipt images sit in a private bucket reached through short-lived signed links. Crash reports are scrubbed of addresses, phone numbers, payment handles and keys before they leave the phone. Each receipt can be visible to everybody in the group, or only to the people on that expense — you choose per image. You can require your fingerprint or face to open the app.',
     choicesTitle: 'What you can do',
     choicesBody:
       'Export everything you have entered, at any time, in full fidelity and for free. Turn off any notification. Delete your account and the personal data in it. Write to us with anything you want changed.',
@@ -4309,6 +4335,31 @@ const en: UiStrings = {
     retentionTitle: 'How long we keep it',
     retentionBody:
       'Your data stays while your account is open. If the account goes untouched for 3 years, we delete it and the personal data with it. You never have to wait for that — export or delete everything yourself, any time, below. A group you close and leave untouched for a year and a half is moved to your archive automatically — nothing is deleted, and you can reopen it whenever you like.',
+    controlsSection: 'Your controls',
+    appLockRow: 'App lock',
+    appLockHint: 'Ask for fingerprint or face to open Waves',
+    appLockUnavailable: 'Not available',
+    statusOn: 'On',
+    statusOff: 'Off',
+    blockedNone: 'None',
+    sessionReplayHint: 'Off unless you turn it on',
+    policySection: 'How Waves protects you',
+    dangerSection: 'Danger zone',
+    supportRow: 'Privacy questions',
+    supportRowHint: 'Write to us — a person answers',
+    lastUpdated: 'Last updated {date}.',
+    expandLabel: 'Read more',
+    collapseLabel: 'Show less',
+    storeSummary: 'Your name, sign-in, groups, expenses and who owes whom.',
+    protectSummary: 'Database rules on every read, private receipt links, scrubbed crash reports.',
+    servicesSummary: 'Supabase for the database, Sentry for crashes, Clarity only if you allow it.',
+    analyticsSummary: 'No ads, no ad identifier. Screen recording is off unless you turn it on.',
+    retentionSummary: 'Kept while your account is open, deleted after 3 untouched years.',
+    choicesSummary: 'Export everything, mute anything, or delete your account.',
+    deviceTitle: 'On this phone',
+    deviceSummary: 'Held encrypted for offline use, erased when you sign out.',
+    deviceBody:
+      "Waves keeps a copy of your ledger on the phone so it still works with no signal. Every value it stores there is encrypted with a key held in the phone's own keystore, so a stolen backup or a rooted filesystem reads nothing. Signing out destroys that key and the local copy with it.",
     dataControlsSection: 'Your data',
     legalSection: 'Legal',
     exportRow: 'Export your data',
@@ -6464,7 +6515,7 @@ const ta: UiStrings = {
       'உங்கள் பெயர், நீங்கள் பயன்படுத்திய தொலைபேசி எண், மின்னஞ்சல் அல்லது உள்நுழைவு அடையாளம். விருப்பப்படி ஒரு பணப் பரிமாற்ற முகவரி, ஒரு நாடு, மற்றும் நீங்கள் சேர்த்தால் ஒரு அஞ்சல் முகவரி. நீங்கள் இருக்கும் குழுக்கள், அவற்றின் செலவுகள், யார் யாருக்குக் கடன்பட்டவர். வேறு எதுவும் இல்லை: தொடர்புகள் பதிவேற்றப்படுவதில்லை, விளம்பர அடையாளம் இல்லை.',
     protectTitle: 'எப்படி பாதுகாக்கப்படுகிறது',
     protectBody:
-      'ஒவ்வொரு அட்டவணையும் தரவுத்தளத்தில் வரிசை-நிலை பாதுகாப்பின் பின்னால் உள்ளது — செயலி வடிகட்டுவதல்ல, தரவுத்தளமே அமல்படுத்தும் விதி. ரசீது படங்கள் தனிப்பட்ட இடத்தில், குறுகிய கால இணைப்புகள் வழியாக மட்டுமே. செயலி முறிவு அறிக்கைகளிலிருந்து முகவரிகள், எண்கள், பணமுகவரிகள் தொலைபேசியை விட்டு வெளியேறும் முன்பே நீக்கப்படுகின்றன.',
+      'ஒவ்வொரு அட்டவணையும் தரவுத்தளத்தில் வரிசை-நிலை பாதுகாப்பின் பின்னால் உள்ளது — செயலி வடிகட்டுவதல்ல, தரவுத்தளமே அமல்படுத்தும் விதி. ரசீது படங்கள் தனிப்பட்ட இடத்தில், குறுகிய கால இணைப்புகள் வழியாக மட்டுமே. செயலி முறிவு அறிக்கைகளிலிருந்து முகவரிகள், எண்கள், பணமுகவரிகள் தொலைபேசியை விட்டு வெளியேறும் முன்பே நீக்கப்படுகின்றன. ஒவ்வொரு ரசீதும் குழுவில் உள்ள அனைவருக்கும் தெரியலாம், அல்லது அந்தச் செலவில் உள்ளவர்களுக்கு மட்டும் — படத்துக்குப் படம் நீங்கள் தேர்வு செய்யலாம்.',
     choicesTitle: 'நீங்கள் என்ன செய்யலாம்',
     choicesBody:
       'நீங்கள் உள்ளிட்ட அனைத்தையும் எப்போது வேண்டுமானாலும், முழுமையாக, இலவசமாக ஏற்றுமதி செய்யலாம். எந்த அறிவிப்பையும் நிறுத்தலாம். உங்கள் கணக்கையும் அதிலுள்ள தனிப்பட்ட தரவையும் நீக்கலாம்.',
@@ -6481,6 +6532,35 @@ const ta: UiStrings = {
     retentionTitle: 'எவ்வளவு காலம் வைத்திருக்கிறோம்',
     retentionBody:
       'உங்கள் கணக்கு திறந்திருக்கும் வரை தரவு இருக்கும். கணக்கு 3 ஆண்டுகள் தொடப்படாமல் இருந்தால், அதை அதிலுள்ள தனிப்பட்ட தரவுடன் நீக்குகிறோம். அதற்காகக் காத்திருக்க வேண்டாம் — கீழே எப்போது வேண்டுமானாலும் எல்லாவற்றையும் ஏற்றுமதி செய்யலாம் அல்லது நீக்கலாம். நீங்கள் மூடி, ஒன்றரை ஆண்டுகளாகத் தொடாமல் விட்ட குழு தானாகவே உங்கள் காப்பகத்திற்கு நகர்த்தப்படுகிறது — எதுவும் நீக்கப்படாது, எப்போது வேண்டுமானாலும் மீண்டும் திறக்கலாம்.',
+    controlsSection: 'உங்கள் கட்டுப்பாடுகள்',
+    appLockRow: 'செயலிப் பூட்டு',
+    appLockHint: 'திறக்க கைரேகை அல்லது முகத்தைக் கேட்கும்',
+    appLockUnavailable: 'கிடைக்கவில்லை',
+    statusOn: 'இயக்கத்தில்',
+    statusOff: 'அணைக்கப்பட்டது',
+    blockedNone: 'யாரும் இல்லை',
+    sessionReplayHint: 'நீங்கள் இயக்கும் வரை அணைந்தே இருக்கும்',
+    policySection: 'உங்கள் தரவை எப்படிப் பாதுகாக்கிறோம்',
+    dangerSection: 'கவனம் தேவை',
+    supportRow: 'தனியுரிமைக் கேள்விகள்',
+    supportRowHint: 'எங்களுக்கு எழுதுங்கள் — ஒரு நபர் பதிலளிப்பார்',
+    lastUpdated: 'கடைசியாகப் புதுப்பிக்கப்பட்டது {date}.',
+    expandLabel: 'மேலும் படிக்க',
+    collapseLabel: 'சுருக்கு',
+    storeSummary: 'உங்கள் பெயர், உள்நுழைவு, குழுக்கள், செலவுகள், யார் யாருக்குக் கடன்.',
+    protectSummary:
+      'ஒவ்வொரு வாசிப்பிலும் தரவுத்தள விதிகள், தனிப்பட்ட ரசீது இணைப்புகள், சுத்தம் செய்யப்பட்ட பிழை அறிக்கைகள்.',
+    servicesSummary:
+      'தரவுத்தளத்திற்கு Supabase, பிழைகளுக்கு Sentry, நீங்கள் அனுமதித்தால் மட்டுமே Clarity.',
+    analyticsSummary: 'விளம்பரம் இல்லை. நீங்கள் இயக்கும் வரை திரைப் பதிவும் இல்லை.',
+    retentionSummary: 'கணக்கு திறந்திருக்கும் வரை; 3 ஆண்டுகள் தொடாவிட்டால் நீக்கப்படும்.',
+    choicesSummary:
+      'எல்லாவற்றையும் ஏற்றுமதி செய்யுங்கள், அறிவிப்புகளை நிறுத்துங்கள், கணக்கை நீக்குங்கள்.',
+    deviceTitle: 'இந்தத் தொலைபேசியில்',
+    deviceSummary:
+      'இணையம் இல்லாமலும் வேலை செய்ய குறியாக்கம் செய்து வைக்கப்படுகிறது; வெளியேறும்போது அழிக்கப்படுகிறது.',
+    deviceBody:
+      'சிக்னல் இல்லாமலும் வேலை செய்ய, வேவ்ஸ் உங்கள் கணக்கின் ஒரு நகலைத் தொலைபேசியிலேயே வைத்திருக்கிறது. அங்கு சேமிக்கப்படும் ஒவ்வொரு மதிப்பும் தொலைபேசியின் சொந்த சாவி-சேமிப்பில் உள்ள சாவியால் குறியாக்கம் செய்யப்படுகிறது — திருடப்பட்ட காப்புப்பிரதியோ ரூட் செய்யப்பட்ட கோப்பு முறைமையோ எதையும் படிக்க முடியாது. நீங்கள் வெளியேறும்போது அந்தச் சாவியும் உள்ளூர் நகலும் அழிக்கப்படுகின்றன.',
     dataControlsSection: 'உங்கள் தரவு',
     legalSection: 'சட்டம்',
     exportRow: 'உங்கள் தரவை ஏற்றுமதி செய்',
@@ -8561,7 +8641,7 @@ const hi: UiStrings = {
       'आपका नाम, और फ़ोन नंबर, ईमेल या साइन-इन पहचान में से जो आपने इस्तेमाल किया। वैकल्पिक रूप से एक भुगतान पता, ताकि कोई आपको लौटा सके, एक देश, और यदि आप जोड़ें तो एक डाक पता। आप जिन समूहों में हैं, उनके ख़र्चे, और कौन किसका देनदार है। और कुछ नहीं: कोई संपर्क अपलोड नहीं होते, कोई विज्ञापन पहचानकर्ता नहीं।',
     protectTitle: 'कैसे सुरक्षित रहता है',
     protectBody:
-      'हर तालिका डेटाबेस में row-level security के पीछे है — ऐप का लगाया फ़िल्टर नहीं, बल्कि डेटाबेस का लागू किया नियम। रसीद की तस्वीरें एक निजी जगह में, छोटी अवधि के लिंक से ही पहुँच में। क्रैश रिपोर्ट से पते, नंबर और भुगतान पते फ़ोन छोड़ने से पहले ही हटा दिए जाते हैं।',
+      'हर तालिका डेटाबेस में row-level security के पीछे है — ऐप का लगाया फ़िल्टर नहीं, बल्कि डेटाबेस का लागू किया नियम। रसीद की तस्वीरें एक निजी जगह में, छोटी अवधि के लिंक से ही पहुँच में। क्रैश रिपोर्ट से पते, नंबर और भुगतान पते फ़ोन छोड़ने से पहले ही हटा दिए जाते हैं। हर रसीद पूरे समूह को दिख सकती है, या केवल उस ख़र्च में शामिल लोगों को — यह आप हर तस्वीर के लिए चुनते हैं।',
     choicesTitle: 'आप क्या कर सकते हैं',
     choicesBody:
       'जो कुछ आपने डाला है, कभी भी, पूरा और मुफ़्त निर्यात करें। कोई भी सूचना बंद करें। अपना खाता और उसमें रखा निजी डेटा मिटाएँ।',
@@ -8578,6 +8658,32 @@ const hi: UiStrings = {
     retentionTitle: 'हम इसे कब तक रखते हैं',
     retentionBody:
       'जब तक आपका खाता खुला है, आपका डेटा रहता है। अगर खाता 3 साल तक अछूता रहे, तो हम उसे और उसके निजी डेटा को हटा देते हैं। इसके लिए इंतज़ार करने की ज़रूरत नहीं — नीचे कभी भी सब कुछ ख़ुद निर्यात या हटा सकते हैं। जिस समूह को आप बंद कर दें और डेढ़ साल तक न छूएं, वह अपने-आप आपके संग्रह में चला जाता है — कुछ भी नहीं हटता, और आप उसे कभी भी दोबारा खोल सकते हैं।',
+    controlsSection: 'आपके नियंत्रण',
+    appLockRow: 'ऐप लॉक',
+    appLockHint: 'खोलने के लिए फ़िंगरप्रिंट या चेहरा माँगे',
+    appLockUnavailable: 'उपलब्ध नहीं',
+    statusOn: 'चालू',
+    statusOff: 'बंद',
+    blockedNone: 'कोई नहीं',
+    sessionReplayHint: 'जब तक आप चालू न करें, बंद रहता है',
+    policySection: 'हम आपके डेटा की रक्षा कैसे करते हैं',
+    dangerSection: 'सावधानी क्षेत्र',
+    supportRow: 'निजता से जुड़े सवाल',
+    supportRowHint: 'हमें लिखें — जवाब एक व्यक्ति देता है',
+    lastUpdated: 'अंतिम बार {date} को अपडेट किया गया।',
+    expandLabel: 'और पढ़ें',
+    collapseLabel: 'कम दिखाएँ',
+    storeSummary: 'आपका नाम, साइन-इन, समूह, ख़र्च और कौन किसका देनदार है।',
+    protectSummary: 'हर पठन पर डेटाबेस नियम, निजी रसीद लिंक, साफ़ की गई क्रैश रिपोर्ट।',
+    servicesSummary: 'डेटाबेस के लिए Supabase, क्रैश के लिए Sentry, अनुमति देने पर ही Clarity।',
+    analyticsSummary: 'कोई विज्ञापन नहीं। आपके चालू किए बिना स्क्रीन रिकॉर्डिंग नहीं।',
+    retentionSummary: 'खाता खुला रहने तक; 3 साल अछूता रहा तो हटा दिया जाता है।',
+    choicesSummary: 'सब कुछ निर्यात करें, कोई भी सूचना बंद करें, या खाता हटाएँ।',
+    deviceTitle: 'इस फ़ोन पर',
+    deviceSummary:
+      'बिना इंटरनेट काम करने के लिए एन्क्रिप्टेड रखा जाता है; साइन आउट पर मिट जाता है।',
+    deviceBody:
+      'सिग्नल न होने पर भी चले, इसके लिए वेव्स आपके हिसाब की एक नक़ल फ़ोन में रखता है। वहाँ सहेजा गया हर मान फ़ोन के अपने कीस्टोर में रखी कुंजी से एन्क्रिप्ट होता है, इसलिए चोरी हुआ बैकअप या रूट किया गया फ़ाइल-सिस्टम कुछ नहीं पढ़ पाता। साइन आउट करते ही वह कुंजी और स्थानीय नक़ल दोनों मिट जाती हैं।',
     dataControlsSection: 'आपका डेटा',
     legalSection: 'क़ानूनी',
     exportRow: 'अपना डेटा निर्यात करें',
@@ -10870,7 +10976,7 @@ const ar: UiStrings = {
       'اسمك، وما استخدمته من رقم هاتف أو بريد أو هوية دخول. واختياريًا عنوان دفع كي يتمكن أحدهم من ردّ المال إليك، وبلد، وعنوان بريدي اختياري إن أضفته. المجموعات التي تشارك فيها ومصروفاتها ومن يدين لمن. لا شيء غير ذلك: لا تُرفع جهات الاتصال، ولا يوجد معرّف إعلاني.',
     protectTitle: 'كيف يُحمى',
     protectBody:
-      'كل جدول محميّ بأمان على مستوى الصف داخل قاعدة البيانات — ليس ترشيحًا يجريه التطبيق، بل قاعدة تفرضها قاعدة البيانات نفسها. صور الإيصالات في مكان خاص لا يُوصل إليه إلا بروابط قصيرة الأجل. وتُنقّى تقارير الأعطال من العناوين والأرقام وعناوين الدفع قبل مغادرتها الهاتف.',
+      'كل جدول محميّ بأمان على مستوى الصف داخل قاعدة البيانات — ليس ترشيحًا يجريه التطبيق، بل قاعدة تفرضها قاعدة البيانات نفسها. صور الإيصالات في مكان خاص لا يُوصل إليه إلا بروابط قصيرة الأجل. وتُنقّى تقارير الأعطال من العناوين والأرقام وعناوين الدفع قبل مغادرتها الهاتف. ويمكن أن يظهر كل إيصال لجميع أفراد المجموعة أو لمن شارك في ذلك المصروف فقط — تختار ذلك لكل صورة.',
     choicesTitle: 'ما الذي يمكنك فعله',
     choicesBody:
       'تصدير كل ما أدخلته، في أي وقت، كاملًا ومجانًا. إيقاف أي إشعار. حذف حسابك والبيانات الشخصية التي فيه.',
@@ -10887,6 +10993,31 @@ const ar: UiStrings = {
     retentionTitle: 'كم نحتفظ بها',
     retentionBody:
       'تبقى بياناتك ما دام حسابك مفتوحًا. إذا بقي الحساب دون استخدام لمدة 3 سنوات، نحذفه ونحذف معه البيانات الشخصية. لا داعي للانتظار — يمكنك تصدير كل شيء أو حذفه بنفسك في أي وقت أدناه. المجموعة التي تغلقها وتتركها دون استخدام لمدة عام ونصف تُنقل تلقائيًا إلى أرشيفك — لا يُحذف شيء، ويمكنك إعادة فتحها في أي وقت.',
+    controlsSection: 'أدواتك',
+    appLockRow: 'قفل التطبيق',
+    appLockHint: 'يطلب بصمتك أو وجهك عند الفتح',
+    appLockUnavailable: 'غير متاح',
+    statusOn: 'مفعّل',
+    statusOff: 'متوقف',
+    blockedNone: 'لا أحد',
+    sessionReplayHint: 'متوقف ما لم تفعّله بنفسك',
+    policySection: 'كيف نحمي بياناتك',
+    dangerSection: 'منطقة الخطر',
+    supportRow: 'أسئلة عن الخصوصية',
+    supportRowHint: 'راسلنا — يردّ عليك شخص',
+    lastUpdated: 'آخر تحديث {date}.',
+    expandLabel: 'اقرأ المزيد',
+    collapseLabel: 'إظهار أقل',
+    storeSummary: 'اسمك وطريقة دخولك ومجموعاتك ومصروفاتك ومن يدين لمن.',
+    protectSummary: 'قواعد قاعدة البيانات عند كل قراءة، وروابط إيصالات خاصة، وتقارير أعطال منقّاة.',
+    servicesSummary: 'Supabase لقاعدة البيانات، وSentry للأعطال، وClarity فقط إن سمحت.',
+    analyticsSummary: 'لا إعلانات ولا معرّف إعلاني. ولا تسجيل للشاشة ما لم تفعّله.',
+    retentionSummary: 'يبقى ما دام حسابك مفتوحًا، ويُحذف بعد ثلاث سنوات دون استخدام.',
+    choicesSummary: 'صدّر كل شيء، أوقف أي إشعار، أو احذف حسابك.',
+    deviceTitle: 'على هذا الهاتف',
+    deviceSummary: 'يُحفظ مشفّرًا للعمل دون اتصال، ويُمحى عند تسجيل الخروج.',
+    deviceBody:
+      'يحتفظ Waves بنسخة من دفترك على الهاتف كي يعمل دون شبكة. وكل قيمة تُحفظ هناك مشفّرة بمفتاح داخل مخزن مفاتيح الهاتف نفسه، فلا تقرأ نسخة احتياطية مسروقة ولا نظام ملفات مكسور الحماية شيئًا. وتسجيل الخروج يتلف ذلك المفتاح والنسخة المحلية معه.',
     dataControlsSection: 'بياناتك',
     legalSection: 'قانوني',
     exportRow: 'صدِّر بياناتك',
