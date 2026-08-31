@@ -203,7 +203,12 @@ function ProfileForm() {
     (session?.user?.user_metadata?.picture as string | undefined) ||
     null;
 
-  const { enabled: lockEnabled, supported: lockSupported, graceSeconds } = useLock();
+  const {
+    enabled: lockEnabled,
+    supported: lockSupported,
+    ready: lockReady,
+    graceSeconds,
+  } = useLock();
   const { preference: syncNetwork } = useSyncNetwork();
   const { preference: themePreference, overridden: themeOverridden } = useThemePreference();
   const { language, stored: languageChosen, restartNeeded } = useLanguage();
@@ -294,11 +299,16 @@ function ProfileForm() {
         ? t.sync.both
         : t.sync.wifi;
 
-  const lockSummary = !lockSupported
-    ? t.account.lockNoBiometrics
-    : lockEnabled
-      ? t.account.lockOn.replace('{when}', describeGrace(graceSeconds, t, locale).toLowerCase())
-      : t.account.lockOff;
+  // Until the stored state and the hardware check are both back, `supported`
+  // is still its initial false — saying "no biometrics" then would be a wrong
+  // answer on a phone that has them. No hint until it is known.
+  const lockSummary = !lockReady
+    ? undefined
+    : !lockSupported
+      ? t.account.lockNoBiometrics
+      : lockEnabled
+        ? t.account.lockOn.replace('{when}', describeGrace(graceSeconds, t, locale).toLowerCase())
+        : t.account.lockOff;
 
   const signOutHint = isGuest ? t.account.signOutGuestHint : t.account.signOutHint;
 

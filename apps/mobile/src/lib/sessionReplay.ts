@@ -28,9 +28,15 @@ export async function sessionReplayConsent(): Promise<boolean> {
 /**
  * Record the choice and act on it in one step, so the switch on screen and the
  * SDK's capture state can never disagree.
+ *
+ * A failed write throws rather than being swallowed. This is a consent: a switch
+ * left showing "on" over a preference that was never stored is a recording
+ * somebody believes they allowed and did not, and one showing "off" over a
+ * stored "on" resumes recording at the next launch. The caller reverts the
+ * switch and says so.
  */
 export async function setSessionReplayConsent(allowed: boolean): Promise<void> {
-  await AsyncStorage.setItem(KEY, String(allowed)).catch(() => undefined);
+  await AsyncStorage.setItem(KEY, String(allowed));
   await allowSessionReplay(allowed);
 }
 

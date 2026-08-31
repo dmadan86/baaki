@@ -34,6 +34,14 @@ interface LockValue {
   /** Whether the app is currently waiting to be unlocked. */
   locked: boolean;
   supported: boolean;
+  /**
+   * False until the stored state and the hardware check have both come back.
+   * Whether a device can lock is read asynchronously, and `supported` starts
+   * false, so a row rendered before this is true would say 'not available' on a
+   * phone that supports it perfectly well — the worst possible flicker on a
+   * security setting.
+   */
+  ready: boolean;
   /** Seconds in the background before the lock comes back. */
   graceSeconds: number;
   setEnabled: (value: boolean) => Promise<void>;
@@ -54,6 +62,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
   const [locked, setLocked] = useState(false);
   const [supported, setSupported] = useState(false);
   const [graceSeconds, setGraceState] = useState(DEFAULT_GRACE_SECONDS);
+  const [ready, setReady] = useState(false);
 
   /**
    * When the app was last backgrounded. A ref rather than state because the
@@ -81,6 +90,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
       setLocked(on);
       const parsed = Number(storedGrace);
       if (storedGrace !== null && Number.isFinite(parsed) && parsed >= 0) setGraceState(parsed);
+      setReady(true);
     })();
     return () => {
       active = false;
@@ -136,7 +146,16 @@ export function LockProvider({ children }: { children: ReactNode }) {
 
   return (
     <LockContext.Provider
-      value={{ enabled, locked, supported, graceSeconds, setEnabled, setGraceSeconds, unlock }}
+      value={{
+        enabled,
+        locked,
+        supported,
+        ready,
+        graceSeconds,
+        setEnabled,
+        setGraceSeconds,
+        unlock,
+      }}
     >
       {children}
     </LockContext.Provider>
