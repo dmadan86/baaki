@@ -492,6 +492,8 @@ export interface UiStrings {
   nothingPlannedYet: string;
   planEmptyBody: string;
   whatIsPlanned: string;
+  /** Screen-reader hint on a day heading, which is that day's add button. */
+  addPlanHint: string;
   add: string;
   cancel: string;
   whichGroup: string;
@@ -2689,6 +2691,7 @@ const en: UiStrings = {
   nothingPlannedYet: 'Nothing planned yet',
   planEmptyBody: 'Add the days and what you mean to do. What it actually costs fills itself in.',
   whatIsPlanned: 'What are you doing?',
+  addPlanHint: 'Opens a field to add a plan to this day',
   add: 'Add',
   cancel: 'Cancel',
   whichGroup: 'Which group is this for?',
@@ -4772,6 +4775,7 @@ const ta: UiStrings = {
   planEmptyBody:
     'நாட்களையும் செய்யப் போவதையும் சேருங்கள். உண்மையில் ஆன செலவு தானே நிரம்பிக்கொள்ளும்.',
   whatIsPlanned: 'என்ன செய்யப் போகிறீர்கள்?',
+  addPlanHint: 'இந்த நாளுக்குத் திட்டம் சேர்க்கும் புலத்தைத் திறக்கும்',
   add: 'சேர்',
   cancel: 'ரத்து',
   whichGroup: 'எந்தக் குழுவுக்கு?',
@@ -6930,6 +6934,7 @@ const hi: UiStrings = {
   nothingPlannedYet: 'अभी कोई योजना नहीं',
   planEmptyBody: 'दिन और जो करना है वह जोड़िए। असल में जो लगा वह अपने आप भर जाएगा।',
   whatIsPlanned: 'क्या करना है?',
+  addPlanHint: 'इस दिन में योजना जोड़ने का फ़ील्ड खोलता है',
   add: 'जोड़ें',
   cancel: 'रद्द',
   whichGroup: 'किस समूह के लिए?',
@@ -9032,6 +9037,7 @@ const ar: UiStrings = {
   nothingPlannedYet: 'لا خطة بعد',
   planEmptyBody: 'أضف الأيام وما تنوي فعله. أما التكلفة الفعلية فتُملأ من تلقاء نفسها.',
   whatIsPlanned: 'ماذا ستفعل؟',
+  addPlanHint: 'يفتح حقلاً لإضافة خطة إلى هذا اليوم',
   add: 'إضافة',
   cancel: 'إلغاء',
   whichGroup: 'لأي مجموعة؟',

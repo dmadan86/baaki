@@ -762,139 +762,163 @@ export default function PlanScreen() {
 
         {timeline.days.map((day) => (
           <View key={day.day} style={{ gap: theme.spacing.sm }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text variant="subheading" tone={day.day === today ? 'brand' : 'default'}>
-                {dayLabel(day.day, locale)}
-              </Text>
-              {Object.entries(day.spentByCurrency).map(([code, amount]) => (
-                <MoneyText
-                  key={code}
-                  amount={amount}
-                  currency={code}
-                  locale={locale}
-                  variant="caption"
-                />
-              ))}
-            </Row>
+            {/* The day heading is the day's add button.
 
-            <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-              {day.items.map((item) => (
-                <Row
-                  key={item.id}
-                  style={{ paddingVertical: theme.spacing.md, gap: theme.spacing.md }}
-                >
-                  <Pressable
-                    onPress={() => void toggle(item)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: item.done }}
-                    accessibilityLabel={item.title}
-                    hitSlop={10}
-                  >
-                    <Ionicons
-                      name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={iconSize.xl}
-                      color={item.done ? theme.color.positive : theme.color.textFaint}
-                    />
-                  </Pressable>
-                  <View style={{ flex: 1 }}>
-                    <Text variant="body" tone={item.done ? 'faint' : 'default'}>
-                      {item.startsAt ? `${item.startsAt}  ` : ''}
-                      {item.title}
-                    </Text>
-                    {item.note ? (
-                      <Text variant="micro" tone="muted">
-                        {item.note}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {item.plannedMinor !== null ? (
-                    <MoneyText
-                      amount={item.plannedMinor}
-                      currency={item.currency}
-                      locale={locale}
-                      variant="caption"
-                    />
-                  ) : null}
-                  <Pressable
-                    onPress={() => void remove(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel={fill(t.itemize.removeItem, { label: item.title })}
-                    hitSlop={10}
-                  >
-                    <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
-                  </Pressable>
-                </Row>
-              ))}
-
-              {/* What was actually spent that day, so the plan and the ledger
-                  are read in one place rather than two screens apart. */}
-              {day.expenses.map((expense) => (
-                <Row
-                  key={expense.id}
-                  style={{ paddingVertical: theme.spacing.sm, gap: theme.spacing.md }}
-                >
-                  <Ionicons
-                    name="receipt-outline"
-                    size={iconSize.md}
-                    color={theme.color.textFaint}
-                  />
-                  <Text variant="caption" tone="muted" style={{ flex: 1 }} numberOfLines={1}>
-                    {expense.description}
-                  </Text>
+                Every day used to carry a standing "+ Add" row beneath its
+                items, which meant a screen of eight days wore eight identical
+                buttons — the affordance repeated far more loudly than the plan
+                it belonged to. The heading was already the thing being pointed
+                at when somebody wanted to add to that day, so it does the job:
+                tapping it opens the same inline field the row used to. */}
+            <Pressable
+              onPress={() => {
+                setAddingTo(day.day);
+                setTitle('');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.add} — ${dayLabel(day.day, locale)}`}
+              accessibilityHint={t.addPlanHint}
+              // A heading is a line of text, and a line of text is a shorter
+              // target than a finger. Now that this line is the only way to add
+              // to a day it has to be reachable like a button: a full-height row
+              // to aim at, and slop around it for the miss.
+              hitSlop={8}
+              style={({ pressed }) => ({
+                minHeight: 44,
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text variant="subheading" tone={day.day === today ? 'brand' : 'default'}>
+                  {dayLabel(day.day, locale)}
+                </Text>
+                {Object.entries(day.spentByCurrency).map(([code, amount]) => (
                   <MoneyText
-                    amount={expense.amountMinor}
-                    currency={expense.currency}
+                    key={code}
+                    amount={amount}
+                    currency={code}
                     locale={locale}
                     variant="caption"
                   />
-                </Row>
-              ))}
+                ))}
+              </Row>
+            </Pressable>
 
-              {addingTo === day.day ? (
-                <View style={{ paddingVertical: theme.spacing.md, gap: theme.spacing.sm }}>
-                  <TextInput
-                    value={title}
-                    onChangeText={setTitle}
-                    placeholder={t.whatIsPlanned}
-                    placeholderTextColor={theme.color.textFaint}
-                    autoFocus
-                    onSubmitEditing={() => void submit(day.day)}
-                    style={{ fontSize: 16, color: theme.color.text, paddingVertical: 4 }}
-                  />
-                  <Row style={{ gap: theme.spacing.sm }}>
-                    <Button
-                      label={t.add}
-                      size="sm"
-                      disabled={busy}
-                      onPress={() => void submit(day.day)}
+            {/* A day with nothing planned, nothing spent and no open field has
+                an empty card to show, and an empty card is a sliver of surface
+                that reads as a rendering fault. It used to always hold at least
+                the "+ Add" row; now that the heading carries that, the card
+                only appears once there is something in it. */}
+            {day.items.length > 0 || day.expenses.length > 0 || addingTo === day.day ? (
+              <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
+                {day.items.map((item) => (
+                  <Row
+                    key={item.id}
+                    style={{ paddingVertical: theme.spacing.md, gap: theme.spacing.md }}
+                  >
+                    <Pressable
+                      onPress={() => void toggle(item)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: item.done }}
+                      accessibilityLabel={item.title}
+                      hitSlop={10}
+                    >
+                      <Ionicons
+                        name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={iconSize.xl}
+                        color={item.done ? theme.color.positive : theme.color.textFaint}
+                      />
+                    </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="body" tone={item.done ? 'faint' : 'default'}>
+                        {item.startsAt ? `${item.startsAt}  ` : ''}
+                        {item.title}
+                      </Text>
+                      {item.note ? (
+                        <Text variant="micro" tone="muted">
+                          {item.note}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {item.plannedMinor !== null ? (
+                      <MoneyText
+                        amount={item.plannedMinor}
+                        currency={item.currency}
+                        locale={locale}
+                        variant="caption"
+                      />
+                    ) : null}
+                    <Pressable
+                      onPress={() => void remove(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={fill(t.itemize.removeItem, { label: item.title })}
+                      hitSlop={10}
+                    >
+                      <Ionicons name="close" size={iconSize.md} color={theme.color.textFaint} />
+                    </Pressable>
+                  </Row>
+                ))}
+
+                {/* What was actually spent that day, so the plan and the ledger
+                  are read in one place rather than two screens apart. */}
+                {day.expenses.map((expense) => (
+                  <Row
+                    key={expense.id}
+                    style={{ paddingVertical: theme.spacing.sm, gap: theme.spacing.md }}
+                  >
+                    <Ionicons
+                      name="receipt-outline"
+                      size={iconSize.md}
+                      color={theme.color.textFaint}
                     />
-                    <Button
-                      label={t.cancel}
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => {
-                        setAddingTo(null);
-                        setTitle('');
-                      }}
+                    <Text variant="caption" tone="muted" style={{ flex: 1 }} numberOfLines={1}>
+                      {expense.description}
+                    </Text>
+                    <MoneyText
+                      amount={expense.amountMinor}
+                      currency={expense.currency}
+                      locale={locale}
+                      variant="caption"
                     />
                   </Row>
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    setAddingTo(day.day);
-                    setTitle('');
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t.add} — ${dayLabel(day.day, locale)}`}
-                  style={{ paddingVertical: theme.spacing.md }}
-                >
-                  <Text variant="caption" tone="brand">
-                    + {t.add}
-                  </Text>
-                </Pressable>
-              )}
-            </Card>
+                ))}
+
+                {/* Opened by the day's heading above. Nothing stands in its place
+                  when closed: an empty day is already an invitation, and the
+                  heading is the way in. */}
+                {addingTo === day.day ? (
+                  <View style={{ paddingVertical: theme.spacing.md, gap: theme.spacing.sm }}>
+                    <TextInput
+                      value={title}
+                      onChangeText={setTitle}
+                      placeholder={t.whatIsPlanned}
+                      placeholderTextColor={theme.color.textFaint}
+                      autoFocus
+                      onSubmitEditing={() => void submit(day.day)}
+                      style={{ fontSize: 16, color: theme.color.text, paddingVertical: 4 }}
+                    />
+                    <Row style={{ gap: theme.spacing.sm }}>
+                      <Button
+                        label={t.add}
+                        size="sm"
+                        disabled={busy}
+                        onPress={() => void submit(day.day)}
+                      />
+                      <Button
+                        label={t.cancel}
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => {
+                          setAddingTo(null);
+                          setTitle('');
+                        }}
+                      />
+                    </Row>
+                  </View>
+                ) : null}
+              </Card>
+            ) : null}
           </View>
         ))}
       </ScrollView>
