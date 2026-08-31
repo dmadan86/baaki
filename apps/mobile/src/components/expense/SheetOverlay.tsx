@@ -133,6 +133,15 @@ export function SheetOverlay({
         bottom: 0,
         backgroundColor: 'rgba(10, 10, 26, 0.55)',
         justifyContent: 'flex-end',
+        // Being last in the tree is enough on iOS, but not on Android: there a
+        // raised view paints above every unraised sibling whatever the order,
+        // and this app's cards are raised (`shadow.soft` is elevation 4,
+        // `shadow.lifted` 10, the pill tab bar 6). A sheet with no elevation of
+        // its own therefore opened *underneath* the content it covers — the
+        // Activity feed's cards showed through the backdrop. Sit above all of
+        // them, with the matching zIndex so the web build orders it the same.
+        zIndex: 100,
+        elevation: 24,
       }}
     >
       <Animated.View
