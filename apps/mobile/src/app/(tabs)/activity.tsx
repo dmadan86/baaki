@@ -65,6 +65,9 @@ type RowView = {
   tintKey: ReturnType<typeof verbTint>;
   icon: ReturnType<typeof verbIcon>;
   money: ReturnType<typeof parseMoney>;
+  /** The reader's own stake in this expense, when they are on the bill —
+   *  coloured by direction, the way the ledger and Friends show money. */
+  stake: RecentActivityRow['stake'];
   archived: boolean;
   unavailable: boolean;
 };
@@ -102,6 +105,7 @@ function toRowView(entry: RecentActivityRow, ctx: RowContext): RowView {
     tintKey: verbTint(entry.verb),
     icon: verbIcon(entry.verb),
     money: parseMoney(entry.payload),
+    stake: entry.stake,
     archived: !!g?.archived_at,
     unavailable: !g,
   };
@@ -191,11 +195,25 @@ const ActivityFeedRow = memo(function ActivityFeedRow({
             ) : null}
           </Row>
         </View>
-        {/* `payload` is an untyped JSON blob, so a bad amount must render as no
-            amount, not as a crashed tab. Neutral, not red: this is an expense
-            total belonging to nobody in particular, not a balance you owe —
-            `mode="plain"` is MoneyText's neutral ink. */}
-        {view.money ? (
+        {/* An expense the reader is on shows THEIR side of it — what they lent
+            or borrowed — coloured by direction, exactly as the group ledger's
+            expense rows and the Friends balances do. That is the figure that
+            answers "what did this do to me"; the bill's total answers nobody's
+            question and printed in neutral ink it read as disabled.
+
+            Everything else keeps the neutral total: a bill between other people,
+            and a settlement (money moves one way and the balance the other, so
+            either sign misreads the other). `payload` is an untyped JSON blob,
+            so a bad amount must render as no amount, not as a crashed tab. */}
+        {view.stake ? (
+          <MoneyText
+            amount={view.stake.amount}
+            currency={view.stake.currency}
+            locale={locale}
+            variant="subheading"
+            mode="balance"
+          />
+        ) : view.money ? (
           <MoneyText
             amount={view.money.amount}
             currency={view.money.currency}
@@ -223,7 +241,7 @@ export default function ActivityScreen() {
   // (`status` goes to Error while still unhydrated), a retry re-runs it via
   // `flush`, so the screen offers a way out rather than a skeleton forever.
   const { hydrated, status, flush } = useSync();
-  const allEntries = useRecentActivity();
+  const allEntries = useRecentActivity(myProfileId);
   // Whether the account has any live group at all — decides the empty-state's
   // next step. A brand-new account with nothing starts a group; an account that
   // has groups but no activity yet wants to add an expense, not make another
