@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { LayoutAnimation, Pressable, ScrollView, View } from 'react-native';
+import { Alert, LayoutAnimation, Pressable, ScrollView, View } from 'react-native';
 
 import {
   Card,
@@ -22,7 +22,7 @@ import { useBlockedUsers } from '@/data/blocked';
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { clarityConfigured } from '@/lib/clarity';
-import { useLock } from '@/lib/lock';
+import { describeGrace, useLock } from '@/lib/lock';
 import { useReducedMotion } from '@/lib/reducedMotion';
 import { sessionReplayConsent, setSessionReplayConsent } from '@/lib/sessionReplay';
 
@@ -58,8 +58,21 @@ export default function PrivacyScreen() {
   // have yet, so they are shown only once there is a session (a guest counts —
   // they have data to manage).
   const { session } = useAuth();
-  const { enabled: lockEnabled, supported: lockSupported } = useLock();
+  const {
+    enabled: lockEnabled,
+    supported: lockSupported,
+    ready: lockReady,
+    graceSeconds,
+  } = useLock();
   const { blocked } = useBlockedUsers();
+
+  // The same sentence the Settings lock row shows, so the two never disagree
+  // about what the lock is currently doing.
+  const lockSummary = !lockSupported
+    ? t.account.lockNoBiometrics
+    : lockEnabled
+      ? t.account.lockOn.replace('{when}', describeGrace(graceSeconds, t, locale).toLowerCase())
+      : t.account.lockOff;
 
   // The session-replay opt-in, mirrored from storage. Only meaningful when a
   // Clarity project is configured; on a build without one the switch is hidden
@@ -69,9 +82,16 @@ export default function PrivacyScreen() {
     void sessionReplayConsent().then(setReplay);
   }, []);
 
+  // Optimistic, then honest: if the consent does not persist, the switch goes
+  // back to what is actually stored rather than showing a choice that will not
+  // survive the next launch. This one is a consent to be recorded, so a switch
+  // that lies about it is the worst kind.
   const onReplayChange = (value: boolean): void => {
     setReplay(value);
-    void setSessionReplayConsent(value);
+    void setSessionReplayConsent(value).catch(() => {
+      setReplay(!value);
+      Alert.alert(t.privacy.couldNotSave);
+    });
   };
 
   // Which policy points are open. Signed out this screen *is* the policy, so
@@ -181,9 +201,6 @@ export default function PrivacyScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
-          {/* A shield, not the people glyph this screen used to open with: the
-              subject is what is kept and who cannot reach it, not who is in
-              your groups. */}
           <Ionicons name="shield-checkmark-outline" size={64} color={theme.color.text} />
           <Text
             align="center"
@@ -202,16 +219,14 @@ export default function PrivacyScreen() {
           </Text>
         </View>
 
-        {/* The switches, first, for the reader who came from Settings. Each is a
-            state they can read off in a second — on or off, how many — rather
-            than a paragraph that describes one. */}
+        {/* Signed in, the controls come before the policy prose. */}
         {session ? (
           <View style={{ gap: theme.spacing.sm }}>
             <SectionHeader title={t.privacy.controlsSection} />
             <Card style={{ paddingVertical: theme.spacing.xs }}>
               <ListRow
                 title={t.privacy.appLockRow}
-                subtitle={t.privacy.appLockHint}
+                subtitle={lockReady ? lockSummary : t.privacy.appLockHint}
                 onPress={() => router.push('/settings/lock')}
                 leading={
                   <Ionicons
@@ -222,13 +237,19 @@ export default function PrivacyScreen() {
                 }
                 trailing={
                   <Row style={{ gap: theme.spacing.xs }}>
-                    {status(
-                      !lockSupported
-                        ? t.privacy.appLockUnavailable
-                        : lockEnabled
-                          ? t.privacy.statusOn
-                          : t.privacy.statusOff,
-                    )}
+                    {/* Nothing until the lock's stored state and hardware check
+                        are both back: `supported` starts false, and a security
+                        row that says "not available" for a frame and then "on"
+                        is worse than one that says nothing for a frame. */}
+                    {lockReady
+                      ? status(
+                          !lockSupported
+                            ? t.privacy.appLockUnavailable
+                            : lockEnabled
+                              ? t.privacy.statusOn
+                              : t.privacy.statusOff,
+                        )
+                      : null}
                     {chevron}
                   </Row>
                 }
@@ -256,11 +277,9 @@ export default function PrivacyScreen() {
                   </Row>
                 }
               />
-              {/* The most sensitive switch on the page — it can record screens
-                  with names and amounts on them — so it sits in the open with
-                  the other controls rather than as a footnote under a
-                  paragraph. Hidden entirely on a build with no Clarity project,
-                  where it would toggle nothing. */}
+              {/* Recording can catch names and amounts, so it is a control in
+                  the open, not a footnote. Hidden entirely with no Clarity
+                  project, where it would toggle nothing. */}
               {clarityConfigured ? (
                 <>
                   {divider}
@@ -288,8 +307,7 @@ export default function PrivacyScreen() {
           </View>
         ) : null}
 
-        {/* Taking a copy out is not destructive and does not belong next to the
-            row that ends the account, so it stands on its own. */}
+        {/* Export is reversible; it does not share a card with delete. */}
         {session ? (
           <View style={{ gap: theme.spacing.sm }}>
             <SectionHeader title={t.privacy.dataControlsSection} />
@@ -307,14 +325,42 @@ export default function PrivacyScreen() {
           </View>
         ) : null}
 
-        {/* The policy itself: a glyph, the point, and one line of what it says.
-            Tapping opens the full paragraph. Signed out every one is already
-            open — this is the policy then, not a settings screen. */}
+        {/* Signed in this is an accordion — a glyph, the point, one line of what
+            it says, the paragraph on a tap. Signed out it is a document: every
+            body open, nothing pressable, and no chevron. A policy read by a
+            screen reader should not be a run of "button, expanded". */}
         <View style={{ gap: theme.spacing.sm }}>
           {session ? <SectionHeader title={t.privacy.policySection} /> : null}
           <View style={{ gap: theme.spacing.lg }}>
             {sections.map((section) => {
               const expanded = isOpen(section.id);
+              const content = (
+                <Row style={{ alignItems: 'flex-start', gap: theme.spacing.md }}>
+                  <Ionicons
+                    name={section.icon}
+                    size={iconSize.md}
+                    color={theme.color.brand}
+                    style={{ marginTop: 2 }}
+                  />
+                  <View style={{ flex: 1, gap: theme.spacing.xs }}>
+                    <Text variant="subheading">{section.title}</Text>
+                    <Text variant="body" tone="muted">
+                      {expanded ? section.body : section.summary}
+                    </Text>
+                  </View>
+                  {session ? (
+                    <Ionicons
+                      name={expanded ? 'chevron-up' : 'chevron-down'}
+                      size={iconSize.sm}
+                      color={theme.color.textFaint}
+                      style={{ marginTop: 4 }}
+                    />
+                  ) : null}
+                </Row>
+              );
+
+              if (!session) return <View key={section.id}>{content}</View>;
+
               return (
                 <Pressable
                   key={section.id}
@@ -323,28 +369,16 @@ export default function PrivacyScreen() {
                   accessibilityLabel={section.title}
                   accessibilityHint={expanded ? t.privacy.collapseLabel : t.privacy.expandLabel}
                   onPress={() => toggleSection(section.id)}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                  // The row is a deliberate control, not a paragraph that happens
+                  // to react: padding and a 44pt floor make it one to the thumb.
+                  style={({ pressed }) => ({
+                    minHeight: 44,
+                    justifyContent: 'center',
+                    paddingVertical: theme.spacing.xs,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
                 >
-                  <Row style={{ alignItems: 'flex-start', gap: theme.spacing.md }}>
-                    <Ionicons
-                      name={section.icon}
-                      size={iconSize.md}
-                      color={theme.color.brand}
-                      style={{ marginTop: 2 }}
-                    />
-                    <View style={{ flex: 1, gap: theme.spacing.xs }}>
-                      <Text variant="subheading">{section.title}</Text>
-                      <Text variant="body" tone="muted">
-                        {expanded ? section.body : section.summary}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={expanded ? 'chevron-up' : 'chevron-down'}
-                      size={iconSize.sm}
-                      color={theme.color.textFaint}
-                      style={{ marginTop: 4 }}
-                    />
-                  </Row>
+                  {content}
                 </Pressable>
               );
             })}
@@ -354,9 +388,7 @@ export default function PrivacyScreen() {
         <View style={{ gap: theme.spacing.sm }}>
           <SectionHeader title={t.privacy.legalSection} />
           <Card style={{ paddingVertical: theme.spacing.xs }}>
-            {/* A policy that explains your rights and gives you nobody to ask is
-                half a policy. The route only exists behind a session, so it is
-                offered to the reader who has one. */}
+            {/* Feedback needs a session, so it is offered only with one. */}
             {session ? (
               <>
                 <ListRow
@@ -387,8 +419,7 @@ export default function PrivacyScreen() {
           </Card>
         </View>
 
-        {/* Ending the account is one divider away from nothing: it gets its own
-            heading and its own card, at the bottom, past everything reversible. */}
+        {/* Deleting the account sits alone, below everything reversible. */}
         {session ? (
           <View style={{ gap: theme.spacing.sm }}>
             <SectionHeader title={t.privacy.dangerSection} />

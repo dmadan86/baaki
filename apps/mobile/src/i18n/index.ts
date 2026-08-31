@@ -4331,7 +4331,7 @@ const en: UiStrings = {
     sessionReplayRow: 'Record how I use the app',
     servicesTitle: 'Who else touches your data',
     servicesBody:
-      'Baaki runs on Supabase — the database and sign-in, on servers we control. Crash reports go to Sentry, scrubbed of your details before they leave the phone. Anonymous usage goes to Microsoft Clarity, and only if you turn it on above. Your data is never sold, and there are no ad networks.',
+      'Waves runs on Supabase — the database and sign-in, on servers we control. Crash reports go to Sentry, scrubbed of your details before they leave the phone. Anonymous usage goes to Microsoft Clarity, and only if you turn it on above. Your data is never sold, and there are no ad networks.',
     retentionTitle: 'How long we keep it',
     retentionBody:
       'Your data stays while your account is open. If the account goes untouched for 3 years, we delete it and the personal data with it. You never have to wait for that — export or delete everything yourself, any time, below. A group you close and leave untouched for a year and a half is moved to your archive automatically — nothing is deleted, and you can reopen it whenever you like.',
@@ -4350,25 +4350,26 @@ const en: UiStrings = {
     lastUpdated: 'Last updated {date}.',
     expandLabel: 'Read more',
     collapseLabel: 'Show less',
-    storeSummary: 'Your name, sign-in, groups, expenses and who owes whom.',
+    storeSummary: 'Your profile, groups, expenses, receipts, comments, settings and who owes whom.',
     protectSummary: 'Database rules on every read, private receipt links, scrubbed crash reports.',
     servicesSummary: 'Supabase for the database, Sentry for crashes, Clarity only if you allow it.',
     analyticsSummary: 'No ads, no ad identifier. Screen recording is off unless you turn it on.',
     retentionSummary: 'Kept while your account is open, deleted after 3 untouched years.',
     choicesSummary: 'Export everything, mute anything, or delete your account.',
     deviceTitle: 'On this phone',
-    deviceSummary: 'Held encrypted for offline use, erased when you sign out.',
+    deviceSummary:
+      'The ledger is sealed with a device key; settings and pending uploads are not. All cleared on sign-out.',
     deviceBody:
-      "Waves keeps a copy of your ledger on the phone so it still works with no signal. Every value it stores there is encrypted with a key held in the phone's own keystore, so a stolen backup or a rooted filesystem reads nothing. Signing out destroys that key and the local copy with it.",
+      "Waves keeps a copy of your ledger on the phone so it still works with no signal. The ledger rows and the queue of changes waiting to be sent are sealed with a key kept in the phone's secure store, so a copy of that file taken off the phone is unreadable without it. Some things sit outside the seal: your app settings, and receipt images still waiting to upload. Signing out clears the ledger, the queue, the cached images and the key together.",
     dataControlsSection: 'Your data',
     legalSection: 'Legal',
     exportRow: 'Export your data',
     exportRowHint: 'A full, lossless copy — yours to keep',
     licensesRow: 'Open source licenses',
-    licensesRowHint: 'The libraries Baaki is built on',
+    licensesRowHint: 'The libraries Waves is built on',
     licensesTitle: 'Open source',
     licensesIntro:
-      'Baaki is built on open-source software. Thank you to the people who made and maintain these.',
+      'Waves is built on open-source software. Thank you to the people who made and maintain these.',
     licenseNote: 'Each is used under its own license, kept unchanged.',
     previewGroups: { one: 'You are in {n} group.', other: 'You are in {n} groups.' },
     previewExpenses: {
@@ -4388,7 +4389,7 @@ const en: UiStrings = {
     feedbackPlaceholder: 'What happened, or what you wish it did',
     feedbackSend: 'Send',
     feedbackThanks: 'Thank you — that has been received.',
-    feedbackRating: 'How is Baaki so far?',
+    feedbackRating: 'How is Waves so far?',
     feedbackRatingHint: 'Optional',
     feedbackStarLabel: { one: '{n} star', other: '{n} stars' },
     feedbackStarClearHint: 'Tap again to clear the rating',
@@ -6509,7 +6510,7 @@ const ta: UiStrings = {
     rowHint: 'என்ன சேமிக்கப்படுகிறது, எப்படி பாதுகாக்கப்படுகிறது',
     title: 'தனியுரிமை & பாதுகாப்பு',
     intro:
-      'பாக்கி வேலை செய்ய எவ்வளவு தேவையோ அவ்வளவு மட்டுமே உங்களைப் பற்றி வைத்திருக்கிறது. அது என்ன என்பது இங்கே.',
+      'Waves வேலை செய்ய எவ்வளவு தேவையோ அவ்வளவு மட்டுமே உங்களைப் பற்றி வைத்திருக்கிறது. அது என்ன என்பது இங்கே.',
     storeTitle: 'என்ன சேமிக்கப்படுகிறது',
     storeBody:
       'உங்கள் பெயர், நீங்கள் பயன்படுத்திய தொலைபேசி எண், மின்னஞ்சல் அல்லது உள்நுழைவு அடையாளம். விருப்பப்படி ஒரு பணப் பரிமாற்ற முகவரி, ஒரு நாடு, மற்றும் நீங்கள் சேர்த்தால் ஒரு அஞ்சல் முகவரி. நீங்கள் இருக்கும் குழுக்கள், அவற்றின் செலவுகள், யார் யாருக்குக் கடன்பட்டவர். வேறு எதுவும் இல்லை: தொடர்புகள் பதிவேற்றப்படுவதில்லை, விளம்பர அடையாளம் இல்லை.',
@@ -6528,7 +6529,7 @@ const ta: UiStrings = {
     sessionReplayRow: 'நான் செயலியைப் பயன்படுத்தும் விதத்தைப் பதிவு செய்',
     servicesTitle: 'உங்கள் தரவை வேறு யார் தொடுகிறார்கள்',
     servicesBody:
-      'பாக்கி Supabase-இல் இயங்குகிறது — தரவுத்தளமும் உள்நுழைவும், நாங்கள் நிர்வகிக்கும் சேவையகங்களில். செயலிழப்பு அறிக்கைகள் உங்கள் விவரங்கள் நீக்கப்பட்ட பிறகே Sentry-க்குச் செல்கின்றன. அநாமதேய பயன்பாட்டு தரவு Microsoft Clarity-க்குச் செல்கிறது, மேலே நீங்கள் இயக்கினால் மட்டுமே. உங்கள் தரவு விற்கப்படுவதில்லை, விளம்பர வலையமைப்புகளும் இல்லை.',
+      'Waves Supabase-இல் இயங்குகிறது — தரவுத்தளமும் உள்நுழைவும், நாங்கள் நிர்வகிக்கும் சேவையகங்களில். செயலிழப்பு அறிக்கைகள் உங்கள் விவரங்கள் நீக்கப்பட்ட பிறகே Sentry-க்குச் செல்கின்றன. அநாமதேய பயன்பாட்டு தரவு Microsoft Clarity-க்குச் செல்கிறது, மேலே நீங்கள் இயக்கினால் மட்டுமே. உங்கள் தரவு விற்கப்படுவதில்லை, விளம்பர வலையமைப்புகளும் இல்லை.',
     retentionTitle: 'எவ்வளவு காலம் வைத்திருக்கிறோம்',
     retentionBody:
       'உங்கள் கணக்கு திறந்திருக்கும் வரை தரவு இருக்கும். கணக்கு 3 ஆண்டுகள் தொடப்படாமல் இருந்தால், அதை அதிலுள்ள தனிப்பட்ட தரவுடன் நீக்குகிறோம். அதற்காகக் காத்திருக்க வேண்டாம் — கீழே எப்போது வேண்டுமானாலும் எல்லாவற்றையும் ஏற்றுமதி செய்யலாம் அல்லது நீக்கலாம். நீங்கள் மூடி, ஒன்றரை ஆண்டுகளாகத் தொடாமல் விட்ட குழு தானாகவே உங்கள் காப்பகத்திற்கு நகர்த்தப்படுகிறது — எதுவும் நீக்கப்படாது, எப்போது வேண்டுமானாலும் மீண்டும் திறக்கலாம்.',
@@ -6547,7 +6548,8 @@ const ta: UiStrings = {
     lastUpdated: 'கடைசியாகப் புதுப்பிக்கப்பட்டது {date}.',
     expandLabel: 'மேலும் படிக்க',
     collapseLabel: 'சுருக்கு',
-    storeSummary: 'உங்கள் பெயர், உள்நுழைவு, குழுக்கள், செலவுகள், யார் யாருக்குக் கடன்.',
+    storeSummary:
+      'உங்கள் சுயவிவரம், குழுக்கள், செலவுகள், ரசீதுகள், கருத்துகள், அமைப்புகள், யார் யாருக்குக் கடன்.',
     protectSummary:
       'ஒவ்வொரு வாசிப்பிலும் தரவுத்தள விதிகள், தனிப்பட்ட ரசீது இணைப்புகள், சுத்தம் செய்யப்பட்ட பிழை அறிக்கைகள்.',
     servicesSummary:
@@ -6558,18 +6560,18 @@ const ta: UiStrings = {
       'எல்லாவற்றையும் ஏற்றுமதி செய்யுங்கள், அறிவிப்புகளை நிறுத்துங்கள், கணக்கை நீக்குங்கள்.',
     deviceTitle: 'இந்தத் தொலைபேசியில்',
     deviceSummary:
-      'இணையம் இல்லாமலும் வேலை செய்ய குறியாக்கம் செய்து வைக்கப்படுகிறது; வெளியேறும்போது அழிக்கப்படுகிறது.',
+      'கணக்கு சாதனச் சாவியால் மூடப்படுகிறது; அமைப்புகளும் காத்திருக்கும் பதிவேற்றங்களும் இல்லை. வெளியேறும்போது அனைத்தும் நீக்கப்படும்.',
     deviceBody:
-      'சிக்னல் இல்லாமலும் வேலை செய்ய, வேவ்ஸ் உங்கள் கணக்கின் ஒரு நகலைத் தொலைபேசியிலேயே வைத்திருக்கிறது. அங்கு சேமிக்கப்படும் ஒவ்வொரு மதிப்பும் தொலைபேசியின் சொந்த சாவி-சேமிப்பில் உள்ள சாவியால் குறியாக்கம் செய்யப்படுகிறது — திருடப்பட்ட காப்புப்பிரதியோ ரூட் செய்யப்பட்ட கோப்பு முறைமையோ எதையும் படிக்க முடியாது. நீங்கள் வெளியேறும்போது அந்தச் சாவியும் உள்ளூர் நகலும் அழிக்கப்படுகின்றன.',
+      'சிக்னல் இல்லாமலும் வேலை செய்ய, Waves உங்கள் கணக்கின் ஒரு நகலைத் தொலைபேசியிலேயே வைத்திருக்கிறது. கணக்கு வரிசைகளும், அனுப்பப்படக் காத்திருக்கும் மாற்றங்களும் தொலைபேசியின் பாதுகாப்புச் சேமிப்பில் உள்ள சாவியால் மூடப்படுகின்றன — அந்தக் கோப்பை வெளியே எடுத்தாலும் சாவி இல்லாமல் படிக்க முடியாது. சிலவை அந்த மூடலுக்கு வெளியே இருக்கின்றன: உங்கள் செயலி அமைப்புகள், பதிவேற்றக் காத்திருக்கும் ரசீது படங்கள். நீங்கள் வெளியேறும்போது கணக்கு, வரிசை, சேமித்த படங்கள், சாவி எல்லாம் சேர்ந்து நீக்கப்படுகின்றன.',
     dataControlsSection: 'உங்கள் தரவு',
     legalSection: 'சட்டம்',
     exportRow: 'உங்கள் தரவை ஏற்றுமதி செய்',
     exportRowHint: 'முழுமையான, இழப்பில்லா நகல் — உங்களுக்கே',
     licensesRow: 'திறந்த மூல உரிமங்கள்',
-    licensesRowHint: 'பாக்கி கட்டப்பட்ட நூலகங்கள்',
+    licensesRowHint: 'Waves கட்டப்பட்ட நூலகங்கள்',
     licensesTitle: 'திறந்த மூலம்',
     licensesIntro:
-      'பாக்கி திறந்த மூல மென்பொருளால் கட்டப்பட்டது. இவற்றை உருவாக்கிப் பராமரிப்பவர்களுக்கு நன்றி.',
+      'Waves திறந்த மூல மென்பொருளால் கட்டப்பட்டது. இவற்றை உருவாக்கிப் பராமரிப்பவர்களுக்கு நன்றி.',
     licenseNote: 'ஒவ்வொன்றும் அதன் சொந்த உரிமத்தின் கீழ், மாற்றமின்றிப் பயன்படுத்தப்படுகிறது.',
     previewGroups: {
       one: 'நீங்கள் {n} குழுவில் உள்ளீர்கள்.',
@@ -6592,7 +6594,7 @@ const ta: UiStrings = {
     feedbackPlaceholder: 'என்ன நடந்தது, அல்லது என்ன இருக்க வேண்டும் என நினைக்கிறீர்கள்',
     feedbackSend: 'அனுப்பு',
     feedbackThanks: 'நன்றி — கிடைத்துவிட்டது.',
-    feedbackRating: 'பாக்கி இதுவரை எப்படி இருக்கிறது?',
+    feedbackRating: 'Waves இதுவரை எப்படி இருக்கிறது?',
     feedbackRatingHint: 'விருப்பம்',
     feedbackStarLabel: { one: '{n} நட்சத்திரம்', other: '{n} நட்சத்திரங்கள்' },
     feedbackStarClearHint: 'மதிப்பீட்டை அழிக்க மீண்டும் தட்டவும்',
@@ -8635,7 +8637,7 @@ const hi: UiStrings = {
     rowHint: 'क्या रखा जाता है, और कैसे सुरक्षित रहता है',
     title: 'निजता और सुरक्षा',
     intro:
-      'बाकी आपके बारे में उतना ही रखता है जितना काम करने के लिए ज़रूरी है। वह क्या है, सीधे शब्दों में।',
+      'Waves आपके बारे में उतना ही रखता है जितना काम करने के लिए ज़रूरी है। वह क्या है, सीधे शब्दों में।',
     storeTitle: 'क्या रखा जाता है',
     storeBody:
       'आपका नाम, और फ़ोन नंबर, ईमेल या साइन-इन पहचान में से जो आपने इस्तेमाल किया। वैकल्पिक रूप से एक भुगतान पता, ताकि कोई आपको लौटा सके, एक देश, और यदि आप जोड़ें तो एक डाक पता। आप जिन समूहों में हैं, उनके ख़र्चे, और कौन किसका देनदार है। और कुछ नहीं: कोई संपर्क अपलोड नहीं होते, कोई विज्ञापन पहचानकर्ता नहीं।',
@@ -8654,7 +8656,7 @@ const hi: UiStrings = {
     sessionReplayRow: 'ऐप के मेरे इस्तेमाल को दर्ज करने दें',
     servicesTitle: 'आपका डेटा और कौन छूता है',
     servicesBody:
-      'बाकी Supabase पर चलता है — डेटाबेस और साइन-इन, हमारे नियंत्रण वाले सर्वर पर। क्रैश रिपोर्ट फ़ोन छोड़ने से पहले आपके विवरण हटाकर Sentry को जाती हैं। गुमनाम उपयोग डेटा Microsoft Clarity को जाता है, और सिर्फ़ तभी जब आप इसे ऊपर चालू करें। आपका डेटा कभी बेचा नहीं जाता, और कोई विज्ञापन नेटवर्क नहीं है।',
+      'Waves Supabase पर चलता है — डेटाबेस और साइन-इन, हमारे नियंत्रण वाले सर्वर पर। क्रैश रिपोर्ट फ़ोन छोड़ने से पहले आपके विवरण हटाकर Sentry को जाती हैं। गुमनाम उपयोग डेटा Microsoft Clarity को जाता है, और सिर्फ़ तभी जब आप इसे ऊपर चालू करें। आपका डेटा कभी बेचा नहीं जाता, और कोई विज्ञापन नेटवर्क नहीं है।',
     retentionTitle: 'हम इसे कब तक रखते हैं',
     retentionBody:
       'जब तक आपका खाता खुला है, आपका डेटा रहता है। अगर खाता 3 साल तक अछूता रहे, तो हम उसे और उसके निजी डेटा को हटा देते हैं। इसके लिए इंतज़ार करने की ज़रूरत नहीं — नीचे कभी भी सब कुछ ख़ुद निर्यात या हटा सकते हैं। जिस समूह को आप बंद कर दें और डेढ़ साल तक न छूएं, वह अपने-आप आपके संग्रह में चला जाता है — कुछ भी नहीं हटता, और आप उसे कभी भी दोबारा खोल सकते हैं।',
@@ -8673,7 +8675,8 @@ const hi: UiStrings = {
     lastUpdated: 'अंतिम बार {date} को अपडेट किया गया।',
     expandLabel: 'और पढ़ें',
     collapseLabel: 'कम दिखाएँ',
-    storeSummary: 'आपका नाम, साइन-इन, समूह, ख़र्च और कौन किसका देनदार है।',
+    storeSummary:
+      'आपकी प्रोफ़ाइल, समूह, ख़र्च, रसीदें, टिप्पणियाँ, सेटिंग्स और कौन किसका देनदार है।',
     protectSummary: 'हर पठन पर डेटाबेस नियम, निजी रसीद लिंक, साफ़ की गई क्रैश रिपोर्ट।',
     servicesSummary: 'डेटाबेस के लिए Supabase, क्रैश के लिए Sentry, अनुमति देने पर ही Clarity।',
     analyticsSummary: 'कोई विज्ञापन नहीं। आपके चालू किए बिना स्क्रीन रिकॉर्डिंग नहीं।',
@@ -8681,17 +8684,18 @@ const hi: UiStrings = {
     choicesSummary: 'सब कुछ निर्यात करें, कोई भी सूचना बंद करें, या खाता हटाएँ।',
     deviceTitle: 'इस फ़ोन पर',
     deviceSummary:
-      'बिना इंटरनेट काम करने के लिए एन्क्रिप्टेड रखा जाता है; साइन आउट पर मिट जाता है।',
+      'हिसाब डिवाइस की कुंजी से सील है; सेटिंग्स और बचे अपलोड नहीं। साइन आउट पर सब मिट जाता है।',
     deviceBody:
-      'सिग्नल न होने पर भी चले, इसके लिए वेव्स आपके हिसाब की एक नक़ल फ़ोन में रखता है। वहाँ सहेजा गया हर मान फ़ोन के अपने कीस्टोर में रखी कुंजी से एन्क्रिप्ट होता है, इसलिए चोरी हुआ बैकअप या रूट किया गया फ़ाइल-सिस्टम कुछ नहीं पढ़ पाता। साइन आउट करते ही वह कुंजी और स्थानीय नक़ल दोनों मिट जाती हैं।',
+      'सिग्नल न होने पर भी चले, इसके लिए Waves आपके हिसाब की एक नक़ल फ़ोन में रखता है। हिसाब की पंक्तियाँ और भेजे जाने को बची हुई बदलावों की कतार फ़ोन के सुरक्षित स्टोर में रखी कुंजी से सील रहती हैं, इसलिए वह फ़ाइल फ़ोन से निकाल भी ली जाए तो कुंजी के बिना पढ़ी नहीं जा सकती। कुछ चीज़ें उस सील से बाहर हैं: आपकी ऐप सेटिंग्स, और अपलोड होने को बची रसीद तस्वीरें। साइन आउट करते ही हिसाब, कतार, कैश की तस्वीरें और कुंजी — सब साथ मिट जाते हैं।',
     dataControlsSection: 'आपका डेटा',
     legalSection: 'क़ानूनी',
     exportRow: 'अपना डेटा निर्यात करें',
     exportRowHint: 'पूरी, बिना नुक़सान की कॉपी — आपकी अपनी',
     licensesRow: 'ओपन सोर्स लाइसेंस',
-    licensesRowHint: 'वे लाइब्रेरियाँ जिन पर बाकी बना है',
+    licensesRowHint: 'वे लाइब्रेरियाँ जिन पर Waves बना है',
     licensesTitle: 'ओपन सोर्स',
-    licensesIntro: 'बाकी ओपन-सोर्स सॉफ़्टवेयर पर बना है। इन्हें बनाने और सँभालने वालों का धन्यवाद।',
+    licensesIntro:
+      'Waves ओपन-सोर्स सॉफ़्टवेयर पर बना है। इन्हें बनाने और सँभालने वालों का धन्यवाद।',
     licenseNote: 'हर एक अपने लाइसेंस के तहत, बिना बदलाव के इस्तेमाल होती है।',
     previewGroups: { one: 'आप {n} समूह में हैं।', other: 'आप {n} समूहों में हैं।' },
     previewExpenses: {
@@ -8711,7 +8715,7 @@ const hi: UiStrings = {
     feedbackPlaceholder: 'क्या हुआ, या आप क्या चाहते थे कि यह करे',
     feedbackSend: 'भेजें',
     feedbackThanks: 'धन्यवाद — मिल गया।',
-    feedbackRating: 'बाकी अब तक कैसा लगा?',
+    feedbackRating: 'Waves अब तक कैसा लगा?',
     feedbackRatingHint: 'वैकल्पिक',
     feedbackStarLabel: { one: '{n} तारा', other: '{n} तारे' },
     feedbackStarClearHint: 'रेटिंग हटाने के लिए फिर से टैप करें',
@@ -10970,7 +10974,7 @@ const ar: UiStrings = {
     row: 'الخصوصية والأمان',
     rowHint: 'ما الذي يُحفظ، وكيف يُحمى',
     title: 'الخصوصية والأمان',
-    intro: 'يحتفظ باقي بأقل قدر ممكن عنك مع بقائه صالحًا للعمل. وهذا بيان بما يحتفظ به.',
+    intro: 'يحتفظ Waves بأقل قدر ممكن عنك مع بقائه صالحًا للعمل. وهذا بيان بما يحتفظ به.',
     storeTitle: 'ما الذي يُحفظ',
     storeBody:
       'اسمك، وما استخدمته من رقم هاتف أو بريد أو هوية دخول. واختياريًا عنوان دفع كي يتمكن أحدهم من ردّ المال إليك، وبلد، وعنوان بريدي اختياري إن أضفته. المجموعات التي تشارك فيها ومصروفاتها ومن يدين لمن. لا شيء غير ذلك: لا تُرفع جهات الاتصال، ولا يوجد معرّف إعلاني.',
@@ -11008,16 +11012,17 @@ const ar: UiStrings = {
     lastUpdated: 'آخر تحديث {date}.',
     expandLabel: 'اقرأ المزيد',
     collapseLabel: 'إظهار أقل',
-    storeSummary: 'اسمك وطريقة دخولك ومجموعاتك ومصروفاتك ومن يدين لمن.',
+    storeSummary: 'ملفك الشخصي ومجموعاتك ومصروفاتك وإيصالاتك وتعليقاتك وإعداداتك ومن يدين لمن.',
     protectSummary: 'قواعد قاعدة البيانات عند كل قراءة، وروابط إيصالات خاصة، وتقارير أعطال منقّاة.',
     servicesSummary: 'Supabase لقاعدة البيانات، وSentry للأعطال، وClarity فقط إن سمحت.',
     analyticsSummary: 'لا إعلانات ولا معرّف إعلاني. ولا تسجيل للشاشة ما لم تفعّله.',
     retentionSummary: 'يبقى ما دام حسابك مفتوحًا، ويُحذف بعد ثلاث سنوات دون استخدام.',
     choicesSummary: 'صدّر كل شيء، أوقف أي إشعار، أو احذف حسابك.',
     deviceTitle: 'على هذا الهاتف',
-    deviceSummary: 'يُحفظ مشفّرًا للعمل دون اتصال، ويُمحى عند تسجيل الخروج.',
+    deviceSummary:
+      'الدفتر مختوم بمفتاح على الجهاز، أما الإعدادات والرفع المعلّق فلا. ويُمحى الكل عند تسجيل الخروج.',
     deviceBody:
-      'يحتفظ Waves بنسخة من دفترك على الهاتف كي يعمل دون شبكة. وكل قيمة تُحفظ هناك مشفّرة بمفتاح داخل مخزن مفاتيح الهاتف نفسه، فلا تقرأ نسخة احتياطية مسروقة ولا نظام ملفات مكسور الحماية شيئًا. وتسجيل الخروج يتلف ذلك المفتاح والنسخة المحلية معه.',
+      'يحتفظ Waves بنسخة من دفترك على الهاتف كي يعمل دون شبكة. وصفوف الدفتر وطابور التغييرات التي لم تُرسل بعد مختومة بمفتاح داخل المخزن الآمن للهاتف، فلا تُقرأ نسخة من ذلك الملف تُؤخذ خارج الهاتف دون المفتاح. وبعض الأشياء خارج هذا الختم: إعدادات التطبيق، وصور الإيصالات التي تنتظر الرفع. وتسجيل الخروج يمسح الدفتر والطابور والصور المخزّنة والمفتاح معًا.',
     dataControlsSection: 'بياناتك',
     legalSection: 'قانوني',
     exportRow: 'صدِّر بياناتك',
