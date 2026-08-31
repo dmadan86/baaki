@@ -177,13 +177,13 @@ export function DictateVoice({ value, onChange, hints }: DictateProps) {
   });
 
   useSpeechRecognitionEvent('end', () => {
-    const mine = speechMic.owns(session);
     // Told either way: the recogniser really has finished, and whatever is
-    // waiting to open it next needs exactly this to know it may. A field that
-    // does not own the session is ignored by the arbiter, so this cannot close
-    // another field's capture out from under it.
-    speechMic.ended(session);
-    if (!mine) return;
+    // waiting to open it next needs exactly this to know it may. The answer
+    // decides whether the ending was *this* field's — which is not the same as
+    // owning the mic right now, because a previous session's teardown can
+    // report in after the guard timer settled it and this field opened. Acting
+    // on that late ending would close a dictation that has barely started.
+    if (!speechMic.ended(session)) return;
     starting.current = false;
     setListening(false);
   });

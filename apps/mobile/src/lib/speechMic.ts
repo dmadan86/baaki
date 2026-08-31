@@ -201,7 +201,8 @@ export class SpeechMic {
   }
 
   /**
-   * The recogniser reported `end`.
+   * The recogniser reported `end`. **Returns whether `token`'s capture is the
+   * one that just ended** — and so whether the caller should act on it.
    *
    * Every mounted surface hears the event, so each passes its own token and only
    * the owner's word is taken — otherwise an idle panel's handler, running first
@@ -209,20 +210,35 @@ export class SpeechMic {
    * and the owner would drop the final transcript. When there is no owner (the
    * trailing `end` of an aborted session) anybody may settle it, which is what
    * lets the next capture stop waiting.
+   *
+   * The return value is not a convenience. Asking `owns(token)` *before* calling
+   * this is not the same question and gets the dangerous answer: once the guard
+   * timer has settled an aborted session and a new capture has opened, the new
+   * capture owns the mic, so `owns` says yes — and then the old session's late
+   * `end` arrives and the caller closes a capture that has barely started. That
+   * is the original "the mic only works once" bug reaching the screen by the
+   * back door, with the arbiter's own state perfectly correct underneath. Only
+   * this method knows the ending was somebody else's, so only this method can
+   * answer, and it must be the single call the caller branches on.
    */
-  ended(token?: symbol): void {
+  ended(token?: symbol): boolean {
     const owed = this.owed !== 0 && Date.now() < this.owed;
     if (owed) {
       this.owed = 0;
-      // This is the aborted session finally reporting in. If the mic has moved
-      // on to somebody else in the meantime, that is all it is — swallow it.
-      if (this.phase !== 'closing') return;
+      // This is the aborted session finally reporting in. Either way it is not
+      // the caller's ending: it settles a teardown still in progress, or — if
+      // the mic has moved on to somebody else in the meantime — it is swallowed.
+      if (this.phase !== 'closing') return false;
       this.settle();
-      return;
+      return false;
     }
-    if (this.phase === 'idle') return;
-    if (this.owner !== null && this.owner !== token) return;
+    if (this.phase === 'idle') return false;
+    if (this.owner !== null && this.owner !== token) return false;
+    // Null owner here is the trailing `end` of a session already given up on:
+    // worth settling so the next capture may open, but nobody's to act on.
+    const mine = this.owner === token;
     this.settle();
+    return mine;
   }
 
   private settle(): void {

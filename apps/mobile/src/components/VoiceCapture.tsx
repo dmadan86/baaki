@@ -483,13 +483,14 @@ export function VoiceCapture({
   });
 
   useSpeechRecognitionEvent('end', () => {
-    const mine = speechMic.owns(session);
     // Told either way: the recogniser really has finished, and the next capture
-    // is waiting on exactly this to know it may open. A panel that does not own
-    // the session is ignored by the arbiter, so this cannot close somebody
-    // else's capture.
-    speechMic.ended(session);
-    if (!mine) return;
+    // is waiting on exactly this to know it may open. The answer decides whether
+    // the ending was *this* capture's — which is not the same as owning the mic
+    // right now. A previous session's teardown can report in late, after the
+    // guard timer settled it and this panel opened; the arbiter swallows it, and
+    // this panel must not act on it either, or it closes a capture that has
+    // barely started.
+    if (!speechMic.ended(session)) return;
     clearStall();
     setListening(false);
     level.set(withTiming(0, { duration: 150 }));

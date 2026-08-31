@@ -125,9 +125,68 @@ describe('whose event is this', () => {
 
     // The first session's `end` finally lands. It is not the second's, and
     // closing the second on it is exactly the bug being fixed.
-    mic.ended(second);
+    expect(mic.ended(second)).toBe(false);
     expect(mic.owns(second)).toBe(true);
     expect(mic.state).toBe('open');
+  });
+
+  /**
+   * The arbiter keeping the session is only half the fix.
+   *
+   * A caller that asks `owns(token)` and *then* reports the ending gets `true`
+   * here — it does own the mic, the new capture is live — and goes on to close
+   * its own capture on somebody else's ending. The arbiter's state stays
+   * perfectly correct while the screen shows the original bug. So the answer
+   * the caller branches on has to come from `ended` itself.
+   */
+  it('tells the new capture that a late ending was not its own', async () => {
+    const first = Symbol('first');
+    await mic.acquire(first);
+    mic.opened(first);
+    mic.release(first);
+
+    const second = Symbol('second');
+    await vi.advanceTimersByTimeAsync(SETTLE);
+    await mic.acquire(second);
+    mic.opened(second);
+
+    // What the old code asked, and the answer that misled it.
+    expect(mic.owns(second)).toBe(true);
+    // What the caller must ask instead.
+    expect(mic.ended(second)).toBe(false);
+  });
+
+  it('tells a capture when the ending really is its own', async () => {
+    const only = Symbol('only');
+    await mic.acquire(only);
+    mic.opened(only);
+
+    expect(mic.ended(only)).toBe(true);
+    expect(mic.state).toBe('idle');
+  });
+
+  it('tells a bystander the ending was not its own', async () => {
+    const owner = Symbol('owner');
+    const bystander = Symbol('bystander');
+    await mic.acquire(owner);
+    mic.opened(owner);
+
+    expect(mic.ended(bystander)).toBe(false);
+    // The owner's own ending still reaches it afterwards.
+    expect(mic.ended(owner)).toBe(true);
+  });
+
+  it('tells nobody to act on the trailing ending of an abandoned session', async () => {
+    const gone = Symbol('gone');
+    const watcher = Symbol('watcher');
+    await mic.acquire(gone);
+    mic.opened(gone);
+    mic.release(gone);
+
+    // Still `closing`: this ending settles the teardown so the next capture may
+    // open, but it belongs to a session nobody is rendering any more.
+    expect(mic.ended(watcher)).toBe(false);
+    expect(mic.state).toBe('idle');
   });
 
   it('will not let an idle surface close the capture somebody else is running', async () => {
