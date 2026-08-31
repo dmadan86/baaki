@@ -33,8 +33,29 @@ import { iconSize, Text, useTheme, type Theme } from '@waves/ui';
 import { useStrings } from '@/i18n';
 import { dictationError, englishSpeechLocale } from '@/lib/dictation';
 import { useReducedMotion } from '@/lib/reducedMotion';
+import { speechMic } from '@/lib/speechMic';
 
 const MIC_SIZE = 104;
+
+// Hand the shared arbiter the real recogniser. Safe at module scope: this file
+// is only ever loaded through `VoiceMicPanel`'s guarded require, so reaching it
+// at all means the native module imported cleanly.
+speechMic.attach({
+  stop: () => ExpoSpeechRecognitionModule.stop(),
+  abort: () => ExpoSpeechRecognitionModule.abort(),
+});
+
+/**
+ * How long a session may stay completely inert before it is written off.
+ *
+ * A live recogniser says so within a beat — `start` (ready for speech) lands
+ * well under a second, and `volumechange` follows it continuously. A session
+ * that has produced *nothing at all* after this long is not listening: its
+ * recogniser was destroyed under it, which the platform reports by saying
+ * nothing whatsoever. Generous on purpose, because the only cost of waiting is
+ * a slower error and the cost of firing early is cutting somebody off.
+ */
+const STALL_MS = 8000;
 
 /**
  * A soft halo that breathes behind the mic while it listens — a slow, low-opacity
@@ -398,23 +419,39 @@ export function VoiceCapture({
   const mounted = useRef(true);
   // Guards the one auto-start so a re-render never reopens the mic.
   const started = useRef(false);
-  // Mirrors `listening` for the unmount cleanup to read. The panel is remounted
-  // (via a changing `key`) to start each new capture; its cleanup must abort a
-  // mic that is still open, but must NOT abort an already-idle recogniser — a
-  // needless abort() races the next mount's start() on the Android singleton and
-  // leaves the second capture stuck on "listening" with nothing happening.
-  const listeningRef = useRef(false);
-  // Set the listening flag and its ref together, synchronously, at every
-  // transition — so the unmount cleanup below always reads the true state. A
-  // passive effect mirroring the ref could still be pending when a fast remount
-  // unmounts this instance, leaving the ref stale (an open mic not aborted, or an
-  // idle one needlessly aborted).
-  const setListeningState = useCallback((next: boolean): void => {
-    listeningRef.current = next;
-    setListening(next);
+
+  // This instance's claim on the single recogniser (see lib/speechMic). Minted
+  // once per mount, and the answer to "is this event mine?" — the events are
+  // global, so a panel that does not hold the mic must ignore every one of them.
+  // In particular the `end` a *previous* panel's abort still owes belongs to
+  // nobody, and closing this capture on it is what left the second attempt dead.
+  const [session] = useState(() => Symbol('voice-capture'));
+
+  // A start is already on its way — the mic is claimed but the native call has
+  // not been made yet, because a permission check and an installed-model probe
+  // are awaited first. Two taps inside that window would otherwise both see an
+  // idle mic and issue two native starts, the second destroying the first.
+  const starting = useRef(false);
+
+  // Nothing at all has come back from this session yet. Armed when the native
+  // start is issued, disarmed by the first event of any kind; if it fires, the
+  // recogniser never woke up and the panel says so instead of sitting on
+  // "listening" forever.
+  const stall = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearStall = useCallback((): void => {
+    if (stall.current === null) return;
+    clearTimeout(stall.current);
+    stall.current = null;
   }, []);
 
+  useSpeechRecognitionEvent('start', () => {
+    if (!speechMic.owns(session)) return;
+    clearStall();
+  });
+
   useSpeechRecognitionEvent('result', (event) => {
+    if (!speechMic.owns(session)) return;
+    clearStall();
     const transcript = event.results[0]?.transcript ?? '';
     latest.current = transcript;
     setLive(transcript);
@@ -424,6 +461,8 @@ export function VoiceCapture({
   // start). `value` runs −2…10, where below 0 is inaudible; normalise to 0…1 and
   // ease so the wave tracks loudness without twitching on every packet.
   useSpeechRecognitionEvent('volumechange', (event) => {
+    if (!speechMic.owns(session)) return;
+    clearStall();
     const norm = Math.max(0, Math.min(1, event.value / 10));
     // `.set()`, not `.value =`: Reanimated 4's method API, the one the React
     // compiler allows off the UI thread (see PressableScale in lib/anim).
@@ -431,14 +470,29 @@ export function VoiceCapture({
   });
 
   useSpeechRecognitionEvent('error', (event) => {
+    if (!speechMic.owns(session)) return;
+    clearStall();
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
-    setListeningState(false);
+    setListening(false);
     level.set(withTiming(0, { duration: 150 }));
+    // Ownership is held for the `end` that follows, so it is still recognised as
+    // this session's; the arbiter arms its own guard in case that `end` never
+    // comes.
+    speechMic.errored(session);
   });
 
   useSpeechRecognitionEvent('end', () => {
-    setListeningState(false);
+    // Told either way: the recogniser really has finished, and the next capture
+    // is waiting on exactly this to know it may open. The answer decides whether
+    // the ending was *this* capture's — which is not the same as owning the mic
+    // right now. A previous session's teardown can report in late, after the
+    // guard timer settled it and this panel opened; the arbiter swallows it, and
+    // this panel must not act on it either, or it closes a capture that has
+    // barely started.
+    if (!speechMic.ended(session)) return;
+    clearStall();
+    setListening(false);
     level.set(withTiming(0, { duration: 150 }));
     const said = latest.current.trim();
     if (said) onDone(said);
@@ -449,6 +503,14 @@ export function VoiceCapture({
   });
 
   const start = useCallback(async (): Promise<void> => {
+    // One start at a time from this panel, and one capture at a time in the app.
+    if (starting.current) return;
+    starting.current = true;
+    // Still holding the mic from a session the panel has already given up on —
+    // an error whose `end` never arrived, say. The tap is a deliberate retry, so
+    // let go of the old session here; the claim below then waits for its
+    // teardown rather than opening a second recogniser on top of it.
+    if (speechMic.owns(session)) speechMic.release(session);
     setError(null);
     // Speaking again is the retry: clear both miss states as the mic opens, and
     // let the screen drop any parsed miss it is still holding.
@@ -458,20 +520,40 @@ export function VoiceCapture({
     setLive('');
     level.set(0);
 
+    // Claim the recogniser first, and wait here for any previous session's
+    // teardown to land. Everything below must give it back — a claimed mic that
+    // is never released is one nothing can reopen.
+    const claimed = await speechMic.acquire(session);
+    if (!mounted.current) {
+      starting.current = false;
+      if (claimed) speechMic.release(session);
+      return;
+    }
+    if (!claimed) {
+      starting.current = false;
+      setError(t.misc.dictationFailed);
+      return;
+    }
+
+    const give = (): void => {
+      starting.current = false;
+      speechMic.release(session);
+    };
+
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!mounted.current) return;
+    if (!mounted.current) return give();
     if (!permission.granted) {
       setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
-      return;
+      return give();
     }
 
     // On-device only when an English model is actually installed; otherwise the
     // recogniser is left to use the network, which speaks English on every phone.
     // Requiring on-device for a model that is not there is what returned silence.
     const onDevice = await englishInstalledOnDevice();
-    if (!mounted.current) return;
+    if (!mounted.current) return give();
 
-    setListeningState(true);
+    setListening(true);
     try {
       ExpoSpeechRecognitionModule.start({
         // Recognition is English-only — the surface each speaker reads is still
@@ -501,15 +583,32 @@ export function VoiceCapture({
           EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
         },
       });
+      speechMic.opened(session);
+      starting.current = false;
+      // Nothing has come back yet; if nothing ever does, the recogniser was
+      // torn down under us and the panel must say so rather than pretend.
+      clearStall();
+      stall.current = setTimeout(() => {
+        stall.current = null;
+        if (!mounted.current || !speechMic.owns(session)) return;
+        setListening(false);
+        level.set(withTiming(0, { duration: 150 }));
+        setError(t.misc.dictationFailed);
+        speechMic.release(session);
+      }, STALL_MS);
     } catch {
-      setListeningState(false);
+      setListening(false);
       setError(t.misc.dictationFailed);
+      give();
     }
-  }, [hints, level, locale, onListen, setListeningState, t]);
+  }, [clearStall, hints, level, locale, onListen, session, t]);
 
   const stop = useCallback((): void => {
-    ExpoSpeechRecognitionModule.stop();
-  }, []);
+    // Ask the recogniser to finish, but keep the session: `stop()` (unlike
+    // `abort()`) still delivers one last `result`, and giving the mic up here
+    // would make the handler above drop the words spoken before the tap.
+    speechMic.stop(session);
+  }, [session]);
 
   // Open the mic as the screen appears — the reader tapped a mic to get here, so
   // making them tap a second one to start would be a step too many. Suppressed
@@ -522,17 +621,24 @@ export function VoiceCapture({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [available, autoStart]);
 
-  // Leaving mid-sentence must not leave the microphone open — but only abort when
-  // the mic is actually open. On a remount to start the next capture the previous
-  // instance has usually already finished (idle); aborting it then needlessly
-  // disrupts the singleton recogniser and the next start() does nothing, leaving
-  // the second capture stuck on "listening".
+  // Leaving mid-sentence must not leave the microphone open, and must not leave
+  // it claimed either: the panel is remounted (via a changing `key`) to start
+  // each new capture, and a claim nobody gives back is a mic the next mount can
+  // never open. `release` is the one call for both — it aborts a live session
+  // and simply hands back a claim that never got as far as the native start.
+  //
+  // `mounted` is re-armed on the way in, not just cleared on the way out: this
+  // effect is re-run whole by a Fast Refresh, and a flag that only ever goes
+  // false would leave every later `start()` bailing out after its first await.
   useEffect(() => {
+    mounted.current = true;
     return () => {
       mounted.current = false;
-      if (listeningRef.current) ExpoSpeechRecognitionModule.abort();
+      clearStall();
+      starting.current = false;
+      speechMic.release(session);
     };
-  }, []);
+  }, [clearStall, session]);
 
   if (!available) {
     return (
