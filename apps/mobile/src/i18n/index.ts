@@ -445,15 +445,24 @@ export interface UiStrings {
     /** Add-source choices. */
     scan: string;
     choosePhoto: string;
-    /** Visibility sheet. */
-    chooseVisibility: string;
-    everyone: string;
-    payersOnly: string;
     /** Lock-badge label on a private image. */
     privateTag: string;
     remove: string;
     removeConfirm: string;
     couldNotAdd: string;
+    /** The photo could not even be saved on the device — nothing was queued. */
+    couldNotKeep: string;
+    /** Upload states shown on a receipt tile and under the gallery: in the air,
+     *  saved but not sent yet, and sent-and-refused/failed. */
+    sending: string;
+    waitingToSend: string;
+    notSent: string;
+    /** What a failed upload means, for the tile's tap: a transient failure the
+     *  app will retry by itself, and a refusal that needs the person to act. */
+    notSentBody: string;
+    notSentBlockedBody: string;
+    /** Retry an unsent receipt now. */
+    tryAgain: string;
     /** Viewer counter, e.g. "2 of 5" — `{index}` and `{total}`. */
     counter: string;
     /** Save-to-device action + outcomes. */
@@ -2651,13 +2660,19 @@ const en: UiStrings = {
     add: 'Add receipt',
     scan: 'Scan',
     choosePhoto: 'Choose photo',
-    chooseVisibility: 'Who can see this receipt?',
-    everyone: 'Everyone in the group',
-    payersOnly: 'Only the payers',
     privateTag: 'Private',
     remove: 'Remove',
     removeConfirm: 'Remove this receipt? The change is recorded.',
     couldNotAdd: "Couldn't add that — try again.",
+    couldNotKeep: "Couldn't keep that photo on your phone — try again.",
+    sending: 'Sending…',
+    waitingToSend: 'Waiting to send',
+    notSent: "Didn't send",
+    notSentBody:
+      "This receipt is saved on your phone and hasn't been sent yet. It will keep trying on its own, or you can try again now.",
+    notSentBlockedBody:
+      "This receipt was refused, so it hasn't been sent. It is still saved on your phone.",
+    tryAgain: 'Try again',
     counter: '{index} of {total}',
     download: 'Save to device',
     saved: 'Saved to your device.',
@@ -4734,13 +4749,20 @@ const ta: UiStrings = {
     add: 'ரசீது சேர்',
     scan: 'ஸ்கேன்',
     choosePhoto: 'படத்தைத் தேர்ந்தெடு',
-    chooseVisibility: 'இந்த ரசீதை யார் பார்க்கலாம்?',
-    everyone: 'குழுவில் உள்ள அனைவரும்',
-    payersOnly: 'செலுத்தியவர்கள் மட்டும்',
     privateTag: 'தனிப்பட்டது',
     remove: 'அகற்று',
     removeConfirm: 'இந்த ரசீதை அகற்றவா? இந்த மாற்றம் பதிவு செய்யப்படும்.',
     couldNotAdd: 'சேர்க்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+    couldNotKeep:
+      'அந்தப் படத்தை உங்கள் தொலைபேசியில் வைத்திருக்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.',
+    sending: 'அனுப்பப்படுகிறது…',
+    waitingToSend: 'அனுப்பக் காத்திருக்கிறது',
+    notSent: 'அனுப்பப்படவில்லை',
+    notSentBody:
+      'இந்த ரசீது உங்கள் தொலைபேசியில் சேமிக்கப்பட்டுள்ளது, இன்னும் அனுப்பப்படவில்லை. இது தானாகவே மீண்டும் முயற்சிக்கும், அல்லது நீங்கள் இப்போதே மீண்டும் முயற்சிக்கலாம்.',
+    notSentBlockedBody:
+      'இந்த ரசீது மறுக்கப்பட்டது, எனவே அனுப்பப்படவில்லை. இது இன்னும் உங்கள் தொலைபேசியில் சேமிக்கப்பட்டுள்ளது.',
+    tryAgain: 'மீண்டும் முயற்சிக்கவும்',
     counter: '{total} இல் {index}',
     download: 'சாதனத்தில் சேமி',
     saved: 'உங்கள் சாதனத்தில் சேமிக்கப்பட்டது.',
@@ -6894,13 +6916,19 @@ const hi: UiStrings = {
     add: 'रसीद जोड़ें',
     scan: 'स्कैन',
     choosePhoto: 'फ़ोटो चुनें',
-    chooseVisibility: 'यह रसीद कौन देख सकता है?',
-    everyone: 'ग्रुप में सभी',
-    payersOnly: 'केवल भुगतानकर्ता',
     privateTag: 'निजी',
     remove: 'हटाएँ',
     removeConfirm: 'यह रसीद हटाएँ? यह बदलाव दर्ज किया जाएगा।',
     couldNotAdd: 'जोड़ा नहीं जा सका — फिर कोशिश करें।',
+    couldNotKeep: 'यह फ़ोटो आपके फ़ोन पर रखी नहीं जा सकी — फिर कोशिश करें।',
+    sending: 'भेजी जा रही है…',
+    waitingToSend: 'भेजने की प्रतीक्षा में',
+    notSent: 'नहीं भेजी गई',
+    notSentBody:
+      'यह रसीद आपके फ़ोन पर सहेजी है और अभी भेजी नहीं गई है। यह अपने आप फिर कोशिश करती रहेगी, या आप अभी फिर कोशिश कर सकते हैं।',
+    notSentBlockedBody:
+      'यह रसीद अस्वीकार कर दी गई, इसलिए भेजी नहीं गई। यह अब भी आपके फ़ोन पर सहेजी है।',
+    tryAgain: 'फिर कोशिश करें',
     counter: '{total} में से {index}',
     download: 'डिवाइस पर सहेजें',
     saved: 'आपके डिवाइस पर सहेज लिया गया।',
@@ -8997,13 +9025,18 @@ const ar: UiStrings = {
     add: 'إضافة إيصال',
     scan: 'مسح ضوئي',
     choosePhoto: 'اختيار صورة',
-    chooseVisibility: 'من يمكنه رؤية هذا الإيصال؟',
-    everyone: 'كل أعضاء المجموعة',
-    payersOnly: 'الدافعون فقط',
     privateTag: 'خاص',
     remove: 'إزالة',
     removeConfirm: 'إزالة هذا الإيصال؟ سيُسجَّل هذا التغيير.',
     couldNotAdd: 'تعذّرت الإضافة — حاول مرة أخرى.',
+    couldNotKeep: 'تعذّر الاحتفاظ بالصورة على هاتفك — حاول مرة أخرى.',
+    sending: 'جارٍ الإرسال…',
+    waitingToSend: 'في انتظار الإرسال',
+    notSent: 'لم يُرسَل',
+    notSentBody:
+      'هذا الإيصال محفوظ على هاتفك ولم يُرسَل بعد. ستستمر المحاولة تلقائيًا، أو يمكنك المحاولة الآن.',
+    notSentBlockedBody: 'رُفض هذا الإيصال، لذلك لم يُرسَل. وهو لا يزال محفوظًا على هاتفك.',
+    tryAgain: 'حاول مرة أخرى',
     counter: '{index} من {total}',
     download: 'حفظ على الجهاز',
     saved: 'تم الحفظ على جهازك.',

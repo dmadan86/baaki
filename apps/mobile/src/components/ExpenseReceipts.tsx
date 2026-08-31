@@ -13,7 +13,7 @@
  * orphaned; new images are all attachment rows.
  */
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -41,7 +41,6 @@ import { ReceiptAnnotator } from '@/components/ReceiptAnnotator';
 import { ReceiptCropper } from '@/components/ReceiptCropper';
 import {
   useAnnotateExpenseAttachment,
-  useAttachExpenseAttachment,
   useExpenseAttachments,
   useRemoveExpenseAttachment,
   useRemoveExpenseReceipt,
@@ -56,10 +55,12 @@ import {
   discardPendingReceipt,
   enqueueReceipt,
   flushReceiptQueue,
-  isOnline,
-  listPendingReceipts,
   pendingReceiptUri,
-  type PendingReceipt,
+  retryPendingReceipts,
+  usePendingReceipts,
+  type FlushResult,
+  type PendingReceiptStatus,
+  type PendingReceiptView,
 } from '@/lib/receiptQueue';
 import { SyncStatus, useSync } from '@/sync';
 import { fill, useStrings } from '@/i18n';
@@ -67,11 +68,11 @@ import { fill, useStrings } from '@/i18n';
 const THUMB = 96;
 
 /** One gallery entry: the legacy kept bill, an uploaded attachment, or a capture
- *  that was taken offline and is still waiting to upload. */
+ *  still on its way up — parked on the device, sending, or refused. */
 type GalleryItem =
   | { kind: 'legacy'; key: string; path: string; visibility: 'group' }
   | { kind: 'attachment'; key: string; row: ExpenseAttachmentRow }
-  | { kind: 'pending'; key: string; entry: PendingReceipt };
+  | { kind: 'pending'; key: string; entry: PendingReceiptView };
 
 /**
  * Resolve every item to a displayable URL, each through its own backend (the
@@ -140,15 +141,20 @@ function Thumb({
   url,
   resolved,
   isPrivate,
-  pending,
+  status,
   onPress,
   label,
 }: {
   url: string | null;
   resolved: boolean;
   isPrivate: boolean;
-  /** A capture not yet uploaded — wears an upload glyph so the wait is visible. */
-  pending?: boolean;
+  /**
+   * Set for a capture that has not finished uploading, so the tile says which
+   * of the three it is. This is the whole answer to "did that work?": the image
+   * is on screen either way, and the badge is what separates a receipt that is
+   * safely on the server from one that is still on the phone.
+   */
+  status?: PendingReceiptStatus;
   onPress: () => void;
   label: string;
 }): React.JSX.Element {
@@ -191,9 +197,14 @@ function Thumb({
           <Ionicons name="lock-closed" size={12} color={theme.color.text} />
         </View>
       ) : null}
-      {pending ? (
-        // A soft scrim plus a cloud-upload glyph, so an unsent capture reads as
-        // "saved, waiting to send" rather than a finished receipt.
+      {status ? (
+        // A soft scrim over the image, with the state drawn on top of it: a
+        // spinner while the bytes are in the air, a cloud glyph while they wait
+        // for a connection, and a filled red disc when the send failed. The
+        // failure is a disc rather than a bare glyph because a red line drawn
+        // straight onto an arbitrary photograph is exactly as legible as the
+        // photograph lets it be, which is not enough for the one state somebody
+        // has to notice.
         <View
           style={{
             position: 'absolute',
@@ -203,7 +214,24 @@ function Thumb({
             backgroundColor: 'rgba(10, 10, 26, 0.35)',
           }}
         >
-          <Ionicons name="cloud-upload-outline" size={iconSize.lg} color="#FFFFFF" />
+          {status === 'uploading' ? <ActivityIndicator color="#FFFFFF" /> : null}
+          {status === 'queued' ? (
+            <Ionicons name="cloud-upload-outline" size={iconSize.lg} color="#FFFFFF" />
+          ) : null}
+          {status === 'failed' ? (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: theme.radius.pill,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.color.negative,
+              }}
+            >
+              <Ionicons name="alert" size={iconSize.md} color="#FFFFFF" />
+            </View>
+          ) : null}
         </View>
       ) : null}
     </Pressable>
@@ -257,7 +285,6 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
     const insets = useSafeAreaInsets();
     const { t } = useStrings();
     const attachments = useExpenseAttachments(expenseId);
-    const attach = useAttachExpenseAttachment(groupId, expenseId);
     const removeAttachment = useRemoveExpenseAttachment(expenseId);
     const removeLegacy = useRemoveExpenseReceipt(groupId, expenseId);
     const annotate = useAnnotateExpenseAttachment();
@@ -265,19 +292,18 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
     const queryClient = useQueryClient();
     const { status, flush } = useSync();
 
-    // Captures taken while offline (or when an upload could not reach R2), held on
-    // the device until they can be sent. They show in the gallery straight away
-    // from their local file, and a flush uploads them the moment there is network.
-    const [pending, setPending] = useState<PendingReceipt[]>([]);
-    const refreshPending = useCallback(async () => {
-      setPending(await listPendingReceipts(expenseId));
-    }, [expenseId]);
-    useEffect(() => {
-      // An async load from AsyncStorage — the setState lands after an await, not
-      // synchronously, so the cascading-render rule does not apply here.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void refreshPending();
-    }, [refreshPending]);
+    // Every capture on this expense that has not finished uploading, with the
+    // state it is in. This is a subscription to the device-wide queue, not this
+    // screen's copy of it: an upload that finishes while the person is on another
+    // screen still updates these tiles when they come back, and a capture parked
+    // by a run of the app that was killed is here on the next launch.
+    const pending = usePendingReceipts(expenseId);
+
+    // The brief moment between choosing a photo and it being written to disk.
+    // Short, but not free — the bytes can be a couple of megabytes — and it is
+    // the one window in which nothing is on screen yet, so the add affordance
+    // holds a spinner rather than looking like it ignored the tap.
+    const [adding, setAdding] = useState(false);
 
     // The per-expense receipt ceiling (A46): a free group keeps a small number of
     // gallery images per expense; paid lifts it. This is the affordance — the
@@ -292,25 +318,54 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
     const refreshCap = () =>
       void queryClient.invalidateQueries({ queryKey: ['attachmentCap', expenseId] });
 
-    // Try to send any parked captures when there is a usable network — on mount
-    // and whenever the connection comes back. A success pulls the freshly-recorded
-    // rows into the mirror (so the optimistic tile becomes the real attachment) and
-    // re-asks the cap; a permanent refusal (cap reached, not a party) just clears
-    // the stuck entry. All best-effort — a flush never throws into the screen.
+    // The free per-expense limit is reached (and the group is not paid): point the
+    // person at the upgrade rather than open the add sheet. Reuses the scan cap's
+    // strings and upgrade route so both ceilings read and route the same.
+    const showCapUpsell = () => {
+      Alert.alert(t.expense.capReachedTitle, t.expense.capReachedBody, [
+        { text: t.common.cancel, style: 'cancel' },
+        { text: t.expense.capUpgrade, onPress: () => router.push('/settings/upgrade') },
+      ]);
+    };
+
+    // What a flush of the receipt queue means for this screen. A success pulls
+    // the freshly-recorded rows into the mirror, so the optimistic tile is
+    // replaced by the real attachment rather than sitting beside it, and either
+    // outcome moves the cap, so the gate is re-asked.
+    const applyFlushResult = async (result: FlushResult) => {
+      if (result.uploadedExpenseIds.length > 0) await flush();
+      if (result.uploadedExpenseIds.length > 0 || result.hadPermanentFailure) refreshCap();
+      // The one refusal somebody can act on: another party filled the last slot
+      // from another device, so the local gate let this through and the server
+      // did not. Offer the upgrade rather than leave a red tile unexplained.
+      if (result.capReached) showCapUpsell();
+    };
+
+    // Send whatever is parked.
+    //
+    // The queue is flushed from the sync provider too — on launch, on foreground,
+    // on reconnect — so this is not the only thing keeping uploads moving; it is
+    // the copy that runs while this screen is the one being looked at, and the
+    // only one in a position to answer with the cap upsell. Best-effort
+    // throughout: a capture that could not be sent stays in the gallery wearing
+    // its failure rather than throwing anything at the screen.
+    const sendPending = async () => {
+      await applyFlushResult(await flushReceiptQueue());
+    };
+
+    // Send failed captures again at the person's asking, ignoring the backoff and
+    // the refusal mark the automatic path respects.
+    const retryFailed = (attachmentIds: readonly string[]) => {
+      void (async () => {
+        await applyFlushResult(await retryPendingReceipts(attachmentIds));
+      })();
+    };
+
+    // Try to send on mount and whenever the connection comes back.
     useEffect(() => {
       if (status === SyncStatus.Offline || status === SyncStatus.Metered) return;
-      void (async () => {
-        const result = await flushReceiptQueue();
-        if (result.uploadedExpenseIds.length > 0) {
-          await refreshPending();
-          await flush();
-          refreshCap();
-        } else if (result.hadPermanentFailure) {
-          await refreshPending();
-          refreshCap();
-        }
-      })();
-      // Re-run when the connection state flips; refreshers are stable.
+      void sendPending();
+      // Re-run when the connection state flips; the sender reads current values.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [status]);
 
@@ -361,78 +416,65 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
       (it.kind === 'attachment' && it.row.visibility === 'parties') ||
       (it.kind === 'pending' && it.entry.visibility === 'parties');
 
-    // The free per-expense limit is reached (and the group is not paid): point the
-    // person at the upgrade rather than open the add sheet. Reuses the scan cap's
-    // strings and upgrade route so both ceilings read and route the same.
-    const showCapUpsell = () => {
-      Alert.alert(t.expense.capReachedTitle, t.expense.capReachedBody, [
-        { text: t.common.cancel, style: 'cancel' },
-        { text: t.expense.capUpgrade, onPress: () => router.push('/settings/upgrade') },
-      ]);
-    };
-
-    // The server may still refuse over the cap even when the local gate allowed it
-    // (another party filled the last slot from another device); surface that as the
-    // upgrade prompt, not a generic failure. Anything else is the generic message.
-    const onAddError = (error: unknown) => {
-      const message = error instanceof Error ? error.message : '';
-      if (message.includes('ATTACHMENT_CAP')) {
-        showCapUpsell();
-        refreshCap();
-      } else {
-        Alert.alert(t.receipts.couldNotAdd);
-      }
-    };
-
-    // Add at a chosen visibility. Online it uploads now; offline (or if the upload
-    // cannot reach R2) the capture is parked on the device and shown at once, to
-    // be sent automatically on reconnect — the receipt equivalent of ADR-005's
-    // offline writes.
+    /**
+     * Add at a chosen visibility.
+     *
+     * There is one path here now, and it is the durable one: the bytes are
+     * written to a file and recorded in the receipt queue *before* anything is
+     * sent, and the queue does the sending. This used to branch — upload now if
+     * online, park it if not — and the online branch was the one that hurt.
+     * Nothing appeared while it ran, so a slow upload and a failed one looked
+     * identical; leaving the screen took its callbacks with it; and an app killed
+     * mid-upload lost the photograph, which by then was the only copy of a bill
+     * already in the bin. Parking first costs one file write and buys all three
+     * back — the tile is on screen the moment the write lands, and the upload is
+     * the queue's problem from then on, not this screen's.
+     */
     const commitAdd = (
       picked: NonNullable<Awaited<ReturnType<typeof captureReceipt>>>,
       visibility: 'group' | 'parties',
     ) => {
       const contentType = picked.mimeType ?? 'image/jpeg';
-      const park = async () => {
-        await enqueueReceipt({
-          expenseId,
-          groupId,
-          visibility,
-          base64: picked.base64,
-          contentType,
-        });
-        await refreshPending();
-      };
+      setAdding(true);
       void (async () => {
-        if (!(await isOnline())) {
-          await park();
+        try {
+          await enqueueReceipt({
+            expenseId,
+            groupId,
+            visibility,
+            base64: picked.base64,
+            contentType,
+          });
+        } catch {
+          // The bytes never reached the disk (a full device, a revoked path), so
+          // there is no tile to carry the failure and this is the only chance to
+          // say so. Everything past this point has somewhere to show it instead.
+          Alert.alert(t.receipts.couldNotKeep);
           return;
+        } finally {
+          setAdding(false);
         }
-        attach.mutate(
-          { picked, visibility },
-          {
-            onSuccess: refreshCap,
-            onError: (error) =>
-              void (async () => {
-                // The connection dropped mid-upload → park it rather than fail.
-                if (!(await isOnline())) {
-                  await park();
-                  return;
-                }
-                onAddError(error);
-              })(),
-          },
-        );
+        await sendPending();
       })();
     };
 
+    /**
+     * A bill added here belongs to the group that is splitting it.
+     *
+     * This used to stop and ask who could see it, between the whole group and
+     * the people on the bill. The question came a beat after the photograph,
+     * when the person was done, and the answer was the group's every time — a
+     * receipt for a bill everybody is paying a share of is not a private
+     * document. So it is no longer asked: the bill lands group-readable, which
+     * is what the R2 group path already authorises by membership.
+     *
+     * The narrower 'parties' visibility stays in {@link commitAdd} and in the
+     * storage rules — payment proofs still use it, and a receipt already added
+     * that way keeps its Private tag.
+     */
     const add = (picked: Awaited<ReturnType<typeof captureReceipt>>) => {
       if (!picked) return; // Cancelled/declined.
-      Alert.alert(t.receipts.chooseVisibility, undefined, [
-        { text: t.receipts.everyone, onPress: () => commitAdd(picked, 'group') },
-        { text: t.receipts.payersOnly, onPress: () => commitAdd(picked, 'parties') },
-        { text: t.common.cancel, style: 'cancel' },
-      ]);
+      commitAdd(picked, 'group');
     };
 
     const startAdd = () => {
@@ -472,7 +514,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
             const onError = () => Alert.alert(t.imageAudit.couldNotRemove);
             if (it.kind === 'pending') {
               // Not uploaded yet: just drop the parked capture and its local bytes.
-              void discardPendingReceipt(it.entry.attachmentId).then(refreshPending);
+              void discardPendingReceipt(it.entry.attachmentId);
             } else if (it.kind === 'legacy') {
               // Only clear the parent's receipt state on a confirmed delete — if the
               // byte removal throws, the bill is still there and must keep showing.
@@ -502,6 +544,51 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
       ]);
     };
 
+    // What the strip as a whole is doing, for the line under it. Sending wins
+    // over failed, and failed over waiting: the line reports the most active
+    // thing happening, and the per-tile badges say which capture is which.
+    const unsent = items.flatMap((it) => (it.kind === 'pending' ? [it.entry] : []));
+    const failedIds = unsent
+      .filter((entry) => entry.status === 'failed')
+      .map((entry) => entry.attachmentId);
+    const stripStatus: PendingReceiptStatus | null = unsent.some(
+      (entry) => entry.status === 'uploading',
+    )
+      ? 'uploading'
+      : failedIds.length > 0
+        ? 'failed'
+        : unsent.length > 0
+          ? 'queued'
+          : null;
+
+    /** The state in words, for the tile's accessibility label and the strip line. */
+    const statusWord = (state: PendingReceiptStatus): string =>
+      state === 'uploading'
+        ? t.receipts.sending
+        : state === 'failed'
+          ? t.receipts.notSent
+          : t.receipts.waitingToSend;
+
+    // A capture that did not go up: say what that means and offer the two things
+    // worth doing about it. Removing here does not go through `removeAt`'s
+    // confirmation — nothing was ever sent, so there is no change to record and
+    // nothing for anybody else to see disappear.
+    const showUnsent = (entry: PendingReceiptView) => {
+      Alert.alert(
+        t.receipts.notSent,
+        entry.permanent ? t.receipts.notSentBlockedBody : t.receipts.notSentBody,
+        [
+          { text: t.common.cancel, style: 'cancel' },
+          {
+            text: t.receipts.remove,
+            style: 'destructive',
+            onPress: () => void discardPendingReceipt(entry.attachmentId),
+          },
+          { text: t.receipts.tryAgain, onPress: () => retryFailed([entry.attachmentId]) },
+        ],
+      );
+    };
+
     const viewing = viewerIndex !== null ? items[viewerIndex] : null;
 
     // Save the open receipt off the device via the OS share/save sheet.
@@ -527,7 +614,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
           // reads "Add receipt" fills the space and makes the affordance obvious.
           <Pressable
             onPress={handleAddPress}
-            disabled={attach.isPending}
+            disabled={adding}
             accessibilityRole="button"
             accessibilityLabel={t.receipts.add}
             style={({ pressed }) => ({
@@ -554,7 +641,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
                 backgroundColor: theme.color.surface,
               }}
             >
-              {attach.isPending ? (
+              {adding ? (
                 <ActivityIndicator color={theme.color.brand} />
               ) : (
                 <Ionicons name="camera-outline" size={iconSize.lg} color={theme.color.brand} />
@@ -577,7 +664,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
             {canManage && !externalAdd ? (
               <Pressable
                 onPress={handleAddPress}
-                disabled={attach.isPending}
+                disabled={adding}
                 accessibilityRole="button"
                 accessibilityLabel={t.receipts.add}
                 style={{
@@ -591,7 +678,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
                   backgroundColor: theme.color.surfaceMuted,
                 }}
               >
-                {attach.isPending ? (
+                {adding ? (
                   <ActivityIndicator color={theme.color.brand} />
                 ) : (
                   <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
@@ -605,17 +692,63 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
                 url={urls[index] ?? null}
                 resolved={urls[index] !== undefined}
                 isPrivate={isPrivate(it)}
-                pending={it.kind === 'pending'}
-                label={
+                status={it.kind === 'pending' ? it.entry.status : undefined}
+                label={[
                   isPrivate(it)
                     ? `${t.receipts.title} — ${t.receipts.privateTag}`
-                    : t.receipts.title
-                }
-                onPress={() => setViewerIndex(index)}
+                    : t.receipts.title,
+                  it.kind === 'pending' ? statusWord(it.entry.status) : null,
+                ]
+                  .filter(Boolean)
+                  .join(' — ')}
+                onPress={() => {
+                  // A failed capture's tap is about the failure, not the picture
+                  // — the picture is already the thumbnail, and what the person
+                  // needs is the reason and a way out of it.
+                  if (it.kind === 'pending' && it.entry.status === 'failed') showUnsent(it.entry);
+                  else setViewerIndex(index);
+                }}
               />
             ))}
           </ScrollView>
         )}
+
+        {stripStatus ? (
+          // One line under the strip saying what is happening to the receipts
+          // that are not up yet. The tiles carry badges, but a badge is 20px on
+          // a photograph — this is the sentence somebody can actually read, and
+          // the only place a retry is offered without opening anything.
+          <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
+            {stripStatus === 'uploading' ? (
+              <ActivityIndicator size="small" color={theme.color.textMuted} />
+            ) : (
+              <Ionicons
+                name={stripStatus === 'failed' ? 'alert-circle' : 'cloud-upload-outline'}
+                size={iconSize.sm}
+                color={stripStatus === 'failed' ? theme.color.negative : theme.color.textMuted}
+              />
+            )}
+            <Text
+              variant="micro"
+              tone={stripStatus === 'failed' ? undefined : 'muted'}
+              style={stripStatus === 'failed' ? { color: theme.color.negative } : undefined}
+            >
+              {statusWord(stripStatus)}
+            </Text>
+            {stripStatus === 'failed' ? (
+              <Pressable
+                onPress={() => retryFailed(failedIds)}
+                accessibilityRole="button"
+                accessibilityLabel={t.receipts.tryAgain}
+                hitSlop={8}
+              >
+                <Text variant="micro" style={{ color: theme.color.brand }}>
+                  {t.receipts.tryAgain}
+                </Text>
+              </Pressable>
+            ) : null}
+          </Row>
+        ) : null}
 
         <Modal
           visible={viewing !== null}

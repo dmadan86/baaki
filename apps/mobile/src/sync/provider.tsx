@@ -24,7 +24,7 @@ import type { MutationEnvelope, MutationKind } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
 import { reportHandled } from '@/lib/observability';
-import { clearReceiptQueue } from '@/lib/receiptQueue';
+import { clearReceiptQueue, flushReceiptQueue } from '@/lib/receiptQueue';
 import { clearImageCache } from '@/lib/storage/imageCache';
 
 import { syncEngine, type SyncState } from './engine';
@@ -58,6 +58,34 @@ async function clearLocalPrivateData(): Promise<void> {
     failures.push(error);
   }
   if (failures.length > 0) throw failures[0];
+}
+
+/**
+ * Send whatever receipt captures are still parked on this device.
+ *
+ * A receipt is the one thing the app takes from somebody that it cannot re-ask
+ * for — the bill is in the bin by the time the upload fails — so an interrupted
+ * upload has to finish itself. The bytes and the queue entry are already on
+ * disk (see `receiptQueue`); this is what picks them up again, and it lives
+ * here rather than on the expense screen because the three moments that matter
+ * are the three this provider already listens for: the app launching into a
+ * signed-in session, coming back to the foreground, and finding a network. None
+ * of them involve the expense being on screen, and the old wiring — a `useEffect`
+ * inside the receipts gallery — meant a person who added a receipt and walked
+ * away had nothing running to send it.
+ *
+ * Everything is best-effort and nothing throws into a screen: a capture that
+ * cannot be sent stays in the queue, visible as an unsent tile with a retry.
+ */
+async function resumeReceiptUploads(): Promise<void> {
+  try {
+    const result = await flushReceiptQueue();
+    // Each upload recorded an attachment row server-side; pull it down so the
+    // optimistic tile is replaced by the real receipt rather than doubling it.
+    if (result.uploadedExpenseIds.length > 0) await syncEngine.flush();
+  } catch (error) {
+    reportHandled(error, 'sync.resumeReceiptUploads');
+  }
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {
@@ -113,6 +141,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       syncEngine.start();
       void syncEngine.flush();
+      // Launch is the moment an upload the app was killed mid-way through gets
+      // picked back up. It runs after the wipe-then-hydrate dance above, so a
+      // previous account's cleanup can never delete the bytes this one is sending.
+      void resumeReceiptUploads();
     })();
 
     return () => {
@@ -126,7 +158,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!signedIn) return;
     const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'active') void syncEngine.flush();
+      if (next === 'active') {
+        void syncEngine.flush();
+        void resumeReceiptUploads();
+      }
     });
     return () => subscription.remove();
   }, [signedIn]);
@@ -135,7 +170,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!signedIn) return;
     const subscription = Network.addNetworkStateListener((networkState) => {
-      if (networkState.isConnected) void syncEngine.flush();
+      if (networkState.isConnected) {
+        void syncEngine.flush();
+        void resumeReceiptUploads();
+      }
     });
     return () => subscription.remove();
   }, [signedIn]);
