@@ -28,6 +28,11 @@ const world = vi.hoisted(() => ({
     error: null as { message: string } | null,
   })),
   cached: [] as { bucket: string; path: string }[],
+  /** Objects taken back out of the bucket, in order — see the orphan test. */
+  removed: [] as { bucket: string; subjectId: string; path: string }[],
+  remove: vi.fn(async (bucket: string, subjectId: string, path: string) => {
+    world.removed.push({ bucket, subjectId, path });
+  }),
 }));
 
 class FakeDirectory {
@@ -112,7 +117,11 @@ vi.mock('expo-file-system', () => ({
 vi.mock('@/lib/backend', () => ({
   backend: { rpc: (name: string, args: unknown) => world.rpc(name, args) },
 }));
-vi.mock('@/lib/storage', () => ({ putImage: (input: unknown) => world.put(input) }));
+vi.mock('@/lib/storage', () => ({
+  putImage: (input: unknown) => world.put(input),
+  removeRestrictedImage: (bucket: string, subjectId: string, path: string) =>
+    world.remove(bucket, subjectId, path),
+}));
 vi.mock('@/lib/storage/imageCache', () => ({
   cacheImageBytes: vi.fn((bucket: string, path: string) => {
     world.cached.push({ bucket, path });
@@ -177,6 +186,11 @@ beforeEach(() => {
   ids.n = 0;
   world.online = true;
   world.cached = [];
+  world.removed = [];
+  world.remove.mockReset();
+  world.remove.mockImplementation(async (bucket: string, subjectId: string, path: string) => {
+    world.removed.push({ bucket, subjectId, path });
+  });
   world.put.mockReset();
   world.put.mockImplementation(async () => 'stored');
   world.rpc.mockReset();
@@ -332,6 +346,60 @@ describe('a capture that does not go up', () => {
 
     await flushReceiptQueue();
     expect(world.put).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The upload and the row that makes it findable are two calls, and the gap
+   * between them is the one place a receipt can cost something permanently:
+   * bytes accepted by the bucket with nothing in the database pointing at them
+   * are invisible to every screen, unreachable by any delete the app offers, and
+   * still counted against the group's storage ceiling. The local file is the
+   * source of truth and survives, so taking the remote copy back out is free.
+   */
+  it('takes the uploaded object back out when the row that names it fails', async () => {
+    parkOnDisk();
+    world.rpc.mockResolvedValue({ error: { message: 'Network request failed' } });
+
+    await flushReceiptQueue();
+
+    expect(world.put).toHaveBeenCalledTimes(1);
+    expect(world.removed).toEqual([
+      { bucket: 'expense-attachments', subjectId: 'e1', path: expect.any(String) },
+    ]);
+    // The object removed is the one just uploaded, so a retry re-uploads to the
+    // same key rather than leaving a second copy behind.
+    const [stored] = await storedQueue();
+    expect(world.removed[0]?.path).toBe(stored?.storagePath);
+    // And the capture itself is untouched: bytes on disk, entry still queued.
+    expect(fs.files.has(pendingPath('a1.jpg'))).toBe(true);
+    expect(getPendingReceiptsSnapshot()[0]?.status).toBe('failed');
+  });
+
+  it('leaves the bucket alone when the bytes never reached it', async () => {
+    parkOnDisk();
+    world.put.mockRejectedValue(new Error('Network request failed'));
+
+    await flushReceiptQueue();
+
+    // Nothing was stored, so there is nothing to take back out — and asking R2
+    // to delete a key that was never written is a pointless round trip on a
+    // connection that has just proved itself unreliable.
+    expect(world.removed).toEqual([]);
+  });
+
+  it('records the failure that mattered even when the cleanup itself fails', async () => {
+    parkOnDisk();
+    world.rpc.mockResolvedValue({ error: { message: 'ATTACHMENT_CAP reached' } });
+    world.remove.mockRejectedValue(new Error('delete refused'));
+
+    // A best-effort cleanup must never mask the error the entry is recording,
+    // nor take the rest of the queue down with it.
+    const result = await flushReceiptQueue();
+
+    expect(result.capReached).toBe(true);
+    const [stored] = await storedQueue();
+    expect(stored).toMatchObject({ permanent: true });
+    expect(stored?.lastError).toContain('ATTACHMENT_CAP');
   });
 
   it('sends a refused capture again when the person asks', async () => {

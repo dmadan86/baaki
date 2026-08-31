@@ -445,7 +445,6 @@ export interface UiStrings {
     /** Add-source choices. */
     scan: string;
     choosePhoto: string;
-    /** Visibility sheet. */
     /** Lock-badge label on a private image. */
     privateTag: string;
     remove: string;

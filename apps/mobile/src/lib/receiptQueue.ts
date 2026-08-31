@@ -40,7 +40,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Network from 'expo-network';
 
 import { backend } from '@/lib/backend';
-import { putImage } from '@/lib/storage';
+import { putImage, removeRestrictedImage } from '@/lib/storage';
 import { cacheImageBytes } from '@/lib/storage/imageCache';
 import { endTransfer, setTransferProgress, startTransfer } from '@/lib/transferProgress';
 
@@ -492,6 +492,12 @@ async function runFlush(): Promise<FlushResult> {
 
       // From here the tile says "sending", live, wherever it is being rendered.
       markUploading(entry.attachmentId, true);
+      // Whether the bytes reached storage on this attempt. The upload and the
+      // row that makes it findable are two calls, and everything between them is
+      // a window: succeed at the first and fail at the second and the object is
+      // in the bucket with nothing pointing at it, counting against the group's
+      // storage ceiling forever with no UI that can ever show or delete it.
+      let objectStored = false;
       try {
         const base64 = await file.base64();
         await putImage({
@@ -502,6 +508,7 @@ async function runFlush(): Promise<FlushResult> {
           groupId: entry.groupId,
           subjectId: entry.expenseId,
         });
+        objectStored = true;
         const { error } = await backend.rpc('baaki_attach_expense_attachment', {
           p_expense_id: entry.expenseId,
           p_storage_path: entry.storagePath,
@@ -509,6 +516,7 @@ async function runFlush(): Promise<FlushResult> {
           p_attachment_id: entry.attachmentId,
         });
         if (error) throw new Error(error.message);
+        objectStored = false;
 
         // Uploaded and recorded. Keep it viewable offline by moving the bytes into
         // the view cache, then delete the pending file.
@@ -521,6 +529,20 @@ async function runFlush(): Promise<FlushResult> {
         updates.set(entry.attachmentId, null);
         uploaded.add(entry.expenseId);
       } catch (caught) {
+        // The bytes went up but the row did not: take the object back out, or it
+        // is orphaned in the bucket with nothing able to reach it. The local file
+        // is still here and still the source of truth, so a retry re-uploads it
+        // to the same key — losing the remote copy costs nothing, keeping it
+        // costs the group's storage allowance permanently. Best-effort by
+        // design: a delete that fails must not mask the error that caused it,
+        // which is what the queue entry below is recording.
+        if (objectStored) {
+          await removeRestrictedImage(
+            'expense-attachments',
+            entry.expenseId,
+            entry.storagePath,
+          ).catch(() => {});
+        }
         const message = caught instanceof Error ? caught.message : String(caught);
         const attempts = entry.attempts + 1;
         const permanent = isPermanent(message);
