@@ -1766,48 +1766,17 @@ export function useAnnotateExpenseAttachment() {
   });
 }
 
-/**
- * Attach an already-picked image to an expense at a chosen visibility. The
- * caller does the picking (scan or library), so one hook serves every entry
- * point and the gallery can offer both. Upload → RPC → flush; throws on a real
- * failure and cleans up the R2 object if the RPC rejected after the upload
- * committed. The caller surfaces the throw.
+/*
+ * There is deliberately no "attach this image now" mutation here.
+ *
+ * There was one — upload → RPC → flush, driven straight from the gallery — and
+ * it is gone because a mutation is the wrong shape for this particular job. It
+ * lived and died with the screen that started it, so walking away mid-upload
+ * dropped its result on the floor, and it held the only copy of the photograph
+ * in memory, so an app killed mid-upload lost a bill somebody had already
+ * thrown away. Adding a receipt now always goes through `lib/receiptQueue`,
+ * which writes the bytes down first and sends them from outside React.
  */
-export function useAttachExpenseAttachment(groupId: string, expenseId: string) {
-  const { flush } = useSync();
-  return useMutation({
-    mutationFn: async (input: { picked: PickedImage; visibility: 'group' | 'parties' }) => {
-      const { picked, visibility } = input;
-      const ext = picked.mimeType === 'image/webp' ? 'webp' : 'jpg';
-      const path = `${expenseId}/${randomUUID()}.${ext}`;
-      let committed: string | null = null;
-      try {
-        await putImage({
-          bucket: 'expense-attachments',
-          path,
-          base64: picked.base64,
-          contentType: picked.mimeType,
-          groupId,
-          subjectId: expenseId,
-        });
-        committed = path;
-        const { error } = await backend.rpc('baaki_attach_expense_attachment', {
-          p_expense_id: expenseId,
-          p_storage_path: path,
-          p_visibility: visibility,
-          p_attachment_id: randomUUID(),
-        });
-        if (error) throw new Error(error.message);
-        committed = null;
-      } catch (caught) {
-        if (committed)
-          await removeRestrictedImage('expense-attachments', expenseId, committed).catch(() => {});
-        throw caught;
-      }
-    },
-    onSuccess: () => void flush(),
-  });
-}
 
 /**
  * Replace an attachment's image with an adjusted (rotated/cropped) one: upload

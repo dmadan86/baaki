@@ -1,13 +1,21 @@
 /**
- * The offline half of adding a receipt (ADR-005 for images).
+ * Every receipt an expense gains goes through here (ADR-005 for images).
  *
- * Attaching a receipt online is upload → RPC → done. Offline, both steps need
- * the network, so instead of failing this parks the capture: the bytes are
- * written to a durable file, a queue entry is recorded, and the gallery shows
- * the image straight away from that local file. When the device is back online
- * a flush walks the queue — uploading each capture to R2 and recording the
- * attachment row exactly as the online path would, then seeding the view cache
- * so the receipt keeps showing with no network and dropping the queue entry.
+ * Adding a receipt used to be two different things depending on the weather:
+ * online it was upload → RPC → done, driven by a mutation living on the expense
+ * screen; offline the capture was parked on the device and sent on reconnect.
+ * The online half had three problems the person could feel. Nothing appeared
+ * while the bytes were in the air, so there was no way to tell a slow upload
+ * from one that had quietly failed. Walking away from the screen took the
+ * mutation's callbacks with it. And an app killed mid-upload lost the photograph
+ * outright — it only ever existed in memory and in the picker's cache.
+ *
+ * So there is one path now, the durable one: a picked image is written to a file
+ * and recorded in a queue *before* anything is sent, and the queue is what
+ * uploads it. The gallery shows the capture from its local file the instant it
+ * is parked, wearing the state it is actually in — waiting, sending, or not
+ * sent — and a flush that finishes while the person is three screens away still
+ * lands. Nothing about that is tied to a component being mounted.
  *
  * The queue index lives in AsyncStorage (small, structured); the image bytes
  * live under the OS *document* directory — not the cache — because a pending
@@ -17,8 +25,14 @@
  * The entry's `attachmentId` is the eventual row id, chosen up front, so the
  * optimistic gallery item and the real row that arrives after the flush share
  * one identity — the gallery de-dupes on it, and a retry never doubles a row.
+ *
+ * Views subscribe rather than poll: the queue publishes a snapshot on every
+ * change (parked, sending, sent, failed) through `usePendingReceipts`, the same
+ * `useSyncExternalStore` shape `transferProgress` uses, because the work that
+ * changes it happens in plain library code with no React around it.
  */
 
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { decode } from 'base64-arraybuffer';
 import { randomUUID } from 'expo-crypto';
@@ -39,7 +53,23 @@ const QUEUE_KEY = 'receipt-upload-queue.v1';
 /** Durable subdirectory (under the document dir) holding unsent capture bytes. */
 const PENDING_DIR = 'pending-receipts';
 
-/** A capture waiting to be uploaded. */
+/**
+ * How long a failed capture waits before a background flush tries it again,
+ * indexed by how many attempts it has already cost. A flush only runs on an
+ * event — a screen mounting, the connection returning, the app coming forward —
+ * so this is not guarding against a hot loop; it is stopping a capture that
+ * fails for a durable reason (a server having a bad hour) from burning the
+ * radio every time the person switches apps. The last value is the ceiling.
+ * A person who taps "try again" bypasses all of it — see {@link retryPendingReceipts}.
+ */
+const RETRY_BACKOFF_MS = [30_000, 2 * 60_000, 10 * 60_000, 30 * 60_000] as const;
+
+function backoffFor(attempts: number): number {
+  const index = Math.min(Math.max(attempts, 1), RETRY_BACKOFF_MS.length) - 1;
+  return RETRY_BACKOFF_MS[index] ?? RETRY_BACKOFF_MS[RETRY_BACKOFF_MS.length - 1] ?? 0;
+}
+
+/** A capture waiting to be uploaded. This is the persisted shape. */
 export interface PendingReceipt {
   /** The eventual attachment row id — the optimistic item and the real row share it. */
   attachmentId: string;
@@ -53,7 +83,33 @@ export interface PendingReceipt {
   fileName: string;
   createdAt: string;
   attempts: number;
+  /** The last failure's raw message. Kept for diagnosis; never shown to anybody. */
   lastError: string | null;
+  /**
+   * The server refused this capture for a reason a retry will not change (the
+   * per-expense ceiling, not being a party). Background flushes skip it, so it
+   * neither loops nor disappears — it sits in the gallery as a failed tile the
+   * person can act on, which is the whole point: a capture that vanished with no
+   * explanation was the old behaviour and it was indistinguishable from a bug.
+   */
+  permanent?: boolean;
+  /** Earliest time a background flush may try again; see {@link RETRY_BACKOFF_MS}. */
+  nextAttemptAt?: string | null;
+}
+
+/**
+ * What a parked capture is doing right now, as far as anybody looking at the
+ * gallery is concerned.
+ *
+ * `uploading` is deliberately *not* persisted: an app killed mid-upload comes
+ * back as `queued`, because that is the truth — the bytes are on disk and
+ * nothing is in the air until a flush picks them up again.
+ */
+export type PendingReceiptStatus = 'queued' | 'uploading' | 'failed';
+
+/** A pending capture as a view renders it: the stored row plus its live state. */
+export interface PendingReceiptView extends PendingReceipt {
+  status: PendingReceiptStatus;
 }
 
 /** The extension for a stored image, matching the online attach path. */
@@ -61,19 +117,116 @@ function extensionFor(contentType: string): string {
   return contentType === 'image/webp' ? 'webp' : 'jpg';
 }
 
+// --- The published snapshot -------------------------------------------------
+//
+// One cached array of views, rebuilt whenever the stored queue or the set of
+// in-flight uploads changes, so `useSyncExternalStore` sees a stable reference
+// between changes and a fresh one across them.
+
+const listeners = new Set<() => void>();
+const uploading = new Set<string>();
+let stored: readonly PendingReceipt[] = [];
+let snapshot: readonly PendingReceiptView[] = [];
+/** Whether the stored queue has been read off disk at least once this launch. */
+let hydrated = false;
+
+function statusOf(entry: PendingReceipt): PendingReceiptStatus {
+  if (uploading.has(entry.attachmentId)) return 'uploading';
+  return entry.lastError ? 'failed' : 'queued';
+}
+
+function republish(): void {
+  snapshot = stored.map((entry) => ({ ...entry, status: statusOf(entry) }));
+  for (const listener of listeners) listener();
+}
+
+/**
+ * Whether two reads of the queue say the same thing. Every read parses fresh
+ * objects out of JSON, so identity tells us nothing — and without this a flush
+ * that found nothing to do would still notify every mounted gallery, on every
+ * reconnect and every return to the foreground.
+ */
+function sameQueue(a: readonly PendingReceipt[], b: readonly PendingReceipt[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((entry, index) => {
+    const other = b[index];
+    return (
+      other !== undefined &&
+      entry.attachmentId === other.attachmentId &&
+      entry.attempts === other.attempts &&
+      entry.lastError === other.lastError &&
+      Boolean(entry.permanent) === Boolean(other.permanent) &&
+      (entry.nextAttemptAt ?? null) === (other.nextAttemptAt ?? null)
+    );
+  });
+}
+
+function publish(next: readonly PendingReceipt[]): void {
+  const unchanged = hydrated && sameQueue(stored, next);
+  stored = next;
+  hydrated = true;
+  if (!unchanged) republish();
+}
+
+/** Mark one capture as in the air (or no longer), so its tile can say so. */
+function markUploading(attachmentId: string, active: boolean): void {
+  const was = uploading.has(attachmentId);
+  if (active) uploading.add(attachmentId);
+  else uploading.delete(attachmentId);
+  if (was !== active) republish();
+}
+
+export function subscribePendingReceipts(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function getPendingReceiptsSnapshot(): readonly PendingReceiptView[] {
+  return snapshot;
+}
+
+/**
+ * Every parked capture (optionally only one expense's), with its live status,
+ * re-rendering as the queue moves. Reads off disk once per launch on first use,
+ * so a screen opened straight after a cold start still sees what is waiting.
+ */
+export function usePendingReceipts(expenseId?: string): readonly PendingReceiptView[] {
+  const all = useSyncExternalStore(
+    subscribePendingReceipts,
+    getPendingReceiptsSnapshot,
+    getPendingReceiptsSnapshot,
+  );
+  useEffect(() => {
+    // Module state, not a reactive value — this is a one-shot cold-start read,
+    // and every later change arrives through the subscription above.
+    if (!hydrated) void listPendingReceipts();
+  }, []);
+  return useMemo(
+    () => (expenseId ? all.filter((entry) => entry.expenseId === expenseId) : all),
+    [all, expenseId],
+  );
+}
+
+// --- Storage ----------------------------------------------------------------
+
 async function readQueue(): Promise<PendingReceipt[]> {
   try {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? (parsed as PendingReceipt[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    const queue = Array.isArray(parsed) ? (parsed as PendingReceipt[]) : [];
+    publish(queue);
+    return queue;
   } catch {
+    publish([]);
     return [];
   }
 }
 
 async function writeQueue(queue: readonly PendingReceipt[]): Promise<void> {
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  publish(queue);
 }
 
 function cleanupOrphanFiles(queue: readonly PendingReceipt[]): void {
@@ -102,7 +255,7 @@ function pendingFile(entry: Pick<PendingReceipt, 'fileName'>): File {
 }
 
 /** The `file://` a gallery renders for a still-unsent capture. */
-export function pendingReceiptUri(entry: PendingReceipt): string {
+export function pendingReceiptUri(entry: Pick<PendingReceipt, 'fileName'>): string {
   return pendingFile(entry).uri;
 }
 
@@ -144,11 +297,18 @@ export async function clearReceiptQueue(): Promise<void> {
   }
 
   await AsyncStorage.removeItem(QUEUE_KEY);
+  uploading.clear();
+  publish([]);
 }
 
 /**
  * Park a picked image for later upload: write its bytes to a durable file and
  * record the queue entry. Returns the entry so the caller can show it at once.
+ *
+ * This runs for every add, online or not. Writing the bytes down first is what
+ * makes the rest of the promise keepable — the capture survives the screen
+ * closing, the app being killed, and the upload failing, because from this
+ * moment the photograph exists somewhere other than memory.
  */
 export async function enqueueReceipt(input: {
   expenseId: string;
@@ -170,6 +330,8 @@ export async function enqueueReceipt(input: {
     createdAt: new Date().toISOString(),
     attempts: 0,
     lastError: null,
+    permanent: false,
+    nextAttemptAt: null,
   };
 
   const dir = new Directory(Paths.document, PENDING_DIR);
@@ -196,6 +358,35 @@ export async function discardPendingReceipt(attachmentId: string): Promise<void>
   await writeQueue(queue.filter((item) => item.attachmentId !== attachmentId));
 }
 
+/**
+ * Send failed captures again, now, at the person's asking.
+ *
+ * Everything the automatic path uses to hold a capture back is cleared: the
+ * backoff window, the recorded failure, and the `permanent` mark. Clearing the
+ * last of those is deliberate — the commonest permanent refusal is the
+ * per-expense receipt ceiling, and the way somebody fixes that is to remove
+ * another receipt and try this one again. Refusing to re-send would leave them
+ * with a tile they had already done the work to un-block.
+ *
+ * It takes a list rather than one id so that clearing several and sending them
+ * is a single write and a single flush. Retrying them one at a time would have
+ * each call ride the single-flight coalescing in {@link flushReceiptQueue} and
+ * possibly join a run that read the queue before its own clear landed.
+ */
+export async function retryPendingReceipts(attachmentIds: readonly string[]): Promise<FlushResult> {
+  if (attachmentIds.length === 0) return EMPTY_FLUSH;
+  const wanted = new Set(attachmentIds);
+  const queue = await readQueue();
+  await writeQueue(
+    queue.map((entry) =>
+      wanted.has(entry.attachmentId)
+        ? { ...entry, lastError: null, permanent: false, nextAttemptAt: null }
+        : entry,
+    ),
+  );
+  return flushReceiptQueue();
+}
+
 /** A server error that will never succeed on retry — the capture must not loop forever. */
 function isPermanent(message: string): boolean {
   return (
@@ -212,18 +403,32 @@ export interface FlushResult {
   uploadedExpenseIds: string[];
   /** True when a capture was refused for good (cap reached / not a party). */
   hadPermanentFailure: boolean;
+  /**
+   * True when at least one of those refusals was the per-expense receipt
+   * ceiling — the one refusal somebody can actually do something about, so the
+   * screen can offer the upgrade rather than a flat "didn't send".
+   */
+  capReached: boolean;
 }
+
+const EMPTY_FLUSH: FlushResult = {
+  uploadedExpenseIds: [],
+  hadPermanentFailure: false,
+  capReached: false,
+};
 
 /**
  * Upload every pending capture that can be sent now. Best-effort and safe to
- * call often (screen mount, reconnect): it no-ops when the queue is empty or the
- * device is offline, and each entry is handled in isolation so one stuck capture
- * never blocks the rest.
+ * call often (screen mount, reconnect, foreground, launch): it no-ops when there
+ * is nothing due or the device is offline, and each entry is handled in
+ * isolation so one stuck capture never blocks the rest.
  *
  * On success the bytes move into the view cache (so the receipt stays offline-
- * readable) and the entry and its file are dropped. A transient failure leaves
- * the entry to retry; a permanent one (cap, not a party) is dropped with its
- * reason surfaced, so it does not loop forever.
+ * readable) and the entry and its file are dropped. A transient failure keeps
+ * the entry with a backoff, to be tried again on the next event; a permanent one
+ * (cap, not a party) keeps it too, marked so no background run retries it —
+ * either way the tile stays in the gallery saying what happened, and the bytes
+ * stay on disk, until the person retries it or removes it.
  */
 let inFlight: Promise<FlushResult> | null = null;
 
@@ -241,33 +446,52 @@ export function flushReceiptQueue(): Promise<FlushResult> {
 
 async function runFlush(): Promise<FlushResult> {
   const queue = await readQueue();
-  if (queue.length === 0) return { uploadedExpenseIds: [], hadPermanentFailure: false };
-  if (!(await isOnline())) return { uploadedExpenseIds: [], hadPermanentFailure: false };
+  if (queue.length === 0) return EMPTY_FLUSH;
 
-  const remaining: PendingReceipt[] = [];
+  // Only entries that are actually due: a permanent refusal waits for somebody
+  // to ask, and a recent transient failure waits out its backoff. Both stay in
+  // the queue and on screen — being skipped here is not the same as being gone.
+  const now = Date.now();
+  const due = queue.filter((entry) => {
+    if (entry.permanent) return false;
+    if (!entry.nextAttemptAt) return true;
+    const at = Date.parse(entry.nextAttemptAt);
+    return Number.isNaN(at) || at <= now;
+  });
+  if (due.length === 0) return EMPTY_FLUSH;
+  if (!(await isOnline())) return EMPTY_FLUSH;
+
+  // How each handled entry ends up: a replacement row, or null to drop it.
+  // Applied against a re-read of the queue at the end, so entries parked *during*
+  // the flush survive and everything keeps its original order.
+  const updates = new Map<string, PendingReceipt | null>();
   const uploaded = new Set<string>();
   let hadPermanentFailure = false;
+  let capReached = false;
 
   // Drive the in-app progress bar for the batch: one step per capture, marked
   // done as each is handled (uploaded, dropped, or failed). The bar is behind a
   // feature flag, but reporting is cheap and always on — the flag only decides
   // whether anything is drawn.
-  startTransfer(FLUSH_TRANSFER_ID, queue.length);
+  startTransfer(FLUSH_TRANSFER_ID, due.length);
   let handled = 0;
 
   // The loop sits in try/finally so a throw from pendingFile/file.exists (which
   // run outside the per-entry try) still ends the transfer — otherwise the bar
   // sticks on screen at done < total until some later flush completes.
   try {
-    for (const entry of queue) {
+    for (const entry of due) {
       const file = pendingFile(entry);
       if (!file.exists) {
         // The bytes are gone (a wipe, a failed write) — nothing to send; drop it.
+        updates.set(entry.attachmentId, null);
         handled += 1;
         setTransferProgress(FLUSH_TRANSFER_ID, handled);
         continue;
       }
 
+      // From here the tile says "sending", live, wherever it is being rendered.
+      markUploading(entry.attachmentId, true);
       try {
         const base64 = await file.base64();
         await putImage({
@@ -294,21 +518,29 @@ async function runFlush(): Promise<FlushResult> {
         } catch {
           // Best-effort; a lingering file is reclaimed with the app's document dir.
         }
+        updates.set(entry.attachmentId, null);
         uploaded.add(entry.expenseId);
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught);
-        if (isPermanent(message)) {
+        const attempts = entry.attempts + 1;
+        const permanent = isPermanent(message);
+        if (permanent) {
           hadPermanentFailure = true;
-          try {
-            file.delete();
-          } catch {
-            /* ignore */
-          }
-          continue; // Drop — a retry would only fail the same way.
+          if (message.includes('ATTACHMENT_CAP')) capReached = true;
         }
-        // Transient (offline mid-flush, a 5xx): keep it to try again later.
-        remaining.push({ ...entry, attempts: entry.attempts + 1, lastError: message });
+        updates.set(entry.attachmentId, {
+          ...entry,
+          attempts,
+          lastError: message,
+          permanent,
+          // A permanent refusal has no next attempt to schedule; a transient one
+          // backs off so a phone flipping in and out of signal is not retried raw.
+          nextAttemptAt: permanent
+            ? null
+            : new Date(Date.now() + backoffFor(attempts)).toISOString(),
+        });
       } finally {
+        markUploading(entry.attachmentId, false);
         handled += 1;
         setTransferProgress(FLUSH_TRANSFER_ID, handled);
       }
@@ -318,12 +550,15 @@ async function runFlush(): Promise<FlushResult> {
   }
 
   // Re-read before writing back: enqueueReceipt may have appended during the
-  // uploads above, and writing `remaining` alone would silently drop it (its
-  // bytes then orphaned under PENDING_DIR). Keep only the entries this run
-  // handled out of the write, and carry any that arrived meanwhile.
-  const handledIds = new Set(queue.map((entry) => entry.attachmentId));
+  // uploads above, and writing only what this run touched would silently drop it
+  // (its bytes then orphaned under PENDING_DIR). Rebuilding from the current
+  // queue keeps those, keeps the untouched entries, and preserves the order.
   const current = await readQueue();
-  const arrivedDuringFlush = current.filter((entry) => !handledIds.has(entry.attachmentId));
-  await writeQueue([...remaining, ...arrivedDuringFlush]);
-  return { uploadedExpenseIds: [...uploaded], hadPermanentFailure };
+  const next = current.flatMap((entry) => {
+    if (!updates.has(entry.attachmentId)) return [entry];
+    const replacement = updates.get(entry.attachmentId);
+    return replacement ? [replacement] : [];
+  });
+  await writeQueue(next);
+  return { uploadedExpenseIds: [...uploaded], hadPermanentFailure, capReached };
 }
