@@ -36,9 +36,14 @@ afterAll(async () => {
 });
 
 const memberClaims = (profileId: string) => ({ sub: profileId, role: 'authenticated' });
+// A guest session as Supabase actually issues one: the `authenticated` role and
+// an `is_anonymous` claim, carrying the group ids the removed claim mechanism
+// used to honour. The point of these cases is that the claim buys nothing —
+// only a `group_members` row does.
 const guestClaims = (groupIds: string[]) => ({
   sub: randomUUID(),
-  role: 'anon',
+  role: 'authenticated',
+  is_anonymous: true,
   app_metadata: { baaki_groups: groupIds },
 });
 
@@ -57,10 +62,14 @@ describe('groups', () => {
     });
   });
 
-  it('an unauthenticated caller sees nothing', async () => {
+  it('an unauthenticated caller cannot even address the table', async () => {
+    // Stronger than "sees no rows", which is what RLS alone gave: since
+    // 20260831120000_anon_surface_hardening the signed-out role holds no grant
+    // on `groups` at all, so the read is refused before a policy is consulted
+    // and the table is not published in the API schema either.
     await asRole(client, 'anon', {}, async () => {
-      const result = await client.query(`SELECT id FROM groups`);
-      expect(result.rowCount).toBe(0);
+      const message = await expectDenied(client.query(`SELECT id FROM groups`));
+      expect(message).toMatch(/permission denied/i);
     });
   });
 });
@@ -146,14 +155,19 @@ describe('expenses and their money rows', () => {
  */
 describe('guest sessions (ADR-006)', () => {
   it('a guest who joined is a member, and reads the group', async () => {
-    await asRole(client, 'anon', memberClaims(group.profileIds[1] as string), async () => {
+    // A guest is an anonymous *sign-in*, which Supabase issues as a real JWT
+    // carrying the `authenticated` role and an `is_anonymous` claim — not the
+    // `anon` API-key role, which means "no session at all". Modelled as `anon`
+    // this case was really testing the signed-out grant; it is the guest's
+    // membership row that has always done the work.
+    await asRole(client, 'authenticated', memberClaims(group.profileIds[1] as string), async () => {
       const read = await client.query(`SELECT id FROM groups WHERE id = $1`, [group.groupId]);
       expect(read.rowCount).toBe(1);
     });
   });
 
   it('a JWT claim naming a group grants nothing on its own', async () => {
-    await asRole(client, 'anon', guestClaims([group.groupId]), async () => {
+    await asRole(client, 'authenticated', guestClaims([group.groupId]), async () => {
       expect(
         (await client.query(`SELECT is_group_member($1) AS m`, [group.groupId])).rows[0].m,
       ).toBe(false);
@@ -163,7 +177,7 @@ describe('guest sessions (ADR-006)', () => {
   });
 
   it('and a claim naming somebody else’s group grants nothing either', async () => {
-    await asRole(client, 'anon', guestClaims([otherGroupId]), async () => {
+    await asRole(client, 'authenticated', guestClaims([otherGroupId]), async () => {
       const read = await client.query(`SELECT id FROM groups WHERE id = $1`, [group.groupId]);
       expect(read.rowCount).toBe(0);
     });

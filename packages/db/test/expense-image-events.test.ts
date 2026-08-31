@@ -227,7 +227,9 @@ describe('attachment audit line, emitted by the attach/remove RPCs', () => {
 describe('anon', () => {
   it('sees no events and cannot log one', async () => {
     await logReceipt(P(0), 'added');
-    expect(await eventsVisibleTo(null)).toHaveLength(0);
+    // Refused at the grant, not merely filtered: `anon` holds no privilege on
+    // `expense_image_events` since 20260831120000_anon_surface_hardening.
+    await expectDenied(eventsVisibleTo(null));
     await expectDenied(
       as(null, () =>
         client.query(`SELECT baaki_log_receipt_event($1, $2, $3, 'added')`, [
