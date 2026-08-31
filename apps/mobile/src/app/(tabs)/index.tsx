@@ -5,7 +5,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
-  ActivityIndicator,
   Animated,
   Modal,
   Pressable,
@@ -106,7 +105,15 @@ export default function HomeScreen() {
   const displayName = profile?.display_name ?? t.account.you;
 
   const list = groups.data ?? [];
-  const loading = groups.isLoading || summary.isLoading;
+  // One gate for every figure on this screen. The mirror hydrates from disk
+  // instantly, so the groups and their balances *can* paint at once — but that
+  // snapshot can be behind the server, and a balance painted from it moves when
+  // this session's first sync reconciles. A number that changes after it has
+  // been read is worse than a number that arrives a beat later, so the skeleton
+  // stays up until the figures are final. Bounded, never a hang:
+  // `pendingFirstSync` clears on the first success *or* on a can't-sync status
+  // (offline, metered, error), where the local snapshot is the best there is.
+  const loading = groups.isLoading || summary.isLoading || summary.pendingFirstSync;
 
   // A ledger import running in the background (see `@/lib/importProgress`): its
   // banner sits above the group list, and when it lands the just-added group
@@ -350,7 +357,7 @@ export default function HomeScreen() {
                 across currencies, so each is its own slide). Its scroll drives the
                 background crossfade above. While it loads a light placeholder
                 stands in so the number never paints confident zeros. */}
-          {summary.isLoading || !balanceReady ? (
+          {loading || !balanceReady ? (
             <HeroBalanceSkeleton />
           ) : (
             <HeroBalance
@@ -364,11 +371,6 @@ export default function HomeScreen() {
               cardWidth={heroInner}
               gap={heroGap}
               snap={heroSnap}
-              // The mirror hydrates instantly, so the balance shows at once.
-              // Until this session's first sync settles it is provisional —
-              // "updating" rather than an owe/owed verdict, so the net slide's
-              // heading never flips when the sync reconciles (see HeroBalance).
-              provisional={summary.pendingFirstSync}
             />
           )}
 
@@ -1234,7 +1236,6 @@ function HeroBalance({
   monthSpent,
   locale,
   t,
-  provisional,
   hidden,
   onToggleHide,
   scrollX,
@@ -1247,9 +1248,6 @@ function HeroBalance({
   monthSpent: readonly { currency: string; amount: bigint }[];
   locale: string;
   t: UiStrings;
-  /** True until this session's first sync settles: the net slide's heading is
-   *  held at "updating" so it never flips owe↔owed when the sync reconciles. */
-  provisional: boolean;
   /** The eye toggle — masks every slide's figure while on. */
   hidden: boolean;
   onToggleHide: () => void;
@@ -1270,10 +1268,6 @@ function HeroBalance({
   // carries meaning. We fold that verdict into the label itself (a Title-case
   // phrase that matches the other slides' headings) so a single line still
   // tells you which way you stand, now that the old third "sub" line is gone.
-  // The real owe↔owed verdict, shown even before the first sync settles: rather
-  // than masking it behind an "updating" label, each slide carries a small
-  // spinner (see `busy` on MetricSlide) while the sync is still in flight, so
-  // the direction is there to read and the spinner says it may yet change.
   const netDirection =
     primary.net === 0n ? t.allSettled : primary.net > 0n ? t.dashHero.netOwed : t.dashHero.netOwe;
 
@@ -1288,7 +1282,6 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
-          busy={provisional}
         />
       ),
     },
@@ -1302,7 +1295,6 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
-          busy={provisional}
         />
       ),
     },
@@ -1316,7 +1308,6 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
-          busy={provisional}
         />
       ),
     },
@@ -1549,7 +1540,6 @@ function MetricSlide({
   locale,
   hidden,
   onToggleHide,
-  busy = false,
 }: {
   label: string;
   amount: bigint;
@@ -1557,9 +1547,6 @@ function MetricSlide({
   locale: string;
   hidden: boolean;
   onToggleHide: () => void;
-  /** Sync still in flight — a small spinner beside the eye says the figure may
-   *  yet change, without hiding the real label behind an "updating" placeholder. */
-  busy?: boolean;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
@@ -1582,13 +1569,6 @@ function MetricSlide({
             color={theme.color.onBrand}
           />
         </Pressable>
-        {busy ? (
-          <ActivityIndicator
-            size="small"
-            color={theme.color.onBrand}
-            accessibilityLabel={t.dashHero.updating}
-          />
-        ) : null}
       </Row>
       {hidden ? (
         <Text tone="onBrand" style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}>
