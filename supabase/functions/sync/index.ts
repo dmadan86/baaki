@@ -280,7 +280,7 @@ serveWithCors(async (request) => {
  * Applies one batch, remembering per-group membership so a hundred mutations in
  * one group cost one membership lookup rather than a hundred.
  */
-class SyncSession {
+export class SyncSession {
   readonly touchedGroups = new Set<string>();
   private readonly memberIds = new Map<string, string | null>();
 
@@ -727,7 +727,36 @@ class SyncSession {
       location: sanitiseExpenseLocation(payload.location),
       status: 'open',
     });
-    if (error) throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    if (error) {
+      // The capture is already here. Its id is the client's own, so this is the
+      // same create arriving twice: the first attempt landed but its outcome
+      // never got back to the phone (the reply was lost, or the idempotency row
+      // that follows the write failed to record), and the queue — or a person
+      // tapping Save again on an error — sent it once more under a fresh
+      // mutation id, which slips past the `sync_mutations` replay guard.
+      //
+      // A create that finds its own row already written has nothing left to do,
+      // so it reports the success it already achieved. Deliberately NOT an
+      // upsert: a capture that has since been assigned to a group would have its
+      // fields and its `status` written back to a fresh 'open' row and reappear
+      // in the inbox. A real edit is `capture.update`; this path only ever
+      // acknowledges.
+      //
+      // Ownership decides between the two readings of a duplicate id. The select
+      // runs as the caller, so RLS answers it: a visible row is the caller's own
+      // retry; an invisible one means the id belongs to somebody else's inbox
+      // and the write must be refused rather than silently swallowed.
+      if (error.code === '23505') {
+        const { data: mine } = await this.caller
+          .from('captures')
+          .select('id')
+          .eq('id', captureId)
+          .maybeSingle();
+        if (mine) return { captureId };
+        throw new HttpError(409, 'CAPTURE_ID_TAKEN', 'That capture id is already in use');
+      }
+      throw new HttpError(400, 'VALIDATION_FAILED', error.message);
+    }
     return { captureId };
   }
 
