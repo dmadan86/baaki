@@ -777,9 +777,19 @@ export default function PlanScreen() {
               }}
               accessibilityRole="button"
               accessibilityLabel={`${t.add} — ${dayLabel(day.day, locale)}`}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              accessibilityHint={t.addPlanHint}
+              // A heading is a line of text, and a line of text is a shorter
+              // target than a finger. Now that this line is the only way to add
+              // to a day it has to be reachable like a button: a full-height row
+              // to aim at, and slop around it for the miss.
+              hitSlop={8}
+              style={({ pressed }) => ({
+                minHeight: 44,
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}
             >
-              <Row style={{ justifyContent: 'space-between' }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text variant="subheading" tone={day.day === today ? 'brand' : 'default'}>
                   {dayLabel(day.day, locale)}
                 </Text>
