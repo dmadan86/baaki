@@ -97,6 +97,7 @@ import { pickAlbumPhoto, type PickedImage } from '@/lib/image';
 import { parseAnnotations, type Annotations } from '@/lib/annotations';
 import { sanitizeCommentMarkdown } from '@/lib/commentMarkdown';
 import type { VoiceAccess } from '@/lib/voiceAccess';
+import { myStake } from './activity';
 import { SettlementStatus } from './types';
 import type {
   ActivityActor,
@@ -104,6 +105,7 @@ import type {
   ActivityRow,
   CaptureRow,
   ExpenseRow,
+  ExpenseVersionRow,
   GroupRow,
   MemberRow,
   SettlementRow,
@@ -602,7 +604,20 @@ export function usePendingAware(groupId: string, expenses: ExpenseRow[]): Expens
   );
 }
 
-export type RecentActivityRow = ActivityRow & { group: ActivityGroup | null };
+export type RecentActivityRow = ActivityRow & {
+  group: ActivityGroup | null;
+  /**
+   * What this event did to the reader's own balance, when that is knowable: an
+   * expense event carries the reader's stake in that bill (positive: they lent,
+   * negative: they borrowed) — the same figure the group ledger's expense rows
+   * show, so a coloured amount means one thing across the app.
+   *
+   * Null when the event is not an expense, when the reader is on neither side
+   * of the bill, or when no profile id was given. The row then falls back to
+   * the payload's neutral total, which belongs to nobody in particular.
+   */
+  stake: { amount: bigint; currency: string } | null;
+};
 
 /**
  * The recent-activity feed, entirely from the mirror — offline-first (ADR-005).
@@ -617,7 +632,7 @@ export type RecentActivityRow = ActivityRow & { group: ActivityGroup | null };
  * Newest-first across every group the phone knows about; the screen paginates
  * this local list rather than asking the server for the next page.
  */
-export function useRecentActivity(): RecentActivityRow[] {
+export function useRecentActivity(myProfileId: string | null = null): RecentActivityRow[] {
   const { mirror } = useSync();
   return useMemo(() => {
     const groups = new Map<string, ActivityGroup>();
@@ -652,14 +667,65 @@ export function useRecentActivity(): RecentActivityRow[] {
       });
     }
 
+    // The reader's own member id in each group, so an expense event can be told
+    // apart into "you lent" and "you borrowed". The same person holds a
+    // different member id in every group, hence a map rather than one id.
+    const myMemberByGroup = new Map<string, MemberId>();
+    if (myProfileId) {
+      for (const row of rowsFor(mirror, SyncTable.GroupMembers)) {
+        const m = row as unknown as {
+          id: MemberId;
+          group_id: string;
+          profile_id: string | null;
+          left_at: string | null;
+        };
+        if (m.profile_id === myProfileId && !m.left_at) myMemberByGroup.set(m.group_id, m.id);
+      }
+    }
+
+    // Every expense the phone holds, by id — an activity row names its object,
+    // so the stake is a map lookup rather than a scan per row.
+    const expenseById = new Map<string, MirrorExpense>();
+    if (myProfileId) {
+      for (const row of rowsFor(mirror, SyncTable.Expenses) as MirrorExpense[]) {
+        expenseById.set(row.id, row);
+      }
+    }
+
     return (rowsFor(mirror, SyncTable.ActivityLog) as unknown as ActivityRow[])
       .map((row) => ({
         ...row,
         group: groups.get(row.group_id) ?? null,
         actor: row.actor_member_id ? (actors.get(row.actor_member_id) ?? null) : null,
+        stake: stakeFor(row, expenseById, myMemberByGroup),
       }))
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  }, [mirror]);
+  }, [mirror, myProfileId]);
+}
+
+/**
+ * The reader's stake in the expense an activity row is about, or null when the
+ * row is not about an expense they are on. A settled/confirmed row is left
+ * null on purpose: a settlement moves money one way and the balance the other,
+ * so colouring it by either sign misreads the other — it keeps the neutral
+ * total.
+ */
+function stakeFor(
+  row: ActivityRow,
+  expenseById: ReadonlyMap<string, MirrorExpense>,
+  myMemberByGroup: ReadonlyMap<string, MemberId>,
+): { amount: bigint; currency: string } | null {
+  if (row.object_type !== 'expense' || !row.object_id) return null;
+  const version = expenseById.get(row.object_id)?.currentVersion;
+  if (!version) return null;
+  const stake = myStake(
+    version as unknown as ExpenseVersionRow,
+    myMemberByGroup.get(row.group_id) ?? null,
+  );
+  // A square stake (paid exactly what you owed) has no direction to colour, so
+  // it reads as the neutral total rather than a grey zero.
+  if (stake === null || stake === 0n) return null;
+  return { amount: stake, currency: version.currency };
 }
 
 /** How much a destination (group, or a person's 1:1 group) has been used. */

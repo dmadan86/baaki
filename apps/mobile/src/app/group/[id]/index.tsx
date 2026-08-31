@@ -36,6 +36,7 @@ import {
   activityHeadline,
   activityTarget,
   describeActivity,
+  myStake,
   parseMoney,
   relativeTime,
   verbIcon,
@@ -122,33 +123,6 @@ function RemindChip({
       <Badge label={t.people.remind} tone="brand" />
     </Pressable>
   );
-}
-
-/**
- * What one expense did to one person's balance — what they put in beyond their
- * own share (positive: they lent), or their share of what somebody else put in
- * (negative: they borrowed).
- *
- * `null` means they are in neither column: an expense between other people in
- * the group. That is a blank on the row, not a zero — a zero would read as "you
- * are square on this one", which is a different sentence.
- */
-function myStake(
-  version: ExpenseVersionRow | null | undefined,
-  memberId: MemberId | null,
-): bigint | null {
-  if (!version || !memberId) return null;
-  const paid = version.payers.find((row) => row.member_id === memberId)?.amount;
-  const share = version.shares.find((row) => row.member_id === memberId)?.amount;
-  const paidN = BigInt(paid ?? 0);
-  const shareN = BigInt(share ?? 0);
-  // Not involved is "put nothing in, owe nothing" — which covers both the member
-  // absent from the bill entirely AND a member written into the split with a zero
-  // share (an excluded party some imports still list). Either way there is no
-  // stake, so the row must read "not involved", not "all settled" — a settled
-  // square is what you get when you paid and owed the *same non-zero* amount.
-  if (paidN === 0n && shareN === 0n) return null;
-  return paidN - shareN;
 }
 
 /**
@@ -542,6 +516,13 @@ export default function GroupScreen() {
     [expenses.rows, showDeleted],
   );
   const expenseSections = useMemo(() => groupExpensesByMonth(visibleExpenses), [visibleExpenses]);
+  // Every expense by id, so an activity row (which names its object) can show
+  // the reader's own stake in that bill without scanning the ledger per row.
+  // Built from the unfiltered rows: a deleted expense still has an activity row.
+  const expenseById = useMemo(
+    () => new Map(expenses.rows.map((expense) => [expense.id, expense] as const)),
+    [expenses.rows],
+  );
   // The month sections flattened into one recyclable list: a heading item per
   // month, then its expense rows. FlashList mounts only what is on screen, so a
   // group with a thousand bills opens as fast as one with ten.
@@ -829,6 +810,13 @@ export default function GroupScreen() {
     // group's members before wording the row.
     const { entry, isLast } = item;
     const money = parseMoney(entry.payload, currency);
+    // The reader's own side of the bill, when they are on it — the same figure
+    // and the same colours as the Expenses tab's rows, so one event does not
+    // read two ways across two tabs of one screen.
+    const stake =
+      entry.object_type === 'expense' && entry.object_id
+        ? myStake(expenseById.get(entry.object_id)?.currentVersion ?? null, ledger.myMemberId)
+        : null;
     const tint = theme.tint[verbTint(entry.verb)];
     const resolved = entry.actor ? entry : { ...entry, actor: actorFor(entry.actor_member_id) };
     // The full sentence stays the spoken label; the visible title leads with the
@@ -879,10 +867,19 @@ export default function GroupScreen() {
                 {who ? `${who} · ${when}` : when}
               </Text>
             </View>
-            {money ? (
-              // Neutral, not red: an expense total belongs to nobody in
-              // particular — it is not a balance you owe. `mode="plain"` is
-              // MoneyText's neutral ink, the same on the cross-group feed.
+            {stake !== null && stake !== 0n ? (
+              // What the bill did to the reader — lent or borrowed, coloured by
+              // direction, the same as the Expenses tab and the cross-group
+              // feed. A bill between other people, and every settlement, keep
+              // the neutral total below.
+              <MoneyText
+                amount={stake}
+                currency={money?.currency ?? currency}
+                locale={locale}
+                variant="subheading"
+                mode="balance"
+              />
+            ) : money ? (
               <MoneyText
                 amount={money.amount}
                 currency={money.currency}
