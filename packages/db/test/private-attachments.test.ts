@@ -326,7 +326,10 @@ describe('the outer gates', () => {
     await as(g.profileIds[0] as string, () =>
       attachProof(settlementId, `${settlementId}/${randomUUID()}.webp`),
     );
-    expect(await as(null, () => countProofs(settlementId))).toBe(0);
+    // Refused at the grant, not filtered to zero: since
+    // 20260831120000_anon_surface_hardening the signed-out role holds no
+    // privilege on `settlement_proofs` at all.
+    await expectDenied(as(null, () => countProofs(settlementId)));
   });
 
   it('T7 — an outsider from another group sees nothing', async () => {

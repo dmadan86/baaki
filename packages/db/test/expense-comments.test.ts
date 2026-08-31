@@ -123,7 +123,10 @@ describe('expense comments — permission matrix', () => {
 
   it('T3 anon cannot add and cannot read', async () => {
     await addComment(P(1), 'visible to members');
-    expect(await visibleTo(null)).toBe(0);
+    // Signed out, the read is refused at the grant rather than filtered to zero
+    // rows: `anon` holds no privilege on `expense_comments` since
+    // 20260831120000_anon_surface_hardening.
+    await expectDenied(visibleTo(null));
     await expectDenied(
       as(null, () =>
         client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
