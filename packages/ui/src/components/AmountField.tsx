@@ -37,10 +37,23 @@ export function AmountField({
   onChange,
   size = 'display',
   tone = 'default',
+  framed = false,
+  autoFocus = false,
 }: {
   currency: CurrencyCode;
   value: bigint;
   onChange: (amount: bigint) => void;
+  /**
+   * Wrap the field in a well — a soft fill and a bottom rule that goes solid on
+   * focus — so an editable amount reads as a field rather than a printed number.
+   * Off by default, because the compact and display sizes are already obviously
+   * inputs; the hero amount, which sits on the same coloured bar as a read-only
+   * total looks, is the one that needs saying "you can type here".
+   */
+  framed?: boolean;
+  /** Focus and open the keyboard on mount — used when a screen was opened to
+   *  change the amount specifically (tapping the total on the expense screen). */
+  autoFocus?: boolean;
   /**
    * 'display' is the hero amount — big and centred, for the expense entry
    * screen. 'compact' is the right-aligned inline value that sits at the end of
@@ -72,6 +85,10 @@ export function AmountField({
   const digitInk = onBrand ? theme.color.onBrand : theme.color.text;
   const symbolInk = onBrand ? 'rgba(255,255,255,0.72)' : theme.color.textMuted;
   const placeholderInk = onBrand ? 'rgba(255,255,255,0.5)' : theme.color.textFaint;
+
+  // The well's rule brightens when the field has the keyboard, the oldest "type
+  // here" signal there is. Tracked in state so the border can answer the focus.
+  const [focused, setFocused] = useState(false);
 
   // The text↔minor rules live in @waves/core, because the per-payer amount
   // fields on the expense form parse the same keystrokes and two copies of
@@ -133,6 +150,13 @@ export function AmountField({
     onChange(minor);
   };
 
+  // The well: a translucent fill and a bottom rule, brighter on focus. On the
+  // brand wash it is white-on-white; off it, the surface's own muted fill and
+  // the brand as the active rule.
+  const wellFill = onBrand ? 'rgba(255,255,255,0.14)' : theme.color.surfaceMuted;
+  const ruleRest = onBrand ? 'rgba(255,255,255,0.55)' : theme.color.border;
+  const ruleActive = onBrand ? theme.color.onBrand : theme.color.brand;
+
   return (
     <View
       style={{
@@ -145,6 +169,16 @@ export function AmountField({
         // sizes have the row to themselves and must not be squeezed by a sibling.
         flexShrink: hero ? 1 : 0,
         minWidth: 0,
+        ...(framed
+          ? {
+              backgroundColor: wellFill,
+              borderRadius: theme.radius.md,
+              paddingHorizontal: theme.spacing.md,
+              paddingVertical: theme.spacing.xs,
+              borderBottomWidth: 2,
+              borderBottomColor: focused ? ruleActive : ruleRest,
+            }
+          : null),
       }}
     >
       <Text
@@ -165,6 +199,9 @@ export function AmountField({
         placeholderTextColor={placeholderInk}
         selectionColor={onBrand ? theme.color.onBrand : theme.color.brand}
         accessibilityLabel={`Amount ${format(value) || '0'} ${currency}`}
+        autoFocus={autoFocus}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         maxFontSizeMultiplier={1.4}
         style={{
           minWidth: metrics.minWidth,
