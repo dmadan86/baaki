@@ -81,9 +81,13 @@ export function OverflowMenu({
   const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(visible ? 1 : 0);
 
+  // Mount the moment we open — a state adjustment on a prop change, done in
+  // render rather than an effect (the effect below only drives the animation, so
+  // it never calls setState synchronously in its body).
+  if (visible && !mounted) setMounted(true);
+
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       progress.set(
         reduceMotion
           ? withTiming(1, { duration: 0 })
