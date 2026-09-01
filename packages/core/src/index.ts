@@ -6,6 +6,7 @@
  * Deno edge functions, so all three compute identical money.
  */
 
+export * from './time/index';
 export * from './money/index';
 export * from './split/index';
 export * from './balances/index';

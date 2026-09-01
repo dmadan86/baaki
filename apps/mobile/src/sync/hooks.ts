@@ -22,6 +22,7 @@ import {
   type MirrorExpense,
   type SettlementSnapshot,
   type Transfer,
+  byNewest,
 } from '@waves/core';
 
 import type { GroupRow, MemberRow, SettlementRow } from '@/data/types';
@@ -43,7 +44,7 @@ export function useLocalGroups(): GroupRow[] {
     () =>
       (rowsFor(mirror, SyncTable.Groups) as unknown as GroupRow[])
         .filter((group) => !group.archived_at && !group.deleted_at)
-        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
+        .sort(byNewest((row) => String(row.created_at))),
     [mirror],
   );
 }

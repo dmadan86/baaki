@@ -17,6 +17,7 @@ import {
   type ExpenseLocation,
   type HeuristicReceipt,
   type PaymentMethod,
+  byNewest,
 } from '@waves/core';
 import {
   Button,
@@ -861,7 +862,7 @@ function GroupPicker({
   // Newest-created first, standing in for "recently used": the group model
   // carries no updated_at / last-activity field, so creation order is the only
   // honest recency signal available without a heavier query.
-  const byRecent = [...rest].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+  const byRecent = [...rest].sort(byNewest((row) => row.created_at));
 
   // Only split "recently used" out from "all" once there are enough groups that
   // a shortcut to the top few actually saves scrolling.
