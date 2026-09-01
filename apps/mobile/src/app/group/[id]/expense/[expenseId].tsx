@@ -462,6 +462,35 @@ export default function ExpenseDetailScreen() {
         </Row>
       </Gradient>
 
+      {/* The two faces of the page — its breakdown and its edit history —
+          sectioned so the audit is its own place rather than the tail of a long
+          scroll.
+
+          Outside the ScrollView, pinned under the hero. Inside it, the row
+          scrolled away with the content: three screens into the comments there
+          was no way to reach the history without scrolling all the way back, and
+          the control that says which face you are on was the one thing not on
+          screen. It sits tight against the hero — a label for what follows, not
+          a band of its own. */}
+      <View style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.sm }}>
+        <SegmentedTabs
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            {
+              value: 'details',
+              label: t.expense.detailsTab,
+              icon: (color) => <Ionicons name="receipt-outline" size={iconSize.md} color={color} />,
+            },
+            {
+              value: 'history',
+              label: t.expense.history,
+              icon: (color) => <Ionicons name="time-outline" size={iconSize.md} color={color} />,
+            },
+          ]}
+        />
+      </View>
+
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
@@ -477,18 +506,6 @@ export default function ExpenseDetailScreen() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        {/* The two faces of the page — its breakdown and its edit history —
-            sectioned so the audit is its own place rather than the tail of a
-            long scroll. */}
-        <SegmentedTabs
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { value: 'details', label: t.expense.detailsTab },
-            { value: 'history', label: t.expense.history },
-          ]}
-        />
-
         {tab === 'history' ? (
           <ExpenseHistory
             versions={versions.data ?? []}
@@ -513,6 +530,23 @@ export default function ExpenseDetailScreen() {
                 {t.expense.notInvolvedBody}
               </Callout>
             ) : null}
+
+            {/* Receipts — one gallery, many images, each group-visible or private.
+            Folds in the legacy single bill (E2) as its first item. Adding is now
+            the hero button (externalAdd), driven through the ref; this section
+            shows the gallery of what is already kept.
+
+            First on the page, ahead of the facts: the bill itself is the thing
+            somebody opens this screen to look at, and the figures below are what
+            was read off it. */}
+            <ExpenseReceipts
+              groupId={groupId}
+              expenseId={expense.id}
+              canManage={isExpenseParty}
+              canRemoveLegacy={isExpenseParty || iAmAdmin}
+              legacyReceiptPath={receiptUri ? expenseReceiptPath(groupId, expense.id) : null}
+              onLegacyRemoved={() => setReceiptUri(null)}
+            />
 
             {/* The bill's facts as a tidy labelled card — who paid, when, and how
                 it was split — in place of the stacked caption and chips the hero
@@ -552,19 +586,6 @@ export default function ExpenseDetailScreen() {
                 value={splitLabels(t)[version.split_type] ?? version.split_type}
               />
             </Card>
-
-            {/* Receipts — one gallery, many images, each group-visible or private.
-            Folds in the legacy single bill (E2) as its first item. Adding is now
-            the hero button (externalAdd), driven through the ref; this section
-            shows the gallery of what is already kept. */}
-            <ExpenseReceipts
-              groupId={groupId}
-              expenseId={expense.id}
-              canManage={isExpenseParty}
-              canRemoveLegacy={isExpenseParty || iAmAdmin}
-              legacyReceiptPath={receiptUri ? expenseReceiptPath(groupId, expense.id) : null}
-              onLegacyRemoved={() => setReceiptUri(null)}
-            />
 
             {/* The full note, when the clamped hero heading could not have shown
             all of it — a multi-line or long description is only half-visible up
