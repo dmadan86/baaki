@@ -533,6 +533,9 @@ export interface MirrorGroup extends MirrorRow {
   readonly budget_currency?: string | null;
   /** Per-category caps, keyed by category id. Group-visible, admin-set. */
   readonly category_budgets?: Record<string, { amountMinor: string; currency: string }> | null;
+  /** The trip's pinned rates, keyed by the currency paid in; each converts to
+   *  this group's `default_currency`. Group-visible, admin-set. */
+  readonly fx_rates?: Record<string, { num: string; den: string; ts: string; source: string }> | null;
   readonly pending?: boolean;
 }
 
@@ -619,6 +622,34 @@ function buildGroups(state: MirrorState, queue: readonly QueuedMutation[]): Mirr
           };
         }
         byId.set(mutation.groupId, { ...existing, category_budgets: map, pending: true });
+      }
+    }
+
+    // A trip rate patches the group row's fx_rates map one currency at a time; a
+    // null ratio removes that currency's entry. Same optimistic path as the
+    // budgets above, so a rate an admin pins shows on the group before the sync
+    // lands.
+    if (mutation.kind === 'group_fx_rate.set') {
+      const existing = byId.get(mutation.groupId);
+      if (existing) {
+        const payload = mutation.payload as {
+          from: string;
+          num: string | null;
+          den: string | null;
+          source?: string;
+        };
+        const map = { ...(existing.fx_rates ?? {}) };
+        if (payload.num === null || payload.den === null) {
+          delete map[payload.from];
+        } else {
+          map[payload.from] = {
+            num: payload.num,
+            den: payload.den,
+            ts: new Date().toISOString(),
+            source: payload.source ?? 'manual',
+          };
+        }
+        byId.set(mutation.groupId, { ...existing, fx_rates: map, pending: true });
       }
     }
   }

@@ -1772,6 +1772,51 @@ export function useSetCategoryBudget(groupId: string) {
   });
 }
 
+/** One currency's pinned trip rate, read off the mirrored group row. `num`/`den`
+ *  are the exact rational; `from` is the currency paid in, converting to the
+ *  group's own default currency. */
+export interface GroupFxRateRow {
+  from: string;
+  num: bigint;
+  den: bigint;
+  source: string;
+}
+
+/** The trip's pinned rates, read off the mirrored group row (ADR-005). Keyed by
+ *  the currency paid in. */
+export function useGroupFxRates(groupId: string): LocalRead<GroupFxRateRow[]> {
+  const { mirror, queue } = useSync();
+  const rows = useMemo(() => {
+    const group = materialiseGroup(mirror, queue, groupId);
+    const map = group?.fx_rates ?? null;
+    if (!map) return [];
+    return Object.entries(map)
+      .map(([from, value]) => ({
+        from,
+        num: BigInt(value.num),
+        den: BigInt(value.den),
+        source: value.source,
+      }))
+      .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+  }, [mirror, queue, groupId]);
+  return useLocalRead(rows);
+}
+
+/** Set (or clear, with a null ratio) one currency's trip rate, queued. Admin-only,
+ *  enforced by the RPC. */
+export function useSetGroupFxRate(groupId: string) {
+  const { mutate } = useSync();
+  return useMutation({
+    mutationFn: (input: { from: string; num: bigint | null; den: bigint | null; source?: string }) =>
+      mutate(MutationKind.GroupFxRateSet, groupId, {
+        from: input.from,
+        num: input.num === null ? null : input.num.toString(),
+        den: input.den === null ? null : input.den.toString(),
+        source: input.source ?? 'manual',
+      }),
+  });
+}
+
 // ──────────────────────────── private / party-only attachments (§3) ──
 //
 // Reads ride the mirror (the pull is party-filtered by RLS, so a non-party never

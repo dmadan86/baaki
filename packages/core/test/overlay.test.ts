@@ -837,6 +837,59 @@ describe('category budgets ride the group row', () => {
       transport: { amountMinor: '100000', currency: 'INR' },
     });
   });
+
+});
+
+describe('trip rates ride the group row', () => {
+  const base: SyncChange = {
+    table: SyncTable.Groups,
+    groupId: GROUP,
+    seq: 1,
+    row: {
+      id: GROUP,
+      name: 'Vietnam',
+      default_currency: 'INR',
+      created_at: AT,
+      archived_at: null,
+      fx_rates: null,
+    },
+  };
+
+  it('pins one currency’s rate optimistically on the group', () => {
+    const mirror = reconcile(emptyMirror(), [base]).state;
+    const set = envelope('f-1', MutationKind.GroupFxRateSet, {
+      from: 'VND',
+      num: '312',
+      den: '1',
+      source: 'manual',
+    });
+    const [row] = materialiseGroups(mirror, queued(set));
+    expect(row?.fx_rates?.VND).toMatchObject({ num: '312', den: '1', source: 'manual' });
+    expect(row?.pending).toBe(true);
+  });
+
+  it('clears one currency with a null ratio, keeping the others', () => {
+    const withRates = reconcile(emptyMirror(), [
+      {
+        ...base,
+        row: {
+          ...base.row,
+          fx_rates: {
+            VND: { num: '312', den: '1', ts: AT, source: 'manual' },
+            THB: { num: '42', den: '100', ts: AT, source: 'manual' },
+          },
+        },
+      },
+    ]).state;
+    const clear = envelope('f-2', MutationKind.GroupFxRateSet, {
+      from: 'VND',
+      num: null,
+      den: null,
+    });
+    const [row] = materialiseGroups(withRates, queued(clear));
+    expect(row?.fx_rates?.VND).toBeUndefined();
+    expect(row?.fx_rates?.THB).toMatchObject({ num: '42', den: '100' });
+  });
 });
 
 describe('category tags', () => {
