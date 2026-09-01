@@ -20,10 +20,9 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, View } from 'react-native';
 
-import { Button, iconSize, Row, Text, useTheme } from '@waves/ui';
+import { Button, Row, Sheet, Text, iconSize, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -52,7 +51,6 @@ export function CoverEmojiPicker({
 }) {
   const theme = useTheme();
   const { t } = useStrings();
-  const insets = useSafeAreaInsets();
   const [internalOpen, setInternalOpen] = useState(false);
 
   const controlled = open !== undefined;
@@ -95,55 +93,13 @@ export function CoverEmojiPicker({
         />
       )}
 
-      <Modal
+      <Sheet
         visible={isOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setOpen(false)}
+        onClose={() => setOpen(false)}
+        padded={false}
+        closeLabel={t.common.close}
+        style={{ maxHeight: '82%' }}
       >
-        {/* A bottom sheet, not a full page: a dim backdrop you can tap to
-            dismiss, over a rounded card anchored to the bottom. */}
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          {/* Dim scrim; tap to dismiss. Kept out of the accessibility tree —
-              the header's close button is the labelled way out, so a
-              full-screen dismissal target would only add screen-reader noise.
-              No theme scrim token exists; this matches the app's modal dim. */}
-          <Pressable
-            onPress={() => setOpen(false)}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: '#00000080',
-            }}
-          />
-
-          <View
-            style={{
-              maxHeight: '82%',
-              backgroundColor: theme.color.surface,
-              borderTopLeftRadius: theme.radius.xxl,
-              borderTopRightRadius: theme.radius.xxl,
-              paddingTop: theme.spacing.sm,
-              paddingBottom: insets.bottom + theme.spacing.md,
-            }}
-          >
-            {/* Grab handle */}
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: theme.radius.pill,
-                backgroundColor: theme.color.border,
-                marginBottom: theme.spacing.md,
-              }}
-            />
-
             <Row
               style={{
                 justifyContent: 'space-between',
@@ -226,9 +182,7 @@ export function CoverEmojiPicker({
                 </View>
               ))}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </Sheet>
     </>
   );
 }

@@ -16,9 +16,9 @@
 import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Modal, View } from 'react-native';
+import { View } from 'react-native';
 
-import { Button, Text, useTheme } from '@waves/ui';
+import { Button, Popup, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -91,29 +91,13 @@ export function NotificationPrompt() {
   if (!visible || !granted) return null;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#00000080',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xxxl,
-        }}
-      >
-        <View
-          style={{
-            width: '100%',
-            maxWidth: 360,
-            backgroundColor: theme.color.surface,
-            borderRadius: theme.radius.lg,
-            padding: theme.spacing.xxl,
-            alignItems: 'center',
-            gap: theme.spacing.lg,
-            ...theme.shadow.lifted,
-          }}
-        >
-          {/* The brand tile with a notification badge — the reference's own way
+    <Popup
+      visible
+      onClose={dismiss}
+      closeLabel={t.entry.notifyNotNow}
+      style={{ maxWidth: 360, alignItems: 'center', gap: theme.spacing.lg }}
+    >
+      {/* The brand tile with a notification badge — the reference's own way
               of saying, wordlessly, what the ask is about. */}
           <View
             style={{
@@ -166,8 +150,6 @@ export function NotificationPrompt() {
               onPress={dismiss}
             />
           </View>
-        </View>
-      </View>
-    </Modal>
+    </Popup>
   );
 }

@@ -16,10 +16,10 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Modal, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
-import { Button, Text, useTheme } from '@waves/ui';
+import { Button, Popup, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -98,34 +98,8 @@ export function CampaignPopup() {
   };
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={close}>
-      {/* Tapping outside closes it. An announcement that traps somebody is an
-          advertisement, and this is not one. */}
-      <Pressable
-        onPress={close}
-        accessibilityLabel={t.common.close}
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(10, 10, 26, 0.55)',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xxl,
-        }}
-      >
-        {/* Swallows the tap so pressing the card itself does not dismiss it. */}
-        <Pressable
-          onPress={() => {}}
-          style={{
-            width: '100%',
-            maxWidth: 380,
-            backgroundColor: theme.color.surface,
-            borderRadius: theme.radius.xl,
-            padding: theme.spacing.xxl,
-            gap: theme.spacing.md,
-            ...theme.shadow.lifted,
-          }}
-        >
-          <Text variant="title">{campaign.title}</Text>
+    <Popup visible onClose={close} closeLabel={t.common.close} style={{ gap: theme.spacing.md }}>
+      <Text variant="title">{campaign.title}</Text>
           {campaign.body ? (
             <Text variant="body" tone="muted">
               {campaign.body}
@@ -162,8 +136,6 @@ export function CampaignPopup() {
             />
             <Button label={t.misc.notNow} variant="secondary" size="sm" fullWidth onPress={close} />
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </Popup>
   );
 }

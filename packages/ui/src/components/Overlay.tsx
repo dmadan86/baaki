@@ -99,7 +99,11 @@ export interface SheetProps {
   /** The grab-handle bar at the top — the "you can pull this down" grammar. On
    *  by default; drop it for a sheet that is not dismissible by drag. */
   handle?: boolean;
-  /** Extra style for the sheet card (padding lives here already). */
+  /** The card's own comfortable side padding. On by default; turn it off for a
+   *  sheet whose content manages its own gutters (a full-bleed list or grid, or
+   *  a form that already pads itself). */
+  padded?: boolean;
+  /** Extra style for the sheet card — a `maxHeight` for a tall sheet, say. */
   style?: ViewStyle;
   /** Screen-reader label for the tap-away scrim. */
   closeLabel?: string;
@@ -116,6 +120,7 @@ export function Sheet({
   onClose,
   children,
   handle = true,
+  padded = true,
   style,
   closeLabel = 'Close',
 }: SheetProps) {
@@ -157,7 +162,7 @@ export function Sheet({
                   backgroundColor: theme.color.surface,
                   borderTopLeftRadius: theme.radius.xxl,
                   borderTopRightRadius: theme.radius.xxl,
-                  paddingHorizontal: theme.spacing.lg,
+                  paddingHorizontal: padded ? theme.spacing.lg : 0,
                   paddingTop: theme.spacing.md,
                   paddingBottom: theme.spacing.md + insets.bottom,
                   ...theme.shadow.lifted,

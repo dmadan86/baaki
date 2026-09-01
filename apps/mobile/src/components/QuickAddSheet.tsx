@@ -13,10 +13,9 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Modal, Pressable, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, View } from 'react-native';
 
-import { iconSize, Text, tintForKey, useTheme } from '@waves/ui';
+import { iconSize, Sheet, Text, tintForKey, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 
@@ -68,7 +67,6 @@ export function QuickAddSheet({
   actions: readonly QuickAddAction[];
 }) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const { t } = useStrings();
 
   const activate = (action: QuickAddAction): void => {
@@ -77,78 +75,39 @@ export function QuickAddSheet({
   };
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      {/* Tap the scrim to dismiss; the inner press is swallowed so tapping the
-          sheet itself does not close it. */}
-      <Pressable
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel={t.common.close}
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(10, 10, 26, 0.55)',
-          justifyContent: 'flex-end',
-        }}
-      >
-        <Pressable
-          onPress={() => {}}
-          accessibilityViewIsModal
-          style={{
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.xxl,
-            borderTopRightRadius: theme.radius.xxl,
-            paddingHorizontal: theme.spacing.lg,
-            paddingTop: theme.spacing.md,
-            paddingBottom: theme.spacing.md + insets.bottom,
-            ...theme.shadow.lifted,
-          }}
-        >
-          {/* The grab handle — the visual grammar of a sheet you can pull down. */}
-          <View
-            style={{
-              alignSelf: 'center',
-              width: 40,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: theme.color.border,
-              marginBottom: theme.spacing.sm,
-            }}
-          />
-
-          {actions.map((action) => {
-            const tint = theme.tint[tintForKey(action.tintKey)];
-            return (
-              <Pressable
-                key={action.label}
-                onPress={() => activate(action)}
-                accessibilityRole="button"
-                accessibilityLabel={action.label}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.md,
-                  paddingVertical: theme.spacing.md,
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: tint.bg,
-                  }}
-                >
-                  <Ionicons name={action.icon} size={iconSize.lg} color={tint.ink} />
-                </View>
-                <Text variant="subheading">{action.label}</Text>
-              </Pressable>
-            );
-          })}
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <Sheet visible={visible} onClose={onClose} closeLabel={t.common.close}>
+      {actions.map((action) => {
+        const tint = theme.tint[tintForKey(action.tintKey)];
+        return (
+          <Pressable
+            key={action.label}
+            onPress={() => activate(action)}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.md,
+              paddingVertical: theme.spacing.md,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: tint.bg,
+              }}
+            >
+              <Ionicons name={action.icon} size={iconSize.lg} color={tint.ink} />
+            </View>
+            <Text variant="subheading">{action.label}</Text>
+          </Pressable>
+        );
+      })}
+    </Sheet>
   );
 }

@@ -13,11 +13,10 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Alert, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { TINTS, type CatalogEntry, type TintName } from '@waves/core';
-import { Button, iconSize, Row, Text, useTheme } from '@waves/ui';
+import { Button, iconSize, Row, Sheet, Text, useTheme } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
 import { DEFAULT_TAG_ICON, TAG_ICON_GROUPS } from '@/components/tagIcons';
@@ -34,60 +33,15 @@ export function TagEditorSheet({
   /** The custom tag to edit, or null to create a fresh one. */
   editing?: CatalogEntry | null;
 }) {
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
-
   return (
-    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable
-          onPress={onClose}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#00000080',
-          }}
-        />
-
-        <View
-          style={{
-            maxHeight: '88%',
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.xxl,
-            borderTopRightRadius: theme.radius.xxl,
-            paddingTop: theme.spacing.sm,
-            paddingBottom: insets.bottom + theme.spacing.md,
-          }}
-        >
-          <View
-            style={{
-              alignSelf: 'center',
-              width: 40,
-              height: 4,
-              borderRadius: theme.radius.pill,
-              backgroundColor: theme.color.border,
-              marginBottom: theme.spacing.md,
-            }}
-          />
-
-          {/* Mount the form fresh each time the sheet opens (keyed on the tag),
+    <Sheet visible={open} onClose={onClose} padded={false} style={{ maxHeight: '88%' }}>
+      {/* Mount the form fresh each time the sheet opens (keyed on the tag),
               so its fields initialise from the tag being edited without a
               setState-in-effect to seed them. */}
-          {open ? (
-            <TagEditorForm
-              key={editing?.tagId ?? 'new'}
-              editing={editing ?? null}
-              onClose={onClose}
-            />
-          ) : null}
-        </View>
-      </View>
-    </Modal>
+      {open ? (
+        <TagEditorForm key={editing?.tagId ?? 'new'} editing={editing ?? null} onClose={onClose} />
+      ) : null}
+    </Sheet>
   );
 }
 
