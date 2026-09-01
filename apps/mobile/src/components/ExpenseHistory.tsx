@@ -3,9 +3,11 @@ import { View } from 'react-native';
 
 import { Badge, directionalIcon, iconSize, MoneyText, Row, Text, useTheme } from '@waves/ui';
 
+import type { MemberId } from '@waves/core';
+
 import type { ExpenseVersionAudit } from '@/data/api';
 import type { ExpenseImageEventRow } from '@/data/hooks';
-import { type ActivityTint, dayHeading, groupByDay, relativeTime } from '@/data/activity';
+import { type ActivityTint, dayHeading, groupByDay, myStake, relativeTime } from '@/data/activity';
 import { coordLabel } from '@/lib/location';
 import { fill, type UiStrings } from '@/i18n';
 
@@ -75,6 +77,15 @@ type Change =
       newAmount: bigint;
       oldCurrency: string;
       newCurrency: string;
+      /**
+       * Whether these two figures are somebody's balance or the bill's total.
+       *
+       * A total belongs to nobody, so it is neutral ink — painting ₹10,000 green
+       * because it is a positive number would have the screen reader announce
+       * "you are owed ₹10,000" about a dinner. The viewer's own stake IS a
+       * balance, so it wears the sign-derived colour the Activity feed gives it.
+       */
+      balance?: boolean;
     }
   | { key: string; label: string; kind: 'text'; oldText: string; newText: string };
 
@@ -84,8 +95,32 @@ function diffVersions(
   nameOf: (id: string | null) => string,
   prev: ExpenseVersionAudit,
   cur: ExpenseVersionAudit,
+  myMemberId: MemberId | null,
 ): Change[] {
   const changes: Change[] = [];
+
+  // What the edit did to *you*, in the colour the Activity feed uses for the
+  // same quantity. The audit lists the bill's totals, which is the honest record
+  // but not the question somebody scrolling their own history is asking — "did
+  // this edit cost me anything?" was only answerable by doing the arithmetic
+  // against two versions of the split.
+  //
+  // `myStake` is the feed's own function (paid − share), so the number and its
+  // colour cannot drift from the row that announced the edit.
+  const oldStake = myStake(prev, myMemberId);
+  const newStake = myStake(cur, myMemberId);
+  if ((oldStake ?? 0n) !== (newStake ?? 0n)) {
+    changes.push({
+      key: 'stake',
+      label: t.expense.audit.yourShare,
+      kind: 'money',
+      oldAmount: oldStake ?? 0n,
+      newAmount: newStake ?? 0n,
+      oldCurrency: prev.currency,
+      newCurrency: cur.currency,
+      balance: true,
+    });
+  }
 
   if (prev.amount !== cur.amount || prev.currency !== cur.currency) {
     changes.push({
@@ -192,6 +227,9 @@ function ChangeLine({ change, locale }: { change: Change; locale: string }) {
             currency={change.oldCurrency as never}
             locale={locale}
             variant="caption"
+            // The superseded value stays muted whatever it is — it is the "from"
+            // half of an arrow, and colouring both ends makes neither read as
+            // the answer.
             tone="muted"
           />
         ) : (
@@ -215,6 +253,9 @@ function ChangeLine({ change, locale }: { change: Change; locale: string }) {
             currency={change.newCurrency as never}
             locale={locale}
             variant="caption"
+            // Sign-derived colour and spoken label for a balance; neutral ink for
+            // a total (see `balance` on Change).
+            mode={change.balance ? 'balance' : 'plain'}
           />
         ) : (
           <Text variant="caption" numberOfLines={2} style={{ flexShrink: 1 }}>
@@ -261,6 +302,7 @@ export function ExpenseHistory({
   versions,
   imageEvents,
   nameOf,
+  myMemberId,
   t,
   locale,
 }: {
@@ -268,6 +310,10 @@ export function ExpenseHistory({
   versions: ExpenseVersionAudit[];
   imageEvents: ExpenseImageEventRow[];
   nameOf: (id: string | null) => string;
+  /** The reader, so an edit can say what it did to their side of the bill.
+   *  Null for someone with no membership row — the stake line is then omitted
+   *  rather than shown as zero. */
+  myMemberId: MemberId | null;
   t: UiStrings;
   locale: string;
 }) {
@@ -295,7 +341,9 @@ export function ExpenseHistory({
         name: nameOf(version.author_member_id),
       }),
       money: { amount: BigInt(version.amount), currency: version.currency },
-      changes: created ? [] : diffVersions(t, locale, nameOf, ascending[index - 1]!, version),
+      changes: created
+        ? []
+        : diffVersions(t, locale, nameOf, ascending[index - 1]!, version, myMemberId),
       created,
     };
   });

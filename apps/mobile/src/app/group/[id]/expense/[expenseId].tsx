@@ -28,6 +28,8 @@ import {
   useScreenClearance,
 } from '@waves/ui';
 
+import { format, money } from '@waves/core';
+
 import { CategoryBadge } from '@/components/Category';
 import { useAvatarUrl } from '@/components/ProfileAvatar';
 import { MapPreview } from '@/components/MapPreview';
@@ -35,6 +37,7 @@ import { ExpenseReceipts } from '@/components/ExpenseReceipts';
 import { ExpenseComments } from '@/components/ExpenseComments';
 import { ExpenseHistory } from '@/components/ExpenseHistory';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
+import { splitIcon } from '@/components/expense/splitIcon';
 import {
   memberLookup,
   useDeleteExpense,
@@ -81,10 +84,22 @@ function MemberAvatar({
   return <Avatar name={name} photoUrl={url} ghost={ghost} size={size} />;
 }
 
-/** One labelled row of the bill's detail card — a muted label on the left, its
- *  value on the right. The stacked "paid by · date · split" caption the hero
- *  used to carry, given room to breathe as a proper key/value list. */
-function DetailLine({ label, value }: { label: string; value: string }): React.JSX.Element {
+/** One labelled row of the bill's detail card — a glyph and muted label on the
+ *  left, its value on the right. The stacked "paid by · date · split" caption
+ *  the hero used to carry, given room to breathe as a proper key/value list.
+ *
+ *  The glyph is what makes the card scannable: four rows of grey words read as
+ *  a paragraph, and the split row's icon is the same one the form's chips wear,
+ *  so "how was this split" is answered by a mark rather than only by a word. */
+function DetailLine({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}): React.JSX.Element {
   const theme = useTheme();
   return (
     <Row
@@ -95,9 +110,12 @@ function DetailLine({ label, value }: { label: string; value: string }): React.J
         paddingVertical: theme.spacing.md,
       }}
     >
-      <Text variant="caption" tone="muted">
-        {label}
-      </Text>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.sm, flexShrink: 0 }}>
+        <Ionicons name={icon} size={iconSize.md} color={theme.color.textMuted} />
+        <Text variant="caption" tone="muted">
+          {label}
+        </Text>
+      </Row>
       <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, textAlign: 'right' }}>
         {value}
       </Text>
@@ -249,6 +267,36 @@ export default function ExpenseDetailScreen() {
   const currency = version.currency;
   const deleted = Boolean(expense.deleted_at);
 
+  /**
+   * Everyone this bill touches, and what it does to them.
+   *
+   * Built from the union of the split and the payers, not from the split alone:
+   * somebody can put money into a bill they owe no part of (a parent chipping in
+   * on a group dinner), and listing only the split leaves their contribution
+   * visible in "Paid by" and then unaccounted for below it.
+   *
+   * `net` is paid − share, so it sums to exactly zero across the rows — Σ payers
+   * and Σ shares both equal the total, a rule the SQL trigger enforces.
+   */
+  const ledgerRows = (() => {
+    const paidBy = new Map(version.payers.map((row) => [row.member_id, BigInt(row.amount)]));
+    const rows = version.shares.map((share) => {
+      const paid = paidBy.get(share.member_id) ?? 0n;
+      paidBy.delete(share.member_id);
+      return {
+        memberId: share.member_id,
+        share: BigInt(share.amount),
+        paid,
+        net: paid - BigInt(share.amount),
+      };
+    });
+    // Whoever is left paid something without being in the split at all.
+    for (const [memberId, paid] of paidBy) {
+      rows.push({ memberId, share: 0n, paid, net: paid });
+    }
+    return rows;
+  })();
+
   // Where it happened (A43), when the author attached one. A plain snapshot — a
   // tap opens the point in the phone's maps app.
   const location = version.location;
@@ -280,10 +328,16 @@ export default function ExpenseDetailScreen() {
     ]);
   };
 
-  // The bill's actions, gathered into the header's three-dot menu. A live bill
-  // offers Edit and a red Delete; a deleted one offers only Restore, matching
-  // Splitwise's deleted-transaction header. The mutations' pending flags disable
-  // the row so a double-tap cannot fire twice.
+  const openEditor = (): void => {
+    router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`);
+  };
+
+  // What is left in the header's three-dot menu once Edit has its own glyph
+  // beside it: the destructive action on a live bill, Restore on a deleted one.
+  // Edit is the thing people come back to a bill to do, and burying the common
+  // action behind a menu meant hunting for it every time; Delete is the one that
+  // is better off a tap deeper. The mutations' pending flags disable the row so
+  // a double-tap cannot fire twice.
   const menuItems: OverflowMenuItem[] = deleted
     ? [
         {
@@ -295,11 +349,6 @@ export default function ExpenseDetailScreen() {
         },
       ]
     : [
-        {
-          icon: 'create-outline',
-          label: t.common.edit,
-          onPress: () => router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`),
-        },
         {
           icon: 'trash-outline',
           label: t.expense.deleteAction,
@@ -382,10 +431,25 @@ export default function ExpenseDetailScreen() {
               style={{ color: theme.color.onBrand }}
             />
           </View>
-          {/* Every action on this bill lives behind one three-dot menu, the same
-                trailing control the group and dashboard headers carry — Edit and
-                Delete (or Restore) instead of a full-width button stacked at the
-                bottom of a long scroll. */}
+          {/* Edit, in the open. It was the first item of the three-dot menu, which
+                made the one action a bill is reopened for something you had to
+                remember was hidden there. A pencil on the wash costs one glyph
+                and answers "how do I change this" without a tap. Gone on a
+                deleted bill: there is nothing to edit until it is restored. */}
+          {deleted ? null : (
+            <Pressable
+              onPress={openEditor}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.edit}
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+            >
+              <Ionicons name="create-outline" size={iconSize.xxl} color={theme.color.onBrand} />
+            </Pressable>
+          )}
+          {/* Everything else this bill can have done to it — Delete, or Restore
+                once it is gone — behind the same trailing three-dot control the
+                group and dashboard headers carry. */}
           <Pressable
             onPress={() => setMenuOpen(true)}
             accessibilityRole="button"
@@ -430,6 +494,7 @@ export default function ExpenseDetailScreen() {
             versions={versions.data ?? []}
             imageEvents={imageEvents.data ?? []}
             nameOf={nameOf}
+            myMemberId={myMemberId}
             t={t}
             locale={locale}
           />
@@ -455,11 +520,13 @@ export default function ExpenseDetailScreen() {
                 is placed without crowding the hero. */}
             <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
               <DetailLine
+                icon="people-circle-outline"
                 label={t.expense.detailGroup}
                 value={groupLabel(group.data, members.data ?? [], profile?.id)}
               />
               <View style={{ height: 1, backgroundColor: theme.color.border }} />
               <DetailLine
+                icon="wallet-outline"
                 label={t.paidBy}
                 value={
                   version.payers.length > 1
@@ -469,6 +536,7 @@ export default function ExpenseDetailScreen() {
               />
               <View style={{ height: 1, backgroundColor: theme.color.border }} />
               <DetailLine
+                icon="calendar-outline"
                 label={t.expense.detailDate}
                 value={new Intl.DateTimeFormat(locale, {
                   day: 'numeric',
@@ -479,6 +547,7 @@ export default function ExpenseDetailScreen() {
               />
               <View style={{ height: 1, backgroundColor: theme.color.border }} />
               <DetailLine
+                icon={splitIcon(version.split_type)}
                 label={t.expense.detailSplit}
                 value={splitLabels(t)[version.split_type] ?? version.split_type}
               />
@@ -583,16 +652,33 @@ export default function ExpenseDetailScreen() {
             <View>
               <SectionHeader title={t.expense.whoOwesWhat} />
               <Card padded={false} style={{ paddingHorizontal: theme.spacing.lg }}>
-                {version.shares.map((share, index) => {
-                  const member = lookup.get(share.member_id);
+                {ledgerRows.map((row, index) => {
+                  const member = lookup.get(row.memberId);
                   return (
-                    <View key={share.member_id}>
+                    <View key={row.memberId}>
                       <ListRow
-                        title={nameOf(share.member_id)}
-                        subtitle={member && isGhost(member) ? t.notJoinedYet : undefined}
+                        title={nameOf(row.memberId)}
+                        subtitle={
+                          [
+                            member && isGhost(member) ? t.notJoinedYet : null,
+                            // Only for somebody who put money in: their row shows a
+                            // net, and without this the two numbers it came from are
+                            // nowhere on the screen.
+                            row.paid > 0n
+                              ? t.expense.paidAndShare
+                                  .replace('{paid}', format(money(row.paid, currency), { locale }))
+                                  .replace(
+                                    '{share}',
+                                    format(money(row.share, currency), { locale }),
+                                  )
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ') || undefined
+                        }
                         leading={
                           <MemberAvatar
-                            name={avatarNameOf(share.member_id)}
+                            name={avatarNameOf(row.memberId)}
                             photo={member?.profile?.avatar_url}
                             ghost={
                               member
@@ -603,23 +689,35 @@ export default function ExpenseDetailScreen() {
                         }
                         trailing={
                           <MoneyText
-                            amount={BigInt(share.amount)}
+                            // What this bill does to them: paid − share.
+                            //
+                            // This used to be the raw share, forced red, on the
+                            // reasoning that every share is money owed. That held only
+                            // while one person could pay. On a bill several people put
+                            // money into, the biggest contributor was shown in owe-red
+                            // for their share — Lokesh paying ₹5,000 of a ₹10,000 bill
+                            // and owing ₹2,000 read as "Lokesh owes ₹2,000" when he is
+                            // owed ₹3,000.
+                            //
+                            // The net says it correctly for everyone at once, with no
+                            // special case: somebody who paid nothing has a net of
+                            // exactly minus their share, which is the same red figure
+                            // the row showed before, so the common bill is unchanged.
+                            // Sign-derived now (mode="balance") rather than forced —
+                            // colour, sign and spoken label agree, the way money reads
+                            // everywhere else in the app.
+                            amount={row.net}
                             currency={currency}
                             locale={locale}
                             variant="caption"
-                            // A share is money owed toward this bill, so it wears the
-                            // same owe colour the balances do across the app — not the
-                            // neutral ink of a total. Forced (not sign-derived): every
-                            // share is a positive owe, so mode="balance" would read it
-                            // as "owed to you" (green) instead. But when *you* are not
-                            // in this split, none of these owes are yours to read as
-                            // debt — the whole list drops to muted ink so it reads as
-                            // someone else's ledger, matching the observer banner.
-                            tone={notInvolved ? 'muted' : 'negative'}
+                            mode={notInvolved ? 'plain' : 'balance'}
+                            // Not your bill, not your verdict: an observer sees the
+                            // ledger in neutral ink, matching the banner up top.
+                            tone={notInvolved ? 'muted' : undefined}
                           />
                         }
                       />
-                      {index < version.shares.length - 1 ? (
+                      {index < ledgerRows.length - 1 ? (
                         <View style={{ height: 1, backgroundColor: theme.color.border }} />
                       ) : null}
                     </View>

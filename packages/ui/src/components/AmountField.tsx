@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { TextInput, View } from 'react-native';
 
-import { currencySymbol, minorUnitExponent, minorUnitScale, type CurrencyCode } from '@waves/core';
+import {
+  currencySymbol,
+  formatMinorInput,
+  minorUnitExponent,
+  parseMinorInput,
+  sanitiseMinorInput,
+  type CurrencyCode,
+} from '@waves/core';
 
 import { useTheme } from '../theme';
 import { Text } from './Text';
@@ -17,6 +24,7 @@ export function AmountField({
   value,
   onChange,
   size = 'display',
+  tone = 'default',
 }: {
   currency: CurrencyCode;
   value: bigint;
@@ -25,29 +33,40 @@ export function AmountField({
    * 'display' is the hero amount — big and centred, for the expense entry
    * screen. 'compact' is the right-aligned inline value that sits at the end of
    * a settings row (a trip budget beside its label), sized to read as a field
-   * value rather than the point of the screen.
+   * value rather than the point of the screen. 'hero' is the middle rung: the
+   * amount inside a coloured header bar, prominent but no longer the reason the
+   * header is tall — it sits on one line beside the currency it is counted in.
    */
-  size?: 'display' | 'compact';
+  size?: 'display' | 'compact' | 'hero';
+  /**
+   * 'onBrand' paints the field for a saturated wash — white digits, translucent
+   * white for the symbol and the untyped placeholder. The theme has no token for
+   * "white at 70%" because nothing else needs one.
+   */
+  tone?: 'default' | 'onBrand';
 }) {
   const theme = useTheme();
   const compact = size === 'compact';
+  const hero = size === 'hero';
+  const onBrand = tone === 'onBrand';
+  // One table rather than three ternaries per style: the sizes only ever move
+  // together, and a wrong pairing (44pt digits over a 24pt line) is the kind of
+  // thing that reads as a clipped number on Android.
+  const metrics = hero
+    ? { symbol: 20, digits: 30, line: 38, minWidth: 24 }
+    : compact
+      ? { symbol: 18, digits: 18, line: 24, minWidth: 40 }
+      : { symbol: 30, digits: 44, line: 50, minWidth: 28 };
+  const digitInk = onBrand ? theme.color.onBrand : theme.color.text;
+  const symbolInk = onBrand ? 'rgba(255,255,255,0.72)' : theme.color.textMuted;
+  const placeholderInk = onBrand ? 'rgba(255,255,255,0.5)' : theme.color.textFaint;
   const exponent = minorUnitExponent(currency);
-  const scale = minorUnitScale(currency);
-
-  const toMinor = (text: string): bigint => {
-    if (text === '' || text === '.') return 0n;
-    const [whole = '0', fraction = ''] = text.split('.');
-    const padded = fraction.slice(0, exponent).padEnd(exponent, '0');
-    return BigInt(whole || '0') * scale + BigInt(padded === '' ? '0' : padded);
-  };
-
-  const format = (minor: bigint): string => {
-    if (minor === 0n) return '';
-    const abs = minor < 0n ? -minor : minor;
-    const whole = (abs / scale).toString();
-    if (exponent === 0) return whole;
-    return `${whole}.${(abs % scale).toString().padStart(exponent, '0')}`;
-  };
+  // The text↔minor rules live in @waves/core, because the per-payer amount
+  // fields on the expense form parse the same keystrokes and two copies of
+  // "how many decimal places does this currency have" is how ₹10.5 becomes 105
+  // paise on one screen and 1050 on another.
+  const toMinor = (text: string): bigint => parseMinorInput(text, currency);
+  const format = (minor: bigint): string => formatMinorInput(minor, currency);
 
   const [text, setText] = useState<string>(() => format(value));
   // The last minor amount this field emitted. A `value` that differs from it
@@ -64,23 +83,7 @@ export function AmountField({
   }, [value]);
 
   const onType = (raw: string): void => {
-    // Keep digits and, unless the currency has no minor unit, a single dot.
-    let cleaned = raw.replace(/[^0-9.]/g, '');
-    if (exponent === 0) {
-      cleaned = cleaned.replace(/\./g, '');
-    } else {
-      const firstDot = cleaned.indexOf('.');
-      if (firstDot !== -1) {
-        cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
-      }
-    }
-    // Drop a leading zero once real digits follow, but keep the "0" of "0.50".
-    cleaned = cleaned.replace(/^0+(?=\d)/, '');
-    const [, fraction = ''] = cleaned.split('.');
-    if (fraction.length > exponent) {
-      cleaned = cleaned.slice(0, cleaned.length - (fraction.length - exponent));
-    }
-
+    const cleaned = sanitiseMinorInput(raw, currency);
     setText(cleaned);
     const minor = toMinor(cleaned);
     emitted.current = minor;
@@ -92,17 +95,21 @@ export function AmountField({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: compact ? 'flex-end' : 'center',
+        justifyContent: compact ? 'flex-end' : hero ? 'flex-start' : 'center',
         gap: theme.spacing.xs,
-        flexShrink: 0,
+        // The hero shares its line with the currency pill, so a long amount has
+        // to give ground rather than push the pill off the header; the standalone
+        // sizes have the row to themselves and must not be squeezed by a sibling.
+        flexShrink: hero ? 1 : 0,
+        minWidth: 0,
       }}
     >
       <Text
         style={{
-          fontSize: compact ? 18 : 30,
-          lineHeight: compact ? 24 : 44,
+          fontSize: metrics.symbol,
+          lineHeight: metrics.line,
           fontWeight: '700',
-          color: theme.color.textMuted,
+          color: symbolInk,
         }}
       >
         {currencySymbol(currency)}
@@ -112,19 +119,20 @@ export function AmountField({
         onChangeText={onType}
         keyboardType={exponent === 0 ? 'number-pad' : 'decimal-pad'}
         placeholder="0"
-        placeholderTextColor={theme.color.textFaint}
-        selectionColor={theme.color.brand}
+        placeholderTextColor={placeholderInk}
+        selectionColor={onBrand ? theme.color.onBrand : theme.color.brand}
         accessibilityLabel={`Amount ${format(value) || '0'} ${currency}`}
         maxFontSizeMultiplier={1.4}
         style={{
-          minWidth: compact ? 40 : 28,
+          minWidth: metrics.minWidth,
           padding: 0,
-          fontSize: compact ? 18 : 44,
-          lineHeight: compact ? 24 : 50,
+          fontSize: metrics.digits,
+          lineHeight: metrics.line,
           fontWeight: '700',
-          color: theme.color.text,
+          color: digitInk,
           fontVariant: ['tabular-nums'],
           textAlign: compact ? 'right' : 'left',
+          flexShrink: hero ? 1 : 0,
         }}
       />
     </View>

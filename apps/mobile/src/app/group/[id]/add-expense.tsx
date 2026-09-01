@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { randomUUID } from 'expo-crypto';
-import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -20,13 +20,21 @@ import {
   computeShares,
   currencySymbol,
   format,
+  formatMinorInput,
   guessCategory,
   money,
   MutationKind,
+  parseMinorInput,
+  PayerProblemCode,
+  rebalancePayers,
   ridersSplit,
+  sanitiseMinorInput,
+  serialisePayers,
   splitByUnits,
   treatSplit,
+  validatePayers,
   type CategoryMeta,
+  type CurrencyCode,
   type ExpenseLocation,
   type FxRecord,
   type MemberId,
@@ -40,7 +48,6 @@ import {
   Callout,
   Card,
   ChipRow,
-  directionalIcon,
   EmptyState,
   iconSize,
   MoneyText,
@@ -51,15 +58,16 @@ import {
 } from '@waves/ui';
 
 import { CategoryPicker } from '@/components/Category';
+import { ExpenseReceipts } from '@/components/ExpenseReceipts';
 import { TagEditorSheet } from '@/components/TagEditorSheet';
 import { PaymentMethodPicker } from '@/components/PaymentMethodPicker';
 import { LocationField } from '@/components/LocationField';
 import { captureLocationIfGranted } from '@/lib/location';
 import { friendlyError } from '@/lib/errors';
 import { COMMON_CURRENCIES, CurrencyRate } from '@/components/CurrencyRate';
-import { AmountHeader } from '@/components/expense/AmountHeader';
 import { DescriptionField } from '@/components/expense/DescriptionField';
-import { ExpenseHeader } from '@/components/expense/ExpenseHeader';
+import { ExpenseHero } from '@/components/expense/ExpenseHero';
+import { splitIcon } from '@/components/expense/splitIcon';
 import { ChoiceRow, SheetOverlay } from '@/components/expense/SheetOverlay';
 import {
   canAddReceipt,
@@ -92,11 +100,26 @@ import {
 } from '@/lib/split';
 import { clearDraft, syncEngine, useDraft, useRestoredDraft, useSync } from '@/sync';
 
+/** Shared empty set — a new one per render would defeat every memo below it. */
+const EMPTY_LOCKS: ReadonlySet<MemberId> = new Set();
+
+/** Who paid what, in minor units. */
+type PayerMap = ReadonlyMap<MemberId, bigint>;
+
 interface ExpenseDraft {
   amount: string;
   description: string;
   splitKind: SplitKind;
-  payer: MemberId | null;
+  /**
+   * Who paid, before a bill could be paid by several people. Drafts written by
+   * an older build still carry it and nothing else, so it is read as a
+   * single-payer `payers` map rather than dropped.
+   */
+  payer?: MemberId | null;
+  /** Who paid what, in minor units as decimal strings. */
+  payers?: Record<string, string>;
+  /** The payers whose figure was typed rather than derived (see rebalancePayers). */
+  lockedPayers?: string[];
   /**
    * The currency this expense was paid in, when it differs from the group's.
    * Optional: drafts written before this field existed omit it, which is not
@@ -243,7 +266,34 @@ export default function AddExpenseScreen() {
   const [amount, setAmount] = useState<bigint>(0n);
   const [description, setDescription] = useState('');
   const [splitKind, setSplitKind] = useState<SplitKind>(SplitKind.Equal);
-  const [payer, setPayer] = useState<MemberId | null>(null);
+  /**
+   * Who put the money in, and how much each of them put in (minor units).
+   *
+   * A map rather than one id, because "she got the taxi, I got the tickets" is
+   * one dinner, not two. Almost every bill has a single entry here and the form
+   * behaves exactly as it always did; the moment a second person is tapped, the
+   * amounts appear and have to add up to the total — the same rule the SQL
+   * trigger and both edge functions enforce (`PAYER_MISMATCH`).
+   */
+  const [payers, setPayers] = useState<PayerMap>(new Map());
+  /** Payers whose figure a person typed. Everyone else absorbs what is left. */
+  const [lockedPayers, setLockedPayers] = useState<ReadonlySet<MemberId>>(EMPTY_LOCKS);
+  /** What is in each payer's field, so a half-typed "12." survives a render. */
+  const [paidText, setPaidText] = useState<Record<MemberId, string>>({});
+  /** The `amount:currency` the payer figures were last derived for. */
+  const [payersFor, setPayersFor] = useState<string | null>(null);
+  /**
+   * Whether the payer row is asking about one person or several.
+   *
+   * It matters because the two need opposite gestures. With one payer a tap has
+   * to *replace* — "actually she paid" is the single most common correction on
+   * this form and it was one tap before this feature existed, so it stays one
+   * tap. With several, a tap has to *add*, or you could never build the list.
+   * A control cannot be both, so the mode is explicit and the row says which it
+   * is in. A bill that already has several payers is in 'many' whatever the
+   * flag says — reopening it must not offer to silently drop one.
+   */
+  const [payerMode, setPayerMode] = useState<'one' | 'many'>('one');
   // How it was paid — a free-text tag on the expense. Defaults to cash; the
   // picker offers UPI only where the region settles over it.
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -376,6 +426,26 @@ export default function AddExpenseScreen() {
   // "adjust state when the input changes" pattern) so the form never flashes
   // empty before the data arrives.
   const [seededFor, setSeededFor] = useState<string | null>(null);
+  /**
+   * Seed the payer side as one person holding the whole bill — the state every
+   * new expense starts in, and the state an older draft or a single-payer bill
+   * comes back as. Written as a helper because the seeding block below reaches
+   * it from four branches, and because the three pieces (who, how much, what the
+   * field shows) have to move together or the form opens with a figure that does
+   * not match the total.
+   */
+  const seedSolePayer = (memberId: MemberId | null, total: bigint): void => {
+    if (!memberId) {
+      setPayers(new Map());
+      setLockedPayers(EMPTY_LOCKS);
+      setPaidText({});
+      return;
+    }
+    setPayers(new Map([[memberId, total]]));
+    setLockedPayers(EMPTY_LOCKS);
+    setPaidText({});
+  };
+
   const seedKey =
     members.data && !restored.loading ? (editing?.currentVersion?.id ?? `new:${groupId}`) : null;
   if (seedKey && seedKey !== seededFor) {
@@ -429,19 +499,36 @@ export default function AddExpenseScreen() {
       setCategoryChosen(Boolean(captureCategory));
       // Carry the capture's place onto the expense it becomes (A43).
       setLocation(parseLocationParam(captureLocation));
-      setPayer(myMemberId);
+      seedSolePayer(myMemberId, safeBigInt(captureAmount));
     } else if (draft) {
       // A draft outranks the saved version: it is what the user was in the
       // middle of writing when the app went away.
       setAmount(safeBigInt(draft.amount));
       setDescription(draft.description);
       setSplitKind(draft.splitKind);
-      // When editing, the payer is fixed on the saved expense and its picker is
-      // hidden — so a stale draft.payer from an earlier edit session must never
-      // override it. New expenses still take the draft's chosen payer.
-      setPayer(
-        editing ? (version?.payers[0]?.member_id ?? myMemberId) : (draft.payer ?? myMemberId),
-      );
+      // The payer picker is on the edit form too now, so a draft's payers are a
+      // change somebody was in the middle of making rather than stale values to
+      // discard. `payers` is the current shape; `payer` is what an older build
+      // wrote, and is read as a bill paid entirely by that one person.
+      const draftAmount = safeBigInt(draft.amount);
+      if (draft.payers && Object.keys(draft.payers).length > 0) {
+        setPayers(new Map(Object.entries(draft.payers).map(([id, v]) => [id, safeBigInt(v)])));
+        setLockedPayers(new Set(draft.lockedPayers ?? []));
+        // `groupCurrency` is derived further down the render; the seeding block
+        // runs above it, so the group's default is read straight off the row.
+        const draftCurrency = draft.currency ?? group.data?.default_currency ?? 'INR';
+        setPaidText(
+          Object.fromEntries(
+            Object.entries(draft.payers).map(([id, v]) => [
+              id,
+              formatMinorInput(safeBigInt(v), draftCurrency as CurrencyCode),
+            ]),
+          ),
+        );
+        setPayersFor(`${draftAmount}:${draftCurrency}`);
+      } else {
+        seedSolePayer(draft.payer ?? version?.payers[0]?.member_id ?? myMemberId, draftAmount);
+      }
       setExpenseCurrency(resolveDraftCurrency(draft.currency, version?.currency ?? null));
       setFx(resolveDraftFx(draft.fx));
       setParticipants(draft.participants);
@@ -465,7 +552,30 @@ export default function AddExpenseScreen() {
       // expense asks for its rate again on save.
       setExpenseCurrency(version.currency);
       setFx(null);
-      setPayer(version.payers[0]?.member_id ?? myMemberId);
+      // Every payer the bill records, not just the first. Flattening a
+      // several-payer bill to `payers[0]` on open — and then saving that back —
+      // was how an edit silently rewrote who had put money in. They come back
+      // locked: those figures are recorded facts, so they survive a change to
+      // the total rather than being quietly re-divided.
+      if (version.payers.length > 0) {
+        setPayers(new Map(version.payers.map((row) => [row.member_id, BigInt(row.amount)])));
+        setLockedPayers(
+          version.payers.length > 1
+            ? new Set(version.payers.map((row) => row.member_id))
+            : EMPTY_LOCKS,
+        );
+        setPaidText(
+          Object.fromEntries(
+            version.payers.map((row) => [
+              row.member_id,
+              formatMinorInput(BigInt(row.amount), version.currency as CurrencyCode),
+            ]),
+          ),
+        );
+        setPayersFor(`${BigInt(version.amount)}:${version.currency}`);
+      } else {
+        seedSolePayer(myMemberId, BigInt(version.amount));
+      }
       setPaymentMethod((version.payment_method as PaymentMethod | null) ?? 'cash');
       // A saved place is a decision already made; reopen the edit with it intact
       // so a save does not silently drop it.
@@ -489,7 +599,7 @@ export default function AddExpenseScreen() {
       }
     } else {
       setParticipants((members.data ?? []).map((member) => member.id));
-      setPayer(myMemberId);
+      seedSolePayer(myMemberId, 0n);
     }
   }
 
@@ -545,8 +655,11 @@ export default function AddExpenseScreen() {
    */
   const isDefaultSplit =
     splitKind === SplitKind.Equal &&
-    payer !== null &&
-    payer === myMemberId &&
+    // "I paid" — one payer, and it is me. Two payers is never the default case,
+    // so tapping a second person opens the section that explains the split.
+    payers.size === 1 &&
+    myMemberId !== null &&
+    payers.has(myMemberId) &&
     participants.length > 0 &&
     participants.length === (members.data ?? []).length;
   const [splitOpen, setSplitOpen] = useState(false);
@@ -564,6 +677,132 @@ export default function AddExpenseScreen() {
   // default and what a converted total would be shown in (ADR-003).
   const currency = expenseCurrency ?? groupCurrency;
 
+  // ───────────────────────────────────────────────────────── who paid ──
+  //
+  // One payer is the whole of the common case and stays a single tap. The
+  // moment a second person is added, the figures have to add up to the total —
+  // the ledger has always allowed several payer rows, and both edge functions
+  // reject a write whose rows do not sum to the amount.
+  const payerIds = [...payers.keys()];
+  // With one payer there is nothing to hold constant: that person carries the
+  // whole bill by definition, so a lock left over from a moment when there were
+  // two must not survive and strand the total.
+  const effectiveLocks = payers.size <= 1 ? EMPTY_LOCKS : lockedPayers;
+  const payerProblem = validatePayers(amount, payers);
+  // A bill that already records several payers is in several-payer mode however
+  // the flag was left — an edit must never offer to quietly drop one of them.
+  const manyPayers = payerMode === 'many' || payers.size > 1;
+
+  /** Re-derive the figures, then refresh every field except the typed ones. */
+  const applyPayers = (
+    selected: readonly MemberId[],
+    current: PayerMap,
+    locked: ReadonlySet<MemberId>,
+    total: bigint,
+    typed?: { readonly member: MemberId; readonly text: string },
+  ): void => {
+    const effective = selected.length <= 1 ? EMPTY_LOCKS : locked;
+    const next = rebalancePayers({
+      amount: total,
+      selected,
+      current,
+      locked: effective,
+      // The expense id, so which payer absorbs an odd paisa is stable across
+      // devices and across reopening the form (ADR-009).
+      seed: targetExpenseId,
+    });
+    setPayers(next);
+    setLockedPayers(effective);
+    setPayersFor(`${total}:${currency}`);
+    setPaidText(() => {
+      const fields: Record<MemberId, string> = {};
+      for (const [member, paid] of next) {
+        // A typed field keeps the characters that were typed — reformatting
+        // "12." to "12.00" mid-keystroke moves the caret out from under a thumb.
+        fields[member] =
+          typed && typed.member === member
+            ? typed.text
+            : formatMinorInput(paid, currency as CurrencyCode);
+      }
+      return fields;
+    });
+  };
+
+  /**
+   * Tap a member. In one-payer mode that replaces whoever was there; in
+   * several-payer mode it adds or removes them.
+   */
+  const togglePayer = (memberId: MemberId): void => {
+    if (!manyPayers) {
+      applyPayers([memberId], new Map([[memberId, amount]]), EMPTY_LOCKS, amount);
+      return;
+    }
+    const selected = payers.has(memberId)
+      ? payerIds.filter((id) => id !== memberId)
+      : [...payerIds, memberId];
+    // Never leave a bill nobody paid: the last payer cannot be tapped off, they
+    // have to be replaced by tapping somebody else.
+    if (selected.length === 0) return;
+    const locked = new Set([...effectiveLocks].filter((id) => selected.includes(id)));
+    applyPayers(selected, payers, locked, amount);
+  };
+
+  /**
+   * Switch between the two. Going to several splits the paying evenly between
+   * whoever is there so the figures start out adding up; coming back keeps the
+   * person who put in the most and hands them the whole bill, because dropping
+   * the largest contributor is the one collapse nobody means.
+   */
+  const setManyPayers = (many: boolean): void => {
+    setPayerMode(many ? 'many' : 'one');
+    if (many || payers.size <= 1) return;
+    const biggest = payerIds.reduce((best, id) =>
+      (payers.get(id) ?? 0n) > (payers.get(best) ?? 0n) ? id : best,
+    );
+    applyPayers([biggest], new Map([[biggest, amount]]), EMPTY_LOCKS, amount);
+  };
+
+  // Who may add or remove a bill against this expense: a party to it (its author
+  // or one of its payers), which is what the attach RPCs enforce. An admin who is
+  // not a party may still remove the legacy group-visible bill — the same split
+  // of powers the expense screen applies.
+  const editingVersion = editing?.currentVersion;
+  const isExpenseParty = Boolean(
+    myMemberId &&
+    editingVersion &&
+    (editingVersion.author_member_id === myMemberId ||
+      editingVersion.payers.some((row) => row.member_id === myMemberId)),
+  );
+  const iAmGroupAdmin =
+    (members.data ?? []).find((row) => row.profile_id === profile?.id)?.role === 'admin';
+
+  /** A figure typed against one payer. Typing locks it; the others absorb. */
+  const setPaidEntry = (memberId: MemberId, text: string): void => {
+    const cleaned = sanitiseMinorInput(text, currency as CurrencyCode);
+    const current = new Map(payers).set(
+      memberId,
+      parseMinorInput(cleaned, currency as CurrencyCode),
+    );
+    const locked = new Set(effectiveLocks).add(memberId);
+    applyPayers([...current.keys()], current, locked, amount, { member: memberId, text: cleaned });
+  };
+
+  /** Back to an even split of the paying — the way out of any tangle above. */
+  const splitPaidEvenly = (): void => {
+    applyPayers(payerIds, payers, EMPTY_LOCKS, amount);
+  };
+
+  // Keep the figures answering to the total. React's "adjust state when the
+  // input changes" pattern — the same one the seeding above uses — rather than
+  // an effect, so a scan that fills in ₹1,240 re-splits the paying in the very
+  // render that shows the new total, with no frame in between where the payers
+  // and the amount disagree. Typed figures survive it: only the unlocked ones
+  // move (see rebalancePayers).
+  const payersKey = `${amount}:${currency}`;
+  if (seededFor !== null && payers.size > 0 && payersKey !== payersFor) {
+    applyPayers(payerIds, payers, effectiveLocks, amount);
+  }
+
   // Picking from the header pill: a rate typed for the previous currency would
   // convert the wrong thing (and the server rejects it), so clear it — the same
   // reset the old in-card currency chips did.
@@ -580,7 +819,8 @@ export default function AddExpenseScreen() {
       amount: amount.toString(),
       description,
       splitKind,
-      payer,
+      payers: Object.fromEntries([...payers].map(([id, paid]) => [id, paid.toString()])),
+      lockedPayers: [...lockedPayers],
       currency: expenseCurrency,
       fx,
       participants,
@@ -663,12 +903,22 @@ export default function AddExpenseScreen() {
     // only the form body waits on the mirror read (a few ms at launch). A bare
     // full-screen spinner used to leave a headerless blank while it loaded.
     return (
-      <Screen edges={['top', 'bottom']}>
-        <View style={{ paddingHorizontal: theme.spacing.xl }}>
-          <ExpenseHeader leading="back" title={editing ? t.expense.edit : t.addExpense} />
-          <View style={{ paddingTop: theme.spacing.xxxl, alignItems: 'center' }}>
-            <ActivityIndicator color={theme.color.brand} />
-          </View>
+      <Screen edges={['bottom']}>
+        <StatusBar style="light" />
+        {/* The same hero the loaded form opens on, so the panel does not repaint
+            from a white bar to a purple one once the mirror read lands. */}
+        <ExpenseHero
+          title={editing ? t.expense.edit : t.addExpense}
+          category={category}
+          categoryMeta={categoryMeta}
+          description={description}
+          currency={currency}
+          amount={amount}
+          onAmountChange={setAmount}
+          onPressCurrency={() => setPickingCurrency(true)}
+        />
+        <View style={{ paddingTop: theme.spacing.xxxl, alignItems: 'center' }}>
+          <ActivityIndicator color={theme.color.brand} />
         </View>
       </Screen>
     );
@@ -687,8 +937,12 @@ export default function AddExpenseScreen() {
     // history stay visible, but a new or edited expense sends them to sign up.
     if (guard.blockWrite()) return;
     setError(null);
-    if (!payer) {
-      setError(t.expense.chooseWhoPaid);
+    // The same check the server makes. Catching it here means a bill that does
+    // not add up is a sentence under the button rather than a PAYER_MISMATCH
+    // that comes back minutes later off a queue.
+    if (payerProblem) {
+      setError(payerMessage);
+      setSplitOpen(true);
       return;
     }
     setSaving(true);
@@ -716,7 +970,8 @@ export default function AddExpenseScreen() {
         fx,
         splitParams,
         participants,
-        payers: { [payer]: amount.toString() },
+        // Every payer, with anybody down for nothing left out (serialisePayers).
+        payers: serialisePayers(payers),
         paymentMethod,
         location,
         expectedShares: preview
@@ -920,7 +1175,7 @@ export default function AddExpenseScreen() {
     setNightCounts({});
     setFuelAmounts({});
     setExemptDriver(null);
-    setTreatHostPick(payer ?? myMemberId);
+    setTreatHostPick(payerIds[0] ?? myMemberId);
     setPresetEditor(kind);
   };
 
@@ -1002,7 +1257,8 @@ export default function AddExpenseScreen() {
       treatSplit({ host, participants: parts, amountMinor: amount }); // validate
       clearPreset();
       setParticipants(parts);
-      setPayer(host);
+      // A treat is one person picking up the whole bill, by definition.
+      applyPayers([host], new Map([[host, amount]]), EMPTY_LOCKS, amount);
       setTreatHost(host);
       setPresetLabel(t.expense.presets.treat);
       setPresetEditor(null);
@@ -1016,13 +1272,35 @@ export default function AddExpenseScreen() {
   // end the person has to guess their way out of. A broken split already prints
   // its own reason in the split card, so it is not repeated here; `saving` is a
   // transient state, not something to instruct around.
+  // The payer side's complaint, in money the person can read. `delta` is signed:
+  // positive is still to hand out, negative is more claimed than the bill.
+  const payerMessage =
+    payerProblem === null
+      ? null
+      : payerProblem.code === PayerProblemCode.NoPayers ||
+          payerProblem.code === PayerProblemCode.Negative
+        ? t.expense.chooseWhoPaid
+        : (payerProblem.code === PayerProblemCode.Short
+            ? t.expense.paidLeftToAssign
+            : t.expense.paidOverAssigned
+          ).replace(
+            '{amount}',
+            format(
+              money(payerProblem.delta < 0n ? -payerProblem.delta : payerProblem.delta, currency),
+              { locale },
+            ),
+          );
+
   const saveHint =
     amount === 0n
       ? t.expense.saveNeedsAmount
       : participants.length === 0
         ? t.expense.saveNeedsWho
-        : null;
-  const canSave = amount > 0n && participants.length > 0 && splitIssue === null;
+        : // Only worth saying once the bill has a total: "₹0 left to assign" on an
+          // empty form is noise, not guidance.
+          payerMessage;
+  const canSave =
+    amount > 0n && participants.length > 0 && splitIssue === null && payerProblem === null;
 
   // A foreign currency must show its rate card (it cannot be saved without one),
   // and any detail somebody has already set is a decision that must not hide.
@@ -1034,13 +1312,19 @@ export default function AddExpenseScreen() {
   // equally with everyone". The payer leads (you, or the person who did); the
   // tail is the preset's own words, or "split equally with everyone" for the
   // default, or the split kind and headcount for anything hand-tuned.
+  const solePayer = payers.size === 1 ? (payerIds[0] ?? null) : null;
   const payerMember =
-    payer && payer !== myMemberId
-      ? (members.data ?? []).find((member) => member.id === payer)
+    solePayer && solePayer !== myMemberId
+      ? (members.data ?? []).find((member) => member.id === solePayer)
       : undefined;
-  const payerName = payerMember
-    ? t.expense.paidByName.replace('{name}', displayName(payerMember, profile?.id))
-    : t.expense.youPaid;
+  const payerName =
+    payers.size > 1
+      ? // Several people put money in — the names would not fit and the amounts
+        // are right below anyway, so the summary counts them.
+        plural(locale, payers.size, t.expense.paidByCount)
+      : payerMember
+        ? t.expense.paidByName.replace('{name}', displayName(payerMember, profile?.id))
+        : t.expense.youPaid;
   const splitTail =
     presetLabel ??
     (isDefaultSplit
@@ -1074,7 +1358,10 @@ export default function AddExpenseScreen() {
         : plural(locale, participants.length, t.memberCount);
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen edges={['bottom']}>
+      {/* The hero runs dark under the status bar, so its icons must be light —
+          the same override the expense screen this form mirrors makes. */}
+      <StatusBar style="light" />
       {/* The action bar is pinned to the bottom edge, outside the scroll, and a
           split-share field can be the focused input — on iOS the soft keyboard
           would slide up over both. Lifting the scroll + bar together keeps the
@@ -1086,65 +1373,47 @@ export default function AddExpenseScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={{ paddingHorizontal: theme.spacing.xl }}>
-          <ExpenseHeader
-            leading="back"
-            title={editing ? t.expense.edit : t.addExpense}
-            subtitle={groupLabel(group.data, members.data ?? [], profile?.id)}
-            right={
-              editing ? undefined : (
-                // A bare list glyph read as nothing in particular; the words say
-                // what it does — split the bill line by line.
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t.expense.splitByItem}
-                  onPress={() => router.replace(`/group/${groupId}/itemize`)}
-                  hitSlop={8}
-                >
-                  <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-                    <Ionicons name="list-outline" size={iconSize.md} color={theme.color.brand} />
-                    <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
-                      {t.expense.splitByItem}
-                    </Text>
-                  </Row>
-                </Pressable>
-              )
-            }
-          />
-        </View>
+        {/* The same panel the expense screen wears — category badge, one line of
+            identity, the amount — so tapping Edit changes what you can do, not
+            where anything is. The amount is editable here and shares its line
+            with the currency pill instead of standing alone at 44pt over it.
+            "Split by item" moved down beside the split it belongs to. */}
+        <ExpenseHero
+          title={`${editing ? t.expense.edit : t.addExpense} · ${groupLabel(
+            group.data,
+            members.data ?? [],
+            profile?.id,
+          )}`}
+          category={category}
+          categoryMeta={categoryMeta}
+          description={description}
+          currency={currency}
+          amount={amount}
+          onAmountChange={setAmount}
+          onPressCurrency={() => setPickingCurrency(true)}
+        />
         <ScrollView
           style={{ flex: 1 }}
+          // The form is long — amount, note, receipts, split, two rosters — and a
+          // 20pt gutter between every block plus each card's own padding meant a
+          // screenful held about two questions. `lg` between blocks and `md`
+          // inside them keeps the grouping legible while fitting the split and
+          // who-paid on one screen instead of two.
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
-            paddingTop: theme.spacing.lg,
-            paddingBottom: theme.spacing.xl,
-            gap: theme.spacing.xl,
+            paddingTop: theme.spacing.md,
+            paddingBottom: theme.spacing.lg,
+            gap: theme.spacing.lg,
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {editing ? (
-            <Card style={{ backgroundColor: theme.color.buttonPrimary }}>
-              <Text variant="caption" tone="onBrand">
-                {t.expense.editingKeepsVersion}
-              </Text>
-            </Card>
-          ) : null}
-
-          {/* Amount-forward hero shared with the capture screen: big centred
-            number, the currency it is counted in a tap below it. */}
-          <AmountHeader
-            currency={currency}
-            amount={amount}
-            onAmountChange={setAmount}
-            onPressCurrency={() => setPickingCurrency(true)}
-          />
-
-          {/* "How much" and "what for" are the whole of the common case, so the
-            description sits directly under the amount — nothing between the two
-            fields somebody came here to fill and the split below them. The names
-            are handed to the recogniser as hints; a general model guesses at
-            Indian names and the note is where they turn up. */}
+          {/* "How much" and "what for" are the whole of the common case. The
+            amount is in the hero above; the note follows it directly, with
+            nothing between the two fields somebody came here to fill and the
+            split below them. The names are handed to the recogniser as hints; a
+            general model guesses at Indian names and the note is where they turn
+            up. */}
           <DescriptionField
             value={description}
             onChange={setDescription}
@@ -1203,43 +1472,28 @@ export default function AddExpenseScreen() {
               </Text>
             ) : null}
 
-            {/* The kept bill (E2): a thumbnail that opens the full-screen viewer.
-              A group receipt in R2 is already group-readable, so there is nothing
-              to "share" — every member can open it. Hidden until a bill is kept. */}
-            {receiptUri ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.expense.viewReceipt}
-                onPress={() =>
-                  router.push(
-                    `/receipt/${targetExpenseId}${
-                      receiptPath ? `?path=${encodeURIComponent(receiptPath)}` : ''
-                    }`,
-                  )
-                }
-              >
-                <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                  <Image
-                    source={{ uri: receiptUri }}
-                    style={{ width: 52, height: 52, borderRadius: theme.radius.md }}
-                    contentFit="cover"
-                    transition={150}
-                  />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text variant="subheading" numberOfLines={1}>
-                      {t.expense.viewReceipt}
-                    </Text>
-                    <Text variant="micro" tone="muted" numberOfLines={1}>
-                      {t.expense.receiptAttached}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={directionalIcon('chevron-forward')}
-                    size={iconSize.md}
-                    color={theme.color.textFaint}
-                  />
-                </Row>
-              </Pressable>
+            {/* The bills kept against this expense — the same gallery the expense
+              screen shows, not a second design for the same thing. A one-line
+              thumbnail of the legacy bill used to stand here, which meant an
+              expense with four receipts showed one of them on the screen where
+              you go to change it.
+
+              Only when editing: attachments are committed against an expense row,
+              and a new expense has no row yet. On a new one the scan/photo
+              shortcuts above are the whole story, and what they capture is
+              uploaded once the save lands. */}
+            {editing ? (
+              <ExpenseReceipts
+                groupId={groupId}
+                expenseId={targetExpenseId}
+                canManage={isExpenseParty}
+                canRemoveLegacy={isExpenseParty || iAmGroupAdmin}
+                legacyReceiptPath={receiptUri ? receiptPath : null}
+                onLegacyRemoved={() => {
+                  setReceiptUri(null);
+                  setReceiptPath(null);
+                }}
+              />
             ) : null}
 
             {scannedItems > 0 && !editing ? (
@@ -1297,6 +1551,14 @@ export default function AddExpenseScreen() {
           >
             <Card style={{ gap: theme.spacing.xs }}>
               <Row style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
+                {/* The same glyph the chosen chip wears, and the same one the
+                    expense screen shows against "Split" — one mark for one way
+                    of splitting, wherever it appears. */}
+                <Ionicons
+                  name={splitIcon(splitKind)}
+                  size={iconSize.lg}
+                  color={theme.color.brand}
+                />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text variant="caption" tone="muted">
                     {t.expense.howToSplit}
@@ -1322,7 +1584,7 @@ export default function AddExpenseScreen() {
           {/* Kept mounted and hidden rather than unmounted: the weighted split's
             fields hold text somebody is mid-way through typing, and a fold that
             threw it away would be a worse trade than a taller tree. */}
-          <View style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
+          <View style={{ gap: theme.spacing.sm, display: showSplit ? 'flex' : 'none' }}>
             {isTrip && !editing ? (
               <View style={{ gap: theme.spacing.xs }}>
                 <Text variant="micro" tone="muted">
@@ -1349,50 +1611,188 @@ export default function AddExpenseScreen() {
               </View>
             ) : null}
 
+            {/* Word plus glyph, not three identical word-pills: the icon is what
+              carries over to the expense screen, where the same split comes back
+              as a marked row rather than a bare word. */}
             <ChipRow<SplitKind>
               value={splitKind}
               onChange={(next) => {
                 clearPreset();
                 setSplitKind(next);
               }}
-              options={[
-                { value: SplitKind.Equal, label: t.expense.equally },
-                { value: SplitKind.Shares, label: t.expense.shares },
-                { value: SplitKind.Percent, label: t.expense.percent },
-              ]}
+              options={[SplitKind.Equal, SplitKind.Shares, SplitKind.Percent].map((kind) => ({
+                value: kind,
+                label:
+                  kind === SplitKind.Equal
+                    ? t.expense.equally
+                    : kind === SplitKind.Shares
+                      ? t.expense.shares
+                      : t.expense.percent,
+                icon: (color: string) => (
+                  <Ionicons name={splitIcon(kind)} size={iconSize.md} color={color} />
+                ),
+              }))}
             />
           </View>
 
-          {!expenseId ? (
-            <Card style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
+          {/* Splitting the bill line by line is another answer to "how is this
+            split", so it sits with the split rather than as a word in the top
+            bar, where it competed with the title and would have had to lose
+            either its icon or its words to fit the hero. Outside the fold, so it
+            is still found without opening the split first. New expenses only: an
+            existing one is edited in place, not re-itemised. */}
+          {!editing ? (
+            <Button
+              label={t.expense.splitByItem}
+              variant="secondary"
+              size="sm"
+              onPress={() => router.replace(`/group/${groupId}/itemize`)}
+              icon={<Ionicons name="list-outline" size={iconSize.md} color={theme.color.brand} />}
+            />
+          ) : null}
+
+          {/* Who paid — on an edit as much as on a new expense, and now as many
+            people as actually put money in.
+
+            Two things used to be wrong here. The picker was hidden the moment
+            the form opened on an existing bill, so the correction people most
+            often come back to make had no control anywhere on the screen. And it
+            was single-select, so "she got the taxi, I got the tickets" had to be
+            entered as two expenses — two rows in the feed, two things to edit,
+            two things to delete — even though the ledger has always stored
+            payers as a table.
+
+            One payer stays exactly one tap: a row of avatars, no figures, no
+            arithmetic. The amounts appear only once a second person is on it. */}
+          <Card style={{ gap: theme.spacing.sm, display: showSplit ? 'flex' : 'none' }}>
+            <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="caption" tone="muted">
                 {t.paidBy}
               </Text>
-              <Row style={{ flexWrap: 'wrap', gap: theme.spacing.md }}>
-                {(members.data ?? []).map((member) => (
+              <Row style={{ gap: theme.spacing.lg, alignItems: 'center', flexShrink: 0 }}>
+                {manyPayers && payers.size > 1 ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t.expense.splitPaidEvenly}
+                    onPress={splitPaidEvenly}
+                    hitSlop={8}
+                  >
+                    <Text variant="micro" tone="brand" style={{ fontWeight: '700' }}>
+                      {t.expense.splitPaidEvenly}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {/* The way in and out of several-payer mode. A link rather than a
+                    hidden long-press: nobody discovers a long-press, and this is
+                    the whole feature. */}
+                <Pressable
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: manyPayers }}
+                  accessibilityLabel={manyPayers ? t.expense.paidByOne : t.expense.paidBySeveral}
+                  onPress={() => setManyPayers(!manyPayers)}
+                  hitSlop={8}
+                >
+                  <Text variant="micro" tone="brand" style={{ fontWeight: '700' }}>
+                    {manyPayers ? t.expense.paidByOne : t.expense.paidBySeveral}
+                  </Text>
+                </Pressable>
+              </Row>
+            </Row>
+
+            <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
+              {(members.data ?? []).map((member) => {
+                const isPayer = payers.has(member.id);
+                return (
                   <Pressable
                     key={member.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: payer === member.id }}
+                    // The role follows the mode, because the gesture does: one
+                    // payer is a radio (tapping replaces), several is a checkbox
+                    // (tapping adds). Announcing the wrong one tells somebody
+                    // using a screen reader the opposite of what will happen.
+                    accessibilityRole={manyPayers ? 'checkbox' : 'radio'}
+                    accessibilityState={manyPayers ? { checked: isPayer } : { selected: isPayer }}
                     accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
-                    onPress={() => setPayer(member.id)}
+                    onPress={() => togglePayer(member.id)}
                     style={{
                       alignItems: 'center',
                       gap: 4,
-                      opacity: payer === member.id ? 1 : 0.45,
+                      opacity: isPayer ? 1 : 0.45,
                     }}
                   >
                     <Avatar name={displayName(member)} ghost={isGhost(member)} />
-                    <Text variant="micro" tone={payer === member.id ? 'brand' : 'muted'}>
+                    <Text variant="micro" tone={isPayer ? 'brand' : 'muted'}>
                       {displayName(member, profile?.id)}
                     </Text>
                   </Pressable>
-                ))}
-              </Row>
-            </Card>
-          ) : null}
+                );
+              })}
+            </Row>
 
-          <Card style={{ gap: theme.spacing.md, display: showSplit ? 'flex' : 'none' }}>
+            {manyPayers && payers.size > 1 ? (
+              <View style={{ gap: theme.spacing.xs }}>
+                {payerIds.map((memberId) => {
+                  const member = (members.data ?? []).find((row) => row.id === memberId);
+                  const name = member ? displayName(member, profile?.id) : t.misc.someone;
+                  return (
+                    <Row key={memberId} style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+                      <Avatar
+                        name={member ? displayName(member) : name}
+                        ghost={member ? isGhost(member) : false}
+                        size={32}
+                      />
+                      <Text variant="body" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>
+                        {name}
+                      </Text>
+                      <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flexShrink: 0 }}>
+                        <Text variant="caption" tone="muted">
+                          {currencySymbol(currency)}
+                        </Text>
+                        <TextInput
+                          value={paidText[memberId] ?? ''}
+                          onChangeText={(text) => setPaidEntry(memberId, text)}
+                          keyboardType="decimal-pad"
+                          selectTextOnFocus
+                          placeholder="0"
+                          placeholderTextColor={theme.color.textFaint}
+                          accessibilityLabel={t.expense.paidByNameAmount
+                            .replace('{name}', name)
+                            .replace(
+                              '{amount}',
+                              format(money(payers.get(memberId) ?? 0n, currency), { locale }),
+                            )}
+                          style={{
+                            width: 96,
+                            minHeight: 44,
+                            fontSize: 16,
+                            fontWeight: '700',
+                            textAlign: 'right',
+                            textAlignVertical: 'center',
+                            color: theme.color.text,
+                            backgroundColor: theme.color.bg,
+                            borderRadius: theme.radius.sm,
+                            paddingVertical: theme.spacing.sm,
+                            paddingHorizontal: theme.spacing.sm,
+                          }}
+                        />
+                      </Row>
+                    </Row>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {/* What is still unaccounted for, or claimed twice over. Only once
+              the bill has a total: "₹0 left to assign" on an empty form is noise
+              rather than guidance. A single payer always holds the whole bill, so
+              there is nothing to report — that row gets the hint instead. */}
+            {payerMessage && amount > 0n ? (
+              <Text variant="micro" tone="negative">
+                {payerMessage}
+              </Text>
+            ) : null}
+          </Card>
+
+          <Card style={{ gap: theme.spacing.sm, display: showSplit ? 'flex' : 'none' }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="caption" tone="muted">
                 {t.expense.splitBetween}
@@ -1414,7 +1814,9 @@ export default function AddExpenseScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: theme.spacing.md,
-                    paddingVertical: theme.spacing.sm,
+                    // The avatar is 38pt and the share field has a 44pt floor, so
+                    // the row is tall enough to tap without padding stretching it.
+                    paddingVertical: theme.spacing.xs,
                   }}
                 >
                   {/* The name toggles; the field beside it must not, or nobody
