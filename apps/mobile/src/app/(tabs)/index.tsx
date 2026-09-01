@@ -535,8 +535,13 @@ export default function HomeScreen() {
                       divider={index > 0}
                       // The eye in the hero shuts the whole screen's money, not
                       // just the headline: masking one figure while twelve sit
-                      // uncovered below it is privacy theatre.
-                      hidden={balanceHidden}
+                      // uncovered below it is privacy theatre. Masked too until
+                      // the saved preference has loaded — `balanceHidden` starts
+                      // false while AsyncStorage resolves, so without the
+                      // `!balanceReady` guard a hidden balance flashes in plain
+                      // before the eye's state lands. The hero is already gated
+                      // this way upstream (it shows its skeleton until ready).
+                      hidden={balanceHidden || !balanceReady}
                       // The just-imported group slides and fades into place
                       // rather than blinking in under the success banner.
                       enter={group.id === justAddedId}
