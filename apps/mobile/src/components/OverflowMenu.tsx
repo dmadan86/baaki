@@ -97,13 +97,9 @@ export function OverflowMenu({
       // Play the close, then drop the modal — the runOnJS hop is what lets the
       // exit be seen before the tree unmounts.
       progress.set(
-        withTiming(
-          0,
-          { duration: CLOSE_MS, easing: Easing.in(Easing.cubic) },
-          (finished) => {
-            if (finished) runOnJS(setMounted)(false);
-          },
-        ),
+        withTiming(0, { duration: CLOSE_MS, easing: Easing.in(Easing.cubic) }, (finished) => {
+          if (finished) runOnJS(setMounted)(false);
+        }),
       );
     }
   }, [visible, mounted, progress]);
