@@ -66,7 +66,7 @@ function useReduceMotion(): boolean {
  * the scrim that fades on the same value. Returns what both surfaces need to
  * render themselves.
  */
-function useOverlay(visible: boolean, reduceMotion: boolean) {
+function useOverlay(visible: boolean) {
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
 
@@ -77,21 +77,22 @@ function useOverlay(visible: boolean, reduceMotion: boolean) {
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(progress, {
-        toValue: 1,
-        useNativeDriver: true,
-        ...(reduceMotion ? { tension: 200, friction: 26 } : OPEN_SPRING),
-      }).start();
+      // `progress` drives the fade for every surface, so it runs at full
+      // duration even under reduced motion — a fade is the accessible way to
+      // appear, not the motion reduced motion is there to spare. What reduced
+      // motion drops is the travel and the scale, and those are gated where they
+      // are applied (the sheet's translate, the popup's scale), not here.
+      Animated.spring(progress, { toValue: 1, useNativeDriver: true, ...OPEN_SPRING }).start();
     } else if (mounted) {
       Animated.timing(progress, {
         toValue: 0,
-        duration: reduceMotion ? 0 : CLOSE_MS,
+        duration: CLOSE_MS,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (finished) setMounted(false);
       });
     }
-  }, [visible, mounted, reduceMotion, progress]);
+  }, [visible, mounted, progress]);
 
   return { mounted, progress };
 }
@@ -132,7 +133,7 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const { height: screenHeight } = useWindowDimensions();
-  const { mounted, progress } = useOverlay(visible, reduceMotion);
+  const { mounted, progress } = useOverlay(visible);
   // The sheet's own height, measured on layout, so it travels exactly its own
   // distance rather than a guess. Until the first measure a screen-height
   // fallback keeps the first frame off-screen instead of flashing in place.
@@ -222,7 +223,7 @@ export function Popup({
 }: PopupProps) {
   const theme = useTheme();
   const reduceMotion = useReduceMotion();
-  const { mounted, progress } = useOverlay(visible, reduceMotion);
+  const { mounted, progress } = useOverlay(visible);
 
   if (!mounted) return null;
 
