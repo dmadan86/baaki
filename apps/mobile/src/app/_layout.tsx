@@ -49,7 +49,6 @@ import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
-import { TRANSITION_MS } from '@/lib/anim';
 import { ReducedMotionProvider, useReducedMotion } from '@/lib/reducedMotion';
 import { RecentCountProvider } from '@/lib/recentCount';
 import { ShortcutProvider } from '@/lib/shortcut';
@@ -105,6 +104,13 @@ if (pushSupported) {
 // the value AuthFlow wrote before the tour moved here, so anybody who already
 // saw it pre-move is not shown it again.
 const TOUR_KEY = 'baaki.onboarding_seen';
+
+// How long a forward push runs. A touch longer than a plain slide because the
+// iOS-style transition has two layers to read — the incoming page arriving and
+// the outgoing one parallaxing behind it — and at 260ms the second layer barely
+// registers. Nav only; the shared `TRANSITION_MS` drives in-screen entrances,
+// which want to stay snappier.
+const NAV_TRANSITION_MS = 320;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -431,11 +437,20 @@ function AuthGate() {
   // that opt out are the auth and tab roots below, which replace the whole tree
   // and mark themselves `animation: 'none'`. Screens that once rose as bottom
   // modals now slide too, so navigation reads the same everywhere.
+  //
+  // The iOS-style variant, not the plain slide: the incoming page comes in from
+  // the leading edge over the *outgoing* one, which parallaxes a shorter way the
+  // other direction under a hairline shadow rather than travelling the full width
+  // in lockstep. That is the two-layers-moving-at-different-rates feel of the
+  // WhatsApp push the design is matched to — the old screen holding behind while
+  // the new one arrives — and it stays on the UI thread, so it costs nothing over
+  // the bare slide. The edge still follows the writing direction (Arabic pushes
+  // from the left), so it never slides the wrong way.
   const push = reduceMotion
     ? ('none' as const)
     : I18nManager.isRTL
-      ? ('slide_from_left' as const)
-      : ('slide_from_right' as const);
+      ? ('ios_from_left' as const)
+      : ('ios_from_right' as const);
   // A normal forward page: a plain horizontal translate (and back out the way it
   // came) rather than rising like a modal — the "went to a page", not "on top of"
   // feel. A bare translate is the cheapest native transition on the UI thread, so
@@ -583,7 +598,7 @@ function AuthGate() {
             // paint their own gradient over this, so nothing else changes.
             contentStyle: { backgroundColor: theme.color.bg },
             animation: push,
-            animationDuration: reduceMotion ? 0 : TRANSITION_MS,
+            animationDuration: reduceMotion ? 0 : NAV_TRANSITION_MS,
             gestureEnabled: true,
           }}
         >
