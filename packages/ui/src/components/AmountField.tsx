@@ -14,6 +14,18 @@ import { useTheme } from '../theme';
 import { Text } from './Text';
 
 /**
+ * The keypad an amount in this currency is typed on.
+ *
+ * A currency with no minor unit has nothing to put after a point, and offering
+ * the point anyway invites a figure that is then silently stripped. Exported
+ * because the expense form's per-payer fields are the same kind of input
+ * without being this component, and they were showing a decimal pad for yen.
+ */
+export function amountKeyboard(currency: CurrencyCode): 'number-pad' | 'decimal-pad' {
+  return minorUnitExponent(currency) === 0 ? 'number-pad' : 'decimal-pad';
+}
+
+/**
  * The amount input as a single native number field — the phone's own
  * decimal keypad, nothing invented on top of it. No arithmetic: a number is
  * typed, not calculated. All maths still runs in integer minor units, so the
@@ -60,7 +72,7 @@ export function AmountField({
   const digitInk = onBrand ? theme.color.onBrand : theme.color.text;
   const symbolInk = onBrand ? 'rgba(255,255,255,0.72)' : theme.color.textMuted;
   const placeholderInk = onBrand ? 'rgba(255,255,255,0.5)' : theme.color.textFaint;
-  const exponent = minorUnitExponent(currency);
+
   // The text↔minor rules live in @waves/core, because the per-payer amount
   // fields on the expense form parse the same keystrokes and two copies of
   // "how many decimal places does this currency have" is how ₹10.5 becomes 105
@@ -85,11 +97,10 @@ export function AmountField({
   useEffect(() => {
     if (value !== emitted.current.value || currency !== emitted.current.currency) {
       emitted.current = { value, currency };
-      setText(format(value));
+      // Called rather than `format`, which is rebuilt every render and would
+      // put the effect's own identity in its dependency list.
+      setText(formatMinorInput(value, currency));
     }
-    // `format` closes over `currency`, which is in the list; re-running on the
-    // identity of the function itself would fire on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, currency]);
 
   const onType = (raw: string): void => {
@@ -127,7 +138,7 @@ export function AmountField({
       <TextInput
         value={text}
         onChangeText={onType}
-        keyboardType={exponent === 0 ? 'number-pad' : 'decimal-pad'}
+        keyboardType={amountKeyboard(currency)}
         placeholder="0"
         placeholderTextColor={placeholderInk}
         selectionColor={onBrand ? theme.color.onBrand : theme.color.brand}

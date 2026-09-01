@@ -42,6 +42,7 @@ import {
 } from '@waves/core';
 import {
   AmountField,
+  amountKeyboard,
   Avatar,
   Button,
   Callout,
@@ -1779,14 +1780,26 @@ export default function AddExpenseScreen() {
                       <Text variant="body" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>
                         {name}
                       </Text>
-                      <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flexShrink: 0 }}>
+                      {/* The figure may be long — a six-figure trip total, a
+                          yen amount, a large accessibility font. It gives way
+                          to the name rather than clipping, down to a floor
+                          wide enough to still read as a field. */}
+                      <Row
+                        style={{
+                          gap: theme.spacing.xs,
+                          alignItems: 'center',
+                          flexShrink: 1,
+                          minWidth: 96,
+                          maxWidth: '60%',
+                        }}
+                      >
                         <Text variant="caption" tone="muted">
                           {currencySymbol(currency)}
                         </Text>
                         <TextInput
                           value={paidText[memberId] ?? ''}
                           onChangeText={(text) => setPaidEntry(memberId, text)}
-                          keyboardType="decimal-pad"
+                          keyboardType={amountKeyboard(currency as CurrencyCode)}
                           selectTextOnFocus
                           placeholder="0"
                           placeholderTextColor={theme.color.textFaint}
@@ -1803,7 +1816,9 @@ export default function AddExpenseScreen() {
                           // that does not add up arrives at the save button.
                           accessibilityHint={payerMessage ?? undefined}
                           style={{
-                            width: 96,
+                            flexGrow: 1,
+                            flexShrink: 1,
+                            minWidth: 72,
                             minHeight: 44,
                             fontSize: 16,
                             fontWeight: '700',

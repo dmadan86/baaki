@@ -30,6 +30,7 @@ import { nameOf, type Group, type Member } from '@waves/api-client';
 
 import { baaki } from '@/lib/baaki';
 import { money as fmtMoney } from '@/lib/money';
+import { tooManyPayersForWeb } from '@/lib/editable';
 import { captureLocation, coordLabel, geolocationSupported, LocationFailure } from '@/lib/geo';
 import { fill } from '@/i18n';
 import { useStrings } from '@/i18n-context';
@@ -123,7 +124,7 @@ export function ExpenseForm({
           // Several payers is the app's own split; rewriting it here would
           // collapse everyone's contribution onto the first payer. Bail out to
           // the read-only note instead of silently changing the ledger.
-          if (version.payers.length > 1) {
+          if (tooManyPayersForWeb(version)) {
             setUnsupported(true);
             return;
           }

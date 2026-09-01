@@ -60,6 +60,7 @@ import {
 } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { paidBy } from '@/lib/payerLines';
 import { CategoryBadge } from '@/components/Category';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { GroupHero } from '@/components/GroupHero';
@@ -260,25 +261,27 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
   nameOf: (memberId: string | null) => string;
 }) {
   const version = expense.currentVersion;
-  const payer = version?.payers[0]?.member_id ?? null;
   // An imported Splitwise expense can have several payers, so
   // "Asha paid ₹1,200" beside the expense total would put the
   // whole bill on whoever happens to sort first. One payer is
   // named and credited with what they actually put in; several
   // are counted, and the number beside them is the total they
-  // put in between them.
-  const payerCount = version?.payers.length ?? 0;
+  // put in between them. The rule is `paidBy`, shared with the
+  // month drill-down so the two cannot disagree.
+  const paid = paidBy(version?.payers ?? []);
   const paidLine =
     version === null
-      ? fill(t.expense.paidByName, { name: nameOf(payer) })
+      ? fill(t.expense.paidByName, { name: nameOf(null) })
       : fill(t.expense.paidByNameAmount, {
-          name: payerCount > 1 ? plural(locale, payerCount, t.misc.peopleCount) : nameOf(payer),
+          name:
+            paid.kind === 'several'
+              ? plural(locale, paid.count, t.misc.peopleCount)
+              : nameOf(paid.memberId),
           amount: formatParts(
+            // A payerless version still shows the bill's own total rather
+            // than a zero nobody recorded.
             {
-              minor:
-                payerCount > 1
-                  ? BigInt(version.amount)
-                  : BigInt(version.payers[0]?.amount ?? version.amount),
+              minor: paid.amount > 0n ? paid.amount : BigInt(version.amount),
               currency: version.currency,
             },
             { locale },

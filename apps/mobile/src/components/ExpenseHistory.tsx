@@ -3,12 +3,18 @@ import { View } from 'react-native';
 
 import { Badge, directionalIcon, iconSize, MoneyText, Row, Text, useTheme } from '@waves/ui';
 
-import type { MemberId } from '@waves/core';
+import {
+  format as formatMoney,
+  money as coreMoney,
+  type CurrencyCode,
+  type MemberId,
+} from '@waves/core';
 
 import type { ExpenseVersionAudit } from '@/data/api';
 import type { ExpenseImageEventRow } from '@/data/hooks';
 import { type ActivityTint, dayHeading, groupByDay, myStake, relativeTime } from '@/data/activity';
 import { coordLabel } from '@/lib/location';
+import { payerAuditText, payerFactsKey } from '@/lib/payerLines';
 import { fill, type UiStrings } from '@/i18n';
 
 /**
@@ -181,15 +187,20 @@ function diffVersions(
       newText: locationLabel(t, cur),
     });
   }
-  // Who paid: compare the set of payers, not amounts (an amount move is already
-  // the Amount line). A changed set is a real "someone else paid".
-  if (memberKey(prev.payers) !== memberKey(cur.payers)) {
+  // Who paid, and how much each of them put in — both, because on a bill with
+  // several payers the amounts are the only thing that need change. Moving ₹100
+  // from Asha to Ravi leaves the total alone (so there is no Amount line) and
+  // the set of names alone, and comparing names only meant that edit vanished
+  // from the one screen whose job is to record edits.
+  if (payerFactsKey(prev.payers) !== payerFactsKey(cur.payers)) {
+    const money = (version: ExpenseVersionAudit) => (minor: bigint) =>
+      formatMoney(coreMoney(minor, version.currency as CurrencyCode), { locale });
     changes.push({
       key: 'payers',
       label: t.expense.audit.payers,
       kind: 'text',
-      oldText: prev.payers.map((p) => nameOf(p.member_id)).join(', ') || t.expense.audit.none,
-      newText: cur.payers.map((p) => nameOf(p.member_id)).join(', ') || t.expense.audit.none,
+      oldText: payerAuditText(prev.payers, nameOf, money(prev), t.expense.audit.none),
+      newText: payerAuditText(cur.payers, nameOf, money(cur), t.expense.audit.none),
     });
   }
   // Participants: who is splitting the bill, by name — the same treatment as

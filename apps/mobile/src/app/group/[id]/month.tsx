@@ -41,6 +41,7 @@ import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, groupLabel, type ExpenseRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { paidBy } from '@/lib/payerLines';
 
 /** One row of the flattened month: the header tile, a day heading, or a bill. */
 type MonthItem =
@@ -210,7 +211,10 @@ export default function SpendingMonthScreen() {
     }
 
     const version = item.expense.currentVersion;
-    const payer = version?.payers[0]?.member_id ?? null;
+    // Who paid, by the same rule the group ledger uses (paidBy): one person is
+    // named, several are counted. Naming payers[0] put a shared bill entirely
+    // on whoever happened to sort first.
+    const paid = paidBy(version?.payers ?? []);
     const title = expenseTitle(version?.description, version?.category, t, version?.category_meta);
     return (
       <View>
@@ -238,7 +242,9 @@ export default function SpendingMonthScreen() {
                 {title}
               </Text>
               <Text variant="caption" tone="muted" numberOfLines={1}>
-                {fill(t.expense.paidByName, { name: nameOf(payer) })}
+                {paid.kind === 'several'
+                  ? plural(locale, paid.count, t.expense.paidByCount)
+                  : fill(t.expense.paidByName, { name: nameOf(paid.memberId) })}
               </Text>
             </View>
             <MoneyText
