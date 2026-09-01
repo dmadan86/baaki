@@ -88,25 +88,25 @@ export function OverflowMenu({
 
   useEffect(() => {
     if (visible) {
-      progress.set(
-        reduceMotion
-          ? withTiming(1, { duration: 0 })
-          : withTiming(1, { duration: OPEN_MS, easing: Easing.out(Easing.cubic) }),
-      );
+      // `progress` drives the scrim and card opacity, so it always fades at full
+      // duration — a fade is the accessible way to appear, not the motion reduced
+      // motion is there to spare. What reduced motion drops is the corner-grow
+      // scale, gated below in `cardStyle`.
+      progress.set(withTiming(1, { duration: OPEN_MS, easing: Easing.out(Easing.cubic) }));
     } else if (mounted) {
       // Play the close, then drop the modal — the runOnJS hop is what lets the
       // exit be seen before the tree unmounts.
       progress.set(
         withTiming(
           0,
-          { duration: reduceMotion ? 0 : CLOSE_MS, easing: Easing.in(Easing.cubic) },
+          { duration: CLOSE_MS, easing: Easing.in(Easing.cubic) },
           (finished) => {
             if (finished) runOnJS(setMounted)(false);
           },
         ),
       );
     }
-  }, [visible, mounted, reduceMotion, progress]);
+  }, [visible, mounted, progress]);
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
   const cardStyle = useAnimatedStyle(() => ({
