@@ -103,6 +103,28 @@ export function AmountField({
     }
   }, [value, currency]);
 
+  /**
+   * How much of its full size the number can afford at this length.
+   *
+   * A `TextInput` does not shrink its glyphs to fit — asked for more room than
+   * it has, it scrolls, and what scrolls off a left-aligned field is the *front*
+   * of the number. So ₹13,480.00 in the hero showed as "3,480.00": not a clipped
+   * digit somebody would notice, a different, smaller, entirely plausible
+   * amount. React Native has no cross-platform `adjustsFontSizeToFit` for an
+   * input (it is iOS-only, and not on `TextInput` at all), so the size is chosen
+   * here from what has been typed.
+   *
+   * The line height does not follow it down: the header keeps one height whatever
+   * the number, so typing a digit never nudges the layout below it.
+   */
+  const typed = (text || '0').length;
+  const fit =
+    compact || typed <= 6 ? 1 : typed === 7 ? 0.86 : typed === 8 ? 0.76 : typed <= 10 ? 0.64 : 0.54;
+  const digitSize = Math.round(metrics.digits * fit);
+  // The symbol comes down with it but not as far — it is already the quieter of
+  // the two, and shrinking it in step makes it vanish against the digits.
+  const symbolSize = Math.max(14, Math.round(metrics.symbol * ((1 + fit) / 2)));
+
   const onType = (raw: string): void => {
     const cleaned = sanitiseMinorInput(raw, currency);
     setText(cleaned);
@@ -127,7 +149,7 @@ export function AmountField({
     >
       <Text
         style={{
-          fontSize: metrics.symbol,
+          fontSize: symbolSize,
           lineHeight: metrics.line,
           fontWeight: '700',
           color: symbolInk,
@@ -147,7 +169,7 @@ export function AmountField({
         style={{
           minWidth: metrics.minWidth,
           padding: 0,
-          fontSize: metrics.digits,
+          fontSize: digitSize,
           lineHeight: metrics.line,
           fontWeight: '700',
           color: digitInk,

@@ -1,9 +1,9 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { Alert, Pressable, RefreshControl, View } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { Alert, InteractionManager, Pressable, RefreshControl, View } from 'react-native';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { StatusBar } from 'expo-status-bar';
 
 import {
@@ -75,6 +75,14 @@ enum Tab {
   Balances = 'balances',
   Activity = 'activity',
 }
+
+/**
+ * How many rows a freshly-chosen tab paints before it grows to its real length.
+ *
+ * Comfortably more than a screenful on the tallest phone, so the window is never
+ * something anybody can scroll to the end of in the frame it exists for.
+ */
+const SWITCH_WINDOW = 24;
 
 /**
  * The nudge on a balances row, for somebody who owes this group money.
@@ -572,6 +580,44 @@ export default function GroupScreen() {
     [activity.data],
   );
 
+  // The rows the list shows for the current tab. One source for `data`, so the
+  // three tabs are the same list with different contents rather than a list plus
+  // two hand-rolled footers.
+  const tabData: FeedItem[] =
+    tab === Tab.Balances ? balanceItems : tab === Tab.Activity ? activityItems : feedItems;
+
+  // The tab switch must not cost what the whole tab costs.
+  //
+  // Each tab's rows are memoised, so switching does not rebuild them — but
+  // handing FlashList a different `data` makes it lay the new set out, and that
+  // walk is per item. On a group with a thousand bills or a long activity trail
+  // the whole walk landed between the tap and the first frame, which is the
+  // pause somebody feels.
+  //
+  // So a freshly-chosen tab paints a screenful first and grows to its real
+  // length on the next tick. `expandedTab` is the tab that has already grown:
+  // choosing another one makes it stale, which is what re-arms the window with
+  // no reset to write. `runAfterInteractions` is what makes the growth a *tick*
+  // and not a stutter — it waits for the tap's own work to finish, so the first
+  // frame never competes with it.
+  const [expandedTab, setExpandedTab] = useState<Tab | null>(null);
+  // The list is put back to the top on a tab change, before its data swaps. The
+  // three tabs are wildly different lengths, and FlashList keeps its offset — so
+  // switching from halfway down a long ledger landed on the end of a short
+  // activity trail, or, now that a fresh tab paints a window first, on nothing
+  // at all until the rest arrived.
+  const listRef = useRef<FlashListRef<FeedItem>>(null);
+  const windowed = expandedTab !== tab;
+  useEffect(() => {
+    if (expandedTab === tab) return undefined;
+    const task = InteractionManager.runAfterInteractions(() => setExpandedTab(tab));
+    return () => task.cancel();
+  }, [tab, expandedTab]);
+  const listData: FeedItem[] = useMemo(
+    () => (windowed && tabData.length > SWITCH_WINDOW ? tabData.slice(0, SWITCH_WINDOW) : tabData),
+    [windowed, tabData],
+  );
+
   if (group.isLoading) {
     return <GroupSkeleton />;
   }
@@ -707,12 +753,6 @@ export default function GroupScreen() {
     { icon: 'download-outline', label: t.groupExport.menu, route: `/group/${groupId}/export` },
     { icon: 'settings-outline', label: t.group.settings, route: `/group/${groupId}/settings` },
   ];
-
-  // The rows the list shows for the current tab. One source for `data`, so the
-  // three tabs are the same list with different contents rather than a list plus
-  // two hand-rolled footers.
-  const listData: FeedItem[] =
-    tab === Tab.Balances ? balanceItems : tab === Tab.Activity ? activityItems : feedItems;
 
   // A month heading or an expense row. Headings carry the between-section gap the
   // ScrollView used to give for free; the first item needs none, its space comes
@@ -935,11 +975,30 @@ export default function GroupScreen() {
         >
           <SegmentedTabs<Tab>
             value={tab}
-            onChange={setTab}
+            onChange={(next) => {
+              listRef.current?.scrollToOffset({ offset: 0, animated: false });
+              setTab(next);
+            }}
             tabs={[
-              { value: Tab.Expenses, label: t.expenses },
-              { value: Tab.Balances, label: t.balances },
-              { value: Tab.Activity, label: t.activity },
+              {
+                value: Tab.Expenses,
+                label: t.expenses,
+                icon: (color) => (
+                  <Ionicons name="receipt-outline" size={iconSize.md} color={color} />
+                ),
+              },
+              {
+                value: Tab.Balances,
+                label: t.balances,
+                icon: (color) => (
+                  <Ionicons name="swap-horizontal-outline" size={iconSize.md} color={color} />
+                ),
+              },
+              {
+                value: Tab.Activity,
+                label: t.activity,
+                icon: (color) => <Ionicons name="pulse-outline" size={iconSize.md} color={color} />,
+              },
             ]}
           />
 
@@ -969,17 +1028,22 @@ export default function GroupScreen() {
         </View>
 
         <FlashList
+          ref={listRef}
           data={listData}
-          extraData={`${tab}|${showDeleted}|${locale}`}
+          // Not the tab: switching tabs already hands `data` a different array,
+          // and naming it here only made every mounted cell re-render a second
+          // time for the same switch.
+          extraData={`${showDeleted}|${locale}`}
           keyExtractor={(item) => item.key}
           getItemType={(item) => item.kind}
           renderItem={renderFeedItem}
           // Belt-and-suspenders on top of the allocation-light, memoized row:
           // render well beyond the viewport so a fast fling down a long ledger
           // never outruns recycling and flashes blank rows (default is 250px,
-          // which a hard fling clears in a frame). ~1500px ≈ two dozen rows
-          // ahead — cheap now that each row barely costs anything to draw.
-          drawDistance={1500}
+          // which a hard fling clears in a frame). ~2500px ≈ three dozen rows
+          // ahead — cheap now that each row barely costs anything to draw, and
+          // 1500 was still being outrun by a hard fling on a long ledger.
+          drawDistance={2500}
           contentContainerStyle={{
             paddingHorizontal: theme.spacing.xl,
             paddingBottom: clearance,

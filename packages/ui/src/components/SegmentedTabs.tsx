@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useTheme } from '../theme';
@@ -6,6 +7,13 @@ import { Text } from './Text';
 export interface SegmentedTab<T extends string> {
   readonly value: T;
   readonly label: string;
+  /**
+   * A mark beside the word, drawn in whatever colour the tab is wearing — the
+   * same shape `ChipRow` uses, so one convention covers both. Optional: a tab
+   * row where only some tabs had a glyph would read as an accident, so pass one
+   * for every tab or for none.
+   */
+  readonly icon?: (color: string) => ReactNode;
 }
 
 /**
@@ -52,11 +60,15 @@ export function SegmentedTabs<T extends string>({
             accessibilityLabel={tab.label}
             style={({ pressed }) => ({
               flex: 1,
+              flexDirection: 'row',
               alignItems: 'center',
+              justifyContent: 'center',
+              gap: theme.spacing.sm,
               paddingVertical: theme.spacing.md,
               opacity: pressed ? 0.6 : 1,
             })}
           >
+            {tab.icon?.(live ? theme.color.brand : theme.color.textFaint)}
             <Text
               variant="caption"
               tone={live ? 'brand' : 'faint'}

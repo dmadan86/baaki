@@ -92,6 +92,16 @@ interface ShrinkOptions {
   height: number;
   maxEdge: number;
   compress: number;
+  /**
+   * Read the result back as base64 as well as writing the file.
+   *
+   * Only worth asking for when the caller actually needs the bytes in JS — an
+   * OCR call, or an upload that posts a body. For a receipt bound for the queue
+   * it is pure cost: a megabyte-plus string built natively, carried over the
+   * bridge, then decoded back to bytes and written to a file the manipulator had
+   * already written. The queue copies that file instead (see `enqueueReceipt`).
+   */
+  base64?: boolean;
 }
 
 /**
@@ -110,8 +120,16 @@ interface ShrinkOptions {
  * platform allows it, a working upload everywhere. The returned `mimeType` says
  * which one it was, so the object is stored and served as what it actually is.
  */
-async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions): Promise<{
-  base64: string;
+async function shrink({
+  uri,
+  width,
+  height,
+  maxEdge,
+  compress,
+  base64 = true,
+}: ShrinkOptions): Promise<{
+  /** Null when the caller did not ask for the bytes. */
+  base64: string | null;
   uri: string;
   mimeType: string;
 } | null> {
@@ -132,7 +150,8 @@ async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions):
   const webp = module.SaveFormat.WEBP;
   if (webp) {
     try {
-      const saved = await (await render()).saveAsync({ base64: true, compress, format: webp });
+      const saved = await (await render()).saveAsync({ base64, compress, format: webp });
+      if (!base64) return { base64: null, uri: saved.uri, mimeType: 'image/webp' };
       if (saved.base64) return { base64: saved.base64, uri: saved.uri, mimeType: 'image/webp' };
     } catch {
       // iOS without a WebP encoder — fall through to JPEG.
@@ -142,15 +161,29 @@ async function shrink({ uri, width, height, maxEdge, compress }: ShrinkOptions):
   const saved = await (
     await render()
   ).saveAsync({
-    base64: true,
+    base64,
     compress,
     format: module.SaveFormat.JPEG,
   });
 
+  if (!base64) return { base64: null, uri: saved.uri, mimeType: 'image/jpeg' };
   // `saveAsync` only omits base64 if it was not asked for; if it is missing
   // anyway there is nothing to upload, and saying so beats uploading nothing.
   if (!saved.base64) throw new Error('Could not read that image.');
   return { base64: saved.base64, uri: saved.uri, mimeType: 'image/jpeg' };
+}
+
+/** As {@link shrink}, for the callers that need the bytes in JS. */
+async function shrinkWithBytes(
+  options: Omit<ShrinkOptions, 'base64'>,
+): Promise<{ base64: string; uri: string; mimeType: string } | null> {
+  const result = await shrink({ ...options, base64: true });
+  // Unreachable — `base64: true` either returns the string or throws — but the
+  // types do not know that, and a cast here would be a lie the next reader has
+  // to check.
+  if (!result) return null;
+  if (result.base64 === null) throw new Error('Could not read that image.');
+  return { base64: result.base64, uri: result.uri, mimeType: result.mimeType };
 }
 
 /**
@@ -199,7 +232,7 @@ export async function pickSquarePhoto(maxEdge: number): Promise<PickedImage | nu
   if (!asset) return null;
 
   const shrunk =
-    (await shrink({
+    (await shrinkWithBytes({
       uri: asset.uri,
       width: asset.width,
       height: asset.height,
@@ -244,7 +277,7 @@ export async function pickAlbumPhoto(): Promise<PickedImage | null> {
   const asset = result.assets[0];
   if (!asset) return null;
 
-  const shrunk = await shrink({
+  const shrunk = await shrinkWithBytes({
     uri: asset.uri,
     width: asset.width,
     height: asset.height,
@@ -280,7 +313,7 @@ export async function pickReceiptPhoto(): Promise<PickedImage | null> {
   if (!asset) return null;
 
   const shrunk =
-    (await shrink({
+    (await shrinkWithBytes({
       uri: asset.uri,
       width: asset.width,
       height: asset.height,
@@ -320,7 +353,7 @@ export async function pickReceiptImage(): Promise<PickedImage | null> {
   if (!asset) return null;
 
   const shrunk =
-    (await shrink({
+    (await shrinkWithBytes({
       uri: asset.uri,
       width: asset.width,
       height: asset.height,
@@ -361,7 +394,7 @@ export async function captureReceipt(): Promise<PickedImage | null> {
   const size = await imageSize(scanned);
   const shrunk =
     (size
-      ? await shrink({
+      ? await shrinkWithBytes({
           uri: scanned,
           width: size.width,
           height: size.height,
@@ -370,6 +403,114 @@ export async function captureReceipt(): Promise<PickedImage | null> {
         })
       : null) ?? (await readUnshrunk(scanned));
   return { base64: shrunk.base64, mimeType: shrunk.mimeType ?? 'image/jpeg', uri: shrunk.uri };
+}
+
+/**
+ * A picked original, before anything has been done to it.
+ *
+ * The resize is the slow step — decoding a 12-megapixel photograph, scaling it
+ * and re-encoding it is a second or more on a mid-range phone, and until it
+ * finished the old flow had nothing at all to show. Handing the caller the
+ * untouched file first means the thumbnail is on screen while that work runs, so
+ * the wait is something visibly in progress rather than a screen that ignored
+ * the tap.
+ */
+export interface PickedAsset {
+  uri: string;
+  /** Source dimensions. Zero when the source did not report them. */
+  width: number;
+  height: number;
+  /**
+   * What the source says these bytes are, when it says anything.
+   *
+   * Only matters on the fallback path below, where the file is taken as it is:
+   * calling a PNG a JPEG there would store and serve it under a type it is not.
+   * The resize path re-encodes, so it names the format it actually produced.
+   */
+  mimeType?: string;
+}
+
+/** A receipt from the photo library, unprocessed — see {@link PickedAsset}. */
+export async function pickReceiptAsset(): Promise<PickedAsset | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) return null;
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    base64: false,
+  });
+  if (result.canceled) return null;
+
+  const asset = result.assets[0];
+  return asset
+    ? { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType }
+    : null;
+}
+
+/**
+ * A receipt from the scanner (or the camera where there is none), unprocessed.
+ *
+ * The same three-way outcome as {@link captureReceipt}: the scanner where the
+ * build has one, the plain camera where it does not, and null for a cancel —
+ * backing out of the scanner is a cancel, not a request for a different camera.
+ */
+export async function captureReceiptAsset(): Promise<PickedAsset | null> {
+  const outcome = await scanDocument();
+  if (outcome.kind === 'cancelled') return null;
+  if (outcome.kind === 'unavailable') {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    let launch = ImagePicker.launchCameraAsync;
+    if (!permission.granted) {
+      const library = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!library.granted) return null;
+      launch = ImagePicker.launchImageLibraryAsync;
+    }
+    const result = await launch({ mediaTypes: ['images'], quality: 1, base64: false });
+    if (result.canceled) return null;
+    const asset = result.assets[0];
+    return asset
+      ? { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType }
+      : null;
+  }
+
+  // The scanner reports no dimensions, and the resize caps whichever edge is
+  // longer. Asking the file is cheap; an unreadable size is a reason to skip the
+  // resize rather than to abandon the scan.
+  const size = await imageSize(outcome.uri);
+  return { uri: outcome.uri, width: size?.width ?? 0, height: size?.height ?? 0 };
+}
+
+/**
+ * Bring a {@link PickedAsset} down to receipt size, as a file and nothing else.
+ *
+ * The counterpart to the pickers above: they hand back the original at once so
+ * something can be drawn, this does the expensive part afterwards. No base64 —
+ * the only consumer is the receipt queue, which takes the file over as-is, so
+ * building a multi-megabyte string to decode straight back into the bytes the
+ * manipulator had already written was work with no reader.
+ *
+ * Falls back to the untouched original where the native manipulator is missing
+ * (a dev client built before it existed), exactly as the base64 pickers do.
+ */
+export async function prepareReceipt(
+  asset: PickedAsset,
+): Promise<{ uri: string; mimeType: string }> {
+  const shrunk =
+    asset.width > 0 && asset.height > 0
+      ? await shrink({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          maxEdge: RECEIPT_MAX_EDGE,
+          compress: 0.9,
+          base64: false,
+        })
+      : null;
+  if (shrunk) return { uri: shrunk.uri, mimeType: shrunk.mimeType };
+  // Untouched bytes, so they keep whatever they already were. JPEG is the guess
+  // of last resort, for a source that reported nothing.
+  return { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' };
 }
 
 /**

@@ -5,6 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
+  ActivityIndicator,
   Animated,
   Modal,
   Pressable,
@@ -105,15 +106,31 @@ export default function HomeScreen() {
   const displayName = profile?.display_name ?? t.account.you;
 
   const list = groups.data ?? [];
-  // One gate for every figure on this screen. The mirror hydrates from disk
-  // instantly, so the groups and their balances *can* paint at once — but that
-  // snapshot can be behind the server, and a balance painted from it moves when
-  // this session's first sync reconciles. A number that changes after it has
-  // been read is worse than a number that arrives a beat later, so the skeleton
-  // stays up until the figures are final. Bounded, never a hang:
-  // `pendingFirstSync` clears on the first success *or* on a can't-sync status
-  // (offline, metered, error), where the local snapshot is the best there is.
-  const loading = groups.isLoading || summary.isLoading || summary.pendingFirstSync;
+  // Two states, not one, because they deserve different answers.
+  //
+  // `hydrating` is "there is nothing to paint": the mirror has not been read off
+  // disk yet. It lasts milliseconds and a skeleton is exactly right for it.
+  //
+  // `settling` is "here it is, but this session's first sync has not landed yet",
+  // so what is on screen came from the local snapshot and could still move. That
+  // used to hold the skeleton up too — the whole screen shimmering over figures
+  // the app already had, for as long as the network took. What somebody actually
+  // wants there is their balance and their groups, marked as not-yet-final: the
+  // numbers are shown, under a still mask, and settle in place when the sync
+  // lands. Bounded either way — `pendingFirstSync` clears on the first success
+  // *or* on a can't-sync status (offline, metered, error), where the local
+  // snapshot is the best there is.
+  const hydrating = groups.isLoading || summary.isLoading;
+  // And a third case that is neither: the mirror answered, but with nothing in
+  // it, while the first sync is still out. That is "we do not know yet", not
+  // "you have no groups" — and on a fresh install or a new sign-in the two look
+  // identical from here. Painting the empty state over it would tell somebody
+  // with eleven groups that they have none, for as long as the network took.
+  const unknownYet = !hydrating && list.length === 0 && summary.pendingFirstSync;
+  // The placeholder covers both: nothing read yet, or nothing read *and* nothing
+  // confirmed. Everything else paints.
+  const showSkeleton = hydrating || unknownYet;
+  const settling = !showSkeleton && summary.pendingFirstSync;
 
   // A ledger import running in the background (see `@/lib/importProgress`): its
   // banner sits above the group list, and when it lands the just-added group
@@ -137,11 +154,11 @@ export default function HomeScreen() {
   const tourStarted = useRef(false);
   useEffect(() => {
     if (tourStarted.current) return;
-    if (tour.ready && !tour.seen && !loading && balanceReady) {
+    if (tour.ready && !tour.seen && !showSkeleton && balanceReady) {
       tourStarted.current = true;
       tour.start();
     }
-  }, [tour.ready, tour.seen, tour, loading, balanceReady]);
+  }, [tour.ready, tour.seen, tour, showSkeleton, balanceReady]);
 
   // The tour holds the top of the prompt queue for the whole of a first run —
   // from the moment we know it is owed (ready, not seen), through the wait for
@@ -355,9 +372,11 @@ export default function HomeScreen() {
           {/* The swipeable balance — net, then owed, then this month — riding
                 on the hero's colour rather than in its own card (ADR-004: no total
                 across currencies, so each is its own slide). Its scroll drives the
-                background crossfade above. While it loads a light placeholder
-                stands in so the number never paints confident zeros. */}
-          {loading || !balanceReady ? (
+                background crossfade above. A placeholder stands in only while
+                there is genuinely no figure to show; a figure that is merely
+                unconfirmed is shown at full strength, with a small spinner beside
+                its label. */}
+          {showSkeleton || !balanceReady ? (
             <HeroBalanceSkeleton />
           ) : (
             <HeroBalance
@@ -371,6 +390,7 @@ export default function HomeScreen() {
               cardWidth={heroInner}
               gap={heroGap}
               snap={heroSnap}
+              settling={settling}
             />
           )}
 
@@ -446,7 +466,7 @@ export default function HomeScreen() {
               the person tapped Import, came home, and watches it fill. */}
           <ImportProgressBanner />
 
-          {loading ? (
+          {showSkeleton ? (
             <SkeletonList rows={3} />
           ) : list.length === 0 ? (
             <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -1242,6 +1262,7 @@ function HeroBalance({
   cardWidth,
   gap,
   snap,
+  settling,
 }: {
   primary: CurrencyTotal;
   /** My share of this month's spend, per currency (from useHomeSummary). */
@@ -1257,6 +1278,8 @@ function HeroBalance({
   cardWidth: number;
   gap: number;
   snap: number;
+  /** The figure is the local one and a fresher answer is on its way. */
+  settling: boolean;
 }) {
   // The three balance views the dashboard leads with, one per swipe: where you
   // stand overall (net), what is owed to you, and what you have spent this month
@@ -1282,6 +1305,7 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
+          settling={settling}
         />
       ),
     },
@@ -1295,6 +1319,7 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
+          settling={settling}
         />
       ),
     },
@@ -1308,6 +1333,7 @@ function HeroBalance({
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
+          settling={settling}
         />
       ),
     },
@@ -1540,6 +1566,7 @@ function MetricSlide({
   locale,
   hidden,
   onToggleHide,
+  settling,
 }: {
   label: string;
   amount: bigint;
@@ -1547,6 +1574,9 @@ function MetricSlide({
   locale: string;
   hidden: boolean;
   onToggleHide: () => void;
+  /** Shown with a small spinner beside the label: this figure is the local one
+   *  and this session's first sync has not confirmed it yet. */
+  settling?: boolean;
 }) {
   const theme = useTheme();
   const { t } = useStrings();
@@ -1569,6 +1599,7 @@ function MetricSlide({
             color={theme.color.onBrand}
           />
         </Pressable>
+        {settling ? <ActivityIndicator size="small" color={theme.color.onBrand} /> : null}
       </Row>
       {hidden ? (
         <Text tone="onBrand" style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}>
