@@ -633,6 +633,21 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items[0].note).toBe('dinner');
   });
 
+  it('strips tomorrow from notes while carrying it as the expense date', () => {
+    const result = parseVoiceExpenses('500 rupees dinner tomorrow', groups);
+    expect(result.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.items[0].note).toBe('dinner');
+  });
+
+  it('resolves every relative date phrase against the local calendar day', () => {
+    const now = new Date(2026, 8, 1, 12);
+
+    expect(parseVoiceExpenseDate('500 rupees coffee today', now)).toBe('2026-09-01');
+    expect(parseVoiceExpenseDate('500 rupees coffee tomorrow', now)).toBe('2026-09-02');
+    expect(parseVoiceExpenseDate('500 rupees coffee yesterday', now)).toBe('2026-08-31');
+    expect(parseVoiceExpenseDate('500 rupees coffee day before yesterday', now)).toBe('2026-08-30');
+  });
+
   it('reads explicit ISO dates and rejects impossible dates', () => {
     const result = parseVoiceExpenses('500 rupees dinner on 2026-08-12', groups);
     expect(result.expenseDate).toBe('2026-08-12');
