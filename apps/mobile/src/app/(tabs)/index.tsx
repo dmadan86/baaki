@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 
-import { dayNumber, daysBetween, type GuestGate } from '@waves/core';
+import { dayNumber, type GuestGate } from '@waves/core';
 import {
   Avatar,
   Button,
@@ -240,30 +240,16 @@ export default function HomeScreen() {
     owing: 0n,
   };
 
-  // A trip that is running today earns a card at the front of the balance deck:
-  // it is the most "now" thing on the dashboard, and it is the one tap into the
-  // planner nobody finds behind the group menu. "Running" is decided in the
-  // trip's own timezone, not the phone's — a Goa trip run from Dubai turns over
-  // at midnight in Goa (the same rule `dayNumber` and the planner already use).
-  const activeTrips: readonly TripSlide[] = list
-    .filter((g) => g.type === GroupType.Trip && g.start_date && g.end_date)
-    .map((g) => {
-      const day = dayNumber(todayIn(g.time_zone), g.start_date, g.end_date);
-      if (day === null) return null;
-      return {
-        id: g.id,
-        title: groupLabel(g, summary.membersFor(g.id), profile?.id),
-        coverEmoji: g.cover_emoji,
-        currency: g.default_currency,
-        day,
-        total: daysBetween(g.start_date!, g.end_date!).length,
-        balance: summary.balanceFor(g.id),
-      };
-    })
-    .filter((t): t is TripSlide => t !== null);
-
-  // The ids of trips running right now, so their rows can wear an "on trip" tag.
-  const ongoingTripIds = new Set(activeTrips.map((tr) => tr.id));
+  // The ids of the trips running today, so their rows can wear an "on trip"
+  // tag. "Running" is decided in the trip's own timezone, not the phone's — a
+  // Goa trip run from Dubai turns over at midnight in Goa (the same rule
+  // `dayNumber` and the planner already use).
+  const ongoingTripIds = new Set(
+    list
+      .filter((g) => g.type === GroupType.Trip && g.start_date && g.end_date)
+      .filter((g) => dayNumber(todayIn(g.time_zone), g.start_date, g.end_date) !== null)
+      .map((g) => g.id),
+  );
   // "Now" sampled once per mount (a lazy initial state, never re-read as a ref
   // in render) so the "New" window is stable across this screen's renders and
   // the React Compiler stays happy — a bare Date.now() in render trips its lint.
@@ -429,7 +415,7 @@ export default function HomeScreen() {
             </Row>
 
             {/* The swipe pager, right under the buttons. */}
-            <HeroDots count={SLIDE_GRADIENTS.length} scrollX={heroScrollX} snap={heroSnap} />
+            <HeroDots count={SLIDE_KEYS.length} scrollX={heroScrollX} snap={heroSnap} />
           </View>
         </View>
       </TourTarget>
@@ -470,8 +456,13 @@ export default function HomeScreen() {
             <SkeletonList rows={3} />
           ) : list.length === 0 ? (
             <View style={{ flex: 1, justifyContent: 'center' }}>
+              {/* The one screen where somebody has nothing to act on yet gets
+                  the action spelled out, rather than leaving them to find the
+                  small icon up in the hero's header cluster. */}
               <EmptyState
                 title={t.tabs.noGroups}
+                body={t.tabs.noGroupsBody}
+                action={<Button label={t.newGroup} onPress={openNewGroup} />}
                 icon={
                   <Ionicons name="people-outline" size={iconSize.xxl} color={theme.color.brand} />
                 }
@@ -542,6 +533,10 @@ export default function HomeScreen() {
                       tag={tag}
                       tagTone={onTrip ? 'positive' : 'brand'}
                       divider={index > 0}
+                      // The eye in the hero shuts the whole screen's money, not
+                      // just the headline: masking one figure while twelve sit
+                      // uncovered below it is privacy theatre.
+                      hidden={balanceHidden}
                       // The just-imported group slides and fades into place
                       // rather than blinking in under the success banner.
                       enter={group.id === justAddedId}
@@ -640,6 +635,11 @@ function HeroAvatar({
 
 /** The AsyncStorage key remembering whether the balance is hidden behind the eye. */
 const BALANCE_HIDDEN_KEY = 'dashboard:balanceHidden';
+
+/** What stands in for a figure while the eye is shut. One string, because the
+    hero and the group rows have to mask identically or the mask reads as a
+    rendering fault rather than a choice. */
+const BALANCE_MASK = '••••••';
 
 /**
  * The eye toggle's state, remembered across opens. Reads once on mount (so a
@@ -1184,20 +1184,6 @@ function TipSheet({ t }: { t: UiStrings }) {
 /** One currency's standing: the net, and the two sides that make it up. */
 type CurrencyTotal = { currency: string; net: bigint; owed: bigint; owing: bigint };
 
-/** A running trip's card: where it is in its own run, and its standing. */
-type TripSlide = {
-  id: string;
-  title: string;
-  coverEmoji: string | null;
-  currency: string;
-  /** 1-based day the trip is on today, in its own timezone. */
-  day: number;
-  /** Total days the trip spans, both ends inclusive. */
-  total: number;
-  /** Net in the group's currency: >0 owed to you, <0 you owe. */
-  balance: bigint;
-};
-
 /** Today as `YYYY-MM-DD` in a given timezone, never the server's. */
 function todayIn(timeZone: string): string {
   try {
@@ -1225,6 +1211,14 @@ const SLIDE_GRADIENTS = [
 ] as const;
 
 /**
+ * The slides the deck actually carries, in order. Everything that has to agree
+ * on "how many" counts this — the dot pager, the colour layers, the watermarks
+ * — so the answer comes from the content rather than from the length of the
+ * palette that happens to paint it.
+ */
+const SLIDE_KEYS = ['net', 'owed', 'month'] as const;
+
+/**
  * One watermark glyph per slide, in the same order (net, owed, month). It rides
  * the corner of the hero as a faint, oversized outline and crossfades on the
  * same scroll value as the colour, so the mark swaps as you swipe: a wallet for
@@ -1238,6 +1232,21 @@ const SLIDE_ICONS = ['wallet-outline', 'trending-up-outline', 'calendar-outline'
     add-expense pill's ink) and the badge ring — a fixed brand green, not the
     animated hero colour. */
 const HERO_GREEN = SLIDE_GRADIENTS[0];
+
+/**
+ * The hero's two lines, in one place. `HeroBalanceSkeleton` builds itself to
+ * exactly these heights so the real figure settles into the placeholder's
+ * space instead of shoving the buttons and the group list down — which only
+ * holds if both sites read the same numbers, hence the constants.
+ */
+const HERO_LABEL_LINE = 18;
+const HERO_AMOUNT_SIZE = 40;
+const HERO_AMOUNT_LINE = 46;
+const HERO_AMOUNT_STYLE = {
+  fontSize: HERO_AMOUNT_SIZE,
+  lineHeight: HERO_AMOUNT_LINE,
+  fontWeight: '700',
+} as const;
 
 /**
  * The swipeable balance inside the hero: three views of where you stand, one per
@@ -1286,11 +1295,11 @@ function HeroBalance({
   // — all in your primary currency, which is the one the headline is already in
   // (no total across currencies, ADR-004).
   const monthAmount = monthSpent.find((entry) => entry.currency === primary.currency)?.amount ?? 0n;
-  // The net slide shows its figure as an ABSOLUTE value, so the owe↔owed
-  // direction has to live in the heading — this is the only slide whose sign
-  // carries meaning. We fold that verdict into the label itself (a Title-case
-  // phrase that matches the other slides' headings) so a single line still
-  // tells you which way you stand, now that the old third "sub" line is gone.
+  // The net slide is the only one whose sign is information, so it shows that
+  // sign on the figure itself — a signed 40pt number is what gets read at a
+  // glance, where an 11pt caption does not. The heading still names the verdict
+  // in words (a Title-case phrase matching the other slides' headings); the two
+  // agree, and either one alone would answer "which way do I stand".
   const netDirection =
     primary.net === 0n ? t.allSettled : primary.net > 0n ? t.dashHero.netOwed : t.dashHero.netOwe;
 
@@ -1300,12 +1309,14 @@ function HeroBalance({
       node: (
         <MetricSlide
           label={`${netDirection} · ${primary.currency}`}
-          amount={primary.net < 0n ? -primary.net : primary.net}
+          amount={primary.net}
           currency={primary.currency}
           locale={locale}
           hidden={hidden}
           onToggleHide={onToggleHide}
           settling={settling}
+          // Square is square: a "+₹0" would be a direction where there is none.
+          showSign={primary.net !== 0n}
         />
       ),
     },
@@ -1477,9 +1488,10 @@ function HeroDots({
  * is built to the *exact* height a loaded slide fills. Each bar rides inside a
  * wrapper sized to the real line's height — the label to the caption's 18px
  * line, the figure to the money's 46px line, one `spacing.sm` gap between — so
- * the block is 72px tall either way and the number lands in place instead of
- * shoving the Add-expense button and the group list down (the layout shift the
- * user flagged). A gentle pulse reads as "loading" rather than a dead
+ * the block is the same height either way and the number lands in place
+ * instead of shoving the Add-expense button and the group list down (the layout
+ * shift the user flagged). Both sites read `HERO_LABEL_LINE` /
+ * `HERO_AMOUNT_LINE`, so a change to the type size cannot desync them. A gentle pulse reads as "loading" rather than a dead
  * placeholder. Plain `Skeleton` is themed for light surfaces and would vanish on
  * the green, so these are hand-drawn washes.
  */
@@ -1505,10 +1517,10 @@ function HeroBalanceSkeleton() {
   );
   return (
     <Animated.View style={{ gap: theme.spacing.sm, opacity: pulse }}>
-      {/* Label line — the caption+eye row rides an 18px line height. */}
-      <View style={{ height: 18, justifyContent: 'center' }}>{bar(120, 12)}</View>
-      {/* The figure — the money sits on a 46px line (fontSize 40). */}
-      <View style={{ height: 46, justifyContent: 'center' }}>{bar(200, 34)}</View>
+      {/* Label line — the caption+eye row's line height. */}
+      <View style={{ height: HERO_LABEL_LINE, justifyContent: 'center' }}>{bar(120, 12)}</View>
+      {/* The figure — the money's own line, so the swap-in is a settle. */}
+      <View style={{ height: HERO_AMOUNT_LINE, justifyContent: 'center' }}>{bar(200, 34)}</View>
     </Animated.View>
   );
 }
@@ -1567,6 +1579,7 @@ function MetricSlide({
   hidden,
   onToggleHide,
   settling,
+  showSign = false,
 }: {
   label: string;
   amount: bigint;
@@ -1574,6 +1587,11 @@ function MetricSlide({
   locale: string;
   hidden: boolean;
   onToggleHide: () => void;
+  /** Print the amount's own sign in front of it. Only the net slide sets this:
+   *  it is the one figure whose direction is information, and a 40pt number is
+   *  what gets read at a glance — not the caption above it. The other two are
+   *  magnitudes (what you are owed, what you spent) where a `+` would be noise. */
+  showSign?: boolean;
   /** Shown with a small spinner beside the label: this figure is the local one
    *  and this session's first sync has not confirmed it yet. */
   settling?: boolean;
@@ -1602,8 +1620,8 @@ function MetricSlide({
         {settling ? <ActivityIndicator size="small" color={theme.color.onBrand} /> : null}
       </Row>
       {hidden ? (
-        <Text tone="onBrand" style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}>
-          {'••••••'}
+        <Text tone="onBrand" style={HERO_AMOUNT_STYLE}>
+          {BALANCE_MASK}
         </Text>
       ) : (
         <MoneyText
@@ -1611,7 +1629,8 @@ function MetricSlide({
           currency={currency as never}
           locale={locale}
           tone="onBrand"
-          style={{ fontSize: 40, lineHeight: 46, fontWeight: '700' }}
+          showSign={showSign}
+          style={HERO_AMOUNT_STYLE}
         />
       )}
     </View>
@@ -1637,6 +1656,7 @@ function GroupRow({
   divider,
   enter = false,
   pendingBalance = false,
+  hidden = false,
   onPress,
 }: {
   title: string;
@@ -1649,6 +1669,9 @@ function GroupRow({
   pendingLabel: string | null;
   tag: string | null;
   tagTone: 'positive' | 'brand';
+  /** The dashboard's eye is shut: show the mask in place of the amount. The
+      row's standing ("You owe") stays — it is the figure that is private. */
+  hidden?: boolean;
   /** True while this group's balance is still materialising (just after an
       import): the amount is masked with a skeleton instead of a wrong zero. */
   pendingBalance?: boolean;
@@ -1662,9 +1685,6 @@ function GroupRow({
 }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  // Money's own colour, kept for the ledger even though the hero is green:
-  // owed-to-you positive, you-owe negative, square is quiet.
-  const tone = balance === 0n ? 'muted' : balance > 0n ? 'positive' : 'negative';
 
   // The entrance: start dropped and clear, settle into place. Only for a row
   // flagged `enter` (a just-imported group), and never under reduce motion —
@@ -1749,12 +1769,21 @@ function GroupRow({
         </View>
         {pendingBalance ? (
           <Skeleton width={64} height={16} radius={6} animated={!reduceMotion} />
+        ) : hidden ? (
+          <Text tone="muted" style={{ fontWeight: '700' }}>
+            {BALANCE_MASK}
+          </Text>
         ) : (
+          // `balance` mode is money's own rule in one place: it takes the
+          // magnitude, colours by the sign (owed-to-you positive, you-owe
+          // negative, square quiet) and speaks the direction aloud — which the
+          // hand-rolled abs + tone did not, so a screen reader heard a bare
+          // number with no side to it.
           <MoneyText
-            amount={balance < 0n ? -balance : balance}
+            amount={balance}
             currency={currency as never}
             locale={locale}
-            tone={tone}
+            mode="balance"
             style={{ fontWeight: '700' }}
           />
         )}
