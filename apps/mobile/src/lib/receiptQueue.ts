@@ -114,7 +114,15 @@ export interface PendingReceiptView extends PendingReceipt {
 
 /** The extension for a stored image, matching the online attach path. */
 function extensionFor(contentType: string): string {
-  return contentType === 'image/webp' ? 'webp' : 'jpg';
+  // The file on disk should be named what it is. Only reached with something
+  // other than webp/jpeg on the fallback path, where an unprocessed original is
+  // taken as-is (see `prepareReceipt`); anything unrecognised still lands as jpg,
+  // which is what every path produced before that fallback existed.
+  const subtype = contentType.split('/')[1]?.toLowerCase();
+  if (subtype === 'webp') return 'webp';
+  if (subtype === 'png') return 'png';
+  if (subtype === 'heic' || subtype === 'heif') return subtype;
+  return 'jpg';
 }
 
 // --- The published snapshot -------------------------------------------------

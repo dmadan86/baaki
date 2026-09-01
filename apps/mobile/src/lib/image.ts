@@ -420,6 +420,14 @@ export interface PickedAsset {
   /** Source dimensions. Zero when the source did not report them. */
   width: number;
   height: number;
+  /**
+   * What the source says these bytes are, when it says anything.
+   *
+   * Only matters on the fallback path below, where the file is taken as it is:
+   * calling a PNG a JPEG there would store and serve it under a type it is not.
+   * The resize path re-encodes, so it names the format it actually produced.
+   */
+  mimeType?: string;
 }
 
 /** A receipt from the photo library, unprocessed — see {@link PickedAsset}. */
@@ -435,7 +443,9 @@ export async function pickReceiptAsset(): Promise<PickedAsset | null> {
   if (result.canceled) return null;
 
   const asset = result.assets[0];
-  return asset ? { uri: asset.uri, width: asset.width, height: asset.height } : null;
+  return asset
+    ? { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType }
+    : null;
 }
 
 /**
@@ -459,7 +469,9 @@ export async function captureReceiptAsset(): Promise<PickedAsset | null> {
     const result = await launch({ mediaTypes: ['images'], quality: 1, base64: false });
     if (result.canceled) return null;
     const asset = result.assets[0];
-    return asset ? { uri: asset.uri, width: asset.width, height: asset.height } : null;
+    return asset
+      ? { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType }
+      : null;
   }
 
   // The scanner reports no dimensions, and the resize caps whichever edge is
@@ -496,7 +508,9 @@ export async function prepareReceipt(
         })
       : null;
   if (shrunk) return { uri: shrunk.uri, mimeType: shrunk.mimeType };
-  return { uri: asset.uri, mimeType: 'image/jpeg' };
+  // Untouched bytes, so they keep whatever they already were. JPEG is the guess
+  // of last resort, for a source that reported nothing.
+  return { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' };
 }
 
 /**

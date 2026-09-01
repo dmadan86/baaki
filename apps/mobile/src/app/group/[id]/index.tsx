@@ -1,9 +1,9 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { Alert, InteractionManager, Pressable, RefreshControl, View } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { StatusBar } from 'expo-status-bar';
 
 import {
@@ -601,6 +601,12 @@ export default function GroupScreen() {
   // and not a stutter — it waits for the tap's own work to finish, so the first
   // frame never competes with it.
   const [expandedTab, setExpandedTab] = useState<Tab | null>(null);
+  // The list is put back to the top on a tab change, before its data swaps. The
+  // three tabs are wildly different lengths, and FlashList keeps its offset — so
+  // switching from halfway down a long ledger landed on the end of a short
+  // activity trail, or, now that a fresh tab paints a window first, on nothing
+  // at all until the rest arrived.
+  const listRef = useRef<FlashListRef<FeedItem>>(null);
   const windowed = expandedTab !== tab;
   useEffect(() => {
     if (expandedTab === tab) return undefined;
@@ -969,7 +975,10 @@ export default function GroupScreen() {
         >
           <SegmentedTabs<Tab>
             value={tab}
-            onChange={setTab}
+            onChange={(next) => {
+              listRef.current?.scrollToOffset({ offset: 0, animated: false });
+              setTab(next);
+            }}
             tabs={[
               {
                 value: Tab.Expenses,
@@ -1019,6 +1028,7 @@ export default function GroupScreen() {
         </View>
 
         <FlashList
+          ref={listRef}
           data={listData}
           // Not the tab: switching tabs already hands `data` a different array,
           // and naming it here only made every mounted cell re-render a second

@@ -121,7 +121,16 @@ export default function HomeScreen() {
   // *or* on a can't-sync status (offline, metered, error), where the local
   // snapshot is the best there is.
   const hydrating = groups.isLoading || summary.isLoading;
-  const settling = !hydrating && summary.pendingFirstSync;
+  // And a third case that is neither: the mirror answered, but with nothing in
+  // it, while the first sync is still out. That is "we do not know yet", not
+  // "you have no groups" — and on a fresh install or a new sign-in the two look
+  // identical from here. Painting the empty state over it would tell somebody
+  // with eleven groups that they have none, for as long as the network took.
+  const unknownYet = !hydrating && list.length === 0 && summary.pendingFirstSync;
+  // The placeholder covers both: nothing read yet, or nothing read *and* nothing
+  // confirmed. Everything else paints.
+  const showSkeleton = hydrating || unknownYet;
+  const settling = !showSkeleton && summary.pendingFirstSync;
 
   // A ledger import running in the background (see `@/lib/importProgress`): its
   // banner sits above the group list, and when it lands the just-added group
@@ -145,11 +154,11 @@ export default function HomeScreen() {
   const tourStarted = useRef(false);
   useEffect(() => {
     if (tourStarted.current) return;
-    if (tour.ready && !tour.seen && !hydrating && balanceReady) {
+    if (tour.ready && !tour.seen && !showSkeleton && balanceReady) {
       tourStarted.current = true;
       tour.start();
     }
-  }, [tour.ready, tour.seen, tour, hydrating, balanceReady]);
+  }, [tour.ready, tour.seen, tour, showSkeleton, balanceReady]);
 
   // The tour holds the top of the prompt queue for the whole of a first run —
   // from the moment we know it is owed (ready, not seen), through the wait for
@@ -367,7 +376,7 @@ export default function HomeScreen() {
                 there is genuinely no figure to show; a figure that is merely
                 unconfirmed is shown at full strength, with a small spinner beside
                 its label. */}
-          {hydrating || !balanceReady ? (
+          {showSkeleton || !balanceReady ? (
             <HeroBalanceSkeleton />
           ) : (
             <HeroBalance
@@ -457,7 +466,7 @@ export default function HomeScreen() {
               the person tapped Import, came home, and watches it fill. */}
           <ImportProgressBanner />
 
-          {hydrating ? (
+          {showSkeleton ? (
             <SkeletonList rows={3} />
           ) : list.length === 0 ? (
             <View style={{ flex: 1, justifyContent: 'center' }}>

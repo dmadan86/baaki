@@ -475,7 +475,13 @@ export default function ExpenseDetailScreen() {
       <View style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.sm }}>
         <SegmentedTabs
           value={tab}
-          onChange={setTab}
+          // Back to the top on the way in. The two faces are different lengths,
+          // so keeping the offset landed somebody halfway down a history they
+          // had not scrolled, or at the foot of a page they had just opened.
+          onChange={(next) => {
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+            setTab(next);
+          }}
           tabs={[
             {
               value: 'details',
