@@ -51,6 +51,7 @@ import {
   type SettlementSnapshot,
   type SettlementTransitionPayload,
   type Transfer,
+  byNewest,
 } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
@@ -699,7 +700,7 @@ export function useRecentActivity(myProfileId: string | null = null): RecentActi
         actor: row.actor_member_id ? (actors.get(row.actor_member_id) ?? null) : null,
         stake: stakeFor(row, expenseById, myMemberByGroup),
       }))
-      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      .sort(byNewest((row) => String(row.created_at)));
   }, [mirror, myProfileId]);
 }
 
@@ -809,14 +810,14 @@ export function useGroup(groupId: string) {
     }) as unknown as SettlementRow[];
     const activity = (
       rowsFor(mirror, SyncTable.ActivityLog, groupId) as unknown as ActivityRow[]
-    ).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    ).sort(byNewest((row) => String(row.created_at)));
 
     // Server rows, and server rows with the queue replayed on top. Screens want
     // the second; anything checking what the server actually knows wants the
     // first, and conflating them is how a queued expense starts looking real
     // enough to reconcile against.
     const stored = (rowsFor(mirror, SyncTable.Expenses, groupId) as unknown as ExpenseRow[]).sort(
-      (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
+      byNewest((row) => String(row.created_at)),
     );
     const withPending = materialiseExpenses(mirror, queue, {
       groupId,

@@ -1709,6 +1709,27 @@ export interface UiStrings {
     /** "Asha paid ₹1,200" — the row's subtitle, so the total is not lost when
      *  the amount column switches to what the expense did to *your* balance. */
     paidByNameAmount: string;
+    /** Summary line for a bill several people put money into. `{n}` is the
+     *  number of payers. */
+    paidByCount: PluralForms;
+    /** Under a participant who also put money in: what they paid, and their
+     *  share of the bill. `{paid}` and `{share}` are formatted amounts. */
+    paidAndShare: string;
+    /** Resets every payer to an even share of the bill. */
+    splitPaidEvenly: string;
+    /** `{amount}` of the bill is not accounted for by any payer yet. */
+    paidLeftToAssign: string;
+    /** The payers have claimed `{amount}` more than the bill. */
+    paidOverAssigned: string;
+    /** Turns the payer row into a several-people-paid one. */
+    paidBySeveral: string;
+    /** Collapses the payer row back to a single person. */
+    paidByOne: string;
+    /** Asked before a saved several-payer bill is collapsed to one, because the
+     *  other payers' recorded amounts go with it. `{name}` is who is kept. */
+    collapsePayersTitle: string;
+    collapsePayersBody: string;
+    collapsePayersConfirm: string;
     /** The label over an expense row's own effect on your balance: money you put
      *  in beyond your share, and your share of money somebody else put in. */
     youLent: string;
@@ -1757,6 +1778,8 @@ export interface UiStrings {
       date: string;
       location: string;
       payers: string;
+      /** The reader's own side of the bill, in the edit history. */
+      yourShare: string;
       participants: string;
       /** Placeholder for a field that was empty on one side (e.g. no location). */
       none: string;
@@ -3798,6 +3821,17 @@ const en: UiStrings = {
     untitled: 'Untitled',
     paidByName: '{name} paid',
     paidByNameAmount: '{name} paid {amount}',
+    paidByCount: { one: '{n} person paid', other: '{n} people paid' },
+    paidAndShare: 'paid {paid} · share {share}',
+    splitPaidEvenly: 'Split evenly',
+    paidLeftToAssign: '{amount} left to assign',
+    paidOverAssigned: '{amount} too much',
+    paidBySeveral: 'Several people paid',
+    paidByOne: 'One person paid',
+    collapsePayersTitle: 'Collapse to one payer?',
+    collapsePayersBody:
+      '{name} put in the most, so they will be recorded as paying the whole bill. The other payers and their amounts are removed.',
+    collapsePayersConfirm: 'Collapse',
     youLent: 'you lent',
     youBorrowed: 'you borrowed',
     notInvolved: 'not involved',
@@ -3831,6 +3865,7 @@ const en: UiStrings = {
       date: 'Date',
       location: 'Location',
       payers: 'Who paid',
+      yourShare: 'Your share',
       participants: 'People',
       none: 'None',
     },
@@ -5963,6 +5998,17 @@ const ta: UiStrings = {
     untitled: 'பெயரிடப்படாதது',
     paidByName: '{name} கொடுத்தார்',
     paidByNameAmount: '{name} {amount} கொடுத்தார்',
+    paidByCount: { one: '{n} நபர் கொடுத்தார்', other: '{n} பேர் கொடுத்தார்கள்' },
+    paidAndShare: '{paid} கொடுத்தார் · பங்கு {share}',
+    splitPaidEvenly: 'சமமாகப் பிரி',
+    paidLeftToAssign: 'இன்னும் {amount} ஒதுக்க வேண்டும்',
+    paidOverAssigned: '{amount} அதிகம்',
+    paidBySeveral: 'பலர் கொடுத்தார்கள்',
+    paidByOne: 'ஒருவர் கொடுத்தார்',
+    collapsePayersTitle: 'ஒருவர் கொடுத்ததாக மாற்றவா?',
+    collapsePayersBody:
+      '{name} அதிகம் கொடுத்திருக்கிறார், எனவே முழு பில்லையும் அவரே கொடுத்ததாகப் பதிவாகும். மற்ற கொடுத்தவர்களும் அவர்களின் தொகைகளும் நீக்கப்படும்.',
+    collapsePayersConfirm: 'மாற்று',
     youLent: 'நீங்கள் கொடுத்தது',
     youBorrowed: 'நீங்கள் வாங்கியது',
     notInvolved: 'உங்களுக்கு தொடர்பில்லை',
@@ -5997,6 +6043,7 @@ const ta: UiStrings = {
       date: 'தேதி',
       location: 'இடம்',
       payers: 'செலுத்தியவர்',
+      yourShare: 'உங்கள் பங்கு',
       participants: 'நபர்கள்',
       none: 'இல்லை',
     },
@@ -8116,6 +8163,17 @@ const hi: UiStrings = {
     untitled: 'बिना नाम',
     paidByName: '{name} ने भुगतान किया',
     paidByNameAmount: '{name} ने {amount} दिए',
+    paidByCount: { one: '{n} व्यक्ति ने दिया', other: '{n} लोगों ने दिया' },
+    paidAndShare: '{paid} दिए · हिस्सा {share}',
+    splitPaidEvenly: 'बराबर बाँटें',
+    paidLeftToAssign: '{amount} अभी बाँटना बाकी',
+    paidOverAssigned: '{amount} ज़्यादा',
+    paidBySeveral: 'कई लोगों ने दिया',
+    paidByOne: 'एक व्यक्ति ने दिया',
+    collapsePayersTitle: 'एक ही व्यक्ति ने दिया, ऐसा कर दें?',
+    collapsePayersBody:
+      '{name} ने सबसे ज़्यादा दिया है, तो पूरा बिल उन्हीं का दिया हुआ दर्ज होगा। बाक़ी देने वाले और उनकी रकमें हट जाएँगी।',
+    collapsePayersConfirm: 'बदलें',
     youLent: 'आपने दिए',
     youBorrowed: 'आपने लिए',
     notInvolved: 'आप इसमें नहीं',
@@ -8150,6 +8208,7 @@ const hi: UiStrings = {
       date: 'तारीख़',
       location: 'स्थान',
       payers: 'किसने चुकाया',
+      yourShare: 'आपका हिस्सा',
       participants: 'लोग',
       none: 'कोई नहीं',
     },
@@ -10317,6 +10376,17 @@ const ar: UiStrings = {
     untitled: 'بلا عنوان',
     paidByName: 'دفع {name}',
     paidByNameAmount: 'دفع {name} {amount}',
+    paidByCount: { one: 'دفع شخص واحد', other: 'دفع {n} أشخاص' },
+    paidAndShare: 'دفع {paid} · حصته {share}',
+    splitPaidEvenly: 'قسمة بالتساوي',
+    paidLeftToAssign: 'يتبقّى توزيع {amount}',
+    paidOverAssigned: '{amount} زيادة',
+    paidBySeveral: 'دفع عدة أشخاص',
+    paidByOne: 'دفع شخص واحد',
+    collapsePayersTitle: 'تحويلها إلى دافع واحد؟',
+    collapsePayersBody:
+      'دفع {name} أكبر مبلغ، لذلك سيُسجَّل أنه دفع الفاتورة كاملة. وستُحذف بقية الدافعين ومبالغهم.',
+    collapsePayersConfirm: 'تحويل',
     youLent: 'أقرضت',
     youBorrowed: 'اقترضت',
     notInvolved: 'لست ضمنها',
@@ -10364,6 +10434,7 @@ const ar: UiStrings = {
       date: 'التاريخ',
       location: 'الموقع',
       payers: 'من دفع',
+      yourShare: 'حصتك',
       participants: 'الأشخاص',
       none: 'لا شيء',
     },

@@ -17,7 +17,7 @@ import type Ionicons from '@expo/vector-icons/Ionicons';
 
 import { isCurrencyCode } from '@waves/core';
 
-import { actorName, type ActivityRow, type ExpenseVersionRow } from './types';
+import { actorName, type ActivityRow } from './types';
 
 import type { MemberId } from '@waves/core';
 
@@ -59,8 +59,20 @@ export function parseMoney(
  * Shared by the group ledger and both activity feeds, so the coloured figure on
  * an expense row means the same thing wherever it is read.
  */
+/**
+ * The two sides of a bill this function actually reads. Typed structurally so
+ * the expense-history audit rows — a narrower projection of a version, without
+ * split params or notes — can ask the same question the activity feed asks,
+ * rather than the two feeds growing their own copy of "what is my stake" and
+ * drifting apart on the answer.
+ */
+export interface StakeSides {
+  readonly payers: readonly { readonly member_id: string; readonly amount: string }[];
+  readonly shares: readonly { readonly member_id: string; readonly amount: string }[];
+}
+
 export function myStake(
-  version: ExpenseVersionRow | null | undefined,
+  version: StakeSides | null | undefined,
   memberId: MemberId | null,
 ): bigint | null {
   if (!version || !memberId) return null;

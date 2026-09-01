@@ -605,9 +605,15 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
 
     return (
       <View style={{ gap: theme.spacing.sm }}>
-        <Text variant="caption" tone="muted">
-          {t.receipts.title}
-        </Text>
+        {/* The caption labels the thumbnail strip, which has nothing else to say
+            what it is. The empty state does not need it: the tile below already
+            reads "Add receipt" in bigger type, so the heading was the same word
+            twice, stacked. */}
+        {items.length > 0 ? (
+          <Text variant="caption" tone="muted">
+            {t.receipts.title}
+          </Text>
+        ) : null}
         {items.length === 0 ? (
           // No receipt yet (and, per the guard above, the viewer may add one). A
           // lone 96px tile left a wide empty band under it; a full-width row that

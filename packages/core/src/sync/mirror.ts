@@ -42,6 +42,7 @@ import type {
   TagUpsertPayload,
 } from './protocol';
 import type { QueuedMutation } from './queue';
+import { byNewest, byOldest, compareStampsDesc } from '../time/iso';
 
 /** A row as the server sends it: snake_case, amounts as decimal strings. */
 export type MirrorRow = Readonly<Record<string, unknown>>;
@@ -220,7 +221,7 @@ export function overlayPending(
   }
 
   return [...byId.values()].sort((a, b) =>
-    String(b.created_at).localeCompare(String(a.created_at)),
+    compareStampsDesc(String(a.created_at), String(b.created_at)),
   );
 }
 
@@ -440,7 +441,7 @@ export function materialiseSettlements(
   }
 
   return [...byId.values()].sort((a, b) =>
-    String(b.initiated_at).localeCompare(String(a.initiated_at)),
+    compareStampsDesc(String(a.initiated_at), String(b.initiated_at)),
   );
 }
 
@@ -636,7 +637,7 @@ export function materialiseGroups(
 ): MirrorGroup[] {
   return buildGroups(state, queue)
     .filter((group) => !group.archived_at && !group.deleted_at)
-    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    .sort(byNewest((row) => String(row.created_at)));
 }
 
 /**
@@ -665,7 +666,7 @@ export function materialiseArchivedGroups(
 ): MirrorGroup[] {
   return buildGroups(state, queue)
     .filter((group) => Boolean(group.archived_at) && !group.deleted_at)
-    .sort((a, b) => String(b.archived_at ?? '').localeCompare(String(a.archived_at ?? '')));
+    .sort(byNewest((row) => row.archived_at));
 }
 
 // ───────────────────────────────────────────────── captures (A34) ──
@@ -795,7 +796,7 @@ export function materialiseCaptures(
   }
 
   return [...byId.values()].sort((a, b) =>
-    String(b.created_at).localeCompare(String(a.created_at)),
+    compareStampsDesc(String(a.created_at), String(b.created_at)),
   );
 }
 
@@ -1135,7 +1136,7 @@ export function materialiseExpenseAttachments(
 ): MirrorExpenseAttachment[] {
   return (rowsFor(state, SyncTable.ExpenseAttachments) as MirrorExpenseAttachment[])
     .filter((row) => row.expense_id === options.expenseId && row.deleted_at === null)
-    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+    .sort(byNewest((row) => row.created_at));
 }
 
 export interface MirrorExpenseComment extends MirrorRow {
@@ -1160,7 +1161,7 @@ export function materialiseExpenseComments(
 ): MirrorExpenseComment[] {
   return (rowsFor(state, SyncTable.ExpenseComments) as MirrorExpenseComment[])
     .filter((row) => row.expense_id === options.expenseId && row.deleted_at === null)
-    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+    .sort(byOldest((row) => row.created_at));
 }
 
 export interface MirrorExpenseImageEvent extends MirrorRow {
@@ -1185,7 +1186,7 @@ export function materialiseExpenseImageEvents(
 ): MirrorExpenseImageEvent[] {
   return (rowsFor(state, SyncTable.ExpenseImageEvents) as MirrorExpenseImageEvent[])
     .filter((row) => row.expense_id === options.expenseId)
-    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+    .sort(byOldest((row) => row.created_at));
 }
 
 /** The plan to render: what has not been removed. */

@@ -15,8 +15,10 @@
 
 import { useMemo } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { FlashList } from '@shopify/flash-list';
+import { byNewest } from '@waves/core';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import {
   directionalIcon,
@@ -39,6 +41,13 @@ import { expenseTitle } from '@/data/expenseTitle';
 import { displayName, groupLabel, type ExpenseRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { paidBy } from '@/lib/payerLines';
+
+/** One row of the flattened month: the header tile, a day heading, or a bill. */
+type MonthItem =
+  | { kind: 'total'; key: string }
+  | { kind: 'day'; key: string; day: string; total: bigint }
+  | { kind: 'expense'; key: string; expense: ExpenseRow; amount: bigint; isLast: boolean };
 
 /** Sum of this member's shares in a version, in minor units. */
 function myShare(shares: { member_id: string; amount: string }[], memberId: string | null): bigint {
@@ -105,7 +114,7 @@ export default function SpendingMonthScreen() {
       bucket.items.push(row);
       byDay.set(row.day, bucket);
     }
-    return [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+    return [...byDay.entries()].sort(byNewest(([day]) => day));
   }, [rows]);
 
   const total = rows.reduce((sum, row) => sum + row.amount, 0n);
@@ -132,6 +141,126 @@ export default function SpendingMonthScreen() {
     }).format(new Date(Date.UTC(Number(y), Number(m) - 1, Number(d))));
   };
 
+  /**
+   * The month, flattened into one recyclable list.
+   *
+   * It was a ScrollView with a nested `days.map(... bucket.items.map(...))`
+   * inside it, which mounts every expense of the month at once — a busy month on
+   * a shared trip is hundreds of rows, all of them built before the first one is
+   * on screen. FlashList mounts what is visible; the nesting becomes a flat
+   * sequence of typed items so it can recycle each kind against its own pool.
+   */
+  const items: MonthItem[] = useMemo(() => {
+    const list: MonthItem[] = [{ kind: 'total', key: 'total' }];
+    for (const [day, bucket] of days) {
+      list.push({ kind: 'day', key: `day-${day}`, day, total: bucket.total });
+      bucket.items.forEach(({ expense, amount }, index) =>
+        list.push({
+          kind: 'expense',
+          key: expense.id,
+          expense,
+          amount,
+          isLast: index === bucket.items.length - 1,
+        }),
+      );
+    }
+    return list;
+  }, [days]);
+
+  const renderItem = ({ item }: { item: MonthItem }) => {
+    if (item.kind === 'total') {
+      return (
+        <TintCard
+          tint={tintForKey(groupId)}
+          style={{
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            borderRadius: theme.radius.xl,
+            padding: theme.spacing.xl,
+            marginBottom: theme.spacing.xl,
+          }}
+        >
+          <MoneyText amount={total} currency={currency} locale={locale} variant="display" />
+          <Text variant="caption" tone="muted">
+            {plural(locale, rows.length, t.importLedger.expenseCount)}
+          </Text>
+        </TintCard>
+      );
+    }
+
+    if (item.kind === 'day') {
+      return (
+        <Row
+          style={{
+            justifyContent: 'space-between',
+            paddingHorizontal: theme.spacing.xs,
+            paddingTop: theme.spacing.lg,
+            paddingBottom: theme.spacing.sm,
+          }}
+        >
+          <Text variant="subheading">{dayLabel(item.day)}</Text>
+          <MoneyText
+            amount={item.total}
+            currency={currency}
+            locale={locale}
+            variant="caption"
+            tone="muted"
+          />
+        </Row>
+      );
+    }
+
+    const version = item.expense.currentVersion;
+    // Who paid, by the same rule the group ledger uses (paidBy): one person is
+    // named, several are counted. Naming payers[0] put a shared bill entirely
+    // on whoever happened to sort first.
+    const paid = paidBy(version?.payers ?? []);
+    const title = expenseTitle(version?.description, version?.category, t, version?.category_meta);
+    return (
+      <View>
+        <Pressable
+          onPress={() => router.push(`/group/${groupId}/expense/${item.expense.id}`)}
+          accessibilityRole="button"
+          accessibilityLabel={title}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Row
+            style={{
+              gap: theme.spacing.md,
+              alignItems: 'center',
+              paddingVertical: theme.spacing.sm,
+            }}
+          >
+            <CategoryBadge
+              category={version?.category}
+              meta={version?.category_meta}
+              description={version?.description}
+              size={40}
+            />
+            <View style={{ flex: 1 }}>
+              <Text variant="subheading" numberOfLines={1}>
+                {title}
+              </Text>
+              <Text variant="caption" tone="muted" numberOfLines={1}>
+                {paid.kind === 'several'
+                  ? plural(locale, paid.count, t.expense.paidByCount)
+                  : fill(t.expense.paidByName, { name: nameOf(paid.memberId) })}
+              </Text>
+            </View>
+            <MoneyText
+              amount={item.amount}
+              currency={currency}
+              locale={locale}
+              tone="default"
+              style={{ fontWeight: '700' }}
+            />
+          </Row>
+        </Pressable>
+        {!item.isLast ? <View style={{ height: 1, backgroundColor: theme.color.border }} /> : null}
+      </View>
+    );
+  };
+
   return (
     <Screen>
       <Row style={{ paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.md }}>
@@ -154,120 +283,43 @@ export default function SpendingMonthScreen() {
         <View style={{ width: 44 }} />
       </Row>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingTop: theme.spacing.lg,
-          paddingBottom: clearance,
-          gap: theme.spacing.xl,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {expenses.isLoading ? (
-          <View style={{ padding: theme.spacing.xl }}>
-            <ActivityIndicator color={theme.color.brand} />
-          </View>
-        ) : rows.length === 0 ? (
-          <EmptyState title={t.nothingYet} body={t.nothingToChart} />
-        ) : (
-          <>
-            <TintCard
-              tint={tintForKey(groupId)}
-              style={{
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                borderRadius: theme.radius.xl,
-                padding: theme.spacing.xl,
-              }}
-            >
-              <MoneyText amount={total} currency={currency} locale={locale} variant="display" />
-              <Text variant="caption" tone="muted">
-                {plural(locale, rows.length, t.importLedger.expenseCount)}
-              </Text>
-            </TintCard>
-
-            {days.map(([day, bucket]) => (
-              <View key={day} style={{ gap: theme.spacing.md }}>
-                <Row
-                  style={{ justifyContent: 'space-between', paddingHorizontal: theme.spacing.xs }}
-                >
-                  <Text variant="subheading">{dayLabel(day)}</Text>
-                  <MoneyText
-                    amount={bucket.total}
-                    currency={currency}
-                    locale={locale}
-                    variant="caption"
-                    tone="muted"
-                  />
-                </Row>
-
-                <View>
-                  {bucket.items.map(({ expense, amount }, index, arr) => {
-                    const version = expense.currentVersion;
-                    const payer = version?.payers[0]?.member_id ?? null;
-                    const title = expenseTitle(
-                      version?.description,
-                      version?.category,
-                      t,
-                      version?.category_meta,
-                    );
-                    return (
-                      <View key={expense.id}>
-                        <Pressable
-                          onPress={() => router.push(`/group/${groupId}/expense/${expense.id}`)}
-                          accessibilityRole="button"
-                          accessibilityLabel={title}
-                          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-                        >
-                          <Row
-                            style={{
-                              gap: theme.spacing.md,
-                              alignItems: 'center',
-                              paddingVertical: theme.spacing.sm,
-                            }}
-                          >
-                            <CategoryBadge
-                              category={version?.category}
-                              meta={version?.category_meta}
-                              description={version?.description}
-                              size={40}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text variant="subheading" numberOfLines={1}>
-                                {title}
-                              </Text>
-                              <Text variant="caption" tone="muted" numberOfLines={1}>
-                                {fill(t.expense.paidByName, { name: nameOf(payer) })}
-                              </Text>
-                            </View>
-                            <MoneyText
-                              amount={amount}
-                              currency={currency}
-                              locale={locale}
-                              tone="default"
-                              style={{ fontWeight: '700' }}
-                            />
-                          </Row>
-                        </Pressable>
-                        {index < arr.length - 1 ? (
-                          <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-
-            {mine ? (
-              <Text variant="micro" tone="muted" align="center">
+      {expenses.isLoading ? (
+        <View style={{ padding: theme.spacing.xl }}>
+          <ActivityIndicator color={theme.color.brand} />
+        </View>
+      ) : rows.length === 0 ? (
+        <EmptyState title={t.nothingYet} body={t.nothingToChart} />
+      ) : (
+        <FlashList
+          data={items}
+          extraData={locale}
+          keyExtractor={(item) => item.key}
+          getItemType={(item) => item.kind}
+          renderItem={renderItem}
+          // The group ledger's settings: render well beyond the viewport so a
+          // hard fling down a busy month never outruns recycling and flashes
+          // blank rows.
+          drawDistance={1500}
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingTop: theme.spacing.lg,
+            paddingBottom: clearance,
+          }}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            mine ? (
+              <Text
+                variant="micro"
+                tone="muted"
+                align="center"
+                style={{ marginTop: theme.spacing.xl }}
+              >
                 {t.extras.yourShareNote}
               </Text>
-            ) : null}
-          </>
-        )}
-      </ScrollView>
+            ) : null
+          }
+        />
+      )}
     </Screen>
   );
 }

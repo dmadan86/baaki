@@ -60,6 +60,7 @@ import {
 } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { paidBy } from '@/lib/payerLines';
 import { CategoryBadge } from '@/components/Category';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import { GroupHero } from '@/components/GroupHero';
@@ -260,25 +261,27 @@ const ExpenseFeedRow = memo(function ExpenseFeedRow({
   nameOf: (memberId: string | null) => string;
 }) {
   const version = expense.currentVersion;
-  const payer = version?.payers[0]?.member_id ?? null;
   // An imported Splitwise expense can have several payers, so
   // "Asha paid ₹1,200" beside the expense total would put the
   // whole bill on whoever happens to sort first. One payer is
   // named and credited with what they actually put in; several
   // are counted, and the number beside them is the total they
-  // put in between them.
-  const payerCount = version?.payers.length ?? 0;
+  // put in between them. The rule is `paidBy`, shared with the
+  // month drill-down so the two cannot disagree.
+  const paid = paidBy(version?.payers ?? []);
   const paidLine =
     version === null
-      ? fill(t.expense.paidByName, { name: nameOf(payer) })
+      ? fill(t.expense.paidByName, { name: nameOf(null) })
       : fill(t.expense.paidByNameAmount, {
-          name: payerCount > 1 ? plural(locale, payerCount, t.misc.peopleCount) : nameOf(payer),
+          name:
+            paid.kind === 'several'
+              ? plural(locale, paid.count, t.misc.peopleCount)
+              : nameOf(paid.memberId),
           amount: formatParts(
+            // A payerless version still shows the bill's own total rather
+            // than a zero nobody recorded.
             {
-              minor:
-                payerCount > 1
-                  ? BigInt(version.amount)
-                  : BigInt(version.payers[0]?.amount ?? version.amount),
+              minor: paid.amount > 0n ? paid.amount : BigInt(version.amount),
               currency: version.currency,
             },
             { locale },
@@ -914,6 +917,57 @@ export default function GroupScreen() {
           nameOf={nameOf}
           onOpenMenu={() => setMenuOpen(true)}
         />
+        {/* The three faces of the page, pinned between the hero and the list.
+            It used to ride inside `ListHeaderComponent`, which meant scrolling
+            the ledger carried the tab bar off the top of the screen and you had
+            to fling back to the beginning to change tab. Fixed here, the tabs
+            stay under your thumb and only the rows move — which is also what
+            makes switching tabs feel instant rather than like a new page.
+
+            A tab, not a choice on a form, so it wears the underlined tab look
+            rather than the selection pills the rest of the app fills in. */}
+        <View
+          style={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingTop: theme.spacing.md,
+            gap: theme.spacing.sm,
+          }}
+        >
+          <SegmentedTabs<Tab>
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { value: Tab.Expenses, label: t.expenses },
+              { value: Tab.Balances, label: t.balances },
+              { value: Tab.Activity, label: t.activity },
+            ]}
+          />
+
+          {tab === Tab.Expenses && hasDeleted ? (
+            <Row style={{ justifyContent: 'flex-end' }}>
+              {/* A real button, not a text with an onPress: a screen reader hears
+                  a control, and the 44pt floor plus hitSlop makes the caption a
+                  tap target rather than a hairline of text. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showDeleted }}
+                accessibilityLabel={showDeleted ? t.group.hideDeleted : t.group.showDeleted}
+                onPress={() => setShowDeleted((current) => !current)}
+                hitSlop={8}
+                style={({ pressed }) => ({
+                  minHeight: 44,
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Text variant="caption" tone="muted">
+                  {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
+                </Text>
+              </Pressable>
+            </Row>
+          ) : null}
+        </View>
+
         <FlashList
           data={listData}
           extraData={`${tab}|${showDeleted}|${locale}`}
@@ -939,10 +993,15 @@ export default function GroupScreen() {
             />
           }
           ListHeaderComponent={
-            <View style={{ marginBottom: theme.spacing.xl }}>
-              {/* The white body beneath the hero: alerts, shared receipts, pending
-                  settlements, then the three-face tab bar. */}
-              <View style={{ gap: theme.spacing.xl, marginTop: theme.spacing.xl }}>
+            // Alerts, shared receipts and pending settlements — everything that
+            // is about the group rather than about one tab. It scrolls under the
+            // pinned tab bar. The stack used to open on 20pt of top margin plus a
+            // 20pt gap plus each card's own padding, which pushed the first
+            // expense most of a thumb below the tabs on a screen where nothing
+            // was wrong; `sm` is enough to separate the tabs from the rows and
+            // the cards keep their own breathing room.
+            <View style={{ marginBottom: theme.spacing.md }}>
+              <View style={{ gap: theme.spacing.md, marginTop: theme.spacing.sm }}>
                 <OverflowMenu
                   visible={menuOpen}
                   onClose={() => setMenuOpen(false)}
@@ -1106,43 +1165,6 @@ export default function GroupScreen() {
                     />
                   </Card>
                 ))}
-
-                {/* The page has three faces — expenses, balances, activity. This is a
-              tab, not a choice on a form, so it wears the underlined tab look
-              rather than the selection pills the rest of the app fills in. */}
-                <SegmentedTabs<Tab>
-                  value={tab}
-                  onChange={setTab}
-                  tabs={[
-                    { value: Tab.Expenses, label: t.expenses },
-                    { value: Tab.Balances, label: t.balances },
-                    { value: Tab.Activity, label: t.activity },
-                  ]}
-                />
-
-                {tab === Tab.Expenses && hasDeleted ? (
-                  <Row style={{ justifyContent: 'flex-end', marginTop: -theme.spacing.md }}>
-                    {/* A real button, not a text with an onPress: a screen reader now
-                  hears a control, and the 44pt floor plus hitSlop makes the
-                  caption a tap target rather than a hairline of text. */}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded: showDeleted }}
-                      accessibilityLabel={showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-                      onPress={() => setShowDeleted((current) => !current)}
-                      hitSlop={8}
-                      style={({ pressed }) => ({
-                        minHeight: 44,
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.6 : 1,
-                      })}
-                    >
-                      <Text variant="caption" tone="muted">
-                        {showDeleted ? t.group.hideDeleted : t.group.showDeleted}
-                      </Text>
-                    </Pressable>
-                  </Row>
-                ) : null}
               </View>
             </View>
           }
