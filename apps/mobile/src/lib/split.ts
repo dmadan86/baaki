@@ -1,5 +1,5 @@
 /**
- * The numbers somebody types into a shares or percent split.
+ * The numbers somebody types into a shares, percent or exact split.
  *
  * `@waves/core` takes integers — whole weights, and basis points that sum to
  * exactly 10000. A person types text, and text is where the gap is: "33.33" is
@@ -13,10 +13,13 @@
  * ledger that nobody chose.
  */
 
+import { parseMinorInput, type CurrencyCode } from '@waves/core';
+
 export enum SplitKind {
   Equal = 'equal',
   Shares = 'shares',
   Percent = 'percent',
+  Exact = 'exact',
 }
 
 /** What a weighted split kind holds: one line of text per member. */
@@ -96,6 +99,10 @@ export function splitProblem(
   participants: readonly string[],
 ): string | null {
   if (kind === 'equal') return null;
+  // An exact split's complaint is money, and money needs a currency and a total
+  // this function is not given. `exactRemainder` answers it instead, and the
+  // screen turns the figure into a localised sentence.
+  if (kind === 'exact') return null;
   if (participants.length === 0) return null;
 
   for (const id of participants) {
@@ -154,4 +161,52 @@ export function fillEntries(
     filled[id] = formatEntry('percent', basisPoints);
   });
   return filled;
+}
+
+/**
+ * The typed exact amounts, as the minor units `computeShares` takes.
+ *
+ * Unlike shares and percent, an exact split is money — so the text is read with
+ * the same currency-aware parser the amount fields use, and a currency with no
+ * minor unit gets no decimals for free. An empty field is zero: somebody
+ * part-way through, whom {@link exactRemainder} will tell what is still owed.
+ *
+ * Only participants are passed on. Unticking somebody keeps their text, because
+ * throwing away a typed figure on a mis-tap is the kind of loss nobody forgives,
+ * but an amount for a non-participant is rejected downstream.
+ */
+export function exactValues(
+  entries: SplitEntries,
+  participants: readonly string[],
+  currency: string,
+): Record<string, bigint> {
+  const values: Record<string, bigint> = {};
+  for (const id of participants) {
+    values[id] = parseMinorInput(entries[id] ?? '', currency as CurrencyCode);
+  }
+  return values;
+}
+
+/**
+ * What is left to hand out: the bill minus everything typed so far.
+ *
+ * Signed, like the payer side's `delta` — positive is still to assign, negative
+ * is more than the bill. The screen turns it into money and a sentence; this
+ * stays a number so it can be tested without a locale.
+ *
+ * This is the same rule `computeShares` enforces (`EXACT_SUM_MISMATCH`) and the
+ * one the sync function re-checks. Doing it here as well is not a second source
+ * of truth — it is the difference between a sentence under the field and a
+ * rejection that arrives minutes later off the queue.
+ */
+export function exactRemainder(
+  entries: SplitEntries,
+  participants: readonly string[],
+  currency: string,
+  amount: bigint,
+): bigint {
+  const values = exactValues(entries, participants, currency);
+  let assigned = 0n;
+  for (const value of Object.values(values)) assigned += value;
+  return amount - assigned;
 }

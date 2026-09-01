@@ -1678,6 +1678,10 @@ export interface UiStrings {
     equally: string;
     shares: string;
     percent: string;
+    /** The fourth way to split: type each person's amount yourself. */
+    exactly: string;
+    /** The amount field beside one person in an exact split. `{name}` is theirs. */
+    exactShareLabel: string;
     splitBetween: string;
     ofCount: string;
     saveChanges: string;
@@ -1717,9 +1721,11 @@ export interface UiStrings {
     paidAndShare: string;
     /** Resets every payer to an even share of the bill. */
     splitPaidEvenly: string;
-    /** `{amount}` of the bill is not accounted for by any payer yet. */
+    /** `{amount}` of the bill is not accounted for yet — by any payer, or by
+     *  any share in an exact split. The sentence fits both sides. */
     paidLeftToAssign: string;
-    /** The payers have claimed `{amount}` more than the bill. */
+    /** `{amount}` more than the bill has been claimed — by the payers, or by
+     *  the shares of an exact split. */
     paidOverAssigned: string;
     /** Turns the payer row into a several-people-paid one. */
     paidBySeveral: string;
@@ -3798,6 +3804,8 @@ const en: UiStrings = {
       apply: 'Apply',
     },
     equally: 'Equally',
+    exactly: 'Exact',
+    exactShareLabel: "{name}'s share",
     shares: 'Shares',
     percent: 'Percent',
     splitBetween: 'Split between',
@@ -5972,6 +5980,8 @@ const ta: UiStrings = {
       apply: 'பயன்படுத்து',
     },
     equally: 'சமமாக',
+    exactly: 'சரியாக',
+    exactShareLabel: '{name} இன் பங்கு',
     shares: 'பங்குகள்',
     percent: 'சதவீதம்',
     splitBetween: 'யாருக்கிடையே',
@@ -8137,6 +8147,8 @@ const hi: UiStrings = {
       apply: 'लागू करें',
     },
     equally: 'बराबर',
+    exactly: 'सटीक',
+    exactShareLabel: '{name} का हिस्सा',
     shares: 'हिस्से',
     percent: 'प्रतिशत',
     splitBetween: 'किनके बीच',
@@ -10347,6 +10359,8 @@ const ar: UiStrings = {
       apply: 'تطبيق',
     },
     equally: 'بالتساوي',
+    exactly: 'بالضبط',
+    exactShareLabel: 'حصة {name}',
     shares: 'حصص',
     percent: 'نسبة مئوية',
     splitBetween: 'التقسيم بين',
