@@ -1701,9 +1701,32 @@ function segmentExpenses(text: string): string[] {
     .map((piece) => piece.trim())
     .filter(Boolean);
 
+  // A separator only starts a new expense when a *price* follows it: "5 snacks
+  // and 10 tea" is two, but "bread and tea 300" is one bill whose note happens
+  // to contain "and". So an amountless fragment is not its own expense — it is
+  // words belonging to a neighbouring priced one. Fold each into the next priced
+  // fragment (a leading label like "bread and…"); any left over at the end joins
+  // the last priced fragment ("…300 and tax"). A wholly amountless transcript
+  // keeps its single fragment, which the caller then drops for having no amount.
+  const hasAmount = (piece: string): boolean => /\d[\d,]*(?:\.\d+)?/.test(piece);
+  const merged: string[] = [];
+  let pending = '';
+  for (const piece of bySeparator) {
+    if (hasAmount(piece)) {
+      merged.push(pending ? `${pending} ${piece}` : piece);
+      pending = '';
+    } else {
+      pending = pending ? `${pending} ${piece}` : piece;
+    }
+  }
+  if (pending) {
+    if (merged.length > 0) merged[merged.length - 1] = `${merged[merged.length - 1]} ${pending}`;
+    else merged.push(pending);
+  }
+
   const pieces: string[] = [];
   const amountRe = /\d[\d,]*(?:\.\d+)?/g;
-  for (const piece of bySeparator) {
+  for (const piece of merged) {
     // Where each amount starts. One or none leaves the piece whole; several
     // means a run with no separators ("5 snacks 10 tea"), cut just before every
     // amount after the first so each amount keeps the words that follow it. The

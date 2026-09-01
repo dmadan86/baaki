@@ -512,6 +512,35 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items.every((item) => item.currency === 'INR')).toBe(true);
   });
 
+  it('keeps "and" inside one item together when only one price follows', () => {
+    // "bread and tea 300" is one bill, not two — the amountless "bread" is words
+    // of the priced item, not its own expense. Regression: it used to split on
+    // "and" and drop the half with no amount, leaving only "tea".
+    const result = parseVoiceExpenses('bread and tea 300', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(300);
+    expect(result.items[0].note).toBe('bread tea');
+  });
+
+  it('folds a leading label across "and" into the price that follows', () => {
+    const result = parseVoiceExpenses('add expense 300 bread and tea', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].note).toBe('bread tea');
+  });
+
+  it('attaches a trailing amountless fragment to the last priced item', () => {
+    const result = parseVoiceExpenses('coffee 50 and tax', groups);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(50);
+    expect(result.items[0].note).toBe('coffee tax');
+  });
+
+  it('still splits a genuine priced list on "and"', () => {
+    const result = parseVoiceExpenses('5 snacks and 10 tea', groups);
+    expect(result.items.map((item) => item.amountMajor)).toEqual([5, 10]);
+    expect(result.items.map((item) => item.note)).toEqual(['snacks', 'tea']);
+  });
+
   it('keeps a lone expense working, with its named group', () => {
     const result = parseVoiceExpenses('add 500 rupees for dinner on the Goa trip', groups);
     expect(result.items).toHaveLength(1);
