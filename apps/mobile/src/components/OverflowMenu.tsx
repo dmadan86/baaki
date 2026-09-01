@@ -2,19 +2,46 @@
  * The header's overflow menu — the three-dot dropdown, WhatsApp-style.
  *
  * A translucent scrim over the app catches the tap-away, and a small rounded
- * card drops from the top-right corner with a short list of destinations. Each
- * row dismisses the menu and then routes, so the menu is never left open behind
- * the screen it opened.
+ * card grows out of the top-right corner — the ⋮ it opened from — with a short
+ * list of destinations. Each row dismisses the menu and then routes, so the
+ * menu is never left open behind the screen it opened.
+ *
+ * The open is the motion WhatsApp uses: the card scales up from ~0.9 anchored at
+ * its top-right corner (`transformOrigin`) while it fades, so it reads as
+ * unfolding from the button rather than a whole panel blinking on. The scrim
+ * only fades. The card is held mounted through the close by a local latch, so
+ * the same motion plays in reverse on dismiss instead of the card vanishing the
+ * instant `visible` flips — `Modal`'s own `animationType` would unmount its
+ * children too soon for an exit to be seen. Reduced motion keeps the fade and
+ * drops the scale.
  */
 
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, type Href } from 'expo-router';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { iconSize, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
+import { useReducedMotion } from '@/lib/reducedMotion';
+
+/** The corner-grow timings: a touch longer to open than to close, the usual
+    asymmetry that makes an entrance feel arriving and a dismiss feel prompt. */
+const OPEN_MS = 180;
+const CLOSE_MS = 130;
+/** How small the card starts — a grow from the corner, not a pop from nothing. */
+const START_SCALE = 0.9;
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface OverflowMenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -45,6 +72,43 @@ export function OverflowMenu({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useStrings();
+  const reduceMotion = useReducedMotion();
+
+  // The latch: stays mounted from the moment `visible` goes true until the close
+  // motion has finished playing, so the card animates out rather than blinking
+  // away. `progress` drives both the scrim's opacity and the card's scale+fade;
+  // 1 is fully open, 0 fully closed.
+  const [mounted, setMounted] = useState(visible);
+  const progress = useSharedValue(visible ? 1 : 0);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      progress.set(
+        reduceMotion
+          ? withTiming(1, { duration: 0 })
+          : withTiming(1, { duration: OPEN_MS, easing: Easing.out(Easing.cubic) }),
+      );
+    } else if (mounted) {
+      // Play the close, then drop the modal — the runOnJS hop is what lets the
+      // exit be seen before the tree unmounts.
+      progress.set(
+        withTiming(
+          0,
+          { duration: reduceMotion ? 0 : CLOSE_MS, easing: Easing.in(Easing.cubic) },
+          (finished) => {
+            if (finished) runOnJS(setMounted)(false);
+          },
+        ),
+      );
+    }
+  }, [visible, mounted, reduceMotion, progress]);
+
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: progress.get(),
+    transform: [{ scale: reduceMotion ? 1 : START_SCALE + (1 - START_SCALE) * progress.get() }],
+  }));
 
   const activate = (item: OverflowMenuItem): void => {
     onClose();
@@ -52,19 +116,22 @@ export function OverflowMenu({
     else if (item.route) router.push(item.route);
   };
 
+  if (!mounted) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
       {/* The scrim: a full-screen catcher so a tap anywhere off the card closes
           the menu. Kept barely tinted — the point is to dismiss, not to dim. It
           carries a label so a screen reader announces "Close" rather than a bare
-          unnamed button covering the whole screen. */}
-      <Pressable
+          unnamed button covering the whole screen. Its own fade rides `progress`
+          rather than the Modal's, so scrim and card open and close together. */}
+      <AnimatedPressable
         onPress={onClose}
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' }}
+        style={[{ flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' }, scrimStyle]}
         accessibilityRole="button"
         accessibilityLabel={t.common.close}
       >
-        <View
+        <Animated.View
           // Marks the dropdown as the modal layer so a screen reader confines
           // itself to the menu while it is open, instead of reading the screen
           // behind the scrim.
@@ -75,14 +142,22 @@ export function OverflowMenu({
           // highlight follows the rounded corner instead of poking a square
           // through it (`overflow: 'hidden'` would eat the shadow if they shared
           // a layer, so they do not).
-          style={{
-            position: 'absolute',
-            top: insets.top + 56,
-            right: theme.spacing.xl,
-            minWidth: 220,
-            borderRadius: theme.radius.lg,
-            ...theme.shadow.lifted,
-          }}
+          //
+          // `transformOrigin` top-right pins the scale to the corner nearest the
+          // ⋮, so the card unfolds from the button rather than growing about its
+          // own middle.
+          style={[
+            {
+              position: 'absolute',
+              top: insets.top + 56,
+              right: theme.spacing.xl,
+              minWidth: 220,
+              borderRadius: theme.radius.lg,
+              transformOrigin: 'top right',
+              ...theme.shadow.lifted,
+            },
+            cardStyle,
+          ]}
         >
           <View
             style={{
@@ -145,8 +220,8 @@ export function OverflowMenu({
               );
             })}
           </View>
-        </View>
-      </Pressable>
+        </Animated.View>
+      </AnimatedPressable>
     </Modal>
   );
 }
