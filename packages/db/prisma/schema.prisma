@@ -226,6 +226,17 @@ model Group {
   /// `baaki_set_category_budget`.
   categoryBudgets Json?   @map("category_budgets")
 
+  /// The trip's pinned exchange rates, as a JSON map keyed by the currency paid
+  /// in: `{ "<from>": { num, den, ts, source } }`, each converting to this
+  /// group's `default_currency`. So a Vietnam trip settling in INR carries
+  /// `{ "VND": { num, den, … } }` and every member's VND bill starts from it.
+  /// Group-visible and admin-set like the budgets — one shared rate is a group
+  /// signal — so it lives on the group row, not its own table. NULL / absent is
+  /// "no pinned rates". Written only via `baaki_set_group_fx_rate`; a person's
+  /// own card rate and a per-bill override live off the group (device-local and
+  /// on `expense_versions.fx` respectively).
+  fxRates         Json?   @map("fx_rates")
+
   /// When the trip is. Both ends inclusive — the last day of a trip is the one
   /// with the most unrecorded spending on it.
   startDate       DateTime? @map("start_date") @db.Date

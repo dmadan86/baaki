@@ -80,7 +80,9 @@ type MutationKind =
   | 'member_budget.set'
   | 'member_budget.clear'
   | 'group_budget.set'
-  | 'category_budget.set';
+  | 'category_budget.set'
+  // The trip's shared exchange rate — group-scoped, admin-gated in its RPC.
+  | 'group_fx_rate.set';
 
 /** True for the kinds whose scope is a user, not a group. */
 function isPersonalKind(kind: MutationKind): boolean {
@@ -567,6 +569,17 @@ export class SyncSession {
           p_category: mutation.payload.category as string,
           p_amount_minor: (mutation.payload.amountMinor as string | null) ?? null,
           p_currency: (mutation.payload.currency as string | undefined) ?? null,
+        });
+      case 'group_fx_rate.set':
+        // Admin-gated inside the RPC, like the budgets; a null ratio clears that
+        // currency's entry. The rate is passed as the two integers the client
+        // computed — never a decimal (ADR-003).
+        return await this.rpcAsCaller('baaki_set_group_fx_rate', {
+          p_group_id: mutation.groupId,
+          p_from: mutation.payload.from as string,
+          p_num: (mutation.payload.num as string | null) ?? null,
+          p_den: (mutation.payload.den as string | null) ?? null,
+          p_source: (mutation.payload.source as string | undefined) ?? 'manual',
         });
       default:
         throw new HttpError(

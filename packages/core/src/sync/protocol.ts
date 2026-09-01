@@ -54,6 +54,10 @@ export enum MutationKind {
   MemberBudgetClear = 'member_budget.clear',
   GroupBudgetSet = 'group_budget.set',
   CategoryBudgetSet = 'category_budget.set',
+  // The trip's shared exchange rate for one currency, in the group row's
+  // `fx_rates` map. Admin-gated in its RPC like the budgets; a null ratio clears
+  // that currency's entry.
+  GroupFxRateSet = 'group_fx_rate.set',
   // Personal-scope kinds for the private personal-finance ledger (A48): solo
   // expenses/income, recurring rules, loans and monthly budgets. Like captures
   // they ride a personal scope, under their own suffixed cursor
@@ -290,6 +294,21 @@ export interface CategoryBudgetSetPayload {
   readonly category: string;
   readonly amountMinor: string | null;
   readonly currency?: CurrencyCode | null;
+}
+
+/**
+ * The trip's pinned rate for one currency in the group's `fx_rates` map, keyed
+ * by the currency paid in (`from`); the `to` is always the group's settle
+ * currency, so it is not carried. A null `num`/`den` clears that currency's
+ * entry. The rate is the exact rational the client already computed — never a
+ * decimal (ADR-003). Admin-only, like the budgets: one shared rate is a group
+ * signal, never private.
+ */
+export interface GroupFxRateSetPayload {
+  readonly from: CurrencyCode;
+  readonly num: string | null;
+  readonly den: string | null;
+  readonly source?: string;
 }
 
 /** The four kinds of row the personal-finance ledger holds (A48). */
