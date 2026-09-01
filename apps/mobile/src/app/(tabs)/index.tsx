@@ -7,7 +7,6 @@ import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Animated,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -25,8 +24,10 @@ import {
   Gradient,
   iconSize,
   MoneyText,
+  Popup,
   Row,
   Screen,
+  Sheet,
   Skeleton,
   Text,
   useTabBarClearance,
@@ -910,20 +911,6 @@ function GuestPopup({
   const granted = usePromptSlot({ id: 'guest', priority: 40, active: wants, delayMs: 300 });
   const visible = wants && granted;
 
-  // A gentle scale-and-fade in, the way the reference presents this card. RN
-  // Animated (not reanimated) since this file already drives its counters with
-  // it. Held in state (lazy init) rather than a ref so the value is not read
-  // through `.current` during render.
-  const [opacity] = useState(() => new Animated.Value(0));
-  const [scale] = useState(() => new Animated.Value(0.92));
-  useEffect(() => {
-    if (!visible) return;
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, friction: 7, useNativeDriver: true }),
-    ]).start();
-  }, [visible, opacity, scale]);
-
   if (!visible) return null;
 
   const expired = gate?.expired ?? false;
@@ -934,31 +921,12 @@ function GuestPopup({
       : t.tabs.guestBannerBody;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#00000080',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xxxl,
-        }}
-      >
-        <Animated.View
-          style={[
-            {
-              width: '100%',
-              maxWidth: 360,
-              backgroundColor: theme.color.surface,
-              borderRadius: theme.radius.lg,
-              padding: theme.spacing.xxl,
-              alignItems: 'center',
-              gap: theme.spacing.lg,
-              ...theme.shadow.lifted,
-            },
-            { opacity, transform: [{ scale }] },
-          ]}
-        >
+    <Popup
+      visible
+      onClose={dismiss}
+      closeLabel={t.entry.notifyNotNow}
+      style={{ maxWidth: 360, alignItems: 'center', gap: theme.spacing.lg }}
+    >
           <View
             style={{
               width: 72,
@@ -995,9 +963,7 @@ function GuestPopup({
               onPress={dismiss}
             />
           </View>
-        </Animated.View>
-      </View>
-    </Modal>
+    </Popup>
   );
 }
 
@@ -1026,10 +992,6 @@ const TIP_DELAY_MS = 1400;
  */
 function TipSheet({ t }: { t: UiStrings }) {
   const theme = useTheme();
-  // A Modal renders above the tab navigator, so the tab-bar clearance does not
-  // apply here — the sheet has to clear the device's own bottom inset (the
-  // Android nav bar / gesture pill) itself, or the button sits under it.
-  const insets = useSafeAreaInsets();
   const { tip } = useDashboardTips(t);
 
   // The day the sheet was last shown, read once on mount — the same shape the
@@ -1090,50 +1052,18 @@ function TipSheet({ t }: { t: UiStrings }) {
     close();
   };
 
-  // The Modal stays mounted and is driven by `visible` — toggling a freshly
-  // mounted Modal's `visible` to true a beat after first render did not present
-  // reliably on Android, which is why an earlier version stamped the day but
-  // never appeared. With `tip` still loading there is nothing to show yet.
+  // Presented through the shared Sheet, which mounts fresh with visible=true
+  // (never the mount-false-then-toggle that failed to present on Android). Gated
+  // on `tip` so an empty sheet never slides up before the day's tip is chosen.
   return (
-    <Modal transparent animationType="fade" visible={open} onRequestClose={close}>
+    <Sheet
+      visible={open && Boolean(tip)}
+      onClose={close}
+      closeLabel={t.common.close}
+      style={{ paddingHorizontal: theme.spacing.xxl, paddingTop: theme.spacing.xl, gap: theme.spacing.lg }}
+    >
       {tip ? (
-        /* Tap outside to close — the same escape the campaign popup gives. */
-        <Pressable
-          onPress={close}
-          accessibilityLabel={t.common.close}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(10, 10, 26, 0.55)',
-            justifyContent: 'flex-end',
-          }}
-        >
-          {/* Swallows the tap so pressing the sheet itself does not dismiss it. A
-            bottom sheet, not a centred dialog: it slides up from the bar the tip
-            is about, and leaves the balance above it in view. */}
-          <Pressable
-            onPress={() => {}}
-            style={{
-              backgroundColor: theme.color.surface,
-              borderTopLeftRadius: theme.radius.xxl,
-              borderTopRightRadius: theme.radius.xxl,
-              paddingHorizontal: theme.spacing.xxl,
-              paddingTop: theme.spacing.xl,
-              paddingBottom: theme.spacing.xxl + insets.bottom,
-              gap: theme.spacing.lg,
-              ...theme.shadow.lifted,
-            }}
-          >
-            {/* A grab handle — the visual grammar of a sheet you can pull down. */}
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: theme.color.border,
-              }}
-            />
-
+        <>
             <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
               <View
                 style={{
@@ -1174,10 +1104,9 @@ function TipSheet({ t }: { t: UiStrings }) {
                 <Button label={t.misc.gotIt} size="lg" fullWidth onPress={close} />
               )}
             </View>
-          </Pressable>
-        </Pressable>
+        </>
       ) : null}
-    </Modal>
+    </Sheet>
   );
 }
 

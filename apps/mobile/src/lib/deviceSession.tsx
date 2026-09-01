@@ -27,10 +27,10 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { AppState, Modal, Pressable, View } from 'react-native';
+import { AppState, View } from 'react-native';
 
 import { type DeviceLimitStatus } from '@waves/core';
-import { Button, Text, useTheme } from '@waves/ui';
+import { Button, Popup, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { registerDevice, signOutOtherDevices } from '@/data/api';
@@ -187,27 +187,8 @@ function DeviceLimitGate({
   const [busy, setBusy] = useState(false);
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={onDismiss}>
-      <Pressable
-        onPress={onDismiss}
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(20,20,43,0.45)',
-          justifyContent: 'center',
-          padding: theme.spacing.xl,
-        }}
-      >
-        <Pressable
-          onPress={() => {}}
-          style={{
-            backgroundColor: theme.color.surface,
-            borderRadius: theme.radius.xl,
-            padding: theme.spacing.xl,
-            gap: theme.spacing.lg,
-            ...theme.shadow.lifted,
-          }}
-        >
-          <Text variant="heading">{t.devices.gateTitle}</Text>
+    <Popup visible onClose={onDismiss} closeLabel={t.devices.gateDismiss} style={{ gap: theme.spacing.lg }}>
+      <Text variant="heading">{t.devices.gateTitle}</Text>
           <Text variant="body" tone="muted">
             {t.devices.gateBody}
           </Text>
@@ -229,8 +210,6 @@ function DeviceLimitGate({
             />
             <Button label={t.devices.gateDismiss} variant="secondary" onPress={onDismiss} />
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </Popup>
   );
 }

@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Alert, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import {
   encodeBudget,
@@ -27,6 +27,7 @@ import {
   iconSize,
   Row,
   Screen,
+  Sheet,
   SegmentedTabs,
   Text,
   useScreenClearance,
@@ -208,16 +209,7 @@ function BudgetEditor({
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-        <View
-          style={{
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            maxHeight: '90%',
-          }}
-        >
+    <Sheet visible onClose={onClose} padded={false} style={{ maxHeight: '90%' }}>
           <ScrollView
             contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
             keyboardShouldPersistTaps="handled"
@@ -281,8 +273,6 @@ function BudgetEditor({
               />
             ) : null}
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </Sheet>
   );
 }

@@ -20,9 +20,9 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Modal, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { iconSize, Text, useTheme } from '@waves/ui';
+import { iconSize, Popup, Text, useTheme } from '@waves/ui';
 
 import { isRtlLanguage, LANGUAGE_NAMES, LANGUAGES, useStrings } from '@/i18n';
 import { useLanguage } from '@/i18n/language';
@@ -71,30 +71,12 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
         </Text>
       ) : null}
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        {/* Backdrop closes; the card swallows its own taps so a miss inside the
-            menu does not dismiss it. */}
-        <Pressable
-          onPress={() => setOpen(false)}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(15, 10, 40, 0.4)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: theme.spacing.xxxl,
-          }}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 340,
-              backgroundColor: theme.color.surface,
-              borderRadius: theme.radius.xl,
-              paddingVertical: theme.spacing.sm,
-              ...theme.shadow.lifted,
-            }}
-          >
+      <Popup
+        visible={open}
+        onClose={() => setOpen(false)}
+        closeLabel={t.common.close}
+        style={{ maxWidth: 340, padding: 0, paddingVertical: theme.spacing.sm }}
+      >
             <Text
               variant="caption"
               tone="faint"
@@ -144,9 +126,7 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
                 </Pressable>
               );
             })}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </Popup>
     </View>
   );
 }

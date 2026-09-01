@@ -9,7 +9,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   encodeLoan,
@@ -30,6 +30,7 @@ import {
   iconSize,
   Row,
   Screen,
+  Sheet,
   SegmentedTabs,
   Text,
   useScreenClearance,
@@ -233,16 +234,7 @@ function LoanEditor({
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-        <View
-          style={{
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            maxHeight: '90%',
-          }}
-        >
+    <Sheet visible onClose={onClose} padded={false} style={{ maxHeight: '90%' }}>
           <ScrollView
             contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
             keyboardShouldPersistTaps="handled"
@@ -371,8 +363,6 @@ function LoanEditor({
               />
             ) : null}
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </Sheet>
   );
 }

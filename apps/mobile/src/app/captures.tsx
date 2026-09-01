@@ -16,14 +16,12 @@ import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import {
   Alert,
-  Modal,
   Pressable,
   RefreshControl,
   TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   Avatar,
@@ -36,6 +34,7 @@ import {
   MoneyText,
   Row,
   Screen,
+  Sheet,
   Text,
   tintForKey,
   useTabBarClearance,
@@ -500,7 +499,6 @@ export default function CapturesScreen() {
   const theme = useTheme();
   const { height } = useWindowDimensions();
   const clearance = useTabBarClearance();
-  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const pull = usePullRefresh();
   const { profile } = useAuth();
@@ -895,53 +893,13 @@ export default function CapturesScreen() {
           is rendered at the root over the whole stack, so an in-tree overlay
           paints *under* it and the sheet's lower rows hide behind the nav bar.
           A Modal floats above everything, the way the other sheets do. */}
-      <Modal
-        transparent
+      <Sheet
         visible={assigning !== null}
-        animationType="fade"
-        onRequestClose={closeAssign}
+        onClose={closeAssign}
+        padded={false}
+        closeLabel={t.common.close}
+        style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.md, maxHeight: '80%' }}
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.common.close}
-          onPress={closeAssign}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(10, 10, 26, 0.55)',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Pressable
-            // Swallow taps on the sheet itself; only the backdrop dismisses.
-            onPress={() => {}}
-            accessibilityViewIsModal
-            style={{
-              backgroundColor: theme.color.surface,
-              borderTopLeftRadius: theme.radius.xxl,
-              borderTopRightRadius: theme.radius.xxl,
-              paddingHorizontal: theme.spacing.xl,
-              paddingTop: theme.spacing.md,
-              // Clear the Android gesture/nav bar so the last group row is not
-              // hidden behind it.
-              paddingBottom: theme.spacing.md + insets.bottom,
-              gap: theme.spacing.md,
-              maxHeight: '80%',
-              ...theme.shadow.lifted,
-            }}
-          >
-            {/* The grab handle — the visual grammar of a sheet you can pull down,
-                the same one every other sheet in the app wears. */}
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: theme.color.border,
-                marginBottom: theme.spacing.xs,
-              }}
-            />
-
             <Text variant="heading">{t.captures.assignTitle}</Text>
 
             {/* What is being placed, so the sheet stands on its own over the
@@ -1081,51 +1039,20 @@ export default function CapturesScreen() {
                 }
               />
             </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </Sheet>
 
       {/* The row's ⋯ overflow, as a small sheet: the actions that are not "add to
           group" (the card's own tap) plus a labelled way to reach it, so the one
           thing a person does with a capture is spelled out and delete no longer
           rides on every row. A real Modal for the same reason the assign sheet is
           one — an in-tree overlay would paint under the root tab bar. */}
-      <Modal transparent visible={menu !== null} animationType="fade" onRequestClose={closeMenu}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.common.close}
-          onPress={closeMenu}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(10, 10, 26, 0.55)',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Pressable
-            onPress={() => {}}
-            accessibilityViewIsModal
-            style={{
-              backgroundColor: theme.color.surface,
-              borderTopLeftRadius: theme.radius.xxl,
-              borderTopRightRadius: theme.radius.xxl,
-              paddingHorizontal: theme.spacing.xl,
-              paddingTop: theme.spacing.md,
-              paddingBottom: theme.spacing.md + insets.bottom,
-              gap: theme.spacing.xs,
-              ...theme.shadow.lifted,
-            }}
-          >
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: theme.color.border,
-                marginBottom: theme.spacing.sm,
-              }}
-            />
-
+      <Sheet
+        visible={menu !== null}
+        onClose={closeMenu}
+        padded={false}
+        closeLabel={t.common.close}
+        style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.xs }}
+      >
             {menu?.kind === 'capture' ? (
               <>
                 <Text
@@ -1192,9 +1119,7 @@ export default function CapturesScreen() {
                 />
               </>
             ) : null}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </Sheet>
     </Screen>
   );
 }
