@@ -262,6 +262,31 @@ describe('stopping', () => {
     expect(mic.state).toBe('idle');
   });
 
+  it('makes the next capture wait when a stopped session unmounts before end', async () => {
+    const first = Symbol('first');
+    await mic.acquire(first);
+    mic.opened(first);
+    mic.stop(first);
+
+    mic.release(first);
+    expect(driver.stop).toHaveBeenCalledTimes(1);
+    expect(driver.abort).toHaveBeenCalledTimes(1);
+    expect(mic.state).toBe('closing');
+
+    const second = Symbol('second');
+    let claimed: boolean | null = null;
+    void mic.acquire(second).then((granted) => {
+      claimed = granted;
+    });
+    await Promise.resolve();
+    expect(claimed).toBeNull();
+
+    expect(mic.ended()).toBe(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(claimed).toBe(true);
+    expect(mic.owns(second)).toBe(true);
+  });
+
   it('settles a stop the recogniser never answers', async () => {
     const owner = Symbol('owner');
     await mic.acquire(owner);
