@@ -38,6 +38,7 @@ export function ExpenseHero({
   onPressCurrency,
   right,
   leading = 'back',
+  autoFocusAmount = false,
 }: {
   /** The one line above the amount: what this form is, and where it lands. */
   title: string;
@@ -53,6 +54,9 @@ export function ExpenseHero({
   right?: ReactNode;
   /** A modal (capture) dismisses with an X; a pushed page goes back. */
   leading?: 'close' | 'back';
+  /** Focus the amount and raise the keyboard on mount — set when the screen was
+   *  opened to change the amount (tapping the total on the expense screen). */
+  autoFocusAmount?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -108,6 +112,8 @@ export function ExpenseHero({
               onChange={onAmountChange}
               size="hero"
               tone="onBrand"
+              framed
+              autoFocus={autoFocusAmount}
             />
             <Pressable
               accessibilityRole="button"
@@ -124,9 +130,12 @@ export function ExpenseHero({
                 paddingVertical: theme.spacing.xs,
                 paddingHorizontal: theme.spacing.md,
                 borderRadius: theme.radius.pill,
-                // A translucent white chip rather than a surface colour: the wash
-                // runs three stops, and a solid pill would only match one of them.
-                backgroundColor: 'rgba(255,255,255,0.18)',
+                // A ghost outline, not a filled chip: now that the amount wears
+                // the well, a solid pill beside it drew the eye to the currency
+                // instead of the number. A hairline ring keeps it a real, legible
+                // control without out-competing the field it annotates.
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.45)',
                 opacity: pressed ? 0.7 : 1,
               })}
             >

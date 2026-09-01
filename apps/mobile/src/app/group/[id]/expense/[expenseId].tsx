@@ -328,8 +328,13 @@ export default function ExpenseDetailScreen() {
     ]);
   };
 
-  const openEditor = (): void => {
-    router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}`);
+  const openEditor = (focus?: 'amount'): void => {
+    // "Fix the number" is the most common reason a bill is reopened, so tapping
+    // the amount carries a focus hint that lands straight in the field with the
+    // keyboard up — no hunting for the pencil, then noticing the number is a
+    // field, then tapping it.
+    const suffix = focus ? `&focus=${focus}` : '';
+    router.push(`/group/${groupId}/add-expense?expenseId=${expense.id}${suffix}`);
   };
 
   // What is left in the header's three-dot menu once Edit has its own glyph
@@ -422,14 +427,35 @@ export default function ExpenseDetailScreen() {
             {/* The amount kept in the hero, but at heading — not display — scale:
                   still the prominent number, no longer the reason the panel is
                   tall. Neutral white, never a money colour — it is a total, not a
-                  balance. */}
-            <MoneyText
-              amount={BigInt(version.amount)}
-              currency={currency}
-              locale={locale}
-              variant="title"
-              style={{ color: theme.color.onBrand }}
-            />
+                  balance. On a live bill the number is the door to editing it:
+                  tapping it opens the editor with the amount already focused, the
+                  one-tap path for the change a bill is most often reopened for.
+                  A deleted bill cannot be edited, so there it is plain text. */}
+            {deleted ? (
+              <MoneyText
+                amount={BigInt(version.amount)}
+                currency={currency}
+                locale={locale}
+                variant="title"
+                style={{ color: theme.color.onBrand }}
+              />
+            ) : (
+              <Pressable
+                onPress={() => openEditor('amount')}
+                accessibilityRole="button"
+                accessibilityLabel={`${t.common.edit}: ${format(money(BigInt(version.amount), currency), { locale })}`}
+                hitSlop={8}
+                style={({ pressed }) => ({ alignSelf: 'flex-start', opacity: pressed ? 0.6 : 1 })}
+              >
+                <MoneyText
+                  amount={BigInt(version.amount)}
+                  currency={currency}
+                  locale={locale}
+                  variant="title"
+                  style={{ color: theme.color.onBrand }}
+                />
+              </Pressable>
+            )}
           </View>
           {/* Edit, in the open. It was the first item of the three-dot menu, which
                 made the one action a bill is reopened for something you had to
@@ -438,7 +464,7 @@ export default function ExpenseDetailScreen() {
                 deleted bill: there is nothing to edit until it is restored. */}
           {deleted ? null : (
             <Pressable
-              onPress={openEditor}
+              onPress={() => openEditor()}
               accessibilityRole="button"
               accessibilityLabel={t.common.edit}
               hitSlop={10}

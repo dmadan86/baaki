@@ -330,6 +330,7 @@ export default function AddExpenseScreen() {
     categoryMeta: captureCategoryMeta,
     location: captureLocation,
     expenseDate: captureExpenseDate,
+    focus,
   } = useLocalSearchParams<{
     id: string;
     expenseId?: string;
@@ -348,6 +349,9 @@ export default function AddExpenseScreen() {
      *  assigned expense (A43). Absent when the capture had no location. */
     location?: string;
     expenseDate?: string;
+    /** 'amount' when the editor was opened by tapping the total on the expense
+     *  screen — the amount field takes focus and raises the keyboard on arrival. */
+    focus?: string;
   }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
@@ -1539,6 +1543,9 @@ export default function AddExpenseScreen() {
           amount={amount}
           onAmountChange={setAmount}
           onPressCurrency={() => setPickingCurrency(true)}
+          // Opened by tapping the total on the expense screen: land in the amount
+          // field with the keyboard already up.
+          autoFocusAmount={focus === 'amount'}
         />
         <ScrollView
           style={{ flex: 1 }}
