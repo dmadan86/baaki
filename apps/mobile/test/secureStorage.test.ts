@@ -48,6 +48,17 @@ beforeEach(() => {
 });
 
 describe('secureAuthStorage', () => {
+  it('stores an exact chunk-sized session as a single secure part', async () => {
+    const value = 'x'.repeat(1800);
+
+    await secureAuthStorage.setItem('session', value);
+
+    expect(secure.data.get('session.pn')).toBe('1');
+    expect(secure.data.get('session.p0')).toBe(value);
+    expect(secure.data.has('session.p1')).toBe(false);
+    await expect(secureAuthStorage.getItem('session')).resolves.toBe(value);
+  });
+
   it('chunks large sessions into device-only SecureStore entries', async () => {
     const value = 'x'.repeat(4000);
 
@@ -76,6 +87,17 @@ describe('secureAuthStorage', () => {
   it('treats a torn chunk write as no session', async () => {
     secure.data.set('session.pn', '2');
     secure.data.set('session.p0', 'first');
+
+    await expect(secureAuthStorage.getItem('session')).resolves.toBeNull();
+  });
+
+  it('treats corrupt chunk counts as no session', async () => {
+    secure.data.set('session.pn', '0');
+    secure.data.set('session.p0', 'ignored');
+
+    await expect(secureAuthStorage.getItem('session')).resolves.toBeNull();
+
+    secure.data.set('session.pn', 'not-a-number');
 
     await expect(secureAuthStorage.getItem('session')).resolves.toBeNull();
   });
