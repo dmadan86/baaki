@@ -115,7 +115,13 @@ function diffVersions(
   // colour cannot drift from the row that announced the edit.
   const oldStake = myStake(prev, myMemberId);
   const newStake = myStake(cur, myMemberId);
-  if ((oldStake ?? 0n) !== (newStake ?? 0n)) {
+  // The currency counts as a change to your stake for the same reason it counts
+  // as a change to the amount: ₹500 becoming $500 is not the same stake, and
+  // comparing minor units alone would call it one. It only counts for somebody
+  // who has a stake, though — `myStake` returns null for a viewer the bill does
+  // not involve, and a re-denomination must not hand them a "your share 0 → 0".
+  const involved = oldStake !== null || newStake !== null;
+  if ((oldStake ?? 0n) !== (newStake ?? 0n) || (involved && prev.currency !== cur.currency)) {
     changes.push({
       key: 'stake',
       label: t.expense.audit.yourShare,

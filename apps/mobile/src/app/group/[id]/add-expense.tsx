@@ -1359,9 +1359,15 @@ export default function AddExpenseScreen() {
       ? // Several people put money in — the names would not fit and the amounts
         // are right below anyway, so the summary counts them.
         plural(locale, payers.size, t.expense.paidByCount)
-      : payerMember
-        ? t.expense.paidByName.replace('{name}', displayName(payerMember, profile?.id))
-        : t.expense.youPaid;
+      : solePayer !== null && solePayer === myMemberId
+        ? t.expense.youPaid
+        : // Somebody else paid. `members` excludes anyone who has left the group,
+          // so a bill paid by a departed member resolves to nothing here — and
+          // falling through to "You paid" claimed their bill for the reader.
+          t.expense.paidByName.replace(
+            '{name}',
+            payerMember ? displayName(payerMember, profile?.id) : t.misc.someone,
+          );
   const splitTail =
     presetLabel ??
     (isDefaultSplit

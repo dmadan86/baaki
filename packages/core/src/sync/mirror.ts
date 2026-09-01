@@ -220,8 +220,8 @@ export function overlayPending(
     applyPending(byId, mutation, options);
   }
 
-  return [...byId.values()].sort(
-    (a, b) => compareStampsDesc(String(a.created_at), String(b.created_at)),
+  return [...byId.values()].sort((a, b) =>
+    compareStampsDesc(String(a.created_at), String(b.created_at)),
   );
 }
 
@@ -440,8 +440,8 @@ export function materialiseSettlements(
     }
   }
 
-  return [...byId.values()].sort(
-    (a, b) => compareStampsDesc(String(a.initiated_at), String(b.initiated_at)),
+  return [...byId.values()].sort((a, b) =>
+    compareStampsDesc(String(a.initiated_at), String(b.initiated_at)),
   );
 }
 
@@ -795,8 +795,8 @@ export function materialiseCaptures(
     }
   }
 
-  return [...byId.values()].sort(
-    (a, b) => compareStampsDesc(String(a.created_at), String(b.created_at)),
+  return [...byId.values()].sort((a, b) =>
+    compareStampsDesc(String(a.created_at), String(b.created_at)),
   );
 }
 
