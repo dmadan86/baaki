@@ -16,9 +16,9 @@
 import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Modal, View } from 'react-native';
+import { View } from 'react-native';
 
-import { Button, Text, useTheme } from '@waves/ui';
+import { Button, Popup, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -91,83 +91,65 @@ export function NotificationPrompt() {
   if (!visible || !granted) return null;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
+    <Popup
+      visible
+      onClose={dismiss}
+      closeLabel={t.entry.notifyNotNow}
+      style={{ maxWidth: 360, alignItems: 'center', gap: theme.spacing.lg }}
+    >
+      {/* The brand tile with a notification badge — the reference's own way
+              of saying, wordlessly, what the ask is about. */}
       <View
         style={{
-          flex: 1,
-          backgroundColor: '#00000080',
+          width: 72,
+          height: 72,
+          borderRadius: 18,
+          backgroundColor: theme.color.brand,
           alignItems: 'center',
           justifyContent: 'center',
-          padding: theme.spacing.xxxl,
         }}
       >
+        <Ionicons name="notifications" size={38} color={theme.color.onBrand} />
         <View
           style={{
-            width: '100%',
-            maxWidth: 360,
-            backgroundColor: theme.color.surface,
-            borderRadius: theme.radius.lg,
-            padding: theme.spacing.xxl,
-            alignItems: 'center',
-            gap: theme.spacing.lg,
-            ...theme.shadow.lifted,
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: theme.color.negative,
+            borderWidth: 2,
+            borderColor: theme.color.surface,
           }}
-        >
-          {/* The brand tile with a notification badge — the reference's own way
-              of saying, wordlessly, what the ask is about. */}
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 18,
-              backgroundColor: theme.color.brand,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="notifications" size={38} color={theme.color.onBrand} />
-            <View
-              style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                backgroundColor: theme.color.negative,
-                borderWidth: 2,
-                borderColor: theme.color.surface,
-              }}
-            />
-          </View>
-
-          <View style={{ gap: theme.spacing.sm }}>
-            <Text variant="heading" align="center">
-              {t.entry.notifyTitle}
-            </Text>
-            <Text variant="body" tone="muted" align="center">
-              {t.entry.notifyBody}
-            </Text>
-          </View>
-
-          <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
-            <Button
-              label={t.entry.notifyEnable}
-              size="lg"
-              fullWidth
-              disabled={busy}
-              onPress={() => void onEnable()}
-            />
-            <Button
-              label={t.entry.notifyNotNow}
-              variant="ghost"
-              size="lg"
-              fullWidth
-              onPress={dismiss}
-            />
-          </View>
-        </View>
+        />
       </View>
-    </Modal>
+
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="heading" align="center">
+          {t.entry.notifyTitle}
+        </Text>
+        <Text variant="body" tone="muted" align="center">
+          {t.entry.notifyBody}
+        </Text>
+      </View>
+
+      <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
+        <Button
+          label={t.entry.notifyEnable}
+          size="lg"
+          fullWidth
+          disabled={busy}
+          onPress={() => void onEnable()}
+        />
+        <Button
+          label={t.entry.notifyNotNow}
+          variant="ghost"
+          size="lg"
+          fullWidth
+          onPress={dismiss}
+        />
+      </View>
+    </Popup>
   );
 }

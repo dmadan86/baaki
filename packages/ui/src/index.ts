@@ -26,5 +26,6 @@ export * from './components/PillTabBar';
 export * from './components/SegmentedTabs';
 export * from './components/AmountKeypad';
 export * from './components/AmountField';
+export * from './components/Overlay';
 export * from './components/Chart';
 export * from './direction';

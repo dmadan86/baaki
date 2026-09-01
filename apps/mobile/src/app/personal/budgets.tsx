@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Alert, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import {
   encodeBudget,
@@ -27,6 +27,7 @@ import {
   iconSize,
   Row,
   Screen,
+  Sheet,
   SegmentedTabs,
   Text,
   useScreenClearance,
@@ -208,81 +209,64 @@ function BudgetEditor({
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-        <View
-          style={{
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            maxHeight: '90%',
-          }}
-        >
-          <ScrollView
-            contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text variant="heading">{budget ? t.personal.editBudget : t.personal.addBudget}</Text>
-              <IconButton label={t.common.close} onPress={onClose}>
-                <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-              </IconButton>
-            </Row>
+    <Sheet visible onClose={onClose} padded={false} style={{ maxHeight: '90%' }}>
+      <ScrollView
+        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text variant="heading">{budget ? t.personal.editBudget : t.personal.addBudget}</Text>
+          <IconButton label={t.common.close} onPress={onClose}>
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+          </IconButton>
+        </Row>
 
-            <SegmentedTabs
-              value={scope}
-              onChange={setScope}
-              tabs={[
-                { value: 'overall', label: t.personal.overall },
-                { value: 'category', label: t.personal.category },
-              ]}
+        <SegmentedTabs
+          value={scope}
+          onChange={setScope}
+          tabs={[
+            { value: 'overall', label: t.personal.overall },
+            { value: 'category', label: t.personal.category },
+          ]}
+        />
+
+        {scope === 'category' ? (
+          <CategoryPicker value={category} onChange={(picked) => setCategory(picked)} />
+        ) : null}
+
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="caption" tone="muted">
+            {t.personal.monthlyLimit}
+          </Text>
+          <View style={{ alignItems: 'center', paddingVertical: theme.spacing.md }}>
+            <AmountField
+              currency={budget?.currency ?? currency}
+              value={limit}
+              onChange={setLimit}
             />
-
-            {scope === 'category' ? (
-              <CategoryPicker value={category} onChange={(picked) => setCategory(picked)} />
-            ) : null}
-
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
-                {t.personal.monthlyLimit}
-              </Text>
-              <View style={{ alignItems: 'center', paddingVertical: theme.spacing.md }}>
-                <AmountField
-                  currency={budget?.currency ?? currency}
-                  value={limit}
-                  onChange={setLimit}
-                />
-              </View>
-            </View>
-
-            <Button
-              label={t.personal.save}
-              size="lg"
-              fullWidth
-              onPress={onSave}
-              disabled={!canSave}
-            />
-
-            {budget ? (
-              <Button
-                label={t.common.delete}
-                variant="danger"
-                fullWidth
-                onPress={() =>
-                  Alert.alert(t.common.delete, t.personal.deleteConfirm, [
-                    { text: t.common.cancel, style: 'cancel' },
-                    {
-                      text: t.common.delete,
-                      style: 'destructive',
-                      onPress: () => remove.mutate(budget.id, { onSuccess: onClose }),
-                    },
-                  ])
-                }
-              />
-            ) : null}
-          </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
+
+        <Button label={t.personal.save} size="lg" fullWidth onPress={onSave} disabled={!canSave} />
+
+        {budget ? (
+          <Button
+            label={t.common.delete}
+            variant="danger"
+            fullWidth
+            onPress={() =>
+              Alert.alert(t.common.delete, t.personal.deleteConfirm, [
+                { text: t.common.cancel, style: 'cancel' },
+                {
+                  text: t.common.delete,
+                  style: 'destructive',
+                  onPress: () => remove.mutate(budget.id, { onSuccess: onClose }),
+                },
+              ])
+            }
+          />
+        ) : null}
+      </ScrollView>
+    </Sheet>
   );
 }

@@ -24,8 +24,7 @@ import { randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
-import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   importSplitwiseCsv,
@@ -50,6 +49,7 @@ import {
   Row,
   Screen,
   SectionHeader,
+  Sheet,
   Text,
   useTabBarClearance,
   useTheme,
@@ -134,7 +134,6 @@ export default function ImportScreen() {
   // jammed under the bar. `useTabBarClearance` is the bar-aware room the other
   // settings screens use; a token more on top gives the footer CTA its breath.
   const clearance = useTabBarClearance() + theme.spacing.xl;
-  const insets = useSafeAreaInsets();
   const { t, locale } = useStrings();
   const reduceMotion = useReducedMotion();
   const groups = useGroups();
@@ -778,72 +777,44 @@ export default function ImportScreen() {
       {/* How it works, on tap of the header's help glyph — a bottom sheet that
           walks through the two file types and what does and does not come
           across, plus that it can be done with no connection. */}
-      <Modal
-        transparent
-        animationType="fade"
+      <Sheet
         visible={helpOpen}
-        onRequestClose={() => setHelpOpen(false)}
+        onClose={() => setHelpOpen(false)}
+        padded={false}
+        closeLabel={t.common.close}
+        style={{
+          paddingHorizontal: theme.spacing.xxl,
+          paddingTop: theme.spacing.xl,
+          gap: theme.spacing.lg,
+        }}
       >
-        <Pressable
-          onPress={() => setHelpOpen(false)}
-          accessibilityLabel={t.common.close}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(10, 10, 26, 0.55)',
-            justifyContent: 'flex-end',
-          }}
+        <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+          <Ionicons name="help-circle-outline" size={iconSize.xl} color={theme.color.brand} />
+          <Text variant="title">{t.importLedger.helpTitle}</Text>
+        </Row>
+        <ScrollView
+          style={{ maxHeight: 340 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ gap: theme.spacing.md }}
         >
-          {/* Swallows the tap so pressing the sheet does not dismiss it. */}
-          <Pressable
-            onPress={() => {}}
-            style={{
-              backgroundColor: theme.color.surface,
-              borderTopLeftRadius: theme.radius.xxl,
-              borderTopRightRadius: theme.radius.xxl,
-              paddingHorizontal: theme.spacing.xxl,
-              paddingTop: theme.spacing.xl,
-              paddingBottom: theme.spacing.xxl + insets.bottom,
-              gap: theme.spacing.lg,
-            }}
-          >
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: theme.color.border,
-              }}
-            />
-            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-              <Ionicons name="help-circle-outline" size={iconSize.xl} color={theme.color.brand} />
-              <Text variant="title">{t.importLedger.helpTitle}</Text>
-            </Row>
-            <ScrollView
-              style={{ maxHeight: 340 }}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ gap: theme.spacing.md }}
-            >
-              <Text variant="body" tone="muted">
-                {t.importLedger.ledgerHowTo}
-              </Text>
-              <Divider />
-              <Text variant="caption" tone="muted">
-                {t.importLedger.fromSplitwiseNote}
-              </Text>
-              <Text variant="caption" tone="muted">
-                {t.importLedger.fromBaakiNote}
-              </Text>
-              <Divider />
-              {/* Offline: parked and run on reconnect (see `@/lib/importProgress`). */}
-              <Text variant="caption" tone="muted">
-                {t.importLedger.helpOffline}
-              </Text>
-            </ScrollView>
-            <Button label={t.misc.gotIt} fullWidth onPress={() => setHelpOpen(false)} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+          <Text variant="body" tone="muted">
+            {t.importLedger.ledgerHowTo}
+          </Text>
+          <Divider />
+          <Text variant="caption" tone="muted">
+            {t.importLedger.fromSplitwiseNote}
+          </Text>
+          <Text variant="caption" tone="muted">
+            {t.importLedger.fromBaakiNote}
+          </Text>
+          <Divider />
+          {/* Offline: parked and run on reconnect (see `@/lib/importProgress`). */}
+          <Text variant="caption" tone="muted">
+            {t.importLedger.helpOffline}
+          </Text>
+        </ScrollView>
+        <Button label={t.misc.gotIt} fullWidth onPress={() => setHelpOpen(false)} />
+      </Sheet>
     </Screen>
   );
 }

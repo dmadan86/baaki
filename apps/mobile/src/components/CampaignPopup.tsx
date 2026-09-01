@@ -16,10 +16,10 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Modal, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
-import { Button, Text, useTheme } from '@waves/ui';
+import { Button, Popup, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
@@ -98,72 +98,44 @@ export function CampaignPopup() {
   };
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={close}>
-      {/* Tapping outside closes it. An announcement that traps somebody is an
-          advertisement, and this is not one. */}
-      <Pressable
-        onPress={close}
-        accessibilityLabel={t.common.close}
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(10, 10, 26, 0.55)',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xxl,
-        }}
-      >
-        {/* Swallows the tap so pressing the card itself does not dismiss it. */}
+    <Popup visible onClose={close} closeLabel={t.common.close} style={{ gap: theme.spacing.md }}>
+      <Text variant="title">{campaign.title}</Text>
+      {campaign.body ? (
+        <Text variant="body" tone="muted">
+          {campaign.body}
+        </Text>
+      ) : null}
+
+      {campaign.promo_code ? (
         <Pressable
-          onPress={() => {}}
+          onPress={() => void act()}
+          accessibilityRole="button"
+          accessibilityLabel={t.misc.tapToCopy}
           style={{
-            width: '100%',
-            maxWidth: 380,
-            backgroundColor: theme.color.surface,
-            borderRadius: theme.radius.xl,
-            padding: theme.spacing.xxl,
-            gap: theme.spacing.md,
-            ...theme.shadow.lifted,
+            backgroundColor: theme.color.buttonPrimary,
+            borderRadius: theme.radius.md,
+            paddingVertical: theme.spacing.md,
+            alignItems: 'center',
           }}
         >
-          <Text variant="title">{campaign.title}</Text>
-          {campaign.body ? (
-            <Text variant="body" tone="muted">
-              {campaign.body}
-            </Text>
-          ) : null}
-
-          {campaign.promo_code ? (
-            <Pressable
-              onPress={() => void act()}
-              accessibilityRole="button"
-              accessibilityLabel={t.misc.tapToCopy}
-              style={{
-                backgroundColor: theme.color.buttonPrimary,
-                borderRadius: theme.radius.md,
-                paddingVertical: theme.spacing.md,
-                alignItems: 'center',
-              }}
-            >
-              <Text variant="heading" tone="onBrand">
-                {campaign.promo_code}
-              </Text>
-              <Text variant="micro" tone="onBrand">
-                {copied ? t.misc.copied : t.misc.tapToCopy}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.sm }}>
-            <Button
-              label={campaign.cta_label || t.misc.gotIt}
-              size="lg"
-              fullWidth
-              onPress={() => void act()}
-            />
-            <Button label={t.misc.notNow} variant="secondary" size="sm" fullWidth onPress={close} />
-          </View>
+          <Text variant="heading" tone="onBrand">
+            {campaign.promo_code}
+          </Text>
+          <Text variant="micro" tone="onBrand">
+            {copied ? t.misc.copied : t.misc.tapToCopy}
+          </Text>
         </Pressable>
-      </Pressable>
-    </Modal>
+      ) : null}
+
+      <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.sm }}>
+        <Button
+          label={campaign.cta_label || t.misc.gotIt}
+          size="lg"
+          fullWidth
+          onPress={() => void act()}
+        />
+        <Button label={t.misc.notNow} variant="secondary" size="sm" fullWidth onPress={close} />
+      </View>
+    </Popup>
   );
 }

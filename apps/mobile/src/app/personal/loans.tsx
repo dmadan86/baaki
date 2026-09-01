@@ -9,7 +9,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { Alert, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   encodeLoan,
@@ -30,6 +30,7 @@ import {
   iconSize,
   Row,
   Screen,
+  Sheet,
   SegmentedTabs,
   Text,
   useScreenClearance,
@@ -233,146 +234,129 @@ function LoanEditor({
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-        <View
+    <Sheet visible onClose={onClose} padded={false} style={{ maxHeight: '90%' }}>
+      <ScrollView
+        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text variant="heading">{loan ? t.personal.editLoan : t.personal.addLoan}</Text>
+          <IconButton label={t.common.close} onPress={onClose}>
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+          </IconButton>
+        </Row>
+
+        <SegmentedTabs
+          value={direction}
+          onChange={setDirection}
+          tabs={[
+            { value: 'borrowed', label: t.personal.borrowed },
+            { value: 'lent', label: t.personal.lent },
+          ]}
+        />
+
+        <View style={{ alignItems: 'center', paddingVertical: theme.spacing.md }}>
+          <AmountField
+            currency={loan?.currency ?? currency}
+            value={principal}
+            onChange={setPrincipal}
+          />
+        </View>
+
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="caption" tone="muted">
+            {t.personal.counterpart}
+          </Text>
+          <TextInput
+            value={counterpart}
+            onChangeText={setCounterpart}
+            placeholder={t.personal.counterpartPlaceholder}
+            placeholderTextColor={theme.color.textFaint}
+            style={{
+              fontSize: 16,
+              color: theme.color.text,
+              paddingVertical: theme.spacing.md,
+              paddingHorizontal: theme.spacing.lg,
+              backgroundColor: theme.color.surfaceMuted,
+              borderRadius: theme.radius.md,
+            }}
+          />
+        </View>
+
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          placeholder={t.personal.notePlaceholder}
+          placeholderTextColor={theme.color.textFaint}
           style={{
-            backgroundColor: theme.color.surface,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            maxHeight: '90%',
+            fontSize: 16,
+            color: theme.color.text,
+            paddingVertical: theme.spacing.md,
+            paddingHorizontal: theme.spacing.lg,
+            backgroundColor: theme.color.surfaceMuted,
+            borderRadius: theme.radius.md,
+          }}
+        />
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowDate(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: theme.spacing.md,
+            paddingHorizontal: theme.spacing.lg,
+            backgroundColor: theme.color.surfaceMuted,
+            borderRadius: theme.radius.md,
           }}
         >
-          <ScrollView
-            contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text variant="heading">{loan ? t.personal.editLoan : t.personal.addLoan}</Text>
-              <IconButton label={t.common.close} onPress={onClose}>
-                <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-              </IconButton>
-            </Row>
+          <Text variant="body">{startDate}</Text>
+          <Ionicons name="calendar-outline" size={iconSize.md} color={theme.color.textMuted} />
+        </Pressable>
+        {showDate ? (
+          <DateTimePicker
+            value={new Date(`${startDate}T00:00:00`)}
+            mode="date"
+            onChange={(event, picked) => {
+              if (Platform.OS !== 'ios') setShowDate(false);
+              if (event.type === 'set' && picked) setStartDate(localIsoDate(picked));
+            }}
+          />
+        ) : null}
 
-            <SegmentedTabs
-              value={direction}
-              onChange={setDirection}
-              tabs={[
-                { value: 'borrowed', label: t.personal.borrowed },
-                { value: 'lent', label: t.personal.lent },
-              ]}
-            />
-
-            <View style={{ alignItems: 'center', paddingVertical: theme.spacing.md }}>
-              <AmountField
-                currency={loan?.currency ?? currency}
-                value={principal}
-                onChange={setPrincipal}
-              />
-            </View>
-
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
-                {t.personal.counterpart}
-              </Text>
-              <TextInput
-                value={counterpart}
-                onChangeText={setCounterpart}
-                placeholder={t.personal.counterpartPlaceholder}
-                placeholderTextColor={theme.color.textFaint}
-                style={{
-                  fontSize: 16,
-                  color: theme.color.text,
-                  paddingVertical: theme.spacing.md,
-                  paddingHorizontal: theme.spacing.lg,
-                  backgroundColor: theme.color.surfaceMuted,
-                  borderRadius: theme.radius.md,
-                }}
-              />
-            </View>
-
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder={t.personal.notePlaceholder}
-              placeholderTextColor={theme.color.textFaint}
-              style={{
-                fontSize: 16,
-                color: theme.color.text,
-                paddingVertical: theme.spacing.md,
-                paddingHorizontal: theme.spacing.lg,
-                backgroundColor: theme.color.surfaceMuted,
-                borderRadius: theme.radius.md,
-              }}
-            />
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setShowDate(true)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: theme.spacing.md,
-                paddingHorizontal: theme.spacing.lg,
-                backgroundColor: theme.color.surfaceMuted,
-                borderRadius: theme.radius.md,
-              }}
-            >
-              <Text variant="body">{startDate}</Text>
-              <Ionicons name="calendar-outline" size={iconSize.md} color={theme.color.textMuted} />
-            </Pressable>
-            {showDate ? (
-              <DateTimePicker
-                value={new Date(`${startDate}T00:00:00`)}
-                mode="date"
-                onChange={(event, picked) => {
-                  if (Platform.OS !== 'ios') setShowDate(false);
-                  if (event.type === 'set' && picked) setStartDate(localIsoDate(picked));
-                }}
-              />
-            ) : null}
-
-            {loan ? (
-              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text variant="body">{t.personal.closeLoan}</Text>
-                <Button
-                  label={closed ? t.personal.reopenLoan : t.personal.closeLoan}
-                  size="sm"
-                  variant="secondary"
-                  onPress={() => setClosed((prev) => !prev)}
-                />
-              </Row>
-            ) : null}
-
+        {loan ? (
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text variant="body">{t.personal.closeLoan}</Text>
             <Button
-              label={t.personal.save}
-              size="lg"
-              fullWidth
-              onPress={onSave}
-              disabled={!canSave}
+              label={closed ? t.personal.reopenLoan : t.personal.closeLoan}
+              size="sm"
+              variant="secondary"
+              onPress={() => setClosed((prev) => !prev)}
             />
+          </Row>
+        ) : null}
 
-            {loan ? (
-              <Button
-                label={t.common.delete}
-                variant="danger"
-                fullWidth
-                onPress={() =>
-                  Alert.alert(t.common.delete, t.personal.deleteConfirm, [
-                    { text: t.common.cancel, style: 'cancel' },
-                    {
-                      text: t.common.delete,
-                      style: 'destructive',
-                      onPress: () => remove.mutate(loan.id, { onSuccess: onClose }),
-                    },
-                  ])
-                }
-              />
-            ) : null}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+        <Button label={t.personal.save} size="lg" fullWidth onPress={onSave} disabled={!canSave} />
+
+        {loan ? (
+          <Button
+            label={t.common.delete}
+            variant="danger"
+            fullWidth
+            onPress={() =>
+              Alert.alert(t.common.delete, t.personal.deleteConfirm, [
+                { text: t.common.cancel, style: 'cancel' },
+                {
+                  text: t.common.delete,
+                  style: 'destructive',
+                  onPress: () => remove.mutate(loan.id, { onSuccess: onClose }),
+                },
+              ])
+            }
+          />
+        ) : null}
+      </ScrollView>
+    </Sheet>
   );
 }
