@@ -184,6 +184,54 @@ const SETTLEMENT_SELECT = `
   allocations:settlement_allocations ( expense_id, amount )
 `;
 
+/**
+ * How many groups one pull works on at a time.
+ *
+ * Each group fires its child-table reads together, so a wave costs
+ * `GROUP_CONCURRENCY × GROUP_TABLES.length` in-flight PostgREST requests. Four
+ * keeps that comfortably inside the pooler for a member of many groups while
+ * still collapsing the serial walk that used to dominate a first sync.
+ */
+const GROUP_CONCURRENCY = 4;
+
+/**
+ * Every group-scoped table one pull walks, with the shape each is read in.
+ *
+ * Hoisted out of the loop it used to be declared inside so the reads can be
+ * fired as one batch — and so this list is somewhere findable when a table is
+ * added, rather than buried mid-function.
+ */
+const GROUP_TABLES = [
+  // profiles is embedded by the explicit FK column: ghost_merges references
+  // both group_members and profiles, so PostgREST otherwise sees two
+  // group_members↔profiles relationships and refuses to guess.
+  ['group_members', '*, profile:profiles!profile_id ( id, display_name, avatar_url, default_vpa )'],
+  ['expenses', EXPENSE_SELECT],
+  ['settlements', SETTLEMENT_SELECT],
+  ['activity_log', '*'],
+  // Trip plan + budgets (A23). Flat rows, no embeds. Read as the caller, so a
+  // co-member's private budget is filtered by RLS and simply not returned.
+  ['trip_plan_items', '*'],
+  ['trip_member_budgets', '*'],
+  // Trip album (shared photos). Flat rows, no embeds; a removal arrives as a
+  // deleted_at tombstone the client mirror filters out.
+  // Private attachments (party-only). Read AS THE CALLER, so the party RLS
+  // filters non-parties at the sync boundary — a non-party's response simply
+  // omits these rows, and the bytes are never in any row (only a path, itself
+  // gated a second time at r2-sign). No restricted path is ever added to
+  // SETTLEMENT_SELECT / EXPENSE_SELECT — that would ship the key to everyone.
+  ['settlement_proofs', '*'],
+  ['expense_attachments', '*'],
+  // Expense comment threads — group-visible, read as the caller (is_group_member
+  // RLS). Tombstones (deleted_at set) ride the pull so a delete propagates.
+  ['expense_comments', '*'],
+  // Expense image audit — who added/removed a receipt or attachment. Read AS
+  // THE CALLER: a `parties` row is RLS-filtered exactly like the attachment
+  // it describes, so a non-party never receives the line. Append-only, no
+  // tombstone.
+  ['expense_image_events', '*'],
+] as const;
+
 serveWithCors(async (request) => {
   try {
     if (request.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST');
@@ -1023,19 +1071,40 @@ async function pull(
   const pfScope = `${profileId}:personal`;
   groupIds.delete(pfScope);
 
-  for (const groupId of groupIds) {
-    const since = cursors[groupId] ?? 0;
+  // Every group's own row in one query rather than one lookup per group. The
+  // per-group `maybeSingle` was the first of twelve serial round trips each
+  // group cost, and twelve of anything serial is what made a five-group first
+  // sync take seconds.
+  const groupList = [...groupIds];
+  const groupRows = new Map<string, Record<string, unknown>>();
+  if (groupList.length > 0) {
+    const { data, error } = await caller.from('groups').select('*').in('id', groupList);
+    if (error) throw new HttpError(500, 'INTERNAL', error.message);
+    for (const row of data ?? []) {
+      const record = row as Record<string, unknown>;
+      groupRows.set(String(record.id), record);
+    }
+  }
 
-    const { data: group, error: groupError } = await caller
-      .from('groups')
-      .select('*')
-      .eq('id', groupId)
-      .maybeSingle();
-    if (groupError) throw new HttpError(500, 'INTERNAL', groupError.message);
+  /**
+   * One group's slice of the pull: its own row, then every child table.
+   *
+   * The child reads are independent — different tables, one shared `since`, no
+   * ordering between them — so they go out together and the group costs one
+   * round trip instead of eleven. `Promise.all` keeps the old failure semantics
+   * exactly: the first rejection propagates and the whole pull fails, because a
+   * failed read must never look like "nothing changed".
+   */
+  const pullGroup = async (
+    groupId: string,
+  ): Promise<{ changes: SyncChange[]; cursor: number; truncated: boolean } | null> => {
+    const since = cursors[groupId] ?? 0;
+    const group = groupRows.get(groupId);
     // Left the group, or never was in it: nothing to say, and no cursor either.
-    if (!group) continue;
+    if (!group) return null;
 
     const highWater = Number(group.updated_seq ?? 0);
+    const groupChanges: SyncChange[] = [];
 
     // The group's cursor covers every child table below, and may only advance to
     // a seq under which ALL of them have been fully delivered. A table capped at
@@ -1046,60 +1115,38 @@ async function pull(
     // joining a group with >500 expenses synced only the first page and lost the
     // rest. Starts at highWater and is dragged down by any truncated table.
     let groupCursor = highWater;
+    let truncated = false;
 
     if (highWater > since) {
-      changes.push({ table: 'groups', groupId, seq: highWater, row: group });
+      groupChanges.push({ table: 'groups', groupId, seq: highWater, row: group });
     }
 
-    for (const [table, select] of [
-      // profiles is embedded by the explicit FK column: ghost_merges references
-      // both group_members and profiles, so PostgREST otherwise sees two
-      // group_members↔profiles relationships and refuses to guess.
-      [
-        'group_members',
-        '*, profile:profiles!profile_id ( id, display_name, avatar_url, default_vpa )',
-      ],
-      ['expenses', EXPENSE_SELECT],
-      ['settlements', SETTLEMENT_SELECT],
-      ['activity_log', '*'],
-      // Trip plan + budgets (A23). Flat rows, no embeds. Read as the caller, so a
-      // co-member's private budget is filtered by RLS and simply not returned.
-      ['trip_plan_items', '*'],
-      ['trip_member_budgets', '*'],
-      // Trip album (shared photos). Flat rows, no embeds; a removal arrives as a
-      // deleted_at tombstone the client mirror filters out.
-      // Private attachments (party-only). Read AS THE CALLER, so the party RLS
-      // filters non-parties at the sync boundary — a non-party's response simply
-      // omits these rows, and the bytes are never in any row (only a path, itself
-      // gated a second time at r2-sign). No restricted path is ever added to
-      // SETTLEMENT_SELECT / EXPENSE_SELECT — that would ship the key to everyone.
-      ['settlement_proofs', '*'],
-      ['expense_attachments', '*'],
-      // Expense comment threads — group-visible, read as the caller (is_group_member
-      // RLS). Tombstones (deleted_at set) ride the pull so a delete propagates.
-      ['expense_comments', '*'],
-      // Expense image audit — who added/removed a receipt or attachment. Read AS
-      // THE CALLER: a `parties` row is RLS-filtered exactly like the attachment
-      // it describes, so a non-party never receives the line. Append-only, no
-      // tombstone.
-      ['expense_image_events', '*'],
-    ] as const) {
-      const { data, error } = await caller
-        .from(table)
-        .select(select)
-        .eq('group_id', groupId)
-        .gt('updated_seq', since)
-        .order('updated_seq', { ascending: true })
-        .limit(MAX_ROWS_PER_TABLE);
+    const pages = await Promise.all(
+      GROUP_TABLES.map(async ([table, select]) => {
+        const { data, error } = await caller
+          .from(table)
+          .select(select)
+          .eq('group_id', groupId)
+          .gt('updated_seq', since)
+          .order('updated_seq', { ascending: true })
+          .limit(MAX_ROWS_PER_TABLE);
 
-      // A failed read must never look like "nothing changed" — that is how a
-      // client silently ends up with half a ledger.
-      if (error) throw new HttpError(500, 'PULL_FAILED', `${table}: ${error.message}`);
+        // A failed read must never look like "nothing changed" — that is how a
+        // client silently ends up with half a ledger.
+        if (error) throw new HttpError(500, 'PULL_FAILED', `${table}: ${error.message}`);
+        return { table, rows: data ?? [] };
+      }),
+    );
 
-      const rows = data ?? [];
+    for (const { table, rows } of pages) {
       for (const row of rows) {
         const record = row as Record<string, unknown>;
-        changes.push({ table, groupId, seq: Number(record.updated_seq ?? 0), row: record });
+        groupChanges.push({
+          table,
+          groupId,
+          seq: Number(record.updated_seq ?? 0),
+          row: record,
+        });
       }
       if (rows.length === MAX_ROWS_PER_TABLE) {
         // Truncated page: rows ordered by ascending updated_seq, so the last one
@@ -1107,113 +1154,91 @@ async function pull(
         // it in this table has been sent yet.
         const lastSeq = Number((rows[rows.length - 1] as Record<string, unknown>).updated_seq ?? 0);
         if (lastSeq < groupCursor) groupCursor = lastSeq;
-        hasMore = true;
+        truncated = true;
       }
     }
 
-    nextCursors[groupId] = groupCursor;
-  }
+    return { changes: groupChanges, cursor: groupCursor, truncated };
+  };
 
-  // Personal scope (A34): the caller's own captures, keyed by their user id.
-  // Read as the caller, so owner-only RLS already guarantees these are theirs —
-  // the same safety property the group reads above rely on. A user is never a
-  // member of a group whose id equals their own, so the key cannot collide.
-  const meSince = cursors[profileId] ?? 0;
-  const { data: captures, error: capturesError } = await caller
-    .from('captures')
-    .select('*')
-    .eq('owner_user_id', profileId)
-    .gt('updated_seq', meSince)
-    .order('updated_seq', { ascending: true })
-    .limit(MAX_ROWS_PER_TABLE);
-  if (capturesError) throw new HttpError(500, 'PULL_FAILED', `captures: ${capturesError.message}`);
-
-  let capturesHighWater = meSince;
-  for (const row of captures ?? []) {
-    const record = row as Record<string, unknown>;
-    const seq = Number(record.updated_seq ?? 0);
-    changes.push({ table: 'captures', groupId: profileId, seq, row: record });
-    if (seq > capturesHighWater) capturesHighWater = seq;
-  }
-  nextCursors[profileId] = capturesHighWater;
-  if ((captures ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
-
-  // Personal scope (A38): the caller's own ghost merges, pull-only. Read as the
-  // caller so owner-only RLS (`ghost_merges_select_own`) already guarantees they
-  // are theirs. The mirror keys every row by a string `id`, but ghost_merges has
-  // a composite PK and no id column — so synthesise one from member_id, which is
-  // unique within an owner.
-  const gmSince = cursors[gmScope] ?? 0;
-  const { data: merges, error: mergesError } = await caller
-    .from('ghost_merges')
-    .select('*')
-    .eq('owner', profileId)
-    .gt('updated_seq', gmSince)
-    .order('updated_seq', { ascending: true })
-    .limit(MAX_ROWS_PER_TABLE);
-  if (mergesError) throw new HttpError(500, 'PULL_FAILED', `ghost_merges: ${mergesError.message}`);
-
-  let gmHighWater = gmSince;
-  for (const row of merges ?? []) {
-    const record = row as Record<string, unknown>;
-    const seq = Number(record.updated_seq ?? 0);
-    changes.push({
-      table: 'ghost_merges',
-      groupId: gmScope,
-      seq,
-      row: { ...record, id: record.member_id },
+  // Groups go out in waves rather than one at a time. Bounded rather than all at
+  // once: a member of thirty groups would otherwise open thirty × eleven
+  // connections in one breath, and the pooler — not the loop — would become the
+  // thing making this slow.
+  for (let index = 0; index < groupList.length; index += GROUP_CONCURRENCY) {
+    const wave = groupList.slice(index, index + GROUP_CONCURRENCY);
+    const results = await Promise.all(wave.map((groupId) => pullGroup(groupId)));
+    wave.forEach((groupId, position) => {
+      const result = results[position];
+      if (!result) return;
+      for (const change of result.changes) changes.push(change);
+      nextCursors[groupId] = result.cursor;
+      if (result.truncated) hasMore = true;
     });
-    if (seq > gmHighWater) gmHighWater = seq;
   }
-  nextCursors[gmScope] = gmHighWater;
-  if ((merges ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
 
-  // Personal scope (extends TDR §8): the caller's own category-tag catalog, its
-  // own suffixed cursor. Read as the caller so owner-only RLS guarantees they
-  // are theirs, exactly like captures above.
-  const tagSince = cursors[tagScope] ?? 0;
-  const { data: tags, error: tagsError } = await caller
-    .from('category_tags')
-    .select('*')
-    .eq('owner_user_id', profileId)
-    .gt('updated_seq', tagSince)
-    .order('updated_seq', { ascending: true })
-    .limit(MAX_ROWS_PER_TABLE);
-  if (tagsError) throw new HttpError(500, 'PULL_FAILED', `category_tags: ${tagsError.message}`);
+  /**
+   * The four personal scopes, fetched together.
+   *
+   * Each is one owner-filtered table on its own cursor, with nothing to say to
+   * the others — so they were four serial round trips for no reason. Read as the
+   * caller throughout, so owner-only RLS is what guarantees the rows are theirs;
+   * that is the same safety property the group reads above rely on, and it does
+   * not change with the ordering.
+   *
+   * A user is never a member of a group whose id equals their own, so the
+   * captures key cannot collide with a group's.
+   */
+  const personalScopes = [
+    // A34: the caller's own captures, keyed by their user id.
+    { table: 'captures', column: 'owner_user_id', scope: profileId, as: 'captures' },
+    // A38: the caller's own ghost merges, pull-only. The mirror keys every row
+    // by a string `id`, but ghost_merges has a composite PK and no id column —
+    // so one is synthesised below from member_id, unique within an owner.
+    { table: 'ghost_merges', column: 'owner', scope: gmScope, as: 'ghost_merges' },
+    // Extends TDR §8: the caller's own category-tag catalog.
+    { table: 'category_tags', column: 'owner_user_id', scope: tagScope, as: 'category_tags' },
+    // A48: the caller's own personal-finance ledger. Tombstones (deleted_at set)
+    // ride the pull like every soft delete.
+    {
+      table: 'personal_records',
+      column: 'owner_user_id',
+      scope: pfScope,
+      as: 'personal_records',
+    },
+  ] as const;
 
-  let tagsHighWater = tagSince;
-  for (const row of tags ?? []) {
-    const record = row as Record<string, unknown>;
-    const seq = Number(record.updated_seq ?? 0);
-    changes.push({ table: 'category_tags', groupId: tagScope, seq, row: record });
-    if (seq > tagsHighWater) tagsHighWater = seq;
+  const personalPages = await Promise.all(
+    personalScopes.map(async (entry) => {
+      const since = cursors[entry.scope] ?? 0;
+      const { data, error } = await caller
+        .from(entry.table)
+        .select('*')
+        .eq(entry.column, profileId)
+        .gt('updated_seq', since)
+        .order('updated_seq', { ascending: true })
+        .limit(MAX_ROWS_PER_TABLE);
+      if (error) throw new HttpError(500, 'PULL_FAILED', `${entry.table}: ${error.message}`);
+      return { entry, since, rows: data ?? [] };
+    }),
+  );
+
+  for (const { entry, since, rows } of personalPages) {
+    let highWater = since;
+    for (const row of rows) {
+      const record = row as Record<string, unknown>;
+      const seq = Number(record.updated_seq ?? 0);
+      changes.push({
+        table: entry.as,
+        groupId: entry.scope,
+        seq,
+        row: entry.as === 'ghost_merges' ? { ...record, id: record.member_id } : record,
+      });
+      if (seq > highWater) highWater = seq;
+    }
+    nextCursors[entry.scope] = highWater;
+    if (rows.length === MAX_ROWS_PER_TABLE) hasMore = true;
   }
-  nextCursors[tagScope] = tagsHighWater;
-  if ((tags ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
-
-  // Personal scope (A48): the caller's own personal-finance ledger, its own
-  // suffixed cursor. Read as the caller so owner-only RLS guarantees the rows
-  // are theirs. Tombstones (deleted_at set) ride the pull like every soft delete.
-  const pfSince = cursors[pfScope] ?? 0;
-  const { data: personal, error: personalError } = await caller
-    .from('personal_records')
-    .select('*')
-    .eq('owner_user_id', profileId)
-    .gt('updated_seq', pfSince)
-    .order('updated_seq', { ascending: true })
-    .limit(MAX_ROWS_PER_TABLE);
-  if (personalError)
-    throw new HttpError(500, 'PULL_FAILED', `personal_records: ${personalError.message}`);
-
-  let pfHighWater = pfSince;
-  for (const row of personal ?? []) {
-    const record = row as Record<string, unknown>;
-    const seq = Number(record.updated_seq ?? 0);
-    changes.push({ table: 'personal_records', groupId: pfScope, seq, row: record });
-    if (seq > pfHighWater) pfHighWater = seq;
-  }
-  nextCursors[pfScope] = pfHighWater;
-  if ((personal ?? []).length === MAX_ROWS_PER_TABLE) hasMore = true;
 
   return { changes, cursors: nextCursors, hasMore };
 }
