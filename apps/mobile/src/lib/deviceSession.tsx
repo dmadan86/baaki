@@ -187,29 +187,34 @@ function DeviceLimitGate({
   const [busy, setBusy] = useState(false);
 
   return (
-    <Popup visible onClose={onDismiss} closeLabel={t.devices.gateDismiss} style={{ gap: theme.spacing.lg }}>
+    <Popup
+      visible
+      onClose={onDismiss}
+      closeLabel={t.devices.gateDismiss}
+      style={{ gap: theme.spacing.lg }}
+    >
       <Text variant="heading">{t.devices.gateTitle}</Text>
-          <Text variant="body" tone="muted">
-            {t.devices.gateBody}
-          </Text>
-          <View style={{ gap: theme.spacing.md }}>
-            <Button
-              label={t.devices.gateAction}
-              disabled={busy}
-              onPress={async () => {
-                setBusy(true);
-                try {
-                  await onSignOutOthers();
-                } catch {
-                  // The failure is reported on the devices screen; here the gate
-                  // simply stays up so the person can try again.
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            />
-            <Button label={t.devices.gateDismiss} variant="secondary" onPress={onDismiss} />
-          </View>
+      <Text variant="body" tone="muted">
+        {t.devices.gateBody}
+      </Text>
+      <View style={{ gap: theme.spacing.md }}>
+        <Button
+          label={t.devices.gateAction}
+          disabled={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              await onSignOutOthers();
+            } catch {
+              // The failure is reported on the devices screen; here the gate
+              // simply stays up so the person can try again.
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+        <Button label={t.devices.gateDismiss} variant="secondary" onPress={onDismiss} />
+      </View>
     </Popup>
   );
 }

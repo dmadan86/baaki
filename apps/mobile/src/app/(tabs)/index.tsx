@@ -927,42 +927,42 @@ function GuestPopup({
       closeLabel={t.entry.notifyNotNow}
       style={{ maxWidth: 360, alignItems: 'center', gap: theme.spacing.lg }}
     >
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              backgroundColor: theme.color.buttonPrimary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons
-              name={expired ? 'lock-closed' : 'shield-checkmark'}
-              size={38}
-              color={expired ? theme.color.warning : theme.color.onBrand}
-            />
-          </View>
+      <View
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          backgroundColor: theme.color.buttonPrimary,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons
+          name={expired ? 'lock-closed' : 'shield-checkmark'}
+          size={38}
+          color={expired ? theme.color.warning : theme.color.onBrand}
+        />
+      </View>
 
-          <View style={{ gap: theme.spacing.sm }}>
-            <Text variant="heading" align="center">
-              {t.tabs.addYourDetails}
-            </Text>
-            <Text variant="body" tone="muted" align="center">
-              {body}
-            </Text>
-          </View>
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="heading" align="center">
+          {t.tabs.addYourDetails}
+        </Text>
+        <Text variant="body" tone="muted" align="center">
+          {body}
+        </Text>
+      </View>
 
-          <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
-            <Button label={t.signIn.createAccount} size="lg" fullWidth onPress={onAction} />
-            <Button
-              label={t.entry.notifyNotNow}
-              variant="ghost"
-              size="lg"
-              fullWidth
-              onPress={dismiss}
-            />
-          </View>
+      <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
+        <Button label={t.signIn.createAccount} size="lg" fullWidth onPress={onAction} />
+        <Button
+          label={t.entry.notifyNotNow}
+          variant="ghost"
+          size="lg"
+          fullWidth
+          onPress={dismiss}
+        />
+      </View>
     </Popup>
   );
 }
@@ -1060,50 +1060,54 @@ function TipSheet({ t }: { t: UiStrings }) {
       visible={open && Boolean(tip)}
       onClose={close}
       closeLabel={t.common.close}
-      style={{ paddingHorizontal: theme.spacing.xxl, paddingTop: theme.spacing.xl, gap: theme.spacing.lg }}
+      style={{
+        paddingHorizontal: theme.spacing.xxl,
+        paddingTop: theme.spacing.xl,
+        gap: theme.spacing.lg,
+      }}
     >
       {tip ? (
         <>
-            <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: theme.color.buttonPrimary,
-                }}
-              >
-                <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.onBrand} />
-              </View>
-              <Text variant="micro" tone="brand" style={{ letterSpacing: 0.8 }}>
-                {t.tips.label.toUpperCase()}
-              </Text>
-              <Text variant="title" align="center">
-                {tip.title}
-              </Text>
-              <Text variant="body" tone="muted" align="center">
-                {tip.body}
-              </Text>
+          <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.color.buttonPrimary,
+              }}
+            >
+              <Ionicons name={tip.icon} size={iconSize.xxl} color={theme.color.onBrand} />
             </View>
+            <Text variant="micro" tone="brand" style={{ letterSpacing: 0.8 }}>
+              {t.tips.label.toUpperCase()}
+            </Text>
+            <Text variant="title" align="center">
+              {tip.title}
+            </Text>
+            <Text variant="body" tone="muted" align="center">
+              {tip.body}
+            </Text>
+          </View>
 
-            <View style={{ gap: theme.spacing.sm }}>
-              {tip.route ? (
-                <>
-                  <Button label={t.tips.action} size="lg" fullWidth onPress={act} />
-                  <Button
-                    label={t.misc.gotIt}
-                    variant="secondary"
-                    size="sm"
-                    fullWidth
-                    onPress={close}
-                  />
-                </>
-              ) : (
-                <Button label={t.misc.gotIt} size="lg" fullWidth onPress={close} />
-              )}
-            </View>
+          <View style={{ gap: theme.spacing.sm }}>
+            {tip.route ? (
+              <>
+                <Button label={t.tips.action} size="lg" fullWidth onPress={act} />
+                <Button
+                  label={t.misc.gotIt}
+                  variant="secondary"
+                  size="sm"
+                  fullWidth
+                  onPress={close}
+                />
+              </>
+            ) : (
+              <Button label={t.misc.gotIt} size="lg" fullWidth onPress={close} />
+            )}
+          </View>
         </>
       ) : null}
     </Sheet>

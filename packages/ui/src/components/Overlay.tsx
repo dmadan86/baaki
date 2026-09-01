@@ -149,7 +149,13 @@ export function Sheet({
       });
 
   return (
-    <Modal transparent statusBarTranslucent visible={mounted} animationType="none" onRequestClose={onClose}>
+    <Modal
+      transparent
+      statusBarTranslucent
+      visible={mounted}
+      animationType="none"
+      onRequestClose={onClose}
+    >
       <Animated.View style={{ flex: 1, backgroundColor: SCRIM, opacity: progress }}>
         <Pressable
           onPress={onClose}
@@ -232,7 +238,13 @@ export function Popup({
     : progress.interpolate({ inputRange: [0, 1], outputRange: [POPUP_START_SCALE, 1] });
 
   return (
-    <Modal transparent statusBarTranslucent visible={mounted} animationType="none" onRequestClose={onClose}>
+    <Modal
+      transparent
+      statusBarTranslucent
+      visible={mounted}
+      animationType="none"
+      onRequestClose={onClose}
+    >
       <Animated.View style={{ flex: 1, backgroundColor: SCRIM, opacity: progress }}>
         <Pressable
           onPress={dismissable ? onClose : undefined}

@@ -99,57 +99,57 @@ export function NotificationPrompt() {
     >
       {/* The brand tile with a notification badge — the reference's own way
               of saying, wordlessly, what the ask is about. */}
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 18,
-              backgroundColor: theme.color.brand,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="notifications" size={38} color={theme.color.onBrand} />
-            <View
-              style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                backgroundColor: theme.color.negative,
-                borderWidth: 2,
-                borderColor: theme.color.surface,
-              }}
-            />
-          </View>
+      <View
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 18,
+          backgroundColor: theme.color.brand,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name="notifications" size={38} color={theme.color.onBrand} />
+        <View
+          style={{
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: theme.color.negative,
+            borderWidth: 2,
+            borderColor: theme.color.surface,
+          }}
+        />
+      </View>
 
-          <View style={{ gap: theme.spacing.sm }}>
-            <Text variant="heading" align="center">
-              {t.entry.notifyTitle}
-            </Text>
-            <Text variant="body" tone="muted" align="center">
-              {t.entry.notifyBody}
-            </Text>
-          </View>
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="heading" align="center">
+          {t.entry.notifyTitle}
+        </Text>
+        <Text variant="body" tone="muted" align="center">
+          {t.entry.notifyBody}
+        </Text>
+      </View>
 
-          <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
-            <Button
-              label={t.entry.notifyEnable}
-              size="lg"
-              fullWidth
-              disabled={busy}
-              onPress={() => void onEnable()}
-            />
-            <Button
-              label={t.entry.notifyNotNow}
-              variant="ghost"
-              size="lg"
-              fullWidth
-              onPress={dismiss}
-            />
-          </View>
+      <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
+        <Button
+          label={t.entry.notifyEnable}
+          size="lg"
+          fullWidth
+          disabled={busy}
+          onPress={() => void onEnable()}
+        />
+        <Button
+          label={t.entry.notifyNotNow}
+          variant="ghost"
+          size="lg"
+          fullWidth
+          onPress={dismiss}
+        />
+      </View>
     </Popup>
   );
 }

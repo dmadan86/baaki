@@ -210,69 +210,63 @@ function BudgetEditor({
 
   return (
     <Sheet visible onClose={onClose} padded={false} style={{ maxHeight: '90%' }}>
-          <ScrollView
-            contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text variant="heading">{budget ? t.personal.editBudget : t.personal.addBudget}</Text>
-              <IconButton label={t.common.close} onPress={onClose}>
-                <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
-              </IconButton>
-            </Row>
+      <ScrollView
+        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text variant="heading">{budget ? t.personal.editBudget : t.personal.addBudget}</Text>
+          <IconButton label={t.common.close} onPress={onClose}>
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
+          </IconButton>
+        </Row>
 
-            <SegmentedTabs
-              value={scope}
-              onChange={setScope}
-              tabs={[
-                { value: 'overall', label: t.personal.overall },
-                { value: 'category', label: t.personal.category },
-              ]}
+        <SegmentedTabs
+          value={scope}
+          onChange={setScope}
+          tabs={[
+            { value: 'overall', label: t.personal.overall },
+            { value: 'category', label: t.personal.category },
+          ]}
+        />
+
+        {scope === 'category' ? (
+          <CategoryPicker value={category} onChange={(picked) => setCategory(picked)} />
+        ) : null}
+
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="caption" tone="muted">
+            {t.personal.monthlyLimit}
+          </Text>
+          <View style={{ alignItems: 'center', paddingVertical: theme.spacing.md }}>
+            <AmountField
+              currency={budget?.currency ?? currency}
+              value={limit}
+              onChange={setLimit}
             />
+          </View>
+        </View>
 
-            {scope === 'category' ? (
-              <CategoryPicker value={category} onChange={(picked) => setCategory(picked)} />
-            ) : null}
+        <Button label={t.personal.save} size="lg" fullWidth onPress={onSave} disabled={!canSave} />
 
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" tone="muted">
-                {t.personal.monthlyLimit}
-              </Text>
-              <View style={{ alignItems: 'center', paddingVertical: theme.spacing.md }}>
-                <AmountField
-                  currency={budget?.currency ?? currency}
-                  value={limit}
-                  onChange={setLimit}
-                />
-              </View>
-            </View>
-
-            <Button
-              label={t.personal.save}
-              size="lg"
-              fullWidth
-              onPress={onSave}
-              disabled={!canSave}
-            />
-
-            {budget ? (
-              <Button
-                label={t.common.delete}
-                variant="danger"
-                fullWidth
-                onPress={() =>
-                  Alert.alert(t.common.delete, t.personal.deleteConfirm, [
-                    { text: t.common.cancel, style: 'cancel' },
-                    {
-                      text: t.common.delete,
-                      style: 'destructive',
-                      onPress: () => remove.mutate(budget.id, { onSuccess: onClose }),
-                    },
-                  ])
-                }
-              />
-            ) : null}
-          </ScrollView>
+        {budget ? (
+          <Button
+            label={t.common.delete}
+            variant="danger"
+            fullWidth
+            onPress={() =>
+              Alert.alert(t.common.delete, t.personal.deleteConfirm, [
+                { text: t.common.cancel, style: 'cancel' },
+                {
+                  text: t.common.delete,
+                  style: 'destructive',
+                  onPress: () => remove.mutate(budget.id, { onSuccess: onClose }),
+                },
+              ])
+            }
+          />
+        ) : null}
+      </ScrollView>
     </Sheet>
   );
 }

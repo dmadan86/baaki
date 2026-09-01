@@ -900,145 +900,141 @@ export default function CapturesScreen() {
         closeLabel={t.common.close}
         style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.md, maxHeight: '80%' }}
       >
-            <Text variant="heading">{t.captures.assignTitle}</Text>
+        <Text variant="heading">{t.captures.assignTitle}</Text>
 
-            {/* What is being placed, so the sheet stands on its own over the
+        {/* What is being placed, so the sheet stands on its own over the
                 list it hides: the amount and its note beside the capture's own
                 glyph. */}
-            {assigning ? (
-              <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-                <CategoryBadge
-                  category={assigning.category}
-                  meta={assigning.category_meta}
-                  description={assigning.description}
-                  size={38}
-                />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <MoneyText
-                    amount={BigInt(assigning.amount)}
-                    currency={assigning.currency}
-                    locale={locale}
-                    variant="subheading"
-                  />
-                  {assigning.description ? (
-                    <Text variant="caption" tone="muted" numberOfLines={1}>
-                      {assigning.description}
-                    </Text>
-                  ) : null}
-                </View>
-              </Row>
-            ) : null}
+        {assigning ? (
+          <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+            <CategoryBadge
+              category={assigning.category}
+              meta={assigning.category_meta}
+              description={assigning.description}
+              size={38}
+            />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <MoneyText
+                amount={BigInt(assigning.amount)}
+                currency={assigning.currency}
+                locale={locale}
+                variant="subheading"
+              />
+              {assigning.description ? (
+                <Text variant="caption" tone="muted" numberOfLines={1}>
+                  {assigning.description}
+                </Text>
+              ) : null}
+            </View>
+          </Row>
+        ) : null}
 
-            <Text variant="caption" tone="muted">
-              {t.captures.assignBody}
-            </Text>
+        <Text variant="caption" tone="muted">
+          {t.captures.assignBody}
+        </Text>
 
-            {/* Search only earns its place on a long list (see `showSearch`);
+        {/* Search only earns its place on a long list (see `showSearch`);
                 a rounded field with a leading glyph, the picker grammar Mobbin
                 shows across Starling/Swarm/Canva. */}
-            {showSearch ? (
-              <Row
-                style={{
-                  gap: theme.spacing.sm,
-                  alignItems: 'center',
-                  backgroundColor: theme.color.surfaceMuted,
-                  borderRadius: theme.radius.md,
-                  paddingHorizontal: theme.spacing.md,
-                }}
-              >
-                <Ionicons name="search" size={iconSize.md} color={theme.color.textFaint} />
-                <TextInput
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder={t.captures.assignSearch}
-                  placeholderTextColor={theme.color.textFaint}
-                  accessibilityLabel={t.captures.assignSearch}
-                  autoCorrect={false}
-                  style={{
-                    flex: 1,
-                    fontSize: 16,
-                    color: theme.color.text,
-                    paddingVertical: theme.spacing.md,
-                  }}
-                />
-              </Row>
-            ) : null}
+        {showSearch ? (
+          <Row
+            style={{
+              gap: theme.spacing.sm,
+              alignItems: 'center',
+              backgroundColor: theme.color.surfaceMuted,
+              borderRadius: theme.radius.md,
+              paddingHorizontal: theme.spacing.md,
+            }}
+          >
+            <Ionicons name="search" size={iconSize.md} color={theme.color.textFaint} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t.captures.assignSearch}
+              placeholderTextColor={theme.color.textFaint}
+              accessibilityLabel={t.captures.assignSearch}
+              autoCorrect={false}
+              style={{
+                flex: 1,
+                fontSize: 16,
+                color: theme.color.text,
+                paddingVertical: theme.spacing.md,
+              }}
+            />
+          </Row>
+        ) : null}
 
-            <View style={{ height: pickerListHeight }}>
-              <FlashList
-                data={assignableGroups.length === 0 ? [] : visibleGroups}
-                keyExtractor={(group) => group.id}
-                renderItem={renderGroupPickerItem}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                ListHeaderComponent={
-                  <>
-                    {/* Start a group and drop this into it — so a capture with no
+        <View style={{ height: pickerListHeight }}>
+          <FlashList
+            data={assignableGroups.length === 0 ? [] : visibleGroups}
+            keyExtractor={(group) => group.id}
+            renderItem={renderGroupPickerItem}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={
+              <>
+                {/* Start a group and drop this into it — so a capture with no
                         fitting group is no longer a dead end (it used to only say
                         "make one first"). Mirrors the "Create group" affordance the
                         Wise/Starling pickers lead with. */}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t.captures.assignNew}
-                      onPress={() => {
-                        // Carry the capture through group creation so new-group
-                        // can hand it back and finish the assignment — read the id
-                        // before closeAssign clears `assigning`.
-                        const captureId = assigning?.id;
-                        closeAssign();
-                        router.push(
-                          captureId
-                            ? { pathname: '/new-group', params: { assignCaptureId: captureId } }
-                            : '/new-group',
-                        );
-                      }}
-                      style={({ pressed }) => ({
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: theme.spacing.md,
-                        paddingVertical: theme.spacing.md,
-                        opacity: pressed ? 0.6 : 1,
-                      })}
-                    >
-                      <View
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 22,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: theme.color.surfaceMuted,
-                          borderWidth: 1,
-                          borderColor: theme.color.border,
-                          borderStyle: 'dashed',
-                        }}
-                      >
-                        <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text variant="subheading" numberOfLines={1}>
-                          {t.captures.assignNew}
-                        </Text>
-                        <Text variant="caption" tone="muted" numberOfLines={1}>
-                          {t.captures.assignNewBody}
-                        </Text>
-                      </View>
-                    </Pressable>
-
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  </>
-                }
-                ListEmptyComponent={
-                  <Text
-                    variant="caption"
-                    tone="muted"
-                    style={{ paddingVertical: theme.spacing.lg }}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.captures.assignNew}
+                  onPress={() => {
+                    // Carry the capture through group creation so new-group
+                    // can hand it back and finish the assignment — read the id
+                    // before closeAssign clears `assigning`.
+                    const captureId = assigning?.id;
+                    closeAssign();
+                    router.push(
+                      captureId
+                        ? { pathname: '/new-group', params: { assignCaptureId: captureId } }
+                        : '/new-group',
+                    );
+                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing.md,
+                    paddingVertical: theme.spacing.md,
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.surfaceMuted,
+                      borderWidth: 1,
+                      borderColor: theme.color.border,
+                      borderStyle: 'dashed',
+                    }}
                   >
-                    {assignableGroups.length === 0 ? t.captures.noGroups : t.captures.assignNoMatch}
-                  </Text>
-                }
-              />
-            </View>
+                    <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text variant="subheading" numberOfLines={1}>
+                      {t.captures.assignNew}
+                    </Text>
+                    <Text variant="caption" tone="muted" numberOfLines={1}>
+                      {t.captures.assignNewBody}
+                    </Text>
+                  </View>
+                </Pressable>
+
+                <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              </>
+            }
+            ListEmptyComponent={
+              <Text variant="caption" tone="muted" style={{ paddingVertical: theme.spacing.lg }}>
+                {assignableGroups.length === 0 ? t.captures.noGroups : t.captures.assignNoMatch}
+              </Text>
+            }
+          />
+        </View>
       </Sheet>
 
       {/* The row's ⋯ overflow, as a small sheet: the actions that are not "add to
@@ -1053,72 +1049,64 @@ export default function CapturesScreen() {
         closeLabel={t.common.close}
         style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.xs }}
       >
-            {menu?.kind === 'capture' ? (
-              <>
-                <Text
-                  variant="heading"
-                  numberOfLines={1}
-                  style={{ marginBottom: theme.spacing.xs }}
-                >
-                  {menu.capture.description?.trim() ||
-                    (menu.capture.category
-                      ? (t.categories as Record<string, string>)[menu.capture.category]
-                      : undefined) ||
-                    t.captures.unassigned}
-                </Text>
-                <ActionSheetRow
-                  icon="people-outline"
-                  label={t.captures.assign}
-                  tone="brand"
-                  onPress={() => {
-                    const capture = menu.capture;
-                    setMenu(null);
-                    openAssign(capture);
-                  }}
-                />
-                <Divider />
-                <ActionSheetRow
-                  icon="create-outline"
-                  label={t.captures.edit}
-                  onPress={() => {
-                    const capture = menu.capture;
-                    setMenu(null);
-                    openEdit(capture);
-                  }}
-                />
-                <Divider />
-                <ActionSheetRow
-                  icon="trash-outline"
-                  label={t.captures.delete}
-                  tone="negative"
-                  onPress={() => {
-                    const capture = menu.capture;
-                    setMenu(null);
-                    confirmDelete(capture);
-                  }}
-                />
-              </>
-            ) : menu?.kind === 'batch' ? (
-              <>
-                <Text
-                  variant="heading"
-                  numberOfLines={1}
-                  style={{ marginBottom: theme.spacing.xs }}
-                >
-                  {plural(locale, menu.items.length, t.captures.batchExpenses)}
-                </Text>
-                <ActionSheetRow
-                  icon="trash-outline"
-                  label={t.captures.deleteBatch}
-                  tone="negative"
-                  onPress={() => {
-                    const items = menu.items;
-                    setMenu(null);
-                    confirmDeleteBatch(items);
-                  }}
-                />
-              </>
-            ) : null}
+        {menu?.kind === 'capture' ? (
+          <>
+            <Text variant="heading" numberOfLines={1} style={{ marginBottom: theme.spacing.xs }}>
+              {menu.capture.description?.trim() ||
+                (menu.capture.category
+                  ? (t.categories as Record<string, string>)[menu.capture.category]
+                  : undefined) ||
+                t.captures.unassigned}
+            </Text>
+            <ActionSheetRow
+              icon="people-outline"
+              label={t.captures.assign}
+              tone="brand"
+              onPress={() => {
+                const capture = menu.capture;
+                setMenu(null);
+                openAssign(capture);
+              }}
+            />
+            <Divider />
+            <ActionSheetRow
+              icon="create-outline"
+              label={t.captures.edit}
+              onPress={() => {
+                const capture = menu.capture;
+                setMenu(null);
+                openEdit(capture);
+              }}
+            />
+            <Divider />
+            <ActionSheetRow
+              icon="trash-outline"
+              label={t.captures.delete}
+              tone="negative"
+              onPress={() => {
+                const capture = menu.capture;
+                setMenu(null);
+                confirmDelete(capture);
+              }}
+            />
+          </>
+        ) : menu?.kind === 'batch' ? (
+          <>
+            <Text variant="heading" numberOfLines={1} style={{ marginBottom: theme.spacing.xs }}>
+              {plural(locale, menu.items.length, t.captures.batchExpenses)}
+            </Text>
+            <ActionSheetRow
+              icon="trash-outline"
+              label={t.captures.deleteBatch}
+              tone="negative"
+              onPress={() => {
+                const items = menu.items;
+                setMenu(null);
+                confirmDeleteBatch(items);
+              }}
+            />
+          </>
+        ) : null}
       </Sheet>
     </Screen>
   );

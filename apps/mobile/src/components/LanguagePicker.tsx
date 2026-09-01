@@ -77,55 +77,55 @@ export function LanguagePicker({ align = 'center' }: { align?: 'center' | 'flex-
         closeLabel={t.common.close}
         style={{ maxWidth: 340, padding: 0, paddingVertical: theme.spacing.sm }}
       >
-            <Text
-              variant="caption"
-              tone="faint"
-              style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm }}
+        <Text
+          variant="caption"
+          tone="faint"
+          style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm }}
+        >
+          {t.language}
+        </Text>
+        {LANGUAGES.map((entry) => {
+          const active = entry === language;
+          return (
+            <Pressable
+              key={entry}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={LANGUAGE_NAMES[entry].own}
+              onPress={() => {
+                setOpen(false);
+                // Re-choosing the current language would fire the restart
+                // machinery for nothing.
+                if (!active) void setLanguage(entry);
+              }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginHorizontal: theme.spacing.sm,
+                paddingVertical: theme.spacing.md,
+                paddingHorizontal: theme.spacing.md,
+                borderRadius: theme.radius.md,
+                backgroundColor: active
+                  ? theme.color.brandSoft
+                  : pressed
+                    ? theme.color.surfaceMuted
+                    : 'transparent',
+              })}
             >
-              {t.language}
-            </Text>
-            {LANGUAGES.map((entry) => {
-              const active = entry === language;
-              return (
-                <Pressable
-                  key={entry}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={LANGUAGE_NAMES[entry].own}
-                  onPress={() => {
-                    setOpen(false);
-                    // Re-choosing the current language would fire the restart
-                    // machinery for nothing.
-                    if (!active) void setLanguage(entry);
-                  }}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginHorizontal: theme.spacing.sm,
-                    paddingVertical: theme.spacing.md,
-                    paddingHorizontal: theme.spacing.md,
-                    borderRadius: theme.radius.md,
-                    backgroundColor: active
-                      ? theme.color.brandSoft
-                      : pressed
-                        ? theme.color.surfaceMuted
-                        : 'transparent',
-                  })}
-                >
-                  <Text
-                    variant="body"
-                    tone={active ? 'brand' : 'default'}
-                    style={{ fontWeight: active ? '700' : '500' }}
-                  >
-                    {LANGUAGE_NAMES[entry].own}
-                  </Text>
-                  {active ? (
-                    <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
+              <Text
+                variant="body"
+                tone={active ? 'brand' : 'default'}
+                style={{ fontWeight: active ? '700' : '500' }}
+              >
+                {LANGUAGE_NAMES[entry].own}
+              </Text>
+              {active ? (
+                <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} />
+              ) : null}
+            </Pressable>
+          );
+        })}
       </Popup>
     </View>
   );

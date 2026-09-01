@@ -100,88 +100,88 @@ export function CoverEmojiPicker({
         closeLabel={t.common.close}
         style={{ maxHeight: '82%' }}
       >
-            <Row
-              style={{
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                paddingHorizontal: theme.spacing.xl,
-              }}
-            >
-              <Text variant="heading">{t.group.chooseIcon}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.common.close}
-                onPress={() => setOpen(false)}
-                hitSlop={8}
-                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-              >
-                <Ionicons name="close" size={iconSize.lg} color={theme.color.textMuted} />
-              </Pressable>
-            </Row>
+        <Row
+          style={{
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: theme.spacing.xl,
+          }}
+        >
+          <Text variant="heading">{t.group.chooseIcon}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.close}
+            onPress={() => setOpen(false)}
+            hitSlop={8}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          >
+            <Ionicons name="close" size={iconSize.lg} color={theme.color.textMuted} />
+          </Pressable>
+        </Row>
 
-            {/* The current pick, previewed large on a tinted circle. */}
-            <View style={{ alignItems: 'center', paddingVertical: theme.spacing.lg }}>
-              <View
-                style={{
-                  width: 84,
-                  height: 84,
-                  borderRadius: 28,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: theme.color.buttonPrimary,
-                }}
-              >
-                <Text style={{ fontSize: 44 }}>{value ?? '👥'}</Text>
-              </View>
+        {/* The current pick, previewed large on a tinted circle. */}
+        <View style={{ alignItems: 'center', paddingVertical: theme.spacing.lg }}>
+          <View
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 28,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.color.buttonPrimary,
+            }}
+          >
+            <Text style={{ fontSize: 44 }}>{value ?? '👥'}</Text>
+          </View>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: theme.spacing.xl,
+            paddingBottom: theme.spacing.xl,
+            gap: theme.spacing.lg,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {EMOJI_GROUPS.map((emojis, index) => (
+            <View key={index} style={{ gap: theme.spacing.sm }}>
+              {index > 0 ? (
+                <View style={{ height: 1, backgroundColor: theme.color.border }} />
+              ) : null}
+              <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                {emojis.map((emoji) => {
+                  const selected = value === emoji;
+                  return (
+                    <Pressable
+                      key={emoji}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={emoji}
+                      onPress={() => {
+                        onChange(emoji);
+                        setOpen(false);
+                      }}
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: theme.radius.lg,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? theme.color.brand : theme.color.border,
+                        backgroundColor: selected
+                          ? theme.color.brandSoft
+                          : theme.color.surfaceMuted,
+                      }}
+                    >
+                      <Text style={{ fontSize: 26 }}>{emoji}</Text>
+                    </Pressable>
+                  );
+                })}
+              </Row>
             </View>
-
-            <ScrollView
-              contentContainerStyle={{
-                paddingHorizontal: theme.spacing.xl,
-                paddingBottom: theme.spacing.xl,
-                gap: theme.spacing.lg,
-              }}
-              showsVerticalScrollIndicator={false}
-            >
-              {EMOJI_GROUPS.map((emojis, index) => (
-                <View key={index} style={{ gap: theme.spacing.sm }}>
-                  {index > 0 ? (
-                    <View style={{ height: 1, backgroundColor: theme.color.border }} />
-                  ) : null}
-                  <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
-                    {emojis.map((emoji) => {
-                      const selected = value === emoji;
-                      return (
-                        <Pressable
-                          key={emoji}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected }}
-                          accessibilityLabel={emoji}
-                          onPress={() => {
-                            onChange(emoji);
-                            setOpen(false);
-                          }}
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: theme.radius.lg,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderWidth: selected ? 2 : 1,
-                            borderColor: selected ? theme.color.brand : theme.color.border,
-                            backgroundColor: selected
-                              ? theme.color.brandSoft
-                              : theme.color.surfaceMuted,
-                          }}
-                        >
-                          <Text style={{ fontSize: 26 }}>{emoji}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </Row>
-                </View>
-              ))}
-            </ScrollView>
+          ))}
+        </ScrollView>
       </Sheet>
     </>
   );

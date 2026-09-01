@@ -100,42 +100,42 @@ export function CampaignPopup() {
   return (
     <Popup visible onClose={close} closeLabel={t.common.close} style={{ gap: theme.spacing.md }}>
       <Text variant="title">{campaign.title}</Text>
-          {campaign.body ? (
-            <Text variant="body" tone="muted">
-              {campaign.body}
-            </Text>
-          ) : null}
+      {campaign.body ? (
+        <Text variant="body" tone="muted">
+          {campaign.body}
+        </Text>
+      ) : null}
 
-          {campaign.promo_code ? (
-            <Pressable
-              onPress={() => void act()}
-              accessibilityRole="button"
-              accessibilityLabel={t.misc.tapToCopy}
-              style={{
-                backgroundColor: theme.color.buttonPrimary,
-                borderRadius: theme.radius.md,
-                paddingVertical: theme.spacing.md,
-                alignItems: 'center',
-              }}
-            >
-              <Text variant="heading" tone="onBrand">
-                {campaign.promo_code}
-              </Text>
-              <Text variant="micro" tone="onBrand">
-                {copied ? t.misc.copied : t.misc.tapToCopy}
-              </Text>
-            </Pressable>
-          ) : null}
+      {campaign.promo_code ? (
+        <Pressable
+          onPress={() => void act()}
+          accessibilityRole="button"
+          accessibilityLabel={t.misc.tapToCopy}
+          style={{
+            backgroundColor: theme.color.buttonPrimary,
+            borderRadius: theme.radius.md,
+            paddingVertical: theme.spacing.md,
+            alignItems: 'center',
+          }}
+        >
+          <Text variant="heading" tone="onBrand">
+            {campaign.promo_code}
+          </Text>
+          <Text variant="micro" tone="onBrand">
+            {copied ? t.misc.copied : t.misc.tapToCopy}
+          </Text>
+        </Pressable>
+      ) : null}
 
-          <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.sm }}>
-            <Button
-              label={campaign.cta_label || t.misc.gotIt}
-              size="lg"
-              fullWidth
-              onPress={() => void act()}
-            />
-            <Button label={t.misc.notNow} variant="secondary" size="sm" fullWidth onPress={close} />
-          </View>
+      <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.sm }}>
+        <Button
+          label={campaign.cta_label || t.misc.gotIt}
+          size="lg"
+          fullWidth
+          onPress={() => void act()}
+        />
+        <Button label={t.misc.notNow} variant="secondary" size="sm" fullWidth onPress={close} />
+      </View>
     </Popup>
   );
 }

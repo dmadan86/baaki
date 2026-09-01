@@ -782,34 +782,38 @@ export default function ImportScreen() {
         onClose={() => setHelpOpen(false)}
         padded={false}
         closeLabel={t.common.close}
-        style={{ paddingHorizontal: theme.spacing.xxl, paddingTop: theme.spacing.xl, gap: theme.spacing.lg }}
+        style={{
+          paddingHorizontal: theme.spacing.xxl,
+          paddingTop: theme.spacing.xl,
+          gap: theme.spacing.lg,
+        }}
       >
-            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-              <Ionicons name="help-circle-outline" size={iconSize.xl} color={theme.color.brand} />
-              <Text variant="title">{t.importLedger.helpTitle}</Text>
-            </Row>
-            <ScrollView
-              style={{ maxHeight: 340 }}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ gap: theme.spacing.md }}
-            >
-              <Text variant="body" tone="muted">
-                {t.importLedger.ledgerHowTo}
-              </Text>
-              <Divider />
-              <Text variant="caption" tone="muted">
-                {t.importLedger.fromSplitwiseNote}
-              </Text>
-              <Text variant="caption" tone="muted">
-                {t.importLedger.fromBaakiNote}
-              </Text>
-              <Divider />
-              {/* Offline: parked and run on reconnect (see `@/lib/importProgress`). */}
-              <Text variant="caption" tone="muted">
-                {t.importLedger.helpOffline}
-              </Text>
-            </ScrollView>
-            <Button label={t.misc.gotIt} fullWidth onPress={() => setHelpOpen(false)} />
+        <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+          <Ionicons name="help-circle-outline" size={iconSize.xl} color={theme.color.brand} />
+          <Text variant="title">{t.importLedger.helpTitle}</Text>
+        </Row>
+        <ScrollView
+          style={{ maxHeight: 340 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ gap: theme.spacing.md }}
+        >
+          <Text variant="body" tone="muted">
+            {t.importLedger.ledgerHowTo}
+          </Text>
+          <Divider />
+          <Text variant="caption" tone="muted">
+            {t.importLedger.fromSplitwiseNote}
+          </Text>
+          <Text variant="caption" tone="muted">
+            {t.importLedger.fromBaakiNote}
+          </Text>
+          <Divider />
+          {/* Offline: parked and run on reconnect (see `@/lib/importProgress`). */}
+          <Text variant="caption" tone="muted">
+            {t.importLedger.helpOffline}
+          </Text>
+        </ScrollView>
+        <Button label={t.misc.gotIt} fullWidth onPress={() => setHelpOpen(false)} />
       </Sheet>
     </Screen>
   );
