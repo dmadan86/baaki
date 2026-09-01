@@ -522,6 +522,14 @@ describe('parseVoiceExpenses (several in one breath)', () => {
     expect(result.items[0].note).toBe('bread tea');
   });
 
+  it('keeps role-like labels together when one shared price follows', () => {
+    const result = parseVoiceExpenses('user and rider and traveller and financer 1200', groups);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].amountMajor).toBe(1200);
+    expect(result.items[0].note).toBe('user rider traveller financer');
+  });
+
   it('folds a leading label across "and" into the price that follows', () => {
     const result = parseVoiceExpenses('add expense 300 bread and tea', groups);
     expect(result.items).toHaveLength(1);
