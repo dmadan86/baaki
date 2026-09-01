@@ -69,24 +69,34 @@ export function AmountField({
   const format = (minor: bigint): string => formatMinorInput(minor, currency);
 
   const [text, setText] = useState<string>(() => format(value));
-  // The last minor amount this field emitted. A `value` that differs from it
-  // came from somewhere else (scan, draft restore, edit) and must overwrite
-  // the text; a `value` that matches it is our own echo and must be ignored,
-  // or it would reformat mid-keystroke ("1." would snap back to "1.00").
-  const emitted = useRef<bigint>(value);
+  // The last amount this field emitted, and the currency it was typed in. An
+  // input that differs from it came from somewhere else (scan, draft restore,
+  // edit, the currency picker) and must overwrite the text; one that matches is
+  // our own echo and must be ignored, or it would reformat mid-keystroke ("1."
+  // would snap back to "1.00").
+  //
+  // The currency belongs in that comparison because it decides where the point
+  // goes: switching ₹100.00 to yen leaves the minor amount at 10000 but changes
+  // what it reads as, and watching the value alone left "100.00" on screen over
+  // a field now holding ¥10,000 — with the spoken label, which recomputes,
+  // saying the other thing.
+  const emitted = useRef<{ value: bigint; currency: CurrencyCode }>({ value, currency });
 
   useEffect(() => {
-    if (value !== emitted.current) {
-      emitted.current = value;
+    if (value !== emitted.current.value || currency !== emitted.current.currency) {
+      emitted.current = { value, currency };
       setText(format(value));
     }
-  }, [value]);
+    // `format` closes over `currency`, which is in the list; re-running on the
+    // identity of the function itself would fire on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, currency]);
 
   const onType = (raw: string): void => {
     const cleaned = sanitiseMinorInput(raw, currency);
     setText(cleaned);
     const minor = toMinor(cleaned);
-    emitted.current = minor;
+    emitted.current = { value: minor, currency };
     onChange(minor);
   };
 

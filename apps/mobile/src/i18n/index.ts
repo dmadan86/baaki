@@ -1725,6 +1725,11 @@ export interface UiStrings {
     paidBySeveral: string;
     /** Collapses the payer row back to a single person. */
     paidByOne: string;
+    /** Asked before a saved several-payer bill is collapsed to one, because the
+     *  other payers' recorded amounts go with it. `{name}` is who is kept. */
+    collapsePayersTitle: string;
+    collapsePayersBody: string;
+    collapsePayersConfirm: string;
     /** The label over an expense row's own effect on your balance: money you put
      *  in beyond your share, and your share of money somebody else put in. */
     youLent: string;
@@ -3823,6 +3828,10 @@ const en: UiStrings = {
     paidOverAssigned: '{amount} too much',
     paidBySeveral: 'Several people paid',
     paidByOne: 'One person paid',
+    collapsePayersTitle: 'Collapse to one payer?',
+    collapsePayersBody:
+      '{name} put in the most, so they will be recorded as paying the whole bill. The other payers and their amounts are removed.',
+    collapsePayersConfirm: 'Collapse',
     youLent: 'you lent',
     youBorrowed: 'you borrowed',
     notInvolved: 'not involved',
@@ -5996,6 +6005,10 @@ const ta: UiStrings = {
     paidOverAssigned: '{amount} அதிகம்',
     paidBySeveral: 'பலர் கொடுத்தார்கள்',
     paidByOne: 'ஒருவர் கொடுத்தார்',
+    collapsePayersTitle: 'ஒருவர் கொடுத்ததாக மாற்றவா?',
+    collapsePayersBody:
+      '{name} அதிகம் கொடுத்திருக்கிறார், எனவே முழு பில்லையும் அவரே கொடுத்ததாகப் பதிவாகும். மற்ற கொடுத்தவர்களும் அவர்களின் தொகைகளும் நீக்கப்படும்.',
+    collapsePayersConfirm: 'மாற்று',
     youLent: 'நீங்கள் கொடுத்தது',
     youBorrowed: 'நீங்கள் வாங்கியது',
     notInvolved: 'உங்களுக்கு தொடர்பில்லை',
@@ -8157,6 +8170,10 @@ const hi: UiStrings = {
     paidOverAssigned: '{amount} ज़्यादा',
     paidBySeveral: 'कई लोगों ने दिया',
     paidByOne: 'एक व्यक्ति ने दिया',
+    collapsePayersTitle: 'एक ही व्यक्ति ने दिया, ऐसा कर दें?',
+    collapsePayersBody:
+      '{name} ने सबसे ज़्यादा दिया है, तो पूरा बिल उन्हीं का दिया हुआ दर्ज होगा। बाक़ी देने वाले और उनकी रकमें हट जाएँगी।',
+    collapsePayersConfirm: 'बदलें',
     youLent: 'आपने दिए',
     youBorrowed: 'आपने लिए',
     notInvolved: 'आप इसमें नहीं',
@@ -10366,6 +10383,10 @@ const ar: UiStrings = {
     paidOverAssigned: '{amount} زيادة',
     paidBySeveral: 'دفع عدة أشخاص',
     paidByOne: 'دفع شخص واحد',
+    collapsePayersTitle: 'تحويلها إلى دافع واحد؟',
+    collapsePayersBody:
+      'دفع {name} أكبر مبلغ، لذلك سيُسجَّل أنه دفع الفاتورة كاملة. وستُحذف بقية الدافعين ومبالغهم.',
+    collapsePayersConfirm: 'تحويل',
     youLent: 'أقرضت',
     youBorrowed: 'اقترضت',
     notInvolved: 'لست ضمنها',

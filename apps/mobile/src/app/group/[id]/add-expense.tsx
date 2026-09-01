@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -24,11 +25,9 @@ import {
   guessCategory,
   money,
   MutationKind,
-  parseMinorInput,
   PayerProblemCode,
   rebalancePayers,
   ridersSplit,
-  sanitiseMinorInput,
   serialisePayers,
   splitByUnits,
   treatSplit,
@@ -81,11 +80,20 @@ import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
 import { StorageCapError } from '@/lib/storage';
 import { useAssignCapture, useGroup } from '@/data/hooks';
 import { displayName, groupLabel, isGhost } from '@/data/types';
-import { plural, useStrings } from '@/i18n';
+import { fill, plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { handoverKey } from '@/lib/handover';
 import { resolveDraftCurrency, resolveDraftFx } from '@/lib/expenseDraft';
+import {
+  expenseDateFor,
+  planCollapseToOne,
+  planEvenly,
+  planToggle,
+  planTypedAmount,
+  todayIso,
+  type PayerPlan,
+} from '@/lib/expenseForm';
 import { captureReceipt, pickReceiptImage, type PickedImage } from '@/lib/image';
 import { recogniseReceipt } from '@/lib/ocr';
 import { matchMemberNames, stripMemberNames } from '@/lib/voiceExpense';
@@ -729,22 +737,22 @@ export default function AddExpenseScreen() {
   };
 
   /**
+   * Carry out a plan from `expenseForm` — the pure half of every payer gesture.
+   * Null means the gesture is a no-op, which is why each of them can be a
+   * single line below.
+   */
+  const run = (plan: PayerPlan | null): void => {
+    if (!plan) return;
+    applyPayers(plan.selected, plan.current, plan.locked, amount, plan.typed);
+  };
+
+  /**
    * Tap a member. In one-payer mode that replaces whoever was there; in
    * several-payer mode it adds or removes them.
    */
   const togglePayer = (memberId: MemberId): void => {
-    if (!manyPayers) {
-      applyPayers([memberId], new Map([[memberId, amount]]), EMPTY_LOCKS, amount);
-      return;
-    }
-    const selected = payers.has(memberId)
-      ? payerIds.filter((id) => id !== memberId)
-      : [...payerIds, memberId];
-    // Never leave a bill nobody paid: the last payer cannot be tapped off, they
-    // have to be replaced by tapping somebody else.
-    if (selected.length === 0) return;
-    const locked = new Set([...effectiveLocks].filter((id) => selected.includes(id)));
-    applyPayers(selected, payers, locked, amount);
+    // Null is the tap that does nothing — the last payer cannot be removed.
+    run(planToggle({ many: manyPayers, payers, locked: effectiveLocks, amount, memberId }));
   };
 
   /**
@@ -754,12 +762,36 @@ export default function AddExpenseScreen() {
    * the largest contributor is the one collapse nobody means.
    */
   const setManyPayers = (many: boolean): void => {
-    setPayerMode(many ? 'many' : 'one');
-    if (many || payers.size <= 1) return;
-    const biggest = payerIds.reduce((best, id) =>
-      (payers.get(id) ?? 0n) > (payers.get(best) ?? 0n) ? id : best,
+    if (many || payers.size <= 1) {
+      setPayerMode(many ? 'many' : 'one');
+      return;
+    }
+    const plan = planCollapseToOne({ payers, amount });
+    if (!plan) return;
+    const keeping = plan.selected[0]!;
+    const member = (members.data ?? []).find((row) => row.id === keeping);
+    const name = member ? displayName(member, profile?.id) : t.misc.someone;
+    // Collapsing is not undoable inside the form: going back to several payers
+    // re-divides evenly, so the figures somebody typed are gone either way. On
+    // a bill that already records several payers those figures are recorded
+    // facts, and this is a text link sitting next to an ordinary one — near
+    // enough to a save button to be worth a question first.
+    Alert.alert(
+      t.expense.collapsePayersTitle,
+      fill(t.expense.collapsePayersBody, { name }),
+      [
+        { text: t.cancel, style: 'cancel' },
+        {
+          text: t.expense.collapsePayersConfirm,
+          style: 'destructive',
+          onPress: () => {
+            setPayerMode('one');
+            run(plan);
+          },
+        },
+      ],
+      { cancelable: true },
     );
-    applyPayers([biggest], new Map([[biggest, amount]]), EMPTY_LOCKS, amount);
   };
 
   // Who may add or remove a bill against this expense: a party to it (its author
@@ -778,18 +810,20 @@ export default function AddExpenseScreen() {
 
   /** A figure typed against one payer. Typing locks it; the others absorb. */
   const setPaidEntry = (memberId: MemberId, text: string): void => {
-    const cleaned = sanitiseMinorInput(text, currency as CurrencyCode);
-    const current = new Map(payers).set(
-      memberId,
-      parseMinorInput(cleaned, currency as CurrencyCode),
+    run(
+      planTypedAmount({
+        payers,
+        locked: effectiveLocks,
+        memberId,
+        text,
+        currency: currency as CurrencyCode,
+      }),
     );
-    const locked = new Set(effectiveLocks).add(memberId);
-    applyPayers([...current.keys()], current, locked, amount, { member: memberId, text: cleaned });
   };
 
   /** Back to an even split of the paying — the way out of any tangle above. */
   const splitPaidEvenly = (): void => {
-    applyPayers(payerIds, payers, EMPTY_LOCKS, amount);
+    run(planEvenly(payers));
   };
 
   // Keep the figures answering to the total. React's "adjust state when the
@@ -960,11 +994,13 @@ export default function AddExpenseScreen() {
         description: description.trim(),
         category,
         categoryMeta,
-        // A capture keeps the day it was caught; an ordinary expense is today's.
-        expenseDate:
-          captureId && captureExpenseDate
-            ? captureExpenseDate
-            : new Date().toISOString().slice(0, 10),
+        // A capture keeps the day it was caught, a saved expense keeps the day
+        // it has, and only a new one is today's (expenseDateFor).
+        expenseDate: expenseDateFor({
+          captureDate: captureId ? captureExpenseDate : null,
+          savedDate: editing?.currentVersion?.expense_date,
+          today: todayIso(),
+        }),
         currency,
         amount: amount.toString(),
         fx,
@@ -1760,6 +1796,12 @@ export default function AddExpenseScreen() {
                               '{amount}',
                               format(money(payers.get(memberId) ?? 0n, currency), { locale }),
                             )}
+                          // What is wrong with the set of figures, on each field
+                          // that can put it right. React Native has no invalid
+                          // accessibility state, so the message itself is the
+                          // hint — otherwise the only announcement of a bill
+                          // that does not add up arrives at the save button.
+                          accessibilityHint={payerMessage ?? undefined}
                           style={{
                             width: 96,
                             minHeight: 44,
@@ -1786,7 +1828,14 @@ export default function AddExpenseScreen() {
               rather than guidance. A single payer always holds the whole bill, so
               there is nothing to report — that row gets the hint instead. */}
             {payerMessage && amount > 0n ? (
-              <Text variant="micro" tone="negative">
+              <Text
+                variant="micro"
+                tone="negative"
+                // Announced as it changes, rather than only when the field it
+                // belongs to happens to be focused.
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+              >
                 {payerMessage}
               </Text>
             ) : null}
